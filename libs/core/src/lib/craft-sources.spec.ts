@@ -15,31 +15,29 @@ describe('craftSources', () => {
     vi.restoreAllMocks();
   });
   it('1- Should expose a way to use local sources', async () => {
-    const appRef = TestBed.inject(ApplicationRef);
+    const { injectCraft } = craft(
+      {
+        name: '',
+        providedIn: 'root',
+      },
+      craftSources({
+        increment: source<{}>(),
+      }),
+      craftState('test', ({ increment }) =>
+        state(signal(0), ({ state, set }) => ({
+          increment: afterRecomputation(increment, () => set(state() + 1)),
+        }))
+      )
+    );
     await TestBed.runInInjectionContext(async () => {
-      const { injectCraft } = craft(
-        {
-          name: '',
-          providedIn: 'root',
-        },
-        craftSources({
-          increment: source<{}>(),
-        }),
-        craftState('test', ({ increment }) =>
-          state(signal(0), ({ state }) => ({
-            increment: afterRecomputation(increment, () => state() + 1),
-          }))
-        )
-      );
-
       const store = injectCraft();
-      appRef.tick();
+      await vi.runAllTimersAsync();
 
       expect(store.test()).toEqual(0);
 
       store.setIncrement({});
 
-      appRef.tick();
+      await vi.runAllTimersAsync();
       expect(store.test()).toEqual(1);
     });
   });
@@ -55,9 +53,9 @@ describe('craftSources', () => {
         increment: source<{}>(),
       }),
       craftState('test', ({ increment }) =>
-        state(signal(0), ({ state }) => ({
+        state(signal(0), ({ state, set }) => ({
           increment: afterRecomputation(increment, () => {
-            return state() + 1;
+            return set(state() + 1);
           }),
         }))
       )

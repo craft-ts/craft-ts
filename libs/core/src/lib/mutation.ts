@@ -746,9 +746,9 @@ export function mutation<
   GroupIdentifier,
   {}
 > {
-  const mutationResourceParamsFnSignal = signal<MutationParams | undefined>(
-    undefined
-  );
+  const mutationResourceParamsFnSignal =
+    //@ts-expect-error if no params, it will create a signal
+    mutationConfig.params ?? signal<MutationParams | undefined>(undefined);
 
   const isConnectedToAResourceById = 'fromResourceById' in mutationConfig;
 

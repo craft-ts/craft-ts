@@ -2,7 +2,14 @@ import { computed, linkedSignal, Signal, signal } from '@angular/core';
 import { state, StateOutput } from './state';
 import { source } from './source';
 import { afterRecomputation } from './after-recomputation';
+import { TestBed } from '@angular/core/testing';
 describe('state', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it('should create a simple state', () => {
     const myState = state(0);
 
@@ -29,7 +36,7 @@ describe('state', () => {
       }),
       ({ state }) => ({
         isOdd: computed(() => state() % 2 === 1),
-      })
+      }),
     );
 
     expect(myState).toBeDefined();
@@ -54,24 +61,33 @@ describe('state', () => {
     expect(myState.isOdd()).toBe(false);
   });
 
-  it('methods can be bind to a source, but not exposed', () => {
-    const sourceSignal = source<number>();
-    const myState = state(0, ({ set }) => ({
-      setValue: afterRecomputation(sourceSignal, (value) => set(value)),
-      reset: () => set(0),
-    }));
+  it('methods can be bind to a source, but not exposed', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const sourceSignal = source<number>({ debugName: 'sourceSignal' });
+      const myState = state(0, ({ set }) => ({
+        setValue: afterRecomputation(sourceSignal, (value) => {
+          console.log('afterRecomputation sourceSignal', value);
+          set(value);
+        }),
+        reset: () => set(0),
+      }));
 
-    expect(myState).toBeDefined();
-    expectTypeOf(myState()).toEqualTypeOf<number>();
-    expect(myState()).toBe(0);
+      expect(myState).toBeDefined();
+      expectTypeOf(myState()).toEqualTypeOf<number>();
+      expect(myState()).toBe(0);
 
-    //@ts-expect-error setValue should not be exposed
-    type ShouldNotBeExposed = (typeof myState)['setValue'];
+      //@ts-expect-error setValue should not be exposed
+      type ShouldNotBeExposed = (typeof myState)['setValue'];
+      await vi.runAllTimersAsync();
 
-    sourceSignal.set(34);
-    expect(myState()).toBe(34);
+      sourceSignal.set(34);
+      await vi.runAllTimersAsync();
+      console.log('post myState()', myState());
+      expect(myState()).toBe(34);
 
-    myState.reset();
-    expect(myState()).toBe(0);
+      myState.reset();
+      await vi.runAllTimersAsync();
+      expect(myState()).toBe(0);
+    });
   });
 });
