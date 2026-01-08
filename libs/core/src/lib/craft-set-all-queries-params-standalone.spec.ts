@@ -105,7 +105,7 @@ describe('craftSetAllQueriesParamsStandalone', () => {
           active: true,
         },
       });
-      //todoR fix
+
       expectTypeOf(queryParamsForUrl).toEqualTypeOf<{
         page: string;
         pageSize: string;

@@ -1,9 +1,10 @@
 import { Expect, Equal } from 'test-type';
-import { inject, InjectionToken, ResourceRef } from '@angular/core';
+import { inject, InjectionToken, ResourceRef, Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { mutation } from './mutation';
 import { craft } from './craft';
 import { craftInputs } from './craft-inputs';
+import { craftMutations } from './craft-mutations';
 
 type User = {
   id: string;
@@ -21,8 +22,8 @@ describe('craftMutation', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutation('updateUser', () =>
-        mutation({
+      craftMutations(() => ({
+        updateUser: mutation({
           method: (id: string) => ({ id }),
           loader: async ({ params }) => {
             return {
@@ -31,13 +32,13 @@ describe('craftMutation', () => {
               email: 'er@d',
             } satisfies User;
           },
-        })
-      )
+        }),
+      }))
     );
     TestBed.runInInjectionContext(() => {
       const store = inject(Craft);
-      expect(store.updateUserMutation).toBeDefined();
-      expect(store.updateUserMutation.hasValue()).toBe(false);
+      expect(store.updateUser).toBeDefined();
+      expect(store.updateUser.hasValue()).toBe(false);
       expect(store.mutateUpdateUser).toBeDefined();
     });
   });
@@ -53,8 +54,8 @@ it('Should expose a method', () => {
       name: '',
       providedIn: 'root',
     },
-    craftMutation('user', () =>
-      mutation({
+    craftMutations(() => ({
+      user: mutation({
         method: (data: { page: string }) => data.page,
         loader: async ({ params }) => {
           return {
@@ -63,34 +64,40 @@ it('Should expose a method', () => {
             email: 'er@d',
           } satisfies User;
         },
-      })
-    )
+      }),
+    }))
   );
 
   type ResultTypeMutation = InferServerStateResult<typeof Craft>;
   type MutationProps = ResultTypeMutation;
 
+  type t = MutationProps['user'];
+
   type ExpectPropsToHaveMutationNameWithResourceRef = Expect<
     Equal<
-      MutationProps['userMutation'],
-      ResourceRef<{
-        id: string;
-        name: string;
-        email: string;
-      }>
+      MutationProps['user']['value'],
+      Signal<
+        | {
+            id: string;
+            name: string;
+            email: string;
+          }
+        | undefined
+      >
     >
   >;
 
   type ExpectPropsToHaveARecordcraftMutationNamecraftMutationState = Expect<
     Equal<
       // paramsSource is tested in another test (I did not find the way to satisfy it here)
-      MutationProps['userMutation'],
-      ResourceRef<
-        NoInfer<{
-          id: string;
-          name: string;
-          email: string;
-        }>
+      MutationProps['user']['value'],
+      Signal<
+        | {
+            id: string;
+            name: string;
+            email: string;
+          }
+        | undefined
       >
     >
   >;
@@ -107,8 +114,8 @@ it('Should expose the mutation resource and mutation method', () => {
         id: '4',
       },
     }),
-    craftMutation('user', (context) =>
-      mutation({
+    craftMutations((context) => ({
+      user: mutation({
         params: context.sourceId,
         loader: async ({ params }) => {
           type ExpectParamsToBeAnObjectWithStringId = Expect<
@@ -120,10 +127,8 @@ it('Should expose the mutation resource and mutation method', () => {
             email: 'er@d',
           } satisfies User;
         },
-      })
-    ),
-    craftMutation('testExposeMutationMethod', () =>
-      mutation({
+      }),
+      testExposeMutationMethod: mutation({
         method: ({ id }: { id: string }) => ({
           id,
         }),
@@ -137,30 +142,31 @@ it('Should expose the mutation resource and mutation method', () => {
             email: 'er@d',
           } satisfies User;
         },
-      })
-    )
+      }),
+    }))
   );
 
   type MutationStoreOutputType = InferServerStateResult<typeof Craft>;
 
   type ExpectMutationStoreOutputTypeToHaveMutationResource = Expect<
     Equal<
-      MutationStoreOutputType['userMutation'],
-      ResourceRef<{
-        id: string;
-        name: string;
-        email: string;
-      }>
+      MutationStoreOutputType['user']['value'],
+      Signal<
+        | {
+            id: string;
+            name: string;
+            email: string;
+          }
+        | undefined
+      >
     >
   >;
   type ExpectMutationStoreOutputTypeToHaveMutationMethod = Expect<
     Equal<
       MutationStoreOutputType['mutateTestExposeMutationMethod'],
-      (
-        payload: NoInfer<{
-          id: string;
-        }>
-      ) => void
+      (args: { id: string }) => {
+        id: string;
+      }
     >
   >;
 });
@@ -171,20 +177,23 @@ it('it should expose the mutation params source, that will be reused by query', 
       name: '',
       providedIn: 'root',
     },
-    craftMutation('updateUser', () =>
-      mutation({
+    craftMutations(() => ({
+      updateUser: mutation({
         method: (user: User) => user,
         loader: async ({ params: user }) => {
           await wait(10);
           return user satisfies User;
         },
-      })
-    )
+      }),
+    }))
   );
 
   type ReturnInternalStoreType = InferServerStateResult<typeof Craft>;
   type ExpectMutationParamsSourceToBeDefined = Expect<
-    Equal<ReturnInternalStoreType['updateUserMutation'], ResourceRef<User>>
+    Equal<
+      ReturnInternalStoreType['updateUser']['value'],
+      Signal<NonNullable<NoInfer<User>> | undefined>
+    >
   >;
 });
 

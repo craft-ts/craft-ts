@@ -78,10 +78,6 @@ export type HasChild<T> = T extends any[]
   ? true
   : false;
 
-type OmitStrict<T, K extends keyof T> = T extends any
-  ? Pick<T, Exclude<keyof T, K>>
-  : never;
-
 /**
  * Negates a boolean type.
  */

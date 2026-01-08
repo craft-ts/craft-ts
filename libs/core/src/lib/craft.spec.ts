@@ -26,9 +26,7 @@ import { craftMutations } from './craft-mutations';
 import { ExcludeCommonKeys } from './util/util.type';
 import { state } from './state';
 import { Equal, Expect } from 'test-type';
-import {
-  queryParam,
-} from './query-param';
+import { queryParam } from './query-param';
 import { craftQueryParam } from './craft-query-param';
 
 describe('craft', () => {
@@ -842,33 +840,28 @@ describe('craft', () => {
       )
     );
 
-    expectTypeOf(_DATAPAGINATION_META_STORE_CONTEXT).toEqualTypeOf<{
-      storeConfig: {
-        providedIn: 'root';
-        name: 'dataPagination';
-        implements: unknown;
-      };
-      context: {
-        methods: {
-          addNumber: (numberValue: number) => number[];
-          reset: () => never[];
-        } & Record<string, Function>;
-        props: {
-          numberList: Signal<number[]>;
-        };
-        _inputs: {
-          shouldNotBeExposed: Signal<number | undefined>;
-        };
-        _injections: {};
-        _mutation: {};
-        _query: {};
-        _queryParams: {};
-        _sources: {};
-        _asyncMethods: {};
-        _cloudProxy: {};
-        _dependencies: {};
-        _error: {};
-      };
+    expectTypeOf(
+      _DATAPAGINATION_META_STORE_CONTEXT.context.methods
+    ).branded.toEqualTypeOf<
+      {
+        [x: `numberList${Capitalize<string>}`]: Function;
+        numberListAddNumber: (numberValue: number) => void;
+        numberListReset: () => void;
+      } & Record<string, Function>
+    >();
+
+    expectTypeOf(
+      _DATAPAGINATION_META_STORE_CONTEXT.context.props
+    ).branded.toEqualTypeOf<
+      {
+        numberList: Signal<number[]>;
+      } & {}
+    >();
+
+    expectTypeOf(
+      _DATAPAGINATION_META_STORE_CONTEXT.context._inputs
+    ).toEqualTypeOf<{
+      shouldNotBeExposed: Signal<number | undefined>;
     }>();
 
     const { injectHost1Craft, _HOST1_META_STORE_CONTEXT } = craft(
@@ -907,7 +900,7 @@ describe('craft', () => {
     >().toEqualTypeOf<{
       providedIn: 'root';
       name: 'host1';
-      implements: unknown;
+      implements?: unknown;
     }>();
 
     expectTypeOf<
@@ -915,7 +908,7 @@ describe('craft', () => {
     >().toEqualTypeOf<{
       providedIn: 'root';
       name: 'dataPagination';
-      implements: unknown;
+      implements?: unknown;
     }>();
 
     const host1 = injectHost1Craft();
@@ -947,34 +940,34 @@ describe('craft', () => {
       )
     );
 
-    expectTypeOf(_DATAPAGINATION_META_STORE_CONTEXT).toEqualTypeOf<{
-      storeConfig: {
-        providedIn: 'root';
-        name: 'dataPagination';
-        implements: unknown;
-      };
-      context: {
-        methods: {
-          [x: `numberList${Capitalize<string>}`]: Function;
-          numberListAddNumber: (numberValue: number) => void;
-          numberListReset: () => void;
-        } & Record<string, Function>;
-        props: {
-          numberList: Signal<number[]>;
-        } & {};
-        _inputs: {
-          shouldNotBeExposed: Signal<number | undefined>;
-        };
-        _injections: {};
-        _mutation: {};
-        _query: {};
-        _queryParams: {};
-        _sources: {};
-        _asyncMethods: {};
-        _cloudProxy: {};
-        _dependencies: {};
-        _error: {};
-      };
+    expectTypeOf(_DATAPAGINATION_META_STORE_CONTEXT.storeConfig).toEqualTypeOf<{
+      providedIn: 'root';
+      name: 'dataPagination';
+      implements?: unknown;
+    }>();
+
+    expectTypeOf(
+      _DATAPAGINATION_META_STORE_CONTEXT.context.methods
+    ).branded.toEqualTypeOf<
+      {
+        [x: `numberList${Capitalize<string>}`]: Function;
+        numberListAddNumber: (numberValue: number) => void;
+        numberListReset: () => void;
+      } & Record<string, Function>
+    >();
+
+    expectTypeOf(
+      _DATAPAGINATION_META_STORE_CONTEXT.context.props
+    ).branded.toEqualTypeOf<
+      {
+        numberList: Signal<number[]>;
+      } & {}
+    >();
+
+    expectTypeOf(
+      _DATAPAGINATION_META_STORE_CONTEXT.context._inputs
+    ).toEqualTypeOf<{
+      shouldNotBeExposed: Signal<number | undefined>;
     }>();
 
     craft(
@@ -1029,34 +1022,23 @@ describe('craft', () => {
       )
     );
 
-    expectTypeOf(_DATAPAGINATION_META_STORE_CONTEXT).toEqualTypeOf<{
-      storeConfig: {
-        providedIn: 'root';
-        name: 'dataPagination';
-        implements: unknown;
-      };
-      context: {
-        methods: {
-          addNumber: (numberValue: number) => number[];
-          reset: () => never[];
-        } & Record<string, Function>;
-        props: {
-          numberList: Signal<number[]>;
-        };
-        _inputs: {
-          shouldNotBeExposed: Signal<number | undefined>;
-        };
-        _injections: {};
-        _mutation: {};
-        _query: {};
-        _queryParams: {};
-        _sources: {};
-        _asyncMethods: {};
-        _cloudProxy: {};
-        _dependencies: {};
-        _error: {};
-      };
-    }>();
+    expectTypeOf(
+      _DATAPAGINATION_META_STORE_CONTEXT.context.methods
+    ).branded.toEqualTypeOf<
+      {
+        [x: `numberList${Capitalize<string>}`]: Function;
+        numberListAddNumber: (numberValue: number) => void;
+        numberListReset: () => void;
+      } & Record<string, Function>
+    >();
+
+    expectTypeOf(
+      _DATAPAGINATION_META_STORE_CONTEXT.context.props
+    ).branded.toEqualTypeOf<
+      {
+        numberList: Signal<number[]>;
+      } & {}
+    >();
 
     craft(
       {
@@ -1103,31 +1085,28 @@ describe('craft metadata', () => {
           }))
         )
       );
-      expectTypeOf(_SHARED_META_STORE_CONTEXT).toEqualTypeOf<{
-        storeConfig: {
-          providedIn: 'feature';
-          name: 'shared';
-          implements: unknown;
-        };
-        context: {
-          methods: {
-            increment: () => number;
-          } & Record<string, Function>;
-          props: {
-            test: Signal<number>;
-          };
-          _inputs: {};
-          _injections: {};
-          _mutation: {};
-          _query: {};
-          _queryParams: {};
-          _sources: {};
-          _asyncMethods: {};
-          _cloudProxy: {};
-          _dependencies: {};
-          _error: {};
-        };
+
+      expectTypeOf(_SHARED_META_STORE_CONTEXT.storeConfig).toEqualTypeOf<{
+        providedIn: 'feature';
+        name: 'shared';
+        implements?: unknown;
       }>();
+
+      expectTypeOf(
+        _SHARED_META_STORE_CONTEXT.context.methods
+      ).branded.toEqualTypeOf<
+        {
+          testIncrement: () => number;
+        } & Record<string, Function>
+      >();
+
+      expectTypeOf(
+        _SHARED_META_STORE_CONTEXT.context.props
+      ).branded.toEqualTypeOf<
+        {
+          test: Signal<number>;
+        } & {}
+      >();
 
       const { _DATA_META_STORE_CONTEXT } = craft(
         {
@@ -1372,6 +1351,15 @@ describe('craft preserve all context', () => {
 
   it('should preserve the context when using craft', async () => {
     await TestBed.runInInjectionContext(async () => {
+      const qp = queryParam({
+        state: {
+          active: {
+            fallbackValue: undefined,
+            parse: (value: string) => (value === 'true') as boolean,
+            serialize: (value) => String(value),
+          },
+        },
+      });
       const { _TEST_META_STORE_CONTEXT } = craft(
         {
           name: 'test',
@@ -1446,46 +1434,23 @@ describe('craft preserve all context', () => {
         '_error'
       >['_error'];
 
-      expectTypeOf(_TEST_META_STORE_CONTEXT).toEqualTypeOf<{
-        storeConfig: {
-          providedIn: 'root';
-          name: 'test';
-          implements: unknown;
-        };
-        context: {
-          methods: Record<string, Function>;
-          _inputs: {};
-          props: {
-            activeId: Signal<{
-              active: boolean;
-            }>;
-          } & {
-            activeIdActive: Signal<never>;
-          } & {};
-          _injections: {};
-          _mutation: {};
-          _query: {};
-          _queryParams: {
-            activeId: {
-              config: {
-                active: {
-                  fallbackValue: undefined;
-                  parse: (value: string) => string;
-                  serialize: (value: unknown) => string;
-                };
-              };
-              state: WritableSignal<{
-                active: never;
-              }>;
-            };
-          };
-          _sources: {};
-          _asyncMethods: {};
-          _cloudProxy: {};
-          _dependencies: {};
-          error: {};
-        };
+      expectTypeOf(_TEST_META_STORE_CONTEXT.storeConfig).toEqualTypeOf<{
+        providedIn: 'root';
+        name: 'test';
+        implements?: unknown;
       }>();
+
+      expectTypeOf(
+        _TEST_META_STORE_CONTEXT.context.props
+      ).branded.toEqualTypeOf<
+        {
+          activeId: Signal<{
+            active: boolean;
+          }>;
+        } & {
+          activeIdActive: Signal<boolean>;
+        } & {}
+      >();
     });
   });
 

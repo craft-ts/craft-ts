@@ -24,9 +24,11 @@ export interface QueryParamNavigationOptions {
 }
 
 export type QueryParamsToState<QueryParamConfigs> = {
-  [K in keyof QueryParamConfigs]: ReturnType<
-    QueryParamConfigs[K] extends QueryParamConfig<infer U> ? () => U : never
-  >;
+  [K in keyof QueryParamConfigs]: 'parse' extends keyof QueryParamConfigs[K]
+    ? QueryParamConfigs[K]['parse'] extends (value: string) => infer U
+      ? U
+      : 'Error1: QueryParamsToState'
+    : 'Error2: QueryParamsToState';
 };
 
 export type QueryParamOutput<QueryParamsType, Insertions, QueryParamsState> =
@@ -132,9 +134,7 @@ export function queryParam<
   QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>
 >(
-  config: {
-    state: QueryParamsType;
-  } & QueryParamNavigationOptions
+  config: { state: QueryParamsType } & QueryParamNavigationOptions
 ): QueryParamOutput<QueryParamsType, {}, QueryParamsState>;
 export function queryParam<
   QueryParamsType extends Record<string, QueryParamConfig<unknown>>,

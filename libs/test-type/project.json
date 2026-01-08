@@ -1,0 +1,19 @@
+{
+  "name": "test-type",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/test-type/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/test-type",
+        "main": "libs/test-type/src/index.ts",
+        "tsConfig": "libs/test-type/tsconfig.lib.json",
+        "assets": ["libs/test-type/*.md"]
+      }
+    }
+  }
+}

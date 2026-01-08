@@ -4,12 +4,11 @@ import { Expect, Equal } from 'test-type';
 import { inject, InjectionToken } from '@angular/core';
 import { vi } from 'vitest';
 import { craft } from './craft';
-import { craftMutationById } from './craft-mutation-by-id';
-import { mutationById } from '../mutation-by-id';
-import { ResourceByIdRef } from '../resource-by-id';
-import { craftQueryById } from './craft-query-by-id';
-import { queryById } from '../query-by-id';
-import { MergeObject } from '../types/util.type';
+import { craftMutations } from './craft-mutations';
+import { mutation } from './mutation';
+import { craftQuery } from './craft-query';
+import { query, QueryOutput } from './query';
+import { ResourceByIdRef } from './resource-by-id';
 
 type User = {
   id: string;
@@ -35,28 +34,28 @@ describe('craftMutationById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutationById('user', () =>
-        mutationById({
+      craftMutations(() => ({
+        user: mutation({
           params: () => '5',
+          identifier: (params) => params,
           loader: ({ params }) => {
             return lastValueFrom(of<User>(returnedUser));
           },
-          identifier: (params) => params,
-        })
-      )
+        }),
+      }))
     );
 
     await TestBed.runInInjectionContext(async () => {
       const store = TestBed.inject(Craft);
 
-      expect(store.userMutationById).toBeDefined();
+      expect(store.user).toBeDefined();
 
       await vi.runAllTimersAsync();
-      expect(store.userMutationById()['5']?.value()).toBe(returnedUser);
+      expect(store.user.select('5')?.value()).toBe(returnedUser);
 
       type ExpectUserQueryToBeAnObjectWithResourceByIdentifier = Expect<
         Equal<
-          typeof store.userMutationById,
+          typeof store.user._resourceById,
           ResourceByIdRef<string, NoInfer<User>, string>
         >
       >;
@@ -74,19 +73,19 @@ describe('craftMutationById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutationById('user', () =>
-        mutationById({
+      craftMutations(() => ({
+        user: mutation({
           method: (user: User) => user,
           loader: ({ params: user }) => {
             return lastValueFrom(of(user));
           },
           identifier: ({ id }) => id,
-        })
-      )
+        }),
+      }))
     );
     await TestBed.runInInjectionContext(async () => {
       const c = injectCraft();
-      c.mutateUserById({
+      c.mutateUser({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
@@ -95,31 +94,31 @@ describe('craftMutationById', () => {
 
       await vi.runAllTimersAsync();
 
-      store.mutateUserById({
+      store.mutateUser({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
       });
-      store.mutateUserById({
+      store.mutateUser({
         id: '6',
         name: 'Updated User',
         email: 'updated.doe@example.com',
       });
-      store.mutateUserById({
+      store.mutateUser({
         id: '7',
         name: 'Updated User',
         email: 'updated.doe@example.com',
       });
-      store.mutateUserById({
+      store.mutateUser({
         id: '8',
         name: 'Updated User',
         email: 'updated.doe@example.com',
       });
       await vi.runAllTimersAsync();
-      expect(store.userMutationById()['5']?.status()).toEqual('resolved');
-      expect(store.userMutationById()['6']?.status()).toEqual('resolved');
-      expect(store.userMutationById()['7']?.status()).toEqual('resolved');
-      expect(store.userMutationById()['8']?.status()).toEqual('resolved');
+      expect(store.user.select('5')?.status()).toEqual('resolved');
+      expect(store.user.select('6')?.status()).toEqual('resolved');
+      expect(store.user.select('7')?.status()).toEqual('resolved');
+      expect(store.user.select('8')?.status()).toEqual('resolved');
     });
   });
 
@@ -138,8 +137,8 @@ describe('craftMutationById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftQueryById('user', () =>
-        queryById({
+      craftQuery('user', () =>
+        query({
           params: () => '5',
           loader: ({ params }) => {
             return lastValueFrom(of<User>(returnedUser).pipe(delay(10)));
@@ -155,9 +154,13 @@ describe('craftMutationById', () => {
       Equal<
         StoreFeatureQueryType,
         {
-          userQueryById: MergeObject<
-            ResourceByIdRef<string, NoInfer<User>, string>,
-            unknown
+          user: QueryOutput<
+            NoInfer<User>,
+            string,
+            unknown,
+            unknown,
+            string,
+            {}
           >;
         }
       >

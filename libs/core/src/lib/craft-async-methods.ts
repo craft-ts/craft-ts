@@ -36,7 +36,7 @@ type SpecificCraftAsyncMethodsOutputs<AsyncMethods extends {}> =
 type CraftAsyncMethodsOutputs<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
-  AsyncMethods extends {}
+  AsyncMethods extends {},
 > = CraftFactoryUtility<
   Context,
   StoreConfig,
@@ -51,7 +51,7 @@ export type AsyncMethodRef<
   Insertions,
   IsMethod,
   SourceParams,
-  GroupIdentifier
+  GroupIdentifier,
 > = MergeObjects<
   [
     [unknown] extends [GroupIdentifier]
@@ -73,11 +73,11 @@ export type AsyncMethodRef<
         },
     [unknown] extends [GroupIdentifier]
       ? {}
-      : ResourceByIdRef<GroupIdentifier & string, Value, ArgParams> & {
+      : ResourceByIdRef<GroupIdentifier & string, Value, Params> & {
           _resourceById: ResourceByIdRef<
             GroupIdentifier & string,
             Value,
-            ArgParams
+            Params
           >;
           /**
            * Get the associated resource by id
@@ -95,20 +95,20 @@ export type AsyncMethodRef<
                 hasValue(): boolean;
               }
             | undefined;
-        }
+        },
   ]
 >;
 
 export function craftAsyncMethods<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
-  AsyncMethods extends {}
+  AsyncMethods extends {},
 >(
-  asyncMethodsFactory: (context: CraftFactoryEntries<Context>) => AsyncMethods
+  asyncMethodsFactory: (context: CraftFactoryEntries<Context>) => AsyncMethods,
 ): CraftAsyncMethodsOutputs<Context, StoreConfig, AsyncMethods> {
   return (_cloudProxy) => (contextData) => {
     const asyncMethods = asyncMethodsFactory(
-      craftFactoryEntries(contextData)
+      craftFactoryEntries(contextData),
     ) as Record<
       string,
       AsyncMethodRef<
@@ -156,7 +156,7 @@ export function craftAsyncMethods<
           >
         >;
         methods: Record<string, Function>;
-      }
+      },
     );
 
     return partialContext({

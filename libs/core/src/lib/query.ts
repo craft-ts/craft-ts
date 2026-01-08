@@ -190,8 +190,8 @@ export type QueryRef<
 
 export type QueryOutput<
   State extends object | undefined,
-  ArgParams,
   Params,
+  ArgParams,
   SourceParams,
   GroupIdentifier,
   Insertions

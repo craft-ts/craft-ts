@@ -67,7 +67,7 @@ describe('craftMutationById', () => {
       expect(store.userById._resourceById).toBeDefined();
 
       expectTypeOf(store.userById._resourceById).toEqualTypeOf<
-        ResourceByIdRef<string, User, unknown>
+        ResourceByIdRef<string, User, string>
       >();
 
       await vi.runAllTimersAsync();

@@ -1,8 +1,21 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2022", "dom"],
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "customConditions": ["@ng-craft/source"],
+    "paths": {
+      "test-type": ["../../libs/test-type/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"]
 }

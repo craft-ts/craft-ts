@@ -1,16 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { Expect, Equal } from 'test-type';
-import { inject, InjectionToken } from '@angular/core';
-import { vi } from 'vitest';
-import { queryById } from '../query-by-id';
-import { craftQueryById } from './craft-query-by-id';
+import { computed, effect, inject, InjectionToken } from '@angular/core';
+import { Mock, vi } from 'vitest';
+import { query, QueryOutput } from './query';
 import { craft } from './craft';
-import { MergeObject } from '../types/util.type';
-import { ResourceByIdRef } from '../resource-by-id';
-import { craftMutation } from './craft-mutation';
-import { mutation } from '../mutation';
-import { craftMutationById } from './craft-mutation-by-id';
-import { mutationById } from '../mutation-by-id';
+import { craftQuery } from './craft-query';
+import { craftMutations } from './craft-mutations';
+import { mutation } from './mutation';
+import { ResourceByIdRef } from './resource-by-id';
 
 type User = {
   id: string;
@@ -18,7 +15,7 @@ type User = {
   email: string;
 };
 
-describe('queryById', () => {
+describe('parallel queries', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -27,7 +24,7 @@ describe('queryById', () => {
   });
   it('Retrieve returned types of queryByIdFn', () => {
     TestBed.runInInjectionContext(() => {
-      const queryByIdFn = queryById({
+      const queryByIdFn = query({
         params: () => '5',
         loader: async ({ params }) => {
           return {
@@ -38,28 +35,28 @@ describe('queryById', () => {
         },
         identifier: (params) => params,
       });
-      type queryByIdFn__types = (typeof queryByIdFn)['__types'];
 
       type ExpectQueryByFnTypesToBeRetrieved = Expect<
         Equal<
-          queryByIdFn__types,
-          {
-            state: NoInfer<{
+          typeof queryByIdFn,
+          QueryOutput<
+            {
               id: string;
               name: string;
               email: string;
-            }>;
-            params: string;
-            args: unknown;
-            isGroupedResource: true;
-            groupIdentifier: string;
-          }
+            },
+            string,
+            unknown,
+            unknown,
+            string,
+            {}
+          >
         >
       >;
     });
   });
 });
-describe('craftQueryById', () => {
+describe('craftQuery', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -77,8 +74,8 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftQueryById('user', () =>
-        queryById({
+      craftQuery('user', () =>
+        query({
           params: () => '5',
           loader: async ({ params }) => {
             return returnedUser;
@@ -90,25 +87,25 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
 
-      expect(store.userQueryById).toBeDefined();
+      expect(store.user).toBeDefined();
 
       await vi.runAllTimersAsync();
-      expect(store.userQueryById()['5']?.value()).toBe(returnedUser);
+      expect(store.user.select('5')?.value()).toBe(returnedUser);
 
       type ExpectUserQueryToBeAnObjectWithResourceByIdentifier = Expect<
         Equal<
-          typeof store.userQueryById,
-          MergeObject<
-            ResourceByIdRef<
-              string,
-              NoInfer<{
-                id: string;
-                name: string;
-                email: string;
-              }>,
-              string
-            >,
-            unknown
+          typeof store.user,
+          QueryOutput<
+            NoInfer<{
+              id: string;
+              name: string;
+              email: string;
+            }>,
+            string,
+            unknown,
+            unknown,
+            string,
+            {}
           >
         >
       >;
@@ -126,20 +123,20 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutation('user', () =>
-        mutation({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
           async loader({ params }) {
             return params;
           },
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
+          query({
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
@@ -160,7 +157,7 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -188,20 +185,20 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutation('user', () =>
-        mutation({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
           async loader({ params }) {
             return params;
           },
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
+          query({
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
@@ -224,7 +221,7 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -247,13 +244,14 @@ describe('craftQueryById', () => {
       name: 'John Doe',
       email: 'test@a.com',
     };
+    let userQuery5ReloadSpy: Mock<() => boolean>;
     const { Craft } = craft(
       {
         name: '',
         providedIn: 'root',
       },
-      craftMutation('user', () =>
-        mutation({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
@@ -261,18 +259,31 @@ describe('craftQueryById', () => {
             await wait(10);
             return params;
           },
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
-            params: () => '5',
-            loader: async ({ params }) => {
-              return returnedUser;
+          query(
+            {
+              params: () => '5',
+              identifier: (params) => params,
+              loader: async ({ params }) => {
+                return returnedUser;
+              },
             },
-            identifier: (params) => params,
-          }),
+            ({ resourceById }) => {
+              const userQuery5 = computed(() => resourceById()['5']);
+              effect(() => {
+                const userResource5 = userQuery5();
+                if (!userResource5) {
+                  return;
+                }
+                userQuery5ReloadSpy = vi.spyOn(userResource5, 'reload');
+              });
+              return {};
+            }
+          ),
         {
           on: {
             userMutation: {
@@ -290,9 +301,9 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
-      const userQuery5ReloadSpy = vi.spyOn(userQuery5!, 'reload');
+
       store.mutateUser({
         id: '5',
         name: 'Updated User',
@@ -311,13 +322,14 @@ describe('craftQueryById', () => {
       name: 'John Doe',
       email: 'test@a.com',
     };
+    let userQuery5ReloadSpy: Mock<() => boolean>;
     const { Craft } = craft(
       {
         name: '',
         providedIn: 'root',
       },
-      craftMutationById('user', () =>
-        mutationById({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
@@ -326,21 +338,34 @@ describe('craftQueryById', () => {
             await wait(10);
             return params;
           },
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
-            params: () => '5',
-            loader: async ({ params }) => {
-              return returnedUser;
+          query(
+            {
+              params: () => '5',
+              loader: async ({ params }) => {
+                return returnedUser;
+              },
+              identifier: (params) => params,
             },
-            identifier: (params) => params,
-          }),
+            ({ resourceById }) => {
+              const userQuery5 = computed(() => resourceById()['5']);
+              effect(() => {
+                const userResource5 = userQuery5();
+                if (!userResource5) {
+                  return;
+                }
+                userQuery5ReloadSpy = vi.spyOn(userResource5, 'reload');
+              });
+              return {};
+            }
+          ),
         {
           on: {
-            userMutationById: {
+            userMutation: {
               filter: ({ queryIdentifier, mutationIdentifier }) =>
                 queryIdentifier === mutationIdentifier,
               reload: {
@@ -355,12 +380,12 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       await vi.runAllTimersAsync();
 
       expect(userQuery5?.value()).toBe(returnedUser);
-      const userQuery5ReloadSpy = vi.spyOn(userQuery5!, 'reload');
-      store.mutateUserById({
+
+      store.mutateUser({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
@@ -383,8 +408,8 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutationById('user', () =>
-        mutationById({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
@@ -392,12 +417,12 @@ describe('craftQueryById', () => {
             return params;
           },
           identifier: (params) => params.id,
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
+          query({
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
@@ -406,7 +431,7 @@ describe('craftQueryById', () => {
           }),
         {
           on: {
-            userMutationById: {
+            userMutation: {
               optimisticUpdate: ({ mutationParams }) => mutationParams,
               filter: ({ mutationParams, queryIdentifier }) =>
                 mutationParams.id === queryIdentifier,
@@ -418,10 +443,10 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
-      store.mutateUserById({
+      store.mutateUser({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
@@ -446,8 +471,8 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutationById('user', () =>
-        mutationById({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
@@ -455,12 +480,12 @@ describe('craftQueryById', () => {
             return params;
           },
           identifier: (params) => params.id,
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
+          query({
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
@@ -469,7 +494,7 @@ describe('craftQueryById', () => {
           }),
         {
           on: {
-            userMutationById: {
+            userMutation: {
               optimisticPatch: {
                 name: ({ mutationParams }) => mutationParams.name,
               },
@@ -483,10 +508,10 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
-      store.mutateUserById({
+      store.mutateUser({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
@@ -510,8 +535,8 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutationById('user', () =>
-        mutationById({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
@@ -519,12 +544,12 @@ describe('craftQueryById', () => {
             return params;
           },
           identifier: (params) => params.id,
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
+          query({
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
@@ -533,7 +558,7 @@ describe('craftQueryById', () => {
           }),
         {
           on: {
-            userMutationById: {
+            userMutation: {
               patch: {
                 name: ({ mutationParams }) => mutationParams.name,
               },
@@ -547,10 +572,10 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
-      store.mutateUserById({
+      store.mutateUser({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
@@ -574,8 +599,8 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutationById('user', () =>
-        mutationById({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
@@ -583,12 +608,12 @@ describe('craftQueryById', () => {
             return params;
           },
           identifier: (params) => params.id,
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
+          query({
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
@@ -597,7 +622,7 @@ describe('craftQueryById', () => {
           }),
         {
           on: {
-            userMutationById: {
+            userMutation: {
               update: ({ mutationParams }) => mutationParams,
               filter: ({ mutationParams, queryIdentifier }) =>
                 mutationParams.id === queryIdentifier,
@@ -609,10 +634,10 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
-      store.mutateUserById({
+      store.mutateUser({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
@@ -637,20 +662,20 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutation('user', () =>
-        mutation({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
           async loader({ params }) {
             return params;
           },
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
+          query({
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
@@ -671,7 +696,7 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -699,20 +724,20 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftMutation('user', () =>
-        mutation({
+      craftMutations(() => ({
+        user: mutation({
           method(user: User) {
             return user;
           },
           async loader({ params }) {
             return params;
           },
-        })
-      ),
-      craftQueryById(
+        }),
+      })),
+      craftQuery(
         'user',
         () =>
-          queryById({
+          query({
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
@@ -735,7 +760,7 @@ describe('craftQueryById', () => {
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.userQueryById()['5'];
+      const userQuery5 = store.user.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -767,12 +792,12 @@ describe('craftQueryById', () => {
         name: '',
         providedIn: 'root',
       },
-      craftQueryById(
+      craftQuery(
         'user',
         () =>
-          queryById({
+          query({
             params: () => '5',
-            loader: async ({ params }) => {
+            loader: async () => {
               await wait(10);
               return returnedUser;
             },
@@ -786,18 +811,15 @@ describe('craftQueryById', () => {
 
     type ExpectStoreFeatureQueryTypeToBeFullyRetrieved = Expect<
       Equal<
-        StoreFeatureQueryType['userQueryById'],
-        MergeObject<
-          ResourceByIdRef<
-            string,
-            NoInfer<{
-              id: string;
-              name: string;
-              email: string;
-            }>,
-            string
-          >,
-          unknown
+        StoreFeatureQueryType['user']['_resourceById'],
+        ResourceByIdRef<
+          string,
+          NoInfer<{
+            id: string;
+            name: string;
+            email: string;
+          }>,
+          string
         >
       >
     >;

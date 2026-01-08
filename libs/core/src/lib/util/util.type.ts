@@ -116,8 +116,11 @@ export type HasKeys<T> = T extends object
     ? false
     : true
   : false;
+type _FlatRecord<T> = T[keyof T] extends infer U
+  ? { [K in keyof U]: U[K] }
+  : never;
 
-export type FlatRecord<T> = T[keyof T];
+export type FlatRecord<T> = Prettify<UnionToIntersection<_FlatRecord<T>>>;
 
 // It is not possible to get all the properties key of an optional object, so make the optional properties required
 export type MakeOptionalPropertiesRequired<
@@ -196,7 +199,7 @@ export type HasChild<T> = T extends any[]
   ? true
   : false;
 
-type OmitStrict<T, K extends keyof T> = T extends any
+export type OmitStrict<T, K extends keyof T> = T extends any
   ? Pick<T, Exclude<keyof T, K>>
   : never;
 

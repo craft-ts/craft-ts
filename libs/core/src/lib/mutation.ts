@@ -168,6 +168,68 @@ type MutationConfig<
             stream?: never;
             preservePreviousValue?: () => boolean;
           }
+        | {
+            fromResourceById?: never;
+            /**
+             * A reactive function which determines the request to be made. Whenever the request changes, the
+             * loader will be triggered to fetch a new value for the resource.
+             *
+             * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
+             */
+            params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
+            loader?: never;
+            method?: never;
+            identifier?: (
+              params: NoInfer<NonNullable<Params>>
+            ) => GroupIdentifier;
+            /**
+             * Loading function which returns a `Promise` of a signal of the resource's value for a given
+             * request, which can change over time as new values are received from a stream.
+             */
+            stream: ResourceStreamingLoader<
+              ResourceState,
+              ResourceLoaderParams<
+                NonNullable<
+                  [unknown] extends [Params]
+                    ? NoInfer<SourceParams>
+                    : NoInfer<Params>
+                >
+              >
+            >;
+            preservePreviousValue?: () => boolean;
+          }
+        | {
+            /**
+             * Use it, when you need to bind a ResourceByIdRef to another ResourceByIdRef.
+             * It will enforce the fromObject keys syncing when the fromObject resource change.
+             */
+            fromResourceById?: never;
+            /**
+             * A reactive function which determines the request to be made. Whenever the request changes, the
+             * loader will be triggered to fetch a new value for the resource.
+             *
+             * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
+             */
+            params: () => Params;
+            /**
+             * A unique identifier for the resource, derived from the params.
+             * It should be a string that uniquely identifies the resource based on the params.
+             */
+            identifier?: (
+              params: NoInfer<NonNullable<Params>>
+            ) => GroupIdentifier;
+            loader: (
+              param: ResourceLoaderParams<
+                NonNullable<
+                  [unknown] extends [Params]
+                    ? NoInfer<SourceParams>
+                    : NoInfer<Params>
+                >
+              >
+            ) => Promise<ResourceState>;
+            stream?: never;
+            preservePreviousValue?: () => boolean;
+          }
       );
 
 export type MutationRef<
@@ -750,7 +812,10 @@ export function mutation<
         ('method' in mutationConfig && isSignal(mutationConfig.method))
           ? undefined
           : (arg: MutationArgsParams) => {
-              const result = mutationConfig.method(arg);
+              const result =
+                'method' in mutationConfig
+                  ? mutationConfig.method?.(arg)
+                  : undefined;
               if (isUsingIdentifier) {
                 const id = mutationConfig.identifier?.(arg as any);
                 (
