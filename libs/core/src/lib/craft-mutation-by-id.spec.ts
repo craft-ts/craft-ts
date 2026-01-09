@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { delay, lastValueFrom, of } from 'rxjs';
 import { Expect, Equal } from 'test-type';
 import { inject, InjectionToken } from '@angular/core';
 import { vi } from 'vitest';
@@ -38,8 +37,8 @@ describe('craftMutationById', () => {
         user: mutation({
           params: () => '5',
           identifier: (params) => params,
-          loader: ({ params }) => {
-            return lastValueFrom(of<User>(returnedUser));
+          loader: async ({ params }) => {
+            return returnedUser as User;
           },
         }),
       }))
@@ -76,8 +75,8 @@ describe('craftMutationById', () => {
       craftMutations(() => ({
         user: mutation({
           method: (user: User) => user,
-          loader: ({ params: user }) => {
-            return lastValueFrom(of(user));
+          loader: async ({ params: user }) => {
+            return user;
           },
           identifier: ({ id }) => id,
         }),
@@ -140,8 +139,9 @@ describe('craftMutationById', () => {
       craftQuery('user', () =>
         query({
           params: () => '5',
-          loader: ({ params }) => {
-            return lastValueFrom(of<User>(returnedUser).pipe(delay(10)));
+          loader: async ({ params }) => {
+            await wait(10);
+            return returnedUser as User;
           },
           identifier: (params) => params,
         })
@@ -167,3 +167,7 @@ describe('craftMutationById', () => {
     >;
   });
 });
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

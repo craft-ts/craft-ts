@@ -8,13 +8,7 @@ import {
   PartialContext,
 } from './craft';
 import { mutation } from './mutation';
-import {
-  inject,
-  linkedSignal,
-  Signal,
-  signal,
-  WritableSignal,
-} from '@angular/core';
+import { inject, linkedSignal, Signal, signal } from '@angular/core';
 import { craftInputs } from './craft-inputs';
 import { craftState } from './craft-state';
 import { source } from './source';
@@ -28,6 +22,7 @@ import { state } from './state';
 import { Equal, Expect } from 'test-type';
 import { queryParam } from './query-param';
 import { craftQueryParam } from './craft-query-param';
+import { provideRouter } from '@angular/router';
 
 describe('craft', () => {
   beforeEach(() => {
@@ -364,6 +359,9 @@ describe('craft', () => {
     });
   });
   it('should enable to plug a store to another store. Standalone outputs should be transmitted. Inputs that are not bind should be transmitted', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([])],
+    });
     await TestBed.runInInjectionContext(async () => {
       const { craftStore1 } = craft(
         {
@@ -809,13 +807,15 @@ describe('craft', () => {
         },
       }))
     );
-    const host1 = injectHost1Craft();
-    // 👇 no error, because shouldNotBeExposed is not propagated
-    const host2 = injectHost2Craft();
+    TestBed.runInInjectionContext(() => {
+      const host1 = injectHost1Craft();
+      // 👇 no error, because shouldNotBeExposed is not propagated
+      const host2 = injectHost2Craft();
 
-    host1.numberListAddNumber(2);
-    expect(host1.numberList()).toEqual([1, 2]);
-    expect(host2.numberList()).toEqual([1, 2]);
+      host1.numberListAddNumber(2);
+      expect(host1.numberList()).toEqual([1, 2]);
+      expect(host2.numberList()).toEqual([1, 2]);
+    });
   });
 
   it('should enable to plug global store to another. It is possible to not propagate the non set inputs (because, they can come from another place)', async () => {
@@ -840,9 +840,9 @@ describe('craft', () => {
       )
     );
 
-    expectTypeOf(
-      _DATAPAGINATION_META_STORE_CONTEXT.context.methods
-    ).branded.toEqualTypeOf<
+    expectTypeOf<
+      (typeof _DATAPAGINATION_META_STORE_CONTEXT)['context']['methods']
+    >().branded.toEqualTypeOf<
       {
         [x: `numberList${Capitalize<string>}`]: Function;
         numberListAddNumber: (numberValue: number) => void;
@@ -850,17 +850,17 @@ describe('craft', () => {
       } & Record<string, Function>
     >();
 
-    expectTypeOf(
-      _DATAPAGINATION_META_STORE_CONTEXT.context.props
-    ).branded.toEqualTypeOf<
+    expectTypeOf<
+      (typeof _DATAPAGINATION_META_STORE_CONTEXT)['context']['props']
+    >().branded.toEqualTypeOf<
       {
         numberList: Signal<number[]>;
       } & {}
     >();
 
-    expectTypeOf(
-      _DATAPAGINATION_META_STORE_CONTEXT.context._inputs
-    ).toEqualTypeOf<{
+    expectTypeOf<
+      (typeof _DATAPAGINATION_META_STORE_CONTEXT)['context']['_inputs']
+    >().toEqualTypeOf<{
       shouldNotBeExposed: Signal<number | undefined>;
     }>();
 
@@ -911,11 +911,13 @@ describe('craft', () => {
       implements?: unknown;
     }>();
 
-    const host1 = injectHost1Craft();
+    TestBed.runInInjectionContext(() => {
+      const host1 = injectHost1Craft();
 
-    host1.numberListAddNumber(2);
-    host1.setReset({});
-    expect(host1.numberList()).toEqual([1, 2]);
+      host1.numberListAddNumber(2);
+      host1.setReset({});
+      expect(host1.numberList()).toEqual([1, 2]);
+    });
   });
 
   it('Typing: should add errorMethodMsg property  with the message You are trying to add methods that are not defined in the connected store..., If the connected methods name does not match', async () => {
@@ -940,15 +942,17 @@ describe('craft', () => {
       )
     );
 
-    expectTypeOf(_DATAPAGINATION_META_STORE_CONTEXT.storeConfig).toEqualTypeOf<{
+    expectTypeOf<
+      (typeof _DATAPAGINATION_META_STORE_CONTEXT)['storeConfig']
+    >().toEqualTypeOf<{
       providedIn: 'root';
       name: 'dataPagination';
       implements?: unknown;
     }>();
 
-    expectTypeOf(
-      _DATAPAGINATION_META_STORE_CONTEXT.context.methods
-    ).branded.toEqualTypeOf<
+    expectTypeOf<
+      (typeof _DATAPAGINATION_META_STORE_CONTEXT)['context']['methods']
+    >().branded.toEqualTypeOf<
       {
         [x: `numberList${Capitalize<string>}`]: Function;
         numberListAddNumber: (numberValue: number) => void;
@@ -956,17 +960,17 @@ describe('craft', () => {
       } & Record<string, Function>
     >();
 
-    expectTypeOf(
-      _DATAPAGINATION_META_STORE_CONTEXT.context.props
-    ).branded.toEqualTypeOf<
+    expectTypeOf<
+      (typeof _DATAPAGINATION_META_STORE_CONTEXT)['context']['props']
+    >().branded.toEqualTypeOf<
       {
         numberList: Signal<number[]>;
       } & {}
     >();
 
-    expectTypeOf(
-      _DATAPAGINATION_META_STORE_CONTEXT.context._inputs
-    ).toEqualTypeOf<{
+    expectTypeOf<
+      (typeof _DATAPAGINATION_META_STORE_CONTEXT)['context']['_inputs']
+    >().toEqualTypeOf<{
       shouldNotBeExposed: Signal<number | undefined>;
     }>();
 
@@ -1022,9 +1026,9 @@ describe('craft', () => {
       )
     );
 
-    expectTypeOf(
-      _DATAPAGINATION_META_STORE_CONTEXT.context.methods
-    ).branded.toEqualTypeOf<
+    expectTypeOf<
+      (typeof _DATAPAGINATION_META_STORE_CONTEXT)['context']['methods']
+    >().branded.toEqualTypeOf<
       {
         [x: `numberList${Capitalize<string>}`]: Function;
         numberListAddNumber: (numberValue: number) => void;
@@ -1032,9 +1036,9 @@ describe('craft', () => {
       } & Record<string, Function>
     >();
 
-    expectTypeOf(
-      _DATAPAGINATION_META_STORE_CONTEXT.context.props
-    ).branded.toEqualTypeOf<
+    expectTypeOf<
+      (typeof _DATAPAGINATION_META_STORE_CONTEXT)['context']['props']
+    >().branded.toEqualTypeOf<
       {
         numberList: Signal<number[]>;
       } & {}
@@ -1086,23 +1090,25 @@ describe('craft metadata', () => {
         )
       );
 
-      expectTypeOf(_SHARED_META_STORE_CONTEXT.storeConfig).toEqualTypeOf<{
+      expectTypeOf<
+        (typeof _SHARED_META_STORE_CONTEXT)['storeConfig']
+      >().toEqualTypeOf<{
         providedIn: 'feature';
         name: 'shared';
         implements?: unknown;
       }>();
 
-      expectTypeOf(
-        _SHARED_META_STORE_CONTEXT.context.methods
-      ).branded.toEqualTypeOf<
+      expectTypeOf<
+        (typeof _SHARED_META_STORE_CONTEXT)['context']['methods']
+      >().branded.toEqualTypeOf<
         {
           testIncrement: () => number;
         } & Record<string, Function>
       >();
 
-      expectTypeOf(
-        _SHARED_META_STORE_CONTEXT.context.props
-      ).branded.toEqualTypeOf<
+      expectTypeOf<
+        (typeof _SHARED_META_STORE_CONTEXT)['context']['props']
+      >().branded.toEqualTypeOf<
         {
           test: Signal<number>;
         } & {}
@@ -1115,9 +1121,9 @@ describe('craft metadata', () => {
         },
         craftShared()
       );
-      expectTypeOf(
-        _DATA_META_STORE_CONTEXT['context']['_dependencies']['shared']
-      ).toEqualTypeOf(_SHARED_META_STORE_CONTEXT);
+      expectTypeOf<
+        (typeof _DATA_META_STORE_CONTEXT)['context']['_dependencies']['shared']
+      >().toEqualTypeOf<typeof _SHARED_META_STORE_CONTEXT>();
     });
   });
 });
@@ -1350,16 +1356,10 @@ describe('craft preserve all context', () => {
   });
 
   it('should preserve the context when using craft', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([])],
+    });
     await TestBed.runInInjectionContext(async () => {
-      const qp = queryParam({
-        state: {
-          active: {
-            fallbackValue: undefined,
-            parse: (value: string) => (value === 'true') as boolean,
-            serialize: (value) => String(value),
-          },
-        },
-      });
       const { _TEST_META_STORE_CONTEXT } = craft(
         {
           name: 'test',
@@ -1385,64 +1385,17 @@ describe('craft preserve all context', () => {
         }
       );
 
-      type methods = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        'methods'
-      >['methods'];
-      type _inputs = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_inputs'
-      >['_inputs'];
-      type props = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        'props'
-      >['props'];
-      type _injections = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_injections'
-      >['_injections'];
-      type _mutation = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_mutation'
-      >['_mutation'];
-      type _query = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_query'
-      >['_query'];
-      type _queryParams = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_queryParams'
-      >['_queryParams'];
-      type _sources = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_sources'
-      >['_sources'];
-      type _asyncMethods = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_asyncMethods'
-      >['_asyncMethods'];
-      type _cloudProxy = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_cloudProxy'
-      >['_cloudProxy'];
-      type _dependencies = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_dependencies'
-      >['_dependencies'];
-      type _error = Pick<
-        (typeof _TEST_META_STORE_CONTEXT)['context'],
-        '_error'
-      >['_error'];
-
-      expectTypeOf(_TEST_META_STORE_CONTEXT.storeConfig).toEqualTypeOf<{
+      expectTypeOf<
+        (typeof _TEST_META_STORE_CONTEXT)['storeConfig']
+      >().toEqualTypeOf<{
         providedIn: 'root';
         name: 'test';
         implements?: unknown;
       }>();
 
-      expectTypeOf(
-        _TEST_META_STORE_CONTEXT.context.props
-      ).branded.toEqualTypeOf<
+      expectTypeOf<
+        (typeof _TEST_META_STORE_CONTEXT)['context']['props']
+      >().branded.toEqualTypeOf<
         {
           activeId: Signal<{
             active: boolean;
@@ -1455,6 +1408,9 @@ describe('craft preserve all context', () => {
   });
 
   it('should preserve the context "cloudProxy" when using craft', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([])],
+    });
     await TestBed.runInInjectionContext(async () => {
       const { craftShared } = craft(
         {
@@ -1528,6 +1484,9 @@ describe('craft preserve all context', () => {
   });
 
   it('should preserve the context when used with `craftX`', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([])],
+    });
     await TestBed.runInInjectionContext(async () => {
       const { craftMySharedFeature, _MYSHAREDFEATURE_META_STORE_CONTEXT } =
         craft(

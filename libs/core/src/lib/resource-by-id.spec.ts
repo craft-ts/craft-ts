@@ -38,7 +38,7 @@ describe('resourceById', () => {
     });
   });
 
-  it('should accepts a fromObject, that accepts another ResourceByIdRef', async () => {
+  it('should accepts a fromResourceById, that accepts another ResourceByIdRef', async () => {
     await TestBed.runInInjectionContext(async () => {
       const sourceParams = signal<{ id: string } | undefined>(undefined);
       const innerResourceByIdRef = resourceById({
@@ -49,20 +49,28 @@ describe('resourceById', () => {
           return params;
         },
       });
-      innerResourceByIdRef.addById('1', {
-        fallbackValue: { id: '1' },
-      });
-      innerResourceByIdRef.addById('2', {
-        fallbackValue: { id: '2' },
-      });
-      innerResourceByIdRef.addById('3', {
-        fallbackValue: { id: '3' },
-      });
+      innerResourceByIdRef.add(
+        { id: '1' },
+        {
+          fallbackValue: { id: '1' },
+        },
+      );
+      innerResourceByIdRef.add(
+        { id: '2' },
+        {
+          fallbackValue: { id: '2' },
+        },
+      );
+      innerResourceByIdRef.add(
+        { id: '3' },
+        {
+          fallbackValue: { id: '3' },
+        },
+      );
 
       const resourceByIdRef = resourceById({
         fromResourceById: innerResourceByIdRef,
         params: ({ value, status }) => {
-          console.log('params value', value());
           expectTypeOf(value()).toEqualTypeOf<{
             id: string;
           }>();
@@ -71,17 +79,15 @@ describe('resourceById', () => {
         },
         identifier: (params) => params.id,
         loader: async ({ params }) => {
-          console.log('loader params', params);
           // Simulate a stream
           return params;
         },
       });
       expect(resourceByIdRef).toBeDefined();
-      console.log('1 - resourceByIdRef()', resourceByIdRef());
       expect(resourceByIdRef()).toEqual({});
 
       await vi.runAllTimersAsync();
-      console.log('2 - resourceByIdRef() ', resourceByIdRef());
+
       const resourceRef123 = resourceByIdRef()['1'];
       expect(resourceRef123).toBeDefined();
       expect(resourceRef123?.value()).toEqual({ id: '1' });
@@ -113,7 +119,7 @@ describe('resourceById', () => {
         { id: '123' },
         {
           fallbackValue: { id: '123' },
-        }
+        },
       );
       const resourceRef123 = resourceByIdRef()['123'];
 
@@ -125,13 +131,13 @@ describe('resourceById', () => {
         { id: '1234' },
         {
           fallbackValue: { id: '1234' },
-        }
+        },
       );
       resourceByIdRef.add(
         { id: '12345' },
         {
           fallbackValue: { id: '12345' },
-        }
+        },
       );
       await vi.runAllTimersAsync();
 

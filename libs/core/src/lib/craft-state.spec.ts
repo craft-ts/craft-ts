@@ -22,7 +22,7 @@ describe('craftState', () => {
           name: '',
           providedIn: 'root',
         },
-        craftState('numberList', () => state([1]))
+        craftState('numberList', () => state([1])),
       );
       const store = injectCraft();
       await vi.runAllTimersAsync();
@@ -46,8 +46,8 @@ describe('craftState', () => {
               const stateValue = state();
               set([...stateValue, numberValue]);
             },
-          }))
-        )
+          })),
+        ),
       );
       const store = injectCraft();
       await vi.runAllTimersAsync();
@@ -74,8 +74,8 @@ describe('craftState', () => {
               set([...stateValue, numberValue]);
             },
             count: computed(() => state().length),
-          }))
-        )
+          })),
+        ),
       );
       const store = injectCraft();
       await vi.runAllTimersAsync();
@@ -86,7 +86,6 @@ describe('craftState', () => {
       expect(store.numberList()).toEqual([1, 2]);
 
       expectTypeOf(store.numberListCount).toEqualTypeOf<Signal<number>>();
-
       expect(store.numberListCount()).toEqual(2);
     });
   });
@@ -118,8 +117,8 @@ describe('craftState', () => {
               expectTypeOf(resetValue).toEqualTypeOf<{}>();
               set([42]);
             }),
-          }))
-        )
+          })),
+        ),
       );
       const store = injectCraft();
       await vi.runAllTimersAsync();

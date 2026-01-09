@@ -78,9 +78,7 @@ export function craftMutations<
           acc.resourceRefs[methodName] = mutationRef;
           return acc;
         }
-        acc.resourceRefs[methodName] = {
-          ...mutationRef,
-        };
+        acc.resourceRefs[methodName] = mutationRef;
         acc.methods[`mutate${capitalize(methodName)}`] =
           methodValue as Function;
         return acc;

@@ -807,6 +807,9 @@ export function mutation<
         }
       : {},
     {
+      resourceParamsSrc: resourceParamsSrc as WritableSignal<
+        MutationParams | undefined
+      >,
       method:
         isConnectedToAResourceById ||
         ('method' in mutationConfig && isSignal(mutationConfig.method))
@@ -816,6 +819,8 @@ export function mutation<
                 'method' in mutationConfig
                   ? mutationConfig.method?.(arg)
                   : undefined;
+              // make sure  mutationResourceParamsFnSignal.set(result as MutationParams); is set before calling addById
+              mutationResourceParamsFnSignal.set(result as MutationParams);
               if (isUsingIdentifier) {
                 const id = mutationConfig.identifier?.(arg as any);
                 (
@@ -826,7 +831,6 @@ export function mutation<
                   >
                 ).addById(id as GroupIdentifier & string);
               }
-              mutationResourceParamsFnSignal.set(result as MutationParams);
               return result;
             },
     },

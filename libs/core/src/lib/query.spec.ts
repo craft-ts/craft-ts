@@ -65,9 +65,9 @@ describe('query with identifier>', () => {
   });
 });
 
-describe('withQuery using query', () => {
+describe('craftQuery using query', () => {
   it('1- Should expose a query resource', () => {
-    const { Craft } = craft(
+    const { injectCraft } = craft(
       {
         name: '',
         providedIn: 'root',
@@ -82,16 +82,15 @@ describe('withQuery using query', () => {
               email: 'test@a.com',
             };
           },
-        })
-      )
+        }),
+      ),
     );
 
-    TestBed.configureTestingModule({
-      providers: [Craft],
-    });
-    const store = TestBed.inject(Craft);
+    TestBed.runInInjectionContext(() => {
+      const store = injectCraft();
 
-    expect(store.user).toBeDefined();
+      expect(store.user).toBeDefined();
+    });
   });
 });
 
@@ -118,9 +117,9 @@ describe('query Insertions output', () => {
             pagination: {
               page: 1,
             },
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
     TestBed.runInInjectionContext(() => {
       const store = injectCraft();
@@ -161,9 +160,9 @@ describe('query Insertions output', () => {
                 page: 1,
               },
             };
-          }
-        )
-      )
+          },
+        ),
+      ),
     );
     TestBed.runInInjectionContext(() => {
       const store = injectCraft();
@@ -209,9 +208,9 @@ describe('query Insertions output', () => {
                 page: 1,
               },
             };
-          }
-        )
-      )
+          },
+        ),
+      ),
     );
     TestBed.runInInjectionContext(() => {
       const store = injectCraft();
@@ -245,9 +244,9 @@ describe('query Insertions output', () => {
                 page: 1,
               },
             };
-          }
-        )
-      )
+          },
+        ),
+      ),
     );
     TestBed.runInInjectionContext(() => {
       const store = injectCraft();
@@ -293,9 +292,9 @@ describe('query Insertions output', () => {
             return {
               someOtherInfo: true,
             };
-          }
-        )
-      )
+          },
+        ),
+      ),
     );
     TestBed.runInInjectionContext(() => {
       const store = injectCraft();
@@ -341,9 +340,9 @@ describe('query Insertions output', () => {
           // insert 6
           ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
           // insert 7
-          ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 })
-        )
-      )
+          ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
+        ),
+      ),
     );
     TestBed.runInInjectionContext(() => {
       const store = injectCraft();

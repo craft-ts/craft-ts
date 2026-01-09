@@ -365,16 +365,13 @@ function handleQueryResourceMutationEffects<
             .replace('ById', '');
           const mutationTargeted = // todoR check if mutationRef is still exposed
             (
-              (
-                context._mutation as Record<
-                  string,
-                  MutationOutput<any, unknown, unknown, unknown, unknown, any>
-                >
-              )[formattedMutationName] as any
-            )?.mutationRef;
-
-          if ('resource' in mutationTargeted) {
-            const mutationResource = mutationTargeted.resource;
+              context._mutation as Record<
+                string,
+                MutationOutput<any, unknown, unknown, unknown, unknown, any>
+              >
+            )[formattedMutationName] as any;
+          if (!('_resourceById' in mutationTargeted)) {
+            const mutationResource = mutationTargeted;
             return {
               ...acc,
               [`_on${mutationName}${resourceName}QueryEffect`]: effect(() => {
@@ -436,12 +433,12 @@ function handleQueryResourceMutationEffects<
               }),
             };
           }
-          const mutationResources = mutationTargeted.resourceById;
+          const mutationResources = mutationTargeted;
           const newMutationResourceRefForNestedEffect = linkedSignal<
             ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>,
             { newKeys: GroupIdentifier[] } | undefined
           >({
-            source: mutationTargeted.resourceById as any,
+            source: mutationTargeted,
             computation: (currentSource, previous) => {
               if (!currentSource || !Object.keys(currentSource).length) {
                 return undefined;
@@ -473,7 +470,7 @@ function handleQueryResourceMutationEffects<
                 (mutationIdentifier) => {
                   nestedEffect(_injector, () => {
                     const mutationResource =
-                      mutationTargeted.resourceById()[mutationIdentifier];
+                      mutationTargeted()[mutationIdentifier];
 
                     if (!mutationResource) {
                       return;

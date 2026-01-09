@@ -12,33 +12,30 @@ import { isSignal, Signal } from '@angular/core';
 import { capitalize } from './util/util';
 import { DeferredExtract } from './util/util.type';
 
-type SpecificCraftStateOutputs<
-  StateName extends string,
-  State,
-  Insertions
-> = DeferredExtract<Insertions> extends infer Extracted
-  ? Extracted extends { props: unknown; methods: Record<string, Function> }
-    ? PartialContext<{
-        props: {
-          [key in StateName]: Signal<State>;
-        } & {
-          [key in keyof Extracted['props'] as `${StateName &
-            string}${Capitalize<key & string>}`]: Extracted['props'][key];
-        };
-        methods: {
-          [key in keyof Extracted['methods'] as `${StateName &
-            string}${Capitalize<key & string>}`]: Extracted['methods'][key];
-        };
-      }>
-    : never
-  : never;
+type SpecificCraftStateOutputs<StateName extends string, State, Insertions> =
+  DeferredExtract<Insertions> extends infer Extracted
+    ? Extracted extends { props: unknown; methods: Record<string, Function> }
+      ? PartialContext<{
+          props: {
+            [key in StateName]: Signal<State>;
+          } & {
+            [key in keyof Extracted['props'] as `${StateName &
+              string}${Capitalize<key & string>}`]: Extracted['props'][key];
+          };
+          methods: {
+            [key in keyof Extracted['methods'] as `${StateName &
+              string}${Capitalize<key & string>}`]: Extracted['methods'][key];
+          };
+        }>
+      : never
+    : never;
 
 type CraftStateOutputs<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
   StateName extends string,
   State,
-  Insertions
+  Insertions,
 > = CraftFactoryUtility<
   Context,
   StoreConfig,
@@ -76,12 +73,12 @@ export function craftState<
   StoreConfig extends StoreConfigConstraints,
   const StateName extends string,
   State,
-  Insertions
+  Insertions,
 >(
   stateName: StateName,
   stateFactory: (
-    context: CraftFactoryEntries<Context>
-  ) => StateOutput<State, Insertions>
+    context: CraftFactoryEntries<Context>,
+  ) => StateOutput<State, Insertions>,
 ): CraftStateOutputs<Context, StoreConfig, StateName, State, Insertions> {
   return () => (contextData) => {
     const stateResult = stateFactory(craftFactoryEntries(contextData));
@@ -89,7 +86,9 @@ export function craftState<
     const { props, methods } = Object.entries(stateResult).reduce(
       (acc, [key, value]) => {
         if (isSignal(value)) {
-          (acc.props as Record<string, Signal<any>>)[capitalize(key)] = value;
+          (acc.props as Record<string, Signal<any>>)[
+            `${stateName}${capitalize(key)}`
+          ] = value;
         } else {
           (acc.methods as Record<string, Function>)[
             `${stateName}${capitalize(key)}`
@@ -103,7 +102,7 @@ export function craftState<
       } as {
         props: Record<string, Signal<any>>;
         methods: Record<string, Function>;
-      }
+      },
     );
     return partialContext({
       props: { [stateName]: stateResult, ...props },

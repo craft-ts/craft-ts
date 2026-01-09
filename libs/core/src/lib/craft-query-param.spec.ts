@@ -302,7 +302,6 @@ describe('craftQueryParam integration', () => {
 
     await TestBed.runInInjectionContext(async () => {
       const store = injectCraft();
-      const location = inject(Location);
 
       expect(store.pagination()).toEqual({
         page: 1,
@@ -310,9 +309,11 @@ describe('craftQueryParam integration', () => {
       });
 
       store.setPagination({ page: 3, pageSize: 15 });
+    });
+    await harness.fixture.whenStable();
 
-      await harness.fixture.whenStable();
-
+    await TestBed.runInInjectionContext(async () => {
+      const location = inject(Location);
       // Assertions
       expect(location.path()).toContain('page=3');
       expect(location.path()).toContain('pageSize=15');
@@ -426,7 +427,3 @@ describe('craftQueryParam standalone methods', () => {
     });
   });
 });
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}

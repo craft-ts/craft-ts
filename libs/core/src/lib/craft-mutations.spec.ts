@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { lastValueFrom, of } from 'rxjs';
 import { inject, ResourceStatus, Signal } from '@angular/core';
 import { vi } from 'vitest';
 import { craft } from './craft';
@@ -35,15 +34,15 @@ describe('craftMutationById', () => {
       craftMutations(() => ({
         user: mutation({
           method: () => '5',
-          loader: ({ params }) => {
-            return lastValueFrom(of<User>(returnedUser));
+          loader: async ({ params }) => {
+            return returnedUser;
           },
         }),
         userById: mutation({
-          method: () => '5',
+          method: (params: string) => params,
           identifier: (params) => params,
-          loader: ({ params }) => {
-            return lastValueFrom(of<User>(returnedUser));
+          loader: async ({ params }) => {
+            return returnedUser;
           },
         }),
       }))
@@ -70,6 +69,8 @@ describe('craftMutationById', () => {
         ResourceByIdRef<string, User, string>
       >();
 
+      store.mutateUserById('5');
+
       await vi.runAllTimersAsync();
       expect(store.userById.select('5')?.value()).toBe(returnedUser);
     });
@@ -88,11 +89,13 @@ describe('craftMutationById', () => {
       },
       craftMutations(() => ({
         user: mutation({
-          method: (user: User) => user,
-          loader: ({ params: user }) => {
-            return lastValueFrom(of(user));
+          method: (user: User) => {
+            return user;
           },
           identifier: ({ id }) => id,
+          loader: async ({ params: user }) => {
+            return user;
+          },
         }),
       }))
     );
@@ -149,8 +152,8 @@ describe('craftMutationById', () => {
       craftMutations(() => ({
         user: mutation({
           method: (user: User) => user,
-          loader: ({ params: user }) => {
-            return lastValueFrom(of(user));
+          loader: async ({ params: user }) => {
+            return user;
           },
           identifier: ({ id }) => id,
         }),

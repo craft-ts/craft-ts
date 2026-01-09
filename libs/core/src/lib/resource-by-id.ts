@@ -7,10 +7,11 @@ import {
   untracked,
   Injector,
   InjectionToken,
-  linkedSignal,
   WritableSignal,
   computed,
   Signal,
+  isSignal,
+  linkedSignal,
 } from '@angular/core';
 import { preservedResource } from './preserved-resource';
 import { Prettify } from './util/util.type';
@@ -18,7 +19,7 @@ import { Prettify } from './util/util.type';
 export type ResourceByIdHandler<
   GroupIdentifier extends string,
   State,
-  ResourceParams
+  ResourceParams,
 > = {
   /**
    * Reset all the ResourceRef instance stored in the ResourceByIdRef
@@ -36,7 +37,7 @@ export type ResourceByIdHandler<
     params: ResourceParams,
     options?: {
       fallbackValue?: State;
-    }
+    },
   ) => ResourceRef<State>;
   /**
    * ! The added resource may not load immediately if the global params do not match the identifier function.
@@ -48,18 +49,18 @@ export type ResourceByIdHandler<
       defaultParam?: ResourceParams;
       fallbackValue?: State;
       paramsFromResourceById?: ResourceRef<unknown>;
-    }
+    },
   ) => ResourceRef<State>;
 };
 
 export type Identifier<ResourceParams, GroupIdentifier> = (
-  request: NonNullable<ResourceParams>
+  request: NonNullable<ResourceParams>,
 ) => GroupIdentifier;
 
 export type ResourceByIdRef<
   GroupIdentifier extends string,
   State,
-  ResourceParams
+  ResourceParams,
 > = WritableSignal<
   Prettify<Partial<Record<GroupIdentifier, ResourceRef<State>>>>
 > &
@@ -71,7 +72,7 @@ export type EqualParams<ResourceParams, GroupIdentifier extends string> =
   | ((
       a: ResourceParams,
       b: ResourceParams,
-      identifierFn: (params: ResourceParams) => GroupIdentifier
+      identifierFn: (params: ResourceParams) => GroupIdentifier,
     ) => boolean);
 
 type ResourceByIdConfig<
@@ -80,7 +81,7 @@ type ResourceByIdConfig<
   GroupIdentifier extends string,
   FromObjectGroupIdentifier extends string,
   FromObjectState,
-  FromObjectResourceParams
+  FromObjectResourceParams,
 > = Omit<ResourceOptions<State, ResourceParams>, 'params'> &
   (
     | {
@@ -100,7 +101,7 @@ type ResourceByIdConfig<
           FromObjectResourceParams
         >;
         params: (
-          entity: ResourceRef<NoInfer<FromObjectState>>
+          entity: ResourceRef<NoInfer<FromObjectState>>,
         ) => ResourceParams;
         identifier: Identifier<NoInfer<ResourceParams>, GroupIdentifier>;
         equalParams?: EqualParams<ResourceParams, GroupIdentifier>;
@@ -113,7 +114,7 @@ export function resourceById<
   GroupIdentifier extends string,
   FromObjectGroupIdentifier extends string,
   FromObjectState,
-  FromObjectResourceParams
+  FromObjectResourceParams,
 >(
   config: ResourceByIdConfig<
     State,
@@ -122,7 +123,7 @@ export function resourceById<
     FromObjectGroupIdentifier,
     FromObjectState,
     FromObjectResourceParams
-  >
+  >,
 ): ResourceByIdRef<GroupIdentifier, State, ResourceParams> {
   const injector = inject(Injector);
   const { identifier, params, loader, stream, equalParams } = config;
@@ -203,7 +204,7 @@ export function resourceById<
   > = {
     reset: () => {
       Object.values(resourceByGroup()).forEach((resource) =>
-        (resource as ResourceRef<State>).destroy()
+        (resource as ResourceRef<State>).destroy(),
       );
       resourceByGroup.set({});
     },
@@ -219,12 +220,15 @@ export function resourceById<
       const group = identifier(resourceParams as any);
       if (resourceByGroup()[group]) {
         console.warn(
-          `[resourceById] - A resource with the id ${group} already exist.`
+          `[resourceById] - A resource with the id ${group} already exist.`,
         );
         return resourceByGroup()[group] as ResourceRef<State>;
       }
+
+      //@ts-expect-error ! It does not handle the case when fromResourceById is provided
+      const computedParam = computed(() => params() ?? resourceParams);
       const filteredGlobalParamsByGroup = linkedSignal({
-        source: params as () => ResourceParams,
+        source: computedParam as () => ResourceParams,
         computation: (incomingParamsValue, previousGroupParamsData) => {
           if (!incomingParamsValue) {
             return incomingParamsValue;
@@ -240,6 +244,8 @@ export function resourceById<
           return incomingParamsValue;
         },
       });
+      // ! without pulling the signal here, it is not possible to load multiples resources in the same cycle
+      const _pull_filteredGlobalParamsByGroup = filteredGlobalParamsByGroup();
       const paramsWithEqualRule = computed(
         filteredGlobalParamsByGroup as Signal<NonNullable<ResourceParams>>,
         //@ts-expect-error TypeScript misinterpreting
@@ -247,7 +253,7 @@ export function resourceById<
           ...(equalParams !== 'default' && {
             equal: resourceEqualParams,
           }),
-        }
+        },
       );
       const resourceRef = createDynamicResource(injector, {
         group,
@@ -270,12 +276,12 @@ export function resourceById<
         fallbackValue?: State;
         defaultParam?: ResourceParams;
         paramsFromResourceById?: ResourceRef<unknown>;
-      }
+      },
     ) => {
       const filteredGlobalParamsByGroup = linkedSignal({
         source: () =>
           params(
-            options?.paramsFromResourceById as ResourceRef<FromObjectState>
+            options?.paramsFromResourceById as ResourceRef<FromObjectState>,
           ),
         computation: (incomingParamsValue, previousGroupParamsData) => {
           if (!incomingParamsValue) {
@@ -292,6 +298,9 @@ export function resourceById<
           return incomingParamsValue;
         },
       });
+
+      // ! without pulling the signal here, it is not possible to load multiples resources in the same cycle
+      const _pull_filteredGlobalParamsByGroup = filteredGlobalParamsByGroup();
       const paramsWithEqualRule = computed(
         filteredGlobalParamsByGroup as Signal<NonNullable<ResourceParams>>,
         //@ts-expect-error TypeScript misinterpreting
@@ -299,7 +308,7 @@ export function resourceById<
           ...(equalParams !== 'default' && {
             equal: resourceEqualParams,
           }),
-        }
+        },
       );
       const resourceRef = createDynamicResource(injector, {
         group,
@@ -347,7 +356,7 @@ export function resourceById<
 }
 
 const RESOURCE_INSTANCE_TOKEN = new InjectionToken<ResourceRef<unknown>>(
-  'Injection token used to provide a dynamically created ResourceRef instance.'
+  'Injection token used to provide a dynamically created ResourceRef instance.',
 );
 
 interface DynamicResourceConfig<T, R, GroupIdentifier extends string> {
@@ -366,7 +375,7 @@ interface DynamicResourceConfig<T, R, GroupIdentifier extends string> {
  */
 function createDynamicResource<T, R, GroupIdentifier extends string>(
   parentInjector: Injector,
-  resourceConfig: DynamicResourceConfig<T, R, GroupIdentifier>
+  resourceConfig: DynamicResourceConfig<T, R, GroupIdentifier>,
 ) {
   const injector = Injector.create({
     providers: [
