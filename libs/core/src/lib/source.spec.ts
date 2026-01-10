@@ -25,8 +25,8 @@ describe('source', () => {
 
     expect(myListener()).toBe('Hello World');
 
-    mySource.set('Hello Ng-Query');
-    expect(myListener()).toBe('Hello Ng-Query');
+    mySource.set('Hello Ng-Craft');
+    expect(myListener()).toBe('Hello Ng-Craft');
   });
 
   it('A listener at n+1 should not get the value when listened and get data for the first time', () => {
@@ -37,8 +37,8 @@ describe('source', () => {
     const myListener = computed(() => mySource());
     expect(myListener()).toBe(undefined);
 
-    mySource.set('Hello Ng-Query v2');
-    expect(myListener()).toBe('Hello Ng-Query v2');
+    mySource.set('Hello Ng-Craft v2');
+    expect(myListener()).toBe('Hello Ng-Craft v2');
   });
 
   it('A listener at n+1 should get the last value when using "preserveLastValue" config and listened and get data for the first time ', () => {
@@ -49,7 +49,7 @@ describe('source', () => {
     const myListener = computed(() => mySource.preserveLastValue());
     expect(myListener()).toBe('Hello World');
 
-    mySource.set('Hello Ng-Query v2');
-    expect(myListener()).toBe('Hello Ng-Query v2');
+    mySource.set('Hello Ng-Craft v2');
+    expect(myListener()).toBe('Hello Ng-Craft v2');
   });
 });

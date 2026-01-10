@@ -84,7 +84,7 @@ export function contract<Implement>() {
 type EmptyStandaloneContext = {};
 
 export function partialContext(
-  context: Partial<ContextConstraints>
+  context: Partial<ContextConstraints>,
 ): ContextConstraints {
   return {
     props: context.props ?? {},
@@ -160,15 +160,15 @@ export type CraftFactory<
   Context extends ContextConstraints[],
   StoreConfig,
   CraftActionOutputs extends ContextConstraints,
-  StandaloneContextOutputs extends {}
+  StandaloneContextOutputs extends {},
 > = (
   cloudProxy: CloudProxy<MergeContexts<Context>['_cloudProxy']>,
-  storeConfig: StoreConfig
+  storeConfig: StoreConfig,
 ) => (<HostStoreConfig extends StoreConfigConstraints>(
   contextData: ContextInput<MergeContexts<Context>>,
   injector: Injector,
   storeConfig: StoreConfig, // do not use HostStoreConfig
-  cloudProxy: MergeContexts<Context>['_cloudProxy']
+  cloudProxy: MergeContexts<Context>['_cloudProxy'],
 ) => CraftActionOutputs) & {
   standaloneOutputs?: StandaloneContextOutputs;
 };
@@ -177,15 +177,15 @@ export type CraftFactoryUtility<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
   CraftActionOutputs extends ContextConstraints,
-  StandaloneOutputs extends {} = {}
+  StandaloneOutputs extends {} = {},
 > = (
   cloudProxy: CloudProxySource,
-  storeConfig: StoreConfig
+  storeConfig: StoreConfig,
 ) => (<HostStoreConfig extends StoreConfigConstraints>(
   contextData: ContextInput<Context>,
   injector: Injector,
   storeConfig: HostStoreConfig,
-  cloudProxy: Context['_cloudProxy']
+  cloudProxy: Context['_cloudProxy'],
 ) => CraftActionOutputs) & {
   standaloneOutputs?: StandaloneOutputs;
 };
@@ -202,7 +202,7 @@ type IsNotFeature<ProvidedIn extends ProvidedInOption> =
 
 type ReplaceStandaloneStoreToken<
   StandaloneOutputs extends StandaloneOutputsConstraints,
-  StoreConfig extends StoreConfigConstraints
+  StoreConfig extends StoreConfigConstraints,
 > = {
   [K in keyof StandaloneOutputs as ReplaceStoreConfigToken<
     K & string,
@@ -215,7 +215,7 @@ type InjectCraftOutput<
   HasInputs,
   InputsToPlugin,
   HasMethods,
-  MethodsConnected
+  MethodsConnected,
 > = {
   [key in `inject${Capitalize<StoreConfig['name']>}Craft`]: <
     Config extends MergeObjects<
@@ -229,9 +229,9 @@ type InjectCraftOutput<
           ? {
               methods?: Prettify<MethodsConnected>;
             }
-          : {}
+          : {},
       ]
-    >
+    >,
   >(
     ...args: HasInputs extends true
       ? [pluggableConfig: Config]
@@ -255,7 +255,7 @@ type CraftCompositionOutput<
   HasMethods,
   StandaloneOutputs,
   MethodsToConnect,
-  MethodsConnected extends MethodsToConnect = MethodsToConnect
+  MethodsConnected extends MethodsToConnect = MethodsToConnect,
 > = {
   [key in `craft${Capitalize<StoreConfig['name']>}`]: <
     HostContext extends ContextConstraints,
@@ -271,12 +271,12 @@ type CraftCompositionOutput<
           ? {
               methods?: MethodsConnected;
             }
-          : {}
+          : {},
       ]
-    >
+    >,
   >(
     pluggableConfig?: (
-      configFactory: CraftFactoryEntries<HostContext>
+      configFactory: CraftFactoryEntries<HostContext>,
     ) => MergeObject<
       MergeObject<
         Config,
@@ -303,7 +303,7 @@ type CraftCompositionOutput<
                 string}`;
             }
         : {}
-    >
+    >,
   ) => CraftFactoryUtility<
     HostContext,
     HostStoreConfig,
@@ -338,7 +338,7 @@ type CraftCompositionOutput<
 
 type CraftToken<
   Context extends ContextConstraints,
-  StoreConfig extends StoreConfigConstraints
+  StoreConfig extends StoreConfigConstraints,
 > = {
   [key in `${Capitalize<StoreConfig['name']>}Craft`]: InjectionToken<
     Prettify<RemoveIndexSignature<Context['props'] & Context['methods']>>
@@ -347,7 +347,7 @@ type CraftToken<
 
 type META_CONTEXT<
   Context extends ContextConstraints,
-  StoreConfig extends StoreConfigConstraints
+  StoreConfig extends StoreConfigConstraints,
 > = {
   [k in `_${Uppercase<StoreConfig['name']>}_META_STORE_CONTEXT`]: {
     storeConfig: StoreConfig;
@@ -381,7 +381,7 @@ type ToCraftOutputs<
     : IsEqual<
         RemoveIndexSignature<MergedContext['props'] & MergedContext['methods']>,
         NonNullable<StoreConfig['implements']>
-      >
+      >,
 > = (HasError extends false
   ? RespectContract extends true
     ? InjectCraftOutput<
@@ -413,13 +413,12 @@ type ToCraftOutputs<
     }) &
   META_CONTEXT<MergedContext, StoreConfig>;
 
-type IsEqual<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B
-  ? 1
-  : 2
-  ? (<T>() => T extends B ? 1 : 2) extends <T>() => T extends A ? 1 : 2
-    ? true
-    : false
-  : false;
+type IsEqual<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? (<T>() => T extends B ? 1 : 2) extends <T>() => T extends A ? 1 : 2
+      ? true
+      : false
+    : false;
 
 type Diff<A, B> = {
   added: Exclude<keyof B, keyof A>;
@@ -445,7 +444,7 @@ export type StoreConfigConstraints = {
 
 type MergeContexts<C extends ContextConstraints[]> = C extends [
   infer First,
-  ...infer Rest
+  ...infer Rest,
 ]
   ? First extends ContextConstraints
     ? Rest extends ContextConstraints[]
@@ -465,7 +464,7 @@ type MergeStandaloneContexts<C extends StandaloneOutputsConstraints[]> =
 
 export type MergeTwoContexts<
   A extends ContextConstraints,
-  B extends ContextConstraints
+  B extends ContextConstraints,
 > = {
   methods: A['methods'] & B['methods'];
   props: A['props'] & B['props'];
@@ -494,7 +493,7 @@ export function craft<
   standaloneOutputs4 extends StandaloneOutputsConstraints,
   const ProvidedIn extends ProvidedInOption,
   const Name extends string,
-  ToImplementContract
+  ToImplementContract,
 >(
   options: {
     providedIn: ProvidedIn;
@@ -536,14 +535,14 @@ export function craft<
     },
     outputs4,
     standaloneOutputs4
-  >
+  >,
 ): ToCraftOutputs<
   [outputs1, outputs2, outputs3, outputs4],
   [
     standaloneOutputs1,
     standaloneOutputs2,
     standaloneOutputs3,
-    standaloneOutputs4
+    standaloneOutputs4,
   ],
   {
     providedIn: NoInfer<ProvidedIn>;
@@ -560,7 +559,7 @@ export function craft<
   standaloneOutputs3 extends StandaloneOutputsConstraints,
   const Name extends string,
   const ProvidedIn extends ProvidedInOption,
-  ToImplementContract
+  ToImplementContract,
 >(
   options: {
     providedIn: ProvidedIn;
@@ -593,7 +592,7 @@ export function craft<
     },
     outputs3,
     standaloneOutputs3
-  >
+  >,
 ): ToCraftOutputs<
   [outputs1, outputs2, outputs3],
   [standaloneOutputs1, standaloneOutputs2, standaloneOutputs3],
@@ -610,7 +609,7 @@ export function craft<
   standaloneOutputs2 extends StandaloneOutputsConstraints,
   const ProvidedIn extends ProvidedInOption,
   const Name extends string,
-  ToImplementContract
+  ToImplementContract,
 >(
   options: {
     providedIn: ProvidedIn;
@@ -634,7 +633,7 @@ export function craft<
     },
     outputs2,
     standaloneOutputs2
-  >
+  >,
 ): ToCraftOutputs<
   [outputs1, outputs2],
   [standaloneOutputs1, standaloneOutputs2],
@@ -649,7 +648,7 @@ export function craft<
   standaloneOutputs1 extends StandaloneOutputsConstraints,
   const ProvidedIn extends ProvidedInOption,
   const Name extends string,
-  ToImplementContract
+  ToImplementContract,
 >(
   options: {
     providedIn: ProvidedIn;
@@ -664,7 +663,7 @@ export function craft<
     },
     outputs1,
     standaloneOutputs1
-  >
+  >,
 ): ToCraftOutputs<
   [outputs1],
   [standaloneOutputs1],
@@ -706,15 +705,28 @@ export function craft(
 
   const _cloudProxy = new Proxy({}, {});
 
+  if (options?.name === '') {
+    debugger;
+  }
+
   const extractedStandaloneOutputs = factoriesList.reduce(
-    (acc, factoryWithStandalone) => {
+    (acc, factoryWithStandalone, index) => {
+      if (options?.name === '' && index === 3) {
+        debugger;
+      }
+      const r = factoryWithStandalone(_cloudProxy, storeConfig) ?? {};
+      if (options?.name === '' && index === 3) {
+        debugger;
+        //@ts-ignore
+        console.log('r', r(_cloudProxy, storeConfig));
+      }
       acc = {
         ...acc,
-        ...(factoryWithStandalone(_cloudProxy, storeConfig) ?? {}),
+        ...r,
       };
       return acc;
     },
-    {} as Record<string, unknown>
+    {} as Record<string, unknown>,
   );
 
   // _cloudProxy will now have all the standalone outputs assigned to it
@@ -736,7 +748,7 @@ export function craft(
         _cloudProxy,
       });
       inputsKeysSet = new Set(
-        Object.keys((context as ContextConstraints)._inputs)
+        Object.keys((context as ContextConstraints)._inputs),
       );
       sharedContext = context;
 
@@ -775,7 +787,7 @@ export function craft(
             }
             return acc;
           },
-          {} as Record<string, unknown>
+          {} as Record<string, unknown>,
         );
         if (hasInputs) {
           pluggableInputs.$patch(inputs as ContextConstraints['_inputs']);
@@ -803,17 +815,17 @@ export function craft(
       pluggableConfig?: (context: ContextConstraints) => {
         inputs?: Record<string, unknown>;
         methods?: Record<string, Function>;
-      }
+      },
     ) => {
       return (
           hostCloud: CloudProxy<Record<string, unknown>>,
-          storeConfig: StoreConfigConstraints
+          storeConfig: StoreConfigConstraints,
         ) =>
         (
           contextData: ContextInput<ContextConstraints>,
           injector: Injector,
           storeConfig: StoreConfigConstraints,
-          _cloudProxy: CloudProxy<Record<string, unknown>>
+          _cloudProxy: CloudProxy<Record<string, unknown>>,
         ) => {
           const entries =
             pluggableConfig?.({
@@ -841,7 +853,7 @@ export function craft(
           }
 
           inputsKeysSet = new Set(
-            Object.keys((storeContext as ContextConstraints)._inputs)
+            Object.keys((storeContext as ContextConstraints)._inputs),
           );
           if (entriesInputs) {
             let hasInputs = false;
@@ -857,7 +869,7 @@ export function craft(
                 }
                 return acc;
               },
-              {} as Record<string, unknown>
+              {} as Record<string, unknown>,
             );
             if (hasInputs) {
               pluggableInputs.$patch(inputs as ContextConstraints['_inputs']);
@@ -869,7 +881,7 @@ export function craft(
           // todo if provided global use the injected one, otherwise trigger manuually
           return Object.assign(
             storeContext as ContextConstraints,
-            extractedStandaloneOutputs
+            extractedStandaloneOutputs,
           );
         };
     },
@@ -918,7 +930,7 @@ function mergeContextAndProps({
         },
         injector,
         storeConfig,
-        _cloudProxy
+        _cloudProxy,
       );
       Object.entries(result._inputs).forEach(([key, value]) => {
         const hasValue = pluggableInputs.$ref(key as never);
@@ -1002,6 +1014,6 @@ function mergeContextAndProps({
     } as {
       context: _EmptyContext;
       propsAndMethods: {};
-    }
+    },
   );
 }

@@ -21,16 +21,18 @@ describe('linkedSource', () => {
 
     const myListener = computed(() => {
       const s = mySource();
+      console.log('mySource', s);
       return s;
     });
 
     expect(myListener()).toBe(undefined);
+    console.log('myLinkedSource set');
     // todo create a linked source ?
     myLinkedSource.set('Hello World');
 
     expect(myListener()).toBe('Hello World');
 
-    myLinkedSource.set('Hello Ng-Query');
-    expect(myListener()).toBe('Hello Ng-Query');
+    myLinkedSource.set('Hello Ng-Craft');
+    expect(myListener()).toBe('Hello Ng-Craft');
   });
 });

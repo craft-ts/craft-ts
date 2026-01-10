@@ -395,7 +395,7 @@ type QueryByIdStored = {
 };
 
 function getStorageKey(prefix: string, key: string, type: string) {
-  return `ng-query-${prefix}-${type}-${key}`;
+  return `ng-craft-${prefix}-${type}-${key}`;
 }
 
 function isValueExpired(timestamp: number, cacheTime: number): boolean {

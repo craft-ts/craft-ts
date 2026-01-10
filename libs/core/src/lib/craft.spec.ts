@@ -48,14 +48,14 @@ describe('craft', () => {
         query({
           params: () => 5,
           loader: async ({ params: id }) => ({ id, name: 'test' }),
-        })
+        }),
       ),
       craftQuery('test2', () =>
         query({
           params: () => 3,
           loader: async ({ params: id }) => ({ id, name: 'test2' }),
-        })
-      )
+        }),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const testServerState = injectCraft();
@@ -120,8 +120,8 @@ describe('craft', () => {
                 },
               },
             },
-          }
-        )
+          },
+        ),
       );
       const state = injectCraft();
       await vi.runAllTimersAsync();
@@ -179,8 +179,8 @@ describe('craft', () => {
                 },
               },
             },
-          }
-        )
+          },
+        ),
       );
       const q = injectCraft();
       await vi.runAllTimersAsync();
@@ -239,8 +239,8 @@ describe('craft', () => {
                 },
               },
             },
-          }
-        )
+          },
+        ),
       );
       const q = injectCraft();
       await vi.runAllTimersAsync();
@@ -284,8 +284,8 @@ describe('craft', () => {
               serialize: (value: unknown) => String(value),
             },
           },
-        })
-      )
+        }),
+      ),
     );
 
     expect(setPaginationQueryParams).toBeDefined();
@@ -320,9 +320,9 @@ describe('craft', () => {
               reset: afterRecomputation(reset, () => {
                 set([]);
               }),
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
 
       const addNumberSource = source<number>();
@@ -363,7 +363,10 @@ describe('craft', () => {
       providers: [provideRouter([])],
     });
     await TestBed.runInInjectionContext(async () => {
-      const { craftStore1 } = craft(
+      const {
+        craftStore1,
+        setPaginationQueryParams: setPaginationQueryParams1,
+      } = craft(
         {
           name: 'store1',
           providedIn: 'root',
@@ -389,7 +392,7 @@ describe('craft', () => {
             reset: afterRecomputation(reset, () => {
               set([]);
             }),
-          }))
+          })),
         ),
         craftQueryParam('pagination', () =>
           queryParam({
@@ -405,8 +408,8 @@ describe('craft', () => {
                 serialize: (value: unknown) => String(value),
               },
             },
-          })
-        )
+          }),
+        ),
       );
 
       const {
@@ -437,7 +440,6 @@ describe('craft', () => {
         craftState('numberList2', ({ reset }) =>
           state([1], ({ state, set }) => ({
             addNumber2: (numberValue: number) => {
-              console.log('addNumber numberValue', numberValue);
               const stateValue = state();
               set([...stateValue, numberValue]);
             },
@@ -448,8 +450,8 @@ describe('craft', () => {
             reset2: afterRecomputation(reset, () => {
               set([]);
             }),
-          }))
-        )
+          })),
+        ),
       );
       await TestBed.runInInjectionContext(async () => {
         type test = (typeof __META_STORE_CONTEXT)['context']['_inputs'];
@@ -486,6 +488,8 @@ describe('craft', () => {
           page?: number | undefined;
           pageSize?: number | undefined;
         }>();
+        console.log('setPaginationQueryParams', setPaginationQueryParams);
+        console.log('setPaginationQueryParams1', setPaginationQueryParams1);
         expect(setPaginationQueryParams).toBeDefined();
       });
     });
@@ -506,8 +510,8 @@ describe('craft', () => {
           reset: () => {
             set([]);
           },
-        }))
-      )
+        })),
+      ),
     );
 
     const { injectHost1Craft } = craft(
@@ -525,13 +529,13 @@ describe('craft', () => {
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => 0,
-        }))
+        })),
       ),
       craftDataPagination(({ reset }) => ({
         methods: {
           numberListReset: reset,
         },
-      }))
+      })),
     );
 
     const { injectHost2Craft } = craft(
@@ -549,13 +553,13 @@ describe('craft', () => {
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => 0,
-        }))
+        })),
       ),
       craftDataPagination(({ reset }) => ({
         methods: {
           numberListReset: reset,
         },
-      }))
+      })),
     );
 
     await TestBed.runInInjectionContext(async () => {
@@ -568,11 +572,11 @@ describe('craft', () => {
     });
   });
 
-  it('should enable to plug local store to another. The plugged local store will not share an unique instance', async () => {
+  it('should enable to plug feature store to another. The plugged feature store will not share an unique instance', async () => {
     const { craftSharedFeature } = craft(
       {
         name: 'sharedFeature',
-        providedIn: 'scoped',
+        providedIn: 'feature',
       },
       craftInputs({
         defaultNumber: undefined as number | undefined,
@@ -581,13 +585,13 @@ describe('craft', () => {
         state(
           linkedSignal(() => [defaultNumber() ?? 1]),
           ({ state, set }) => ({
-            addNumber: () => [...state(), defaultNumber() ?? 1],
+            addNumber: () => set([...state(), defaultNumber() ?? 1]),
             reset: () => {
-              return [];
+              set([]);
             },
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
     const { injectHost1Craft } = craft(
@@ -602,10 +606,10 @@ describe('craft', () => {
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
-          increment: afterRecomputation(increment, () => state() + 1),
-          decrement: afterRecomputation(decrement, () => state() - 1),
-          reset: () => 0,
-        }))
+          increment: afterRecomputation(increment, () => set(state() + 1)),
+          decrement: afterRecomputation(decrement, () => set(state() - 1)),
+          reset: () => set(0),
+        })),
       ),
       craftSharedFeature(({ reset, counter }) => ({
         inputs: {
@@ -614,7 +618,7 @@ describe('craft', () => {
         methods: {
           numberListReset: reset,
         },
-      }))
+      })),
     );
 
     const { injectHost2Craft } = craft(
@@ -628,11 +632,11 @@ describe('craft', () => {
         reset: source<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
-        state(0, ({ state, set }) => ({
-          increment: afterRecomputation(increment, () => state() + 1),
-          decrement: afterRecomputation(decrement, () => state() - 1),
-          reset: () => 0,
-        }))
+        state(1, ({ state, set }) => ({
+          increment: afterRecomputation(increment, () => set(state() + 1)),
+          decrement: afterRecomputation(decrement, () => set(state() - 1)),
+          reset: () => set(0),
+        })),
       ),
       craftSharedFeature(({ reset, counter }) => ({
         inputs: {
@@ -641,16 +645,19 @@ describe('craft', () => {
         methods: {
           numberListReset: reset,
         },
-      }))
+      })),
     );
 
     await TestBed.runInInjectionContext(async () => {
       const host1 = injectHost1Craft();
       const host2 = injectHost2Craft();
 
-      host1.numberListAddNumber();
-      expect(host1.numberList()).toEqual([1, 2]);
-      expect(host2.numberList()).toEqual([1]);
+      host2.setIncrement({});
+      await vi.runAllTimersAsync();
+
+      host2.numberListAddNumber(); // todoc hange counter value
+      expect(host1.numberList()).toEqual([1]);
+      expect(host2.numberList()).toEqual([1, 2]);
     });
   });
   it('should enable to plug feature store to another. The plugged feature store will not share an unique instance', async () => {
@@ -668,8 +675,8 @@ describe('craft', () => {
           reset: () => {
             set([]);
           },
-        }))
-      )
+        })),
+      ),
     );
 
     const { injectHost1Craft } = craft(
@@ -687,13 +694,13 @@ describe('craft', () => {
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => 0,
-        }))
+        })),
       ),
       craftDataPagination(({ reset }) => ({
         methods: {
           numberListReset: reset,
         },
-      }))
+      })),
     );
 
     const { injectHost2Craft } = craft(
@@ -711,13 +718,13 @@ describe('craft', () => {
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => 0,
-        }))
+        })),
       ),
       craftDataPagination(({ reset }) => ({
         methods: {
           numberListReset: reset,
         },
-      }))
+      })),
     );
     await TestBed.runInInjectionContext(async () => {
       const host1 = injectHost1Craft();
@@ -747,8 +754,8 @@ describe('craft', () => {
           reset: () => {
             set([]);
           },
-        }))
-      )
+        })),
+      ),
     );
 
     const { injectHost1Craft, _HOST1_META_STORE_CONTEXT } = craft(
@@ -766,7 +773,7 @@ describe('craft', () => {
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => 0,
-        }))
+        })),
       ),
       craftDataPagination(({ reset, counter }) => ({
         inputs: {
@@ -775,7 +782,7 @@ describe('craft', () => {
         methods: {
           numberListReset: reset,
         },
-      }))
+      })),
     );
 
     type r =
@@ -796,7 +803,7 @@ describe('craft', () => {
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => 0,
-        }))
+        })),
       ),
       craftDataPagination(({ reset, counter }) => ({
         inputs: {
@@ -805,7 +812,7 @@ describe('craft', () => {
         methods: {
           numberListReset: reset,
         },
-      }))
+      })),
     );
     TestBed.runInInjectionContext(() => {
       const host1 = injectHost1Craft();
@@ -836,8 +843,8 @@ describe('craft', () => {
           reset: () => {
             set([]);
           },
-        }))
-      )
+        })),
+      ),
     );
 
     expectTypeOf<
@@ -879,7 +886,7 @@ describe('craft', () => {
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => 0,
-        }))
+        })),
       ),
       craftDataPagination(({ reset, counter }) => ({
         inputs: {
@@ -889,7 +896,7 @@ describe('craft', () => {
         methods: {
           numberListReset: reset,
         },
-      }))
+      })),
     );
     type t = Pick<
       (typeof _HOST1_META_STORE_CONTEXT)['context'],
@@ -938,8 +945,8 @@ describe('craft', () => {
           reset: () => {
             set([]);
           },
-        }))
-      )
+        })),
+      ),
     );
 
     expectTypeOf<
@@ -989,7 +996,7 @@ describe('craft', () => {
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => 0,
-        }))
+        })),
       ),
       //@ts-expect-error test2 is not defined in the connected store methods, so errorMethodMsg is required
       craftDataPagination(({ reset, counter }) => ({
@@ -1000,7 +1007,7 @@ describe('craft', () => {
           reset,
           test2: true,
         },
-      }))
+      })),
     );
   });
 
@@ -1022,8 +1029,8 @@ describe('craft', () => {
           reset: () => {
             set([]);
           },
-        }))
-      )
+        })),
+      ),
     );
 
     expectTypeOf<
@@ -1059,7 +1066,7 @@ describe('craft', () => {
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => 0,
-        }))
+        })),
       ),
       //@ts-expect-error testNotExist is not defined in the connected store inputs, so errorInputMsg is required
       craftDataPagination(({ reset, counter }) => ({
@@ -1070,7 +1077,7 @@ describe('craft', () => {
         methods: {
           reset,
         },
-      }))
+      })),
     );
   });
 });
@@ -1086,8 +1093,8 @@ describe('craft metadata', () => {
         craftState('test', () =>
           state(1, ({ state, set }) => ({
             increment: () => set(state() + 1),
-          }))
-        )
+          })),
+        ),
       );
 
       expectTypeOf<
@@ -1119,7 +1126,7 @@ describe('craft metadata', () => {
           name: 'data',
           providedIn: 'root',
         },
-        craftShared()
+        craftShared(),
       );
       expectTypeOf<
         (typeof _DATA_META_STORE_CONTEXT)['context']['_dependencies']['shared']
@@ -1153,14 +1160,14 @@ describe('craft options', () => {
           query({
             params: () => 5,
             loader: async ({ params: id }) => ({ id, name: 'test' }),
-          })
+          }),
         ),
         craftQuery('test2', () =>
           query({
             params: () => 3,
             loader: async ({ params: id }) => ({ id, name: 'test2' }),
-          })
-        )
+          }),
+        ),
       );
       const userServerState = injectUserCraft();
       // todo fix exposed functions
@@ -1204,14 +1211,14 @@ describe('craft options', () => {
           query({
             params: () => 5,
             loader: async ({ params: id }) => ({ id, name: 'test' }),
-          })
+          }),
         ),
         craftQuery('test2', () =>
           query({
             params: () => 3,
             loader: async ({ params: id }) => ({ id, name: 'test2' }),
-          })
-        )
+          }),
+        ),
       );
       const userServerState = injectUserCraft();
       const sameUserServerState = inject(UserCraft);
@@ -1260,29 +1267,7 @@ describe('craft preserve all context', () => {
               providedIn: 'root';
             }>();
             return EmptyContext;
-          }
-      );
-      craft(
-        {
-          name: 'test',
-          providedIn: 'root',
-        },
-        () =>
-          ({ context }, injector, storeConfig) => {
-            expectTypeOf(storeConfig).toEqualTypeOf<{
-              name: 'test';
-              providedIn: 'root';
-            }>();
-            return EmptyContext;
           },
-        () =>
-          ({ context }, injector, storeConfig) => {
-            expectTypeOf(storeConfig).toEqualTypeOf<{
-              name: 'test';
-              providedIn: 'root';
-            }>();
-            return EmptyContext;
-          }
       );
       craft(
         {
@@ -1305,14 +1290,6 @@ describe('craft preserve all context', () => {
             }>();
             return EmptyContext;
           },
-        () =>
-          ({ context }, injector, storeConfig) => {
-            expectTypeOf(storeConfig).toEqualTypeOf<{
-              name: 'test';
-              providedIn: 'root';
-            }>();
-            return EmptyContext;
-          }
       );
       craft(
         {
@@ -1343,6 +1320,12 @@ describe('craft preserve all context', () => {
             }>();
             return EmptyContext;
           },
+      );
+      craft(
+        {
+          name: 'test',
+          providedIn: 'root',
+        },
         () =>
           ({ context }, injector, storeConfig) => {
             expectTypeOf(storeConfig).toEqualTypeOf<{
@@ -1350,7 +1333,31 @@ describe('craft preserve all context', () => {
               providedIn: 'root';
             }>();
             return EmptyContext;
-          }
+          },
+        () =>
+          ({ context }, injector, storeConfig) => {
+            expectTypeOf(storeConfig).toEqualTypeOf<{
+              name: 'test';
+              providedIn: 'root';
+            }>();
+            return EmptyContext;
+          },
+        () =>
+          ({ context }, injector, storeConfig) => {
+            expectTypeOf(storeConfig).toEqualTypeOf<{
+              name: 'test';
+              providedIn: 'root';
+            }>();
+            return EmptyContext;
+          },
+        () =>
+          ({ context }, injector, storeConfig) => {
+            expectTypeOf(storeConfig).toEqualTypeOf<{
+              name: 'test';
+              providedIn: 'root';
+            }>();
+            return EmptyContext;
+          },
       );
     });
   });
@@ -1374,7 +1381,7 @@ describe('craft preserve all context', () => {
                 serialize: (value) => String(value),
               },
             },
-          })
+          }),
         ),
         () => (contextData, injector, storeConfig) => {
           expectTypeOf(storeConfig).toEqualTypeOf<{
@@ -1382,7 +1389,7 @@ describe('craft preserve all context', () => {
             providedIn: 'root';
           }>();
           return EmptyContext;
-        }
+        },
       );
 
       expectTypeOf<
@@ -1427,7 +1434,7 @@ describe('craft preserve all context', () => {
               testPassingSharedValue: Signal<string>;
             };
           }>;
-        }
+        },
       );
       const { _TEST_META_STORE_CONTEXT } = craft(
         {
@@ -1458,7 +1465,7 @@ describe('craft preserve all context', () => {
             return partialContext({});
           };
         },
-        craftShared()
+        craftShared(),
       );
       expectTypeOf<
         Omit<(typeof _TEST_META_STORE_CONTEXT)['context'], '_dependencies'>
@@ -1508,8 +1515,8 @@ describe('craft preserve all context', () => {
                   serialize: (value: unknown) => String(value),
                 },
               },
-            })
-          )
+            }),
+          ),
         );
       expectTypeOf<
         (typeof _MYSHAREDFEATURE_META_STORE_CONTEXT)['storeConfig']
@@ -1531,7 +1538,7 @@ describe('craft preserve all context', () => {
               providedIn: 'root';
             }>();
             return {} as EmptyContext;
-          }
+          },
       );
       type t = Pick<
         (typeof _TEST_META_STORE_CONTEXT)['context'],
@@ -1574,14 +1581,14 @@ craft(
       increment: () => set(state() + 1),
       decrement: () => set(state() - 1),
       _reset: afterRecomputation(reset, () => set(0)),
-    }))
+    })),
   ),
   craftState('search', ({ reset }) =>
     state('', ({ state, set }) => ({
       setSearch: (value: string) => value,
       _reset: afterRecomputation(reset, () => set('')),
-    }))
-  )
+    })),
+  ),
 );
 
 describe('craft should accept contract/implementation', () => {
@@ -1605,8 +1612,8 @@ describe('craft should accept contract/implementation', () => {
       craftState('user', () =>
         state({ id: 1, name: 'test' }, ({ state }) => ({
           setName: (name: string) => ({ ...state(), name }),
-        }))
-      )
+        })),
+      ),
     );
   });
   it('should accept no contract/implementation', async () => {
@@ -1618,8 +1625,8 @@ describe('craft should accept contract/implementation', () => {
       craftState('user', () =>
         state({ id: 1, name: 'test' }, ({ state }) => ({
           setName: (name: string) => ({ ...state(), name }),
-        }))
-      )
+        })),
+      ),
     );
   });
   it('should return an error if contract/implementation is not satisfies', async () => {
@@ -1629,7 +1636,7 @@ describe('craft should accept contract/implementation', () => {
         providedIn: 'root',
         implements: contract<UserImplementation>(),
       },
-      craftState('other', () => state({ id: 1, name: 'test' }))
+      craftState('other', () => state({ id: 1, name: 'test' })),
     );
 
     type _ = Expect<
@@ -1647,7 +1654,7 @@ describe('craft should accept contract/implementation', () => {
         providedIn: 'root',
         implements: contract<UserImplementation>,
       },
-      craftState('other', () => state({ id: 1, name: 'test' }))
+      craftState('other', () => state({ id: 1, name: 'test' })),
     );
 
     type _ = Expect<

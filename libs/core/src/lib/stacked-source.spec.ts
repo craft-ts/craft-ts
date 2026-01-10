@@ -24,8 +24,8 @@ describe('stackedSource', () => {
 
     expect(myListener()).toEqual(['Hello World 1', 'Hello World 2']);
 
-    mySource.set('Hello Ng-Query');
-    expect(myListener()).toEqual(['Hello Ng-Query']);
+    mySource.set('Hello Ng-Craft');
+    expect(myListener()).toEqual(['Hello Ng-Craft']);
   });
 
   it('A listener at n+1 should not get the value when listened and get data for the first time', () => {
@@ -36,8 +36,8 @@ describe('stackedSource', () => {
     const myListener = computed(() => mySource());
     expect(myListener()).toBe(undefined);
 
-    mySource.set('Hello Ng-Query v2');
-    expect(myListener()).toEqual(['Hello Ng-Query v2']);
+    mySource.set('Hello Ng-Craft v2');
+    expect(myListener()).toEqual(['Hello Ng-Craft v2']);
   });
 
   it('A listener at n that get all the values, and a listener at n+1 that not get the first value but all others', () => {
@@ -54,22 +54,22 @@ describe('stackedSource', () => {
 
     const myListener2 = computed(() => mySource());
 
-    mySource.set('Hello Ng-Query');
-    expect(myListener()).toEqual(['Hello Ng-Query']);
-    expect(myListener2()).toEqual(['Hello Ng-Query']);
+    mySource.set('Hello Ng-Craft');
+    expect(myListener()).toEqual(['Hello Ng-Craft']);
+    expect(myListener2()).toEqual(['Hello Ng-Craft']);
 
-    mySource.set('Hello Ng-Query v1');
-    mySource.set('Hello Ng-Query v2');
-    mySource.set('Hello Ng-Query v3');
+    mySource.set('Hello Ng-Craft v1');
+    mySource.set('Hello Ng-Craft v2');
+    mySource.set('Hello Ng-Craft v3');
     expect(myListener()).toEqual([
-      'Hello Ng-Query v1',
-      'Hello Ng-Query v2',
-      'Hello Ng-Query v3',
+      'Hello Ng-Craft v1',
+      'Hello Ng-Craft v2',
+      'Hello Ng-Craft v3',
     ]);
     expect(myListener2()).toEqual([
-      'Hello Ng-Query v1',
-      'Hello Ng-Query v2',
-      'Hello Ng-Query v3',
+      'Hello Ng-Craft v1',
+      'Hello Ng-Craft v2',
+      'Hello Ng-Craft v3',
     ]);
   });
 });

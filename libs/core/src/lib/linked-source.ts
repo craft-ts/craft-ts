@@ -9,12 +9,13 @@ export function linkedSource<SourceState, ComputedValue>(
   options?: {
     equal?: ValueEqualityFn<NoInfer<ComputedValue> | undefined>;
     debugName?: string;
-  }
+  },
 ): Source<ComputedValue> {
   const listener = (listenerOptions: { nullishFirstValue?: boolean }) =>
     linkedSignal<SourceState, ComputedValue | undefined>({
       source: signalOrigin as Signal<SourceState>,
       computation: (currentSourceState, previousData) => {
+        console.log('currentSourceState', currentSourceState);
         // always when first listened return undefined
         if (!previousData && listenerOptions?.nullishFirstValue !== false) {
           return undefined;
@@ -34,6 +35,6 @@ export function linkedSource<SourceState, ComputedValue>(
         nullishFirstValue: false,
       }),
     },
-    SourceBranded
+    SourceBranded,
   ) as Source<ComputedValue>;
 }
