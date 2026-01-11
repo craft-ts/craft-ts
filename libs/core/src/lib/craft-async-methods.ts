@@ -26,6 +26,7 @@ type SpecificCraftAsyncMethodsOutputs<AsyncMethods extends {}> =
     methods: FilterMethodsBoundToSources<
       AsyncMethods,
       UnionToTuple<keyof AsyncMethods>,
+      'method',
       'set'
     >;
     _asyncMethods: {

@@ -11,30 +11,15 @@ import { UnionToTuple, Prettify } from './util/util.type';
 import { capitalize } from './util/util';
 import { FilterMethodsBoundToSources } from './util/util.type';
 import { MutationOutput, MutationRef } from './mutation';
-import { ResourceByIdRef } from './resource-by-id';
-import { WritableSignal } from '@angular/core';
-import { ResourceMethod } from './util/types/shared.type';
-
-export type MutationByIdRef<
-  GroupIdentifier extends string,
-  ResourceState,
-  ResourceParams,
-  ParamsArgs,
-  InsertionsOutput
-> = {
-  resourceById: ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>;
-  resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
-  method: ResourceMethod<ParamsArgs, ResourceParams> | undefined;
-  insertionsOutputs: InsertionsOutput;
-};
 
 type SpecificCraftMutationsOutputs<Mutations extends {}> = PartialContext<{
   props: {
-    [key in keyof Mutations]: Prettify<Omit<Mutations[key], 'method'>>;
+    [key in keyof Mutations]: Prettify<Omit<Mutations[key], 'mutate'>>;
   };
   methods: FilterMethodsBoundToSources<
     Mutations,
     UnionToTuple<keyof Mutations>,
+    'mutate',
     'mutate'
   >;
   _mutation: {
@@ -45,7 +30,7 @@ type SpecificCraftMutationsOutputs<Mutations extends {}> = PartialContext<{
 type CraftMutationsOutputs<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
-  Mutations extends {}
+  Mutations extends {},
 > = CraftFactoryUtility<
   Context,
   StoreConfig,
@@ -58,13 +43,13 @@ export function craftMutations<
   Mutations extends Record<
     string,
     MutationOutput<object, unknown, unknown, unknown, unknown, any>
-  >
+  >,
 >(
-  mutationsFactory: (context: CraftFactoryEntries<Context>) => Mutations
+  mutationsFactory: (context: CraftFactoryEntries<Context>) => Mutations,
 ): CraftMutationsOutputs<Context, StoreConfig, Mutations> {
   return (_cloudProxy) => (contextData) => {
     const mutations = mutationsFactory(
-      craftFactoryEntries(contextData)
+      craftFactoryEntries(contextData),
     ) as Record<
       string,
       MutationRef<unknown, unknown, unknown, unknown, unknown, unknown, unknown>
@@ -73,7 +58,7 @@ export function craftMutations<
     const { methods, resourceRefs } = Object.entries(mutations ?? {}).reduce(
       (acc, [methodName, mutationRef]) => {
         const methodValue =
-          'method' in mutationRef ? mutationRef.method : undefined;
+          'mutate' in mutationRef ? mutationRef.mutate : undefined;
         if (!methodValue) {
           acc.resourceRefs[methodName] = mutationRef;
           return acc;
@@ -99,11 +84,11 @@ export function craftMutations<
               unknown,
               unknown
             >,
-            'method' | 'source'
+            'mutate' | 'source'
           >
         >;
         methods: Record<string, Function>;
-      }
+      },
     );
 
     return partialContext({

@@ -31,7 +31,7 @@ describe('mutation', () => {
       });
 
       expect(mutationInstance.status()).toBe('idle');
-      mutationInstance.method({
+      mutationInstance.mutate({
         searchChange: 'test',
         timeToWait: 1000,
       });
@@ -50,13 +50,13 @@ describe('mutation', () => {
       }>();
       const test = afterRecomputation(
         searchSource,
-        (searchConfig) => searchConfig
+        (searchConfig) => searchConfig,
       );
       const result = test();
       const myMutation = mutation({
         method: afterRecomputation(
           searchSource,
-          (searchConfig) => searchConfig
+          (searchConfig) => searchConfig,
         ),
         loader: async ({ params: { timeToWait, searchChange } }) => {
           type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
@@ -123,7 +123,7 @@ describe('mutation types without identifier', () => {
           },
           () => ({
             additionalInsertion: 'injectedValue' as const,
-          })
+          }),
         ),
       }));
 
@@ -208,7 +208,7 @@ describe('mutation types without identifier', () => {
           },
           () => ({
             additionalInsertion: 'injectedValue' as const,
-          })
+          }),
         ),
       }));
 
@@ -355,7 +355,7 @@ describe('mutation types with identifier', () => {
           },
           () => ({
             additionalInsertion: 'injectedValue' as const,
-          })
+          }),
         ),
       }));
 
@@ -448,7 +448,7 @@ describe('mutation types with identifier', () => {
           },
           () => ({
             additionalInsertion: 'injectedValue' as const,
-          })
+          }),
         ),
       }));
 
@@ -458,7 +458,7 @@ describe('mutation types with identifier', () => {
           {} as any,
           {} as any,
           {} as any,
-          {} as any
+          {} as any,
         ).props.searchChange.select('test');
         expectTypeOf(search).toEqualTypeOf<
           | {
@@ -480,7 +480,7 @@ describe('mutation types with identifier', () => {
           {} as any,
           {} as any,
           {} as any,
-          {} as any
+          {} as any,
         ).props.filterChange;
         expectTypeOf(filter).toEqualTypeOf<{
           readonly error: Signal<Error | undefined>;

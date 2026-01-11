@@ -1,0 +1,77 @@
+:host {
+  display: block;
+  max-width: 420px;
+  margin: 2.5rem auto;
+  padding: 2.2rem 2rem 2rem 2rem;
+  background: #232323;
+  border-radius: 14px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
+  color: #eaeaea;
+}
+
+:host div {
+  font-size: 1.08rem;
+  margin-bottom: 1.5rem;
+  color: #eaeaea;
+}
+
+:host button {
+  background: #444;
+  color: #eaeaea;
+  border: none;
+  border-radius: 7px;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 1.2rem;
+  transition: background 0.2s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+:host button:hover {
+  background: #2a2a2a;
+}
+
+:host .label-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+:host label {
+  font-weight: 500;
+  color: #bdbdbd;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  padding: 0.2rem 0.4rem 0.2rem 0;
+  border-radius: 4px;
+}
+
+:host input[type="checkbox"] {
+  accent-color: #444;
+  transform: scale(1.25);
+  margin: 0;
+  box-shadow: 0 0 0 2px #333;
+  outline: none;
+  transition: box-shadow 0.2s;
+}
+:host input[type="checkbox"]:focus {
+  box-shadow: 0 0 0 2px #888;
+}
+
+:host pre {
+  background: #181818;
+  color: #d6d6d6;
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.98rem;
+  overflow-x: auto;
+  margin: 1.2rem 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+:host button {
+  margin-right: 1rem;
+}

@@ -5,7 +5,9 @@ import {
   ResourceLoaderParams,
   ResourceOptions,
   ResourceRef,
+  ResourceStatus,
   ResourceStreamingLoader,
+  Signal,
   signal,
   WritableSignal,
 } from '@angular/core';
@@ -13,6 +15,7 @@ import { InsertionsResourcesFactory } from './query.core';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { AsyncMethodRef } from './craft-async-methods';
 import { ReadonlySource } from './util/source.type';
+import { MergeObjects } from './util/util.type';
 // todo refactor to share code with AsyncMethod
 
 type MutationConfig<
@@ -23,214 +26,197 @@ type MutationConfig<
   GroupIdentifier,
   FromObjectGroupIdentifier extends string,
   FromObjectState,
-  FromObjectResourceParams
-> =
-  | Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
-      (
-        | {
-            /**
-             * Used to generate a method in the store, when called will trigger the resource loader/stream.
-             *
-             * ! It required One parameter at least to be able to generate the method (otherwise it will think it is bind to a source, see below).
-             *
-             * Only support one parameter which can be an object to pass multiple parameters.
-             *
-             * It also accepts a ReadonlySource<SourceParams> to connect the mutation params to an external signal source.
-             */
-            method:
-              | ((args: ParamsArgs) => Params)
-              | ReadonlySource<SourceParams>;
-            fromResourceById?: never;
-            /**
-             * A unique identifier for the resource, derived from the params.
-             * It should be a string that uniquely identifies the resource based on the params.
-             */
-            identifier?: (
-              params: NoInfer<NonNullable<Params>>
-            ) => GroupIdentifier;
-            loader: (
-              param: ResourceLoaderParams<
-                NonNullable<
-                  [unknown] extends [Params]
-                    ? NoInfer<SourceParams>
-                    : NoInfer<Params>
-                >
-              >
-            ) => Promise<ResourceState>;
-            stream?: never;
-            preservePreviousValue?: () => boolean;
-          }
-        | {
-            /**
-             * Used to generate a method in the store, when called will trigger the resource loader/stream.
-             *
-             * ! It required One parameter at least to be able to generate the method (otherwise it will think it is bind to a source, see below).
-             *
-             * Only support one parameter which can be an object to pass multiple parameters.
-             *
-             * It also accepts a ReadonlySource<SourceParams> to connect the mutation params to an external signal source.
-             */
-            method:
-              | ((args: ParamsArgs) => Params)
-              | ReadonlySource<SourceParams>;
-            loader?: never;
-            fromResourceById?: never;
-            identifier?: (
-              params: NoInfer<NonNullable<Params>>
-            ) => GroupIdentifier;
-            /**
-             * Loading function which returns a `Promise` of a signal of the resource's value for a given
-             * request, which can change over time as new values are received from a stream.
-             */
-            stream: ResourceStreamingLoader<
-              ResourceState,
-              ResourceLoaderParams<
-                NonNullable<
-                  [unknown] extends [Params]
-                    ? NoInfer<SourceParams>
-                    : NoInfer<Params>
-                >
-              >
-            >;
-            preservePreviousValue?: () => boolean;
-          }
-        | {
-            /**
-             * Use it, when you need to bind a ResourceByIdRef to another ResourceByIdRef.
-             * It will enforce the fromObject keys syncing when the fromObject resource change.
-             */
-            fromResourceById: ResourceByIdRef<
-              FromObjectGroupIdentifier,
-              FromObjectState,
-              FromObjectResourceParams
-            >;
-            /**
-             * A reactive function which determines the request to be made. Whenever the request changes, the
-             * loader will be triggered to fetch a new value for the resource.
-             *
-             * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
-             */
-            params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
-            loader?: never;
-            method?: never;
-            identifier?: (
-              params: NoInfer<NonNullable<Params>>
-            ) => GroupIdentifier;
-            /**
-             * Loading function which returns a `Promise` of a signal of the resource's value for a given
-             * request, which can change over time as new values are received from a stream.
-             */
-            stream: ResourceStreamingLoader<
-              ResourceState,
-              ResourceLoaderParams<
-                NonNullable<
-                  [unknown] extends [Params]
-                    ? NoInfer<SourceParams>
-                    : NoInfer<Params>
-                >
-              >
-            >;
-            preservePreviousValue?: () => boolean;
-          }
-        | {
-            /**
-             * Use it, when you need to bind a ResourceByIdRef to another ResourceByIdRef.
-             * It will enforce the fromObject keys syncing when the fromObject resource change.
-             */
-            fromResourceById: ResourceByIdRef<
-              FromObjectGroupIdentifier,
-              FromObjectState,
-              FromObjectResourceParams
-            >;
-            /**
-             * A reactive function which determines the request to be made. Whenever the request changes, the
-             * loader will be triggered to fetch a new value for the resource.
-             *
-             * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
-             */
-            params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
-            /**
-             * A unique identifier for the resource, derived from the params.
-             * It should be a string that uniquely identifies the resource based on the params.
-             */
-            identifier?: (
-              params: NoInfer<NonNullable<Params>>
-            ) => GroupIdentifier;
-            loader: (
-              param: ResourceLoaderParams<
-                NonNullable<
-                  [unknown] extends [Params]
-                    ? NoInfer<SourceParams>
-                    : NoInfer<Params>
-                >
-              >
-            ) => Promise<ResourceState>;
-            stream?: never;
-            preservePreviousValue?: () => boolean;
-          }
-        | {
-            fromResourceById?: never;
-            /**
-             * A reactive function which determines the request to be made. Whenever the request changes, the
-             * loader will be triggered to fetch a new value for the resource.
-             *
-             * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
-             */
-            params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
-            loader?: never;
-            method?: never;
-            identifier?: (
-              params: NoInfer<NonNullable<Params>>
-            ) => GroupIdentifier;
-            /**
-             * Loading function which returns a `Promise` of a signal of the resource's value for a given
-             * request, which can change over time as new values are received from a stream.
-             */
-            stream: ResourceStreamingLoader<
-              ResourceState,
-              ResourceLoaderParams<
-                NonNullable<
-                  [unknown] extends [Params]
-                    ? NoInfer<SourceParams>
-                    : NoInfer<Params>
-                >
-              >
-            >;
-            preservePreviousValue?: () => boolean;
-          }
-        | {
-            /**
-             * Use it, when you need to bind a ResourceByIdRef to another ResourceByIdRef.
-             * It will enforce the fromObject keys syncing when the fromObject resource change.
-             */
-            fromResourceById?: never;
-            /**
-             * A reactive function which determines the request to be made. Whenever the request changes, the
-             * loader will be triggered to fetch a new value for the resource.
-             *
-             * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
-             */
-            params: () => Params;
-            /**
-             * A unique identifier for the resource, derived from the params.
-             * It should be a string that uniquely identifies the resource based on the params.
-             */
-            identifier?: (
-              params: NoInfer<NonNullable<Params>>
-            ) => GroupIdentifier;
-            loader: (
-              param: ResourceLoaderParams<
-                NonNullable<
-                  [unknown] extends [Params]
-                    ? NoInfer<SourceParams>
-                    : NoInfer<Params>
-                >
-              >
-            ) => Promise<ResourceState>;
-            stream?: never;
-            preservePreviousValue?: () => boolean;
-          }
-      );
+  FromObjectResourceParams,
+> = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
+  (
+    | {
+        /**
+         * Used to generate a method in the store, when called will trigger the resource loader/stream.
+         *
+         * ! It required One parameter at least to be able to generate the method (otherwise it will think it is bind to a source, see below).
+         *
+         * Only support one parameter which can be an object to pass multiple parameters.
+         *
+         * It also accepts a ReadonlySource<SourceParams> to connect the mutation params to an external signal source.
+         */
+        method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
+        fromResourceById?: never;
+        /**
+         * A unique identifier for the resource, derived from the params.
+         * It should be a string that uniquely identifies the resource based on the params.
+         */
+        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        loader: (
+          param: ResourceLoaderParams<
+            NonNullable<
+              [unknown] extends [Params]
+                ? NoInfer<SourceParams>
+                : NoInfer<Params>
+            >
+          >,
+        ) => Promise<ResourceState>;
+        stream?: never;
+        preservePreviousValue?: () => boolean;
+      }
+    | {
+        /**
+         * Used to generate a method in the store, when called will trigger the resource loader/stream.
+         *
+         * ! It required One parameter at least to be able to generate the method (otherwise it will think it is bind to a source, see below).
+         *
+         * Only support one parameter which can be an object to pass multiple parameters.
+         *
+         * It also accepts a ReadonlySource<SourceParams> to connect the mutation params to an external signal source.
+         */
+        method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
+        loader?: never;
+        fromResourceById?: never;
+        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        /**
+         * Loading function which returns a `Promise` of a signal of the resource's value for a given
+         * request, which can change over time as new values are received from a stream.
+         */
+        stream: ResourceStreamingLoader<
+          ResourceState,
+          ResourceLoaderParams<
+            NonNullable<
+              [unknown] extends [Params]
+                ? NoInfer<SourceParams>
+                : NoInfer<Params>
+            >
+          >
+        >;
+        preservePreviousValue?: () => boolean;
+      }
+    | {
+        /**
+         * Use it, when you need to bind a ResourceByIdRef to another ResourceByIdRef.
+         * It will enforce the fromObject keys syncing when the fromObject resource change.
+         */
+        fromResourceById: ResourceByIdRef<
+          FromObjectGroupIdentifier,
+          FromObjectState,
+          FromObjectResourceParams
+        >;
+        /**
+         * A reactive function which determines the request to be made. Whenever the request changes, the
+         * loader will be triggered to fetch a new value for the resource.
+         *
+         * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
+         */
+        params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
+        loader?: never;
+        method?: never;
+        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        /**
+         * Loading function which returns a `Promise` of a signal of the resource's value for a given
+         * request, which can change over time as new values are received from a stream.
+         */
+        stream: ResourceStreamingLoader<
+          ResourceState,
+          ResourceLoaderParams<
+            NonNullable<
+              [unknown] extends [Params]
+                ? NoInfer<SourceParams>
+                : NoInfer<Params>
+            >
+          >
+        >;
+        preservePreviousValue?: () => boolean;
+      }
+    | {
+        /**
+         * Use it, when you need to bind a ResourceByIdRef to another ResourceByIdRef.
+         * It will enforce the fromObject keys syncing when the fromObject resource change.
+         */
+        fromResourceById: ResourceByIdRef<
+          FromObjectGroupIdentifier,
+          FromObjectState,
+          FromObjectResourceParams
+        >;
+        /**
+         * A reactive function which determines the request to be made. Whenever the request changes, the
+         * loader will be triggered to fetch a new value for the resource.
+         *
+         * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
+         */
+        params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
+        /**
+         * A unique identifier for the resource, derived from the params.
+         * It should be a string that uniquely identifies the resource based on the params.
+         */
+        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        loader: (
+          param: ResourceLoaderParams<
+            NonNullable<
+              [unknown] extends [Params]
+                ? NoInfer<SourceParams>
+                : NoInfer<Params>
+            >
+          >,
+        ) => Promise<ResourceState>;
+        stream?: never;
+        preservePreviousValue?: () => boolean;
+      }
+    | {
+        fromResourceById?: never;
+        /**
+         * A reactive function which determines the request to be made. Whenever the request changes, the
+         * loader will be triggered to fetch a new value for the resource.
+         *
+         * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
+         */
+        params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
+        loader?: never;
+        method?: never;
+        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        /**
+         * Loading function which returns a `Promise` of a signal of the resource's value for a given
+         * request, which can change over time as new values are received from a stream.
+         */
+        stream: ResourceStreamingLoader<
+          ResourceState,
+          ResourceLoaderParams<
+            NonNullable<
+              [unknown] extends [Params]
+                ? NoInfer<SourceParams>
+                : NoInfer<Params>
+            >
+          >
+        >;
+        preservePreviousValue?: () => boolean;
+      }
+    | {
+        /**
+         * Use it, when you need to bind a ResourceByIdRef to another ResourceByIdRef.
+         * It will enforce the fromObject keys syncing when the fromObject resource change.
+         */
+        fromResourceById?: never;
+        /**
+         * A reactive function which determines the request to be made. Whenever the request changes, the
+         * loader will be triggered to fetch a new value for the resource.
+         *
+         * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
+         */
+        params: () => Params;
+        /**
+         * A unique identifier for the resource, derived from the params.
+         * It should be a string that uniquely identifies the resource based on the params.
+         */
+        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        loader: (
+          param: ResourceLoaderParams<
+            NonNullable<
+              [unknown] extends [Params]
+                ? NoInfer<SourceParams>
+                : NoInfer<Params>
+            >
+          >,
+        ) => Promise<ResourceState>;
+        stream?: never;
+        preservePreviousValue?: () => boolean;
+      }
+  );
 
 export type MutationRef<
   Value,
@@ -239,15 +225,52 @@ export type MutationRef<
   Insertions,
   IsMethod,
   SourceParams,
-  GroupIdentifier
-> = AsyncMethodRef<
-  Value,
-  ArgParams,
-  Params,
-  Insertions,
-  IsMethod,
-  SourceParams,
-  GroupIdentifier
+  GroupIdentifier,
+> = MergeObjects<
+  [
+    [unknown] extends [GroupIdentifier]
+      ? {
+          readonly value: Signal<Value | undefined>;
+          readonly status: Signal<ResourceStatus>;
+          readonly error: Signal<Error | undefined>;
+          readonly isLoading: Signal<boolean>;
+          hasValue(): boolean;
+        }
+      : {},
+    Insertions,
+    IsMethod extends true
+      ? {
+          mutate: (args: ArgParams) => Params;
+        }
+      : {
+          source: ReadonlySource<SourceParams>;
+        },
+    [unknown] extends [GroupIdentifier]
+      ? {}
+      : ResourceByIdRef<GroupIdentifier & string, Value, Params> & {
+          _resourceById: ResourceByIdRef<
+            GroupIdentifier & string,
+            Value,
+            Params
+          >;
+          /**
+           * Get the associated resource by id
+           *
+           * Only added to help TS inference (TS cannot infer ResourceByIdHandler without erasing the signal getter, () => ResourceByIdRef<...>) )
+           *
+           * return the associated resource or undefined if not existing
+           */
+          select: (id: GroupIdentifier) =>
+            | {
+                readonly value: Signal<Value | undefined>;
+                readonly status: Signal<ResourceStatus>;
+                readonly error: Signal<Error | undefined>;
+                readonly isLoading: Signal<boolean>;
+                hasValue(): boolean;
+              }
+            | undefined;
+        },
+  ]
 > & {
   // ! Otherwise TS erases the types
   [key in `~InternalType`]: 'Used to avoid TS type erasure';
@@ -259,7 +282,7 @@ export type MutationOutput<
   ArgParams,
   SourceParams,
   GroupIdentifier,
-  Insertions
+  Insertions,
 > = MutationRef<
   State,
   ArgParams,
@@ -278,7 +301,7 @@ export function mutation<
   GroupIdentifier,
   FromObjectGroupIdentifier extends string,
   FromObjectState,
-  FromObjectResourceParams
+  FromObjectResourceParams,
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -289,7 +312,7 @@ export function mutation<
     FromObjectGroupIdentifier,
     FromObjectState,
     FromObjectResourceParams
-  >
+  >,
 ): MutationOutput<
   MutationState,
   MutationParams,
@@ -307,7 +330,7 @@ export function mutation<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
-  Insertion1
+  Insertion1,
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -324,7 +347,7 @@ export function mutation<
     NoInfer<MutationState>,
     NoInfer<MutationParams>,
     Insertion1
-  >
+  >,
 ): MutationOutput<
   MutationState,
   MutationParams,
@@ -343,7 +366,7 @@ export function mutation<
   FromObjectState,
   FromObjectResourceParams,
   Insertion1,
-  Insertion2
+  Insertion2,
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -367,7 +390,7 @@ export function mutation<
     NoInfer<MutationParams>,
     Insertion2,
     Insertion1
-  >
+  >,
 ): MutationOutput<
   MutationState,
   MutationParams,
@@ -387,7 +410,7 @@ export function mutation<
   FromObjectResourceParams,
   Insertion1,
   Insertion2,
-  Insertion3
+  Insertion3,
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -418,7 +441,7 @@ export function mutation<
     NoInfer<MutationParams>,
     Insertion3,
     Insertion1 & Insertion2
-  >
+  >,
 ): MutationOutput<
   MutationState,
   MutationParams,
@@ -439,7 +462,7 @@ export function mutation<
   Insertion1,
   Insertion2,
   Insertion3,
-  Insertion4
+  Insertion4,
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -477,7 +500,7 @@ export function mutation<
     NoInfer<MutationParams>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
-  >
+  >,
 ): MutationOutput<
   MutationState,
   MutationParams,
@@ -499,7 +522,7 @@ export function mutation<
   Insertion2,
   Insertion3,
   Insertion4,
-  Insertion5
+  Insertion5,
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -544,7 +567,7 @@ export function mutation<
     NoInfer<MutationParams>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
-  >
+  >,
 ): MutationOutput<
   MutationState,
   MutationParams,
@@ -567,7 +590,7 @@ export function mutation<
   Insertion3,
   Insertion4,
   Insertion5,
-  Insertion6
+  Insertion6,
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -619,7 +642,7 @@ export function mutation<
     NoInfer<MutationParams>,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
-  >
+  >,
 ): MutationOutput<
   MutationState,
   MutationParams,
@@ -643,7 +666,7 @@ export function mutation<
   Insertion4,
   Insertion5,
   Insertion6,
-  Insertion7
+  Insertion7,
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -702,7 +725,7 @@ export function mutation<
     NoInfer<MutationParams>,
     Insertion7,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
-  >
+  >,
 ): MutationOutput<
   MutationState,
   MutationParams,
@@ -725,7 +748,7 @@ export function mutation<
   GroupIdentifier,
   FromObjectGroupIdentifier extends string,
   FromObjectState,
-  FromObjectResourceParams
+  FromObjectResourceParams,
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -810,7 +833,7 @@ export function mutation<
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         MutationParams | undefined
       >,
-      method:
+      mutate:
         isConnectedToAResourceById ||
         ('method' in mutationConfig && isSignal(mutationConfig.method))
           ? undefined
@@ -841,23 +864,26 @@ export function mutation<
         NoInfer<MutationParams>,
         {}
       >[]
-    )?.reduce((acc, insert) => {
-      return {
-        ...acc,
-        ...insert({
-          ...(isUsingIdentifier
-            ? {
-                resourceById: resourceTarget,
-                identifier: mutationConfig.identifier,
-              }
-            : { resource: resourceTarget }),
-          resourceParamsSrc: resourceParamsSrc as WritableSignal<
-            NoInfer<MutationParams>
-          >,
-          insertions: acc as {},
-        } as any),
-      };
-    }, {} as Record<string, unknown>)
+    )?.reduce(
+      (acc, insert) => {
+        return {
+          ...acc,
+          ...insert({
+            ...(isUsingIdentifier
+              ? {
+                  resourceById: resourceTarget,
+                  identifier: mutationConfig.identifier,
+                }
+              : { resource: resourceTarget }),
+            resourceParamsSrc: resourceParamsSrc as WritableSignal<
+              NoInfer<MutationParams>
+            >,
+            insertions: acc as {},
+          } as any),
+        };
+      },
+      {} as Record<string, unknown>,
+    ),
   ) as unknown as MutationOutput<
     MutationState,
     MutationParams,

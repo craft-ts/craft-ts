@@ -31,10 +31,10 @@ export type RemoveIndexSignature<T> = {
   [K in keyof T as string extends K
     ? never
     : number extends K
-    ? never
-    : symbol extends K
-    ? never
-    : K]: T[K];
+      ? never
+      : symbol extends K
+        ? never
+        : K]: T[K];
 };
 
 export type IsEmptyObject<T> = keyof T extends never ? true : false;
@@ -51,47 +51,61 @@ export type StoreConfigToken = typeof STORE_CONFIG_TOKEN;
 
 export type ReplaceStoreConfigToken<
   StandaloneOutputName extends string,
-  StoreConfig extends StoreConfigConstraints
+  StoreConfig extends StoreConfigConstraints,
 > = StandaloneOutputName extends `${infer StoreNamePrefix}${typeof STORE_CONFIG_TOKEN.NAME}${infer StoreNameSuffix}`
   ? ReplaceStoreConfigToken<
       `${StoreNamePrefix}${Capitalize<StoreConfig['name']>}${StoreNameSuffix}`,
       StoreConfig
     >
   : StandaloneOutputName extends `${infer StoreProvidedInPrefix}${typeof STORE_CONFIG_TOKEN.PROVIDED_IN}${infer StoreProvidedInSuffix}`
-  ? ReplaceStoreConfigToken<
-      `${StoreProvidedInPrefix}${Capitalize<
-        StoreConfig['providedIn']
-      >}${StoreProvidedInSuffix}`,
-      StoreConfig
-    >
-  : StandaloneOutputName;
+    ? ReplaceStoreConfigToken<
+        `${StoreProvidedInPrefix}${Capitalize<
+          StoreConfig['providedIn']
+        >}${StoreProvidedInSuffix}`,
+        StoreConfig
+      >
+    : StandaloneOutputName;
 
 export type FilterMethodsBoundToSources<
   Methods extends {},
   Rest,
   MethodPrefix extends string,
-  Acc = {}
+  MethodName extends string,
+  Acc = {},
 > = Rest extends [infer First, ...infer Next]
   ? First extends keyof Methods
     ? Methods[First] extends {
-        method: infer Method;
+        [Key in MethodName]: infer Method;
       }
       ? [Method] extends [ReadonlySource<infer SourceState>]
-        ? FilterMethodsBoundToSources<Methods, Next, MethodPrefix, Acc>
+        ? FilterMethodsBoundToSources<
+            Methods,
+            Next,
+            MethodPrefix,
+            MethodName,
+            Acc
+          >
         : FilterMethodsBoundToSources<
             Methods,
             Next,
             MethodPrefix,
+            MethodName,
             Acc & {
               [K in First as `${MethodPrefix}${Capitalize<string & K>}`]: [
-                Method
+                Method,
               ] extends [Function]
                 ? Method
                 : never;
             }
           >
-      : FilterMethodsBoundToSources<Methods, Next, MethodPrefix, Acc>
-    : FilterMethodsBoundToSources<Methods, Next, MethodPrefix, Acc>
+      : FilterMethodsBoundToSources<
+          Methods,
+          Next,
+          MethodPrefix,
+          MethodName,
+          Acc
+        >
+    : FilterMethodsBoundToSources<Methods, Next, MethodPrefix, MethodName, Acc>
   : Acc;
 
 export type FilterSource<Insertions> = {
@@ -101,15 +115,14 @@ export type FilterSource<Insertions> = {
 };
 
 // Helper type to defer evaluation and avoid infinite recursion
-export type DeferredExtract<Insertions> = UnionToTuple<
-  keyof Insertions
-> extends infer Keys
-  ? ExtractSignalPropsAndMethods<
-      Insertions,
-      Keys,
-      { props: {}; methods: Record<string, Function> }
-    >
-  : never;
+export type DeferredExtract<Insertions> =
+  UnionToTuple<keyof Insertions> extends infer Keys
+    ? ExtractSignalPropsAndMethods<
+        Insertions,
+        Keys,
+        { props: {}; methods: Record<string, Function> }
+      >
+    : never;
 
 export type HasKeys<T> = T extends object
   ? keyof T extends never
@@ -125,7 +138,7 @@ export type FlatRecord<T> = Prettify<UnionToIntersection<_FlatRecord<T>>>;
 // It is not possible to get all the properties key of an optional object, so make the optional properties required
 export type MakeOptionalPropertiesRequired<
   T,
-  K extends keyof T = keyof T
+  K extends keyof T = keyof T,
 > = T & {
   [P in K]-?: T[P];
 };
@@ -134,7 +147,7 @@ export type MergeObject<A, B> = A & B;
 
 export type MergeObjects<F extends unknown[], Acc = {}> = F extends [
   infer First,
-  ...infer Rest
+  ...infer Rest,
 ]
   ? First extends object
     ? MergeObjects<Rest, MergeObject<Acc, First>>
@@ -146,7 +159,7 @@ export type InternalType<
   Params,
   Args,
   IsGroupedResource,
-  GroupIdentifier = unknown
+  GroupIdentifier = unknown,
 > = {
   state: State;
   params: Params;
@@ -173,11 +186,12 @@ export type UnionToIntersection<union> = (
  * @param Union - Union of any types
  * @returns Last element of union
  */
-type GetUnionLast<Union> = UnionToIntersection<
-  Union extends any ? () => Union : never
-> extends () => infer Last
-  ? Last
-  : never;
+type GetUnionLast<Union> =
+  UnionToIntersection<
+    Union extends any ? () => Union : never
+  > extends () => infer Last
+    ? Last
+    : never;
 
 /**
  * Convert union to tuple
@@ -185,7 +199,7 @@ type GetUnionLast<Union> = UnionToIntersection<
  * @returns Tuple of each elements in the union
  */
 export type UnionToTuple<Union, Tuple extends unknown[] = []> = [
-  Union
+  Union,
 ] extends [never]
   ? Tuple
   : UnionToTuple<
@@ -196,8 +210,8 @@ export type UnionToTuple<Union, Tuple extends unknown[] = []> = [
 export type HasChild<T> = T extends any[]
   ? false
   : T extends object
-  ? true
-  : false;
+    ? true
+    : false;
 
 export type OmitStrict<T, K extends keyof T> = T extends any
   ? Pick<T, Exclude<keyof T, K>>
@@ -225,9 +239,8 @@ export type IsNever<T> = [T] extends [never] ? true : false;
 
 export type IsAny<T> = [T] extends [Secret] ? Not<IsNever<T>> : false;
 
-export type InferInjectedType<T extends Type<unknown>> = T extends Type<infer U>
-  ? U
-  : never;
+export type InferInjectedType<T extends Type<unknown>> =
+  T extends Type<infer U> ? U : never;
 
 export type Prettify<T> = {
   [K in keyof T]: T[K];
