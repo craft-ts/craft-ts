@@ -740,6 +740,163 @@ export function mutation<
     Insertion6 &
     Insertion7
 >;
+/**
+ * Creates a reactive mutation manager that handles asynchronous operations with state tracking.
+ *
+ * This function manages mutation state by:
+ * - Executing asynchronous operations (loader or stream) when triggered
+ * - Tracking operation status (idle, loading, resolved, rejected)
+ * - Providing reactive signals for value, status, error, and loading state
+ * - Supporting both method-based triggers and source-based automatic execution
+ * - Optionally enabling parallel mutation execution by grouping instances with an identifier
+ *
+ * @remarks
+ * **Important:** This function must be called within an injection context.
+ * 
+ * **Mutation Modes:**
+ * - **Method-based:** Define a `method` function that returns params. Call `mutate()` to trigger the operation.
+ * - **Source-based:** Use `afterRecomputation()` to bind to a source signal. The mutation executes automatically when the source changes.
+ * - **Resource-based:** Bind to another `ResourceByIdRef` using `fromResourceById` to sync operations.
+ *
+ * **With Identifier:**
+ * When an `identifier` function is provided, mutations are grouped by ID. Use `select(id)` to access individual mutation instances.
+ *
+ * @param config - Configuration object containing:
+ *   - `method`: Function that takes args and returns params, or a `ReadonlySource` for automatic execution
+ *   - `loader`: Async function that performs the mutation and returns a Promise of the result
+ *   - `stream` (optional): Async function that returns a signal for streaming results
+ *   - `identifier` (optional): Function to derive a unique ID from params for grouping mutations
+ *   - `fromResourceById` (optional): Bind to another ResourceByIdRef for synced operations
+ *   - `params` (optional): Function to derive params from a resource entity
+ *   - Additional ResourceOptions like `equal`, `injector`, etc.
+ * @param insertions - Optional insertion functions to add custom methods, computed values or side effects to the mutation.
+ *   Insertions receive context with resource signals (`value`, `status`, `error`, `isLoading`, `hasValue`), `config`, and previous insertions.
+ *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
+ * @returns A mutation reference object with:
+ *   - `value`: Signal containing the mutation result (undefined if not yet executed)
+ *   - `status`: Signal with current status ('idle' | 'loading' | 'resolved' | 'rejected')
+ *   - `error`: Signal containing any error that occurred
+ *   - `isLoading`: Signal indicating if the mutation is currently executing
+ *   - `hasValue()`: Method to check if a value is available
+ *   - `mutate(args)`: Method to trigger the mutation (only for method-based mutations)
+ *   - `source`: The connected source (only for source-based mutations)
+ *   - `select(id)`: Method to access a specific mutation instance by ID (only when identifier is provided)
+ *   - Custom methods from insertions (excluding methods bound to sources)
+ *
+ * @example
+ * Basic method-based mutation
+ * ```ts
+ * const updateUser = mutation({
+ *   method: (userId: string) => ({ userId }),
+ *   loader: async ({ params }) => {
+ *     const response = await fetch(`/api/users/${params.userId}`, { method: 'PATCH' });
+ *     return response.json();
+ *   },
+ * });
+ *
+ * // Check status
+ * console.log(updateUser.status()); // 'idle'
+ * console.log(updateUser.isLoading()); // false
+ *
+ * // Trigger mutation
+ * updateUser.mutate('user-123');
+ * console.log(updateUser.status()); // 'loading'
+ *
+ * // After completion
+ * console.log(updateUser.value()); // { id: 'user-123', name: '...' }
+ * console.log(updateUser.status()); // 'resolved'
+ * ```
+ *
+ * @example
+ * Source-based automatic mutation
+ * ```ts
+ * const searchSource = source<{ query: string }>();
+ * 
+ * const searchMutation = mutation({
+ *   method: afterRecomputation(searchSource, (params) => params),
+ *   loader: async ({ params }) => {
+ *     const response = await fetch(`/api/search?q=${params.query}`);
+ *     return response.json();
+ *   },
+ * });
+ *
+ * // Mutation executes automatically when source changes
+ * searchSource.set({ query: 'angular' });
+ * console.log(searchMutation.status()); // 'loading'
+ * console.log(searchMutation.source()); // { query: 'angular' }
+ * ```
+ *
+ * @example
+ * Mutation with identifier for grouping
+ * ```ts
+ * const deleteItem = mutation({
+ *   method: (itemId: string) => ({ itemId }),
+ *   identifier: (params) => params.itemId,
+ *   loader: async ({ params }) => {
+ *     await fetch(`/api/items/${params.itemId}`, { method: 'DELETE' });
+ *     return { deleted: true };
+ *   },
+ * });
+ *
+ * // Trigger mutations for different items
+ * deleteItem.mutate('item-1');
+ * deleteItem.mutate('item-2');
+ *
+ * // Access individual mutation states
+ * const item1Mutation = deleteItem.select('item-1');
+ * console.log(item1Mutation?.status()); // 'loading' or 'resolved'
+ * console.log(item1Mutation?.value()); // { deleted: true }
+ * ```
+ *
+ * @example
+ * With custom methods via insertions
+ * ```ts
+ * const createPost = mutation(
+ *   {
+ *     method: (data: { title: string; content: string }) => data,
+ *     loader: async ({ params }) => {
+ *       const response = await fetch('/api/posts', {
+ *         method: 'POST',
+ *         body: JSON.stringify(params),
+ *       });
+ *       return response.json();
+ *     },
+ *   },
+ *   ({ value, isLoading }) => ({
+ *     isSuccess: computed(() => value() !== undefined && !isLoading()),
+ *     reset: () => {
+ *       // Custom reset logic
+ *     },
+ *   })
+ * );
+ *
+ * createPost.mutate({ title: 'Hello', content: 'World' });
+ * console.log(createPost.isSuccess()); // Custom computed from insertion
+ * ```
+ *
+ * @example
+ * Streaming mutation
+ * ```ts
+ * const chatMutation = mutation({
+ *   method: (message: string) => ({ message }),
+ *   stream: async ({ params }) => {
+ *     const response = await fetch('/api/chat', {
+ *       method: 'POST',
+ *       body: JSON.stringify(params),
+ *     });
+ *     
+ *     // Return a signal that updates as stream data arrives
+ *     const resultSignal = signal('');
+ *     const reader = response.body?.getReader();
+ *     // ... process stream and update resultSignal
+ *     return resultSignal;
+ *   },
+ * });
+ *
+ * chatMutation.mutate('Hello AI');
+ * // value() updates as stream data arrives
+ * ```
+ */
 export function mutation<
   MutationState extends object | undefined,
   MutationParams,
