@@ -13,6 +13,10 @@ import { InsertionsResourcesFactory } from './query.core';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { AsyncMethodRef } from './craft-async-methods';
 import { ReadonlySource } from './util/source.type';
+import {
+  ResourceByIdLikeMutationRef,
+  ResourceLikeMutationRef,
+} from './mutation';
 // todo refactor to share code with AsyncMethod
 
 type QueryConfig<
@@ -173,15 +177,24 @@ export type QueryRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-> = AsyncMethodRef<
-  Value,
-  ArgParams,
-  Params,
-  Insertions,
-  IsMethod,
-  SourceParams,
-  GroupIdentifier
->;
+> = [unknown] extends [GroupIdentifier]
+  ? ResourceLikeMutationRef<
+      Value,
+      Params,
+      IsMethod,
+      ArgParams,
+      SourceParams,
+      Insertions
+    >
+  : ResourceByIdLikeMutationRef<
+      Value,
+      Params,
+      IsMethod,
+      ArgParams,
+      SourceParams,
+      Insertions,
+      GroupIdentifier
+    >;
 
 export type QueryOutput<
   State extends object | undefined,
@@ -190,18 +203,15 @@ export type QueryOutput<
   SourceParams,
   GroupIdentifier,
   Insertions,
-> = AsyncMethodRef<
+> = QueryRef<
   State,
-  ArgParams,
   Params,
+  ArgParams,
   Insertions,
-  [unknown] extends [Params] ? false : true,
+  [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
   GroupIdentifier
-> & {
-  resourceParamsSrc: WritableSignal<Params | undefined>;
-  reload(): boolean;
-};
+>;
 
 export function query<
   QueryState extends object | undefined,

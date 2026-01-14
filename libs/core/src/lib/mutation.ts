@@ -13,7 +13,6 @@ import {
 } from '@angular/core';
 import { InsertionsResourcesFactory } from './query.core';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
-import { AsyncMethodRef } from './craft-async-methods';
 import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
 // todo refactor to share code with AsyncMethod
@@ -218,26 +217,27 @@ type MutationConfig<
       }
   );
 
-export type MutationRef<
+export type ResourceLikeMutationRef<
   Value,
-  ArgParams,
   Params,
-  Insertions,
   IsMethod,
+  ArgParams,
   SourceParams,
-  GroupIdentifier,
-> = MergeObjects<
+  Insertions,
+> = {
+  type: 'resourceLike';
+} & MergeObjects<
   [
-    [unknown] extends [GroupIdentifier]
-      ? {
-          readonly value: Signal<Value | undefined>;
-          readonly status: Signal<ResourceStatus>;
-          readonly error: Signal<Error | undefined>;
-          readonly isLoading: Signal<boolean>;
-          hasValue(): boolean;
-        }
-      : {},
-    Insertions,
+    {
+      readonly value: Signal<Value | undefined>;
+      readonly status: Signal<ResourceStatus>;
+      readonly error: Signal<Error | undefined>;
+      readonly isLoading: Signal<boolean>;
+      hasValue(): boolean;
+    },
+    {
+      readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
+    },
     IsMethod extends true
       ? {
           mutate: (args: ArgParams) => Params;
@@ -245,36 +245,85 @@ export type MutationRef<
       : {
           source: ReadonlySource<SourceParams>;
         },
-    [unknown] extends [GroupIdentifier]
-      ? {}
-      : ResourceByIdRef<GroupIdentifier & string, Value, Params> & {
-          _resourceById: ResourceByIdRef<
-            GroupIdentifier & string,
-            Value,
-            Params
-          >;
-          /**
-           * Get the associated resource by id
-           *
-           * Only added to help TS inference (TS cannot infer ResourceByIdHandler without erasing the signal getter, () => ResourceByIdRef<...>) )
-           *
-           * return the associated resource or undefined if not existing
-           */
-          select: (id: GroupIdentifier) =>
-            | {
-                readonly value: Signal<Value | undefined>;
-                readonly status: Signal<ResourceStatus>;
-                readonly error: Signal<Error | undefined>;
-                readonly isLoading: Signal<boolean>;
-                hasValue(): boolean;
-              }
-            | undefined;
-        },
+    Insertions,
+    {
+      [key in `~InternalType`]: 'Used to avoid TS type erasure';
+    },
   ]
-> & {
-  // ! Otherwise TS erases the types
-  [key in `~InternalType`]: 'Used to avoid TS type erasure';
-};
+>;
+
+export type ResourceByIdLikeMutationRef<
+  Value,
+  Params,
+  IsMethod,
+  ArgParams,
+  SourceParams,
+  Insertions,
+  GroupIdentifier,
+> = { type: 'resourceByGroupLike' } & {
+  readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
+} & {
+  _resourceById: ResourceByIdRef<GroupIdentifier & string, Value, Params>;
+  /**
+   * Get the associated resource by id
+   *
+   * Only added to help TS inference (TS cannot infer ResourceByIdHandler without erasing the signal getter, () => ResourceByIdRef<...>) )
+   *
+   * return the associated resource or undefined if not existing
+   */
+  select: (id: GroupIdentifier) =>
+    | {
+        readonly value: Signal<Value | undefined>;
+        readonly status: Signal<ResourceStatus>;
+        readonly error: Signal<Error | undefined>;
+        readonly isLoading: Signal<boolean>;
+        hasValue(): boolean;
+      }
+    | undefined;
+} & MergeObjects<
+    [
+      Insertions,
+      IsMethod extends true
+        ? {
+            mutate: (args: ArgParams) => Params;
+          }
+        : {
+            source: ReadonlySource<SourceParams>;
+          },
+      ResourceByIdRef<GroupIdentifier & string, Value, Params>,
+    ]
+  >;
+
+export type MutationRef<
+  Value,
+  Params,
+  ArgParams,
+  Insertions,
+  IsMethod,
+  SourceParams,
+  GroupIdentifier,
+> = [unknown] extends [GroupIdentifier]
+  ? ResourceLikeMutationRef<
+      Value,
+      Params,
+      IsMethod,
+      ArgParams,
+      SourceParams,
+      Insertions
+    >
+  : ResourceByIdLikeMutationRef<
+      Value,
+      Params,
+      IsMethod,
+      ArgParams,
+      SourceParams,
+      Insertions,
+      GroupIdentifier
+    >;
+//     & {
+//   // ! Otherwise TS erases the types
+//   [key in `~InternalType`]: 'Used to avoid TS type erasure';
+// };
 
 export type MutationOutput<
   State extends object | undefined,
@@ -285,8 +334,8 @@ export type MutationOutput<
   Insertions,
 > = MutationRef<
   State,
-  ArgParams,
   Params,
+  ArgParams,
   Insertions,
   [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
@@ -752,7 +801,7 @@ export function mutation<
  *
  * @remarks
  * **Important:** This function must be called within an injection context.
- * 
+ *
  * **Mutation Modes:**
  * - **Method-based:** Define a `method` function that returns params. Call `mutate()` to trigger the operation.
  * - **Source-based:** Use `afterRecomputation()` to bind to a source signal. The mutation executes automatically when the source changes.
@@ -811,7 +860,7 @@ export function mutation<
  * Source-based automatic mutation
  * ```ts
  * const searchSource = source<{ query: string }>();
- * 
+ *
  * const searchMutation = mutation({
  *   method: afterRecomputation(searchSource, (params) => params),
  *   loader: async ({ params }) => {
@@ -884,7 +933,7 @@ export function mutation<
  *       method: 'POST',
  *       body: JSON.stringify(params),
  *     });
- *     
+ *
  *     // Return a signal that updates as stream data arrives
  *     const resultSignal = signal('');
  *     const reader = response.body?.getReader();
@@ -895,6 +944,46 @@ export function mutation<
  *
  * chatMutation.mutate('Hello AI');
  * // value() updates as stream data arrives
+ * ```
+ *
+ * @example
+ * Binding to another ResourceByIdRef
+ * ```ts
+ * // First, create a source mutation by ID
+ * const fetchUsers = mutation({
+ *   method: (userId: string) => ({ userId }),
+ *   identifier: (params) => params.userId,
+ *   loader: async ({ params }) => {
+ *     const response = await fetch(`/api/users/${params.userId}`);
+ *     return response.json();
+ *   },
+ * });
+ *
+ * // Then create a derived mutation that processes the results
+ * const processedUsers = mutation({
+ *   fromResourceById: fetchUsers,
+ *   params: ({ value, status }) => {
+ *     // Only process when the source is resolved
+ *     return status() === 'resolved' ? value() : undefined;
+ *   },
+ *   identifier: (params) => params.userId,
+ *   loader: async ({ params }) => {
+ *     // Process the user data
+ *     return {
+ *       ...params,
+ *       processed: true,
+ *       timestamp: Date.now(),
+ *     };
+ *   },
+ * });
+ *
+ * // Trigger the source mutation
+ * fetchUsers.mutate('user-123');
+ *
+ * // The derived mutation automatically executes when fetchUsers resolves
+ * // Access the processed result
+ * const processed = processedUsers.select('user-123');
+ * console.log(processed?.value()); // { userId: 'user-123', processed: true, ... }
  * ```
  */
 export function mutation<
@@ -987,6 +1076,7 @@ export function mutation<
         }
       : {},
     {
+      type: isUsingIdentifier ? 'resourceByGroupLike' : 'resourceLike',
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         MutationParams | undefined
       >,

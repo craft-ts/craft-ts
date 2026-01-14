@@ -18,6 +18,11 @@ import {
   createNestedStateUpdate,
 } from './util/update-state.util';
 import { MergeObjects } from './util//types/util.type';
+import {
+  ResourceByIdLikeMutationRef,
+  ResourceLikeMutationRef,
+} from './mutation';
+
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
   onSameUrlNavigation?: 'reload' | 'ignore';
@@ -25,8 +30,31 @@ export interface QueryParamNavigationOptions {
   skipLocationChange?: boolean;
 }
 
+export type MutationResourceRefHelper<
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
+> = ResourceLikeMutationRef<
+  QueryAndMutationRecord['mutation']['state'],
+  QueryAndMutationRecord['mutation']['params'],
+  QueryAndMutationRecord['mutation']['isMethod'],
+  QueryAndMutationRecord['mutation']['args'],
+  QueryAndMutationRecord['mutation']['sourceParams'],
+  QueryAndMutationRecord['mutation']['insertions']
+>;
+
+export type MutationResourceByIdRefHelper<
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
+> = ResourceByIdLikeMutationRef<
+  QueryAndMutationRecord['mutation']['state'],
+  QueryAndMutationRecord['mutation']['params'],
+  QueryAndMutationRecord['mutation']['isMethod'],
+  QueryAndMutationRecord['mutation']['args'],
+  QueryAndMutationRecord['mutation']['sourceParams'],
+  QueryAndMutationRecord['mutation']['insertions'],
+  QueryAndMutationRecord['mutation']['groupIdentifier']
+>;
+
 type UpdateData<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 > = MergeObjects<
   [
     {
@@ -59,12 +87,12 @@ type UpdateData<
             QueryAndMutationRecord['mutation']['params']
           >;
         }
-      : {}
+      : {},
   ]
 >;
 
 export type QueryDeclarativeEffect<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 > = MergeObjects<
   [
     {
@@ -72,13 +100,13 @@ export type QueryDeclarativeEffect<
        * Run when the mutation is in loading state.
        */
       optimisticUpdate?: (
-        data: UpdateData<QueryAndMutationRecord>
+        data: UpdateData<QueryAndMutationRecord>,
       ) => QueryAndMutationRecord['query']['state'];
       /**
        * Run when the mutation is in loaded state.
        */
       update?: (
-        data: UpdateData<QueryAndMutationRecord>
+        data: UpdateData<QueryAndMutationRecord>,
       ) => QueryAndMutationRecord['query']['state'];
       reload?: ReloadQueriesConfig<QueryAndMutationRecord>;
       /**
@@ -103,15 +131,15 @@ export type QueryDeclarativeEffect<
           filter: FilterQueryById<QueryAndMutationRecord>;
         }
       : QueryAndMutationRecord['query']['isGroupedResource'] extends true
-      ? {
-          filter: FilterQueryById<QueryAndMutationRecord>;
-        }
-      : {}
+        ? {
+            filter: FilterQueryById<QueryAndMutationRecord>;
+          }
+        : {},
   ]
 >;
 
 export function triggerQueryReloadFromMutationChange<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 >({
   reload,
   mutationStatus,
@@ -133,19 +161,13 @@ export function triggerQueryReloadFromMutationChange<
         QueryAndMutationRecord['query']['params']
       >
     | undefined;
-  mutationResource: ResourceRef<QueryAndMutationRecord['mutation']['state']>;
+  mutationResource: ResourceRef<any>;
   mutationParamsSrc: Signal<
     QueryAndMutationRecord['mutation']['params'] | undefined
   >;
   queryIdentifier: QueryAndMutationRecord['query']['groupIdentifier'];
   mutationIdentifier: QueryAndMutationRecord['mutation']['groupIdentifier'];
-  mutationResources:
-    | ResourceByIdRef<
-        string,
-        QueryAndMutationRecord['mutation']['state'],
-        QueryAndMutationRecord['mutation']['params']
-      >
-    | undefined;
+  mutationResources: ResourceByIdRef<string, any, unknown> | undefined;
 }) {
   const statusMappings = {
     onMutationError: 'error',
@@ -181,7 +203,7 @@ export function triggerQueryReloadFromMutationChange<
 }
 
 export function triggerQueryReloadOnMutationStatusChange<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 >({
   mutationStatus,
   queryResourceTarget,
@@ -201,7 +223,7 @@ export function triggerQueryReloadOnMutationStatusChange<
       >
     | ResourceRef<QueryAndMutationRecord['query']['state']>;
   mutationEffectOptions: QueryDeclarativeEffect<QueryAndMutationRecord>;
-  mutationResource: ResourceRef<QueryAndMutationRecord['mutation']['state']>;
+  mutationResource: ResourceRef<any>;
   mutationParamsSrc: Signal<QueryAndMutationRecord['mutation']['params']>;
   reloadCConfig: {
     onMutationError?:
@@ -227,7 +249,7 @@ export function triggerQueryReloadOnMutationStatusChange<
 }) {
   if (
     (['error', 'loading', 'resolved'] satisfies ResourceStatus[]).includes(
-      mutationStatus as any
+      mutationStatus as any,
     )
   ) {
     if ('hasValue' in queryResourceTarget) {
@@ -284,7 +306,7 @@ export function triggerQueryReloadOnMutationStatusChange<
 }
 
 export function setAllPatchFromMutationOnQueryValue<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 >({
   mutationStatus,
   queryResourceTarget,
@@ -303,17 +325,13 @@ export function setAllPatchFromMutationOnQueryValue<
       >
     | ResourceRef<QueryAndMutationRecord['query']['state']>;
   mutationEffectOptions: QueryDeclarativeEffect<QueryAndMutationRecord>;
-  mutationResource: ResourceRef<QueryAndMutationRecord['mutation']['state']>;
+  mutationResource: ResourceRef<any>;
   mutationParamsSrc: Signal<QueryAndMutationRecord['mutation']['params']>;
   mutationIdentifier:
     | QueryAndMutationRecord['mutation']['groupIdentifier']
     | undefined;
   mutationResources:
-    | ResourceByIdRef<
-        string,
-        QueryAndMutationRecord['mutation']['state'],
-        QueryAndMutationRecord['mutation']['params']
-      >
+    | MutationResourceByIdRefHelper<QueryAndMutationRecord>
     | undefined;
 }) {
   if (mutationStatus !== 'loading' && mutationStatus !== 'resolved') {
@@ -329,7 +347,7 @@ export function setAllPatchFromMutationOnQueryValue<
   if ('hasValue' in queryResourceTarget) {
     const queryResource = queryResourceTarget;
     Object.entries(
-      patchTarget as Record<string, PatchQueryFn<any, any>>
+      patchTarget as Record<string, PatchQueryFn<any, any>>,
     ).forEach(([path, optimisticPatch]) => {
       const queryValue = queryResource.hasValue()
         ? queryResource.value()
@@ -377,11 +395,11 @@ export function setAllPatchFromMutationOnQueryValue<
         queryResources: queryResourcesById,
         mutationIdentifier,
         mutationResources,
-      } as any)
+      } as any),
     )
     .forEach(([queryIdentifier, queryResource]) => {
       Object.entries(
-        patchTarget as Record<string, PatchQueryFn<any, any>>
+        patchTarget as Record<string, PatchQueryFn<any, any>>,
       ).forEach(([path, patch]) => {
         const queryValue = queryResource.hasValue()
           ? queryResource.value()
@@ -411,7 +429,7 @@ export function setAllPatchFromMutationOnQueryValue<
 }
 
 export function setAllUpdatesFromMutationOnQueryValue<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 >({
   mutationStatus,
   queryResourceTarget,
@@ -430,7 +448,7 @@ export function setAllUpdatesFromMutationOnQueryValue<
       >
     | ResourceRef<QueryAndMutationRecord['query']['state']>;
   mutationEffectOptions: QueryDeclarativeEffect<QueryAndMutationRecord>;
-  mutationResource: ResourceRef<QueryAndMutationRecord['mutation']['state']>;
+  mutationResource: ResourceRef<any> | undefined;
   mutationParamsSrc: Signal<QueryAndMutationRecord['mutation']['params']>;
   mutationIdentifier:
     | QueryAndMutationRecord['mutation']['groupIdentifier']
@@ -489,7 +507,7 @@ export function setAllUpdatesFromMutationOnQueryValue<
         queryResources: queryResourceTarget,
         mutationIdentifier,
         mutationResources,
-      } as any)
+      } as any),
     )
     .forEach(([queryIdentifier, queryResource]) => {
       const updatedValue = updateTarget({
@@ -509,7 +527,7 @@ export function setAllUpdatesFromMutationOnQueryValue<
 export type InsertionParams<
   ResourceState extends object | undefined,
   ResourceParams,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
 > = {
   resource: ResourceRef<ResourceState>;
   resourceParamsSrc: WritableSignal<ResourceParams>;
@@ -525,20 +543,20 @@ export type InsertionsFactory<
   ResourceState extends object | undefined,
   ResourceParams,
   InsertsOutputs,
-  PreviousInsertionsOutputs = {}
+  PreviousInsertionsOutputs = {},
 > = (
   context: InsertionParams<
     ResourceState,
     ResourceParams,
     PreviousInsertionsOutputs
-  >
+  >,
 ) => InsertsOutputs;
 
 export type InsertionByIdParams<
   GroupIdentifier extends string,
   ResourceState extends object | undefined,
   ResourceParams,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
 > = {
   resourceById: ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>;
   resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
@@ -561,23 +579,23 @@ export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
 export type QueryParamMethods<QueryParamsState> = {
   patch: (
     params: Partial<QueryParamsState>,
-    options?: QueryParamNavigationOptions
+    options?: QueryParamNavigationOptions,
   ) => void;
   reset: (options?: QueryParamNavigationOptions) => void;
   set: (
     params: QueryParamsState,
-    options?: QueryParamNavigationOptions
+    options?: QueryParamNavigationOptions,
   ) => void;
   update: (
     updateFn: (currentParams: QueryParamsState) => QueryParamsState,
-    options?: QueryParamNavigationOptions
+    options?: QueryParamNavigationOptions,
   ) => void;
 };
 
 export type InsertionQueryParamsFactoryContext<
   QueryParamsType,
   PreviousInsertionsOutputs,
-  QueryParamsState
+  QueryParamsState,
 > = QueryParamMethods<QueryParamsState> & {
   state: Signal<QueryParamsState>;
   config: QueryParamsType;
@@ -591,21 +609,21 @@ export type InsertionsByIdFactory<
   ResourceParams,
   GroupIdentifier extends string,
   InsertionsOutputs,
-  PreviousInsertionsOutputs = {}
+  PreviousInsertionsOutputs = {},
 > = (
   context: InsertionByIdParams<
     GroupIdentifier,
     ResourceState,
     ResourceParams,
     PreviousInsertionsOutputs
-  >
+  >,
 ) => InsertionsOutputs;
 
 export type InsertionResourceFactoryContext<
   GroupIdentifier,
   ResourceState extends object | undefined,
   ResourceParams,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
 > = [unknown] extends [GroupIdentifier]
   ? InsertionParams<ResourceState, ResourceParams, PreviousInsertionsOutputs>
   : InsertionByIdParams<
@@ -619,35 +637,35 @@ export type InsertionsResourcesFactory<
   ResourceState extends object | undefined,
   ResourceParams,
   InsertionsOutputs,
-  PreviousInsertionsOutputs = {}
+  PreviousInsertionsOutputs = {},
 > = (
   context: InsertionResourceFactoryContext<
     GroupIdentifier,
     ResourceState,
     ResourceParams,
     PreviousInsertionsOutputs
-  >
+  >,
 ) => InsertionsOutputs;
 
 export type InsertionsStateFactory<
   State,
   InsertionsOutputs,
-  PreviousInsertionsOutputs = {}
+  PreviousInsertionsOutputs = {},
 > = (
-  context: InsertionStateFactoryContext<State, PreviousInsertionsOutputs>
+  context: InsertionStateFactoryContext<State, PreviousInsertionsOutputs>,
 ) => InsertionsOutputs;
 
 export type InsertionsQueryParamsFactory<
   State,
   QueryParamsType,
   InsertionsOutputs,
-  PreviousInsertionsOutputs = {}
+  PreviousInsertionsOutputs = {},
 > = (
   context: InsertionQueryParamsFactoryContext<
     QueryParamsType,
     PreviousInsertionsOutputs,
     State
-  >
+  >,
 ) => InsertionsOutputs;
 
 export type DefaultInsertionByIdParams = InsertionByIdParams<

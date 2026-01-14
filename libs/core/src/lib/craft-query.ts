@@ -3,7 +3,7 @@ import {
   setAllUpdatesFromMutationOnQueryValue,
   triggerQueryReloadOnMutationStatusChange,
 } from './query.core';
-import { InternalType, MergeObject, MergeObjects } from './util/util.type';
+import { MergeObject, MergeObjects } from './util/util.type';
 import {
   ContextConstraints,
   CraftFactoryUtility,
@@ -19,21 +19,27 @@ import {
   Injector,
   linkedSignal,
   ResourceRef,
+  Signal,
   untracked,
 } from '@angular/core';
 import { ResourceByIdRef } from './resource-by-id';
 import { nestedEffect } from './util/types/util';
 import { QueryOutput, QueryRef } from './query';
-import { MutationOutput } from './mutation';
+import {
+  MutationOutput,
+  ResourceByIdLikeMutationRef,
+  ResourceLikeMutationRef,
+} from './mutation';
 import {
   FilterQueryById,
   PatchMutationQuery,
   QueryAndMutationRecordConstraints,
   ReloadQueriesConfig,
 } from './util/types/shared.type';
+import { InternalType } from './util/types/util.type';
 
 type UpdateData<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 > = MergeObjects<
   [
     {
@@ -66,12 +72,12 @@ type UpdateData<
             QueryAndMutationRecord['mutation']['params']
           >;
         }
-      : {}
+      : {},
   ]
 >;
 
 type QueryDeclarativeEffect<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 > = MergeObjects<
   [
     {
@@ -79,13 +85,13 @@ type QueryDeclarativeEffect<
        * Run when the mutation is in loading state.
        */
       optimisticUpdate?: (
-        data: UpdateData<QueryAndMutationRecord>
+        data: UpdateData<QueryAndMutationRecord>,
       ) => QueryAndMutationRecord['query']['state'];
       /**
        * Run when the mutation is in loaded state.
        */
       update?: (
-        data: UpdateData<QueryAndMutationRecord>
+        data: UpdateData<QueryAndMutationRecord>,
       ) => QueryAndMutationRecord['query']['state'];
       reload?: ReloadQueriesConfig<QueryAndMutationRecord>;
       /**
@@ -110,10 +116,10 @@ type QueryDeclarativeEffect<
           filter: FilterQueryById<QueryAndMutationRecord>;
         }
       : QueryAndMutationRecord['query']['isGroupedResource'] extends true
-      ? {
-          filter: FilterQueryById<QueryAndMutationRecord>;
-        }
-      : {}
+        ? {
+            filter: FilterQueryById<QueryAndMutationRecord>;
+          }
+        : {},
   ]
 >;
 
@@ -122,7 +128,7 @@ export type QueryOptions<
   ResourceState extends object | undefined,
   ResourceParams,
   GroupIdentifier,
-  ResourceArgsParams
+  ResourceArgsParams,
 > = {
   // todo dans _mutation partager explicitement le type via InternalType et le MutationRef
   on?: Context['_mutation'] extends infer Mutations
@@ -165,7 +171,7 @@ type SpecificCraftQueryOutputs<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  InsertionsOutputs
+  InsertionsOutputs,
 > = PartialContext<{
   props: {
     [key in `${ResourceName & string}`]: QueryOutput<
@@ -199,7 +205,7 @@ type CraftQueryOutputs<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  InsertionsOutputs
+  InsertionsOutputs,
 > = CraftFactoryUtility<
   Context,
   StoreConfig,
@@ -225,7 +231,7 @@ export function craftQuery<
   InsertionsOutputs,
   IsMethod,
   SourceParams,
-  GroupIdentifier
+  GroupIdentifier,
 >(
   resourceName: ResourceName,
   queryFactory: (
@@ -234,7 +240,7 @@ export function craftQuery<
         storeName: StoreConfig['name'];
         key: NoInfer<ResourceName>;
       };
-    }
+    },
   ) => QueryOutput<
     ResourceState,
     ResourceArgsParams,
@@ -249,7 +255,7 @@ export function craftQuery<
     NoInfer<ResourceParams>,
     NoInfer<GroupIdentifier>,
     NoInfer<ResourceArgsParams>
-  >
+  >,
 ): CraftQueryOutputs<
   Context,
   StoreConfig,
@@ -280,7 +286,7 @@ export function craftQuery<
       GroupIdentifier
     >;
     const mutationsConfigEffect = Object.entries(
-      (queryOptions?.on ?? {}) as Record<string, QueryDeclarativeEffect<any>>
+      (queryOptions?.on ?? {}) as Record<string, QueryDeclarativeEffect<any>>,
     );
     const context = contextData.context;
 
@@ -290,6 +296,7 @@ export function craftQuery<
       | ResourceByIdRef<string, ResourceState, ResourceParams>
       | ResourceRef<ResourceState>;
 
+    // todo remove
     handleQueryResourceMutationEffects<
       Context,
       ResourceName,
@@ -305,13 +312,13 @@ export function craftQuery<
       context as unknown as Context,
       resourceName,
       resourceTarget,
-      injector
+      injector,
     );
 
     return partialContext({
       props: {
         [`${resourceName as ResourceName}`]: Object.assign(
-          queryRef
+          queryRef,
         ) as MergeObject<
           ResourceByIdRef<
             GroupIdentifier & string,
@@ -346,7 +353,7 @@ function handleQueryResourceMutationEffects<
   IsMethod,
   SourceParams,
   GroupIdentifier extends string,
-  InsertionsOutputs
+  InsertionsOutputs,
 >(
   mutationsConfigEffect: [string, QueryDeclarativeEffect<any>][],
   context: Context,
@@ -354,7 +361,7 @@ function handleQueryResourceMutationEffects<
   queryResourceTarget:
     | ResourceByIdRef<string, ResourceState, ResourceParams>
     | ResourceRef<ResourceState>,
-  _injector: Injector
+  _injector: Injector,
 ) {
   return {
     ...(mutationsConfigEffect.length &&
@@ -363,14 +370,29 @@ function handleQueryResourceMutationEffects<
           const formattedMutationName = mutationName
             .replace('Mutation', '')
             .replace('ById', '');
-          const mutationTargeted = // todoR check if mutationRef is still exposed
-            (
-              context._mutation as Record<
-                string,
-                MutationOutput<any, unknown, unknown, unknown, unknown, any>
-              >
-            )[formattedMutationName] as any;
-          if (!('_resourceById' in mutationTargeted)) {
+          const mutationTargeted = (
+            context._mutation as Record<
+              string,
+              | ResourceLikeMutationRef<
+                  any,
+                  unknown,
+                  unknown,
+                  unknown,
+                  unknown,
+                  unknown
+                >
+              | ResourceByIdLikeMutationRef<
+                  any,
+                  unknown,
+                  unknown,
+                  unknown,
+                  unknown,
+                  unknown,
+                  string | number
+                >
+            >
+          )[formattedMutationName];
+          if (!(mutationTargeted.type === 'resourceByGroupLike')) {
             const mutationResource = mutationTargeted;
             return {
               ...acc,
@@ -391,7 +413,8 @@ function handleQueryResourceMutationEffects<
                       mutationStatus,
                       queryResourceTarget,
                       mutationEffectOptions,
-                      mutationResource,
+                      mutationResource:
+                        mutationResource as unknown as ResourceRef<any>,
                       mutationParamsSrc,
                       mutationIdentifier: undefined,
                       mutationResources: undefined,
@@ -405,7 +428,8 @@ function handleQueryResourceMutationEffects<
                       mutationStatus,
                       queryResourceTarget,
                       mutationEffectOptions,
-                      mutationResource,
+                      mutationResource:
+                        mutationResource as unknown as ResourceRef<any>,
                       mutationParamsSrc,
                       reloadCConfig,
                       mutationIdentifier: undefined,
@@ -423,7 +447,8 @@ function handleQueryResourceMutationEffects<
                       //@ts-expect-error not understand from where the error come from
                       queryResourceTarget: queryResourceTarget,
                       mutationEffectOptions: mutationEffectOptions as any,
-                      mutationResource,
+                      mutationResource:
+                        mutationResource as unknown as ResourceRef<any>,
                       mutationParamsSrc,
                       mutationIdentifier: undefined,
                       mutationResources: undefined,
@@ -433,32 +458,34 @@ function handleQueryResourceMutationEffects<
               }),
             };
           }
-          const mutationResources = mutationTargeted;
+          const mutationResources = mutationTargeted._resourceById;
+
           const newMutationResourceRefForNestedEffect = linkedSignal<
-            ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>,
+            ResourceByIdRef<string, any, unknown>,
             { newKeys: GroupIdentifier[] } | undefined
           >({
-            source: mutationTargeted,
+            //@ts-expect-error I do not understand why it is not satisfies
+            source: mutationResources,
             computation: (currentSource, previous) => {
               if (!currentSource || !Object.keys(currentSource).length) {
                 return undefined;
               }
 
               const currentKeys = Object.keys(
-                currentSource
+                currentSource,
               ) as GroupIdentifier[];
               const previousKeys = Object.keys(
-                previous?.source || {}
+                previous?.source || {},
               ) as GroupIdentifier[];
 
               // Find keys that exist in current but not in previous
               const newKeys = currentKeys.filter(
-                (key) => !previousKeys.includes(key)
+                (key) => !previousKeys.includes(key),
               );
 
               return newKeys.length > 0 ? { newKeys } : previous?.value;
             },
-          });
+          }) as unknown as Signal<{ newKeys: GroupIdentifier[] } | undefined>;
 
           return {
             ...acc,
@@ -470,7 +497,7 @@ function handleQueryResourceMutationEffects<
                 (mutationIdentifier) => {
                   nestedEffect(_injector, () => {
                     const mutationResource =
-                      mutationTargeted()[mutationIdentifier];
+                      mutationResources()[mutationIdentifier];
 
                     if (!mutationResource) {
                       return;
@@ -529,20 +556,21 @@ function handleQueryResourceMutationEffects<
                           mutationStatus,
                           queryResourceTarget,
                           mutationEffectOptions,
-                          mutationResource,
+                          mutationResource:
+                            mutationResource as unknown as ResourceRef<any>,
                           mutationParamsSrc,
                           mutationIdentifier: mutationIdentifier,
-                          mutationResources,
+                          mutationResources: mutationTargeted,
                         });
                       });
                     }
                   });
-                }
+                },
               );
             }),
           };
         },
-        {} as Record<`_on${string}${ResourceName}QueryEffect`, EffectRef>
+        {} as Record<`_on${string}${ResourceName}QueryEffect`, EffectRef>,
       )),
   };
 }

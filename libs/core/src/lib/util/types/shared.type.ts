@@ -6,15 +6,38 @@ import {
 } from './access-type-object-property-by-dotted-path.type';
 import { InternalType, MergeObjects } from './util.type';
 import { ResourceByIdRef } from '../../resource-by-id';
+import { ResourceLikeMutationRef } from '../../mutation';
+import {
+  MutationResourceByIdRefHelper,
+  MutationResourceRefHelper,
+} from '../../query.core';
 
 // todo rename, and rename server state constraints
 export type QueryAndMutationRecordConstraints = {
-  query: InternalType<unknown, unknown, unknown, unknown>;
-  mutation: InternalType<unknown, unknown, unknown, unknown>;
+  query: InternalType<
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    boolean,
+    unknown,
+    unknown,
+    unknown
+  >;
+  mutation: InternalType<
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    unknown
+  >;
 };
 
 export type CustomReloadOnSpecificMutationStatus<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 > = (
   data: MergeObjects<
     [
@@ -46,13 +69,13 @@ export type CustomReloadOnSpecificMutationStatus<
               QueryAndMutationRecord['mutation']['params']
             >;
           }
-        : {}
+        : {},
     ]
-  >
+  >,
 ) => boolean;
 
 export type ReloadQueriesConfig<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 > =
   | false
   | {
@@ -68,7 +91,7 @@ export type ReloadQueriesConfig<
     };
 
 export type PatchMutationQuery<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 > = QueryAndMutationRecord['query']['state'] extends object
   ? {
       [queryPatchPath in ObjectDeepPath<
@@ -84,7 +107,7 @@ export type PatchMutationQuery<
 
 export type PatchQueryFn<
   QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
-  TargetedType
+  TargetedType,
 > = (
   data: MergeObjects<
     [
@@ -113,19 +136,15 @@ export type PatchQueryFn<
       QueryAndMutationRecord['mutation']['groupIdentifier'] extends string
         ? {
             mutationIdentifier: QueryAndMutationRecord['mutation']['groupIdentifier'];
-            mutationResources: ResourceByIdRef<
-              QueryAndMutationRecord['mutation']['groupIdentifier'],
-              QueryAndMutationRecord['mutation']['state'],
-              QueryAndMutationRecord['mutation']['params']
-            >;
+            mutationResources: MutationResourceByIdRefHelper<QueryAndMutationRecord>;
           }
-        : {}
+        : {},
     ]
-  >
+  >,
 ) => TargetedType;
 
 export type FilterQueryById<
-  QueryAndMutationRecord extends QueryAndMutationRecordConstraints
+  QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
 > = (
   data: MergeObjects<
     [
@@ -157,11 +176,11 @@ export type FilterQueryById<
               QueryAndMutationRecord['mutation']['params']
             >;
           }
-        : {}
+        : {},
     ]
-  >
+  >,
 ) => boolean;
 
 export type ResourceMethod<ParamsArgs, ResourceParams> = (
-  args: ParamsArgs
+  args: ParamsArgs,
 ) => ResourceParams;

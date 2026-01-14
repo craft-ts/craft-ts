@@ -154,20 +154,6 @@ export type MergeObjects<F extends unknown[], Acc = {}> = F extends [
     : Prettify<Acc>
   : Prettify<Acc>;
 
-export type InternalType<
-  State,
-  Params,
-  Args,
-  IsGroupedResource,
-  GroupIdentifier = unknown,
-> = {
-  state: State;
-  params: Params;
-  args: Args;
-  isGroupedResource: IsGroupedResource;
-  groupIdentifier: GroupIdentifier;
-};
-
 // from https://github.com/ecyrbe/zodios/blob/main/src/utils.types.ts
 /**
  * trick to combine multiple unions of objects into a single object
