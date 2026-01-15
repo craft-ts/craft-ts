@@ -100,7 +100,9 @@ export type QueryDeclarativeEffect<
        * Run when the mutation is in loading state.
        */
       optimisticUpdate?: (
-        data: UpdateData<QueryAndMutationRecord>,
+        data: UpdateData<QueryAndMutationRecord> & {
+          testData: QueryAndMutationRecord['query']['groupIdentifier'];
+        },
       ) => QueryAndMutationRecord['query']['state'];
       /**
        * Run when the mutation is in loaded state.

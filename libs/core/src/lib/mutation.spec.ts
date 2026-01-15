@@ -1,4 +1,4 @@
-import { ResourceStatus, Signal } from '@angular/core';
+import { ResourceStatus, Signal, WritableSignal } from '@angular/core';
 import { afterRecomputation } from './after-recomputation';
 import { source } from './source';
 import { ReadonlySource } from './util/source.type';
@@ -128,11 +128,11 @@ describe('mutation types without identifier', () => {
       }));
 
       type props = ReturnType<ReturnType<typeof mutationsOutput>>['props'];
-      type s = props['filterChange'];
+      type s = props['searchChange'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
-          readonly error: Signal<Error | undefined>;
           '~InternalType': 'Used to avoid TS type erasure';
+          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 searchChange: string;
@@ -142,10 +142,18 @@ describe('mutation types without identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          readonly resourceParamsSrc: WritableSignal<
+            NoInfer<{
+              timeToWait: number;
+              searchChange: string;
+            }>
+          >;
+          type: 'resourceLike';
+          kind: 'mutation';
         };
         filterChange: {
-          readonly error: Signal<Error | undefined>;
           '~InternalType': 'Used to avoid TS type erasure';
+          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 filter: string;
@@ -155,7 +163,14 @@ describe('mutation types without identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          readonly resourceParamsSrc: WritableSignal<
+            NoInfer<{
+              filter: string;
+            }>
+          >;
           additionalInsertion: 'injectedValue';
+          type: 'resourceLike';
+          kind: 'mutation';
         };
       }>();
 
@@ -215,11 +230,8 @@ describe('mutation types without identifier', () => {
       type props = ReturnType<ReturnType<typeof mutationsOutput>>['props'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
-          readonly error: Signal<Error | undefined>;
           '~InternalType': 'Used to avoid TS type erasure';
-          source: ReadonlySource<{
-            searchChangeText: string;
-          }>;
+          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 searchChangeText: string;
@@ -229,10 +241,23 @@ describe('mutation types without identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          readonly resourceParamsSrc: WritableSignal<
+            NoInfer<
+              | {
+                  searchChangeText: string;
+                }
+              | undefined
+            >
+          >;
+          source: ReadonlySource<{
+            searchChangeText: string;
+          }>;
+          type: 'resourceLike';
+          kind: 'mutation';
         };
         filterChange: {
-          readonly error: Signal<Error | undefined>;
           '~InternalType': 'Used to avoid TS type erasure';
+          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 filter: string;
@@ -242,7 +267,14 @@ describe('mutation types without identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          readonly resourceParamsSrc: WritableSignal<
+            NoInfer<{
+              filter: string;
+            }>
+          >;
           additionalInsertion: 'injectedValue';
+          type: 'resourceLike';
+          kind: 'mutation';
         };
       }>();
 
@@ -384,8 +416,8 @@ describe('mutation types with identifier', () => {
 
       const filter = {} as f;
       expectTypeOf(filter).toEqualTypeOf<{
-        readonly error: Signal<Error | undefined>;
         '~InternalType': 'Used to avoid TS type erasure';
+        readonly error: Signal<Error | undefined>;
         readonly value: Signal<
           | {
               filter: string;
@@ -395,7 +427,14 @@ describe('mutation types with identifier', () => {
         readonly status: Signal<ResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
+        readonly resourceParamsSrc: WritableSignal<
+          NoInfer<{
+            filter: string;
+          }>
+        >;
         additionalInsertion: 'injectedValue';
+        type: 'resourceLike';
+        kind: 'mutation';
       }>();
 
       type methods = ReturnType<ReturnType<typeof mutationsOutput>>['methods'];
@@ -483,8 +522,8 @@ describe('mutation types with identifier', () => {
           {} as any,
         ).props.filterChange;
         expectTypeOf(filter).toEqualTypeOf<{
-          readonly error: Signal<Error | undefined>;
           '~InternalType': 'Used to avoid TS type erasure';
+          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 filter: string;
@@ -494,7 +533,14 @@ describe('mutation types with identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          readonly resourceParamsSrc: WritableSignal<
+            NoInfer<{
+              filter: string;
+            }>
+          >;
           additionalInsertion: 'injectedValue';
+          type: 'resourceLike';
+          kind: 'mutation';
         }>();
 
         type methods = ReturnType<

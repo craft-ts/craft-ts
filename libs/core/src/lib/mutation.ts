@@ -226,6 +226,7 @@ export type ResourceLikeMutationRef<
   Insertions,
 > = {
   type: 'resourceLike';
+  kind: 'mutation';
 } & MergeObjects<
   [
     {
@@ -260,7 +261,7 @@ export type ResourceByIdLikeMutationRef<
   SourceParams,
   Insertions,
   GroupIdentifier,
-> = { type: 'resourceByGroupLike' } & {
+> = { type: 'resourceByGroupLike'; kind: 'mutation' } & {
   readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
 } & {
   _resourceById: ResourceByIdRef<GroupIdentifier & string, Value, Params>;

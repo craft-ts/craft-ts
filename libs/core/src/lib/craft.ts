@@ -145,6 +145,7 @@ export const craftFactoryEntries = (contextData: {
   ...contextData.context._sources,
   ...contextData.context.props,
   ...contextData.context._asyncMethods,
+  ...contextData.context._mutation,
 });
 
 export type ContextInput<Context extends ContextConstraints> = {
@@ -705,21 +706,9 @@ export function craft(
 
   const _cloudProxy = new Proxy({}, {});
 
-  if (options?.name === '') {
-    debugger;
-  }
-
   const extractedStandaloneOutputs = factoriesList.reduce(
     (acc, factoryWithStandalone, index) => {
-      if (options?.name === '' && index === 3) {
-        debugger;
-      }
       const r = factoryWithStandalone(_cloudProxy, storeConfig) ?? {};
-      if (options?.name === '' && index === 3) {
-        debugger;
-        //@ts-ignore
-        console.log('r', r(_cloudProxy, storeConfig));
-      }
       acc = {
         ...acc,
         ...r,

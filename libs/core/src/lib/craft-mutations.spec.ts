@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { inject, ResourceStatus, Signal } from '@angular/core';
+import { inject, ResourceStatus, Signal, WritableSignal } from '@angular/core';
 import { vi } from 'vitest';
 import { craft } from './craft';
 import { ResourceByIdRef } from './resource-by-id';
@@ -45,7 +45,7 @@ describe('craftMutationById', () => {
             return returnedUser;
           },
         }),
-      }))
+      })),
     );
 
     await TestBed.runInInjectionContext(async () => {
@@ -54,13 +54,16 @@ describe('craftMutationById', () => {
       expect(store.user).toBeDefined();
 
       expectTypeOf(store.user).toEqualTypeOf<{
-        readonly error: Signal<Error | undefined>;
         '~InternalType': 'Used to avoid TS type erasure';
+        readonly error: Signal<Error | undefined>;
         readonly value: Signal<User | undefined>;
         readonly status: Signal<ResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
+        readonly resourceParamsSrc: WritableSignal<string>;
         source: ReadonlySource<string>;
+        type: 'resourceLike';
+        kind: 'mutation';
       }>();
 
       expect(store.userById._resourceById).toBeDefined();
@@ -97,7 +100,7 @@ describe('craftMutationById', () => {
             return user;
           },
         }),
-      }))
+      })),
     );
     await TestBed.runInInjectionContext(async () => {
       const c = injectCraft();
@@ -157,7 +160,7 @@ describe('craftMutationById', () => {
           },
           identifier: ({ id }) => id,
         }),
-      }))
+      })),
     );
     expectTypeOf<
       keyof typeof __META_STORE_CONTEXT.context._mutation

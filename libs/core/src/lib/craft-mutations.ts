@@ -10,7 +10,7 @@ import {
 import { UnionToTuple, Prettify } from './util/util.type';
 import { capitalize } from './util/util';
 import { FilterMethodsBoundToSources } from './util/util.type';
-import { MutationOutput, MutationRef } from './mutation';
+import { MutationRef } from './mutation';
 
 type SpecificCraftMutationsOutputs<Mutations extends {}> = PartialContext<{
   props: {
@@ -40,17 +40,18 @@ type CraftMutationsOutputs<
 export function craftMutations<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
-  Mutations extends Record<
-    string,
-    MutationOutput<object, unknown, unknown, unknown, unknown, any>
-  >,
+  Mutations extends {
+    [key: string]: {
+      kind: 'mutation';
+    };
+  },
 >(
   mutationsFactory: (context: CraftFactoryEntries<Context>) => Mutations,
 ): CraftMutationsOutputs<Context, StoreConfig, Mutations> {
   return (_cloudProxy) => (contextData) => {
     const mutations = mutationsFactory(
       craftFactoryEntries(contextData),
-    ) as Record<
+    ) as unknown as Record<
       string,
       MutationRef<unknown, unknown, unknown, unknown, unknown, unknown, unknown>
     >;

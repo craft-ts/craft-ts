@@ -23,6 +23,7 @@ import { Equal, Expect } from 'test-type';
 import { queryParam } from './query-param';
 import { craftQueryParam } from './craft-query-param';
 import { provideRouter } from '@angular/router';
+import { insertReactOnMutation } from './insert-react-on-mutation';
 
 describe('craft', () => {
   beforeEach(() => {
@@ -101,26 +102,22 @@ describe('craft', () => {
             },
           }),
         })),
-        craftQuery(
-          'test',
-          () =>
-            query({
+        craftQuery('test', ({ save }) =>
+          query(
+            {
               params: () => 3,
               loader: async ({ params: id }) => {
                 await wait(10000);
                 return { id, name: 'test' };
               },
-            }),
-          {
-            on: {
-              saveMutation: {
-                optimisticUpdate: ({ mutationParams }) => mutationParams,
-                reload: {
-                  onMutationError: true,
-                },
-              },
             },
-          },
+            insertReactOnMutation(save, {
+              optimisticUpdate: ({ mutationParams }) => mutationParams,
+              reload: {
+                onMutationError: true,
+              },
+            }),
+          ),
         ),
       );
       const state = injectCraft();
@@ -158,28 +155,24 @@ describe('craft', () => {
             },
           }),
         })),
-        craftQuery(
-          'test',
-          () =>
-            query({
+        craftQuery('test', ({ save }) =>
+          query(
+            {
               params: () => '3',
               loader: async ({ params: id }) => {
                 await wait(10000);
                 return { id, name: 'test' };
               },
-            }),
-          {
-            on: {
-              saveMutation: {
-                filter: ({ mutationParams, queryResource }) =>
-                  mutationParams.id === queryResource.value()?.id,
-                optimisticUpdate: ({ mutationParams }) => mutationParams,
-                reload: {
-                  onMutationError: true,
-                },
-              },
             },
-          },
+            insertReactOnMutation(save, {
+              filter: ({ mutationParams, queryResource }) =>
+                mutationParams.id === queryResource.value()?.id,
+              optimisticUpdate: ({ mutationParams }) => mutationParams,
+              reload: {
+                onMutationError: true,
+              },
+            }),
+          ),
         ),
       );
       const q = injectCraft();
@@ -217,30 +210,48 @@ describe('craft', () => {
             },
           }),
         })),
-        craftQuery(
-          'test',
-          () =>
-            query({
+        craftQuery('test', ({ save }) =>
+          query(
+            {
               params: () => '3',
               identifier: (data) => data,
               loader: async ({ params: id }) => {
                 await wait(10000);
                 return { id, name: 'test' };
               },
-            }),
-          {
-            on: {
-              saveMutation: {
-                filter: ({ mutationParams, queryIdentifier }) =>
-                  mutationParams.id === queryIdentifier,
-                optimisticUpdate: ({ mutationParams }) => mutationParams,
-                reload: {
-                  onMutationError: true,
-                },
-              },
             },
-          },
+            insertReactOnMutation(save, {
+              filter: ({ mutationParams, queryIdentifier, queryResource }) =>
+                mutationParams.id === queryIdentifier,
+              optimisticUpdate: ({ mutationParams }) => mutationParams,
+              reload: {
+                onMutationError: true,
+              },
+            }),
+          ),
         ),
+      );
+      const m = mutation({
+        method: (data: { id: string; name: string }) => data,
+        loader: async ({ params }) => params,
+      });
+      const r = query(
+        {
+          params: () => '3',
+          identifier: (data) => data,
+          loader: async ({ params: id }) => {
+            await wait(10000);
+            return { id, name: 'test' };
+          },
+        },
+        insertReactOnMutation(m, {
+          filter: ({ mutationParams, queryIdentifier }) =>
+            mutationParams.id === queryIdentifier,
+          optimisticUpdate: ({ mutationParams, testData }) => mutationParams,
+          reload: {
+            onMutationError: true,
+          },
+        }),
       );
       const q = injectCraft();
       await vi.runAllTimersAsync();

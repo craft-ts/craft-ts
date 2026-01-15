@@ -5,19 +5,16 @@ import {
   ResourceLoaderParams,
   ResourceOptions,
   ResourceRef,
+  ResourceStatus,
   ResourceStreamingLoader,
+  Signal,
   signal,
   WritableSignal,
 } from '@angular/core';
 import { InsertionsResourcesFactory } from './query.core';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
-import { AsyncMethodRef } from './craft-async-methods';
 import { ReadonlySource } from './util/source.type';
-import {
-  ResourceByIdLikeMutationRef,
-  ResourceLikeMutationRef,
-} from './mutation';
-// todo refactor to share code with AsyncMethod
+import { MergeObjects } from './util/util.type';
 
 type QueryConfig<
   ResourceState,
@@ -169,6 +166,84 @@ type QueryConfig<
       : never;
   };
 
+export type ResourceLikeQueryRef<
+  Value,
+  Params,
+  IsMethod,
+  ArgParams,
+  SourceParams,
+  Insertions,
+> = {
+  type: 'resourceLike';
+  kind: 'query';
+} & MergeObjects<
+  [
+    {
+      readonly value: Signal<Value | undefined>;
+      readonly status: Signal<ResourceStatus>;
+      readonly error: Signal<Error | undefined>;
+      readonly isLoading: Signal<boolean>;
+      hasValue(): boolean;
+    },
+    {
+      readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
+    },
+    IsMethod extends true
+      ? {
+          mutate: (args: ArgParams) => Params;
+        }
+      : {
+          source: ReadonlySource<SourceParams>;
+        },
+    Insertions,
+    {
+      [key in `~InternalType`]: 'Used to avoid TS type erasure';
+    },
+  ]
+>;
+
+export type ResourceByIdLikeQueryRef<
+  Value,
+  Params,
+  IsMethod,
+  ArgParams,
+  SourceParams,
+  Insertions,
+  GroupIdentifier,
+> = { type: 'resourceByGroupLike'; kind: 'query' } & {
+  readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
+} & {
+  _resourceById: ResourceByIdRef<GroupIdentifier & string, Value, Params>;
+  /**
+   * Get the associated resource by id
+   *
+   * Only added to help TS inference (TS cannot infer ResourceByIdHandler without erasing the signal getter, () => ResourceByIdRef<...>) )
+   *
+   * return the associated resource or undefined if not existing
+   */
+  select: (id: GroupIdentifier) =>
+    | {
+        readonly value: Signal<Value | undefined>;
+        readonly status: Signal<ResourceStatus>;
+        readonly error: Signal<Error | undefined>;
+        readonly isLoading: Signal<boolean>;
+        hasValue(): boolean;
+      }
+    | undefined;
+} & MergeObjects<
+    [
+      Insertions,
+      IsMethod extends true
+        ? {
+            mutate: (args: ArgParams) => Params;
+          }
+        : {
+            source: ReadonlySource<SourceParams>;
+          },
+      ResourceByIdRef<GroupIdentifier & string, Value, Params>,
+    ]
+  >;
+
 export type QueryRef<
   Value,
   ArgParams,
@@ -178,7 +253,7 @@ export type QueryRef<
   SourceParams,
   GroupIdentifier,
 > = [unknown] extends [GroupIdentifier]
-  ? ResourceLikeMutationRef<
+  ? ResourceLikeQueryRef<
       Value,
       Params,
       IsMethod,
@@ -186,7 +261,7 @@ export type QueryRef<
       SourceParams,
       Insertions
     >
-  : ResourceByIdLikeMutationRef<
+  : ResourceByIdLikeQueryRef<
       Value,
       Params,
       IsMethod,
@@ -718,7 +793,7 @@ export function query<
         params: resourceParamsSrc,
       } as ResourceOptions<any, any>);
 
-  return Object.assign(
+  const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
     // byId is used to helps TS to correctly infer the resourceByGroup
     isUsingIdentifier
@@ -774,6 +849,10 @@ export function query<
               return result;
             },
     },
+  );
+
+  return Object.assign(
+    queryOutputWithoutInsertions,
     (
       insertions as InsertionsResourcesFactory<
         NoInfer<GroupIdentifier>,

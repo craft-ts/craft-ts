@@ -7,6 +7,7 @@ import { mutation } from './mutation';
 import { query, QueryOutput } from './query';
 import { craftQuery } from './craft-query';
 import { craftMutations } from './craft-mutations';
+import { insertReactOnMutation } from './insert-react-on-mutation';
 
 type User = {
   id: string;
@@ -38,8 +39,8 @@ describe('craftQuery', () => {
                 email: 'test@a.com',
               };
             },
-          })
-        )
+          }),
+        ),
       );
 
       const store = inject(Craft);
@@ -65,8 +66,8 @@ describe('craftQuery', () => {
                 email: 'test@a.com',
               };
             },
-          })
-        )
+          }),
+        ),
       );
 
       const store = inject(Craft);
@@ -93,8 +94,8 @@ describe('craftQuery', () => {
                 email: 'test@a.com',
               };
             },
-          })
-        )
+          }),
+        ),
       );
 
       const store = inject(Craft);
@@ -121,8 +122,8 @@ describe('craftQuery', () => {
                 email: 'test@a.com',
               };
             },
-          })
-        )
+          }),
+        ),
       );
 
       const store = inject(Craft);
@@ -178,8 +179,8 @@ describe('craftQuery', () => {
 
               return testSignal.asReadonly();
             },
-          })
-        )
+          }),
+        ),
       );
 
       const store = inject(Craft);
@@ -231,10 +232,9 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userEmail }) =>
+          query(
+            {
               params: () => '5',
               loader: async ({ params }) => {
                 type _StreamResponseTypeRetrieved = Expect<
@@ -246,20 +246,17 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
                   email: 'test@a.com',
                 };
               },
-            }),
-          {
-            on: {
-              userEmailMutation: {
-                optimisticUpdate: ({ queryResource, mutationParams }) => {
-                  return {
-                    ...queryResource.value(),
-                    email: mutationParams.email,
-                  };
-                },
-              },
             },
-          }
-        )
+            insertReactOnMutation(userEmail, {
+              optimisticUpdate: ({ queryResource, mutationParams }) => {
+                return {
+                  ...queryResource.value(),
+                  email: mutationParams.email,
+                };
+              },
+            }),
+          ),
+        ),
       );
 
       const store = inject(Craft);
@@ -300,10 +297,9 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userEmail }) =>
+          query(
+            {
               params: () => '5',
               loader: async ({ params }) => {
                 type _StreamResponseTypeRetrieved = Expect<
@@ -316,17 +312,14 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
                   email: 'test@a.com',
                 };
               },
-            }),
-          {
-            on: {
-              userEmailMutation: {
-                reload: {
-                  onMutationError: true,
-                },
-              },
             },
-          }
-        )
+            insertReactOnMutation(userEmail, {
+              reload: {
+                onMutationError: true,
+              },
+            }),
+          ),
+        ),
       );
 
       const store = inject(Craft);
@@ -370,10 +363,9 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userEmail }) =>
+          query(
+            {
               params: () => '5',
               loader: async ({ params }) => {
                 type _StreamResponseTypeRetrieved = Expect<
@@ -386,18 +378,15 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
                   email: 'test@a.com',
                 };
               },
-            }),
-          {
-            on: {
-              userEmailMutation: {
-                reload: {
-                  onMutationError: ({ mutationParams }) =>
-                    mutationParams.id === 'error',
-                },
-              },
             },
-          }
-        )
+            insertReactOnMutation(userEmail, {
+              reload: {
+                onMutationError: ({ mutationParams }) =>
+                  mutationParams.id === 'error',
+              },
+            }),
+          ),
+        ),
       );
 
       const store = inject(Craft);
@@ -449,10 +438,9 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userEmail }) =>
+          query(
+            {
               params: () => '5',
               loader: async ({ params }) => {
                 await wait(10000);
@@ -462,20 +450,16 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
                   email: 'test@a.com',
                 };
               },
-            }),
-          {
-            on: {
-              userEmailMutation: {
-                optimisticPatch: {
-                  email: ({ mutationParams }) => {
-                    console.log('mutationParams', mutationParams);
-                    return mutationParams?.email;
-                  },
+            },
+            insertReactOnMutation(userEmail, {
+              optimisticPatch: {
+                email: ({ mutationParams }) => {
+                  return mutationParams?.email;
                 },
               },
-            },
-          }
-        )
+            }),
+          ),
+        ),
       );
 
       const store = inject(Craft);
@@ -507,7 +491,7 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
           providedIn: 'root',
         },
         craftMutations(() => ({
-          user: mutation({
+          userMutation: mutation({
             method(user: User) {
               return user;
             },
@@ -518,31 +502,27 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userMutation }) =>
+          query(
+            {
               params: () => '5',
               loader: async ({ params }) => {
                 await wait(10000);
                 return returnedUser(params);
               },
-            }),
-          {
-            on: {
-              userMutation: {
-                filter: ({ mutationIdentifier, queryResource }) =>
-                  queryResource.hasValue()
-                    ? queryResource.value().id === mutationIdentifier
-                    : false,
-                reload: {
-                  onMutationLoading: true,
-                  onMutationResolved: true,
-                },
-              },
             },
-          }
-        )
+            insertReactOnMutation(userMutation, {
+              filter: ({ mutationIdentifier, queryResource }) =>
+                queryResource.hasValue()
+                  ? queryResource.value().id === mutationIdentifier
+                  : false,
+              reload: {
+                onMutationLoading: true,
+                onMutationResolved: true,
+              },
+            }),
+          ),
+        ),
       );
 
       const store = inject(Craft);
@@ -550,7 +530,7 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
       await vi.runAllTimersAsync();
       expect(userQuery.value()).toEqual(returnedUser('5'));
       const userQuery5ReloadSpy = vi.spyOn(userQuery, 'reload');
-      store.mutateUser({
+      store.mutateUserMutation({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
@@ -584,10 +564,9 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userEmail }) =>
+          query(
+            {
               params: () => '5',
               loader: async ({ params }) => {
                 type _StreamResponseTypeRetrieved = Expect<
@@ -599,21 +578,18 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
                   email: 'test@a.com',
                 };
               },
-            }),
-          {
-            on: {
-              userEmailMutation: {
-                update: ({ queryResource, mutationParams }) => {
-                  console.log('update queryResource', !!queryResource);
-                  return {
-                    ...queryResource.value(),
-                    email: mutationParams.email,
-                  };
-                },
-              },
             },
-          }
-        )
+            insertReactOnMutation(userEmail, {
+              update: ({ queryResource, mutationParams }) => {
+                console.log('update queryResource', !!queryResource);
+                return {
+                  ...queryResource.value(),
+                  email: mutationParams.email,
+                };
+              },
+            }),
+          ),
+        ),
       );
 
       const store = inject(Craft);
@@ -652,10 +628,9 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userEmail }) =>
+          query(
+            {
               params: () => '5',
               loader: async ({ params }) => {
                 await wait(10000);
@@ -665,20 +640,17 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
                   email: 'test@a.com',
                 };
               },
-            }),
-          {
-            on: {
-              userEmailMutation: {
-                patch: {
-                  email: ({ mutationParams }) => {
-                    console.log('mutationParams', mutationParams);
-                    return mutationParams?.email;
-                  },
+            },
+            insertReactOnMutation(userEmail, {
+              patch: {
+                email: ({ mutationParams }) => {
+                  console.log('mutationParams', mutationParams);
+                  return mutationParams?.email;
                 },
               },
-            },
-          }
-        )
+            }),
+          ),
+        ),
       );
 
       const store = inject(Craft);
@@ -708,7 +680,7 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
           providedIn: 'root',
         },
         craftMutations(() => ({
-          user: mutation({
+          userMutation: mutation({
             method(user: User) {
               return user;
             },
@@ -719,40 +691,36 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userMutation }) =>
+          query(
+            {
               params: () => '5',
               loader: async ({ params }) => {
                 await wait(10000);
                 return returnedUser(params);
               },
-            }),
-          {
-            on: {
-              userMutation: {
-                filter: ({ mutationIdentifier, queryResource }) =>
-                  queryResource.hasValue()
-                    ? queryResource.value().id === mutationIdentifier
-                    : false,
-                update: ({ queryResource, mutationResource }) => {
-                  return {
-                    ...queryResource.value(),
-                    ...mutationResource.value(),
-                  };
-                },
-              },
             },
-          }
-        )
+            insertReactOnMutation(userMutation, {
+              filter: ({ mutationIdentifier, queryResource }) =>
+                queryResource.hasValue()
+                  ? queryResource.value().id === mutationIdentifier
+                  : false,
+              update: ({ queryResource, mutationResource }) => {
+                return {
+                  ...queryResource.value(),
+                  ...mutationResource.value(),
+                };
+              },
+            }),
+          ),
+        ),
       );
 
       const store = inject(Craft);
       const userQuery = store.user;
       await vi.runAllTimersAsync();
       expect(userQuery?.value()).toEqual(returnedUser('5'));
-      store.mutateUser({
+      store.mutateUserMutation({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
@@ -780,7 +748,7 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
           providedIn: 'root',
         },
         craftMutations(() => ({
-          user: mutation({
+          userMutation: mutation({
             method(user: User) {
               return user;
             },
@@ -791,38 +759,33 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userMutation }) =>
+          query(
+            {
               params: () => '5',
               loader: async ({ params }) => {
                 await wait(10000);
                 return returnedUser(params);
               },
-            }),
-          {
-            on: {
-              userMutation: {
-                filter: ({ mutationIdentifier, queryResource }) =>
-                  queryResource.hasValue()
-                    ? queryResource.value().id === mutationIdentifier
-                    : false,
-                patch: {
-                  email: ({ mutationResource }) =>
-                    mutationResource.value().email,
-                },
-              },
             },
-          }
-        )
+            insertReactOnMutation(userMutation, {
+              filter: ({ mutationIdentifier, queryResource }) =>
+                queryResource.hasValue()
+                  ? queryResource.value().id === mutationIdentifier
+                  : false,
+              patch: {
+                email: ({ mutationResource }) => mutationResource.value().email,
+              },
+            }),
+          ),
+        ),
       );
 
       const store = inject(Craft);
       const userQuery = store.user;
       await vi.runAllTimersAsync();
       expect(userQuery?.value()).toEqual(returnedUser('5'));
-      store.mutateUser({
+      store.mutateUserMutation({
         id: '5',
         name: 'Updated User',
         email: 'updated.doe@example.com',
@@ -864,9 +827,9 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
                   page: 1,
                 },
               };
-            }
-          )
-        )
+            },
+          ),
+        ),
       );
       const store = inject(Craft);
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
@@ -880,7 +843,7 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
 // Typing test👇
 
 type InferServerStateFeatureReturnedType<
-  T extends CraftFactory<[any], any, any, any>
+  T extends CraftFactory<[any], any, any, any>,
 > = T extends CraftFactory<any, any, infer R, any> ? R : never;
 
 describe('craftQuery typing', () => {
@@ -896,7 +859,7 @@ describe('craftQuery typing', () => {
               email: 'test@a.com',
             } satisfies User;
           },
-        })
+        }),
       );
       type ResultType = InferServerStateFeatureReturnedType<
         typeof queryByIdTest
@@ -977,10 +940,9 @@ describe('craftQuery typing', () => {
             },
           }),
         })),
-        craftQuery(
-          'user',
-          () =>
-            query({
+        craftQuery('user', ({ userName }) =>
+          query(
+            {
               params: () => ({ id: '5' }),
               loader: async ({ params }) => {
                 return {
@@ -989,72 +951,69 @@ describe('craftQuery typing', () => {
                   email: '',
                 } satisfies User;
               },
-            }),
-          {
-            on: {
-              userNameMutation: {
-                optimisticUpdate: ({
+            },
+            insertReactOnMutation(userName, {
+              optimisticUpdate: ({
+                queryResource,
+                mutationResource: _mutationResource,
+                mutationParams: _mutationParams,
+              }) => {
+                type _ExpectQueryResourceToBeTyped = Expect<
+                  Equal<typeof queryResource, ResourceRef<User>>
+                >;
+                type _ExpectMutationParamsToBeTyped = Expect<
+                  Equal<typeof _mutationParams, { id: string }>
+                >;
+                type _ExpectMutationResourceToBeTyped = Expect<
+                  Equal<typeof _mutationResource, ResourceRef<User>>
+                >;
+                return queryResource.value();
+              },
+              reload: {
+                onMutationError: true,
+                onMutationResolved: true,
+                onMutationLoading: ({
+                  mutationParams,
+                  mutationResource,
                   queryResource,
-                  mutationResource: _mutationResource,
-                  mutationParams: _mutationParams,
                 }) => {
                   type _ExpectQueryResourceToBeTyped = Expect<
                     Equal<typeof queryResource, ResourceRef<User>>
                   >;
                   type _ExpectMutationParamsToBeTyped = Expect<
-                    Equal<typeof _mutationParams, { id: string }>
+                    Equal<typeof mutationParams, { id: string }>
                   >;
                   type _ExpectMutationResourceToBeTyped = Expect<
-                    Equal<typeof _mutationResource, ResourceRef<User>>
+                    Equal<typeof mutationResource, ResourceRef<User>>
                   >;
-                  return queryResource.value();
-                },
-                reload: {
-                  onMutationError: true,
-                  onMutationResolved: true,
-                  onMutationLoading: ({
-                    mutationParams,
-                    mutationResource,
-                    queryResource,
-                  }) => {
-                    type _ExpectQueryResourceToBeTyped = Expect<
-                      Equal<typeof queryResource, ResourceRef<User>>
-                    >;
-                    type _ExpectMutationParamsToBeTyped = Expect<
-                      Equal<typeof mutationParams, { id: string }>
-                    >;
-                    type _ExpectMutationResourceToBeTyped = Expect<
-                      Equal<typeof mutationResource, ResourceRef<User>>
-                    >;
-                    return true;
-                  },
-                },
-                optimisticPatch: {
-                  name: ({
-                    mutationParams,
-                    mutationResource,
-                    queryResource,
-                    targetedState,
-                  }) => {
-                    type _ExpectQueryResourceToBeTyped = Expect<
-                      Equal<typeof queryResource, ResourceRef<User>>
-                    >;
-                    type _ExpectMutationParamsToBeTyped = Expect<
-                      Equal<typeof mutationParams, { id: string }>
-                    >;
-                    type _ExpectMutationResourceToBeTyped = Expect<
-                      Equal<typeof mutationResource, ResourceRef<User>>
-                    >;
-                    type _ExpectTargetedStateToBeTyped = Expect<
-                      Equal<typeof targetedState, string | undefined>
-                    >;
-                    return targetedState ?? '';
-                  },
+                  return true;
                 },
               },
-            },
-          }
-        )
+              optimisticPatch: {
+                name: ({
+                  mutationParams,
+                  mutationResource,
+                  queryResource,
+                  targetedState,
+                }) => {
+                  type _ExpectQueryResourceToBeTyped = Expect<
+                    Equal<typeof queryResource, ResourceRef<User>>
+                  >;
+                  type _ExpectMutationParamsToBeTyped = Expect<
+                    Equal<typeof mutationParams, { id: string }>
+                  >;
+                  type _ExpectMutationResourceToBeTyped = Expect<
+                    Equal<typeof mutationResource, ResourceRef<User>>
+                  >;
+                  type _ExpectTargetedStateToBeTyped = Expect<
+                    Equal<typeof targetedState, string | undefined>
+                  >;
+                  return targetedState ?? '';
+                },
+              },
+            }),
+          ),
+        ),
       );
       const result = injectCraft();
       result.mutateUserEmail('newEmail');

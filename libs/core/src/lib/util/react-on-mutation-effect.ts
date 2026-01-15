@@ -20,6 +20,7 @@ import {
 import { ResourceByIdRef } from '../resource-by-id';
 import { nestedEffect } from './types/util';
 import { InternalType } from './types/util.type';
+import { ResourceByIdLikeQueryRef, ResourceLikeQueryRef } from '../query';
 
 // todo improve internal function types
 export function reactOnMutationEffect<
@@ -43,7 +44,7 @@ export function reactOnMutationEffect<
     mutationTargeted,
   }: {
     queryTargeted:
-      | ResourceLikeMutationRef<
+      | ResourceLikeQueryRef<
           QueryResourceState,
           QueryResourceParams,
           QueryIsMethod,
@@ -51,7 +52,7 @@ export function reactOnMutationEffect<
           QuerySourceParams,
           QueryInsertions
         >
-      | ResourceByIdLikeMutationRef<
+      | ResourceByIdLikeQueryRef<
           QueryResourceState,
           QueryResourceParams,
           QueryIsMethod,
@@ -84,7 +85,7 @@ export function reactOnMutationEffect<
       NoInfer<QueryResourceState>,
       NoInfer<QueryResourceParams>,
       NoInfer<QueryResourceArgsParams>,
-      [unknown] extends [QueryGroupIdentifier] ? false : true,
+      [unknown] extends [NoInfer<QueryGroupIdentifier>] ? false : true,
       NoInfer<QueryIsMethod>,
       NoInfer<QueryInsertions>,
       NoInfer<QueryGroupIdentifier>,
