@@ -5,9 +5,6 @@ import { Injectable, InjectionToken, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craftInject } from './craft-inject';
 
-// todo expose inputs by {inputs, queryParams}
-// todo test injection tokens, geneics
-
 describe('craftInject', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -42,7 +39,7 @@ describe('craftInject', () => {
               };
             },
           });
-        })
+        }),
       );
       const store = injectCraft();
 
@@ -89,7 +86,7 @@ describe('craftInject', () => {
               };
             },
           });
-        })
+        }),
       );
       const store = injectCraft();
 
@@ -130,7 +127,7 @@ describe('craftInject', () => {
               };
             },
           });
-        })
+        }),
       );
       const store = injectCraft();
 

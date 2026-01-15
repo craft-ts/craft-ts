@@ -735,6 +735,212 @@ export function query<
     Insertion6 &
     Insertion7
 >;
+/**
+ * Creates a reactive query manager that handles data fetching with automatic state tracking.
+ *
+ * This function manages query state by:
+ * - Executing asynchronous fetch operations (loader or stream) automatically when params change
+ * - Tracking operation status (idle, loading, resolved, rejected)
+ * - Providing reactive signals for value, status, error, and loading state
+ * - Supporting both params-based automatic execution and method-based manual triggers
+ * - Optionally enabling parallel query execution by grouping instances with an identifier
+ * - Caching and reusing query results based on params
+ *
+ * @remarks
+ * **Important:** This function must be called within an injection context.
+ *
+ * **Query Modes:**
+ * - **Params-based (automatic):** Define a `params` function. The query executes automatically when params change.
+ * - **Method-based (manual):** Define a `method` function that returns params. Call `mutate()` to trigger execution.
+ * - **Source-based (reactive):** Bind to a `ReadonlySource` for automatic execution when the source changes.
+ * - **Resource-based (derived):** Bind to another `ResourceByIdRef` using `fromResourceById` to create derived queries.
+ *
+ * **With Identifier:**
+ * When an `identifier` function is provided, queries are grouped by ID enabling parallel execution and individual result tracking.
+ * Use `select(id)` to access individual query instances.
+ *
+ * **Caching & Performance:**
+ * - Use `preservePreviousValue: () => true` to prevent flickering by keeping previous data while loading
+ * - Use `equalParams` to control when queries should re-execute based on params comparison
+ *
+ * @param config - Configuration object containing:
+ *   - `params`: Function that returns params for automatic execution, or undefined for method-based queries
+ *   - `method`: Function that takes args and returns params for manual execution, or a `ReadonlySource` for reactive execution
+ *   - `loader`: Async function that performs the query and returns a Promise of the result
+ *   - `stream` (optional): Async function that returns a signal for streaming results
+ *   - `identifier` (optional): Function to derive a unique ID from params for grouping queries
+ *   - `fromResourceById` (optional): Bind to another ResourceByIdRef for derived queries
+ *   - `preservePreviousValue` (optional): Function returning boolean to keep previous value while reloading
+ *   - `equalParams` (optional): Controls params comparison ('default' | 'useIdentifier' | custom function)
+ *   - Additional ResourceOptions like `equal`, `injector`, etc.
+ * @param insertions - Optional insertion functions to add custom methods, computed values or side effects to the query.
+ *   Insertions receive context with resource signals (`value`, `status`, `error`, `isLoading`, `hasValue`), `config`, and previous insertions.
+ * @returns A query reference object with:
+ *   - `value`: Signal containing the query result (undefined if not yet executed)
+ *   - `status`: Signal with current status ('idle' | 'loading' | 'resolved' | 'rejected')
+ *   - `error`: Signal containing any error that occurred
+ *   - `isLoading`: Signal indicating if the query is currently executing
+ *   - `hasValue()`: Method to check if a value is available
+ *   - `mutate(args)`: Method to trigger the query manually (only for method-based queries)
+ *   - `source`: The connected source (only for source-based queries)
+ *   - `select(id)`: Method to access a specific query instance by ID (only when identifier is provided)
+ *   - `resourceParamsSrc`: The underlying params signal
+ *   - Custom methods from insertions
+ *
+ * @example
+ * Basic params-based automatic query
+ * ```ts
+ * const userIdSignal = signal('user-123');
+ *
+ * const userQuery = query({
+ *   params: () => userIdSignal(),
+ *   loader: async ({ params }) => {
+ *     const response = await fetch(`/api/users/${params}`);
+ *     return response.json();
+ *   },
+ * });
+ *
+ * // Query executes automatically when created and when userIdSignal changes
+ * console.log(userQuery.status()); // 'loading'
+ * // After completion
+ * console.log(userQuery.value()); // { id: 'user-123', name: '...' }
+ * console.log(userQuery.status()); // 'resolved'
+ *
+ * // Changing the signal triggers a new query
+ * userIdSignal.set('user-456');
+ * ```
+ *
+ * @example
+ * Method-based manual query
+ * ```ts
+ * const searchQuery = query({
+ *   method: (searchTerm: string) => ({ term: searchTerm }),
+ *   loader: async ({ params }) => {
+ *     const response = await fetch(`/api/search?q=${params.term}`);
+ *     return response.json();
+ *   },
+ * });
+ *
+ * // Query doesn't execute automatically
+ * console.log(searchQuery.status()); // 'idle'
+ *
+ * // Manually trigger the query
+ * searchQuery.mutate('angular');
+ * console.log(searchQuery.status()); // 'loading'
+ * ```
+ *
+ * @example
+ * Query with identifier for parallel execution
+ * ```ts
+ * const userDetailsQuery = query({
+ *   params: () => currentUserId(),
+ *   identifier: (userId) => userId,
+ *   loader: async ({ params }) => {
+ *     const response = await fetch(`/api/users/${params}`);
+ *     return response.json();
+ *   },
+ * });
+ *
+ * // Multiple users can be queried in parallel
+ * // Each has its own state tracked by identifier
+ * const user1 = userDetailsQuery.select('user-1');
+ * const user2 = userDetailsQuery.select('user-2');
+ *
+ * console.log(user1?.status()); // 'resolved'
+ * console.log(user1?.value()); // { id: 'user-1', ... }
+ * console.log(user2?.status()); // 'loading'
+ * ```
+ *
+ * @example
+ * Query with caching to prevent flickering
+ * ```ts
+ * const postsQuery = query({
+ *   params: () => ({ page: currentPage() }),
+ *   preservePreviousValue: () => true, // Keep showing old data while loading
+ *   loader: async ({ params }) => {
+ *     const response = await fetch(`/api/posts?page=${params.page}`);
+ *     return response.json();
+ *   },
+ * });
+ *
+ * // When page changes, old data remains visible until new data loads
+ * // No flickering or empty states during navigation
+ * ```
+ *
+ * @example
+ * With custom methods via insertions
+ * ```ts
+ * const todosQuery = query(
+ *   {
+ *     params: () => ({ completed: showCompleted() }),
+ *     loader: async ({ params }) => {
+ *       const response = await fetch(`/api/todos?completed=${params.completed}`);
+ *       return response.json();
+ *     },
+ *   },
+ *   ({ value, isLoading }) => ({
+ *     count: computed(() => value()?.length ?? 0),
+ *     isEmpty: computed(() => !isLoading() && value()?.length === 0),
+ *   })
+ * );
+ *
+ * console.log(todosQuery.count()); // Custom computed from insertion
+ * console.log(todosQuery.isEmpty()); // true/false
+ * ```
+ *
+ * @example
+ * Streaming query
+ * ```ts
+ * const liveDataQuery = query({
+ *   params: () => ({ channel: currentChannel() }),
+ *   stream: async ({ params }) => {
+ *     const response = await fetch(`/api/stream/${params.channel}`);
+ *
+ *     // Return a signal that updates as stream data arrives
+ *     const resultSignal = signal([]);
+ *     const reader = response.body?.getReader();
+ *     // ... process stream and update resultSignal
+ *     return resultSignal;
+ *   },
+ * });
+ *
+ * // value() updates continuously as stream data arrives
+ * ```
+ *
+ * @example
+ * Derived query from another ResourceByIdRef
+ * ```ts
+ * // First query fetches basic user data
+ * const usersQuery = query({
+ *   params: () => currentUserId(),
+ *   identifier: (userId) => userId,
+ *   loader: async ({ params }) => {
+ *     const response = await fetch(`/api/users/${params}`);
+ *     return response.json();
+ *   },
+ * });
+ *
+ * // Derived query enriches user data with additional info
+ * const enrichedUsersQuery = query({
+ *   fromResourceById: usersQuery,
+ *   params: ({ value, status }) => {
+ *     // Only process when source is resolved
+ *     return status() === 'resolved' ? value() : undefined;
+ *   },
+ *   identifier: (user) => user.id,
+ *   loader: async ({ params }) => {
+ *     // Fetch additional data for the user
+ *     const response = await fetch(`/api/users/${params.id}/details`);
+ *     const details = await response.json();
+ *     return { ...params, ...details };
+ *   },
+ * });
+ *
+ * // Derived query executes automatically when usersQuery resolves
+ * const enrichedUser = enrichedUsersQuery.select('user-123');
+ * console.log(enrichedUser?.value()); // { ...userData, ...details }
+ * ```
+ */
 export function query<
   QueryState extends object | undefined,
   QueryParams,

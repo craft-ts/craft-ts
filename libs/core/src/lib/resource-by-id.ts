@@ -10,7 +10,6 @@ import {
   WritableSignal,
   computed,
   Signal,
-  isSignal,
   linkedSignal,
 } from '@angular/core';
 import { preservedResource } from './preserved-resource';
