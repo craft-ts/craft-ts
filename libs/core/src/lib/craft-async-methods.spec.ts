@@ -39,10 +39,11 @@ describe('craftAsyncMethods', () => {
               return { searchChange };
             },
           }),
-        }))
+        })),
       );
       const store = injectCraft();
       expect(store.searchChange.status()).toBe('idle');
+      // todo implements output
       store.setSearchChange({
         searchChange: 'test',
         timeToWait: 1000,
@@ -87,7 +88,7 @@ describe('craftAsyncMethods', () => {
               return { searchChange };
             },
           }),
-        }))
+        })),
       );
       const store = injectCraft();
       expect(store.searchGlobalChange.status()).toBe('idle');
@@ -154,7 +155,7 @@ describe('usingAsyncMethods with identifier', () => {
               return { searchChange };
             },
           }),
-        }))
+        })),
       );
       const store = injectCraft();
       store.setSearchChange({
@@ -201,13 +202,13 @@ describe('usingAsyncMethods with identifier', () => {
               return { searchChange };
             },
           }),
-        }))
+        })),
       );
       const store = injectCraft();
       await vi.runAllTimersAsync();
 
       expect(store.searchGlobalChange.select('global')?.status()).toBe(
-        undefined
+        undefined,
       );
       myGlobalSource.set({
         searchChange: 'global',
@@ -217,11 +218,11 @@ describe('usingAsyncMethods with identifier', () => {
       await vi.advanceTimersByTimeAsync(500);
 
       expect(store.searchGlobalChange.select('global')?.status()).toBe(
-        'loading'
+        'loading',
       );
       await vi.runAllTimersAsync();
       expect(store.searchGlobalChange.select('global')?.status()).toBe(
-        'resolved'
+        'resolved',
       );
       expect(store.searchGlobalChange.select('global')?.value()).toEqual({
         searchChange: 'global',
