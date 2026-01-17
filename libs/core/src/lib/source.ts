@@ -62,7 +62,7 @@ export type Source<T> = Signal<T | undefined> & {
  * Basic source for user actions
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'UserStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     loadUser: source<string>(),
  *   }),
@@ -94,7 +94,7 @@ export type Source<T> = Signal<T | undefined> & {
  * type FormData = { name: string; email: string };
  *
  * const { injectCraft } = craft(
- *   { name: 'FormStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     submitForm: source<FormData>(),
  *   }),
@@ -132,7 +132,7 @@ export type Source<T> = Signal<T | undefined> & {
  * Source for reload/refresh actions
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'DataStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     reload: source<void>(),
  *   }),
@@ -165,7 +165,7 @@ export type Source<T> = Signal<T | undefined> & {
  * Multiple sources for different actions
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'TodoStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     addTodo: source<{ text: string }>(),
  *     deleteTodo: source<string>(),
@@ -269,7 +269,7 @@ export type Source<T> = Signal<T | undefined> & {
  * })
  * export class DataViewComponent {
  *   { injectCraft } = craft(
- *     { name: 'DataView', providedIn: 'root' },
+ *     { name: '', providedIn: 'root' },
  *     craftQuery('data', () =>
  *       query(
  *         {
@@ -310,7 +310,7 @@ export type Source<T> = Signal<T | undefined> & {
  * };
  *
  * const { injectCraft } = craft(
- *   { name: 'SearchStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     search: source<SearchParams>(),
  *   }),

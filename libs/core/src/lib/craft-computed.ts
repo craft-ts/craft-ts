@@ -80,7 +80,7 @@ type CraftComputedStatesOutputs<
  * Basic computed values from state
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'CounterStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftState('count', () => state(0)),
  *   craftComputedStates(({ count }) => ({
  *     doubled: computed(() => count() * 2),
@@ -106,7 +106,7 @@ type CraftComputedStatesOutputs<
  * type Todo = { id: string; text: string; done: boolean };
  *
  * const { injectCraft } = craft(
- *   { name: 'TodoStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftQuery('todos', () =>
  *     query({
  *       params: () => ({}),
@@ -147,7 +147,7 @@ type CraftComputedStatesOutputs<
  * type Post = { id: string; userId: string; title: string };
  *
  * const { injectCraft } = craft(
- *   { name: 'BlogStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftQuery('users', () =>
  *     query({
  *       params: () => ({}),
@@ -201,7 +201,7 @@ type CraftComputedStatesOutputs<
  * Loading state aggregation
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'DashboardStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftQuery('sales', () =>
  *     query({
  *       params: () => ({}),
@@ -253,7 +253,7 @@ type CraftComputedStatesOutputs<
  * Chaining computed values
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'CartStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftState('items', () =>
  *     state([] as Array<{ id: string; price: number; quantity: number }>)
  *   ),
@@ -297,7 +297,7 @@ type CraftComputedStatesOutputs<
  * };
  *
  * const { injectCraft } = craft(
- *   { name: 'ProductStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftQuery('products', () =>
  *     query({
  *       params: () => ({}),
@@ -353,7 +353,7 @@ type CraftComputedStatesOutputs<
  * Validation computed values
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'FormStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftState('email', () => state('')),
  *   craftState('password', () => state('')),
  *   craftState('confirmPassword', () => state('')),

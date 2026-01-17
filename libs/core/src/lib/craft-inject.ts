@@ -105,7 +105,7 @@ type CraftInputsOutputs<
  * }
  *
  * const { injectCraft } = craft(
- *   { name: 'UserStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInject(() => ({
  *     UserApiService, // Inject the service
  *   })),
@@ -155,7 +155,7 @@ type CraftInputsOutputs<
  * }
  *
  * const { injectCraft } = craft(
- *   { name: 'DataStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInject(() => ({
  *     AuthService,
  *     ApiClient,
@@ -193,7 +193,7 @@ type CraftInputsOutputs<
  * });
  *
  * const { injectCraft } = craft(
- *   { name: 'ApiStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInject(() => ({
  *     AppConfig: APP_CONFIG, // Inject token
  *   })),
@@ -234,7 +234,7 @@ type CraftInputsOutputs<
  * type Product = { id: string; name: string; price: number };
  *
  * const { injectCraft } = craft(
- *   { name: 'ProductStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInject(() => ({
  *     ProductRepository: Repository<Product>, // Specify generic type
  *   })),
@@ -278,7 +278,7 @@ type CraftInputsOutputs<
  * }
  *
  * const { injectCraft } = craft(
- *   { name: 'ProductStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInject(() => ({
  *     FilterService,
  *   })),
@@ -325,7 +325,7 @@ type CraftInputsOutputs<
  * }
  *
  * const { injectCraft } = craft(
- *   { name: 'AppStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     error: source<Error>(),
  *   }),
@@ -397,7 +397,7 @@ type CraftInputsOutputs<
  * }
  *
  * const { injectCraft } = craft(
- *   { name: 'DataStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInject(() => ({
  *     HttpService,
  *   })),

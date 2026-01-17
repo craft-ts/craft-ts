@@ -63,10 +63,9 @@ describe('state', () => {
 
   it('methods can be bind to a source, but not exposed', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const sourceSignal = source<number>({ debugName: 'sourceSignal' });
+      const sourceSignal = source<number>();
       const myState = state(0, ({ set }) => ({
         setValue: afterRecomputation(sourceSignal, (value) => {
-          console.log('afterRecomputation sourceSignal', value);
           set(value);
         }),
         reset: () => set(0),

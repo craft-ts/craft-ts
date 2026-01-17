@@ -86,7 +86,7 @@ export type SourceFromEvent<T> = Source<T> & {
  *   );
  *
  *   { injectCraft } = craft(
- *     { name: 'Clicker', providedIn: 'root' },
+ *     { name: '', providedIn: 'root' },
  *     craftMutations(() => ({
  *       trackClick: mutation({
  *         method: afterRecomputation(this.clickSource, (event) => ({
@@ -128,7 +128,7 @@ export type SourceFromEvent<T> = Source<T> & {
  *   });
  *
  *   { injectCraft } = craft(
- *     { name: 'InfiniteScroll', providedIn: 'root' },
+ *     { name: '', providedIn: 'root' },
  *     craftAsyncMethods(() => ({
  *       checkLoadMore: asyncMethod({
  *         method: afterRecomputation(this.scrollSource, (data) => data),
@@ -169,7 +169,7 @@ export type SourceFromEvent<T> = Source<T> & {
  *   });
  *
  *   { injectCraft } = craft(
- *     { name: 'Search', providedIn: 'root' },
+ *     { name: '', providedIn: 'root' },
  *     craftQuery('results', () =>
  *       query({
  *         method: afterRecomputation(this.inputSource, (term) => term),
@@ -205,7 +205,7 @@ export type SourceFromEvent<T> = Source<T> & {
  *   });
  *
  *   { injectCraft } = craft(
- *     { name: 'Responsive', providedIn: 'root' },
+ *     { name: '', providedIn: 'root' },
  *     craftState('dimensions', () =>
  *       state({ width: window.innerWidth, height: window.innerHeight }, {
  *         bindSources: {
@@ -240,7 +240,7 @@ export type SourceFromEvent<T> = Source<T> & {
  *   );
  *
  *   { injectCraft } = craft(
- *     { name: 'CustomEvents', providedIn: 'root' },
+ *     { name: '', providedIn: 'root' },
  *     craftAsyncMethods(() => ({
  *       handleCustomEvent: asyncMethod({
  *         method: afterRecomputation(this.customEventSource, (data) => data),
@@ -310,7 +310,7 @@ export type SourceFromEvent<T> = Source<T> & {
  *   });
  *
  *   { injectCraft } = craft(
- *     { name: 'Shortcuts', providedIn: 'root' },
+ *     { name: '', providedIn: 'root' },
  *     craftAsyncMethods(() => ({
  *       handleShortcut: asyncMethod({
  *         method: afterRecomputation(this.keydownSource, (data) => data),

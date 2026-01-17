@@ -89,7 +89,7 @@ type CraftStateOutputs<
  * Basic state without methods
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'MyStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftState('counter', () => state(0))
  * );
  *
@@ -107,7 +107,7 @@ type CraftStateOutputs<
  * State with custom methods
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'TodoStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftState('todos', () =>
  *     state(
  *       [] as Todo[],
@@ -179,7 +179,7 @@ type CraftStateOutputs<
  * State reacting to sources
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'FilterStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     resetFilters: source<void>(),
  *   }),
@@ -220,7 +220,7 @@ type CraftStateOutputs<
  * const globalReset = source<string>();
  *
  * const { injectCraft } = craft(
- *   { name: 'AppStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     localReset: source<string>(),
  *   }),
@@ -266,7 +266,7 @@ type CraftStateOutputs<
  * State with persistence
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'SettingsStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftState('preferences', () =>
  *     state(
  *       { theme: 'light', language: 'en', notifications: true },
@@ -290,7 +290,7 @@ type CraftStateOutputs<
  * Multiple states in one store
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'AppStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftState('ui', () =>
  *     state({ sidebarOpen: false, modalOpen: false })
  *   ),

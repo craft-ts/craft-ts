@@ -104,7 +104,7 @@ type CraftAsyncMethodsOutputs<
  * Basic async method for debounced search
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'SearchStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftAsyncMethods(() => ({
  *     search: asyncMethod({
  *       method: (searchTerm: string) => searchTerm,
@@ -137,7 +137,7 @@ type CraftAsyncMethodsOutputs<
  * Async method with identifier for parallel operations
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'FileStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftAsyncMethods(() => ({
  *     uploadFile: asyncMethod({
  *       method: (file: File) => ({ fileId: file.name, file }),
@@ -176,7 +176,7 @@ type CraftAsyncMethodsOutputs<
  * Source-based async method for automatic execution
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'AutoSaveStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     formChange: source<FormData>(),
  *   }),

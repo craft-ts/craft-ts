@@ -53,7 +53,7 @@ import { SourceBranded } from './util/util';
  * Binding a query to a source for automatic execution
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'UserStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     userIdChange: source<string>(),
  *   }),
@@ -82,7 +82,7 @@ import { SourceBranded } from './util/util';
  * Binding a mutation to a source
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'FormStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     submitForm: source<{ name: string; email: string }>(),
  *   }),
@@ -112,7 +112,7 @@ import { SourceBranded } from './util/util';
  * Binding async method to a source
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'SearchStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     searchInput: source<string>(),
  *   }),
@@ -144,7 +144,7 @@ import { SourceBranded } from './util/util';
  * };
  *
  * const { injectCraft } = craft(
- *   { name: 'AppStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     formSubmit: source<FormData>(),
  *   }),
@@ -177,7 +177,7 @@ import { SourceBranded } from './util/util';
  * Transforming data before execution
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'ApiStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     searchParams: source<{ query: string; filters: string[] }>(),
  *   }),
@@ -210,7 +210,7 @@ import { SourceBranded } from './util/util';
  * Validation and type narrowing
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'ValidationStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     inputChange: source<string>(),
  *   }),
@@ -248,7 +248,7 @@ import { SourceBranded } from './util/util';
  * Multiple sources with different transformations
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'MultiStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     quickSearch: source<string>(),
  *     advancedSearch: source<{ query: string; options: unknown }>(),
@@ -282,7 +282,7 @@ import { SourceBranded } from './util/util';
  * Identity transformation (pass-through)
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'DataStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     dataUpdate: source<{ id: string; payload: unknown }>(),
  *   }),

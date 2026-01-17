@@ -17,46 +17,47 @@ export type SpecificCraftQueryParamOutputs<
   QueryParamsName extends string,
   QueryParamsType,
   Insertions,
-  QueryParamsState
-> = DeferredExtract<Insertions> extends infer Extracted
-  ? Extracted extends { props: unknown; methods: Record<string, Function> }
-    ? PartialContext<{
-        props: {
-          [key in QueryParamsName]: Signal<QueryParamsState>;
-        } & {
-          [K in keyof QueryParamsState as `${QueryParamsName &
-            string}${Capitalize<K & string>}`]: Signal<QueryParamsState[K]>;
-        } & {
-          [key in keyof Extracted['props'] as `${QueryParamsName &
-            string}${Capitalize<key & string>}`]: Extracted['props'][key];
-        };
-        methods: {
-          [key in keyof Extracted['methods'] as `${key & string}${Capitalize<
-            QueryParamsName & string
-          >}`]: Extracted['methods'][key];
-        };
-        _queryParams: {
-          [K in QueryParamsName]: {
-            config: QueryParamsType;
-            state: WritableSignal<QueryParamsState>;
+  QueryParamsState,
+> =
+  DeferredExtract<Insertions> extends infer Extracted
+    ? Extracted extends { props: unknown; methods: Record<string, Function> }
+      ? PartialContext<{
+          props: {
+            [key in QueryParamsName]: Signal<QueryParamsState>;
+          } & {
+            [K in keyof QueryParamsState as `${QueryParamsName &
+              string}${Capitalize<K & string>}`]: Signal<QueryParamsState[K]>;
+          } & {
+            [key in keyof Extracted['props'] as `${QueryParamsName &
+              string}${Capitalize<key & string>}`]: Extracted['props'][key];
           };
-        };
-      }>
-    : never
-  : never;
+          methods: {
+            [key in keyof Extracted['methods'] as `${key & string}${Capitalize<
+              QueryParamsName & string
+            >}`]: Extracted['methods'][key];
+          };
+          _queryParams: {
+            [K in QueryParamsName]: {
+              config: QueryParamsType;
+              state: WritableSignal<QueryParamsState>;
+            };
+          };
+        }>
+      : never
+    : never;
 
 type SpecificCraftQueryParamStandaloneOutputs<
   QueryParamsName extends string,
   QueryParamsType,
   Insertions,
-  QueryParamsState
+  QueryParamsState,
 > = {
   [K in QueryParamsName as `set${Capitalize<K>}QueryParams`]: <
     T extends Partial<{
       [K in keyof QueryParamsState]: QueryParamsState[K];
-    }>
+    }>,
   >(
-    params: T
+    params: T,
   ) => T;
 };
 
@@ -66,7 +67,7 @@ type CraftQueryParamOutputs<
   QueryParamsName extends string,
   QueryParamsType,
   Insertions,
-  QueryParamsState
+  QueryParamsState,
 > = CraftFactoryUtility<
   Context,
   StoreConfig,
@@ -169,7 +170,7 @@ type CraftQueryParamOutputs<
  * const { injectCraft } = craft(
  *   {
  *     providedIn: 'root',
- *     name: 'myStore',
+ *     name: '',
  *   },
  *   craftQueryParam('pagination', () =>
  *     queryParam(
@@ -197,12 +198,12 @@ export function craftQueryParam<
   const QueryParamsName extends string,
   QueryParamsType,
   Insertions,
-  QueryParamsState
+  QueryParamsState,
 >(
   queryParamsName: QueryParamsName,
   queryParamFactory: (
-    context: CraftFactoryEntries<Context>
-  ) => QueryParamOutput<QueryParamsType, Insertions, QueryParamsState>
+    context: CraftFactoryEntries<Context>,
+  ) => QueryParamOutput<QueryParamsType, Insertions, QueryParamsState>,
 ): CraftQueryParamOutputs<
   Context,
   StoreConfig,
@@ -215,7 +216,7 @@ export function craftQueryParam<
     contextData: ContextInput<Context>,
     injector: Injector,
     _storeConfig: StoreConfig,
-    _cloudProxy: Context['_cloudProxy']
+    _cloudProxy: Context['_cloudProxy'],
   ) => {
     const queryParamState = queryParamFactory(craftFactoryEntries(contextData));
 
@@ -235,7 +236,7 @@ export function craftQueryParam<
       { props: {}, methods: {} } as {
         props: Record<string, Signal<any>>;
         methods: Record<string, Function>;
-      }
+      },
     );
 
     return partialContext({
@@ -266,15 +267,15 @@ export function craftQueryParam<
   const setCurrentQueryParams = (
     params: Partial<{
       [K in keyof QueryParamsState]: QueryParamsState[K];
-    }>
+    }>,
   ) =>
     serializeQueryParams(
       params,
-      queryParamsConfig as { state: Record<string, QueryParamConfig<unknown>> }
+      queryParamsConfig as { state: Record<string, QueryParamConfig<unknown>> },
     );
 
   const setCurrentQueryParamsKey = `set${capitalize(
-    queryParamsName
+    queryParamsName,
   )}QueryParams`;
 
   return (() =>
@@ -292,7 +293,9 @@ export function craftQueryParam<
 
 export function serializeQueryParams<
   QueryParamsState extends Record<string, unknown>,
-  QueryParamsConfig extends { state: Record<string, QueryParamConfig<unknown>> }
+  QueryParamsConfig extends {
+    state: Record<string, QueryParamConfig<unknown>>;
+  },
 >(params: QueryParamsState, queryParamsConfig: QueryParamsConfig) {
   const queryParamsObject = Object.entries(params).reduce(
     (acc, [key, value]) => {
@@ -302,7 +305,7 @@ export function serializeQueryParams<
       }
       return acc;
     },
-    {} as Record<string, string>
+    {} as Record<string, string>,
   );
 
   const result = Object.defineProperty(queryParamsObject, 'toString', {
@@ -315,12 +318,12 @@ export function serializeQueryParams<
 }
 
 export function serializedQueryParamsObjectToString(
-  queryParamsObject: Record<string, unknown>
+  queryParamsObject: Record<string, unknown>,
 ) {
   return Object.entries(queryParamsObject)
     .map(
       ([key, value]) =>
-        `${encodeURIComponent(key)}=${encodeURIComponent(value as string)}`
+        `${encodeURIComponent(key)}=${encodeURIComponent(value as string)}`,
     )
     .join('&');
 }

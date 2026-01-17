@@ -81,7 +81,7 @@ type CraftInputsOutputs<
  * Basic inputs for dynamic query parameters
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'UserStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInputs({
  *     userId: undefined as string | undefined,
  *   }),
@@ -127,7 +127,7 @@ type CraftInputsOutputs<
  * Multiple inputs with different types
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'ProductStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInputs({
  *     categoryId: undefined as string | undefined,
  *     page: 1,
@@ -189,7 +189,7 @@ type CraftInputsOutputs<
  * Optional inputs with conditional query execution
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'SearchStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInputs({
  *     searchTerm: undefined as string | undefined,
  *   }),
@@ -233,7 +233,7 @@ type CraftInputsOutputs<
  * Inputs used in mutations
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'FormStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInputs({
  *     formId: undefined as string | undefined,
  *   }),
@@ -276,7 +276,7 @@ type CraftInputsOutputs<
  * Inputs shared across multiple craft entries
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'DashboardStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInputs({
  *     dateRange: undefined as { start: Date; end: Date } | undefined,
  *     userId: undefined as string | undefined,
@@ -339,7 +339,7 @@ type CraftInputsOutputs<
  * };
  *
  * const { injectCraft } = craft(
- *   { name: 'ItemStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftInputs({
  *     filters: undefined as FilterOptions | undefined,
  *     sort: 'name' as 'name' | 'price' | 'date',

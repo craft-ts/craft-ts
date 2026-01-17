@@ -84,7 +84,7 @@ type CraftSourcesOutputs<
  * Basic sources with state reactions
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'CounterStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     increment: source<void>(),
  *     decrement: source<void>(),
@@ -159,7 +159,7 @@ type CraftSourcesOutputs<
  * Complex coordination across multiple states
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'AppStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     logout: source<void>(),
  *     clearFilters: source<void>(),
@@ -219,7 +219,7 @@ type CraftSourcesOutputs<
  * };
  *
  * const { injectCraft } = craft(
- *   { name: 'TableStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     updateFilter: source<FilterUpdate>(),
  *     sortBy: source<{ column: string; direction: 'asc' | 'desc' }>(),
@@ -258,7 +258,7 @@ type CraftSourcesOutputs<
  * Sources triggering mutations
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'TodoStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     createTodo: source<{ text: string }>(),
  *     deleteTodo: source<string>(),
@@ -291,7 +291,7 @@ type CraftSourcesOutputs<
  * Multiple sources for different reset scenarios
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'FormStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     softReset: source<void>(), // Clear form but keep draft
  *     hardReset: source<void>(), // Clear everything

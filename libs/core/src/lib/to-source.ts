@@ -108,7 +108,7 @@ import { SourceBranded } from './util/util';
  *
  *   // Use source in query
  *   { injectCraft } = craft(
- *     { name: 'UserDetail', providedIn: 'root' },
+ *     { name: '', providedIn: 'root' },
  *     craftQuery('user', () =>
  *       query({
  *         method: afterRecomputation(this.userIdSource, (id) => id),
@@ -225,7 +225,7 @@ import { SourceBranded } from './util/util';
  *
  *   // Use in store
  *   { injectCraft } = craft(
- *     { name: 'Search', providedIn: 'root' },
+ *     { name: '', providedIn: 'root' },
  *     craftQuery('results', () =>
  *       query({
  *         method: afterRecomputation(this.searchSource, (term) => term),

@@ -35,7 +35,10 @@
     },
     "test": {
       "executor": "@nx/angular:unit-test",
-      "options": {}
+      "options": {
+        "runner": "vitest",
+        "debug": true
+      }
     },
     "lint": {
       "executor": "@nx/eslint:lint"

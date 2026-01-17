@@ -148,7 +148,7 @@ type ContextQueryEntries<
  * Basic query with automatic execution
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'UserStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftQuery('currentUser', () =>
  *     query({
  *       params: () => currentUserId(),
@@ -177,7 +177,7 @@ type ContextQueryEntries<
  * Query with optimistic updates from mutations
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'TodoStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftMutations(() => ({
  *     updateTodo: mutation({
  *       method: (todo: Todo) => todo,
@@ -230,7 +230,7 @@ type ContextQueryEntries<
  * Query with patch-based updates
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'UserStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftMutations(() => ({
  *     updateEmail: mutation({
  *       method: (data: { userId: string; email: string }) => data,
@@ -275,7 +275,7 @@ type ContextQueryEntries<
  * Query with reload on mutation events
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'PostStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftMutations(() => ({
  *     createPost: mutation({
  *       method: (data: CreatePostData) => data,
@@ -325,7 +325,7 @@ type ContextQueryEntries<
  * Query with identifier for parallel execution
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'UserStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftQuery('userDetails', () =>
  *     query({
  *       params: () => selectedUserId(),
@@ -353,7 +353,7 @@ type ContextQueryEntries<
  * Query with streaming data
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'LiveDataStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftQuery('liveCount', () =>
  *     query({
  *       params: () => ({}),
@@ -383,7 +383,7 @@ type ContextQueryEntries<
  * Query with persistence
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'ProductStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftQuery('products', () =>
  *     query(
  *       {
@@ -413,7 +413,7 @@ type ContextQueryEntries<
  * Query reacting to sources
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'DataStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     refresh: source<void>(),
  *   }),
@@ -439,7 +439,7 @@ type ContextQueryEntries<
  * Complex coordination with multiple mutations and conditional reloads
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'ArticleStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftMutations(() => ({
  *     updateArticle: mutation({
  *       method: (data: Article) => data,

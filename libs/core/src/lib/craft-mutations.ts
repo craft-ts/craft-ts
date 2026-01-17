@@ -95,7 +95,7 @@ type CraftMutationsOutputs<
  * Basic mutations for CRUD operations
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'TodoStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftMutations(() => ({
  *     createTodo: mutation({
  *       method: (data: { text: string }) => data,
@@ -148,7 +148,7 @@ type CraftMutationsOutputs<
  * Mutations with identifiers for parallel execution
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'UserStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftMutations(() => ({
  *     updateUser: mutation({
  *       method: (user: User) => user,
@@ -184,7 +184,7 @@ type CraftMutationsOutputs<
  * Mutations coordinated with queries via insertReactOnMutation
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'PostStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftMutations(() => ({
  *     createPost: mutation({
  *       method: (data: CreatePostData) => data,
@@ -226,7 +226,7 @@ type CraftMutationsOutputs<
  * Source-based mutations (automatic execution)
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'FormStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     submitForm: source<FormData>(),
  *   }),
@@ -260,7 +260,7 @@ type CraftMutationsOutputs<
  * Mutations accessing other context entries
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'AppStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftQuery('currentUser', () =>
  *     query({
  *       params: () => currentUserId(),
@@ -298,7 +298,7 @@ type CraftMutationsOutputs<
  * Multiple mutations with different trigger patterns
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'DataStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftSources({
  *     autoSave: source<SaveData>(),
  *   }),
@@ -342,7 +342,7 @@ type CraftMutationsOutputs<
  * Error handling and status tracking
  * ```ts
  * const { injectCraft } = craft(
- *   { name: 'UploadStore', providedIn: 'root' },
+ *   { name: '', providedIn: 'root' },
  *   craftMutations(() => ({
  *     uploadFile: mutation({
  *       method: (file: File) => file,
