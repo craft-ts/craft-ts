@@ -10,13 +10,13 @@
 
 Stop wasting precious time on common application logic. @ngcraft provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
 
-`state`, `asyncState`, `queryParam`, `query`, `mutation` and `asyncMethod` are reactive primitive that will make your developper experience a lot better.
+`state`, `asyncState`, `queryParam`, `query`, `mutation` and `asyncMethod` are reactive primitive that will make your developer experience a lot better.
 
 ### Powered by Signals
 
 **100% based on Signals** - RxJS is optional. Reactive primitives integrate seamlessly into your Angular components and services.
 
-### Compose all yours reactive primitive logic
+### Compose all your reactive primitive logic
 
 ```typescript
 const myState = state(

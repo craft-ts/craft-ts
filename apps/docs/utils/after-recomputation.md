@@ -2,9 +2,12 @@
 
 Creates a derived readonly source that transforms source emissions through a callback function.
 
+// todo expose signals limits
+
 ## Overview
 
 This function binds queries, mutations, and async methods to sources for automatic execution by:
+
 - Listening to source emissions and computing new values
 - Providing a readonly source suitable for method binding
 - Maintaining reactivity through Angular's effect system
@@ -16,7 +19,7 @@ This function binds queries, mutations, and async methods to sources for automat
 function afterRecomputation<State, SourceType>(
   _source: Source<SourceType>,
   callback: (source: SourceType) => State,
-): ReadonlySource<State>
+): ReadonlySource<State>;
 ```
 
 ### Parameters
@@ -33,7 +36,7 @@ A readonly source that emits transformed values. Can be used as the `method` par
 Bind queries/mutations/async methods to sources for automatic execution:
 
 ```typescript
-method: afterRecomputation(mySource, (data) => data)
+method: afterRecomputation(mySource, (data) => data);
 ```
 
 This pattern makes queries/mutations execute automatically when the source emits.
@@ -75,8 +78,8 @@ const { injectCraft } = craft(
         const response = await fetch(`/api/users/${params}`);
         return response.json();
       },
-    })
-  )
+    }),
+  ),
 );
 
 const store = injectCraft();
@@ -108,7 +111,7 @@ const { injectCraft } = craft(
         return response.json();
       },
     }),
-  }))
+  })),
 );
 
 const store = injectCraft();
@@ -136,7 +139,7 @@ const { injectCraft } = craft(
         return response.json();
       },
     }),
-  }))
+  })),
 );
 
 const store = injectCraft();
@@ -171,7 +174,7 @@ const { injectCraft } = craft(
         return response.json();
       },
     }),
-  }))
+  })),
 );
 
 const store = injectCraft();
@@ -203,8 +206,8 @@ const { injectCraft } = craft(
         const response = await fetch(`/api/search?${query}`);
         return response.json();
       },
-    })
-  )
+    }),
+  ),
 );
 
 const store = injectCraft();
@@ -243,7 +246,7 @@ const { injectCraft } = craft(
         return response.json();
       },
     }),
-  }))
+  })),
 );
 
 const store = injectCraft();
@@ -269,7 +272,7 @@ const { injectCraft } = craft(
       method: afterRecomputation(
         // Can combine sources at higher level
         quickSearch, // For this example, using one source
-        (term) => ({ query: term, mode: 'quick' })
+        (term) => ({ query: term, mode: 'quick' }),
       ),
       loader: async ({ params }) => {
         const response = await fetch('/api/search', {
@@ -278,8 +281,8 @@ const { injectCraft } = craft(
         });
         return response.json();
       },
-    })
-  )
+    }),
+  ),
 );
 
 const store = injectCraft();
@@ -309,7 +312,7 @@ const { injectCraft } = craft(
         return response.json();
       },
     }),
-  }))
+  })),
 );
 
 const store = injectCraft();

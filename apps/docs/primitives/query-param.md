@@ -61,41 +61,6 @@ const myQueryParams = queryParam(
 myQueryParams.goTo(5); // Custom method from insertion
 ```
 
-## API
-
-### Configuration
-
-```typescript
-queryParam({
-  state: {
-    paramName: {
-      fallbackValue: defaultValue,
-      parse: (stringValue) => typedValue,
-      serialize: (typedValue) => stringValue,
-    },
-    // ... more params
-  },
-  // Optional navigation options
-  queryParamsHandling: 'merge' | 'preserve' | '',
-  onSameUrlNavigation: 'reload' | 'ignore',
-  replaceUrl: boolean,
-  skipLocationChange: boolean,
-});
-```
-
-### State Access
-
-```typescript
-const params = queryParam(config);
-
-// Read full state
-params(); // { page: 1, pageSize: 10 }
-
-// Read individual params
-params.page(); // 1
-params.pageSize(); // 10
-```
-
 ## Important Notes
 
 ⚠️ **Injection Context**: This function must be called within an injection context. If called outside, it will only return an object containing the configuration under `_config`.
@@ -144,79 +109,7 @@ const options = queryParam({
 });
 ```
 
-## Best Practices
-
-✅ **Use meaningful fallback values**
-✅ **Parse and serialize consistently**
-✅ **Expose methods via insertions** for convenience
-✅ **Use merge strategy** to preserve other query params
-✅ **Type your parameters** properly
-
 ## See Also
 
 - [state](/primitives/state) - For non-URL state
 - [Store QueryParams](/store/craft-query-params) - For store integration
-
-### serialize
-
-Custom serializer to URL string:
-
-```typescript
-const filters = queryParam<string[]>('filters', [], {
-  serialize: (value: string[]) => JSON.stringify(value),
-});
-```
-
-## Use Cases
-
-### Pagination
-
-```typescript
-const page = queryParam('page', 1);
-const pageSize = queryParam('size', 20);
-
-// URL: ?page=1&size=20
-```
-
-### Search & Filtering
-
-```typescript
-const searchQuery = queryParam('q', '');
-const category = queryParam('cat', '');
-const minPrice = queryParam('min', 0);
-const maxPrice = queryParam('max', 1000);
-
-// URL: ?q=laptop&cat=electronics&min=500&max=1500
-```
-
-### Sorting
-
-```typescript
-const sortBy = queryParam('sort', 'name');
-const sortOrder = queryParam<'asc' | 'desc'>('order', 'asc');
-
-// URL: ?sort=price&order=desc
-```
-
-### Tab Selection
-
-```typescript
-const activeTab = queryParam('tab', 'overview');
-
-// URL: ?tab=settings
-```
-
-## Best Practices
-
-✅ **Use meaningful param names** - Short but descriptive (q, page, sort)
-✅ **Provide sensible defaults** - Ensure app works without params
-✅ **Debounce search inputs** - Avoid excessive history entries
-✅ **Use replaceState wisely** - For filters that shouldn't create history
-✅ **Type your parameters** - Use parse/serialize for complex types
-✅ **Keep URLs shareable** - Ensure all relevant state is in URL
-
-## See Also
-
-- [state](/primitives/state) - For non-URL state
-- [Store QueryParams](/store/craft-query-params) - For store integration
-- [Examples](/examples) - See queryParam in action

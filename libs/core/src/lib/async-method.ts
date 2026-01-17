@@ -4,7 +4,9 @@ import {
   resource,
   ResourceLoaderParams,
   ResourceOptions,
+  ResourceStatus,
   ResourceStreamingLoader,
+  Signal,
   signal,
   WritableSignal,
 } from '@angular/core';
@@ -12,6 +14,7 @@ import { InsertionsResourcesFactory } from './query.core';
 import { ReadonlySource } from './util/source.type';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { isSource } from './util/util';
+import { MergeObjects } from './util/util.type';
 
 // ! It looks like TS does not handle to expose the ResourceByIdHandler without erasing the () => ... part
 export type AsyncMethodRef<
@@ -140,8 +143,6 @@ export type AsyncMethodOutput<
   GroupIdentifier
 >;
 
-// todo add wrapping js native api
-
 /**
  * Creates an async method that manages asynchronous operations with automatic state tracking.
  *
@@ -204,237 +205,90 @@ export type AsyncMethodOutput<
  * @example
  * Basic method-based async method
  * ```ts
- * const search = asyncMethod({
- *   method: (searchTerm: string) => searchTerm,
+ * const delay = asyncMethod({
+ *   method: (delay: number) => delay,
  *   loader: async ({ params }) => {
- *     const response = await fetch(`/api/search?q=${params}`);
- *     return response.json();
+ *     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+ *     return 'done';
  *   },
  * });
  *
  * // Trigger manually
- * search.method('query text');
+ * delay.method(500);
  *
  * // Track state
- * console.log(search.status()); // 'loading'
- * console.log(search.isLoading()); // true
+ * console.log(delay.status()); // 'loading'
+ * console.log(delay.isLoading()); // true
  *
  * // After completion
- * console.log(search.status()); // 'resolved'
- * console.log(search.value()); // Search results
- * console.log(search.hasValue()); // true
+ * console.log(delay.status()); // 'resolved'
+ * console.log(delay.value()); // 'done'
+ * console.log(delay.hasValue()); // true
  * ```
  *
  * @example
  * Source-based async method for automatic execution
  * ```ts
- * const searchSource = source<string>();
+ * const delaySource = source<number>();
  *
- * const autoSearch = asyncMethod({
- *   method: afterRecomputation(searchSource, (term) => term),
+ * const delay = asyncMethod({
+ *   method: afterRecomputation(delaySource, (term) => term),
  *   loader: async ({ params }) => {
  *     // Debounce at source level
  *     await new Promise(resolve => setTimeout(resolve, 300));
- *     const response = await fetch(`/api/search?q=${params}`);
- *     return response.json();
+ *     return 'done';
  *   },
  * });
  *
  * // Triggers automatically when source emits
- * searchSource.set('query text');
- * // -> autoSearch executes automatically
+ * delaySource.set(500);
+ * // -> delay executes automatically
  *
  * // No manual method, only source
- * console.log(autoSearch.source); // ReadonlySource<string>
- * console.log(autoSearch.status()); // Current state
+ * console.log(delay.source); // ReadonlySource<number>
+ * console.log(delay.status()); // Current state
  * ```
  *
  * @example
  * Async method with identifier for parallel operations
  * ```ts
- * const uploadFile = asyncMethod({
- *   method: (file: File) => ({ id: file.name, file }),
- *   identifier: (params) => params.id,
- *   loader: async ({ params }) => {
- *     const formData = new FormData();
- *     formData.append('file', params.file);
- *
- *     const response = await fetch('/api/upload', {
- *       method: 'POST',
- *       body: formData,
- *     });
- *     return response.json();
+ * const delayById = asyncMethod({
+ *   method: (id: string) => id,
+ *   identifier: (id) => id,
+ *   loader: async () => {
+ *     await new Promise(resolve => setTimeout(resolve, 300));
+ *     return 'done'; // Simulate delay
  *   },
  * });
  *
  * // Upload multiple files in parallel
- * uploadFile.method(file1);
- * uploadFile.method(file2);
- * uploadFile.method(file3);
+ * delayById.method('id1');
+ * delayById.method('id2');
+ * delayById.method('id3');
  *
  * // Access individual states
- * const file1Upload = uploadFile.select(file1.name);
- * console.log(file1Upload?.status()); // 'loading' or 'resolved'
- * console.log(file1Upload?.value()); // Upload result for file1
+ * const delay1 = delayById.select('id1');
+ * console.log(delay1?.status()); // 'loading' or 'resolved'
+ * console.log(delay1?.value()); // Upload result for file1
  *
- * const file2Upload = uploadFile.select(file2.name);
- * console.log(file2Upload?.status()); // Independent state
+ * const delay2 = delayById.select('id2');
+ * console.log(delay2?.status()); // Independent state
  * ```
  *
  * @example
- * Streaming async method for progressive updates
+ * Calling async js native API
  * ```ts
- * const streamChat = asyncMethod({
- *   method: (message: string) => message,
+ * const shareContent = asyncMethod({
+ *   method: (payload: { title: string, url: string }) => payload,
  *   stream: async ({ params }) => {
- *     const response = await fetch('/api/chat/stream', {
- *       method: 'POST',
- *       body: JSON.stringify({ message: params }),
- *     });
- *
- *     const reader = response.body?.getReader();
- *     const decoder = new TextDecoder();
- *
- *     return rxResource({
- *       loader: async () => {
- *         const result = signal({ text: '', complete: false });
- *
- *         while (true) {
- *           const { done, value } = await reader!.read();
- *           if (done) {
- *             result.update(prev => ({ ...prev, complete: true }));
- *             break;
- *           }
- *
- *           const chunk = decoder.decode(value);
- *           result.update(prev => ({ text: prev.text + chunk, complete: false }));
- *         }
- *
- *         return result.asReadonly();
- *       },
- *     });
+ *      return navigator.share(params);
  *   },
- * });
+ * }, ({resource}) => ({isMenuOpen: computed(() => resource.status() === 'loading')} ));
  *
- * // Trigger streaming
- * streamChat.method('Hello AI!');
+ * // Trigger shareContent
+ * shareContent.method({ title: 'Hello AI!', url: 'https://example.com' });
+ * shareContent.isMenuOpen(); // true while loading
  *
- * // Value updates progressively
- * effect(() => {
- *   const response = streamChat.value();
- *   console.log('Current:', response?.text);
- *   console.log('Complete:', response?.complete);
- * });
- * ```
- *
- * @example
- * Async method with custom insertion for persistence
- * ```ts
- * const fetchUser = asyncMethod(
- *   {
- *     method: (userId: string) => userId,
- *     loader: async ({ params }) => {
- *       const response = await fetch(`/api/users/${params}`);
- *       return response.json();
- *     },
- *   },
- *   insertLocalStoragePersister({
- *     key: 'user-cache',
- *     maxAge: 5 * 60 * 1000, // 5 minutes
- *   })
- * );
- *
- * // First call fetches from API and caches
- * fetchUser.method('user-123');
- *
- * // Subsequent calls within 5 minutes load from cache
- * fetchUser.method('user-123'); // Instant from localStorage
- *
- * // Custom insertion adds caching behavior
- * ```
- *
- * @example
- * Error handling and retry logic
- * ```ts
- * const fetchWithRetry = asyncMethod({
- *   method: (url: string) => url,
- *   loader: async ({ params }) => {
- *     let attempts = 0;
- *     const maxAttempts = 3;
- *
- *     while (attempts < maxAttempts) {
- *       try {
- *         const response = await fetch(params);
- *
- *         if (!response.ok) {
- *           throw new Error(`HTTP ${response.status}`);
- *         }
- *
- *         return response.json();
- *       } catch (error) {
- *         attempts++;
- *         if (attempts >= maxAttempts) throw error;
- *
- *         // Wait before retry
- *         await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
- *       }
- *     }
- *
- *     throw new Error('Max retries exceeded');
- *   },
- * });
- *
- * // Automatically retries on failure
- * fetchWithRetry.method('/api/unstable-endpoint');
- *
- * // Track error state
- * effect(() => {
- *   const error = fetchWithRetry.error();
- *   if (error) {
- *     console.error('Failed after retries:', error.message);
- *   }
- * });
- * ```
- *
- * @example
- * Coordinating multiple async methods
- * ```ts
- * const validateStep1 = asyncMethod({
- *   method: (data: unknown) => data,
- *   loader: async ({ params }) => {
- *     await new Promise(resolve => setTimeout(resolve, 500));
- *     return { valid: true, data: params };
- *   },
- * });
- *
- * const validateStep2 = asyncMethod({
- *   method: (data: unknown) => data,
- *   loader: async ({ params }) => {
- *     await new Promise(resolve => setTimeout(resolve, 500));
- *     return { valid: true, data: params };
- *   },
- * });
- *
- * // Sequential execution
- * async function runValidation(input: unknown) {
- *   validateStep1.method(input);
- *
- *   // Wait for step 1
- *   await new Promise(resolve => {
- *     const unsubscribe = effect(() => {
- *       if (validateStep1.status() === 'resolved') {
- *         unsubscribe();
- *         resolve(undefined);
- *       }
- *     });
- *   });
- *
- *   // Run step 2 with step 1 result
- *   const step1Result = validateStep1.value();
- *   if (step1Result?.valid) {
- *     validateStep2.method(step1Result.data);
- *   }
- * }
  * ```
  */
 export function asyncMethod<

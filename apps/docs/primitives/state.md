@@ -94,58 +94,11 @@ myState.reset();
 console.log(myState()); // 0
 ```
 
-## API
-
-### Creating State
-
-```typescript
-// With initial value
-const count = state(0);
-const user = state({ name: 'John', age: 30 });
-const items = state<string[]>([]);
-
-// With linkedSignal
-import { linkedSignal, signal } from '@angular/core';
-const origin = signal(5);
-const doubled = state(linkedSignal(() => origin() * 2));
-
-// With insertions
-const counter = state(0, ({ update, set }) => ({
-  increment: () => update((current) => current + 1),
-  decrement: () => update((current) => current - 1),
-  reset: () => set(0),
-}));
-```
-
-### Reading State
-
-```typescript
-const count = state(5);
-console.log(count()); // 5
-```
-
-### Updating State
-
-```typescript
-const count = state(0);
-
-// Direct set
-count.set(10);
-
-// Update with function
-count.update((current) => current + 1);
-
-// For objects, create a new object
-const user = state({ name: 'John', age: 30 });
-user.update((current) => ({ ...current, age: 31 }));
-```
-
 ## Best Practices
 
 ✅ **Use TypeScript inference** - Let TypeScript infer types when possible
 ✅ **Keep state granular** - Create focused state slices
 ✅ **Use computed for derived state** - Don't duplicate state
-✅ **Immutable updates** - Always use `update()` for immutable updates
 ✅ **Use insertions** - Add custom methods and computed properties to extend functionality
 
 ## See Also

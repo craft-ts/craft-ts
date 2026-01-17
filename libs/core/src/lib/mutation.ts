@@ -860,20 +860,20 @@ export function mutation<
  * @example
  * Source-based automatic mutation
  * ```ts
- * const searchSource = source<{ query: string }>();
+ *  todo change example for mutation
+ * const updateUserSource = source<{ userId: string, email: string }>();
  *
- * const searchMutation = mutation({
- *   method: afterRecomputation(searchSource, (params) => params),
+ *  const updateUser = mutation({
+ *   method:  afterRecomputation(updateUserSource, (params) => params),
  *   loader: async ({ params }) => {
- *     const response = await fetch(`/api/search?q=${params.query}`);
+ *     const response = await fetch(`/api/users/${params.userId}`, { method: 'PATCH' });
  *     return response.json();
  *   },
  * });
  *
  * // Mutation executes automatically when source changes
- * searchSource.set({ query: 'angular' });
- * console.log(searchMutation.status()); // 'loading'
- * console.log(searchMutation.source()); // { query: 'angular' }
+ * updateUserSource.set({ userId: 'user-123', email: 'newemail@example.com' });
+ * console.log(updateUser.status()); // 'loading'
  * ```
  *
  * @example
@@ -922,29 +922,6 @@ export function mutation<
  *
  * createPost.mutate({ title: 'Hello', content: 'World' });
  * console.log(createPost.isSuccess()); // Custom computed from insertion
- * ```
- *
- * @example
- * Streaming mutation
- * ```ts
- * const chatMutation = mutation({
- *   method: (message: string) => ({ message }),
- *   stream: async ({ params }) => {
- *     const response = await fetch('/api/chat', {
- *       method: 'POST',
- *       body: JSON.stringify(params),
- *     });
- *
- *     // Return a signal that updates as stream data arrives
- *     const resultSignal = signal('');
- *     const reader = response.body?.getReader();
- *     // ... process stream and update resultSignal
- *     return resultSignal;
- *   },
- * });
- *
- * chatMutation.mutate('Hello AI');
- * // value() updates as stream data arrives
  * ```
  *
  * @example

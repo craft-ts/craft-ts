@@ -13,26 +13,30 @@ import { asyncMethod } from '@ngcraft/core';
 ### Basic method-based async method
 
 ```typescript
-const search = asyncMethod({
-  method: (searchTerm: string) => searchTerm,
-  loader: async ({ params }) => {
-    const response = await fetch(`/api/search?q=${params}`);
-    return response.json();
+const delay = asyncMethod({
+  method: (successResult: string) => successResult,
+  loader: async ({ params: successResult }) => {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return successResult;
   },
 });
 
 // Trigger manually
-search.method('query text');
+delay.method('success');
 
 // Track state
-console.log(search.status()); // 'loading'
-console.log(search.isLoading()); // true
+console.log(delay.status()); // 'loading'
+console.log(delay.isLoading()); // true
 
 // After completion
-console.log(search.status()); // 'resolved'
-console.log(search.value()); // Search results
-console.log(search.hasValue()); // true
+console.log(delay.status()); // 'resolved'
+console.log(delay.value()); // 'success'
+console.log(delay.hasValue()); // true
 ```
+
+::: warning
+The method based always needs one parameter.
+:::
 
 ### Source-based async method for automatic execution
 
@@ -40,13 +44,12 @@ console.log(search.hasValue()); // true
 import { source, afterRecomputation } from '@ngcraft/core';
 
 const searchSource = source();
-const autoSearch = asyncMethod({
+const delayedSearch = asyncMethod({
   method: afterRecomputation(searchSource, (term) => term),
-  loader: async ({ params }) => {
+  loader: async ({ params: term }) => {
     // Debounce at source level
     await new Promise((resolve) => setTimeout(resolve, 300));
-    const response = await fetch(`/api/search?q=${params}`);
-    return response.json();
+    return term;
   },
 });
 
@@ -55,108 +58,72 @@ searchSource.set('query text');
 // autoSearch executes automatically
 
 // No manual method, only source
-console.log(autoSearch.source); // ReadonlySource
-console.log(autoSearch.status()); // Current state
+console.log(delayedSearch.source); // ReadonlySource
+console.log(delayedSearch.status()); // Current state
 ```
 
 ### Async method with identifier for parallel operations
 
 ```typescript
-const uploadFile = asyncMethod({
-  method: (file: File) => ({ id: file.name, file }),
-  identifier: (params) => params.id,
-  loader: async ({ params }) => {
-    const formData = new FormData();
-    formData.append('file', params.file);
-
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    return response.json();
+const debouncedById = asyncMethod({
+  method: (payload: { successResult: string; id: string }) => payload,
+  identifier: ({ id }) => id,
+  loader: async ({ params: { successResult } }) => {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return successResult;
   },
 });
 
 // Upload multiple files in parallel
-uploadFile.method(file1);
-uploadFile.method(file2);
-uploadFile.method(file3);
+debouncedById.method({
+  id: '1',
+  successResult: data1,
+});
+debouncedById.method({
+  id: '2',
+  successResult: data2,
+});
 
 // Access individual states
-const file1Upload = uploadFile.select(file1.name);
-console.log(file1Upload?.status()); // 'loading' or 'resolved'
-console.log(file1Upload?.value()); // Upload result for file1
+const debouncedById1 = debouncedById.select('1');
+console.log(debouncedById1?.status()); // 'loading' or 'resolved'
+console.log(debouncedById1?.value()); // data1 once resolved
 
-const file2Upload = uploadFile.select(file2.name);
-console.log(file2Upload?.status()); // Independent state
+const debouncedById2 = debouncedById.select('2');
+console.log(debouncedById2?.status()); // 'loading' or 'resolved'
+console.log(debouncedById2?.value()); // data2 once resolved
 ```
 
-## API
-
-### Configuration
+## Track async native JS api status
 
 ```typescript
-asyncMethod({
-  method: (args) => params, // Function to convert args to params
-  loader: async ({ params }) => result, // Async operation
-  identifier: (params) => string, // Optional: for parallel execution
-});
-```
+const shareContent = asyncMethod(
+  {
+    method: (payload: { title: string; url: string }) => payload,
+    stream: async ({ params }) => {
+      return navigator.share(params);
+    },
+  },
+  ({ resource }) => ({
+    isMenuOpen: computed(() => resource.status() === 'loading'),
+  }),
+);
 
-### State Signals
-
-```typescript
-const method = asyncMethod(config);
-
-// Available signals
-method.value(); // Result value or undefined
-method.status(); // 'idle' | 'loading' | 'resolved' | 'error'
-method.error(); // Error or undefined
-method.isLoading(); // Boolean
-method.hasValue(); // Boolean
-```
-
-### Methods
-
-```typescript
-// Method-based: trigger manually
-method.method(args);
-
-// Source-based: automatic from source
-method.source; // ReadonlySource
-```
-
-### With Identifier
-
-```typescript
-// Access individual instances
-const instance = method.select(id);
-console.log(instance?.status());
-console.log(instance?.value());
+// Trigger shareContent
+shareContent.method({ title: 'Hello AI!', url: 'https://example.com' });
+shareContent.isMenuOpen(); // true while loading
 ```
 
 ## Use Cases
 
 **Debounced operations**: Search, validation with delay
-**Background tasks**: Processing without blocking UI
-**Polling**: Periodic data updates
-**Parallel operations**: Multiple concurrent file uploads
-**Streaming data**: Progressive updates from server
-
-## State Management
-
-- **idle**: Initial state, no operation started
-- **loading**: Operation in progress
-- **resolved**: Operation completed successfully
-- **error**: Operation failed
+**Wrapping js native api**: Track JS native API status
 
 ## Best Practices
 
 ✅ **Use method-based** for explicit control
 ✅ **Use source-based** for automatic reactivity
 ✅ **Use identifier** for parallel operations
-✅ **Handle all states** in your UI
-✅ **Debounce at source level** for frequent triggers
 
 ## See Also
 
