@@ -47,6 +47,20 @@ export type Source<T> = Signal<T | undefined> & {
  * - **preserveLastValue**: Returns last emitted value immediately, then tracks new values
  * - Useful for late subscribers that need current state
  *
+ * **Limitations:**
+ * Sources are signals and behave differently from observables.
+ * Understanding these three key limitations is important:
+ * - **Multiple sets in same cycle**: When a source is set multiple times during the same cycle
+ *   (between the first set and the Change Detection that executes all consumer callbacks),
+ *   consumers will only react once during CD and will only see the last set value.
+ *   Intermediate values are discarded.
+ * - **Multiple sources order**: Within the same cycle, if multiple sources are triggered,
+ *   consumers cannot determine the order in which the sources were set.
+ *   The original emission sequence is not preserved.
+ * - **Consumer execution order**: When multiple sources are triggered in the same cycle,
+ *   consumer callbacks are invoked in the order they were declared, not in the order
+ *   their source producers were triggered.
+ *
  * @template T - The type of values emitted by the source
  *
  * @param options - Optional configuration:

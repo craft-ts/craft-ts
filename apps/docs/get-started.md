@@ -12,6 +12,10 @@ npm i @ngcraft/core@latest
 After installation, you can start using @ngcraft primitives and stores in your Angular application!
 :::
 
+:::warning
+The current documentation is also experimental. It takes a lot of time to create it, and AI is not always helpful. I will improve it over time. And some examples are not always pertinent.
+:::
+
 ## Next Steps
 
 - Explore the [Introduction](/introduction) to understand the core concepts

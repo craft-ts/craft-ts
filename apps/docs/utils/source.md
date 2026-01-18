@@ -112,6 +112,79 @@ const value = state(1, {
 });
 ```
 
+## Limitations
+
+Sources are signals and behave differently from observables. Understanding these key limitations is important:
+
+### Multiple Sets in Same Cycle
+
+When a source is set multiple times during the same cycle (between the first set and the Change Detection that executes all consumer callbacks), consumers will only react once during CD and will only see the last set value. Intermediate values are discarded.
+
+```typescript
+const mySource = source<number>();
+
+effect(() => {
+  console.log('Value:', mySource());
+});
+
+// Within the same cycle:
+mySource.set(1); // This value is discarded
+mySource.set(2); // This value is discarded
+mySource.set(3); // Only this final value triggers the consumer
+
+// Console output: "Value: 3"
+// Values 1 and 2 are never seen by consumers
+```
+
+### Multiple Sources Order
+
+Within the same cycle, if multiple sources are triggered, consumers cannot determine the order in which the sources were set. The original emission sequence is not preserved.
+
+```typescript
+const source1 = source<string>();
+const source2 = source<string>();
+
+effect(() => {
+  const val1 = source1();
+  const val2 = source2();
+  console.log('Values:', val1, val2);
+});
+
+// Trigger both in specific order:
+source1.set('first');
+source2.set('second');
+
+// Consumers cannot reliably determine that source1 was set before source2
+// Both are processed together during Change Detection
+```
+
+### Consumer Execution Order
+
+When multiple sources are triggered in the same cycle, consumer callbacks are invoked in the order they were declared, not in the order their source producers were triggered.
+
+```typescript
+const sourceA = source<string>();
+const sourceB = source<string>();
+
+// Consumer 1 (declared first)
+effect(() => {
+  console.log('Consumer 1:', sourceA(), sourceB());
+});
+
+// Consumer 2 (declared second)
+effect(() => {
+  console.log('Consumer 2:', sourceA(), sourceB());
+});
+
+// Trigger in specific order:
+sourceB.set('B'); // Triggered first
+sourceA.set('A'); // Triggered second
+
+// Output follows declaration order, not trigger order:
+// "Consumer 1: A B"
+// "Consumer 2: A B"
+```
+
 ## See Also
 
 - [toSource](/utils/to-source) - Convert observables to sources
