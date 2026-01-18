@@ -280,7 +280,7 @@ export type AsyncMethodOutput<
  * ```ts
  * const shareContent = asyncMethod({
  *   method: (payload: { title: string, url: string }) => payload,
- *   stream: async ({ params }) => {
+ *   loader: async ({ params }) => {
  *      return navigator.share(params);
  *   },
  * }, ({resource}) => ({isMenuOpen: computed(() => resource.status() === 'loading')} ));

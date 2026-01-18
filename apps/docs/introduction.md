@@ -173,6 +173,8 @@ const { injectUserGlobalCraft } = craft(
 
 Bind shared store inputs and methods to the host states and sources.
 
+> Here a common example of a feature store that manage user posts with pagination and filtering capabilities, resetting filters and pagination when needed, and displaying post details when a post is selected.
+
 ```typescript
 const { craftPaginationFeature } = craft(
   {
@@ -200,7 +202,30 @@ const { craftPaginationFeature } = craft(
   })),
 );
 
-const { injectHostCraft } = craft(
+const { craftPostDetailsFeature } = craft(
+  {
+    name: 'postDetails',
+    providedIn: 'feature',
+  },
+  craftInputs({
+    postId: undefined as string | undefined,
+    userId: undefined as string | undefined,
+  }),
+  craftQuery('post', ({ userId, postId }) =>
+    query({
+      params: () => ({
+        userId: userId(),
+        postId: postId(),
+      }),
+      loader: async ({ params: { userId, postId } }) => {
+        const response = await fetch(`/api/users/${userId}/posts/${postId}`);
+        return response.json();
+      },
+    }),
+  ),
+);
+
+const { injectUserPostsCraft } = craft(
   {
     name: 'userPosts',
     providedIn: 'root',
@@ -234,7 +259,7 @@ const { injectHostCraft } = craft(
       }),
     ),
   })),
-  craftQuery('user', ({ userId, pagination, postCategory }) =>
+  craftQuery('posts', ({ userId, pagination, postCategory }) =>
     query({
       params: () => ({
         pagination: pagination(),
@@ -255,6 +280,18 @@ const { injectHostCraft } = craft(
       },
     }),
   ),
+  craftState('selectedPostId', ({ resetFilters }) =>
+    state(undefined as string | undefined, ({ set }) => ({
+      set,
+      reset: afterRecomputation(resetFilters, () => set(undefined)),
+    })),
+  ),
+  craftPostDetailsFeature(({ userId, selectedPostId }) => ({
+    inputs: {
+      userId: input.required<string>(),
+      postId: selectedPostId,
+    },
+  })),
 );
 
 // In a component:
@@ -262,7 +299,7 @@ const { injectHostCraft } = craft(
 class UserPostsComponent {
   readonly userId = input.required<string>();
 
-  readonly store = injectHostCraft({
+  readonly store = injectUserPostsCraft({
     input: {
       // bind the store inputs to component signal variable
       userId: this.userId,

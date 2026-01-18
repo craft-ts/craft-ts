@@ -78,20 +78,17 @@ A craft factory utility that integrates async methods into the store with:
 
 ## Examples
 
-### Basic async method for debounced search
+### Basic method-based async method
 
 ```ts
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
   craftAsyncMethods(() => ({
-    search: asyncMethod({
-      method: (searchTerm: string) => searchTerm,
+    delay: asyncMethod({
+      method: (delay: number) => delay,
       loader: async ({ params }) => {
-        // Debounce happens at call site
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        const response = await fetch(`/api/search?q=${params}`);
-        return response.json();
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate delay
+        return 'done';
       },
     }),
   })),
@@ -99,16 +96,47 @@ const { injectCraft } = craft(
 
 const store = injectCraft();
 
-// Trigger search
-store.setSearch('query text');
+// Trigger manually
+store.setDelay(500);
 
-// Track status
-console.log(store.search.status()); // 'loading'
-console.log(store.search.isLoading()); // true
+// Track state
+console.log(store.delay.status()); // 'loading'
+console.log(store.delay.isLoading()); // true
 
 // After completion
-console.log(store.search.status()); // 'resolved'
-console.log(store.search.value()); // Search results
+console.log(store.delay.status()); // 'resolved'
+console.log(store.delay.value()); // 'done'
+console.log(store.delay.hasValue()); // true
+```
+
+### Source-based async method for automatic execution
+
+```ts
+const delaySource = source<number>();
+
+const { injectCraft } = craft(
+  { name: '', providedIn: 'root' },
+  craftAsyncMethods(() => ({
+    delay: asyncMethod({
+      method: afterRecomputation(delaySource, (term) => term),
+      loader: async ({ params }) => {
+        // Debounce at source level
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return 'done';
+      },
+    }),
+  })),
+);
+
+const store = injectCraft();
+
+// Triggers automatically when source emits
+delaySource.set(500);
+// -> delay executes automatically
+
+// No manual method, only source
+console.log(store.delay.source); // ReadonlySource<number>
+console.log(store.delay.status()); // Current state
 ```
 
 ### Async method with identifier for parallel operations
@@ -117,18 +145,12 @@ console.log(store.search.value()); // Search results
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
   craftAsyncMethods(() => ({
-    uploadFile: asyncMethod({
-      method: (file: File) => ({ fileId: file.name, file }),
-      identifier: (params) => params.fileId,
-      loader: async ({ params }) => {
-        const formData = new FormData();
-        formData.append('file', params.file);
-
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        return response.json();
+    delayById: asyncMethod({
+      method: (id: string) => id,
+      identifier: (id) => id,
+      loader: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return 'done'; // Simulate delay
       },
     }),
   })),
@@ -136,55 +158,45 @@ const { injectCraft } = craft(
 
 const store = injectCraft();
 
-// Upload multiple files in parallel
-store.setUploadFile(file1);
-store.setUploadFile(file2);
-store.setUploadFile(file3);
+// Execute multiple operations in parallel
+store.setDelayById('id1');
+store.setDelayById('id2');
+store.setDelayById('id3');
 
-// Track individual upload states
-const file1Upload = store.uploadFile.select(file1.name);
-console.log(file1Upload?.status()); // 'loading' or 'resolved'
-console.log(file1Upload?.value()); // Upload result
+// Access individual states
+const delay1 = store.delayById.select('id1');
+console.log(delay1?.status()); // 'loading' or 'resolved'
+console.log(delay1?.value()); // Result for id1
 
-const file2Upload = store.uploadFile.select(file2.name);
-console.log(file2Upload?.status()); // Independent state
+const delay2 = store.delayById.select('id2');
+console.log(delay2?.status()); // Independent state
 ```
 
-### Source-based async method for automatic execution
+### Calling async js native API
 
 ```ts
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
-  craftSources({
-    formChange: source<FormData>(),
-  }),
-  craftAsyncMethods(({ formChange }) => ({
-    autoSave: asyncMethod({
-      method: afterRecomputation(formChange, (data) => data),
-      loader: async ({ params }) => {
-        // Wait 2 seconds before saving
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        const response = await fetch('/api/autosave', {
-          method: 'POST',
-          body: JSON.stringify(params),
-        });
-        return response.json();
+  craftAsyncMethods(() => ({
+    shareContent: asyncMethod(
+      {
+        method: (payload: { title: string; url: string }) => payload,
+        loader: async ({ params }) => {
+          return navigator.share(params);
+        },
       },
-    }),
+      ({ resource }) => ({
+        isMenuOpen: computed(() => resource.status() === 'loading'),
+      }),
+    ),
   })),
 );
 
 const store = injectCraft();
 
-// Async method executes automatically when source emits
-store.setFormChange({ name: 'John', email: 'john@example.com' });
-// -> autoSave async method executes automatically after 2s
-// Note: No store.setAutoSave method exposed (source-based)
-
-// Access async method state
-console.log(store.autoSave.status()); // 'loading'
-console.log(store.autoSave.value()); // Result after completion
+// Trigger shareContent
+store.setShareContent({ title: 'Hello AI!', url: 'https://example.com' });
+console.log(store.shareContent.isMenuOpen()); // true while loading
 ```
 
 ## Craft Utilities
