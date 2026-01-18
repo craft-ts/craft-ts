@@ -46,10 +46,16 @@ apps/docs/
 ├── store/                  # Store patterns
 │   ├── craft.md
 │   ├── craft-state.md
+│   ├── craft-sources.md
+│   ├── craft-inputs.md
+│   ├── craft-computed.md
 │   ├── craft-async-method.md
+│   ├── craft-query-param.md
 │   ├── craft-query-params.md
 │   ├── craft-query.md
-│   └── craft-mutation.md
+│   ├── craft-mutation.md
+│   ├── craft-set-all-queries-params-standalone.md
+│   └── craft-inject.md
 ├── utils/                  # Utility functions
 │   ├── source.md
 │   ├── to-source.md

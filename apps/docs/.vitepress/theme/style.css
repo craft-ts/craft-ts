@@ -24,7 +24,7 @@
  *
  *   The soft color must be semi transparent alpha channel. This is crucial
  *   because it allows adding multiple "soft" colors on top of each other
- *   to create a accent, such as when having inline code block inside
+ *   to create an accent, such as when having inline code block inside
  *   custom containers.
  *
  * - `default`: The color used purely for subtle indication without any
@@ -44,15 +44,102 @@
  * -------------------------------------------------------------------------- */
 
 :root {
-  --vp-c-brand-1: #dd0031;
-  --vp-c-brand-2: #c50026;
-  --vp-c-brand-3: #dd0031;
+  --ngq-g1: #5c44e4;
+  --ngq-g2: #8514f5;
+  --ngq-g3: #f736e3;
+  --ngq-g4: #e90464;
+  --ngq-g5: #f11653;
+  --vp-c-brand-gradient: linear-gradient(
+    135deg,
+    var(--ngq-g1) 0%,
+    var(--ngq-g2) 25%,
+    var(--ngq-g3) 50%,
+    var(--ngq-g4) 75%,
+    var(--ngq-g5) 100%
+  );
+  --vp-c-brand-gradient-hover: linear-gradient(
+    135deg,
+    var(--ngq-g5) 0%,
+    var(--ngq-g4) 25%,
+    var(--ngq-g3) 50%,
+    var(--ngq-g2) 75%,
+    var(--ngq-g1) 100%
+  );
+
+  --vp-c-default-1: var(--vp-c-gray-1);
+  --vp-c-default-2: var(--vp-c-gray-2);
+  --vp-c-default-3: var(--vp-c-gray-3);
+  --vp-c-default-soft: var(--vp-c-gray-soft);
+
+  --vp-c-brand-1: var(--ngq-g1);
+  --vp-c-brand-2: var(--ngq-g2);
+  --vp-c-brand-3: var(--ngq-g3);
+  --vp-c-brand-soft: var(--ngq-g4);
+
+  --vp-c-tip-1: var(--vp-c-brand-1);
+  --vp-c-tip-2: var(--vp-c-brand-2);
+  --vp-c-tip-3: var(--vp-c-brand-3);
+  --vp-c-tip-soft: var(--vp-c-brand-soft);
+
+  --vp-c-warning-1: var(--vp-c-yellow-1);
+  --vp-c-warning-2: var(--vp-c-yellow-2);
+  --vp-c-warning-3: var(--vp-c-yellow-3);
+  --vp-c-warning-soft: var(--vp-c-yellow-soft);
+
+  --vp-c-danger-1: var(--vp-c-red-1);
+  --vp-c-danger-2: var(--vp-c-red-2);
+  --vp-c-danger-3: var(--vp-c-red-3);
+  --vp-c-danger-soft: var(--vp-c-red-soft);
+}
+html.dark {
+  --vp-code-color: #bab2eb;
+  --vp-c-brand-1: #bab2eb;
 }
 
-.dark {
-  --vp-c-brand-1: #ff4458;
-  --vp-c-brand-2: #ff6678;
-  --vp-c-brand-3: #ff4458;
+.vp-doc .brand,
+.text-gradient,
+.VPSidebarItem.is-active p,
+.VPLink .title,
+.vp-doc a,
+.VPLink.active {
+  background-image: var(--vp-c-brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+.gradient-hover:hover,
+.vp-doc a:hover,
+.VPLink:hover .title,
+.VPNavBarTitle:hover span {
+  background-image: var(--vp-c-brand-gradient-hover);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+.VPNavBarTitle .title::after {
+  content: 'EXPERIMENTAL';
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--vp-c-text-2);
+  background: var(--vp-c-warning-soft);
+  border: 1px solid var(--vp-c-warning-1);
+  padding: 2px 6px;
+  position: absolute;
+  right: -17px;
+  bottom: 0%;
+  transform: translateY(-50%);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 100px;
+}
+.home .VPNavBarTitle .title::after {
+  right: -105px;
+}
+
+.VPNavBarTitle {
+  position: relative;
 }
 
 /**
@@ -77,17 +164,9 @@
 
 :root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(
-    120deg,
-    #dd0031 30%,
-    #c50026
-  );
+  --vp-home-hero-name-background: var(--vp-c-brand-gradient);
 
-  --vp-home-hero-image-background-image: linear-gradient(
-    -45deg,
-    #dd003150 50%,
-    #c5002650 50%
-  );
+  --vp-home-hero-image-background-image: var(--vp-c-brand-gradient-hover);
   --vp-home-hero-image-filter: blur(44px);
 }
 
@@ -101,6 +180,14 @@
   :root {
     --vp-home-hero-image-filter: blur(68px);
   }
+}
+.VPFeatures article h2,
+.VPSidebarItem .VPLink .text {
+  width: fit-content;
+  max-width: fit-content;
+}
+.VPHomeHero .image-bg {
+  opacity: 25%;
 }
 
 /**

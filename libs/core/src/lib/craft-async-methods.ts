@@ -101,112 +101,92 @@ type CraftAsyncMethodsOutputs<
  *   - Full type safety for async method parameters and results
  *
  * @example
- * Basic async method for debounced search
+ * Basic method-based async method
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftAsyncMethods(() => ({
- *     search: asyncMethod({
- *       method: (searchTerm: string) => searchTerm,
- *       loader: async ({ params }) => {
- *         // Debounce happens at call site
- *         await new Promise(resolve => setTimeout(resolve, 300));
+ * const delay = asyncMethod({
+ *   method: (delay: number) => delay,
+ *   loader: async ({ params }) => {
+ *     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+ *     return 'done';
+ *   },
+ * });
  *
- *         const response = await fetch(`/api/search?q=${params}`);
- *         return response.json();
- *       },
- *     }),
- *   }))
- * );
+ * // Trigger manually
+ * delay.method(500);
  *
- * const store = injectCraft();
- *
- * // Trigger search
- * store.setSearch('query text');
- *
- * // Track status
- * console.log(store.search.status()); // 'loading'
- * console.log(store.search.isLoading()); // true
+ * // Track state
+ * console.log(delay.status()); // 'loading'
+ * console.log(delay.isLoading()); // true
  *
  * // After completion
- * console.log(store.search.status()); // 'resolved'
- * console.log(store.search.value()); // Search results
- * ```
- *
- * @example
- * Async method with identifier for parallel operations
- * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftAsyncMethods(() => ({
- *     uploadFile: asyncMethod({
- *       method: (file: File) => ({ fileId: file.name, file }),
- *       identifier: (params) => params.fileId,
- *       loader: async ({ params }) => {
- *         const formData = new FormData();
- *         formData.append('file', params.file);
- *
- *         const response = await fetch('/api/upload', {
- *           method: 'POST',
- *           body: formData,
- *         });
- *         return response.json();
- *       },
- *     }),
- *   }))
- * );
- *
- * const store = injectCraft();
- *
- * // Upload multiple files in parallel
- * store.setUploadFile(file1);
- * store.setUploadFile(file2);
- * store.setUploadFile(file3);
- *
- * // Track individual upload states
- * const file1Upload = store.uploadFile.select(file1.name);
- * console.log(file1Upload?.status()); // 'loading' or 'resolved'
- * console.log(file1Upload?.value()); // Upload result
- *
- * const file2Upload = store.uploadFile.select(file2.name);
- * console.log(file2Upload?.status()); // Independent state
+ * console.log(delay.status()); // 'resolved'
+ * console.log(delay.value()); // 'done'
+ * console.log(delay.hasValue()); // true
  * ```
  *
  * @example
  * Source-based async method for automatic execution
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     formChange: source<FormData>(),
- *   }),
- *   craftAsyncMethods(({ formChange }) => ({
- *     autoSave: asyncMethod({
- *       method: afterRecomputation(formChange, (data) => data),
- *       loader: async ({ params }) => {
- *         // Wait 2 seconds before saving
- *         await new Promise(resolve => setTimeout(resolve, 2000));
+ * const delaySource = source<number>();
  *
- *         const response = await fetch('/api/autosave', {
- *           method: 'POST',
- *           body: JSON.stringify(params),
- *         });
- *         return response.json();
- *       },
- *     }),
- *   }))
- * );
+ * const delay = asyncMethod({
+ *   method: afterRecomputation(delaySource, (term) => term),
+ *   loader: async ({ params }) => {
+ *     // Debounce at source level
+ *     await new Promise(resolve => setTimeout(resolve, 300));
+ *     return 'done';
+ *   },
+ * });
  *
- * const store = injectCraft();
+ * // Triggers automatically when source emits
+ * delaySource.set(500);
+ * // -> delay executes automatically
  *
- * // Async method executes automatically when source emits
- * store.setFormChange({ name: 'John', email: 'john@example.com' });
- * // -> autoSave async method executes automatically after 2s
- * // Note: No store.setAutoSave method exposed (source-based)
+ * // No manual method, only source
+ * console.log(delay.source); // ReadonlySource<number>
+ * console.log(delay.status()); // Current state
+ * ```
  *
- * // Access async method state
- * console.log(store.autoSave.status()); // 'loading'
- * console.log(store.autoSave.value()); // Result after completion
+ * @example
+ * Async method with identifier for parallel operations
+ * ```ts
+ * const delayById = asyncMethod({
+ *   method: (id: string) => id,
+ *   identifier: (id) => id,
+ *   loader: async () => {
+ *     await new Promise(resolve => setTimeout(resolve, 300));
+ *     return 'done'; // Simulate delay
+ *   },
+ * });
+ *
+ * // Upload multiple files in parallel
+ * delayById.method('id1');
+ * delayById.method('id2');
+ * delayById.method('id3');
+ *
+ * // Access individual states
+ * const delay1 = delayById.select('id1');
+ * console.log(delay1?.status()); // 'loading' or 'resolved'
+ * console.log(delay1?.value()); // Upload result for file1
+ *
+ * const delay2 = delayById.select('id2');
+ * console.log(delay2?.status()); // Independent state
+ * ```
+ *
+ * @example
+ * Calling async js native API
+ * ```ts
+ * const shareContent = asyncMethod({
+ *   method: (payload: { title: string, url: string }) => payload,
+ *   stream: async ({ params }) => {
+ *      return navigator.share(params);
+ *   },
+ * }, ({resource}) => ({isMenuOpen: computed(() => resource.status() === 'loading')} ));
+ *
+ * // Trigger shareContent
+ * shareContent.method({ title: 'Hello AI!', url: 'https://example.com' });
+ * shareContent.isMenuOpen(); // true while loading
+ *
  * ```
  */
 export function craftAsyncMethods<

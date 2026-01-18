@@ -50,10 +50,19 @@ export default defineConfig({
         items: [
           { text: 'craft', link: '/store/craft' },
           { text: 'craftState', link: '/store/craft-state' },
-          { text: 'craftAsyncMethod', link: '/store/craft-async-method' },
-          { text: 'craftQueryParams', link: '/store/craft-query-params' },
+          { text: 'craftSources', link: '/store/craft-sources' },
+          { text: 'craftInputs', link: '/store/craft-inputs' },
+          { text: 'craftComputedStates', link: '/store/craft-computed' },
+          { text: 'craftAsyncMethods', link: '/store/craft-async-method' },
           { text: 'craftQuery', link: '/store/craft-query' },
-          { text: 'craftMutation', link: '/store/craft-mutation' },
+          { text: 'craftQueryParam', link: '/store/craft-query-param' },
+          { text: 'craftQueryParams', link: '/store/craft-query-params' },
+          { text: 'craftMutations', link: '/store/craft-mutation' },
+          {
+            text: 'craftSetAllQueriesParamsStandalone',
+            link: '/store/craft-set-all-queries-params-standalone',
+          },
+          { text: 'craftInject', link: '/store/craft-inject' },
         ],
       },
       {
