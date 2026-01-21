@@ -74,7 +74,6 @@ const debouncedById = asyncMethod({
   },
 });
 
-// Upload multiple files in parallel
 debouncedById.method({
   id: '1',
   successResult: data1,

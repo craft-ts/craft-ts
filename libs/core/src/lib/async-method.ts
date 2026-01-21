@@ -173,7 +173,6 @@ export type AsyncMethodOutput<
  * **Identifier Usage:**
  * - Without identifier: Single global state for the async method
  * - With identifier: Multiple parallel instances with independent states
- * - Useful for parallel file uploads, concurrent API calls
  *
  * **Insertions:**
  * - Extend functionality with custom insertions
@@ -261,7 +260,6 @@ export type AsyncMethodOutput<
  *   },
  * });
  *
- * // Upload multiple files in parallel
  * delayById.method('id1');
  * delayById.method('id2');
  * delayById.method('id3');
@@ -269,7 +267,7 @@ export type AsyncMethodOutput<
  * // Access individual states
  * const delay1 = delayById.select('id1');
  * console.log(delay1?.status()); // 'loading' or 'resolved'
- * console.log(delay1?.value()); // Upload result for file1
+ * console.log(delay1?.value()); // 'done'
  *
  * const delay2 = delayById.select('id2');
  * console.log(delay2?.status()); // Independent state

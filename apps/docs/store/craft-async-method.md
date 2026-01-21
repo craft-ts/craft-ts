@@ -33,7 +33,6 @@ import { craftAsyncMethods } from '@ng-craft/core';
 ## Use Cases
 
 - **Debounced operations**: Search, validation, autosave with delay
-- **File operations**: Upload, download with progress tracking
 - **Background tasks**: Processing, computation without blocking UI
 - **Third-party APIs**: External service calls with status tracking
 - **Polling**: Periodic checks or updates

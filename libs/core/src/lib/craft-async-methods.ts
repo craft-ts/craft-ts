@@ -8,15 +8,12 @@ import {
   partialContext,
   StoreConfigConstraints,
 } from './craft';
-import { ReadonlySource } from './util/source.type';
 import { capitalize } from './util/util';
 import {
   FilterMethodsBoundToSources,
-  MergeObjects,
   Prettify,
   UnionToTuple,
 } from './util/util.type';
-import { ResourceByIdRef } from './resource-by-id';
 import { AsyncMethodRef } from './async-method';
 
 type SpecificCraftAsyncMethodsOutputs<AsyncMethods extends {}> =
@@ -27,8 +24,8 @@ type SpecificCraftAsyncMethodsOutputs<AsyncMethods extends {}> =
     methods: FilterMethodsBoundToSources<
       AsyncMethods,
       UnionToTuple<keyof AsyncMethods>,
-      'method',
-      'set'
+      'set',
+      'method'
     >;
     _asyncMethods: {
       [key in keyof AsyncMethods]: Prettify<Omit<AsyncMethods[key], 'method'>>;
@@ -65,12 +62,11 @@ type CraftAsyncMethodsOutputs<
  * **Difference from Mutations:**
  * - **Async Methods**: General-purpose async operations without automatic query coordination
  * - **Mutations**: Server data modifications with built-in query synchronization patterns
- * - Use async methods for operations like debounced search, file uploads, background tasks
+ * - Use async methods for operations like debounced search, background tasks
  * - Use mutations for CRUD operations that should update query caches
  *
  * **Use Cases:**
  * - **Debounced operations**: Search, validation, autosave with delay
- * - **File operations**: Upload, download with progress tracking
  * - **Background tasks**: Processing, computation without blocking UI
  * - **Third-party APIs**: External service calls with status tracking
  * - **Polling**: Periodic checks or updates
@@ -160,7 +156,6 @@ type CraftAsyncMethodsOutputs<
  *   },
  * });
  *
- * // Upload multiple files in parallel
  * delayById.method('id1');
  * delayById.method('id2');
  * delayById.method('id3');
@@ -168,7 +163,7 @@ type CraftAsyncMethodsOutputs<
  * // Access individual states
  * const delay1 = delayById.select('id1');
  * console.log(delay1?.status()); // 'loading' or 'resolved'
- * console.log(delay1?.value()); // Upload result for file1
+ * console.log(delay1?.value()); // 'done'
  *
  * const delay2 = delayById.select('id2');
  * console.log(delay2?.status()); // Independent state

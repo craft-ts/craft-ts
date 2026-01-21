@@ -155,8 +155,6 @@ describe('asyncMethod types without identifier', () => {
         };
       }>();
 
-      asyncMethodsOutput({} as any, {} as any, {} as any)({} as any);
-
       type methods = ReturnType<
         ReturnType<typeof asyncMethodsOutput>
       >['methods'];
