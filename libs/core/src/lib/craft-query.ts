@@ -524,7 +524,11 @@ export function craftQuery<
         storeName: storeConfig.name,
         key: resourceName,
       },
-    } as ContextQueryEntries<Context, StoreConfig, ResourceName>) as QueryRef<
+    } as ContextQueryEntries<
+      Context,
+      StoreConfig,
+      ResourceName
+    >) as unknown as QueryRef<
       ResourceState,
       ResourceParams,
       ResourceArgsParams,

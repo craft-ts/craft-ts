@@ -1,7 +1,7 @@
 import { Expect, Equal } from 'test-type';
 import { inject, ResourceRef, ResourceStreamItem, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { expectTypeOf, vi } from 'vitest';
+import { expectTypeOf, Mock, vi } from 'vitest';
 import { craft, CraftFactory } from './craft';
 import { mutation } from './mutation';
 import { query, QueryOutput } from './query';
@@ -479,6 +479,7 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
   });
 
   it('5- Should handle craftMutation reactions effect', async () => {
+    let userQuery5ReloadSpy!: Mock<() => boolean>;
     await TestBed.runInInjectionContext(async () => {
       const returnedUser = (id: string) => ({
         id: `${id}`,
@@ -521,6 +522,10 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
                 onMutationResolved: true,
               },
             }),
+            ({ resource }) => {
+              userQuery5ReloadSpy = vi.spyOn(resource, 'reload');
+              return {};
+            },
           ),
         ),
       );
@@ -529,7 +534,6 @@ describe('Declarative server state, craftQuery and craftMutation', () => {
       const userQuery = store.user;
       await vi.runAllTimersAsync();
       expect(userQuery.value()).toEqual(returnedUser('5'));
-      const userQuery5ReloadSpy = vi.spyOn(userQuery, 'reload');
       store.mutateUserMutation({
         id: '5',
         name: 'Updated User',

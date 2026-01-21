@@ -76,5 +76,5 @@ apps/docs/
 
 Add images, logos, and other assets to `public/assets/`
 
-- `ngcraft-logo.png` - Main logo
+- `ng-craft-logo.png` - Main logo
 - `favicon.png` - Site favicon
