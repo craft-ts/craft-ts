@@ -246,8 +246,8 @@ export type ResourceByIdLikeQueryRef<
 
 export type QueryRef<
   Value,
-  ArgParams,
   Params,
+  ArgParams,
   Insertions,
   IsMethod,
   SourceParams,

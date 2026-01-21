@@ -8,6 +8,7 @@ import { craftQuery } from './craft-query';
 import { craftMutations } from './craft-mutations';
 import { mutation } from './mutation';
 import { ResourceByIdRef } from './resource-by-id';
+import { insertReactOnMutation } from './insert-react-on-mutation';
 
 type User = {
   id: string;
@@ -74,27 +75,27 @@ describe('craftQuery', () => {
         name: '',
         providedIn: 'root',
       },
-      craftQuery('user', () =>
+      craftQuery('getUser', () =>
         query({
           params: () => '5',
           loader: async ({ params }) => {
             return returnedUser;
           },
           identifier: (params) => params,
-        })
-      )
+        }),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
 
-      expect(store.user).toBeDefined();
+      expect(store.getUser).toBeDefined();
 
       await vi.runAllTimersAsync();
-      expect(store.user.select('5')?.value()).toBe(returnedUser);
+      expect(store.getUser.select('5')?.value()).toBe(returnedUser);
 
       type ExpectUserQueryToBeAnObjectWithResourceByIdentifier = Expect<
         Equal<
-          typeof store.user,
+          typeof store.getUser,
           QueryOutput<
             NoInfer<{
               id: string;
@@ -133,31 +134,27 @@ describe('craftQuery', () => {
           },
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query({
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
             },
             identifier: (params) => params,
-          }),
-        {
-          on: {
-            userMutation: {
-              optimisticUpdate: ({ mutationParams }) => mutationParams,
-              filter: ({ mutationParams, queryIdentifier }) =>
-                mutationParams.id === queryIdentifier,
-            },
           },
-        }
-      )
+          insertReactOnMutation(user, {
+            optimisticUpdate: ({ mutationParams }) => mutationParams,
+            filter: ({ mutationParams, queryIdentifier }) =>
+              mutationParams.id === queryIdentifier,
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -195,33 +192,29 @@ describe('craftQuery', () => {
           },
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query({
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
             },
             identifier: (params) => params,
-          }),
-        {
-          on: {
-            userMutation: {
-              optimisticPatch: {
-                name: ({ mutationParams }) => mutationParams.name,
-              },
-              filter: ({ mutationParams, queryIdentifier }) =>
-                mutationParams.id === queryIdentifier,
-            },
           },
-        }
-      )
+          insertReactOnMutation(user, {
+            optimisticPatch: {
+              name: ({ mutationParams }) => mutationParams.name,
+            },
+            filter: ({ mutationParams, queryIdentifier }) =>
+              mutationParams.id === queryIdentifier,
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -261,47 +254,41 @@ describe('craftQuery', () => {
           },
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query(
-            {
-              params: () => '5',
-              identifier: (params) => params,
-              loader: async ({ params }) => {
-                return returnedUser;
-              },
-            },
-            ({ resourceById }) => {
-              const userQuery5 = computed(() => resourceById()['5']);
-              effect(() => {
-                const userResource5 = userQuery5();
-                if (!userResource5) {
-                  return;
-                }
-                userQuery5ReloadSpy = vi.spyOn(userResource5, 'reload');
-              });
-              return {};
-            }
-          ),
-        {
-          on: {
-            userMutation: {
-              filter: ({ mutationParams, queryIdentifier }) =>
-                mutationParams.id === queryIdentifier,
-              reload: {
-                onMutationLoading: true,
-                onMutationResolved: true,
-              },
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
+            params: () => '5',
+            identifier: (params) => params,
+            loader: async ({ params }) => {
+              return returnedUser;
             },
           },
-        }
-      )
+          ({ resourceById }) => {
+            const userQuery5 = computed(() => resourceById()['5']);
+            effect(() => {
+              const userResource5 = userQuery5();
+              if (!userResource5) {
+                return;
+              }
+              userQuery5ReloadSpy = vi.spyOn(userResource5, 'reload');
+            });
+            return {};
+          },
+          insertReactOnMutation(user, {
+            filter: ({ mutationParams, queryIdentifier }) =>
+              mutationParams.id === queryIdentifier,
+            reload: {
+              onMutationLoading: true,
+              onMutationResolved: true,
+            },
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -340,47 +327,41 @@ describe('craftQuery', () => {
           },
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query(
-            {
-              params: () => '5',
-              loader: async ({ params }) => {
-                return returnedUser;
-              },
-              identifier: (params) => params,
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
+            params: () => '5',
+            loader: async ({ params }) => {
+              return returnedUser;
             },
-            ({ resourceById }) => {
-              const userQuery5 = computed(() => resourceById()['5']);
-              effect(() => {
-                const userResource5 = userQuery5();
-                if (!userResource5) {
-                  return;
-                }
-                userQuery5ReloadSpy = vi.spyOn(userResource5, 'reload');
-              });
-              return {};
-            }
-          ),
-        {
-          on: {
-            userMutation: {
-              filter: ({ queryIdentifier, mutationIdentifier }) =>
-                queryIdentifier === mutationIdentifier,
-              reload: {
-                onMutationLoading: true,
-                onMutationResolved: true,
-              },
-            },
+            identifier: (params) => params,
           },
-        }
-      )
+          ({ resourceById }) => {
+            const userQuery5 = computed(() => resourceById()['5']);
+            effect(() => {
+              const userResource5 = userQuery5();
+              if (!userResource5) {
+                return;
+              }
+              userQuery5ReloadSpy = vi.spyOn(userResource5, 'reload');
+            });
+            return {};
+          },
+          insertReactOnMutation(user, {
+            filter: ({ queryIdentifier, mutationIdentifier }) =>
+              queryIdentifier === mutationIdentifier,
+            reload: {
+              onMutationLoading: true,
+              onMutationResolved: true,
+            },
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       await vi.runAllTimersAsync();
 
       expect(userQuery5?.value()).toBe(returnedUser);
@@ -419,31 +400,27 @@ describe('craftQuery', () => {
           identifier: (params) => params.id,
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query({
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
             },
             identifier: (params) => params,
-          }),
-        {
-          on: {
-            userMutation: {
-              optimisticUpdate: ({ mutationParams }) => mutationParams,
-              filter: ({ mutationParams, queryIdentifier }) =>
-                mutationParams.id === queryIdentifier,
-            },
           },
-        }
-      )
+          insertReactOnMutation(user, {
+            optimisticUpdate: ({ mutationParams }) => mutationParams,
+            filter: ({ mutationParams, queryIdentifier }) =>
+              mutationParams.id === queryIdentifier,
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -482,33 +459,29 @@ describe('craftQuery', () => {
           identifier: (params) => params.id,
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query({
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
             },
             identifier: (params) => params,
-          }),
-        {
-          on: {
-            userMutation: {
-              optimisticPatch: {
-                name: ({ mutationParams }) => mutationParams.name,
-              },
-              filter: ({ mutationParams, queryIdentifier }) =>
-                mutationParams.id === queryIdentifier,
-            },
           },
-        }
-      )
+          insertReactOnMutation(user, {
+            optimisticPatch: {
+              name: ({ mutationParams }) => mutationParams.name,
+            },
+            filter: ({ mutationParams, queryIdentifier }) =>
+              mutationParams.id === queryIdentifier,
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -546,33 +519,29 @@ describe('craftQuery', () => {
           identifier: (params) => params.id,
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query({
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
             },
             identifier: (params) => params,
-          }),
-        {
-          on: {
-            userMutation: {
-              patch: {
-                name: ({ mutationParams }) => mutationParams.name,
-              },
-              filter: ({ mutationParams, queryIdentifier }) =>
-                mutationParams.id === queryIdentifier,
-            },
           },
-        }
-      )
+          insertReactOnMutation(user, {
+            patch: {
+              name: ({ mutationParams }) => mutationParams.name,
+            },
+            filter: ({ mutationParams, queryIdentifier }) =>
+              mutationParams.id === queryIdentifier,
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -610,31 +579,27 @@ describe('craftQuery', () => {
           identifier: (params) => params.id,
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query({
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
             },
             identifier: (params) => params,
-          }),
-        {
-          on: {
-            userMutation: {
-              update: ({ mutationParams }) => mutationParams,
-              filter: ({ mutationParams, queryIdentifier }) =>
-                mutationParams.id === queryIdentifier,
-            },
           },
-        }
-      )
+          insertReactOnMutation(user, {
+            update: ({ mutationParams }) => mutationParams,
+            filter: ({ mutationParams, queryIdentifier }) =>
+              mutationParams.id === queryIdentifier,
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -672,31 +637,27 @@ describe('craftQuery', () => {
           },
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query({
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
             },
             identifier: (params) => params,
-          }),
-        {
-          on: {
-            userMutation: {
-              update: ({ mutationParams }) => mutationParams,
-              filter: ({ mutationParams, queryIdentifier }) =>
-                mutationParams.id === queryIdentifier,
-            },
           },
-        }
-      )
+          insertReactOnMutation(user, {
+            update: ({ mutationParams }) => mutationParams,
+            filter: ({ mutationParams, queryIdentifier }) =>
+              mutationParams.id === queryIdentifier,
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -734,33 +695,29 @@ describe('craftQuery', () => {
           },
         }),
       })),
-      craftQuery(
-        'user',
-        () =>
-          query({
+      craftQuery('getUser', ({ user }) =>
+        query(
+          {
             params: () => '5',
             loader: async ({ params }) => {
               return returnedUser;
             },
             identifier: (params) => params,
-          }),
-        {
-          on: {
-            userMutation: {
-              patch: {
-                name: ({ mutationParams }) => mutationParams.name,
-              },
-              filter: ({ mutationParams, queryIdentifier }) =>
-                mutationParams.id === queryIdentifier,
-            },
           },
-        }
-      )
+          insertReactOnMutation(user, {
+            patch: {
+              name: ({ mutationParams }) => mutationParams.name,
+            },
+            filter: ({ mutationParams, queryIdentifier }) =>
+              mutationParams.id === queryIdentifier,
+          }),
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = inject(Craft);
       await vi.runAllTimersAsync();
-      const userQuery5 = store.user.select('5');
+      const userQuery5 = store.getUser.select('5');
       expect(userQuery5?.value()).toBe(returnedUser);
 
       store.mutateUser({
@@ -777,9 +734,8 @@ describe('craftQuery', () => {
     });
   });
 
-  type InferServerStateResult<T> = T extends InjectionToken<infer U>
-    ? U
-    : never;
+  type InferServerStateResult<T> =
+    T extends InjectionToken<infer U> ? U : never;
 
   it('#1- Should expose private query type', async () => {
     const returnedUser = {
@@ -792,26 +748,23 @@ describe('craftQuery', () => {
         name: '',
         providedIn: 'root',
       },
-      craftQuery(
-        'user',
-        () =>
-          query({
-            params: () => '5',
-            loader: async () => {
-              await wait(10);
-              return returnedUser;
-            },
-            identifier: (params) => params,
-          }),
-        {}
-      )
+      craftQuery('getUser', () =>
+        query({
+          params: () => '5',
+          loader: async () => {
+            await wait(10);
+            return returnedUser;
+          },
+          identifier: (params) => params,
+        }),
+      ),
     );
 
     type StoreFeatureQueryType = InferServerStateResult<typeof Craft>;
 
     type ExpectStoreFeatureQueryTypeToBeFullyRetrieved = Expect<
       Equal<
-        StoreFeatureQueryType['user']['_resourceById'],
+        StoreFeatureQueryType['getUser']['_resourceById'],
         ResourceByIdRef<
           string,
           NoInfer<{

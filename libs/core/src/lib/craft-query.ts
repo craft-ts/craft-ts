@@ -526,8 +526,8 @@ export function craftQuery<
       },
     } as ContextQueryEntries<Context, StoreConfig, ResourceName>) as QueryRef<
       ResourceState,
-      ResourceArgsParams,
       ResourceParams,
+      ResourceArgsParams,
       InsertionsOutputs,
       IsMethod,
       SourceParams,
