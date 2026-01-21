@@ -48,13 +48,13 @@ describe('asyncMethod', () => {
       }>();
       const test = afterRecomputation(
         searchSource,
-        (searchConfig) => searchConfig
+        (searchConfig) => searchConfig,
       );
       const result = test();
       const myAsyncMethod = asyncMethod({
         method: afterRecomputation(
           searchSource,
-          (searchConfig) => searchConfig
+          (searchConfig) => searchConfig,
         ),
         loader: async ({ params: { timeToWait, searchChange } }) => {
           type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
@@ -121,7 +121,7 @@ describe('asyncMethod types without identifier', () => {
           },
           () => ({
             additionalInsertion: 'injectedValue' as const,
-          })
+          }),
         ),
       }));
 
@@ -154,6 +154,8 @@ describe('asyncMethod types without identifier', () => {
           additionalInsertion: 'injectedValue';
         };
       }>();
+
+      asyncMethodsOutput({} as any, {} as any, {} as any)({} as any);
 
       type methods = ReturnType<
         ReturnType<typeof asyncMethodsOutput>
@@ -206,7 +208,7 @@ describe('asyncMethod types without identifier', () => {
           },
           () => ({
             additionalInsertion: 'injectedValue' as const,
-          })
+          }),
         ),
       }));
 
@@ -352,7 +354,7 @@ describe('asyncMethod types with identifier', () => {
           },
           () => ({
             additionalInsertion: 'injectedValue' as const,
-          })
+          }),
         ),
       }));
 
@@ -446,7 +448,7 @@ describe('asyncMethod types with identifier', () => {
           },
           () => ({
             additionalInsertion: 'injectedValue' as const,
-          })
+          }),
         ),
       }));
 
@@ -456,7 +458,7 @@ describe('asyncMethod types with identifier', () => {
           {} as any,
           {} as any,
           {} as any,
-          {} as any
+          {} as any,
         ).props.searchChange.select('test');
         expectTypeOf(search).toEqualTypeOf<
           | {
@@ -478,7 +480,7 @@ describe('asyncMethod types with identifier', () => {
           {} as any,
           {} as any,
           {} as any,
-          {} as any
+          {} as any,
         ).props.filterChange;
         expectTypeOf(filter).toEqualTypeOf<{
           readonly error: Signal<Error | undefined>;

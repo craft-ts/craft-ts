@@ -5,7 +5,7 @@ The `asyncMethod` primitive creates an async operation that manages asynchronous
 ## Import
 
 ```typescript
-import { asyncMethod } from '@ngcraft/core';
+import { asyncMethod } from '@ng-craft/core';
 ```
 
 ## Basic Examples
@@ -41,7 +41,7 @@ The method based always needs one parameter.
 ### Source-based async method for automatic execution
 
 ```typescript
-import { source, afterRecomputation } from '@ngcraft/core';
+import { source, afterRecomputation } from '@ng-craft/core';
 
 const searchSource = source();
 const delayedSearch = asyncMethod({

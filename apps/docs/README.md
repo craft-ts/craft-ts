@@ -1,6 +1,6 @@
-# @ngcraft Documentation
+# @ng-craft Documentation
 
-This is the VitePress documentation site for @ngcraft.
+This is the VitePress documentation site for @ng-craft.
 
 ## Development
 
@@ -12,7 +12,7 @@ nx dev docs
 npm run docs:dev
 ```
 
-Then open http://localhost:5173/craft/
+The documentation site will be available at `http://localhost:5173`
 
 ## Build
 

@@ -3,12 +3,12 @@
 layout: home
 
 hero:
-  name: '@ngcraft'
+  name: '@ng-craft'
   text: 'Reactive State Management for Angular'
   tagline: Focus on business value and user experience with utilities that save you precious time by handling the common logic in all Angular applications
   image:
-    src: /assets/ngcraft-logo.png
-    alt: ngcraft logo
+    src: /assets/ng-craft-logo.png
+    alt: ng-craft logo
 
   actions:
     - theme: brand

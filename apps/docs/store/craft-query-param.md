@@ -5,7 +5,7 @@ Creates a craft factory for reactive query parameter management integrated with 
 ## Import
 
 ```typescript
-import { craftQueryParam } from '@ngcraft/core';
+import { craftQueryParam } from '@ng-craft/core';
 ```
 
 ## Introduction
@@ -26,10 +26,26 @@ import { craftQueryParam } from '@ngcraft/core';
 ## Signature
 
 ```ts
-function craftQueryParam<Context, StoreConfig, QueryParamsName, QueryParamsType, Insertions, QueryParamsState>(
+function craftQueryParam<
+  Context,
+  StoreConfig,
+  QueryParamsName,
+  QueryParamsType,
+  Insertions,
+  QueryParamsState,
+>(
   queryParamsName: QueryParamsName,
-  queryParamFactory: (context: CraftFactoryEntries<Context>) => QueryParamOutput<QueryParamsType, Insertions, QueryParamsState>
-): CraftQueryParamOutputs<Context, StoreConfig, QueryParamsName, QueryParamsType, Insertions, QueryParamsState>;
+  queryParamFactory: (
+    context: CraftFactoryEntries<Context>,
+  ) => QueryParamOutput<QueryParamsType, Insertions, QueryParamsState>,
+): CraftQueryParamOutputs<
+  Context,
+  StoreConfig,
+  QueryParamsName,
+  QueryParamsType,
+  Insertions,
+  QueryParamsState
+>;
 ```
 
 ## Parameters
@@ -54,21 +70,24 @@ A craft factory utility with standalone methods for serializing query params.
 const { injectCraft, setPaginationQueryParams } = craft(
   { providedIn: 'root', name: 'myStore' },
   craftQueryParam('pagination', () =>
-    queryParam({
-      state: {
-        page: {
-          fallbackValue: 1,
-          parse: (value: string) => parseInt(value, 10),
-          serialize: (value: unknown) => String(value),
-        },
-        pageSize: {
-          fallbackValue: 10,
-          parse: (value: string) => parseInt(value, 10),
-          serialize: (value: unknown) => String(value),
+    queryParam(
+      {
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value: string) => parseInt(value, 10),
+            serialize: (value: unknown) => String(value),
+          },
+          pageSize: {
+            fallbackValue: 10,
+            parse: (value: string) => parseInt(value, 10),
+            serialize: (value: unknown) => String(value),
+          },
         },
       },
-    }, ({ set, update, patch, reset }) => ({ set, update, patch, reset }))
-  )
+      ({ set, update, patch, reset }) => ({ set, update, patch, reset }),
+    ),
+  ),
 );
 
 const store = injectCraft();

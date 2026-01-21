@@ -5,7 +5,7 @@ Creates a query definition for use within a craft store, enabling reactive data 
 ## Import
 
 ```typescript
-import { craftQuery } from '@ngcraft/core';
+import { craftQuery } from '@ng-craft/core';
 ```
 
 ## Introduction
@@ -53,10 +53,41 @@ import { craftQuery } from '@ngcraft/core';
 ## Signature
 
 ```ts
-function craftQuery<Context, StoreConfig, ResourceName, ResourceState, ResourceParams, ResourceArgsParams, InsertionsOutputs, IsMethod, SourceParams, GroupIdentifier>(
+function craftQuery<
+  Context,
+  StoreConfig,
+  ResourceName,
+  ResourceState,
+  ResourceParams,
+  ResourceArgsParams,
+  InsertionsOutputs,
+  IsMethod,
+  SourceParams,
+  GroupIdentifier,
+>(
   resourceName: ResourceName,
-  queryFactory: (context: ContextQueryEntries<Context, StoreConfig, ResourceName>) => QueryOutput<ResourceState, ResourceArgsParams, ResourceParams, SourceParams, GroupIdentifier, InsertionsOutputs>
-): CraftQueryOutputs<Context, StoreConfig, ResourceName, ResourceState, ResourceParams, ResourceArgsParams, IsMethod, SourceParams, GroupIdentifier, InsertionsOutputs>;
+  queryFactory: (
+    context: ContextQueryEntries<Context, StoreConfig, ResourceName>,
+  ) => QueryOutput<
+    ResourceState,
+    ResourceArgsParams,
+    ResourceParams,
+    SourceParams,
+    GroupIdentifier,
+    InsertionsOutputs
+  >,
+): CraftQueryOutputs<
+  Context,
+  StoreConfig,
+  ResourceName,
+  ResourceState,
+  ResourceParams,
+  ResourceArgsParams,
+  IsMethod,
+  SourceParams,
+  GroupIdentifier,
+  InsertionsOutputs
+>;
 ```
 
 ## Parameters
@@ -91,8 +122,8 @@ const { injectCraft } = craft(
         const response = await fetch(`/api/users/${params}`);
         return response.json();
       },
-    })
-  )
+    }),
+  ),
 );
 
 const store = injectCraft();

@@ -5,7 +5,7 @@ Creates mutation definitions for use within a craft store, enabling reactive man
 ## Import
 
 ```typescript
-import { craftMutations } from '@ngcraft/core';
+import { craftMutations } from '@ng-craft/core';
 ```
 
 ## Introduction
@@ -57,7 +57,7 @@ import { craftMutations } from '@ngcraft/core';
 
 ```ts
 function craftMutations<Context, StoreConfig, Mutations>(
-  mutationsFactory: (context: CraftFactoryEntries<Context>) => Mutations
+  mutationsFactory: (context: CraftFactoryEntries<Context>) => Mutations,
 ): CraftMutationsOutputs<Context, StoreConfig, Mutations>;
 ```
 
@@ -94,7 +94,7 @@ const { injectCraft } = craft(
         return response.json();
       },
     }),
-  }))
+  })),
 );
 
 const store = injectCraft();

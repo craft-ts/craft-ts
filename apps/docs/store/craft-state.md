@@ -5,7 +5,7 @@ Creates a state definition for use within a craft store, enabling reactive state
 ## Import
 
 ```typescript
-import { craftState } from '@ngcraft/core';
+import { craftState } from '@ng-craft/core';
 ```
 
 ## Introduction
@@ -42,7 +42,9 @@ import { craftState } from '@ngcraft/core';
 ```ts
 function craftState<Context, StoreConfig, StateName, State, Insertions>(
   stateName: StateName,
-  stateFactory: (context: CraftFactoryEntries<Context>) => StateOutput<State, Insertions>
+  stateFactory: (
+    context: CraftFactoryEntries<Context>,
+  ) => StateOutput<State, Insertions>,
 ): CraftStateOutputs<Context, StoreConfig, StateName, State, Insertions>;
 ```
 
@@ -72,7 +74,7 @@ A craft factory utility that integrates the state into the store with:
 ```ts
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
-  craftState('counter', () => state(0))
+  craftState('counter', () => state(0)),
 );
 
 const store = injectCraft();
@@ -88,21 +90,18 @@ console.log(store.counter()); // 5
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
   craftState('todos', () =>
-    state(
-      [] as Todo[],
-      ({ state, set }) => ({
-        add: (todo: Todo) => {
-          set([...state(), todo]);
-        },
-        remove: (id: string) => {
-          set(state().filter(t => t.id !== id));
-        },
-        clear: () => {
-          set([]);
-        },
-      })
-    )
-  )
+    state([] as Todo[], ({ state, set }) => ({
+      add: (todo: Todo) => {
+        set([...state(), todo]);
+      },
+      remove: (id: string) => {
+        set(state().filter((t) => t.id !== id));
+      },
+      clear: () => {
+        set([]);
+      },
+    })),
+  ),
 );
 
 const store = injectCraft();
@@ -139,9 +138,9 @@ const { injectCraft } = craft(
         reset: afterRecomputation(resetFilters, () => {
           set({ search: '', category: 'all', priceRange: [0, 1000] });
         }),
-      })
-    )
-  )
+      }),
+    ),
+  ),
 );
 
 const store = injectCraft();

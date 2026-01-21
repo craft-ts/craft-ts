@@ -5,7 +5,7 @@ Creates input definitions for use within a craft store, enabling dynamic paramet
 ## Import
 
 ```typescript
-import { craftInputs } from '@ngcraft/core';
+import { craftInputs } from '@ng-craft/core';
 ```
 
 ## Introduction

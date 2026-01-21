@@ -17,6 +17,7 @@ import {
   UnionToTuple,
 } from './util/util.type';
 import { ResourceByIdRef } from './resource-by-id';
+import { AsyncMethodRef } from './async-method';
 
 type SpecificCraftAsyncMethodsOutputs<AsyncMethods extends {}> =
   PartialContext<{

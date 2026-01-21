@@ -5,7 +5,7 @@ Convert observables or functions into state sources.
 ## Import
 
 ```typescript
-import { toSource } from '@ngcraft/core';
+import { toSource } from '@ng-craft/core';
 ```
 
 ## Basic Usage
@@ -13,7 +13,7 @@ import { toSource } from '@ngcraft/core';
 ```typescript
 import { interval } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { state, toSource } from '@ngcraft/core';
+import { state, toSource } from '@ng-craft/core';
 
 // Convert observable to source
 const tickSource = toSource(

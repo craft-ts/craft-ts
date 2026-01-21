@@ -5,7 +5,7 @@ Creates a standalone method to set all query parameters at once for use in Angul
 ## Import
 
 ```typescript
-import { craftSetAllQueriesParamsStandalone } from '@ngcraft/core';
+import { craftSetAllQueriesParamsStandalone } from '@ng-craft/core';
 ```
 
 ## Introduction
@@ -50,7 +50,10 @@ import { craftSetAllQueriesParamsStandalone } from '@ngcraft/core';
 ## Signature
 
 ```ts
-function craftSetAllQueriesParamsStandalone<Context, StoreConfig>(): CraftSetAllQueriesParamsStandaloneOutputs<Context, StoreConfig>;
+function craftSetAllQueriesParamsStandalone<
+  Context,
+  StoreConfig,
+>(): CraftSetAllQueriesParamsStandaloneOutputs<Context, StoreConfig>;
 ```
 
 ## Return Value
@@ -69,20 +72,32 @@ const { setAllMyStoreQueryParams } = craft(
   craftQueryParam('pagination', () =>
     queryParam({
       state: {
-        page: { fallbackValue: 1, parse: (v) => parseInt(v, 10), serialize: (v) => String(v) },
-        pageSize: { fallbackValue: 10, parse: (v) => parseInt(v, 10), serialize: (v) => String(v) },
+        page: {
+          fallbackValue: 1,
+          parse: (v) => parseInt(v, 10),
+          serialize: (v) => String(v),
+        },
+        pageSize: {
+          fallbackValue: 10,
+          parse: (v) => parseInt(v, 10),
+          serialize: (v) => String(v),
+        },
       },
-    })
+    }),
   ),
   craftQueryParam('filter', () =>
     queryParam({
       state: {
         search: { fallbackValue: '', parse: (v) => v, serialize: (v) => v },
-        active: { fallbackValue: false, parse: (v) => v === 'true', serialize: (v) => String(v) },
+        active: {
+          fallbackValue: false,
+          parse: (v) => v === 'true',
+          serialize: (v) => String(v),
+        },
       },
-    })
+    }),
   ),
-  craftSetAllQueriesParamsStandalone()
+  craftSetAllQueriesParamsStandalone(),
 );
 
 router.navigate(['/items'], {

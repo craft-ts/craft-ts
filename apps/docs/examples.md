@@ -1,6 +1,6 @@
 # Examples
 
-Practical examples demonstrating @ngcraft features and patterns.
+Practical examples demonstrating @ng-craft features and patterns.
 
 ## Todo Application
 
@@ -8,7 +8,7 @@ Full-featured todo app with filtering, persistence, and async operations.
 
 ```typescript
 import { Component, inject } from '@angular/core';
-import { craft, insertLocalStorage } from '@ngcraft/core';
+import { craft, insertLocalStorage } from '@ng-craft/core';
 
 interface Todo {
   id: number;
@@ -148,7 +148,7 @@ Authentication flow with login, logout, and protected routes.
 ```typescript
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { craft, insertLocalStorage } from '@ngcraft/core';
+import { craft, insertLocalStorage } from '@ng-craft/core';
 
 interface User {
   id: number;

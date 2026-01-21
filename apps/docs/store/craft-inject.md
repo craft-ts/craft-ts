@@ -5,7 +5,7 @@ Injects Angular services and tokens into a craft store, making them accessible t
 ## Import
 
 ```typescript
-import { craftInject } from '@ngcraft/core';
+import { craftInject } from '@ng-craft/core';
 ```
 
 ## Introduction
@@ -57,7 +57,7 @@ import { craftInject } from '@ngcraft/core';
 
 ```ts
 function craftInject<Context, StoreConfig, Injections>(
-  injections: (entries: CraftFactoryEntries<Context>) => Injections
+  injections: (entries: CraftFactoryEntries<Context>) => Injections,
 ): CraftInputsOutputs<Context, StoreConfig, Injections>;
 ```
 
@@ -93,8 +93,8 @@ const { injectCraft } = craft(
       loader: async ({ params }) => {
         return firstValueFrom(userApiService.getUser(params));
       },
-    })
-  )
+    }),
+  ),
 );
 ```
 

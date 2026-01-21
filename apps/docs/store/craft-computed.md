@@ -5,7 +5,7 @@ Creates computed signals derived from other craft store entries (queries, mutati
 ## Import
 
 ```typescript
-import { craftComputedStates } from '@ngcraft/core';
+import { craftComputedStates } from '@ng-craft/core';
 ```
 
 ## Introduction
@@ -55,7 +55,7 @@ import { craftComputedStates } from '@ngcraft/core';
 
 ```ts
 function craftComputedStates<Context, StoreConfig, Computed>(
-  computedFactory: (context: CraftFactoryEntries<Context>) => Computed
+  computedFactory: (context: CraftFactoryEntries<Context>) => Computed,
 ): CraftComputedStatesOutputs<Context, StoreConfig, Computed>;
 ```
 
@@ -86,7 +86,7 @@ const { injectCraft } = craft(
     doubled: computed(() => count() * 2),
     isEven: computed(() => count() % 2 === 0),
     message: computed(() => `Count is ${count()}`),
-  }))
+  })),
 );
 
 const store = injectCraft();

@@ -1,14 +1,14 @@
 # Introduction
 
-## What is @ngcraft?
+## What is @ng-craft?
 
-**@ngcraft** is a reactive state management tool designed specifically for Angular applications. It focuses on URL, Client, and Server state management, allowing you to concentrate on business value and user experience.
+**@ng-craft** is a reactive state management tool designed specifically for Angular applications. It focuses on URL, Client, and Server state management, allowing you to concentrate on business value and user experience.
 
 ## Core Philosophy
 
 ### Focus on What Matters
 
-Stop wasting precious time on common application logic. @ngcraft provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
+Stop wasting precious time on common application logic. @ng-craft provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
 
 `state`, `asyncState`, `queryParam`, `query`, `mutation` and `asyncMethod` are reactive primitive that will make your developer experience a lot better.
 
@@ -48,7 +48,7 @@ Designed for logic composition and reuse:
 - **And much more...**
 
 ```typescript
-import { state, insertLocalStorage } from '@ngcraft/core';
+import { state, insertLocalStorage } from '@ng-craft/core';
 
 // Compose state with localStorage sync
 const myState = state(
@@ -341,7 +341,7 @@ import {
   mutation,
   craft,
   // ... and more
-} from '@ngcraft/core';
+} from '@ng-craft/core';
 ```
 
 ## Next Steps

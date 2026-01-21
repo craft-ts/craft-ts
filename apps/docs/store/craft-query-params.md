@@ -5,7 +5,7 @@ Creates a craft factory for managing multiple reactive query parameter groups in
 ## Import
 
 ```typescript
-import { craftQueryParams } from '@ngcraft/core';
+import { craftQueryParams } from '@ng-craft/core';
 ```
 
 ## Introduction
@@ -26,7 +26,7 @@ import { craftQueryParams } from '@ngcraft/core';
 
 ```ts
 function craftQueryParams<Context, StoreConfig, QueryParamKeys, QueryParams>(
-  queryParamFactory: (context: CraftFactoryEntries<Context>) => QueryParams
+  queryParamFactory: (context: CraftFactoryEntries<Context>) => QueryParams,
 ): CraftQueryParamsOutputs<Context, StoreConfig, QueryParamKeys, QueryParams>;
 ```
 
@@ -48,18 +48,36 @@ A craft factory utility with standalone methods for serializing each query param
 const { injectCraft, setPaginationQueryParam, setActiveQueryParam } = craft(
   { providedIn: 'root', name: 'myStore' },
   craftQueryParams(() => ({
-    pagination: queryParam({
-      state: {
-        page: { fallbackValue: 1, parse: (value: string) => parseInt(value, 10), serialize: (value: unknown) => String(value) },
-        pageSize: { fallbackValue: 10, parse: (value: string) => parseInt(value, 10), serialize: (value: unknown) => String(value) },
+    pagination: queryParam(
+      {
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value: string) => parseInt(value, 10),
+            serialize: (value: unknown) => String(value),
+          },
+          pageSize: {
+            fallbackValue: 10,
+            parse: (value: string) => parseInt(value, 10),
+            serialize: (value: unknown) => String(value),
+          },
+        },
       },
-    }, ({ set, reset }) => ({ set, reset })),
-    active: queryParam({
-      state: {
-        isActive: { fallbackValue: false, parse: (value: string) => value === 'true', serialize: (value: unknown) => String(value) },
+      ({ set, reset }) => ({ set, reset }),
+    ),
+    active: queryParam(
+      {
+        state: {
+          isActive: {
+            fallbackValue: false,
+            parse: (value: string) => value === 'true',
+            serialize: (value: unknown) => String(value),
+          },
+        },
       },
-    }, ({ set, reset }) => ({ set, reset })),
-  }))
+      ({ set, reset }) => ({ set, reset }),
+    ),
+  })),
 );
 
 const store = injectCraft();

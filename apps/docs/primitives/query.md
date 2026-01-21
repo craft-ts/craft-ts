@@ -5,7 +5,7 @@ The `query` primitive manages server data fetching - that can be easily extended
 ## Import
 
 ```typescript
-import { query } from '@ngcraft/core';
+import { query } from '@ng-craft/core';
 ```
 
 ## Basic Examples
@@ -52,7 +52,7 @@ console.log(query.select('2').value()); // User 2 data
 ### React to mutation with insertReactOnMutation and persist in local storage
 
 ```typescript
-import { insertReactOnMutation } from '@ngcraft/core';
+import { insertReactOnMutation } from '@ng-craft/core';
 
 const updateUserMutation = mutation({
   method: (data: { id: string; name: string; email: string }) => data,

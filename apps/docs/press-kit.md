@@ -1,16 +1,16 @@
 # Press Kit
 
-Resources and information about @ngcraft for articles, presentations, and sharing.
+Resources and information about @ng-craft for articles, presentations, and sharing.
 
 ## Project Description
 
 ### Short Description
 
-@ngcraft is a reactive state management tool for Angular, focusing on URL, Client, and Server state with 100% type-safety and Signal-based architecture.
+@ng-craft is a reactive state management tool for Angular, focusing on URL, Client, and Server state with 100% type-safety and Signal-based architecture.
 
 ### Long Description
 
-@ngcraft is a reactive state management tool designed specifically for Angular applications. It focuses on managing URL, Client, and Server state, allowing developers to concentrate on business value and user experience. Built on Angular Signals with optional RxJS support, @ngcraft provides type-safe primitives and composable stores that integrate seamlessly into your components and services. The library promotes granular, declarative state management with powerful features like automatic localStorage synchronization, optimistic updates, and smart loading states.
+@ng-craft is a reactive state management tool designed specifically for Angular applications. It focuses on managing URL, Client, and Server state, allowing developers to concentrate on business value and user experience. Built on Angular Signals with optional RxJS support, @ng-craft provides type-safe primitives and composable stores that integrate seamlessly into your components and services. The library promotes granular, declarative state management with powerful features like automatic localStorage synchronization, optimistic updates, and smart loading states.
 
 ## Key Features
 
@@ -26,81 +26,30 @@ Resources and information about @ngcraft for articles, presentations, and sharin
 
 ### Logo
 
-```
-Coming soon...
-```
+![ng-craft Logo](/assets/ng-craft-logo.png)
 
-### Brand Colors
-
-- **Primary**: `#dd0031` (Angular Red)
-- **Secondary**: `#c50026` (Darker Red)
-- **Accent**: `#ff4458` (Light Red)
-
-## Quick Example
-
-```typescript
-import { Component } from '@angular/core';
-import { craft } from '@ngcraft/core';
-
-const CounterStore = craft((store) => ({
-  ...store.state({ count: 0 }),
-  ...store.computed({
-    double: (state) => state.count() * 2,
-  }),
-  ...store.methods({
-    increment: (state) => state.count.update((c) => c + 1),
-  }),
-}));
-
-@Component({
-  selector: 'app-counter',
-  template: `
-    <p>Count: {{ store.count() }} | Double: {{ store.double() }}</p>
-    <button (click)="store.increment()">Increment</button>
-  `,
-  providers: [CounterStore],
-})
-export class CounterComponent {
-  store = inject(CounterStore);
-}
-```
+- [Download Logo](/assets/ng-craft-logo.png)
 
 ## Installation
 
 ```shell
-npm i @ngcraft/core@latest
+npm i @ng-craft/core@latest
 ```
 
 ## Links
 
 - **GitHub**: [github.com/ng-angular-stack/ng-craft](https://github.com/ng-angular-stack/ng-craft)
 - **Documentation**: [ng-angular-stack.github.io/craft/](https://ng-angular-stack.github.io/craft/)
-- **NPM**: [npmjs.com/package/@ngcraft/core](https://npmjs.com/package/@ngcraft/core)
+- **NPM**: [npmjs.com/package/@ng-craft/core](https://npmjs.com/package/@ng-craft/core)
 
 ## Social Media
-
-### Twitter/X
-
-```
-🚀 Introducing @ngcraft - Reactive State Management for Angular!
-
-✅ 100% Type-Safe
-✅ Signal-Based
-✅ Composable & Reusable
-✅ Frictionless DX
-
-Focus on business value, not boilerplate!
-
-Learn more: [link]
-#Angular #TypeScript #StateManagement
-```
 
 ### LinkedIn
 
 ```
-Excited to share @ngcraft - a new reactive state management tool for Angular!
+Excited to share @ng-craft - a new reactive state management tool for Angular!
 
-@ngcraft helps you focus on delivering business value by handling the common patterns in Angular applications. Built on Signals with 100% type safety, it offers:
+@ng-craft helps you focus on delivering business value by handling the common patterns in Angular applications. Built on Signals with 100% type safety, it offers:
 
 • Reactive state with automatic updates
 • Async method handling with loading states
@@ -117,7 +66,7 @@ Check it out: [link]
 
 ## Testimonials
 
-_We'd love to hear from you! Share your experience with @ngcraft._
+_We'd love to hear from you! Share your experience with @ng-craft._
 
 ## License
 
@@ -125,7 +74,7 @@ MIT License - Free for personal and commercial use
 
 ## Credits
 
-Created and maintained by the ng-angular-stack team.
+Created and maintained by Romain Geffrault.
 
 ## Contact
 
@@ -134,4 +83,4 @@ Created and maintained by the ng-angular-stack team.
 
 ---
 
-Thank you for your interest in @ngcraft! 🙏
+Thank you for your interest in @ng-craft! 🙏

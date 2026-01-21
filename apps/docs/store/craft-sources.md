@@ -5,7 +5,7 @@ Creates source definitions for use within a craft store, enabling reactive signa
 ## Import
 
 ```typescript
-import { craftSources } from '@ngcraft/core';
+import { craftSources } from '@ng-craft/core';
 ```
 
 ## Introduction
@@ -48,7 +48,7 @@ import { craftSources } from '@ngcraft/core';
 
 ```ts
 function craftSources<Context, StoreConfig, Sources>(
-  sources: Sources
+  sources: Sources,
 ): CraftSourcesOutputs<Context, StoreConfig, Sources>;
 ```
 
@@ -79,15 +79,12 @@ const { injectCraft } = craft(
     reset: source<number>(),
   }),
   craftState('count', ({ increment, decrement, reset }) =>
-    state(
-      0,
-      ({ state, set }) => ({
-        increment: afterRecomputation(increment, () => set(state() + 1)),
-        decrement: afterRecomputation(decrement, () => set(state() - 1)),
-        reset: afterRecomputation(reset, (value) => set(value)),
-      })
-    )
-  )
+    state(0, ({ state, set }) => ({
+      increment: afterRecomputation(increment, () => set(state() + 1)),
+      decrement: afterRecomputation(decrement, () => set(state() - 1)),
+      reset: afterRecomputation(reset, (value) => set(value)),
+    })),
+  ),
 );
 
 const store = injectCraft();
