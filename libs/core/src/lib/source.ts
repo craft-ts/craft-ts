@@ -60,6 +60,11 @@ export type Source<T> = Signal<T | undefined> & {
  * - **Consumer execution order**: When multiple sources are triggered in the same cycle,
  *   consumer callbacks are invoked in the order they were declared, not in the order
  *   their source producers were triggered.
+ * - **No synchronous intermediate value reactions**: Unlike observables, sources cannot react
+ *   to each intermediate value synchronously. A mechanism similar to observables
+ *   (or using native Observable API) without RxJS is being considered to enable
+ *   synchronous reactions to intermediate values, matching the behavior currently
+ *   offered by observables.
  *
  * @template T - The type of values emitted by the source
  *

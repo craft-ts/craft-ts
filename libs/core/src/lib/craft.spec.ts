@@ -596,7 +596,9 @@ describe('craft', () => {
         state(
           linkedSignal(() => [defaultNumber() ?? 1]),
           ({ state, set }) => ({
-            addNumber: () => set([...state(), defaultNumber() ?? 1]),
+            addNumber: () => {
+              return set([...state(), defaultNumber() ?? 1]);
+            },
             reset: () => {
               set([]);
             },
@@ -616,7 +618,7 @@ describe('craft', () => {
         reset: source<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
-        state(0, ({ state, set }) => ({
+        state(1, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => set(0),
@@ -642,9 +644,9 @@ describe('craft', () => {
         decrement: source<{}>(),
         reset: source<{}>(),
       }),
-      craftState('counter', ({ increment, decrement }) =>
+      craftState('counter', ({ decrement }) =>
         state(1, ({ state, set }) => ({
-          increment: afterRecomputation(increment, () => set(state() + 1)),
+          increment: () => set(state() + 1),
           decrement: afterRecomputation(decrement, () => set(state() - 1)),
           reset: () => set(0),
         })),
@@ -663,12 +665,14 @@ describe('craft', () => {
       const host1 = injectHost1Craft();
       const host2 = injectHost2Craft();
 
-      host2.setIncrement({});
       await vi.runAllTimersAsync();
 
-      host2.numberListAddNumber(); // todoc hange counter value
+      host2.counterIncrement();
+      await vi.runAllTimersAsync();
+
+      host2.numberListAddNumber();
       expect(host1.numberList()).toEqual([1]);
-      expect(host2.numberList()).toEqual([1, 2]);
+      expect(host2.numberList()).toEqual([2, 2]);
     });
   });
   it('should enable to plug feature store to another. The plugged feature store will not share an unique instance', async () => {

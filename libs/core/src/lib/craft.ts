@@ -1384,26 +1384,11 @@ export function craft(
       assertInInjectionContext(injectCraft);
       const tokenValue = inject(token); // inject will enable to set inputsKeysSet
       const entriesInputs = entries?.inputs;
-      if (entriesInputs) {
-        let hasInputs = false;
-        const inputs = Array.from(inputsKeysSet ?? []).reduce(
-          (acc, inputKey) => {
-            if (inputKey in entriesInputs) {
-              hasInputs = true;
-              const value = (entriesInputs as any)[inputKey];
-              if (value !== EXTERNALLY_PROVIDED) {
-                acc[inputKey] = (entries as any)['inputs'][inputKey];
-              }
-              return acc;
-            }
-            return acc;
-          },
-          {} as Record<string, unknown>,
-        );
-        if (hasInputs) {
-          pluggableInputs.$patch(inputs as ContextConstraints['_inputs']);
-        }
-      }
+      applyEntriesInputs({
+        entriesInputs,
+        keysSet: inputsKeysSet,
+        targetPluggableInputs: pluggableInputs,
+      });
 
       // for each methods associated to a source, trigger the targeted method when the source change
       const entriesMethods = entries?.methods;
@@ -1429,10 +1414,10 @@ export function craft(
       },
     ) => {
       return (
-          hostCloud: CloudProxy<Record<string, unknown>>,
-          storeConfig: StoreConfigConstraints,
-        ) =>
-        (
+        hostCloud: CloudProxy<Record<string, unknown>>,
+        storeConfig: StoreConfigConstraints,
+      ) => {
+        const specificCraftContextFn = (
           contextData: ContextInput<ContextConstraints>,
           injector: Injector,
           storeConfig: StoreConfigConstraints,
@@ -1450,51 +1435,56 @@ export function craft(
           let storeContext: ContextConstraints | undefined = undefined;
 
           if (options?.providedIn !== 'root') {
+            // Create a new pluggableInputs for each host to avoid sharing state
+            const localPluggableInputs = createSignalProxy(signal({}));
             const { context } = mergeContextAndProps({
               factoriesList,
-              pluggableInputs,
+              pluggableInputs: localPluggableInputs,
               injector,
               storeConfig,
               _cloudProxy,
             });
             storeContext = context;
+
+            // Use a local keys set and apply entries to the local pluggable inputs
+            const localInputsKeysSet = new Set(
+              Object.keys((storeContext as ContextConstraints)._inputs),
+            );
+            applyEntriesInputs({
+              entriesInputs,
+              keysSet: localInputsKeysSet,
+              targetPluggableInputs: localPluggableInputs,
+            });
           } else {
             const _getOrGenerateStore = inject(token);
             storeContext = sharedContext;
-          }
 
-          inputsKeysSet = new Set(
-            Object.keys((storeContext as ContextConstraints)._inputs),
-          );
-          if (entriesInputs) {
-            let hasInputs = false;
-            const inputs = Array.from(inputsKeysSet ?? []).reduce(
-              (acc, inputKey) => {
-                if (inputKey in entriesInputs) {
-                  hasInputs = true;
-                  const value = (entriesInputs as any)[inputKey];
-                  if (value !== EXTERNALLY_PROVIDED) {
-                    acc[inputKey] = (entriesInputs as any)[inputKey];
-                  }
-                  return acc;
-                }
-                return acc;
-              },
-              {} as Record<string, unknown>,
+            inputsKeysSet = new Set(
+              Object.keys((storeContext as ContextConstraints)._inputs),
             );
-            if (hasInputs) {
-              pluggableInputs.$patch(inputs as ContextConstraints['_inputs']);
-            }
+            applyEntriesInputs({
+              entriesInputs,
+              keysSet: inputsKeysSet,
+              targetPluggableInputs: pluggableInputs,
+            });
           }
 
           Object.assign(hostCloud, _cloudProxy);
 
-          // todo if provided global use the injected one, otherwise trigger manuually
-          return Object.assign(
+          const resultDebug = Object.assign(
             storeContext as ContextConstraints,
             extractedStandaloneOutputs,
           );
+          return resultDebug;
         };
+
+        const craftResult = Object.assign(
+          specificCraftContextFn,
+          extractedStandaloneOutputs,
+        );
+
+        return craftResult;
+      };
     },
     [`${capitalizedName}Craft`]: token,
     ...extractedStandaloneOutputs,
@@ -1506,6 +1496,35 @@ export function craft(
       providedIn: ProvidedInOption;
     }
   >;
+}
+
+function applyEntriesInputs({
+  entriesInputs,
+  keysSet,
+  targetPluggableInputs,
+}: {
+  entriesInputs: Record<string, unknown> | undefined;
+  keysSet: Set<string> | undefined;
+  targetPluggableInputs: { $patch: (v: any) => void };
+}) {
+  if (!entriesInputs) return;
+  let hasInputs = false;
+  const inputs = Array.from(keysSet ?? []).reduce(
+    (acc, inputKey) => {
+      if (inputKey in entriesInputs) {
+        hasInputs = true;
+        const value = (entriesInputs as any)[inputKey];
+        if (value !== EXTERNALLY_PROVIDED) {
+          acc[inputKey] = value;
+        }
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
+  if (hasInputs) {
+    targetPluggableInputs.$patch(inputs as ContextConstraints['_inputs']);
+  }
 }
 
 function mergeContextAndProps({
