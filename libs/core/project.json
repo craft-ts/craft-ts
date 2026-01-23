@@ -36,6 +36,12 @@
     "test": {
       "executor": "@nx/angular:unit-test",
       "options": {
+        "runner": "vitest"
+      }
+    },
+    "test:debug": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
         "runner": "vitest",
         "debug": true
       }
