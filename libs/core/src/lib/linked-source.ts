@@ -1,4 +1,4 @@
-import { linkedSignal, Signal, ValueEqualityFn } from '@angular/core';
+import { linkedSignal, Signal, ValueEqualityFn, signal } from '@angular/core';
 import { ReadonlySource } from './util/source.type';
 import { Source } from './source';
 import { SourceBranded } from './util/util';
@@ -15,12 +15,10 @@ export function linkedSource<SourceState, ComputedValue>(
     linkedSignal<SourceState, ComputedValue | undefined>({
       source: signalOrigin as Signal<SourceState>,
       computation: (currentSourceState, previousData) => {
-        console.log('currentSourceState', currentSourceState);
         // always when first listened return undefined
         if (!previousData && listenerOptions?.nullishFirstValue !== false) {
           return undefined;
         }
-
         return computedFn(currentSourceState);
       },
       ...(options?.equal && { equal: options?.equal }),

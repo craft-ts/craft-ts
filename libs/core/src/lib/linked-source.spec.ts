@@ -14,14 +14,13 @@ describe('linkedSource', () => {
     const mySource = source<{ text: string }>();
     const myLinkedSource = linkedSource(
       mySource,
-      (sourceValue) => sourceValue.text
+      (sourceValue) => sourceValue.text,
     );
 
     expectTypeOf(myLinkedSource).toEqualTypeOf<Source<string>>();
 
     const myListener = computed(() => {
-      const s = mySource();
-      console.log('mySource', s);
+      const s = myLinkedSource();
       return s;
     });
 
@@ -34,5 +33,9 @@ describe('linkedSource', () => {
 
     myLinkedSource.set('Hello Ng-Craft');
     expect(myListener()).toBe('Hello Ng-Craft');
+    console.log('mySource set');
+    mySource.set({ text: 'Hello Angular' });
+    console.log('myListener()', myListener());
+    expect(myListener()).toBe('Hello Angular');
   });
 });
