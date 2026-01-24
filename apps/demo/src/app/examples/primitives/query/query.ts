@@ -33,7 +33,9 @@ import { insertLocalStoragePersister, query } from '@ng-craft/core';
 })
 export default class GlobalQuery {
   public readonly userId = input<string>();
+
   private readonly apiService = inject(ApiService);
+  private readonly router = inject(Router);
 
   protected readonly userQuery = query(
     {
@@ -47,13 +49,12 @@ export default class GlobalQuery {
     }),
   );
 
-  private readonly router = inject(Router);
 
   protected nextPage() {
-    this.router.navigate(['no-store', parseInt(this.userId() ?? '0') + 1]);
+    this.router.navigate(['query', parseInt(this.userId() ?? '0') + 1]);
   }
 
   protected previousPage() {
-    this.router.navigate(['no-store', parseInt(this.userId() ?? '10') - 1]);
+    this.router.navigate(['query', parseInt(this.userId() ?? '10') - 1]);
   }
 }

@@ -6,7 +6,11 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./test'),
   },
   {
-    path: 'no-store/:userId',
+    path: 'query/:userId',
     loadComponent: () => import('./examples/primitives/query/query'),
+  },
+  {
+    path: 'mutation/:userId',
+    loadComponent: () => import('./examples/primitives/mutation/mutation'),
   },
 ];

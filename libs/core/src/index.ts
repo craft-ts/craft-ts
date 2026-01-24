@@ -27,3 +27,4 @@ export * from './lib/util/extract-signal-props-and-methods';
 export * from './lib/util/source.type';
 export * from './lib/util/util';
 export * from './lib/util/util.type';
+export * from './lib/insert-react-on-mutation';
