@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { ApiService, User } from './api.service';
 import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import { query, mutation, insertLocalStoragePersister, insertReactOnMutation } from '@ng-craft/core';
 
 @Component({
-  selector: 'app-no-store',
+  selector: 'app-mutation',
   imports: [CommonModule, StatusComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['mutation.css'],
   template: `
     <div>

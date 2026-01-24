@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { ApiService } from './api.service';
 import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import { insertLocalStoragePersister, query } from '@ng-craft/core';
 
 @Component({
-  selector: 'app-no-store',
+  selector: 'app-query',
   imports: [CommonModule, StatusComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['query.css'],
   template: `
     <div>

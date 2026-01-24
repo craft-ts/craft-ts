@@ -278,7 +278,7 @@ export function insertLocalStoragePersister<
 
     if (isUsingIdentifier) {
       persister.addQueryByIdToPersist({
-        key: 'userQuery',
+        key: config.key,
         cacheTime: (config?.cacheTime as number | undefined) ?? 300000,
         queryByIdResource: resourceTarget as unknown as ResourceByIdRef<
           string,
@@ -291,7 +291,7 @@ export function insertLocalStoragePersister<
       });
     } else {
       persister.addQueryToPersist({
-        key: 'userQuery',
+        key: config.key,
         cacheTime: (config?.cacheTime as number | undefined) ?? 300000,
         queryResource: resourceTarget as unknown as ResourceRef<unknown>,
         queryResourceParamsSrc: (

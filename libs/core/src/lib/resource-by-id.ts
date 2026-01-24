@@ -318,6 +318,9 @@ export function resourceById<
           fallbackValue: options?.fallbackValue,
         } as ResourceOptions<State, ResourceParams>,
       });
+      if(options?.fallbackValue) {
+        resourceRef.set(options.fallbackValue);
+      }
       resourceByGroup.update((state) => ({
         ...state,
         [group]: resourceRef,

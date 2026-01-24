@@ -13,4 +13,8 @@ export const appRoutes: Route[] = [
     path: 'mutation/:userId',
     loadComponent: () => import('./examples/primitives/mutation/mutation'),
   },
+  {
+    path: 'list-with-pagination',
+    loadComponent: () => import('./examples/primitives/list-with-pagination/list-with-pagination'),
+  },
 ];
