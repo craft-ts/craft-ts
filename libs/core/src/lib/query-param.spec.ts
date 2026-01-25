@@ -36,7 +36,7 @@ describe('queryParams', () => {
     });
   });
 
-  it('should create a query params and expose state and basic methods (set, update, patch)', () => {
+  it('should create a query params and can expose state and basic methods (set, update, patch)', () => {
     TestBed.runInInjectionContext(() => {
       const myQueryParams = queryParam(
         {
@@ -85,6 +85,34 @@ describe('queryParams', () => {
         pageSize: 50,
       });
       expect(myQueryParams.pageSize()).toBe(50);
+    });
+  });
+
+    it('should create a query params and  basic methods (set, update, patch) should not be exposed implicitly', () => {
+    TestBed.runInInjectionContext(() => {
+      const myQueryParams = queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: unknown) => String(value),
+            },
+            pageSize: {
+              fallbackValue: 10,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: unknown) => String(value),
+            },
+          },
+        },
+      );
+
+      type t = keyof typeof myQueryParams
+
+      expectTypeOf<Extract<keyof typeof myQueryParams, 'set'>>().toEqualTypeOf<never>();
+      //@ts-expect-error set should not be exposed implicitly
+      expect(myQueryParams.set).toBeUndefined();
+
     });
   });
 

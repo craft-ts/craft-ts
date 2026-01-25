@@ -38,7 +38,6 @@ export type QueryParamOutput<QueryParamsType, Insertions, QueryParamsState> =
         {
           [K in keyof QueryParamsState]: Signal<QueryParamsState[K]>;
         },
-        QueryParamMethods<QueryParamsState>,
         IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
         {
           _config: QueryParamsType;

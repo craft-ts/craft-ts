@@ -35,7 +35,7 @@ export type ResourceByIdHandler<
     // todo pass params instead of id and create the id from the params using the identifier function
     params: ResourceParams,
     options?: {
-      fallbackValue?: State;
+      defaultValue?: State;
     },
   ) => ResourceRef<State>;
   /**
@@ -46,7 +46,7 @@ export type ResourceByIdHandler<
     id: GroupIdentifier,
     options?: {
       defaultParam?: ResourceParams;
-      fallbackValue?: State;
+      defaultValue?: State;
       paramsFromResourceById?: ResourceRef<unknown>;
     },
   ) => ResourceRef<State>;
@@ -215,7 +215,7 @@ export function resourceById<
         return newState;
       });
     },
-    add: (resourceParams, options?: { fallbackValue?: State }) => {
+    add: (resourceParams, options?: { defaultValue?: State }) => {
       const group = identifier(resourceParams as any);
       if (resourceByGroup()[group]) {
         console.warn(
@@ -260,7 +260,7 @@ export function resourceById<
           loader,
           params: paramsWithEqualRule,
           stream,
-          fallbackValue: options?.fallbackValue,
+          defaultValue: options?.defaultValue,
         } as ResourceOptions<State, ResourceParams>,
       });
       resourceByGroup.update((state) => ({
@@ -272,7 +272,7 @@ export function resourceById<
     addById: (
       group,
       options?: {
-        fallbackValue?: State;
+        defaultValue?: State;
         defaultParam?: ResourceParams;
         paramsFromResourceById?: ResourceRef<unknown>;
       },
@@ -283,6 +283,7 @@ export function resourceById<
             options?.paramsFromResourceById as ResourceRef<FromObjectState>,
           ),
         computation: (incomingParamsValue, previousGroupParamsData) => {
+          if(group === '2-4') debugger
           if (!incomingParamsValue) {
             return incomingParamsValue ?? options?.defaultParam;
           }
@@ -315,12 +316,9 @@ export function resourceById<
           loader,
           params: paramsWithEqualRule,
           stream,
-          fallbackValue: options?.fallbackValue,
+          defaultValue: options?.defaultValue,
         } as ResourceOptions<State, ResourceParams>,
       });
-      if(options?.fallbackValue) {
-        resourceRef.set(options.fallbackValue);
-      }
       resourceByGroup.update((state) => ({
         ...state,
         [group]: resourceRef,

@@ -287,7 +287,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
 
       const storageKey = getStorageKey(prefix, key, 'resourceById');
       let storedValue: QueryByIdStored | undefined;
-      try {
+        try {
         storedValue = JSON.parse(localStorage.getItem(storageKey) || 'null');
       } catch (e) {
         console.error('Error parsing stored value from localStorage', e);
@@ -308,7 +308,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
             ([resourceKey, resourceValue]) => {
               const resourceRef = queryByIdResource.addById(resourceKey, {
                 defaultParam: resourceValue.params,
-                fallbackValue: resourceValue.value,
+                defaultValue: resourceValue.value,
               });
               // The reload strategy can be improved to prioritize the current displayed resource
               if (resourceValue.reloadOnMount) {

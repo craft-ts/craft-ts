@@ -10,6 +10,8 @@ export function preservedResource<T, R>(
 ): ResourceRef<T | undefined> {
   const original = resource(config);
   const originalCopy = { ...original };
+  //@ts-ignore
+      if(`${config.params().page}-${config.params().pageSize}` === '2-4') debugger
   const preserved = linkedSignal({
     source: () => ({
       value: originalCopy.value(),
@@ -17,6 +19,8 @@ export function preservedResource<T, R>(
       isLoading: originalCopy.isLoading(),
     }),
     computation: (current, previous) => {
+      //@ts-ignore
+      if(`${config.params().page}-${config.params().pageSize}` === '2-4') debugger
       if (current.isLoading) {
         if (previous) {
           return previous.value;

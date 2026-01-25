@@ -112,9 +112,9 @@ export default class ListWithPagination {
         serialize: (value) => String(value),
       }
     }
-  }, ({set, state}) => ({
-    nextPage: () => set({ ...state(), page: state().page + 1 }),
-    previousPage: () => set({ ...state(), page: state().page - 1 }),
+  }, ({patch, state}) => ({
+    nextPage: () => patch({ page: state().page + 1 }),
+    previousPage: () => patch({ page: state().page - 1 }),
   }))
     private readonly apiService = inject(ApiService);
 
@@ -122,8 +122,13 @@ export default class ListWithPagination {
     {
       params: this.pagination,
       identifier: (params) => `${params.page}-${params.pageSize}`,
-      loader: ({ params: pagination }) =>
-        this.apiService.getDataList(pagination),
+      loader: ({ params: pagination }) =>{
+        console.log('pagination', pagination);
+        if(`${pagination.page}-${pagination.pageSize}` === '2-4') {
+          debugger
+        }
+       return this.apiService.getDataList(pagination)
+      },
     },
     insertLocalStoragePersister({
       storeName: 'demo-app',

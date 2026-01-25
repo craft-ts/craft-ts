@@ -52,19 +52,19 @@ describe('resourceById', () => {
       innerResourceByIdRef.add(
         { id: '1' },
         {
-          fallbackValue: { id: '1' },
+          defaultValue: { id: '1' },
         },
       );
       innerResourceByIdRef.add(
         { id: '2' },
         {
-          fallbackValue: { id: '2' },
+          defaultValue: { id: '2' },
         },
       );
       innerResourceByIdRef.add(
         { id: '3' },
         {
-          fallbackValue: { id: '3' },
+          defaultValue: { id: '3' },
         },
       );
 
@@ -118,7 +118,7 @@ describe('resourceById', () => {
       resourceByIdRef.add(
         { id: '123' },
         {
-          fallbackValue: { id: '123' },
+          defaultValue: { id: '123' },
         },
       );
       const resourceRef123 = resourceByIdRef()['123'];
@@ -130,13 +130,13 @@ describe('resourceById', () => {
       resourceByIdRef.add(
         { id: '1234' },
         {
-          fallbackValue: { id: '1234' },
+          defaultValue: { id: '1234' },
         },
       );
       resourceByIdRef.add(
         { id: '12345' },
         {
-          fallbackValue: { id: '12345' },
+          defaultValue: { id: '12345' },
         },
       );
       await vi.runAllTimersAsync();
