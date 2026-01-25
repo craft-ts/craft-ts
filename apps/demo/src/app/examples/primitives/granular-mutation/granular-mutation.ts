@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { ApiService } from './api.service';
+import { ApiService, User } from './api.service';
 import { StatusComponent } from '../../../ui/status.component';
-import { insertLocalStoragePersister, insertPaginationPlaceholderData, query, queryParam } from '@ng-craft/core';
+import { insertLocalStoragePersister, insertPaginationPlaceholderData, insertReactOnMutation, mutation, query, queryParam } from '@ng-craft/core';
 
 
 @Component({
@@ -37,6 +37,7 @@ import { insertLocalStoragePersister, insertPaginationPlaceholderData, query, qu
               <tr>
                 <th>ID</th>
                 <th>Name</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -48,6 +49,12 @@ import { insertLocalStoragePersister, insertPaginationPlaceholderData, query, qu
                 <td>{{ user.id }}</td>
 
                 <td>{{ user.name }}</td>
+
+                 <td>
+                  <button class="action-btn" (click)="updateUserName.mutate(user)">
+                    Update Name
+                  </button>
+                </td>
               </tr>
               } @empty {
                 @if(usersQuery.currentPageStatus() === 'resolved') {
@@ -95,7 +102,7 @@ import { insertLocalStoragePersister, insertPaginationPlaceholderData, query, qu
   </main>
 </div>
 `,
-  styleUrls: ['./list-with-pagination.css'],
+  styleUrls: ['./granular-mutation.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class ListWithPagination {
@@ -119,6 +126,14 @@ export default class ListWithPagination {
   }))
     private readonly apiService = inject(ApiService);
 
+    protected readonly updateUserName = mutation({
+      method: (payload: User) => ({
+        ...payload, name: payload.name + ' (updated)',
+      }),
+      identifier: ({id}) => id,
+      loader: ({ params: user }) => this.apiService.updateItem(user),
+    });
+
   protected readonly usersQuery = query(
     {
       params: this.pagination,
@@ -136,6 +151,18 @@ export default class ListWithPagination {
       key: 'list-with-pagination',
     }),
     insertPaginationPlaceholderData,
+    insertReactOnMutation(this.updateUserName, {
+      filter: ({mutationIdentifier, queryResource}) => queryResource.hasValue() && queryResource.value().some(item => item.id === mutationIdentifier),
+      optimisticUpdate: ({queryResource, mutationIdentifier}) => queryResource.value()?.map(item => {
+        if(item.id === mutationIdentifier) {
+          return {
+            ...item,
+            name: item.name + ' (updated)'
+          }
+        }
+        return item;
+      })
+    })
   )
 
   protected updatePageSize(event: Event) {
