@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import {
+  insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
   mutation,
@@ -31,11 +32,6 @@ import { ApiService, User } from './api.service';
                   : 'Showing real data'
               }}
             </div>
-
-            TODO Attention: when changing page and going on a previous page with
-            loaded data, it will fetch again TODO Le insertLocalStoragePersister
-            ne fonctionne pas avec le queryparam ?? TODO remove set and other
-            method from queryParam value
 
             <div class="table-container">
               <table class="table">
@@ -173,10 +169,10 @@ export default class GranularMutation {
         return this.apiService.getDataList(pagination);
       },
     },
-    // insertLocalStoragePersister({
-    //   storeName: 'demo-app',
-    //   key: 'list-with-pagination',
-    // }),
+    insertLocalStoragePersister({
+      storeName: 'demo-app',
+      key: 'granular',
+    }),
     insertPaginationPlaceholderData,
     insertReactOnMutation(this.updateUserName, {
       filter: ({ mutationIdentifier, queryResource }) =>

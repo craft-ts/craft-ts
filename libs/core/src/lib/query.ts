@@ -150,9 +150,9 @@ type QueryConfig<
      *
      * Note: if your params is a primitive (string, number, boolean, etc.), you don't need to use this option since the strict equality check will work as expected.
      *
-     * For **queries** the default value is 'useIdentifier'
+     * For **query** that use 'identifier', the default value is 'useIdentifier'
      *
-     * For **querys** the default value is 'default'
+     * For **query** that don't use 'identifier', the default value is 'default'
      */
     equalParams?: Params extends object
       ?
@@ -993,6 +993,7 @@ export function query<
         ...queryConfig,
         params: resourceParamsSrc,
         identifier: queryConfig.identifier,
+        equalParams: queryConfig.equalParams ?? 'useIdentifier',
       } as any)
     : resource<QueryState, QueryParams>({
         ...queryConfig,

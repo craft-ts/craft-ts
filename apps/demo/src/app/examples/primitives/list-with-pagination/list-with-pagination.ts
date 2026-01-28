@@ -31,11 +31,6 @@ import {
               }}
             </div>
 
-            TODO Attention: when changing page and going on a previous page with
-            loaded data, it will fetch again TODO Le insertLocalStoragePersister
-            ne fonctionne pas avec le queryparam ?? TODO remove set and other
-            method from queryParam value
-
             <div class="table-container">
               <table class="table">
                 <thead>
