@@ -6,6 +6,7 @@ import {
   linkedSignal,
   Signal,
   inject,
+  computed,
 } from '@angular/core';
 import {
   ResourceLikeMutationRef,
@@ -18,7 +19,7 @@ import {
   setAllPatchFromMutationOnQueryValue,
 } from '../query.core';
 import { ResourceByIdRef } from '../resource-by-id';
-import { nestedEffect } from './types/util';
+import { explicitNestedEffect } from './types/util';
 import { InternalType } from './types/util.type';
 import { ResourceByIdLikeQueryRef, ResourceLikeQueryRef } from '../query';
 
@@ -199,84 +200,89 @@ export function reactOnMutationEffect<
     }
     newMutationResourceRefForNestedEffect()?.newKeys.forEach(
       (mutationIdentifier) => {
-        nestedEffect(_injector, () => {
-          const mutationResource =
-            mutationResources()[
-              mutationIdentifier as MutationGroupIdentifier & string
-            ];
-
-          if (!mutationResource) {
-            return;
-          }
-          const mutationStatus = mutationResource.status();
-          const mutationParamsSrc = mutationTargeted.resourceParamsSrc;
-          // use to track the value of the mutation
-          const _mutationValueChanged = mutationResource.hasValue()
+        const mutationResource =
+          mutationResources()[
+            mutationIdentifier as MutationGroupIdentifier & string
+          ];
+        if (!mutationResource) {
+          return;
+        }
+        const safeMutationResourceValue = computed(() =>
+          mutationResource.hasValue()
             ? mutationResource.value()
-            : undefined;
-
-          if (typeof mutationParamsSrc === 'function' && mutationParamsSrc()) {
-            // ! keep this check, it is used to track mutationParamsSrc, otherwise it does not works
-          }
-          if (
-            mutationEffectOptions?.optimisticUpdate ||
-            mutationEffectOptions.update
-          ) {
-            untracked(() => {
-              setAllUpdatesFromMutationOnQueryValue({
-                mutationStatus,
-                queryResourceTarget: queryTargeted as any,
-                mutationEffectOptions: mutationEffectOptions as any,
-                mutationResource,
-                mutationParamsSrc,
-                mutationIdentifier,
-                mutationResources:
-                  mutationResources as unknown as ResourceByIdRef<
-                    string,
-                    any,
-                    any
-                  >,
+            : (undefined as unknown as MutationResourceState),
+        );
+        explicitNestedEffect(
+          _injector,
+          [mutationResource.status, safeMutationResourceValue],
+          ([mutationStatus, _value]) => {
+            const mutationParamsSrc = mutationTargeted.resourceParamsSrc;
+            if (
+              typeof mutationParamsSrc === 'function' &&
+              mutationParamsSrc()
+            ) {
+              // ! keep this check, it is used to track mutationParamsSrc, otherwise it does not works
+            }
+            if (
+              mutationEffectOptions?.optimisticUpdate ||
+              mutationEffectOptions.update
+            ) {
+              untracked(() => {
+                setAllUpdatesFromMutationOnQueryValue({
+                  mutationStatus,
+                  queryResourceTarget: queryTargeted as any,
+                  mutationEffectOptions: mutationEffectOptions as any,
+                  mutationResource,
+                  mutationParamsSrc,
+                  mutationIdentifier,
+                  mutationResources:
+                    mutationResources as unknown as ResourceByIdRef<
+                      string,
+                      any,
+                      any
+                    >,
+                });
               });
-            });
-          }
-          const reloadCConfig = mutationEffectOptions.reload;
-          if (reloadCConfig) {
-            untracked(() => {
-              triggerQueryReloadOnMutationStatusChange({
-                mutationStatus,
-                queryResourceTarget: queryTargeted,
-                mutationEffectOptions: mutationEffectOptions as any,
-                mutationResource,
-                mutationParamsSrc,
-                reloadCConfig,
-                mutationIdentifier,
-                mutationResources:
-                  mutationResources as unknown as ResourceByIdRef<
-                    string,
-                    any,
-                    any
-                  >,
-              } as any);
-            });
-          }
-          if (
-            mutationEffectOptions.optimisticPatch ||
-            mutationEffectOptions.patch
-          ) {
-            untracked(() => {
-              setAllPatchFromMutationOnQueryValue({
-                mutationStatus,
-                queryResourceTarget: queryTargeted as any,
-                mutationEffectOptions: mutationEffectOptions as any,
-                mutationResource:
-                  mutationResource as unknown as ResourceRef<any>,
-                mutationParamsSrc,
-                mutationIdentifier: mutationIdentifier,
-                mutationResources: mutationTargeted as any,
+            }
+            const reloadCConfig = mutationEffectOptions.reload;
+            if (reloadCConfig) {
+              untracked(() => {
+                triggerQueryReloadOnMutationStatusChange({
+                  mutationStatus,
+                  queryResourceTarget: queryTargeted,
+                  mutationEffectOptions: mutationEffectOptions as any,
+                  mutationResource,
+                  mutationParamsSrc,
+                  reloadCConfig,
+                  mutationIdentifier,
+                  mutationResources:
+                    mutationResources as unknown as ResourceByIdRef<
+                      string,
+                      any,
+                      any
+                    >,
+                } as any);
               });
-            });
-          }
-        });
+            }
+            if (
+              mutationEffectOptions.optimisticPatch ||
+              mutationEffectOptions.patch
+            ) {
+              untracked(() => {
+                setAllPatchFromMutationOnQueryValue({
+                  mutationStatus,
+                  queryResourceTarget: queryTargeted as any,
+                  mutationEffectOptions: mutationEffectOptions as any,
+                  mutationResource:
+                    mutationResource as unknown as ResourceRef<any>,
+                  mutationParamsSrc,
+                  mutationIdentifier: mutationIdentifier,
+                  mutationResources: mutationTargeted as any,
+                });
+              });
+            }
+          },
+        );
       },
     );
   });

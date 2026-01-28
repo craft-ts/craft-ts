@@ -29,3 +29,4 @@ export * from './lib/util/util';
 export * from './lib/util/util.type';
 export * from './lib/insert-react-on-mutation';
 export * from './lib/insert-pagination-placeholder-data';
+export * from './lib/resource-by-id';

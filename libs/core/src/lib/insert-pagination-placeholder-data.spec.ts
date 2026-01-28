@@ -19,19 +19,26 @@ describe('insertPaginationPlaceholderData', () => {
             };
           },
         },
-        insertPaginationPlaceholderData
+        insertPaginationPlaceholderData,
       );
 
       expectTypeOf(finalResult.currentPageData).toEqualTypeOf<
-        Signal<{
-    id: string;
-    name: string;
-} | undefined>
+        Signal<
+          | {
+              id: string;
+              name: string;
+            }
+          | undefined
+        >
       >();
-      expectTypeOf(finalResult.currentPageStatus).toEqualTypeOf<Signal<ResourceStatus>>();
-      expectTypeOf(finalResult.isPlaceHolderData).toEqualTypeOf<Signal<boolean>>();
+      expectTypeOf(finalResult.currentPageStatus).toEqualTypeOf<
+        Signal<ResourceStatus>
+      >();
+      expectTypeOf(finalResult.isPlaceHolderData).toEqualTypeOf<
+        Signal<boolean>
+      >();
+    });
   });
-});
 
   it('should return a placeholder data during loading', async () => {
     vi.useFakeTimers();
@@ -39,17 +46,18 @@ describe('insertPaginationPlaceholderData', () => {
       const pagination = signal(1);
       const userQuery = query(
         {
-
           params: pagination,
           identifier: (params) => '' + params,
           loader: async ({ params: pagination }) => {
             await wait(10000);
-            return {
-                  name: 'User' + pagination,
-                };
+            return [
+              {
+                name: 'User' + pagination,
+              },
+            ];
           },
         },
-        insertPaginationPlaceholderData
+        insertPaginationPlaceholderData,
       );
 
       expect(userQuery.currentPageData()).toEqual(undefined);

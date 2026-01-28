@@ -1,104 +1,71 @@
 import { CommonModule } from '@angular/common';
-import { Component, linkedSignal } from '@angular/core';
+import { Component, linkedSignal, ResourceStatus, signal } from '@angular/core';
 import {
   afterRecomputation,
   craft,
   craftInputs,
   craftSources,
   craftState,
+  resourceById,
+  ResourceByIdRef,
   source,
   state,
 } from '@ng-craft/core';
-
-const { craftSharedFeature } = craft(
-  {
-    name: 'sharedFeature',
-    providedIn: 'feature',
-  },
-  craftInputs({
-    defaultNumber: undefined as number | undefined,
-  }),
-  craftState('numberList', ({ defaultNumber }) =>
-    state(
-      linkedSignal(() => {
-        return [defaultNumber() ?? 1];
-      }),
-      ({ state, set }) => ({
-        addNumber: () => {
-          return set([...state(), defaultNumber() ?? 1]);
-        },
-        reset: () => {
-          set([]);
-        },
-      }),
-    ),
-  ),
-);
-
-const { injectHost1Craft } = craft(
-  {
-    name: 'host1',
-    providedIn: 'root',
-  },
-  craftSources({
-    increment: source<{}>(),
-    decrement: source<{}>(),
-    reset: source<{}>(),
-  }),
-  craftState('counter', ({ increment, decrement }) =>
-    state(10, ({ state, set }) => ({
-      increment: afterRecomputation(increment, () => set(state() + 1)),
-      decrement: afterRecomputation(decrement, () => set(state() - 1)),
-      reset: () => set(0),
-    })),
-  ),
-  craftSharedFeature(({ reset, counter }) => ({
-    inputs: {
-      defaultNumber: counter,
-    },
-    methods: {
-      numberListReset: reset,
-    },
-  })),
-);
-
-const { injectHost2Craft } = craft(
-  {
-    name: 'host2',
-    providedIn: 'root',
-  },
-  craftSources({
-    increment: source<{}>(),
-    decrement: source<{}>(),
-    reset: source<{}>(),
-  }),
-  craftState('counter', ({ decrement }) =>
-    state(200, ({ state, set }) => ({
-      increment: () => set(state() + 1),
-      decrement: afterRecomputation(decrement, () => set(state() - 1)),
-      reset: () => set(0),
-    })),
-  ),
-  craftSharedFeature(({ reset, counter }) => ({
-    inputs: {
-      defaultNumber: counter,
-    },
-    methods: {
-      numberListReset: reset,
-    },
-  })),
-);
-
 @Component({
   selector: 'app-test',
   standalone: true,
   imports: [CommonModule],
-  template: `store1
-    <div>{{ store1.counter() }} / {{ store1.numberList() }}</div>
-    store2
-    <div>{{ store2.counter() }} / {{ store2.numberList() }}</div>`,
+  template: `resourceByIdRef 1: {{ resourceByIdRef()['1']?.status() | json }} &
+    source : {{ innerResourceByIdRef()['1']?.status() }} <br />
+    resourceByIdRef 2: {{ resourceByIdRef()['2']?.status() | json }} & source :
+    {{ innerResourceByIdRef()['2']?.status() }} <br />
+    resourceByIdRef 3: {{ resourceByIdRef()['3']?.status() | json }} & source :
+    {{ innerResourceByIdRef()['3']?.status() }} <br />`,
 })
 export default class TestComponent {
-  store1 = injectHost1Craft();
-  store2 = injectHost2Craft();
+  resourceByIdRef!: ResourceByIdRef<string, { id: string }, { id: string }>;
+  innerResourceByIdRef!: ResourceByIdRef<
+    string,
+    { id: string },
+    { id: string }
+  >;
+  constructor() {
+    const sourceParams = signal<{ id: string } | undefined>(undefined);
+    this.innerResourceByIdRef = resourceById({
+      params: sourceParams,
+      identifier: (params) => params.id,
+      loader: async ({ params }) => {
+        console.log('innerResourceByIdRef params', params);
+        // Simulate a stream
+        return params;
+      },
+    });
+    this.innerResourceByIdRef.add({ id: '1' });
+    this.innerResourceByIdRef.add(
+      { id: '2' },
+      {
+        defaultValue: { id: '2' },
+      },
+    );
+    this.innerResourceByIdRef.add(
+      { id: '3' },
+      {
+        defaultValue: { id: '3' },
+      },
+    );
+
+    this.resourceByIdRef = resourceById({
+      fromResourceById: this.innerResourceByIdRef,
+      params: ({ value, status }) => {
+        return status() === 'resolved' || status() === 'local'
+          ? value()
+          : undefined;
+      },
+      identifier: (params) => params.id,
+      loader: async ({ params }) => {
+        // Simulate a stream
+        return params;
+      },
+    });
+  }
 }

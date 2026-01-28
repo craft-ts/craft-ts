@@ -1,14 +1,13 @@
 import { Injectable, signal } from '@angular/core';
 import {
   BehaviorSubject,
-  of,
   delay,
-  map,
-  take,
   firstValueFrom,
-  timer,
-  Observable,
   lastValueFrom,
+  map,
+  of,
+  take,
+  timer,
 } from 'rxjs';
 
 export type User = {
@@ -37,16 +36,18 @@ export class ApiService {
   public readonly updateError = signal(false);
 
   getDataList(data: { page: number; pageSize: number }): Promise<User[]> {
-    return lastValueFrom(this.dataList$.pipe(
-      take(1),
-      map((dataList) =>
-        dataList.slice(
-          (data.page - 1) * data.pageSize,
-          data.page * data.pageSize
-        )
+    return lastValueFrom(
+      this.dataList$.pipe(
+        take(1),
+        map((dataList) =>
+          dataList.slice(
+            (data.page - 1) * data.pageSize,
+            data.page * data.pageSize,
+          ),
+        ),
+        delay(2000),
       ),
-      delay(2000)
-    ));
+    );
   }
 
   getItemById(itemId: User['id']) {
@@ -59,7 +60,7 @@ export class ApiService {
         }
         return item;
       }),
-      delay(2000)
+      delay(2000),
     );
   }
 
@@ -71,32 +72,31 @@ export class ApiService {
 
   deleteItem(itemId: User['id']) {
     const deletedItem = this.dataList$.value.find(
-      (dataItem) => dataItem.id === itemId
+      (dataItem) => dataItem.id === itemId,
     );
     if (!deletedItem) {
       throw new Error('Item not found');
     }
     this.dataList$.next(
-      this.dataList$.value.filter((dataItem) => dataItem.id !== itemId)
+      this.dataList$.value.filter((dataItem) => dataItem.id !== itemId),
     );
     return firstValueFrom(of(deletedItem).pipe(delay(2000)));
   }
 
   updateItem(updatedItem: User) {
-    console.log('updatedItem', updatedItem);
     if (this.updateError()) {
       return firstValueFrom(
         timer(5000).pipe(
           map(() => {
             throw new Error('Api error during update');
-          })
-        )
+          }),
+        ),
       );
     }
     this.dataList$.next(
       this.dataList$.value.map((dataItem) =>
-        dataItem.id === updatedItem.id ? updatedItem : dataItem
-      )
+        dataItem.id === updatedItem.id ? updatedItem : dataItem,
+      ),
     );
     return firstValueFrom(of(updatedItem).pipe(delay(2000)));
   }

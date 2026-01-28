@@ -15,6 +15,12 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'list-with-pagination',
-    loadComponent: () => import('./examples/primitives/list-with-pagination/list-with-pagination'),
+    loadComponent: () =>
+      import('./examples/primitives/list-with-pagination/list-with-pagination'),
+  },
+  {
+    path: 'granular-mutation',
+    loadComponent: () =>
+      import('./examples/primitives/granular-mutation/granular-mutation'),
   },
 ];

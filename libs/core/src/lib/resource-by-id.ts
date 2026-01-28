@@ -218,9 +218,6 @@ export function resourceById<
     add: (resourceParams, options?: { defaultValue?: State }) => {
       const group = identifier(resourceParams as any);
       if (resourceByGroup()[group]) {
-        console.warn(
-          `[resourceById] - A resource with the id ${group} already exist.`,
-        );
         return resourceByGroup()[group] as ResourceRef<State>;
       }
 
@@ -277,13 +274,16 @@ export function resourceById<
         paramsFromResourceById?: ResourceRef<unknown>;
       },
     ) => {
+      // Check if the resource already exist
+      if (resourceByGroup()[group]) {
+        return resourceByGroup()[group] as ResourceRef<State>;
+      }
       const filteredGlobalParamsByGroup = linkedSignal({
         source: () =>
           params(
             options?.paramsFromResourceById as ResourceRef<FromObjectState>,
           ),
         computation: (incomingParamsValue, previousGroupParamsData) => {
-          if(group === '2-4') debugger
           if (!incomingParamsValue) {
             return incomingParamsValue ?? options?.defaultParam;
           }
@@ -326,6 +326,10 @@ export function resourceById<
       return resourceRef;
     },
   };
+
+  if (!fromResourceById) {
+    return Object.assign(resourceByGroup, resourcesHandler);
+  }
 
   effect(() => {
     const fromResourceByIdValue = fromResourceById?.();

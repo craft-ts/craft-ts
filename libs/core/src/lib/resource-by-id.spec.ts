@@ -49,18 +49,16 @@ describe('resourceById', () => {
           return params;
         },
       });
-      innerResourceByIdRef.add(
-        { id: '1' },
-        {
-          defaultValue: { id: '1' },
-        },
-      );
+      // will set a resolved status
+      innerResourceByIdRef.add({ id: '1' });
+      // will set a local status
       innerResourceByIdRef.add(
         { id: '2' },
         {
           defaultValue: { id: '2' },
         },
       );
+      // will set a local status
       innerResourceByIdRef.add(
         { id: '3' },
         {
@@ -75,7 +73,9 @@ describe('resourceById', () => {
             id: string;
           }>();
           expectTypeOf(status()).toEqualTypeOf<ResourceStatus>();
-          return status() === 'resolved' ? value() : undefined;
+          return status() === 'resolved' || status() === 'local'
+            ? value()
+            : undefined;
         },
         identifier: (params) => params.id,
         loader: async ({ params }) => {
