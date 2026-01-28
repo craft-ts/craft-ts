@@ -20,4 +20,4 @@ The current documentation is also experimental. It takes a lot of time to create
 
 - Explore the [Introduction](/introduction) to understand the core concepts
 - Learn about [Primitives](/primitives/state) to build reactive state
-- Discover [Store](/store/craft) patterns for complex state management
+- Discover [Store](/store/craft) patterns to extract logic from components and manage complex state
