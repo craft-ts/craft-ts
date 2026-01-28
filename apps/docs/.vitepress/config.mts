@@ -72,6 +72,11 @@ export default defineConfig({
           { text: 'toSource', link: '/utils/to-source' },
           { text: 'stackedSource', link: '/utils/stacked-source' },
           { text: 'sourceFromEvent', link: '/utils/source-from-event' },
+          { text: 'afterRecomputation', link: '/utils/after-recomputation' },
+          {
+            text: 'GlobalPersisterHandler',
+            link: '/utils/global-persister-handler-service',
+          },
         ],
       },
       {

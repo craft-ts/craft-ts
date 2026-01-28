@@ -25,14 +25,6 @@ import { ApiService, User } from './api.service';
               <app-status [status]="usersQuery.currentPageStatus()" />
             </h2>
 
-            <div>
-              {{
-                usersQuery.isPlaceHolderData()
-                  ? 'Showing placeholder data'
-                  : 'Showing real data'
-              }}
-            </div>
-
             <div class="table-container">
               <table class="table">
                 <thead>
