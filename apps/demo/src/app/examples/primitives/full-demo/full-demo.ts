@@ -50,10 +50,22 @@ import { ApiService, User } from './api.service';
                         <td>{{ user.name }}</td>
 
                         <td>
-                          @let deleteUserRef = deleteUser.select(user.id);
-                          status: {{ deleteUserRef?.status() }}/ ref
-                          {{ !!deleteUserRef }}
-                          @if (!deleteUserRef) {
+                          @let delayDeleteUserRef =
+                            delayUserDeletion.select(user.id);
+
+                          @if (delayDeleteUserRef?.status() === 'loading') {
+                            <button
+                              class="action-btn cancel-btn"
+                              (click)="
+                                delayUserDeletion.method({
+                                  user,
+                                  action: 'cancel',
+                                })
+                              "
+                            >
+                              Cancel Deletion (5s)
+                            </button>
+                          } @else {
                             <button
                               class="action-btn"
                               (click)="
@@ -65,24 +77,6 @@ import { ApiService, User } from './api.service';
                             >
                               Delete User
                             </button>
-                          }
-                          @let delayDeleteUserRef =
-                            delayUserDeletion.select(user.id);
-
-                          @if (delayDeleteUserRef) {
-                            @if (delayDeleteUserRef.status() === 'loading') {
-                              <button
-                                class="action-btn cancel-btn"
-                                (click)="
-                                  delayUserDeletion.method({
-                                    user,
-                                    action: 'cancel',
-                                  })
-                                "
-                              >
-                                Cancel Deletion
-                              </button>
-                            }
                           }
                         </td>
                       </tr>
@@ -171,8 +165,11 @@ export default class FullDemo {
   protected readonly delayUserDeletion = asyncMethod({
     method: (payload: { user: User; action: 'delete' | 'cancel' }) => payload,
     identifier: ({ user: { id } }) => id,
-    loader: async ({ params: { user } }) => {
-      await wait(3000);
+    loader: async ({ params: { user, action } }) => {
+      if(action === 'cancel') {
+        return undefined
+      }
+      await wait(5000);
       return user;
     },
   });
