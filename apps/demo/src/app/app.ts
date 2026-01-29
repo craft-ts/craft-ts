@@ -22,6 +22,7 @@ import { GlobalPersisterHandlerService } from '@ng-craft/core';
         <a routerLink="/granular-mutation" routerLinkActive="active"
           >Granular Mutation</a
         >
+        <a routerLink="/full-demo" routerLinkActive="active">Full Demo</a>
       </nav>
       <main class="content">
         <router-outlet></router-outlet>

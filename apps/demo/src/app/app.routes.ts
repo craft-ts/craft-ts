@@ -23,4 +23,8 @@ export const appRoutes: Route[] = [
     loadComponent: () =>
       import('./examples/primitives/granular-mutation/granular-mutation'),
   },
+  {
+    path: 'full-demo',
+    loadComponent: () => import('./examples/primitives/full-demo/full-demo'),
+  },
 ];

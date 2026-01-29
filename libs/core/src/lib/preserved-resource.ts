@@ -1,13 +1,9 @@
-import {
-  resource,
-  linkedSignal,
-  ResourceRef,
-  ResourceOptions,
-} from '@angular/core';
+import { resource, linkedSignal, ResourceOptions } from '@angular/core';
+import { CraftResourceRef } from './util/craft-resource-ref';
 
 export function preservedResource<T, R>(
   config: ResourceOptions<T, R>,
-): ResourceRef<T | undefined> {
+): CraftResourceRef<T | undefined, R> {
   const original = resource(config);
   const originalCopy = { ...original };
   const preserved = linkedSignal({
@@ -29,9 +25,10 @@ export function preservedResource<T, R>(
   });
   Object.assign(original, {
     value: preserved,
+    paramSrc: config.params,
   });
   if (config.defaultValue) {
     original.set(config.defaultValue);
   }
-  return original;
+  return original as CraftResourceRef<T | undefined, R>;
 }

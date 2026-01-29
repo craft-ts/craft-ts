@@ -2,7 +2,6 @@ import {
   inject,
   signal,
   ResourceOptions,
-  ResourceRef,
   effect,
   untracked,
   Injector,
@@ -14,6 +13,7 @@ import {
 } from '@angular/core';
 import { preservedResource } from './preserved-resource';
 import { Prettify } from './util/util.type';
+import { CraftResourceRef } from './util/craft-resource-ref';
 
 export type ResourceByIdHandler<
   GroupIdentifier extends string,
@@ -21,15 +21,15 @@ export type ResourceByIdHandler<
   ResourceParams,
 > = {
   /**
-   * Reset all the ResourceRef instance stored in the ResourceByIdRef
+   * Reset all the CraftResourceRef instance stored in the ResourceByIdRef
    */
   reset: () => void;
   /**
-   * Reset the ResourceRef instance associated with the provided id
+   * Reset the CraftResourceRef instance associated with the provided id
    */
   resetResource: (id: GroupIdentifier) => void;
   /**
-   * Add a new ResourceRef instance
+   * Add a new CraftResourceRef instance
    */
   add: (
     // todo pass params instead of id and create the id from the params using the identifier function
@@ -37,7 +37,7 @@ export type ResourceByIdHandler<
     options?: {
       defaultValue?: State;
     },
-  ) => ResourceRef<State>;
+  ) => CraftResourceRef<State, ResourceParams>;
   /**
    * ! The added resource may not load immediately if the global params do not match the identifier function.
    * Useful at the app initialization when the resource value is retrieved from a persister for example.
@@ -47,9 +47,9 @@ export type ResourceByIdHandler<
     options?: {
       defaultParam?: ResourceParams;
       defaultValue?: State;
-      paramsFromResourceById?: ResourceRef<unknown>;
+      paramsFromResourceById?: CraftResourceRef<unknown, unknown>;
     },
-  ) => ResourceRef<State>;
+  ) => CraftResourceRef<State, ResourceParams>;
 };
 
 export type Identifier<ResourceParams, GroupIdentifier> = (
@@ -61,7 +61,9 @@ export type ResourceByIdRef<
   State,
   ResourceParams,
 > = WritableSignal<
-  Prettify<Partial<Record<GroupIdentifier, ResourceRef<State>>>>
+  Prettify<
+    Partial<Record<GroupIdentifier, CraftResourceRef<State, ResourceParams>>>
+  >
 > &
   ResourceByIdHandler<GroupIdentifier, State, ResourceParams>;
 
@@ -100,7 +102,10 @@ type ResourceByIdConfig<
           FromObjectResourceParams
         >;
         params: (
-          entity: ResourceRef<NoInfer<FromObjectState>>,
+          entity: CraftResourceRef<
+            NoInfer<FromObjectState>,
+            NoInfer<FromObjectResourceParams>
+          >,
         ) => ResourceParams;
         identifier: Identifier<NoInfer<ResourceParams>, GroupIdentifier>;
         equalParams?: EqualParams<ResourceParams, GroupIdentifier>;
@@ -131,7 +136,7 @@ export function resourceById<
 
   // maybe create a linkedSignal to enable to reset
   const resourceByGroup = signal<
-    Partial<Record<GroupIdentifier, ResourceRef<State>>>
+    Partial<Record<GroupIdentifier, CraftResourceRef<State, ResourceParams>>>
   >({});
 
   const resourceEqualParams =
@@ -140,7 +145,7 @@ export function resourceById<
           a && b && identifier(a) === identifier(b)
       : equalParams;
 
-  // this effect is used to create a mapped ResourceRef instance
+  // this effect is used to create a mapped CraftResourceRef instance
   if (!fromResourceById) {
     effect(() => {
       //@ts-expect-error TypeScript misinterpreting, params here has no parameter
@@ -152,8 +157,8 @@ export function resourceById<
 
       // The effect should only trigger when the request change
       const resourceByGroupValue = untracked(() => resourceByGroup());
-      const groupResourceRefExist = resourceByGroupValue[group];
-      if (groupResourceRefExist) {
+      const groupCraftResourceRefExist = resourceByGroupValue[group];
+      if (groupCraftResourceRefExist) {
         // nothing to do, the resource is already bind with the request
         return;
       }
@@ -178,7 +183,7 @@ export function resourceById<
         ...(equalParams !== 'default' && { equal: resourceEqualParams }),
       });
 
-      const resourceRef = createDynamicResource(injector, {
+      const CraftResourceRef = createDynamicResource(injector, {
         group,
         //@ts-expect-error stream and loader conflict
         resourceOptions: {
@@ -188,10 +193,10 @@ export function resourceById<
         },
       });
 
-      // attach a new instance of ResourceRef to the resourceByGroup
+      // attach a new instance of CraftResourceRef to the resourceByGroup
       resourceByGroup.update((state) => ({
         ...state,
-        [group]: resourceRef,
+        [group]: CraftResourceRef,
       }));
     });
   }
@@ -203,7 +208,7 @@ export function resourceById<
   > = {
     reset: () => {
       Object.values(resourceByGroup()).forEach((resource) =>
-        (resource as ResourceRef<State>).destroy(),
+        (resource as CraftResourceRef<State, ResourceParams>).destroy(),
       );
       resourceByGroup.set({});
     },
@@ -218,7 +223,10 @@ export function resourceById<
     add: (resourceParams, options?: { defaultValue?: State }) => {
       const group = identifier(resourceParams as any);
       if (resourceByGroup()[group]) {
-        return resourceByGroup()[group] as ResourceRef<State>;
+        return resourceByGroup()[group] as CraftResourceRef<
+          State,
+          ResourceParams
+        >;
       }
 
       //@ts-expect-error ! It does not handle the case when fromResourceById is provided
@@ -251,7 +259,7 @@ export function resourceById<
           }),
         },
       );
-      const resourceRef = createDynamicResource(injector, {
+      const CraftResourceRef = createDynamicResource(injector, {
         group,
         resourceOptions: {
           loader,
@@ -262,26 +270,32 @@ export function resourceById<
       });
       resourceByGroup.update((state) => ({
         ...state,
-        [group]: resourceRef,
+        [group]: CraftResourceRef,
       }));
-      return resourceRef;
+      return CraftResourceRef;
     },
     addById: (
       group,
       options?: {
         defaultValue?: State;
         defaultParam?: ResourceParams;
-        paramsFromResourceById?: ResourceRef<unknown>;
+        paramsFromResourceById?: CraftResourceRef<unknown, unknown>;
       },
     ) => {
       // Check if the resource already exist
       if (resourceByGroup()[group]) {
-        return resourceByGroup()[group] as ResourceRef<State>;
+        return resourceByGroup()[group] as CraftResourceRef<
+          State,
+          ResourceParams
+        >;
       }
       const filteredGlobalParamsByGroup = linkedSignal({
         source: () =>
           params(
-            options?.paramsFromResourceById as ResourceRef<FromObjectState>,
+            options?.paramsFromResourceById as CraftResourceRef<
+              FromObjectState,
+              FromObjectResourceParams
+            >,
           ),
         computation: (incomingParamsValue, previousGroupParamsData) => {
           if (!incomingParamsValue) {
@@ -310,7 +324,7 @@ export function resourceById<
           }),
         },
       );
-      const resourceRef = createDynamicResource(injector, {
+      const CraftResourceRef = createDynamicResource(injector, {
         group,
         resourceOptions: {
           loader,
@@ -321,9 +335,9 @@ export function resourceById<
       });
       resourceByGroup.update((state) => ({
         ...state,
-        [group]: resourceRef,
+        [group]: CraftResourceRef,
       }));
-      return resourceRef;
+      return CraftResourceRef;
     },
   };
 
@@ -338,19 +352,24 @@ export function resourceById<
     }
     const resourceByGroupValue = resourceByGroup();
     Object.entries(fromResourceByIdValue).forEach(([key, resource]) => {
-      const currentParams = params(resource as ResourceRef<FromObjectState>);
+      const currentParams = params(
+        resource as CraftResourceRef<FromObjectState, FromObjectResourceParams>,
+      );
       if (!currentParams) {
         return;
       }
 
       untracked(() => {
         const group = identifier(currentParams as any);
-        const existingResourceRef = resourceByGroupValue[group];
-        if (existingResourceRef) {
+        const existingCraftResourceRef = resourceByGroupValue[group];
+        if (existingCraftResourceRef) {
           return;
         }
         resourcesHandler.addById(group, {
-          paramsFromResourceById: resource as ResourceRef<FromObjectState>,
+          paramsFromResourceById: resource as CraftResourceRef<
+            FromObjectState,
+            FromObjectResourceParams
+          >,
         });
       });
     });
@@ -359,8 +378,10 @@ export function resourceById<
   return Object.assign(resourceByGroup, resourcesHandler);
 }
 
-const RESOURCE_INSTANCE_TOKEN = new InjectionToken<ResourceRef<unknown>>(
-  'Injection token used to provide a dynamically created ResourceRef instance.',
+const RESOURCE_INSTANCE_TOKEN = new InjectionToken<
+  CraftResourceRef<unknown, unknown>
+>(
+  'Injection token used to provide a dynamically created CraftResourceRef instance.',
 );
 
 interface DynamicResourceConfig<T, R, GroupIdentifier extends string> {
@@ -391,6 +412,6 @@ function createDynamicResource<T, R, GroupIdentifier extends string>(
     parent: parentInjector,
   });
 
-  const resourceRef = injector.get(RESOURCE_INSTANCE_TOKEN);
-  return resourceRef as ResourceRef<T>;
+  const CraftResourceRef = injector.get(RESOURCE_INSTANCE_TOKEN);
+  return CraftResourceRef as CraftResourceRef<T, R>;
 }

@@ -216,7 +216,7 @@ export function reactOnMutationEffect<
           _injector,
           [mutationResource.status, safeMutationResourceValue],
           ([mutationStatus, _value]) => {
-            const mutationParamsSrc = mutationTargeted.resourceParamsSrc;
+            const mutationParamsSrc = mutationResource.paramSrc;
             if (
               typeof mutationParamsSrc === 'function' &&
               mutationParamsSrc()
