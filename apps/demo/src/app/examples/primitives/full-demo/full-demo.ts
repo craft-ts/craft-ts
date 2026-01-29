@@ -3,7 +3,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
 } from '@angular/core';
 import {
@@ -14,6 +13,7 @@ import {
   mutation,
   query,
   queryParam,
+  state,
 } from '@ng-craft/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, User } from './api.service';
@@ -23,6 +23,7 @@ import { ApiService, User } from './api.service';
   standalone: true,
   imports: [CommonModule, StatusComponent],
   template: `
+    TODO reload si liste vide, mais faut que le service gere ca
     <div class="container">
       <main class="content">
         <div class="content-wrapper">
@@ -32,10 +33,32 @@ import { ApiService, User } from './api.service';
               <app-status [status]="usersQuery.currentPageStatus()" />
             </h2>
 
+            <div style="margin-bottom: 16px">
+              <button
+                class="action-btn"
+                [disabled]="
+                  selectedRows().length === 0 ||
+                  bulkDelete.status() === 'loading'
+                "
+                (click)="bulkDelete.mutate(selectedRows())"
+              >
+                Bulk Delete Selected Users {{ selectedRows().length }}
+                <app-status [status]="bulkDelete.status()" />
+              </button>
+            </div>
+
             <div class="table-container">
               <table class="table">
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        [checked]="isAllSelected()"
+                        [indeterminate]="isSomeSelected()"
+                        (change)="toggleAllSelection()"
+                      />
+                    </th>
                     <th>ID</th>
                     <th>Name</th>
                     <th>Action</th>
@@ -45,6 +68,13 @@ import { ApiService, User } from './api.service';
                   @if (usersQuery.currentPageData()) {
                     @for (user of usersQuery.currentPageData(); track user.id) {
                       <tr>
+                        <td>
+                          <input
+                            type="checkbox"
+                            [checked]="selectedRows.isSelected(user.id)"
+                            (change)="selectedRows.toggleSelection(user.id)"
+                          />
+                        </td>
                         <td>{{ user.id }}</td>
 
                         <td>{{ user.name }}</td>
@@ -81,10 +111,13 @@ import { ApiService, User } from './api.service';
                         </td>
                       </tr>
                     } @empty {
-                      @if (usersQuery.currentPageStatus() === 'resolved') {
+                      @if (
+                        usersQuery.currentPageStatus() === 'resolved' ||
+                        usersQuery.currentPageStatus() === 'local'
+                      ) {
                         <tr>
                           <td
-                            colspan="4"
+                            colspan="5"
                             style="text-align: center; padding: 32px"
                           >
                             No users found
@@ -93,7 +126,7 @@ import { ApiService, User } from './api.service';
                       } @else {
                         <tr>
                           <td
-                            colspan="4"
+                            colspan="5"
                             style="text-align: center; padding: 32px"
                           >
                             Loading...
@@ -101,6 +134,12 @@ import { ApiService, User } from './api.service';
                         </tr>
                       }
                     }
+                  } @else {
+                    <tr>
+                      <td colspan="5" style="text-align: center; padding: 32px">
+                        Loading...
+                      </td>
+                    </tr>
                   }
                 </tbody>
               </table>
@@ -129,10 +168,6 @@ import { ApiService, User } from './api.service';
         </div>
       </main>
     </div>
-    {{ testPrnt() | json }}
-
-    1: {{ delayUserDeletion.select($any(1))?.status() }}/ "1":
-    {{ delayUserDeletion.select('1')?.status() }}
   `,
   styleUrls: ['./full-demo.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -162,12 +197,69 @@ export default class FullDemo {
   );
   private readonly apiService = inject(ApiService);
 
+  protected readonly selectedRows = state(
+    [] as string[],
+    ({ update, set }) => ({
+      toggleSelection: (id: string) =>
+        update((current) =>
+          current.includes(id)
+            ? current.filter((item) => item !== id)
+            : [...current, id],
+        ),
+      selectAll: (ids: string[]) => set(ids),
+      deselectAll: () => set([]),
+      isSelected: (id: string) => {
+        return this.selectedRows().includes(id);
+      },
+    }),
+  );
+
+  protected readonly isAllSelected = computed(() => {
+    const data = this.usersQuery.currentPageData();
+    const selected = this.selectedRows();
+    return (
+      data &&
+      data.length > 0 &&
+      data.every((user) => selected.includes(user.id))
+    );
+  });
+
+  protected readonly isSomeSelected = computed(() => {
+    const data = this.usersQuery.currentPageData();
+    const selected = this.selectedRows();
+    return (
+      data &&
+      data.length > 0 &&
+      data.some((user) => selected.includes(user.id)) &&
+      !this.isAllSelected()
+    );
+  });
+
+  protected toggleAllSelection() {
+    if (this.isAllSelected()) {
+      this.selectedRows.deselectAll();
+    } else {
+      const allIds =
+        this.usersQuery.currentPageData()?.map((user) => user.id) || [];
+      this.selectedRows.selectAll(allIds);
+    }
+  }
+
+  protected readonly bulkDelete = mutation({
+    method: (ids: string[]) => ids,
+    loader: async ({ params: ids }) => {
+      await this.apiService.bulkDelete(ids);
+      this.selectedRows.deselectAll();
+      return ids;
+    },
+  });
+
   protected readonly delayUserDeletion = asyncMethod({
     method: (payload: { user: User; action: 'delete' | 'cancel' }) => payload,
     identifier: ({ user: { id } }) => id,
     loader: async ({ params: { user, action } }) => {
-      if(action === 'cancel') {
-        return undefined
+      if (action === 'cancel') {
+        return undefined;
       }
       await wait(5000);
       return user;
@@ -193,9 +285,8 @@ export default class FullDemo {
     {
       params: this.pagination,
       identifier: (params) => `${params.page}-${params.pageSize}`,
-      loader: ({ params: pagination }) => {
-        return this.apiService.getDataList(pagination);
-      },
+      loader: ({ params: pagination }) =>
+        this.apiService.getDataList(pagination),
     },
     insertLocalStoragePersister({
       storeName: 'demo-app',
@@ -203,28 +294,33 @@ export default class FullDemo {
     }),
     insertPaginationPlaceholderData,
     insertReactOnMutation(this.deleteUser, {
-      filter: ({ mutationIdentifier, queryResource }) => {
-        return (
-          queryResource.hasValue() &&
-          queryResource.value().some((item) => item.id === mutationIdentifier)
-        );
-      },
+      filter: ({ mutationIdentifier, queryResource }) =>
+        queryResource.hasValue() &&
+        queryResource.value().some((item) => item.id === mutationIdentifier),
       optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
         queryResource.value()?.filter((item) => item.id !== mutationIdentifier),
+      // todo 👇 ne fonctionne pas celui-là
+      reload: {
+        onMutationResolved: ({ queryResource }) => {
+          const result =
+            queryResource.hasValue() && queryResource.value().length === 0;
+          console.log('result', result);
+          return result;
+        },
+      },
+    }),
+    insertReactOnMutation(this.bulkDelete, {
+      filter: ({ queryResource }) => queryResource.hasValue(),
+      optimisticUpdate: ({ queryResource, mutationParams }) =>
+        queryResource
+          .value()
+          ?.filter((item) => !mutationParams.includes(item.id)),
+      reload: {
+        onMutationResolved: ({ queryResource }) =>
+          queryResource.hasValue() && queryResource.value().length === 0,
+      },
     }),
   );
-
-  _effect = effect(() => {
-    console.log('delayUserDeletion', this.delayUserDeletion._resourceById());
-  });
-
-  testPrnt = computed(() =>
-    Object.keys(this.delayUserDeletion._resourceById()),
-  );
-
-  _effect1 = effect(() => {
-    console.log('delayUserDeletion 1', this.delayUserDeletion.select('1'));
-  });
 
   protected updatePageSize(event: Event) {
     const value = Number((event.target as HTMLSelectElement).value);

@@ -100,4 +100,14 @@ export class ApiService {
     );
     return firstValueFrom(of(updatedItem).pipe(delay(2000)));
   }
+
+  bulkDelete(itemIds: User['id'][]) {
+    const deletedItems = this.dataList$.value.filter((dataItem) =>
+      itemIds.includes(dataItem.id),
+    );
+    this.dataList$.next(
+      this.dataList$.value.filter((dataItem) => !itemIds.includes(dataItem.id)),
+    );
+    return firstValueFrom(of(deletedItems).pipe(delay(2000)));
+  }
 }
