@@ -214,7 +214,11 @@ export function reactOnMutationEffect<
         );
         explicitNestedEffect(
           _injector,
-          [mutationResource.status, safeMutationResourceValue],
+          [
+            mutationResource.status,
+            safeMutationResourceValue,
+            mutationResource.paramSrc,
+          ],
           ([mutationStatus, _value]) => {
             const mutationParamsSrc = mutationResource.paramSrc;
             if (

@@ -224,16 +224,13 @@ export default class FullDemo {
     );
   });
 
-  protected readonly isSomeSelected = computed(() => {
-    const data = this.usersQuery.currentPageData();
-    const selected = this.selectedRows();
-    return (
-      data &&
-      data.length > 0 &&
-      data.some((user) => selected.includes(user.id)) &&
-      !this.isAllSelected()
-    );
-  });
+  protected readonly isSomeSelected = computed(
+    () =>
+      this.usersQuery
+        .currentPageData()
+        ?.some((user) => this.selectedRows().includes(user.id)) &&
+      !this.isAllSelected(),
+  );
 
   protected toggleAllSelection() {
     if (this.isAllSelected()) {
@@ -296,17 +293,14 @@ export default class FullDemo {
     insertReactOnMutation(this.deleteUser, {
       filter: ({ mutationIdentifier, queryResource }) =>
         queryResource.hasValue() &&
-        queryResource.value().some((item) => item.id === mutationIdentifier),
+        (queryResource.value().some((item) => item.id === mutationIdentifier) ||
+          queryResource.value().length === 0),
       optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
         queryResource.value()?.filter((item) => item.id !== mutationIdentifier),
-      // todo 👇 ne fonctionne pas celui-là
       reload: {
-        onMutationResolved: ({ queryResource }) => {
-          const result =
-            queryResource.hasValue() && queryResource.value().length === 0;
-          console.log('result', result);
-          return result;
-        },
+        // reload the current page if there is no more data after mutation
+        onMutationResolved: ({ queryResource }) =>
+          queryResource.hasValue() && queryResource.value().length === 0,
       },
     }),
     insertReactOnMutation(this.bulkDelete, {
@@ -316,6 +310,7 @@ export default class FullDemo {
           .value()
           ?.filter((item) => !mutationParams.includes(item.id)),
       reload: {
+        // reload the current page if there is no more data after mutation
         onMutationResolved: ({ queryResource }) =>
           queryResource.hasValue() && queryResource.value().length === 0,
       },
