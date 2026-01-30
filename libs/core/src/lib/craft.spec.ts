@@ -1697,11 +1697,10 @@ describe('scoped craft', () => {
     );
 
     TestBed.configureTestingModule({
-      // providers: [provideScopedStoreCraft()],
+      providers: [provideScopedStoreCraft()],
     });
 
     TestBed.runInInjectionContext(() => {
-      // todo regarder pourquoi injectScopedStoreCraft récupère quelque chose alors qu'il ne devrait pas à cause du scoped ?
       const scopedStore = injectScopedStoreCraft();
       expect(scopedStore.counter()).toBe(0);
       scopedStore.counterIncrement();
