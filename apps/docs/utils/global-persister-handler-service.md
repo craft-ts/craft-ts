@@ -167,6 +167,6 @@ handleDataError() {
 
 ## Related
 
-- [Local Storage Persister](/docs/insertions/insert-local-storage)
-- [Query](/docs/primitives/query)
-- [Mutation](/docs/primitives/mutation)
+- [Local Storage Persister](../insertions/insert-local-storage)
+- [Query](../primitives/query)
+- [Mutation](../primitives/mutation)

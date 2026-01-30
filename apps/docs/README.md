@@ -1,6 +1,6 @@
-# @ng-craft Documentation
+# @ng-angular-stack/craft Documentation
 
-This is the VitePress documentation site for @ng-craft.
+This is the VitePress documentation site for @ng-angular-stack/craft.
 
 ## Development
 

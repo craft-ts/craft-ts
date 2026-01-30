@@ -1,14 +1,14 @@
 # Introduction
 
-## What is @ng-craft?
+## What is @ng-angular-stack/craft?
 
-**@ng-craft** is a reactive state management tool designed specifically for Angular applications. It focuses on URL, Client, and Server state management, allowing you to concentrate on business value and user experience.
+**@ng-angular-stack/craft** is a reactive state management tool designed specifically for Angular applications. It focuses on URL, Client, and Server state management, allowing you to concentrate on business value and user experience.
 
 ## Core Philosophy
 
 ### Focus on What Matters
 
-Stop wasting precious time on common application logic. @ng-craft provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
+Stop wasting precious time on common application logic. @ng-angular-stack/craft provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
 
 `state`, `asyncState`, `queryParam`, `query`, `mutation` and `asyncMethod` are reactive primitive that will make your developer experience a lot better.
 

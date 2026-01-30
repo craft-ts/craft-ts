@@ -9,7 +9,7 @@ npm i @ng-angular-stack/craft@latest
 ```
 
 :::tip
-After installation, you can start using @ng-craft primitives and stores in your Angular application!
+After installation, you can start using @ng-angular-stack/craft primitives and stores in your Angular application!
 :::
 
 :::warning
