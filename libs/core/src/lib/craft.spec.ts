@@ -1708,3 +1708,582 @@ describe('scoped craft', () => {
     });
   });
 });
+
+describe('craft signatures', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('should work with 1 factory', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      store.counter1Increment();
+      expect(store.counter1()).toBe(2);
+    });
+  });
+
+  it('should work with 2 factories', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter2', () =>
+        state(2, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      expect(store.counter2()).toBe(2);
+      store.counter1Increment();
+      store.counter2Increment();
+      expect(store.counter1()).toBe(2);
+      expect(store.counter2()).toBe(3);
+    });
+  });
+
+  it('should work with 3 factories', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter2', () =>
+        state(2, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter3', () =>
+        state(3, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      expect(store.counter2()).toBe(2);
+      expect(store.counter3()).toBe(3);
+      store.counter1Increment();
+      store.counter2Increment();
+      store.counter3Increment();
+      expect(store.counter1()).toBe(2);
+      expect(store.counter2()).toBe(3);
+      expect(store.counter3()).toBe(4);
+    });
+  });
+
+  it('should work with 4 factories', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter2', () =>
+        state(2, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter3', () =>
+        state(3, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter4', () =>
+        state(4, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      expect(store.counter2()).toBe(2);
+      expect(store.counter3()).toBe(3);
+      expect(store.counter4()).toBe(4);
+      store.counter1Increment();
+      store.counter2Increment();
+      store.counter3Increment();
+      store.counter4Increment();
+      expect(store.counter1()).toBe(2);
+      expect(store.counter2()).toBe(3);
+      expect(store.counter3()).toBe(4);
+      expect(store.counter4()).toBe(5);
+    });
+  });
+
+  it('should work with 5 factories', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter2', () =>
+        state(2, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter3', () =>
+        state(3, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter4', () =>
+        state(4, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter5', () =>
+        state(5, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      expect(store.counter2()).toBe(2);
+      expect(store.counter3()).toBe(3);
+      expect(store.counter4()).toBe(4);
+      expect(store.counter5()).toBe(5);
+      store.counter1Increment();
+      store.counter2Increment();
+      store.counter3Increment();
+      store.counter4Increment();
+      store.counter5Increment();
+      expect(store.counter1()).toBe(2);
+      expect(store.counter2()).toBe(3);
+      expect(store.counter3()).toBe(4);
+      expect(store.counter4()).toBe(5);
+      expect(store.counter5()).toBe(6);
+    });
+  });
+
+  it('should work with 6 factories', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter2', () =>
+        state(2, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter3', () =>
+        state(3, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter4', () =>
+        state(4, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter5', () =>
+        state(5, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter6', () =>
+        state(6, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      expect(store.counter2()).toBe(2);
+      expect(store.counter3()).toBe(3);
+      expect(store.counter4()).toBe(4);
+      expect(store.counter5()).toBe(5);
+      expect(store.counter6()).toBe(6);
+      store.counter1Increment();
+      store.counter2Increment();
+      store.counter3Increment();
+      store.counter4Increment();
+      store.counter5Increment();
+      store.counter6Increment();
+      expect(store.counter1()).toBe(2);
+      expect(store.counter2()).toBe(3);
+      expect(store.counter3()).toBe(4);
+      expect(store.counter4()).toBe(5);
+      expect(store.counter5()).toBe(6);
+      expect(store.counter6()).toBe(7);
+    });
+  });
+
+  it('should work with 7 factories', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter2', () =>
+        state(2, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter3', () =>
+        state(3, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter4', () =>
+        state(4, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter5', () =>
+        state(5, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter6', () =>
+        state(6, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter7', () =>
+        state(7, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      expect(store.counter2()).toBe(2);
+      expect(store.counter3()).toBe(3);
+      expect(store.counter4()).toBe(4);
+      expect(store.counter5()).toBe(5);
+      expect(store.counter6()).toBe(6);
+      expect(store.counter7()).toBe(7);
+      store.counter1Increment();
+      store.counter2Increment();
+      store.counter3Increment();
+      store.counter4Increment();
+      store.counter5Increment();
+      store.counter6Increment();
+      store.counter7Increment();
+      expect(store.counter1()).toBe(2);
+      expect(store.counter2()).toBe(3);
+      expect(store.counter3()).toBe(4);
+      expect(store.counter4()).toBe(5);
+      expect(store.counter5()).toBe(6);
+      expect(store.counter6()).toBe(7);
+      expect(store.counter7()).toBe(8);
+    });
+  });
+
+  it('should work with 8 factories', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter2', () =>
+        state(2, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter3', () =>
+        state(3, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter4', () =>
+        state(4, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter5', () =>
+        state(5, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter6', () =>
+        state(6, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter7', () =>
+        state(7, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter8', () =>
+        state(8, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      expect(store.counter2()).toBe(2);
+      expect(store.counter3()).toBe(3);
+      expect(store.counter4()).toBe(4);
+      expect(store.counter5()).toBe(5);
+      expect(store.counter6()).toBe(6);
+      expect(store.counter7()).toBe(7);
+      expect(store.counter8()).toBe(8);
+      store.counter1Increment();
+      store.counter2Increment();
+      store.counter3Increment();
+      store.counter4Increment();
+      store.counter5Increment();
+      store.counter6Increment();
+      store.counter7Increment();
+      store.counter8Increment();
+      expect(store.counter1()).toBe(2);
+      expect(store.counter2()).toBe(3);
+      expect(store.counter3()).toBe(4);
+      expect(store.counter4()).toBe(5);
+      expect(store.counter5()).toBe(6);
+      expect(store.counter6()).toBe(7);
+      expect(store.counter7()).toBe(8);
+      expect(store.counter8()).toBe(9);
+    });
+  });
+
+  it('should work with 9 factories', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter2', () =>
+        state(2, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter3', () =>
+        state(3, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter4', () =>
+        state(4, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter5', () =>
+        state(5, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter6', () =>
+        state(6, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter7', () =>
+        state(7, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter8', () =>
+        state(8, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter9', () =>
+        state(9, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      expect(store.counter2()).toBe(2);
+      expect(store.counter3()).toBe(3);
+      expect(store.counter4()).toBe(4);
+      expect(store.counter5()).toBe(5);
+      expect(store.counter6()).toBe(6);
+      expect(store.counter7()).toBe(7);
+      expect(store.counter8()).toBe(8);
+      expect(store.counter9()).toBe(9);
+      store.counter1Increment();
+      store.counter2Increment();
+      store.counter3Increment();
+      store.counter4Increment();
+      store.counter5Increment();
+      store.counter6Increment();
+      store.counter7Increment();
+      store.counter8Increment();
+      store.counter9Increment();
+      expect(store.counter1()).toBe(2);
+      expect(store.counter2()).toBe(3);
+      expect(store.counter3()).toBe(4);
+      expect(store.counter4()).toBe(5);
+      expect(store.counter5()).toBe(6);
+      expect(store.counter6()).toBe(7);
+      expect(store.counter7()).toBe(8);
+      expect(store.counter8()).toBe(9);
+      expect(store.counter9()).toBe(10);
+    });
+  });
+
+  it('should work with 10 factories', async () => {
+    const { injectTestCraft } = craft(
+      {
+        name: 'test',
+        providedIn: 'root',
+      },
+      craftState('counter1', () =>
+        state(1, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter2', () =>
+        state(2, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter3', () =>
+        state(3, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter4', () =>
+        state(4, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter5', () =>
+        state(5, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter6', () =>
+        state(6, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter7', () =>
+        state(7, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter8', () =>
+        state(8, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter9', () =>
+        state(9, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+      craftState('counter10', () =>
+        state(10, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+        })),
+      ),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectTestCraft();
+      expect(store.counter1()).toBe(1);
+      expect(store.counter2()).toBe(2);
+      expect(store.counter3()).toBe(3);
+      expect(store.counter4()).toBe(4);
+      expect(store.counter5()).toBe(5);
+      expect(store.counter6()).toBe(6);
+      expect(store.counter7()).toBe(7);
+      expect(store.counter8()).toBe(8);
+      expect(store.counter9()).toBe(9);
+      expect(store.counter10()).toBe(10);
+      store.counter1Increment();
+      store.counter2Increment();
+      store.counter3Increment();
+      store.counter4Increment();
+      store.counter5Increment();
+      store.counter6Increment();
+      store.counter7Increment();
+      store.counter8Increment();
+      store.counter9Increment();
+      store.counter10Increment();
+      expect(store.counter1()).toBe(2);
+      expect(store.counter2()).toBe(3);
+      expect(store.counter3()).toBe(4);
+      expect(store.counter4()).toBe(5);
+      expect(store.counter5()).toBe(6);
+      expect(store.counter6()).toBe(7);
+      expect(store.counter7()).toBe(8);
+      expect(store.counter8()).toBe(9);
+      expect(store.counter9()).toBe(10);
+      expect(store.counter10()).toBe(11);
+    });
+  });
+});

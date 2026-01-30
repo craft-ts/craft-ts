@@ -1120,6 +1120,666 @@ export function craft<
   outputs2 extends ContextConstraints,
   outputs3 extends ContextConstraints,
   outputs4 extends ContextConstraints,
+  outputs5 extends ContextConstraints,
+  outputs6 extends ContextConstraints,
+  outputs7 extends ContextConstraints,
+  outputs8 extends ContextConstraints,
+  outputs9 extends ContextConstraints,
+  outputs10 extends ContextConstraints,
+  standaloneOutputs1 extends StandaloneOutputsConstraints,
+  standaloneOutputs2 extends StandaloneOutputsConstraints,
+  standaloneOutputs3 extends StandaloneOutputsConstraints,
+  standaloneOutputs4 extends StandaloneOutputsConstraints,
+  standaloneOutputs5 extends StandaloneOutputsConstraints,
+  standaloneOutputs6 extends StandaloneOutputsConstraints,
+  standaloneOutputs7 extends StandaloneOutputsConstraints,
+  standaloneOutputs8 extends StandaloneOutputsConstraints,
+  standaloneOutputs9 extends StandaloneOutputsConstraints,
+  standaloneOutputs10 extends StandaloneOutputsConstraints,
+  const ProvidedIn extends ProvidedInOption,
+  const Name extends string,
+  ToImplementContract,
+>(
+  options: {
+    providedIn: ProvidedIn;
+    name: Name;
+    implements?: ToImplementContract;
+  },
+  factory1: CraftFactory<
+    [_EmptyContext],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs1,
+    standaloneOutputs1
+  >,
+  factory2: CraftFactory<
+    [outputs1],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs2,
+    standaloneOutputs2
+  >,
+  factory3: CraftFactory<
+    [outputs1, outputs2],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs3,
+    standaloneOutputs3
+  >,
+  factory4: CraftFactory<
+    [outputs1, outputs2, outputs3],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs4,
+    standaloneOutputs4
+  >,
+  factory5: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs5,
+    standaloneOutputs5
+  >,
+  factory6: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs6,
+    standaloneOutputs6
+  >,
+  factory7: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs7,
+    standaloneOutputs7
+  >,
+  factory8: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs8,
+    standaloneOutputs8
+  >,
+  factory9: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs9,
+    standaloneOutputs9
+  >,
+  factory10: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8, outputs9],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs10,
+    standaloneOutputs10
+  >,
+): ToCraftOutputs<
+  [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8, outputs9, outputs10],
+  [
+    standaloneOutputs1,
+    standaloneOutputs2,
+    standaloneOutputs3,
+    standaloneOutputs4,
+    standaloneOutputs5,
+    standaloneOutputs6,
+    standaloneOutputs7,
+    standaloneOutputs8,
+    standaloneOutputs9,
+    standaloneOutputs10,
+  ],
+  {
+    providedIn: NoInfer<ProvidedIn>;
+    name: NoInfer<Name>;
+    implements?: ToImplementContract;
+  }
+>;
+export function craft<
+  outputs1 extends ContextConstraints,
+  outputs2 extends ContextConstraints,
+  outputs3 extends ContextConstraints,
+  outputs4 extends ContextConstraints,
+  outputs5 extends ContextConstraints,
+  outputs6 extends ContextConstraints,
+  outputs7 extends ContextConstraints,
+  outputs8 extends ContextConstraints,
+  outputs9 extends ContextConstraints,
+  standaloneOutputs1 extends StandaloneOutputsConstraints,
+  standaloneOutputs2 extends StandaloneOutputsConstraints,
+  standaloneOutputs3 extends StandaloneOutputsConstraints,
+  standaloneOutputs4 extends StandaloneOutputsConstraints,
+  standaloneOutputs5 extends StandaloneOutputsConstraints,
+  standaloneOutputs6 extends StandaloneOutputsConstraints,
+  standaloneOutputs7 extends StandaloneOutputsConstraints,
+  standaloneOutputs8 extends StandaloneOutputsConstraints,
+  standaloneOutputs9 extends StandaloneOutputsConstraints,
+  const ProvidedIn extends ProvidedInOption,
+  const Name extends string,
+  ToImplementContract,
+>(
+  options: {
+    providedIn: ProvidedIn;
+    name: Name;
+    implements?: ToImplementContract;
+  },
+  factory1: CraftFactory<
+    [_EmptyContext],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs1,
+    standaloneOutputs1
+  >,
+  factory2: CraftFactory<
+    [outputs1],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs2,
+    standaloneOutputs2
+  >,
+  factory3: CraftFactory<
+    [outputs1, outputs2],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs3,
+    standaloneOutputs3
+  >,
+  factory4: CraftFactory<
+    [outputs1, outputs2, outputs3],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs4,
+    standaloneOutputs4
+  >,
+  factory5: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs5,
+    standaloneOutputs5
+  >,
+  factory6: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs6,
+    standaloneOutputs6
+  >,
+  factory7: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs7,
+    standaloneOutputs7
+  >,
+  factory8: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs8,
+    standaloneOutputs8
+  >,
+  factory9: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs9,
+    standaloneOutputs9
+  >,
+): ToCraftOutputs<
+  [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8, outputs9],
+  [
+    standaloneOutputs1,
+    standaloneOutputs2,
+    standaloneOutputs3,
+    standaloneOutputs4,
+    standaloneOutputs5,
+    standaloneOutputs6,
+    standaloneOutputs7,
+    standaloneOutputs8,
+    standaloneOutputs9,
+  ],
+  {
+    providedIn: NoInfer<ProvidedIn>;
+    name: NoInfer<Name>;
+    implements?: ToImplementContract;
+  }
+>;
+export function craft<
+  outputs1 extends ContextConstraints,
+  outputs2 extends ContextConstraints,
+  outputs3 extends ContextConstraints,
+  outputs4 extends ContextConstraints,
+  outputs5 extends ContextConstraints,
+  outputs6 extends ContextConstraints,
+  outputs7 extends ContextConstraints,
+  outputs8 extends ContextConstraints,
+  standaloneOutputs1 extends StandaloneOutputsConstraints,
+  standaloneOutputs2 extends StandaloneOutputsConstraints,
+  standaloneOutputs3 extends StandaloneOutputsConstraints,
+  standaloneOutputs4 extends StandaloneOutputsConstraints,
+  standaloneOutputs5 extends StandaloneOutputsConstraints,
+  standaloneOutputs6 extends StandaloneOutputsConstraints,
+  standaloneOutputs7 extends StandaloneOutputsConstraints,
+  standaloneOutputs8 extends StandaloneOutputsConstraints,
+  const ProvidedIn extends ProvidedInOption,
+  const Name extends string,
+  ToImplementContract,
+>(
+  options: {
+    providedIn: ProvidedIn;
+    name: Name;
+    implements?: ToImplementContract;
+  },
+  factory1: CraftFactory<
+    [_EmptyContext],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs1,
+    standaloneOutputs1
+  >,
+  factory2: CraftFactory<
+    [outputs1],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs2,
+    standaloneOutputs2
+  >,
+  factory3: CraftFactory<
+    [outputs1, outputs2],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs3,
+    standaloneOutputs3
+  >,
+  factory4: CraftFactory<
+    [outputs1, outputs2, outputs3],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs4,
+    standaloneOutputs4
+  >,
+  factory5: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs5,
+    standaloneOutputs5
+  >,
+  factory6: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs6,
+    standaloneOutputs6
+  >,
+  factory7: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs7,
+    standaloneOutputs7
+  >,
+  factory8: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs8,
+    standaloneOutputs8
+  >,
+): ToCraftOutputs<
+  [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8],
+  [
+    standaloneOutputs1,
+    standaloneOutputs2,
+    standaloneOutputs3,
+    standaloneOutputs4,
+    standaloneOutputs5,
+    standaloneOutputs6,
+    standaloneOutputs7,
+    standaloneOutputs8,
+  ],
+  {
+    providedIn: NoInfer<ProvidedIn>;
+    name: NoInfer<Name>;
+    implements?: ToImplementContract;
+  }
+>;
+export function craft<
+  outputs1 extends ContextConstraints,
+  outputs2 extends ContextConstraints,
+  outputs3 extends ContextConstraints,
+  outputs4 extends ContextConstraints,
+  outputs5 extends ContextConstraints,
+  outputs6 extends ContextConstraints,
+  outputs7 extends ContextConstraints,
+  standaloneOutputs1 extends StandaloneOutputsConstraints,
+  standaloneOutputs2 extends StandaloneOutputsConstraints,
+  standaloneOutputs3 extends StandaloneOutputsConstraints,
+  standaloneOutputs4 extends StandaloneOutputsConstraints,
+  standaloneOutputs5 extends StandaloneOutputsConstraints,
+  standaloneOutputs6 extends StandaloneOutputsConstraints,
+  standaloneOutputs7 extends StandaloneOutputsConstraints,
+  const ProvidedIn extends ProvidedInOption,
+  const Name extends string,
+  ToImplementContract,
+>(
+  options: {
+    providedIn: ProvidedIn;
+    name: Name;
+    implements?: ToImplementContract;
+  },
+  factory1: CraftFactory<
+    [_EmptyContext],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs1,
+    standaloneOutputs1
+  >,
+  factory2: CraftFactory<
+    [outputs1],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs2,
+    standaloneOutputs2
+  >,
+  factory3: CraftFactory<
+    [outputs1, outputs2],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs3,
+    standaloneOutputs3
+  >,
+  factory4: CraftFactory<
+    [outputs1, outputs2, outputs3],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs4,
+    standaloneOutputs4
+  >,
+  factory5: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs5,
+    standaloneOutputs5
+  >,
+  factory6: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs6,
+    standaloneOutputs6
+  >,
+  factory7: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs7,
+    standaloneOutputs7
+  >,
+): ToCraftOutputs<
+  [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7],
+  [
+    standaloneOutputs1,
+    standaloneOutputs2,
+    standaloneOutputs3,
+    standaloneOutputs4,
+    standaloneOutputs5,
+    standaloneOutputs6,
+    standaloneOutputs7,
+  ],
+  {
+    providedIn: NoInfer<ProvidedIn>;
+    name: NoInfer<Name>;
+    implements?: ToImplementContract;
+  }
+>;
+export function craft<
+  outputs1 extends ContextConstraints,
+  outputs2 extends ContextConstraints,
+  outputs3 extends ContextConstraints,
+  outputs4 extends ContextConstraints,
+  outputs5 extends ContextConstraints,
+  outputs6 extends ContextConstraints,
+  standaloneOutputs1 extends StandaloneOutputsConstraints,
+  standaloneOutputs2 extends StandaloneOutputsConstraints,
+  standaloneOutputs3 extends StandaloneOutputsConstraints,
+  standaloneOutputs4 extends StandaloneOutputsConstraints,
+  standaloneOutputs5 extends StandaloneOutputsConstraints,
+  standaloneOutputs6 extends StandaloneOutputsConstraints,
+  const ProvidedIn extends ProvidedInOption,
+  const Name extends string,
+  ToImplementContract,
+>(
+  options: {
+    providedIn: ProvidedIn;
+    name: Name;
+    implements?: ToImplementContract;
+  },
+  factory1: CraftFactory<
+    [_EmptyContext],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs1,
+    standaloneOutputs1
+  >,
+  factory2: CraftFactory<
+    [outputs1],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs2,
+    standaloneOutputs2
+  >,
+  factory3: CraftFactory<
+    [outputs1, outputs2],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs3,
+    standaloneOutputs3
+  >,
+  factory4: CraftFactory<
+    [outputs1, outputs2, outputs3],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs4,
+    standaloneOutputs4
+  >,
+  factory5: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs5,
+    standaloneOutputs5
+  >,
+  factory6: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4, outputs5],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs6,
+    standaloneOutputs6
+  >,
+): ToCraftOutputs<
+  [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6],
+  [
+    standaloneOutputs1,
+    standaloneOutputs2,
+    standaloneOutputs3,
+    standaloneOutputs4,
+    standaloneOutputs5,
+    standaloneOutputs6,
+  ],
+  {
+    providedIn: NoInfer<ProvidedIn>;
+    name: NoInfer<Name>;
+    implements?: ToImplementContract;
+  }
+>;
+export function craft<
+  outputs1 extends ContextConstraints,
+  outputs2 extends ContextConstraints,
+  outputs3 extends ContextConstraints,
+  outputs4 extends ContextConstraints,
+  outputs5 extends ContextConstraints,
+  standaloneOutputs1 extends StandaloneOutputsConstraints,
+  standaloneOutputs2 extends StandaloneOutputsConstraints,
+  standaloneOutputs3 extends StandaloneOutputsConstraints,
+  standaloneOutputs4 extends StandaloneOutputsConstraints,
+  standaloneOutputs5 extends StandaloneOutputsConstraints,
+  const ProvidedIn extends ProvidedInOption,
+  const Name extends string,
+  ToImplementContract,
+>(
+  options: {
+    providedIn: ProvidedIn;
+    name: Name;
+    implements?: ToImplementContract;
+  },
+  factory1: CraftFactory<
+    [_EmptyContext],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs1,
+    standaloneOutputs1
+  >,
+  factory2: CraftFactory<
+    [outputs1],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs2,
+    standaloneOutputs2
+  >,
+  factory3: CraftFactory<
+    [outputs1, outputs2],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs3,
+    standaloneOutputs3
+  >,
+  factory4: CraftFactory<
+    [outputs1, outputs2, outputs3],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs4,
+    standaloneOutputs4
+  >,
+  factory5: CraftFactory<
+    [outputs1, outputs2, outputs3, outputs4],
+    {
+      providedIn: NoInfer<ProvidedIn>;
+      name: NoInfer<Name>;
+    },
+    outputs5,
+    standaloneOutputs5
+  >,
+): ToCraftOutputs<
+  [outputs1, outputs2, outputs3, outputs4, outputs5],
+  [
+    standaloneOutputs1,
+    standaloneOutputs2,
+    standaloneOutputs3,
+    standaloneOutputs4,
+    standaloneOutputs5,
+  ],
+  {
+    providedIn: NoInfer<ProvidedIn>;
+    name: NoInfer<Name>;
+    implements?: ToImplementContract;
+  }
+>;
+export function craft<
+  outputs1 extends ContextConstraints,
+  outputs2 extends ContextConstraints,
+  outputs3 extends ContextConstraints,
+  outputs4 extends ContextConstraints,
   standaloneOutputs1 extends StandaloneOutputsConstraints,
   standaloneOutputs2 extends StandaloneOutputsConstraints,
   standaloneOutputs3 extends StandaloneOutputsConstraints,
