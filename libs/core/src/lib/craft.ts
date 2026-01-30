@@ -10,6 +10,7 @@ import {
   inject,
   InjectionToken,
   Injector,
+  Provider,
   signal,
   untracked,
 } from '@angular/core';
@@ -200,6 +201,10 @@ type EnableInputsToBeExternallyProvided<Inputs, Enable> = {
 
 type IsNotFeature<ProvidedIn extends ProvidedInOption> =
   ProvidedIn extends 'feature' ? false : true;
+
+type IsScoped<ProvidedIn extends ProvidedInOption> = ProvidedIn extends 'scoped'
+  ? true
+  : false;
 
 type ReplaceStandaloneStoreToken<
   StandaloneOutputs extends StandaloneOutputsConstraints,
@@ -403,6 +408,11 @@ type ToCraftOutputs<
           MethodsToConnect
         > &
         CraftToken<MergedContext, StoreConfig> &
+        (IsScoped<StoreConfig['providedIn']> extends true
+          ? {
+              [k in `provide${Capitalize<StoreConfig['name']>}Craft`]: () => Provider;
+            }
+          : {}) &
         StandaloneOutputs
     : {
         error: NonNullable<StoreConfig['implements']> extends Function
@@ -1325,6 +1335,12 @@ export function craft(
     name: options?.name,
     implements: options?.implements,
   };
+  const name = options?.name ?? '';
+  const capitalizedName = name
+    ? name.charAt(0).toUpperCase() + name.slice(1)
+    : '';
+  const injectNameCraft = `inject${capitalizedName}Craft`;
+  const craftNameCraft = `craft${capitalizedName}`;
 
   const _cloudProxy = new Proxy({}, {});
 
@@ -1347,31 +1363,33 @@ export function craft(
   let sharedContext: ContextConstraints | undefined = undefined;
   const pluggableInputs = createSignalProxy(signal({}));
   let inputsKeysSet: Set<string> | undefined = undefined;
-  const token = new InjectionToken('CraftStore', {
-    providedIn,
-    factory: () => {
-      const injector = inject(Injector);
-      const { propsAndMethods, context } = mergeContextAndProps({
-        factoriesList,
-        pluggableInputs,
-        injector,
-        storeConfig,
-        _cloudProxy,
-      });
-      inputsKeysSet = new Set(
-        Object.keys((context as ContextConstraints)._inputs),
-      );
-      sharedContext = context;
+  const craftFactory = () => {
+    const injector = inject(Injector);
+    const { propsAndMethods, context } = mergeContextAndProps({
+      factoriesList,
+      pluggableInputs,
+      injector,
+      storeConfig,
+      _cloudProxy,
+    });
+    inputsKeysSet = new Set(
+      Object.keys((context as ContextConstraints)._inputs),
+    );
+    sharedContext = context;
 
-      return propsAndMethods;
-    },
-  });
-  const name = options?.name ?? '';
-  const capitalizedName = name
-    ? name.charAt(0).toUpperCase() + name.slice(1)
-    : '';
-  const injectNameCraft = `inject${capitalizedName}Craft`;
-  const craftNameCraft = `craft${capitalizedName}`;
+    return propsAndMethods;
+  };
+  const token = providedIn
+    ? new InjectionToken(`Craft${capitalizedName}Token`, {
+        providedIn,
+        factory: craftFactory,
+      })
+    : new InjectionToken(`Craft${capitalizedName}Token`);
+  const provideCraftFn = () =>
+    ({
+      provide: token,
+      useFactory: craftFactory,
+    }) satisfies Provider;
 
   const injectCraft = () => injectNameCraft;
 
@@ -1487,6 +1505,7 @@ export function craft(
       };
     },
     [`${capitalizedName}Craft`]: token,
+    [`provide${capitalizedName}Craft`]: provideCraftFn,
     ...extractedStandaloneOutputs,
   } as ToCraftOutputs<
     _EmptyContext[],

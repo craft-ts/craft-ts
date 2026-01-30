@@ -1680,3 +1680,32 @@ describe('craft should accept contract/implementation', () => {
     >;
   });
 });
+
+describe('scoped craft', () => {
+  it('should expose a provide function that can be use in providers array', async () => {
+    const { injectScopedStoreCraft, provideScopedStoreCraft } = craft(
+      {
+        name: 'scopedStore',
+        providedIn: 'scoped',
+      },
+      craftState('counter', () =>
+        state(0, ({ state, set }) => ({
+          increment: () => set(state() + 1),
+          decrement: () => set(state() - 1),
+        })),
+      ),
+    );
+
+    TestBed.configureTestingModule({
+      // providers: [provideScopedStoreCraft()],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      // todo regarder pourquoi injectScopedStoreCraft récupère quelque chose alors qu'il ne devrait pas à cause du scoped ?
+      const scopedStore = injectScopedStoreCraft();
+      expect(scopedStore.counter()).toBe(0);
+      scopedStore.counterIncrement();
+      expect(scopedStore.counter()).toBe(1);
+    });
+  });
+});

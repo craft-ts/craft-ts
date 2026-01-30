@@ -31,4 +31,22 @@ export const appRoutes: Route[] = [
     path: 'craft/query/:userId',
     loadComponent: () => import('./examples/craft/query/query'),
   },
+  {
+    path: 'craft/mutation/:userId',
+    loadComponent: () => import('./examples/craft/mutation/mutation'),
+  },
+  {
+    path: 'craft/list-with-pagination',
+    loadComponent: () =>
+      import('./examples/craft/list-with-pagination/list-with-pagination'),
+  },
+  {
+    path: 'craft/granular-mutation',
+    loadComponent: () =>
+      import('./examples/craft/granular-mutation/granular-mutation'),
+  },
+  // {
+  //   path: 'craft/full-demo',
+  //   loadComponent: () => import('./examples/craft/full-demo/full-demo'),
+  // },
 ];
