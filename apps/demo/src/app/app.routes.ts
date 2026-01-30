@@ -45,8 +45,8 @@ export const appRoutes: Route[] = [
     loadComponent: () =>
       import('./examples/craft/granular-mutation/granular-mutation'),
   },
-  // {
-  //   path: 'craft/full-demo',
-  //   loadComponent: () => import('./examples/craft/full-demo/full-demo'),
-  // },
+  {
+    path: 'craft/full-demo',
+    loadComponent: () => import('./examples/craft/full-demo/full-demo'),
+  },
 ];
