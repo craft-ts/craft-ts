@@ -5,7 +5,7 @@ The `insertLocalStorage` insertion automatically synchronizes state with browser
 ## Import
 
 ```typescript
-import { insertLocalStorage } from '@ng-craft/core';
+import { insertLocalStorage } from '@ng-angular-stack/craft';
 ```
 
 ## Basic Usage

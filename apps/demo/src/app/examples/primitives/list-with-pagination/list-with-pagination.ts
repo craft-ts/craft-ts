@@ -7,7 +7,7 @@ import {
   insertPaginationPlaceholderData,
   query,
   queryParam,
-} from '@ng-craft/core';
+} from '@ng-angular-stack/craft';
 
 @Component({
   selector: 'app-list-with-pagination',

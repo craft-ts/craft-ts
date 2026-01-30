@@ -5,7 +5,7 @@ Creates a standalone method to set all query parameters at once for use in Angul
 ## Import
 
 ```typescript
-import { craftSetAllQueriesParamsStandalone } from '@ng-craft/core';
+import { craftSetAllQueriesParamsStandalone } from '@ng-angular-stack/craft';
 ```
 
 ## Introduction

@@ -11,7 +11,7 @@ import {
   insertPaginationPlaceholderData,
   query,
   queryParam,
-} from '@ng-craft/core';
+} from '@ng-angular-stack/craft';
 
 const { injectUserListCraft, provideUserListCraft } = craft(
   {

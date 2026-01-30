@@ -5,7 +5,7 @@ The `insertReactOnMutation` insertion allows state to automatically react to mut
 ## Import
 
 ```typescript
-import { insertReactOnMutation } from '@ng-craft/core';
+import { insertReactOnMutation } from '@ng-angular-stack/craft';
 ```
 
 ## Basic Usage

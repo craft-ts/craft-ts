@@ -33,14 +33,14 @@ Resources and information about @ng-craft for articles, presentations, and shari
 ## Installation
 
 ```shell
-npm i @ng-craft/core@latest
+npm i @ng-angular-stack/craft@latest
 ```
 
 ## Links
 
 - **GitHub**: [github.com/ng-angular-stack/ng-craft](https://github.com/ng-angular-stack/ng-craft)
 - **Documentation**: [ng-angular-stack.github.io/craft/](https://ng-angular-stack.github.io/craft/)
-- **NPM**: [npmjs.com/package/@ng-craft/core](https://npmjs.com/package/@ng-craft/core)
+- **NPM**: [npmjs.com/package/@ng-angular-stack/craft](https://npmjs.com/package/@ng-angular-stack/craft)
 
 ## Social Media
 

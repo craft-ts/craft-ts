@@ -5,7 +5,7 @@ Creates a query definition for use within a craft store, enabling reactive data 
 ## Import
 
 ```typescript
-import { craftQuery } from '@ng-craft/core';
+import { craftQuery } from '@ng-angular-stack/craft';
 ```
 
 ## Introduction

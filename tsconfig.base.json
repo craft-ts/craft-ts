@@ -15,7 +15,7 @@
     "baseUrl": ".",
     "customConditions": ["@ng-craft/source"],
     "paths": {
-      "@ng-craft/core": ["libs/core/src/index.ts"],
+      "@ng-angular-stack/craft": ["libs/core/src/index.ts"],
       "test-type": ["libs/test-type/src/index.ts"]
     }
   }

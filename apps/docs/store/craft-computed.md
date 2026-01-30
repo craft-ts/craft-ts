@@ -5,7 +5,7 @@ Creates computed signals derived from other craft store entries (queries, mutati
 ## Import
 
 ```typescript
-import { craftComputedStates } from '@ng-craft/core';
+import { craftComputedStates } from '@ng-angular-stack/craft';
 ```
 
 ## Introduction

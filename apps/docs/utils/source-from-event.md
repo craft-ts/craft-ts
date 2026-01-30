@@ -5,13 +5,13 @@ Create a source from DOM events or event emitters.
 ## Import
 
 ```typescript
-import { sourceFromEvent } from '@ng-craft/core';
+import { sourceFromEvent } from '@ng-angular-stack/craft';
 ```
 
 ## Basic Usage
 
 ```typescript
-import { state, sourceFromEvent } from '@ng-craft/core';
+import { state, sourceFromEvent } from '@ng-angular-stack/craft';
 
 const button = document.querySelector('button')!;
 

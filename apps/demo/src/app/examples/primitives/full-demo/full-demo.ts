@@ -15,7 +15,7 @@ import {
   query,
   queryParam,
   state,
-} from '@ng-craft/core';
+} from '@ng-angular-stack/craft';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, User } from './api.service';
 

@@ -1,6 +1,24 @@
 {
-  "name": "@ng-craft/core",
+  "name": "@ng-angular-stack/craft",
   "version": "0.0.1",
+  "description": "Reactive State Management for Angular - Type-safe, signal-based utilities for composable and reusable state management",
+  "author": "Romain Geffrault",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ng-angular-stack/ng-craft.git"
+  },
+  "keywords": [
+    "angular",
+    "state management",
+    "signals",
+    "reactive",
+    "typescript",
+    "state",
+    "store",
+    "angular signals",
+    "ng-craft"
+  ],
   "peerDependencies": {
     "@angular/common": "^21.0.0",
     "@angular/core": "^21.0.0"

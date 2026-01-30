@@ -10,7 +10,7 @@ import {
   ResourceByIdRef,
   source,
   state,
-} from '@ng-craft/core';
+} from '@ng-angular-stack/craft';
 @Component({
   selector: 'app-test',
   standalone: true,

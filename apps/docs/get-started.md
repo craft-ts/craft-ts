@@ -5,7 +5,7 @@
 ### Using npm
 
 ```shell
-npm i @ng-craft/core@latest
+npm i @ng-angular-stack/craft@latest
 ```
 
 :::tip

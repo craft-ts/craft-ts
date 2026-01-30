@@ -18,7 +18,7 @@ import {
   insertReactOnMutation,
   query,
   mutation,
-} from '@ng-craft/core';
+} from '@ng-angular-stack/craft';
 
 const { injectUserCraft } = craft(
   {

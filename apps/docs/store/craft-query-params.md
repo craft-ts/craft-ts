@@ -5,7 +5,7 @@ Creates a craft factory for managing multiple reactive query parameter groups in
 ## Import
 
 ```typescript
-import { craftQueryParams } from '@ng-craft/core';
+import { craftQueryParams } from '@ng-angular-stack/craft';
 ```
 
 ## Introduction

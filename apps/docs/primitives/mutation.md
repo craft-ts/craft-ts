@@ -5,7 +5,7 @@ The `mutation` primitive handles server updates (POST, PUT, DELETE) with loading
 ## Import
 
 ```typescript
-import { mutation } from '@ng-craft/core';
+import { mutation } from '@ng-angular-stack/craft';
 ```
 
 ## Basic Examples

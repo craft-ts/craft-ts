@@ -9,7 +9,7 @@ import { Injectable } from '@angular/core';
  *
  * @example
  * ```typescript
- * import { GlobalPersisterHandlerService } from '@ng-craft/core';
+ * import { GlobalPersisterHandlerService } from '@ng-angular-stack/craft';
  *
  * export class AppComponent {
  *   constructor(private persisterHandler: GlobalPersisterHandlerService) {}

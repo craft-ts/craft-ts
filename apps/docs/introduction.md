@@ -48,7 +48,7 @@ Designed for logic composition and reuse:
 - **And much more...**
 
 ```typescript
-import { state, insertLocalStorage } from '@ng-craft/core';
+import { state, insertLocalStorage } from '@ng-angular-stack/craft';
 
 // Compose state with localStorage sync
 const myState = state(
@@ -341,7 +341,7 @@ import {
   mutation,
   craft,
   // ... and more
-} from '@ng-craft/core';
+} from '@ng-angular-stack/craft';
 ```
 
 ## Next Steps

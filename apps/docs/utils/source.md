@@ -5,7 +5,7 @@ The `Source` concept represents an event stream or data source that can drive st
 ## Import
 
 ```typescript
-import { Source } from '@ng-craft/core';
+import { Source } from '@ng-angular-stack/craft';
 ```
 
 ## What is a Source?

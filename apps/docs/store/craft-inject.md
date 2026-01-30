@@ -5,7 +5,7 @@ Injects Angular services and tokens into a craft store, making them accessible t
 ## Import
 
 ```typescript
-import { craftInject } from '@ng-craft/core';
+import { craftInject } from '@ng-angular-stack/craft';
 ```
 
 ## Introduction
