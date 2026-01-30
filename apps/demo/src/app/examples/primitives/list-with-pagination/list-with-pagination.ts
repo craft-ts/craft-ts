@@ -11,7 +11,6 @@ import {
 
 @Component({
   selector: 'app-list-with-pagination',
-  standalone: true,
   imports: [CommonModule, StatusComponent],
   template: `
     <div class="container">

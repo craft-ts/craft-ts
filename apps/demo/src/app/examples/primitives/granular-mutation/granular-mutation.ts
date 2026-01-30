@@ -13,7 +13,6 @@ import { ApiService, User } from './api.service';
 
 @Component({
   selector: 'app-granular-mutation',
-  standalone: true,
   imports: [CommonModule, StatusComponent],
   template: `
     <div class="container">
