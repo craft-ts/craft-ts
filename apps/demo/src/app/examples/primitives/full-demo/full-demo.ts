@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
 } from '@angular/core';
 import {
@@ -23,7 +24,6 @@ import { ApiService, User } from './api.service';
   standalone: true,
   imports: [CommonModule, StatusComponent],
   template: `
-    TODO reload si liste vide, mais faut que le service gere ca
     <div class="container">
       <main class="content">
         <div class="content-wrapper">
@@ -42,7 +42,7 @@ import { ApiService, User } from './api.service';
                 "
                 (click)="bulkDelete.mutate(selectedRows())"
               >
-                Bulk Delete Selected Users {{ selectedRows().length }}
+                Bulk Delete Selected Users ({{ selectedRows().length || '-' }})
                 <app-status [status]="bulkDelete.status()" />
               </button>
             </div>
@@ -54,9 +54,9 @@ import { ApiService, User } from './api.service';
                     <th>
                       <input
                         type="checkbox"
-                        [checked]="isAllSelected()"
-                        [indeterminate]="isSomeSelected()"
-                        (change)="toggleAllSelection()"
+                        [checked]="selectedRows.isAllSelected()"
+                        [indeterminate]="selectedRows.isSomeSelected()"
+                        (change)="selectedRows.toggleAllSelection()"
                       />
                     </th>
                     <th>ID</th>
@@ -197,56 +197,10 @@ export default class FullDemo {
   );
   private readonly apiService = inject(ApiService);
 
-  protected readonly selectedRows = state(
-    [] as string[],
-    ({ update, set }) => ({
-      toggleSelection: (id: string) =>
-        update((current) =>
-          current.includes(id)
-            ? current.filter((item) => item !== id)
-            : [...current, id],
-        ),
-      selectAll: (ids: string[]) => set(ids),
-      deselectAll: () => set([]),
-      isSelected: (id: string) => {
-        return this.selectedRows().includes(id);
-      },
-    }),
-  );
-
-  protected readonly isAllSelected = computed(() => {
-    const data = this.usersQuery.currentPageData();
-    const selected = this.selectedRows();
-    return (
-      data &&
-      data.length > 0 &&
-      data.every((user) => selected.includes(user.id))
-    );
-  });
-
-  protected readonly isSomeSelected = computed(
-    () =>
-      this.usersQuery
-        .currentPageData()
-        ?.some((user) => this.selectedRows().includes(user.id)) &&
-      !this.isAllSelected(),
-  );
-
-  protected toggleAllSelection() {
-    if (this.isAllSelected()) {
-      this.selectedRows.deselectAll();
-    } else {
-      const allIds =
-        this.usersQuery.currentPageData()?.map((user) => user.id) || [];
-      this.selectedRows.selectAll(allIds);
-    }
-  }
-
   protected readonly bulkDelete = mutation({
     method: (ids: string[]) => ids,
     loader: async ({ params: ids }) => {
       await this.apiService.bulkDelete(ids);
-      this.selectedRows.deselectAll();
       return ids;
     },
   });
@@ -315,6 +269,61 @@ export default class FullDemo {
           queryResource.hasValue() && queryResource.value().length === 0,
       },
     }),
+  );
+
+  protected readonly selectedRows = state(
+    [] as string[],
+    ({ update, set, state: selectedRows }) => {
+      const isAllSelected = computed(
+        () =>
+          this.usersQuery.currentPageData()?.length &&
+          this.usersQuery
+            .currentPageData()
+            ?.every((user) => selectedRows().includes(user.id)),
+      );
+      return {
+        toggleSelection: (id: string) =>
+          update((current) =>
+            current.includes(id)
+              ? current.filter((item) => item !== id)
+              : [...current, id],
+          ),
+        isSelected: (id: string) => {
+          return selectedRows().includes(id);
+        },
+        isAllSelected,
+        isSomeSelected: computed(
+          () =>
+            this.usersQuery
+              .currentPageData()
+              ?.some((user) => selectedRows().includes(user.id)) &&
+            !isAllSelected(),
+        ),
+        toggleAllSelection: () => {
+          if (isAllSelected()) {
+            set([]);
+          } else {
+            const allIds =
+              this.usersQuery.currentPageData()?.map((user) => user.id) || [];
+            set(allIds);
+          }
+        },
+      };
+    },
+    ({ set }) => {
+      // their is some advanced patterns, where we can avoid to use effect (by using source)
+      const _resetWhenCurrentPageIsResolved = effect(() => {
+        if (this.usersQuery.currentPageStatus() === 'resolved') {
+          set([]);
+        }
+      });
+      const _resetWhenBulkDeleteIsResolved = effect(() => {
+        if (this.bulkDelete.status() === 'resolved') {
+          set([]);
+        }
+      });
+      return {};
+    },
   );
 
   protected updatePageSize(event: Event) {
