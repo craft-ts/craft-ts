@@ -1218,7 +1218,16 @@ export function craft<
     standaloneOutputs8
   >,
   factory9: CraftFactory<
-    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8],
+    [
+      outputs1,
+      outputs2,
+      outputs3,
+      outputs4,
+      outputs5,
+      outputs6,
+      outputs7,
+      outputs8,
+    ],
     {
       providedIn: NoInfer<ProvidedIn>;
       name: NoInfer<Name>;
@@ -1227,7 +1236,17 @@ export function craft<
     standaloneOutputs9
   >,
   factory10: CraftFactory<
-    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8, outputs9],
+    [
+      outputs1,
+      outputs2,
+      outputs3,
+      outputs4,
+      outputs5,
+      outputs6,
+      outputs7,
+      outputs8,
+      outputs9,
+    ],
     {
       providedIn: NoInfer<ProvidedIn>;
       name: NoInfer<Name>;
@@ -1236,7 +1255,18 @@ export function craft<
     standaloneOutputs10
   >,
 ): ToCraftOutputs<
-  [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8, outputs9, outputs10],
+  [
+    outputs1,
+    outputs2,
+    outputs3,
+    outputs4,
+    outputs5,
+    outputs6,
+    outputs7,
+    outputs8,
+    outputs9,
+    outputs10,
+  ],
   [
     standaloneOutputs1,
     standaloneOutputs2,
@@ -1356,7 +1386,16 @@ export function craft<
     standaloneOutputs8
   >,
   factory9: CraftFactory<
-    [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8],
+    [
+      outputs1,
+      outputs2,
+      outputs3,
+      outputs4,
+      outputs5,
+      outputs6,
+      outputs7,
+      outputs8,
+    ],
     {
       providedIn: NoInfer<ProvidedIn>;
       name: NoInfer<Name>;
@@ -1365,7 +1404,17 @@ export function craft<
     standaloneOutputs9
   >,
 ): ToCraftOutputs<
-  [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8, outputs9],
+  [
+    outputs1,
+    outputs2,
+    outputs3,
+    outputs4,
+    outputs5,
+    outputs6,
+    outputs7,
+    outputs8,
+    outputs9,
+  ],
   [
     standaloneOutputs1,
     standaloneOutputs2,
@@ -1482,7 +1531,16 @@ export function craft<
     standaloneOutputs8
   >,
 ): ToCraftOutputs<
-  [outputs1, outputs2, outputs3, outputs4, outputs5, outputs6, outputs7, outputs8],
+  [
+    outputs1,
+    outputs2,
+    outputs3,
+    outputs4,
+    outputs5,
+    outputs6,
+    outputs7,
+    outputs8,
+  ],
   [
     standaloneOutputs1,
     standaloneOutputs2,
