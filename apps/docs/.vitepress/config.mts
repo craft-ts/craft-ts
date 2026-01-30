@@ -2,9 +2,10 @@ import { defineConfig } from 'vitepress';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: '@ng-craft',
+  title: '@ng-angular-stack/craft',
   base: '/craft/',
-  description: '@ng-craft is a reactive state management tool for Angular',
+  description:
+    '@ng-angular-stack/craft is a reactive state management tool for Angular',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: '/assets/favicon.png',
