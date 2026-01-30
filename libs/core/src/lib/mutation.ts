@@ -55,7 +55,6 @@ type MutationConfig<
           >,
         ) => Promise<ResourceState>;
         stream?: never;
-        preservePreviousValue?: () => boolean;
       }
     | {
         /**
@@ -85,7 +84,6 @@ type MutationConfig<
             >
           >
         >;
-        preservePreviousValue?: () => boolean;
       }
     | {
         /**
@@ -121,7 +119,6 @@ type MutationConfig<
             >
           >
         >;
-        preservePreviousValue?: () => boolean;
       }
     | {
         /**
@@ -155,7 +152,6 @@ type MutationConfig<
           >,
         ) => Promise<ResourceState>;
         stream?: never;
-        preservePreviousValue?: () => boolean;
       }
     | {
         fromResourceById?: never;
@@ -183,7 +179,6 @@ type MutationConfig<
             >
           >
         >;
-        preservePreviousValue?: () => boolean;
       }
     | {
         /**
@@ -213,7 +208,6 @@ type MutationConfig<
           >,
         ) => Promise<ResourceState>;
         stream?: never;
-        preservePreviousValue?: () => boolean;
       }
   );
 

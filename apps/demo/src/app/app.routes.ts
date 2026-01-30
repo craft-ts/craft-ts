@@ -27,4 +27,8 @@ export const appRoutes: Route[] = [
     path: 'full-demo',
     loadComponent: () => import('./examples/primitives/full-demo/full-demo'),
   },
+  {
+    path: 'craft/query/:userId',
+    loadComponent: () => import('./examples/craft/query/query'),
+  },
 ];

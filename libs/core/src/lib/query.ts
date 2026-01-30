@@ -15,6 +15,7 @@ import { InsertionsResourcesFactory } from './query.core';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
+import { preservedResource } from './preserved-resource';
 
 type QueryConfig<
   ResourceState,
@@ -44,7 +45,7 @@ type QueryConfig<
         /**
          * Each the query load, the value will return undefined.
          * To avoid flickering display and also enable to the data to be retrieved from cache, use () => true
-         * default value: false
+         * default value: true
          */
         preservePreviousValue?: () => boolean;
       }
@@ -114,7 +115,7 @@ type QueryConfig<
         /**
          * Each the query load, the value will return undefined.
          * To avoid flickering display and also enable to the data to be retrieved from cache, use () => true
-         * default value: false
+         * default value: true
          */
         preservePreviousValue?: () => boolean;
       }
@@ -852,22 +853,6 @@ export function query<
  * ```
  *
  * @example
- * Query with caching to prevent flickering
- * ```ts
- * const postsQuery = query({
- *   params: () => ({ page: currentPage() }),
- *   preservePreviousValue: () => true, // Keep showing old data while loading
- *   loader: async ({ params }) => {
- *     const response = await fetch(`/api/posts?page=${params.page}`);
- *     return response.json();
- *   },
- * });
- *
- * // When page changes, old data remains visible until new data loads
- * // No flickering or empty states during navigation
- * ```
- *
- * @example
  * With custom methods via insertions
  * ```ts
  * const todosQuery = query(
@@ -995,10 +980,15 @@ export function query<
         identifier: queryConfig.identifier,
         equalParams: queryConfig.equalParams ?? 'useIdentifier',
       } as any)
-    : resource<QueryState, QueryParams>({
-        ...queryConfig,
-        params: resourceParamsSrc,
-      } as ResourceOptions<any, any>);
+    : !queryConfig.preservePreviousValue || queryConfig.preservePreviousValue()
+      ? preservedResource<QueryState, QueryParams>({
+          ...queryConfig,
+          params: resourceParamsSrc,
+        } as ResourceOptions<any, any>)
+      : resource<QueryState, QueryParams>({
+          ...queryConfig,
+          params: resourceParamsSrc,
+        } as ResourceOptions<any, any>);
 
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
