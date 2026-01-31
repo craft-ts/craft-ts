@@ -78,6 +78,7 @@ export default defineConfig({
             text: 'GlobalPersisterHandler',
             link: '/utils/global-persister-handler-service',
           },
+          { text: 'Entities Utilities', link: '/utils/entities-util' },
         ],
       },
       {
@@ -87,6 +88,10 @@ export default defineConfig({
       {
         text: 'Press kit',
         link: '/press-kit',
+      },
+      {
+        text: 'Backlog',
+        link: '/backlog',
       },
     ],
     socialLinks: [
