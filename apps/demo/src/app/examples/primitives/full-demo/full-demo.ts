@@ -14,6 +14,8 @@ import {
   mutation,
   query,
   queryParam,
+  removeMany,
+  removeOne,
   state,
 } from '@ng-angular-stack/craft';
 import { StatusComponent } from '../../../ui/status.component';
@@ -246,22 +248,28 @@ export default class FullDemo {
     insertReactOnMutation(this.deleteUser, {
       filter: ({ mutationIdentifier, queryResource }) =>
         queryResource.hasValue() &&
-        (queryResource.value().some((item) => item.id === mutationIdentifier) ||
-          queryResource.value().length === 0),
+        queryResource.value().some((item) => item.id === mutationIdentifier),
       optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-        queryResource.value()?.filter((item) => item.id !== mutationIdentifier),
+        removeOne({
+          entities: queryResource.value(),
+          id: mutationIdentifier,
+        }),
+    }),
+    insertReactOnMutation(this.deleteUser, {
+      filter: ({ queryResource }) =>
+        queryResource.hasValue() && queryResource.value().length === 0,
       reload: {
         // reload the current page if there is no more data after mutation
-        onMutationResolved: ({ queryResource }) =>
-          queryResource.hasValue() && queryResource.value().length === 0,
+        onMutationResolved: true,
       },
     }),
     insertReactOnMutation(this.bulkDelete, {
       filter: ({ queryResource }) => queryResource.hasValue(),
       optimisticUpdate: ({ queryResource, mutationParams }) =>
-        queryResource
-          .value()
-          ?.filter((item) => !mutationParams.includes(item.id)),
+        removeMany({
+          entities: queryResource.value(),
+          ids: mutationParams,
+        }),
       reload: {
         // reload the current page if there is no more data after mutation
         onMutationResolved: ({ queryResource }) =>

@@ -23,6 +23,32 @@ type Update<T, K = string | number> = {
 };
 ```
 
+## Optional Identifier
+
+For entities that have an `id` property, the `identifier` parameter is **optional**. The functions will automatically use the `id` property.
+
+For entities without an `id` property, you must provide a custom `identifier` function.
+
+```typescript
+// Entity with id property - identifier is optional
+interface User {
+  id: number;
+  name: string;
+}
+
+const users: User[] = [{ id: 1, name: 'Alice' }];
+removeOne({ id: 1, entities: users }); // ✅ OK - no identifier needed
+
+// Entity without id property - identifier is required
+interface Product {
+  sku: string;
+  name: string;
+}
+
+const products: Product[] = [{ sku: 'A1', name: 'Widget' }];
+removeOne({ id: 'A1', entities: products, identifier: (p) => p.sku }); // ✅ OK
+```
+
 ## Usage Example
 
 ```typescript
@@ -39,8 +65,6 @@ interface User {
   name: string;
   email: string;
 }
-
-const identifier = (user: User) => user.id;
 
 let users: User[] = [];
 
@@ -59,22 +83,20 @@ users = addMany({
   entities: users,
 });
 
-// Update a user
+// Update a user (no identifier needed - User has id property)
 users = updateOne({
   update: { id: 1, changes: { name: 'Alice Updated' } },
   entities: users,
-  identifier,
 });
 
 // Upsert a user (update if exists, add if not)
 users = upsertOne({
   entity: { id: 4, name: 'David', email: 'david@example.com' },
   entities: users,
-  identifier,
 });
 
 // Remove a user
-users = removeOne({ id: 2, entities: users, identifier });
+users = removeOne({ id: 2, entities: users });
 ```
 
 ## API Reference
@@ -169,15 +191,21 @@ const result = setAll({ newEntities: [{ id: 2, name: 'Bob' }] });
 
 Replaces an element if it exists (based on id), otherwise adds it.
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function setOne<T, K = string | number>({
-  entity,
-  entities,
-  identifier,
-}: {
+// With identifier (required for entities without id property)
+function setOne<T, K = string | number>(params: {
   entity: T;
   entities: T[];
   identifier: IdSelector<T, K>;
+}): T[];
+
+// Without identifier (for entities with id property)
+function setOne<T extends { id: K }, K>(params: {
+  entity: T;
+  entities: T[];
+  identifier?: IdSelector<T, K>;
 }): T[];
 ```
 
@@ -185,23 +213,22 @@ function setOne<T, K = string | number>({
 
 ```typescript
 const users = [{ id: 1, name: 'Alice' }];
-const identifier = (u: User) => u.id;
 
-// Replace existing
+// Without identifier (User has id property)
 const result1 = setOne({
   entity: { id: 1, name: 'Alice Updated' },
   entities: users,
-  identifier,
 });
 // [{ id: 1, name: 'Alice Updated' }]
 
-// Add new
+// With custom identifier
+const products = [{ sku: 'A1', name: 'Widget' }];
 const result2 = setOne({
-  entity: { id: 2, name: 'Bob' },
-  entities: users,
-  identifier,
+  entity: { sku: 'A1', name: 'Widget Updated' },
+  entities: products,
+  identifier: (p) => p.sku,
 });
-// [{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }]
+// [{ sku: 'A1', name: 'Widget Updated' }]
 ```
 
 ---
@@ -210,15 +237,13 @@ const result2 = setOne({
 
 Replaces or adds multiple elements (based on id).
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function setMany<T, K = string | number>({
-  newEntities,
-  entities,
-  identifier,
-}: {
+function setMany<T, K = string | number>(params: {
   newEntities: T[];
   entities: T[];
-  identifier: IdSelector<T, K>;
+  identifier?: IdSelector<T, K>; // Optional if T has id
 }): T[];
 ```
 
@@ -226,14 +251,14 @@ function setMany<T, K = string | number>({
 
 ```typescript
 const users = [{ id: 1, name: 'Alice' }];
-const identifier = (u: User) => u.id;
+
+// Without identifier
 const result = setMany({
   newEntities: [
     { id: 1, name: 'Alice Updated' },
     { id: 2, name: 'Bob' },
   ],
   entities: users,
-  identifier,
 });
 // [{ id: 1, name: 'Alice Updated' }, { id: 2, name: 'Bob' }]
 ```
@@ -244,15 +269,13 @@ const result = setMany({
 
 Partially updates an existing element. Does nothing if the element is not found.
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function updateOne<T, K = string | number>({
-  update,
-  entities,
-  identifier,
-}: {
+function updateOne<T, K = string | number>(params: {
   update: Update<T, K>;
   entities: T[];
-  identifier: IdSelector<T, K>;
+  identifier?: IdSelector<T, K>; // Optional if T has id
 }): T[];
 ```
 
@@ -260,11 +283,11 @@ function updateOne<T, K = string | number>({
 
 ```typescript
 const users = [{ id: 1, name: 'Alice', email: 'alice@example.com' }];
-const identifier = (u: User) => u.id;
+
+// Without identifier
 const result = updateOne({
   update: { id: 1, changes: { name: 'Alice Updated' } },
   entities: users,
-  identifier,
 });
 // [{ id: 1, name: 'Alice Updated', email: 'alice@example.com' }]
 ```
@@ -275,15 +298,13 @@ const result = updateOne({
 
 Partially updates multiple existing elements.
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function updateMany<T, K = string | number>({
-  updates,
-  entities,
-  identifier,
-}: {
+function updateMany<T, K = string | number>(params: {
   updates: Update<T, K>[];
   entities: T[];
-  identifier: IdSelector<T, K>;
+  identifier?: IdSelector<T, K>; // Optional if T has id
 }): T[];
 ```
 
@@ -294,14 +315,14 @@ const users = [
   { id: 1, name: 'Alice' },
   { id: 2, name: 'Bob' },
 ];
-const identifier = (u: User) => u.id;
+
+// Without identifier
 const result = updateMany({
   updates: [
     { id: 1, changes: { name: 'Alice Updated' } },
     { id: 2, changes: { name: 'Bob Updated' } },
   ],
   entities: users,
-  identifier,
 });
 // [{ id: 1, name: 'Alice Updated' }, { id: 2, name: 'Bob Updated' }]
 ```
@@ -312,15 +333,13 @@ const result = updateMany({
 
 Updates an element if it exists (merging properties), otherwise adds it.
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function upsertOne<T, K = string | number>({
-  entity,
-  entities,
-  identifier,
-}: {
+function upsertOne<T, K = string | number>(params: {
   entity: T;
   entities: T[];
-  identifier: IdSelector<T, K>;
+  identifier?: IdSelector<T, K>; // Optional if T has id
 }): T[];
 ```
 
@@ -328,13 +347,11 @@ function upsertOne<T, K = string | number>({
 
 ```typescript
 const users = [{ id: 1, name: 'Alice', email: 'alice@example.com' }];
-const identifier = (u: User) => u.id;
 
-// Update existing (merges properties)
+// Update existing (merges properties) - without identifier
 const result1 = upsertOne({
   entity: { id: 1, name: 'Alice Updated' },
   entities: users,
-  identifier,
 });
 // [{ id: 1, name: 'Alice Updated', email: 'alice@example.com' }]
 
@@ -342,7 +359,6 @@ const result1 = upsertOne({
 const result2 = upsertOne({
   entity: { id: 2, name: 'Bob' },
   entities: users,
-  identifier,
 });
 // [{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }]
 ```
@@ -353,15 +369,13 @@ const result2 = upsertOne({
 
 Updates multiple elements if they exist, otherwise adds them.
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function upsertMany<T, K = string | number>({
-  newEntities,
-  entities,
-  identifier,
-}: {
+function upsertMany<T, K = string | number>(params: {
   newEntities: T[];
   entities: T[];
-  identifier: IdSelector<T, K>;
+  identifier?: IdSelector<T, K>; // Optional if T has id
 }): T[];
 ```
 
@@ -369,14 +383,14 @@ function upsertMany<T, K = string | number>({
 
 ```typescript
 const users = [{ id: 1, name: 'Alice' }];
-const identifier = (u: User) => u.id;
+
+// Without identifier
 const result = upsertMany({
   newEntities: [
     { id: 1, name: 'Alice Updated' },
     { id: 2, name: 'Bob' },
   ],
   entities: users,
-  identifier,
 });
 // [{ id: 1, name: 'Alice Updated' }, { id: 2, name: 'Bob' }]
 ```
@@ -387,15 +401,13 @@ const result = upsertMany({
 
 Removes an element by its id.
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function removeOne<T, K = string | number>({
-  id,
-  entities,
-  identifier,
-}: {
+function removeOne<T, K = string | number>(params: {
   id: K;
   entities: T[];
-  identifier: IdSelector<T, K>;
+  identifier?: IdSelector<T, K>; // Optional if T has id
 }): T[];
 ```
 
@@ -406,9 +418,19 @@ const users = [
   { id: 1, name: 'Alice' },
   { id: 2, name: 'Bob' },
 ];
-const identifier = (u: User) => u.id;
-const result = removeOne({ id: 1, entities: users, identifier });
+
+// Without identifier
+const result = removeOne({ id: 1, entities: users });
 // [{ id: 2, name: 'Bob' }]
+
+// With custom identifier for entities without id
+const products = [{ sku: 'A1', name: 'Widget' }];
+const result2 = removeOne({
+  id: 'A1',
+  entities: products,
+  identifier: (p) => p.sku,
+});
+// []
 ```
 
 ---
@@ -417,15 +439,13 @@ const result = removeOne({ id: 1, entities: users, identifier });
 
 Removes multiple elements by their ids.
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function removeMany<T, K = string | number>({
-  ids,
-  entities,
-  identifier,
-}: {
+function removeMany<T, K = string | number>(params: {
   ids: K[];
   entities: T[];
-  identifier: IdSelector<T, K>;
+  identifier?: IdSelector<T, K>; // Optional if T has id
 }): T[];
 ```
 
@@ -437,8 +457,9 @@ const users = [
   { id: 2, name: 'Bob' },
   { id: 3, name: 'Charlie' },
 ];
-const identifier = (u: User) => u.id;
-const result = removeMany({ ids: [1, 2], entities: users, identifier });
+
+// Without identifier
+const result = removeMany({ ids: [1, 2], entities: users });
 // [{ id: 3, name: 'Charlie' }]
 ```
 
@@ -478,17 +499,14 @@ const result = map({
 
 Applies a transformation function to a single element by its id.
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function mapOne<T, K = string | number>({
-  id,
-  mapFn,
-  entities,
-  identifier,
-}: {
+function mapOne<T, K = string | number>(params: {
   id: K;
   mapFn: (entity: T) => T;
   entities: T[];
-  identifier: IdSelector<T, K>;
+  identifier?: IdSelector<T, K>; // Optional if T has id
 }): T[];
 ```
 
@@ -499,12 +517,12 @@ const users = [
   { id: 1, name: 'alice' },
   { id: 2, name: 'bob' },
 ];
-const identifier = (u: User) => u.id;
+
+// Without identifier
 const result = mapOne({
   id: 1,
   mapFn: (u) => ({ ...u, name: u.name.toUpperCase() }),
   entities: users,
-  identifier,
 });
 // [{ id: 1, name: 'ALICE' }, { id: 2, name: 'bob' }]
 ```
@@ -536,13 +554,12 @@ const total = computedTotal({ entities: users });
 
 Returns all ids from the entities list.
 
+If the entity has an `id` property, the `identifier` is optional.
+
 ```typescript
-function computedIds<T, K = string | number>({
-  entities,
-  identifier,
-}: {
+function computedIds<T, K = string | number>(params: {
   entities: T[];
-  identifier: IdSelector<T, K>;
+  identifier?: IdSelector<T, K>; // Optional if T has id
 }): K[];
 ```
 
@@ -553,7 +570,16 @@ const users = [
   { id: 1, name: 'Alice' },
   { id: 2, name: 'Bob' },
 ];
-const identifier = (u: User) => u.id;
-const ids = computedIds({ entities: users, identifier });
+
+// Without identifier
+const ids = computedIds({ entities: users });
 // [1, 2]
+
+// With custom identifier
+const products = [{ sku: 'A1', name: 'Widget' }];
+const skus = computedIds({
+  entities: products,
+  identifier: (p) => p.sku,
+});
+// ['A1']
 ```

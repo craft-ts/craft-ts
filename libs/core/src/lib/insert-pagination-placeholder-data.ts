@@ -1,15 +1,47 @@
 import { computed } from '@angular/core';
 import { InsertionByIdParams } from './query.core';
 
+/**
+ * Provides placeholder data during pagination transitions for a smoother user experience.
+ *
+ * When navigating between pages, this insertion shows the previous page's data while
+ * the new page is loading, avoiding empty states during transitions.
+ *
+ * @returns An object containing:
+ * - `currentPageData`: Signal with the current page data or placeholder data during loading
+ * - `currentPageStatus`: Signal with the ResourceStatus of the current page
+ * - `isPlaceHolderData`: Signal indicating if placeholder data is being shown
+ * - `currentIdentifier`: Signal with the current page identifier
+ *
+ * @example
+ * ```typescript
+ * const pagination = signal(1);
+ *
+ * const userQuery = query(
+ *   {
+ *     params: pagination,
+ *     identifier: (params) => '' + params,
+ *     loader: async ({ params: page }) => fetchUsers(page),
+ *   },
+ *   insertPaginationPlaceholderData,
+ * );
+ *
+ * // Access the data (or placeholder during loading)
+ * const data = userQuery.currentPageData();
+ *
+ * // Check if showing placeholder
+ * const isPlaceholder = userQuery.isPlaceHolderData();
+ * ```
+ */
 export const insertPaginationPlaceholderData = <
-QueryResourceState extends object | undefined,
+  QueryResourceState extends object | undefined,
   QueryResourceParams,
   QueryResourceArgsParams,
   QueryIsMethod extends boolean,
   QuerySourceParams,
   QueryGroupIdentifier extends string,
   QueryInsertions,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
 >({
   resourceById,
   resourceParamsSrc,
@@ -70,5 +102,12 @@ QueryResourceState extends object | undefined,
       return currentResource?.status() ?? ('idle' as const);
     }),
     isPlaceHolderData: showPlaceHolderData,
+    currentIdentifier: computed(() => {
+      const page = resourceParamsSrc();
+      if (!page) {
+        return '' as QueryGroupIdentifier;
+      }
+      return identifier(page);
+    }),
   };
 };

@@ -37,6 +37,10 @@ describe('insertPaginationPlaceholderData', () => {
       expectTypeOf(finalResult.isPlaceHolderData).toEqualTypeOf<
         Signal<boolean>
       >();
+
+      expectTypeOf(finalResult.currentIdentifier).toEqualTypeOf<
+        Signal<string>
+      >();
     });
   });
 
@@ -64,10 +68,12 @@ describe('insertPaginationPlaceholderData', () => {
       await vi.advanceTimersByTimeAsync(15000);
       console.log('userQuery.currentPageData()', userQuery.currentPageData());
       expect(userQuery.currentPageData()).toEqual([{ name: 'User1' }]);
+      expect(userQuery.currentIdentifier()).toEqual('1');
       pagination.set(2);
       await vi.advanceTimersByTimeAsync(5000);
       expect(userQuery.currentPageData()).toEqual([{ name: 'User1' }]);
       expect(userQuery.currentPageStatus()).toEqual('loading');
+      expect(userQuery.currentIdentifier()).toEqual('2');
       await vi.advanceTimersByTimeAsync(7000);
       expect(userQuery.currentPageData()).toEqual([{ name: 'User2' }]);
       expect(userQuery.currentPageStatus()).toEqual('resolved');
