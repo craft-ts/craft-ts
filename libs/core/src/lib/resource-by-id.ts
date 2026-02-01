@@ -14,6 +14,10 @@ import {
 import { preservedResource } from './preserved-resource';
 import { Prettify } from './util/util.type';
 import { CraftResourceRef } from './util/craft-resource-ref';
+import {
+  resourceByIdChangesTracker,
+  resourceByIdChangesTrackerResult,
+} from './util/resource-by-id-changes-tracker.util';
 
 export type ResourceByIdHandler<
   GroupIdentifier extends string,
@@ -50,6 +54,11 @@ export type ResourceByIdHandler<
       paramsFromResourceById?: CraftResourceRef<unknown, unknown>;
     },
   ) => CraftResourceRef<State, ResourceParams>;
+  /**
+   * Tracks the status and value changes of resources.
+   * Provides signals for hasChange, ids, resolved, loading, reloading, error, and onlyValueChange.
+   */
+  changes: resourceByIdChangesTrackerResult<GroupIdentifier>;
 };
 
 export type Identifier<ResourceParams, GroupIdentifier> = (
@@ -201,11 +210,14 @@ export function resourceById<
     });
   }
 
+  const changesTracker = resourceByIdChangesTracker(resourceByGroup);
+
   const resourcesHandler: ResourceByIdHandler<
     GroupIdentifier,
     State,
     ResourceParams
   > = {
+    changes: changesTracker,
     reset: () => {
       Object.values(resourceByGroup()).forEach((resource) =>
         (resource as CraftResourceRef<State, ResourceParams>).destroy(),

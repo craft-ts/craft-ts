@@ -1,5 +1,4 @@
 import { computed, linkedSignal, Signal } from '@angular/core';
-import { ResourceByIdRef } from '../resource-by-id';
 import { CraftResourceRef } from './craft-resource-ref';
 
 export type ResourceStatus =
@@ -45,7 +44,7 @@ type ChangesByStatus<GroupIdentifier extends string> = {
  * - error: IDs that transitioned to 'error' status
  * - onlyValueChange: IDs where only the value changed (status stayed the same)
  *
- * @param resourceByIdRef - The ResourceByIdRef to track
+ * @param resourceByIdSignal - The signal containing the resource map to track
  * @returns An object with signals for different change types
  */
 export function resourceByIdChangesTracker<
@@ -53,13 +52,15 @@ export function resourceByIdChangesTracker<
   State,
   ResourceParams,
 >(
-  resourceByIdRef: ResourceByIdRef<GroupIdentifier, State, ResourceParams>,
+  resourceByIdSignal: Signal<
+    Partial<Record<GroupIdentifier, CraftResourceRef<State, ResourceParams>>>
+  >,
 ): resourceByIdChangesTrackerResult<GroupIdentifier> {
   const changes = linkedSignal<
     FullResourceStatusSnapshot<GroupIdentifier>,
     ChangesByStatus<GroupIdentifier>
   >({
-    source: () => getFullStatusSnapshot(resourceByIdRef()),
+    source: () => getFullStatusSnapshot(resourceByIdSignal()),
     computation: (currentSnapshot, previous) => {
       const emptyChanges: ChangesByStatus<GroupIdentifier> = {
         ids: [],

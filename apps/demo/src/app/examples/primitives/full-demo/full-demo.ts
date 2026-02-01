@@ -318,7 +318,7 @@ export default class FullDemo {
         },
       };
     },
-    ({ set }) => {
+    ({ set, update }) => {
       // their is some advanced patterns, where we can avoid to use effect (by using source)
       const _resetWhenCurrentPageIsResolved = effect(() => {
         if (this.usersQuery.currentPageStatus() === 'resolved') {
@@ -328,6 +328,20 @@ export default class FullDemo {
       const _resetWhenBulkDeleteIsResolved = effect(() => {
         if (this.bulkDelete.status() === 'resolved') {
           set([]);
+        }
+      });
+
+      // todo add it to the craft example
+      const _removeDeletedItemsWhenDeleteUserIsResolved = effect(() => {
+        if (this.delayUserDeletion.changes.resolved().length > 0) {
+          update((v) =>
+            removeMany({
+              entities: v,
+              ids: this.delayUserDeletion.changes.resolved(),
+              // todo if the entities are string identifier can be omitted
+              identifier: (id) => id,
+            }),
+          );
         }
       });
       return {};

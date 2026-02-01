@@ -2,8 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { query, QueryOutput } from './query';
 import { craft } from './craft';
 import { craftQuery } from './craft-query';
-import { ResourceRef } from '@angular/core';
 import { ResourceByIdRef } from './resource-by-id';
+import { CraftResourceRef } from './util/craft-resource-ref';
 
 type User = {
   id: string;
@@ -178,11 +178,14 @@ describe('query Insertions output', () => {
           },
           (data) => {
             expectTypeOf(data.resource).toEqualTypeOf<
-              ResourceRef<{
-                id: string;
-                name: string;
-                email: string;
-              }>
+              CraftResourceRef<
+                NoInfer<{
+                  id: string;
+                  name: string;
+                  email: string;
+                }>,
+                string
+              >
             >();
             expect(data.resource).toBeDefined();
             return {

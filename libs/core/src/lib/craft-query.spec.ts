@@ -1,5 +1,5 @@
 import { Expect, Equal } from 'test-type';
-import { inject, ResourceRef, ResourceStreamItem, signal } from '@angular/core';
+import { inject, ResourceStreamItem, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { expectTypeOf, Mock, vi } from 'vitest';
 import { craft, CraftFactory } from './craft';
@@ -8,6 +8,7 @@ import { query, QueryOutput } from './query';
 import { craftQuery } from './craft-query';
 import { craftMutations } from './craft-mutations';
 import { insertReactOnMutation } from './insert-react-on-mutation';
+import { CraftResourceRef } from './util/craft-resource-ref';
 
 type User = {
   id: string;
@@ -963,13 +964,37 @@ describe('craftQuery typing', () => {
                 mutationParams: _mutationParams,
               }) => {
                 type _ExpectQueryResourceToBeTyped = Expect<
-                  Equal<typeof queryResource, ResourceRef<User>>
+                  Equal<
+                    typeof queryResource,
+                    CraftResourceRef<
+                      NoInfer<{
+                        id: string;
+                        name: string;
+                        email: string;
+                      }>,
+                      NoInfer<{
+                        id: string;
+                      }>
+                    >
+                  >
                 >;
                 type _ExpectMutationParamsToBeTyped = Expect<
                   Equal<typeof _mutationParams, { id: string }>
                 >;
                 type _ExpectMutationResourceToBeTyped = Expect<
-                  Equal<typeof _mutationResource, ResourceRef<User>>
+                  Equal<
+                    typeof _mutationResource,
+                    CraftResourceRef<
+                      NoInfer<{
+                        id: string;
+                        name: string;
+                        email: string;
+                      }>,
+                      NoInfer<{
+                        id: string;
+                      }>
+                    >
+                  >
                 >;
                 return queryResource.value();
               },
@@ -982,13 +1007,37 @@ describe('craftQuery typing', () => {
                   queryResource,
                 }) => {
                   type _ExpectQueryResourceToBeTyped = Expect<
-                    Equal<typeof queryResource, ResourceRef<User>>
+                    Equal<
+                      typeof queryResource,
+                      CraftResourceRef<
+                        NoInfer<{
+                          id: string;
+                          name: string;
+                          email: string;
+                        }>,
+                        NoInfer<{
+                          id: string;
+                        }>
+                      >
+                    >
                   >;
                   type _ExpectMutationParamsToBeTyped = Expect<
                     Equal<typeof mutationParams, { id: string }>
                   >;
                   type _ExpectMutationResourceToBeTyped = Expect<
-                    Equal<typeof mutationResource, ResourceRef<User>>
+                    Equal<
+                      typeof mutationResource,
+                      CraftResourceRef<
+                        NoInfer<{
+                          id: string;
+                          name: string;
+                          email: string;
+                        }>,
+                        NoInfer<{
+                          id: string;
+                        }>
+                      >
+                    >
                   >;
                   return true;
                 },
@@ -1001,13 +1050,37 @@ describe('craftQuery typing', () => {
                   targetedState,
                 }) => {
                   type _ExpectQueryResourceToBeTyped = Expect<
-                    Equal<typeof queryResource, ResourceRef<User>>
+                    Equal<
+                      typeof queryResource,
+                      CraftResourceRef<
+                        NoInfer<{
+                          id: string;
+                          name: string;
+                          email: string;
+                        }>,
+                        NoInfer<{
+                          id: string;
+                        }>
+                      >
+                    >
                   >;
                   type _ExpectMutationParamsToBeTyped = Expect<
                     Equal<typeof mutationParams, { id: string }>
                   >;
                   type _ExpectMutationResourceToBeTyped = Expect<
-                    Equal<typeof mutationResource, ResourceRef<User>>
+                    Equal<
+                      typeof mutationResource,
+                      CraftResourceRef<
+                        NoInfer<{
+                          id: string;
+                          name: string;
+                          email: string;
+                        }>,
+                        NoInfer<{
+                          id: string;
+                        }>
+                      >
+                    >
                   >;
                   type _ExpectTargetedStateToBeTyped = Expect<
                     Equal<typeof targetedState, string | undefined>

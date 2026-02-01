@@ -159,4 +159,43 @@ describe('resourceById', () => {
       expect(resourceByIdRef()['12345']).toBeUndefined();
     });
   });
+
+  it('should expose changes property with correct ids', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const sourceParams = signal<{ id: string } | undefined>(undefined);
+      const resourceByIdRef = resourceById({
+        identifier: (request) => request.id,
+        params: sourceParams,
+        loader: async ({ params }) => {
+          return params;
+        },
+      });
+
+      // Initially no changes
+      expect(resourceByIdRef.changes.hasChange()).toBe(false);
+      expect(resourceByIdRef.changes.ids()).toEqual([]);
+
+      // Add a resource with default value (local status)
+      resourceByIdRef.add({ id: '1' }, { defaultValue: { id: '1' } });
+      await vi.runAllTimersAsync();
+
+      // Should detect the new resource
+      expect(resourceByIdRef.changes.hasChange()).toBe(true);
+      expect(resourceByIdRef.changes.ids()).toContain('1');
+      expect(resourceByIdRef.changes.resolved()).toContain('1');
+
+      // Add another resource
+      resourceByIdRef.add({ id: '2' }, { defaultValue: { id: '2' } });
+      await vi.runAllTimersAsync();
+
+      expect(resourceByIdRef.changes.ids()).toContain('2');
+      expect(resourceByIdRef.changes.resolved()).toContain('2');
+
+      // Trigger loading by setting params
+      sourceParams.set({ id: '3' });
+      await vi.runAllTimersAsync();
+
+      expect(resourceByIdRef.changes.ids()).toContain('3');
+    });
+  });
 });
