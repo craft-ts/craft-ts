@@ -13,7 +13,8 @@ export function preservedResource<T, R>(
   const originalCopy = { ...original };
   const preserved = linkedSignal({
     source: () => ({
-      value: originalCopy.value(),
+      //@ts-expect-error originalCopy can access to isError
+      value: originalCopy.isError() ? undefined : originalCopy.value(),
       status: originalCopy.status(),
       isLoading: originalCopy.isLoading(),
     }),

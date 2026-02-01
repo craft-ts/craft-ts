@@ -57,6 +57,7 @@ describe('craftMutationById', () => {
         '~InternalType': 'Used to avoid TS type erasure';
         readonly error: Signal<Error | undefined>;
         readonly value: Signal<User | undefined>;
+        readonly safeValue: Signal<User | undefined>;
         readonly status: Signal<ResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;

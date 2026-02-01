@@ -1,4 +1,3 @@
-import { ResourceRef } from '@angular/core';
 import { ObjectDeepPath } from './object-deep-path-mapper.type';
 import {
   AccessTypeObjectPropertyByDottedPath,
@@ -6,11 +5,8 @@ import {
 } from './access-type-object-property-by-dotted-path.type';
 import { InternalType, MergeObjects } from './util.type';
 import { ResourceByIdRef } from '../../resource-by-id';
-import { ResourceLikeMutationRef } from '../../mutation';
-import {
-  MutationResourceByIdRefHelper,
-  MutationResourceRefHelper,
-} from '../../query.core';
+import { MutationResourceByIdRefHelper } from '../../query.core';
+import { CraftResourceRef } from '../craft-resource-ref';
 
 // todo rename, and rename server state constraints
 export type QueryAndMutationRecordConstraints = {
@@ -42,9 +38,13 @@ export type CustomReloadOnSpecificMutationStatus<
   data: MergeObjects<
     [
       {
-        queryResource: ResourceRef<QueryAndMutationRecord['query']['state']>;
-        mutationResource: ResourceRef<
-          QueryAndMutationRecord['mutation']['state']
+        queryResource: CraftResourceRef<
+          QueryAndMutationRecord['query']['state'],
+          QueryAndMutationRecord['query']['params']
+        >;
+        mutationResource: CraftResourceRef<
+          QueryAndMutationRecord['mutation']['state'],
+          QueryAndMutationRecord['mutation']['params']
         >;
         mutationParams: NonNullable<
           QueryAndMutationRecord['mutation']['params']
@@ -113,10 +113,16 @@ export type PatchQueryFn<
     [
       {
         queryResource: NoInfer<
-          ResourceRef<QueryAndMutationRecord['query']['state']>
+          CraftResourceRef<
+            QueryAndMutationRecord['query']['state'],
+            QueryAndMutationRecord['query']['params']
+          >
         >;
         mutationResource: NoInfer<
-          ResourceRef<QueryAndMutationRecord['mutation']['state']>
+          CraftResourceRef<
+            QueryAndMutationRecord['mutation']['state'],
+            QueryAndMutationRecord['mutation']['params']
+          >
         >;
         mutationParams: NonNullable<
           NoInfer<QueryAndMutationRecord['mutation']['params']>
@@ -149,9 +155,13 @@ export type FilterQueryById<
   data: MergeObjects<
     [
       {
-        queryResource: ResourceRef<QueryAndMutationRecord['query']['state']>;
-        mutationResource: ResourceRef<
-          NoInfer<QueryAndMutationRecord['mutation']['state']>
+        queryResource: CraftResourceRef<
+          QueryAndMutationRecord['query']['state'],
+          QueryAndMutationRecord['query']['params']
+        >;
+        mutationResource: CraftResourceRef<
+          NoInfer<QueryAndMutationRecord['mutation']['state']>,
+          NoInfer<QueryAndMutationRecord['mutation']['params']>
         >;
         mutationParams: NonNullable<
           NoInfer<QueryAndMutationRecord['mutation']['params']>

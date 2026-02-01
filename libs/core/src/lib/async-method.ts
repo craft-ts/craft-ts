@@ -4,6 +4,7 @@ import {
   resource,
   ResourceLoaderParams,
   ResourceOptions,
+  ResourceRef,
   ResourceStatus,
   ResourceStreamingLoader,
   Signal,
@@ -33,6 +34,7 @@ export type AsyncMethodRef<
           readonly status: Signal<ResourceStatus>;
           readonly error: Signal<Error | undefined>;
           readonly isLoading: Signal<boolean>;
+          readonly safeValue: Signal<Value | undefined>;
           hasValue(): boolean;
         }
       : {},
@@ -65,6 +67,7 @@ export type AsyncMethodRef<
                 readonly status: Signal<ResourceStatus>;
                 readonly error: Signal<Error | undefined>;
                 readonly isLoading: Signal<boolean>;
+                readonly safeValue: Signal<Value | undefined>;
                 hasValue(): boolean;
               }
             | undefined;
@@ -740,6 +743,15 @@ export function asyncMethod<
         ...asyncMethodConfig,
         params: resourceParamsSrc,
       } as ResourceOptions<any, any>);
+
+  if (!isUsingIdentifier) {
+    Object.assign(resourceTarget, {
+      safeValue: computed(() => {
+        const resourceRef = resourceTarget as ResourceRef<AsyncMethodState>;
+        return resourceRef.hasValue() ? resourceRef.value() : undefined;
+      }),
+    });
+  }
 
   return Object.assign(
     resourceTarget,

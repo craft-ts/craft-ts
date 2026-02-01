@@ -181,6 +181,10 @@ export type ResourceLikeQueryRef<
   [
     {
       readonly value: Signal<Value | undefined>;
+      /**
+       * Avoids to throw error when accessing value during error state
+       */
+      readonly safeValue: Signal<Value | undefined>;
       readonly status: Signal<ResourceStatus>;
       readonly error: Signal<Error | undefined>;
       readonly isLoading: Signal<boolean>;
@@ -225,6 +229,10 @@ export type ResourceByIdLikeQueryRef<
   select: (id: GroupIdentifier) =>
     | {
         readonly value: Signal<Value | undefined>;
+        /**
+         * Avoids to throw error when accessing value during error state
+         */
+        readonly safeValue: Signal<Value | undefined>;
         readonly status: Signal<ResourceStatus>;
         readonly error: Signal<Error | undefined>;
         readonly isLoading: Signal<boolean>;
@@ -989,7 +997,17 @@ export function query<
           ...queryConfig,
           params: resourceParamsSrc,
         } as ResourceOptions<any, any>);
-
+  if (
+    !isUsingIdentifier &&
+    !(!queryConfig.preservePreviousValue || queryConfig.preservePreviousValue())
+  ) {
+    Object.assign(resourceTarget, {
+      safeValue: computed(() => {
+        const resourceRef = resourceTarget as ResourceRef<QueryState>;
+        return resourceRef.hasValue() ? resourceRef.value() : undefined;
+      }),
+    });
+  }
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
     // byId is used to helps TS to correctly infer the resourceByGroup

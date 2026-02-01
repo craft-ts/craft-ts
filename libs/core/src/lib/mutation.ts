@@ -15,6 +15,7 @@ import { InsertionsResourcesFactory } from './query.core';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
+import { CraftResourceRef } from './util/craft-resource-ref';
 // todo refactor to share code with AsyncMethod
 
 type MutationConfig<
@@ -136,7 +137,12 @@ type MutationConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
+        params: (
+          entity: CraftResourceRef<
+            NoInfer<FromObjectState>,
+            NoInfer<FromObjectResourceParams>
+          >,
+        ) => Params;
         /**
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
@@ -228,6 +234,7 @@ export type ResourceLikeMutationRef<
       readonly status: Signal<ResourceStatus>;
       readonly error: Signal<Error | undefined>;
       readonly isLoading: Signal<boolean>;
+      readonly safeValue: Signal<Value | undefined>;
       hasValue(): boolean;
     },
     {
@@ -272,6 +279,7 @@ export type ResourceByIdLikeMutationRef<
         readonly status: Signal<ResourceStatus>;
         readonly error: Signal<Error | undefined>;
         readonly isLoading: Signal<boolean>;
+        readonly safeValue: Signal<Value | undefined>;
         hasValue(): boolean;
       }
     | undefined;
@@ -1018,6 +1026,15 @@ export function mutation<
         ...mutationConfig,
         params: resourceParamsSrc,
       } as ResourceOptions<any, any>);
+
+  if (!isUsingIdentifier) {
+    Object.assign(resourceTarget, {
+      safeValue: computed(() => {
+        const resourceRef = resourceTarget as ResourceRef<MutationState>;
+        return resourceRef.hasValue() ? resourceRef.value() : undefined;
+      }),
+    });
+  }
 
   return Object.assign(
     resourceTarget,

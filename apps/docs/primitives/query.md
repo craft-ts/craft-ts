@@ -22,7 +22,8 @@ const myQuery = query({
 });
 
 // Access query state
-console.log(myQuery.value()); // User data
+console.log(myQuery.value()); // User data (throws if status is 'error')
+console.log(myQuery.safeValue()); // User data (never throws, returns undefined on error)
 console.log(myQuery.isLoading()); // true/false
 console.log(myQuery.error()); // Error or undefined
 ```
@@ -140,6 +141,27 @@ const postsQuery = query({
 
 // When page changes, old data remains visible until new data loads
 ```
+
+## Safe Value Access
+
+Use `safeValue()` instead of `value()` when you want to access the query value without throwing an error:
+
+```typescript
+// value() throws an error when status is 'error'
+// This can cause issues in templates or computed signals
+try {
+  console.log(myQuery.value());
+} catch (e) {
+  console.log('Error accessing value');
+}
+
+// safeValue() never throws, returns undefined when status is 'error'
+console.log(myQuery.safeValue()); // undefined on error, value otherwise
+```
+
+::: tip
+Prefer `safeValue()` in templates and computed signals to avoid unexpected errors propagation.
+:::
 
 ## Best Practices
 

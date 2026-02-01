@@ -81,6 +81,32 @@ describe('asyncMethod', () => {
       expect(myAsyncMethod.value()).toBe('test');
     });
   });
+
+  it('should return undefined with safeValue when status is error', async () => {
+    TestBed.runInInjectionContext(async () => {
+      const myAsyncMethod = asyncMethod({
+        method: (shouldFail: boolean) => shouldFail,
+        loader: async ({ params: shouldFail }) => {
+          if (shouldFail) {
+            throw new Error('Test error');
+          }
+          return { success: true };
+        },
+      });
+
+      expect(myAsyncMethod.status()).toBe('idle');
+      myAsyncMethod.method(true);
+      expect(myAsyncMethod.status()).toBe('loading');
+      await vi.runAllTimersAsync();
+      expect(myAsyncMethod.status()).toBe('error');
+      expect(myAsyncMethod.error()).toBeInstanceOf(Error);
+      expect(myAsyncMethod.error()?.message).toBe('Test error');
+      expect(myAsyncMethod.hasValue()).toBe(false);
+
+      // safeValue should return undefined without throwing
+      expect(myAsyncMethod.safeValue()).toBeUndefined();
+    });
+  });
 });
 
 describe('asyncMethod types without identifier', () => {
@@ -135,6 +161,12 @@ describe('asyncMethod types without identifier', () => {
               }
             | undefined
           >;
+          readonly safeValue: Signal<
+            | {
+                searchChange: string;
+              }
+            | undefined
+          >;
           readonly status: Signal<ResourceStatus>;
           readonly error: Signal<Error | undefined>;
           readonly isLoading: Signal<boolean>;
@@ -142,6 +174,12 @@ describe('asyncMethod types without identifier', () => {
         };
         filterChange: {
           readonly value: Signal<
+            | {
+                filter: string;
+              }
+            | undefined
+          >;
+          readonly safeValue: Signal<
             | {
                 filter: string;
               }
@@ -220,6 +258,12 @@ describe('asyncMethod types without identifier', () => {
               }
             | undefined
           >;
+          readonly safeValue: Signal<
+            | {
+                searchChangeText: string;
+              }
+            | undefined
+          >;
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
@@ -230,6 +274,12 @@ describe('asyncMethod types without identifier', () => {
         filterChange: {
           readonly error: Signal<Error | undefined>;
           readonly value: Signal<
+            | {
+                filter: string;
+              }
+            | undefined
+          >;
+          readonly safeValue: Signal<
             | {
                 filter: string;
               }
@@ -272,6 +322,12 @@ describe('asyncMethod types without identifier', () => {
             }
           | undefined
         >;
+        readonly safeValue: Signal<
+          | {
+              searchChange: string;
+            }
+          | undefined
+        >;
         readonly status: Signal<ResourceStatus>;
         readonly error: Signal<Error | undefined>;
         readonly isLoading: Signal<boolean>;
@@ -305,6 +361,12 @@ describe('asyncMethod types without identifier', () => {
         readonly error: Signal<Error | undefined>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
+        readonly safeValue: Signal<
+          | {
+              searchChangeResult: string;
+            }
+          | undefined
+        >;
         source: ReadonlySource<{
           searchChange: string;
         }>;
@@ -368,6 +430,12 @@ describe('asyncMethod types with identifier', () => {
                 }
               | undefined
             >;
+            readonly safeValue: Signal<
+              | {
+                  searchChange: string;
+                }
+              | undefined
+            >;
             readonly status: Signal<ResourceStatus>;
             readonly error: Signal<Error | undefined>;
             readonly isLoading: Signal<boolean>;
@@ -383,6 +451,12 @@ describe('asyncMethod types with identifier', () => {
       expectTypeOf(filter).toEqualTypeOf<{
         readonly error: Signal<Error | undefined>;
         readonly value: Signal<
+          | {
+              filter: string;
+            }
+          | undefined
+        >;
+        readonly safeValue: Signal<
           | {
               filter: string;
             }
@@ -466,6 +540,12 @@ describe('asyncMethod types with identifier', () => {
                   }
                 | undefined
               >;
+              readonly safeValue: Signal<
+                | {
+                    searchChangeText: string;
+                  }
+                | undefined
+              >;
               readonly status: Signal<ResourceStatus>;
               readonly error: Signal<Error | undefined>;
               readonly isLoading: Signal<boolean>;
@@ -483,6 +563,12 @@ describe('asyncMethod types with identifier', () => {
         expectTypeOf(filter).toEqualTypeOf<{
           readonly error: Signal<Error | undefined>;
           readonly value: Signal<
+            | {
+                filter: string;
+              }
+            | undefined
+          >;
+          readonly safeValue: Signal<
             | {
                 filter: string;
               }
@@ -533,6 +619,12 @@ describe('asyncMethod types with identifier', () => {
             readonly status: Signal<ResourceStatus>;
             readonly error: Signal<Error | undefined>;
             readonly isLoading: Signal<boolean>;
+            readonly safeValue: Signal<
+              | {
+                  searchChange: string;
+                }
+              | undefined
+            >;
             hasValue(): boolean;
           }
         | undefined

@@ -22,6 +22,7 @@ import { ResourceByIdRef } from '../resource-by-id';
 import { explicitNestedEffect } from './types/util';
 import { InternalType } from './types/util.type';
 import { ResourceByIdLikeQueryRef, ResourceLikeQueryRef } from '../query';
+import { CraftResourceRef } from './craft-resource-ref';
 
 // todo improve internal function types
 export function reactOnMutationEffect<
@@ -156,7 +157,10 @@ export function reactOnMutationEffect<
             //@ts-expect-error not understand from where the error come from
             queryResourceTarget: queryTargeted,
             mutationEffectOptions: mutationEffectOptions as any,
-            mutationResource: mutationResource as unknown as ResourceRef<any>,
+            mutationResource: mutationResource as unknown as CraftResourceRef<
+              any,
+              any
+            >,
             mutationParamsSrc,
             mutationIdentifier: undefined,
             mutationResources: undefined,
@@ -278,7 +282,7 @@ export function reactOnMutationEffect<
                   queryResourceTarget: queryTargeted as any,
                   mutationEffectOptions: mutationEffectOptions as any,
                   mutationResource:
-                    mutationResource as unknown as ResourceRef<any>,
+                    mutationResource as unknown as CraftResourceRef<any, any>,
                   mutationParamsSrc,
                   mutationIdentifier: mutationIdentifier,
                   mutationResources: mutationTargeted as any,

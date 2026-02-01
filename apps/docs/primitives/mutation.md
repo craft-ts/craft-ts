@@ -31,7 +31,8 @@ createUser.mutate({ name: 'John', email: 'john@example.com' });
 // Access state
 console.log(createUser.isLoading()); // true/false
 console.log(createUser.error()); // Error or undefined
-console.log(createUser.value()); // Created user data
+console.log(createUser.value()); // Created user data (throws if status is 'error')
+console.log(createUser.safeValue()); // Created user data (never throws)
 ```
 
 ### source-based mutation
@@ -83,6 +84,26 @@ console.log(deleteUser.select('5')?.isLoading()); // true/false
 console.log(deleteUser.select('5')?.error()); // Error or undefined
 console.log(deleteUser.select('5')?.value()); // Created user data
 ```
+
+## Safe Value Access
+
+Use `safeValue()` instead of `value()` when you want to access the mutation value without throwing an error:
+
+```typescript
+// value() throws an error when status is 'error'
+try {
+  console.log(createUser.value());
+} catch (e) {
+  console.log('Error accessing value');
+}
+
+// safeValue() never throws, returns undefined when status is 'error'
+console.log(createUser.safeValue()); // undefined on error, value otherwise
+```
+
+::: tip
+Prefer `safeValue()` in templates and computed signals to avoid unexpected errors propagation.
+:::
 
 ## Important Notes
 

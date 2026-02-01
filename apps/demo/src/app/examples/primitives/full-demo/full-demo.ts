@@ -221,7 +221,7 @@ export default class FullDemo {
   protected readonly deleteUser = mutation({
     fromResourceById: this.delayUserDeletion._resourceById,
     params: (resource) => {
-      const value = resource?.hasValue() ? resource?.value() : undefined;
+      const value = resource?.safeValue();
       return value
         ? {
             ...value,
@@ -247,8 +247,9 @@ export default class FullDemo {
     insertPaginationPlaceholderData,
     insertReactOnMutation(this.deleteUser, {
       filter: ({ mutationIdentifier, queryResource }) =>
-        queryResource.hasValue() &&
-        queryResource.value().some((item) => item.id === mutationIdentifier),
+        queryResource
+          .safeValue()
+          ?.some((item) => item.id === mutationIdentifier) ?? false,
       optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
         removeOne({
           entities: queryResource.value(),
@@ -256,15 +257,15 @@ export default class FullDemo {
         }),
     }),
     insertReactOnMutation(this.deleteUser, {
-      filter: ({ queryResource }) =>
-        queryResource.hasValue() && queryResource.value().length === 0,
+      filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
       reload: {
         // reload the current page if there is no more data after mutation
         onMutationResolved: true,
       },
     }),
     insertReactOnMutation(this.bulkDelete, {
-      filter: ({ queryResource }) => queryResource.hasValue(),
+      filter: ({ queryResource }) =>
+        (queryResource.safeValue()?.length ?? 0) > 0,
       optimisticUpdate: ({ queryResource, mutationParams }) =>
         removeMany({
           entities: queryResource.value(),
@@ -273,7 +274,7 @@ export default class FullDemo {
       reload: {
         // reload the current page if there is no more data after mutation
         onMutationResolved: ({ queryResource }) =>
-          queryResource.hasValue() && queryResource.value().length === 0,
+          queryResource.safeValue()?.length === 0,
       },
     }),
   );

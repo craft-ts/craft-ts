@@ -1,9 +1,4 @@
-import {
-  ResourceRef,
-  ResourceStatus,
-  Signal,
-  WritableSignal,
-} from '@angular/core';
+import { ResourceStatus, Signal, WritableSignal } from '@angular/core';
 import {
   CustomReloadOnSpecificMutationStatus,
   FilterQueryById,
@@ -22,6 +17,7 @@ import {
   ResourceByIdLikeMutationRef,
   ResourceLikeMutationRef,
 } from './mutation';
+import { CraftResourceRef } from './util/craft-resource-ref';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -58,9 +54,13 @@ type UpdateData<
 > = MergeObjects<
   [
     {
-      queryResource: ResourceRef<QueryAndMutationRecord['query']['state']>;
-      mutationResource: ResourceRef<
-        NoInfer<QueryAndMutationRecord['mutation']['state']>
+      queryResource: CraftResourceRef<
+        QueryAndMutationRecord['query']['state'],
+        QueryAndMutationRecord['query']['params']
+      >;
+      mutationResource: CraftResourceRef<
+        NoInfer<QueryAndMutationRecord['mutation']['state']>,
+        NoInfer<QueryAndMutationRecord['mutation']['params']>
       >;
       mutationParams: NonNullable<
         NoInfer<QueryAndMutationRecord['mutation']['params']>
@@ -155,7 +155,10 @@ export function triggerQueryReloadFromMutationChange<
 }: {
   reload: ReloadQueriesConfig<QueryAndMutationRecord>;
   mutationStatus: string;
-  queryResource: ResourceRef<QueryAndMutationRecord['query']['state']>;
+  queryResource: CraftResourceRef<
+    QueryAndMutationRecord['query']['state'],
+    QueryAndMutationRecord['query']['params']
+  >;
   queryResources:
     | ResourceByIdRef<
         string,
@@ -163,7 +166,7 @@ export function triggerQueryReloadFromMutationChange<
         QueryAndMutationRecord['query']['params']
       >
     | undefined;
-  mutationResource: ResourceRef<any>;
+  mutationResource: CraftResourceRef<any, any>;
   mutationParamsSrc: Signal<
     QueryAndMutationRecord['mutation']['params'] | undefined
   >;
@@ -223,9 +226,12 @@ export function triggerQueryReloadOnMutationStatusChange<
         QueryAndMutationRecord['query']['state'],
         QueryAndMutationRecord['query']['params']
       >
-    | ResourceRef<QueryAndMutationRecord['query']['state']>;
+    | CraftResourceRef<
+        QueryAndMutationRecord['query']['state'],
+        QueryAndMutationRecord['query']['params']
+      >;
   mutationEffectOptions: QueryDeclarativeEffect<QueryAndMutationRecord>;
-  mutationResource: ResourceRef<any>;
+  mutationResource: CraftResourceRef<any, any>;
   mutationParamsSrc: Signal<QueryAndMutationRecord['mutation']['params']>;
   reloadCConfig: {
     onMutationError?:
@@ -274,7 +280,9 @@ export function triggerQueryReloadOnMutationStatusChange<
       QueryAndMutationRecord['query']['state'],
       QueryAndMutationRecord['query']['params']
     >;
-    Object.entries(queryResourcesById() as Record<string, ResourceRef<any>>)
+    Object.entries(
+      queryResourcesById() as Record<string, CraftResourceRef<any, any>>,
+    )
       .filter(([queryIdentifier, queryResource]) => {
         return (
           mutationEffectOptions as {
@@ -325,9 +333,12 @@ export function setAllPatchFromMutationOnQueryValue<
         QueryAndMutationRecord['query']['state'],
         QueryAndMutationRecord['query']['params']
       >
-    | ResourceRef<QueryAndMutationRecord['query']['state']>;
+    | CraftResourceRef<
+        QueryAndMutationRecord['query']['state'],
+        QueryAndMutationRecord['query']['params']
+      >;
   mutationEffectOptions: QueryDeclarativeEffect<QueryAndMutationRecord>;
-  mutationResource: ResourceRef<any>;
+  mutationResource: CraftResourceRef<any, any>;
   mutationParamsSrc: Signal<QueryAndMutationRecord['mutation']['params']>;
   mutationIdentifier:
     | QueryAndMutationRecord['mutation']['groupIdentifier']
@@ -382,7 +393,9 @@ export function setAllPatchFromMutationOnQueryValue<
     QueryAndMutationRecord['query']['state'],
     QueryAndMutationRecord['query']['params']
   >;
-  Object.entries(queryResourcesById() as Record<string, ResourceRef<any>>)
+  Object.entries(
+    queryResourcesById() as Record<string, CraftResourceRef<any, any>>,
+  )
     .filter(([queryIdentifier, queryResource]) =>
       (
         mutationEffectOptions as {
@@ -448,9 +461,12 @@ export function setAllUpdatesFromMutationOnQueryValue<
         QueryAndMutationRecord['query']['state'],
         QueryAndMutationRecord['query']['params']
       >
-    | ResourceRef<QueryAndMutationRecord['query']['state']>;
+    | CraftResourceRef<
+        QueryAndMutationRecord['query']['state'],
+        QueryAndMutationRecord['query']['params']
+      >;
   mutationEffectOptions: QueryDeclarativeEffect<QueryAndMutationRecord>;
-  mutationResource: ResourceRef<any> | undefined;
+  mutationResource: CraftResourceRef<any, any> | undefined;
   mutationParamsSrc: Signal<QueryAndMutationRecord['mutation']['params']>;
   mutationIdentifier:
     | QueryAndMutationRecord['mutation']['groupIdentifier']
@@ -494,7 +510,9 @@ export function setAllUpdatesFromMutationOnQueryValue<
     QueryAndMutationRecord['query']['state'],
     QueryAndMutationRecord['query']['params']
   >;
-  Object.entries(queryResourceById() as Record<string, ResourceRef<any>>)
+  Object.entries(
+    queryResourceById() as Record<string, CraftResourceRef<any, any>>,
+  )
     .filter(([queryIdentifier, queryResource]) =>
       (
         mutationEffectOptions as {
@@ -531,7 +549,7 @@ export type InsertionParams<
   ResourceParams,
   PreviousInsertionsOutputs,
 > = {
-  resource: ResourceRef<ResourceState>;
+  resource: CraftResourceRef<ResourceState, ResourceParams>;
   resourceParamsSrc: WritableSignal<ResourceParams>;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs

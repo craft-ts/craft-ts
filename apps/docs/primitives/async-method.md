@@ -30,7 +30,8 @@ console.log(delay.isLoading()); // true
 
 // After completion
 console.log(delay.status()); // 'resolved'
-console.log(delay.value()); // 'success'
+console.log(delay.value()); // 'success' (throws if status is 'error')
+console.log(delay.safeValue()); // 'success' (never throws)
 console.log(delay.hasValue()); // true
 ```
 
@@ -112,6 +113,26 @@ const shareContent = asyncMethod(
 shareContent.method({ title: 'Hello AI!', url: 'https://example.com' });
 shareContent.isMenuOpen(); // true while loading
 ```
+
+## Safe Value Access
+
+Use `safeValue()` instead of `value()` when you want to access the async method value without throwing an error:
+
+```typescript
+// value() throws an error when status is 'error'
+try {
+  console.log(delay.value());
+} catch (e) {
+  console.log('Error accessing value');
+}
+
+// safeValue() never throws, returns undefined when status is 'error'
+console.log(delay.safeValue()); // undefined on error, value otherwise
+```
+
+::: tip
+Prefer `safeValue()` in templates and computed signals to avoid unexpected errors propagation.
+:::
 
 ## Use Cases
 

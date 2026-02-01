@@ -83,6 +83,32 @@ describe('mutation', () => {
       expect(myMutation.value()).toBe('test');
     });
   });
+
+  it('should return undefined with safeValue when status is error', async () => {
+    TestBed.runInInjectionContext(async () => {
+      const mutationInstance = mutation({
+        method: (shouldFail: boolean) => shouldFail,
+        loader: async ({ params: shouldFail }) => {
+          if (shouldFail) {
+            throw new Error('Test error');
+          }
+          return { success: true };
+        },
+      });
+
+      expect(mutationInstance.status()).toBe('idle');
+      mutationInstance.mutate(true);
+      expect(mutationInstance.status()).toBe('loading');
+      await vi.runAllTimersAsync();
+      expect(mutationInstance.status()).toBe('error');
+      expect(mutationInstance.error()).toBeInstanceOf(Error);
+      expect(mutationInstance.error()?.message).toBe('Test error');
+      expect(mutationInstance.hasValue()).toBe(false);
+
+      // safeValue should return undefined without throwing
+      expect(mutationInstance.safeValue()).toBeUndefined();
+    });
+  });
 });
 
 describe('mutation types without identifier', () => {
@@ -139,6 +165,12 @@ describe('mutation types without identifier', () => {
               }
             | undefined
           >;
+          readonly safeValue: Signal<
+            | {
+                searchChange: string;
+              }
+            | undefined
+          >;
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
@@ -155,6 +187,12 @@ describe('mutation types without identifier', () => {
           '~InternalType': 'Used to avoid TS type erasure';
           readonly error: Signal<Error | undefined>;
           readonly value: Signal<
+            | {
+                filter: string;
+              }
+            | undefined
+          >;
+          readonly safeValue: Signal<
             | {
                 filter: string;
               }
@@ -238,6 +276,12 @@ describe('mutation types without identifier', () => {
               }
             | undefined
           >;
+          readonly safeValue: Signal<
+            | {
+                searchChangeText: string;
+              }
+            | undefined
+          >;
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
@@ -259,6 +303,12 @@ describe('mutation types without identifier', () => {
           '~InternalType': 'Used to avoid TS type erasure';
           readonly error: Signal<Error | undefined>;
           readonly value: Signal<
+            | {
+                filter: string;
+              }
+            | undefined
+          >;
+          readonly safeValue: Signal<
             | {
                 filter: string;
               }
@@ -406,6 +456,12 @@ describe('mutation types with identifier', () => {
             readonly status: Signal<ResourceStatus>;
             readonly error: Signal<Error | undefined>;
             readonly isLoading: Signal<boolean>;
+            readonly safeValue: Signal<
+              | {
+                  searchChange: string;
+                }
+              | undefined
+            >;
             hasValue(): boolean;
           }
         | undefined
@@ -419,6 +475,12 @@ describe('mutation types with identifier', () => {
         '~InternalType': 'Used to avoid TS type erasure';
         readonly error: Signal<Error | undefined>;
         readonly value: Signal<
+          | {
+              filter: string;
+            }
+          | undefined
+        >;
+        readonly safeValue: Signal<
           | {
               filter: string;
             }
@@ -507,6 +569,12 @@ describe('mutation types with identifier', () => {
                   }
                 | undefined
               >;
+              readonly safeValue: Signal<
+                | {
+                    searchChangeText: string;
+                  }
+                | undefined
+              >;
               readonly status: Signal<ResourceStatus>;
               readonly error: Signal<Error | undefined>;
               readonly isLoading: Signal<boolean>;
@@ -533,6 +601,12 @@ describe('mutation types with identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          readonly safeValue: Signal<
+            | {
+                filter: string;
+              }
+            | undefined
+          >;
           readonly resourceParamsSrc: WritableSignal<
             NoInfer<{
               filter: string;
@@ -574,6 +648,12 @@ describe('mutation types with identifier', () => {
       expectTypeOf<typeof _entity>().toEqualTypeOf<
         | {
             readonly value: Signal<
+              | {
+                  searchChange: string;
+                }
+              | undefined
+            >;
+            readonly safeValue: Signal<
               | {
                   searchChange: string;
                 }

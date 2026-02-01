@@ -12,6 +12,12 @@ type User = {
 };
 
 describe('query', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
   it('1- should accept signal param as source', () => {
     TestBed.runInInjectionContext(() => {
       const queryRef = query({
@@ -28,6 +34,30 @@ describe('query', () => {
       const queryResult = queryRef;
       expect(queryResult.resourceParamsSrc).toBeDefined();
       expect(queryResult.resourceParamsSrc()).toEqual('5');
+    });
+  });
+
+  it('should return undefined with safeValue when status is error, while value throws', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const queryRef = query({
+        params: () => 'error',
+        loader: async ({ params }) => {
+          throw new Error('Test error');
+          return {
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          };
+        },
+      });
+
+      await vi.runAllTimersAsync();
+      expect(queryRef.status()).toBe('error');
+      expect(queryRef.error()).toBeInstanceOf(Error);
+      expect(queryRef.error()?.message).toBe('Test error');
+
+      // safeValue should return undefined without throwing
+      expect(queryRef.safeValue()).toBeUndefined();
     });
   });
 });
