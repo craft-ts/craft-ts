@@ -1,4 +1,9 @@
-import { resource, linkedSignal, ResourceOptions } from '@angular/core';
+import {
+  resource,
+  linkedSignal,
+  ResourceOptions,
+  computed,
+} from '@angular/core';
 import { CraftResourceRef } from './util/craft-resource-ref';
 
 export function preservedResource<T, R>(
@@ -26,6 +31,12 @@ export function preservedResource<T, R>(
   Object.assign(original, {
     value: preserved,
     paramSrc: config.params,
+    safeValue: computed(() => {
+      if (preserved()) {
+        return preserved();
+      }
+      return original.hasValue() ? original.value() : undefined;
+    }),
   });
   if (config.defaultValue) {
     original.set(config.defaultValue);
