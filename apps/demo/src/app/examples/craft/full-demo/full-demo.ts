@@ -21,6 +21,8 @@ import {
   query,
   queryParam,
   state,
+  removeOne,
+  removeMany,
 } from '@ng-angular-stack/craft';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, User } from './api.service';
@@ -113,31 +115,38 @@ const { injectFullDemoCraft, provideFullDemoCraft } = craft(
       insertPaginationPlaceholderData,
       insertReactOnMutation(deleteUser, {
         filter: ({ mutationIdentifier, queryResource }) =>
-          queryResource
+          !!queryResource
             .safeValue()
-            ?.some((item) => item.id === mutationIdentifier) ||
-          queryResource.safeValue()?.length === 0,
+            ?.some((item) => item.id === mutationIdentifier),
         optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-          queryResource
-            .value()
-            ?.filter((item) => item.id !== mutationIdentifier),
+          removeOne({
+            entities: queryResource.value(),
+            id: mutationIdentifier,
+          }),
+        reload: {
+          onMutationError: true,
+        },
+      }),
+      insertReactOnMutation(deleteUser, {
+        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
         reload: {
           // reload the current page if there is no more data after mutation
-          onMutationResolved: ({ queryResource }) =>
-            queryResource.safeValue()?.length === 0,
+          onMutationResolved: true,
         },
       }),
       insertReactOnMutation(bulkDelete, {
         filter: ({ queryResource }) =>
           (queryResource.safeValue()?.length ?? 0) > 0,
         optimisticUpdate: ({ queryResource, mutationParams }) =>
-          queryResource
-            .value()
-            ?.filter((item) => !mutationParams.includes(item.id)),
+          removeMany({
+            entities: queryResource.value(),
+            ids: mutationParams,
+          }),
+      }),
+      insertReactOnMutation(bulkDelete, {
+        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
         reload: {
-          // reload the current page if there is no more data after mutation
-          onMutationResolved: ({ queryResource }) =>
-            queryResource.safeValue()?.length === 0,
+          onMutationResolved: true,
         },
       }),
     ),

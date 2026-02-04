@@ -1,7 +1,6 @@
 import {
   computed,
   isSignal,
-  resource,
   ResourceLoaderParams,
   ResourceOptions,
   ResourceRef,
@@ -16,6 +15,7 @@ import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
 import { preservedResource } from './preserved-resource';
+import { craftResource } from './craft-resource';
 
 type QueryConfig<
   ResourceState,
@@ -993,21 +993,11 @@ export function query<
           ...queryConfig,
           params: resourceParamsSrc,
         } as ResourceOptions<any, any>)
-      : resource<QueryState, QueryParams>({
+      : craftResource<QueryState, QueryParams>({
           ...queryConfig,
           params: resourceParamsSrc,
         } as ResourceOptions<any, any>);
-  if (
-    !isUsingIdentifier &&
-    !(!queryConfig.preservePreviousValue || queryConfig.preservePreviousValue())
-  ) {
-    Object.assign(resourceTarget, {
-      safeValue: computed(() => {
-        const resourceRef = resourceTarget as ResourceRef<QueryState>;
-        return resourceRef.hasValue() ? resourceRef.value() : undefined;
-      }),
-    });
-  }
+
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
     // byId is used to helps TS to correctly infer the resourceByGroup

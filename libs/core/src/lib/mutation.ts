@@ -16,6 +16,7 @@ import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
 import { CraftResourceRef } from './util/craft-resource-ref';
+import { craftResource } from './craft-resource';
 // todo refactor to share code with AsyncMethod
 
 type MutationConfig<
@@ -1022,7 +1023,7 @@ export function mutation<
         params: resourceParamsSrc,
         identifier: mutationConfig.identifier,
       } as any)
-    : resource<MutationState, MutationParams>({
+    : craftResource<MutationState, MutationParams>({
         ...mutationConfig,
         params: resourceParamsSrc,
       } as ResourceOptions<any, any>);

@@ -198,4 +198,121 @@ describe('resourceById', () => {
       expect(resourceByIdRef.changes.ids()).toContain('3');
     });
   });
+
+  it('should expose a state signal that returns all resource values by id', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const sourceParams = signal<{ id: string } | undefined>(undefined);
+      const resourceByIdRef = resourceById({
+        identifier: (request) => request.id,
+        params: sourceParams,
+        loader: async ({ params }) => {
+          return { id: params.id, data: `Data for ${params.id}` };
+        },
+      });
+
+      // Initially, state should be empty
+      expect(resourceByIdRef.state()).toEqual({});
+
+      // Add resources with default values
+      resourceByIdRef.add(
+        { id: '1' },
+        { defaultValue: { id: '1', data: 'Data for 1' } },
+      );
+      await vi.runAllTimersAsync();
+
+      // State should contain the first resource
+      expect(resourceByIdRef.state()).toEqual({
+        '1': { id: '1', data: 'Data for 1' },
+      });
+
+      // Add another resource
+      resourceByIdRef.add(
+        { id: '2' },
+        { defaultValue: { id: '2', data: 'Data for 2' } },
+      );
+      await vi.runAllTimersAsync();
+
+      // State should contain both resources
+      expect(resourceByIdRef.state()).toEqual({
+        '1': { id: '1', data: 'Data for 1' },
+        '2': { id: '2', data: 'Data for 2' },
+      });
+
+      // Trigger a new resource via params
+      sourceParams.set({ id: '3' });
+      await vi.runAllTimersAsync();
+
+      // State should contain all three resources
+      expect(resourceByIdRef.state()).toEqual({
+        '1': { id: '1', data: 'Data for 1' },
+        '2': { id: '2', data: 'Data for 2' },
+        '3': { id: '3', data: 'Data for 3' },
+      });
+
+      // Reset a specific resource
+      resourceByIdRef.resetResource('2');
+      expect(resourceByIdRef.state()).toEqual({
+        '1': { id: '1', data: 'Data for 1' },
+        '3': { id: '3', data: 'Data for 3' },
+      });
+
+      // Reset all resources
+      resourceByIdRef.reset();
+      expect(resourceByIdRef.state()).toEqual({});
+    });
+  });
+
+  it('should expose a set function to update multiple resource values', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const sourceParams = signal<{ id: string } | undefined>(undefined);
+      const resourceByIdRef = resourceById({
+        identifier: (request) => request.id,
+        params: sourceParams,
+        loader: async ({ params }) => {
+          return { id: params.id, data: `Data for ${params.id}` };
+        },
+      });
+
+      // Add a resource with default value
+      resourceByIdRef.add(
+        { id: '1' },
+        { defaultValue: { id: '1', data: 'Initial data' } },
+      );
+      await vi.runAllTimersAsync();
+
+      expect(resourceByIdRef.state()).toEqual({
+        '1': { id: '1', data: 'Initial data' },
+      });
+
+      // Update multiple values using set
+      resourceByIdRef.set({
+        '1': { id: '1', data: 'Updated data' },
+        '2': { id: '2', data: 'New data' },
+      });
+      await vi.runAllTimersAsync();
+
+      expect(resourceByIdRef.state()).toEqual({
+        '1': { id: '1', data: 'Updated data' },
+        '2': { id: '2', data: 'New data' },
+      });
+
+      // Verify the created resource exists
+      expect(resourceByIdRef()['2']).toBeDefined();
+      expect(resourceByIdRef()['2']?.value()).toEqual({
+        id: '2',
+        data: 'New data',
+      });
+
+      resourceByIdRef.set({
+        '3': { id: '3', data: 'Data 3' },
+        '4': { id: '4', data: 'Data 4' },
+      });
+      await vi.runAllTimersAsync();
+
+      expect(resourceByIdRef.state()).toEqual({
+        '3': { id: '3', data: 'Data 3' },
+        '4': { id: '4', data: 'Data 4' },
+      });
+    });
+  });
 });

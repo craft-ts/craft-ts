@@ -4,7 +4,10 @@ import {
   ResourceOptions,
   computed,
 } from '@angular/core';
-import { CraftResourceRef } from './util/craft-resource-ref';
+import {
+  CraftResourceRef,
+  CraftResourceRefSpecificState,
+} from './util/craft-resource-ref';
 
 export function preservedResource<T, R>(
   config: ResourceOptions<T, R>,
@@ -28,19 +31,33 @@ export function preservedResource<T, R>(
       }
       return current.value;
     },
+    debugName: 'preservedResource_preserved',
   });
-  Object.assign(original, {
-    value: preserved,
-    paramSrc: config.params,
-    safeValue: computed(() => {
-      if (preserved()) {
-        return preserved();
-      }
-      return original.hasValue() ? original.value() : undefined;
-    }),
-  });
+  const state = computed(
+    () => {
+      return preserved();
+    },
+    {
+      debugName: 'preservedResource_state',
+    },
+  ) as CraftResourceRefSpecificState<T | undefined, R>['safeValue'];
+
   if (config.defaultValue) {
     original.set(config.defaultValue);
   }
-  return original as CraftResourceRef<T | undefined, R>;
+  return {
+    value: preserved,
+    hasValue: original.hasValue.bind(original),
+    status: original.status,
+    error: original.error,
+    isLoading: original.isLoading,
+    reload: original.reload.bind(original),
+    destroy: original.destroy.bind(original),
+    update: original.update.bind(original),
+    set: original.set.bind(original),
+    asReadonly: original.asReadonly.bind(original),
+    safeValue: state,
+    paramSrc: config.params,
+    state,
+  } as CraftResourceRef<T | undefined, R>;
 }

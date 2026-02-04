@@ -55,10 +55,18 @@ export type ResourceByIdHandler<
     },
   ) => CraftResourceRef<State, ResourceParams>;
   /**
+   * Set the values of multiple resources. If a resource doesn't exist, it will be created.
+   */
+  set: (payload: Partial<Record<GroupIdentifier, State>>) => void;
+  /**
    * Tracks the status and value changes of resources.
    * Provides signals for hasChange, ids, resolved, loading, reloading, error, and onlyValueChange.
    */
   changes: resourceByIdChangesTrackerResult<GroupIdentifier>;
+  /**
+   * A computed signal that returns a record of all resource states by their group identifier.
+   */
+  state: Signal<Partial<Record<GroupIdentifier, State>>>;
 };
 
 export type Identifier<ResourceParams, GroupIdentifier> = (
@@ -212,12 +220,30 @@ export function resourceById<
 
   const changesTracker = resourceByIdChangesTracker(resourceByGroup);
 
+  const stateSignal = computed(() => {
+    const resources = resourceByGroup();
+    const stateRecord: Partial<Record<GroupIdentifier, State>> = {};
+    for (const [key, resource] of Object.entries(resources)) {
+      if (resource) {
+        const craftResource = resource as CraftResourceRef<
+          State,
+          ResourceParams
+        >;
+        if (craftResource.hasValue()) {
+          stateRecord[key as GroupIdentifier] = craftResource.value();
+        }
+      }
+    }
+    return stateRecord;
+  });
+
   const resourcesHandler: ResourceByIdHandler<
     GroupIdentifier,
     State,
     ResourceParams
   > = {
     changes: changesTracker,
+    state: stateSignal,
     reset: () => {
       Object.values(resourceByGroup()).forEach((resource) =>
         (resource as CraftResourceRef<State, ResourceParams>).destroy(),
@@ -230,6 +256,28 @@ export function resourceById<
         newState[id]?.destroy();
         delete newState[id];
         return newState;
+      });
+    },
+    set: (payload: Partial<Record<GroupIdentifier, State>>) => {
+      // Remove existing keys that are not in the payload
+      const currentResources = resourceByGroup();
+      Object.keys(currentResources).forEach((id) => {
+        if (!(id in payload)) {
+          resourcesHandler.resetResource(id as GroupIdentifier);
+        }
+      });
+
+      // Set or create resources from the payload
+      Object.entries(payload).forEach(([id, value]) => {
+        const existingResource = resourceByGroup()[id as GroupIdentifier];
+        if (existingResource) {
+          existingResource.set(value as State);
+        } else {
+          // If the resource doesn't exist, create it with the provided value as default
+          resourcesHandler.addById(id as GroupIdentifier, {
+            defaultValue: value as State,
+          });
+        }
       });
     },
     add: (resourceParams, options?: { defaultValue?: State }) => {

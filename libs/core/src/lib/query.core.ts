@@ -549,11 +549,16 @@ export type InsertionParams<
   ResourceParams,
   PreviousInsertionsOutputs,
 > = {
-  resource: CraftResourceRef<ResourceState, ResourceParams>;
-  resourceParamsSrc: WritableSignal<ResourceParams>;
+  state: Signal<ResourceState>;
+  set: (newState: ResourceState) => ResourceState;
+  update: (
+    updateFn: (currentState: ResourceState) => ResourceState,
+  ) => ResourceState;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs
     : never;
+  resource: CraftResourceRef<ResourceState, ResourceParams>;
+  resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
   // 👇 Seems required for insertLocalStoragePersister, otherwise TS says they can be missing
   resourceById: never;
   identifier: never;
@@ -578,12 +583,18 @@ export type InsertionByIdParams<
   ResourceParams,
   PreviousInsertionsOutputs,
 > = {
-  resourceById: ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>;
-  resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
-  identifier: (params: NonNullable<ResourceParams>) => GroupIdentifier;
+  state: Signal<ResourceState>;
+  set: (newState: ResourceState) => ResourceState;
+  update: (
+    updateFn: (currentState: ResourceState) => ResourceState,
+  ) => ResourceState;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs
     : never;
+  resourceById: ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>;
+  resource: never;
+  resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
+  identifier: (params: NonNullable<ResourceParams>) => GroupIdentifier;
 };
 
 export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =

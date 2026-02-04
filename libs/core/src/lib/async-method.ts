@@ -16,6 +16,7 @@ import { ReadonlySource } from './util/source.type';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { isSource } from './util/util';
 import { MergeObjects } from './util/util.type';
+import { craftResource } from './craft-resource';
 
 // ! It looks like TS does not handle to expose the ResourceByIdHandler without erasing the () => ... part
 export type AsyncMethodRef<
@@ -739,19 +740,10 @@ export function asyncMethod<
         params: resourceParamsSrc,
         identifier: asyncMethodConfig.identifier,
       } as any)
-    : resource<AsyncMethodState, AsyncMethodParams>({
+    : craftResource<AsyncMethodState, AsyncMethodParams>({
         ...asyncMethodConfig,
         params: resourceParamsSrc,
       } as ResourceOptions<any, any>);
-
-  if (!isUsingIdentifier) {
-    Object.assign(resourceTarget, {
-      safeValue: computed(() => {
-        const resourceRef = resourceTarget as ResourceRef<AsyncMethodState>;
-        return resourceRef.hasValue() ? resourceRef.value() : undefined;
-      }),
-    });
-  }
 
   return Object.assign(
     resourceTarget,

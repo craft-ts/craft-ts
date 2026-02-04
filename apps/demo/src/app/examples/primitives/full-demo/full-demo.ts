@@ -230,7 +230,10 @@ export default class FullDemo {
         : undefined;
     },
     identifier: ({ id }) => id,
-    loader: ({ params: user }) => this.apiService.updateItem(user),
+    loader: ({ params: user }) => {
+      console.log('mutation loader user', user);
+      return this.apiService.updateItem(user);
+    },
   });
 
   protected readonly usersQuery = query(
@@ -247,14 +250,17 @@ export default class FullDemo {
     insertPaginationPlaceholderData,
     insertReactOnMutation(this.deleteUser, {
       filter: ({ mutationIdentifier, queryResource }) =>
-        queryResource
+        !!queryResource
           .safeValue()
-          ?.some((item) => item.id === mutationIdentifier) ?? false,
+          ?.some((item) => item.id === mutationIdentifier),
       optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
         removeOne({
           entities: queryResource.value(),
           id: mutationIdentifier,
         }),
+      reload: {
+        onMutationError: true,
+      },
     }),
     insertReactOnMutation(this.deleteUser, {
       filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
@@ -271,6 +277,12 @@ export default class FullDemo {
           entities: queryResource.value(),
           ids: mutationParams,
         }),
+      reload: {
+        onMutationError: true,
+      },
+    }),
+    insertReactOnMutation(this.bulkDelete, {
+      filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
       reload: {
         // reload the current page if there is no more data after mutation
         onMutationResolved: ({ queryResource }) =>
