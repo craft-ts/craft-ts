@@ -538,4 +538,162 @@ describe('entities-util', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('primitives support', () => {
+    describe('string[]', () => {
+      it('setOne should replace an existing string', () => {
+        const tags: string[] = ['angular', 'react', 'vue'];
+        const result = setOne({ entity: 'svelte', entities: tags });
+        expect(result).toEqual(['angular', 'react', 'vue', 'svelte']);
+      });
+
+      it('setOne should not duplicate an existing string', () => {
+        const tags: string[] = ['angular', 'react', 'vue'];
+        const result = setOne({ entity: 'react', entities: tags });
+        expect(result).toEqual(['angular', 'react', 'vue']);
+      });
+
+      it('setMany should replace or add multiple strings', () => {
+        const tags: string[] = ['angular', 'react'];
+        const result = setMany({
+          newEntities: ['react', 'vue', 'svelte'],
+          entities: tags,
+        });
+        expect(result).toEqual(['angular', 'react', 'vue', 'svelte']);
+      });
+
+      it('removeOne should remove a string', () => {
+        const tags: string[] = ['angular', 'react', 'vue'];
+        const result = removeOne({ id: 'react', entities: tags });
+        expect(result).toEqual(['angular', 'vue']);
+      });
+
+      it('removeOne should return same array if string not found', () => {
+        const tags: string[] = ['angular', 'react', 'vue'];
+        const result = removeOne({ id: 'svelte', entities: tags });
+        expect(result).toEqual(['angular', 'react', 'vue']);
+      });
+
+      it('removeMany should remove multiple strings', () => {
+        const tags: string[] = ['angular', 'react', 'vue', 'svelte'];
+        const result = removeMany({ ids: ['react', 'svelte'], entities: tags });
+        expect(result).toEqual(['angular', 'vue']);
+      });
+
+      it('upsertOne should add a new string', () => {
+        const tags: string[] = ['angular', 'react'];
+        const result = upsertOne({ entity: 'vue', entities: tags });
+        expect(result).toEqual(['angular', 'react', 'vue']);
+      });
+
+      it('upsertOne should not duplicate an existing string', () => {
+        const tags: string[] = ['angular', 'react'];
+        const result = upsertOne({ entity: 'react', entities: tags });
+        expect(result).toEqual(['angular', 'react']);
+      });
+
+      it('upsertMany should upsert multiple strings', () => {
+        const tags: string[] = ['angular', 'react'];
+        const result = upsertMany({
+          newEntities: ['react', 'vue'],
+          entities: tags,
+        });
+        expect(result).toEqual(['angular', 'react', 'vue']);
+      });
+
+      it('mapOne should transform a single string', () => {
+        const tags: string[] = ['angular', 'react', 'vue'];
+        const result = mapOne({
+          id: 'react',
+          mapFn: (t) => t.toUpperCase(),
+          entities: tags,
+        });
+        expect(result).toEqual(['angular', 'REACT', 'vue']);
+      });
+
+      it('computedIds should return the strings themselves', () => {
+        const tags: string[] = ['angular', 'react', 'vue'];
+        const result = computedIds({ entities: tags });
+        expect(result).toEqual(['angular', 'react', 'vue']);
+      });
+    });
+
+    describe('number[]', () => {
+      it('setOne should replace an existing number', () => {
+        const numbers: number[] = [1, 2, 3];
+        const result = setOne({ entity: 4, entities: numbers });
+        expect(result).toEqual([1, 2, 3, 4]);
+      });
+
+      it('setOne should not duplicate an existing number', () => {
+        const numbers: number[] = [1, 2, 3];
+        const result = setOne({ entity: 2, entities: numbers });
+        expect(result).toEqual([1, 2, 3]);
+      });
+
+      it('setMany should replace or add multiple numbers', () => {
+        const numbers: number[] = [1, 2];
+        const result = setMany({
+          newEntities: [2, 3, 4],
+          entities: numbers,
+        });
+        expect(result).toEqual([1, 2, 3, 4]);
+      });
+
+      it('removeOne should remove a number', () => {
+        const numbers: number[] = [1, 2, 3];
+        const result = removeOne({ id: 2, entities: numbers });
+        expect(result).toEqual([1, 3]);
+      });
+
+      it('removeOne should return same array if number not found', () => {
+        const numbers: number[] = [1, 2, 3];
+        const result = removeOne({ id: 99, entities: numbers });
+        expect(result).toEqual([1, 2, 3]);
+      });
+
+      it('removeMany should remove multiple numbers', () => {
+        const numbers: number[] = [1, 2, 3, 4, 5];
+        const result = removeMany({ ids: [2, 4], entities: numbers });
+        expect(result).toEqual([1, 3, 5]);
+      });
+
+      it('upsertOne should add a new number', () => {
+        const numbers: number[] = [1, 2];
+        const result = upsertOne({ entity: 3, entities: numbers });
+        expect(result).toEqual([1, 2, 3]);
+      });
+
+      it('upsertOne should not duplicate an existing number', () => {
+        const numbers: number[] = [1, 2];
+        const result = upsertOne({ entity: 2, entities: numbers });
+        expect(result).toEqual([1, 2]);
+      });
+
+      it('upsertMany should upsert multiple numbers', () => {
+        const numbers: number[] = [1, 2];
+        const result = upsertMany({
+          newEntities: [2, 3],
+          entities: numbers,
+        });
+        expect(result).toEqual([1, 2, 3]);
+      });
+
+      it('mapOne should transform a single number', () => {
+        const numbers: number[] = [1, 2, 3];
+        const result = mapOne({
+          id: 2,
+          mapFn: (n) => n * 10,
+          entities: numbers,
+        });
+        expect(result).toEqual([1, 20, 3]);
+      });
+
+      it('computedIds should return the numbers themselves', () => {
+        const numbers: number[] = [1, 2, 3];
+        const result = computedIds({ entities: numbers });
+        expect(result).toEqual([1, 2, 3]);
+      });
+    });
+  });
 });

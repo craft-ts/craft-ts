@@ -18,6 +18,8 @@ import {
   ResourceLikeMutationRef,
 } from './mutation';
 import { CraftResourceRef } from './util/craft-resource-ref';
+import { QueryParamsToState } from './query-param';
+import { Prettify } from './util/util.type';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -616,17 +618,18 @@ export type QueryParamMethods<QueryParamsState> = {
   set: (
     params: QueryParamsState,
     options?: QueryParamNavigationOptions,
-  ) => void;
+  ) => QueryParamsState;
   update: (
     updateFn: (currentParams: QueryParamsState) => QueryParamsState,
     options?: QueryParamNavigationOptions,
-  ) => void;
+  ) => QueryParamsState;
 };
 
 export type InsertionQueryParamsFactoryContext<
   QueryParamsType,
   PreviousInsertionsOutputs,
-  QueryParamsState,
+  //! do not get the QueryParamState directly from the queryParam utility (it's broke the inference),
+  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 > = QueryParamMethods<QueryParamsState> & {
   state: Signal<QueryParamsState>;
   config: QueryParamsType;
@@ -687,15 +690,13 @@ export type InsertionsStateFactory<
 ) => InsertionsOutputs;
 
 export type InsertionsQueryParamsFactory<
-  State,
   QueryParamsType,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
 > = (
   context: InsertionQueryParamsFactoryContext<
     QueryParamsType,
-    PreviousInsertionsOutputs,
-    State
+    PreviousInsertionsOutputs
   >,
 ) => InsertionsOutputs;
 

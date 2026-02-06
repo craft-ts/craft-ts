@@ -1,4 +1,4 @@
-import { computed, ResourceStatus, signal, Signal } from '@angular/core';
+import { ResourceStatus, signal, Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { query } from './query';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';

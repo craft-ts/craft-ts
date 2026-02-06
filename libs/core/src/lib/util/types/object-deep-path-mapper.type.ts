@@ -14,21 +14,19 @@ export type ObjectDeepPath<State extends object> = Exclude<
   DefaultUnion
 >;
 
-type GetAllStatePath<State extends object> = UnionToTuple<
-  keyof State
-> extends string[]
-  ? __ObjectDeepPath<UnionToTuple<keyof State>, State>
-  : never;
+type GetAllStatePath<State extends object> =
+  UnionToTuple<keyof State> extends string[]
+    ? __ObjectDeepPath<UnionToTuple<keyof State>, State>
+    : never;
 
 type DefaultUnion = '__ROOT';
 
-// todo on the continue pas dans la tail si on tombe sur un objet
 // return an union type of all the paths in the state
 type __ObjectDeepPath<
   keys extends string[],
   State,
   Acc extends string = DefaultUnion,
-  RootPath extends string = ''
+  RootPath extends string = '',
 > = keys extends [infer Head, ...infer Tail]
   ? Head extends keyof State
     ? HasChild<State[Head]> extends true
@@ -55,13 +53,13 @@ type __ObjectDeepPath<
           : Acc
         : Acc
       : Tail extends string[]
-      ? __ObjectDeepPath<
-          Tail,
-          State,
-          MergeStatePaths<Acc, `${RootPath}${Head & string}`>,
-          RootPath
-        >
-      : Acc
+        ? __ObjectDeepPath<
+            Tail,
+            State,
+            MergeStatePaths<Acc, `${RootPath}${Head & string}`>,
+            RootPath
+          >
+        : Acc
     : Acc
   : Acc;
 

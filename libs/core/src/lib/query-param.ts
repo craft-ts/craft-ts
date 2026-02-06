@@ -41,7 +41,7 @@ export type QueryParamOutput<QueryParamsType, Insertions, QueryParamsState> =
         IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
         {
           _config: QueryParamsType;
-        }
+        },
       ]
     >;
 
@@ -131,66 +131,60 @@ export interface QueryParamConfig<T = unknown> {
  */
 export function queryParam<
   QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
-  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>
+  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
-  config: { state: QueryParamsType } & QueryParamNavigationOptions
+  config: { state: QueryParamsType } & QueryParamNavigationOptions,
 ): QueryParamOutput<QueryParamsType, {}, QueryParamsState>;
 export function queryParam<
   QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
   Insertion1,
-  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>
+  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
   insertion1: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsState>,
     NoInfer<QueryParamsType>,
     Insertion1
-  >
+  >,
 ): QueryParamOutput<QueryParamsType, Insertion1, QueryParamsState>;
 export function queryParam<
   QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
   Insertion1,
   Insertion2,
-  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>
+  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
   insertion1: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsState>,
     NoInfer<QueryParamsType>,
     Insertion1
   >,
   insertion2: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsState>,
     NoInfer<QueryParamsType>,
     Insertion2,
     Insertion1
-  >
+  >,
 ): QueryParamOutput<QueryParamsType, Insertion1 & Insertion2, QueryParamsState>;
 export function queryParam<
   QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
   Insertion1,
   Insertion2,
   Insertion3,
-  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>
+  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
   insertion1: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsState>,
     NoInfer<QueryParamsType>,
     Insertion1
   >,
   insertion2: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsState>,
     NoInfer<QueryParamsType>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsState>,
     NoInfer<QueryParamsType>,
     Insertion3,
     Insertion1 & Insertion2
-  >
+  >,
 ): QueryParamOutput<
   QueryParamsType,
   Insertion1 & Insertion2 & Insertion3,
@@ -202,7 +196,7 @@ export function queryParam<
  */
 export function queryParam<
   QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
-  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>
+  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
   ...insertions: any[]
@@ -230,28 +224,34 @@ export function queryParam<
 
   // Create computed signals for each query parameter with parsing
   const queryParamsState = linkedSignal(() =>
-    Object.entries(queryParamsConfig).reduce((acc, [key, config]) => {
-      const rawValue = queryParamFromUrl()?.[key];
-      if (rawValue === undefined || rawValue === null) {
-        acc[key] = config.fallbackValue;
-        return acc;
-      }
-      try {
-        acc[key] = config.parse(rawValue);
-        return acc;
-      } catch {
-        acc[key] = config.fallbackValue;
-        return acc;
-      }
-    }, {} as Record<string, unknown>)
+    Object.entries(queryParamsConfig).reduce(
+      (acc, [key, config]) => {
+        const rawValue = queryParamFromUrl()?.[key];
+        if (rawValue === undefined || rawValue === null) {
+          acc[key] = config.fallbackValue;
+          return acc;
+        }
+        try {
+          acc[key] = config.parse(rawValue);
+          return acc;
+        } catch {
+          acc[key] = config.fallbackValue;
+          return acc;
+        }
+      },
+      {} as Record<string, unknown>,
+    ),
   ) as WritableSignal<QueryParamsToState<QueryParamsType>>;
 
   // Get initial values from the url or use the fallback values
   const getDefaultState = () =>
-    Object.entries(queryParamsConfig).reduce((acc, [key, config]) => {
-      acc[key] = config.fallbackValue;
-      return acc;
-    }, {} as Record<string, unknown>) as QueryParamsToState<QueryParamsType>;
+    Object.entries(queryParamsConfig).reduce(
+      (acc, [key, config]) => {
+        acc[key] = config.fallbackValue;
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    ) as QueryParamsToState<QueryParamsType>;
 
   // Save the original set method before we override it
   const originalSet = queryParamsState.set.bind(queryParamsState);
@@ -259,7 +259,7 @@ export function queryParam<
   // Navigation helper
   const navigate = (
     newState: QueryParamsToState<QueryParamsType>,
-    navOptions?: QueryParamNavigationOptions
+    navOptions?: QueryParamNavigationOptions,
   ) => {
     // Update the local state first using the original set method
     originalSet(newState);
@@ -276,7 +276,7 @@ export function queryParam<
         }
         return acc;
       },
-      {} as Record<string, string>
+      {} as Record<string, string>,
     );
 
     // Use queueMicrotask to avoid call stack issues
@@ -298,29 +298,29 @@ export function queryParam<
       acc[key] = computed(() => queryParamsState()[key]);
       return acc;
     },
-    {} as Record<string, Signal<unknown>>
+    {} as Record<string, Signal<unknown>>,
   );
 
   // Create methods
   const methods = {
     set: (
       params: QueryParamsToState<QueryParamsType>,
-      navOptions?: QueryParamNavigationOptions
+      navOptions?: QueryParamNavigationOptions,
     ) => {
       navigate(params, navOptions);
     },
     update: (
       updateFn: (
-        currentParams: QueryParamsToState<QueryParamsType>
+        currentParams: QueryParamsToState<QueryParamsType>,
       ) => QueryParamsToState<QueryParamsType>,
-      navOptions?: QueryParamNavigationOptions
+      navOptions?: QueryParamNavigationOptions,
     ) => {
       const newState = updateFn(queryParamsState());
       navigate(newState, navOptions);
     },
     patch: (
       params: Partial<QueryParamsToState<QueryParamsType>>,
-      navOptions?: QueryParamNavigationOptions
+      navOptions?: QueryParamNavigationOptions,
     ) => {
       const newState = { ...queryParamsState(), ...params };
       navigate(newState, navOptions);
@@ -332,24 +332,21 @@ export function queryParam<
 
   // Process insertions
   const insertionResults =
-    (
-      insertions as InsertionsQueryParamsFactory<
-        QueryParamsState,
-        QueryParamsType,
-        {}
-      >[]
-    )?.reduce((acc, insert) => {
-      const newInsertions = insert({
-        state: queryParamsState.asReadonly(),
-        config: queryParamsConfig,
-        ...methods,
-        insertions: acc as {},
-      } as InsertionQueryParamsFactoryContext<QueryParamsType, {}, QueryParamsState>);
-      return {
-        ...acc,
-        ...newInsertions,
-      };
-    }, {} as Record<string, unknown>) || {};
+    (insertions as InsertionsQueryParamsFactory<QueryParamsType, {}>[])?.reduce(
+      (acc, insert) => {
+        const newInsertions = insert({
+          state: queryParamsState.asReadonly(),
+          config: queryParamsConfig,
+          ...methods,
+          insertions: acc as {},
+        } as InsertionQueryParamsFactoryContext<QueryParamsType, {}>);
+        return {
+          ...acc,
+          ...newInsertions,
+        };
+      },
+      {} as Record<string, unknown>,
+    ) || {};
 
   return Object.assign(queryParamsState.asReadonly(), props, insertionResults, {
     _config: config,
