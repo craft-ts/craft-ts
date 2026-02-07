@@ -108,7 +108,6 @@ export function insertEntities<
         ? false
         : true
       : false,
-  // todo make IsEntityIdentifierOptional mandatory after the path id defined ?
   IsEntityIdentifierOptional = StateType extends { id: NoInfer<K> }
     ? true
     : StateType extends string | number
@@ -118,7 +117,6 @@ export function insertEntities<
   config: {
     methods: EntityHelperFns;
   } & MergeObject<
-    // todo identifier should be optional if their is a path and not
     IsEntityIdentifierOptional extends true
       ? {
           identifier?: IdSelector<NoInfer<StateType>, NoInfer<K>>;
