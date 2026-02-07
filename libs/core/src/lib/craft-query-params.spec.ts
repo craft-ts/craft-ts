@@ -32,7 +32,7 @@ describe('craftQueryParams', () => {
               },
             },
           },
-          ({ set, reset }) => ({ set, reset })
+          ({ set, reset }) => ({ set, reset }),
         ),
         active: queryParam(
           {
@@ -44,9 +44,9 @@ describe('craftQueryParams', () => {
               },
             },
           },
-          ({ set }) => ({ set })
+          ({ set }) => ({ set }),
         ),
-      }))
+      })),
     );
     TestBed.runInInjectionContext(() => {
       const store = injectMyStoreCraft();
@@ -67,8 +67,11 @@ describe('craftQueryParams', () => {
             page: number;
             pageSize: number;
           },
-          options?: QueryParamNavigationOptions | undefined
-        ) => void
+          options?: QueryParamNavigationOptions | undefined,
+        ) => {
+          page: number;
+          pageSize: number;
+        }
       >();
       store.setPagination({ page: 2, pageSize: 20 });
       expect(store.pagination()).toEqual({
@@ -117,7 +120,7 @@ describe('craftQueryParams', () => {
               },
             },
           },
-          ({ set, reset }) => ({ set, reset })
+          ({ set, reset }) => ({ set, reset }),
         ),
         active: queryParam(
           {
@@ -129,9 +132,9 @@ describe('craftQueryParams', () => {
               },
             },
           },
-          ({ set }) => ({ set })
+          ({ set }) => ({ set }),
         ),
-      }))
+      })),
     );
 
     const paginationQp = setPaginationQueryParam({ page: 3, pageSize: 30 });
@@ -142,13 +145,13 @@ describe('craftQueryParams', () => {
     console.log('paginationQp test', paginationQp);
     expect(paginationQp).toEqual({ page: '3', pageSize: '30' });
     expect(`${setPaginationQueryParam({ page: 4, pageSize: 40 })}`).toBe(
-      'page=4&pageSize=40'
+      'page=4&pageSize=40',
     );
     const activeQp = setActiveQueryParam({ isActive: true });
     expectTypeOf(activeQp).toEqualTypeOf<{ isActive: string }>();
     expect(activeQp).toEqual({ isActive: 'true' });
     expect(`${setActiveQueryParam({ isActive: false })}`).toBe(
-      'isActive=false'
+      'isActive=false',
     );
   });
 });

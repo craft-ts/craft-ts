@@ -1080,6 +1080,9 @@ export function query<
               NoInfer<QueryParams>
             >,
             insertions: acc as {},
+            state: resourceTarget.state,
+            set: resourceTarget.set,
+            update: resourceTarget.update,
           } as any), // try to improve the type here
         };
       },

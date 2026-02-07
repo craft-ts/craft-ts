@@ -315,4 +315,45 @@ describe('resourceById', () => {
       });
     });
   });
+
+  it('should expose an updateState function that keeps existing values and updates by id', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const sourceParams = signal<{ id: string } | undefined>(undefined);
+      const resourceByIdRef = resourceById({
+        identifier: (request) => request.id,
+        params: sourceParams,
+        loader: async ({ params }) => {
+          return { id: params.id, data: `Data for ${params.id}` };
+        },
+      });
+
+      resourceByIdRef.add(
+        { id: '1' },
+        { defaultValue: { id: '1', data: 'Initial 1' } },
+      );
+      resourceByIdRef.add(
+        { id: '2' },
+        { defaultValue: { id: '2', data: 'Initial 2' } },
+      );
+      await vi.runAllTimersAsync();
+
+      expect(resourceByIdRef.state()).toEqual({
+        '1': { id: '1', data: 'Initial 1' },
+        '2': { id: '2', data: 'Initial 2' },
+      });
+
+      resourceByIdRef.update((state) => ({
+        ...state,
+        '2': { id: '2', data: 'Updated 2' },
+        '3': { id: '3', data: 'New 3' },
+      }));
+      await vi.runAllTimersAsync();
+
+      expect(resourceByIdRef.state()).toEqual({
+        '1': { id: '1', data: 'Initial 1' },
+        '2': { id: '2', data: 'Updated 2' },
+        '3': { id: '3', data: 'New 3' },
+      });
+    });
+  });
 });

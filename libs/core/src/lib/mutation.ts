@@ -1116,6 +1116,9 @@ export function mutation<
               NoInfer<MutationParams>
             >,
             insertions: acc as {},
+            state: resourceTarget.state,
+            set: resourceTarget.set,
+            update: resourceTarget.update,
           } as any),
         };
       },

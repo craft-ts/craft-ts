@@ -4,8 +4,24 @@ import {
   AccessTypeObjectPropertyByDottedPath,
   DottedPathPathToTuple,
 } from './util/types/access-type-object-property-by-dotted-path.type';
+import {
+  createNestedStateUpdate,
+  getNestedStateValue,
+} from './util/update-state.util';
 import { ObjectDeepPath } from './util/types/object-deep-path-mapper.type';
 import { MergeObject, Prettify } from './util/util.type';
+
+type ArrayObjectDeepPath<State extends object> =
+  ObjectDeepPath<State> extends infer Path
+    ? Path extends string
+      ? AccessTypeObjectPropertyByDottedPath<
+          State,
+          DottedPathPathToTuple<Path>
+        > extends Array<any>
+        ? Path
+        : never
+      : never
+    : never;
 
 type EntitiesUtilsToMap<
   EntityHelperFns,
@@ -13,6 +29,8 @@ type EntitiesUtilsToMap<
   K,
   HasStateIdentifier,
   StateIdentifier,
+  HasPath,
+  Path,
   Acc = {},
 > = EntityHelperFns extends [infer First, ...infer Rest]
   ? First extends (data: infer Payload) => infer R
@@ -23,8 +41,10 @@ type EntitiesUtilsToMap<
           K,
           HasStateIdentifier,
           StateIdentifier,
+          HasPath,
+          Path,
           Acc & {
-            [key in Name & string]: (
+            [key in Name as `${HasPath extends true ? `${Path & string}${Capitalize<string & key>}` : key & string}`]: (
               payload: MergeObject<
                 {
                   [key in keyof Payload as `${key extends 'entities' ? never : key & string}`]: key extends 'entity'
@@ -59,7 +79,7 @@ export function insertEntities<
   const Path = State extends Array<infer Entity>
     ? never
     : State extends object
-      ? ObjectDeepPath<State> // todo filter pass that are not array
+      ? ArrayObjectDeepPath<State>
       : never,
   StateType = State extends Array<infer R>
     ? R
@@ -80,7 +100,7 @@ export function insertEntities<
         ? false
         : true
       : false,
-      // todo make IsEntityIdentifierOptional mandatory after the path id defined ?
+  // todo make IsEntityIdentifierOptional mandatory after the path id defined ?
   IsEntityIdentifierOptional = StateType extends { id: NoInfer<K> }
     ? true
     : StateType extends string | number
@@ -105,55 +125,88 @@ export function insertEntities<
         }
   >,
 ) {
-    // todo handle the path feature
   return (
     context: InsertionStateFactoryContext<State, PreviousInsertionsOutputs> & {
       identifier?: StateIdentifier;
     },
   ) => {
     const methods: Record<string, (payload: unknown) => void> = {};
+    const hasPath = 'path' in config;
+    const path = hasPath ? (config as { path: string }).path : undefined;
+    const pathKeys = path ? path.split('.') : undefined;
 
     for (const helperFn of config.methods as Array<
       ((data: Record<string, unknown>) => StateType[]) & { name: string }
     >) {
-      const methodName = helperFn.name;
-
-      if (methodName) {
-        methods[methodName] = (payload: any) => {
-          context.update((state) => {
-            let entities = state;
-            if ('select' in payload && payload.select) {
-              entities = state[payload.select as number] as any[];
-              return {
-                ...state,
-                [payload.select as number]: helperFn({
-                  ...(payload as Record<string, unknown>),
-                  entities,
-                  identifier: config.identifier,
-                }),
-              } as any;
-            }
-            return helperFn({
-              ...(payload as Record<string, unknown>),
-              entities,
-              identifier: config.identifier,
-            });
-          });
-        };
+      const helperName = helperFn.name;
+      if (!helperName) {
+        continue;
       }
+      const methodName = hasPath
+        ? `${path}${helperName[0].toUpperCase()}${helperName.slice(1)}`
+        : helperName;
+
+      methods[methodName] = (payload: any) => {
+        context.update((state) => {
+          const hasSelect = 'select' in payload && payload.select;
+          const targetState = hasSelect
+            ? (state as any)[payload.select as number]
+            : state;
+          console.log('state', state);
+          console.log('targetState', targetState);
+          const entities = pathKeys
+            ? getNestedStateValue({
+                state: targetState,
+                keysPath: pathKeys,
+              })
+            : targetState;
+          const updatedEntities = helperFn({
+            ...(payload as Record<string, unknown>),
+            entities,
+            identifier: config.identifier,
+          });
+
+          if (hasSelect) {
+            const updatedTargetState = pathKeys
+              ? createNestedStateUpdate({
+                  state: targetState,
+                  keysPath: pathKeys,
+                  value: updatedEntities,
+                })
+              : updatedEntities;
+            return {
+              ...(state as any),
+              [payload.select as number]: updatedTargetState,
+            } as any;
+          }
+
+          if (pathKeys) {
+            return createNestedStateUpdate({
+              state,
+              keysPath: pathKeys,
+              value: updatedEntities,
+            });
+          }
+
+          return updatedEntities;
+        });
+      };
     }
- // todo if path map output name
+    // todo if path map output name
     return methods as Prettify<
       EntitiesUtilsToMap<
         EntityHelperFns,
         StateType,
         K,
         HasStateIdentifier,
-        StateIdentifier
+        StateIdentifier,
+        'path' extends keyof typeof config ? true : false,
+        Path
       >
     > & {
       testState: State;
       testPath: Path;
+      testHasPath: 'path' extends keyof typeof config ? true : false;
     };
   };
 }

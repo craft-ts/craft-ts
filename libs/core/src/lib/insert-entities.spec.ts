@@ -1,18 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { state } from './state';
-import {
-  removeOne,
-  removeMany,
-  upsertOne,
-  upsertMany,
-  addOne,
-  addMany,
-} from './util/entities-util';
+import { removeOne, addOne, addMany } from './util/entities-util';
 import { insertEntities } from './insert-entities';
 import { queryParam } from './query-param';
 import { query } from './query';
+import { provideRouter } from '@angular/router';
 
 describe('insertEntities', () => {
+  beforeAll(() => {
+    vi.useFakeTimers();
+  });
+  afterAll(() => {
+    vi.useRealTimers();
+  });
   it('should enable to insert entities util to a state', async () => {
     await TestBed.runInInjectionContext(async () => {
       const myState = state(
@@ -28,6 +28,9 @@ describe('insertEntities', () => {
   });
 
   it('should enable to insert entities util to a queryParam', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([])],
+    }).compileComponents();
     await TestBed.runInInjectionContext(async () => {
       const myState = queryParam(
         {
@@ -44,7 +47,7 @@ describe('insertEntities', () => {
           path: 'selectedRows',
         }),
       );
-      myState.addMany({
+      myState.selectedRowsAddMany({
         newEntities: ['1', '2', '3'],
       });
     });
@@ -98,7 +101,6 @@ describe('insertEntities', () => {
 
   it('should enable to insert entities util to a query that return an object', async () => {
     await TestBed.runInInjectionContext(async () => {
-      // todo same test avec identifier et select
       const myQuery = query(
         {
           params: () => '1',
@@ -134,29 +136,89 @@ describe('insertEntities', () => {
           },
         ],
       });
-      expect(myQuery.value()).toEqual([
+      expect(myQuery.value()).toEqual({
+        total: 1,
+        products: [
+          {
+            id: '1',
+            name: 'Product 1',
+          },
+          {
+            id: '4',
+            name: '4',
+          },
+          {
+            id: '5',
+            name: '5',
+          },
+          {
+            id: '6',
+            name: '6',
+          },
+        ],
+      });
+    });
+  });
+  it('should enable to insert entities util to parallel queries that return an object', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const myQuery = query(
         {
-          total: 1,
-          products: [
-            {
-              id: '1',
-              name: 'Product 1',
-            },
-            {
-              id: '4',
-              name: '4',
-            },
-            {
-              id: '5',
-              name: '5',
-            },
-            {
-              id: '6',
-              name: '6',
-            },
-          ],
+          params: () => '1',
+          identifier: (params) => params,
+          loader: async () => ({
+            total: 1,
+            products: [
+              {
+                id: '1',
+                name: 'Product 1',
+              },
+            ],
+          }),
         },
-      ]);
+        insertEntities({
+          methods: [addOne, addMany, removeOne],
+          path: 'products',
+        }),
+      );
+      await vi.runAllTimersAsync();
+      myQuery.productsAddMany({
+        select: '1',
+        newEntities: [
+          {
+            id: '4',
+            name: '4',
+          },
+          {
+            id: '5',
+            name: '5',
+          },
+          {
+            id: '6',
+            name: '6',
+          },
+        ],
+      });
+      expect(myQuery.select('1')?.value()).toEqual({
+        total: 1,
+        products: [
+          {
+            id: '1',
+            name: 'Product 1',
+          },
+          {
+            id: '4',
+            name: '4',
+          },
+          {
+            id: '5',
+            name: '5',
+          },
+          {
+            id: '6',
+            name: '6',
+          },
+        ],
+      });
     });
   });
 });

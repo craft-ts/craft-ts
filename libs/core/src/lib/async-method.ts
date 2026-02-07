@@ -811,6 +811,9 @@ export function asyncMethod<
               NoInfer<AsyncMethodParams>
             >,
             insertions: acc as {},
+            state: resourceTarget.state,
+            set: resourceTarget.set,
+            update: resourceTarget.update,
           } as any),
         };
       },

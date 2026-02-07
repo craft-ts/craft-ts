@@ -59,6 +59,15 @@ export type ResourceByIdHandler<
    */
   set: (payload: Partial<Record<GroupIdentifier, State>>) => void;
   /**
+   * Update values of multiple resources without removing existing ones.
+   * If a resource doesn't exist, it will be created.
+   */
+  update: (
+    payload: (
+      state: Partial<Record<GroupIdentifier, State>>,
+    ) => Partial<Record<GroupIdentifier, State>>,
+  ) => void;
+  /**
    * Tracks the status and value changes of resources.
    * Provides signals for hasChange, ids, resolved, loading, reloading, error, and onlyValueChange.
    */
@@ -77,7 +86,8 @@ export type ResourceByIdRef<
   GroupIdentifier extends string,
   State,
   ResourceParams,
-> = WritableSignal<
+> = Signal<
+  // expose a signal instead of a writableSignal to avoid typing conflicts
   Prettify<
     Partial<Record<GroupIdentifier, CraftResourceRef<State, ResourceParams>>>
   >
@@ -280,6 +290,14 @@ export function resourceById<
         }
       });
     },
+    update: (
+      payload: (
+        state: Partial<Record<GroupIdentifier, State>>,
+      ) => Partial<Record<GroupIdentifier, State>>,
+    ) => {
+      const nextState = payload(stateSignal());
+      resourcesHandler.set(nextState);
+    },
     add: (resourceParams, options?: { defaultValue?: State }) => {
       const group = identifier(resourceParams as any);
       if (resourceByGroup()[group]) {
@@ -402,7 +420,7 @@ export function resourceById<
   };
 
   if (!fromResourceById) {
-    return Object.assign(resourceByGroup, resourcesHandler);
+    return Object.assign(resourceByGroup.asReadonly(), resourcesHandler);
   }
 
   effect(() => {
@@ -435,7 +453,7 @@ export function resourceById<
     });
   });
 
-  return Object.assign(resourceByGroup, resourcesHandler);
+  return Object.assign(resourceByGroup.asReadonly(), resourcesHandler);
 }
 
 const RESOURCE_INSTANCE_TOKEN = new InjectionToken<
