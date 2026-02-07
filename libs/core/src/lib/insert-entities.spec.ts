@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { state } from './state';
-import { removeOne, addOne, addMany } from './util/entities-util';
+import { removeOne, addOne, addMany, setOne } from './util/entities-util';
 import { insertEntities } from './insert-entities';
 import { queryParam } from './query-param';
 import { query } from './query';
@@ -219,6 +219,85 @@ describe('insertEntities', () => {
           },
         ],
       });
+    });
+  });
+
+  it('should update a nested dotted path on state', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const myState = state(
+        {
+          catalog: {
+            products: [
+              {
+                id: '1',
+                name: 'Product 1',
+              },
+            ],
+          },
+          total: 1,
+        },
+        insertEntities({
+          methods: [addMany],
+          path: 'catalog.products',
+        }),
+      );
+
+      myState.catalogProductsAddMany({
+        newEntities: [
+          {
+            id: '2',
+            name: 'Product 2',
+          },
+        ],
+      });
+
+      expect(myState()).toEqual({
+        catalog: {
+          products: [
+            {
+              id: '1',
+              name: 'Product 1',
+            },
+            {
+              id: '2',
+              name: 'Product 2',
+            },
+          ],
+        },
+        total: 1,
+      });
+    });
+  });
+
+  it('should forward a custom identifier to helper methods', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const myState = state(
+        [] as Array<{ uuid: string; name: string }>,
+        insertEntities({
+          methods: [setOne],
+          identifier: (entity) => entity.uuid,
+        }),
+      );
+
+      myState.setOne({
+        entity: {
+          uuid: '1',
+          name: 'Product 1',
+        },
+      });
+      myState.setOne({
+        entity: {
+          uuid: '1',
+          name: 'Product 1 updated',
+        },
+      });
+
+      expect(myState()).toEqual([
+        {
+          uuid: '1',
+          name: 'Product 1 updated',
+        },
+      ]);
     });
   });
 });

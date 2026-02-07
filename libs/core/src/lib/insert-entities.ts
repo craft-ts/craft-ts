@@ -23,6 +23,11 @@ type ArrayObjectDeepPath<State extends object> =
       : never
     : never;
 
+type DottedPathToCamel<Path extends string> =
+  Path extends `${infer Head}.${infer Tail}`
+    ? `${Head}${Capitalize<DottedPathToCamel<Tail>>}`
+    : Path;
+
 type EntitiesUtilsToMap<
   EntityHelperFns,
   Entity,
@@ -44,10 +49,13 @@ type EntitiesUtilsToMap<
           HasPath,
           Path,
           Acc & {
-            [key in Name as `${HasPath extends true ? `${Path & string}${Capitalize<string & key>}` : key & string}`]: (
+            [key in Name as `${HasPath extends true ? `${DottedPathToCamel<Path & string>}${Capitalize<string & key>}` : key & string}`]: (
               payload: MergeObject<
                 {
-                  [key in keyof Payload as `${key extends 'entities' ? never : key & string}`]: key extends 'entity'
+                  [key in Exclude<
+                    keyof Payload,
+                    'identifier'
+                  > as `${key extends 'entities' ? never : key & string}`]: key extends 'entity'
                     ? Entity
                     : key extends 'ids'
                       ? K[]
@@ -134,6 +142,13 @@ export function insertEntities<
     const hasPath = 'path' in config;
     const path = hasPath ? (config as { path: string }).path : undefined;
     const pathKeys = path ? path.split('.') : undefined;
+    const pathMethodPrefix = pathKeys
+      ? pathKeys.reduce(
+          (acc, key, index) =>
+            index === 0 ? key : `${acc}${key[0].toUpperCase()}${key.slice(1)}`,
+          '',
+        )
+      : undefined;
 
     for (const helperFn of config.methods as Array<
       ((data: Record<string, unknown>) => StateType[]) & { name: string }
@@ -143,7 +158,7 @@ export function insertEntities<
         continue;
       }
       const methodName = hasPath
-        ? `${path}${helperName[0].toUpperCase()}${helperName.slice(1)}`
+        ? `${pathMethodPrefix}${helperName[0].toUpperCase()}${helperName.slice(1)}`
         : helperName;
 
       methods[methodName] = (payload: any) => {
@@ -152,8 +167,6 @@ export function insertEntities<
           const targetState = hasSelect
             ? (state as any)[payload.select as number]
             : state;
-          console.log('state', state);
-          console.log('targetState', targetState);
           const entities = pathKeys
             ? getNestedStateValue({
                 state: targetState,
