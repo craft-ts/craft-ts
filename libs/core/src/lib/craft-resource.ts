@@ -1,5 +1,12 @@
-import { computed, resource, ResourceOptions, Signal } from '@angular/core';
+import {
+  computed,
+  linkedSignal,
+  resource,
+  ResourceOptions,
+  Signal,
+} from '@angular/core';
 import { CraftResourceRef } from './util/craft-resource-ref';
+import { AsyncStateManager, StateWithParams } from './util/persister.type';
 
 export function craftResource<Value, Params>(
   options: ResourceOptions<Value, Params>,
@@ -30,5 +37,19 @@ export function craftResource<Value, Params>(
         debugName: 'craftResourceState',
       },
     ),
+    asyncStateManager: {
+      isStable: linkedSignal(
+        () => !resourceRef.isLoading() && !resourceRef.error(),
+      ),
+      hasIdentifier: false,
+      stateWithParams: computed(() => {
+        const state = resourceRef.hasValue() ? resourceRef.value() : undefined;
+        const params = options.params?.();
+        return { state, params };
+      }) as Signal<StateWithParams<Value, Params>>,
+      setAsyncState: (stateWithParams) => {
+        resourceRef.set(stateWithParams.state);
+      },
+    } satisfies AsyncStateManager<unknown, Value, Params>,
   } as CraftResourceRef<Value, Params>;
 }

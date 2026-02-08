@@ -1,4 +1,5 @@
 import { ResourceRef, Signal } from '@angular/core';
+import { AsyncStateManager } from './persister.type';
 
 export type CraftResourceRefSpecificState<Value, Params> = {
   paramSrc: Signal<Params | undefined>;
@@ -7,6 +8,7 @@ export type CraftResourceRefSpecificState<Value, Params> = {
    */
   safeValue: Signal<Value | undefined>;
   state: Signal<Value | undefined>;
+  asyncStateManager: AsyncStateManager<unknown, Value, Params>;
 };
 export type CraftResourceRef<Value, Params> = ResourceRef<Value> &
   CraftResourceRefSpecificState<Value, Params>;

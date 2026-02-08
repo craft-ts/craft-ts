@@ -13,7 +13,7 @@ export * from './lib/craft-set-all-queries-params-standalone';
 export * from './lib/craft-sources';
 export * from './lib/craft-state';
 export * from './lib/craft';
-export * from './lib/insert-local-storage-persister';
+export * from './lib/insert-local-storage-persister-v2';
 export * from './lib/linked-source';
 export * from './lib/mutation';
 export * from './lib/query-param';

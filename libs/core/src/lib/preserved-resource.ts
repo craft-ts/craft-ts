@@ -3,11 +3,13 @@ import {
   linkedSignal,
   ResourceOptions,
   computed,
+  Signal,
 } from '@angular/core';
 import {
   CraftResourceRef,
   CraftResourceRefSpecificState,
 } from './util/craft-resource-ref';
+import { AsyncStateManager, StateWithParams } from './util/persister.type';
 
 export function preservedResource<T, R>(
   config: ResourceOptions<T, R>,
@@ -45,6 +47,20 @@ export function preservedResource<T, R>(
   if (config.defaultValue) {
     original.set(config.defaultValue);
   }
+
+  const asyncStateManager: AsyncStateManager<unknown, T | undefined, R> = {
+    hasIdentifier: false,
+    isStable: linkedSignal(() => !original.isLoading() && !original.error()),
+    stateWithParams: computed(() => {
+      const state = original.hasValue() ? original.value() : undefined;
+      const params = config.params?.();
+      return { state, params };
+    }) as Signal<StateWithParams<T, R>>,
+    setAsyncState: (stateWithParams) => {
+      preserved.set(stateWithParams.state);
+    },
+  };
+
   return {
     value: preserved,
     hasValue: original.hasValue.bind(original),
@@ -59,5 +75,6 @@ export function preservedResource<T, R>(
     safeValue: state,
     paramSrc: config.params,
     state,
+    asyncStateManager,
   } as CraftResourceRef<T | undefined, R>;
 }

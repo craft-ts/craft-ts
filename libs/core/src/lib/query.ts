@@ -1083,6 +1083,7 @@ export function query<
             state: resourceTarget.state,
             set: resourceTarget.set,
             update: resourceTarget.update,
+            asyncStateManager: resourceTarget.asyncStateManager,
           } as any), // try to improve the type here
         };
       },

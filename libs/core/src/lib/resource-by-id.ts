@@ -6,7 +6,6 @@ import {
   untracked,
   Injector,
   InjectionToken,
-  WritableSignal,
   computed,
   Signal,
   linkedSignal,
@@ -18,6 +17,11 @@ import {
   resourceByIdChangesTracker,
   resourceByIdChangesTrackerResult,
 } from './util/resource-by-id-changes-tracker.util';
+import {
+  AsyncStateManager,
+  AsyncStateWithParams,
+  StateWithParamsByIdentifier,
+} from './util/persister.type';
 
 export type ResourceByIdHandler<
   GroupIdentifier extends string,
@@ -76,6 +80,7 @@ export type ResourceByIdHandler<
    * A computed signal that returns a record of all resource states by their group identifier.
    */
   state: Signal<Partial<Record<GroupIdentifier, State>>>;
+  asyncStateManager: AsyncStateManager<GroupIdentifier, State, ResourceParams>;
 };
 
 export type Identifier<ResourceParams, GroupIdentifier> = (
@@ -417,6 +422,75 @@ export function resourceById<
       }));
       return CraftResourceRef;
     },
+    asyncStateManager: {
+      hasIdentifier: true as const,
+      // todo invalidate in insertMutation
+      // it can be more granular, but I think if one of the resource is not stable, we can consider that the global state is not stable
+      isStable: linkedSignal(
+        () =>
+          !!(
+            changesTracker.loading() ||
+            (changesTracker.reloading() && !changesTracker.error())
+          ),
+      ),
+      stateWithParams: computed(() => {
+        return Object.entries(resourceByGroup()).reduce(
+          (acc, [id, resource]) => {
+            if (resource) {
+              const craftResource = resource as CraftResourceRef<
+                State,
+                ResourceParams
+              >;
+              const params = craftResource.paramSrc();
+              if (craftResource.hasValue() && params) {
+                acc[id as GroupIdentifier] = {
+                  state: craftResource.value(),
+                  params,
+                };
+              }
+            }
+            return acc;
+          },
+          {} as StateWithParamsByIdentifier<
+            State,
+            ResourceParams,
+            GroupIdentifier
+          >,
+        );
+      }) as Signal<
+        AsyncStateWithParams<GroupIdentifier, State, ResourceParams>
+      >,
+      setAsyncState: (stateWithParams) => {
+        // Remove existing keys that are not in the payload
+        const currentResources = resourceByGroup();
+        Object.keys(currentResources).forEach((id) => {
+          if (!(id in stateWithParams)) {
+            resourcesHandler.resetResource(id as GroupIdentifier);
+          }
+        });
+
+        // Set or create resources from the payload
+        Object.entries(stateWithParams).forEach(([id, value]) => {
+          const stateWithParams = value as {
+            state: State | undefined;
+            params: ResourceParams;
+          };
+          if (!stateWithParams || !stateWithParams.state) {
+            return;
+          }
+          const existingResource = resourceByGroup()[id as GroupIdentifier];
+          if (existingResource) {
+            existingResource.set(stateWithParams.state);
+          } else {
+            // If the resource doesn't exist, create it with the provided value as default
+            resourcesHandler.addById(id as GroupIdentifier, {
+              defaultValue: stateWithParams.state,
+              defaultParam: stateWithParams.params,
+            });
+          }
+        });
+      },
+    },
   };
 
   if (!fromResourceById) {
@@ -444,6 +518,7 @@ export function resourceById<
           return;
         }
         resourcesHandler.addById(group, {
+          //@ts-expect-error todo fix
           paramsFromResourceById: resource as CraftResourceRef<
             FromObjectState,
             FromObjectResourceParams

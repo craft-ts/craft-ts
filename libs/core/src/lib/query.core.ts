@@ -20,6 +20,7 @@ import {
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { QueryParamsToState } from './query-param';
 import { Prettify } from './util/util.type';
+import { AsyncStateManager } from './util/persister.type';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -559,6 +560,7 @@ export type InsertionParams<
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs
     : never;
+  asyncStateManager: AsyncStateManager<unknown, ResourceState, ResourceParams>;
   resource: CraftResourceRef<ResourceState, ResourceParams>;
   resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
   // 👇 Seems required for insertLocalStoragePersister, otherwise TS says they can be missing
@@ -593,6 +595,11 @@ export type InsertionByIdParams<
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs
     : never;
+  asyncStateManager: AsyncStateManager<
+    GroupIdentifier,
+    ResourceState,
+    ResourceParams
+  >;
   resourceById: ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>;
   resource: never;
   resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
@@ -608,6 +615,21 @@ export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
       ? PreviousInsertionsOutputs
       : never;
   };
+
+export type CommonStateInsertionsFactory<
+  StateType,
+  PreviousInsertionsOutputs,
+  Params,
+  Identifier,
+> = {
+  state: Signal<StateType>;
+  set: (newState: StateType) => StateType;
+  update: (updateFn: (currentState: StateType) => StateType) => StateType;
+  insertions: keyof PreviousInsertionsOutputs extends string
+    ? PreviousInsertionsOutputs
+    : never;
+  asyncStateManager?: AsyncStateManager<Identifier, StateType, Params>;
+};
 
 export type QueryParamMethods<QueryParamsState> = {
   patch: (
