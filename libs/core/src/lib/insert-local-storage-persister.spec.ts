@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { asyncMethod } from './async-method';
+import { asyncProcess } from './async-process';
 import { insertLocalStoragePersister } from './insert-local-storage-persister';
 import { mutation } from './mutation';
 import { query } from './query';
@@ -18,7 +18,7 @@ describe('insertLocalStoragePersister', () => {
         insertLocalStoragePersister({
           storeName: 'myTestStore',
           key: 'myTestQuery',
-        })
+        }),
       );
 
       const myQuery2 = query(
@@ -32,7 +32,7 @@ describe('insertLocalStoragePersister', () => {
         insertLocalStoragePersister({
           storeName: 'myTestStore',
           key: 'myTestQuery2',
-        })
+        }),
       );
     });
   });
@@ -49,7 +49,7 @@ describe('insertLocalStoragePersister', () => {
         insertLocalStoragePersister({
           storeName: 'myTestStore',
           key: 'myMutation',
-        })
+        }),
       );
       const myMutation2 = mutation(
         {
@@ -62,14 +62,14 @@ describe('insertLocalStoragePersister', () => {
         insertLocalStoragePersister({
           storeName: 'myTestStore',
           key: 'myMutation2',
-        })
+        }),
       );
     });
   });
 
   it('can be used as an insertion in a async method', async () => {
     TestBed.runInInjectionContext(() => {
-      const myAsyncMethod = asyncMethod(
+      const myAsyncProcess = asyncProcess(
         {
           method: () => 'test',
           loader: async () => {
@@ -78,10 +78,10 @@ describe('insertLocalStoragePersister', () => {
         },
         insertLocalStoragePersister({
           storeName: 'myTestStore',
-          key: 'myAsyncMethod',
-        })
+          key: 'myAsyncProcess',
+        }),
       );
-      const myAsyncMethod2 = asyncMethod(
+      const myAsyncProcess2 = asyncProcess(
         {
           method: () => 'test',
           identifier: (params) => params,
@@ -91,8 +91,8 @@ describe('insertLocalStoragePersister', () => {
         },
         insertLocalStoragePersister({
           storeName: 'myTestStore',
-          key: 'myAsyncMethod2',
-        })
+          key: 'myAsyncProcess2',
+        }),
       );
     });
   });
@@ -104,7 +104,7 @@ describe('insertLocalStoragePersister', () => {
         insertLocalStoragePersister({
           storeName: 'myTestStore',
           key: 'myState',
-        })
+        }),
       );
     });
   });

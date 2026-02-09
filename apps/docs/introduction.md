@@ -10,7 +10,7 @@
 
 Stop wasting precious time on common application logic. @ng-angular-stack/craft provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
 
-`state`, `asyncState`, `queryParam`, `query`, `mutation` and `asyncMethod` are reactive primitive that will make your developer experience a lot better.
+`state`, `asyncState`, `queryParam`, `query`, `mutation` and `AsyncProcess` are reactive primitive that will make your developer experience a lot better.
 
 ### Powered by Signals
 
@@ -335,7 +335,7 @@ Designed for a **smooth developer experience** with:
 ```typescript
 import {
   state,
-  asyncMethod,
+  AsyncProcess,
   queryParam,
   query,
   mutation,

@@ -33,7 +33,7 @@ import { ResourceRef } from '@angular/core';
  * - Supports both primitive and complex object serialization
  *
  * **Compatibility:**
- * Works with: `query()`, `mutation()`, `asyncMethod()`, and `state()`
+ * Works with: `query()`, `mutation()`, `AsyncProcess()`, and `state()`
  *
  * @template GroupIdentifier - The type of identifier for grouped resources (string)
  * @template ResourceState - The type of the resource state (object or undefined)

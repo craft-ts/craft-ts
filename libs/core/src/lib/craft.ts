@@ -39,7 +39,7 @@ export type ContextConstraints = {
   _sources: {}; //? (editable in injectCraft/craftCraft)
   _mutation: {};
   _query: {};
-  _asyncMethods: {};
+  _AsyncProcess: {};
   _cloudProxy: {}; // A proxy that is used to share data between the injectable context and standalone outputs functions, composed store merge this proxy values
   _dependencies: {}; // todo implements composition alias and implements it
   _error: {};
@@ -53,7 +53,7 @@ type _EmptyContext = {
   _queryParams: {};
   _sources: {};
   _injections: {};
-  _asyncMethods: {};
+  _AsyncProcess: {};
   _mutation: {};
   _query: {};
   _cloudProxy: {};
@@ -68,7 +68,7 @@ export const EmptyContext = {
   _queryParams: {},
   _sources: {},
   _injections: {},
-  _asyncMethods: {},
+  _AsyncProcess: {},
   _mutation: {},
   _query: {},
   _cloudProxy: {},
@@ -94,7 +94,7 @@ export function partialContext(
     _injections: context._injections ?? {},
     _queryParams: context._queryParams ?? {},
     _sources: context._sources ?? {},
-    _asyncMethods: context._asyncMethods ?? {},
+    _AsyncProcess: context._AsyncProcess ?? {},
     _mutation: context._mutation ?? {},
     _query: context._query ?? {},
     _cloudProxy: context._cloudProxy ?? {},
@@ -114,9 +114,9 @@ export type PartialContext<Context extends Partial<ContextConstraints>> = {
     ? {}
     : Context['_queryParams'];
   _sources: [unknown] extends Context['_sources'] ? {} : Context['_sources'];
-  _asyncMethods: [unknown] extends Context['_asyncMethods']
+  _AsyncProcess: [unknown] extends Context['_AsyncProcess']
     ? {}
-    : Context['_asyncMethods'];
+    : Context['_AsyncProcess'];
   _mutation: [unknown] extends Context['_mutation'] ? {} : Context['_mutation'];
   _query: [unknown] extends Context['_query'] ? {} : Context['_query'];
   _cloudProxy: [unknown] extends Context['_cloudProxy']
@@ -136,7 +136,7 @@ export type CraftFactoryEntries<Context extends ContextConstraints> =
     Context['_injections'] &
     Context['_sources'] &
     Context['props'] &
-    Context['_asyncMethods'];
+    Context['_AsyncProcess'];
 
 export const craftFactoryEntries = (contextData: {
   context: ContextConstraints;
@@ -145,7 +145,7 @@ export const craftFactoryEntries = (contextData: {
   ...contextData.context._injections,
   ...contextData.context._sources,
   ...contextData.context.props,
-  ...contextData.context._asyncMethods,
+  ...contextData.context._AsyncProcess,
   ...contextData.context._mutation,
 });
 
@@ -326,7 +326,7 @@ type CraftCompositionOutput<
       _queryParams: Context['_queryParams'];
       _sources: Context['_sources'];
       _injections: Context['_injections'];
-      _asyncMethods: Context['_asyncMethods'];
+      _AsyncProcess: Context['_AsyncProcess'];
       _mutation: Context['_mutation'];
       _query: Context['_query'];
       _cloudProxy: Context['_cloudProxy'];
@@ -485,7 +485,7 @@ export type MergeTwoContexts<
   _query: A['_query'] & B['_query'];
   _queryParams: A['_queryParams'] & B['_queryParams'];
   _sources: A['_sources'] & B['_sources'];
-  _asyncMethods: A['_asyncMethods'] & B['_asyncMethods'];
+  _AsyncProcess: A['_AsyncProcess'] & B['_AsyncProcess'];
   _cloudProxy: A['_cloudProxy'] & B['_cloudProxy'];
   _dependencies: A['_dependencies'] & B['_dependencies'];
   _error: A['_error'] & B['_error'];
@@ -960,8 +960,8 @@ type StandaloneOutputsConstraints = {};
  *       })
  *     )
  *   ),
- *   craftAsyncMethods(() => ({
- *     showNotification: asyncMethod({
+ *   craftAsyncProcesses(() => ({
+ *     showNotification: asyncProcess({
  *       method: (message: string, duration: number) => ({ message, duration }),
  *       loader: async ({ params, helpers }) => {
  *         helpers.methods.messagesAddMessage(params.message);
@@ -2338,9 +2338,9 @@ function mergeContextAndProps({
             ...acc.context._sources,
             ...result._sources,
           },
-          _asyncMethods: {
-            ...acc.context._asyncMethods,
-            ...result._asyncMethods,
+          _AsyncProcess: {
+            ...acc.context._AsyncProcess,
+            ...result._AsyncProcess,
           },
           _cloudProxy: {
             ...acc.context._cloudProxy,
@@ -2372,7 +2372,7 @@ function mergeContextAndProps({
         _injections: {},
         _mutation: {},
         _query: {},
-        _asyncMethods: {},
+        _AsyncProcess: {},
         _cloudProxy: {},
         _dependencies: {},
         _error: {},

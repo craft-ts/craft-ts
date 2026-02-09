@@ -129,8 +129,8 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *
  *   { injectCraft } = craft(
  *     { name: '', providedIn: 'root' },
- *     craftAsyncMethods(() => ({
- *       checkLoadMore: asyncMethod({
+ *     craftAsyncProcesses(() => ({
+ *       checkLoadMore: asyncProcess({
  *         method: afterRecomputation(this.scrollSource, (data) => data),
  *         loader: async ({ params }) => {
  *           const { scrollY, scrollHeight, clientHeight } = params;
@@ -241,8 +241,8 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *
  *   { injectCraft } = craft(
  *     { name: '', providedIn: 'root' },
- *     craftAsyncMethods(() => ({
- *       handleCustomEvent: asyncMethod({
+ *     craftAsyncProcesses(() => ({
+ *       handleCustomEvent: asyncProcess({
  *         method: afterRecomputation(this.customEventSource, (data) => data),
  *         loader: async ({ params }) => {
  *           console.log('Custom event data:', params);
@@ -311,8 +311,8 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *
  *   { injectCraft } = craft(
  *     { name: '', providedIn: 'root' },
- *     craftAsyncMethods(() => ({
- *       handleShortcut: asyncMethod({
+ *     craftAsyncProcesses(() => ({
+ *       handleShortcut: asyncProcess({
  *         method: afterRecomputation(this.keydownSource, (data) => data),
  *         loader: async ({ params }) => {
  *           // Handle Ctrl+S

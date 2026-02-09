@@ -1,6 +1,6 @@
 ## Backlog
 
-- [ ] For query/mutation/asyncMethod insertions, expose a set and state similar to other primitive states that will simplify create reusable insert. (for persister one more property isStable ? To invalidate state while mutating)
+- [ ] For query/mutation/AsyncProcess insertions, expose a set and state similar to other primitive states that will simplify create reusable insert. (for persister one more property isStable ? To invalidate state while mutating)
 - [ ] Improve localStoragePersister invalidation
 - [ ] Explore to make Source similar to Subject/ReplaySubject
 - [ ] Add support for RxJs source without having an explicitly dependency on RxJs.

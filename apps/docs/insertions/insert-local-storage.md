@@ -42,7 +42,7 @@ const myMutation = mutation(
     key: 'myMutation',
   }),
 );
-const myAsyncMethod = asyncMethod(
+const myAsyncProcess = asyncProcess(
   {
     method: () => 'test',
     loader: async () => {
@@ -51,7 +51,7 @@ const myAsyncMethod = asyncMethod(
   },
   insertLocalStoragePersister({
     storeName: 'myTestStore',
-    key: 'myAsyncMethod',
+    key: 'myAsyncProcess',
   }),
 );
 ```

@@ -103,6 +103,6 @@ console.log(myState()); // 0
 
 ## See Also
 
-- [asyncMethod](/primitives/async-method) - For async operations
+- [AsyncProcess](/primitives/async-process) - For async operations
 - [Store](/store/craft) - For composing multiple states
 - [Insertions](/insertions/insert-local-storage) - For enhancing state behavior

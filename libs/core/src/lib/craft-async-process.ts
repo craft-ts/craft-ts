@@ -1,4 +1,3 @@
-import { ResourceStatus, Signal } from '@angular/core';
 import {
   ContextConstraints,
   craftFactoryEntries,
@@ -14,38 +13,38 @@ import {
   Prettify,
   UnionToTuple,
 } from './util/util.type';
-import { AsyncMethodRef } from './async-method';
+import { AsyncProcessRef } from './async-process';
 
-type SpecificCraftAsyncMethodsOutputs<AsyncMethods extends {}> =
+type SpecificCraftAsyncProcessesOutputs<AsyncProcess extends {}> =
   PartialContext<{
     props: {
-      [key in keyof AsyncMethods]: Prettify<Omit<AsyncMethods[key], 'method'>>;
+      [key in keyof AsyncProcess]: Prettify<Omit<AsyncProcess[key], 'method'>>;
     };
     methods: FilterMethodsBoundToSources<
-      AsyncMethods,
-      UnionToTuple<keyof AsyncMethods>,
+      AsyncProcess,
+      UnionToTuple<keyof AsyncProcess>,
       'set',
       'method'
     >;
-    _asyncMethods: {
-      [key in keyof AsyncMethods]: Prettify<Omit<AsyncMethods[key], 'method'>>;
+    _AsyncProcess: {
+      [key in keyof AsyncProcess]: Prettify<Omit<AsyncProcess[key], 'method'>>;
     };
   }>;
 
-type CraftAsyncMethodsOutputs<
+type craftAsyncProcessesOutputs<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
-  AsyncMethods extends {},
+  AsyncProcess extends {},
 > = CraftFactoryUtility<
   Context,
   StoreConfig,
-  SpecificCraftAsyncMethodsOutputs<AsyncMethods>
+  SpecificCraftAsyncProcessesOutputs<AsyncProcess>
 >;
 
 /**
  * Creates async method definitions for use within a craft store, enabling reactive management of asynchronous operations.
  *
- * This function integrates multiple `asyncMethod()` instances into a craft store by:
+ * This function integrates multiple `AsyncProcess()` instances into a craft store by:
  * - Registering async methods as a group with automatic state tracking
  * - Generating prefixed `set` methods for each async method (e.g., `setMethodName`)
  * - Exposing async method state signals (value, status, error, isLoading)
@@ -87,9 +86,9 @@ type CraftAsyncMethodsOutputs<
  *
  * @template Context - The craft store context type
  * @template StoreConfig - The craft store configuration type
- * @template AsyncMethods - Record of async method names to async method instances
+ * @template AsyncProcess - Record of async method names to async method instances
  *
- * @param asyncMethodsFactory - Factory function that receives the craft context and returns a record of async methods.
+ * @param AsyncProcessFactory - Factory function that receives the craft context and returns a record of async methods.
  *   Has access to all other craft entries (sources, queries, states, injections) defined before it.
  *
  * @returns A craft factory utility that integrates async methods into the store with:
@@ -100,7 +99,7 @@ type CraftAsyncMethodsOutputs<
  * @example
  * Basic method-based async method
  * ```ts
- * const delay = asyncMethod({
+ * const delay = asyncProcess({
  *   method: (delay: number) => delay,
  *   loader: async ({ params }) => {
  *     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
@@ -126,7 +125,7 @@ type CraftAsyncMethodsOutputs<
  * ```ts
  * const delaySource = source<number>();
  *
- * const delay = asyncMethod({
+ * const delay = asyncProcess({
  *   method: afterRecomputation(delaySource, (term) => term),
  *   loader: async ({ params }) => {
  *     // Debounce at source level
@@ -147,7 +146,7 @@ type CraftAsyncMethodsOutputs<
  * @example
  * Async method with identifier for parallel operations
  * ```ts
- * const delayById = asyncMethod({
+ * const delayById = asyncProcess({
  *   method: (id: string) => id,
  *   identifier: (id) => id,
  *   loader: async () => {
@@ -172,7 +171,7 @@ type CraftAsyncMethodsOutputs<
  * @example
  * Calling async js native API
  * ```ts
- * const shareContent = asyncMethod({
+ * const shareContent = asyncProcess({
  *   method: (payload: { title: string, url: string }) => payload,
  *   stream: async ({ params }) => {
  *      return navigator.share(params);
@@ -185,19 +184,19 @@ type CraftAsyncMethodsOutputs<
  *
  * ```
  */
-export function craftAsyncMethods<
+export function craftAsyncProcesses<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
-  AsyncMethods extends {},
+  AsyncProcess extends {},
 >(
-  asyncMethodsFactory: (context: CraftFactoryEntries<Context>) => AsyncMethods,
-): CraftAsyncMethodsOutputs<Context, StoreConfig, AsyncMethods> {
+  AsyncProcessFactory: (context: CraftFactoryEntries<Context>) => AsyncProcess,
+): craftAsyncProcessesOutputs<Context, StoreConfig, AsyncProcess> {
   return (_cloudProxy) => (contextData) => {
-    const asyncMethods = asyncMethodsFactory(
+    const AsyncProcess = AsyncProcessFactory(
       craftFactoryEntries(contextData),
     ) as Record<
       string,
-      AsyncMethodRef<
+      AsyncProcessRef<
         unknown,
         unknown,
         unknown,
@@ -208,16 +207,16 @@ export function craftAsyncMethods<
       >
     >;
 
-    const { methods, resourceRefs } = Object.entries(asyncMethods ?? {}).reduce(
-      (acc, [methodName, asyncMethodRef]) => {
+    const { methods, resourceRefs } = Object.entries(AsyncProcess ?? {}).reduce(
+      (acc, [methodName, AsyncProcessRef]) => {
         const methodValue =
-          'method' in asyncMethodRef ? asyncMethodRef.method : undefined;
+          'method' in AsyncProcessRef ? AsyncProcessRef.method : undefined;
         if (!methodValue) {
-          acc.resourceRefs[methodName] = asyncMethodRef;
+          acc.resourceRefs[methodName] = AsyncProcessRef;
           return acc;
         }
         acc.resourceRefs[methodName] = {
-          ...asyncMethodRef,
+          ...AsyncProcessRef,
         };
         acc.methods[`set${capitalize(methodName)}`] = methodValue as Function;
         return acc;
@@ -229,7 +228,7 @@ export function craftAsyncMethods<
         resourceRefs: Record<
           string,
           Omit<
-            AsyncMethodRef<
+            AsyncProcessRef<
               unknown,
               unknown,
               unknown,
@@ -248,7 +247,7 @@ export function craftAsyncMethods<
     return partialContext({
       props: resourceRefs,
       methods,
-      _asyncMethods: resourceRefs,
-    }) as unknown as SpecificCraftAsyncMethodsOutputs<AsyncMethods>;
+      _AsyncProcess: resourceRefs,
+    }) as unknown as SpecificCraftAsyncProcessesOutputs<AsyncProcess>;
   };
 }

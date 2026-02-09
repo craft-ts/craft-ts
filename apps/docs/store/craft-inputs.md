@@ -85,7 +85,7 @@ Links to all craft utilities implemented in `libs/core/src/lib`:
 - [craftSources](./craft-sources.md)
 - [craftInputs](./craft-inputs.md)
 - [craftComputedStates](./craft-computed.md)
-- [craftAsyncMethods](./craft-async-method.md)
+- [craftAsyncProcesses](./craft-async-processed.md)
 - [craftQuery](./craft-query.md)
 - [craftQueryParam](./craft-query-param.md)
 - [craftQueryParams](./craft-query-params.md)

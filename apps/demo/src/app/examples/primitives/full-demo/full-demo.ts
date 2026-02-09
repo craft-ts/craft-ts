@@ -7,7 +7,7 @@ import {
   inject,
 } from '@angular/core';
 import {
-  asyncMethod,
+  AsyncProcess,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
@@ -206,7 +206,7 @@ export default class FullDemo {
     },
   });
 
-  protected readonly delayUserDeletion = asyncMethod({
+  protected readonly delayUserDeletion = asyncProcess({
     method: (payload: { user: User; action: 'delete' | 'cancel' }) => payload,
     identifier: ({ user: { id } }) => id,
     loader: async ({ params: { user, action } }) => {

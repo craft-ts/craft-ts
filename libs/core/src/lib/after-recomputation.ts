@@ -116,8 +116,8 @@ import { SourceBranded } from './util/util';
  *   craftSources({
  *     searchInput: source<string>(),
  *   }),
- *   craftAsyncMethods(({ searchInput }) => ({
- *     search: asyncMethod({
+ *   craftAsyncProcesses(({ searchInput }) => ({
+ *     search: asyncProcess({
  *       method: afterRecomputation(searchInput, (term) => term),
  *       loader: async ({ params }) => {
  *         // Debounce at source level before setting
@@ -214,8 +214,8 @@ import { SourceBranded } from './util/util';
  *   craftSources({
  *     inputChange: source<string>(),
  *   }),
- *   craftAsyncMethods(({ inputChange }) => ({
- *     validate: asyncMethod({
+ *   craftAsyncProcesses(({ inputChange }) => ({
+ *     validate: asyncProcess({
  *       method: afterRecomputation(inputChange, (input) => {
  *         // Only proceed if input is valid
  *         const trimmed = input.trim();

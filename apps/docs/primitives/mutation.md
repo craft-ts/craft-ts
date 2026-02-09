@@ -112,5 +112,5 @@ Prefer `safeValue()` in templates and computed signals to avoid unexpected error
 ## See Also
 
 - [query](/primitives/query) - For data fetching
-- [asyncMethod](/primitives/async-method) - For simple async operations
+- [AsyncProcess](/primitives/async-process) - For simple async operations
 - [Store Mutation](/store/craft-mutation) - For store integration

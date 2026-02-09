@@ -10,13 +10,13 @@ import {
   craftInject,
   craftQueryParam,
   craftMutations,
-  craftAsyncMethods,
+  craftAsyncProcesses,
   craftQuery,
   craftState,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
-  asyncMethod,
+  AsyncProcess,
   mutation,
   query,
   queryParam,
@@ -72,8 +72,8 @@ const { injectFullDemoCraft, provideFullDemoCraft } = craft(
       },
     }),
   })),
-  craftAsyncMethods(() => ({
-    delayUserDeletion: asyncMethod({
+  craftAsyncProcesses(() => ({
+    delayUserDeletion: asyncProcess({
       method: (payload: { user: User; action: 'delete' | 'cancel' }) => payload,
       identifier: ({ user: { id } }) => id,
       loader: async ({ params: { user, action } }) => {

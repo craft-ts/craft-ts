@@ -130,8 +130,8 @@ const { injectCraft } = craft(
   craftSources({
     searchInput: source<string>(),
   }),
-  craftAsyncMethods(({ searchInput }) => ({
-    search: asyncMethod({
+  craftAsyncProcesses(({ searchInput }) => ({
+    search: asyncProcess({
       method: afterRecomputation(searchInput, (term) => term),
       loader: async ({ params }) => {
         // Debounce at source level before setting
@@ -228,8 +228,8 @@ const { injectCraft } = craft(
   craftSources({
     inputChange: source<string>(),
   }),
-  craftAsyncMethods(({ inputChange }) => ({
-    validate: asyncMethod({
+  craftAsyncProcesses(({ inputChange }) => ({
+    validate: asyncProcess({
       method: afterRecomputation(inputChange, (input) => {
         // Only proceed if input is valid
         const trimmed = input.trim();

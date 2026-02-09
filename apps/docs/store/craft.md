@@ -496,8 +496,8 @@ const { injectNotificationsCraft } = craft(
       clear: () => set([]),
     })),
   ),
-  craftAsyncMethods(() => ({
-    showNotification: asyncMethod({
+  craftAsyncProcesses(() => ({
+    showNotification: asyncProcess({
       method: (message: string, duration: number) => ({ message, duration }),
       loader: async ({ params, helpers }) => {
         helpers.methods.messagesAddMessage(params.message);
@@ -648,7 +648,7 @@ admin.pageNext();
 - [craftSources](./craft-sources.md)
 - [craftInputs](./craft-inputs.md)
 - [craftComputedStates](./craft-computed.md)
-- [craftAsyncMethods](./craft-async-method.md)
+- [craftAsyncProcesses](./craft-async-processed.md)
 - [craftQuery](./craft-query.md)
 - [craftQueryParam](./craft-query-param.md)
 - [craftQueryParams](./craft-query-params.md)

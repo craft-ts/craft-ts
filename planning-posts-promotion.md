@@ -47,11 +47,11 @@ const counter = state(0, ({ update }) => ({
 
 - 💬 Engagement communauté
 
-### Post 7 - asyncMethod Expliqué
+### Post 7 - AsyncProcess Expliqué
 
-**Prompt:** "Crée un post expliquant le cas d'usage de `asyncMethod` : gérer une opération async avec tracking automatique du status (loading, error, success). Exemple : un debounced search."
+**Prompt:** "Crée un post expliquant le cas d'usage de `AsyncProcess` : gérer une opération async avec tracking automatique du status (loading, error, success). Exemple : un debounced search."
 
-- 📎 Lien vers la doc asyncMethod
+- 📎 Lien vers la doc AsyncProcess
 
 ### Post 8 - Comparaison Modeste
 
@@ -272,7 +272,7 @@ const counter = state(0, ({ update }) => ({
 
 ### Post 40 - Merci & Récap
 
-**Prompt:** "Post de remerciement pour ceux qui ont suivi cette série. Récap des 5 primitives principales (state, query, mutation, queryParam, asyncMethod) avec un mini snippet pour chacune. Invitation à essayer."
+**Prompt:** "Post de remerciement pour ceux qui ont suivi cette série. Récap des 5 primitives principales (state, query, mutation, queryParam, AsyncProcess) avec un mini snippet pour chacune. Invitation à essayer."
 
 - 🔧 Mega-snippet récap
 - 📎 Lien vers Get Started

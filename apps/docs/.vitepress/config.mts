@@ -27,7 +27,7 @@ export default defineConfig({
         text: 'Primitives',
         items: [
           { text: 'state', link: '/primitives/state' },
-          { text: 'asyncMethod', link: '/primitives/async-method' },
+          { text: 'AsyncProcess', link: '/primitives/async-process' },
           { text: 'queryParam', link: '/primitives/query-param' },
           { text: 'query', link: '/primitives/query' },
           { text: 'mutation', link: '/primitives/mutation' },
@@ -54,7 +54,7 @@ export default defineConfig({
           { text: 'craftSources', link: '/store/craft-sources' },
           { text: 'craftInputs', link: '/store/craft-inputs' },
           { text: 'craftComputedStates', link: '/store/craft-computed' },
-          { text: 'craftAsyncMethods', link: '/store/craft-async-method' },
+          { text: 'craftAsyncProcesses', link: '/store/craft-async-process' },
           { text: 'craftQuery', link: '/store/craft-query' },
           { text: 'craftQueryParam', link: '/store/craft-query-param' },
           { text: 'craftQueryParams', link: '/store/craft-query-params' },

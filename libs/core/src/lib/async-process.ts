@@ -1,10 +1,8 @@
 import {
   computed,
   isSignal,
-  resource,
   ResourceLoaderParams,
   ResourceOptions,
-  ResourceRef,
   ResourceStatus,
   ResourceStreamingLoader,
   Signal,
@@ -19,7 +17,7 @@ import { MergeObjects } from './util/util.type';
 import { craftResource } from './craft-resource';
 
 // ! It looks like TS does not handle to expose the ResourceByIdHandler without erasing the () => ... part
-export type AsyncMethodRef<
+export type AsyncProcessRef<
   Value,
   ArgParams,
   Params,
@@ -76,7 +74,7 @@ export type AsyncMethodRef<
   ]
 >;
 
-type AsyncMethodConfig<
+type AsyncProcessConfig<
   ResourceState,
   Params,
   ParamsArgs,
@@ -130,14 +128,14 @@ type AsyncMethodConfig<
       }
   );
 
-export type AsyncMethodOutput<
+export type AsyncProcessOutput<
   State extends object | undefined,
   Params,
   ArgParams,
   SourceParams,
   GroupIdentifier,
   Insertions,
-> = AsyncMethodRef<
+> = AsyncProcessRef<
   State,
   ArgParams,
   Params,
@@ -183,13 +181,13 @@ export type AsyncMethodOutput<
  * - Examples: persistence, caching, retry logic
  * - Insertions receive access to resource state and params
  *
- * @template AsyncMethodState - The type of data returned by the async operation
- * @template AsyncMethodParams - The type of params passed to the loader
- * @template AsyncMethodArgsParams - The type of arguments for the method function
+ * @template AsyncProcesstate - The type of data returned by the async operation
+ * @template AsyncProcessParams - The type of params passed to the loader
+ * @template AsyncProcessArgsParams - The type of arguments for the method function
  * @template SourceParams - The type emitted by the source (for source-based methods)
  * @template GroupIdentifier - The type of identifier for parallel execution
  *
- * @param asyncMethodConfig - Configuration object:
+ * @param AsyncProcessConfig - Configuration object:
  *   - `method`: Function returning params OR source for automatic triggering
  *   - `loader`: Async function that performs the operation (mutually exclusive with `stream`)
  *   - `stream`: Streaming loader for progressive updates (mutually exclusive with `loader`)
@@ -208,7 +206,7 @@ export type AsyncMethodOutput<
  * @example
  * Basic method-based async method
  * ```ts
- * const delay = asyncMethod({
+ * const delay = asyncProcess({
  *   method: (delay: number) => delay,
  *   loader: async ({ params }) => {
  *     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
@@ -234,7 +232,7 @@ export type AsyncMethodOutput<
  * ```ts
  * const delaySource = source<number>();
  *
- * const delay = asyncMethod({
+ * const delay = asyncProcess({
  *   method: afterRecomputation(delaySource, (term) => term),
  *   loader: async ({ params }) => {
  *     // Debounce at source level
@@ -255,7 +253,7 @@ export type AsyncMethodOutput<
  * @example
  * Async method with identifier for parallel operations
  * ```ts
- * const delayById = asyncMethod({
+ * const delayById = asyncProcess({
  *   method: (id: string) => id,
  *   identifier: (id) => id,
  *   loader: async () => {
@@ -280,7 +278,7 @@ export type AsyncMethodOutput<
  * @example
  * Calling async js native API
  * ```ts
- * const shareContent = asyncMethod({
+ * const shareContent = asyncProcess({
  *   method: (payload: { title: string, url: string }) => payload,
  *   loader: async ({ params }) => {
  *      return navigator.share(params);
@@ -293,143 +291,143 @@ export type AsyncMethodOutput<
  *
  * ```
  */
-export function asyncMethod<
-  AsyncMethodState extends object | undefined,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+export function asyncProcess<
+  AsyncProcesstate extends object | undefined,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
 >(
-  asyncMethodConfig: AsyncMethodConfig<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  AsyncProcessConfig: AsyncProcessConfig<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier
   >,
-): AsyncMethodOutput<
-  AsyncMethodState,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+): AsyncProcessOutput<
+  AsyncProcesstate,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   {}
 >;
-export function asyncMethod<
-  AsyncMethodState extends object | undefined,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+export function asyncProcess<
+  AsyncProcesstate extends object | undefined,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1,
 >(
-  asyncMethodConfig: AsyncMethodConfig<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  AsyncProcessConfig: AsyncProcessConfig<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion1
   >,
-): AsyncMethodOutput<
-  AsyncMethodState,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+): AsyncProcessOutput<
+  AsyncProcesstate,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1
 >;
-export function asyncMethod<
-  AsyncMethodState extends object | undefined,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+export function asyncProcess<
+  AsyncProcesstate extends object | undefined,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1,
   Insertion2,
 >(
-  asyncMethodConfig: AsyncMethodConfig<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  AsyncProcessConfig: AsyncProcessConfig<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion2,
     Insertion1
   >,
-): AsyncMethodOutput<
-  AsyncMethodState,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+): AsyncProcessOutput<
+  AsyncProcesstate,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2
 >;
-export function asyncMethod<
-  AsyncMethodState extends object | undefined,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+export function asyncProcess<
+  AsyncProcesstate extends object | undefined,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1,
   Insertion2,
   Insertion3,
 >(
-  asyncMethodConfig: AsyncMethodConfig<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  AsyncProcessConfig: AsyncProcessConfig<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion3,
     Insertion1 & Insertion2
   >,
-): AsyncMethodOutput<
-  AsyncMethodState,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+): AsyncProcessOutput<
+  AsyncProcesstate,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3
 >;
-export function asyncMethod<
-  AsyncMethodState extends object | undefined,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+export function asyncProcess<
+  AsyncProcesstate extends object | undefined,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1,
@@ -437,52 +435,52 @@ export function asyncMethod<
   Insertion3,
   Insertion4,
 >(
-  asyncMethodConfig: AsyncMethodConfig<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  AsyncProcessConfig: AsyncProcessConfig<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
-): AsyncMethodOutput<
-  AsyncMethodState,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+): AsyncProcessOutput<
+  AsyncProcesstate,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4
 >;
-export function asyncMethod<
-  AsyncMethodState extends object | undefined,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+export function asyncProcess<
+  AsyncProcesstate extends object | undefined,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1,
@@ -491,59 +489,59 @@ export function asyncMethod<
   Insertion4,
   Insertion5,
 >(
-  asyncMethodConfig: AsyncMethodConfig<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  AsyncProcessConfig: AsyncProcessConfig<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
-): AsyncMethodOutput<
-  AsyncMethodState,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+): AsyncProcessOutput<
+  AsyncProcesstate,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
 >;
-export function asyncMethod<
-  AsyncMethodState extends object | undefined,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+export function asyncProcess<
+  AsyncProcesstate extends object | undefined,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1,
@@ -553,66 +551,66 @@ export function asyncMethod<
   Insertion5,
   Insertion6,
 >(
-  asyncMethodConfig: AsyncMethodConfig<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  AsyncProcessConfig: AsyncProcessConfig<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
-): AsyncMethodOutput<
-  AsyncMethodState,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+): AsyncProcessOutput<
+  AsyncProcesstate,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
 >;
-export function asyncMethod<
-  AsyncMethodState extends object | undefined,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+export function asyncProcess<
+  AsyncProcesstate extends object | undefined,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1,
@@ -623,65 +621,65 @@ export function asyncMethod<
   Insertion6,
   Insertion7,
 >(
-  asyncMethodConfig: AsyncMethodConfig<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  AsyncProcessConfig: AsyncProcessConfig<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
   insertion7: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<AsyncMethodState>,
-    NoInfer<AsyncMethodParams>,
+    NoInfer<AsyncProcesstate>,
+    NoInfer<AsyncProcessParams>,
     Insertion7,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
   >,
-): AsyncMethodOutput<
-  AsyncMethodState,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+): AsyncProcessOutput<
+  AsyncProcesstate,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   Insertion1 &
@@ -692,56 +690,56 @@ export function asyncMethod<
     Insertion6 &
     Insertion7
 >;
-export function asyncMethod<
-  AsyncMethodState extends object | undefined,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+export function asyncProcess<
+  AsyncProcesstate extends object | undefined,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
 >(
-  asyncMethodConfig: AsyncMethodConfig<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  AsyncProcessConfig: AsyncProcessConfig<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier
   >,
   ...insertions: any[]
-): AsyncMethodOutput<
-  AsyncMethodState,
-  AsyncMethodParams,
-  AsyncMethodArgsParams,
+): AsyncProcessOutput<
+  AsyncProcesstate,
+  AsyncProcessParams,
+  AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
   {}
 > {
-  const asyncmethodResourceParamsFnSignal = signal<
-    AsyncMethodParams | undefined
+  const AsyncProcessResourceParamsFnSignal = signal<
+    AsyncProcessParams | undefined
   >(undefined);
 
-  const isConnectedToSource = isSource(asyncMethodConfig.method);
+  const isConnectedToSource = isSource(AsyncProcessConfig.method);
 
-  const isUsingIdentifier = 'identifier' in asyncMethodConfig;
+  const isUsingIdentifier = 'identifier' in AsyncProcessConfig;
 
   const resourceParamsSrc = isConnectedToSource
-    ? asyncMethodConfig.method
-    : asyncmethodResourceParamsFnSignal;
+    ? AsyncProcessConfig.method
+    : AsyncProcessResourceParamsFnSignal;
 
   const resourceTarget = isUsingIdentifier
     ? resourceById<
-        AsyncMethodState,
-        AsyncMethodParams,
+        AsyncProcesstate,
+        AsyncProcessParams,
         GroupIdentifier & string,
         string,
         unknown,
         unknown
       >({
-        ...asyncMethodConfig,
+        ...AsyncProcessConfig,
         params: resourceParamsSrc,
-        identifier: asyncMethodConfig.identifier,
+        identifier: AsyncProcessConfig.identifier,
       } as any)
-    : craftResource<AsyncMethodState, AsyncMethodParams>({
-        ...asyncMethodConfig,
+    : craftResource<AsyncProcesstate, AsyncProcessParams>({
+        ...AsyncProcessConfig,
         params: resourceParamsSrc,
       } as ResourceOptions<any, any>);
 
@@ -755,16 +753,16 @@ export function asyncMethod<
            */
           _resourceById: resourceTarget as ResourceByIdRef<
             GroupIdentifier & string,
-            AsyncMethodState,
-            AsyncMethodParams
+            AsyncProcesstate,
+            AsyncProcessParams
           >,
           select: (id: GroupIdentifier) => {
             return computed(() => {
               const list = (
                 resourceTarget as ResourceByIdRef<
                   GroupIdentifier & string,
-                  AsyncMethodState,
-                  AsyncMethodParams
+                  AsyncProcesstate,
+                  AsyncProcessParams
                 >
               )();
               //@ts-expect-error GroupIdentifier & string is not recognized correctly
@@ -774,29 +772,31 @@ export function asyncMethod<
         }
       : {},
     {
-      method: isSignal(asyncMethodConfig.method)
+      method: isSignal(AsyncProcessConfig.method)
         ? undefined
-        : (arg: AsyncMethodArgsParams) => {
-            const result = asyncMethodConfig.method(arg);
+        : (arg: AsyncProcessArgsParams) => {
+            const result = AsyncProcessConfig.method(arg);
             if (isUsingIdentifier) {
-              const id = asyncMethodConfig.identifier?.(arg as any);
+              const id = AsyncProcessConfig.identifier?.(arg as any);
               (
                 resourceTarget as ResourceByIdRef<
                   GroupIdentifier & string,
-                  AsyncMethodState,
-                  AsyncMethodParams
+                  AsyncProcesstate,
+                  AsyncProcessParams
                 >
               ).addById(id as GroupIdentifier & string);
             }
-            asyncmethodResourceParamsFnSignal.set(result as AsyncMethodParams);
+            AsyncProcessResourceParamsFnSignal.set(
+              result as AsyncProcessParams,
+            );
             return result;
           },
     },
     (
       insertions as InsertionsResourcesFactory<
         NoInfer<GroupIdentifier>,
-        NoInfer<AsyncMethodState>,
-        NoInfer<AsyncMethodParams>,
+        NoInfer<AsyncProcesstate>,
+        NoInfer<AsyncProcessParams>,
         {}
       >[]
     )?.reduce(
@@ -808,7 +808,7 @@ export function asyncMethod<
               ? { resourceById: resourceTarget }
               : { resource: resourceTarget }),
             resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<AsyncMethodParams>
+              NoInfer<AsyncProcessParams>
             >,
             insertions: acc as {},
             state: resourceTarget.state,
@@ -819,10 +819,10 @@ export function asyncMethod<
       },
       {} as Record<string, unknown>,
     ),
-  ) as unknown as AsyncMethodOutput<
-    AsyncMethodState,
-    AsyncMethodParams,
-    AsyncMethodArgsParams,
+  ) as unknown as AsyncProcessOutput<
+    AsyncProcesstate,
+    AsyncProcessParams,
+    AsyncProcessArgsParams,
     SourceParams,
     GroupIdentifier,
     {}

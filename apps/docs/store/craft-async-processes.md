@@ -1,16 +1,16 @@
-# craftAsyncMethods
+# craftAsyncProcesses
 
 Creates async method definitions for use within a craft store, enabling reactive management of asynchronous operations.
 
 ## Import
 
 ```typescript
-import { craftAsyncMethods } from '@ng-angular-stack/craft';
+import { craftAsyncProcesses } from '@ng-angular-stack/craft';
 ```
 
 ## Introduction
 
-`craftAsyncMethods` integrates multiple `asyncMethod()` instances into a craft store by:
+`craftAsyncProcesses` integrates multiple `AsyncProcess()` instances into a craft store by:
 
 - Registering async methods as a group with automatic state tracking
 - Generating prefixed `set` methods for each async method (e.g., `setMethodName`)
@@ -55,14 +55,14 @@ import { craftAsyncMethods } from '@ng-angular-stack/craft';
 ## Signature
 
 ```ts
-function craftAsyncMethods<Context, StoreConfig, AsyncMethods>(
-  asyncMethodsFactory: (context: CraftFactoryEntries<Context>) => AsyncMethods,
-): CraftAsyncMethodsOutputs<Context, StoreConfig, AsyncMethods>;
+function craftAsyncProcesses<Context, StoreConfig, AsyncProcess>(
+  AsyncProcessFactory: (context: CraftFactoryEntries<Context>) => AsyncProcess,
+): craftAsyncProcessesOutputs<Context, StoreConfig, AsyncProcess>;
 ```
 
 ## Parameters
 
-### `asyncMethodsFactory`
+### `AsyncProcessFactory`
 
 Factory function that receives the craft context and returns a record of async methods.
 Has access to all other craft entries (sources, queries, states, injections) defined before it.
@@ -82,8 +82,8 @@ A craft factory utility that integrates async methods into the store with:
 ```ts
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
-  craftAsyncMethods(() => ({
-    delay: asyncMethod({
+  craftAsyncProcesses(() => ({
+    delay: asyncProcess({
       method: (delay: number) => delay,
       loader: async ({ params }) => {
         await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate delay
@@ -115,8 +115,8 @@ const delaySource = source<number>();
 
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
-  craftAsyncMethods(() => ({
-    delay: asyncMethod({
+  craftAsyncProcesses(() => ({
+    delay: asyncProcess({
       method: afterRecomputation(delaySource, (term) => term),
       loader: async ({ params }) => {
         // Debounce at source level
@@ -143,8 +143,8 @@ console.log(store.delay.status()); // Current state
 ```ts
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
-  craftAsyncMethods(() => ({
-    delayById: asyncMethod({
+  craftAsyncProcesses(() => ({
+    delayById: asyncProcess({
       method: (id: string) => id,
       identifier: (id) => id,
       loader: async () => {
@@ -176,8 +176,8 @@ console.log(delay2?.status()); // Independent state
 ```ts
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
-  craftAsyncMethods(() => ({
-    shareContent: asyncMethod(
+  craftAsyncProcesses(() => ({
+    shareContent: asyncProcess(
       {
         method: (payload: { title: string; url: string }) => payload,
         loader: async ({ params }) => {
@@ -207,7 +207,7 @@ Links to all craft utilities implemented in `libs/core/src/lib`:
 - [craftSources](./craft-sources.md)
 - [craftInputs](./craft-inputs.md)
 - [craftComputedStates](./craft-computed.md)
-- [craftAsyncMethods](./craft-async-method.md)
+- [craftAsyncProcesses](./craft-async-processed.md)
 - [craftQuery](./craft-query.md)
 - [craftQueryParam](./craft-query-param.md)
 - [craftQueryParams](./craft-query-params.md)

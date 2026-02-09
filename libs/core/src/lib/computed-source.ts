@@ -66,7 +66,7 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Use in async method or query
- * const greetUser = asyncMethod({
+ * const greetUser = asyncProcess({
  *   method: afterRecomputation(fullNameSource, (fullName) => fullName),
  *   loader: async ({ params }) => {
  *     return `Hello, ${params}!`;
@@ -103,7 +103,7 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Use extracted sources
- * const validateEmail = asyncMethod({
+ * const validateEmail = asyncProcess({
  *   method: afterRecomputation(emailSource, (email) => email),
  *   loader: async ({ params }) => {
  *     const response = await fetch('/api/validate-email', {
@@ -146,7 +146,7 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Final async method uses fully transformed data
- * const search = asyncMethod({
+ * const search = asyncProcess({
  *   method: afterRecomputation(searchQuerySource, (query) => query),
  *   loader: async ({ params }) => {
  *     const response = await fetch('/api/search', {
@@ -224,7 +224,7 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Handle success and errors separately
- * const processSuccess = asyncMethod({
+ * const Processuccess = asyncProcess({
  *   method: afterRecomputation(successDataSource, (data) => data),
  *   loader: async ({ params }) => {
  *     if (!params) return null;
@@ -233,7 +233,7 @@ import { SourceBranded } from './util/util';
  *   },
  * });
  *
- * const logError = asyncMethod({
+ * const logError = asyncProcess({
  *   method: afterRecomputation(errorSource, (error) => error),
  *   loader: async ({ params }) => {
  *     if (!params) return null;
@@ -264,7 +264,7 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Use formatted value in UI updates
- * const updatePriceDisplay = asyncMethod({
+ * const updatePriceDisplay = asyncProcess({
  *   method: afterRecomputation(formattedPriceSource, (formatted) => formatted),
  *   loader: async ({ params }) => {
  *     // Update analytics or external service

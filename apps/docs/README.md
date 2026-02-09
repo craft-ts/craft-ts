@@ -36,7 +36,7 @@ apps/docs/
 ├── introduction.md         # Core concepts
 ├── primitives/             # Primitive APIs
 │   ├── state.md
-│   ├── async-method.md
+│   ├── async-process.md
 │   ├── query-param.md
 │   ├── query.md
 │   └── mutation.md
@@ -49,7 +49,7 @@ apps/docs/
 │   ├── craft-sources.md
 │   ├── craft-inputs.md
 │   ├── craft-computed.md
-│   ├── craft-async-method.md
+│   ├── craft-async-processed.md
 │   ├── craft-query-param.md
 │   ├── craft-query-params.md
 │   ├── craft-query.md

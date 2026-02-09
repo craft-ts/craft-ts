@@ -76,7 +76,7 @@ type ContextQueryEntries<
   Context['_injections'] &
   Context['_sources'] &
   Omit<Context['props'], keyof Context['_mutation']> &
-  Context['_asyncMethods'] &
+  Context['_AsyncProcess'] &
   Context['_mutation'] & {
     INSERT_CONFIG: {
       storeName: StoreConfig['name'];

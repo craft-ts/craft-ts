@@ -1,12 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { craft } from './craft';
-import { craftAsyncMethods } from './craft-async-methods';
-import { asyncMethod } from './async-method';
+import { craftAsyncProcesses } from './craft-async-process';
+import { asyncProcess } from './async-process';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 import { craftSources } from './craft-sources';
 
-describe('craftAsyncMethods', () => {
+describe('craftAsyncProcesses', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -20,10 +20,10 @@ describe('craftAsyncMethods', () => {
           name: '',
           providedIn: 'root',
         },
-        craftAsyncMethods(() => ({
+        craftAsyncProcesses(() => ({
           // should enable to provide multiples status
           // should provide async method by id
-          searchChange: asyncMethod({
+          searchChange: asyncProcess({
             method: ({
               timeToWait,
               searchChange,
@@ -73,15 +73,15 @@ describe('craftAsyncMethods', () => {
             searchChange: string;
           }>(),
         }),
-        craftAsyncMethods(({ myLocalSource }) => ({
-          searchGlobalChange: asyncMethod({
+        craftAsyncProcesses(({ myLocalSource }) => ({
+          searchGlobalChange: asyncProcess({
             method: afterRecomputation(myGlobalSource, (payload) => payload),
             loader: async ({ params: { timeToWait, searchChange } }) => {
               await new Promise((resolve) => setTimeout(resolve, timeToWait));
               return { searchChange };
             },
           }),
-          searchLocalChange: asyncMethod({
+          searchLocalChange: asyncProcess({
             method: afterRecomputation(myLocalSource, (payload) => payload),
             loader: async ({ params: { timeToWait, searchChange } }) => {
               await new Promise((resolve) => setTimeout(resolve, timeToWait));
@@ -121,7 +121,7 @@ describe('craftAsyncMethods', () => {
   });
 });
 
-describe('usingAsyncMethods with identifier', () => {
+describe('usingAsyncProcess with identifier', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -135,10 +135,10 @@ describe('usingAsyncMethods with identifier', () => {
           name: '',
           providedIn: 'root',
         },
-        craftAsyncMethods(() => ({
+        craftAsyncProcesses(() => ({
           // should enable to provide multiples status
           // should provide async method by id
-          searchChange: asyncMethod({
+          searchChange: asyncProcess({
             method: ({
               timeToWait,
               searchChange,
@@ -190,8 +190,8 @@ describe('usingAsyncMethods with identifier', () => {
             searchChange: string;
           }>(),
         }),
-        craftAsyncMethods(({ myLocalSource }) => ({
-          searchGlobalChange: asyncMethod({
+        craftAsyncProcesses(({ myLocalSource }) => ({
+          searchGlobalChange: asyncProcess({
             method: afterRecomputation(myGlobalSource, (payload) => {
               console.log('payload', payload);
               return payload;

@@ -1,11 +1,11 @@
-# asyncMethod
+# AsyncProcess
 
-The `asyncMethod` primitive creates an async operation that manages asynchronous execution with automatic state tracking.
+The `AsyncProcess` primitive creates an async operation that manages asynchronous execution with automatic state tracking.
 
 ## Import
 
 ```typescript
-import { asyncMethod } from '@ng-angular-stack/craft';
+import { AsyncProcess } from '@ng-angular-stack/craft';
 ```
 
 ## Basic Examples
@@ -13,7 +13,7 @@ import { asyncMethod } from '@ng-angular-stack/craft';
 ### Basic method-based async method
 
 ```typescript
-const delay = asyncMethod({
+const delay = asyncProcess({
   method: (successResult: string) => successResult,
   loader: async ({ params: successResult }) => {
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -45,7 +45,7 @@ The method based always needs one parameter.
 import { source, afterRecomputation } from '@ng-angular-stack/craft';
 
 const searchSource = source();
-const delayedSearch = asyncMethod({
+const delayedSearch = asyncProcess({
   method: afterRecomputation(searchSource, (term) => term),
   loader: async ({ params: term }) => {
     // Debounce at source level
@@ -66,7 +66,7 @@ console.log(delayedSearch.status()); // Current state
 ### Async method with identifier for parallel operations
 
 ```typescript
-const debouncedById = asyncMethod({
+const debouncedById = asyncProcess({
   method: (payload: { successResult: string; id: string }) => payload,
   identifier: ({ id }) => id,
   loader: async ({ params: { successResult } }) => {
@@ -97,7 +97,7 @@ console.log(debouncedById2?.value()); // data2 once resolved
 ## Track async native JS api status
 
 ```typescript
-const shareContent = asyncMethod(
+const shareContent = asyncProcess(
   {
     method: (payload: { title: string; url: string }) => payload,
     stream: async ({ params }) => {

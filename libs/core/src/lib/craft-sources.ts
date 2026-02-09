@@ -9,7 +9,7 @@ import { SignalSource } from './signal-source';
 import { capitalize } from './util/util';
 
 // todo expose standalone methods
-// todo Context['sources'] & Context['queryParams'] & Context['asyncMethods'];
+// todo Context['sources'] & Context['queryParams'] & Context['AsyncProcess'];
 
 type InferSourceType<S> = S extends SignalSource<infer T> ? T : never;
 

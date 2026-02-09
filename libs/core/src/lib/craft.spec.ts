@@ -1493,7 +1493,7 @@ describe('craft preserve all context', () => {
         _queryParams: {};
         _sources: {};
         _injections: {};
-        _asyncMethods: {};
+        _AsyncProcess: {};
         _mutation: {};
         _query: {};
         _cloudProxy: {

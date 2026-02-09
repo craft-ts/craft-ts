@@ -148,7 +148,7 @@ import { SourceBranded } from './util/util';
  * });
  *
  * // Use in async method
- * const validateEmail = asyncMethod({
+ * const validateEmail = asyncProcess({
  *   method: afterRecomputation(emailSource, (email) => email),
  *   loader: async ({ params }) => {
  *     if (!params) return null;

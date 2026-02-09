@@ -1,15 +1,15 @@
-import { craftAsyncMethods } from './craft-async-methods';
-import { asyncMethod } from './async-method';
+import { craftAsyncProcesses } from './craft-async-process';
+import { asyncProcess } from './async-process';
 import { ResourceStatus, Signal } from '@angular/core';
 import { afterRecomputation } from './after-recomputation';
 import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
-describe('asyncMethod', () => {
+describe('AsyncProcess', () => {
   it('should enable to define async method and be called with a method', async () => {
     TestBed.runInInjectionContext(async () => {
-      const myAsyncMethod = asyncMethod({
+      const myAsyncProcess = asyncProcess({
         method: ({
           timeToWait,
           searchChange,
@@ -28,15 +28,15 @@ describe('asyncMethod', () => {
         },
       });
 
-      expect(myAsyncMethod.status()).toBe('idle');
-      myAsyncMethod.method({
+      expect(myAsyncProcess.status()).toBe('idle');
+      myAsyncProcess.method({
         searchChange: 'test',
         timeToWait: 1000,
       });
-      expect(myAsyncMethod.status()).toBe('loading');
+      expect(myAsyncProcess.status()).toBe('loading');
       await vi.runAllTimersAsync();
-      expect(myAsyncMethod.status()).toBe('resolved');
-      expect(myAsyncMethod.value()).toBe('test');
+      expect(myAsyncProcess.status()).toBe('resolved');
+      expect(myAsyncProcess.value()).toBe('test');
     });
   });
 
@@ -51,7 +51,7 @@ describe('asyncMethod', () => {
         (searchConfig) => searchConfig,
       );
       const result = test();
-      const myAsyncMethod = asyncMethod({
+      const myAsyncProcess = asyncProcess({
         method: afterRecomputation(
           searchSource,
           (searchConfig) => searchConfig,
@@ -64,8 +64,8 @@ describe('asyncMethod', () => {
         },
       });
 
-      expect(myAsyncMethod.status()).toBe('idle');
-      expectTypeOf(myAsyncMethod.source).toEqualTypeOf<
+      expect(myAsyncProcess.status()).toBe('idle');
+      expectTypeOf(myAsyncProcess.source).toEqualTypeOf<
         ReadonlySource<{
           searchChange: string;
           timeToWait: number;
@@ -75,16 +75,16 @@ describe('asyncMethod', () => {
         searchChange: 'test',
         timeToWait: 1000,
       });
-      expect(myAsyncMethod.status()).toBe('loading');
+      expect(myAsyncProcess.status()).toBe('loading');
       await vi.runAllTimersAsync();
-      expect(myAsyncMethod.status()).toBe('resolved');
-      expect(myAsyncMethod.value()).toBe('test');
+      expect(myAsyncProcess.status()).toBe('resolved');
+      expect(myAsyncProcess.value()).toBe('test');
     });
   });
 
   it('should return undefined with safeValue when status is error', async () => {
     TestBed.runInInjectionContext(async () => {
-      const myAsyncMethod = asyncMethod({
+      const myAsyncProcess = asyncProcess({
         method: (shouldFail: boolean) => shouldFail,
         loader: async ({ params: shouldFail }) => {
           if (shouldFail) {
@@ -94,28 +94,28 @@ describe('asyncMethod', () => {
         },
       });
 
-      expect(myAsyncMethod.status()).toBe('idle');
-      myAsyncMethod.method(true);
-      expect(myAsyncMethod.status()).toBe('loading');
+      expect(myAsyncProcess.status()).toBe('idle');
+      myAsyncProcess.method(true);
+      expect(myAsyncProcess.status()).toBe('loading');
       await vi.runAllTimersAsync();
-      expect(myAsyncMethod.status()).toBe('error');
-      expect(myAsyncMethod.error()).toBeInstanceOf(Error);
-      expect(myAsyncMethod.error()?.message).toBe('Test error');
-      expect(myAsyncMethod.hasValue()).toBe(false);
+      expect(myAsyncProcess.status()).toBe('error');
+      expect(myAsyncProcess.error()).toBeInstanceOf(Error);
+      expect(myAsyncProcess.error()?.message).toBe('Test error');
+      expect(myAsyncProcess.hasValue()).toBe(false);
 
       // safeValue should return undefined without throwing
-      expect(myAsyncMethod.safeValue()).toBeUndefined();
+      expect(myAsyncProcess.safeValue()).toBeUndefined();
     });
   });
 });
 
-describe('asyncMethod types without identifier', () => {
-  it('should infer correctly the types of asyncMethod', () => {
+describe('AsyncProcess types without identifier', () => {
+  it('should infer correctly the types of AsyncProcess', () => {
     TestBed.runInInjectionContext(() => {
-      const asyncMethodsOutput = craftAsyncMethods(() => ({
+      const AsyncProcessOutput = craftAsyncProcesses(() => ({
         // should enable to provide multiples status
         // should provide async method by id
-        searchChange: asyncMethod({
+        searchChange: asyncProcess({
           method: ({
             timeToWait,
             searchChange,
@@ -135,7 +135,7 @@ describe('asyncMethod types without identifier', () => {
             return { searchChange };
           },
         }),
-        filterChange: asyncMethod(
+        filterChange: asyncProcess(
           {
             method: ({ filter }: { filter: string }) => ({
               filter,
@@ -151,7 +151,7 @@ describe('asyncMethod types without identifier', () => {
         ),
       }));
 
-      type props = ReturnType<ReturnType<typeof asyncMethodsOutput>>['props'];
+      type props = ReturnType<ReturnType<typeof AsyncProcessOutput>>['props'];
       type s = props['searchChange'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
@@ -194,7 +194,7 @@ describe('asyncMethod types without identifier', () => {
       }>();
 
       type methods = ReturnType<
-        ReturnType<typeof asyncMethodsOutput>
+        ReturnType<typeof AsyncProcessOutput>
       >['methods'];
       expectTypeOf<methods>().toEqualTypeOf<
         {
@@ -214,13 +214,13 @@ describe('asyncMethod types without identifier', () => {
     });
   });
 
-  it('should infer correctly the asyncMethod bind to a source type, and not exposed the method bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>();
-      const asyncMethodsOutput = craftAsyncMethods(() => ({
+      const AsyncProcessOutput = craftAsyncProcesses(() => ({
         // should enable to provide multiples status
         // should provide async method by id
-        searchChange: asyncMethod({
+        searchChange: asyncProcess({
           method: afterRecomputation(searchSource, (searchChange) => {
             return searchChange;
           }),
@@ -232,7 +232,7 @@ describe('asyncMethod types without identifier', () => {
             return { searchChangeText };
           },
         }),
-        filterChange: asyncMethod(
+        filterChange: asyncProcess(
           {
             method: ({ filter }: { filter: string }) => ({
               filter,
@@ -248,7 +248,7 @@ describe('asyncMethod types without identifier', () => {
         ),
       }));
 
-      type props = ReturnType<ReturnType<typeof asyncMethodsOutput>>['props'];
+      type props = ReturnType<ReturnType<typeof AsyncProcessOutput>>['props'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
           readonly error: Signal<Error | undefined>;
@@ -293,7 +293,7 @@ describe('asyncMethod types without identifier', () => {
       }>();
 
       type methods = ReturnType<
-        ReturnType<typeof asyncMethodsOutput>
+        ReturnType<typeof AsyncProcessOutput>
       >['methods'];
       //   ^?
       expectTypeOf<methods>().toEqualTypeOf<{
@@ -304,9 +304,9 @@ describe('asyncMethod types without identifier', () => {
     });
   });
 
-  it('should infer correctly the asyncMethod bind to a method', () => {
+  it('should infer correctly the AsyncProcess bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _asyncMethodsOutput = asyncMethod({
+      const _AsyncProcessOutput = asyncProcess({
         method: (searchChange: string) => {
           return searchChange;
         },
@@ -315,7 +315,7 @@ describe('asyncMethod types without identifier', () => {
           return { searchChange };
         },
       });
-      expectTypeOf<typeof _asyncMethodsOutput>().toEqualTypeOf<{
+      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<{
         readonly value: Signal<
           | {
               searchChange: string;
@@ -337,11 +337,11 @@ describe('asyncMethod types without identifier', () => {
     });
   });
 
-  it('should infer correctly the asyncMethod bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChange: string }>();
 
-      const _asyncMethodsOutput = asyncMethod({
+      const _AsyncProcessOutput = asyncProcess({
         method: afterRecomputation(searchSource, (searchChange) => {
           return searchChange;
         }),
@@ -350,7 +350,7 @@ describe('asyncMethod types without identifier', () => {
           return { searchChangeResult: searchChange.searchChange };
         },
       });
-      expectTypeOf<typeof _asyncMethodsOutput>().toEqualTypeOf<{
+      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<{
         readonly value: Signal<
           | {
               searchChangeResult: string;
@@ -375,13 +375,13 @@ describe('asyncMethod types without identifier', () => {
   });
 });
 
-describe('asyncMethod types with identifier', () => {
-  it('should infer correctly the types of asyncMethod', () => {
+describe('AsyncProcess types with identifier', () => {
+  it('should infer correctly the types of AsyncProcess', () => {
     TestBed.runInInjectionContext(() => {
-      const asyncMethodsOutput = craftAsyncMethods(() => ({
+      const AsyncProcessOutput = craftAsyncProcesses(() => ({
         // should enable to provide multiples status
         // should provide async method by id
-        searchChange: asyncMethod({
+        searchChange: asyncProcess({
           method: ({
             timeToWait,
             searchChange,
@@ -402,7 +402,7 @@ describe('asyncMethod types with identifier', () => {
             return { searchChange };
           },
         }),
-        filterChange: asyncMethod(
+        filterChange: asyncProcess(
           {
             method: ({ filter }: { filter: string }) => ({
               filter,
@@ -418,7 +418,7 @@ describe('asyncMethod types with identifier', () => {
         ),
       }));
 
-      type props = ReturnType<ReturnType<typeof asyncMethodsOutput>>['props'];
+      type props = ReturnType<ReturnType<typeof AsyncProcessOutput>>['props'];
       type s = props['searchChange'];
 
       const search = {} as ReturnType<s['select']>;
@@ -469,7 +469,7 @@ describe('asyncMethod types with identifier', () => {
       }>();
 
       type methods = ReturnType<
-        ReturnType<typeof asyncMethodsOutput>
+        ReturnType<typeof AsyncProcessOutput>
       >['methods'];
       expectTypeOf<methods>().toEqualTypeOf<
         {
@@ -489,13 +489,13 @@ describe('asyncMethod types with identifier', () => {
     });
   });
 
-  it('should infer correctly the asyncMethod bind to a source type, and not exposed the method bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>();
-      const asyncMethodsOutput = craftAsyncMethods(() => ({
+      const AsyncProcessOutput = craftAsyncProcesses(() => ({
         // should enable to provide multiples status
         // should provide async method by id
-        searchChange: asyncMethod({
+        searchChange: asyncProcess({
           method: afterRecomputation(searchSource, (searchChange) => {
             return searchChange;
           }),
@@ -508,7 +508,7 @@ describe('asyncMethod types with identifier', () => {
             return { searchChangeText };
           },
         }),
-        filterChange: asyncMethod(
+        filterChange: asyncProcess(
           {
             method: ({ filter }: { filter: string }) => ({
               filter,
@@ -524,9 +524,9 @@ describe('asyncMethod types with identifier', () => {
         ),
       }));
 
-      type props = ReturnType<ReturnType<typeof asyncMethodsOutput>>['props'];
+      type props = ReturnType<ReturnType<typeof AsyncProcessOutput>>['props'];
       try {
-        const search = asyncMethodsOutput({} as any, {} as any)(
+        const search = AsyncProcessOutput({} as any, {} as any)(
           {} as any,
           {} as any,
           {} as any,
@@ -554,7 +554,7 @@ describe('asyncMethod types with identifier', () => {
           | undefined
         >();
 
-        const filter = asyncMethodsOutput({} as any, {} as any)(
+        const filter = AsyncProcessOutput({} as any, {} as any)(
           {} as any,
           {} as any,
           {} as any,
@@ -581,7 +581,7 @@ describe('asyncMethod types with identifier', () => {
         }>();
 
         type methods = ReturnType<
-          ReturnType<typeof asyncMethodsOutput>
+          ReturnType<typeof AsyncProcessOutput>
         >['methods'];
         //   ^?
         expectTypeOf<methods>().toEqualTypeOf<{
@@ -595,9 +595,9 @@ describe('asyncMethod types with identifier', () => {
     });
   });
 
-  it('should infer correctly the asyncMethod bind to a method', () => {
+  it('should infer correctly the AsyncProcess bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _asyncMethodsOutput = asyncMethod({
+      const _AsyncProcessOutput = asyncProcess({
         method: (searchChange: string) => {
           return searchChange;
         },
@@ -607,7 +607,7 @@ describe('asyncMethod types with identifier', () => {
           return { searchChange };
         },
       });
-      const _entity = _asyncMethodsOutput.select('test');
+      const _entity = _AsyncProcessOutput.select('test');
       expectTypeOf<typeof _entity>().toEqualTypeOf<
         | {
             readonly value: Signal<
@@ -632,11 +632,11 @@ describe('asyncMethod types with identifier', () => {
     });
   });
 
-  it('should infer correctly the asyncMethod bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChange: string }>();
 
-      const _asyncMethodsOutput = asyncMethod({
+      const _AsyncProcessOutput = asyncProcess({
         method: afterRecomputation(searchSource, (searchChange) => {
           return searchChange;
         }),
@@ -647,7 +647,7 @@ describe('asyncMethod types with identifier', () => {
         },
       });
 
-      expectTypeOf(_asyncMethodsOutput.select('test')?.value()).toEqualTypeOf<
+      expectTypeOf(_AsyncProcessOutput.select('test')?.value()).toEqualTypeOf<
         { searchChangeResult: string } | undefined
       >();
     });
