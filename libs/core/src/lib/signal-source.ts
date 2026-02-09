@@ -1,7 +1,7 @@
 import { linkedSignal, Signal, signal, ValueEqualityFn } from '@angular/core';
 import { SourceBranded } from './util/util';
 
-export type Source<T> = Signal<T | undefined> & {
+export type SignalSource<T> = Signal<T | undefined> & {
   set: (value: T) => void;
   preserveLastValue: Signal<T | undefined>;
 } & SourceBranded;
@@ -359,10 +359,10 @@ export type Source<T> = Signal<T | undefined> & {
  * });
  * ```
  */
-export function source<T>(options?: {
+export function signalSource<T>(options?: {
   equal?: ValueEqualityFn<NoInfer<T> | undefined>;
   debugName?: string;
-}): Source<T> {
+}): SignalSource<T> {
   const sourceState = signal<T | undefined>(undefined, {
     ...(options?.equal && { equal: options?.equal }), // add the equal function here, it may helps to detect changes when using scalar values
     ...(options?.debugName && {
@@ -395,5 +395,5 @@ export function source<T>(options?: {
       set: sourceState.set,
     },
     SourceBranded,
-  ) as Source<T>;
+  ) as SignalSource<T>;
 }

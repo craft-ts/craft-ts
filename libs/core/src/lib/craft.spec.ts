@@ -11,7 +11,7 @@ import { mutation } from './mutation';
 import { inject, linkedSignal, Signal, signal } from '@angular/core';
 import { craftInputs } from './craft-inputs';
 import { craftState } from './craft-state';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { craftSources } from './craft-sources';
 import { afterRecomputation } from './after-recomputation';
 import { IsAny } from './util/types/util.type';
@@ -313,7 +313,7 @@ describe('craft', () => {
           myParams: undefined as number | undefined,
         }),
         craftSources({
-          reset: source<string>(),
+          reset: signalSource<string>(),
         }),
         craftState('numberList', ({ myParams, reset }) =>
           state(
@@ -336,8 +336,8 @@ describe('craft', () => {
         ),
       );
 
-      const addNumberSource = source<number>();
-      const resetSource = source<string>();
+      const addNumberSource = signalSource<number>();
+      const resetSource = signalSource<string>();
       const store = injectCraft({
         inputs: {
           myParams: signal(10),
@@ -387,7 +387,7 @@ describe('craft', () => {
           myParams2: undefined as string | undefined,
         }),
         craftSources({
-          reset: source<string>(),
+          reset: signalSource<string>(),
         }),
         craftState('numberList1', ({ reset }) =>
           state([1], ({ state, set }) => ({
@@ -437,7 +437,7 @@ describe('craft', () => {
           myParams: undefined as string | undefined,
         }),
         craftSources({
-          reset: source<string>(),
+          reset: signalSource<string>(),
         }),
         craftStore1(({ myParams, reset }) => ({
           // here myParams2 is not required, but required when injecting the hist store
@@ -466,8 +466,8 @@ describe('craft', () => {
       );
       await TestBed.runInInjectionContext(async () => {
         type test = (typeof __META_STORE_CONTEXT)['context']['_inputs'];
-        const addNumberSource = source<number>();
-        const resetSource = source<string>();
+        const addNumberSource = signalSource<number>();
+        const resetSource = signalSource<string>();
         const store = injectCraft({
           inputs: {
             myParams: signal('PassMyParam'),
@@ -531,9 +531,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
@@ -555,9 +555,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
@@ -613,9 +613,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(1, ({ state, set }) => ({
@@ -640,9 +640,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ decrement }) =>
         state(1, ({ state, set }) => ({
@@ -700,9 +700,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
@@ -724,9 +724,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
@@ -779,9 +779,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
@@ -809,9 +809,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
@@ -892,9 +892,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
@@ -1002,9 +1002,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
@@ -1072,9 +1072,9 @@ describe('craft', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
-        decrement: source<{}>(),
-        reset: source<{}>(),
+        increment: signalSource<{}>(),
+        decrement: signalSource<{}>(),
+        reset: signalSource<{}>(),
       }),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
@@ -1589,7 +1589,7 @@ craft(
     providedIn: 'root',
   },
   craftSources({
-    reset: source<{}>(),
+    reset: signalSource<{}>(),
   }),
   craftState('counter', ({ reset }) =>
     state(0, ({ state, set }) => ({

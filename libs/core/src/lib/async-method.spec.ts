@@ -2,7 +2,7 @@ import { craftAsyncMethods } from './craft-async-methods';
 import { asyncMethod } from './async-method';
 import { ResourceStatus, Signal } from '@angular/core';
 import { afterRecomputation } from './after-recomputation';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
@@ -42,7 +42,7 @@ describe('asyncMethod', () => {
 
   it('should enable to define async method bind to a source', async () => {
     TestBed.runInInjectionContext(async () => {
-      const searchSource = source<{
+      const searchSource = signalSource<{
         searchChange: string;
         timeToWait: number;
       }>();
@@ -216,7 +216,7 @@ describe('asyncMethod types without identifier', () => {
 
   it('should infer correctly the asyncMethod bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = source<{ searchChangeText: string }>();
+      const searchSource = signalSource<{ searchChangeText: string }>();
       const asyncMethodsOutput = craftAsyncMethods(() => ({
         // should enable to provide multiples status
         // should provide async method by id
@@ -339,7 +339,7 @@ describe('asyncMethod types without identifier', () => {
 
   it('should infer correctly the asyncMethod bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = source<{ searchChange: string }>();
+      const searchSource = signalSource<{ searchChange: string }>();
 
       const _asyncMethodsOutput = asyncMethod({
         method: afterRecomputation(searchSource, (searchChange) => {
@@ -491,7 +491,7 @@ describe('asyncMethod types with identifier', () => {
 
   it('should infer correctly the asyncMethod bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = source<{ searchChangeText: string }>();
+      const searchSource = signalSource<{ searchChangeText: string }>();
       const asyncMethodsOutput = craftAsyncMethods(() => ({
         // should enable to provide multiples status
         // should provide async method by id
@@ -634,7 +634,7 @@ describe('asyncMethod types with identifier', () => {
 
   it('should infer correctly the asyncMethod bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = source<{ searchChange: string }>();
+      const searchSource = signalSource<{ searchChange: string }>();
 
       const _asyncMethodsOutput = asyncMethod({
         method: afterRecomputation(searchSource, (searchChange) => {

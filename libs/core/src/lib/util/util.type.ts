@@ -1,6 +1,6 @@
 import { Type } from '@angular/core';
 import { StoreConfigConstraints } from '../craft';
-import { Source } from '../source';
+import { SignalSource } from '../signal-source';
 import { ExtractSignalPropsAndMethods } from './extract-signal-props-and-methods';
 import { ReadonlySource } from './source.type';
 import { SourceBranded } from './util';
@@ -10,7 +10,7 @@ export type FilterPrivateFields<T> = {
 };
 
 export type ToConnectableSourceFromInject<Sources> = {
-  [K in keyof Sources]: Sources[K] extends Source<infer SourceType>
+  [K in keyof Sources]: Sources[K] extends SignalSource<infer SourceType>
     ? ReadonlySource<SourceType>
     : never;
 };

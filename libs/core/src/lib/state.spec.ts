@@ -1,8 +1,10 @@
 import { computed, linkedSignal, Signal, signal } from '@angular/core';
 import { state, StateOutput } from './state';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 import { TestBed } from '@angular/core/testing';
+import { source$ } from './source$';
+import { on$ } from './on$';
 describe('state', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -63,7 +65,7 @@ describe('state', () => {
 
   it('methods can be bind to a source, but not exposed', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const sourceSignal = source<number>();
+      const sourceSignal = signalSource<number>();
       const myState = state(0, ({ set }) => ({
         setValue: afterRecomputation(sourceSignal, (value) => {
           set(value);
@@ -86,6 +88,33 @@ describe('state', () => {
 
       myState.reset();
       await vi.runAllTimersAsync();
+      expect(myState()).toBe(0);
+    });
+  });
+
+  it('methods can be bind to a source$, but not exposed', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const sourceSignal = source$<number>();
+      const myState = state(0, ({ set }) => ({
+        setValue: on$(sourceSignal, (value) => {
+          set(value);
+        }),
+        reset: () => set(0),
+      }));
+
+      expect(myState).toBeDefined();
+      expectTypeOf(myState()).toEqualTypeOf<number>();
+      expect(myState()).toBe(0);
+
+      //@ts-expect-error setValue should not be exposed
+      type ShouldNotBeExposed = (typeof myState)['setValue'];
+      await vi.runAllTimersAsync();
+
+      sourceSignal.emit(34);
+      console.log('post myState()', myState());
+      expect(myState()).toBe(34);
+
+      myState.reset();
       expect(myState()).toBe(0);
     });
   });

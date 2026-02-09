@@ -1,5 +1,5 @@
 import { effect, signal, untracked } from '@angular/core';
-import { Source } from './source';
+import { SignalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { SourceBranded } from './util/util';
 
@@ -309,7 +309,7 @@ import { SourceBranded } from './util/util';
  * ```
  */
 export function afterRecomputation<State, SourceType>(
-  _source: Source<SourceType>,
+  _source: SignalSource<SourceType>,
   callback: (source: SourceType) => State,
 ): ReadonlySource<State> {
   const derivedSource = signal<State | undefined>(undefined);

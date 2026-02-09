@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { queryParam } from './query-param';
 import { provideRouter, Router } from '@angular/router';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 
 describe('queryParams', () => {
@@ -53,7 +53,7 @@ describe('queryParams', () => {
             },
           },
         },
-        ({ set, update, patch }) => ({ set, update, patch })
+        ({ set, update, patch }) => ({ set, update, patch }),
       );
       expectTypeOf(myQueryParams()).toEqualTypeOf<{
         page: number;
@@ -88,31 +88,30 @@ describe('queryParams', () => {
     });
   });
 
-    it('should create a query params and  basic methods (set, update, patch) should not be exposed implicitly', () => {
+  it('should create a query params and  basic methods (set, update, patch) should not be exposed implicitly', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
-            },
-            pageSize: {
-              fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
-            },
+      const myQueryParams = queryParam({
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value: string) => parseInt(value, 10),
+            serialize: (value: unknown) => String(value),
+          },
+          pageSize: {
+            fallbackValue: 10,
+            parse: (value: string) => parseInt(value, 10),
+            serialize: (value: unknown) => String(value),
           },
         },
-      );
+      });
 
-      type t = keyof typeof myQueryParams
+      type t = keyof typeof myQueryParams;
 
-      expectTypeOf<Extract<keyof typeof myQueryParams, 'set'>>().toEqualTypeOf<never>();
+      expectTypeOf<
+        Extract<keyof typeof myQueryParams, 'set'>
+      >().toEqualTypeOf<never>();
       //@ts-expect-error set should not be exposed implicitly
       expect(myQueryParams.set).toBeUndefined();
-
     });
   });
 
@@ -144,7 +143,7 @@ describe('queryParams', () => {
               page: newPage,
             });
           },
-        })
+        }),
       );
     });
   });
@@ -197,7 +196,7 @@ describe('queryParams', () => {
               reset();
             },
           };
-        }
+        },
       );
       myQueryParams._setPage(2);
       expect(myQueryParams.page()).toBe(2);
@@ -265,14 +264,14 @@ describe('queryParams', () => {
               reset();
             },
           };
-        }
+        },
       );
     });
   });
 
   it('should not expose methods bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const mySource = source<number>();
+      const mySource = signalSource<number>();
       const myQueryParams = queryParam(
         {
           state: {
@@ -301,7 +300,7 @@ describe('queryParams', () => {
               });
             }),
           };
-        }
+        },
       );
       //@ts-expect-error _setPage is bind to a source, so it should not be exposed
       expectTypeOf(myQueryParams._setPage).toEqualTypeOf<never>();
@@ -326,7 +325,7 @@ describe('queryParams', () => {
             },
           },
         },
-        ({ set, reset }) => ({ set, reset })
+        ({ set, reset }) => ({ set, reset }),
       );
 
       // Set non-fallback values

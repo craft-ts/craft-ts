@@ -1,5 +1,5 @@
 import { computed } from '@angular/core';
-import { Source, source } from './source';
+import { SignalSource, signalSource } from './signal-source';
 
 describe('source', () => {
   beforeEach(() => {
@@ -10,9 +10,9 @@ describe('source', () => {
     vi.resetAllMocks();
   });
   it('should generate a source that enable to emit a value, and the listener to receive it', () => {
-    const mySource = source<string>();
+    const mySource = signalSource<string>();
 
-    expectTypeOf(mySource).toEqualTypeOf<Source<string>>();
+    expectTypeOf(mySource).toEqualTypeOf<SignalSource<string>>();
 
     const myListener = computed(() => {
       const s = mySource();
@@ -30,7 +30,7 @@ describe('source', () => {
   });
 
   it('A listener at n+1 should not get the value when listened and get data for the first time', () => {
-    const mySource = source<string>();
+    const mySource = signalSource<string>();
 
     mySource.set('Hello World');
 
@@ -42,7 +42,7 @@ describe('source', () => {
   });
 
   it('A listener at n+1 should get the last value when using "preserveLastValue" config and listened and get data for the first time ', () => {
-    const mySource = source<string>();
+    const mySource = signalSource<string>();
 
     mySource.set('Hello World');
 

@@ -4,7 +4,7 @@ import { ReadonlySource } from './source.type';
 export const SourceBrand = Symbol('SourceBrand');
 
 export const SourceBranded = {
-  [SourceBrand]: true,
+  [SourceBrand]: true as const,
 };
 
 export type SourceBranded = {
@@ -34,15 +34,15 @@ export function createMethodHandlers<State>(
   state: WritableSignal<State>,
   options?: {
     onStateChange?: (newValue: State) => void;
-  }
+  },
 ) {
   const { methodsConnectedToSource, methods } = Object.entries(
-    methodsData ?? {}
+    methodsData ?? {},
   ).reduce(
     (acc, [methodName, methodValue]) => {
       if (isSource(methodValue)) {
         acc.methodsConnectedToSource.push(
-          methodValue as ReadonlySource<unknown>
+          methodValue as ReadonlySource<unknown>,
         );
         return acc;
       }
@@ -55,7 +55,7 @@ export function createMethodHandlers<State>(
     } as {
       methodsConnectedToSource: ReadonlySource<unknown>[];
       methods: Record<string, Function>;
-    }
+    },
   );
 
   const finalMethods = Object.entries(methods ?? {}).reduce(
@@ -67,7 +67,7 @@ export function createMethodHandlers<State>(
       };
       return acc;
     },
-    {} as Record<string, Function>
+    {} as Record<string, Function>,
   );
 
   methodsConnectedToSource.forEach((sourceSignal) => {

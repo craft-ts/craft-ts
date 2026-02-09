@@ -1,6 +1,6 @@
 import { ResourceStatus, Signal, WritableSignal } from '@angular/core';
 import { afterRecomputation } from './after-recomputation';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
@@ -44,7 +44,7 @@ describe('mutation', () => {
 
   it('should enable to define async method bind to a source', async () => {
     TestBed.runInInjectionContext(async () => {
-      const searchSource = source<{
+      const searchSource = signalSource<{
         searchChange: string;
         timeToWait: number;
       }>();
@@ -233,7 +233,7 @@ describe('mutation types without identifier', () => {
 
   it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = source<{ searchChangeText: string }>();
+      const searchSource = signalSource<{ searchChangeText: string }>();
       const mutationsOutput = craftMutations(() => ({
         // should enable to provide multiples status
         // should provide async method by id
@@ -366,7 +366,7 @@ describe('mutation types without identifier', () => {
 
   it('should infer correctly the mutation bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = source<{ searchChange: string }>();
+      const searchSource = signalSource<{ searchChange: string }>();
 
       const _mutationsOutput = mutation({
         method: afterRecomputation(searchSource, (searchChange) => {
@@ -520,7 +520,7 @@ describe('mutation types with identifier', () => {
 
   it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = source<{ searchChangeText: string }>();
+      const searchSource = signalSource<{ searchChangeText: string }>();
       const mutationsOutput = craftMutations(() => ({
         // should enable to provide multiples status
         // should provide async method by id
@@ -671,7 +671,7 @@ describe('mutation types with identifier', () => {
 
   it('should infer correctly the mutation bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = source<{ searchChange: string }>();
+      const searchSource = signalSource<{ searchChange: string }>();
 
       const _mutationsOutput = mutation({
         method: afterRecomputation(searchSource, (searchChange) => {

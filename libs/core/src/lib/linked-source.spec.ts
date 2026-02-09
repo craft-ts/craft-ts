@@ -1,5 +1,5 @@
 import { computed } from '@angular/core';
-import { Source, source } from './source';
+import { SignalSource, signalSource } from './signal-source';
 import { linkedSource } from './linked-source';
 
 describe('linkedSource', () => {
@@ -11,13 +11,13 @@ describe('linkedSource', () => {
     vi.resetAllMocks();
   });
   it('should generate a linkedSource', () => {
-    const mySource = source<{ text: string }>();
+    const mySource = signalSource<{ text: string }>();
     const myLinkedSource = linkedSource(
       mySource,
       (sourceValue) => sourceValue.text,
     );
 
-    expectTypeOf(myLinkedSource).toEqualTypeOf<Source<string>>();
+    expectTypeOf(myLinkedSource).toEqualTypeOf<SignalSource<string>>();
 
     const myListener = computed(() => {
       const s = myLinkedSource();

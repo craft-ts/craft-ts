@@ -1,6 +1,6 @@
 import { computed } from '@angular/core';
 import { ReadonlySource } from './util/source.type';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { computedSource } from './computed-source';
 
 describe('computedSource', () => {
@@ -12,10 +12,10 @@ describe('computedSource', () => {
     vi.resetAllMocks();
   });
   it('should generate a computedSource', () => {
-    const mySource = source<{ text: string }>();
+    const mySource = signalSource<{ text: string }>();
     const myComputedSource = computedSource(
       mySource,
-      (sourceValue) => sourceValue.text
+      (sourceValue) => sourceValue.text,
     );
 
     expectTypeOf(myComputedSource).toEqualTypeOf<ReadonlySource<string>>();

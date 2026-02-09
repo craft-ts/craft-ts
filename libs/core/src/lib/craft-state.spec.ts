@@ -2,7 +2,7 @@ import { computed, Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craft } from './craft';
 import { craftSources } from './craft-sources';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { craftState } from './craft-state';
 import { afterRecomputation } from './after-recomputation';
 import { state } from './state';
@@ -92,7 +92,7 @@ describe('craftState', () => {
 
   it('should enable to defined a state that react on sources and inputs and other states', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const globalReset = source<{}>();
+      const globalReset = signalSource<{}>();
 
       const { injectCraft } = craft(
         {
@@ -100,7 +100,7 @@ describe('craftState', () => {
           providedIn: 'root',
         },
         craftSources({
-          reset: source<string>(),
+          reset: signalSource<string>(),
         }),
         craftState('numberList', ({ reset }) =>
           state([1], ({ set, state }) => ({

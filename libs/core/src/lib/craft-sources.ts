@@ -5,13 +5,13 @@ import {
   partialContext,
   StoreConfigConstraints,
 } from './craft';
-import { Source } from './source';
+import { SignalSource } from './signal-source';
 import { capitalize } from './util/util';
 
 // todo expose standalone methods
 // todo Context['sources'] & Context['queryParams'] & Context['asyncMethods'];
 
-type InferSourceType<S> = S extends Source<infer T> ? T : never;
+type InferSourceType<S> = S extends SignalSource<infer T> ? T : never;
 
 export type SourceSetterMethods<Sources extends {}> = {
   [K in keyof Sources as `set${Capitalize<string & K>}`]: (
@@ -325,7 +325,7 @@ type CraftSourcesOutputs<
 export function craftSources<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
-  Sources extends Record<string, Source<any>>,
+  Sources extends Record<string, SignalSource<any>>,
 >(sources: Sources): CraftSourcesOutputs<Context, StoreConfig, Sources> {
   const methods = Object.entries(sources).reduce(
     (acc, [key, source]) => {

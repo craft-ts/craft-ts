@@ -19,7 +19,7 @@ export * from './lib/mutation';
 export * from './lib/query-param';
 export * from './lib/query';
 export * from './lib/source-from-event';
-export * from './lib/source';
+export * from './lib/signal-source';
 export * from './lib/stacked-source';
 export * from './lib/state';
 export * from './lib/to-source';

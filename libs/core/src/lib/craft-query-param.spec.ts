@@ -6,7 +6,7 @@ import { ActivatedRoute, provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Location } from '@angular/common';
 import { craftSources } from './craft-sources';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 import { queryParam } from './query-param';
 
@@ -51,9 +51,9 @@ describe('craftQueryParam', () => {
               },
             },
           },
-          ({ set, reset }) => ({ set, reset })
-        )
-      )
+          ({ set, reset }) => ({ set, reset }),
+        ),
+      ),
     );
 
     TestBed.runInInjectionContext(() => {
@@ -102,8 +102,8 @@ describe('craftQueryParam', () => {
               serialize: (value: unknown) => String(value),
             },
           },
-        })
-      )
+        }),
+      ),
     );
 
     TestBed.runInInjectionContext(() => {
@@ -142,9 +142,9 @@ describe('craftQueryParam', () => {
               });
               return state();
             },
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
     TestBed.runInInjectionContext(() => {
@@ -173,7 +173,7 @@ describe('craftQueryParam', () => {
         name: '',
       },
       craftSources({
-        nextPage: source<{}>(),
+        nextPage: signalSource<{}>(),
       }),
       craftQueryParam('pagination', ({ nextPage }) =>
         queryParam(
@@ -199,9 +199,9 @@ describe('craftQueryParam', () => {
                 });
               }),
             };
-          }
-        )
-      )
+          },
+        ),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = injectCraft();
@@ -243,9 +243,9 @@ const { injectCraft } = craft(
           },
         },
       },
-      ({ set }) => ({ set })
-    )
-  )
+      ({ set }) => ({ set }),
+    ),
+  ),
 );
 
 describe('craftQueryParam integration', () => {
@@ -258,7 +258,7 @@ describe('craftQueryParam integration', () => {
     const harness = await RouterTestingHarness.create();
     const instance = await harness.navigateByUrl(
       '/test?page=2&pageSize=5',
-      TestComponent
+      TestComponent,
     );
 
     TestBed.runInInjectionContext(() => {
@@ -275,7 +275,7 @@ describe('craftQueryParam integration', () => {
     const harness = await RouterTestingHarness.create();
     const instance = await harness.navigateByUrl(
       '/test?page=2&pageSize=5',
-      TestComponent
+      TestComponent,
     );
 
     await TestBed.runInInjectionContext(async () => {
@@ -348,8 +348,8 @@ describe('craftQueryParam standalone methods', () => {
               serialize: (value: unknown) => String(value),
             },
           },
-        })
-      )
+        }),
+      ),
     );
 
     await TestBed.runInInjectionContext(async () => {
@@ -393,8 +393,8 @@ describe('craftQueryParam standalone methods', () => {
               serialize: (value: unknown) => String(value),
             },
           },
-        })
-      )
+        }),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const router = inject(Router);
@@ -403,7 +403,7 @@ describe('craftQueryParam standalone methods', () => {
         `/test?${setPaginationQueryParams({
           page: 4,
           pageSize: 20,
-        })}`
+        })}`,
       );
 
       console.log(
@@ -411,7 +411,7 @@ describe('craftQueryParam standalone methods', () => {
         `${setPaginationQueryParams({
           page: 4,
           pageSize: 20,
-        })}`
+        })}`,
       );
     });
     await TestBed.runInInjectionContext(() => {

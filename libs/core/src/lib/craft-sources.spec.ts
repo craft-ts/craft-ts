@@ -2,7 +2,7 @@ import { craft } from './craft';
 import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craftSources } from './craft-sources';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { craftState } from './craft-state';
 import { afterRecomputation } from './after-recomputation';
 import { state } from './state';
@@ -21,13 +21,13 @@ describe('craftSources', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
+        increment: signalSource<{}>(),
       }),
       craftState('test', ({ increment }) =>
         state(signal(0), ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
-        }))
-      )
+        })),
+      ),
     );
     await TestBed.runInInjectionContext(async () => {
       const store = injectCraft();
@@ -50,15 +50,15 @@ describe('craftSources', () => {
         providedIn: 'root',
       },
       craftSources({
-        increment: source<{}>(),
+        increment: signalSource<{}>(),
       }),
       craftState('test', ({ increment }) =>
         state(signal(0), ({ state, set }) => ({
           increment: afterRecomputation(increment, () => {
             return set(state() + 1);
           }),
-        }))
-      )
+        })),
+      ),
     );
 
     await TestBed.runInInjectionContext(async () => {

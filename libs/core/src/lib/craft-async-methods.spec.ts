@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { craft } from './craft';
 import { craftAsyncMethods } from './craft-async-methods';
 import { asyncMethod } from './async-method';
-import { source } from './source';
+import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 import { craftSources } from './craft-sources';
 
@@ -58,7 +58,7 @@ describe('craftAsyncMethods', () => {
 
   it('should enable to define async methods bind to a local and global source', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myGlobalSource = source<{
+      const myGlobalSource = signalSource<{
         timeToWait: number;
         searchChange: string;
       }>();
@@ -68,7 +68,7 @@ describe('craftAsyncMethods', () => {
           providedIn: 'root',
         },
         craftSources({
-          myLocalSource: source<{
+          myLocalSource: signalSource<{
             timeToWait: number;
             searchChange: string;
           }>(),
@@ -175,7 +175,7 @@ describe('usingAsyncMethods with identifier', () => {
 
   it('should enable to define async methods bind to a local and global source', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myGlobalSource = source<{
+      const myGlobalSource = signalSource<{
         timeToWait: number;
         searchChange: string;
       }>();
@@ -185,7 +185,7 @@ describe('usingAsyncMethods with identifier', () => {
           providedIn: 'root',
         },
         craftSources({
-          myLocalSource: source<{
+          myLocalSource: signalSource<{
             timeToWait: number;
             searchChange: string;
           }>(),

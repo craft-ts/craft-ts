@@ -4,9 +4,9 @@ import {
   inject,
   ValueEqualityFn,
 } from '@angular/core';
-import { Source, source } from './source';
+import { SignalSource, signalSource } from './signal-source';
 
-export type SourceFromEvent<T> = Source<T> & {
+export type SourceFromEvent<T> = SignalSource<T> & {
   dispose: () => void;
 };
 
@@ -372,7 +372,7 @@ export function sourceFromEvent(
   },
 ): SourceFromEvent<unknown> {
   assertInInjectionContext(sourceFromEvent);
-  const eventSignalSource = source<unknown>(options?.source);
+  const eventSignalSource = signalSource<unknown>(options?.source);
 
   const listener = (event: Event) => {
     if (options?.computedValue) {

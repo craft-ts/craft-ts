@@ -1,16 +1,16 @@
 import { linkedSignal, Signal, ValueEqualityFn, signal } from '@angular/core';
 import { ReadonlySource } from './util/source.type';
-import { Source } from './source';
+import { SignalSource } from './signal-source';
 import { SourceBranded } from './util/util';
 
 export function linkedSource<SourceState, ComputedValue>(
-  signalOrigin: Source<SourceState> | ReadonlySource<SourceState>,
+  signalOrigin: SignalSource<SourceState> | ReadonlySource<SourceState>,
   computedFn: (sourceValue: NoInfer<SourceState>) => ComputedValue,
   options?: {
     equal?: ValueEqualityFn<NoInfer<ComputedValue> | undefined>;
     debugName?: string;
   },
-): Source<ComputedValue> {
+): SignalSource<ComputedValue> {
   const listener = (listenerOptions: { nullishFirstValue?: boolean }) =>
     linkedSignal<SourceState, ComputedValue | undefined>({
       source: signalOrigin as Signal<SourceState>,
@@ -34,5 +34,5 @@ export function linkedSource<SourceState, ComputedValue>(
       }),
     },
     SourceBranded,
-  ) as Source<ComputedValue>;
+  ) as SignalSource<ComputedValue>;
 }
