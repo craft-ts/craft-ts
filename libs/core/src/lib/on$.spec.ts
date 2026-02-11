@@ -3,7 +3,7 @@ import { on$ } from './on$';
 import { source$ } from './source$';
 import { Subject } from 'rxjs';
 import { Component, EventEmitter } from '@angular/core';
-import { SourceBrand, SourceBranded } from './util/util';
+import { SourceBranded } from './util/util';
 
 describe('on$', () => {
   beforeEach(() => {

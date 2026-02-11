@@ -99,9 +99,9 @@ describe('craftState', () => {
           name: '',
           providedIn: 'root',
         },
-        craftSources({
+        craftSources(() => ({
           reset: signalSource<string>(),
-        }),
+        })),
         craftState('numberList', ({ reset }) =>
           state([1], ({ set, state }) => ({
             addNumber: (numberValue: number) => {

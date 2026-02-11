@@ -67,12 +67,12 @@ describe('craftAsyncProcesses', () => {
           name: '',
           providedIn: 'root',
         },
-        craftSources({
+        craftSources(() => ({
           myLocalSource: signalSource<{
             timeToWait: number;
             searchChange: string;
           }>(),
-        }),
+        })),
         craftAsyncProcesses(({ myLocalSource }) => ({
           searchGlobalChange: asyncProcess({
             method: afterRecomputation(myGlobalSource, (payload) => payload),
@@ -184,12 +184,12 @@ describe('usingAsyncProcess with identifier', () => {
           name: '',
           providedIn: 'root',
         },
-        craftSources({
+        craftSources(() => ({
           myLocalSource: signalSource<{
             timeToWait: number;
             searchChange: string;
           }>(),
-        }),
+        })),
         craftAsyncProcesses(({ myLocalSource }) => ({
           searchGlobalChange: asyncProcess({
             method: afterRecomputation(myGlobalSource, (payload) => {

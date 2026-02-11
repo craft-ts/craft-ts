@@ -1,11 +1,14 @@
 import { craft } from './craft';
-import { ApplicationRef, signal } from '@angular/core';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craftSources } from './craft-sources';
 import { signalSource } from './signal-source';
 import { craftState } from './craft-state';
 import { afterRecomputation } from './after-recomputation';
 import { state } from './state';
+import { source$ } from './source$';
+import { on$ } from './on$';
+import { Subject } from 'rxjs';
 
 describe('craftSources', () => {
   beforeEach(() => {
@@ -20,9 +23,9 @@ describe('craftSources', () => {
         name: '',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
-      }),
+      })),
       craftState('test', ({ increment }) =>
         state(signal(0), ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -42,36 +45,69 @@ describe('craftSources', () => {
     });
   });
 
-  it('2- Should expose a way to call setXSource outside injection context', async () => {
-    const appRef = TestBed.inject(ApplicationRef);
-    const { injectCraft, setIncrement } = craft(
+  it('3- Should expose a way to use local source$', async () => {
+    const { injectCraft } = craft(
       {
         name: '',
         providedIn: 'root',
       },
-      craftSources({
-        increment: signalSource<{}>(),
-      }),
-      craftState('test', ({ increment }) =>
+      craftSources(() => ({
+        increment: source$<void>(),
+        to: source$<number>(),
+      })),
+      craftState('counter', ({ increment, to }) =>
         state(signal(0), ({ state, set }) => ({
-          increment: afterRecomputation(increment, () => {
-            return set(state() + 1);
-          }),
+          increment: on$(increment, () => set(state() + 1)),
+          setTo: on$(to, (count) => set(count)),
         })),
       ),
     );
-
     await TestBed.runInInjectionContext(async () => {
-      const store = injectCraft({});
+      const store = injectCraft();
+      await vi.runAllTimersAsync();
 
-      expect(store.test()).toEqual(0);
+      expect(store.counter()).toEqual(0);
 
-      appRef.tick();
-      setIncrement({});
+      store.setIncrement();
+      store.setIncrement();
+      store.setIncrement();
+      expect(store.counter()).toEqual(3);
 
-      appRef.tick();
+      store.setTo(10);
+      expect(store.counter()).toEqual(10);
+    });
+  });
 
-      expect(store.test()).toEqual(1);
+  it('5- Should expose a way to use local Observables', async () => {
+    const { injectCraft } = craft(
+      {
+        name: '',
+        providedIn: 'root',
+      },
+      craftSources(() => ({
+        increment: new Subject<void>(),
+        to: new Subject<number>(),
+      })),
+      craftState('counter', ({ increment, to }) =>
+        state(signal(0), ({ state, set }) => ({
+          increment: on$(increment, () => set(state() + 1)),
+          setTo: on$(to, (count) => set(count)),
+        })),
+      ),
+    );
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectCraft();
+      await vi.runAllTimersAsync();
+
+      expect(store.counter()).toEqual(0);
+
+      store.setIncrement();
+      store.setIncrement();
+      store.setIncrement();
+      expect(store.counter()).toEqual(3);
+
+      store.setTo(10);
+      expect(store.counter()).toEqual(10);
     });
   });
 });

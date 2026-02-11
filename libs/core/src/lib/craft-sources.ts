@@ -1,3 +1,4 @@
+import { isSignal } from '@angular/core';
 import {
   ContextConstraints,
   CraftFactoryUtility,
@@ -6,12 +7,17 @@ import {
   StoreConfigConstraints,
 } from './craft';
 import { SignalSource } from './signal-source';
+import { Source$ } from './source$';
 import { capitalize } from './util/util';
 
-// todo expose standalone methods
-// todo Context['sources'] & Context['queryParams'] & Context['AsyncProcess'];
-
-type InferSourceType<S> = S extends SignalSource<infer T> ? T : never;
+type InferSourceType<S> =
+  S extends SignalSource<infer T>
+    ? T
+    : S extends Source$<infer U>
+      ? U
+      : S extends _Subscribable<infer V>
+        ? V
+        : never;
 
 export type SourceSetterMethods<Sources extends {}> = {
   [K in keyof Sources as `set${Capitalize<string & K>}`]: (
@@ -31,9 +37,13 @@ type CraftSourcesOutputs<
 > = CraftFactoryUtility<
   Context,
   StoreConfig,
-  SpecificCraftSourcesOutputs<Inputs>,
-  SourceSetterMethods<Inputs>
+  SpecificCraftSourcesOutputs<Inputs>
 >;
+
+// Help to infer RxJs Observable inner type without referencing the library in the types
+interface _Subscribable<T> {
+  subscribe(observer: (value: T) => void): unknown;
+}
 
 /**
  * Creates source definitions for use within a craft store, enabling reactive signal-source-driven communication.
@@ -325,28 +335,36 @@ type CraftSourcesOutputs<
 export function craftSources<
   Context extends ContextConstraints,
   StoreConfig extends StoreConfigConstraints,
-  Sources extends Record<string, SignalSource<any>>,
->(sources: Sources): CraftSourcesOutputs<Context, StoreConfig, Sources> {
-  const methods = Object.entries(sources).reduce(
-    (acc, [key, source]) => {
-      return {
-        ...acc,
-        [`set${capitalize(key)}`]: (payload: unknown) => {
-          source.set(payload);
-        },
-      };
-    },
-    {} as Record<string, (payload: unknown) => void>,
-  );
-  return (() =>
-    Object.assign((contextData: ContextConstraints) => {
-      return partialContext({
-        _sources: sources,
-        methods,
-      }) as SpecificCraftSourcesOutputs<Sources>;
-    }, methods) as unknown as CraftSourcesOutputs<
-      Context,
-      StoreConfig,
-      Sources
-    >) as unknown as CraftSourcesOutputs<Context, StoreConfig, Sources>;
+  Sources extends Record<
+    string,
+    SignalSource<any> | Source$<any> | _Subscribable<any>
+  >,
+>(
+  sourcesFactory: () => Sources,
+): CraftSourcesOutputs<Context, StoreConfig, Sources> {
+  return (() => (contextData: ContextConstraints) => {
+    const sources = sourcesFactory();
+    const methods = Object.entries(sources).reduce(
+      (acc, [key, source]) => {
+        return {
+          ...acc,
+          [`set${capitalize(key)}`]: (payload: unknown) => {
+            if (isSignal(source)) {
+              source.set(payload);
+            } else if ('emit' in source) {
+              source.emit(payload);
+            } else if ('next' in source) {
+              //@ts-expect-error next exists on both Subject and EventEmitter but with different types, we need to check which one it is
+              source.next(payload);
+            }
+          },
+        };
+      },
+      {} as Record<string, (payload: unknown) => void>,
+    );
+    return partialContext({
+      _sources: sources,
+      methods,
+    }) as SpecificCraftSourcesOutputs<Sources>;
+  }) as unknown as CraftSourcesOutputs<Context, StoreConfig, Sources>;
 }

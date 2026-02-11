@@ -172,9 +172,9 @@ describe('craftQueryParam', () => {
         providedIn: 'root',
         name: '',
       },
-      craftSources({
+      craftSources(() => ({
         nextPage: signalSource<{}>(),
-      }),
+      })),
       craftQueryParam('pagination', ({ nextPage }) =>
         queryParam(
           {

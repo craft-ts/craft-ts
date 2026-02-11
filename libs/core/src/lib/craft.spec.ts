@@ -312,9 +312,9 @@ describe('craft', () => {
         craftInputs({
           myParams: undefined as number | undefined,
         }),
-        craftSources({
+        craftSources(() => ({
           reset: signalSource<string>(),
-        }),
+        })),
         craftState('numberList', ({ myParams, reset }) =>
           state(
             linkedSignal(() => [myParams() ?? 0]),
@@ -386,9 +386,9 @@ describe('craft', () => {
           myParams1: undefined as string | undefined,
           myParams2: undefined as string | undefined,
         }),
-        craftSources({
+        craftSources(() => ({
           reset: signalSource<string>(),
-        }),
+        })),
         craftState('numberList1', ({ reset }) =>
           state([1], ({ state, set }) => ({
             addNumber: (numberValue: number) => {
@@ -436,9 +436,9 @@ describe('craft', () => {
         craftInputs({
           myParams: undefined as string | undefined,
         }),
-        craftSources({
+        craftSources(() => ({
           reset: signalSource<string>(),
-        }),
+        })),
         craftStore1(({ myParams, reset }) => ({
           // here myParams2 is not required, but required when injecting the hist store
           inputs: {
@@ -530,11 +530,11 @@ describe('craft', () => {
         name: 'host1',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -554,11 +554,11 @@ describe('craft', () => {
         name: 'host2',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -612,11 +612,11 @@ describe('craft', () => {
         name: 'host1',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(1, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -639,11 +639,11 @@ describe('craft', () => {
         name: 'host2',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ decrement }) =>
         state(1, ({ state, set }) => ({
           increment: () => set(state() + 1),
@@ -699,11 +699,11 @@ describe('craft', () => {
         name: 'host1',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -723,11 +723,11 @@ describe('craft', () => {
         name: 'host2',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -778,11 +778,11 @@ describe('craft', () => {
         name: 'host1',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -808,11 +808,11 @@ describe('craft', () => {
         name: 'host2',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -891,11 +891,11 @@ describe('craft', () => {
         name: 'host1',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -1001,11 +1001,11 @@ describe('craft', () => {
         name: 'host1',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -1071,11 +1071,11 @@ describe('craft', () => {
         name: 'host1',
         providedIn: 'root',
       },
-      craftSources({
+      craftSources(() => ({
         increment: signalSource<{}>(),
         decrement: signalSource<{}>(),
         reset: signalSource<{}>(),
-      }),
+      })),
       craftState('counter', ({ increment, decrement }) =>
         state(0, ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
@@ -1588,9 +1588,9 @@ craft(
     name: 'MyAwesomeStore',
     providedIn: 'root',
   },
-  craftSources({
+  craftSources(() => ({
     reset: signalSource<{}>(),
-  }),
+  })),
   craftState('counter', ({ reset }) =>
     state(0, ({ state, set }) => ({
       increment: () => set(state() + 1),
