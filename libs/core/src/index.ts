@@ -33,3 +33,4 @@ export * from './lib/resource-by-id';
 export * from './lib/local-storage-persister';
 export * from './lib/global-persister-handler.service';
 export * from './lib/util/entities-util';
+export * from './lib/reactive-writable-signal';

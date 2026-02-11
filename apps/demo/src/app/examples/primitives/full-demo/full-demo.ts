@@ -3,17 +3,17 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
 } from '@angular/core';
 import {
-  AsyncProcess,
+  asyncProcess,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
   mutation,
   query,
   queryParam,
+  reactiveWritableSignal,
   removeMany,
   removeOne,
   state,
@@ -292,7 +292,26 @@ export default class FullDemo {
   );
 
   protected readonly selectedRows = state(
-    [] as string[],
+    reactiveWritableSignal([] as string[], (sync) => ({
+      resetWhenCurrentPageIsResolved: sync(
+        this.usersQuery.currentPageStatus,
+        ({ params, current }) => (params === 'resolved' ? [] : current),
+      ),
+      resetWhenBulkDeleteIsResolved: sync(
+        this.bulkDelete.status,
+        ({ params, current }) => (params === 'resolved' ? [] : current),
+      ),
+      removeDeletedItemsWhenDeleteUserIsResolved: sync(
+        this.delayUserDeletion.changes.resolved,
+        ({ params: resolvedIds, current }) =>
+          resolvedIds.length > 0
+            ? removeMany({
+                entities: current,
+                ids: resolvedIds,
+              })
+            : current,
+      ),
+    })),
     ({ update, set, state: selectedRows }) => {
       const isAllSelected = computed(
         () =>
@@ -329,34 +348,6 @@ export default class FullDemo {
           }
         },
       };
-    },
-    ({ set, update }) => {
-      // their is some advanced patterns, where we can avoid to use effect (by using source)
-      const _resetWhenCurrentPageIsResolved = effect(() => {
-        if (this.usersQuery.currentPageStatus() === 'resolved') {
-          set([]);
-        }
-      });
-      const _resetWhenBulkDeleteIsResolved = effect(() => {
-        if (this.bulkDelete.status() === 'resolved') {
-          set([]);
-        }
-      });
-
-      // todo add it to the craft example
-      const _removeDeletedItemsWhenDeleteUserIsResolved = effect(() => {
-        if (this.delayUserDeletion.changes.resolved().length > 0) {
-          update((v) =>
-            removeMany({
-              entities: v,
-              ids: this.delayUserDeletion.changes.resolved(),
-              // todo if the entities are string identifier can be omitted
-              identifier: (id) => id,
-            }),
-          );
-        }
-      });
-      return {};
     },
   );
 
