@@ -3,7 +3,7 @@
 - [ ] For query/mutation/AsyncProcess insertions, expose a set and state similar to other primitive states that will simplify create reusable insert. (for persister one more property isStable ? To invalidate state while mutating)
 - [ ] Improve localStoragePersister invalidation
 - [ ] Explore to make Source similar to Subject/ReplaySubject
-- [ ] Add support for RxJs source without having an explicitly dependency on RxJs.
+- [ ] Add support for RxJs source without having an explicitly dependency on RxJs. (Remove the method exposed if it is a readonly observable)
 - [ ] Changer package sur npm & upload & mettre à jour la doc
 - [ ] Clean internal code
 - [ ] Explore explicit type safe error in state
