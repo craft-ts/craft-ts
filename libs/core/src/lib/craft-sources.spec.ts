@@ -68,12 +68,12 @@ describe('craftSources', () => {
 
       expect(store.counter()).toEqual(0);
 
-      store.setIncrement();
-      store.setIncrement();
-      store.setIncrement();
+      store.emitIncrement();
+      store.emitIncrement();
+      store.emitIncrement();
       expect(store.counter()).toEqual(3);
 
-      store.setTo(10);
+      store.emitTo(10);
       expect(store.counter()).toEqual(10);
     });
   });
@@ -101,12 +101,12 @@ describe('craftSources', () => {
 
       expect(store.counter()).toEqual(0);
 
-      store.setIncrement();
-      store.setIncrement();
-      store.setIncrement();
+      store.nextIncrement();
+      store.nextIncrement();
+      store.nextIncrement();
       expect(store.counter()).toEqual(3);
 
-      store.setTo(10);
+      store.nextTo(10);
       expect(store.counter()).toEqual(10);
     });
   });
