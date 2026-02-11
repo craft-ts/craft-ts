@@ -11,6 +11,8 @@ import {
   setAll,
   setMany,
   setOne,
+  toggleMany,
+  toggleOne,
   updateMany,
   updateOne,
   upsertMany,
@@ -694,6 +696,177 @@ describe('entities-util', () => {
         const result = computedIds({ entities: numbers });
         expect(result).toEqual([1, 2, 3]);
       });
+    });
+  });
+
+  describe('toggleOne', () => {
+    it('should remove an existing entity with identifier', () => {
+      const users: User[] = [
+        { id: 1, name: 'Alice' },
+        { id: 2, name: 'Bob' },
+      ];
+      const result = toggleOne({
+        entity: { id: 1, name: 'Alice' },
+        entities: users,
+        identifier: userIdentifier,
+      });
+      expect(result).toEqual([{ id: 2, name: 'Bob' }]);
+    });
+
+    it('should add a non-existing entity with identifier', () => {
+      const users: User[] = [{ id: 1, name: 'Alice' }];
+      const result = toggleOne({
+        entity: { id: 2, name: 'Bob' },
+        entities: users,
+        identifier: userIdentifier,
+      });
+      expect(result).toEqual([
+        { id: 1, name: 'Alice' },
+        { id: 2, name: 'Bob' },
+      ]);
+    });
+
+    it('should work without identifier when entity has id property', () => {
+      const users: User[] = [
+        { id: 1, name: 'Alice' },
+        { id: 2, name: 'Bob' },
+      ];
+      const result = toggleOne({
+        entity: { id: 1, name: 'Alice' },
+        entities: users,
+      });
+      expect(result).toEqual([{ id: 2, name: 'Bob' }]);
+    });
+
+    it('should add to empty list', () => {
+      const result = toggleOne({
+        entity: { id: 1, name: 'Alice' },
+        entities: [],
+      });
+      expect(result).toEqual([{ id: 1, name: 'Alice' }]);
+    });
+
+    it('should work with custom identifier for entities without id', () => {
+      const products: Product[] = [{ sku: 'A1', name: 'Widget' }];
+      const result = toggleOne({
+        entity: { sku: 'A1', name: 'Widget' },
+        entities: products,
+        identifier: productIdentifier,
+      });
+      expect(result).toEqual([]);
+    });
+
+    it('should work with primitives (strings)', () => {
+      const tags: string[] = ['a', 'b', 'c'];
+      const result = toggleOne({
+        entity: 'b',
+        entities: tags,
+      });
+      expect(result).toEqual(['a', 'c']);
+    });
+
+    it('should add primitive if not present', () => {
+      const tags: string[] = ['a', 'c'];
+      const result = toggleOne({
+        entity: 'b',
+        entities: tags,
+      });
+      expect(result).toEqual(['a', 'c', 'b']);
+    });
+
+    it('should work with primitives (numbers)', () => {
+      const numbers: number[] = [1, 2, 3];
+      const result = toggleOne({
+        entity: 2,
+        entities: numbers,
+      });
+      expect(result).toEqual([1, 3]);
+    });
+  });
+
+  describe('toggleMany', () => {
+    it('should toggle multiple entities with identifier', () => {
+      const users: User[] = [
+        { id: 1, name: 'Alice' },
+        { id: 2, name: 'Bob' },
+      ];
+      const result = toggleMany({
+        newEntities: [
+          { id: 1, name: 'Alice' },
+          { id: 3, name: 'Charlie' },
+        ],
+        entities: users,
+        identifier: userIdentifier,
+      });
+      expect(result).toEqual([
+        { id: 2, name: 'Bob' },
+        { id: 3, name: 'Charlie' },
+      ]);
+    });
+
+    it('should work without identifier when entity has id property', () => {
+      const users: User[] = [
+        { id: 1, name: 'Alice' },
+        { id: 2, name: 'Bob' },
+      ];
+      const result = toggleMany({
+        newEntities: [
+          { id: 2, name: 'Bob' },
+          { id: 3, name: 'Charlie' },
+        ],
+        entities: users,
+      });
+      expect(result).toEqual([
+        { id: 1, name: 'Alice' },
+        { id: 3, name: 'Charlie' },
+      ]);
+    });
+
+    it('should add all entities to empty list', () => {
+      const result = toggleMany({
+        newEntities: [
+          { id: 1, name: 'Alice' },
+          { id: 2, name: 'Bob' },
+        ],
+        entities: [],
+      });
+      expect(result).toEqual([
+        { id: 1, name: 'Alice' },
+        { id: 2, name: 'Bob' },
+      ]);
+    });
+
+    it('should remove all entities when all exist', () => {
+      const users: User[] = [
+        { id: 1, name: 'Alice' },
+        { id: 2, name: 'Bob' },
+      ];
+      const result = toggleMany({
+        newEntities: [
+          { id: 1, name: 'Alice' },
+          { id: 2, name: 'Bob' },
+        ],
+        entities: users,
+      });
+      expect(result).toEqual([]);
+    });
+
+    it('should work with primitives (strings)', () => {
+      const tags: string[] = ['a', 'b', 'c'];
+      const result = toggleMany({
+        newEntities: ['b', 'd'],
+        entities: tags,
+      });
+      expect(result).toEqual(['a', 'c', 'd']);
+    });
+
+    it('should work with primitives (numbers)', () => {
+      const numbers: number[] = [1, 2, 3];
+      const result = toggleMany({
+        newEntities: [2, 4],
+        entities: numbers,
+      });
+      expect(result).toEqual([1, 3, 4]);
     });
   });
 });

@@ -408,6 +408,91 @@ export function removeMany<T, K = string | number>({
 }
 
 /**
+ * Toggles an element: removes it if it exists, adds it if it doesn't.
+ * If the entity has an `id` property, the identifier is optional.
+ * For primitives (string | number), the entity itself is used as the identifier.
+ */
+export function toggleOne<T extends string | number>(params: {
+  entity: T;
+  entities: T[];
+  identifier?: IdSelector<T, T>;
+}): T[] & EntitiesUtilBrand<'toggleOne'>;
+export function toggleOne<
+  T extends { id: K },
+  K = T extends { id: infer I } ? I : string | number,
+>(params: {
+  entity: T;
+  entities: T[];
+  identifier?: IdSelector<T, K>;
+}): T[] & EntitiesUtilBrand<'toggleOne'>;
+export function toggleOne<T, K = string | number>(params: {
+  entity: T;
+  entities: T[];
+  identifier: IdSelector<T, K>;
+}): T[] & EntitiesUtilBrand<'toggleOne'>;
+export function toggleOne<T, K = string | number>({
+  entity,
+  entities,
+  identifier,
+}: {
+  entity: T;
+  entities: T[];
+  identifier?: IdSelector<T, K>;
+}): T[] & EntitiesUtilBrand<'toggleOne'> {
+  const getId = identifier ?? getDefaultIdentifier<T, K>();
+  const id = getId(entity);
+  const exists = entities.some((e) => getId(e) === id);
+
+  if (exists) {
+    return entities.filter((e) => getId(e) !== id) as T[] &
+      EntitiesUtilBrand<'toggleOne'>;
+  }
+  return [...entities, entity] as T[] & EntitiesUtilBrand<'toggleOne'>;
+}
+
+/**
+ * Toggles multiple elements: removes them if they exist, adds them if they don't.
+ * If the entity has an `id` property, the identifier is optional.
+ * For primitives (string | number), the entity itself is used as the identifier.
+ */
+export function toggleMany<T extends string | number>(params: {
+  newEntities: T[];
+  entities: T[];
+  identifier?: IdSelector<T, T>;
+}): T[] & EntitiesUtilBrand<'toggleMany'>;
+export function toggleMany<
+  T extends { id: K },
+  K = T extends { id: infer I } ? I : string | number,
+>(params: {
+  newEntities: T[];
+  entities: T[];
+  identifier?: IdSelector<T, K>;
+}): T[] & EntitiesUtilBrand<'toggleMany'>;
+export function toggleMany<T, K = string | number>(params: {
+  newEntities: T[];
+  entities: T[];
+  identifier: IdSelector<T, K>;
+}): T[] & EntitiesUtilBrand<'toggleMany'>;
+export function toggleMany<T, K = string | number>({
+  newEntities,
+  entities,
+  identifier,
+}: {
+  newEntities: T[];
+  entities: T[];
+  identifier?: IdSelector<T, K>;
+}): T[] & EntitiesUtilBrand<'toggleMany'> {
+  const getId = identifier ?? getDefaultIdentifier<T, K>();
+  let result = [...entities];
+
+  for (const entity of newEntities) {
+    result = toggleOne({ entity, entities: result, identifier: getId }) as T[];
+  }
+
+  return result as T[] & EntitiesUtilBrand<'toggleMany'>;
+}
+
+/**
  * Applies a transformation function to all elements
  */
 export function map<T>({
