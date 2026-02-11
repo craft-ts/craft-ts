@@ -1,10 +1,5 @@
 import { CommonModule } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
   craft,
   craftInject,
@@ -16,13 +11,14 @@ import {
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
-  AsyncProcess,
+  asyncProcess,
   mutation,
   query,
   queryParam,
   state,
   removeOne,
   removeMany,
+  reactiveWritableSignal,
 } from '@ng-angular-stack/craft';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, User } from './api.service';
@@ -151,9 +147,28 @@ const { injectFullDemoCraft, provideFullDemoCraft } = craft(
       }),
     ),
   ),
-  craftState('selectedRows', ({ users, bulkDelete }) =>
+  craftState('selectedRows', ({ users, bulkDelete, deleteUser }) =>
     state(
-      [] as string[],
+      reactiveWritableSignal([] as string[], (sync) => ({
+        resetWhenCurrentPageIsResolved: sync(
+          users.currentPageStatus,
+          ({ params, current }) => (params === 'resolved' ? [] : current),
+        ),
+        resetWhenBulkDeleteIsResolved: sync(
+          bulkDelete.status,
+          ({ params, current }) => (params === 'resolved' ? [] : current),
+        ),
+        removeDeletedItemsWhenDeleteUserIsResolved: sync(
+          deleteUser.changes.resolved,
+          ({ params: resolvedIds, current }) =>
+            resolvedIds.length > 0
+              ? removeMany({
+                  entities: current,
+                  ids: resolvedIds,
+                })
+              : current,
+        ),
+      })),
       ({ update, set, state: selectedRows }) => {
         const isAllSelected = computed(
           () =>
@@ -190,20 +205,6 @@ const { injectFullDemoCraft, provideFullDemoCraft } = craft(
             }
           },
         };
-      },
-      ({ set }) => {
-        // their is some advanced patterns, where we can avoid to use effect (by using source)
-        const _resetWhenCurrentPageIsResolved = effect(() => {
-          if (users.currentPageStatus() === 'resolved') {
-            set([]);
-          }
-        });
-        const _resetWhenBulkDeleteIsResolved = effect(() => {
-          if (bulkDelete.status() === 'resolved') {
-            set([]);
-          }
-        });
-        return {};
       },
     ),
   ),

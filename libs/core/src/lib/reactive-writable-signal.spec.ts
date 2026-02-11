@@ -5,8 +5,8 @@ describe('reactiveWritableSignal', () => {
   it('1- Should use initialValue on first read', () => {
     const source = signal(10);
 
-    const result = reactiveWritableSignal(5, (from) => ({
-      onSourceChange: from(source, ({ params, current }) => params + current),
+    const result = reactiveWritableSignal(5, (sync) => ({
+      onSourceChange: sync(source, ({ params, current }) => params + current),
     }));
 
     // First read returns initialValue
@@ -16,8 +16,8 @@ describe('reactiveWritableSignal', () => {
   it('2- Should react to source signal changes', () => {
     const multiplier = signal(2);
 
-    const result = reactiveWritableSignal(10, (from) => ({
-      multiply: from(multiplier, ({ params, current }) => current * params),
+    const result = reactiveWritableSignal(10, (sync) => ({
+      multiply: sync(multiplier, ({ params, current }) => current * params),
     }));
 
     expect(result()).toEqual(10);
@@ -30,8 +30,8 @@ describe('reactiveWritableSignal', () => {
   it('3- Should allow manual set() and preserve value until next source change', () => {
     const source = signal(1);
 
-    const result = reactiveWritableSignal(0, (from) => ({
-      addSource: from(source, ({ params, current }) => current + params),
+    const result = reactiveWritableSignal(0, (sync) => ({
+      addSource: sync(source, ({ params, current }) => current + params),
     }));
 
     expect(result()).toEqual(0);
@@ -51,12 +51,12 @@ describe('reactiveWritableSignal', () => {
     let computationACount = 0;
     let computationBCount = 0;
 
-    const result = reactiveWritableSignal('', (from) => ({
-      fromA: from(sourceA, ({ params, current }) => {
+    const result = reactiveWritableSignal('', (sync) => ({
+      syncA: sync(sourceA, ({ params, current }) => {
         computationACount++;
         return current + params;
       }),
-      fromB: from(sourceB, ({ params, current }) => {
+      syncB: sync(sourceB, ({ params, current }) => {
         computationBCount++;
         return current + params;
       }),
@@ -83,8 +83,8 @@ describe('reactiveWritableSignal', () => {
     const source = signal({ value: 1 });
     let computationCount = 0;
 
-    const result = reactiveWritableSignal(0, (from) => ({
-      extract: from(source, ({ params, current }) => {
+    const result = reactiveWritableSignal(0, (sync) => ({
+      extract: sync(source, ({ params, current }) => {
         computationCount++;
         return params.value;
       }),
@@ -108,9 +108,9 @@ describe('reactiveWritableSignal', () => {
     const sourceA = signal(1);
     const sourceB = signal(10);
 
-    const result = reactiveWritableSignal(0, (from) => ({
-      addA: from(sourceA, ({ params, current }) => current + params),
-      addB: from(sourceB, ({ params, current }) => current + params),
+    const result = reactiveWritableSignal(0, (sync) => ({
+      addA: sync(sourceA, ({ params, current }) => current + params),
+      addB: sync(sourceB, ({ params, current }) => current + params),
     }));
 
     expect(result()).toEqual(0);
@@ -125,8 +125,8 @@ describe('reactiveWritableSignal', () => {
   it('7- Should support update() method', () => {
     const source = signal(1);
 
-    const result = reactiveWritableSignal(10, (from) => ({
-      add: from(source, ({ params, current }) => current + params),
+    const result = reactiveWritableSignal(10, (sync) => ({
+      add: sync(source, ({ params, current }) => current + params),
     }));
 
     expect(result()).toEqual(10);
@@ -143,8 +143,8 @@ describe('reactiveWritableSignal', () => {
 
     const selectedIds = reactiveWritableSignal(
       [1, 2, 3] as number[],
-      (from) => ({
-        filterByAllowed: from(allowedIds, ({ params, current }) => {
+      (sync) => ({
+        filterByAllowed: sync(allowedIds, ({ params, current }) => {
           return current.filter((id) => params.includes(id));
         }),
       }),
@@ -170,7 +170,7 @@ describe('reactiveWritableSignal', () => {
     let computationCount = 0;
 
     const result = reactiveWritableSignal([] as number[], (sync) => ({
-      initFromSource: sync(
+      initsyncSource: sync(
         source,
         ({ params }) => {
           computationCount++;
@@ -223,7 +223,7 @@ describe('reactiveWritableSignal', () => {
 
     const result = reactiveWritableSignal('', (sync) => ({
       // This runs during init AND on changes
-      fromInit: sync(
+      syncInit: sync(
         initSource,
         ({ params, current }) => {
           initCount++;
@@ -232,13 +232,13 @@ describe('reactiveWritableSignal', () => {
         { onInitToo: true },
       ),
       // This runs only on changes (default behavior)
-      fromUpdate: sync(updateSource, ({ params, current }) => {
+      syncUpdate: sync(updateSource, ({ params, current }) => {
         updateCount++;
         return current + params;
       }),
     }));
 
-    // First read: only fromInit runs
+    // First read: only syncInit runs
     expect(result()).toEqual('init');
     expect(initCount).toEqual(1);
     expect(updateCount).toEqual(0);
@@ -261,7 +261,7 @@ describe('reactiveWritableSignal', () => {
     const filterSource = signal([1, 2]);
 
     const result = reactiveWritableSignal([] as number[], (sync) => ({
-      // Initialize from source - only runs once
+      // Initialize sync source - only runs once
       initialize: sync(initSource, ({ params }) => params, {
         onInitOnly: true,
       }),
