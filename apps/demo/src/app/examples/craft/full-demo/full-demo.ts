@@ -19,6 +19,9 @@ import {
   removeOne,
   removeMany,
   reactiveWritableSignal,
+  on$,
+  craftSources,
+  source$,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, User } from './api.service';
@@ -27,14 +30,11 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const { injectFullDemoCraft, provideFullDemoCraft } = craft(
+const { craftPagination } = craft(
   {
-    name: 'fullDemo',
-    providedIn: 'scoped',
+    name: 'pagination',
+    providedIn: 'feature',
   },
-  craftInject(() => ({
-    ApiService,
-  })),
   craftQueryParam('pagination', () =>
     queryParam(
       {
@@ -51,14 +51,33 @@ const { injectFullDemoCraft, provideFullDemoCraft } = craft(
           },
         },
       },
-      ({ patch, state }) => ({
+      ({ patch, state, reset }) => ({
         nextPage: () => patch({ page: state().page + 1 }),
         previousPage: () => patch({ page: state().page - 1 }),
         updatePageSize: (newPageSize: number) =>
           patch({ pageSize: newPageSize, page: 1 }),
+        reset: () => reset(),
       }),
     ),
   ),
+);
+
+const { injectFullDemoCraft, provideFullDemoCraft } = craft(
+  {
+    name: 'fullDemo',
+    providedIn: 'scoped',
+  },
+  craftInject(() => ({
+    ApiService,
+  })),
+  craftSources(() => ({
+    reset$: source$<void>(),
+  })),
+  craftPagination(({ reset$ }) => ({
+    methods: {
+      resetPagination: reset$,
+    },
+  })),
   craftMutations(({ apiService }) => ({
     bulkDelete: mutation({
       method: (ids: string[]) => ids,
@@ -97,57 +116,59 @@ const { injectFullDemoCraft, provideFullDemoCraft } = craft(
       loader: ({ params: user }) => apiService.updateItem(user),
     }),
   })),
-  craftQuery('users', ({ pagination, apiService, deleteUser, bulkDelete }) =>
-    query(
-      {
-        params: pagination,
-        identifier: (params) => `${params.page}-${params.pageSize}`,
-        loader: ({ params: pagination }) => apiService.getDataList(pagination),
-      },
-      insertLocalStoragePersister({
-        storeName: 'demo-app-craft',
-        key: 'full-demo',
-      }),
-      insertPaginationPlaceholderData,
-      insertReactOnMutation(deleteUser, {
-        filter: ({ mutationIdentifier, queryResource }) =>
-          !!queryResource
-            .safeValue()
-            ?.some((item) => item.id === mutationIdentifier),
-        optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-          removeOne({
-            entities: queryResource.value(),
-            id: mutationIdentifier,
-          }),
-        reload: {
-          onMutationError: true,
+  craftQuery(
+    'users',
+    ({ pagination, apiService, deleteUser, bulkDelete, INSERT_CONFIG }) =>
+      query(
+        {
+          params: pagination,
+          identifier: (params) => `${params.page}-${params.pageSize}`,
+          loader: ({ params: pagination }) =>
+            apiService.getDataList(pagination),
         },
-      }),
-      insertReactOnMutation(deleteUser, {
-        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
-        reload: {
-          // reload the current page if there is no more data after mutation
-          onMutationResolved: true,
-        },
-      }),
-      insertReactOnMutation(bulkDelete, {
-        filter: ({ queryResource }) =>
-          (queryResource.safeValue()?.length ?? 0) > 0,
-        optimisticUpdate: ({ queryResource, mutationParams }) =>
-          removeMany({
-            entities: queryResource.value(),
-            ids: mutationParams,
-          }),
-      }),
-      insertReactOnMutation(bulkDelete, {
-        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
-        reload: {
-          onMutationResolved: true,
-        },
-      }),
-    ),
+        insertLocalStoragePersister(INSERT_CONFIG),
+        insertPaginationPlaceholderData,
+        insertReactOnMutation(deleteUser, {
+          filter: ({ mutationIdentifier, queryResource }) =>
+            !!queryResource
+              .safeValue()
+              ?.some((item) => item.id === mutationIdentifier),
+          optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
+            removeOne({
+              entities: queryResource.value(),
+              id: mutationIdentifier,
+            }),
+          reload: {
+            onMutationError: true,
+          },
+        }),
+        insertReactOnMutation(deleteUser, {
+          filter: ({ queryResource }) =>
+            queryResource.safeValue()?.length === 0,
+          reload: {
+            // reload the current page if there is no more data after mutation
+            onMutationResolved: true,
+          },
+        }),
+        insertReactOnMutation(bulkDelete, {
+          filter: ({ queryResource }) =>
+            (queryResource.safeValue()?.length ?? 0) > 0,
+          optimisticUpdate: ({ queryResource, mutationParams }) =>
+            removeMany({
+              entities: queryResource.value(),
+              ids: mutationParams,
+            }),
+        }),
+        insertReactOnMutation(bulkDelete, {
+          filter: ({ queryResource }) =>
+            queryResource.safeValue()?.length === 0,
+          reload: {
+            onMutationResolved: true,
+          },
+        }),
+      ),
   ),
-  craftState('selectedRows', ({ users, bulkDelete, deleteUser }) =>
+  craftState('selectedRows', ({ users, bulkDelete, deleteUser, reset$ }) =>
     state(
       reactiveWritableSignal([] as string[], (sync) => ({
         resetWhenCurrentPageIsResolved: sync(
@@ -169,14 +190,16 @@ const { injectFullDemoCraft, provideFullDemoCraft } = craft(
               : current,
         ),
       })),
-      ({ update, set, state: selectedRows }) => {
-        const isAllSelected = computed(
+      ({ state: selectedRows }) => ({
+        isAllSelected: computed(
           () =>
             users.currentPageData()?.length &&
             users
               .currentPageData()
               ?.every((user) => selectedRows().includes(user.id)),
-        );
+        ),
+      }),
+      ({ update, set, state: selectedRows, insertions: { isAllSelected } }) => {
         return {
           toggleSelection: (id: string) =>
             update((current) =>
@@ -206,6 +229,9 @@ const { injectFullDemoCraft, provideFullDemoCraft } = craft(
           },
         };
       },
+      ({ set }) => ({
+        reset: on$(reset$, () => set([])),
+      }),
     ),
   ),
 );
@@ -236,6 +262,9 @@ const { injectFullDemoCraft, provideFullDemoCraft } = craft(
                   store.selectedRows().length || '-'
                 }})
                 <app-status [status]="store.bulkDelete.status()" />
+              </button>
+              <button class="action-btn reset-btn" (click)="store.emitReset$()">
+                Reset Filters
               </button>
             </div>
 
@@ -378,9 +407,5 @@ export default class FullDemoCraft {
   protected updatePageSize(event: Event) {
     const value = Number((event.target as HTMLSelectElement).value);
     this.store.updatePageSizePagination(value);
-  }
-
-  test() {
-    // this.store.delayUserDeletion.set // todo should not be exposed
   }
 }
