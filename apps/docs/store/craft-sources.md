@@ -5,7 +5,7 @@ Creates source definitions for use within a craft store, enabling reactive signa
 ## Import
 
 ```typescript
-import { craftSources } from '@ng-angular-stack/craft';
+import { craftSources } from '@craft-ng/core';
 ```
 
 ## Introduction

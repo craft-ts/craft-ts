@@ -15,7 +15,7 @@ import {
   craftQuery,
   insertLocalStoragePersister,
   query,
-} from '@ng-angular-stack/craft';
+} from '@craft-ng/core';
 
 const { injectUserCraft } = craft(
   {

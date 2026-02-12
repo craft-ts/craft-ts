@@ -5,7 +5,7 @@ The `AsyncProcess` primitive creates an async operation that manages asynchronou
 ## Import
 
 ```typescript
-import { AsyncProcess } from '@ng-angular-stack/craft';
+import { AsyncProcess } from '@craft-ng/core';
 ```
 
 ## Basic Examples
@@ -42,7 +42,7 @@ The method based always needs one parameter.
 ### Source-based async method for automatic execution
 
 ```typescript
-import { source, afterRecomputation } from '@ng-angular-stack/craft';
+import { source, afterRecomputation } from '@craft-ng/core';
 
 const searchSource = source();
 const delayedSearch = asyncProcess({

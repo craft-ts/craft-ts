@@ -8,7 +8,7 @@ import {
 import { ApiService } from './api.service';
 import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
-import { insertLocalStoragePersister, query } from '@ng-angular-stack/craft';
+import { insertLocalStoragePersister, query } from '@craft-ng/core';
 
 @Component({
   selector: 'app-query',

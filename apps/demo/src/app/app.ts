@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { GlobalPersisterHandlerService } from '@ng-angular-stack/craft';
+import { GlobalPersisterHandlerService } from '@craft-ng/core';
 
 @Component({
   imports: [RouterModule],

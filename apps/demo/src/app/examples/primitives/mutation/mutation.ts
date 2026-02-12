@@ -13,7 +13,7 @@ import {
   mutation,
   insertLocalStoragePersister,
   insertReactOnMutation,
-} from '@ng-angular-stack/craft';
+} from '@craft-ng/core';
 
 @Component({
   selector: 'app-mutation',

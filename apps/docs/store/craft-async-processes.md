@@ -5,7 +5,7 @@ Creates async method definitions for use within a craft store, enabling reactive
 ## Import
 
 ```typescript
-import { craftAsyncProcesses } from '@ng-angular-stack/craft';
+import { craftAsyncProcesses } from '@craft-ng/core';
 ```
 
 ## Introduction

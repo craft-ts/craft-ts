@@ -1,16 +1,16 @@
 # Press Kit
 
-Resources and information about @ng-angular-stack/craft for articles, presentations, and sharing.
+Resources and information about @craft-ng/core for articles, presentations, and sharing.
 
 ## Project Description
 
 ### Short Description
 
-@ng-angular-stack/craft is a reactive state management tool for Angular, focusing on URL, Client, and Server state with 100% type-safety and Signal-based architecture.
+@craft-ng/core is a reactive state management tool for Angular, focusing on URL, Client, and Server state with 100% type-safety and Signal-based architecture.
 
 ### Long Description
 
-@ng-angular-stack/craft is a reactive state management tool designed specifically for Angular applications. It focuses on managing URL, Client, and Server state, allowing developers to concentrate on business value and user experience. Built on Angular Signals with optional RxJS support, @ng-angular-stack/craft provides type-safe primitives and composable stores that integrate seamlessly into your components and services. The library promotes granular, declarative state management with powerful features like automatic localStorage synchronization, optimistic updates, and smart loading states.
+@craft-ng/core is a reactive state management tool designed specifically for Angular applications. It focuses on managing URL, Client, and Server state, allowing developers to concentrate on business value and user experience. Built on Angular Signals with optional RxJS support, @craft-ng/core provides type-safe primitives and composable stores that integrate seamlessly into your components and services. The library promotes granular, declarative state management with powerful features like automatic localStorage synchronization, optimistic updates, and smart loading states.
 
 ## Key Features
 
@@ -33,23 +33,23 @@ Resources and information about @ng-angular-stack/craft for articles, presentati
 ## Installation
 
 ```shell
-npm i @ng-angular-stack/craft@latest
+npm i @craft-ng/core@latest
 ```
 
 ## Links
 
 - **GitHub**: [github.com/ng-angular-stack/ng-craft](https://github.com/ng-angular-stack/ng-craft)
 - **Documentation**: [ng-angular-stack.github.io/craft/](https://ng-angular-stack.github.io/craft/)
-- **NPM**: [npmjs.com/package/@ng-angular-stack/craft](https://npmjs.com/package/@ng-angular-stack/craft)
+- **NPM**: [npmjs.com/package/@craft-ng/core](https://npmjs.com/package/@craft-ng/core)
 
 ## Social Media
 
 ### LinkedIn
 
 ```
-Excited to share @ng-angular-stack/craft - a new reactive state management tool for Angular!
+Excited to share @craft-ng/core - a new reactive state management tool for Angular!
 
-@ng-angular-stack/craft helps you focus on delivering business value by handling the common patterns in Angular applications. Built on Signals with 100% type safety, it offers:
+@craft-ng/core helps you focus on delivering business value by handling the common patterns in Angular applications. Built on Signals with 100% type safety, it offers:
 
 • Reactive state with automatic updates
 • Async method handling with loading states
@@ -66,7 +66,7 @@ Check it out: [link]
 
 ## Testimonials
 
-_We'd love to hear from you! Share your experience with @ng-angular-stack/craft._
+_We'd love to hear from you! Share your experience with @craft-ng/core._
 
 ## License
 
@@ -83,4 +83,4 @@ Created and maintained by Romain Geffrault.
 
 ---
 
-Thank you for your interest in @ng-angular-stack/craft! 🙏
+Thank you for your interest in @craft-ng/core! 🙏

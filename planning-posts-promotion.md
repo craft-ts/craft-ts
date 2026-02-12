@@ -1,10 +1,10 @@
-# Planning de 40 Posts pour Promouvoir @ng-angular-stack/craft
+# Planning de 40 Posts pour Promouvoir @craft-ng/core
 
 ## Semaine 1 : Introduction & Problématique
 
 ### Post 1 - Lancement Modeste
 
-**Prompt:** "Crée un post LinkedIn annonçant sobrement le lancement de @ng-angular-stack/craft, une librairie de state management pour Angular basée sur les Signals. Mentionne qu'elle vise à simplifier la gestion d'état URL, Client et Serveur. Ton humble et ouvert aux retours."
+**Prompt:** "Crée un post LinkedIn annonçant sobrement le lancement de @craft-ng/core, une librairie de state management pour Angular basée sur les Signals. Mentionne qu'elle vise à simplifier la gestion d'état URL, Client et Serveur. Ton humble et ouvert aux retours."
 
 - 📎 Lien vers le repo GitHub
 

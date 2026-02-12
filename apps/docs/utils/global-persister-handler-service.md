@@ -8,10 +8,10 @@ The `GlobalPersisterHandlerService` provides a centralized way to clear all cach
 
 ## Installation
 
-The service is automatically available when you install `@ng-angular-stack/craft`:
+The service is automatically available when you install `@craft-ng/core`:
 
 ```typescript
-import { GlobalPersisterHandlerService } from '@ng-angular-stack/craft';
+import { GlobalPersisterHandlerService } from '@craft-ng/core';
 ```
 
 ## How it works
@@ -28,7 +28,7 @@ The service scans all keys in `localStorage` and removes any key that starts wit
 
 ```typescript
 import { Component, inject } from '@angular/core';
-import { GlobalPersisterHandlerService } from '@ng-angular-stack/craft';
+import { GlobalPersisterHandlerService } from '@craft-ng/core';
 import { Router } from '@angular/router';
 
 @Component({
@@ -56,7 +56,7 @@ export class HeaderComponent {
 
 ```typescript
 import { Component, inject } from '@angular/core';
-import { GlobalPersisterHandlerService } from '@ng-angular-stack/craft';
+import { GlobalPersisterHandlerService } from '@craft-ng/core';
 
 @Component({
   selector: 'app-settings',
@@ -79,7 +79,7 @@ export class SettingsComponent {
 
 ```typescript
 import { Component, inject } from '@angular/core';
-import { GlobalPersisterHandlerService } from '@ng-angular-stack/craft';
+import { GlobalPersisterHandlerService } from '@craft-ng/core';
 
 @Component({
   selector: 'app-account-switcher',

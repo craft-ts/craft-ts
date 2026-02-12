@@ -7,7 +7,7 @@ import {
   queryParam,
   signalSource,
   source$,
-} from '@ng-angular-stack/craft';
+} from '@craft-ng/core';
 
 const { craftGenericQueryParams } = craft(
   {

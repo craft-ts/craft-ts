@@ -5,7 +5,7 @@ The `state` primitive creates a Signal-based state with optional insertions for 
 ## Import
 
 ```typescript
-import { state } from '@ng-angular-stack/craft';
+import { state } from '@craft-ng/core';
 ```
 
 ## Basic Examples
@@ -77,8 +77,8 @@ console.log(counter.isOdd()); // true
 Methods bound to sources using `afterRecomputation` are not exposed on the state, they only work internally:
 
 ```typescript
-import { source } from '@ng-angular-stack/craft';
-import { afterRecomputation } from '@ng-angular-stack/craft';
+import { source } from '@craft-ng/core';
+import { afterRecomputation } from '@craft-ng/core';
 
 const sourceSignal = source<number>();
 const myState = state(0, ({ set }) => ({

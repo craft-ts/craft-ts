@@ -5,7 +5,7 @@ Combine multiple sources into a single source stream.
 ## Import
 
 ```typescript
-import { stackedSource } from '@ng-angular-stack/craft';
+import { stackedSource } from '@craft-ng/core';
 ```
 
 ## Basic Usage
@@ -13,7 +13,7 @@ import { stackedSource } from '@ng-angular-stack/craft';
 ```typescript
 import { Subject } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { state, stackedSource } from '@ng-angular-stack/craft';
+import { state, stackedSource } from '@craft-ng/core';
 
 const add$ = new Subject<number>();
 const multiply$ = new Subject<number>();

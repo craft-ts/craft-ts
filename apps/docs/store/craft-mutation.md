@@ -5,7 +5,7 @@ Creates mutation definitions for use within a craft store, enabling reactive man
 ## Import
 
 ```typescript
-import { craftMutations } from '@ng-angular-stack/craft';
+import { craftMutations } from '@craft-ng/core';
 ```
 
 ## Introduction

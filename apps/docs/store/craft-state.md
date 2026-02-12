@@ -5,7 +5,7 @@ Creates a state definition for use within a craft store, enabling reactive state
 ## Import
 
 ```typescript
-import { craftState } from '@ng-angular-stack/craft';
+import { craftState } from '@craft-ng/core';
 ```
 
 ## Introduction

@@ -3,7 +3,7 @@
 layout: home
 
 hero:
-  name: '@ng-angular-stack/craft'
+  name: '@craft-ng/core'
   text: 'Reactive State Management for Angular'
   tagline: Focus on business value and user experience with utilities that save you precious time by handling the common logic in all Angular applications
   image:

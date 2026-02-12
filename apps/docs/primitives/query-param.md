@@ -5,7 +5,7 @@ The `queryParam` primitive creates a reactive query parameter manager that synch
 ## Import
 
 ```typescript
-import { queryParam } from '@ng-angular-stack/craft';
+import { queryParam } from '@craft-ng/core';
 ```
 
 ## Basic Examples

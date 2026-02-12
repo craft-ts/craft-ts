@@ -5,11 +5,11 @@
 ### Using npm
 
 ```shell
-npm i @ng-angular-stack/craft@latest
+npm i @craft-ng/core@latest
 ```
 
 :::tip
-After installation, you can start using @ng-angular-stack/craft primitives and stores in your Angular application!
+After installation, you can start using @craft-ng/core primitives and stores in your Angular application!
 :::
 
 :::warning

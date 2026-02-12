@@ -9,7 +9,6 @@ import {
 import {
   InsertionsQueryParamsFactory,
   InsertionQueryParamsFactoryContext,
-  QueryParamMethods,
 } from './query.core';
 import { MergeObjects } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';

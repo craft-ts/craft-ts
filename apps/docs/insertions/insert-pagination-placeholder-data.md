@@ -6,7 +6,7 @@ The `insertPaginationPlaceholderData` insertion provides placeholder data during
 ## Import
 
 ```typescript
-import { insertPaginationPlaceholderData } from '@ng-angular-stack/craft';
+import { insertPaginationPlaceholderData } from '@craft-ng/core';
 ```
 
 ## Basic Usage

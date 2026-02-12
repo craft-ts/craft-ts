@@ -12,7 +12,7 @@ import {
   mutation,
   query,
   queryParam,
-} from '@ng-angular-stack/craft';
+} from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, User } from './api.service';
 

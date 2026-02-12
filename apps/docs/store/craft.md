@@ -5,7 +5,7 @@ Creates a type-safe, composable state management store with Angular dependency i
 ## Import
 
 ```typescript
-import { craft } from '@ng-angular-stack/craft';
+import { craft } from '@craft-ng/core';
 ```
 
 ## Introduction

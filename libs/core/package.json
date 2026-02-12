@@ -1,5 +1,5 @@
 {
-  "name": "@ng-angular-stack/craft",
+  "name": "@craft-ng/core",
   "version": "0.0.1",
   "description": "Reactive State Management for Angular - Type-safe, signal-based utilities for composable and reusable state management",
   "author": "Romain Geffrault",

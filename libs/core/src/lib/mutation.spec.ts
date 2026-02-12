@@ -7,7 +7,6 @@ import { Equal, Expect } from 'test-type';
 import { mutation, MutationOutput } from './mutation';
 import { craftMutations } from './craft-mutations';
 
-// todo implements tests dedicated to mutation
 describe('mutation', () => {
   it('should enable to define a mutation that can be call with the method', async () => {
     TestBed.runInInjectionContext(async () => {
