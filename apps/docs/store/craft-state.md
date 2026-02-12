@@ -34,7 +34,7 @@ import { craftState } from '@craft-ng/core';
 ## Integration
 
 - Access to other craft entries (sources, queries, mutations) via context
-- React to sources using `afterRecomputation()`
+- React to sources using `on$()`
 - Supports all `state()` insertion features (persistence, validation, etc.)
 
 ## Signature
@@ -123,7 +123,7 @@ console.log(store.todos().length); // 0
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
   craftSources({
-    resetFilters: source<void>(),
+    resetFilters: source$<void>(),
   }),
   craftState('filters', ({ resetFilters }) =>
     state(
@@ -135,7 +135,7 @@ const { injectCraft } = craft(
         setCategory: (category: string) => {
           set({ ...state(), category });
         },
-        reset: afterRecomputation(resetFilters, () => {
+        reset: on$(resetFilters, () => {
           set({ search: '', category: 'all', priceRange: [0, 1000] });
         }),
       }),

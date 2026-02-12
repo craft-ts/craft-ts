@@ -10,3 +10,4 @@
 - [ ] In Craft, explore a way to only craftQueryParams in scoped craft (without affecting global query params or add warnings)
 - [ ] In Craft, explore a way to create properties/methods that are one available in the state / in craft (but on exposed in a component)
 - [ ] Explore a way to handle selectedIds (that can be used for bulk delete ...), creating a dedicated state, or a dedicated insertion. It will expose all selected, some selected, toggleOne/toggleAll...
+- [ ] Standardize craftState => craftStates naming where possible

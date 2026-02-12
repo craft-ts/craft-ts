@@ -78,6 +78,102 @@ type EntitiesUtilsToMap<
     : false
   : Acc;
 
+/**
+ * Creates an insertion that adds entity collection management methods to state, query, or queryParam primitives.
+ *
+ * Provides type-safe manipulation of arrays of entities with operations like add, remove, update, and upsert.
+ * Supports nested properties via dot notation paths and custom entity identifiers.
+ *
+ * @template State - The state type (array or object containing arrays)
+ * @template K - The type of entity identifiers (string or number)
+ * @template PreviousInsertionsOutputs - Combined outputs from previous insertions
+ * @template EntityHelperFns - Tuple type of entity utility functions to expose
+ * @template StateIdentifier - Type of identifier function for parallel queries
+ * @template Path - Dot-notation path to nested array (inferred from state structure)
+ *
+ * @param config - Configuration object
+ * @param config.methods - Array of entity utility functions (addOne, removeOne, updateOne, etc.) to expose as methods
+ * @param config.identifier - Optional custom function to extract unique ID from entities.
+ *                            Defaults to `entity.id` for objects or `entity` for primitives
+ * @param config.path - Optional dot-notation path to nested array property (e.g., 'catalog.products').
+ *                      Method names are prefixed with camelCase path when provided
+ *
+ * @returns Insertion function that adds entity management methods to the primitive
+ *
+ * @example
+ * // Basic usage with primitives
+ * const tags = state(
+ *   [] as string[],
+ *   insertEntities({
+ *     methods: [addOne, addMany, removeOne],
+ *   })
+ * );
+ * tags.addOne({ entity: 'typescript' });
+ * tags.addMany({ newEntities: ['angular', 'signals'] });
+ *
+ * @example
+ * // With objects having default id property
+ * interface Product {
+ *   id: string;
+ *   name: string;
+ *   price: number;
+ * }
+ * const products = state(
+ *   [] as Product[],
+ *   insertEntities({
+ *     methods: [addOne, setOne, removeOne],
+ *   })
+ * );
+ * products.addOne({ entity: { id: '1', name: 'Laptop', price: 999 } });
+ *
+ * @example
+ * // With custom identifier
+ * interface User {
+ *   uuid: string;
+ *   name: string;
+ * }
+ * const users = state(
+ *   [] as User[],
+ *   insertEntities({
+ *     methods: [setOne, removeOne],
+ *     identifier: (user) => user.uuid,
+ *   })
+ * );
+ *
+ * @example
+ * // With nested path
+ * interface Catalog {
+ *   total: number;
+ *   products: Array<{ id: string; name: string }>;
+ * }
+ * const catalog = state(
+ *   { total: 0, products: [] } as Catalog,
+ *   insertEntities({
+ *     methods: [addMany, removeOne],
+ *     path: 'products',
+ *   })
+ * );
+ * catalog.productsAddMany({ newEntities: [{ id: '1', name: 'Item' }] });
+ *
+ * @example
+ * // With parallel queries
+ * const userQuery = query(
+ *   {
+ *     params: () => 'userId',
+ *     identifier: (params) => params,
+ *     loader: async ({ params }) => fetchUserPosts(params),
+ *   },
+ *   insertEntities({
+ *     methods: [addOne],
+ *   })
+ * );
+ * userQuery.addOne({
+ *   select: 'user-123', // Target specific query instance
+ *   entity: { id: 'post-1', title: 'New Post' },
+ * });
+ *
+ * @see {@link https://github.com/ng-angular-stack/ng-craft/blob/main/apps/docs/insertions/insert-entities.md | insertEntities Documentation}
+ */
 export function insertEntities<
   State,
   K extends string | number,
@@ -203,7 +299,6 @@ export function insertEntities<
         });
       };
     }
-    // todo if path map output name
     return methods as Prettify<
       EntitiesUtilsToMap<
         EntityHelperFns,

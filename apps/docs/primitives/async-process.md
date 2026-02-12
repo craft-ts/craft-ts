@@ -42,11 +42,11 @@ The method based always needs one parameter.
 ### Source-based async method for automatic execution
 
 ```typescript
-import { source, afterRecomputation } from '@craft-ng/core';
+import { source$, on$ } from '@craft-ng/core';
 
-const searchSource = source();
+const searchSource = source$<void>();
 const delayedSearch = asyncProcess({
-  method: afterRecomputation(searchSource, (term) => term),
+  method: on$(searchSource, (term) => term),
   loader: async ({ params: term }) => {
     // Debounce at source level
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -55,7 +55,7 @@ const delayedSearch = asyncProcess({
 });
 
 // Triggers automatically when source emits
-searchSource.set('query text');
+searchSource.emit('query text');
 // autoSearch executes automatically
 
 // No manual method, only source

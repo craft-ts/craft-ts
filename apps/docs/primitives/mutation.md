@@ -38,9 +38,9 @@ console.log(createUser.safeValue()); // Created user data (never throws)
 ### source-based mutation
 
 ```typescript
-const deleteUserSource = source<{ name: string; email: string; id: string }>();
+const deleteUserSource = source$<{ name: string; email: string; id: string }>();
 const deleteUser = mutation({
-  method: afterRecomputation(deleteUserSource, (payload) => payload),
+  method: on$(deleteUserSource, (payload) => payload),
   loader: async ({ params }) => {
     const response = await fetch('/api/users', {
       method: 'DELETE',
@@ -52,7 +52,7 @@ const deleteUser = mutation({
 });
 
 // Execute mutation
-deleteUserSource.set({ name: 'John', email: 'john@example.com', id: '5' });
+deleteUserSource.emit({ name: 'John', email: 'john@example.com', id: '5' });
 
 // Access state
 console.log(deleteUser.isLoading()); // true/false

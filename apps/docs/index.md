@@ -3,9 +3,9 @@
 layout: home
 
 hero:
-  name: '@craft-ng/core'
-  text: 'Reactive State Management for Angular'
-  tagline: Focus on business value and user experience with utilities that save you precious time by handling the common logic in all Angular applications
+  name: '@craft-ng'
+  text: 'Type-Safe Reactive States Management for Angular'
+  tagline: Delivers excellent DX with a declarative approach and utilities that handle common logic patterns
   image:
     src: /assets/ng-craft-logo.png
     alt: ng-craft logo

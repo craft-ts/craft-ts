@@ -137,15 +137,15 @@ An object containing:
 const { injectCounterCraft, setIncrement, setDecrement, setReset } = craft(
   { name: 'counter', providedIn: 'root' },
   craftSources({
-    increment: source<void>(),
-    decrement: source<void>(),
-    reset: source<void>(),
+    increment: source$<void>(),
+    decrement: source$<void>(),
+    reset: source$<void>(),
   }),
   craftState('count', ({ increment, decrement, reset }) =>
     state(0, ({ state, set }) => ({
-      increment: afterRecomputation(increment, () => set(state() + 1)),
-      decrement: afterRecomputation(decrement, () => set(state() - 1)),
-      reset: afterRecomputation(reset, () => set(0)),
+      increment: on$(increment, () => set(state() + 1)),
+      decrement: on$(decrement, () => set(state() - 1)),
+      reset: on$(reset, () => set(0)),
     })),
   ),
 );
@@ -175,13 +175,13 @@ const { injectTimerCraft } = craft(
     step: undefined as number | undefined,
   }),
   craftSources({
-    tick: source<void>(),
+    tick: source$<void>(),
   }),
   craftState('time', ({ initialValue, step, tick }) =>
     state(
       linkedSignal(() => initialValue() ?? 0),
       ({ state, set }) => ({
-        tick: afterRecomputation(tick, () => {
+        tick: on$(tick, () => {
           set(state() + (step() ?? 1));
         }),
       }),
@@ -311,11 +311,11 @@ productsTable.page().current; // 1 (independent!)
 const { craftLogger } = craft(
   { name: 'logger', providedIn: 'root' },
   craftSources({
-    log: source<string>(),
+    log: source$<string>(),
   }),
   craftState('logs', ({ log }) =>
     state([] as string[], ({ state, set }) => ({
-      addLog: afterRecomputation(log, (message) => {
+      addLog: on$(log, (message) => {
         set([...state(), message]);
       }),
       clear: () => set([]),
@@ -326,11 +326,11 @@ const { craftLogger } = craft(
 const { injectAppCraft } = craft(
   { name: 'app', providedIn: 'root' },
   craftSources({
-    appError: source<string>(),
+    appError: source$<string>(),
   }),
   craftState('errorCount', ({ appError }) =>
     state(0, ({ state, set }) => ({
-      onError: afterRecomputation(appError, () => set(state() + 1)),
+      onError: on$(appError, () => set(state() + 1)),
     })),
   ),
   // Connect appError source to logger's clear method

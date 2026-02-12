@@ -54,7 +54,7 @@ import { craftSources } from '@craft-ng/core';
 
 ## Reactive Patterns
 
-- States can react to sources using `afterRecomputation()`
+- States can react to sources using `on$()`
 - Mutations can be bound to sources for automatic execution
 - Multiple consumers can react to the same source emission
 

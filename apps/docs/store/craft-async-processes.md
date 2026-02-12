@@ -111,13 +111,13 @@ console.log(store.delay.hasValue()); // true
 ### Source-based async method for automatic execution
 
 ```ts
-const delaySource = source<number>();
+const delaySource = source$<number>();
 
 const { injectCraft } = craft(
   { name: '', providedIn: 'root' },
   craftAsyncProcesses(() => ({
     delay: asyncProcess({
-      method: afterRecomputation(delaySource, (term) => term),
+      method: on$(delaySource, (term) => term),
       loader: async ({ params }) => {
         // Debounce at source level
         await new Promise((resolve) => setTimeout(resolve, 300));
@@ -130,7 +130,7 @@ const { injectCraft } = craft(
 const store = injectCraft();
 
 // Triggers automatically when source emits
-delaySource.set(500);
+delaySource.emit(500);
 // -> delay executes automatically
 
 // No manual method, only source

@@ -43,6 +43,14 @@ export default defineConfig({
             text: 'insertReactOnMutation',
             link: '/insertions/insert-react-on-mutation',
           },
+          {
+            text: 'insertEntities',
+            link: '/insertions/insert-entities',
+          },
+          {
+            text: 'insertPaginationPlaceholderData',
+            link: '/insertions/insert-pagination-placeholder-data',
+          },
         ],
       },
       {
@@ -73,6 +81,8 @@ export default defineConfig({
           { text: 'stackedSource', link: '/utils/stacked-source' },
           { text: 'sourceFromEvent', link: '/utils/source-from-event' },
           { text: 'afterRecomputation', link: '/utils/after-recomputation' },
+          { text: 'on$', link: '/utils/on$' },
+          { text: 'reactiveWritableSignal', link: '/utils/reactive-writable-signal' },
           {
             text: 'GlobalPersisterHandler',
             link: '/utils/global-persister-handler-service',

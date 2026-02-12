@@ -65,7 +65,7 @@ myQueryParams.goTo(5); // Custom method from insertion
 
 ⚠️ **Injection Context**: This function must be called within an injection context. If called outside, it will only return an object containing the configuration under `_config`.
 
-⚠️ **Methods bound to sources** using `afterRecomputation` are not exposed in the output.
+⚠️ **Methods bound to sources** using `on$` are not exposed in the output.
 
 ## Common Patterns
 

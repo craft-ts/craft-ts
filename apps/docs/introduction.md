@@ -10,7 +10,7 @@
 
 Stop wasting precious time on common application logic. @craft-ng/core provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
 
-`state`, `asyncState`, `queryParam`, `query`, `mutation` and `AsyncProcess` are reactive primitive that will make your developer experience a lot better.
+`state`, `asyncState`, `queryParam`, `query`, `mutation` and `asyncProcess` are reactive primitive that will make your developer experience a lot better.
 
 ### Powered by Signals
 
@@ -80,16 +80,16 @@ const myQuery = query(
 
 - Method-based approach for simple scenarios
 - Source-based approach for event-driven-like architecture
-- Hybrid patterns for complex applications
+- Hybrid patterns for more flexibility
 
 ```typescript
-const resetSource = source<{}>();
+const resetSource$ = source$<void>();
 
 const counter = state(0, ({ set, update }) => ({
   // method-based
   increment: () => update((v) => v + 1),
   // source-based (reset, is not exposed)
-  reset: afterRecomputation(resetSource, (value) => set(0)),
+  reset: on$(resetSource$, (value) => set(0)),
 }));
 ```
 
@@ -98,26 +98,26 @@ const counter = state(0, ({ set, update }) => ({
 Promotes creating **granular state** with declarative patterns, isolating each state for better maintainability and testability.
 
 ```typescript
-const resetSource = source<{}>();
+const resetSource$ = source$<void>();
 
 const search = state('', ({ set }) => ({
   // method-based
   set,
   // source-based (reset, is not exposed)
-  reset: afterRecomputation(resetSource, (value) => set('')),
+  reset: on$(resetSource$, (value) => set('')),
 }));
 
 const page = state(1, ({ set, update }) => ({
   // method-based
   increment: () => update((v) => v + 1),
   // source-based (reset, is not exposed)
-  reset: afterRecomputation(resetSource, (value) => set(1)),
+  reset: on$(resetSource$, (value) => set(1)),
 }));
 ```
 
-When `resetSource.set({})` is called, `search` will be reset to `''` and `page`to `1`.
+When `resetSource.emit()` is called, `search` will be reset to `''` and `page`to `1`.
 
-[afterRecomputation](/utils/after-recomputation) - For more info.
+[on$](/utils/on$) - For more info.
 
 ### Store Composition
 
@@ -234,7 +234,7 @@ const { injectUserPostsCraft } = craft(
     userId: undefined as string | undefined,
   }),
   craftSources({
-    resetFilters: source<{}>(),
+    resetFilters: source$<void>(),
   }),
   craftPaginationFeature(({ reset }) => ({
     methods: {
@@ -255,7 +255,7 @@ const { injectUserPostsCraft } = craft(
       },
       ({ set, reset }) => ({
         set,
-        reset: afterRecomputation(resetFilters, () => reset()),
+        reset: on$(resetFilters, () => reset()),
       }),
     ),
   })),
@@ -283,12 +283,12 @@ const { injectUserPostsCraft } = craft(
   craftState('selectedPostId', ({ resetFilters }) =>
     state(undefined as string | undefined, ({ set }) => ({
       set,
-      reset: afterRecomputation(resetFilters, () => set(undefined)),
+      reset: on$(resetFilters, () => set(undefined)),
     })),
   ),
   craftPostDetailsFeature(({ userId, selectedPostId }) => ({
     inputs: {
-      userId: input.required<string>(),
+      userId,
       postId: selectedPostId,
     },
   })),

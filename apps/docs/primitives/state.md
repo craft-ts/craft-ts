@@ -74,21 +74,18 @@ console.log(counter.isOdd()); // true
 
 ### State with source binding
 
-Methods bound to sources using `afterRecomputation` are not exposed on the state, they only work internally:
+Methods bound to sources using `on$` are not exposed on the state, they only work internally:
 
 ```typescript
-import { source } from '@craft-ng/core';
-import { afterRecomputation } from '@craft-ng/core';
-
-const sourceSignal = source<number>();
+const sourceSignal = source$<number>();
 const myState = state(0, ({ set }) => ({
-  setValue: afterRecomputation(sourceSignal, (value) => set(value)),
+  setValue: on$(sourceSignal, (value) => set(value)),
   reset: () => set(0),
 }));
 
 console.log(myState()); // 0
 // Note: setValue is not exposed on myState, only used internally
-sourceSignal.set(34);
+sourceSignal.emit(34);
 console.log(myState()); // 34
 myState.reset();
 console.log(myState()); // 0
