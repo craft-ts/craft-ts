@@ -24,6 +24,8 @@ import { queryParam } from './query-param';
 import { craftQueryParam } from './craft-query-param';
 import { provideRouter } from '@angular/router';
 import { insertReactOnMutation } from './insert-react-on-mutation';
+import { craftQueryParams } from './craft-query-params';
+import { source$ } from './source$';
 
 describe('craft', () => {
   beforeEach(() => {
@@ -1094,6 +1096,69 @@ describe('craft', () => {
         },
       })),
     );
+  });
+
+  it('Compose stores and method bind to the host can be bind with observable sources', async () => {
+    const { craftGenericQueryParams } = craft(
+      {
+        name: 'GenericQueryParams',
+        providedIn: 'root',
+      },
+      craftQueryParams(() => ({
+        pagination: queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
+            },
+          },
+          ({ set }) => ({
+            reset: () => set({ page: 1 }),
+            goTo: (page: number) => set({ page }),
+          }),
+        ),
+      })),
+    );
+
+    const { injectHostCraft } = craft(
+      {
+        name: 'host',
+        providedIn: 'root',
+      },
+      craftSources(() => ({
+        reset: source$<void>(),
+        goTo: source$<number>(),
+      })),
+      craftGenericQueryParams(({ reset, goTo }) => ({
+        methods: {
+          resetPagination: reset,
+          goToPagination: goTo,
+        },
+      })),
+    );
+
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+
+    await TestBed.runInInjectionContext(async () => {
+      const host = injectHostCraft();
+      //@ts-expect-error because resetPagination is connected to a source, it should not be exposed as a method
+      expect(host.resetPagination).not.toBeDefined();
+      //@ts-expect-error because goToPagination is connected to a source, it should not be exposed as a method
+      expect(host.goToPagination).not.toBeDefined();
+
+      host.emitGoTo(5);
+      expect(host.pagination()).toEqual({
+        page: 5,
+      });
+
+      host.emitReset();
+      expect(host.pagination()).toEqual({
+        page: 1,
+      });
+    });
   });
 });
 

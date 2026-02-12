@@ -6,10 +6,13 @@ import {
 } from './util/types/util.type';
 import {
   assertInInjectionContext,
+  DestroyRef,
   effect,
+  EventEmitter,
   inject,
   InjectionToken,
   Injector,
+  isSignal,
   Provider,
   signal,
   untracked,
@@ -446,7 +449,6 @@ type ChangedKeys<A, B> = {
 }[keyof A & keyof B];
 
 type ProvidedInOption = 'root' | 'scoped' | 'feature';
-// todo handle feature to not expose the inject and the provide but only the using...
 export type StoreConfigConstraints = {
   providedIn: ProvidedInOption;
   name: string;
@@ -762,12 +764,20 @@ type StandaloneOutputsConstraints = {};
  *
  * @example
  * Binding methods to sources during composition
+ *
+ * When composing stores, you can connect methods from a composed store to sources
+ * in the host store. When a method is connected to a source:
+ * - The method is automatically called when the source emits a value
+ * - **The connected method is NOT exposed in the final host store**
+ * - Only the source's setter method (e.g., `emitSourceName`) remains accessible
+ * - This prevents redundant API surface and enforces reactive patterns
+ *
  * ```ts
  * const { craftLogger } = craft(
  *   { name: 'logger', providedIn: 'root' },
- *   craftSources({
- *     log: source<string>(),
- *   }),
+ *   craftSources(() => ({
+ *     log: source$<string>(),
+ *   })),
  *   craftState('logs', ({ log }) =>
  *     state(
  *       [] as string[],
@@ -783,9 +793,9 @@ type StandaloneOutputsConstraints = {};
  *
  * const { injectAppCraft } = craft(
  *   { name: 'app', providedIn: 'root' },
- *   craftSources({
- *     appError: source<string>(),
- *   }),
+ *   craftSources(() => ({
+ *     appError: source$<string>(),
+ *   })),
  *   craftState('errorCount', ({ appError }) =>
  *     state(
  *       0,
@@ -803,14 +813,67 @@ type StandaloneOutputsConstraints = {};
  * );
  *
  * const app = injectAppCraft();
- * app.setLog('User logged in');
+ * app.emitLog('User logged in');
  * app.logs().length; // 1
  *
- * app.setAppError('Something went wrong');
+ * // Note: app.logsClear is NOT available (connected to source)
+ * // Only app.emitAppError is available
+ * app.emitAppError('Something went wrong');
  * // -> errorCount incremented
- * // -> logs cleared (logsClear called via appError)
+ * // -> logs cleared (logsClear called automatically via appError source)
  * app.logs().length; // 0
  * app.errorCount(); // 1
+ * ```
+ *
+ * @example
+ * Connecting composed store methods to host sources with query params
+ * ```ts
+ * const { craftGenericQueryParams } = craft(
+ *   { name: 'GenericQueryParams', providedIn: 'root' },
+ *   craftQueryParams(() => ({
+ *     pagination: queryParam(
+ *       {
+ *         state: {
+ *           page: {
+ *             fallbackValue: 1,
+ *             parse: (value: string) => parseInt(value, 10),
+ *             serialize: (value: unknown) => String(value),
+ *           },
+ *         },
+ *       },
+ *       ({ set }) => ({
+ *         reset: () => set({ page: 1 }),
+ *         goTo: (page: number) => set({ page }),
+ *       }),
+ *     ),
+ *   })),
+ * );
+ *
+ * const { injectHostCraft } = craft(
+ *   { name: 'host', providedIn: 'root' },
+ *   craftSources(() => ({
+ *     reset: source$<void>(),
+ *     goTo: source$<number>(),
+ *   })),
+ *   craftGenericQueryParams(({ reset, goTo }) => ({
+ *     methods: {
+ *       paginationReset: reset,  // Connect to reset source
+ *       paginationGoTo: goTo,    // Connect to goTo source
+ *     },
+ *   })),
+ * );
+ *
+ * const host = injectHostCraft();
+ *
+ * // ❌ These methods are NOT exposed (connected to sources):
+ * // host.paginationReset
+ * // host.paginationGoTo
+ *
+ * // ✅ Only source emitters are available:
+ * host.emitGoTo(5);           // Triggers paginationGoTo(5)
+ * host.pagination();          // { page: 5 }
+ * host.emitReset();           // Triggers paginationReset()
+ * host.pagination();          // { page: 1 }
  * ```
  *
  * @example
@@ -2128,8 +2191,10 @@ export function craft(
 
       // for each methods associated to a source, trigger the targeted method when the source change
       const entriesMethods = entries?.methods;
+      const connectedMethodNames = new Set<string>();
       if (entriesMethods) {
         Object.entries(entriesMethods).forEach(([methodName, source]) => {
+          connectedMethodNames.add(methodName);
           effect(() => {
             const newValue = (source as Function)();
             untracked(() => {
@@ -2139,6 +2204,17 @@ export function craft(
             });
           });
         });
+      }
+
+      // Filter out connected methods from the returned store
+      if (connectedMethodNames.size > 0) {
+        const filteredStore = Object.keys(tokenValue).reduce((acc, key) => {
+          if (!connectedMethodNames.has(key)) {
+            acc[key] = (tokenValue as any)[key];
+          }
+          return acc;
+        }, {} as any);
+        return filteredStore;
       }
 
       return tokenValue;
@@ -2166,6 +2242,7 @@ export function craft(
               ...contextData.context._sources,
               ...contextData.context.props,
             } as any) ?? {};
+
           const entriesInputs = entries?.inputs;
 
           let storeContext: ContextConstraints | undefined = undefined;
@@ -2205,10 +2282,52 @@ export function craft(
             });
           }
 
+          const destroyRef = inject(DestroyRef);
+
+          Object.entries(entries?.methods ?? {}).forEach(
+            ([methodNameToConnect, connectedSource]) => {
+              if (isSignal(connectedSource)) {
+                effect(() => {
+                  const value = connectedSource();
+                  console.log('value', value);
+                  if (!value) {
+                    return;
+                  }
+                  storeContext?.methods[methodNameToConnect](connectedSource());
+                });
+              } else if (
+                'subscribe' in connectedSource &&
+                typeof connectedSource.subscribe === 'function'
+              ) {
+                const sub = (
+                  connectedSource.subscribe as EventEmitter<unknown>['subscribe']
+                )((value) => storeContext?.methods[methodNameToConnect](value));
+                destroyRef.onDestroy(() => sub.unsubscribe());
+              }
+            },
+          );
+          const connectedMethodNames = new Set(
+            Object.keys(entries?.methods ?? {}) as string[],
+          );
+          const storeContextWithoutConnectedMethods = {
+            ...storeContext,
+            methods: Object.entries(storeContext?.methods ?? {}).reduce(
+              (acc, [methodName, method]) => {
+                if (connectedMethodNames.has(methodName)) {
+                  return acc;
+                }
+                acc[methodName] = method;
+
+                return acc;
+              },
+              {} as Record<string, Function>,
+            ),
+          };
+
           Object.assign(hostCloud, _cloudProxy);
 
           const resultDebug = Object.assign(
-            storeContext as ContextConstraints,
+            storeContextWithoutConnectedMethods as ContextConstraints,
             extractedStandaloneOutputs,
           );
           return resultDebug;

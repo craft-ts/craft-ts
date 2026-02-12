@@ -1,4 +1,4 @@
-import { Type } from '@angular/core';
+import { EventEmitter, Type } from '@angular/core';
 import { StoreConfigConstraints } from '../craft';
 import { SignalSource } from '../signal-source';
 import { ExtractSignalPropsAndMethods } from './extract-signal-props-and-methods';
@@ -17,7 +17,17 @@ export type ToConnectableSourceFromInject<Sources> = {
 
 export type ToConnectableMethodFromInject<Methods> = RemoveIndexSignature<{
   [K in keyof Methods]?: Methods[K] extends (payload: infer Payload) => any
-    ? ReadonlySource<Payload>
+    ? IsUnknown<Payload> extends true
+      ?
+          | ReadonlySource<any>
+          | {
+              subscribe: EventEmitter<any>['subscribe'];
+            }
+      :
+          | ReadonlySource<Payload>
+          | {
+              subscribe: EventEmitter<Payload>['subscribe'];
+            }
     : never;
 }>;
 
