@@ -8,7 +8,7 @@ import { afterRecomputation } from './after-recomputation';
 import { state } from './state';
 import { source$ } from './source$';
 import { on$ } from './on$';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 
 describe('craftSources', () => {
   beforeEach(() => {
@@ -108,6 +108,31 @@ describe('craftSources', () => {
 
       store.nextTo(10);
       expect(store.counter()).toEqual(10);
+    });
+  });
+
+  it('5- Should not expose a nextX source when using a readonly Observable', async () => {
+    const { injectCraft } = craft(
+      {
+        name: '',
+        providedIn: 'root',
+      },
+      craftSources(() => ({
+        to: of(10),
+      })),
+      craftState('counter', ({ to }) =>
+        state(signal(0), ({ set }) => ({
+          setTo: on$(to, (count) => set(count)),
+        })),
+      ),
+    );
+    await TestBed.runInInjectionContext(async () => {
+      const store = injectCraft();
+      await vi.runAllTimersAsync();
+
+      expect(store.counter()).toEqual(10);
+
+      expectTypeOf<keyof typeof store>().toEqualTypeOf<'counter'>();
     });
   });
 });

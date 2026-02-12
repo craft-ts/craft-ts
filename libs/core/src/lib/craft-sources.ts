@@ -26,7 +26,9 @@ type PrefixedSourceType<S> =
     ? 'set'
     : S extends Source$<infer U>
       ? 'emit'
-      : S extends _Subscribable<infer V>
+      : S extends {
+            next: (value: infer V) => void;
+          }
         ? 'next'
         : never;
 
@@ -105,7 +107,14 @@ export function craftSources<
           ? 'set'
           : 'emit' in source
             ? 'emit'
-            : 'next';
+            : 'next' in source
+              ? 'next'
+              : undefined;
+
+        if (!prefix) {
+          return acc;
+        }
+
         return {
           ...acc,
           [`${prefix}${capitalize(key)}`]: (payload: unknown) => {
