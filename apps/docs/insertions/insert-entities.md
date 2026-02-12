@@ -36,31 +36,29 @@ import {
 
 The following entity utility functions can be used with `insertEntities`:
 
-| Utility        | Description                                   |
-| -------------- | --------------------------------------------- |
-| `addOne`       | Adds a single entity to the end               |
-| `addMany`      | Adds multiple entities to the end             |
-| `setOne`       | Replaces or adds an entity by ID              |
-| `setMany`      | Replaces or adds multiple entities by ID      |
-| `setAll`       | Replaces the entire collection                |
-| `updateOne`    | Partially updates an entity by ID             |
-| `updateMany`   | Partially updates multiple entities by ID     |
-| `upsertOne`    | Updates if exists, otherwise adds             |
-| `upsertMany`   | Updates multiple if exist, otherwise adds     |
-| `removeOne`    | Removes a single entity by ID                 |
-| `removeMany`   | Removes multiple entities by ID               |
-| `removeAll`    | Clears the entire collection                  |
+| Utility      | Description                               |
+| ------------ | ----------------------------------------- |
+| `addOne`     | Adds a single entity to the end           |
+| `addMany`    | Adds multiple entities to the end         |
+| `setOne`     | Replaces or adds an entity by ID          |
+| `setMany`    | Replaces or adds multiple entities by ID  |
+| `setAll`     | Replaces the entire collection            |
+| `updateOne`  | Partially updates an entity by ID         |
+| `updateMany` | Partially updates multiple entities by ID |
+| `upsertOne`  | Updates if exists, otherwise adds         |
+| `upsertMany` | Updates multiple if exist, otherwise adds |
+| `removeOne`  | Removes a single entity by ID             |
+| `removeMany` | Removes multiple entities by ID           |
+| `removeAll`  | Clears the entire collection              |
 
 ## Signature
 
 ```typescript
-function insertEntities<State, K, EntityHelperFns, Path>(
-  config: {
-    methods: EntityHelperFns;
-    identifier?: IdSelector<Entity, K>;
-    path?: Path; // For nested arrays in objects
-  }
-): Insertion;
+function insertEntities<State, K, EntityHelperFns, Path>(config: {
+  methods: EntityHelperFns;
+  identifier?: IdSelector<Entity, K>;
+  path?: Path; // For nested arrays in objects
+}): Insertion;
 ```
 
 ## Parameters
@@ -72,6 +70,7 @@ Array of entity utility functions to expose as methods on the state/query.
 ### `identifier` (optional)
 
 Custom function to extract the unique identifier from entities. Defaults to:
+
 - For objects with `id` property: `(entity) => entity.id`
 - For primitives (string/number): `(entity) => entity`
 
@@ -91,7 +90,13 @@ Dot-notation path to a nested array property. When provided, method names are pr
 ### Basic entity management with primitives
 
 ```typescript
-import { state, insertEntities, addOne, addMany, removeOne } from '@craft-ng/core';
+import {
+  state,
+  insertEntities,
+  addOne,
+  addMany,
+  removeOne,
+} from '@craft-ng/core';
 
 const tags = state(
   [] as string[],
@@ -116,7 +121,13 @@ console.log(tags()); // ['angular', 'signals']
 ### Managing objects with default ID
 
 ```typescript
-import { state, insertEntities, addOne, setOne, removeOne } from '@craft-ng/core';
+import {
+  state,
+  insertEntities,
+  addOne,
+  setOne,
+  removeOne,
+} from '@craft-ng/core';
 
 interface Product {
   id: string;

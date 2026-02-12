@@ -82,7 +82,10 @@ export default defineConfig({
           { text: 'sourceFromEvent', link: '/utils/source-from-event' },
           { text: 'afterRecomputation', link: '/utils/after-recomputation' },
           { text: 'on$', link: '/utils/on$' },
-          { text: 'reactiveWritableSignal', link: '/utils/reactive-writable-signal' },
+          {
+            text: 'reactiveWritableSignal',
+            link: '/utils/reactive-writable-signal',
+          },
           {
             text: 'GlobalPersisterHandler',
             link: '/utils/global-persister-handler-service',

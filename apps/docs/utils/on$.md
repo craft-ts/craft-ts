@@ -54,13 +54,13 @@ myState.reset(); // ❌ Not available (TypeScript error)
 
 ## Difference from afterRecomputation
 
-| Feature                  | `on$`                         | `afterRecomputation`               |
-| ------------------------ | ----------------------------- | ---------------------------------- |
-| **Purpose**              | Execute side effects          | Transform source for method params |
-| **Return value**         | `SourceBranded` (symbol)      | `ReadonlySource<T>`                |
-| **Primary use**          | State insertion callbacks     | Query/mutation method binding      |
-| **Exposed on state**     | No (internal only)            | N/A (used as method parameter)     |
-| **Typical usage**        | `on$(source, () => set(...))` | `method: afterRecomputation(...)`  |
+| Feature              | `on$`                         | `afterRecomputation`               |
+| -------------------- | ----------------------------- | ---------------------------------- |
+| **Purpose**          | Execute side effects          | Transform source for method params |
+| **Return value**     | `SourceBranded` (symbol)      | `ReadonlySource<T>`                |
+| **Primary use**      | State insertion callbacks     | Query/mutation method binding      |
+| **Exposed on state** | No (internal only)            | N/A (used as method parameter)     |
+| **Typical usage**    | `on$(source, () => set(...))` | `method: afterRecomputation(...)`  |
 
 ## Common Patterns
 
@@ -311,14 +311,11 @@ import { on$ } from '@craft-ng/core';
 
 const clickEmitter = new EventEmitter<{ x: number; y: number }>();
 
-const lastClick = state(
-  null as { x: number; y: number } | null,
-  ({ set }) => ({
-    clear: () => set(null),
-    // Internal: update on emitter events
-    handleClick: on$(clickEmitter, (position) => set(position)),
-  }),
-);
+const lastClick = state(null as { x: number; y: number } | null, ({ set }) => ({
+  clear: () => set(null),
+  // Internal: update on emitter events
+  handleClick: on$(clickEmitter, (position) => set(position)),
+}));
 
 clickEmitter.emit({ x: 100, y: 200 });
 console.log(lastClick()); // { x: 100, y: 200 }
