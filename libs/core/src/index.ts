@@ -35,4 +35,5 @@ export * from './lib/global-persister-handler.service';
 export * from './lib/util/entities-util';
 export * from './lib/reactive-writable-signal';
 export * from './lib/source$';
+export * from './lib/from-event-to-source$';
 export * from './lib/on$';

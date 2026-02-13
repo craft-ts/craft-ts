@@ -253,7 +253,7 @@ export default class FullDemo {
         this.apiService.getDataList(pagination),
     },
     insertLocalStoragePersister({
-      storeName: 'demo-app',
+      storeName: 'demo-app-full-demo',
       key: 'granular',
     }),
     insertPaginationPlaceholderData,
@@ -321,44 +321,44 @@ export default class FullDemo {
             : current,
       ),
     })),
-    ({ update, set, state: selectedRows }) => {
-      const isAllSelected = computed(
+    ({ state: selectedRows }) => ({
+      isAllSelected: computed(
         () =>
           this.usersQuery.currentPageData()?.length &&
           this.usersQuery
             .currentPageData()
             ?.every((user) => selectedRows().includes(user.id)),
-      );
-      return {
-        toggleSelection: (id: string) =>
-          update((current) =>
-            current.includes(id)
-              ? current.filter((item) => item !== id)
-              : [...current, id],
-          ),
-        isSelected: (id: string) => {
-          return selectedRows().includes(id);
-        },
-        isAllSelected,
-        isSomeSelected: computed(
-          () =>
-            this.usersQuery
-              .currentPageData()
-              ?.some((user) => selectedRows().includes(user.id)) &&
-            !isAllSelected(),
+      ),
+    }),
+    ({ update, set, state: selectedRows, insertions: { isAllSelected } }) => ({
+      toggleSelection: (id: string) =>
+        update((current) =>
+          current.includes(id)
+            ? current.filter((item) => item !== id)
+            : [...current, id],
         ),
-        toggleAllSelection: () => {
-          if (isAllSelected()) {
-            set([]);
-          } else {
-            const allIds =
-              this.usersQuery.currentPageData()?.map((user) => user.id) || [];
-            set(allIds);
-          }
-        },
-        reset: on$(this.reset$, () => set([])),
-      };
-    },
+      isSelected: (id: string) => {
+        return selectedRows().includes(id);
+      },
+      isAllSelected,
+      isSomeSelected: computed(
+        () =>
+          this.usersQuery
+            .currentPageData()
+            ?.some((user) => selectedRows().includes(user.id)) &&
+          !isAllSelected(),
+      ),
+      toggleAllSelection: () => {
+        if (isAllSelected()) {
+          set([]);
+        } else {
+          const allIds =
+            this.usersQuery.currentPageData()?.map((user) => user.id) || [];
+          set(allIds);
+        }
+      },
+      reset: on$(this.reset$, () => set([])),
+    }),
   );
 
   protected updatePageSize(event: Event) {

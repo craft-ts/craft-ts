@@ -5,7 +5,7 @@ layout: home
 hero:
   name: '@craft-ng'
   text: 'Type-Safe Reactive States Management for Angular'
-  tagline: Delivers excellent DX with a declarative approach and utilities that handle common logic patterns
+  tagline: Promotes declarative and composable code with logic management utilities
   image:
     src: /assets/ng-craft-logo.png
     alt: ng-craft logo

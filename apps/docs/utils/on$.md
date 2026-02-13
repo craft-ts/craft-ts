@@ -52,16 +52,6 @@ myState.reset(); // ❌ Not available (TypeScript error)
 
 `on$` automatically unsubscribes from the source when the Angular injection context is destroyed, preventing memory leaks.
 
-## Difference from afterRecomputation
-
-| Feature              | `on$`                         | `afterRecomputation`               |
-| -------------------- | ----------------------------- | ---------------------------------- |
-| **Purpose**          | Execute side effects          | Transform source for method params |
-| **Return value**     | `SourceBranded` (symbol)      | `ReadonlySource<T>`                |
-| **Primary use**      | State insertion callbacks     | Query/mutation method binding      |
-| **Exposed on state** | No (internal only)            | N/A (used as method parameter)     |
-| **Typical usage**    | `on$(source, () => set(...))` | `method: afterRecomputation(...)`  |
-
 ## Common Patterns
 
 - **State reset**: `on$(resetSource, () => set(initialValue))` - reset state on source emission

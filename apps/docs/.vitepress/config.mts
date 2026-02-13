@@ -76,11 +76,8 @@ export default defineConfig({
       {
         text: 'Utils',
         items: [
-          { text: 'Source', link: '/utils/source' },
-          { text: 'toSource', link: '/utils/to-source' },
-          { text: 'stackedSource', link: '/utils/stacked-source' },
-          { text: 'sourceFromEvent', link: '/utils/source-from-event' },
-          { text: 'afterRecomputation', link: '/utils/after-recomputation' },
+          { text: 'source$', link: '/utils/source$' },
+          { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },
           { text: 'on$', link: '/utils/on$' },
           {
             text: 'reactiveWritableSignal',
