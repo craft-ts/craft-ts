@@ -215,6 +215,4 @@ const searchQuery = state('', {
 
 ## See Also
 
-- [Source](/utils/source) - Source concept
-- [toSource](/utils/to-source) - Convert observables to sources
-- [stackedSource](/utils/stacked-source) - Combine multiple sources
+- [`source$`](/utils/source$) - Create reactive sources

@@ -328,7 +328,7 @@ console.log(lastClick()); // { x: 150, y: 250 }
 
 ## Related
 
-- [`source$`](/utils/source) - Create reactive sources
+- [`source$`](/utils/source$) - Create reactive sources
 - [`afterRecomputation`](/utils/after-recomputation) - Transform sources for method parameters
 - [`state`](/primitives/state) - Create reactive state with insertions
 - [`craftSources`](/store/craft-sources) - Define sources in craft stores
