@@ -218,9 +218,9 @@ export class InfiniteScrollComponent implements OnInit {
 
   ngOnInit() {
     this.scroll$.subscribe((data) => {
-      const nearBottom = 
+      const nearBottom =
         data.scrollY + data.clientHeight >= data.scrollHeight - 100;
-      
+
       if (nearBottom) {
         this.loadMoreData();
       }
