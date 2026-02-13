@@ -2,10 +2,48 @@
 
 Run `docs:publish`, then from the VSCode editor, add a commit with all the changes and push into the gh-pages branches.
 
-## Versioning Nx
+## Déployer une nouvelle version de @craft-ng/core
 
-nx release version # calcule et applique les nouvelles versions
-nx release publish # publie sur npm (selon "packageRoot" de chaque projet)
+### Prérequis
+
+1. Être connecté à npm : `npm whoami` (si erreur, faire `npm login`)
+2. Avoir build le projet : `nx build ng-craft-core`
+
+### Commandes pour publier
+
+**Option 1 : Processus complet automatisé**
+
+```bash
+nx release --first-release
+```
+
+Cette commande :
+
+- Demande le type de bump (major/minor/patch)
+- Build automatiquement via `preVersionCommand`
+- Met à jour les versions dans package.json
+- Génère/met à jour le CHANGELOG.md
+- Crée un commit et tag git
+- Publie sur npm
+
+**Option 2 : Processus manuel en 2 étapes**
+
+```bash
+nx release version     # calcule et applique les nouvelles versions
+nx release publish     # publie sur npm (selon "packageRoot" de chaque projet)
+```
+
+**Option 3 : Publication manuelle depuis dist/**
+
+```bash
+cd dist/libs/core && npm publish --access public
+```
+
+### Notes
+
+- Le flag `--first-release` est nécessaire la première fois ou quand il n'y a pas de tags git précédents
+- La version est mise à jour dans `dist/libs/core/package.json` automatiquement
+- Penser à mettre à jour manuellement `libs/core/package.json` après publication
 
 ## Tests with UI
 
