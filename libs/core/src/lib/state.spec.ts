@@ -5,6 +5,7 @@ import { afterRecomputation } from './after-recomputation';
 import { TestBed } from '@angular/core/testing';
 import { source$ } from './source$';
 import { on$ } from './on$';
+import { reactiveWritableSignal } from './reactive-writable-signal';
 describe('state', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -117,5 +118,90 @@ describe('state', () => {
       myState.reset();
       expect(myState()).toBe(0);
     });
+  });
+});
+
+// todo implements the signature for parallel state
+describe('should allow to create multiple states in parallel with shared sources and methods', () => {
+  it('expose a create method to generate parallel state', () => {
+    const myState = state({
+      method: (index: number) => index,
+      state: ({ params: index }) => ({
+        color: 'white',
+        index,
+      }),
+    });
+
+    myState.create(0);
+    myState.create(1);
+    myState.create(2);
+
+    expect(myState.select(0)).toEqual({ color: 'white', index: 0 });
+    expect(myState.select(1)).toEqual({ color: 'white', index: 1 });
+    expect(myState.select(2)).toEqual({ color: 'white', index: 2 });
+  });
+
+  it('should create a parallel state from a params', () => {
+    const signalCurrentIndex = signal(0);
+    const myState = state({
+      params: signalCurrentIndex,
+      identifier: (index) => index,
+      state: ({ params: index }) => ({
+        color: 'white',
+        index,
+      }),
+    });
+
+    expect(myState(0)).toEqual({ color: 'white', index: 0 });
+
+    signalCurrentIndex.set(1);
+    expect(myState(1)).toEqual({ color: 'white', index: 1 });
+  });
+
+  it('should generate parallel state from a signal list', () => {
+    const indexList = signal([0, 1, 2]);
+    const myState3 = state({
+      from: indexList,
+      identifier: ({ item, index }) => index,
+      state: ({ params: { index } }) => ({
+        color: 'white',
+        index,
+      }),
+    });
+
+    expect(myState3(0)).toEqual({ color: 'white', index: 0 });
+    expect(myState3(1)).toEqual({ color: 'white', index: 1 });
+    expect(myState3(2)).toEqual({ color: 'white', index: 2 });
+
+    indexList.set([0, 1, 2, 3]);
+    expect(myState3(3)).toEqual({ color: 'white', index: 3 });
+  });
+
+  it('should generate parallel state from a signal list', () => {
+    const indexMap = signal({
+      0: 0,
+      1: 1,
+      2: 2,
+    });
+    const myState3 = state({
+      from: indexMap, // from only works with signal of list or object
+      identifier: ({ key, value }) => key,
+      state: ({ params: { key: index } }) => ({
+        color: 'white',
+        index,
+      }),
+    });
+
+    expect(myState3(0)).toEqual({ color: 'white', index: 0 });
+    expect(myState3(1)).toEqual({ color: 'white', index: 1 });
+    expect(myState3(2)).toEqual({ color: 'white', index: 2 });
+
+    indexMap.set({
+      0: 0,
+      1: 1,
+      2: 2,
+      3: 3,
+    });
+    expect(myState3(3)).toEqual({ color: 'white', index: 3 });
   });
 });
