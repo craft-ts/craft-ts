@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, computed } from '@angular/core';
 import {
   craft,
   craftQueryParams,
@@ -7,6 +7,7 @@ import {
   queryParam,
   signalSource,
   source$,
+  state,
 } from '@craft-ng/core';
 
 const { craftGenericQueryParams } = craft(
@@ -73,14 +74,44 @@ const { injectHost1Craft } = craft(
   selector: 'app-test',
   standalone: true,
   imports: [CommonModule],
-  template: ` page: {{ store.pagePage() | json }}
+  template: `
+    page: {{ store.pagePage() | json }}
     <button (click)="store.emitReset()">Reset page</button
     ><button (click)="store.emitGoTo(5)">Go to page 5</button> ---- page:
     {{ store1.pagePage() | json }}
     <button (click)="store1.setReset({})">Reset page</button
-    ><button (click)="store1.setGoTo(5)">Go to page 5</button>`,
+    ><button (click)="store1.setGoTo(5)">Go to page 5</button>
+    <br />
+    @for (item of pState(); track $index) {
+      <br />
+      {{ item() | json }}
+      <input
+        type="text"
+        [value]="item().text"
+        (input)="item.search($event.target.value)"
+      />
+    }
+    <button (click)="pState.add()">Add</button>
+  `,
 })
 export default class TestComponent {
   store = injectHostCraft();
   store1 = injectHost1Craft();
+
+  instance = (page: number) =>
+    state(
+      {
+        page,
+        text: '',
+      },
+      ({ state, update }) => ({
+        pageNumber: computed(() => state().page),
+        search: (text: string) => update((v) => ({ ...v, text })),
+      }),
+    );
+
+  pState = state([this.instance(1)], ({ state, update }) => ({
+    child: computed(() => state()),
+    add: () => update((v) => [...v, this.instance(v.length + 1)]),
+  }));
 }
