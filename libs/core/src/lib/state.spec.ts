@@ -121,7 +121,6 @@ describe('state', () => {
   });
 });
 
-// todo implements the signature for parallel state
 describe('should allow to create multiple states in parallel with shared sources and methods', () => {
   it('expose a create method to generate parallel state', () => {
     const myState = state({
@@ -178,7 +177,7 @@ describe('should allow to create multiple states in parallel with shared sources
   });
 
   it('should generate parallel state from a signal list', () => {
-    const indexMap = signal({
+    const indexMap = signal<Record<number, number>>({
       0: 0,
       1: 1,
       2: 2,
@@ -203,5 +202,98 @@ describe('should allow to create multiple states in parallel with shared sources
       3: 3,
     });
     expect(myState3(3)).toEqual({ color: 'white', index: 3 });
+  });
+
+  it('should apply insertions to each state created in parallel mode', () => {
+    const myState = state(
+      {
+        method: (index: number) => index,
+        state: ({ params: index }) => ({
+          color: 'white',
+          index,
+        }),
+      },
+      ({ state, update }: any) => ({
+        isOdd: computed(() => state().index % 2 === 1),
+        increment: () => {
+          update((current: any) => ({
+            ...current,
+            index: current.index + 1,
+          }));
+          return state();
+        },
+      }),
+    );
+
+    const state0 = myState.create(0);
+    const state1 = myState.create(1);
+
+    expect(state0.isOdd()).toBe(false);
+    expect(state1.isOdd()).toBe(true);
+
+    state0.increment();
+
+    expect(myState.select(0)?.index).toBe(1);
+    expect(myState.select(0)?.isOdd()).toBe(true);
+    expect(myState.select(1)?.index).toBe(1);
+    expect(myState.select(1)?.isOdd()).toBe(true);
+  });
+
+  it('should apply insertions to states generated from params and from', () => {
+    const currentIndex = signal(0);
+    const myStateFromParams = state(
+      {
+        params: currentIndex,
+        identifier: (index) => index,
+        state: ({ params: index }) => ({
+          color: 'white',
+          index,
+        }),
+      },
+      ({ update }: any) => ({
+        toBlack: () =>
+          update((current: any) => ({
+            ...current,
+            color: 'black',
+          })),
+      }),
+    );
+
+    expect(myStateFromParams(0)?.color).toBe('white');
+    myStateFromParams(0)?.toBlack();
+    expect(myStateFromParams(0)?.color).toBe('black');
+
+    currentIndex.set(1);
+    expect(myStateFromParams(1)?.color).toBe('white');
+    myStateFromParams(1)?.toBlack();
+    expect(myStateFromParams(1)?.color).toBe('black');
+
+    const indexList = signal([0, 1]);
+    const myStateFromList = state(
+      {
+        from: indexList,
+        identifier: ({ index }: { item: number; index: number }) => index,
+        state: ({ params: { index } }: { params: { index: number } }) => ({
+          color: 'white',
+          index,
+        }),
+      },
+      ({ update }: any) => ({
+        toBlack: () =>
+          update((current: any) => ({
+            ...current,
+            color: 'black',
+          })),
+      }),
+    );
+
+    expect(myStateFromList(0)?.color).toBe('white');
+    expect(myStateFromList(1)?.color).toBe('white');
+
+    myStateFromList(0)?.toBlack();
+    myStateFromList(1)?.toBlack();
+
+    expect(myStateFromList(0)?.color).toBe('black');
+    expect(myStateFromList(1)?.color).toBe('black');
   });
 });
