@@ -1,6 +1,7 @@
 {
   "chat.tools.terminal.autoApprove": {
     "npx vitest": true,
-    "npx nx": true
+    "npx nx": true,
+    "mkdir": true
   }
 }
