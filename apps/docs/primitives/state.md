@@ -91,6 +91,64 @@ myState.reset();
 console.log(myState()); // 0
 ```
 
+## Parallel States
+
+You can generate multiple state instances in parallel with a single `state(...)` declaration.
+
+### 1) Parallel state with `method` + `state`
+
+```typescript
+const todosById = state(
+  {
+    method: (id: number) => id,
+    state: ({ params: id }) => ({ id, done: false }),
+  },
+  ({ stateById }) => ({
+    toggle: (id: number) =>
+      stateById.select(id)?.update((todo) => ({ ...todo, done: !todo.done })),
+  }),
+);
+
+todosById.create(1);
+console.log(todosById.select(1)); // { id: 1, done: false }
+todosById.toggle(1);
+console.log(todosById.select(1)); // { id: 1, done: true }
+```
+
+### 2) Parallel state from `params` signal
+
+```typescript
+const currentId = signal(0);
+const itemById = state({
+  params: currentId,
+  identifier: (id) => id,
+  state: ({ params: id }) => ({ id, selected: false }),
+});
+
+console.log(itemById(0)); // { id: 0, selected: false }
+currentId.set(1);
+console.log(itemById(1)); // { id: 1, selected: false }
+```
+
+### 3) Parallel state from `from` signal (array/object)
+
+```typescript
+const ids = signal([0, 1, 2]);
+const rows = state({
+  from: ids,
+  identifier: ({ index }) => index,
+  state: ({ params: { index } }) => ({ index, active: false }),
+});
+
+console.log(rows(0)); // { index: 0, active: false }
+```
+
+## Typing Note
+
+For better TypeScript inference, pass Angular `Signal` values (`signal`, `linkedSignal`) rather than manually widening to `WritableSignal`.
+
+This avoids overload inference limitations in complex generic calls.
+
 ## Best Practices
 
 ✅ **Use TypeScript inference** - Let TypeScript infer types when possible

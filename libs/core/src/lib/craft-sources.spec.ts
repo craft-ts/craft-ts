@@ -27,7 +27,7 @@ describe('craftSources', () => {
         increment: signalSource<{}>(),
       })),
       craftState('test', ({ increment }) =>
-        state(signal(0), ({ state, set }) => ({
+        state(signal(0).asReadonly(), ({ state, set }) => ({
           increment: afterRecomputation(increment, () => set(state() + 1)),
         })),
       ),
@@ -56,7 +56,7 @@ describe('craftSources', () => {
         to: source$<number>(),
       })),
       craftState('counter', ({ increment, to }) =>
-        state(signal(0), ({ state, set }) => ({
+        state(signal(0).asReadonly(), ({ state, set }) => ({
           increment: on$(increment, () => set(state() + 1)),
           setTo: on$(to, (count) => set(count)),
         })),
@@ -89,7 +89,7 @@ describe('craftSources', () => {
         to: new Subject<number>(),
       })),
       craftState('counter', ({ increment, to }) =>
-        state(signal(0), ({ state, set }) => ({
+        state(signal(0).asReadonly(), ({ state, set }) => ({
           increment: on$(increment, () => set(state() + 1)),
           setTo: on$(to, (count) => set(count)),
         })),
@@ -121,7 +121,7 @@ describe('craftSources', () => {
         to: of(10),
       })),
       craftState('counter', ({ to }) =>
-        state(signal(0), ({ set }) => ({
+        state(signal(0).asReadonly(), ({ set }) => ({
           setTo: on$(to, (count) => set(count)),
         })),
       ),

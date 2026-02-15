@@ -319,7 +319,7 @@ describe('craft', () => {
         })),
         craftState('numberList', ({ myParams, reset }) =>
           state(
-            linkedSignal(() => [myParams() ?? 0]),
+            linkedSignal(() => [myParams() ?? 0]).asReadonly(),
             ({ set, state }) => ({
               addNumber: (numberValue: number) => {
                 console.log('numberValue', numberValue);
@@ -596,7 +596,7 @@ describe('craft', () => {
       }),
       craftState('numberList', ({ defaultNumber }) =>
         state(
-          linkedSignal(() => [defaultNumber() ?? 1]),
+          linkedSignal(() => [defaultNumber() ?? 1]).asReadonly(),
           ({ state, set }) => ({
             addNumber: () => {
               return set([...state(), defaultNumber() ?? 1]);
