@@ -1,21 +1,3 @@
-# Les 5 primitives réactives de @craft-ng
-
-Découvrez les briques de base pour simplifier votre state management Angular
-
-```typescript
-// Un aperçu de ce qui vous attend :
-const counter = state(0, ({ update, set }) => ({
-  increment: () => update((v) => v + 1),
-  reset: () => set(0),
-}));
-
-counter(); // 0
-counter.increment();
-counter(); // 1
-```
-
----
-
 # 1. state
 
 La primitive de base pour gérer votre état local
@@ -57,18 +39,20 @@ Gérez vos appels serveur de façon déclarative
 ```typescript
 import { query } from '@craft-ng/core';
 
+const userUserId = signal(1);
+
 const userQuery = query({
-  params: { id: 1 },
+  params: userUserId,
   loader: async ({ params }) => {
     const response = await fetch(`/api/users/${params.id}`);
-    return response.json();
+    return response.json() as User;
   },
 });
 
 // Accès à l'état
-userQuery.value(); // User data
 userQuery.isLoading(); // true/false
 userQuery.error(); // Error ou undefined
+userQuery.safeValue(); // User data ou undefined
 ```
 
 **Support des queries en parallèle** avec identifier
@@ -101,6 +85,50 @@ updateUser.mutate({ id: '1', name: 'John' });
 ```
 
 **Se connecte aux queries** pour optimistic update
+
+---
+
+# 3.1 insertReactOnMutation
+
+Connectez automatiquement vos queries à vos mutations
+
+**Pourquoi ?** Optimistic updates et reloads sans code boilerplate
+
+```typescript
+import { query, mutation, insertReactOnMutation } from '@craft-ng/core';
+
+const updateUserName = mutation({
+  method: (data: { id: string; name: string }) => data,
+  loader: async ({ params }) => {
+    const response = await fetch(`/api/users/${params.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
+    return response.json() as User;
+  },
+});
+
+const userQuery = query(
+  {
+    params: () => ({ userId: '1' }),
+    loader: async ({ params }) => {
+      const response = await fetch(`/api/users/${params.userId}`);
+      return response.json();
+    },
+  },
+  insertReactOnMutation(updateUserName, {
+    optimisticPatch: {
+      name: ({ mutationParams }) => mutationParams.name,
+    },
+    reload: { onMutationError: true },
+  }),
+);
+
+// L'UI se met à jour instantanément puis se synchronise
+updateUserName.mutate({ id: '1', name: 'John' });
+```
+
+**Update immédiat + rollback automatique** en cas d'erreur
 
 ---
 
@@ -203,15 +231,15 @@ Combinons query + mutation + insertions
 ```typescript
 const userQuery = query(
   {
-    params: () => ({ userId: currentUserId() }),
-    loader: async ({ params }) => {
-      const response = await fetch(`/api/users/${params.userId}`);
-      return response.json();
+    params: currentUserId, // Signal<number>
+    loader: async ({ params: userId }) => {
+      const response = await fetch(`/api/users/${userId}`);
+      return response.json() as User;
     },
   },
-  insertReactOnMutation(updateUserMutation, {
+  insertReactOnMutation(updateUserName, {
     optimisticPatch: {
-      name: ({ mutationParams }) => mutationParams.name,
+      name: ({ mutationParams: { name: newName } }) => newName,
     },
     reload: { onMutationError: true },
   }),

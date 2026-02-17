@@ -33,6 +33,19 @@ type StateConfig<State> = NonParallelState<State> | Signal<State>;
 
 type ParallelStateId = string | number | symbol;
 
+export type ParallelStateItemOutput<StateType, Insertions> = MergeObject<
+  StateType,
+  IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>
+>;
+
+export type InsertOnEachStateFactory<
+  StateType,
+  InsertionsOutputs,
+  PreviousInsertionsOutputs = {},
+> = (
+  context: InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>,
+) => InsertionsOutputs;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ParallelStateById<
   StateType,
@@ -79,7 +92,9 @@ type ParallelStateMethodConfig<StateType, Params, MethodArgs> =
   ParallelStateBaseConfig<StateType, Params> &
     Record<string, unknown> & {
       method: (args: MethodArgs) => Params;
-      identifier?: (params: NoInfer<NonNullable<Params>>) => ParallelStateId;
+      identifier?: (
+        params: NoInfer<NonNullable<NoInfer<Params>>>,
+      ) => ParallelStateId;
     };
 
 type ParallelStateParamsConfig<
@@ -89,7 +104,9 @@ type ParallelStateParamsConfig<
 > = ParallelStateBaseConfig<StateType, Params> &
   Record<string, unknown> & {
     params: Signal<Params>;
-    identifier: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+    identifier: (
+      params: NoInfer<NonNullable<NoInfer<Params>>>,
+    ) => GroupIdentifier;
   };
 
 type ParallelStateListItem<T> = { item: T; index: number };
@@ -111,7 +128,9 @@ type ParallelStateFromConfig<
   GroupIdentifier extends ParallelStateId,
 > = ParallelStateBaseConfig<StateType, ParallelStateFromParams<From>> & {
   from: Signal<From>;
-  identifier: (params: ParallelStateFromParams<From>) => GroupIdentifier;
+  identifier: (
+    params: ParallelStateFromParams<NoInfer<From>>,
+  ) => GroupIdentifier;
 } & Record<string, unknown>;
 
 type ParallelStateConfig<
@@ -151,6 +170,121 @@ type ParallelStateOutputCallable<
   },
   IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>
 >;
+
+export function insertSelectItem<
+  StateType extends object,
+  Params = unknown,
+  GroupIdentifier extends ParallelStateId = ParallelStateId,
+  Insertions1 = {},
+>(
+  insertion1: InsertOnEachStateFactory<StateType, Insertions1>,
+): InsertionsParallelStateFactory<
+  StateType,
+  Params,
+  GroupIdentifier,
+  {
+    selectItem: (
+      id: GroupIdentifier,
+    ) => ParallelStateItemOutput<StateType, Insertions1> | undefined;
+  }
+>;
+export function insertSelectItem<
+  StateType extends object,
+  Params = unknown,
+  GroupIdentifier extends ParallelStateId = ParallelStateId,
+  Insertions1 = {},
+  Insertions2 = {},
+>(
+  insertion1: InsertOnEachStateFactory<StateType, Insertions1>,
+  insertion2: InsertOnEachStateFactory<StateType, Insertions2, Insertions1>,
+): InsertionsParallelStateFactory<
+  StateType,
+  Params,
+  GroupIdentifier,
+  {
+    selectItem: (
+      id: GroupIdentifier,
+    ) =>
+      | ParallelStateItemOutput<StateType, Insertions1 & Insertions2>
+      | undefined;
+  }
+>;
+export function insertSelectItem<
+  StateType extends object,
+  Params = unknown,
+  GroupIdentifier extends ParallelStateId = ParallelStateId,
+>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...insertions: InsertOnEachStateFactory<StateType, any, any>[]
+): InsertionsParallelStateFactory<
+  StateType,
+  Params,
+  GroupIdentifier,
+  {
+    selectItem: (id: GroupIdentifier) => unknown;
+  }
+> {
+  return ({ stateById }) => {
+    const selectedStateById = new Map<GroupIdentifier, unknown>();
+
+    const selectItem = (id: GroupIdentifier) => {
+      const selectedState = selectedStateById.get(id);
+      if (selectedState) {
+        return selectedState;
+      }
+
+      const selectedStateSignal = stateById.select(id);
+      if (!selectedStateSignal) {
+        return undefined;
+      }
+
+      const readonlyStateSignal =
+        'asReadonly' in selectedStateSignal &&
+        typeof selectedStateSignal.asReadonly === 'function'
+          ? selectedStateSignal.asReadonly()
+          : (selectedStateSignal as Signal<StateType>);
+
+      const insertionsOutput = insertions.reduce(
+        (acc, insertion) => ({
+          ...acc,
+          ...insertion({
+            state: readonlyStateSignal,
+            set: (newState: StateType) => {
+              selectedStateSignal.set(newState);
+              return newState;
+            },
+            update: (updateFn: (currentState: StateType) => StateType) => {
+              selectedStateSignal.update(updateFn);
+              return selectedStateSignal();
+            },
+            insertions: acc as never,
+          }),
+        }),
+        {} as Record<string, unknown>,
+      );
+
+      const stateProxy = new Proxy(insertionsOutput, {
+        get(target, property, receiver) {
+          if (Reflect.has(target, property)) {
+            return Reflect.get(target, property, receiver);
+          }
+
+          const stateValue = selectedStateSignal();
+          if (!stateValue || typeof stateValue !== 'object') {
+            return undefined;
+          }
+
+          return Reflect.get(stateValue as object, property);
+        },
+      });
+
+      selectedStateById.set(id, stateProxy);
+      return stateProxy;
+    };
+
+    return { selectItem };
+  };
+}
 
 /**
  * Creates a signal state with optional insertions for adding methods and computed properties.
@@ -257,7 +391,13 @@ export function state<
   GroupIdentifier extends ParallelStateId = Params & ParallelStateId,
 >(
   stateConfig: ParallelStateMethodConfig<StateType, Params, MethodArgs>,
-): ParallelStateOutputWithCreate<StateType, Params, MethodArgs, GroupIdentifier, {}>;
+): ParallelStateOutputWithCreate<
+  StateType,
+  Params,
+  MethodArgs,
+  GroupIdentifier,
+  {}
+>;
 export function state<
   StateType,
   Params,

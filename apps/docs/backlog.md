@@ -12,3 +12,8 @@
 - [ ] Standardize craftState => craftStates naming where possible
 - [ ] Add to-source$ utility to create a source from a DOM event
 - [ ] Proposer un state ou un pattern pour gérer les tree (à explorer)
+
+## State Parallel:
+
+- [ ] Tester insertion localStorage
+- [ ] Tester insertion entities à différents niveaux et avec insertSelectItem

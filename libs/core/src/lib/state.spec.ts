@@ -1,5 +1,5 @@
 import { computed, linkedSignal, Signal, signal } from '@angular/core';
-import { state, StateOutput } from './state';
+import { insertSelectItem, state, StateOutput } from './state';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 import { TestBed } from '@angular/core/testing';
@@ -352,4 +352,94 @@ describe('should allow to create multiple states in parallel with shared sources
   //   expect(myState.select(1)).toEqual({ color: 'black', index: 1 });
   //   expect(myState.select(2)).toEqual({ color: 'white', index: 2 });
   // });
+});
+
+describe('insertSelectItem', () => {
+  it('should add methods and computed properties on each parallel state item', () => {
+    runInInjectionContext(() => {
+      const EMPTY_COLOR = 'white';
+      const activeColor = signal('black');
+      const indexes = signal<readonly number[]>([0, 1, 2]);
+
+      const cells = state(
+        {
+          from: indexes,
+          identifier: ({ index }: { item: number; index: number }) => index,
+          state: ({
+            params: { index },
+          }: {
+            params: { item: number; index: number };
+          }) => ({
+            index,
+            color: EMPTY_COLOR,
+            paintCount: 0,
+          }),
+        },
+        insertSelectItem(({ state, update }) => ({
+          paint: () =>
+            update((cell) => ({
+              ...cell,
+              color: cell.color === activeColor() ? EMPTY_COLOR : activeColor(),
+              paintCount: cell.paintCount + 1,
+            })),
+          paintCountStr: computed(() => `Painted ${state().paintCount} times`),
+        })),
+      );
+
+      TestBed.tick();
+      expect(cells.select(0)?.color).toBe('white');
+      expect((cells.select(0) as { paint?: unknown } | undefined)?.paint).toBe(
+        undefined,
+      );
+      expect(cells.selectItem(0)?.paintCountStr()).toBe('Painted 0 times');
+
+      cells.selectItem(0)?.paint();
+
+      expect(cells.select(0)?.color).toBe('black');
+      expect(cells.select(1)?.color).toBe('white');
+      expect(cells.select(0)?.paintCount).toBe(1);
+      expect(cells.selectItem(0)?.paintCountStr()).toBe('Painted 1 times');
+    });
+  });
+
+  it('should allow using set/update helpers on each selected state', () => {
+    runInInjectionContext(() => {
+      const indexes = signal<readonly number[]>([0]);
+
+      const cells = state(
+        {
+          from: indexes,
+          identifier: ({ index }: { item: number; index: number }) => index,
+          state: ({
+            params: { index },
+          }: {
+            params: { item: number; index: number };
+          }) => ({
+            index,
+            color: 'white',
+            paintCount: 0,
+          }),
+        },
+        insertSelectItem(({ set, update, state }) => ({
+          resetToBlue: () =>
+            set({
+              ...state(),
+              color: 'blue',
+              paintCount: 0,
+            }),
+          increment: () =>
+            update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
+        })),
+      );
+
+      TestBed.tick();
+      cells.selectItem(0)?.increment();
+      cells.selectItem(0)?.increment();
+      expect(cells.select(0)?.paintCount).toBe(2);
+
+      cells.selectItem(0)?.resetToBlue();
+      expect(cells.select(0)?.color).toBe('blue');
+      expect(cells.select(0)?.paintCount).toBe(0);
+    });
+  });
 });

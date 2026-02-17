@@ -28,6 +28,10 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./examples/primitives/full-demo/full-demo'),
   },
   {
+    path: 'pixel-art',
+    loadComponent: () => import('./examples/primitives/pixel-art/pixel-art'),
+  },
+  {
     path: 'craft/query/:userId',
     loadComponent: () => import('./examples/craft/query/query'),
   },

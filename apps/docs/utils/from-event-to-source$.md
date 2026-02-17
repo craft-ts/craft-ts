@@ -4,7 +4,7 @@ Converts DOM events to a readonly source stream with automatic cleanup and signa
 
 ## Overview
 
-`fromEventToSource$` bridges DOM events with ng-craft's reactive system by combining:
+`fromEventToSource$` bridges DOM events with craft-ng's reactive system by combining:
 
 - Event conversion to `ReadonlySource$` emissions
 - Automatic event listener cleanup via `DestroyRef`
@@ -27,7 +27,7 @@ function fromEventToSource$<T>(
   options?: {
     event?: boolean | AddEventListenerOptions;
     computedValue?: never;
-  }
+  },
 ): FromEventToSource$<T>;
 
 function fromEventToSource$<T, ComputedValue>(
@@ -36,7 +36,7 @@ function fromEventToSource$<T, ComputedValue>(
   options?: {
     event?: boolean | AddEventListenerOptions;
     computedValue: (event: T) => ComputedValue;
-  }
+  },
 ): FromEventToSource$<ComputedValue>;
 ```
 
@@ -89,10 +89,7 @@ Event listeners are automatically removed when the injection context is destroye
 export class DemoComponent {
   @ViewChild('btn', { read: ElementRef }) button!: ElementRef;
 
-  click$ = fromEventToSource$<MouseEvent>(
-    this.button.nativeElement,
-    'click'
-  );
+  click$ = fromEventToSource$<MouseEvent>(this.button.nativeElement, 'click');
 
   // Listener is automatically removed when component is destroyed
 }
@@ -157,7 +154,8 @@ import { state, on$, fromEventToSource$ } from '@craft-ng/core';
   `,
 })
 export class ClickerComponent {
-  @ViewChild('btn', { read: ElementRef }) button!: ElementRef<HTMLButtonElement>;
+  @ViewChild('btn', { read: ElementRef })
+  button!: ElementRef<HTMLButtonElement>;
 
   click$ = fromEventToSource$<MouseEvent>(this.button.nativeElement, 'click');
 
@@ -178,7 +176,8 @@ export class ClickerComponent {
   `,
 })
 export class SearchComponent {
-  @ViewChild('searchInput', { read: ElementRef }) input!: ElementRef<HTMLInputElement>;
+  @ViewChild('searchInput', { read: ElementRef })
+  input!: ElementRef<HTMLInputElement>;
 
   input$ = fromEventToSource$(this.input.nativeElement, 'input', {
     computedValue: (event: Event) => {
@@ -313,9 +312,7 @@ export class ShortcutsComponent implements OnInit {
   selector: 'app-dynamic',
   template: `
     <div *ngFor="let item of items">
-      <button (click)="attachListener($event.target)">
-        Attach listener
-      </button>
+      <button (click)="attachListener($event.target)">Attach listener</button>
     </div>
   `,
 })
@@ -401,13 +398,13 @@ export class FormComponent {
 
 ## Comparison with sourceFromEvent
 
-| Feature | `fromEventToSource$` | `sourceFromEvent` |
-|---------|---------------------|-------------------|
-| Return type | `ReadonlySource$<T>` (with `subscribe`, `value`, `dispose`) | `SignalSource<T>` (with `set`, mutation methods) |
-| Modification | Read-only, no `emit` method | Writable via `set` method |
-| Use case | Event observation and subscription | Event-driven source with manual control |
-| Signal access | ✅ via `value` property | ✅ as direct signal |
-| Subscription | ✅ via `subscribe` method | ❌ (uses `afterRecomputation()`) |
+| Feature       | `fromEventToSource$`                                        | `sourceFromEvent`                                |
+| ------------- | ----------------------------------------------------------- | ------------------------------------------------ |
+| Return type   | `ReadonlySource$<T>` (with `subscribe`, `value`, `dispose`) | `SignalSource<T>` (with `set`, mutation methods) |
+| Modification  | Read-only, no `emit` method                                 | Writable via `set` method                        |
+| Use case      | Event observation and subscription                          | Event-driven source with manual control          |
+| Signal access | ✅ via `value` property                                     | ✅ as direct signal                              |
+| Subscription  | ✅ via `subscribe` method                                   | ❌ (uses `afterRecomputation()`)                 |
 
 ## Best Practices
 
@@ -487,7 +484,7 @@ const input$ = fromEventToSource$(inputElement, 'input', {
 // Use with rxjs operators if needed
 from(input$).pipe(
   debounceTime(300),
-  subscribe((value) => console.log(value))
+  subscribe((value) => console.log(value)),
 );
 ```
 

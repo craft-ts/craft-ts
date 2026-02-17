@@ -23,6 +23,7 @@ import { GlobalPersisterHandlerService } from '@craft-ng/core';
           >Granular Mutation</a
         >
         <a routerLink="/full-demo" routerLinkActive="active">Full Demo</a>
+        <a routerLink="/pixel-art" routerLinkActive="active">Pixel Art</a>
         <a routerLink="/craft/query/1" routerLinkActive="active">Craft Query</a>
         <a routerLink="/craft/mutation/1" routerLinkActive="active"
           >Craft Mutation</a

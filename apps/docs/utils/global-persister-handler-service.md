@@ -1,10 +1,10 @@
 # GlobalPersisterHandlerService
 
-A global service for managing cache persistence operations in ng-craft.
+A global service for managing cache persistence operations in craft-ng.
 
 ## Overview
 
-The `GlobalPersisterHandlerService` provides a centralized way to clear all cached data stored in localStorage by ng-craft. This service is particularly useful when you need to completely remove all persisted data, such as when a user logs out of your application.
+The `GlobalPersisterHandlerService` provides a centralized way to clear all cached data stored in localStorage by craft-ng. This service is particularly useful when you need to completely remove all persisted data, such as when a user logs out of your application.
 
 ## Installation
 
@@ -16,11 +16,11 @@ import { GlobalPersisterHandlerService } from '@craft-ng/core';
 
 ## How it works
 
-The service scans all keys in `localStorage` and removes any key that starts with the `ng-craft-` prefix. This ensures complete cleanup of all data cached by ng-craft, including:
+The service scans all keys in `localStorage` and removes any key that starts with the `craft-ng-` prefix. This ensures complete cleanup of all data cached by craft-ng, including:
 
 - Persisted queries
 - Persisted queries by ID
-- Any other data cached by ng-craft's persistence layer
+- Any other data cached by craft-ng's persistence layer
 
 ## Basic Usage
 
@@ -40,7 +40,7 @@ export class HeaderComponent {
   private readonly router = inject(Router);
 
   logout() {
-    // Clear all ng-craft cached data
+    // Clear all craft-ng cached data
     this.persisterHandler.clearAllCache();
 
     // Clear authentication tokens
