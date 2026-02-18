@@ -5,10 +5,9 @@ import { craftQuery } from './craft-query';
 import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import {
-  DerivedException,
   derivedException,
   methodException,
-  StateException,
+  paramException,
   stateException,
 } from './business-exception';
 import { computed, signal } from '@angular/core';
@@ -446,7 +445,7 @@ describe('query exceptions', () => {
       params: () =>
         myUserId() > 0
           ? myUserId()
-          : stateException('INVALID_USER_ID', { id: myUserId() }),
+          : paramException('INVALID_USER_ID', { id: myUserId() }),
       loader: async ({ params }) => {
         return {
           id: params,
@@ -455,13 +454,11 @@ describe('query exceptions', () => {
         };
       },
     });
-    expect(queryRef.exceptions().state.INVALID_USER_ID).toBeDefined();
-    expectTypeOf(queryRef.exceptions().state.INVALID_USER_ID).toEqualTypeOf<
-      StateException<'INVALID_USER_ID'>,
-      {
-        id: number;
-      }
-    >();
+    expect(queryRef.exceptions!().params.INVALID_USER_ID).toBeDefined();
+    expect(queryRef.exceptions!().params.INVALID_USER_ID).toEqual({ id: 0 });
+    expectTypeOf(
+      queryRef.exceptions!().params.INVALID_USER_ID,
+    ).toEqualTypeOf<unknown>();
   });
   it('should allow to return an exception from the loader function', () => {
     const myUserId = signal(0);
@@ -478,9 +475,45 @@ describe('query exceptions', () => {
         };
       },
     });
-    expect(queryRef.exceptions?.().state.INVALID_USER_ID).toBeDefined();
-    expectTypeOf(queryRef.exceptions?.().state.INVALID_USER_ID).toEqualTypeOf<
-      StateException<'INVALID_USER_ID', { id: number }>
+    expect(queryRef.exceptions!().state.INVALID_USER_ID).toBeDefined();
+    expectTypeOf(queryRef.exceptions!().state.INVALID_USER_ID).toEqualTypeOf<{
+      id: number;
+    }>();
+  });
+  it('When loader returns exceptions, the safeValue and value should not include the exception', () => {
+    const myUserId = signal(0);
+    const queryRef = query({
+      params: myUserId,
+      loader: async ({ params }) => {
+        if (params === 0) {
+          return stateException('INVALID_USER_ID', { id: params });
+        }
+        return {
+          id: params,
+          name: 'John Doe',
+          email: 'test@a.com',
+        };
+      },
+    });
+    expect(queryRef.exceptions!().state.INVALID_USER_ID).toBeDefined();
+    expectTypeOf(queryRef.exceptions!().state.INVALID_USER_ID).toEqualTypeOf<{
+      id: number;
+    }>();
+    expectTypeOf(queryRef.safeValue()).toEqualTypeOf<
+      | {
+          id: number;
+          name: string;
+          email: string;
+        }
+      | undefined
+    >();
+    expectTypeOf(queryRef.value()).toEqualTypeOf<
+      | {
+          id: number;
+          name: string;
+          email: string;
+        }
+      | undefined
     >();
   });
   it('should allow to return an exception from a derived property', () => {
@@ -508,9 +541,7 @@ describe('query exceptions', () => {
       }),
     );
     expectTypeOf(
-      queryRef.exceptions().derived.PARAM_VALUE_MISMATCH,
-    ).toEqualTypeOf<
-      DerivedException<'PARAM_VALUE_MISMATCH', { param: string; value: number }>
-    >();
+      queryRef.exceptions!().derived.PARAM_VALUE_MISMATCH,
+    ).toEqualTypeOf<{ param: number | undefined; value: number }>();
   });
 });

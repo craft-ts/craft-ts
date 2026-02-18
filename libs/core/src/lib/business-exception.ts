@@ -5,6 +5,7 @@ export const BUSINESS_EXCEPTION_SCOPES = [
   'method',
   'derived',
   'reaction',
+  'params',
 ] as const;
 
 export type BusinessExceptionScope = (typeof BUSINESS_EXCEPTION_SCOPES)[number];
@@ -33,6 +34,9 @@ export type ReactionException<
   Payload = unknown,
 > = BusinessException<'reaction', Code, Payload>;
 
+export type ParamException<Code extends string = string, Payload = unknown> =
+  BusinessException<'params', Code, Payload>;
+
 export type AnyBusinessException = BusinessException<
   BusinessExceptionScope,
   string,
@@ -60,18 +64,21 @@ export type GroupedBusinessExceptions<
   MethodExceptions extends MethodException = never,
   DerivedExceptions extends DerivedException = never,
   ReactionExceptions extends ReactionException = never,
+  ParamsExceptions extends ParamException = never,
 > = {
   state: ScopePayloadByCode<StateExceptions>;
   method: ScopePayloadByCode<MethodExceptions>;
   derived: ScopePayloadByCode<DerivedExceptions>;
   reaction: ScopePayloadByCode<ReactionExceptions>;
+  params: ScopePayloadByCode<ParamsExceptions>;
 };
 
 export type AnyGroupedBusinessExceptions = GroupedBusinessExceptions<
   StateException<string, unknown>,
   MethodException<string, unknown>,
   DerivedException<string, unknown>,
-  ReactionException<string, unknown>
+  ReactionException<string, unknown>,
+  ParamException<string, unknown>
 >;
 
 export const EMPTY_GROUPED_BUSINESS_EXCEPTIONS: AnyGroupedBusinessExceptions = {
@@ -79,6 +86,7 @@ export const EMPTY_GROUPED_BUSINESS_EXCEPTIONS: AnyGroupedBusinessExceptions = {
   method: {},
   derived: {},
   reaction: {},
+  params: {},
 };
 
 const scopeSet = new Set<string>(BUSINESS_EXCEPTION_SCOPES);
@@ -137,6 +145,13 @@ export function reactionException<Code extends string, Payload = undefined>(
   payload?: Payload,
 ): ReactionException<Code, Payload> {
   return createException('reaction', code, payload);
+}
+
+export function paramException<Code extends string, Payload = undefined>(
+  code: Code,
+  payload?: Payload,
+): ParamException<Code, Payload> {
+  return createException('params', code, payload);
 }
 
 const EXCEPTION_CARRIER = Symbol('EXCEPTION_CARRIER');
@@ -289,6 +304,11 @@ export type ExtractReactionExceptions<Value> = Extract<
   ReactionException
 >;
 
+export type ExtractParamExceptions<Value> = Extract<
+  ExtractBusinessExceptionsFromValue<Value>,
+  ParamException
+>;
+
 function sortRecord<T extends Record<string, unknown>>(record: T): T {
   return Object.keys(record)
     .sort((a, b) => a.localeCompare(b))
@@ -306,6 +326,7 @@ export function sortGroupedBusinessExceptions<
     method: sortRecord(exceptions.method),
     derived: sortRecord(exceptions.derived),
     reaction: sortRecord(exceptions.reaction),
+    params: sortRecord(exceptions.params),
   } as GroupedExceptions;
 }
 
@@ -317,6 +338,7 @@ function toGroupedBusinessExceptions(
     method: { ...(exceptions?.method ?? {}) },
     derived: { ...(exceptions?.derived ?? {}) },
     reaction: { ...(exceptions?.reaction ?? {}) },
+    params: { ...(exceptions?.params ?? {}) },
   } as AnyGroupedBusinessExceptions);
 }
 
@@ -395,11 +417,12 @@ export function createBusinessExceptionStore<
       method: {},
       derived: {},
       reaction: {},
+      params: {},
     });
   };
 
   return {
-    exceptions: exceptionsSignal as Signal<GroupedExceptions>,
+    exceptions: exceptionsSignal as unknown as Signal<GroupedExceptions>,
     raiseException,
     setScopeExceptions,
     clearException,

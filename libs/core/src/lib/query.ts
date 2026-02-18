@@ -25,6 +25,7 @@ import {
   GroupedBusinessExceptions,
   isBusinessException,
   MethodException,
+  ParamException,
   StripBusinessExceptions,
   wrapExceptionAwareMethods,
 } from './business-exception';
@@ -35,30 +36,38 @@ type FilterExceptionsByScope<
 > = Extract<Exceptions, { scope: Scope }>;
 
 type QueryOutputExceptions<Value, Params, Insertions> =
-  GroupedBusinessExceptions<
-    FilterExceptionsByScope<
-      | ExtractStateExceptions<Value>
-      | ExtractBusinessExceptionsFromObject<Insertions>,
-      'state'
+  Omit<
+    GroupedBusinessExceptions<
+      FilterExceptionsByScope<
+        | ExtractStateExceptions<Value>
+        | ExtractBusinessExceptionsFromObject<Insertions>,
+        'state'
+      >,
+      FilterExceptionsByScope<
+        | Extract<Params, MethodException>
+        | ExtractBusinessExceptionsFromObject<Insertions>,
+        'method'
+      >,
+      FilterExceptionsByScope<
+        | ExtractStateExceptions<Value>
+        | ExtractBusinessExceptionsFromObject<Insertions>,
+        'derived'
+      >,
+      FilterExceptionsByScope<
+        | ExtractStateExceptions<Value>
+        | ExtractBusinessExceptionsFromObject<Insertions>,
+        'reaction'
+      >
     >,
-    FilterExceptionsByScope<
-      | Extract<Params, MethodException>
-      | ExtractBusinessExceptionsFromObject<Insertions>,
-      'method'
-    >,
-    FilterExceptionsByScope<
-      | ExtractStateExceptions<Value>
-      | ExtractBusinessExceptionsFromObject<Insertions>,
-      'derived'
-    >,
-    FilterExceptionsByScope<
-      | ExtractStateExceptions<Value>
-      | ExtractBusinessExceptionsFromObject<Insertions>,
-      'reaction'
-    >
-  >;
+    'params'
+  > & {
+    params: Record<string, unknown>;
+  };
 
 type QueryRuntimeParams<Params> = StripBusinessExceptions<Params>;
+type QueryInputParams<Params> =
+  | QueryRuntimeParams<Params>
+  | ParamException;
 
 type QueryConfig<
   ResourceState,
@@ -81,7 +90,7 @@ type QueryConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: () => QueryRuntimeParams<Params>;
+        params: () => QueryInputParams<Params>;
         loader: (
           param: NoInfer<ResourceLoaderParams<QueryRuntimeParams<Params>>>,
         ) => Promise<ResourceState>;
@@ -115,7 +124,7 @@ type QueryConfig<
     | {
         method?: never;
         loader?: never;
-        params?: () => QueryRuntimeParams<Params>;
+        params?: () => QueryInputParams<Params>;
         fromResourceById?: never;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
@@ -160,7 +169,7 @@ type QueryConfig<
          */
         params: (
           entity: ResourceRef<NoInfer<FromObjectState>>,
-        ) => QueryRuntimeParams<Params>;
+        ) => QueryInputParams<Params>;
         loader: (
           param: NoInfer<ResourceLoaderParams<QueryRuntimeParams<Params>>>,
         ) => Promise<ResourceState>;
@@ -176,7 +185,7 @@ type QueryConfig<
     | {
         method?: never;
         loader?: never;
-        params?: () => QueryRuntimeParams<Params>;
+        params?: () => QueryInputParams<Params>;
         fromResourceById?: never;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
@@ -241,11 +250,11 @@ export type ResourceLikeQueryRef<
 } & MergeObjects<
   [
     {
-      readonly value: Signal<Value | undefined>;
+      readonly value: Signal<StripBusinessExceptions<Value> | undefined>;
       /**
        * Avoids to throw error when accessing value during error state
        */
-      readonly safeValue: Signal<Value | undefined>;
+      readonly safeValue: Signal<StripBusinessExceptions<Value> | undefined>;
       readonly status: Signal<ResourceStatus>;
       readonly error: Signal<Error | undefined>;
       readonly isLoading: Signal<boolean>;
@@ -287,7 +296,7 @@ export type ResourceByIdLikeQueryRef<
 } & {
   _resourceById: ResourceByIdRef<
     GroupIdentifier & string,
-    Value,
+    StripBusinessExceptions<Value>,
     QueryRuntimeParams<Params>
   >;
   /**
@@ -299,11 +308,11 @@ export type ResourceByIdLikeQueryRef<
    */
   select: (id: GroupIdentifier) =>
     | {
-        readonly value: Signal<Value | undefined>;
+        readonly value: Signal<StripBusinessExceptions<Value> | undefined>;
         /**
          * Avoids to throw error when accessing value during error state
          */
-        readonly safeValue: Signal<Value | undefined>;
+        readonly safeValue: Signal<StripBusinessExceptions<Value> | undefined>;
         readonly status: Signal<ResourceStatus>;
         readonly error: Signal<Error | undefined>;
         readonly isLoading: Signal<boolean>;
@@ -322,7 +331,7 @@ export type ResourceByIdLikeQueryRef<
           },
       ResourceByIdRef<
         GroupIdentifier & string,
-        Value,
+        StripBusinessExceptions<Value>,
         QueryRuntimeParams<Params>
       >,
     ]
@@ -1039,10 +1048,8 @@ export function query<
   {}
 > {
   const hasParamsFn = typeof queryConfig.params === 'function';
-  const queryResourceParamsFnSignal =
-    queryConfig.params ??
-    signal<QueryRuntimeParams<QueryParams> | undefined>(undefined);
-
+  const hasLoader = 'loader' in queryConfig && typeof queryConfig.loader === 'function';
+  const hasStream = 'stream' in queryConfig && typeof queryConfig.stream === 'function';
   const isConnectedToSource = isSignal(queryConfig.method);
   const isUsingIdentifier = 'identifier' in queryConfig;
   const exceptionStore = createBusinessExceptionStore({
@@ -1050,6 +1057,61 @@ export function query<
       (queryConfig as { defaultValue?: unknown }).defaultValue,
     ),
   });
+  const queryResourceParamsFnSignal = hasParamsFn
+    ? ((...args: unknown[]) => {
+        const maybeParams = (
+          queryConfig.params as (...params: unknown[]) => QueryInputParams<QueryParams>
+        )(...args);
+        if (isBusinessException(maybeParams)) {
+          exceptionStore.raiseException(maybeParams);
+          return undefined;
+        }
+        exceptionStore.clearScope('params');
+        return maybeParams as QueryRuntimeParams<QueryParams>;
+      })
+    : signal<QueryRuntimeParams<QueryParams> | undefined>(undefined);
+  const queryConfigWithExceptionAwareLoader = {
+    ...queryConfig,
+    ...(hasLoader
+      ? {
+          loader: async (
+            param: ResourceLoaderParams<QueryRuntimeParams<QueryParams>>,
+          ) => {
+            const result = await (
+              queryConfig.loader as (
+                param: ResourceLoaderParams<QueryRuntimeParams<QueryParams>>,
+              ) => Promise<QueryState>
+            )(param);
+            if (isBusinessException(result)) {
+              exceptionStore.raiseException(result);
+              return undefined as StripBusinessExceptions<QueryState>;
+            }
+            return result as unknown as StripBusinessExceptions<QueryState>;
+          },
+        }
+      : {}),
+    ...(hasStream
+      ? {
+          stream: async (
+            param: ResourceLoaderParams<QueryRuntimeParams<QueryParams>>,
+          ) => {
+            const streamSignal = await (
+              queryConfig.stream as (
+                param: ResourceLoaderParams<QueryRuntimeParams<QueryParams>>,
+              ) => Promise<Signal<QueryState>>
+            )(param);
+            return computed(() => {
+              const result = streamSignal();
+              if (isBusinessException(result)) {
+                exceptionStore.raiseException(result);
+                return undefined as StripBusinessExceptions<QueryState>;
+              }
+              return result as StripBusinessExceptions<QueryState>;
+            });
+          },
+        }
+      : {}),
+  };
 
   const resourceParamsSrc = isConnectedToSource
     ? queryConfig.method
@@ -1064,18 +1126,19 @@ export function query<
         unknown,
         unknown
       >({
-        ...queryConfig,
+        ...queryConfigWithExceptionAwareLoader,
         params: resourceParamsSrc,
         identifier: queryConfig.identifier,
         equalParams: queryConfig.equalParams ?? 'useIdentifier',
       } as any)
-    : !queryConfig.preservePreviousValue || queryConfig.preservePreviousValue()
+    : !queryConfigWithExceptionAwareLoader.preservePreviousValue ||
+        queryConfigWithExceptionAwareLoader.preservePreviousValue()
       ? preservedResource<QueryState, QueryRuntimeParams<QueryParams>>({
-          ...queryConfig,
+          ...queryConfigWithExceptionAwareLoader,
           params: resourceParamsSrc,
         } as ResourceOptions<any, any>)
       : craftResource<QueryState, QueryRuntimeParams<QueryParams>>({
-          ...queryConfig,
+          ...queryConfigWithExceptionAwareLoader,
           params: resourceParamsSrc,
         } as ResourceOptions<any, any>);
 
@@ -1089,7 +1152,7 @@ export function query<
            */
           _resourceById: resourceTarget as ResourceByIdRef<
             GroupIdentifier & string,
-            QueryState,
+            StripBusinessExceptions<QueryState>,
             QueryRuntimeParams<QueryParams>
           >,
           select: (id: GroupIdentifier) => {
@@ -1097,7 +1160,7 @@ export function query<
               const list = (
                 resourceTarget as ResourceByIdRef<
                   GroupIdentifier & string,
-                  QueryState,
+                  StripBusinessExceptions<QueryState>,
                   QueryRuntimeParams<QueryParams>
                 >
               )();
@@ -1136,7 +1199,7 @@ export function query<
                   (
                     resourceTarget as ResourceByIdRef<
                       GroupIdentifier & string,
-                      QueryState,
+                      StripBusinessExceptions<QueryState>,
                       QueryRuntimeParams<QueryParams>
                     >
                   ).addById(id as GroupIdentifier & string);
