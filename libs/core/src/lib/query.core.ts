@@ -20,6 +20,11 @@ import {
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { QueryParamsToState } from './query-param';
 import { Prettify } from './util/util.type';
+import {
+  AnyBusinessException,
+  AnyGroupedBusinessExceptions,
+  BusinessExceptionScope,
+} from './business-exception';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -27,6 +32,18 @@ export interface QueryParamNavigationOptions {
   replaceUrl?: boolean;
   skipLocationChange?: boolean;
 }
+
+export type BusinessExceptionContextHelpers<
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
+> = {
+  exceptions: Signal<GroupedExceptions>;
+  raiseException: <Exception extends AnyBusinessException>(
+    exception: Exception,
+  ) => Exception;
+  clearException: (scope: BusinessExceptionScope, code: string) => void;
+  clearExceptionScope: (scope: BusinessExceptionScope) => void;
+  clearExceptions: () => void;
+};
 
 export type MutationResourceRefHelper<
   QueryAndMutationRecord extends QueryAndMutationRecordConstraints,
@@ -550,6 +567,7 @@ export type InsertionParams<
   ResourceState extends object | undefined,
   ResourceParams,
   PreviousInsertionsOutputs,
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
 > = {
   state: Signal<ResourceState>;
   set: (newState: ResourceState) => ResourceState;
@@ -564,18 +582,20 @@ export type InsertionParams<
   // 👇 Seems required for insertLocalStoragePersister, otherwise TS says they can be missing
   resourceById: never;
   identifier: never;
-};
+} & BusinessExceptionContextHelpers<GroupedExceptions>;
 
 export type InsertionsFactory<
   ResourceState extends object | undefined,
   ResourceParams,
   InsertsOutputs,
   PreviousInsertionsOutputs = {},
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
 > = (
   context: InsertionParams<
     ResourceState,
     ResourceParams,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    GroupedExceptions
   >,
 ) => InsertsOutputs;
 
@@ -584,6 +604,7 @@ export type InsertionByIdParams<
   ResourceState extends object | undefined,
   ResourceParams,
   PreviousInsertionsOutputs,
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
 > = {
   state: Signal<ResourceState>;
   set: (newState: ResourceState) => ResourceState;
@@ -597,17 +618,20 @@ export type InsertionByIdParams<
   resource: never;
   resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
   identifier: (params: NonNullable<ResourceParams>) => GroupIdentifier;
-};
+} & BusinessExceptionContextHelpers<GroupedExceptions>;
 
-export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
-  {
-    state: Signal<StateType>;
-    set: (newState: StateType) => StateType;
-    update: (updateFn: (currentState: StateType) => StateType) => StateType;
-    insertions: keyof PreviousInsertionsOutputs extends string
-      ? PreviousInsertionsOutputs
-      : never;
-  };
+export type InsertionStateFactoryContext<
+  StateType,
+  PreviousInsertionsOutputs,
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
+> = {
+  state: Signal<StateType>;
+  set: (newState: StateType) => StateType;
+  update: (updateFn: (currentState: StateType) => StateType) => StateType;
+  insertions: keyof PreviousInsertionsOutputs extends string
+    ? PreviousInsertionsOutputs
+    : never;
+} & BusinessExceptionContextHelpers<GroupedExceptions>;
 
 export type QueryParamMethods<QueryParamsState> = {
   patch: (
@@ -628,6 +652,7 @@ export type QueryParamMethods<QueryParamsState> = {
 export type InsertionQueryParamsFactoryContext<
   QueryParamsType,
   PreviousInsertionsOutputs,
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
   //! do not get the QueryParamState directly from the queryParam utility (it's broke the inference),
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 > = QueryParamMethods<QueryParamsState> & {
@@ -636,7 +661,7 @@ export type InsertionQueryParamsFactoryContext<
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs
     : never;
-};
+} & BusinessExceptionContextHelpers<GroupedExceptions>;
 
 export type InsertionsByIdFactory<
   ResourceState extends object | undefined,
@@ -644,12 +669,14 @@ export type InsertionsByIdFactory<
   GroupIdentifier extends string,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
 > = (
   context: InsertionByIdParams<
     GroupIdentifier,
     ResourceState,
     ResourceParams,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    GroupedExceptions
   >,
 ) => InsertionsOutputs;
 
@@ -658,13 +685,20 @@ export type InsertionResourceFactoryContext<
   ResourceState extends object | undefined,
   ResourceParams,
   PreviousInsertionsOutputs,
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
 > = [unknown] extends [GroupIdentifier]
-  ? InsertionParams<ResourceState, ResourceParams, PreviousInsertionsOutputs>
+  ? InsertionParams<
+      ResourceState,
+      ResourceParams,
+      PreviousInsertionsOutputs,
+      GroupedExceptions
+    >
   : InsertionByIdParams<
       GroupIdentifier & string,
       ResourceState,
       ResourceParams,
-      PreviousInsertionsOutputs
+      PreviousInsertionsOutputs,
+      GroupedExceptions
     >;
 export type InsertionsResourcesFactory<
   GroupIdentifier,
@@ -672,12 +706,14 @@ export type InsertionsResourcesFactory<
   ResourceParams,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
 > = (
   context: InsertionResourceFactoryContext<
     GroupIdentifier,
     ResourceState,
     ResourceParams,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    GroupedExceptions
   >,
 ) => InsertionsOutputs;
 
@@ -685,18 +721,25 @@ export type InsertionsStateFactory<
   State,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
 > = (
-  context: InsertionStateFactoryContext<State, PreviousInsertionsOutputs>,
+  context: InsertionStateFactoryContext<
+    State,
+    PreviousInsertionsOutputs,
+    GroupedExceptions
+  >,
 ) => InsertionsOutputs;
 
 export type InsertionsQueryParamsFactory<
   QueryParamsType,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
+  GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
 > = (
   context: InsertionQueryParamsFactoryContext<
     QueryParamsType,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    GroupedExceptions
   >,
 ) => InsertionsOutputs;
 

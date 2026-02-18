@@ -1,5 +1,6 @@
 export * from './lib/after-recomputation';
 export * from './lib/async-process';
+export * from './lib/business-exception';
 export * from './lib/computed-source';
 export * from './lib/craft-async-process';
 export * from './lib/craft-computed';

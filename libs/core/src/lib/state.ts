@@ -12,10 +12,53 @@ import {
 } from './query.core';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
+import {
+  BusinessExceptionScope,
+  createBusinessExceptionStore,
+  ExtractBusinessExceptionsFromObject,
+  ExtractStateExceptions,
+  getStateExceptionDefinitions,
+  GroupedBusinessExceptions,
+  wrapExceptionAwareMethods,
+} from './business-exception';
+
+type FilterExceptionsByScope<
+  Exceptions,
+  Scope extends BusinessExceptionScope,
+> = Extract<Exceptions, { scope: Scope }>;
+
+type StateOutputExceptions<StateType, Insertions> =
+  GroupedBusinessExceptions<
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<StateType>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'state'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<StateType>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'method'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<StateType>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'derived'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<StateType>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'reaction'
+    >
+  >;
 
 export type StateOutput<StateType, Insertions> = MergeObject<
   Signal<StateType>,
-  IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>
+  MergeObject<
+    IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+    {
+      readonly exceptions?: Signal<StateOutputExceptions<StateType, Insertions>>;
+    }
+  >
 >;
 
 type StateConfig<State> = State | Signal<State>;
@@ -288,20 +331,40 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
       : (stateSignal as Signal<StateType>);
+  const exceptionStore = createBusinessExceptionStore({
+    state: getStateExceptionDefinitions(
+      isSignalState ? stateSignal() : stateConfig,
+    ),
+  });
 
   return Object.assign(
     stateSignal,
+    {
+      exceptions: exceptionStore.exceptions,
+    },
     (insertions as InsertionsStateFactory<StateType, {}>[])?.reduce(
       (acc, insert) => {
-        return {
-          ...acc,
-          ...insert({
+        const newInsertions = wrapExceptionAwareMethods(
+          insert({
             state: readonlyStateSignal,
             set: (newState: StateType) => stateSignal.set(newState),
             update: (updateFn: (currentState: StateType) => StateType) =>
               stateSignal.update(updateFn),
             insertions: acc as {},
-          } as InsertionStateFactoryContext<StateType, {}>),
+            exceptions: exceptionStore.exceptions,
+            raiseException: exceptionStore.raiseException,
+            clearException: exceptionStore.clearException,
+            clearExceptionScope: exceptionStore.clearScope,
+            clearExceptions: exceptionStore.clearAll,
+          } as InsertionStateFactoryContext<StateType, {}>) as Record<
+            string,
+            unknown
+          >,
+          exceptionStore.raiseException,
+        );
+        return {
+          ...acc,
+          ...newInsertions,
         };
       },
       {} as Record<string, unknown>,

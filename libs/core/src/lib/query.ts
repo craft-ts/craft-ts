@@ -16,6 +16,49 @@ import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
 import { preservedResource } from './preserved-resource';
 import { craftResource } from './craft-resource';
+import {
+  BusinessExceptionScope,
+  createBusinessExceptionStore,
+  ExtractBusinessExceptionsFromObject,
+  ExtractStateExceptions,
+  getStateExceptionDefinitions,
+  GroupedBusinessExceptions,
+  isBusinessException,
+  MethodException,
+  StripBusinessExceptions,
+  wrapExceptionAwareMethods,
+} from './business-exception';
+
+type FilterExceptionsByScope<
+  Exceptions,
+  Scope extends BusinessExceptionScope,
+> = Extract<Exceptions, { scope: Scope }>;
+
+type QueryOutputExceptions<Value, Params, Insertions> =
+  GroupedBusinessExceptions<
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<Value>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'state'
+    >,
+    FilterExceptionsByScope<
+      | Extract<Params, MethodException>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'method'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<Value>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'derived'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<Value>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'reaction'
+    >
+  >;
+
+type QueryRuntimeParams<Params> = StripBusinessExceptions<Params>;
 
 type QueryConfig<
   ResourceState,
@@ -26,7 +69,10 @@ type QueryConfig<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
-> = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
+> = Omit<
+  ResourceOptions<NoInfer<ResourceState>, QueryRuntimeParams<Params>>,
+  'params' | 'loader'
+> &
   (
     | {
         /**
@@ -35,9 +81,9 @@ type QueryConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: () => Params;
+        params: () => QueryRuntimeParams<Params>;
         loader: (
-          param: NoInfer<ResourceLoaderParams<Params>>,
+          param: NoInfer<ResourceLoaderParams<QueryRuntimeParams<Params>>>,
         ) => Promise<ResourceState>;
         method?: never;
         fromResourceById?: never;
@@ -59,7 +105,7 @@ type QueryConfig<
          */
         method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
         loader: (
-          param: NoInfer<ResourceLoaderParams<Params>>,
+          param: NoInfer<ResourceLoaderParams<QueryRuntimeParams<Params>>>,
         ) => Promise<ResourceState>;
         params?: never;
         fromResourceById?: never;
@@ -69,13 +115,16 @@ type QueryConfig<
     | {
         method?: never;
         loader?: never;
-        params?: () => Params;
+        params?: () => QueryRuntimeParams<Params>;
         fromResourceById?: never;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
          */
-        stream: ResourceStreamingLoader<ResourceState, Params>;
+        stream: ResourceStreamingLoader<
+          ResourceState,
+          QueryRuntimeParams<Params>
+        >;
         preservePreviousValue?: () => boolean;
       }
     | {
@@ -87,7 +136,10 @@ type QueryConfig<
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
          */
-        stream: ResourceStreamingLoader<ResourceState, Params>;
+        stream: ResourceStreamingLoader<
+          ResourceState,
+          QueryRuntimeParams<Params>
+        >;
         preservePreviousValue?: () => boolean;
       }
     | {
@@ -106,9 +158,11 @@ type QueryConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
+        params: (
+          entity: ResourceRef<NoInfer<FromObjectState>>,
+        ) => QueryRuntimeParams<Params>;
         loader: (
-          param: NoInfer<ResourceLoaderParams<Params>>,
+          param: NoInfer<ResourceLoaderParams<QueryRuntimeParams<Params>>>,
         ) => Promise<ResourceState>;
         method?: never;
         stream?: never;
@@ -122,13 +176,16 @@ type QueryConfig<
     | {
         method?: never;
         loader?: never;
-        params?: () => Params;
+        params?: () => QueryRuntimeParams<Params>;
         fromResourceById?: never;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
          */
-        stream: ResourceStreamingLoader<ResourceState, Params>;
+        stream: ResourceStreamingLoader<
+          ResourceState,
+          QueryRuntimeParams<Params>
+        >;
         preservePreviousValue?: () => boolean;
       }
   ) & {
@@ -136,7 +193,9 @@ type QueryConfig<
      * A unique identifier for the resource, derived from the params.
      * It should be a string that uniquely identifies the resource based on the params.
      */
-    identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+    identifier?: (
+      params: NoInfer<NonNullable<QueryRuntimeParams<Params>>>,
+    ) => GroupIdentifier;
     /**
      * Under the hood, a resource is generated for each new identifier generated when the params source change.
      *
@@ -155,14 +214,16 @@ type QueryConfig<
      *
      * For **query** that don't use 'identifier', the default value is 'default'
      */
-    equalParams?: Params extends object
+    equalParams?: QueryRuntimeParams<Params> extends object
       ?
           | 'default'
           | 'useIdentifier'
           | ((
-              a: Params,
-              b: Params,
-              identifierFn: (params: Params) => GroupIdentifier,
+              a: QueryRuntimeParams<Params>,
+              b: QueryRuntimeParams<Params>,
+              identifierFn: (
+                params: QueryRuntimeParams<Params>,
+              ) => GroupIdentifier,
             ) => boolean)
       : never;
   };
@@ -188,10 +249,15 @@ export type ResourceLikeQueryRef<
       readonly status: Signal<ResourceStatus>;
       readonly error: Signal<Error | undefined>;
       readonly isLoading: Signal<boolean>;
+      readonly exceptions?: Signal<
+        QueryOutputExceptions<Value, Params, Insertions>
+      >;
       hasValue(): boolean;
     },
     {
-      readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
+      readonly resourceParamsSrc: WritableSignal<
+        NoInfer<QueryRuntimeParams<Params>>
+      >;
     },
     IsMethod extends true
       ? {
@@ -216,9 +282,14 @@ export type ResourceByIdLikeQueryRef<
   Insertions,
   GroupIdentifier,
 > = { type: 'resourceByGroupLike'; kind: 'query' } & {
-  readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
+  readonly resourceParamsSrc: WritableSignal<NoInfer<QueryRuntimeParams<Params>>>;
+  readonly exceptions?: Signal<QueryOutputExceptions<Value, Params, Insertions>>;
 } & {
-  _resourceById: ResourceByIdRef<GroupIdentifier & string, Value, Params>;
+  _resourceById: ResourceByIdRef<
+    GroupIdentifier & string,
+    Value,
+    QueryRuntimeParams<Params>
+  >;
   /**
    * Get the associated resource by id
    *
@@ -249,7 +320,11 @@ export type ResourceByIdLikeQueryRef<
         : {
             source: ReadonlySource<SourceParams>;
           },
-      ResourceByIdRef<GroupIdentifier & string, Value, Params>,
+      ResourceByIdRef<
+        GroupIdentifier & string,
+        Value,
+        QueryRuntimeParams<Params>
+      >,
     ]
   >;
 
@@ -349,7 +424,7 @@ export function query<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion1
   >,
 ): QueryOutput<
@@ -385,13 +460,13 @@ export function query<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion2,
     Insertion1
   >,
@@ -429,20 +504,20 @@ export function query<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
@@ -481,27 +556,27 @@ export function query<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
@@ -541,34 +616,34 @@ export function query<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
@@ -609,41 +684,41 @@ export function query<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
@@ -685,48 +760,48 @@ export function query<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
   insertion7: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<QueryRuntimeParams<QueryParams>>,
     Insertion7,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
   >,
@@ -963,12 +1038,18 @@ export function query<
   GroupIdentifier,
   {}
 > {
-  const hasParamsFn = typeof queryConfig.method === 'function';
+  const hasParamsFn = typeof queryConfig.params === 'function';
   const queryResourceParamsFnSignal =
-    queryConfig.params ?? signal<QueryParams | undefined>(undefined);
+    queryConfig.params ??
+    signal<QueryRuntimeParams<QueryParams> | undefined>(undefined);
 
   const isConnectedToSource = isSignal(queryConfig.method);
   const isUsingIdentifier = 'identifier' in queryConfig;
+  const exceptionStore = createBusinessExceptionStore({
+    state: getStateExceptionDefinitions(
+      (queryConfig as { defaultValue?: unknown }).defaultValue,
+    ),
+  });
 
   const resourceParamsSrc = isConnectedToSource
     ? queryConfig.method
@@ -977,7 +1058,7 @@ export function query<
   const resourceTarget = isUsingIdentifier
     ? resourceById<
         QueryState,
-        QueryParams,
+        QueryRuntimeParams<QueryParams>,
         GroupIdentifier & string,
         string,
         unknown,
@@ -989,11 +1070,11 @@ export function query<
         equalParams: queryConfig.equalParams ?? 'useIdentifier',
       } as any)
     : !queryConfig.preservePreviousValue || queryConfig.preservePreviousValue()
-      ? preservedResource<QueryState, QueryParams>({
+      ? preservedResource<QueryState, QueryRuntimeParams<QueryParams>>({
           ...queryConfig,
           params: resourceParamsSrc,
         } as ResourceOptions<any, any>)
-      : craftResource<QueryState, QueryParams>({
+      : craftResource<QueryState, QueryRuntimeParams<QueryParams>>({
           ...queryConfig,
           params: resourceParamsSrc,
         } as ResourceOptions<any, any>);
@@ -1009,7 +1090,7 @@ export function query<
           _resourceById: resourceTarget as ResourceByIdRef<
             GroupIdentifier & string,
             QueryState,
-            QueryParams
+            QueryRuntimeParams<QueryParams>
           >,
           select: (id: GroupIdentifier) => {
             return computed(() => {
@@ -1017,7 +1098,7 @@ export function query<
                 resourceTarget as ResourceByIdRef<
                   GroupIdentifier & string,
                   QueryState,
-                  QueryParams
+                  QueryRuntimeParams<QueryParams>
                 >
               )();
               //@ts-expect-error GroupIdentifier & string is not recognized correctly
@@ -1027,10 +1108,11 @@ export function query<
         }
       : {},
     {
+      exceptions: exceptionStore.exceptions,
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
-        QueryParams | undefined
+        QueryRuntimeParams<QueryParams> | undefined
       >,
-      method:
+      mutate:
         hasParamsFn || isSignal(queryConfig.method)
           ? undefined
           : (arg: QueryArgsParams) => {
@@ -1039,18 +1121,31 @@ export function query<
                   args: QueryArgsParams,
                 ) => QueryParams
               )(arg);
+              if (isBusinessException(result)) {
+                exceptionStore.raiseException(result);
+                return result;
+              }
               if (isUsingIdentifier) {
-                const id = queryConfig.identifier?.(arg as any);
-                (
-                  resourceTarget as ResourceByIdRef<
-                    GroupIdentifier & string,
-                    QueryState,
-                    QueryParams
-                  >
-                ).addById(id as GroupIdentifier & string);
+                const nextParams = result as QueryRuntimeParams<QueryParams>;
+                if (nextParams != null) {
+                  const id = queryConfig.identifier?.(
+                    nextParams as NonNullable<
+                      QueryRuntimeParams<QueryParams>
+                    >,
+                  );
+                  (
+                    resourceTarget as ResourceByIdRef<
+                      GroupIdentifier & string,
+                      QueryState,
+                      QueryRuntimeParams<QueryParams>
+                    >
+                  ).addById(id as GroupIdentifier & string);
+                }
               }
               //@ts-expect-error if method is exposed params can not be of type (entity: ResourceRef<NoInfer<FromObjectState>>) => QueryParams
-              queryResourceParamsFnSignal.set(result as QueryParams);
+              queryResourceParamsFnSignal.set(
+                result as QueryRuntimeParams<QueryParams>,
+              );
               return result;
             },
     },
@@ -1062,14 +1157,13 @@ export function query<
       insertions as InsertionsResourcesFactory<
         NoInfer<GroupIdentifier>,
         NoInfer<QueryState>,
-        NoInfer<QueryParams>,
+        NoInfer<QueryRuntimeParams<QueryParams>>,
         {}
       >[]
     )?.reduce(
       (acc, insert) => {
-        return {
-          ...acc,
-          ...insert({
+        const newInsertions = wrapExceptionAwareMethods(
+          insert({
             ...(isUsingIdentifier
               ? {
                   resourceById: resourceTarget,
@@ -1077,13 +1171,23 @@ export function query<
                 }
               : { resource: resourceTarget }),
             resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<QueryParams>
+              NoInfer<QueryRuntimeParams<QueryParams>>
             >,
             insertions: acc as {},
             state: resourceTarget.state,
             set: resourceTarget.set,
             update: resourceTarget.update,
-          } as any), // try to improve the type here
+            exceptions: exceptionStore.exceptions,
+            raiseException: exceptionStore.raiseException,
+            clearException: exceptionStore.clearException,
+            clearExceptionScope: exceptionStore.clearScope,
+            clearExceptions: exceptionStore.clearAll,
+          } as any) as Record<string, unknown>,
+          exceptionStore.raiseException,
+        );
+        return {
+          ...acc,
+          ...newInsertions, // try to improve the type here
         };
       },
       {} as Record<string, unknown>,

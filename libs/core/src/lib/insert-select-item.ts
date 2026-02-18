@@ -2,6 +2,7 @@ import { linkedSignal } from '@angular/core';
 import { InsertionsStateFactory } from './query.core';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
+import { wrapExceptionAwareMethods } from './business-exception';
 
 type ParallelStateId = string | number | symbol;
 type SelectableState = readonly object[] | Record<ParallelStateId, object>;
@@ -146,7 +147,16 @@ export function insertSelectItem<
   },
   PreviousInsertionsOutputs
 > {
-  return ({ state, update, insertions: previousInsertions }) => {
+  return ({
+    state,
+    update,
+    insertions: previousInsertions,
+    exceptions,
+    raiseException,
+    clearException,
+    clearExceptionScope,
+    clearExceptions,
+  }) => {
     type SelectedStateType = Extract<
       SelectableStateItem<StateType, GroupIdentifier>,
       object
@@ -185,67 +195,75 @@ export function insertSelectItem<
       const insertionsOutput = itemInsertions.reduce(
         (acc, insertion) => ({
           ...acc,
-          ...insertion({
-            state: selectedStateSignal,
-            set: (newState: SelectedStateType) => {
-              update((currentState) => {
-                if (Array.isArray(currentState)) {
-                  const currentIndex = id as number;
-                  if (
-                    currentIndex < 0 ||
-                    currentIndex >= currentState.length ||
-                    !Number.isInteger(currentIndex)
-                  ) {
-                    return currentState;
+          ...wrapExceptionAwareMethods(
+            insertion({
+              state: selectedStateSignal,
+              set: (newState: SelectedStateType) => {
+                update((currentState) => {
+                  if (Array.isArray(currentState)) {
+                    const currentIndex = id as number;
+                    if (
+                      currentIndex < 0 ||
+                      currentIndex >= currentState.length ||
+                      !Number.isInteger(currentIndex)
+                    ) {
+                      return currentState;
+                    }
+                    const nextState = [...currentState];
+                    nextState[currentIndex] = newState;
+                    return nextState as unknown as StateType;
                   }
-                  const nextState = [...currentState];
-                  nextState[currentIndex] = newState;
-                  return nextState as unknown as StateType;
+
+                  return {
+                    ...(currentState as Record<ParallelStateId, unknown>),
+                    [id]: newState,
+                  } as StateType;
+                });
+                return newState;
+              },
+              update: (
+                updateFn: (currentState: SelectedStateType) => SelectedStateType,
+              ) => {
+                const currentSelectedState = select(id);
+                if (currentSelectedState === undefined) {
+                  return currentSelectedState as unknown as SelectedStateType;
                 }
 
-                return {
-                  ...(currentState as Record<ParallelStateId, unknown>),
-                  [id]: newState,
-                } as StateType;
-              });
-              return newState;
-            },
-            update: (
-              updateFn: (currentState: SelectedStateType) => SelectedStateType,
-            ) => {
-              const currentSelectedState = select(id);
-              if (currentSelectedState === undefined) {
-                return currentSelectedState as unknown as SelectedStateType;
-              }
-
-              const nextState = updateFn(
-                currentSelectedState as SelectedStateType,
-              );
-              update((currentState) => {
-                if (Array.isArray(currentState)) {
-                  const currentIndex = id as number;
-                  if (
-                    currentIndex < 0 ||
-                    currentIndex >= currentState.length ||
-                    !Number.isInteger(currentIndex)
-                  ) {
-                    return currentState;
+                const nextState = updateFn(
+                  currentSelectedState as SelectedStateType,
+                );
+                update((currentState) => {
+                  if (Array.isArray(currentState)) {
+                    const currentIndex = id as number;
+                    if (
+                      currentIndex < 0 ||
+                      currentIndex >= currentState.length ||
+                      !Number.isInteger(currentIndex)
+                    ) {
+                      return currentState;
+                    }
+                    const nextRootState = [...currentState];
+                    nextRootState[currentIndex] = nextState;
+                    return nextRootState as unknown as StateType;
                   }
-                  const nextRootState = [...currentState];
-                  nextRootState[currentIndex] = nextState;
-                  return nextRootState as unknown as StateType;
-                }
 
-                return {
-                  ...(currentState as Record<ParallelStateId, unknown>),
-                  [id]: nextState,
-                } as StateType;
-              });
+                  return {
+                    ...(currentState as Record<ParallelStateId, unknown>),
+                    [id]: nextState,
+                  } as StateType;
+                });
 
-              return nextState;
-            },
-            insertions: { ...inheritedInsertions, ...acc } as never,
-          }),
+                return nextState;
+              },
+              insertions: { ...inheritedInsertions, ...acc } as never,
+              exceptions,
+              raiseException,
+              clearException,
+              clearExceptionScope,
+              clearExceptions,
+            }) as Record<string, unknown>,
+            raiseException,
+          ),
         }),
         {} as Record<string, unknown>,
       );

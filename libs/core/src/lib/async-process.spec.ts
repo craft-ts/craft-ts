@@ -6,6 +6,7 @@ import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
+import { methodException } from './business-exception';
 describe('AsyncProcess', () => {
   it('should enable to define async method and be called with a method', async () => {
     TestBed.runInInjectionContext(async () => {
@@ -105,6 +106,35 @@ describe('AsyncProcess', () => {
 
       // safeValue should return undefined without throwing
       expect(myAsyncProcess.safeValue()).toBeUndefined();
+    });
+  });
+
+  it('should capture method exceptions and skip async process execution', () => {
+    TestBed.runInInjectionContext(() => {
+      const loaderSpy = vi.fn(
+        async ({ params }: { params: { id: string } }) => ({
+          id: params.id,
+        }),
+      );
+
+      const myAsyncProcess = asyncProcess({
+        method: (id: string) =>
+          id.length === 0
+            ? methodException('EMPTY_ID', {
+                field: 'id',
+              })
+            : { id },
+        loader: loaderSpy,
+      });
+
+      const r = myAsyncProcess.method('');
+
+      expect(loaderSpy).not.toHaveBeenCalled();
+      expect(myAsyncProcess.exceptions?.().method).toEqual({
+        EMPTY_ID: {
+          field: 'id',
+        },
+      });
     });
   });
 });

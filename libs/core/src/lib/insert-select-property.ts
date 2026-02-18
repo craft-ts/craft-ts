@@ -2,6 +2,7 @@ import { linkedSignal } from '@angular/core';
 import { InsertionsStateFactory } from './query.core';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
+import { wrapExceptionAwareMethods } from './business-exception';
 
 type SelectPropertyMethodName<PropertyKey extends string> =
   `select${Capitalize<PropertyKey>}`;
@@ -103,7 +104,16 @@ export function insertSelectProperty<
   },
   PreviousInsertionsOutputs
 > {
-  return ({ state, update, insertions: previousInsertions }) => {
+  return ({
+    state,
+    update,
+    insertions: previousInsertions,
+    exceptions,
+    raiseException,
+    clearException,
+    clearExceptionScope,
+    clearExceptions,
+  }) => {
     let selectedPropertyProxy: unknown;
     type PropertyType = Extract<StateType[PropertyKey], object>;
     const selectPropertyMethodName =
@@ -139,12 +149,20 @@ export function insertSelectProperty<
       const insertionsOutput = propertyInsertions.reduce(
         (acc, insertion) => ({
           ...acc,
-          ...insertion({
-            state: selectedPropertySignal,
-            set: setProperty,
-            update: updateProperty,
-            insertions: { ...inheritedInsertions, ...acc } as never,
-          }),
+          ...wrapExceptionAwareMethods(
+            insertion({
+              state: selectedPropertySignal,
+              set: setProperty,
+              update: updateProperty,
+              insertions: { ...inheritedInsertions, ...acc } as never,
+              exceptions,
+              raiseException,
+              clearException,
+              clearExceptionScope,
+              clearExceptions,
+            }) as Record<string, unknown>,
+            raiseException,
+          ),
         }),
         {} as Record<string, unknown>,
       );

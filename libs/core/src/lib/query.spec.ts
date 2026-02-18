@@ -4,6 +4,14 @@ import { craft } from './craft';
 import { craftQuery } from './craft-query';
 import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
+import {
+  DerivedException,
+  derivedException,
+  methodException,
+  StateException,
+  stateException,
+} from './business-exception';
+import { computed, signal } from '@angular/core';
 
 type User = {
   id: string;
@@ -58,6 +66,40 @@ describe('query', () => {
 
       // safeValue should return undefined without throwing
       expect(queryRef.safeValue()).toBeUndefined();
+    });
+  });
+
+  it('should capture method exceptions and skip query execution', () => {
+    TestBed.runInInjectionContext(() => {
+      const loaderSpy = vi.fn(
+        async ({ params }: { params: { term: string } }) => ({
+          id: params.term,
+          name: 'John Doe',
+          email: 'test@a.com',
+        }),
+      );
+
+      const queryRef = query({
+        method: (term: string) =>
+          term.length < 3
+            ? methodException('SEARCH_TERM_TOO_SHORT', {
+                minLength: 3,
+                term,
+              })
+            : { term },
+        loader: loaderSpy,
+      });
+
+      queryRef.mutate('ab');
+
+      expect(loaderSpy).not.toHaveBeenCalled();
+      expect(queryRef.resourceParamsSrc()).toBeUndefined();
+      expect(queryRef.exceptions?.().method).toEqual({
+        SEARCH_TERM_TOO_SHORT: {
+          minLength: 3,
+          term: 'ab',
+        },
+      });
     });
   });
 });
@@ -394,5 +436,81 @@ describe('query Insertions output', () => {
       expect(store.user.ext6).toBeDefined();
       expect(store.user.ext7).toBeDefined();
     });
+  });
+});
+
+describe('query exceptions', () => {
+  it('should allow to return an exception from params function, and skip the loader execution', () => {
+    const myUserId = signal(0);
+    const queryRef = query({
+      params: () =>
+        myUserId() > 0
+          ? myUserId()
+          : stateException('INVALID_USER_ID', { id: myUserId() }),
+      loader: async ({ params }) => {
+        return {
+          id: params,
+          name: 'John Doe',
+          email: 'test@a.com',
+        };
+      },
+    });
+    expect(queryRef.exceptions().state.INVALID_USER_ID).toBeDefined();
+    expectTypeOf(queryRef.exceptions().state.INVALID_USER_ID).toEqualTypeOf<
+      StateException<'INVALID_USER_ID'>,
+      {
+        id: number;
+      }
+    >();
+  });
+  it('should allow to return an exception from the loader function', () => {
+    const myUserId = signal(0);
+    const queryRef = query({
+      params: myUserId,
+      loader: async ({ params }) => {
+        if (params === 0) {
+          return stateException('INVALID_USER_ID', { id: params });
+        }
+        return {
+          id: params,
+          name: 'John Doe',
+          email: 'test@a.com',
+        };
+      },
+    });
+    expect(queryRef.exceptions?.().state.INVALID_USER_ID).toBeDefined();
+    expectTypeOf(queryRef.exceptions?.().state.INVALID_USER_ID).toEqualTypeOf<
+      StateException<'INVALID_USER_ID', { id: number }>
+    >();
+  });
+  it('should allow to return an exception from a derived property', () => {
+    const myUserId = signal(5);
+    const queryRef = query(
+      {
+        params: myUserId,
+        loader: async ({ params }) => {
+          return {
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          };
+        },
+      },
+      ({ state, resource }) => ({
+        isValueAndParamSyncedException: computed(() =>
+          resource.paramSrc() !== state().id
+            ? derivedException('PARAM_VALUE_MISMATCH', {
+                param: resource.paramSrc(),
+                value: state().id,
+              })
+            : undefined,
+        ),
+      }),
+    );
+    expectTypeOf(
+      queryRef.exceptions().derived.PARAM_VALUE_MISMATCH,
+    ).toEqualTypeOf<
+      DerivedException<'PARAM_VALUE_MISMATCH', { param: string; value: number }>
+    >();
   });
 });

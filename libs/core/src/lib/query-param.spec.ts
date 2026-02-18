@@ -3,6 +3,7 @@ import { queryParam } from './query-param';
 import { provideRouter, Router } from '@angular/router';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
+import { methodException } from './business-exception';
 
 describe('queryParams', () => {
   beforeEach(() => {
@@ -355,6 +356,36 @@ describe('queryParams', () => {
       // But state should still have fallback values
       expect(myQueryParams.page()).toBe(1);
       expect(myQueryParams.pageSize()).toBe(10);
+    });
+  });
+
+  it('should capture method exceptions returned by queryParam insertions', () => {
+    TestBed.runInInjectionContext(() => {
+      const myQueryParams = queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: unknown) => String(value),
+            },
+          },
+        },
+        () => ({
+          fail: () =>
+            methodException('INVALID_PAGE', {
+              min: 1,
+            }),
+        }),
+      );
+
+      myQueryParams.fail();
+
+      expect(myQueryParams.exceptions?.().method).toEqual({
+        INVALID_PAGE: {
+          min: 1,
+        },
+      });
     });
   });
 });

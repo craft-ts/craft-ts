@@ -14,6 +14,15 @@ import { MergeObjects } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { Prettify } from './util/util.type';
 import { ActivatedRoute, Router } from '@angular/router';
+import {
+  BusinessExceptionScope,
+  createBusinessExceptionStore,
+  ExtractBusinessExceptionsFromObject,
+  ExtractStateExceptions,
+  getStateExceptionDefinitions,
+  GroupedBusinessExceptions,
+  wrapExceptionAwareMethods,
+} from './business-exception';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -21,6 +30,35 @@ export interface QueryParamNavigationOptions {
   replaceUrl?: boolean;
   skipLocationChange?: boolean;
 }
+
+type FilterExceptionsByScope<
+  Exceptions,
+  Scope extends BusinessExceptionScope,
+> = Extract<Exceptions, { scope: Scope }>;
+
+type QueryParamOutputExceptions<QueryParamsState, Insertions> =
+  GroupedBusinessExceptions<
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<QueryParamsState>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'state'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<QueryParamsState>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'method'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<QueryParamsState>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'derived'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<QueryParamsState>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'reaction'
+    >
+  >;
 
 export type QueryParamsToState<QueryParamConfigs> = {
   [K in keyof QueryParamConfigs]: 'parse' extends keyof QueryParamConfigs[K]
@@ -38,6 +76,11 @@ export type QueryParamOutput<QueryParamsType, Insertions, QueryParamsState> =
           [K in keyof QueryParamsState]: Signal<QueryParamsState[K]>;
         },
         IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+        {
+          readonly exceptions?: Signal<
+            QueryParamOutputExceptions<QueryParamsState, Insertions>
+          >;
+        },
         {
           _config: QueryParamsType;
         },
@@ -329,16 +372,37 @@ export function queryParam<
     },
   };
 
+  const exceptionStore = createBusinessExceptionStore({
+    state: Object.values(getDefaultState()).reduce(
+      (acc, value) => ({
+        ...acc,
+        ...getStateExceptionDefinitions(value),
+      }),
+      {} as Record<string, unknown>,
+    ),
+  });
+
   // Process insertions
   const insertionResults =
     (insertions as InsertionsQueryParamsFactory<QueryParamsType, {}>[])?.reduce(
       (acc, insert) => {
-        const newInsertions = insert({
-          state: queryParamsState.asReadonly(),
-          config: queryParamsConfig,
-          ...methods,
-          insertions: acc as {},
-        } as InsertionQueryParamsFactoryContext<QueryParamsType, {}>);
+        const newInsertions = wrapExceptionAwareMethods(
+          insert({
+            state: queryParamsState.asReadonly(),
+            config: queryParamsConfig,
+            ...methods,
+            insertions: acc as {},
+            exceptions: exceptionStore.exceptions,
+            raiseException: exceptionStore.raiseException,
+            clearException: exceptionStore.clearException,
+            clearExceptionScope: exceptionStore.clearScope,
+            clearExceptions: exceptionStore.clearAll,
+          } as InsertionQueryParamsFactoryContext<
+            QueryParamsType,
+            {}
+          >) as Record<string, unknown>,
+          exceptionStore.raiseException,
+        );
         return {
           ...acc,
           ...newInsertions,
@@ -348,6 +412,7 @@ export function queryParam<
     ) || {};
 
   return Object.assign(queryParamsState.asReadonly(), props, insertionResults, {
+    exceptions: exceptionStore.exceptions,
     _config: config,
   }) as unknown as QueryParamOutput<QueryParamsType, {}, QueryParamsState>;
 }

@@ -15,6 +15,49 @@ import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { isSource } from './util/util';
 import { MergeObjects } from './util/util.type';
 import { craftResource } from './craft-resource';
+import {
+  BusinessExceptionScope,
+  createBusinessExceptionStore,
+  ExtractBusinessExceptionsFromObject,
+  ExtractStateExceptions,
+  getStateExceptionDefinitions,
+  GroupedBusinessExceptions,
+  isBusinessException,
+  MethodException,
+  StripBusinessExceptions,
+  wrapExceptionAwareMethods,
+} from './business-exception';
+
+type FilterExceptionsByScope<
+  Exceptions,
+  Scope extends BusinessExceptionScope,
+> = Extract<Exceptions, { scope: Scope }>;
+
+type AsyncProcessOutputExceptions<Value, Params, Insertions> =
+  GroupedBusinessExceptions<
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<Value>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'state'
+    >,
+    FilterExceptionsByScope<
+      | Extract<Params, MethodException>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'method'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<Value>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'derived'
+    >,
+    FilterExceptionsByScope<
+      | ExtractStateExceptions<Value>
+      | ExtractBusinessExceptionsFromObject<Insertions>,
+      'reaction'
+    >
+  >;
+
+type AsyncProcessRuntimeParams<Params> = StripBusinessExceptions<Params>;
 
 // ! It looks like TS does not handle to expose the ResourceByIdHandler without erasing the () => ... part
 export type AsyncProcessRef<
@@ -37,6 +80,11 @@ export type AsyncProcessRef<
           hasValue(): boolean;
         }
       : {},
+    {
+      readonly exceptions?: Signal<
+        AsyncProcessOutputExceptions<Value, Params, Insertions>
+      >;
+    },
     Insertions,
     IsMethod extends true
       ? {
@@ -47,11 +95,15 @@ export type AsyncProcessRef<
         },
     [unknown] extends [GroupIdentifier]
       ? {}
-      : ResourceByIdRef<GroupIdentifier & string, Value, Params> & {
+      : ResourceByIdRef<
+          GroupIdentifier & string,
+          Value,
+          AsyncProcessRuntimeParams<Params>
+        > & {
           _resourceById: ResourceByIdRef<
             GroupIdentifier & string,
             Value,
-            Params
+            AsyncProcessRuntimeParams<Params>
           >;
           /**
            * Get the associated resource by id
@@ -80,7 +132,10 @@ type AsyncProcessConfig<
   ParamsArgs,
   SourceParams,
   GroupIdentifier,
-> = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
+> = Omit<
+  ResourceOptions<NoInfer<ResourceState>, AsyncProcessRuntimeParams<Params>>,
+  'params' | 'loader'
+> &
   (
     | {
         /**
@@ -93,13 +148,15 @@ type AsyncProcessConfig<
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
          */
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<AsyncProcessRuntimeParams<Params>>>,
+        ) => GroupIdentifier;
         loader: (
           param: ResourceLoaderParams<
             NonNullable<
               [unknown] extends [Params]
                 ? NoInfer<SourceParams>
-                : NoInfer<Params>
+                : NoInfer<AsyncProcessRuntimeParams<Params>>
             >
           >,
         ) => Promise<ResourceState>;
@@ -109,7 +166,9 @@ type AsyncProcessConfig<
     | {
         method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
         loader?: never;
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<AsyncProcessRuntimeParams<Params>>>,
+        ) => GroupIdentifier;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
@@ -120,7 +179,7 @@ type AsyncProcessConfig<
             NonNullable<
               [unknown] extends [Params]
                 ? NoInfer<SourceParams>
-                : NoInfer<Params>
+                : NoInfer<AsyncProcessRuntimeParams<Params>>
             >
           >
         >;
@@ -331,7 +390,7 @@ export function asyncProcess<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion1
   >,
 ): AsyncProcessOutput<
@@ -361,13 +420,13 @@ export function asyncProcess<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion2,
     Insertion1
   >,
@@ -399,20 +458,20 @@ export function asyncProcess<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
@@ -445,27 +504,27 @@ export function asyncProcess<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
@@ -499,34 +558,34 @@ export function asyncProcess<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
@@ -561,41 +620,41 @@ export function asyncProcess<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
@@ -631,48 +690,48 @@ export function asyncProcess<
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
   insertion7: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<AsyncProcesstate>,
-    NoInfer<AsyncProcessParams>,
+    NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
     Insertion7,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
   >,
@@ -714,12 +773,17 @@ export function asyncProcess<
   {}
 > {
   const AsyncProcessResourceParamsFnSignal = signal<
-    AsyncProcessParams | undefined
+    AsyncProcessRuntimeParams<AsyncProcessParams> | undefined
   >(undefined);
 
   const isConnectedToSource = isSource(AsyncProcessConfig.method);
 
   const isUsingIdentifier = 'identifier' in AsyncProcessConfig;
+  const exceptionStore = createBusinessExceptionStore({
+    state: getStateExceptionDefinitions(
+      (AsyncProcessConfig as { defaultValue?: unknown }).defaultValue,
+    ),
+  });
 
   const resourceParamsSrc = isConnectedToSource
     ? AsyncProcessConfig.method
@@ -728,7 +792,7 @@ export function asyncProcess<
   const resourceTarget = isUsingIdentifier
     ? resourceById<
         AsyncProcesstate,
-        AsyncProcessParams,
+        AsyncProcessRuntimeParams<AsyncProcessParams>,
         GroupIdentifier & string,
         string,
         unknown,
@@ -738,7 +802,10 @@ export function asyncProcess<
         params: resourceParamsSrc,
         identifier: AsyncProcessConfig.identifier,
       } as any)
-    : craftResource<AsyncProcesstate, AsyncProcessParams>({
+    : craftResource<
+        AsyncProcesstate,
+        AsyncProcessRuntimeParams<AsyncProcessParams>
+      >({
         ...AsyncProcessConfig,
         params: resourceParamsSrc,
       } as ResourceOptions<any, any>);
@@ -754,7 +821,7 @@ export function asyncProcess<
           _resourceById: resourceTarget as ResourceByIdRef<
             GroupIdentifier & string,
             AsyncProcesstate,
-            AsyncProcessParams
+            AsyncProcessRuntimeParams<AsyncProcessParams>
           >,
           select: (id: GroupIdentifier) => {
             return computed(() => {
@@ -762,7 +829,7 @@ export function asyncProcess<
                 resourceTarget as ResourceByIdRef<
                   GroupIdentifier & string,
                   AsyncProcesstate,
-                  AsyncProcessParams
+                  AsyncProcessRuntimeParams<AsyncProcessParams>
                 >
               )();
               //@ts-expect-error GroupIdentifier & string is not recognized correctly
@@ -772,22 +839,35 @@ export function asyncProcess<
         }
       : {},
     {
+      exceptions: exceptionStore.exceptions,
       method: isSignal(AsyncProcessConfig.method)
         ? undefined
         : (arg: AsyncProcessArgsParams) => {
             const result = AsyncProcessConfig.method(arg);
+            if (isBusinessException(result)) {
+              exceptionStore.raiseException(result);
+              return result;
+            }
             if (isUsingIdentifier) {
-              const id = AsyncProcessConfig.identifier?.(arg as any);
-              (
-                resourceTarget as ResourceByIdRef<
-                  GroupIdentifier & string,
-                  AsyncProcesstate,
-                  AsyncProcessParams
-                >
-              ).addById(id as GroupIdentifier & string);
+              const nextParams =
+                result as AsyncProcessRuntimeParams<AsyncProcessParams>;
+              if (nextParams != null) {
+                const id = AsyncProcessConfig.identifier?.(
+                  nextParams as NonNullable<
+                    AsyncProcessRuntimeParams<AsyncProcessParams>
+                  >,
+                );
+                (
+                  resourceTarget as ResourceByIdRef<
+                    GroupIdentifier & string,
+                    AsyncProcesstate,
+                    AsyncProcessRuntimeParams<AsyncProcessParams>
+                  >
+                ).addById(id as GroupIdentifier & string);
+              }
             }
             AsyncProcessResourceParamsFnSignal.set(
-              result as AsyncProcessParams,
+              result as AsyncProcessRuntimeParams<AsyncProcessParams>,
             );
             return result;
           },
@@ -796,25 +876,34 @@ export function asyncProcess<
       insertions as InsertionsResourcesFactory<
         NoInfer<GroupIdentifier>,
         NoInfer<AsyncProcesstate>,
-        NoInfer<AsyncProcessParams>,
+        NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>,
         {}
       >[]
     )?.reduce(
       (acc, insert) => {
-        return {
-          ...acc,
-          ...insert({
+        const newInsertions = wrapExceptionAwareMethods(
+          insert({
             ...(isUsingIdentifier
               ? { resourceById: resourceTarget }
               : { resource: resourceTarget }),
             resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<AsyncProcessParams>
+              NoInfer<AsyncProcessRuntimeParams<AsyncProcessParams>>
             >,
             insertions: acc as {},
             state: resourceTarget.state,
             set: resourceTarget.set,
             update: resourceTarget.update,
-          } as any),
+            exceptions: exceptionStore.exceptions,
+            raiseException: exceptionStore.raiseException,
+            clearException: exceptionStore.clearException,
+            clearExceptionScope: exceptionStore.clearScope,
+            clearExceptions: exceptionStore.clearAll,
+          } as any) as Record<string, unknown>,
+          exceptionStore.raiseException,
+        );
+        return {
+          ...acc,
+          ...newInsertions,
         };
       },
       {} as Record<string, unknown>,

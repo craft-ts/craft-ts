@@ -1,5 +1,6 @@
 import { effect, untracked, WritableSignal } from '@angular/core';
 import { ReadonlySource } from './source.type';
+import { ReactionException } from '../business-exception';
 
 export const SourceBrand = Symbol('SourceBrand');
 
@@ -7,8 +8,13 @@ export const SourceBranded = {
   [SourceBrand]: true as const,
 };
 
-export type SourceBranded = {
+export type SourceBranded<ReactionExceptions extends ReactionException = never> =
+  {
   [SourceBrand]: true;
+  /**
+   * Type-only carrier used to infer reaction exceptions from `on$` callbacks.
+   */
+  readonly __reactionExceptions__?: ReactionExceptions;
 };
 
 /**

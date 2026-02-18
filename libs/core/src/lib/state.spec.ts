@@ -6,6 +6,10 @@ import { TestBed } from '@angular/core/testing';
 import { source$ } from './source$';
 import { on$ } from './on$';
 import { InsertionsStateFactory } from './query.core';
+import {
+  methodException,
+  withStateExceptions,
+} from './business-exception';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -152,6 +156,48 @@ describe('state', () => {
 
       const s = state(linkedSignal(() => myRefSigal()).asReadonly(), insertion);
       expect(s()).toEqual([0]);
+    });
+  });
+
+  it('should expose state exceptions declared via withStateExceptions', () => {
+    runInInjectionContext(() => {
+      const myState = state(
+        withStateExceptions(
+          {
+            counter: 0,
+          },
+          {
+            counterMustBePositive: {
+              min: 0,
+            },
+          },
+        ),
+      );
+
+      expect(myState.exceptions?.().state).toEqual({
+        counterMustBePositive: {
+          min: 0,
+        },
+      });
+    });
+  });
+
+  it('should capture business exceptions returned by state insertion methods', () => {
+    runInInjectionContext(() => {
+      const myState = state(0, () => ({
+        fail: () =>
+          methodException('COUNTER_LOCKED', {
+            current: 0,
+          }),
+      }));
+
+      myState.fail();
+
+      expect(myState.exceptions?.().method).toEqual({
+        COUNTER_LOCKED: {
+          current: 0,
+        },
+      });
     });
   });
 });

@@ -4,6 +4,7 @@ import { source$ } from './source$';
 import { Subject } from 'rxjs';
 import { Component, EventEmitter } from '@angular/core';
 import { SourceBranded } from './util/util';
+import { reactionException } from './business-exception';
 
 describe('on$', () => {
   beforeEach(() => {
@@ -44,6 +45,30 @@ describe('on$', () => {
       expect(brandedSource).not.toHaveProperty('emit');
 
       expectTypeOf(brandedSource).toEqualTypeOf<SourceBranded>();
+    });
+  });
+
+  it('should infer reaction exceptions from callback return', () => {
+    TestBed.runInInjectionContext(() => {
+      const mySource = source$<number>();
+
+      const brandedSource = on$(mySource, (value) =>
+        reactionException('INVALID_SOURCE_VALUE', {
+          value,
+        }),
+      );
+
+      expectTypeOf(brandedSource).toEqualTypeOf<
+        SourceBranded<
+          Readonly<{
+            scope: 'reaction';
+            code: 'INVALID_SOURCE_VALUE';
+            payload: {
+              value: number;
+            };
+          }>
+        >
+      >();
     });
   });
 
