@@ -32,6 +32,11 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./examples/primitives/pixel-art/pixel-art'),
   },
   {
+    path: 'pixel-art-matrix',
+    loadComponent: () =>
+      import('./examples/primitives/pixel-art-matrix/pixel-art-matrix'),
+  },
+  {
     path: 'craft/query/:userId',
     loadComponent: () => import('./examples/craft/query/query'),
   },

@@ -1,6 +1,6 @@
 # ng-craft-demo Examples
 
-## Primitives Examples (Low-level API)
+## Primitives Examples
 
 ### 1. Query - Basic Example
 
@@ -36,13 +36,29 @@
 
 ### 5. Full Demo - Complete Demo
 
-**Description:** Comprehensive example using primitives for full control of all aspects of data management, without high-level abstractions.
+**Description:** Comprehensive example using primitives for full control of all aspects of data management, without store/service abstractions.
 
 🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/primitives/full-demo/full-demo.ts&initialpath=/full-demo)
 
 ---
 
-## Craft Examples (High-level API)
+### 6. Pixel Art - 1D Grid
+
+**Description:** Interactive pixel art board powered by `state` + `insertSelectItem` on a flat array.
+
+🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts)
+
+---
+
+### 7. Pixel Art Matrix - 2D Grid
+
+**Description:** Matrix pixel art board with nested `insertSelectItem` composition for rows and cells.
+
+🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts)
+
+---
+
+## Craft Examples
 
 ### 1. Query - Basic Example
 

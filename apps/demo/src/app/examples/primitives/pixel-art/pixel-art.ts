@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  signal,
 } from '@angular/core';
 import { insertSelectItem, state } from '@craft-ng/core';
 
@@ -28,7 +27,7 @@ const CELL_INDEXES = Array.from(
     <section class="pixel-art">
       <header class="pixel-art__header">
         <h1>Atelier Pixel Art</h1>
-        <p>Grille 16x16 avec state parallèle (un state par case).</p>
+        <p>Grille 16x16 avec state simple et insertions par case.</p>
       </header>
 
       <div class="pixel-art__controls">
@@ -93,20 +92,14 @@ export default class PixelArt {
   );
 
   protected readonly cells = state(
-    {
-      from: signal(CELL_INDEXES).asReadonly(),
-      identifier: (index) => index,
-      state: ({
-        params: { index },
-      }: {
-        params: { item: number; index: number };
-      }) =>
+    CELL_INDEXES.map(
+      (index) =>
         ({
           index,
           color: EMPTY_COLOR,
           paintCount: 0,
         }) satisfies PixelCellState,
-    },
+    ),
     insertSelectItem(({ state, update }) => ({
       paint: () =>
         update((cell) => ({
@@ -119,29 +112,20 @@ export default class PixelArt {
         })),
       paintCountStr: computed(() => `Painted ${state().paintCount} times`),
     })),
-    ({ stateById }) => ({
-      clearAll: () => {
-        const keys = Object.keys(stateById.state());
-        for (const key of keys) {
-          const id = Number(key);
-          stateById.select(id)?.update((cell) => ({
+    ({ state, update }) => ({
+      clearAll: () =>
+        update((cells) =>
+          cells.map((cell) => ({
             ...cell,
             color: EMPTY_COLOR,
-          }));
-        }
-      },
-      paintedCount: computed(() => {
-        const cells = Object.values(stateById.state());
-        return cells.filter((cell) => cell && cell.color !== EMPTY_COLOR)
-          .length;
-      }),
-      totalPaintActions: computed(() => {
-        const cells = Object.values(stateById.state());
-        return cells.reduce(
-          (count, cell) => count + (cell?.paintCount ?? 0),
-          0,
-        );
-      }),
+          })),
+        ),
+      paintedCount: computed(
+        () => state().filter((cell) => cell.color !== EMPTY_COLOR).length,
+      ),
+      totalPaintActions: computed(() =>
+        state().reduce((count, cell) => count + cell.paintCount, 0),
+      ),
     }),
   );
 }
