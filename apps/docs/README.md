@@ -41,6 +41,8 @@ apps/docs/
 │   ├── query.md
 │   └── mutation.md
 ├── insertions/             # Insertion features
+│   ├── insert-select-property.md
+│   ├── insert-select-item.md
 │   ├── insert-local-storage.md
 │   └── insert-react-on-mutation.md
 ├── store/                  # Store patterns
