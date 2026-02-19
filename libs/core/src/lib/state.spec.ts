@@ -6,10 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { source$ } from './source$';
 import { on$ } from './on$';
 import { InsertionsStateFactory } from './query.core';
-import {
-  methodException,
-  withStateExceptions,
-} from './business-exception';
+import { methodException, withStateExceptions } from './business-exception';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -26,7 +23,7 @@ describe('state', () => {
       const myState = state(0);
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<Signal<number>>();
+      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
       expect(myState()).toBe(0);
     });
   });
@@ -36,7 +33,7 @@ describe('state', () => {
       const myState = state(linkedSignal(() => origin() * 2));
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<Signal<number>>();
+      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
       expect(myState()).toBe(10);
     });
   });
@@ -131,6 +128,27 @@ describe('state', () => {
 
       myState.reset();
       expect(myState()).toBe(0);
+    });
+  });
+
+  it('state insertion should expose internal source$ as method and allow reactions from other insertions', () => {
+    runInInjectionContext(() => {
+      const myState = state(
+        0,
+        () => ({
+          internalSource: source$<void>(),
+        }),
+        ({ update, insertions: { internalSource } }) => ({
+          increment: on$(internalSource, () => update((v) => v + 1)),
+        }),
+      );
+
+      const { internalSource } = myState;
+      internalSource();
+      internalSource();
+
+      expect(myState()).toBe(2);
+      expectTypeOf(internalSource).toEqualTypeOf<() => void>();
     });
   });
 

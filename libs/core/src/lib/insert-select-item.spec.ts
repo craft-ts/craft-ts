@@ -1,4 +1,4 @@
-import { computed, signal } from '@angular/core';
+import { computed, Signal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { insertSelectProperty } from './insert-select-property';
@@ -6,6 +6,7 @@ import { queryParam } from './query-param';
 import { insertSelectItem } from './insert-select-item';
 import { source$ } from './source$';
 import { state } from './state';
+import { on$ } from './on$';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -154,20 +155,17 @@ describe('insertSelectItem', () => {
             border: { width: number };
           };
         }
-      >(
-        'style',
-        ({ update }) => ({
-          paintAndIncreaseBorder: () =>
-            update((style) => ({
-              ...style,
-              color: 'black',
-              border: {
-                ...style.border,
-                width: style.border.width + 1,
-              },
-            })),
-        }),
-      );
+      >('style', ({ update }) => ({
+        paintAndIncreaseBorder: () =>
+          update((style) => ({
+            ...style,
+            color: 'black',
+            border: {
+              ...style.border,
+              width: style.border.width + 1,
+            },
+          })),
+      }));
 
       const cells = state(
         [
@@ -255,7 +253,8 @@ describe('insertSelectItem', () => {
               paintCount: cell.paintCount + (test.value() ?? 0),
             })),
           paintCountStr: computed(
-            () => `Painted ${state().paintCount} times with ${test.value() ?? 0}`,
+            () =>
+              `Painted ${state().paintCount} times with ${test.value() ?? 0}`,
           ),
         })),
       );
@@ -276,6 +275,196 @@ describe('insertSelectItem', () => {
       expect(cells.selectItem(0)?.paintCountStr()).toBe(
         'Painted 2 times with 2',
       );
+    });
+  });
+
+  it('should support up to 5 chained insertions with inferred selected item methods', () => {
+    runInInjectionContext(() => {
+      const cells = state(
+        [{ index: 0, paintCount: 1, tag: 'init' }],
+        insertSelectItem(
+          ({ update }) => ({
+            addOne: () =>
+              update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
+          }),
+          ({ update }) => ({
+            multiplyByTwo: () =>
+              update((cell) => ({ ...cell, paintCount: cell.paintCount * 2 })),
+          }),
+          ({ update }) => ({
+            setTagFromCount: () =>
+              update((cell) => ({ ...cell, tag: `count-${cell.paintCount}` })),
+          }),
+          ({ state }) => ({
+            label: computed(() => `${state().tag}:${state().paintCount}`),
+          }),
+          ({ state }) => ({
+            isEven: computed(() => state().paintCount % 2 === 0),
+          }),
+        ),
+      );
+
+      expectTypeOf(cells.selectItem(0)?.addOne).toEqualTypeOf<
+        (() => { index: number; paintCount: number; tag: string }) | undefined
+      >();
+      expectTypeOf(cells.selectItem(0)?.multiplyByTwo).toEqualTypeOf<
+        (() => { index: number; paintCount: number; tag: string }) | undefined
+      >();
+      expectTypeOf(cells.selectItem(0)?.setTagFromCount).toEqualTypeOf<
+        (() => { index: number; paintCount: number; tag: string }) | undefined
+      >();
+      expectTypeOf(cells.selectItem(0)?.label).toEqualTypeOf<
+        Signal<string> | undefined
+      >();
+      expectTypeOf(cells.selectItem(0)?.isEven).toEqualTypeOf<
+        Signal<boolean> | undefined
+      >();
+
+      cells.selectItem(0)?.addOne();
+      cells.selectItem(0)?.multiplyByTwo();
+      cells.selectItem(0)?.setTagFromCount();
+
+      expect(cells.select(0)?.paintCount).toBe(4);
+      expect(cells.selectItem(0)?.label()).toBe('count-4:4');
+      expect(cells.selectItem(0)?.isEven()).toBe(true);
+    });
+  });
+
+  it('should expose internalSource$ as a cross-layer source$ (bottom to top)', () => {
+    const eventLog: any[] = [];
+    runInInjectionContext(() => {
+      const cells = state(
+        [{ index: 0, paintCount: 0, color: 'white' }],
+        insertSelectItem(
+          () => ({
+            paintCell$: source$<string>(),
+          }),
+          ({ update, insertions: { paintCell$ } }) => ({
+            _paintCell: on$(paintCell$, (color) =>
+              update((cell) => ({
+                ...cell,
+                color,
+                paintCount: cell.paintCount + 1,
+              })),
+            ),
+          }),
+        ),
+        ({ insertions: { paintCell$ } }) => {
+          on$(paintCell$, (event) => {
+            expectTypeOf(event).toEqualTypeOf<{
+              payload: string; // infer payload type from source$<string>
+              path: number[];
+              leaf: {
+                item: { index: number; paintCount: number; color: string }; // infer item type from state item
+                index: number; // infer index type from state item
+              };
+            }>();
+            eventLog.push({
+              payload: event.payload,
+              path: event.path,
+              leaf: event.leaf,
+            });
+          });
+          return {};
+        },
+      );
+
+      TestBed.tick();
+      //@ts-expect-error _paintCell should not be exposed on cells
+      expect(cells.selectItem(0)?._paintCell).not.toBeDefined();
+
+      cells.selectItem(0)?.paintCell$('red');
+
+      expect(cells.select(0)?.color).toBe('red');
+      expect(cells.select(0)?.paintCount).toBe(1);
+
+      const firstEvent = eventLog[0];
+      expect(firstEvent.payload).toBe('red');
+      expect(firstEvent.path).toEqual([0]);
+      expect(firstEvent.leaf.index).toBe(0);
+      expect(firstEvent.leaf.item.index).toBe(0);
+    });
+  });
+
+  it('should expose internalSource$ as a cross-layer source$ (bottom to top) in nested layers', async () => {
+    vi.useFakeTimers();
+    const eventLog: any[] = [];
+    await runInInjectionContext(async () => {
+      const matrix = state(
+        [[{ index: 0, paintCount: 0, color: 'white' }]],
+        insertSelectItem(
+          insertSelectItem(
+            () => ({
+              paintCell$: source$<string>(),
+            }),
+            ({ update, insertions: { paintCell$ } }) => ({
+              _paintCell: on$(paintCell$, (color) =>
+                update((cell) => ({
+                  ...cell,
+                  color,
+                  paintCount: cell.paintCount + 1,
+                })),
+              ),
+            }),
+          ),
+          ({ insertions: { paintCell$ } }) => {
+            on$(paintCell$, (event) => {
+              expectTypeOf(event).toEqualTypeOf<{
+                payload: string;
+                path: number[];
+                leaf: {
+                  item: { index: number; paintCount: number; color: string };
+                  index: number;
+                };
+              }>();
+              // as it is the inner layer source$, path should be only the inner item index
+              expect(event.path).toEqual([0]);
+              eventLog.push({
+                payload: event.payload,
+                path: event.path,
+                leaf: event.leaf,
+              });
+            });
+            return {};
+          },
+        ),
+        ({ insertions: { paintCell$ } }) => {
+          on$(paintCell$, (event) => {
+            expectTypeOf(event).toEqualTypeOf<{
+              payload: string;
+              path: number[];
+              leaf: {
+                item: { index: number; paintCount: number; color: string };
+                index: number;
+              };
+            }>();
+            // as it is the inner layer source$, path should be only the inner item index
+            expect(event.path).toEqual([0]);
+            eventLog.push({
+              payload: event.payload,
+              path: event.path,
+              leaf: event.leaf,
+            });
+          });
+          return {};
+        },
+      );
+
+      TestBed.tick();
+
+      matrix.selectItem(0)?.selectItem(0)?.paintCell$('red');
+
+      expect(matrix.selectItem(0)?.selectItem(0)?.color).toBe('red');
+      expect(matrix.selectItem(0)?.selectItem(0)?.paintCount).toBe(1);
+
+      const firstEvent = eventLog[0];
+      expect(firstEvent.payload).toBe('red');
+      expect(firstEvent.path).toEqual([0, 0]);
+      expect(firstEvent.leaf.index).toBe(0);
+      expect(firstEvent.leaf.item.color).toBe('red');
+
+      vi.runAllTimersAsync();
+      vi.clearAllMocks();
     });
   });
 });

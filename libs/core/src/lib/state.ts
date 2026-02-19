@@ -11,7 +11,7 @@ import {
   InsertionStateFactoryContext,
 } from './query.core';
 import { MergeObject } from './util/types/util.type';
-import { FilterSource, IsEmptyObject } from './util/util.type';
+import { IsEmptyObject } from './util/util.type';
 import {
   BusinessExceptionScope,
   createBusinessExceptionStore,
@@ -21,6 +21,8 @@ import {
   GroupedBusinessExceptions,
   wrapExceptionAwareMethods,
 } from './business-exception';
+import { Source$ } from './source$';
+import { isSource, SourceBranded } from './util/util';
 
 type FilterExceptionsByScope<
   Exceptions,
@@ -51,10 +53,24 @@ type StateOutputExceptions<StateType, Insertions> =
     >
   >;
 
+type Source$Method<SourceType> = [SourceType] extends [void]
+  ? () => void
+  : (value: SourceType) => void;
+
+export type ExposedStateInsertions<Insertions> = {
+  [K in keyof Insertions as Insertions[K] extends SourceBranded
+    ? never
+    : K]: Insertions[K] extends Source$<infer SourceType>
+    ? Source$Method<SourceType>
+    : Insertions[K];
+};
+
 export type StateOutput<StateType, Insertions> = MergeObject<
   Signal<StateType>,
   MergeObject<
-    IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+    IsEmptyObject<Insertions> extends true
+      ? {}
+      : ExposedStateInsertions<Insertions>,
     {
       readonly exceptions?: Signal<StateOutputExceptions<StateType, Insertions>>;
     }
@@ -62,6 +78,39 @@ export type StateOutput<StateType, Insertions> = MergeObject<
 >;
 
 type StateConfig<State> = State | Signal<State>;
+
+function isSource$(value: unknown): value is Source$<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'emit' in value &&
+    typeof (value as Source$<unknown>).emit === 'function' &&
+    'subscribe' in value &&
+    typeof (value as Source$<unknown>).subscribe === 'function' &&
+    'asReadonly' in value &&
+    typeof (value as Source$<unknown>).asReadonly === 'function'
+  );
+}
+
+function toExposedStateInsertions(
+  insertions: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.entries(insertions).reduce((acc, [key, value]) => {
+    if (isSource(value)) {
+      return acc;
+    }
+
+    if (isSource$(value)) {
+      acc[key] = (payload: unknown) => {
+        value.emit(payload as never);
+      };
+      return acc;
+    }
+
+    acc[key] = value;
+    return acc;
+  }, {} as Record<string, unknown>);
+}
 
 /**
  * Creates a signal state with optional insertions for adding methods and computed properties.
@@ -336,38 +385,42 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
       isSignalState ? stateSignal() : stateConfig,
     ),
   });
+  const resolvedInsertions = (insertions as InsertionsStateFactory<
+    StateType,
+    {}
+  >[])?.reduce(
+    (acc, insert) => {
+      const newInsertions = wrapExceptionAwareMethods(
+        insert({
+          state: readonlyStateSignal,
+          set: (newState: StateType) => stateSignal.set(newState),
+          update: (updateFn: (currentState: StateType) => StateType) =>
+            stateSignal.update(updateFn),
+          insertions: acc as {},
+          exceptions: exceptionStore.exceptions,
+          raiseException: exceptionStore.raiseException,
+          clearException: exceptionStore.clearException,
+          clearExceptionScope: exceptionStore.clearScope,
+          clearExceptions: exceptionStore.clearAll,
+        } as InsertionStateFactoryContext<StateType, {}>) as Record<
+          string,
+          unknown
+        >,
+        exceptionStore.raiseException,
+      );
+      return {
+        ...acc,
+        ...newInsertions,
+      };
+    },
+    {} as Record<string, unknown>,
+  );
 
   return Object.assign(
     stateSignal,
     {
       exceptions: exceptionStore.exceptions,
     },
-    (insertions as InsertionsStateFactory<StateType, {}>[])?.reduce(
-      (acc, insert) => {
-        const newInsertions = wrapExceptionAwareMethods(
-          insert({
-            state: readonlyStateSignal,
-            set: (newState: StateType) => stateSignal.set(newState),
-            update: (updateFn: (currentState: StateType) => StateType) =>
-              stateSignal.update(updateFn),
-            insertions: acc as {},
-            exceptions: exceptionStore.exceptions,
-            raiseException: exceptionStore.raiseException,
-            clearException: exceptionStore.clearException,
-            clearExceptionScope: exceptionStore.clearScope,
-            clearExceptions: exceptionStore.clearAll,
-          } as InsertionStateFactoryContext<StateType, {}>) as Record<
-            string,
-            unknown
-          >,
-          exceptionStore.raiseException,
-        );
-        return {
-          ...acc,
-          ...newInsertions,
-        };
-      },
-      {} as Record<string, unknown>,
-    ),
+    toExposedStateInsertions(resolvedInsertions),
   ) as unknown as StateOutput<StateType, {}>;
 }
