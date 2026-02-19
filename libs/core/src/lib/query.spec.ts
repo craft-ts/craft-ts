@@ -4,12 +4,7 @@ import { craft } from './craft';
 import { craftQuery } from './craft-query';
 import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
-import {
-  derivedException,
-  methodException,
-  paramException,
-  stateException,
-} from './business-exception';
+import { craftException } from './business-exception';
 import { computed, signal } from '@angular/core';
 
 type User = {
@@ -81,7 +76,7 @@ describe('query', () => {
       const queryRef = query({
         method: (term: string) =>
           term.length < 3
-            ? methodException('SEARCH_TERM_TOO_SHORT', {
+            ? craftException('SEARCH_TERM_TOO_SHORT', {
                 minLength: 3,
                 term,
               })
@@ -439,13 +434,91 @@ describe('query Insertions output', () => {
 });
 
 describe('query exceptions', () => {
+  it('should expose hasException/list, keep legacy scope maps, and auto-clear stale exceptions', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const queryRef = query(
+        {
+          method: (mode: 'method-error' | 'loader-error' | 'ok') =>
+            mode === 'method-error'
+              ? craftException('DUPLICATED_CODE', {
+                  from: 'method',
+                })
+              : { mode },
+          loader: async ({ params }) => {
+            if (params.mode === 'loader-error') {
+              return craftException('DUPLICATED_CODE', {
+                from: 'loader',
+              });
+            }
+            return {
+              id: params.mode,
+              name: 'John Doe',
+              email: 'test@a.com',
+            };
+          },
+        },
+        () => ({
+          validateMode: (mode: 'insertion-error' | 'ok') =>
+            mode === 'insertion-error'
+              ? craftException('DUPLICATED_CODE', {
+                  from: 'insertion',
+                })
+              : undefined,
+        }),
+      );
+
+      expectTypeOf(queryRef.hasException).toEqualTypeOf<() => boolean>();
+
+      expect(queryRef.hasException()).toBe(false);
+      expect(queryRef.exceptions!().list).toEqual([]);
+
+      queryRef.mutate('method-error');
+      queryRef.mutate('loader-error');
+      await Promise.resolve();
+      queryRef.validateMode('insertion-error');
+
+      expect(queryRef.exceptions!().method.DUPLICATED_CODE).toEqual({
+        from: 'method',
+      });
+      expect(queryRef.exceptions!().loader.DUPLICATED_CODE).toEqual({
+        from: 'loader',
+      });
+      expect(queryRef.exceptions!().methodInsertion.DUPLICATED_CODE).toEqual({
+        from: 'insertion',
+      });
+      expect(queryRef.hasException()).toBe(true);
+      expect(queryRef.exceptions!().list.map((item) => item.id)).toEqual([
+        'methodInsertion:DUPLICATED_CODE',
+        'loader:DUPLICATED_CODE',
+        'method:DUPLICATED_CODE',
+      ]);
+      expect(
+        queryRef.exceptions!().list.every(
+          (item) => typeof item.updatedAt === 'number',
+        ),
+      ).toBe(true);
+
+      queryRef.validateMode('ok');
+      expect(queryRef.exceptions!().methodInsertion).toEqual({});
+
+      queryRef.mutate('ok');
+      await Promise.resolve();
+
+      expect(queryRef.exceptions!().loader).toEqual({});
+      expect(queryRef.exceptions!().method).toEqual({});
+      expect(queryRef.exceptions!().methodInsertion).toEqual({});
+      expect(queryRef.exceptions!().list).toEqual([]);
+      expect(queryRef.hasException()).toBe(false);
+    });
+  });
+
   it('should allow to return an exception from params function, and skip the loader execution', () => {
     const myUserId = signal(0);
     const queryRef = query({
       params: () =>
         myUserId() > 0
           ? myUserId()
-          : paramException('INVALID_USER_ID', { id: myUserId() }),
+          : craftException('INVALID_USER_ID', { id: myUserId() }),
       loader: async ({ params }) => {
         return {
           id: params,
@@ -466,7 +539,7 @@ describe('query exceptions', () => {
       params: myUserId,
       loader: async ({ params }) => {
         if (params === 0) {
-          return stateException('INVALID_USER_ID', { id: params });
+          return craftException('INVALID_USER_ID', { id: params });
         }
         return {
           id: params,
@@ -475,8 +548,8 @@ describe('query exceptions', () => {
         };
       },
     });
-    expect(queryRef.exceptions!().state.INVALID_USER_ID).toBeDefined();
-    expectTypeOf(queryRef.exceptions!().state.INVALID_USER_ID).toEqualTypeOf<{
+    expect(queryRef.exceptions!().loader.INVALID_USER_ID).toBeDefined();
+    expectTypeOf(queryRef.exceptions!().loader.INVALID_USER_ID).toEqualTypeOf<{
       id: number;
     }>();
   });
@@ -486,7 +559,7 @@ describe('query exceptions', () => {
       params: myUserId,
       loader: async ({ params }) => {
         if (params === 0) {
-          return stateException('INVALID_USER_ID', { id: params });
+          return craftException('INVALID_USER_ID', { id: params });
         }
         return {
           id: params,
@@ -495,8 +568,8 @@ describe('query exceptions', () => {
         };
       },
     });
-    expect(queryRef.exceptions!().state.INVALID_USER_ID).toBeDefined();
-    expectTypeOf(queryRef.exceptions!().state.INVALID_USER_ID).toEqualTypeOf<{
+    expect(queryRef.exceptions!().loader.INVALID_USER_ID).toBeDefined();
+    expectTypeOf(queryRef.exceptions!().loader.INVALID_USER_ID).toEqualTypeOf<{
       id: number;
     }>();
     expectTypeOf(queryRef.safeValue()).toEqualTypeOf<
@@ -516,7 +589,7 @@ describe('query exceptions', () => {
       | undefined
     >();
   });
-  it('should allow to return an exception from a derived property', () => {
+  it('should allow to return an exception from a computed insertion', () => {
     const myUserId = signal(5);
     const queryRef = query(
       {
@@ -532,7 +605,7 @@ describe('query exceptions', () => {
       ({ state, resource }) => ({
         isValueAndParamSyncedException: computed(() =>
           resource.paramSrc() !== state().id
-            ? derivedException('PARAM_VALUE_MISMATCH', {
+            ? craftException('PARAM_VALUE_MISMATCH', {
                 param: resource.paramSrc(),
                 value: state().id,
               })
@@ -541,7 +614,192 @@ describe('query exceptions', () => {
       }),
     );
     expectTypeOf(
-      queryRef.exceptions!().derived.PARAM_VALUE_MISMATCH,
+      queryRef.exceptions!().computedInsertion.PARAM_VALUE_MISMATCH,
     ).toEqualTypeOf<{ param: number | undefined; value: number }>();
+  });
+
+  it('should allow to return an exception from an insertion method', () => {
+    const queryRef = query(
+      {
+        params: () => '5',
+        loader: async ({ params }) => {
+          return {
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          };
+        },
+      },
+      () => ({
+        validateName: (name: string) =>
+          name.length < 3
+            ? craftException('PARAM_VALUE_MISMATCH', {
+                expectedMinLength: 3,
+                currentLength: name.length,
+              })
+            : undefined,
+      }),
+    );
+
+    queryRef.validateName('ab');
+
+    expect(queryRef.exceptions!().methodInsertion.PARAM_VALUE_MISMATCH).toEqual(
+      {
+        expectedMinLength: 3,
+        currentLength: 2,
+      },
+    );
+  });
+
+  it('should infer config and previous insertion exceptions in insertion contexts', () => {
+    TestBed.runInInjectionContext(() => {
+      const throwRef = signal(true);
+
+      query(
+        {
+          params: () =>
+            throwRef()
+              ? craftException('PARAM_VALUE_MISMATCH', { from: 'params' })
+              : '5',
+          loader: async ({ params }) => ({
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          }),
+        },
+        ({ exceptions }) => {
+          expectTypeOf(
+            exceptions().params.PARAM_VALUE_MISMATCH,
+          ).toEqualTypeOf<unknown>();
+
+          return {
+            firstComputedException: computed(() =>
+              craftException('PARAM_VALUE_MISMATCH', {
+                from: 'insertion-1' as const,
+              }),
+            ),
+          };
+        },
+        ({ exceptions }) => {
+          expectTypeOf(
+            exceptions().computedInsertion.PARAM_VALUE_MISMATCH,
+          ).toEqualTypeOf<{ from: 'insertion-1' }>();
+          return {};
+        },
+      );
+    });
+  });
+
+  it('should auto-clear computed insertion exceptions on success transition', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const shouldFail = signal(true);
+      const queryRef = query(
+        {
+          params: () => '5',
+          loader: async ({ params }) => ({
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          }),
+        },
+        () => ({
+          computedFailure: computed(() =>
+            shouldFail()
+              ? craftException('COMPUTED_FAILURE', { active: true })
+              : undefined,
+          ),
+        }),
+      );
+
+      expect(queryRef.exceptions!().computedInsertion.COMPUTED_FAILURE).toEqual(
+        {
+          active: true,
+        },
+      );
+      expect(queryRef.hasException()).toBe(true);
+
+      shouldFail.set(false);
+      await Promise.resolve();
+
+      expect(queryRef.exceptions!().computedInsertion).toEqual({});
+      expect(queryRef.exceptions!().list).toEqual([]);
+      expect(queryRef.hasException()).toBe(false);
+    });
+  });
+
+  it('should expose identifier-scoped exceptions for parallel queries and insertion methods', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const currentId = signal<'A' | 'B'>('A');
+      const queryRef = query(
+        {
+          params: () => currentId(),
+          identifier: (id) => id,
+          loader: async ({ params }) =>
+            craftException(
+              {
+                code: 'PARSE_FAILED',
+                identifier: params,
+              },
+              { params },
+            ),
+        },
+        ({ resourceParamsSrc, identifier }) => ({
+          validateStorage: () =>
+            craftException(
+              {
+                code: 'INSERTION_PARSE_FAILED',
+                identifier,
+              },
+              {
+                params: resourceParamsSrc(),
+              },
+            ),
+        }),
+      );
+
+      await vi.runAllTimersAsync();
+      currentId.set('B');
+      await vi.runAllTimersAsync();
+
+      queryRef.validateStorage();
+      currentId.set('A');
+      queryRef.validateStorage();
+
+      expect(queryRef.exceptions!().loader).toEqual({
+        A: {
+          PARSE_FAILED: { params: 'A' },
+        },
+        B: {
+          PARSE_FAILED: { params: 'B' },
+        },
+      });
+      expect(queryRef.exceptions!().methodInsertion).toEqual({
+        A: {
+          INSERTION_PARSE_FAILED: { params: 'A' },
+        },
+        B: {
+          INSERTION_PARSE_FAILED: { params: 'B' },
+        },
+      });
+    });
+  });
+
+  it('should keep params exceptions outside identifier mapping', () => {
+    TestBed.runInInjectionContext(() => {
+      const rawId = signal(0);
+      const queryRef = query({
+        params: () =>
+          rawId() > 0 ? rawId() : craftException('INVALID_ID', { id: rawId() }),
+        identifier: (id) => String(id),
+        loader: async ({ params }) => ({
+          id: params,
+          name: 'John Doe',
+          email: 'test@a.com',
+        }),
+      });
+
+      expect(queryRef.exceptions!().params.INVALID_ID).toEqual({ id: 0 });
+      expect(queryRef.exceptions!().loader).toEqual({});
+    });
   });
 });

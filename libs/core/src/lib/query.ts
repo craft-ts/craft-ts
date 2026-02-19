@@ -1,5 +1,6 @@
 import {
   computed,
+  effect,
   isSignal,
   ResourceLoaderParams,
   ResourceOptions,
@@ -17,57 +18,176 @@ import { MergeObjects } from './util/util.type';
 import { preservedResource } from './preserved-resource';
 import { craftResource } from './craft-resource';
 import {
+  AnyBusinessException,
+  AnyGroupedBusinessExceptions,
+  BusinessException,
+  BusinessExceptionListContainer,
   BusinessExceptionScope,
   createBusinessExceptionStore,
   ExtractBusinessExceptionsFromObject,
-  ExtractStateExceptions,
+  ExtractBusinessExceptionsFromValue,
   getStateExceptionDefinitions,
-  GroupedBusinessExceptions,
   isBusinessException,
-  MethodException,
-  ParamException,
   StripBusinessExceptions,
-  wrapExceptionAwareMethods,
 } from './business-exception';
 
-type FilterExceptionsByScope<
+type ScopePayloadByCode<ExceptionUnion extends AnyBusinessException> = [
+  ExceptionUnion,
+] extends [never]
+  ? {}
+  : {
+      [Code in ExceptionUnion['code'] & string]: Extract<
+        ExceptionUnion,
+        { code: Code }
+      >['payload'];
+    };
+
+type RescopeBusinessExceptions<
   Exceptions,
   Scope extends BusinessExceptionScope,
-> = Extract<Exceptions, { scope: Scope }>;
+> = Exceptions extends {
+  code: infer Code extends string;
+  payload: infer Payload;
+}
+  ? BusinessException<Scope, Code, Payload>
+  : never;
 
-type QueryOutputExceptions<Value, Params, Insertions> =
-  Omit<
-    GroupedBusinessExceptions<
-      FilterExceptionsByScope<
-        | ExtractStateExceptions<Value>
-        | ExtractBusinessExceptionsFromObject<Insertions>,
-        'state'
-      >,
-      FilterExceptionsByScope<
-        | Extract<Params, MethodException>
-        | ExtractBusinessExceptionsFromObject<Insertions>,
-        'method'
-      >,
-      FilterExceptionsByScope<
-        | ExtractStateExceptions<Value>
-        | ExtractBusinessExceptionsFromObject<Insertions>,
-        'derived'
-      >,
-      FilterExceptionsByScope<
-        | ExtractStateExceptions<Value>
-        | ExtractBusinessExceptionsFromObject<Insertions>,
-        'reaction'
-      >
+type IsInsertionMethod<Value> = Value extends (...args: any[]) => unknown
+  ? Value extends Signal<unknown>
+    ? false
+    : true
+  : false;
+
+type PickMethodInsertionValues<Insertions> = Insertions extends object
+  ? {
+      [K in keyof Insertions as IsInsertionMethod<Insertions[K]> extends true
+        ? K
+        : never]: Insertions[K];
+    }
+  : never;
+
+type PickComputedInsertionValues<Insertions> = Insertions extends object
+  ? {
+      [K in keyof Insertions as IsInsertionMethod<Insertions[K]> extends true
+        ? never
+        : K]: Insertions[K];
+    }
+  : never;
+
+type ScopePayloadByCodeByIdentifier<
+  ExceptionUnion extends AnyBusinessException,
+  GroupIdentifier,
+> = [unknown] extends [GroupIdentifier]
+  ? ScopePayloadByCode<ExceptionUnion>
+  : Partial<Record<GroupIdentifier & string, ScopePayloadByCode<ExceptionUnion>>>;
+
+type QueryOutputExceptions<Value, Params, Insertions, GroupIdentifier> = {
+  list: BusinessExceptionListContainer['list'];
+  params: Record<string, unknown>;
+  loader: ScopePayloadByCodeByIdentifier<
+    RescopeBusinessExceptions<
+      ExtractBusinessExceptionsFromValue<Value>,
+      'loader'
     >,
-    'params'
-  > & {
-    params: Record<string, unknown>;
-  };
+    GroupIdentifier
+  >;
+  method: ScopePayloadByCodeByIdentifier<
+    RescopeBusinessExceptions<
+      ExtractBusinessExceptionsFromValue<Params>,
+      'method'
+    >,
+    GroupIdentifier
+  >;
+  computedInsertion: ScopePayloadByCodeByIdentifier<
+    RescopeBusinessExceptions<
+      ExtractBusinessExceptionsFromObject<
+        PickComputedInsertionValues<Insertions>
+      >,
+      'computedInsertion'
+    >,
+    GroupIdentifier
+  >;
+  methodInsertion: ScopePayloadByCodeByIdentifier<
+    RescopeBusinessExceptions<
+      ExtractBusinessExceptionsFromObject<PickMethodInsertionValues<Insertions>>,
+      'methodInsertion'
+    >,
+    GroupIdentifier
+  >;
+};
+
+type PromiseLikeValue<T> = {
+  then: (onFulfilled: (value: T) => unknown) => unknown;
+};
+
+function isPromiseLikeValue<T>(value: unknown): value is PromiseLikeValue<T> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'then' in (value as Record<string, unknown>) &&
+    typeof (value as PromiseLikeValue<T>).then === 'function'
+  );
+}
+
+const IDENTIFIER_SCOPED_EXCEPTION_SEPARATOR = '::';
+
+function parseIdentifierScopedExceptionCode(
+  code: string,
+): { identifier: string; code: string } | undefined {
+  const separatorIndex = code.indexOf(IDENTIFIER_SCOPED_EXCEPTION_SEPARATOR);
+  if (separatorIndex <= 0) {
+    return undefined;
+  }
+  const encodedIdentifier = code.slice(0, separatorIndex);
+  const scopedCode = code.slice(
+    separatorIndex + IDENTIFIER_SCOPED_EXCEPTION_SEPARATOR.length,
+  );
+  if (!scopedCode) {
+    return undefined;
+  }
+  try {
+    return {
+      identifier: decodeURIComponent(encodedIdentifier),
+      code: scopedCode,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+type QueryInsertionContextExceptions<
+  Value,
+  Params,
+  PreviousInsertions,
+  GroupIdentifier,
+> =
+  AnyGroupedBusinessExceptions &
+    QueryOutputExceptions<Value, Params, PreviousInsertions, GroupIdentifier>;
+
+type QueryInsertionFactory<
+  GroupIdentifier,
+  QueryState extends object | undefined,
+  QueryParams,
+  InsertionOutput,
+  PreviousInsertions = {},
+> = InsertionsResourcesFactory<
+  NoInfer<GroupIdentifier>,
+  NoInfer<QueryState>,
+  NoInfer<QueryRuntimeParams<QueryParams>>,
+  InsertionOutput,
+  PreviousInsertions,
+  QueryInsertionContextExceptions<
+    QueryState,
+    QueryParams,
+    PreviousInsertions,
+    GroupIdentifier
+  >
+>;
 
 type QueryRuntimeParams<Params> = StripBusinessExceptions<Params>;
 type QueryInputParams<Params> =
   | QueryRuntimeParams<Params>
-  | ParamException;
+  | AnyBusinessException;
 
 type QueryConfig<
   ResourceState,
@@ -259,8 +379,9 @@ export type ResourceLikeQueryRef<
       readonly error: Signal<Error | undefined>;
       readonly isLoading: Signal<boolean>;
       readonly exceptions?: Signal<
-        QueryOutputExceptions<Value, Params, Insertions>
+        QueryOutputExceptions<Value, Params, Insertions, unknown>
       >;
+      hasException(): boolean;
       hasValue(): boolean;
     },
     {
@@ -292,7 +413,10 @@ export type ResourceByIdLikeQueryRef<
   GroupIdentifier,
 > = { type: 'resourceByGroupLike'; kind: 'query' } & {
   readonly resourceParamsSrc: WritableSignal<NoInfer<QueryRuntimeParams<Params>>>;
-  readonly exceptions?: Signal<QueryOutputExceptions<Value, Params, Insertions>>;
+  readonly exceptions?: Signal<
+    QueryOutputExceptions<Value, Params, Insertions, GroupIdentifier>
+  >;
+  hasException(): boolean;
 } & {
   _resourceById: ResourceByIdRef<
     GroupIdentifier & string,
@@ -430,10 +554,10 @@ export function query<
     FromObjectState,
     FromObjectResourceParams
   >,
-  insertion1: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion1: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion1
   >,
 ): QueryOutput<
@@ -466,16 +590,16 @@ export function query<
     FromObjectState,
     FromObjectResourceParams
   >,
-  insertion1: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion1: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion1
   >,
-  insertion2: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion2: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion2,
     Insertion1
   >,
@@ -510,23 +634,23 @@ export function query<
     FromObjectState,
     FromObjectResourceParams
   >,
-  insertion1: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion1: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion1
   >,
-  insertion2: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion2: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion2,
     Insertion1
   >,
-  insertion3: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion3: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion3,
     Insertion1 & Insertion2
   >,
@@ -562,30 +686,30 @@ export function query<
     FromObjectState,
     FromObjectResourceParams
   >,
-  insertion1: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion1: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion1
   >,
-  insertion2: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion2: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion2,
     Insertion1
   >,
-  insertion3: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion3: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion3,
     Insertion1 & Insertion2
   >,
-  insertion4: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion4: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
@@ -622,37 +746,37 @@ export function query<
     FromObjectState,
     FromObjectResourceParams
   >,
-  insertion1: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion1: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion1
   >,
-  insertion2: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion2: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion2,
     Insertion1
   >,
-  insertion3: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion3: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion3,
     Insertion1 & Insertion2
   >,
-  insertion4: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion4: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
-  insertion5: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion5: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
@@ -690,44 +814,44 @@ export function query<
     FromObjectState,
     FromObjectResourceParams
   >,
-  insertion1: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion1: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion1
   >,
-  insertion2: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion2: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion2,
     Insertion1
   >,
-  insertion3: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion3: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion3,
     Insertion1 & Insertion2
   >,
-  insertion4: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion4: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
-  insertion5: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion5: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
-  insertion6: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion6: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
@@ -766,51 +890,51 @@ export function query<
     FromObjectState,
     FromObjectResourceParams
   >,
-  insertion1: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion1: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion1
   >,
-  insertion2: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion2: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion2,
     Insertion1
   >,
-  insertion3: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion3: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion3,
     Insertion1 & Insertion2
   >,
-  insertion4: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion4: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
-  insertion5: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion5: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
-  insertion6: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion6: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
-  insertion7: InsertionsResourcesFactory<
-    NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryRuntimeParams<QueryParams>>,
+  insertion7: QueryInsertionFactory<
+    GroupIdentifier,
+    QueryState,
+    QueryParams,
     Insertion7,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
   >,
@@ -1053,17 +1177,83 @@ export function query<
   const isConnectedToSource = isSignal(queryConfig.method);
   const isUsingIdentifier = 'identifier' in queryConfig;
   const exceptionStore = createBusinessExceptionStore({
-    state: getStateExceptionDefinitions(
+    loader: getStateExceptionDefinitions(
       (queryConfig as { defaultValue?: unknown }).defaultValue,
     ),
   });
+  let readCurrentIdentifier = () => undefined as GroupIdentifier | undefined;
+  const resolveIdentifierFromParams = (
+    params: QueryRuntimeParams<QueryParams> | undefined,
+  ) => {
+    if (!isUsingIdentifier || params == null) {
+      return undefined;
+    }
+    return queryConfig.identifier?.(
+      params as NonNullable<QueryRuntimeParams<QueryParams>>,
+    ) as (GroupIdentifier & string) | undefined;
+  };
+  const resolveExceptionIdentifier = (
+    scope: BusinessExceptionScope,
+    exception: AnyBusinessException,
+  ) => (isUsingIdentifier && scope !== 'params' ? exception.identifier : undefined);
+  const trackedExceptionCodes = new Map<
+    string,
+    {
+      code: string;
+      identifier?: string;
+    }
+  >();
+  const getTrackerKey = (
+    scope: BusinessExceptionScope,
+    tracker: string,
+  ) => `${scope}|${tracker}`;
+  const clearTrackedScopedException = (
+    scope: BusinessExceptionScope,
+    tracker: string,
+  ) => {
+    const trackingKey = getTrackerKey(scope, tracker);
+    const previous = trackedExceptionCodes.get(trackingKey);
+    if (!previous) {
+      return;
+    }
+    exceptionStore.clearException(scope, previous.code, previous.identifier);
+    trackedExceptionCodes.delete(trackingKey);
+  };
+  const trackScopedException = (
+    scope: BusinessExceptionScope,
+    tracker: string,
+    code: string,
+    identifier?: string,
+  ) => {
+    const trackingKey = getTrackerKey(scope, tracker);
+    const previous = trackedExceptionCodes.get(trackingKey);
+    if (
+      previous &&
+      (previous.code !== code || previous.identifier !== identifier)
+    ) {
+      exceptionStore.clearException(scope, previous.code, previous.identifier);
+    }
+    trackedExceptionCodes.set(trackingKey, {
+      code,
+      identifier,
+    });
+  };
+  const raiseScopedException = <Scope extends BusinessExceptionScope>(
+    scope: Scope,
+    exception: AnyBusinessException,
+  ) =>
+    exceptionStore.raiseException({
+      ...exception,
+      scope,
+      identifier: resolveExceptionIdentifier(scope, exception),
+    } as BusinessException<Scope, string, unknown>);
   const queryResourceParamsFnSignal = hasParamsFn
     ? ((...args: unknown[]) => {
         const maybeParams = (
           queryConfig.params as (...params: unknown[]) => QueryInputParams<QueryParams>
         )(...args);
         if (isBusinessException(maybeParams)) {
-          exceptionStore.raiseException(maybeParams);
+          raiseScopedException('params', maybeParams);
           return undefined;
         }
         exceptionStore.clearScope('params');
@@ -1083,9 +1273,16 @@ export function query<
               ) => Promise<QueryState>
             )(param);
             if (isBusinessException(result)) {
-              exceptionStore.raiseException(result);
+              trackScopedException(
+                'loader',
+                'loader',
+                result.code,
+                resolveExceptionIdentifier('loader', result),
+              );
+              raiseScopedException('loader', result);
               return undefined as StripBusinessExceptions<QueryState>;
             }
+            clearTrackedScopedException('loader', 'loader');
             return result as unknown as StripBusinessExceptions<QueryState>;
           },
         }
@@ -1103,9 +1300,16 @@ export function query<
             return computed(() => {
               const result = streamSignal();
               if (isBusinessException(result)) {
-                exceptionStore.raiseException(result);
+                trackScopedException(
+                  'loader',
+                  'loader',
+                  result.code,
+                  resolveExceptionIdentifier('loader', result),
+                );
+                raiseScopedException('loader', result);
                 return undefined as StripBusinessExceptions<QueryState>;
               }
+              clearTrackedScopedException('loader', 'loader');
               return result as StripBusinessExceptions<QueryState>;
             });
           },
@@ -1116,6 +1320,10 @@ export function query<
   const resourceParamsSrc = isConnectedToSource
     ? queryConfig.method
     : queryResourceParamsFnSignal;
+  readCurrentIdentifier = () =>
+    resolveIdentifierFromParams(
+      (resourceParamsSrc as () => QueryRuntimeParams<QueryParams> | undefined)(),
+    );
 
   const resourceTarget = isUsingIdentifier
     ? resourceById<
@@ -1141,6 +1349,43 @@ export function query<
           ...queryConfigWithExceptionAwareLoader,
           params: resourceParamsSrc,
         } as ResourceOptions<any, any>);
+
+  const exceptions =
+    !isUsingIdentifier
+      ? exceptionStore.exceptions
+      : computed(() => {
+          const currentExceptions = exceptionStore.exceptions() as
+            | AnyGroupedBusinessExceptions
+            | (AnyGroupedBusinessExceptions & BusinessExceptionListContainer);
+          const currentExceptionList =
+            (currentExceptions as AnyGroupedBusinessExceptions &
+              BusinessExceptionListContainer).list ?? [];
+          const toScopedRecord = (
+            record: Record<string, unknown>,
+          ): Record<string, unknown> =>
+            Object.entries(record).reduce((acc, [storedCode, payload]) => {
+              const parsed = parseIdentifierScopedExceptionCode(storedCode);
+              if (!parsed) {
+                return acc;
+              }
+              const groupId = parsed.identifier as GroupIdentifier & string;
+              const scopedEntry = (acc[groupId] as Record<string, unknown>) ?? {};
+              acc[groupId] = {
+                ...scopedEntry,
+                [parsed.code]: payload,
+              };
+              return acc;
+            }, {} as Record<string, unknown>);
+
+          return {
+            ...currentExceptions,
+            loader: toScopedRecord(currentExceptions.loader),
+            method: toScopedRecord(currentExceptions.method),
+            computedInsertion: toScopedRecord(currentExceptions.computedInsertion),
+            methodInsertion: toScopedRecord(currentExceptions.methodInsertion),
+            list: currentExceptionList,
+          };
+        });
 
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
@@ -1171,7 +1416,8 @@ export function query<
         }
       : {},
     {
-      exceptions: exceptionStore.exceptions,
+      exceptions,
+      hasException: exceptionStore.hasException,
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         QueryRuntimeParams<QueryParams> | undefined
       >,
@@ -1185,9 +1431,16 @@ export function query<
                 ) => QueryParams
               )(arg);
               if (isBusinessException(result)) {
-                exceptionStore.raiseException(result);
+                trackScopedException(
+                  'method',
+                  'method',
+                  result.code,
+                  resolveExceptionIdentifier('method', result),
+                );
+                raiseScopedException('method', result);
                 return result;
               }
+              clearTrackedScopedException('method', 'method');
               if (isUsingIdentifier) {
                 const nextParams = result as QueryRuntimeParams<QueryParams>;
                 if (nextParams != null) {
@@ -1224,29 +1477,93 @@ export function query<
         {}
       >[]
     )?.reduce(
-      (acc, insert) => {
-        const newInsertions = wrapExceptionAwareMethods(
-          insert({
-            ...(isUsingIdentifier
-              ? {
-                  resourceById: resourceTarget,
-                  identifier: queryConfig.identifier,
+      (acc, insert, insertIndex) => {
+        const rawInsertions = insert({
+          ...(isUsingIdentifier
+            ? {
+                resourceById: resourceTarget,
+                identifier: readCurrentIdentifier(),
+                identifierFn: queryConfig.identifier,
+              }
+            : { resource: resourceTarget }),
+          resourceParamsSrc: resourceParamsSrc as WritableSignal<
+            NoInfer<QueryRuntimeParams<QueryParams>>
+          >,
+          insertions: acc as {},
+          state: resourceTarget.state,
+          set: resourceTarget.set,
+          update: resourceTarget.update,
+          exceptions,
+          raiseException: (exception: AnyBusinessException) =>
+            raiseScopedException(exception.scope, exception),
+          clearException: (
+            scope: BusinessExceptionScope,
+            code: string,
+            identifier?: string,
+          ) => exceptionStore.clearException(scope, code, identifier),
+          clearExceptionScope: exceptionStore.clearScope,
+          clearExceptions: exceptionStore.clearAll,
+        } as any) as Record<string, unknown>;
+        const newInsertions = Object.entries(rawInsertions).reduce(
+          (insertionAcc, [key, value]) => {
+            if (isSignal(value)) {
+              const computedTracker = `computedInsertion:${insertIndex}:${key}`;
+              effect(() => {
+                const computedValue = (value as Signal<unknown>)();
+                if (isBusinessException(computedValue)) {
+                  trackScopedException(
+                    'computedInsertion',
+                    computedTracker,
+                    computedValue.code,
+                    resolveExceptionIdentifier('computedInsertion', computedValue),
+                  );
+                  raiseScopedException('computedInsertion', computedValue);
+                  return;
                 }
-              : { resource: resourceTarget }),
-            resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<QueryRuntimeParams<QueryParams>>
-            >,
-            insertions: acc as {},
-            state: resourceTarget.state,
-            set: resourceTarget.set,
-            update: resourceTarget.update,
-            exceptions: exceptionStore.exceptions,
-            raiseException: exceptionStore.raiseException,
-            clearException: exceptionStore.clearException,
-            clearExceptionScope: exceptionStore.clearScope,
-            clearExceptions: exceptionStore.clearAll,
-          } as any) as Record<string, unknown>,
-          exceptionStore.raiseException,
+                clearTrackedScopedException('computedInsertion', computedTracker);
+              });
+              (insertionAcc as Record<string, unknown>)[key] = value;
+              return insertionAcc;
+            }
+
+            if (typeof value === 'function') {
+              const methodInsertionTracker = `methodInsertion:${insertIndex}:${key}`;
+              (insertionAcc as Record<string, unknown>)[key] = (
+                ...args: unknown[]
+              ) => {
+                const methodResult = (value as (...params: unknown[]) => unknown)(
+                  ...args,
+                );
+                const handleMethodResult = <Result>(result: Result): Result => {
+                  if (isBusinessException(result)) {
+                    trackScopedException(
+                      'methodInsertion',
+                      methodInsertionTracker,
+                      result.code,
+                      resolveExceptionIdentifier('methodInsertion', result),
+                    );
+                    raiseScopedException('methodInsertion', result);
+                    return result;
+                  }
+                  clearTrackedScopedException('methodInsertion', methodInsertionTracker);
+                  return result;
+                };
+
+                if (isPromiseLikeValue(methodResult)) {
+                  return methodResult.then((resolvedValue) =>
+                    handleMethodResult(resolvedValue),
+                  ) as unknown;
+                }
+
+                return handleMethodResult(methodResult);
+              };
+              return insertionAcc;
+            }
+
+            (insertionAcc as Record<string, unknown>)[key] = value;
+            return insertionAcc;
+          },
+          {} as Record<string, unknown>,
         );
         return {
           ...acc,

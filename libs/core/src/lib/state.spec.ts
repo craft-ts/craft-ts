@@ -6,10 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { source$ } from './source$';
 import { on$ } from './on$';
 import { InsertionsStateFactory } from './query.core';
-import {
-  methodException,
-  withStateExceptions,
-} from './business-exception';
+import { methodException, withStateExceptions } from './business-exception';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -26,7 +23,7 @@ describe('state', () => {
       const myState = state(0);
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<Signal<number>>();
+      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
       expect(myState()).toBe(0);
     });
   });
@@ -36,7 +33,7 @@ describe('state', () => {
       const myState = state(linkedSignal(() => origin() * 2));
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<Signal<number>>();
+      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
       expect(myState()).toBe(10);
     });
   });
@@ -179,16 +176,29 @@ describe('state', () => {
           min: 0,
         },
       });
+      expect(myState.exceptions?.().list).toEqual([
+        {
+          id: 'state:counterMustBePositive',
+          scope: 'state',
+          code: 'counterMustBePositive',
+          payload: {
+            min: 0,
+          },
+          updatedAt: 0,
+        },
+      ]);
+      expect(myState.hasException()).toBe(true);
     });
   });
 
-  it('should capture business exceptions returned by state insertion methods', () => {
+  it('should capture and auto-clear business exceptions returned by state insertion methods', () => {
     runInInjectionContext(() => {
       const myState = state(0, () => ({
         fail: () =>
           methodException('COUNTER_LOCKED', {
             current: 0,
           }),
+        pass: () => undefined,
       }));
 
       myState.fail();
@@ -198,6 +208,32 @@ describe('state', () => {
           current: 0,
         },
       });
+      expect(myState.hasException()).toBe(true);
+
+      myState.pass();
+
+      expect(myState.exceptions?.().method).toEqual({});
+      expect(myState.exceptions?.().list).toEqual([]);
+      expect(myState.hasException()).toBe(false);
+    });
+  });
+
+  it('state insertion should expose a way to create source$ that are only available in the insertion (and exposed as a method)', () => {
+    runInInjectionContext(() => {
+      const myState = state(
+        0,
+        () => ({
+          internalSource: source$<number>(),
+        }),
+        ({ update, insertions: { internalSource } }) => {
+          return {
+            increment: on$(internalSource, () => update((v) => v + 1)),
+          };
+        },
+      );
+
+      internalSource(); // should be exposed as a method
+      expectTypeOf(internalSource).toEqualTypeOf<() => void>();
     });
   });
 });

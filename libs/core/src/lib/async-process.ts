@@ -48,12 +48,7 @@ type AsyncProcessOutputExceptions<Value, Params, Insertions> =
     FilterExceptionsByScope<
       | ExtractStateExceptions<Value>
       | ExtractBusinessExceptionsFromObject<Insertions>,
-      'derived'
-    >,
-    FilterExceptionsByScope<
-      | ExtractStateExceptions<Value>
-      | ExtractBusinessExceptionsFromObject<Insertions>,
-      'reaction'
+      'reactionInsertion'
     >
   >;
 

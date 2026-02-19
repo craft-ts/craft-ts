@@ -4,7 +4,7 @@ import { source$ } from './source$';
 import { Subject } from 'rxjs';
 import { Component, EventEmitter } from '@angular/core';
 import { SourceBranded } from './util/util';
-import { reactionException } from './business-exception';
+import { reactionInsertionException } from './business-exception';
 
 describe('on$', () => {
   beforeEach(() => {
@@ -48,12 +48,12 @@ describe('on$', () => {
     });
   });
 
-  it('should infer reaction exceptions from callback return', () => {
+  it('should infer reaction insertion exceptions from callback return', () => {
     TestBed.runInInjectionContext(() => {
       const mySource = source$<number>();
 
       const brandedSource = on$(mySource, (value) =>
-        reactionException('INVALID_SOURCE_VALUE', {
+        reactionInsertionException('INVALID_SOURCE_VALUE', {
           value,
         }),
       );
@@ -61,7 +61,7 @@ describe('on$', () => {
       expectTypeOf(brandedSource).toEqualTypeOf<
         SourceBranded<
           Readonly<{
-            scope: 'reaction';
+            scope: 'reactionInsertion';
             code: 'INVALID_SOURCE_VALUE';
             payload: {
               value: number;

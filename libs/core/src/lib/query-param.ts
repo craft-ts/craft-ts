@@ -51,12 +51,7 @@ type QueryParamOutputExceptions<QueryParamsState, Insertions> =
     FilterExceptionsByScope<
       | ExtractStateExceptions<QueryParamsState>
       | ExtractBusinessExceptionsFromObject<Insertions>,
-      'derived'
-    >,
-    FilterExceptionsByScope<
-      | ExtractStateExceptions<QueryParamsState>
-      | ExtractBusinessExceptionsFromObject<Insertions>,
-      'reaction'
+      'reactionInsertion'
     >
   >;
 
@@ -397,7 +392,7 @@ export function queryParam<
             clearException: exceptionStore.clearException,
             clearExceptionScope: exceptionStore.clearScope,
             clearExceptions: exceptionStore.clearAll,
-          } as InsertionQueryParamsFactoryContext<
+          } as unknown as InsertionQueryParamsFactoryContext<
             QueryParamsType,
             {}
           >) as Record<string, unknown>,

@@ -1,10 +1,10 @@
 import { Signal } from '@angular/core';
 import { SourceBranded } from './util';
-import { ReactionException } from '../business-exception';
+import { ReactionInsertionException } from '../business-exception';
 
 export type ReadonlySource<
   T,
-  ReactionExceptions extends ReactionException = never,
+  ReactionInsertionExceptions extends ReactionInsertionException = never,
 > = Signal<T | undefined> & {
   preserveLastValue: Signal<T | undefined>;
-} & SourceBranded<ReactionExceptions>;
+} & SourceBranded<ReactionInsertionExceptions>;

@@ -18,6 +18,7 @@ import { MergeObjects } from './util/util.type';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { craftResource } from './craft-resource';
 import {
+  BusinessExceptionListContainer,
   BusinessExceptionScope,
   createBusinessExceptionStore,
   ExtractBusinessExceptionsFromObject,
@@ -51,14 +52,10 @@ type MutationOutputExceptions<Value, Params, Insertions> =
     FilterExceptionsByScope<
       | ExtractStateExceptions<Value>
       | ExtractBusinessExceptionsFromObject<Insertions>,
-      'derived'
-    >,
-    FilterExceptionsByScope<
-      | ExtractStateExceptions<Value>
-      | ExtractBusinessExceptionsFromObject<Insertions>,
-      'reaction'
+      'reactionInsertion'
     >
-  >;
+  > &
+    BusinessExceptionListContainer;
 
 type MutationRuntimeParams<Params> = StripBusinessExceptions<Params>;
 
@@ -301,6 +298,7 @@ export type ResourceLikeMutationRef<
       readonly exceptions?: Signal<
         MutationOutputExceptions<Value, Params, Insertions>
       >;
+      hasException(): boolean;
       hasValue(): boolean;
     },
     {
@@ -335,6 +333,7 @@ export type ResourceByIdLikeMutationRef<
     NoInfer<MutationRuntimeParams<Params>>
   >;
   readonly exceptions?: Signal<MutationOutputExceptions<Value, Params, Insertions>>;
+  hasException(): boolean;
 } & {
   _resourceById: ResourceByIdRef<
     GroupIdentifier & string,
@@ -1089,6 +1088,7 @@ export function mutation<
       (mutationConfig as { defaultValue?: unknown }).defaultValue,
     ),
   });
+  let lastMethodExceptionCode: string | undefined;
 
   const resourceParamsSrc = isConnectedToSource
     ? mutationConfig.method
@@ -1152,6 +1152,7 @@ export function mutation<
     {
       type: isUsingIdentifier ? 'resourceByGroupLike' : 'resourceLike',
       exceptions: exceptionStore.exceptions,
+      hasException: exceptionStore.hasException,
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         MutationRuntimeParams<MutationParams> | undefined
       >,
@@ -1165,8 +1166,19 @@ export function mutation<
                   ? mutationConfig.method?.(arg)
                   : undefined;
               if (isBusinessException(result)) {
+                if (
+                  lastMethodExceptionCode &&
+                  lastMethodExceptionCode !== result.code
+                ) {
+                  exceptionStore.clearException('method', lastMethodExceptionCode);
+                }
                 exceptionStore.raiseException(result);
+                lastMethodExceptionCode = result.code;
                 return result;
+              }
+              if (lastMethodExceptionCode) {
+                exceptionStore.clearException('method', lastMethodExceptionCode);
+                lastMethodExceptionCode = undefined;
               }
               // make sure  mutationResourceParamsFnSignal.set(result as MutationParams); is set before calling addById
               mutationResourceParamsFnSignal.set(
@@ -1223,6 +1235,11 @@ export function mutation<
             clearExceptions: exceptionStore.clearAll,
           } as any) as Record<string, unknown>,
           exceptionStore.raiseException,
+          {
+            clearExceptionOnSuccess: (_key, previousExceptionCode) => {
+              exceptionStore.clearException('method', previousExceptionCode);
+            },
+          },
         );
         return {
           ...acc,

@@ -61,6 +61,7 @@ describe('craftMutationById', () => {
         readonly status: Signal<ResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
+        hasException: () => boolean;
         readonly resourceParamsSrc: WritableSignal<string>;
         source: ReadonlySource<string>;
         type: 'resourceLike';

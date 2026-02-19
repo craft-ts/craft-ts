@@ -13,6 +13,7 @@ import {
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import {
+  BusinessExceptionListContainer,
   BusinessExceptionScope,
   createBusinessExceptionStore,
   ExtractBusinessExceptionsFromObject,
@@ -42,14 +43,10 @@ type StateOutputExceptions<StateType, Insertions> =
     FilterExceptionsByScope<
       | ExtractStateExceptions<StateType>
       | ExtractBusinessExceptionsFromObject<Insertions>,
-      'derived'
-    >,
-    FilterExceptionsByScope<
-      | ExtractStateExceptions<StateType>
-      | ExtractBusinessExceptionsFromObject<Insertions>,
-      'reaction'
+      'reactionInsertion'
     >
-  >;
+  > &
+    BusinessExceptionListContainer;
 
 export type StateOutput<StateType, Insertions> = MergeObject<
   Signal<StateType>,
@@ -57,6 +54,7 @@ export type StateOutput<StateType, Insertions> = MergeObject<
     IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
     {
       readonly exceptions?: Signal<StateOutputExceptions<StateType, Insertions>>;
+      hasException(): boolean;
     }
   >
 >;
@@ -341,6 +339,7 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
     stateSignal,
     {
       exceptions: exceptionStore.exceptions,
+      hasException: exceptionStore.hasException,
     },
     (insertions as InsertionsStateFactory<StateType, {}>[])?.reduce(
       (acc, insert) => {
@@ -356,11 +355,16 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
             clearException: exceptionStore.clearException,
             clearExceptionScope: exceptionStore.clearScope,
             clearExceptions: exceptionStore.clearAll,
-          } as InsertionStateFactoryContext<StateType, {}>) as Record<
+          } as unknown as InsertionStateFactoryContext<StateType, {}>) as Record<
             string,
             unknown
           >,
           exceptionStore.raiseException,
+          {
+            clearExceptionOnSuccess: (_key, previousExceptionCode) => {
+              exceptionStore.clearException('method', previousExceptionCode);
+            },
+          },
         );
         return {
           ...acc,

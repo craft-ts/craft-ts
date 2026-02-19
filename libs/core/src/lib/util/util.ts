@@ -1,6 +1,6 @@
 import { effect, untracked, WritableSignal } from '@angular/core';
 import { ReadonlySource } from './source.type';
-import { ReactionException } from '../business-exception';
+import { ReactionInsertionException } from '../business-exception';
 
 export const SourceBrand = Symbol('SourceBrand');
 
@@ -8,13 +8,15 @@ export const SourceBranded = {
   [SourceBrand]: true as const,
 };
 
-export type SourceBranded<ReactionExceptions extends ReactionException = never> =
+export type SourceBranded<
+  ReactionInsertionExceptions extends ReactionInsertionException = never,
+> =
   {
   [SourceBrand]: true;
   /**
-   * Type-only carrier used to infer reaction exceptions from `on$` callbacks.
+   * Type-only carrier used to infer reaction insertion exceptions from `on$` callbacks.
    */
-  readonly __reactionExceptions__?: ReactionExceptions;
+  readonly __reactionInsertionExceptions__?: ReactionInsertionExceptions;
 };
 
 /**

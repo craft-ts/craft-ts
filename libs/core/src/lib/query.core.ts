@@ -40,7 +40,11 @@ export type BusinessExceptionContextHelpers<
   raiseException: <Exception extends AnyBusinessException>(
     exception: Exception,
   ) => Exception;
-  clearException: (scope: BusinessExceptionScope, code: string) => void;
+  clearException: (
+    scope: BusinessExceptionScope,
+    code: string,
+    identifier?: string,
+  ) => void;
   clearExceptionScope: (scope: BusinessExceptionScope) => void;
   clearExceptions: () => void;
 };
@@ -617,7 +621,8 @@ export type InsertionByIdParams<
   resourceById: ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>;
   resource: never;
   resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
-  identifier: (params: NonNullable<ResourceParams>) => GroupIdentifier;
+  identifier: GroupIdentifier | undefined;
+  identifierFn: (params: NonNullable<ResourceParams>) => GroupIdentifier;
 } & BusinessExceptionContextHelpers<GroupedExceptions>;
 
 export type InsertionStateFactoryContext<

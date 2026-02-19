@@ -1,14 +1,14 @@
 import { linkedSignal, Signal, signal, ValueEqualityFn } from '@angular/core';
 import { SourceBranded } from './util/util';
-import { ReactionException } from './business-exception';
+import { ReactionInsertionException } from './business-exception';
 
 export type SignalSource<
   T,
-  ReactionExceptions extends ReactionException = never,
+  ReactionInsertionExceptions extends ReactionInsertionException = never,
 > = Signal<T | undefined> & {
   set: (value: T) => void;
   preserveLastValue: Signal<T | undefined>;
-} & SourceBranded<ReactionExceptions>;
+} & SourceBranded<ReactionInsertionExceptions>;
 
 /**
  * Creates a source for event-driven communication with lazy emission semantics.

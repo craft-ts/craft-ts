@@ -137,6 +137,46 @@ describe('mutation', () => {
       });
     });
   });
+
+  it('should expose hasException and list, then auto-clear method exceptions on success', () => {
+    TestBed.runInInjectionContext(() => {
+      const mutationInstance = mutation({
+        method: (id: string) =>
+          id.length === 0
+            ? methodException('MISSING_ID', {
+                field: 'id',
+              })
+            : { id },
+        loader: async ({ params }) => ({
+          id: params.id,
+        }),
+      });
+
+      expect(mutationInstance.hasException()).toBe(false);
+      expect(mutationInstance.exceptions?.().list).toEqual([]);
+
+      mutationInstance.mutate('');
+
+      expect(mutationInstance.hasException()).toBe(true);
+      expect(mutationInstance.exceptions?.().method.MISSING_ID).toEqual({
+        field: 'id',
+      });
+      expect(mutationInstance.exceptions?.().list[0]).toMatchObject({
+        id: 'method:MISSING_ID',
+        scope: 'method',
+        code: 'MISSING_ID',
+        payload: {
+          field: 'id',
+        },
+      });
+
+      mutationInstance.mutate('42');
+
+      expect(mutationInstance.exceptions?.().method).toEqual({});
+      expect(mutationInstance.exceptions?.().list).toEqual([]);
+      expect(mutationInstance.hasException()).toBe(false);
+    });
+  });
 });
 
 describe('mutation types without identifier', () => {
@@ -202,6 +242,7 @@ describe('mutation types without identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          hasException: () => boolean;
           readonly resourceParamsSrc: WritableSignal<
             NoInfer<{
               timeToWait: number;
@@ -229,6 +270,7 @@ describe('mutation types without identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          hasException: () => boolean;
           readonly resourceParamsSrc: WritableSignal<
             NoInfer<{
               filter: string;
@@ -313,6 +355,7 @@ describe('mutation types without identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          hasException: () => boolean;
           readonly resourceParamsSrc: WritableSignal<
             NoInfer<
               | {
@@ -345,6 +388,7 @@ describe('mutation types without identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          hasException: () => boolean;
           readonly resourceParamsSrc: WritableSignal<
             NoInfer<{
               filter: string;
@@ -517,6 +561,7 @@ describe('mutation types with identifier', () => {
         readonly status: Signal<ResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
+        hasException: () => boolean;
         readonly resourceParamsSrc: WritableSignal<
           NoInfer<{
             filter: string;
@@ -629,6 +674,7 @@ describe('mutation types with identifier', () => {
           readonly status: Signal<ResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          hasException: () => boolean;
           readonly safeValue: Signal<
             | {
                 filter: string;
