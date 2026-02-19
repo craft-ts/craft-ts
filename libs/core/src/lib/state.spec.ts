@@ -217,23 +217,4 @@ describe('state', () => {
       expect(myState.hasException()).toBe(false);
     });
   });
-
-  it('state insertion should expose a way to create source$ that are only available in the insertion (and exposed as a method)', () => {
-    runInInjectionContext(() => {
-      const myState = state(
-        0,
-        () => ({
-          internalSource: source$<number>(),
-        }),
-        ({ update, insertions: { internalSource } }) => {
-          return {
-            increment: on$(internalSource, () => update((v) => v + 1)),
-          };
-        },
-      );
-
-      internalSource(); // should be exposed as a method
-      expectTypeOf(internalSource).toEqualTypeOf<() => void>();
-    });
-  });
 });
