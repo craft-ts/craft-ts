@@ -1,5 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
-import { insertSelectItem, state } from '@craft-ng/core';
+import {
+  insertSelectItem,
+  insertSelectProperty,
+  on$,
+  source$,
+  state,
+} from '@craft-ng/core';
 
 type PixelCellState = {
   index: number;
@@ -40,6 +46,11 @@ const createInitialGrid = (): PixelCellState[][] =>
           Note: this example is intentionally "fairly" complex to showcase
           multiple patterns together.
         </p>
+        <p>
+          Interactions: left click paints a cell, right click copies the
+          target cell color to the full row, "+" adds a cell to a row, "Add
+          row" appends a new row, and "Clear" resets all colors.
+        </p>
       </header>
 
       <div class="pixel-art__controls">
@@ -48,23 +59,25 @@ const createInitialGrid = (): PixelCellState[][] =>
             <button
               type="button"
               class="pixel-art__color"
-              [class.active]="ui().activeColor === color"
+              [class.active]="matrix.selectUi().activeColor === color"
               [style.background-color]="color"
-              (click)="ui.setActiveColor(color)"
+              (click)="matrix.selectUi().setActiveColor(color)"
               [attr.aria-label]="'Choose color ' + color"
             ></button>
           }
         </div>
-        <button type="button" (click)="grid.clearAll()">Clear</button>
+        <button type="button" (click)="matrix.selectGrid().clearAll()">
+          Clear
+        </button>
       </div>
 
       <div class="pixel-art__stats">
         <span
-          >Painted cells: {{ grid.paintedCount() }}/{{
-            grid.totalCells()
+          >Painted cells: {{ matrix.selectGrid().paintedCount() }}/{{
+            matrix.selectGrid().totalCells()
           }}</span
         >
-        <span>Total clicks: {{ grid.totalPaintActions() }}</span>
+        <span>Total clicks: {{ matrix.selectGrid().totalPaintActions() }}</span>
       </div>
 
       <div
@@ -72,8 +85,12 @@ const createInitialGrid = (): PixelCellState[][] =>
         role="grid"
         aria-label="Pixel Art 16x16 matrix"
       >
-        @for (rowData of grid(); track rowData; let rowIndex = $index) {
-          @let row = grid.selectItem(rowIndex);
+        @for (
+          rowData of matrix.selectGrid();
+          track rowData;
+          let rowIndex = $index
+        ) {
+          @let row = matrix.selectGrid().selectItem(rowIndex);
           <div class="pixel-art__row">
             <div class="pixel-art__row-cells">
               @for (
@@ -88,6 +105,13 @@ const createInitialGrid = (): PixelCellState[][] =>
                   class="pixel-art__cell"
                   [style.background-color]="cellItem?.color ?? emptyColor"
                   (click)="cellItem?.paint()"
+                  (contextmenu)="
+                    $event.preventDefault();
+                    row?.paintRowWithTargetCellColor$({
+                      color: cellItem?.color ?? emptyColor,
+                      cellIndex: cellIndex,
+                    })
+                  "
                   [attr.aria-label]="
                     'Cell row ' + (rowIndex + 1) + ', column ' + (cellIndex + 1)
                   "
@@ -116,7 +140,7 @@ const createInitialGrid = (): PixelCellState[][] =>
         <button
           type="button"
           class="pixel-art__add-btn pixel-art__add-btn--row"
-          (click)="grid.addRow()"
+          (click)="matrix.selectGrid().addRow()"
         >
           Add row
         </button>
@@ -130,91 +154,109 @@ export default class PixelArtMatrix {
   protected readonly emptyColor = EMPTY_COLOR;
   protected readonly colorPalette = COLOR_PALETTE;
 
-  protected readonly ui = state(
+  protected readonly matrix = state(
     {
-      activeColor: DEFAULT_ACTIVE_COLOR,
+      ui: {
+        activeColor: DEFAULT_ACTIVE_COLOR,
+      },
+      grid: createInitialGrid(),
     },
-    ({ update }) => ({
+    insertSelectProperty('ui', ({ update }) => ({
       setActiveColor: (color: string) =>
         update((current) => ({ ...current, activeColor: color })),
-    }),
-  );
-
-  protected readonly grid = state(
-    createInitialGrid(),
-    insertSelectItem(
-      ({ state, set }) => ({
-        addCell: () => {
-          const nextIndex = state().reduce(
-            (max, cell) => Math.max(max, cell.index),
-            -1,
-          );
-          return set([
-            ...state(),
-            {
-              index: nextIndex + 1,
-              color: EMPTY_COLOR,
-              paintCount: 0,
-            },
-          ]);
-        },
-      }),
-      insertSelectItem(({ state, update }) => ({
-        paint: () =>
-          update((targetCell) => ({
-            ...targetCell,
-            color:
-              targetCell.color === this.ui().activeColor
-                ? EMPTY_COLOR
-                : this.ui().activeColor,
-            paintCount: targetCell.paintCount + 1,
-          })),
-        paintCountStr: computed(() => `Painted ${state().paintCount} times`),
-      })),
-    ),
-    ({ state, update }) => ({
-      addRow: () =>
-        update((currentGrid) => {
-          const columnCount = currentGrid[0]?.length ?? GRID_SIZE;
-          const nextIndex = currentGrid
-            .flat()
-            .reduce((max, cell) => Math.max(max, cell.index), -1);
-          const newRow = Array.from({ length: columnCount }, (_unused, i) => ({
-            index: nextIndex + i + 1,
-            color: EMPTY_COLOR,
-            paintCount: 0,
-          }));
-
-          return [...currentGrid, newRow];
+    })),
+    insertSelectProperty(
+      'grid',
+      insertSelectItem(
+        ({ state, set }) => ({
+          addCell: () => {
+            const nextIndex = state().reduce(
+              (max, cell) => Math.max(max, cell.index),
+              -1,
+            );
+            return set([
+              ...state(),
+              {
+                index: nextIndex + 1,
+                color: EMPTY_COLOR,
+                paintCount: 0,
+              },
+            ]);
+          },
+          paintRowWithTargetCellColor$: source$<{
+            color: string;
+            cellIndex: number;
+          }>(),
         }),
-      clearAll: () =>
-        update((currentGrid) =>
-          currentGrid.map((row) =>
-            row.map((cell) => ({
-              ...cell,
-              color: EMPTY_COLOR,
-            })),
+        insertSelectItem(
+          ({ state, update, insertions: { paintRowWithTargetCellColor$ } }) => ({
+            paint: () =>
+              update((targetCell) => ({
+                ...targetCell,
+                color:
+                  targetCell.color === this.matrix.selectUi().activeColor
+                    ? EMPTY_COLOR
+                    : this.matrix.selectUi().activeColor,
+                paintCount: targetCell.paintCount + 1,
+              })),
+            paintCountStr: computed(() => `Painted ${state().paintCount} times`),
+            paintCellOnSameRow: on$(paintRowWithTargetCellColor$, ({ color }) =>
+              update((targetCell) => ({
+                ...targetCell,
+                color,
+                paintCount: targetCell.paintCount + 1,
+              })),
+            ),
+          }),
+        ),
+      ),
+      ({ state, update }) => ({
+        addRow: () =>
+          update((currentGrid) => {
+            const columnCount = currentGrid[0]?.length ?? GRID_SIZE;
+            const nextIndex = currentGrid
+              .flat()
+              .reduce((max, cell) => Math.max(max, cell.index), -1);
+            const newRow = Array.from(
+              { length: columnCount },
+              (_unused, i) => ({
+                index: nextIndex + i + 1,
+                color: EMPTY_COLOR,
+                paintCount: 0,
+              }),
+            );
+
+            return [...currentGrid, newRow];
+          }),
+        clearAll: () =>
+          update((currentGrid) =>
+            currentGrid.map((row) =>
+              row.map((cell) => ({
+                ...cell,
+                color: EMPTY_COLOR,
+              })),
+            ),
+          ),
+        rowIndexes: computed(() => state().map((_row, index) => index)),
+        totalCells: computed(() =>
+          state().reduce((count, row) => count + row.length, 0),
+        ),
+        paintedCount: computed(() =>
+          state().reduce(
+            (count, row) =>
+              count + row.filter((cell) => cell.color !== EMPTY_COLOR).length,
+            0,
           ),
         ),
-      rowIndexes: computed(() => state().map((_row, index) => index)),
-      totalCells: computed(() =>
-        state().reduce((count, row) => count + row.length, 0),
-      ),
-      paintedCount: computed(() =>
-        state().reduce(
-          (count, row) =>
-            count + row.filter((cell) => cell.color !== EMPTY_COLOR).length,
-          0,
+        totalPaintActions: computed(() =>
+          state().reduce(
+            (count, row) =>
+              count +
+              row.reduce((rowCount, cell) => rowCount + cell.paintCount, 0),
+            0,
+          ),
         ),
-      ),
-      totalPaintActions: computed(() =>
-        state().reduce(
-          (count, row) =>
-            count +
-            row.reduce((rowCount, cell) => rowCount + cell.paintCount, 0),
-          0,
-        ),
-      ),
-    }),
+      }),
+    ),
   );
 }
