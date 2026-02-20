@@ -7,6 +7,7 @@ import { insertSelectItem } from './insert-select-item';
 import { source$ } from './source$';
 import { state } from './state';
 import { on$ } from './on$';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -331,7 +332,6 @@ describe('insertSelectItem', () => {
   });
 
   it('should expose internalSource$ as a cross-layer source$ (bottom to top)', () => {
-    const eventLog: any[] = [];
     runInInjectionContext(() => {
       const cells = state(
         [{ index: 0, paintCount: 0, color: 'white' }],
@@ -353,42 +353,50 @@ describe('insertSelectItem', () => {
           on$(paintCell$, (event) => {
             expectTypeOf(event).toEqualTypeOf<{
               payload: string; // infer payload type from source$<string>
-              path: number[];
+              path: [number];
               leaf: {
                 item: { index: number; paintCount: number; color: string }; // infer item type from state item
                 index: number; // infer index type from state item
               };
             }>();
-            eventLog.push({
-              payload: event.payload,
-              path: event.path,
-              leaf: event.leaf,
-            });
+            expect(event.path).toEqual([0]);
           });
-          return {};
+          return {
+            eventRoot: paintCell$.value,
+          };
         },
       );
 
       TestBed.tick();
       //@ts-expect-error _paintCell should not be exposed on cells
       expect(cells.selectItem(0)?._paintCell).not.toBeDefined();
+      expectTypeOf(cells.eventRoot).toEqualTypeOf<
+        Signal<
+          | {
+              payload: string;
+              path: [number];
+              leaf: {
+                item: { index: number; paintCount: number; color: string };
+                index: number;
+              };
+            }
+          | undefined
+        >
+      >();
 
       cells.selectItem(0)?.paintCell$('red');
 
       expect(cells.select(0)?.color).toBe('red');
       expect(cells.select(0)?.paintCount).toBe(1);
-
-      const firstEvent = eventLog[0];
-      expect(firstEvent.payload).toBe('red');
-      expect(firstEvent.path).toEqual([0]);
-      expect(firstEvent.leaf.index).toBe(0);
-      expect(firstEvent.leaf.item.index).toBe(0);
+      expect(cells.eventRoot()?.payload).toBe('red');
+      expect(cells.eventRoot()?.path).toEqual([0]);
+      expect(cells.eventRoot()?.leaf.index).toBe(0);
+      expect(cells.eventRoot()?.leaf.item.index).toBe(0);
     });
   });
 
   it('should expose internalSource$ as a cross-layer source$ (bottom to top) in nested layers', async () => {
     vi.useFakeTimers();
-    const eventLog: any[] = [];
     await runInInjectionContext(async () => {
       const matrix = state(
         [[{ index: 0, paintCount: 0, color: 'white' }]],
@@ -411,57 +419,79 @@ describe('insertSelectItem', () => {
             on$(paintCell$, (event) => {
               expectTypeOf(event).toEqualTypeOf<{
                 payload: string;
-                path: number[];
+                path: [number];
                 leaf: {
                   item: { index: number; paintCount: number; color: string };
                   index: number;
-                };
-              }>();
+              };
+            }>();
               // as it is the inner layer source$, path should be only the inner item index
               expect(event.path).toEqual([0]);
-              eventLog.push({
-                payload: event.payload,
-                path: event.path,
-                leaf: event.leaf,
-              });
             });
-            return {};
+            return {
+              eventNested: paintCell$.value,
+            };
           },
         ),
         ({ insertions: { paintCell$ } }) => {
           on$(paintCell$, (event) => {
             expectTypeOf(event).toEqualTypeOf<{
               payload: string;
-              path: number[];
+              path: [number, number];
               leaf: {
                 item: { index: number; paintCount: number; color: string };
                 index: number;
               };
             }>();
             // as it is the inner layer source$, path should be only the inner item index
-            expect(event.path).toEqual([0]);
-            eventLog.push({
-              payload: event.payload,
-              path: event.path,
-              leaf: event.leaf,
-            });
+            expect(event.path).toEqual([0, 0]);
           });
-          return {};
+          return {
+            eventRoot: paintCell$.value,
+          };
         },
       );
 
       TestBed.tick();
+      expectTypeOf(matrix.selectItem(0)?.eventNested).toEqualTypeOf<
+        | Signal<
+            | {
+                payload: string;
+                path: [number];
+                leaf: {
+                  item: { index: number; paintCount: number; color: string };
+                  index: number;
+                };
+              }
+            | undefined
+          >
+        | undefined
+      >();
+      expectTypeOf(matrix.eventRoot).toEqualTypeOf<
+        Signal<
+          | {
+              payload: string;
+              path: [number, number];
+              leaf: {
+                item: { index: number; paintCount: number; color: string };
+                index: number;
+              };
+            }
+          | undefined
+        >
+      >();
 
       matrix.selectItem(0)?.selectItem(0)?.paintCell$('red');
 
       expect(matrix.selectItem(0)?.selectItem(0)?.color).toBe('red');
       expect(matrix.selectItem(0)?.selectItem(0)?.paintCount).toBe(1);
-
-      const firstEvent = eventLog[0];
-      expect(firstEvent.payload).toBe('red');
-      expect(firstEvent.path).toEqual([0, 0]);
-      expect(firstEvent.leaf.index).toBe(0);
-      expect(firstEvent.leaf.item.color).toBe('red');
+      expect(matrix.selectItem(0)?.eventNested?.()?.payload).toBe('red');
+      expect(matrix.selectItem(0)?.eventNested?.()?.path).toEqual([0]);
+      expect(matrix.selectItem(0)?.eventNested?.()?.leaf.index).toBe(0);
+      expect(matrix.eventRoot()?.payload).toBe('red');
+      expect(matrix.eventRoot()?.path).toEqual([0, 0]);
+      expect(matrix.eventRoot()?.leaf.index).toBe(0);
+      expect(matrix.eventRoot()?.leaf.item.color).toBe('red');
 
       vi.runAllTimersAsync();
       vi.clearAllMocks();

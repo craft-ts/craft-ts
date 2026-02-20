@@ -39,6 +39,9 @@ type Source$Method<SourceType> = [SourceType] extends [void]
   ? () => void
   : (value: SourceType) => void;
 
+type PathSegment = string | number | symbol;
+type TuplePath = readonly PathSegment[];
+
 type SourceKeys<Insertions> = {
   [K in keyof Insertions]-?: Insertions[K] extends SourceDollarType<any>
     ? K
@@ -48,34 +51,45 @@ type SourceKeys<Insertions> = {
 type FlatCrossLayerEvent<
   Payload,
   LeafItem,
-  PathId extends ParallelStateId,
-  LeafId extends ParallelStateId = PathId,
+  LeafId extends PathSegment,
+  Path extends TuplePath,
 > = {
   payload: Payload;
-  path: PathId[];
+  path: Path;
   leaf: {
     item: LeafItem;
     index: LeafId;
   };
 };
 
-type FlatCrossLayerEventFromSource<
+type PrependPath<
+  Seg extends PathSegment,
+  Path extends TuplePath,
+> = [Seg, ...Path];
+
+type ToFlatAtLayer<
   SourceType,
   SelectedStateType extends object,
-  GroupIdentifier extends ParallelStateId,
+  CurrentSeg extends PathSegment,
+  CurrentLeafIndex extends PathSegment = CurrentSeg,
 > = SourceType extends FlatCrossLayerEvent<
-  infer SourcePayload,
-  infer SourceLeafItem,
-  infer SourcePathId,
-  infer SourceLeafId
+  infer Payload,
+  infer LeafItem,
+  infer LeafIndex extends PathSegment,
+  infer Path extends TuplePath
 >
   ? FlatCrossLayerEvent<
-      SourcePayload,
-      SourceLeafItem,
-      GroupIdentifier | SourcePathId,
-      SourceLeafId
+      Payload,
+      LeafItem,
+      LeafIndex,
+      PrependPath<CurrentSeg, Path>
     >
-  : FlatCrossLayerEvent<SourceType, SelectedStateType, GroupIdentifier>;
+  : FlatCrossLayerEvent<
+      SourceType,
+      SelectedStateType,
+      CurrentLeafIndex,
+      [CurrentSeg]
+    >;
 
 type CrossLayerSourceOutput<
   Insertions,
@@ -86,7 +100,7 @@ type CrossLayerSourceOutput<
     infer SourceType
   >
     ? SourceDollarType<
-        FlatCrossLayerEventFromSource<
+        ToFlatAtLayer<
           SourceType,
           SelectedStateType,
           GroupIdentifier
@@ -125,7 +139,7 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
 
 function isFlatCrossLayerEvent(
   value: unknown,
-): value is FlatCrossLayerEvent<unknown, unknown, ParallelStateId> {
+): value is FlatCrossLayerEvent<unknown, unknown, PathSegment, TuplePath> {
   return (
     typeof value === 'object' &&
     value !== null &&
