@@ -23,22 +23,30 @@ export type BusinessException<
   identifier?: string;
 }>;
 
-export type StateException<Code extends string = string, Payload = unknown> =
-  BusinessException<'state', Code, Payload>;
+export type StateException<
+  Code extends string = string,
+  Payload = unknown,
+> = BusinessException<'state', Code, Payload>;
 
-export type MethodException<Code extends string = string, Payload = unknown> =
-  BusinessException<'method', Code, Payload>;
+export type MethodException<
+  Code extends string = string,
+  Payload = unknown,
+> = BusinessException<'method', Code, Payload>;
 
 export type ReactionInsertionException<
   Code extends string = string,
   Payload = unknown,
 > = BusinessException<'reactionInsertion', Code, Payload>;
 
-export type ParamException<Code extends string = string, Payload = unknown> =
-  BusinessException<'params', Code, Payload>;
+export type ParamException<
+  Code extends string = string,
+  Payload = unknown,
+> = BusinessException<'params', Code, Payload>;
 
-export type LoaderException<Code extends string = string, Payload = unknown> =
-  BusinessException<'loader', Code, Payload>;
+export type LoaderException<
+  Code extends string = string,
+  Payload = unknown,
+> = BusinessException<'loader', Code, Payload>;
 
 export type ComputedInsertionException<
   Code extends string = string,
@@ -50,11 +58,9 @@ export type MethodInsertionException<
   Payload = unknown,
 > = BusinessException<'methodInsertion', Code, Payload>;
 
-export type AnyBusinessException = BusinessException<
-  BusinessExceptionScope,
-  string,
-  unknown
->;
+export type AnyBusinessException = {
+  [Scope in BusinessExceptionScope]: BusinessException<Scope, string, unknown>;
+}[BusinessExceptionScope];
 
 export type StripBusinessExceptions<Value> = Exclude<
   Value,
@@ -126,7 +132,9 @@ export const EMPTY_GROUPED_BUSINESS_EXCEPTIONS: AnyGroupedBusinessExceptions = {
 
 const scopeSet = new Set<string>(BUSINESS_EXCEPTION_SCOPES);
 
-export function isBusinessException(value: unknown): value is AnyBusinessException {
+export function isBusinessException(
+  value: unknown,
+): value is AnyBusinessException {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -158,178 +166,30 @@ function createException<
   };
 }
 
-export function stateException<Code extends string, Payload = undefined>(
-  code: Code,
-  payload?: Payload,
-  identifier?: string,
-): StateException<Code, Payload> {
-  return createException('state', code, payload, identifier);
-}
-
-export function methodException<Code extends string, Payload = undefined>(
-  code: Code,
-  payload?: Payload,
-  identifier?: string,
-): MethodException<Code, Payload> {
-  return createException('method', code, payload, identifier);
-}
-
-/**
- * @deprecated Use `methodException` instead.
- */
-export function craftException<Code extends string, Payload = undefined>(
-  code: Code,
-  payload?: Payload,
-  identifier?: string,
-): MethodException<Code, Payload>;
-export function craftException<Code extends string, Payload = undefined>(
+export function craftException<
+  Scope extends BusinessExceptionScope = 'method',
+  Code extends string = string,
+  Payload = undefined,
+>(
   config: {
     code: Code;
+    scope?: Scope;
     identifier?: string;
   },
   payload?: Payload,
-): MethodException<Code, Payload>;
-export function craftException<Code extends string, Payload = undefined>(
-  codeOrConfig:
-    | Code
-    | {
-        code: Code;
-        identifier?: string;
-      },
-  payload?: Payload,
-  identifier?: string,
-): MethodException<Code, Payload> {
-  if (typeof codeOrConfig === 'object') {
-    return createException(
-      'method',
-      codeOrConfig.code,
-      payload,
-      codeOrConfig.identifier,
-    ) as MethodException<Code, Payload>;
-  }
-  return createException('method', codeOrConfig, payload, identifier);
-}
-
-export function reactionInsertionException<
-  Code extends string,
-  Payload = undefined,
->(
-  code: Code,
-  payload?: Payload,
-  identifier?: string,
-): ReactionInsertionException<Code, Payload> {
-  return createException('reactionInsertion', code, payload, identifier);
-}
-
-export function paramException<Code extends string, Payload = undefined>(
-  code: Code,
-  payload?: Payload,
-  identifier?: string,
-): ParamException<Code, Payload> {
-  return createException('params', code, payload, identifier);
-}
-
-const EXCEPTION_CARRIER = Symbol('EXCEPTION_CARRIER');
-const STATE_EXCEPTION_DEFINITIONS = Symbol('STATE_EXCEPTION_DEFINITIONS');
-
-export type ExceptionDefinitionsToUnion<
-  Scope extends BusinessExceptionScope,
-  Definitions extends Record<string, unknown>,
-> = {
-  [Code in keyof Definitions & string]: BusinessException<
-    Scope,
-    Code,
-    Definitions[Code]
-  >;
-}[keyof Definitions & string];
-
-export type ExceptionCarrier<Exceptions extends AnyBusinessException = never> = {
-  readonly [EXCEPTION_CARRIER]?: Exceptions;
-};
-
-export type ExtractExceptionCarrier<Value> = Value extends {
-  readonly [EXCEPTION_CARRIER]?: infer Exceptions;
-}
-  ? Extract<Exceptions, AnyBusinessException>
-  : never;
-
-export type WithStateExceptions<
-  State,
-  Definitions extends Record<string, unknown>,
-> = State &
-  ExceptionCarrier<ExceptionDefinitionsToUnion<'state', Definitions>>;
-
-export function withStateExceptions<
-  State,
-  Definitions extends Record<string, unknown>,
->(
-  state: State,
-  definitions: Definitions,
-): WithStateExceptions<State, Definitions> {
-  if (typeof state === 'object' && state !== null) {
-    try {
-      const stateRecord = state as Record<PropertyKey, unknown>;
-      Object.defineProperty(stateRecord, STATE_EXCEPTION_DEFINITIONS, {
-        value: definitions,
-        enumerable: false,
-        configurable: false,
-        writable: false,
-      });
-    } catch {
-      // Ignore immutable objects. The helper still carries the type-level exceptions.
-    }
-  }
-  return state as WithStateExceptions<State, Definitions>;
-}
-
-export function getStateExceptionDefinitions(
-  state: unknown,
-): Record<string, unknown> {
-  if (typeof state !== 'object' || state === null) {
-    return {};
-  }
-
-  const stateRecord = state as Record<PropertyKey, unknown>;
-  const definitions = stateRecord[STATE_EXCEPTION_DEFINITIONS];
-  if (!definitions || typeof definitions !== 'object') {
-    return {};
-  }
-
-  return definitions as Record<string, unknown>;
-}
-
-export function withMethodExceptions<
-  Value,
-  Definitions extends Record<string, unknown>,
->(
-  value: Value,
-  definitions: Definitions,
-): Value & ExceptionCarrier<ExceptionDefinitionsToUnion<'method', Definitions>> {
-  return value as Value &
-    ExceptionCarrier<ExceptionDefinitionsToUnion<'method', Definitions>>;
-}
-
-export function withReactionInsertionExceptions<
-  Value,
-  Definitions extends Record<string, unknown>,
->(
-  value: Value,
-  definitions: Definitions,
-): Value &
-  ExceptionCarrier<
-    ExceptionDefinitionsToUnion<'reactionInsertion', Definitions>
-  > {
-  return value as Value &
-    ExceptionCarrier<
-      ExceptionDefinitionsToUnion<'reactionInsertion', Definitions>
-    >;
+): BusinessException<Scope, Code, Payload> {
+  return createException(
+    (config.scope ?? 'method') as Scope,
+    config.code,
+    payload,
+    config.identifier,
+  );
 }
 
 type AnySignal = Signal<unknown>;
 type AnyFn = (...args: any[]) => unknown;
 
 export type ExtractBusinessExceptionsFromValue<Value> =
-  | ExtractExceptionCarrier<Value>
   | Extract<Value, AnyBusinessException>
   | (Value extends {
       readonly __reactionInsertionExceptions__?: infer Exceptions;
@@ -469,7 +329,10 @@ function toGroupedBusinessExceptions(
 }
 
 export type BusinessExceptionStore<
-  GroupedExceptions extends Record<string, Record<string, unknown>> = AnyGroupedBusinessExceptions,
+  GroupedExceptions extends Record<
+    string,
+    Record<string, unknown>
+  > = AnyGroupedBusinessExceptions,
 > = {
   readonly exceptions: Signal<GroupedExceptions>;
   hasException: () => boolean;
@@ -490,11 +353,15 @@ export type BusinessExceptionStore<
 };
 
 export function createBusinessExceptionStore<
-  GroupedExceptions extends Record<string, Record<string, unknown>> = AnyGroupedBusinessExceptions,
+  GroupedExceptions extends Record<
+    string,
+    Record<string, unknown>
+  > = AnyGroupedBusinessExceptions,
 >(
   initialExceptions?: Partial<AnyGroupedBusinessExceptions>,
 ): BusinessExceptionStore<GroupedExceptions> {
-  const groupedInitialExceptions = toGroupedBusinessExceptions(initialExceptions);
+  const groupedInitialExceptions =
+    toGroupedBusinessExceptions(initialExceptions);
   const exceptionsSignal = signal<
     AnyGroupedBusinessExceptions & BusinessExceptionListContainer
   >({
@@ -551,7 +418,9 @@ export function createBusinessExceptionStore<
   ) => {
     exceptionsSignal.update((current) => {
       const nextScopeValues = sortRecord({ ...values });
-      const currentScopeList = current.list.filter((item) => item.scope === scope);
+      const currentScopeList = current.list.filter(
+        (item) => item.scope === scope,
+      );
       const currentScopeListById = new Map(
         currentScopeList.map((item) => [item.id, item]),
       );
@@ -653,12 +522,12 @@ export function captureBusinessExceptionResult<Result>(
   raiseException: (exception: AnyBusinessException) => void,
 ): Result {
   if (isPromiseLike(result)) {
-    return (result.then((resolvedValue) => {
+    return result.then((resolvedValue) => {
       if (isBusinessException(resolvedValue)) {
         raiseException(resolvedValue);
       }
       return resolvedValue;
-    }) as unknown) as Result;
+    }) as unknown as Result;
   }
 
   if (isBusinessException(result)) {
@@ -673,7 +542,10 @@ export function wrapExceptionAwareMethods<
   insertions: Insertions,
   raiseException: (exception: AnyBusinessException) => void,
   options?: {
-    clearExceptionOnSuccess?: (key: string, previousExceptionCode: string) => void;
+    clearExceptionOnSuccess?: (
+      key: string,
+      previousExceptionCode: string,
+    ) => void;
   },
 ): Insertions {
   return Object.entries(insertions).reduce((acc, [key, value]) => {
@@ -684,13 +556,12 @@ export function wrapExceptionAwareMethods<
 
     let previousExceptionCode: string | undefined;
     (acc as Record<string, unknown>)[key] = (...args: unknown[]) => {
-      const methodResult = (value as (...params: unknown[]) => unknown)(...args);
+      const methodResult = (value as (...params: unknown[]) => unknown)(
+        ...args,
+      );
       const handleMethodResult = <Result>(result: Result): Result => {
         if (isBusinessException(result)) {
-          if (
-            previousExceptionCode &&
-            previousExceptionCode !== result.code
-          ) {
+          if (previousExceptionCode && previousExceptionCode !== result.code) {
             options?.clearExceptionOnSuccess?.(key, previousExceptionCode);
           }
           raiseException(result);

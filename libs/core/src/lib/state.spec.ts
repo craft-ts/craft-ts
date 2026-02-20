@@ -6,7 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { source$ } from './source$';
 import { on$ } from './on$';
 import { InsertionsStateFactory } from './query.core';
-import { methodException, withStateExceptions } from './business-exception';
+import { craftException } from './business-exception';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -156,18 +156,21 @@ describe('state', () => {
     });
   });
 
-  it('should expose state exceptions declared via withStateExceptions', () => {
+  it('should expose state exceptions returned by state source', () => {
     runInInjectionContext(() => {
+      const throwRef = signal(true);
       const myState = state(
-        withStateExceptions(
-          {
-            counter: 0,
-          },
-          {
-            counterMustBePositive: {
-              min: 0,
-            },
-          },
+        linkedSignal(() =>
+          throwRef()
+            ? craftException(
+                {
+                  code: 'counterMustBePositive',
+                },
+                {
+                  min: 0,
+                },
+              )
+            : { counter: 1 },
         ),
       );
 
@@ -184,10 +187,14 @@ describe('state', () => {
           payload: {
             min: 0,
           },
-          updatedAt: 0,
+          updatedAt: expect.any(Number),
         },
       ]);
       expect(myState.hasException()).toBe(true);
+
+      throwRef.set(false);
+      expect(myState.exceptions?.().state).toEqual({});
+      expect(myState.hasException()).toBe(false);
     });
   });
 
@@ -195,7 +202,7 @@ describe('state', () => {
     runInInjectionContext(() => {
       const myState = state(0, () => ({
         fail: () =>
-          methodException('COUNTER_LOCKED', {
+          craftException({ code: 'COUNTER_LOCKED' }, {
             current: 0,
           }),
         pass: () => undefined,

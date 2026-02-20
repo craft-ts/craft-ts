@@ -20,7 +20,6 @@ import {
   createBusinessExceptionStore,
   ExtractBusinessExceptionsFromObject,
   ExtractStateExceptions,
-  getStateExceptionDefinitions,
   GroupedBusinessExceptions,
   isBusinessException,
   MethodException,
@@ -774,11 +773,7 @@ export function asyncProcess<
   const isConnectedToSource = isSource(AsyncProcessConfig.method);
 
   const isUsingIdentifier = 'identifier' in AsyncProcessConfig;
-  const exceptionStore = createBusinessExceptionStore({
-    state: getStateExceptionDefinitions(
-      (AsyncProcessConfig as { defaultValue?: unknown }).defaultValue,
-    ),
-  });
+  const exceptionStore = createBusinessExceptionStore();
 
   const resourceParamsSrc = isConnectedToSource
     ? AsyncProcessConfig.method
@@ -889,7 +884,6 @@ export function asyncProcess<
             set: resourceTarget.set,
             update: resourceTarget.update,
             exceptions: exceptionStore.exceptions,
-            raiseException: exceptionStore.raiseException,
             clearException: exceptionStore.clearException,
             clearExceptionScope: exceptionStore.clearScope,
             clearExceptions: exceptionStore.clearAll,

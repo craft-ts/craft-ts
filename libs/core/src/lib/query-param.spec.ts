@@ -3,7 +3,7 @@ import { queryParam } from './query-param';
 import { provideRouter, Router } from '@angular/router';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
-import { methodException } from './business-exception';
+import { craftException } from './business-exception';
 
 describe('queryParams', () => {
   beforeEach(() => {
@@ -373,9 +373,14 @@ describe('queryParams', () => {
         },
         () => ({
           fail: () =>
-            methodException('INVALID_PAGE', {
-              min: 1,
-            }),
+            craftException(
+              {
+                code: 'INVALID_PAGE',
+              },
+              {
+                min: 1,
+              },
+            ),
         }),
       );
 

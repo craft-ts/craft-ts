@@ -23,7 +23,6 @@ import {
   createBusinessExceptionStore,
   ExtractBusinessExceptionsFromObject,
   ExtractStateExceptions,
-  getStateExceptionDefinitions,
   GroupedBusinessExceptions,
   isBusinessException,
   MethodException,
@@ -1083,11 +1082,7 @@ export function mutation<
   const isConnectedToSource =
     'method' in mutationConfig && isSignal(mutationConfig.method);
   const isUsingIdentifier = 'identifier' in mutationConfig;
-  const exceptionStore = createBusinessExceptionStore({
-    state: getStateExceptionDefinitions(
-      (mutationConfig as { defaultValue?: unknown }).defaultValue,
-    ),
-  });
+  const exceptionStore = createBusinessExceptionStore();
   let lastMethodExceptionCode: string | undefined;
 
   const resourceParamsSrc = isConnectedToSource
@@ -1229,7 +1224,6 @@ export function mutation<
             set: resourceTarget.set,
             update: resourceTarget.update,
             exceptions: exceptionStore.exceptions,
-            raiseException: exceptionStore.raiseException,
             clearException: exceptionStore.clearException,
             clearExceptionScope: exceptionStore.clearScope,
             clearExceptions: exceptionStore.clearAll,

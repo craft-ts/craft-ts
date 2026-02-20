@@ -19,7 +19,6 @@ import {
   createBusinessExceptionStore,
   ExtractBusinessExceptionsFromObject,
   ExtractStateExceptions,
-  getStateExceptionDefinitions,
   GroupedBusinessExceptions,
   wrapExceptionAwareMethods,
 } from './business-exception';
@@ -367,15 +366,7 @@ export function queryParam<
     },
   };
 
-  const exceptionStore = createBusinessExceptionStore({
-    state: Object.values(getDefaultState()).reduce(
-      (acc, value) => ({
-        ...acc,
-        ...getStateExceptionDefinitions(value),
-      }),
-      {} as Record<string, unknown>,
-    ),
-  });
+  const exceptionStore = createBusinessExceptionStore();
 
   // Process insertions
   const insertionResults =
@@ -388,7 +379,6 @@ export function queryParam<
             ...methods,
             insertions: acc as {},
             exceptions: exceptionStore.exceptions,
-            raiseException: exceptionStore.raiseException,
             clearException: exceptionStore.clearException,
             clearExceptionScope: exceptionStore.clearScope,
             clearExceptions: exceptionStore.clearAll,

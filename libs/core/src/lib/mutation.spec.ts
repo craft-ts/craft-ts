@@ -6,7 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
 import { mutation, MutationOutput } from './mutation';
 import { craftMutations } from './craft-mutations';
-import { methodException } from './business-exception';
+import { craftException } from './business-exception';
 
 describe('mutation', () => {
   it('should enable to define a mutation that can be call with the method', async () => {
@@ -119,7 +119,7 @@ describe('mutation', () => {
       const mutationInstance = mutation({
         method: (id: string) =>
           id.length === 0
-            ? methodException('MISSING_ID', {
+            ? craftException({ code: 'MISSING_ID' }, {
                 field: 'id',
               })
             : { id },
@@ -143,7 +143,7 @@ describe('mutation', () => {
       const mutationInstance = mutation({
         method: (id: string) =>
           id.length === 0
-            ? methodException('MISSING_ID', {
+            ? craftException({ code: 'MISSING_ID' }, {
                 field: 'id',
               })
             : { id },

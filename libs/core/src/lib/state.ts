@@ -1,4 +1,5 @@
 import {
+  effect,
   isSignal,
   isWritableSignal,
   linkedSignal,
@@ -18,8 +19,8 @@ import {
   createBusinessExceptionStore,
   ExtractBusinessExceptionsFromObject,
   ExtractStateExceptions,
-  getStateExceptionDefinitions,
   GroupedBusinessExceptions,
+  isBusinessException,
   wrapExceptionAwareMethods,
 } from './business-exception';
 
@@ -329,10 +330,45 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
       : (stateSignal as Signal<StateType>);
-  const exceptionStore = createBusinessExceptionStore({
-    state: getStateExceptionDefinitions(
-      isSignalState ? stateSignal() : stateConfig,
-    ),
+  const exceptionStore = createBusinessExceptionStore();
+  let previousStateException:
+    | {
+        code: string;
+        identifier?: string;
+      }
+    | undefined;
+  effect(() => {
+    const maybeStateException = readonlyStateSignal();
+    if (isBusinessException(maybeStateException)) {
+      if (
+        previousStateException &&
+        (previousStateException.code !== maybeStateException.code ||
+          previousStateException.identifier !== maybeStateException.identifier)
+      ) {
+        exceptionStore.clearException(
+          'state',
+          previousStateException.code,
+          previousStateException.identifier,
+        );
+      }
+      exceptionStore.raiseException({
+        ...maybeStateException,
+        scope: 'state',
+      });
+      previousStateException = {
+        code: maybeStateException.code,
+        identifier: maybeStateException.identifier,
+      };
+      return;
+    }
+    if (previousStateException) {
+      exceptionStore.clearException(
+        'state',
+        previousStateException.code,
+        previousStateException.identifier,
+      );
+      previousStateException = undefined;
+    }
   });
 
   return Object.assign(
@@ -351,7 +387,6 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
               stateSignal.update(updateFn),
             insertions: acc as {},
             exceptions: exceptionStore.exceptions,
-            raiseException: exceptionStore.raiseException,
             clearException: exceptionStore.clearException,
             clearExceptionScope: exceptionStore.clearScope,
             clearExceptions: exceptionStore.clearAll,

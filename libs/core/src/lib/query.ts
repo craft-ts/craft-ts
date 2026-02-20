@@ -26,7 +26,6 @@ import {
   createBusinessExceptionStore,
   ExtractBusinessExceptionsFromObject,
   ExtractBusinessExceptionsFromValue,
-  getStateExceptionDefinitions,
   isBusinessException,
   StripBusinessExceptions,
 } from './business-exception';
@@ -79,11 +78,13 @@ type ScopePayloadByCodeByIdentifier<
   GroupIdentifier,
 > = [unknown] extends [GroupIdentifier]
   ? ScopePayloadByCode<ExceptionUnion>
-  : Partial<Record<GroupIdentifier & string, ScopePayloadByCode<ExceptionUnion>>>;
+  : Partial<
+      Record<GroupIdentifier & string, ScopePayloadByCode<ExceptionUnion>>
+    >;
 
 type QueryOutputExceptions<Value, Params, Insertions, GroupIdentifier> = {
   list: BusinessExceptionListContainer['list'];
-  params: Record<string, unknown>;
+  params: Params;
   loader: ScopePayloadByCodeByIdentifier<
     RescopeBusinessExceptions<
       ExtractBusinessExceptionsFromValue<Value>,
@@ -109,7 +110,9 @@ type QueryOutputExceptions<Value, Params, Insertions, GroupIdentifier> = {
   >;
   methodInsertion: ScopePayloadByCodeByIdentifier<
     RescopeBusinessExceptions<
-      ExtractBusinessExceptionsFromObject<PickMethodInsertionValues<Insertions>>,
+      ExtractBusinessExceptionsFromObject<
+        PickMethodInsertionValues<Insertions>
+      >,
       'methodInsertion'
     >,
     GroupIdentifier
@@ -160,9 +163,8 @@ type QueryInsertionContextExceptions<
   Params,
   PreviousInsertions,
   GroupIdentifier,
-> =
-  AnyGroupedBusinessExceptions &
-    QueryOutputExceptions<Value, Params, PreviousInsertions, GroupIdentifier>;
+> = AnyGroupedBusinessExceptions &
+  QueryOutputExceptions<Value, Params, PreviousInsertions, GroupIdentifier>;
 
 type QueryInsertionFactory<
   GroupIdentifier,
@@ -379,7 +381,7 @@ export type ResourceLikeQueryRef<
       readonly error: Signal<Error | undefined>;
       readonly isLoading: Signal<boolean>;
       readonly exceptions?: Signal<
-        QueryOutputExceptions<Value, Params, Insertions, unknown>
+        QueryOutputExceptions<Value, Params, Insertions, unknown> /// todp
       >;
       hasException(): boolean;
       hasValue(): boolean;
@@ -412,7 +414,9 @@ export type ResourceByIdLikeQueryRef<
   Insertions,
   GroupIdentifier,
 > = { type: 'resourceByGroupLike'; kind: 'query' } & {
-  readonly resourceParamsSrc: WritableSignal<NoInfer<QueryRuntimeParams<Params>>>;
+  readonly resourceParamsSrc: WritableSignal<
+    NoInfer<QueryRuntimeParams<Params>>
+  >;
   readonly exceptions?: Signal<
     QueryOutputExceptions<Value, Params, Insertions, GroupIdentifier>
   >;
@@ -1172,15 +1176,13 @@ export function query<
   {}
 > {
   const hasParamsFn = typeof queryConfig.params === 'function';
-  const hasLoader = 'loader' in queryConfig && typeof queryConfig.loader === 'function';
-  const hasStream = 'stream' in queryConfig && typeof queryConfig.stream === 'function';
+  const hasLoader =
+    'loader' in queryConfig && typeof queryConfig.loader === 'function';
+  const hasStream =
+    'stream' in queryConfig && typeof queryConfig.stream === 'function';
   const isConnectedToSource = isSignal(queryConfig.method);
   const isUsingIdentifier = 'identifier' in queryConfig;
-  const exceptionStore = createBusinessExceptionStore({
-    loader: getStateExceptionDefinitions(
-      (queryConfig as { defaultValue?: unknown }).defaultValue,
-    ),
-  });
+  const exceptionStore = createBusinessExceptionStore();
   let readCurrentIdentifier = () => undefined as GroupIdentifier | undefined;
   const resolveIdentifierFromParams = (
     params: QueryRuntimeParams<QueryParams> | undefined,
@@ -1195,7 +1197,8 @@ export function query<
   const resolveExceptionIdentifier = (
     scope: BusinessExceptionScope,
     exception: AnyBusinessException,
-  ) => (isUsingIdentifier && scope !== 'params' ? exception.identifier : undefined);
+  ) =>
+    isUsingIdentifier && scope !== 'params' ? exception.identifier : undefined;
   const trackedExceptionCodes = new Map<
     string,
     {
@@ -1203,10 +1206,8 @@ export function query<
       identifier?: string;
     }
   >();
-  const getTrackerKey = (
-    scope: BusinessExceptionScope,
-    tracker: string,
-  ) => `${scope}|${tracker}`;
+  const getTrackerKey = (scope: BusinessExceptionScope, tracker: string) =>
+    `${scope}|${tracker}`;
   const clearTrackedScopedException = (
     scope: BusinessExceptionScope,
     tracker: string,
@@ -1246,11 +1247,13 @@ export function query<
       ...exception,
       scope,
       identifier: resolveExceptionIdentifier(scope, exception),
-    } as BusinessException<Scope, string, unknown>);
+    } as AnyBusinessException);
   const queryResourceParamsFnSignal = hasParamsFn
-    ? ((...args: unknown[]) => {
+    ? (...args: unknown[]) => {
         const maybeParams = (
-          queryConfig.params as (...params: unknown[]) => QueryInputParams<QueryParams>
+          queryConfig.params as (
+            ...params: unknown[]
+          ) => QueryInputParams<QueryParams>
         )(...args);
         if (isBusinessException(maybeParams)) {
           raiseScopedException('params', maybeParams);
@@ -1258,7 +1261,7 @@ export function query<
         }
         exceptionStore.clearScope('params');
         return maybeParams as QueryRuntimeParams<QueryParams>;
-      })
+      }
     : signal<QueryRuntimeParams<QueryParams> | undefined>(undefined);
   const queryConfigWithExceptionAwareLoader = {
     ...queryConfig,
@@ -1322,7 +1325,9 @@ export function query<
     : queryResourceParamsFnSignal;
   readCurrentIdentifier = () =>
     resolveIdentifierFromParams(
-      (resourceParamsSrc as () => QueryRuntimeParams<QueryParams> | undefined)(),
+      (
+        resourceParamsSrc as () => QueryRuntimeParams<QueryParams> | undefined
+      )(),
     );
 
   const resourceTarget = isUsingIdentifier
@@ -1350,42 +1355,49 @@ export function query<
           params: resourceParamsSrc,
         } as ResourceOptions<any, any>);
 
-  const exceptions =
-    !isUsingIdentifier
-      ? exceptionStore.exceptions
-      : computed(() => {
-          const currentExceptions = exceptionStore.exceptions() as
-            | AnyGroupedBusinessExceptions
-            | (AnyGroupedBusinessExceptions & BusinessExceptionListContainer);
-          const currentExceptionList =
-            (currentExceptions as AnyGroupedBusinessExceptions &
-              BusinessExceptionListContainer).list ?? [];
-          const toScopedRecord = (
-            record: Record<string, unknown>,
-          ): Record<string, unknown> =>
-            Object.entries(record).reduce((acc, [storedCode, payload]) => {
+  const exceptions = !isUsingIdentifier
+    ? exceptionStore.exceptions
+    : computed(() => {
+        const currentExceptions = exceptionStore.exceptions() as
+          | AnyGroupedBusinessExceptions
+          | (AnyGroupedBusinessExceptions & BusinessExceptionListContainer);
+        const currentExceptionList =
+          (
+            currentExceptions as AnyGroupedBusinessExceptions &
+              BusinessExceptionListContainer
+          ).list ?? [];
+        const toScopedRecord = (
+          record: Record<string, unknown>,
+        ): Record<string, unknown> =>
+          Object.entries(record).reduce(
+            (acc, [storedCode, payload]) => {
               const parsed = parseIdentifierScopedExceptionCode(storedCode);
               if (!parsed) {
                 return acc;
               }
               const groupId = parsed.identifier as GroupIdentifier & string;
-              const scopedEntry = (acc[groupId] as Record<string, unknown>) ?? {};
+              const scopedEntry =
+                (acc[groupId] as Record<string, unknown>) ?? {};
               acc[groupId] = {
                 ...scopedEntry,
                 [parsed.code]: payload,
               };
               return acc;
-            }, {} as Record<string, unknown>);
+            },
+            {} as Record<string, unknown>,
+          );
 
-          return {
-            ...currentExceptions,
-            loader: toScopedRecord(currentExceptions.loader),
-            method: toScopedRecord(currentExceptions.method),
-            computedInsertion: toScopedRecord(currentExceptions.computedInsertion),
-            methodInsertion: toScopedRecord(currentExceptions.methodInsertion),
-            list: currentExceptionList,
-          };
-        });
+        return {
+          ...currentExceptions,
+          loader: toScopedRecord(currentExceptions.loader),
+          method: toScopedRecord(currentExceptions.method),
+          computedInsertion: toScopedRecord(
+            currentExceptions.computedInsertion,
+          ),
+          methodInsertion: toScopedRecord(currentExceptions.methodInsertion),
+          list: currentExceptionList,
+        };
+      });
 
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
@@ -1445,9 +1457,7 @@ export function query<
                 const nextParams = result as QueryRuntimeParams<QueryParams>;
                 if (nextParams != null) {
                   const id = queryConfig.identifier?.(
-                    nextParams as NonNullable<
-                      QueryRuntimeParams<QueryParams>
-                    >,
+                    nextParams as NonNullable<QueryRuntimeParams<QueryParams>>,
                   );
                   (
                     resourceTarget as ResourceByIdRef<
@@ -1494,8 +1504,6 @@ export function query<
           set: resourceTarget.set,
           update: resourceTarget.update,
           exceptions,
-          raiseException: (exception: AnyBusinessException) =>
-            raiseScopedException(exception.scope, exception),
           clearException: (
             scope: BusinessExceptionScope,
             code: string,
@@ -1515,12 +1523,18 @@ export function query<
                     'computedInsertion',
                     computedTracker,
                     computedValue.code,
-                    resolveExceptionIdentifier('computedInsertion', computedValue),
+                    resolveExceptionIdentifier(
+                      'computedInsertion',
+                      computedValue,
+                    ),
                   );
                   raiseScopedException('computedInsertion', computedValue);
                   return;
                 }
-                clearTrackedScopedException('computedInsertion', computedTracker);
+                clearTrackedScopedException(
+                  'computedInsertion',
+                  computedTracker,
+                );
               });
               (insertionAcc as Record<string, unknown>)[key] = value;
               return insertionAcc;
@@ -1531,9 +1545,9 @@ export function query<
               (insertionAcc as Record<string, unknown>)[key] = (
                 ...args: unknown[]
               ) => {
-                const methodResult = (value as (...params: unknown[]) => unknown)(
-                  ...args,
-                );
+                const methodResult = (
+                  value as (...params: unknown[]) => unknown
+                )(...args);
                 const handleMethodResult = <Result>(result: Result): Result => {
                   if (isBusinessException(result)) {
                     trackScopedException(
@@ -1545,7 +1559,10 @@ export function query<
                     raiseScopedException('methodInsertion', result);
                     return result;
                   }
-                  clearTrackedScopedException('methodInsertion', methodInsertionTracker);
+                  clearTrackedScopedException(
+                    'methodInsertion',
+                    methodInsertionTracker,
+                  );
                   return result;
                 };
 

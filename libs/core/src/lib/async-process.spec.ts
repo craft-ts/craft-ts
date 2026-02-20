@@ -6,7 +6,7 @@ import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
-import { methodException } from './business-exception';
+import { craftException } from './business-exception';
 describe('AsyncProcess', () => {
   it('should enable to define async method and be called with a method', async () => {
     TestBed.runInInjectionContext(async () => {
@@ -120,7 +120,7 @@ describe('AsyncProcess', () => {
       const myAsyncProcess = asyncProcess({
         method: (id: string) =>
           id.length === 0
-            ? methodException('EMPTY_ID', {
+            ? craftException({ code: 'EMPTY_ID' }, {
                 field: 'id',
               })
             : { id },

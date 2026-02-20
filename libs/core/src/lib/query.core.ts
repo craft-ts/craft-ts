@@ -21,7 +21,6 @@ import { CraftResourceRef } from './util/craft-resource-ref';
 import { QueryParamsToState } from './query-param';
 import { Prettify } from './util/util.type';
 import {
-  AnyBusinessException,
   AnyGroupedBusinessExceptions,
   BusinessExceptionScope,
 } from './business-exception';
@@ -37,9 +36,6 @@ export type BusinessExceptionContextHelpers<
   GroupedExceptions extends AnyGroupedBusinessExceptions = AnyGroupedBusinessExceptions,
 > = {
   exceptions: Signal<GroupedExceptions>;
-  raiseException: <Exception extends AnyBusinessException>(
-    exception: Exception,
-  ) => Exception;
   clearException: (
     scope: BusinessExceptionScope,
     code: string,

@@ -4,7 +4,7 @@ import { source$ } from './source$';
 import { Subject } from 'rxjs';
 import { Component, EventEmitter } from '@angular/core';
 import { SourceBranded } from './util/util';
-import { reactionInsertionException } from './business-exception';
+import { craftException } from './business-exception';
 
 describe('on$', () => {
   beforeEach(() => {
@@ -53,9 +53,15 @@ describe('on$', () => {
       const mySource = source$<number>();
 
       const brandedSource = on$(mySource, (value) =>
-        reactionInsertionException('INVALID_SOURCE_VALUE', {
-          value,
-        }),
+        craftException(
+          {
+            scope: 'reactionInsertion',
+            code: 'INVALID_SOURCE_VALUE',
+          },
+          {
+            value,
+          },
+        ),
       );
 
       expectTypeOf(brandedSource).toEqualTypeOf<
@@ -66,6 +72,7 @@ describe('on$', () => {
             payload: {
               value: number;
             };
+            identifier?: string;
           }>
         >
       >();
