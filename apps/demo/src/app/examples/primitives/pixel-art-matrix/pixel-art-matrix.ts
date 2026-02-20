@@ -6,9 +6,11 @@ import {
   source$,
   state,
 } from '@craft-ng/core';
+import { LongPressDirective } from './long-press.directive';
 
 type PixelCellState = {
   index: number;
+  columnIndex: number;
   color: string;
   paintCount: number;
 };
@@ -30,6 +32,7 @@ const createInitialGrid = (): PixelCellState[][] =>
   ROW_INDEXES.map((rowIndex) =>
     CELL_INDEXES.map((cellIndex) => ({
       index: rowIndex * GRID_SIZE + cellIndex,
+      columnIndex: cellIndex,
       color: EMPTY_COLOR,
       paintCount: 0,
     })),
@@ -37,6 +40,7 @@ const createInitialGrid = (): PixelCellState[][] =>
 
 @Component({
   selector: 'app-pixel-art-matrix',
+  imports: [LongPressDirective],
   template: `
     <section class="pixel-art">
       <header class="pixel-art__header">
@@ -47,9 +51,10 @@ const createInitialGrid = (): PixelCellState[][] =>
           multiple patterns together.
         </p>
         <p>
-          Interactions: left click paints a cell, right click copies the
-          target cell color to the full row, "+" adds a cell to a row, "Add
-          row" appends a new row, and "Clear" resets all colors.
+          Interactions: left click paints a cell, right click copies the target
+          cell color to the full row, long press/touch paints the full column
+          with the target color, "+" adds a cell to a row, "Add row" appends a
+          new row, and "Clear" resets all colors.
         </p>
       </header>
 
@@ -105,6 +110,13 @@ const createInitialGrid = (): PixelCellState[][] =>
                   class="pixel-art__cell"
                   [style.background-color]="cellItem?.color ?? emptyColor"
                   (click)="cellItem?.paint()"
+                  [appLongPress]="450"
+                  (longPress)="
+                    matrix.selectGrid().paintColumnWithTargetCellColor$({
+                      color: cellItem?.color ?? emptyColor,
+                      cellIndex: cellIndex,
+                    })
+                  "
                   (contextmenu)="
                     $event.preventDefault();
                     row?.paintRowWithTargetCellColor$({
@@ -167,50 +179,11 @@ export default class PixelArtMatrix {
     })),
     insertSelectProperty(
       'grid',
-      insertSelectItem(
-        ({ state, set }) => ({
-          addCell: () => {
-            const nextIndex = state().reduce(
-              (max, cell) => Math.max(max, cell.index),
-              -1,
-            );
-            return set([
-              ...state(),
-              {
-                index: nextIndex + 1,
-                color: EMPTY_COLOR,
-                paintCount: 0,
-              },
-            ]);
-          },
-          paintRowWithTargetCellColor$: source$<{
-            color: string;
-            cellIndex: number;
-          }>(),
-        }),
-        insertSelectItem(
-          ({ state, update, insertions: { paintRowWithTargetCellColor$ } }) => ({
-            paint: () =>
-              update((targetCell) => ({
-                ...targetCell,
-                color:
-                  targetCell.color === this.matrix.selectUi().activeColor
-                    ? EMPTY_COLOR
-                    : this.matrix.selectUi().activeColor,
-                paintCount: targetCell.paintCount + 1,
-              })),
-            paintCountStr: computed(() => `Painted ${state().paintCount} times`),
-            paintCellOnSameRow: on$(paintRowWithTargetCellColor$, ({ color }) =>
-              update((targetCell) => ({
-                ...targetCell,
-                color,
-                paintCount: targetCell.paintCount + 1,
-              })),
-            ),
-          }),
-        ),
-      ),
       ({ state, update }) => ({
+        paintColumnWithTargetCellColor$: source$<{
+          color: string;
+          cellIndex: number;
+        }>(),
         addRow: () =>
           update((currentGrid) => {
             const columnCount = currentGrid[0]?.length ?? GRID_SIZE;
@@ -221,6 +194,7 @@ export default class PixelArtMatrix {
               { length: columnCount },
               (_unused, i) => ({
                 index: nextIndex + i + 1,
+                columnIndex: i,
                 color: EMPTY_COLOR,
                 paintCount: 0,
               }),
@@ -257,6 +231,72 @@ export default class PixelArtMatrix {
           ),
         ),
       }),
+      insertSelectItem(
+        ({ state, set }) => ({
+          addCell: () => {
+            const nextIndex = state().reduce(
+              (max, cell) => Math.max(max, cell.index),
+              -1,
+            );
+            return set([
+              ...state(),
+              {
+                index: nextIndex + 1,
+                columnIndex: state().length,
+                color: EMPTY_COLOR,
+                paintCount: 0,
+              },
+            ]);
+          },
+          paintRowWithTargetCellColor$: source$<{
+            color: string;
+            cellIndex: number;
+          }>(),
+        }),
+        insertSelectItem(
+          ({
+            state,
+            update,
+            insertions: {
+              paintRowWithTargetCellColor$,
+              paintColumnWithTargetCellColor$,
+            },
+          }) => ({
+            paint: () =>
+              update((targetCell) => ({
+                ...targetCell,
+                color:
+                  targetCell.color === this.matrix.selectUi().activeColor
+                    ? EMPTY_COLOR
+                    : this.matrix.selectUi().activeColor,
+                paintCount: targetCell.paintCount + 1,
+              })),
+            paintCountStr: computed(
+              () => `Painted ${state().paintCount} times`,
+            ),
+            paintCellOnSameRow: on$(paintRowWithTargetCellColor$, ({ color }) =>
+              update((targetCell) => ({
+                ...targetCell,
+                color,
+                paintCount: targetCell.paintCount + 1,
+              })),
+            ),
+            paintCellOnSameColumn: on$(
+              paintColumnWithTargetCellColor$,
+              ({ color, cellIndex }) =>
+                update((targetCell) =>
+                  targetCell.columnIndex === cellIndex
+                    ? {
+                        ...targetCell,
+                        color,
+                        paintCount: targetCell.paintCount + 1,
+                      }
+                    : targetCell,
+                ),
+            ),
+          }),
+        ),
+      ),
     ),
   );
 }
