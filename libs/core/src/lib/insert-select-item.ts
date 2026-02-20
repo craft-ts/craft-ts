@@ -1,7 +1,7 @@
 import { linkedSignal } from '@angular/core';
 import { InsertionsStateFactory } from './query.core';
 import { MergeObject } from './util/types/util.type';
-import { FilterSource, IsEmptyObject } from './util/util.type';
+import { FilterSource, IsEmptyObject, MergeObjects } from './util/util.type';
 import { wrapExceptionAwareMethods } from './business-exception';
 import { Source$ as SourceDollarType, source$ } from './source$';
 import { isSource } from './util/util';
@@ -22,9 +22,7 @@ export type ParallelStateItemOutput<StateType, Insertions> = MergeObject<
   MergeObject<
     IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
     {
-      [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<
-        any
-      >
+      [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
         ? K
         : never]: FilterSource<Insertions>[K] extends SourceDollarType<
         infer SourceType
@@ -62,34 +60,35 @@ type FlatCrossLayerEvent<
   };
 };
 
-type PrependPath<
-  Seg extends PathSegment,
-  Path extends TuplePath,
-> = [Seg, ...Path];
+type PrependPath<Seg extends PathSegment, Path extends TuplePath> = [
+  Seg,
+  ...Path,
+];
 
 type ToFlatAtLayer<
   SourceType,
   SelectedStateType extends object,
   CurrentSeg extends PathSegment,
   CurrentLeafIndex extends PathSegment = CurrentSeg,
-> = SourceType extends FlatCrossLayerEvent<
-  infer Payload,
-  infer LeafItem,
-  infer LeafIndex extends PathSegment,
-  infer Path extends TuplePath
->
-  ? FlatCrossLayerEvent<
-      Payload,
-      LeafItem,
-      LeafIndex,
-      PrependPath<CurrentSeg, Path>
-    >
-  : FlatCrossLayerEvent<
-      SourceType,
-      SelectedStateType,
-      CurrentLeafIndex,
-      [CurrentSeg]
-    >;
+> =
+  SourceType extends FlatCrossLayerEvent<
+    infer Payload,
+    infer LeafItem,
+    infer LeafIndex extends PathSegment,
+    infer Path extends TuplePath
+  >
+    ? FlatCrossLayerEvent<
+        Payload,
+        LeafItem,
+        LeafIndex,
+        PrependPath<CurrentSeg, Path>
+      >
+    : FlatCrossLayerEvent<
+        SourceType,
+        SelectedStateType,
+        CurrentLeafIndex,
+        [CurrentSeg]
+      >;
 
 type CrossLayerSourceOutput<
   Insertions,
@@ -100,11 +99,7 @@ type CrossLayerSourceOutput<
     infer SourceType
   >
     ? SourceDollarType<
-        ToFlatAtLayer<
-          SourceType,
-          SelectedStateType,
-          GroupIdentifier
-        >
+        ToFlatAtLayer<SourceType, SelectedStateType, GroupIdentifier>
       >
     : never;
 };
@@ -116,7 +111,9 @@ type InsertSelectItemOutput<
 > = {
   select: (
     id: GroupIdentifier,
-  ) => Extract<SelectableStateItem<StateType, GroupIdentifier>, object> | undefined;
+  ) =>
+    | Extract<SelectableStateItem<StateType, GroupIdentifier>, object>
+    | undefined;
   selectItem: (id: GroupIdentifier) => ItemOutput | undefined;
   items: () => Array<ItemOutput>;
 };
@@ -164,7 +161,7 @@ function isFlatCrossLayerEvent(
  * ```ts
  * const cells = state(
  *   [{ color: 'white', paintCount: 0 }],
- *   insertSelectItem(({ update }) => ({
+ *   insertSelectItem('cell', ({ update }) => ({
  *     paint: () =>
  *       update((cell) => ({
  *         ...cell,
@@ -185,6 +182,7 @@ export function insertSelectItem<
   Insertions1 = {},
   PreviousInsertionsOutputs = {},
 >(
+  _entityName: string,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -196,7 +194,10 @@ export function insertSelectItem<
     InsertSelectItemOutput<
       StateType,
       GroupIdentifier,
-      ParallelStateItemOutput<SelectedItem<StateType, GroupIdentifier>, Insertions1>
+      ParallelStateItemOutput<
+        SelectedItem<StateType, GroupIdentifier>,
+        Insertions1
+      >
     >,
     CrossLayerSourceOutput<
       Insertions1,
@@ -216,6 +217,7 @@ export function insertSelectItem<
   Insertions3 = {},
   PreviousInsertionsOutputs = {},
 >(
+  _entityName: string,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -275,6 +277,7 @@ export function insertSelectItem<
   Insertions4 = {},
   PreviousInsertionsOutputs = {},
 >(
+  _entityName: string,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -347,6 +350,7 @@ export function insertSelectItem<
   Insertions5 = {},
   PreviousInsertionsOutputs = {},
 >(
+  _entityName: string,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -378,48 +382,42 @@ export function insertSelectItem<
   >,
 ): InsertionsStateFactory<
   StateType,
-  MergeObject<
-    InsertSelectItemOutput<
-      StateType,
-      GroupIdentifier,
-      ParallelStateItemOutput<
-        SelectedItem<StateType, GroupIdentifier>,
-        Insertions1 & Insertions2 & Insertions3 & Insertions4 & Insertions5
-      >
-    >,
-    MergeObject<
+  MergeObjects<
+    [
+      InsertSelectItemOutput<
+        StateType,
+        GroupIdentifier,
+        ParallelStateItemOutput<
+          SelectedItem<StateType, GroupIdentifier>,
+          Insertions1 & Insertions2 & Insertions3 & Insertions4 & Insertions5
+        >
+      >,
       CrossLayerSourceOutput<
         Insertions1,
         SelectedItem<StateType, GroupIdentifier>,
         GroupIdentifier
       >,
-      MergeObject<
-        CrossLayerSourceOutput<
-          Insertions2,
-          SelectedItem<StateType, GroupIdentifier>,
-          GroupIdentifier
-        >,
-        MergeObject<
-          CrossLayerSourceOutput<
-            Insertions3,
-            SelectedItem<StateType, GroupIdentifier>,
-            GroupIdentifier
-          >,
-          MergeObject<
-            CrossLayerSourceOutput<
-              Insertions4,
-              SelectedItem<StateType, GroupIdentifier>,
-              GroupIdentifier
-            >,
-            CrossLayerSourceOutput<
-              Insertions5,
-              SelectedItem<StateType, GroupIdentifier>,
-              GroupIdentifier
-            >
-          >
-        >
-      >
-    >
+      CrossLayerSourceOutput<
+        Insertions2,
+        SelectedItem<StateType, GroupIdentifier>,
+        GroupIdentifier
+      >,
+      CrossLayerSourceOutput<
+        Insertions3,
+        SelectedItem<StateType, GroupIdentifier>,
+        GroupIdentifier
+      >,
+      CrossLayerSourceOutput<
+        Insertions4,
+        SelectedItem<StateType, GroupIdentifier>,
+        GroupIdentifier
+      >,
+      CrossLayerSourceOutput<
+        Insertions5,
+        SelectedItem<StateType, GroupIdentifier>,
+        GroupIdentifier
+      >,
+    ]
   >,
   PreviousInsertionsOutputs
 >;
@@ -432,6 +430,7 @@ export function insertSelectItem<
   Insertions2 = {},
   PreviousInsertionsOutputs = {},
 >(
+  _entityName: string,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -475,6 +474,7 @@ export function insertSelectItem<
     : keyof StateType & ParallelStateId,
   PreviousInsertionsOutputs = {},
 >(
+  _entityName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...itemInsertions: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
@@ -543,8 +543,8 @@ export function insertSelectItem<
         () => select(id) as SelectedStateType,
       );
 
-      const { rawInsertionsOutput, exposedInsertionsOutput } = itemInsertions
-        .reduce(
+      const { rawInsertionsOutput, exposedInsertionsOutput } =
+        itemInsertions.reduce(
           (acc, insertion) => {
             const nextRawInsertions = wrapExceptionAwareMethods(
               insertion({
@@ -573,7 +573,9 @@ export function insertSelectItem<
                   return newState;
                 },
                 update: (
-                  updateFn: (currentState: SelectedStateType) => SelectedStateType,
+                  updateFn: (
+                    currentState: SelectedStateType,
+                  ) => SelectedStateType,
                 ) => {
                   const currentSelectedState = select(id);
                   if (currentSelectedState === undefined) {
@@ -619,7 +621,9 @@ export function insertSelectItem<
               raiseException,
             );
 
-            const nextExposedInsertions = Object.entries(nextRawInsertions).reduce(
+            const nextExposedInsertions = Object.entries(
+              nextRawInsertions,
+            ).reduce(
               (exposedAcc, [key, value]) => {
                 if (isSource(value)) {
                   return exposedAcc;

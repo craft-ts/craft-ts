@@ -1,11 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
-import {
-  insertSelectItem,
-  insertSelectProperty,
-  on$,
-  source$,
-  state,
-} from '@craft-ng/core';
+import { Source$, insertSelect, on$, source$, state } from '@craft-ng/core';
 import { LongPressDirective } from './long-press.directive';
 
 type PixelCellState = {
@@ -13,6 +7,10 @@ type PixelCellState = {
   columnIndex: number;
   color: string;
   paintCount: number;
+};
+type PaintCellEvent = {
+  color: string;
+  cellIndex: number;
 };
 
 const GRID_SIZE = 16;
@@ -95,7 +93,7 @@ const createInitialGrid = (): PixelCellState[][] =>
           track rowData;
           let rowIndex = $index
         ) {
-          @let row = matrix.selectGrid().selectItem(rowIndex);
+          @let row = matrix.selectGrid().selectRow(rowIndex);
           <div class="pixel-art__row">
             <div class="pixel-art__row-cells">
               @for (
@@ -103,7 +101,7 @@ const createInitialGrid = (): PixelCellState[][] =>
                 track cellState.index;
                 let cellIndex = $index
               ) {
-                @let cellItem = row?.selectItem(cellIndex);
+                @let cellItem = row?.selectCell(cellIndex);
                 <button
                   type="button"
                   role="gridcell"
@@ -173,17 +171,14 @@ export default class PixelArtMatrix {
       },
       grid: createInitialGrid(),
     },
-    insertSelectProperty('ui', ({ update }) => ({
+    insertSelect('ui', ({ update }) => ({
       setActiveColor: (color: string) =>
         update((current) => ({ ...current, activeColor: color })),
     })),
-    insertSelectProperty(
+    insertSelect(
       'grid',
       ({ state, update }) => ({
-        paintColumnWithTargetCellColor$: source$<{
-          color: string;
-          cellIndex: number;
-        }>(),
+        paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
         addRow: () =>
           update((currentGrid) => {
             const columnCount = currentGrid[0]?.length ?? GRID_SIZE;
@@ -202,6 +197,7 @@ export default class PixelArtMatrix {
 
             return [...currentGrid, newRow];
           }),
+        // todo make a source$ each cell will
         clearAll: () =>
           update((currentGrid) =>
             currentGrid.map((row) =>
@@ -231,7 +227,8 @@ export default class PixelArtMatrix {
           ),
         ),
       }),
-      insertSelectItem(
+      insertSelect(
+        'row',
         ({ state, set }) => ({
           addCell: () => {
             const nextIndex = state().reduce(
@@ -248,12 +245,10 @@ export default class PixelArtMatrix {
               },
             ]);
           },
-          paintRowWithTargetCellColor$: source$<{
-            color: string;
-            cellIndex: number;
-          }>(),
+          paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
         }),
-        insertSelectItem(
+        insertSelect(
+          'cell',
           ({
             state,
             update,
@@ -261,6 +256,15 @@ export default class PixelArtMatrix {
               paintRowWithTargetCellColor$,
               paintColumnWithTargetCellColor$,
             },
+          }: {
+            state: () => PixelCellState;
+            update: (
+              updateFn: (currentState: PixelCellState) => PixelCellState,
+            ) => PixelCellState;
+            insertions: {
+              paintRowWithTargetCellColor$: Source$<PaintCellEvent>;
+              paintColumnWithTargetCellColor$: Source$<PaintCellEvent>;
+            };
           }) => ({
             paint: () =>
               update((targetCell) => ({

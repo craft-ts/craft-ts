@@ -7,7 +7,6 @@ import { insertSelectItem } from './insert-select-item';
 import { source$ } from './source$';
 import { state } from './state';
 import { on$ } from './on$';
-import { toSignal } from '@angular/core/rxjs-interop';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -37,7 +36,7 @@ describe('insertSelectItem', () => {
             paintCount: 0,
           },
         ],
-        insertSelectItem(({ state, update }) => ({
+        insertSelectItem('item', ({ state, update }) => ({
           paint: () =>
             update((cell) => ({
               ...cell,
@@ -74,7 +73,7 @@ describe('insertSelectItem', () => {
             paintCount: 0,
           },
         ],
-        insertSelectItem(({ set, update, state }) => ({
+        insertSelectItem('item', ({ set, update, state }) => ({
           resetToBlue: () =>
             set({
               ...state(),
@@ -119,7 +118,7 @@ describe('insertSelectItem', () => {
           { index: 0, color: 'white', paintCount: 0 },
           { index: 1, color: 'white', paintCount: 0 },
         ],
-        insertSelectItem(({ update }) => ({
+        insertSelectItem('item', ({ update }) => ({
           increment: () =>
             update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
         })),
@@ -178,7 +177,7 @@ describe('insertSelectItem', () => {
             },
           },
         ] as Cell[],
-        insertSelectItem(styleModifier),
+        insertSelectItem('item', styleModifier),
       );
 
       TestBed.tick();
@@ -197,7 +196,7 @@ describe('insertSelectItem', () => {
           { index: 0, paintCount: 0 },
           { index: 1, paintCount: 0 },
         ],
-        insertSelectItem(({ update }) => ({
+        insertSelectItem('item', ({ update }) => ({
           increment: () =>
             update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
         })),
@@ -220,7 +219,7 @@ describe('insertSelectItem', () => {
           first: { index: 0, paintCount: 0 },
           second: { index: 1, paintCount: 0 },
         },
-        insertSelectItem(({ update }) => ({
+        insertSelectItem('item', ({ update }) => ({
           increment: () =>
             update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
         })),
@@ -247,7 +246,7 @@ describe('insertSelectItem', () => {
             emitTest: (value: number) => test.emit(value),
           };
         },
-        insertSelectItem(({ state, update, insertions: { test } }) => ({
+        insertSelectItem('item', ({ state, update, insertions: { test } }) => ({
           incrementFromTest: () =>
             update((cell) => ({
               ...cell,
@@ -284,6 +283,7 @@ describe('insertSelectItem', () => {
       const cells = state(
         [{ index: 0, paintCount: 1, tag: 'init' }],
         insertSelectItem(
+          'item',
           ({ update }) => ({
             addOne: () =>
               update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
@@ -336,6 +336,7 @@ describe('insertSelectItem', () => {
       const cells = state(
         [{ index: 0, paintCount: 0, color: 'white' }],
         insertSelectItem(
+          'item',
           () => ({
             paintCell$: source$<string>(),
           }),
@@ -401,7 +402,9 @@ describe('insertSelectItem', () => {
       const matrix = state(
         [[{ index: 0, paintCount: 0, color: 'white' }]],
         insertSelectItem(
+          'item',
           insertSelectItem(
+            'item',
             () => ({
               paintCell$: source$<string>(),
             }),
@@ -423,8 +426,8 @@ describe('insertSelectItem', () => {
                 leaf: {
                   item: { index: number; paintCount: number; color: string };
                   index: number;
-              };
-            }>();
+                };
+              }>();
               // as it is the inner layer source$, path should be only the inner item index
               expect(event.path).toEqual([0]);
             });

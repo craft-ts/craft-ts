@@ -3,7 +3,7 @@ import {
   Component,
   computed,
 } from '@angular/core';
-import { insertSelectItem, state } from '@craft-ng/core';
+import { insertSelect, state } from '@craft-ng/core';
 
 type PixelCellState = {
   index: number;
@@ -51,9 +51,9 @@ const CELL_INDEXES = Array.from(
         <span>Clics totaux: {{ cells.totalPaintActions() }}</span>
       </div>
 
-      <div class="pixel-art__grid" role="grid" aria-label="Pixel Art 16x16">
+        <div class="pixel-art__grid" role="grid" aria-label="Pixel Art 16x16">
         @for (index of cellIndexes; track index) {
-          @let cell = cells.selectItem(index);
+          @let cell = cells.selectCell(index);
           <button
             type="button"
             role="gridcell"
@@ -100,7 +100,7 @@ export default class PixelArt {
           paintCount: 0,
         }) satisfies PixelCellState,
     ),
-    insertSelectItem(({ state, update }) => ({
+    insertSelect('cell', ({ state, update }) => ({
       paint: () =>
         update((cell) => ({
           ...cell,

@@ -434,7 +434,7 @@ describe('insertSelectProperty', () => {
             },
           },
         ],
-        insertSelectItem(
+        insertSelectItem('item',
           insertSelectProperty(
             'cell',
             insertSelectProperty(

@@ -17,7 +17,7 @@ import { insertSelectItem, state } from '@craft-ng/core';
 ```typescript
 const cells = state(
   [{ color: 'white', paintCount: 0 }],
-  insertSelectItem(({ update }) => ({
+  insertSelectItem('cell', ({ update }) => ({
     paint: () =>
       update((cell) => ({
         ...cell,
