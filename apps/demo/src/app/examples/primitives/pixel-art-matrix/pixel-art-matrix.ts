@@ -1,5 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
-import { Source$, insertSelect, on$, source$, state } from '@craft-ng/core';
+import {
+  Source$,
+  addOne,
+  insertSelect,
+  on$,
+  source$,
+  state,
+} from '@craft-ng/core';
 import { LongPressDirective } from './long-press.directive';
 
 type PixelCellState = {
@@ -235,15 +242,17 @@ export default class PixelArtMatrix {
               (max, cell) => Math.max(max, cell.index),
               -1,
             );
-            return set([
-              ...state(),
-              {
-                index: nextIndex + 1,
-                columnIndex: state().length,
-                color: EMPTY_COLOR,
-                paintCount: 0,
-              },
-            ]);
+            return set(
+              addOne({
+                entities: state(),
+                entity: {
+                  index: nextIndex + 1,
+                  columnIndex: state().length,
+                  color: EMPTY_COLOR,
+                  paintCount: 0,
+                },
+              }),
+            );
           },
           paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
         }),
