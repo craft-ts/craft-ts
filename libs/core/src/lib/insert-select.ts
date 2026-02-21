@@ -15,24 +15,22 @@ type SelectedTarget<
       : never
     : never;
 
-type RenameSelectItemMethod<
-  Name extends string,
-  Factory,
-> = Factory extends InsertionsStateFactory<
-  infer StateType,
-  infer InsertionsOutput,
-  infer PreviousInsertionsOutput
->
-  ? InsertionsStateFactory<
-      StateType,
-      InsertionsOutput extends { selectItem: infer SelectItemFn }
-        ? Omit<InsertionsOutput, 'selectItem'> & {
-            [K in SelectItemMethodName<Name>]: SelectItemFn;
-          }
-        : InsertionsOutput,
-      PreviousInsertionsOutput
-    >
-  : never;
+type RenameSelectItemMethod<Name extends string, Factory> =
+  Factory extends InsertionsStateFactory<
+    infer StateType,
+    infer InsertionsOutput,
+    infer PreviousInsertionsOutput
+  >
+    ? InsertionsStateFactory<
+        StateType,
+        InsertionsOutput extends { selectItem: infer SelectItemFn }
+          ? Omit<InsertionsOutput, 'selectItem'> & {
+              [K in SelectItemMethodName<Name>]: SelectItemFn;
+            }
+          : InsertionsOutput,
+        PreviousInsertionsOutput
+      >
+    : never;
 
 type InsertSelectReturn1<
   StateType,
@@ -184,12 +182,7 @@ export function insertSelect<
     Insertions1,
     PreviousInsertionsOutputs
   >,
-): InsertSelectReturn1<
-  StateType,
-  Name,
-  Insertions1,
-  PreviousInsertionsOutputs
->;
+): InsertSelectReturn1<StateType, Name, Insertions1, PreviousInsertionsOutputs>;
 export function insertSelect<
   StateType,
   const Name extends string,
@@ -355,8 +348,7 @@ export function insertSelect(
         itemName: string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...itemInsertions: InsertionsStateFactory<any, any, any>[]
-      ) =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) => // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (nextContext: any) => Record<string, unknown>;
 
       const itemInsertionsOutput = itemFactory(name, ...insertions)(context);
@@ -371,8 +363,7 @@ export function insertSelect(
       propertyKey: string,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...propertyInsertions: InsertionsStateFactory<any, any, any>[]
-    ) =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) => // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (nextContext: any) => Record<string, unknown>;
 
     return propertyFactory(name, ...insertions)(context);

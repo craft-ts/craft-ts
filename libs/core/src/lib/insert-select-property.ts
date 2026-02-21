@@ -33,36 +33,40 @@ type FlatCrossLayerEvent<
   };
 };
 
-type PrependPath<
-  Seg extends PathSegment,
-  Path extends TuplePath,
-> = [Seg, ...Path];
+type PrependPath<Seg extends PathSegment, Path extends TuplePath> = [
+  Seg,
+  ...Path,
+];
 
 type ToFlatAtLayer<
   SourceType,
   CurrentItem,
   CurrentSeg extends PathSegment,
   CurrentLeafIndex extends PathSegment = CurrentSeg,
-> = SourceType extends FlatCrossLayerEvent<
-  infer Payload,
-  infer LeafItem,
-  infer LeafIndex extends PathSegment,
-  infer Path extends TuplePath
->
-  ? FlatCrossLayerEvent<
-      Payload,
-      LeafItem,
-      LeafIndex,
-      PrependPath<CurrentSeg, Path>
-    >
-  : FlatCrossLayerEvent<SourceType, CurrentItem, CurrentLeafIndex, [CurrentSeg]>;
+> =
+  SourceType extends FlatCrossLayerEvent<
+    infer Payload,
+    infer LeafItem,
+    infer LeafIndex extends PathSegment,
+    infer Path extends TuplePath
+  >
+    ? FlatCrossLayerEvent<
+        Payload,
+        LeafItem,
+        LeafIndex,
+        PrependPath<CurrentSeg, Path>
+      >
+    : FlatCrossLayerEvent<
+        SourceType,
+        CurrentItem,
+        CurrentLeafIndex,
+        [CurrentSeg]
+      >;
 
 type ExposedPropertyInsertions<Insertions> = MergeObject<
   IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
   {
-    [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<
-      any
-    >
+    [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
       ? K
       : never]: FilterSource<Insertions>[K] extends SourceDollarType<
       infer SourceType
@@ -77,19 +81,19 @@ export type PropertyModifierOutput<PropertyType, Insertions> = MergeObject<
   ExposedPropertyInsertions<Insertions>
 >;
 
-type CrossLayerSourceOutput<
-  Insertions,
-  PropertyType extends object,
-  PropertyKey extends string,
-> = {
-  [K in SourceKeys<Insertions>]: Insertions[K] extends SourceDollarType<
-    infer SourceType
-  >
-    ? SourceDollarType<
-        ToFlatAtLayer<SourceType, PropertyType, PropertyKey, PropertyKey>
-      >
-    : never;
-};
+// type CrossLayerSourceOutput<
+//   Insertions,
+//   PropertyType extends object,
+//   PropertyKey extends string,
+// > = {
+//   [K in SourceKeys<Insertions>]: Insertions[K] extends SourceDollarType<
+//     infer SourceType
+//   >
+//     ? SourceDollarType<
+//         ToFlatAtLayer<SourceType, PropertyType, PropertyKey, PropertyKey>
+//       >
+//     : never;
+// };
 
 function isSource$(value: unknown): value is SourceDollarType<unknown> {
   return (
@@ -163,21 +167,14 @@ export function insertSelectProperty<
         Insertions1
       >;
     },
-    MergeObject<
-      {
-        selectProperty: <K extends PropertyKey>(
-          key: K,
-        ) => PropertyModifierOutput<Extract<StateType[K], object>, Insertions1>;
-        selectPropertyByKey: <K extends PropertyKey>(
-          key: K,
-        ) => PropertyModifierOutput<Extract<StateType[K], object>, Insertions1>;
-      },
-      CrossLayerSourceOutput<
-        Insertions1,
-        Extract<StateType[PropertyKey], object>,
-        PropertyKey
-      >
-    >
+    {
+      selectProperty: <K extends PropertyKey>(
+        key: K,
+      ) => PropertyModifierOutput<Extract<StateType[K], object>, Insertions1>;
+      selectPropertyByKey: <K extends PropertyKey>(
+        key: K,
+      ) => PropertyModifierOutput<Extract<StateType[K], object>, Insertions1>;
+    }
   >,
   PreviousInsertionsOutputs
 >;
@@ -208,34 +205,43 @@ export function insertSelectProperty<
         Insertions1 & Insertions2
       >;
     },
-    MergeObject<
-      {
-        selectProperty: <K extends PropertyKey>(
-          key: K,
-        ) => PropertyModifierOutput<
-          Extract<StateType[K], object>,
-          Insertions1 & Insertions2
-        >;
-        selectPropertyByKey: <K extends PropertyKey>(
-          key: K,
-        ) => PropertyModifierOutput<
-          Extract<StateType[K], object>,
-          Insertions1 & Insertions2
-        >;
-      },
-      MergeObject<
-        CrossLayerSourceOutput<
-          Insertions1,
-          Extract<StateType[PropertyKey], object>,
-          PropertyKey
-        >,
-        CrossLayerSourceOutput<
-          Insertions2,
-          Extract<StateType[PropertyKey], object>,
-          PropertyKey
-        >
-      >
-    >
+    // todo expose the FlatCrossLayerEvent emitters here, but not inside  [K in SelectPropertyMethodName<PropertyKey>]: ... (where it should not be flattened)
+    // todo remove this merge
+    {}
+    // MergeObject<
+    //   {
+    //     /**
+    //      * @deprecated
+    //      */
+    //     selectProperty: <K extends PropertyKey>(
+    //       key: K,
+    //     ) => PropertyModifierOutput<
+    //       Extract<StateType[K], object>,
+    //       Insertions1 & Insertions2
+    //     >;
+    //     /**
+    //      * @deprecated
+    //      */
+    //     selectPropertyByKey: <K extends PropertyKey>(
+    //       key: K,
+    //     ) => PropertyModifierOutput<
+    //       Extract<StateType[K], object>,
+    //       Insertions1 & Insertions2
+    //     >;
+    //   },
+    //   MergeObject<
+    //     CrossLayerSourceOutput<
+    //       Insertions1,
+    //       Extract<StateType[PropertyKey], object>,
+    //       PropertyKey
+    //     >,
+    //     CrossLayerSourceOutput<
+    //       Insertions2,
+    //       Extract<StateType[PropertyKey], object>,
+    //       PropertyKey
+    //     >
+    //   >
+    // >
   >,
   PreviousInsertionsOutputs
 >;
@@ -314,82 +320,84 @@ export function insertSelectProperty<
       const selectedPropertySignal = linkedSignal(() => selectProperty());
 
       const { exposedInsertionsOutput } = propertyInsertions.reduce(
-          (acc, insertion) => {
-            const nextRawInsertions = wrapExceptionAwareMethods(
-              insertion({
-                state: selectedPropertySignal,
-                set: setProperty,
-                update: updateProperty,
-                insertions: {
-                  ...inheritedInsertions,
-                  ...acc.rawInsertionsOutput,
-                } as never,
-                exceptions,
-                raiseException,
-                clearException,
-                clearExceptionScope,
-                clearExceptions,
-              }) as Record<string, unknown>,
-              raiseException,
-            );
-
-            const nextExposedInsertions = Object.entries(nextRawInsertions).reduce(
-              (exposedAcc, [key, value]) => {
-                if (isSource(value)) {
-                  return exposedAcc;
-                }
-
-                if (isSource$(value)) {
-                  const localSource = value;
-                  const crossLayerSource = getOrCreateCrossLayerSource(key);
-                  localSource.subscribe((payload) => {
-                    const propertyAtEmit = selectProperty();
-                    if (isFlatCrossLayerEvent(payload)) {
-                      crossLayerSource.emit({
-                        payload: payload.payload,
-                        path: [propertyKey, ...payload.path],
-                        leaf: payload.leaf,
-                      });
-                      return;
-                    }
-
-                    crossLayerSource.emit({
-                      payload,
-                      path: [propertyKey],
-                      leaf: {
-                        item: propertyAtEmit,
-                        index: propertyKey,
-                      },
-                    });
-                  });
-                  exposedAcc[key] = (payload: unknown) => {
-                    localSource.emit(payload as never);
-                  };
-                  return exposedAcc;
-                }
-
-                exposedAcc[key] = value;
-                return exposedAcc;
-              },
-              {} as Record<string, unknown>,
-            );
-
-            return {
-              rawInsertionsOutput: {
+        (acc, insertion) => {
+          const nextRawInsertions = wrapExceptionAwareMethods(
+            insertion({
+              state: selectedPropertySignal,
+              set: setProperty,
+              update: updateProperty,
+              insertions: {
+                ...inheritedInsertions,
                 ...acc.rawInsertionsOutput,
-                ...nextRawInsertions,
-              },
-              exposedInsertionsOutput: {
-                ...acc.exposedInsertionsOutput,
-                ...nextExposedInsertions,
-              },
-            };
-          },
-          {
-            rawInsertionsOutput: {} as Record<string, unknown>,
-            exposedInsertionsOutput: {} as Record<string, unknown>,
-          },
-        );
+              } as never,
+              exceptions,
+              raiseException,
+              clearException,
+              clearExceptionScope,
+              clearExceptions,
+            }) as Record<string, unknown>,
+            raiseException,
+          );
+
+          const nextExposedInsertions = Object.entries(
+            nextRawInsertions,
+          ).reduce(
+            (exposedAcc, [key, value]) => {
+              if (isSource(value)) {
+                return exposedAcc;
+              }
+
+              if (isSource$(value)) {
+                const localSource = value;
+                const crossLayerSource = getOrCreateCrossLayerSource(key);
+                localSource.subscribe((payload) => {
+                  const propertyAtEmit = selectProperty();
+                  if (isFlatCrossLayerEvent(payload)) {
+                    crossLayerSource.emit({
+                      payload: payload.payload,
+                      path: [propertyKey, ...payload.path],
+                      leaf: payload.leaf,
+                    });
+                    return;
+                  }
+
+                  crossLayerSource.emit({
+                    payload,
+                    path: [propertyKey],
+                    leaf: {
+                      item: propertyAtEmit,
+                      index: propertyKey,
+                    },
+                  });
+                });
+                exposedAcc[key] = (payload: unknown) => {
+                  localSource.emit(payload as never);
+                };
+                return exposedAcc;
+              }
+
+              exposedAcc[key] = value;
+              return exposedAcc;
+            },
+            {} as Record<string, unknown>,
+          );
+
+          return {
+            rawInsertionsOutput: {
+              ...acc.rawInsertionsOutput,
+              ...nextRawInsertions,
+            },
+            exposedInsertionsOutput: {
+              ...acc.exposedInsertionsOutput,
+              ...nextExposedInsertions,
+            },
+          };
+        },
+        {
+          rawInsertionsOutput: {} as Record<string, unknown>,
+          exposedInsertionsOutput: {} as Record<string, unknown>,
+        },
+      );
 
       selectedPropertyProxy = new Proxy(exposedInsertionsOutput, {
         get(target, property, receiver) {

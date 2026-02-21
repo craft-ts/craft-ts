@@ -3,13 +3,71 @@ import { TestBed } from '@angular/core/testing';
 import { insertSelect } from './insert-select';
 import { insertSelectProperty } from './insert-select-property';
 import { on$ } from './on$';
-import { source$ } from './source$';
+import { Source$, source$ } from './source$';
 import { state } from './state';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
 
 describe('insertSelect', () => {
+  it('should reproduce payload inference issue on nested matrix emitters', () => {
+    runInInjectionContext(() => {
+      type PaintCellEvent = { color: string; cellIndex: number };
+      type PixelCellState = {
+        index: number;
+        columnIndex: number;
+        color: string;
+        paintCount: number;
+      };
+
+      const matrix = state(
+        {
+          grid: [
+            [
+              {
+                index: 0,
+                columnIndex: 0,
+                color: 'white',
+                paintCount: 0,
+              } satisfies PixelCellState,
+            ],
+          ] as PixelCellState[][],
+        },
+        insertSelect(
+          'grid',
+          () => ({
+            paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
+          }),
+          insertSelect(
+            'row',
+            () => ({
+              paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
+            }),
+            insertSelect('cell', () => ({})),
+          ),
+        ),
+      );
+
+      // This assertion reproduces the current issue:
+      // TypeScript currently infers a flattened event emitter shape here.
+      expectTypeOf(
+        matrix.selectGrid().paintColumnWithTargetCellColor$,
+      ).branded.toEqualTypeOf<
+        Source$<PaintCellEvent> & ((value: PaintCellEvent) => void)
+      >();
+      // matrix.selectGrid().test;
+      expectTypeOf(
+        matrix.selectGrid().selectRow(0)?.paintRowWithTargetCellColor$,
+      ).toEqualTypeOf<
+        | (Source$<PaintCellEvent> & ((value: PaintCellEvent) => void))
+        | undefined
+      >();
+
+      // matrix.selectGrid().test.paintRowWithTargetCellColor$;
+      //.                       ^?
+    });
+  });
+
   it('should work like insertSelectProperty on object states', () => {
     runInInjectionContext(() => {
       const board = state(
