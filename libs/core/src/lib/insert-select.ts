@@ -180,6 +180,45 @@ type InsertSelectReturn5<
     >
   : never;
 
+/**
+ * Unified selector insertion for nested object properties and array/record items.
+ *
+ * `insertSelect` delegates to:
+ * - `insertSelectItem` when the current state is an array
+ * - `insertSelectProperty` when the current state is an object
+ *
+ * This lets you write nested insertions with the same API (`insertSelect(...)`)
+ * without caring about the container shape at each level.
+ *
+ * @example
+ * ```ts
+ * const board = state(
+ *   { cell: { color: 'white', paintCount: 0 } },
+ *   insertSelect('cell', ({ update }) => ({
+ *     paint: () =>
+ *       update((cell) => ({
+ *         ...cell,
+ *         color: 'black',
+ *         paintCount: cell.paintCount + 1,
+ *       })),
+ *   })),
+ * );
+ *
+ * board.selectCell().paint();
+ * ```
+ *
+ * @example
+ * ```ts
+ * const rows = state(
+ *   [{ cells: [{ color: 'white' }] }],
+ *   insertSelect('row', ({ state }) => ({
+ *     firstCellColor: () => state().cells[0]?.color,
+ *   })),
+ * );
+ *
+ * rows.selectRow(0)?.firstCellColor();
+ * ```
+ */
 export function insertSelect<
   StateType,
   const Name extends AutoCompleteName & string,

@@ -36,12 +36,8 @@ export default defineConfig({
         text: 'Insertions',
         items: [
           {
-            text: 'insertSelectProperty',
-            link: '/insertions/insert-select-property',
-          },
-          {
-            text: 'insertSelectItem',
-            link: '/insertions/insert-select-item',
+            text: 'insertSelect',
+            link: '/insertions/insert-select',
           },
           {
             text: 'insertLocalStorage',

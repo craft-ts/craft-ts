@@ -13,7 +13,6 @@
 - [ ] Add to-source$ utility to create a source from a DOM event
 - [ ] Proposer un state ou un pattern pour gérer les tree (à explorer)
 
-## State Parallel:
-
 - [ ] Tester insertion localStorage
 - [ ] add crossLayerEvent to insertSelect (from bottom to top)
+- [ ] insertSelect add support for non obejct/array state (ex: primitive state) and pass the selected state as param to the insertion
