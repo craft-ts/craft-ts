@@ -1,4 +1,4 @@
-import { computed, signal } from '@angular/core';
+import { computed, Signal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { insertSelectProperty } from './insert-select-property';
@@ -6,6 +6,7 @@ import { queryParam } from './query-param';
 import { insertSelectItem } from './insert-select-item';
 import { source$ } from './source$';
 import { state } from './state';
+import { on$ } from './on$';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -35,7 +36,7 @@ describe('insertSelectItem', () => {
             paintCount: 0,
           },
         ],
-        insertSelectItem(({ state, update }) => ({
+        insertSelectItem('item', ({ state, update }) => ({
           paint: () =>
             update((cell) => ({
               ...cell,
@@ -72,7 +73,7 @@ describe('insertSelectItem', () => {
             paintCount: 0,
           },
         ],
-        insertSelectItem(({ set, update, state }) => ({
+        insertSelectItem('item', ({ set, update, state }) => ({
           resetToBlue: () =>
             set({
               ...state(),
@@ -117,7 +118,7 @@ describe('insertSelectItem', () => {
           { index: 0, color: 'white', paintCount: 0 },
           { index: 1, color: 'white', paintCount: 0 },
         ],
-        insertSelectItem(({ update }) => ({
+        insertSelectItem('item', ({ update }) => ({
           increment: () =>
             update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
         })),
@@ -154,20 +155,17 @@ describe('insertSelectItem', () => {
             border: { width: number };
           };
         }
-      >(
-        'style',
-        ({ update }) => ({
-          paintAndIncreaseBorder: () =>
-            update((style) => ({
-              ...style,
-              color: 'black',
-              border: {
-                ...style.border,
-                width: style.border.width + 1,
-              },
-            })),
-        }),
-      );
+      >('style', ({ update }) => ({
+        paintAndIncreaseBorder: () =>
+          update((style) => ({
+            ...style,
+            color: 'black',
+            border: {
+              ...style.border,
+              width: style.border.width + 1,
+            },
+          })),
+      }));
 
       const cells = state(
         [
@@ -179,7 +177,7 @@ describe('insertSelectItem', () => {
             },
           },
         ] as Cell[],
-        insertSelectItem(styleModifier),
+        insertSelectItem('item', styleModifier),
       );
 
       TestBed.tick();
@@ -198,7 +196,7 @@ describe('insertSelectItem', () => {
           { index: 0, paintCount: 0 },
           { index: 1, paintCount: 0 },
         ],
-        insertSelectItem(({ update }) => ({
+        insertSelectItem('item', ({ update }) => ({
           increment: () =>
             update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
         })),
@@ -221,7 +219,7 @@ describe('insertSelectItem', () => {
           first: { index: 0, paintCount: 0 },
           second: { index: 1, paintCount: 0 },
         },
-        insertSelectItem(({ update }) => ({
+        insertSelectItem('item', ({ update }) => ({
           increment: () =>
             update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
         })),
@@ -248,14 +246,15 @@ describe('insertSelectItem', () => {
             emitTest: (value: number) => test.emit(value),
           };
         },
-        insertSelectItem(({ state, update, insertions: { test } }) => ({
+        insertSelectItem('item', ({ state, update, insertions: { test } }) => ({
           incrementFromTest: () =>
             update((cell) => ({
               ...cell,
               paintCount: cell.paintCount + (test.value() ?? 0),
             })),
           paintCountStr: computed(
-            () => `Painted ${state().paintCount} times with ${test.value() ?? 0}`,
+            () =>
+              `Painted ${state().paintCount} times with ${test.value() ?? 0}`,
           ),
         })),
       );
@@ -278,4 +277,227 @@ describe('insertSelectItem', () => {
       );
     });
   });
+
+  it('should support up to 5 chained insertions with inferred selected item methods', () => {
+    runInInjectionContext(() => {
+      const cells = state(
+        [{ index: 0, paintCount: 1, tag: 'init' }],
+        insertSelectItem(
+          'item',
+          ({ update }) => ({
+            addOne: () =>
+              update((cell) => ({ ...cell, paintCount: cell.paintCount + 1 })),
+          }),
+          ({ update }) => ({
+            multiplyByTwo: () =>
+              update((cell) => ({ ...cell, paintCount: cell.paintCount * 2 })),
+          }),
+          ({ update }) => ({
+            setTagFromCount: () =>
+              update((cell) => ({ ...cell, tag: `count-${cell.paintCount}` })),
+          }),
+          ({ state }) => ({
+            label: computed(() => `${state().tag}:${state().paintCount}`),
+          }),
+          ({ state }) => ({
+            isEven: computed(() => state().paintCount % 2 === 0),
+          }),
+        ),
+      );
+
+      expectTypeOf(cells.selectItem(0)?.addOne).toEqualTypeOf<
+        (() => { index: number; paintCount: number; tag: string }) | undefined
+      >();
+      expectTypeOf(cells.selectItem(0)?.multiplyByTwo).toEqualTypeOf<
+        (() => { index: number; paintCount: number; tag: string }) | undefined
+      >();
+      expectTypeOf(cells.selectItem(0)?.setTagFromCount).toEqualTypeOf<
+        (() => { index: number; paintCount: number; tag: string }) | undefined
+      >();
+      expectTypeOf(cells.selectItem(0)?.label).toEqualTypeOf<
+        Signal<string> | undefined
+      >();
+      expectTypeOf(cells.selectItem(0)?.isEven).toEqualTypeOf<
+        Signal<boolean> | undefined
+      >();
+
+      cells.selectItem(0)?.addOne();
+      cells.selectItem(0)?.multiplyByTwo();
+      cells.selectItem(0)?.setTagFromCount();
+
+      expect(cells.select(0)?.paintCount).toBe(4);
+      expect(cells.selectItem(0)?.label()).toBe('count-4:4');
+      expect(cells.selectItem(0)?.isEven()).toBe(true);
+    });
+  });
+
+  // it.todo('should expose internalSource$ as a cross-layer source$ (bottom to top)', () => {
+  //   runInInjectionContext(() => {
+  //     const cells = state(
+  //       [{ index: 0, paintCount: 0, color: 'white' }],
+  //       insertSelectItem(
+  //         'item',
+  //         () => ({
+  //           paintCell$: source$<string>(),
+  //         }),
+  //         ({ update, insertions: { paintCell$ } }) => ({
+  //           _paintCell: on$(paintCell$, (color) =>
+  //             update((cell) => ({
+  //               ...cell,
+  //               color,
+  //               paintCount: cell.paintCount + 1,
+  //             })),
+  //           ),
+  //         }),
+  //       ),
+  //       ({ insertions: { paintCell$ } }) => {
+  //         on$(paintCell$, (event) => {
+  //           expectTypeOf(event).toEqualTypeOf<{
+  //             payload: string; // infer payload type from source$<string>
+  //             path: [number];
+  //             leaf: {
+  //               item: { index: number; paintCount: number; color: string }; // infer item type from state item
+  //               index: number; // infer index type from state item
+  //             };
+  //           }>();
+  //           expect(event.path).toEqual([0]);
+  //         });
+  //         return {
+  //           eventRoot: paintCell$.value,
+  //         };
+  //       },
+  //     );
+
+  //     TestBed.tick();
+  //     //@ts-expect-error _paintCell should not be exposed on cells
+  //     expect(cells.selectItem(0)?._paintCell).not.toBeDefined();
+  //     expectTypeOf(cells.eventRoot).toEqualTypeOf<
+  //       Signal<
+  //         | {
+  //             payload: string;
+  //             path: [number];
+  //             leaf: {
+  //               item: { index: number; paintCount: number; color: string };
+  //               index: number;
+  //             };
+  //           }
+  //         | undefined
+  //       >
+  //     >();
+
+  //     cells.selectItem(0)?.paintCell$('red');
+
+  //     expect(cells.select(0)?.color).toBe('red');
+  //     expect(cells.select(0)?.paintCount).toBe(1);
+  //     expect(cells.eventRoot()?.payload).toBe('red');
+  //     expect(cells.eventRoot()?.path).toEqual([0]);
+  //     expect(cells.eventRoot()?.leaf.index).toBe(0);
+  //     expect(cells.eventRoot()?.leaf.item.index).toBe(0);
+  //   });
+  // });
+
+  // it.todo('should expose internalSource$ as a cross-layer source$ (bottom to top) in nested layers', async () => {
+  //   vi.useFakeTimers();
+  //   await runInInjectionContext(async () => {
+  //     const matrix = state(
+  //       [[{ index: 0, paintCount: 0, color: 'white' }]],
+  //       insertSelectItem(
+  //         'item',
+  //         insertSelectItem(
+  //           'item',
+  //           () => ({
+  //             paintCell$: source$<string>(),
+  //           }),
+  //           ({ update, insertions: { paintCell$ } }) => ({
+  //             _paintCell: on$(paintCell$, (color) =>
+  //               update((cell) => ({
+  //                 ...cell,
+  //                 color,
+  //                 paintCount: cell.paintCount + 1,
+  //               })),
+  //             ),
+  //           }),
+  //         ),
+  //         ({ insertions: { paintCell$ } }) => {
+  //           on$(paintCell$, (event) => {
+  //             expectTypeOf(event).toEqualTypeOf<{
+  //               payload: string;
+  //               path: [number];
+  //               leaf: {
+  //                 item: { index: number; paintCount: number; color: string };
+  //                 index: number;
+  //               };
+  //             }>();
+  //             // as it is the inner layer source$, path should be only the inner item index
+  //             expect(event.path).toEqual([0]);
+  //           });
+  //           return {
+  //             eventNested: paintCell$.value,
+  //           };
+  //         },
+  //       ),
+  //       ({ insertions: { paintCell$ } }) => {
+  //         on$(paintCell$, (event) => {
+  //           expectTypeOf(event).toEqualTypeOf<{
+  //             payload: string;
+  //             path: [number, number];
+  //             leaf: {
+  //               item: { index: number; paintCount: number; color: string };
+  //               index: number;
+  //             };
+  //           }>();
+  //           // as it is the inner layer source$, path should be only the inner item index
+  //           expect(event.path).toEqual([0, 0]);
+  //         });
+  //         return {
+  //           eventRoot: paintCell$.value,
+  //         };
+  //       },
+  //     );
+
+  //     TestBed.tick();
+  //     expectTypeOf(matrix.selectItem(0)?.eventNested).toEqualTypeOf<
+  //       | Signal<
+  //           | {
+  //               payload: string;
+  //               path: [number];
+  //               leaf: {
+  //                 item: { index: number; paintCount: number; color: string };
+  //                 index: number;
+  //               };
+  //             }
+  //           | undefined
+  //         >
+  //       | undefined
+  //     >();
+  //     expectTypeOf(matrix.eventRoot).toEqualTypeOf<
+  //       Signal<
+  //         | {
+  //             payload: string;
+  //             path: [number, number];
+  //             leaf: {
+  //               item: { index: number; paintCount: number; color: string };
+  //               index: number;
+  //             };
+  //           }
+  //         | undefined
+  //       >
+  //     >();
+
+  //     matrix.selectItem(0)?.selectItem(0)?.paintCell$('red');
+
+  //     expect(matrix.selectItem(0)?.selectItem(0)?.color).toBe('red');
+  //     expect(matrix.selectItem(0)?.selectItem(0)?.paintCount).toBe(1);
+  //     expect(matrix.selectItem(0)?.eventNested?.()?.payload).toBe('red');
+  //     expect(matrix.selectItem(0)?.eventNested?.()?.path).toEqual([0]);
+  //     expect(matrix.selectItem(0)?.eventNested?.()?.leaf.index).toBe(0);
+  //     expect(matrix.eventRoot()?.payload).toBe('red');
+  //     expect(matrix.eventRoot()?.path).toEqual([0, 0]);
+  //     expect(matrix.eventRoot()?.leaf.index).toBe(0);
+  //     expect(matrix.eventRoot()?.leaf.item.color).toBe('red');
+
+  //     vi.runAllTimersAsync();
+  //     vi.clearAllMocks();
+  //   });
+  // });
 });

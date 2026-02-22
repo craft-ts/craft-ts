@@ -1,5 +1,7 @@
-import { computed, signal } from '@angular/core';
+import { computed, Signal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { on$ } from './on$';
+import { insertSelectItem } from './insert-select-item';
 import { insertSelectProperty } from './insert-select-property';
 import { source$ } from './source$';
 import { state } from './state';
@@ -203,7 +205,6 @@ describe('insertSelectProperty', () => {
 
   it('should allow first insertSelectProperty insertion to access previous state insertions', () => {
     runInInjectionContext(() => {
-      const counter = signal(0);
       const board = state(
         {
           cell: {
@@ -212,19 +213,24 @@ describe('insertSelectProperty', () => {
             paintCount: 0,
           },
         },
-        () => ({
-          test: computed(() => counter()),
-        }),
+        () => {
+          const test = source$<number>();
+          return {
+            test,
+            emitTest: (value: number) => test.emit(value),
+          };
+        },
         insertSelectProperty(
           'cell',
           ({ state, update, insertions: { test } }) => ({
             paintFromTest: () =>
               update((cell) => ({
                 ...cell,
-                paintCount: cell.paintCount + (test() ?? 0),
+                paintCount: cell.paintCount + (test.value() ?? 0),
               })),
             paintCountStr: computed(
-              () => `Painted ${state().paintCount} times with ${test() ?? 0}`,
+              () =>
+                `Painted ${state().paintCount} times with ${test.value() ?? 0}`,
             ),
           }),
         ),
@@ -241,11 +247,259 @@ describe('insertSelectProperty', () => {
       TestBed.tick();
       expect(board.selectCell().paintCountStr()).toBe('Painted 0 times with 0');
 
-      counter.set(3);
+      board.emitTest(3);
       board.selectCell().paintFromTest();
 
       expect(board().cell.paintCount).toBe(3);
       expect(board.selectCell().paintCountStr()).toBe('Painted 3 times with 3');
     });
   });
+});
+
+describe.todo('insertSelect with CrossLayerSource (from bottom to top)', () => {
+  // it.todo(
+  //   'should support tuple path accumulation in mixed item + property nesting',
+  //   () => {
+  //     runInInjectionContext(() => {
+  //       const matrix = state(
+  //         [
+  //           {
+  //             cell: {
+  //               style: {
+  //                 color: 'white',
+  //                 paintCount: 0,
+  //               },
+  //             },
+  //           },
+  //         ],
+  //         insertSelectItem(
+  //           'item',
+  //           insertSelectProperty(
+  //             'cell',
+  //             insertSelectProperty(
+  //               'style',
+  //               () => ({
+  //                 paintStyle$: source$<string>(),
+  //               }),
+  //               ({ update, insertions: { paintStyle$ } }) => ({
+  //                 _paintStyle: on$(paintStyle$, (color) =>
+  //                   update((style) => ({
+  //                     ...style,
+  //                     color,
+  //                     paintCount: style.paintCount + 1,
+  //                   })),
+  //                 ),
+  //               }),
+  //             ),
+  //           ),
+  //         ),
+  //         ({ insertions: { paintStyle$ } }) => {
+  //           on$(paintStyle$, (event) => {
+  //             expectTypeOf(event).toEqualTypeOf<{
+  //               payload: string;
+  //               path: [number, 'cell', 'style'];
+  //               leaf: {
+  //                 item: { color: string; paintCount: number };
+  //                 index: 'style';
+  //               };
+  //             }>();
+  //             expect(event.path).toEqual([0, 'cell', 'style']);
+  //           });
+  //           return {
+  //             eventRoot: paintStyle$.value,
+  //           };
+  //         },
+  //       );
+  //       TestBed.tick();
+  //       expectTypeOf(matrix.eventRoot).toEqualTypeOf<
+  //         Signal<
+  //           | {
+  //               payload: string;
+  //               path: [number, 'cell', 'style'];
+  //               leaf: {
+  //                 item: { color: string; paintCount: number };
+  //                 index: 'style';
+  //               };
+  //             }
+  //           | undefined
+  //         >
+  //       >();
+  //       matrix
+  //         .selectItem(0)
+  //         ?.selectProperty('cell')
+  //         .selectStyle()
+  //         .paintStyle$('red');
+  //       expect(matrix.selectItem(0)?.selectCell().style.color).toBe('red');
+  //       expect(matrix.eventRoot()?.payload).toBe('red');
+  //       expect(matrix.eventRoot()?.path).toEqual([0, 'cell', 'style']);
+  //     });
+  //   },
+  // );
+  // it('should expose nested property source$ with tuple paths at each layer', () => {
+  //   runInInjectionContext(() => {
+  //     const board = state(
+  //       {
+  //         cell: {
+  //           style: {
+  //             color: 'white',
+  //             paintCount: 0,
+  //           },
+  //         },
+  //       },
+  //       insertSelectProperty(
+  //         'cell',
+  //         insertSelectProperty(
+  //           'style',
+  //           () => ({
+  //             paintStyle$: source$<string>(),
+  //           }),
+  //           ({ update, insertions: { paintStyle$ } }) => ({
+  //             _paintStyle: on$(paintStyle$, (color) =>
+  //               update((style) => ({
+  //                 ...style,
+  //                 color,
+  //                 paintCount: style.paintCount + 1,
+  //               })),
+  //             ),
+  //           }),
+  //         ),
+  //         ({ insertions: { paintStyle$ } }) => {
+  //           on$(paintStyle$, (event) => {
+  //             expectTypeOf(event).toEqualTypeOf<{
+  //               payload: string;
+  //               path: ['style'];
+  //               leaf: {
+  //                 item: { color: string; paintCount: number };
+  //                 index: 'style';
+  //               };
+  //             }>();
+  //             expect(event.path).toEqual(['style']);
+  //           });
+  //           return {
+  //             eventNested: paintStyle$.value,
+  //           };
+  //         },
+  //       ),
+  //       ({ insertions: { paintStyle$ } }) => {
+  //         on$(paintStyle$, (event) => {
+  //           expectTypeOf(event).toEqualTypeOf<{
+  //             payload: string;
+  //             path: ['cell', 'style'];
+  //             leaf: {
+  //               item: { color: string; paintCount: number };
+  //               index: 'style';
+  //             };
+  //           }>();
+  //           expect(event.path).toEqual(['cell', 'style']);
+  //         });
+  //         return {
+  //           eventRoot: paintStyle$.value,
+  //         };
+  //       },
+  //     );
+  //     TestBed.tick();
+  //     expectTypeOf(board.selectCell().eventNested).toEqualTypeOf<
+  //       Signal<
+  //         | {
+  //             payload: string;
+  //             path: ['style'];
+  //             leaf: {
+  //               item: { color: string; paintCount: number };
+  //               index: 'style';
+  //             };
+  //           }
+  //         | undefined
+  //       >
+  //     >();
+  //     expectTypeOf(board.eventRoot).toEqualTypeOf<
+  //       Signal<
+  //         | {
+  //             payload: string;
+  //             path: ['cell', 'style'];
+  //             leaf: {
+  //               item: { color: string; paintCount: number };
+  //               index: 'style';
+  //             };
+  //           }
+  //         | undefined
+  //       >
+  //     >();
+  //     board.selectProperty('cell').selectStyle().paintStyle$('black');
+  //     expect(board().cell.style.color).toBe('black');
+  //     expect(board().cell.style.paintCount).toBe(1);
+  //     expect(board.selectCell().eventNested()?.payload).toBe('black');
+  //     expect(board.selectCell().eventNested()?.path).toEqual(['style']);
+  //     expect(board.eventRoot()?.payload).toBe('black');
+  //     expect(board.eventRoot()?.path).toEqual(['cell', 'style']);
+  //   });
+  // });
+  // it.todo(
+  //   'should expose internal source$ as a cross-layer source$ with tuple path for single property layer',
+  //   () => {
+  //     runInInjectionContext(() => {
+  //       const board = state(
+  //         {
+  //           cell: {
+  //             index: 0,
+  //             color: 'white',
+  //             paintCount: 0,
+  //           },
+  //         },
+  //         insertSelectProperty(
+  //           'cell',
+  //           () => ({
+  //             paintCell$: source$<string>(),
+  //           }),
+  //           ({ update, insertions: { paintCell$ } }) => ({
+  //             _paintCell: on$(paintCell$, (color) =>
+  //               update((cell) => ({
+  //                 ...cell,
+  //                 color,
+  //                 paintCount: cell.paintCount + 1,
+  //               })),
+  //             ),
+  //           }),
+  //         ),
+  //         ({ insertions: { paintCell$ } }) => {
+  //           on$(paintCell$, (event) => {
+  //             expectTypeOf(event).toEqualTypeOf<{
+  //               payload: string;
+  //               path: ['cell'];
+  //               leaf: {
+  //                 item: { index: number; color: string; paintCount: number };
+  //                 index: 'cell';
+  //               };
+  //             }>();
+  //             expect(event.path).toEqual(['cell']);
+  //           });
+  //           return {
+  //             eventRoot: paintCell$.value,
+  //           };
+  //         },
+  //       );
+  //       TestBed.tick();
+  //       //@ts-expect-error _paintCell should not be exposed
+  //       expect(board.selectCell()._paintCell).not.toBeDefined();
+  //       expectTypeOf(board.eventRoot).toEqualTypeOf<
+  //         Signal<
+  //           | {
+  //               payload: string;
+  //               path: ['cell'];
+  //               leaf: {
+  //                 item: { index: number; color: string; paintCount: number };
+  //                 index: 'cell';
+  //               };
+  //             }
+  //           | undefined
+  //         >
+  //       >();
+  //       board.selectCell().paintCell$('red');
+  //       expect(board().cell.color).toBe('red');
+  //       expect(board().cell.paintCount).toBe(1);
+  //       expect(board.eventRoot()?.payload).toBe('red');
+  //       expect(board.eventRoot()?.path).toEqual(['cell']);
+  //       expect(board.eventRoot()?.leaf.index).toBe('cell');
+  //     });
+  //   },
+  // );
 });

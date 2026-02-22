@@ -9,7 +9,7 @@ import { computed } from '@angular/core';
 import { insertSelectProperty, state } from '@craft-ng/core';
 ```
 
-## Utilisation de base
+## Basic Usage
 
 ```typescript
 const board = state(
@@ -34,18 +34,18 @@ board.selectCell().paint();
 console.log(board.selectCell().paintCountStr()); // "Painted 1 times"
 ```
 
-## Pourquoi l'utiliser
+## Why use it
 
 - Ajoute de la logique au niveau d'une propriété imbriquée sans extraire un nouveau state
 - Conserve un typage strict des méthodes ajoutées
 - Permet de composer des insertions imbriquées
 
-## Exemples Pixel Art
+## Pixel Art examples
 
-- [Pixel Art (grille 1D)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts)
-- [Pixel Art Matrix (grille 2D)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts)
+- [Pixel Art (1D grid)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts)
+- [Pixel Art Matrix (2D grid)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts)
 
-## Voir aussi
+## See also
 
 - [insertSelectItem](/insertions/insert-select-item)
 - [state](/primitives/state)
