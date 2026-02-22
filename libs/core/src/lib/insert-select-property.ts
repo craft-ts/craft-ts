@@ -2,7 +2,6 @@ import { linkedSignal } from '@angular/core';
 import { InsertionsStateFactory } from './query.core';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
-import { wrapExceptionAwareMethods } from './business-exception';
 import { Source$ as SourceDollarType, source$ } from './source$';
 import { isSource } from './util/util';
 
@@ -271,11 +270,6 @@ export function insertSelectProperty<
     state,
     update,
     insertions: previousInsertions,
-    exceptions,
-    raiseException,
-    clearException,
-    clearExceptionScope,
-    clearExceptions,
   }) => {
     let selectedPropertyProxy: unknown;
     type PropertyType = Extract<StateType[PropertyKey], object>;
@@ -321,8 +315,7 @@ export function insertSelectProperty<
 
       const { exposedInsertionsOutput } = propertyInsertions.reduce(
         (acc, insertion) => {
-          const nextRawInsertions = wrapExceptionAwareMethods(
-            insertion({
+          const nextRawInsertions = insertion({
               state: selectedPropertySignal,
               set: setProperty,
               update: updateProperty,
@@ -330,14 +323,7 @@ export function insertSelectProperty<
                 ...inheritedInsertions,
                 ...acc.rawInsertionsOutput,
               } as never,
-              exceptions,
-              raiseException,
-              clearException,
-              clearExceptionScope,
-              clearExceptions,
-            }) as Record<string, unknown>,
-            raiseException,
-          );
+            }) as Record<string, unknown>;
 
           const nextExposedInsertions = Object.entries(
             nextRawInsertions,

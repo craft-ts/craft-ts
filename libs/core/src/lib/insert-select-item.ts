@@ -2,7 +2,6 @@ import { linkedSignal } from '@angular/core';
 import { InsertionsStateFactory } from './query.core';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
-import { wrapExceptionAwareMethods } from './business-exception';
 import { Source$ as SourceDollarType } from './source$';
 import { isSource } from './util/util';
 
@@ -73,7 +72,6 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
   );
 }
 
-
 /**
  * Adds item-level selection helpers for array/record states:
  * - `select(id)` to read the raw item
@@ -116,7 +114,10 @@ export function insertSelectItem<
   InsertSelectItemOutput<
     StateType,
     GroupIdentifier,
-    ParallelStateItemOutput<SelectedItem<StateType, GroupIdentifier>, Insertions1>
+    ParallelStateItemOutput<
+      SelectedItem<StateType, GroupIdentifier>,
+      Insertions1
+    >
   >,
   PreviousInsertionsOutputs
 >;
@@ -315,11 +316,6 @@ export function insertSelectItem<
     state,
     update,
     insertions: previousInsertions,
-    exceptions,
-    raiseException,
-    clearException,
-    clearExceptionScope,
-    clearExceptions,
   }) => {
     type SelectedStateType = Extract<
       SelectableStateItem<StateType, GroupIdentifier>,
@@ -357,8 +353,7 @@ export function insertSelectItem<
       const { rawInsertionsOutput, exposedInsertionsOutput } =
         itemInsertions.reduce(
           (acc, insertion) => {
-            const nextRawInsertions = wrapExceptionAwareMethods(
-              insertion({
+            const nextRawInsertions = insertion({
                 state: selectedStateSignal,
                 set: (newState: SelectedStateType) => {
                   update((currentState) => {
@@ -423,14 +418,7 @@ export function insertSelectItem<
                   ...inheritedInsertions,
                   ...acc.rawInsertionsOutput,
                 } as never,
-                exceptions,
-                raiseException,
-                clearException,
-                clearExceptionScope,
-                clearExceptions,
-              }) as Record<string, unknown>,
-              raiseException,
-            );
+              }) as Record<string, unknown>;
 
             const nextExposedInsertions = Object.entries(
               nextRawInsertions,
