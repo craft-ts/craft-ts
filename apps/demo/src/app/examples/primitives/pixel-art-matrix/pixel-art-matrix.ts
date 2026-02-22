@@ -204,7 +204,7 @@ export default class PixelArtMatrix {
 
             return [...currentGrid, newRow];
           }),
-        clearAll$: source$<void>(),
+        clearAll: () => createInitialGrid(),
         rowIndexes: computed(() => state().map((_row, index) => index)),
         totalCells: computed(() =>
           state().reduce((count, row) => count + row.length, 0),
