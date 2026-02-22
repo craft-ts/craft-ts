@@ -22,7 +22,7 @@ describe('state', () => {
       const myState = state(0);
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<Signal<number>>();
+      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
       expect(myState()).toBe(0);
     });
   });
@@ -32,7 +32,7 @@ describe('state', () => {
       const myState = state(linkedSignal(() => origin() * 2));
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<Signal<number>>();
+      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
       expect(myState()).toBe(10);
     });
   });

@@ -7,13 +7,13 @@ import {
   PartialContext,
   StoreConfigConstraints,
 } from './craft';
-import { StateOutput } from './state';
+import { ExposedStateInsertions, StateOutput } from './state';
 import { isSignal, Signal } from '@angular/core';
 import { capitalize } from './util/util';
 import { DeferredExtract } from './util/util.type';
 
 type SpecificCraftStateOutputs<StateName extends string, State, Insertions> =
-  DeferredExtract<Insertions> extends infer Extracted
+  DeferredExtract<ExposedStateInsertions<Insertions>> extends infer Extracted
     ? Extracted extends { props: unknown; methods: Record<string, Function> }
       ? PartialContext<{
           props: {

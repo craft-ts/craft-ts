@@ -19,7 +19,7 @@ type Source$Method<SourceType> = [SourceType] extends [void]
   ? () => void
   : (value: SourceType) => void;
 
-type ExposedStateInsertions<Insertions> = MergeObject<
+export type ExposedStateInsertions<Insertions> = MergeObject<
   IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
   {
     [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>

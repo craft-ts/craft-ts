@@ -1,7 +1,6 @@
-import { computed, Signal, signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { on$ } from './on$';
-import { insertSelectItem } from './insert-select-item';
+import { insertSelect } from './insert-select';
 import { insertSelectProperty } from './insert-select-property';
 import { source$ } from './source$';
 import { state } from './state';
@@ -252,6 +251,30 @@ describe('insertSelectProperty', () => {
 
       expect(board().cell.paintCount).toBe(3);
       expect(board.selectCell().paintCountStr()).toBe('Painted 3 times with 3');
+    });
+  });
+
+  it('should support nested insertSelect on object -> primitive to set activeColor directly', () => {
+    runInInjectionContext(() => {
+      const DEFAULT_ACTIVE_COLOR = 'black';
+
+      const myState = state(
+        {
+          ui: {
+            activeColor: DEFAULT_ACTIVE_COLOR,
+          },
+        },
+        insertSelect(
+          'ui',
+          insertSelect('activeColor', ({ set }) => ({
+            set: (color: string) => set(color),
+          })),
+        ),
+      );
+
+      expect(myState().ui.activeColor).toBe(DEFAULT_ACTIVE_COLOR);
+      myState.selectUi().selectActiveColor().set('white');
+      expect(myState().ui.activeColor).toBe('white');
     });
   });
 });

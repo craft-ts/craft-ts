@@ -182,9 +182,12 @@ type InsertSelectReturn5<
 
 export function insertSelect<
   StateType,
-  const Name extends string,
+  const Name extends AutoCompleteName & string,
   Insertions1 = {},
   PreviousInsertionsOutputs = {},
+  AutoCompleteName = StateType extends readonly object[]
+    ? string
+    : keyof StateType,
 >(
   name: Name,
   insertion1: InsertionsStateFactory<
@@ -195,10 +198,13 @@ export function insertSelect<
 ): InsertSelectReturn1<StateType, Name, Insertions1, PreviousInsertionsOutputs>;
 export function insertSelect<
   StateType,
-  const Name extends string,
+  const Name extends AutoCompleteName & string,
   Insertions1 = {},
   Insertions2 = {},
   PreviousInsertionsOutputs = {},
+  AutoCompleteName = StateType extends readonly object[]
+    ? string
+    : keyof StateType,
 >(
   name: Name,
   insertion1: InsertionsStateFactory<
@@ -220,11 +226,14 @@ export function insertSelect<
 >;
 export function insertSelect<
   StateType,
-  const Name extends string,
+  const Name extends AutoCompleteName & string,
   Insertions1 = {},
   Insertions2 = {},
   Insertions3 = {},
   PreviousInsertionsOutputs = {},
+  AutoCompleteName = StateType extends readonly object[]
+    ? string
+    : keyof StateType,
 >(
   name: Name,
   insertion1: InsertionsStateFactory<
@@ -252,12 +261,15 @@ export function insertSelect<
 >;
 export function insertSelect<
   StateType,
-  const Name extends string,
+  const Name extends AutoCompleteName & string,
   Insertions1 = {},
   Insertions2 = {},
   Insertions3 = {},
   Insertions4 = {},
   PreviousInsertionsOutputs = {},
+  AutoCompleteName = StateType extends readonly object[]
+    ? string
+    : keyof StateType,
 >(
   name: Name,
   insertion1: InsertionsStateFactory<
@@ -291,13 +303,16 @@ export function insertSelect<
 >;
 export function insertSelect<
   StateType,
-  const Name extends string,
+  const Name extends AutoCompleteName & string,
   Insertions1 = {},
   Insertions2 = {},
   Insertions3 = {},
   Insertions4 = {},
   Insertions5 = {},
   PreviousInsertionsOutputs = {},
+  AutoCompleteName = StateType extends readonly object[]
+    ? string
+    : keyof StateType,
 >(
   name: Name,
   insertion1: InsertionsStateFactory<
