@@ -1,12 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
-import {
-  Source$,
-  addOne,
-  insertSelect,
-  on$,
-  source$,
-  state,
-} from '@craft-ng/core';
+import { addOne, insertSelect, on$, source$, state } from '@craft-ng/core';
 import { LongPressDirective } from './long-press.directive';
 
 type PixelCellState = {
@@ -55,12 +48,20 @@ const createInitialGrid = (): PixelCellState[][] =>
           Note: this example is intentionally "fairly" complex to showcase
           multiple patterns together.
         </p>
-        <p>
-          Interactions: left click paints a cell, right click copies the target
-          cell color to the full row, long press/touch paints the full column
-          with the target color, "+" adds a cell to a row, "Add row" appends a
-          new row, and "Clear" resets all colors.
-        </p>
+        <p>Interactions:</p>
+        <ul>
+          <li>Left click paints a cell.</li>
+          <li>Right click copies the target cell color to the full row.</li>
+          <li>
+            Long press/touch paints the full column with the target color.
+          </li>
+          <li>"+" adds a cell to a row.</li>
+          <li>"Add row" appends a new row.</li>
+          <li>
+            "Reset" resets all colors, paint counts, and active color, rows, and
+            columns.
+          </li>
+        </ul>
       </header>
 
       <div class="pixel-art__controls">
@@ -76,9 +77,7 @@ const createInitialGrid = (): PixelCellState[][] =>
             ></button>
           }
         </div>
-        <button type="button" (click)="matrix.selectGrid().clearAll()">
-          Clear
-        </button>
+        <button type="button" (click)="matrix.resetAll$.emit()">Reset</button>
       </div>
 
       <div class="pixel-art__stats">
@@ -178,13 +177,19 @@ export default class PixelArtMatrix {
       },
       grid: createInitialGrid(),
     },
-    insertSelect('ui', ({ update }) => ({
+    () => ({
+      resetAll$: source$<void>(),
+    }),
+    insertSelect('ui', ({ update, set, insertions: { resetAll$ } }) => ({
+      resetActiveColor: on$(resetAll$, () =>
+        set({ activeColor: DEFAULT_ACTIVE_COLOR }),
+      ),
       setActiveColor: (color: string) =>
         update((current) => ({ ...current, activeColor: color })),
     })),
     insertSelect(
       'grid',
-      ({ state, update }) => ({
+      ({ state, update, set, insertions: { resetAll$ } }) => ({
         paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
         addRow: () =>
           update((currentGrid) => {
@@ -204,7 +209,7 @@ export default class PixelArtMatrix {
 
             return [...currentGrid, newRow];
           }),
-        clearAll: () => createInitialGrid(),
+        resetGrid: on$(resetAll$, () => set(createInitialGrid())),
         rowIndexes: computed(() => state().map((_row, index) => index)),
         totalCells: computed(() =>
           state().reduce((count, row) => count + row.length, 0),
@@ -256,15 +261,6 @@ export default class PixelArtMatrix {
               paintRowWithTargetCellColor$,
               paintColumnWithTargetCellColor$,
             },
-          }: {
-            state: () => PixelCellState;
-            update: (
-              updateFn: (currentState: PixelCellState) => PixelCellState,
-            ) => PixelCellState;
-            insertions: {
-              paintRowWithTargetCellColor$: Source$<PaintCellEvent>;
-              paintColumnWithTargetCellColor$: Source$<PaintCellEvent>;
-            };
           }) => ({
             paint: () =>
               update((targetCell) => ({

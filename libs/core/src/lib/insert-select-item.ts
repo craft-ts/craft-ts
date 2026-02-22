@@ -1,4 +1,4 @@
-import { linkedSignal } from '@angular/core';
+import { Injector, linkedSignal, runInInjectionContext, inject } from '@angular/core';
 import { InsertionsStateFactory } from './query.core';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
@@ -319,6 +319,7 @@ export function insertSelectItem<
     update,
     insertions: previousInsertions,
   }) => {
+    const injector = inject(Injector);
     const selectItemMethodName =
       `select${capitalize(_entityName)}` as SelectItemMethodName<Name>;
     type SelectedStateType = Extract<
@@ -357,72 +358,76 @@ export function insertSelectItem<
       const { rawInsertionsOutput, exposedInsertionsOutput } =
         itemInsertions.reduce(
           (acc, insertion) => {
-            const nextRawInsertions = insertion({
-                state: selectedStateSignal,
-                set: (newState: SelectedStateType) => {
-                  update((currentState) => {
-                    if (Array.isArray(currentState)) {
-                      const currentIndex = id as number;
-                      if (
-                        currentIndex < 0 ||
-                        currentIndex >= currentState.length ||
-                        !Number.isInteger(currentIndex)
-                      ) {
-                        return currentState;
+            const nextRawInsertions = runInInjectionContext(
+              injector,
+              () =>
+                insertion({
+                  state: selectedStateSignal,
+                  set: (newState: SelectedStateType) => {
+                    update((currentState) => {
+                      if (Array.isArray(currentState)) {
+                        const currentIndex = id as number;
+                        if (
+                          currentIndex < 0 ||
+                          currentIndex >= currentState.length ||
+                          !Number.isInteger(currentIndex)
+                        ) {
+                          return currentState;
+                        }
+                        const nextState = [...currentState];
+                        nextState[currentIndex] = newState;
+                        return nextState as unknown as StateType;
                       }
-                      const nextState = [...currentState];
-                      nextState[currentIndex] = newState;
-                      return nextState as unknown as StateType;
+
+                      return {
+                        ...(currentState as Record<ParallelStateId, unknown>),
+                        [id]: newState,
+                      } as StateType;
+                    });
+                    return newState;
+                  },
+                  update: (
+                    updateFn: (
+                      currentState: SelectedStateType,
+                    ) => SelectedStateType,
+                  ) => {
+                    const currentSelectedState = select(id);
+                    if (currentSelectedState === undefined) {
+                      return currentSelectedState as unknown as SelectedStateType;
                     }
 
-                    return {
-                      ...(currentState as Record<ParallelStateId, unknown>),
-                      [id]: newState,
-                    } as StateType;
-                  });
-                  return newState;
-                },
-                update: (
-                  updateFn: (
-                    currentState: SelectedStateType,
-                  ) => SelectedStateType,
-                ) => {
-                  const currentSelectedState = select(id);
-                  if (currentSelectedState === undefined) {
-                    return currentSelectedState as unknown as SelectedStateType;
-                  }
-
-                  const nextState = updateFn(
-                    currentSelectedState as SelectedStateType,
-                  );
-                  update((currentState) => {
-                    if (Array.isArray(currentState)) {
-                      const currentIndex = id as number;
-                      if (
-                        currentIndex < 0 ||
-                        currentIndex >= currentState.length ||
-                        !Number.isInteger(currentIndex)
-                      ) {
-                        return currentState;
+                    const nextState = updateFn(
+                      currentSelectedState as SelectedStateType,
+                    );
+                    update((currentState) => {
+                      if (Array.isArray(currentState)) {
+                        const currentIndex = id as number;
+                        if (
+                          currentIndex < 0 ||
+                          currentIndex >= currentState.length ||
+                          !Number.isInteger(currentIndex)
+                        ) {
+                          return currentState;
+                        }
+                        const nextRootState = [...currentState];
+                        nextRootState[currentIndex] = nextState;
+                        return nextRootState as unknown as StateType;
                       }
-                      const nextRootState = [...currentState];
-                      nextRootState[currentIndex] = nextState;
-                      return nextRootState as unknown as StateType;
-                    }
 
-                    return {
-                      ...(currentState as Record<ParallelStateId, unknown>),
-                      [id]: nextState,
-                    } as StateType;
-                  });
+                      return {
+                        ...(currentState as Record<ParallelStateId, unknown>),
+                        [id]: nextState,
+                      } as StateType;
+                    });
 
-                  return nextState;
-                },
-                insertions: {
-                  ...inheritedInsertions,
-                  ...acc.rawInsertionsOutput,
-                } as never,
-              }) as Record<string, unknown>;
+                    return nextState;
+                  },
+                  insertions: {
+                    ...inheritedInsertions,
+                    ...acc.rawInsertionsOutput,
+                  } as never,
+                }),
+            ) as Record<string, unknown>;
 
             const nextExposedInsertions = Object.entries(
               nextRawInsertions,
