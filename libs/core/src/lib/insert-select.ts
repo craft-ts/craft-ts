@@ -32,35 +32,48 @@ type RenameSelectItemMethod<Name extends string, Factory> =
       >
     : never;
 
+type ExtractInsertionsOutput<Factory> =
+  Factory extends InsertionsStateFactory<any, infer InsertionsOutput, any>
+    ? InsertionsOutput
+    : never;
+
 type InsertSelectReturn1<
   StateType,
   Name extends string,
   Insertions1,
   PreviousInsertionsOutputs,
-> = StateType extends readonly object[]
-  ? RenameSelectItemMethod<
-      Name,
-      ReturnType<
-        typeof insertSelectItem<
-          StateType,
-          number,
-          Insertions1,
-          PreviousInsertionsOutputs
-        >
-      >
-    >
-  : StateType extends Record<string, unknown>
-    ? Name extends keyof StateType & string
-      ? ReturnType<
-          typeof insertSelectProperty<
-            StateType,
-            Name,
-            Insertions1,
-            PreviousInsertionsOutputs
+> = InsertionsStateFactory<
+  StateType,
+  StateType extends readonly object[]
+    ? ExtractInsertionsOutput<
+        RenameSelectItemMethod<
+          Name,
+          ReturnType<
+            typeof insertSelectItem<
+              StateType,
+              number,
+              Insertions1,
+              PreviousInsertionsOutputs
+            >
           >
         >
-      : never
-    : never;
+      >
+    : StateType extends Record<string, unknown>
+      ? Name extends keyof StateType & string
+        ? ExtractInsertionsOutput<
+            ReturnType<
+              typeof insertSelectProperty<
+                StateType,
+                Name,
+                Insertions1,
+                PreviousInsertionsOutputs
+              >
+            >
+          >
+        : never
+      : never,
+  PreviousInsertionsOutputs
+>;
 
 type InsertSelectReturn2<
   StateType,
@@ -68,32 +81,40 @@ type InsertSelectReturn2<
   Insertions1,
   Insertions2,
   PreviousInsertionsOutputs,
-> = StateType extends readonly object[]
-  ? RenameSelectItemMethod<
-      Name,
-      ReturnType<
-        typeof insertSelectItem<
-          StateType,
-          number,
-          Insertions1,
-          Insertions2,
-          PreviousInsertionsOutputs
-        >
-      >
-    >
-  : StateType extends Record<string, unknown>
-    ? Name extends keyof StateType & string
-      ? ReturnType<
-          typeof insertSelectProperty<
-            StateType,
-            Name,
-            Insertions1,
-            Insertions2,
-            PreviousInsertionsOutputs
+> = InsertionsStateFactory<
+  StateType,
+  StateType extends readonly object[]
+    ? ExtractInsertionsOutput<
+        RenameSelectItemMethod<
+          Name,
+          ReturnType<
+            typeof insertSelectItem<
+              StateType,
+              number,
+              Insertions1,
+              Insertions2,
+              PreviousInsertionsOutputs
+            >
           >
         >
-      : never
-    : never;
+      >
+    : StateType extends Record<string, unknown>
+      ? Name extends keyof StateType & string
+        ? ExtractInsertionsOutput<
+            ReturnType<
+              typeof insertSelectProperty<
+                StateType,
+                Name,
+                Insertions1,
+                Insertions2,
+                PreviousInsertionsOutputs
+              >
+            >
+          >
+        : never
+      : never,
+  PreviousInsertionsOutputs
+>;
 
 type InsertSelectReturn3<
   StateType,
@@ -103,18 +124,24 @@ type InsertSelectReturn3<
   Insertions3,
   PreviousInsertionsOutputs,
 > = StateType extends readonly object[]
-  ? RenameSelectItemMethod<
-      Name,
-      ReturnType<
-        typeof insertSelectItem<
-          StateType,
-          number,
-          Insertions1,
-          Insertions2,
-          Insertions3,
-          PreviousInsertionsOutputs
+  ? InsertionsStateFactory<
+      StateType,
+      ExtractInsertionsOutput<
+        RenameSelectItemMethod<
+          Name,
+          ReturnType<
+            typeof insertSelectItem<
+              StateType,
+              number,
+              Insertions1,
+              Insertions2,
+              Insertions3,
+              PreviousInsertionsOutputs
+            >
+          >
         >
-      >
+      >,
+      PreviousInsertionsOutputs
     >
   : never;
 
@@ -127,19 +154,25 @@ type InsertSelectReturn4<
   Insertions4,
   PreviousInsertionsOutputs,
 > = StateType extends readonly object[]
-  ? RenameSelectItemMethod<
-      Name,
-      ReturnType<
-        typeof insertSelectItem<
-          StateType,
-          number,
-          Insertions1,
-          Insertions2,
-          Insertions3,
-          Insertions4,
-          PreviousInsertionsOutputs
+  ? InsertionsStateFactory<
+      StateType,
+      ExtractInsertionsOutput<
+        RenameSelectItemMethod<
+          Name,
+          ReturnType<
+            typeof insertSelectItem<
+              StateType,
+              number,
+              Insertions1,
+              Insertions2,
+              Insertions3,
+              Insertions4,
+              PreviousInsertionsOutputs
+            >
+          >
         >
-      >
+      >,
+      PreviousInsertionsOutputs
     >
   : never;
 
@@ -153,20 +186,26 @@ type InsertSelectReturn5<
   Insertions5,
   PreviousInsertionsOutputs,
 > = StateType extends readonly object[]
-  ? RenameSelectItemMethod<
-      Name,
-      ReturnType<
-        typeof insertSelectItem<
-          StateType,
-          number,
-          Insertions1,
-          Insertions2,
-          Insertions3,
-          Insertions4,
-          Insertions5,
-          PreviousInsertionsOutputs
+  ? InsertionsStateFactory<
+      StateType,
+      ExtractInsertionsOutput<
+        RenameSelectItemMethod<
+          Name,
+          ReturnType<
+            typeof insertSelectItem<
+              StateType,
+              number,
+              Insertions1,
+              Insertions2,
+              Insertions3,
+              Insertions4,
+              Insertions5,
+              PreviousInsertionsOutputs
+            >
+          >
         >
-      >
+      >,
+      PreviousInsertionsOutputs
     >
   : never;
 

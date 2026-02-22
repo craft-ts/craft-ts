@@ -204,16 +204,7 @@ export default class PixelArtMatrix {
 
             return [...currentGrid, newRow];
           }),
-        // todo make a source$ each cell will
-        clearAll: () =>
-          update((currentGrid) =>
-            currentGrid.map((row) =>
-              row.map((cell) => ({
-                ...cell,
-                color: EMPTY_COLOR,
-              })),
-            ),
-          ),
+        clearAll$: source$<void>(),
         rowIndexes: computed(() => state().map((_row, index) => index)),
         totalCells: computed(() =>
           state().reduce((count, row) => count + row.length, 0),

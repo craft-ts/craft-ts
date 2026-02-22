@@ -174,6 +174,102 @@ describe('insertSelect', () => {
     });
   });
 
+  it('should allow first insertSelect insertion to access previous state insertions on object states', () => {
+    runInInjectionContext(() => {
+      const board = state(
+        {
+          cell: {
+            index: 0,
+            color: 'white',
+            paintCount: 0,
+          },
+        },
+        () => {
+          const test = source$<number>();
+          return {
+            test,
+            emitTest: (value: number) => test.emit(value),
+          };
+        },
+        insertSelect('cell', ({ state, update, insertions }) => {
+          expectTypeOf(insertions).toEqualTypeOf<{
+            test: Source$<number>;
+            emitTest: (value: number) => void;
+          }>();
+          return {
+            paintFromTest: () =>
+              update((cell) => ({
+                ...cell,
+                paintCount: cell.paintCount + (insertions.test.value() ?? 0),
+              })),
+            paintCountStr: computed(
+              () =>
+                `Painted ${state().paintCount} times with ${insertions.test.value() ?? 0}`,
+            ),
+          };
+        }),
+      );
+
+      expectTypeOf(board.selectCell().paintFromTest).toEqualTypeOf<
+        () => { index: number; color: string; paintCount: number }
+      >();
+
+      TestBed.tick();
+      expect(board.selectCell().paintCountStr()).toBe('Painted 0 times with 0');
+
+      board.emitTest(3);
+      board.selectCell().paintFromTest();
+
+      expect(board().cell.paintCount).toBe(3);
+      expect(board.selectCell().paintCountStr()).toBe('Painted 3 times with 3');
+    });
+  });
+
+  it('should allow first insertSelect insertion to access previous state insertions on array states', () => {
+    runInInjectionContext(() => {
+      const cells = state(
+        [{ index: 0, paintCount: 0 }],
+        () => {
+          const test = source$<number>();
+          return {
+            test,
+            emitTest: (value: number) => test.emit(value),
+          };
+        },
+        insertSelect('cell', ({ state, update, insertions }) => {
+          expectTypeOf(insertions).toEqualTypeOf<{
+            test: Source$<number>;
+            emitTest: (value: number) => void;
+          }>();
+          return {
+            incrementFromTest: () =>
+              update((cell) => ({
+                ...cell,
+                paintCount: cell.paintCount + (insertions.test.value() ?? 0),
+              })),
+            paintCountStr: computed(
+              () =>
+                `Painted ${state().paintCount} times with ${insertions.test.value() ?? 0}`,
+            ),
+          };
+        }),
+      );
+
+      expectTypeOf(cells.selectCell(0)?.incrementFromTest).toEqualTypeOf<
+        (() => { index: number; paintCount: number }) | undefined
+      >();
+
+      TestBed.tick();
+      expect(cells.selectCell(0)?.paintCountStr()).toBe('Painted 0 times with 0');
+
+      cells.emitTest(2);
+      cells.selectCell(0)?.incrementFromTest();
+
+      expect(cells.select(0)?.paintCount).toBe(2);
+      expect(cells.selectCell(0)?.paintCountStr()).toBe('Painted 2 times with 2');
+    });
+  });
+
   it('should expose cross-layer source$ from nested insertions', () => {
     runInInjectionContext(() => {
       const cells = state(

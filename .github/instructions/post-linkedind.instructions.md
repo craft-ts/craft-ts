@@ -29,4 +29,4 @@ Voici les instructions à suivre pour créer un post LinkedIn :
 Développeur Angular et créateur de @craft-ng
 Suis-moi pour plus de contenu sur Angular`
 - Il est possible de créer des exemples sur plusieurs pages pour illsutrer un cas d'usage.
-- Si seulement une capture d'écran est demandé il faut utiliser l'outil mcp `code-screenshot-mcp`.
+- Si seulement une capture d'écran est demandé il faut utiliser l'outil mcp `code-screenshot-mcp` et créer un fichier `code-screenshot.md` avec le code à screenshot, puis générer une capture d'écran à partir de ce fichier. Ne rajoute pas de commentaires qui ne sont pas dans le code à screenshot, pour éviter de surcharger la capture d'écran ou met un tritre en rapport avec le code à screenshot.
