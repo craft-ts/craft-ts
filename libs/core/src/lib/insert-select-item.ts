@@ -3,10 +3,11 @@ import { InsertionsStateFactory } from './query.core';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { Source$ as SourceDollarType } from './source$';
-import { isSource } from './util/util';
+import { capitalize, isSource } from './util/util';
 
 type ParallelStateId = string | number | symbol;
 type SelectableState = readonly object[] | Record<ParallelStateId, object>;
+type SelectItemMethodName<Name extends string> = `select${Capitalize<Name>}`;
 type SelectableStateItem<
   StateType,
   GroupIdentifier extends ParallelStateId,
@@ -37,22 +38,13 @@ type Source$Method<SourceType> = [SourceType] extends [void]
   : (value: SourceType) => void;
 
 type InsertSelectItemOutput<
+  Name extends string,
   StateType extends SelectableState,
   GroupIdentifier extends ParallelStateId,
   ItemOutput,
 > = {
-  /**
-   * @deprecated
-   */
-  select: (
-    id: GroupIdentifier,
-  ) =>
-    | Extract<SelectableStateItem<StateType, GroupIdentifier>, object>
-    | undefined;
-  /**
-   * @deprecated
-   */
-  selectItem: (id: GroupIdentifier) => ItemOutput | undefined;
+  [K in SelectItemMethodName<Name>]: (id: GroupIdentifier) => ItemOutput | undefined;
+} & {
   items: () => Array<ItemOutput>;
 };
 
@@ -74,8 +66,7 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
 
 /**
  * Adds item-level selection helpers for array/record states:
- * - `select(id)` to read the raw item
- * - `selectItem(id)` to read an item proxy with insertion methods/computed values
+ * - `select<EntityName>(id)` to read an item proxy with insertion methods/computed values
  * - `items()` to get all proxied items
  *
  * @example
@@ -92,7 +83,7 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
  *   })),
  * );
  *
- * cells.selectItem(0)?.paint();
+ * cells.selectCell(0)?.paint();
  * ```
  */
 export function insertSelectItem<
@@ -100,10 +91,11 @@ export function insertSelectItem<
   GroupIdentifier extends ParallelStateId = StateType extends readonly unknown[]
     ? number
     : keyof StateType & ParallelStateId,
+  Name extends string = string,
   Insertions1 = {},
   PreviousInsertionsOutputs = {},
 >(
-  _entityName: string,
+  _entityName: Name,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -112,6 +104,7 @@ export function insertSelectItem<
 ): InsertionsStateFactory<
   StateType,
   InsertSelectItemOutput<
+    Name,
     StateType,
     GroupIdentifier,
     ParallelStateItemOutput<
@@ -126,12 +119,13 @@ export function insertSelectItem<
   GroupIdentifier extends ParallelStateId = StateType extends readonly unknown[]
     ? number
     : keyof StateType & ParallelStateId,
+  Name extends string = string,
   Insertions1 = {},
   Insertions2 = {},
   Insertions3 = {},
   PreviousInsertionsOutputs = {},
 >(
-  _entityName: string,
+  _entityName: Name,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -150,6 +144,7 @@ export function insertSelectItem<
 ): InsertionsStateFactory<
   StateType,
   InsertSelectItemOutput<
+    Name,
     StateType,
     GroupIdentifier,
     ParallelStateItemOutput<
@@ -164,13 +159,14 @@ export function insertSelectItem<
   GroupIdentifier extends ParallelStateId = StateType extends readonly unknown[]
     ? number
     : keyof StateType & ParallelStateId,
+  Name extends string = string,
   Insertions1 = {},
   Insertions2 = {},
   Insertions3 = {},
   Insertions4 = {},
   PreviousInsertionsOutputs = {},
 >(
-  _entityName: string,
+  _entityName: Name,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -194,6 +190,7 @@ export function insertSelectItem<
 ): InsertionsStateFactory<
   StateType,
   InsertSelectItemOutput<
+    Name,
     StateType,
     GroupIdentifier,
     ParallelStateItemOutput<
@@ -208,6 +205,7 @@ export function insertSelectItem<
   GroupIdentifier extends ParallelStateId = StateType extends readonly unknown[]
     ? number
     : keyof StateType & ParallelStateId,
+  Name extends string = string,
   Insertions1 = {},
   Insertions2 = {},
   Insertions3 = {},
@@ -215,7 +213,7 @@ export function insertSelectItem<
   Insertions5 = {},
   PreviousInsertionsOutputs = {},
 >(
-  _entityName: string,
+  _entityName: Name,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -248,6 +246,7 @@ export function insertSelectItem<
 ): InsertionsStateFactory<
   StateType,
   InsertSelectItemOutput<
+    Name,
     StateType,
     GroupIdentifier,
     ParallelStateItemOutput<
@@ -262,11 +261,12 @@ export function insertSelectItem<
   GroupIdentifier extends ParallelStateId = StateType extends readonly unknown[]
     ? number
     : keyof StateType & ParallelStateId,
+  Name extends string = string,
   Insertions1 = {},
   Insertions2 = {},
   PreviousInsertionsOutputs = {},
 >(
-  _entityName: string,
+  _entityName: Name,
   insertion1: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
     Insertions1,
@@ -280,6 +280,7 @@ export function insertSelectItem<
 ): InsertionsStateFactory<
   StateType,
   InsertSelectItemOutput<
+    Name,
     StateType,
     GroupIdentifier,
     ParallelStateItemOutput<
@@ -294,9 +295,10 @@ export function insertSelectItem<
   GroupIdentifier extends ParallelStateId = StateType extends readonly unknown[]
     ? number
     : keyof StateType & ParallelStateId,
+  Name extends string = string,
   PreviousInsertionsOutputs = {},
 >(
-  _entityName: string,
+  _entityName: Name,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...itemInsertions: InsertionsStateFactory<
     Extract<SelectableStateItem<StateType, GroupIdentifier>, object>,
@@ -306,8 +308,8 @@ export function insertSelectItem<
 ): InsertionsStateFactory<
   StateType,
   {
-    select: (id: GroupIdentifier) => unknown;
-    selectItem: (id: GroupIdentifier) => unknown;
+    [K in SelectItemMethodName<Name>]: (id: GroupIdentifier) => unknown;
+  } & {
     items: () => unknown[];
   } & Record<string, unknown>,
   PreviousInsertionsOutputs
@@ -317,6 +319,8 @@ export function insertSelectItem<
     update,
     insertions: previousInsertions,
   }) => {
+    const selectItemMethodName =
+      `select${capitalize(_entityName)}` as SelectItemMethodName<Name>;
     type SelectedStateType = Extract<
       SelectableStateItem<StateType, GroupIdentifier>,
       object
@@ -517,9 +521,12 @@ export function insertSelectItem<
     }
 
     return {
-      select,
-      selectItem,
+      [selectItemMethodName]: selectItem,
       items,
+    } as {
+      [K in SelectItemMethodName<Name>]: typeof selectItem;
+    } & {
+      items: typeof items;
     };
   };
 }

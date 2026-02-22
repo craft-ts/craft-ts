@@ -122,13 +122,11 @@ describe('insertSelect', () => {
       expectTypeOf(cells.selectCell(0)?.paintCountStr()).toEqualTypeOf<
         string | undefined
       >();
-      // @ts-expect-error selectItem should not be exposed by insertSelect
-      cells.selectItem;
 
       TestBed.tick();
       cells.selectCell(0)?.paint();
-      expect(cells.select(0)?.color).toBe('black');
-      expect(cells.select(0)?.paintCount).toBe(1);
+      expect(cells.selectCell(0)?.color).toBe('black');
+      expect(cells.selectCell(0)?.paintCount).toBe(1);
       expect(cells.selectCell(0)?.paintCountStr()).toBe('Painted 1 times');
     });
   });
@@ -260,13 +258,17 @@ describe('insertSelect', () => {
       >();
 
       TestBed.tick();
-      expect(cells.selectCell(0)?.paintCountStr()).toBe('Painted 0 times with 0');
+      expect(cells.selectCell(0)?.paintCountStr()).toBe(
+        'Painted 0 times with 0',
+      );
 
       cells.emitTest(2);
       cells.selectCell(0)?.incrementFromTest();
 
-      expect(cells.select(0)?.paintCount).toBe(2);
-      expect(cells.selectCell(0)?.paintCountStr()).toBe('Painted 2 times with 2');
+      expect(cells.selectCell(0)?.paintCount).toBe(2);
+      expect(cells.selectCell(0)?.paintCountStr()).toBe(
+        'Painted 2 times with 2',
+      );
     });
   });
 
@@ -292,8 +294,8 @@ describe('insertSelect', () => {
       );
       TestBed.tick();
       cells.selectCell(0)?.paintCell$('red');
-      expect(cells.select(0)?.color).toBe('red');
-      expect(cells.select(0)?.paintCount).toBe(1);
+      expect(cells.selectCell(0)?.color).toBe('red');
+      expect(cells.selectCell(0)?.paintCount).toBe(1);
     });
   });
   it('should expose cross-layer source$ from nested insertions', () => {

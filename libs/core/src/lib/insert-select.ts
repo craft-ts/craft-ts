@@ -2,8 +2,6 @@ import { InsertionsStateFactory } from './query.core';
 import { insertSelectItem } from './insert-select-item';
 import { insertSelectProperty } from './insert-select-property';
 
-type SelectItemMethodName<Name extends string> = `select${Capitalize<Name>}`;
-
 type SelectedTarget<
   StateType,
   Name extends string,
@@ -13,23 +11,6 @@ type SelectedTarget<
     ? Name extends keyof StateType
       ? Extract<StateType[Name], object>
       : never
-    : never;
-
-type RenameSelectItemMethod<Name extends string, Factory> =
-  Factory extends InsertionsStateFactory<
-    infer StateType,
-    infer InsertionsOutput,
-    infer PreviousInsertionsOutput
-  >
-    ? InsertionsStateFactory<
-        StateType,
-        InsertionsOutput extends { selectItem: infer SelectItemFn }
-          ? Omit<InsertionsOutput, 'selectItem'> & {
-              [K in SelectItemMethodName<Name>]: SelectItemFn;
-            }
-          : InsertionsOutput,
-        PreviousInsertionsOutput
-      >
     : never;
 
 type ExtractInsertionsOutput<Factory> =
@@ -46,15 +27,13 @@ type InsertSelectReturn1<
   StateType,
   StateType extends readonly object[]
     ? ExtractInsertionsOutput<
-        RenameSelectItemMethod<
-          Name,
-          ReturnType<
-            typeof insertSelectItem<
-              StateType,
-              number,
-              Insertions1,
-              PreviousInsertionsOutputs
-            >
+        ReturnType<
+          typeof insertSelectItem<
+            StateType,
+            number,
+            Name,
+            Insertions1,
+            PreviousInsertionsOutputs
           >
         >
       >
@@ -85,16 +64,14 @@ type InsertSelectReturn2<
   StateType,
   StateType extends readonly object[]
     ? ExtractInsertionsOutput<
-        RenameSelectItemMethod<
-          Name,
-          ReturnType<
-            typeof insertSelectItem<
-              StateType,
-              number,
-              Insertions1,
-              Insertions2,
-              PreviousInsertionsOutputs
-            >
+        ReturnType<
+          typeof insertSelectItem<
+            StateType,
+            number,
+            Name,
+            Insertions1,
+            Insertions2,
+            PreviousInsertionsOutputs
           >
         >
       >
@@ -127,17 +104,15 @@ type InsertSelectReturn3<
   ? InsertionsStateFactory<
       StateType,
       ExtractInsertionsOutput<
-        RenameSelectItemMethod<
-          Name,
-          ReturnType<
-            typeof insertSelectItem<
-              StateType,
-              number,
-              Insertions1,
-              Insertions2,
-              Insertions3,
-              PreviousInsertionsOutputs
-            >
+        ReturnType<
+          typeof insertSelectItem<
+            StateType,
+            number,
+            Name,
+            Insertions1,
+            Insertions2,
+            Insertions3,
+            PreviousInsertionsOutputs
           >
         >
       >,
@@ -157,18 +132,16 @@ type InsertSelectReturn4<
   ? InsertionsStateFactory<
       StateType,
       ExtractInsertionsOutput<
-        RenameSelectItemMethod<
-          Name,
-          ReturnType<
-            typeof insertSelectItem<
-              StateType,
-              number,
-              Insertions1,
-              Insertions2,
-              Insertions3,
-              Insertions4,
-              PreviousInsertionsOutputs
-            >
+        ReturnType<
+          typeof insertSelectItem<
+            StateType,
+            number,
+            Name,
+            Insertions1,
+            Insertions2,
+            Insertions3,
+            Insertions4,
+            PreviousInsertionsOutputs
           >
         >
       >,
@@ -189,19 +162,17 @@ type InsertSelectReturn5<
   ? InsertionsStateFactory<
       StateType,
       ExtractInsertionsOutput<
-        RenameSelectItemMethod<
-          Name,
-          ReturnType<
-            typeof insertSelectItem<
-              StateType,
-              number,
-              Insertions1,
-              Insertions2,
-              Insertions3,
-              Insertions4,
-              Insertions5,
-              PreviousInsertionsOutputs
-            >
+        ReturnType<
+          typeof insertSelectItem<
+            StateType,
+            number,
+            Name,
+            Insertions1,
+            Insertions2,
+            Insertions3,
+            Insertions4,
+            Insertions5,
+            PreviousInsertionsOutputs
           >
         >
       >,
@@ -381,8 +352,6 @@ export function insertSelect(
     const currentState = context.state();
 
     if (Array.isArray(currentState)) {
-      const selectItemMethodName =
-        `select${name[0].toUpperCase()}${name.slice(1)}` as SelectItemMethodName<string>;
       const itemFactory = insertSelectItem as unknown as (
         itemName: string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -390,12 +359,7 @@ export function insertSelect(
       ) => // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (nextContext: any) => Record<string, unknown>;
 
-      const itemInsertionsOutput = itemFactory(name, ...insertions)(context);
-      const { selectItem, ...restItemInsertionsOutput } = itemInsertionsOutput;
-      return {
-        ...restItemInsertionsOutput,
-        [selectItemMethodName]: selectItem,
-      };
+      return itemFactory(name, ...insertions)(context);
     }
 
     const propertyFactory = insertSelectProperty as unknown as (

@@ -48,17 +48,17 @@ describe('insertSelectItem', () => {
       );
 
       TestBed.tick();
-      expect(cells.select(0)?.color).toBe('white');
-      expect((cells.select(0) as { paint?: unknown } | undefined)?.paint).toBe(
+      expect(cells()[0]?.color).toBe('white');
+      expect((cells()[0] as { paint?: unknown } | undefined)?.paint).toBe(
         undefined,
       );
       expect(cells.selectItem(0)?.paintCountStr()).toBe('Painted 0 times');
 
       cells.selectItem(0)?.paint();
 
-      expect(cells.select(0)?.color).toBe('black');
-      expect(cells.select(1)?.color).toBe('white');
-      expect(cells.select(0)?.paintCount).toBe(1);
+      expect(cells()[0]?.color).toBe('black');
+      expect(cells()[1]?.color).toBe('white');
+      expect(cells()[0]?.paintCount).toBe(1);
       expect(cells.selectItem(0)?.paintCountStr()).toBe('Painted 1 times');
     });
   });
@@ -73,7 +73,7 @@ describe('insertSelectItem', () => {
             paintCount: 0,
           },
         ],
-        insertSelectItem('item', ({ set, update, state }) => ({
+        insertSelectItem('item2', ({ set, update, state }) => ({
           resetToBlue: () =>
             set({
               ...state(),
@@ -86,13 +86,15 @@ describe('insertSelectItem', () => {
       );
 
       TestBed.tick();
-      cells.selectItem(0)?.increment();
-      cells.selectItem(0)?.increment();
-      expect(cells.select(0)?.paintCount).toBe(2);
+      expect((cells as { select?: unknown }).select).toBeUndefined();
+      expect((cells as { selectItem?: unknown }).selectItem).toBeUndefined();
+      cells.selectItem2(0)?.increment();
+      cells.selectItem2(0)?.increment();
+      expect(cells()[0]?.paintCount).toBe(2);
 
-      cells.selectItem(0)?.resetToBlue();
-      expect(cells.select(0)?.color).toBe('blue');
-      expect(cells.select(0)?.paintCount).toBe(0);
+      cells.selectItem2(0)?.resetToBlue();
+      expect(cells()[0]?.color).toBe('blue');
+      expect(cells()[0]?.paintCount).toBe(0);
     });
   });
 
@@ -126,13 +128,13 @@ describe('insertSelectItem', () => {
 
       TestBed.tick();
       cells.selectItem(selectedCell.selected() as number)?.increment();
-      expect(cells.select(0)?.paintCount).toBe(1);
-      expect(cells.select(1)?.paintCount).toBe(0);
+      expect(cells()[0]?.paintCount).toBe(1);
+      expect(cells()[1]?.paintCount).toBe(0);
 
       selectedCell.selectSecond();
       cells.selectItem(selectedCell.selected() as number)?.increment();
-      expect(cells.select(0)?.paintCount).toBe(1);
-      expect(cells.select(1)?.paintCount).toBe(1);
+      expect(cells()[0]?.paintCount).toBe(1);
+      expect(cells()[1]?.paintCount).toBe(1);
     });
   });
 
@@ -184,8 +186,8 @@ describe('insertSelectItem', () => {
       cells.selectItem(0)?.selectStyle().paintAndIncreaseBorder();
       cells.selectItem(0)?.selectStyle().paintAndIncreaseBorder();
 
-      expect(cells.select(0)?.style.color).toBe('black');
-      expect(cells.select(0)?.style.border.width).toBe(3);
+      expect(cells()[0]?.style.color).toBe('black');
+      expect(cells()[0]?.style.border.width).toBe(3);
     });
   });
 
@@ -208,7 +210,7 @@ describe('insertSelectItem', () => {
       expect(cells.items()[1].index).toBe(1);
 
       cells.items()[1].increment();
-      expect(cells.select(1)?.paintCount).toBe(1);
+      expect(cells()[1]?.paintCount).toBe(1);
     });
   });
 
@@ -231,7 +233,7 @@ describe('insertSelectItem', () => {
       const secondCell = cells.items().find((cell) => cell.index === 1);
       expect(secondCell).toBeDefined();
       secondCell?.increment();
-      expect(cells.select('second')?.paintCount).toBe(1);
+      expect(cells().second?.paintCount).toBe(1);
     });
   });
 
@@ -271,7 +273,7 @@ describe('insertSelectItem', () => {
       cells.emitTest(2);
       cells.selectItem(0)?.incrementFromTest();
 
-      expect(cells.select(0)?.paintCount).toBe(2);
+      expect(cells()[0]?.paintCount).toBe(2);
       expect(cells.selectItem(0)?.paintCountStr()).toBe(
         'Painted 2 times with 2',
       );
@@ -325,7 +327,7 @@ describe('insertSelectItem', () => {
       cells.selectItem(0)?.multiplyByTwo();
       cells.selectItem(0)?.setTagFromCount();
 
-      expect(cells.select(0)?.paintCount).toBe(4);
+      expect(cells()[0]?.paintCount).toBe(4);
       expect(cells.selectItem(0)?.label()).toBe('count-4:4');
       expect(cells.selectItem(0)?.isEven()).toBe(true);
     });
