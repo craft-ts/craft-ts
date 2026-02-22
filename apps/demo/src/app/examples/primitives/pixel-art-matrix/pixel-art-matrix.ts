@@ -77,7 +77,7 @@ const createInitialGrid = (): PixelCellState[][] =>
             ></button>
           }
         </div>
-        <button type="button" (click)="matrix.resetAll$.emit()">Reset</button>
+        <button type="button" (click)="matrix.resetAll$()">Reset</button>
       </div>
 
       <div class="pixel-art__stats">

@@ -3,7 +3,7 @@ import { state, StateOutput } from './state';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 import { TestBed } from '@angular/core/testing';
-import { source$ } from './source$';
+import { Source$, source$ } from './source$';
 import { on$ } from './on$';
 import { InsertionsStateFactory } from './query.core';
 
@@ -126,6 +126,31 @@ describe('state', () => {
       expect(myState()).toBe(34);
 
       myState.reset();
+      expect(myState()).toBe(0);
+    });
+  });
+
+  it('should expose root source$ insertions as callable methods', async () => {
+    await runInInjectionContext(async () => {
+      const myState = state(
+        0,
+        ({ set }) => ({
+          resetAll$: source$<void>(),
+          increment: () => set(1),
+        }),
+        ({ insertions: { resetAll$ }, set }) => ({
+          syncReset: on$(resetAll$, () => set(0)),
+        }),
+      );
+
+      expectTypeOf(myState.resetAll$).toEqualTypeOf<
+        Source$<void> & (() => void)
+      >();
+
+      myState.increment();
+      expect(myState()).toBe(1);
+
+      myState.resetAll$();
       expect(myState()).toBe(0);
     });
   });

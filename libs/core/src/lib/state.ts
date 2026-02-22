@@ -10,15 +10,45 @@ import {
   InsertionsStateFactory,
   InsertionStateFactoryContext,
 } from './query.core';
+import { Source$ as SourceDollarType } from './source$';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
+import { isSource } from './util/util';
+
+type Source$Method<SourceType> = [SourceType] extends [void]
+  ? () => void
+  : (value: SourceType) => void;
+
+type ExposedStateInsertions<Insertions> = MergeObject<
+  IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+  {
+    [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
+      ? K
+      : never]: FilterSource<Insertions>[K] extends SourceDollarType<
+      infer SourceType
+    >
+      ? Source$Method<SourceType>
+      : never;
+  }
+>;
 
 export type StateOutput<StateType, Insertions> = MergeObject<
   Signal<StateType>,
-  IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>
+  ExposedStateInsertions<Insertions>
 >;
 
 type StateConfig<State> = State | Signal<State>;
+
+function isSource$(value: unknown): value is SourceDollarType<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'emit' in value &&
+    typeof (value as SourceDollarType<unknown>).emit === 'function' &&
+    'subscribe' in value &&
+    typeof (value as SourceDollarType<unknown>).subscribe === 'function'
+  );
+}
 
 /**
  * Creates a signal state with optional insertions for adding methods and computed properties.
@@ -288,23 +318,60 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
       : (stateSignal as Signal<StateType>);
+  const insertionsOutput = (
+    insertions as InsertionsStateFactory<StateType, {}>[]
+  ).reduce(
+    (acc, insert) => {
+      const nextRawInsertions = insert({
+        state: readonlyStateSignal,
+        set: (newState: StateType) => stateSignal.set(newState),
+        update: (updateFn: (currentState: StateType) => StateType) =>
+          stateSignal.update(updateFn),
+        insertions: acc.rawInsertionsOutput as {},
+      } as InsertionStateFactoryContext<StateType, {}>) as Record<
+        string,
+        unknown
+      >;
+
+      const nextExposedInsertions = Object.entries(nextRawInsertions).reduce(
+        (exposedAcc, [key, value]) => {
+          if (isSource(value)) {
+            return exposedAcc;
+          }
+
+          if (isSource$(value)) {
+            const localSource = value;
+            exposedAcc[key] = (payload: unknown) => {
+              localSource.emit(payload as never);
+            };
+            return exposedAcc;
+          }
+
+          exposedAcc[key] = value;
+          return exposedAcc;
+        },
+        {} as Record<string, unknown>,
+      );
+
+      return {
+        rawInsertionsOutput: {
+          ...acc.rawInsertionsOutput,
+          ...nextRawInsertions,
+        },
+        exposedInsertionsOutput: {
+          ...acc.exposedInsertionsOutput,
+          ...nextExposedInsertions,
+        },
+      };
+    },
+    {
+      rawInsertionsOutput: {} as Record<string, unknown>,
+      exposedInsertionsOutput: {} as Record<string, unknown>,
+    },
+  );
 
   return Object.assign(
     stateSignal,
-    (insertions as InsertionsStateFactory<StateType, {}>[])?.reduce(
-      (acc, insert) => {
-        return {
-          ...acc,
-          ...insert({
-            state: readonlyStateSignal,
-            set: (newState: StateType) => stateSignal.set(newState),
-            update: (updateFn: (currentState: StateType) => StateType) =>
-              stateSignal.update(updateFn),
-            insertions: acc as {},
-          } as InsertionStateFactoryContext<StateType, {}>),
-        };
-      },
-      {} as Record<string, unknown>,
-    ),
+    insertionsOutput.exposedInsertionsOutput,
   ) as unknown as StateOutput<StateType, {}>;
 }

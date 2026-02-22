@@ -16,4 +16,4 @@
 ## State Parallel:
 
 - [ ] Tester insertion localStorage
-- [ ] Tester insertion entities à différents niveaux et avec insertSelectItem
+- [ ] add crossLayerEvent to insertSelect (from bottom to top)
