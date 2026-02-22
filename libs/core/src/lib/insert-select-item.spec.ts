@@ -57,7 +57,7 @@ describe('insertSelectItem', () => {
       cells.selectItem(0)?.paint();
 
       expect(cells()[0]?.color).toBe('black');
-      expect(cells()[1]?.color).toBe('white');
+      expect(cells()[1]).toBeUndefined();
       expect(cells()[0]?.paintCount).toBe(1);
       expect(cells.selectItem(0)?.paintCountStr()).toBe('Painted 1 times');
     });
