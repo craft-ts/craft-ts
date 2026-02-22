@@ -72,7 +72,7 @@ const createInitialGrid = (): PixelCellState[][] =>
               class="pixel-art__color"
               [class.active]="matrix.selectUi().activeColor === color"
               [style.background-color]="color"
-              (click)="matrix.selectUi().selectActiveColor().set"
+              (click)="matrix.selectUi().setActiveColor(color)"
               [attr.aria-label]="'Choose color ' + color"
             ></button>
           }
@@ -94,11 +94,7 @@ const createInitialGrid = (): PixelCellState[][] =>
         role="grid"
         aria-label="Pixel Art 16x16 matrix"
       >
-        @for (
-          rowData of matrix.selectGrid();
-          track rowData;
-          let rowIndex = $index
-        ) {
+        @for (rowIndex of matrix.selectGrid().rowIndexes(); track rowIndex) {
           @let row = matrix.selectGrid().selectRow(rowIndex);
           <div class="pixel-art__row">
             <div class="pixel-art__row-cells">
@@ -180,16 +176,12 @@ export default class PixelArtMatrix {
     () => ({
       resetAll$: source$<void>(),
     }),
-    insertSelect(
-      'ui',
-      insertSelect(
-        'activeColor',
-        ({ state, set, insertions: { resetAll$ } }) => ({
-          resetColor: on$(resetAll$, () => DEFAULT_ACTIVE_COLOR),
-          setActiveColor: (color: string) => set(color),
-        }),
+    insertSelect('ui', ({ set, insertions: { resetAll$ } }) => ({
+      resetColor$: on$(resetAll$, () =>
+        set({ activeColor: DEFAULT_ACTIVE_COLOR }),
       ),
-    ),
+      setActiveColor: (color: string) => set({ activeColor: color }),
+    })),
     insertSelect(
       'grid',
       ({ state, update, set, insertions: { resetAll$ } }) => ({

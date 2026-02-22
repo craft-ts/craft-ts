@@ -338,7 +338,7 @@ export function craftState<
         } else {
           (acc.methods as Record<string, Function>)[
             `${stateName}${capitalize(key)}`
-          ] = value;
+          ] = value as Function;
         }
         return acc;
       },
