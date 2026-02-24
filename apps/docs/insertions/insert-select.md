@@ -69,6 +69,22 @@ console.log(cells.selectCell(0)?.paintCount); // 1
 
 This currently breaks type inference. An improvement is planned.
 
+::: warning TypeScript inference limitation (workaround)
+In some nested cases, TypeScript can lose contextual typing (for example when selecting an array property and chaining another `insertSelect` immediately).
+
+You can force TypeScript to preserve the typing context by inserting the no-op helper `insertNoopTypingAnchor` before the nested insertion:
+
+```ts
+insertSelect(
+  'grid',
+  insertNoopTypingAnchor,
+  insertSelect('row', ({ update }) => ({
+    // ...
+  })),
+);
+```
+:::
+
 ## Pixel Art examples
 
 - [Pixel Art (1D grid)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts)

@@ -1,10 +1,10 @@
 import { computed } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { insertSelect } from './insert-select';
-import { insertSelectProperty } from './insert-select-property';
 import { on$ } from './on$';
 import { Source$, source$ } from './source$';
 import { state } from './state';
+import { insertNoopTypingAnchor } from './insert-noop-typing-anchor';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -35,16 +35,17 @@ describe('insertSelect', () => {
         },
         insertSelect(
           'grid',
-          () => ({
-            paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
-          }),
+          insertNoopTypingAnchor,
           insertSelect(
             'row',
-            () => ({
+            ({ state }) => ({
               paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
             }),
-            insertSelect('cell', () => ({})),
+            insertSelect('cell', ({ state }) => ({})),
           ),
+          ({ state, set, update }) => ({
+            paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
+          }),
         ),
       );
 
@@ -68,7 +69,7 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should work like insertSelectProperty on object states', () => {
+  it('should work on object states', () => {
     runInInjectionContext(() => {
       const board = state(
         {
@@ -102,7 +103,7 @@ describe('insertSelect', () => {
     });
   });
 
-  it('should work like insertSelectItem on array states', () => {
+  it('should work on array states', () => {
     runInInjectionContext(() => {
       const cells = state(
         [{ index: 0, color: 'white', paintCount: 0 }],
@@ -146,9 +147,10 @@ describe('insertSelect', () => {
         ],
         insertSelect(
           'row',
-          insertSelectProperty(
+          insertSelect(
             'cell',
-            insertSelectProperty('style', ({ update }) => ({
+            insertNoopTypingAnchor,
+            insertSelect('style', ({ update }) => ({
               paintStyle: () =>
                 update((style) => ({
                   ...style,
@@ -304,6 +306,7 @@ describe('insertSelect', () => {
         { data: [{ index: 0, paintCount: 0, color: 'white' }] },
         insertSelect(
           'data',
+          insertNoopTypingAnchor,
           insertSelect(
             'cell',
             () => ({

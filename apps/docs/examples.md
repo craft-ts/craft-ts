@@ -44,7 +44,7 @@
 
 ### 6. Pixel Art - 1D Grid
 
-**Description:** Interactive pixel art board powered by `state` + `insertSelectItem` on a flat array.
+**Description:** Interactive pixel art board powered by `state` + `insertSelect` on a flat array.
 
 🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts)
 
@@ -52,13 +52,13 @@
 
 ### 7. Pixel Art Matrix - 2D Grid
 
-**Description:** Matrix pixel art board with nested `insertSelectItem` composition for rows and cells.
+**Description:** Interactive 2D pixel grid leveraging advanced composition with nested `insertSelect` and internal `source$` to orchestrate fluid declarative reactivity between rows and cells.
 
 🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts)
 
 ---
 
-## Craft Examples
+## Craft Examples (Store/Service Abstraction)
 
 ### 1. Query - Basic Example
 

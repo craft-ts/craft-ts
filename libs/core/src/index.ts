@@ -14,6 +14,7 @@ export * from './lib/craft-sources';
 export * from './lib/craft-state';
 export * from './lib/craft';
 export * from './lib/insert-local-storage-persister';
+export * from './lib/insert-noop-typing-anchor';
 export * from './lib/insert-select';
 export * from './lib/linked-source';
 export * from './lib/mutation';

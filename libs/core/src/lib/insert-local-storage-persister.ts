@@ -264,17 +264,28 @@ export function insertLocalStoragePersister<
     >;
     const persister = localStoragePersister(config.storeName);
     const hasResourceById = 'resourceById' in context;
+    const hasState = 'state' in context && !('resource' in context);
     const isUsingIdentifier =
       hasResourceById ||
       ('identifier' in context &&
         typeof (context as unknown as ResourceByIdContext).identifier ===
           'function');
-    const resourceTarget =
-      'resourceById' in context
-        ? context.resourceById
-        : 'state' in context
-          ? (context as any).state
-          : (context as ResourceContext).resource;
+    const stateContext = hasState
+      ? (context as InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>)
+      : undefined;
+    const resourceTarget = hasResourceById
+      ? context.resourceById
+      : hasState
+        ? ({
+            status: () => 'local',
+            value: () => stateContext!.state(),
+            set: (value: unknown) => stateContext!.set(value as StateType),
+          } as unknown as ResourceRef<unknown>)
+        : ((context as unknown) as ResourceContext).resource;
+    const resourceParamsSrc: (() => unknown) = hasState
+      ? () => undefined
+      : (context as unknown as ResourceByIdContext | ResourceContext)
+          .resourceParamsSrc;
 
     if (isUsingIdentifier) {
       persister.addQueryByIdToPersist({
@@ -285,19 +296,16 @@ export function insertLocalStoragePersister<
           unknown,
           unknown
         >,
-        queryResourceParamsSrc: (
-          context as ResourceByIdContext | ResourceContext
-        ).resourceParamsSrc,
+        queryResourceParamsSrc: resourceParamsSrc as any,
       });
     } else {
       persister.addQueryToPersist({
         key: config.key,
         cacheTime: (config?.cacheTime as number | undefined) ?? 300000,
         queryResource: resourceTarget as unknown as ResourceRef<unknown>,
-        queryResourceParamsSrc: (
-          context as unknown as ResourceByIdContext | ResourceContext
-        ).resourceParamsSrc,
-        waitForParamsSrcToBeEqualToPreviousValue: true,
+        queryResourceParamsSrc: resourceParamsSrc as any,
+        waitForParamsSrcToBeEqualToPreviousValue:
+          hasState ? false : config.waitForParamsSrcToBeEqualToPreviousValue ?? true,
       });
     }
 
