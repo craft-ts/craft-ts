@@ -7,6 +7,15 @@ import { craftMutations } from './craft-mutations';
 import { mutation } from './mutation';
 import { ReadonlySource } from './util/source.type';
 
+type EmptyMutationExceptions = {
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: never[];
+    params?: never;
+    loader?: never;
+  }>;
+};
+
 type User = {
   id: string;
   name: string;
@@ -53,7 +62,7 @@ describe('craftMutationById', () => {
 
       expect(store.user).toBeDefined();
 
-      expectTypeOf(store.user).toEqualTypeOf<{
+      expectTypeOf<typeof store.user>().toEqualTypeOf<{
         '~InternalType': 'Used to avoid TS type erasure';
         readonly error: Signal<Error | undefined>;
         readonly value: Signal<User | undefined>;
@@ -63,6 +72,12 @@ describe('craftMutationById', () => {
         hasValue: () => boolean;
         readonly resourceParamsSrc: WritableSignal<string>;
         source: ReadonlySource<string>;
+        hasException: Signal<boolean>;
+        exceptions: Signal<{
+          list: never[];
+          params?: never;
+          loader?: never;
+        }>;
         type: 'resourceLike';
         kind: 'mutation';
       }>();

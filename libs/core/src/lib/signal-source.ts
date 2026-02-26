@@ -378,7 +378,6 @@ export function signalSource<T>(options?: {
         if (!previousData && listenerOptions?.nullishFirstValue !== false) {
           return undefined;
         }
-
         return currentSourceState;
       },
       ...(options?.equal && { equal: options?.equal }),

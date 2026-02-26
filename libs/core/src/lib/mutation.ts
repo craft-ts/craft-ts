@@ -16,6 +16,13 @@ import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { craftResource } from './craft-resource';
+import {
+  AnyCraftException,
+  ExtractCraftException,
+  InsertMetaInCraftExceptionIfExists,
+  StripCraftException,
+  isCraftException,
+} from './craft-exception';
 // todo refactor to share code with AsyncProcess
 
 type MutationConfig<
@@ -45,7 +52,9 @@ type MutationConfig<
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
          */
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<StripCraftException<Params>>>,
+        ) => GroupIdentifier;
         loader: (
           param: ResourceLoaderParams<
             NonNullable<
@@ -70,7 +79,9 @@ type MutationConfig<
         method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
         loader?: never;
         fromResourceById?: never;
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<StripCraftException<Params>>>,
+        ) => GroupIdentifier;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
@@ -105,7 +116,9 @@ type MutationConfig<
         params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
         loader?: never;
         method?: never;
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<StripCraftException<Params>>>,
+        ) => GroupIdentifier;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
@@ -147,7 +160,9 @@ type MutationConfig<
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
          */
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<StripCraftException<Params>>>,
+        ) => GroupIdentifier;
         loader: (
           param: ResourceLoaderParams<
             NonNullable<
@@ -170,7 +185,9 @@ type MutationConfig<
         params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
         loader?: never;
         method?: never;
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<StripCraftException<Params>>>,
+        ) => GroupIdentifier;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
@@ -203,7 +220,9 @@ type MutationConfig<
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
          */
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<StripCraftException<Params>>>,
+        ) => GroupIdentifier;
         loader: (
           param: ResourceLoaderParams<
             NonNullable<
@@ -217,6 +236,78 @@ type MutationConfig<
       }
   );
 
+export type MutationExceptionConstraints = {
+  params: unknown;
+  loader: unknown;
+};
+
+export type ResourceLikeMutationExceptions<
+  MutationException extends MutationExceptionConstraints,
+  GroupIdentifier = unknown,
+> = {
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: (
+      | InsertMetaInCraftExceptionIfExists<
+          MutationException['params'],
+          'params',
+          unknown
+        >
+      | InsertMetaInCraftExceptionIfExists<
+          MutationException['loader'],
+          'loader',
+          GroupIdentifier
+        >
+    )[];
+    params?: InsertMetaInCraftExceptionIfExists<
+      MutationException['params'],
+      'params',
+      unknown
+    >;
+    loader?: InsertMetaInCraftExceptionIfExists<
+      MutationException['loader'],
+      'loader',
+      GroupIdentifier
+    >;
+  }>;
+};
+
+export type ResourceByIdLikeMutationExceptions<
+  MutationException extends MutationExceptionConstraints,
+  GroupIdentifier extends string,
+> = {
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: (
+      | InsertMetaInCraftExceptionIfExists<
+          MutationException['params'],
+          'params',
+          unknown
+        >
+      | InsertMetaInCraftExceptionIfExists<
+          MutationException['loader'],
+          'loader',
+          GroupIdentifier
+        >
+    )[];
+    params?: InsertMetaInCraftExceptionIfExists<
+      MutationException['params'],
+      'params',
+      unknown
+    >;
+    loader: Partial<
+      Record<
+        GroupIdentifier,
+        InsertMetaInCraftExceptionIfExists<
+          MutationException['loader'],
+          'loader',
+          GroupIdentifier
+        >
+      >
+    >;
+  }>;
+};
+
 export type ResourceLikeMutationRef<
   Value,
   Params,
@@ -224,6 +315,8 @@ export type ResourceLikeMutationRef<
   ArgParams,
   SourceParams,
   Insertions,
+  MutationException extends
+    MutationExceptionConstraints = MutationExceptionConstraints,
 > = {
   type: 'resourceLike';
   kind: 'mutation';
@@ -248,6 +341,7 @@ export type ResourceLikeMutationRef<
           source: ReadonlySource<SourceParams>;
         },
     Insertions,
+    ResourceLikeMutationExceptions<MutationException>,
     {
       [key in `~InternalType`]: 'Used to avoid TS type erasure';
     },
@@ -262,6 +356,8 @@ export type ResourceByIdLikeMutationRef<
   SourceParams,
   Insertions,
   GroupIdentifier,
+  MutationException extends
+    MutationExceptionConstraints = MutationExceptionConstraints,
 > = { type: 'resourceByGroupLike'; kind: 'mutation' } & {
   readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
 } & {
@@ -274,14 +370,14 @@ export type ResourceByIdLikeMutationRef<
    * return the associated resource or undefined if not existing
    */
   select: (id: GroupIdentifier) =>
-    | {
+    | ({
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<ResourceStatus>;
         readonly error: Signal<Error | undefined>;
         readonly isLoading: Signal<boolean>;
         readonly safeValue: Signal<Value | undefined>;
         hasValue(): boolean;
-      }
+      } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>)
     | undefined;
 } & MergeObjects<
     [
@@ -294,6 +390,9 @@ export type ResourceByIdLikeMutationRef<
             source: ReadonlySource<SourceParams>;
           },
       ResourceByIdRef<GroupIdentifier & string, Value, Params>,
+      [GroupIdentifier] extends [string]
+        ? ResourceByIdLikeMutationExceptions<MutationException, GroupIdentifier>
+        : {},
     ]
   >;
 
@@ -305,6 +404,8 @@ export type MutationRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
+  MutationExceptions extends
+    MutationExceptionConstraints = MutationExceptionConstraints,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeMutationRef<
       Value,
@@ -312,7 +413,8 @@ export type MutationRef<
       IsMethod,
       ArgParams,
       SourceParams,
-      Insertions
+      Insertions,
+      MutationExceptions
     >
   : ResourceByIdLikeMutationRef<
       Value,
@@ -321,7 +423,8 @@ export type MutationRef<
       ArgParams,
       SourceParams,
       Insertions,
-      GroupIdentifier
+      GroupIdentifier,
+      MutationExceptions
     >;
 //     & {
 //   // ! Otherwise TS erases the types
@@ -335,15 +438,58 @@ export type MutationOutput<
   SourceParams,
   GroupIdentifier,
   Insertions,
+  MutationExceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<Params>;
+    loader: ExtractCraftException<State>;
+  },
 > = MutationRef<
-  State,
-  Params,
+  StripCraftException<State>,
+  StripCraftException<Params>,
   ArgParams,
   Insertions,
   [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
-  GroupIdentifier
+  GroupIdentifier,
+  MutationExceptions
 >;
+
+function enrichMutationException(
+  exception: AnyCraftException,
+  meta: {
+    scope: 'params' | 'loader';
+    identifier?: string;
+  },
+) {
+  const nextException = {
+    ...exception,
+    scope: meta.scope,
+    [exception.code]: exception.payload,
+  } as AnyCraftException & {
+    scope: 'params' | 'loader';
+    identifier?: string;
+  };
+
+  if (meta.identifier !== undefined) {
+    nextException.identifier = meta.identifier;
+  } else {
+    delete nextException.identifier;
+  }
+
+  return nextException;
+}
+
+function removeMutationExceptionById(
+  state: Record<string, AnyCraftException>,
+  id: string,
+): Record<string, AnyCraftException> {
+  if (!(id in state)) {
+    return state;
+  }
+
+  const nextState = { ...state };
+  delete nextState[id];
+  return nextState;
+}
 
 export function mutation<
   MutationState extends object | undefined,
@@ -792,6 +938,7 @@ export function mutation<
     Insertion6 &
     Insertion7
 >;
+
 /**
  * Creates a reactive mutation manager that handles asynchronous operations with state tracking.
  *
@@ -1003,11 +1150,181 @@ export function mutation<
 
   const isConnectedToSource =
     'method' in mutationConfig && isSignal(mutationConfig.method);
+  const hasMethodFn =
+    'method' in mutationConfig &&
+    typeof mutationConfig.method === 'function' &&
+    !isSignal(mutationConfig.method);
   const isUsingIdentifier = 'identifier' in mutationConfig;
 
+  const methodParamsException = signal<AnyCraftException | undefined>(
+    undefined,
+  );
+  const loaderException = signal<AnyCraftException | undefined>(undefined);
+  const loaderExceptionsById = signal<Record<string, AnyCraftException>>({});
+
+  const setLoaderException = (
+    exception: AnyCraftException | undefined,
+    id?: string,
+  ) => {
+    if (isUsingIdentifier) {
+      if (!id) {
+        return;
+      }
+      loaderExceptionsById.update((state) =>
+        exception
+          ? { ...state, [id]: exception }
+          : removeMutationExceptionById(state, id),
+      );
+      return;
+    }
+
+    loaderException.set(exception);
+  };
+
+  const getIdentifierFromParams = (params: unknown): string | undefined => {
+    if (!isUsingIdentifier || !('identifier' in mutationConfig)) {
+      return undefined;
+    }
+
+    if (params === undefined || params === null) {
+      return undefined;
+    }
+
+    return mutationConfig.identifier?.(params as any) as string | undefined;
+  };
+
+  const sanitizeParamsResult = (value: MutationParams | undefined) => {
+    if (isCraftException(value)) {
+      return undefined;
+    }
+
+    return value;
+  };
+
+  const reactiveParamsException = computed(() => {
+    if (hasMethodFn) {
+      return undefined;
+    }
+
+    if (
+      isConnectedToSource &&
+      'method' in mutationConfig &&
+      mutationConfig.method
+    ) {
+      const sourceValue = (
+        mutationConfig.method as unknown as Signal<MutationParams | undefined>
+      )();
+      return isCraftException(sourceValue)
+        ? enrichMutationException(sourceValue, { scope: 'params' })
+        : undefined;
+    }
+
+    if (
+      'params' in mutationConfig &&
+      !('fromResourceById' in mutationConfig && mutationConfig.fromResourceById)
+    ) {
+      const paramsValue = (mutationConfig.params as () => MutationParams)();
+      return isCraftException(paramsValue)
+        ? enrichMutationException(paramsValue, { scope: 'params' })
+        : undefined;
+    }
+
+    return undefined;
+  });
+
+  const paramsException = computed(() => {
+    return hasMethodFn ? methodParamsException() : reactiveParamsException();
+  });
+
+  const wrappedParamsFn =
+    'params' in mutationConfig
+      ? (((...args: unknown[]) =>
+          sanitizeParamsResult(
+            (mutationConfig.params as (...args: unknown[]) => MutationParams)(
+              ...args,
+            ),
+          )) as typeof mutationConfig.params)
+      : undefined;
+
+  const wrappedSourceParams =
+    isConnectedToSource && 'method' in mutationConfig && mutationConfig.method
+      ? ((() =>
+          sanitizeParamsResult(
+            (
+              mutationConfig.method as unknown as Signal<
+                MutationParams | undefined
+              >
+            )(),
+          )) as Signal<MutationParams | undefined>)
+      : undefined;
+
+  const wrappedLoader =
+    'loader' in mutationConfig && mutationConfig.loader
+      ? ((async (param: ResourceLoaderParams<any>) => {
+          const result = await (
+            mutationConfig.loader as (
+              param: ResourceLoaderParams<any>,
+            ) => Promise<any>
+          )(param);
+
+          if (isCraftException(result)) {
+            const exceptionId = getIdentifierFromParams(param.params);
+            setLoaderException(
+              enrichMutationException(result, {
+                scope: 'loader',
+                identifier: exceptionId,
+              }),
+              exceptionId,
+            );
+            return undefined;
+          }
+
+          const successId = getIdentifierFromParams(param.params);
+          setLoaderException(undefined, successId);
+          return result;
+        }) as typeof mutationConfig.loader)
+      : undefined;
+
   const resourceParamsSrc = isConnectedToSource
-    ? mutationConfig.method
-    : mutationResourceParamsFnSignal;
+    ? (wrappedSourceParams as typeof mutationConfig.method)
+    : (wrappedParamsFn ?? mutationResourceParamsFnSignal);
+
+  const exceptions = computed(() => {
+    const paramsExceptionValue = paramsException();
+
+    if (isUsingIdentifier) {
+      const loaderExceptionsByIdValue = loaderExceptionsById();
+      return {
+        list: [
+          ...(paramsExceptionValue ? [paramsExceptionValue] : []),
+          ...Object.values(loaderExceptionsByIdValue),
+        ],
+        params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
+        loader: loaderExceptionsByIdValue,
+      };
+    }
+
+    const loaderExceptionValue = loaderException();
+    return {
+      list: [paramsExceptionValue, loaderExceptionValue].filter(
+        Boolean,
+      ) as AnyCraftException[],
+      params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
+      loader: (loaderExceptionValue ?? {}) as AnyCraftException | {},
+    };
+  });
+
+  const hasException = computed(() => {
+    if (paramsException()) {
+      return true;
+    }
+
+    if (isUsingIdentifier) {
+      return Object.keys(loaderExceptionsById()).length > 0;
+    }
+
+    return !!loaderException();
+  });
 
   const resourceTarget = isUsingIdentifier
     ? resourceById<
@@ -1020,11 +1337,13 @@ export function mutation<
       >({
         ...mutationConfig,
         params: resourceParamsSrc,
+        loader: wrappedLoader,
         identifier: mutationConfig.identifier,
       } as any)
     : craftResource<MutationState, MutationParams>({
         ...mutationConfig,
         params: resourceParamsSrc,
+        loader: wrappedLoader,
       } as ResourceOptions<any, any>);
 
   if (!isUsingIdentifier) {
@@ -1050,6 +1369,27 @@ export function mutation<
             MutationParams
           >,
           select: (id: GroupIdentifier) => {
+            const selectExceptions = computed(() => {
+              const paramsExceptionValue = paramsException();
+              const loaderExceptionValue =
+                loaderExceptionsById()?.[id as unknown as string];
+
+              return {
+                list: [paramsExceptionValue, loaderExceptionValue].filter(
+                  Boolean,
+                ) as AnyCraftException[],
+                params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
+                loader: (loaderExceptionValue ?? {}) as AnyCraftException | {},
+              };
+            });
+
+            const selectHasException = computed(() => {
+              return (
+                !!paramsException() ||
+                !!loaderExceptionsById()[id as unknown as string]
+              );
+            });
+
             return computed(() => {
               const list = (
                 resourceTarget as ResourceByIdRef<
@@ -1059,13 +1399,23 @@ export function mutation<
                 >
               )();
               //@ts-expect-error GroupIdentifier & string is not recognized correctly
-              return list[id];
+              const resource = list[id];
+              if (!resource) {
+                return undefined;
+              }
+
+              return Object.assign(resource, {
+                hasException: selectHasException,
+                exceptions: selectExceptions,
+              });
             })();
           },
         }
       : {},
     {
       type: isUsingIdentifier ? 'resourceByGroupLike' : 'resourceLike',
+      hasException,
+      exceptions,
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         MutationParams | undefined
       >,
@@ -1078,6 +1428,17 @@ export function mutation<
                 'method' in mutationConfig
                   ? mutationConfig.method?.(arg)
                   : undefined;
+
+              if (isCraftException(result)) {
+                methodParamsException.set(
+                  enrichMutationException(result, { scope: 'params' }),
+                );
+                return result as MutationParams;
+              }
+
+              if (methodParamsException()) {
+                methodParamsException.set(undefined);
+              }
               // make sure  mutationResourceParamsFnSignal.set(result as MutationParams); is set before calling addById
               mutationResourceParamsFnSignal.set(result as MutationParams);
               if (isUsingIdentifier) {

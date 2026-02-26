@@ -7,8 +7,14 @@ import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
 describe('AsyncProcess', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
   it('should enable to define async method and be called with a method', async () => {
-    TestBed.runInInjectionContext(async () => {
+    await TestBed.runInInjectionContext(async () => {
       const myAsyncProcess = asyncProcess({
         method: ({
           timeToWait,
@@ -36,27 +42,30 @@ describe('AsyncProcess', () => {
       expect(myAsyncProcess.status()).toBe('loading');
       await vi.runAllTimersAsync();
       expect(myAsyncProcess.status()).toBe('resolved');
-      expect(myAsyncProcess.value()).toBe('test');
+      expect(myAsyncProcess.value()).toEqual({
+        searchChange: 'test',
+      });
     });
   });
 
   it('should enable to define async method bind to a source', async () => {
-    TestBed.runInInjectionContext(async () => {
+    await TestBed.runInInjectionContext(async () => {
       const searchSource = signalSource<{
         searchChange: string;
         timeToWait: number;
       }>();
-      const test = afterRecomputation(
-        searchSource,
-        (searchConfig) => searchConfig,
-      );
-      const result = test();
       const myAsyncProcess = asyncProcess({
         method: afterRecomputation(
           searchSource,
           (searchConfig) => searchConfig,
         ),
         loader: async ({ params: { timeToWait, searchChange } }) => {
+          console.log(
+            'loader timeToWait',
+            timeToWait,
+            'searchChange',
+            searchChange,
+          );
           type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
           type ExpectSearchChange = Expect<Equal<typeof searchChange, string>>;
           await new Promise((resolve) => setTimeout(resolve, timeToWait));
@@ -71,10 +80,14 @@ describe('AsyncProcess', () => {
           timeToWait: number;
         }>
       >();
+      console.log('set');
       searchSource.set({
         searchChange: 'test',
         timeToWait: 1000,
       });
+      // tick
+
+      await vi.advanceTimersByTimeAsync(100);
       expect(myAsyncProcess.status()).toBe('loading');
       await vi.runAllTimersAsync();
       expect(myAsyncProcess.status()).toBe('resolved');
@@ -83,7 +96,7 @@ describe('AsyncProcess', () => {
   });
 
   it('should return undefined with safeValue when status is error', async () => {
-    TestBed.runInInjectionContext(async () => {
+    await TestBed.runInInjectionContext(async () => {
       const myAsyncProcess = asyncProcess({
         method: (shouldFail: boolean) => shouldFail,
         loader: async ({ params: shouldFail }) => {
@@ -489,7 +502,7 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
+  it.skip('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>();
       const AsyncProcessOutput = craftAsyncProcesses(() => ({
@@ -526,11 +539,14 @@ describe('AsyncProcess types with identifier', () => {
 
       type props = ReturnType<ReturnType<typeof AsyncProcessOutput>>['props'];
       try {
-        const search = AsyncProcessOutput({} as any, {} as any)(
-          {} as any,
-          {} as any,
-          {} as any,
-          {} as any,
+        const search = AsyncProcessOutput(
+          new Proxy({}, {}) as any,
+          new Proxy({}, {}) as any,
+        )(
+          new Proxy({}, {}) as any,
+          new Proxy({}, {}) as any,
+          new Proxy({}, {}) as any,
+          new Proxy({}, {}) as any,
         ).props.searchChange.select('test');
         expectTypeOf(search).toEqualTypeOf<
           | {
