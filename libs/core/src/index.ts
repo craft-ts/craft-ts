@@ -13,6 +13,7 @@ export * from './lib/craft-set-all-queries-params-standalone';
 export * from './lib/craft-sources';
 export * from './lib/craft-state';
 export * from './lib/craft';
+export * from './lib/craft-exception';
 export * from './lib/insert-local-storage-persister';
 export * from './lib/insert-noop-typing-anchor';
 export * from './lib/insert-select';

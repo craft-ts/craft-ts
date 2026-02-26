@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { query, QueryOutput } from './query';
+import { query, ResourceByIdLikeQueryRef } from './query';
 import { craft } from './craft';
 import { craftQuery } from './craft-query';
 import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
+import { computed, signal } from '@angular/core';
+import { craftException, CraftExceptionResult } from './craft-exception';
 
 type User = {
   id: string;
@@ -78,17 +80,22 @@ describe('query with identifier>', () => {
       });
 
       expectTypeOf(queryByIdFn).toEqualTypeOf<
-        QueryOutput<
+        ResourceByIdLikeQueryRef<
           {
             id: string;
             name: string;
             email: string;
           },
           string,
-          unknown,
+          false,
           unknown,
           string,
-          {}
+          {},
+          string,
+          {
+            params: never;
+            loader: never;
+          }
         >
       >();
     });
@@ -393,6 +400,469 @@ describe('query Insertions output', () => {
       expect(store.user.ext5).toBeDefined();
       expect(store.user.ext6).toBeDefined();
       expect(store.user.ext7).toBeDefined();
+    });
+  });
+});
+
+describe('query exceptions', () => {
+  it('typing: captures exception returned by params and loader ', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const shouldFail = signal(true);
+      const queryRef = query({
+        params: () =>
+          shouldFail()
+            ? craftException(
+                { code: 'INVALID_USER_ID' },
+                { reason: 'missing' as const },
+              )
+            : 'user-1',
+        loader: async ({ params }) => {
+          return shouldFail()
+            ? craftException(
+                { code: 'INVALID_USER_ID' },
+                { reason: 'missing' as const },
+              )
+            : {
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
+              };
+        },
+      });
+
+      await vi.runAllTimersAsync();
+      expectTypeOf(queryRef.exceptions().list).toEqualTypeOf<
+        (
+          | CraftExceptionResult<
+              {
+                code: 'INVALID_USER_ID';
+                scope: 'params';
+              },
+              {
+                reason: 'missing';
+              }
+            >
+          | CraftExceptionResult<
+              {
+                code: 'INVALID_USER_ID';
+                scope: 'loader';
+              },
+              {
+                reason: 'missing';
+              }
+            >
+        )[]
+      >();
+    });
+  });
+  it('typing with identifier: captures exception returned by params and loader ', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const shouldFail = signal(true);
+      const queryRef = query({
+        params: () =>
+          shouldFail()
+            ? craftException(
+                { code: 'INVALID_USER_ID' },
+                { reason: 'missing' as const },
+              )
+            : 'user-1',
+        identifier: (id) => id,
+        loader: async ({ params }) => {
+          return shouldFail()
+            ? craftException(
+                {
+                  code: 'API_ERROR',
+                },
+                { reason: 'missing user' as const },
+              )
+            : {
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
+              };
+        },
+      });
+
+      await vi.runAllTimersAsync();
+      expectTypeOf(queryRef.exceptions().list).toEqualTypeOf<
+        (
+          | CraftExceptionResult<
+              {
+                code: 'INVALID_USER_ID';
+                scope: 'params';
+              },
+              {
+                reason: 'missing';
+              }
+            >
+          | CraftExceptionResult<
+              {
+                code: 'API_ERROR';
+                scope: 'loader';
+                identifier: 'user-1';
+              },
+              {
+                reason: 'missing user';
+              }
+            >
+        )[]
+      >();
+      expectTypeOf(queryRef.exceptions().params).toEqualTypeOf<
+        | CraftExceptionResult<
+            {
+              code: 'INVALID_USER_ID';
+              scope: 'params';
+            },
+            {
+              reason: 'missing';
+            }
+          >
+        | undefined
+      >();
+      expectTypeOf(queryRef.exceptions().loader).toEqualTypeOf<
+        Partial<
+          Record<
+            'user-1',
+            CraftExceptionResult<
+              {
+                code: 'API_ERROR';
+                scope: 'loader';
+                identifier: 'user-1';
+              },
+              {
+                reason: 'missing user';
+              }
+            >
+          >
+        >
+      >();
+    });
+  });
+  it('typing with identifier: return a select exceptions for an identifier ', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const shouldFail = signal(true);
+      const queryRef = query({
+        params: () =>
+          shouldFail()
+            ? craftException(
+                { code: 'INVALID_USER_ID' },
+                { reason: 'missing' as const },
+              )
+            : ('user-1' as string),
+        identifier: (id) => id,
+        loader: async ({ params }) => {
+          return shouldFail()
+            ? shouldFail()
+              ? craftException(
+                  {
+                    code: 'API_ERROR',
+                    scope: 'loader',
+                  },
+                  { reason: 'missing1' as const },
+                )
+              : craftException(
+                  {
+                    code: 'API_ERROR',
+                    scope: 'loader',
+                  },
+                  { reason: 'missing2' as const },
+                )
+            : {
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
+              };
+        },
+      });
+
+      await vi.runAllTimersAsync();
+
+      expectTypeOf(queryRef.exceptions().loader).toEqualTypeOf<
+        Partial<
+          Record<
+            string,
+            | CraftExceptionResult<
+                {
+                  code: 'API_ERROR';
+                  scope: 'loader';
+                  identifier: string;
+                },
+                {
+                  reason: 'missing1';
+                }
+              >
+            | CraftExceptionResult<
+                {
+                  code: 'API_ERROR';
+                  scope: 'loader';
+                  identifier: string;
+                },
+                {
+                  reason: 'missing2';
+                }
+              >
+          >
+        >
+      >();
+
+      expectTypeOf(queryRef.select('')?.exceptions().loader).toEqualTypeOf<
+        | CraftExceptionResult<
+            {
+              code: 'API_ERROR';
+              scope: 'loader';
+              identifier: string;
+            },
+            {
+              reason: 'missing1';
+            }
+          >
+        | CraftExceptionResult<
+            {
+              code: 'API_ERROR';
+              scope: 'loader';
+              identifier: string;
+            },
+            {
+              reason: 'missing2';
+            }
+          >
+        | undefined
+      >();
+    });
+  });
+
+  it('captures exception returned by params and prevents loader execution', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const shouldFail = signal(true);
+      const loader = vi.fn(async ({ params }: { params: string }) => ({
+        id: params,
+      }));
+
+      const queryRef = query({
+        params: () =>
+          shouldFail()
+            ? craftException(
+                { code: 'INVALID_USER_ID' },
+                { reason: 'missing' as const },
+              )
+            : 'user-1',
+        loader: loader as any,
+      });
+
+      await vi.runAllTimersAsync();
+      expect(loader).not.toHaveBeenCalled();
+      expect(queryRef.resourceParamsSrc()).toBeUndefined();
+      expect(queryRef.hasException()).toBe(true);
+      expect(queryRef.exceptions().params?.payload.reason).toEqual({
+        reason: 'missing',
+      });
+
+      shouldFail.set(false);
+      await vi.runAllTimersAsync();
+
+      expect(queryRef.exceptions().params).toEqual({});
+      expect(queryRef.hasException()).toBe(false);
+    });
+  });
+
+  it('captures exception returned by loader without exposing it in safeValue', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const queryRef = query({
+        params: () => 'user-1',
+        loader: async () =>
+          craftException(
+            { code: 'INVALID_USER_ID', scope: 'loader' },
+            { from: 'loader' as const },
+          ),
+      });
+
+      await vi.runAllTimersAsync();
+
+      expect(queryRef.exceptions().loader?.INVALID_USER_ID).toEqual({
+        from: 'loader',
+      });
+      expect(queryRef.safeValue()).toBeUndefined();
+      expect(queryRef.hasException()).toBe(true);
+    });
+  });
+
+  it('captures exception returned by method and does not trigger loader', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const loader = vi.fn(async ({ params }: { params: string }) => ({
+        id: params,
+      }));
+      const queryRef = query({
+        method: (value: string) =>
+          value.length < 3
+            ? craftException(
+                { code: 'SEARCH_TERM_TOO_SHORT' },
+                { min: 3, received: value.length },
+              )
+            : value,
+        loader: loader as any,
+      });
+
+      queryRef.call('ab');
+      await vi.runAllTimersAsync();
+
+      expect(loader).not.toHaveBeenCalled();
+      expect(queryRef.resourceParamsSrc()).toBeUndefined();
+      expect(queryRef.exceptions().list).toEqual({
+        min: 3,
+        received: 2,
+      });
+    });
+  });
+
+  it.todo('captures and auto-clears computedInsertion exceptions', () => {
+    TestBed.runInInjectionContext(() => {
+      const shouldFail = signal(true);
+      const queryRef = query(
+        {
+          params: () => 'x',
+          loader: async () => ({ id: 'x' }),
+        },
+        () => ({
+          computedFailure: computed(() =>
+            shouldFail()
+              ? craftException(
+                  { code: 'COMPUTED_FAILURE' },
+                  { from: 'computed' as const },
+                )
+              : undefined,
+          ),
+        }),
+      );
+
+      expect(queryRef.computedFailure()).toBeUndefined();
+      // expect(queryRef.exceptions().computedInsertion.COMPUTED_FAILURE).toEqual({
+      //   from: 'computed',
+      // });
+
+      // shouldFail.set(false);
+      // expect(queryRef.computedFailure()).toBeUndefined();
+      // expect(queryRef.exceptions().computedInsertion).toEqual({});
+      // expect(queryRef.hasException()).toBe(false);
+    });
+  });
+
+  it.todo('captures and auto-clears methodInsertion exceptions', () => {
+    TestBed.runInInjectionContext(() => {
+      const shouldFail = signal(true);
+      const queryRef = query(
+        {
+          params: () => 'x',
+          loader: async () => ({ id: 'x' }),
+        },
+        () => ({
+          validateName: () =>
+            shouldFail()
+              ? craftException(
+                  { code: 'PARAM_VALUE_MISMATCH' },
+                  { expected: 'x', actual: 'y' },
+                )
+              : undefined,
+        }),
+      );
+
+      queryRef.validateName();
+      // expect(
+      //   queryRef.exceptions().methodInsertion.PARAM_VALUE_MISMATCH,
+      // ).toEqual({
+      //   expected: 'x',
+      //   actual: 'y',
+      // });
+
+      // shouldFail.set(false);
+      // queryRef.validateName();
+      // expect(queryRef.exceptions().methodInsertion).toEqual({});
+    });
+  });
+
+  it.todo(
+    'maps loader exceptions by identifier only when identifier is provided on the exception',
+    async () => {
+      await TestBed.runInInjectionContext(async () => {
+        const current = signal<'A' | 'B'>('A');
+        const queryRef = query({
+          params: () => current(),
+          identifier: (id) => id,
+          loader: async ({ params }) =>
+            params === 'A'
+              ? craftException({ code: 'PARSE_FAILED' }, { params })
+              : craftException({ code: 'PARSE_FAILED' }, { params }),
+        });
+
+        await vi.runAllTimersAsync();
+        expect(queryRef.exceptions().loader?.['A']?.code).toEqual({
+          params: 'A',
+        });
+
+        current.set('B');
+        await vi.runAllTimersAsync();
+
+        expect(queryRef.exceptions().loader['A']).toBeDefined();
+        expect(
+          queryRef.exceptions().list.some((item) => item.identifier === 'A'),
+        ).toBe(true);
+        expect(
+          queryRef.exceptions().list.some((item) => item.identifier === 'B'),
+        ).toBe(true);
+      });
+    },
+  );
+
+  it('keeps params exceptions global in parallel query', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const current = signal<'A' | 'B'>('A');
+      const queryRef = query({
+        params: () =>
+          current()
+            ? craftException({ code: 'INVALID_ID' }, { params: current() })
+            : current(),
+        identifier: (id) => id,
+        loader: async ({ params }) => ({ id: params }),
+      });
+
+      await vi.runAllTimersAsync();
+
+      expect(queryRef.exceptions().params?.payload).toEqual({ params: 'A' });
+      expect(queryRef.exceptions().loader).toEqual({});
+    });
+  });
+
+  it('exposes typed exception accessors from params and insertions', () => {
+    TestBed.runInInjectionContext(() => {
+      const current = signal<'A' | 'B'>('A');
+      const queryRef = query(
+        {
+          params: () =>
+            current()
+              ? craftException(
+                  { code: 'PARAM_VALUE_MISMATCH' },
+                  { from: 'params' as const },
+                )
+              : current(),
+          loader: async ({ params }) => ({ id: params }),
+        },
+        () => ({
+          computedFailure: computed(() =>
+            craftException(
+              { code: 'COMPUTED_VALUE_MISMATCH' },
+              { from: 'insertion-1' as const },
+            ),
+          ),
+          validate: () =>
+            craftException(
+              { code: 'METHOD_VALUE_MISMATCH' },
+              { value: 'x' as string },
+            ),
+        }),
+      );
+
+      expectTypeOf(
+        queryRef.exceptions().params?.PARAM_VALUE_MISMATCH,
+      ).toEqualTypeOf<{ from: 'params' } | undefined>();
     });
   });
 });

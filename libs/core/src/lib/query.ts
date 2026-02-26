@@ -16,6 +16,11 @@ import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
 import { preservedResource } from './preserved-resource';
 import { craftResource } from './craft-resource';
+import {
+  ExtractCraftException,
+  InsertMetaInCraftExceptionIfExists,
+  StripCraftException,
+} from './craft-exception';
 
 type QueryConfig<
   ResourceState,
@@ -37,7 +42,7 @@ type QueryConfig<
          */
         params: () => Params;
         loader: (
-          param: NoInfer<ResourceLoaderParams<Params>>,
+          param: NoInfer<ResourceLoaderParams<StripCraftException<Params>>>,
         ) => Promise<ResourceState>;
         method?: never;
         fromResourceById?: never;
@@ -136,7 +141,9 @@ type QueryConfig<
      * A unique identifier for the resource, derived from the params.
      * It should be a string that uniquely identifies the resource based on the params.
      */
-    identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+    identifier?: (
+      params: NoInfer<NonNullable<StripCraftException<Params>>>,
+    ) => GroupIdentifier;
     /**
      * Under the hood, a resource is generated for each new identifier generated when the params source change.
      *
@@ -167,6 +174,78 @@ type QueryConfig<
       : never;
   };
 
+export type QueryExceptionConstraints = {
+  params: unknown;
+  loader: unknown;
+};
+
+export type ResourceLikeExceptions<
+  QueryException extends QueryExceptionConstraints,
+  GroupIdentifier = unknown,
+> = {
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: (
+      | InsertMetaInCraftExceptionIfExists<
+          QueryException['params'],
+          'params',
+          unknown
+        >
+      | InsertMetaInCraftExceptionIfExists<
+          QueryException['loader'],
+          'loader',
+          GroupIdentifier
+        >
+    )[];
+    params?: InsertMetaInCraftExceptionIfExists<
+      QueryException['params'],
+      'params',
+      unknown
+    >;
+    loader?: InsertMetaInCraftExceptionIfExists<
+      QueryException['loader'],
+      'loader',
+      GroupIdentifier
+    >;
+  }>;
+};
+
+export type ResourceByIdLikeExceptions<
+  QueryException extends QueryExceptionConstraints,
+  GroupIdentifier extends string,
+> = {
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: (
+      | InsertMetaInCraftExceptionIfExists<
+          QueryException['params'],
+          'params',
+          unknown
+        >
+      | InsertMetaInCraftExceptionIfExists<
+          QueryException['loader'],
+          'loader',
+          GroupIdentifier
+        >
+    )[];
+    params?: InsertMetaInCraftExceptionIfExists<
+      QueryException['params'],
+      'params',
+      unknown
+    >;
+    loader: Partial<
+      Record<
+        GroupIdentifier,
+        InsertMetaInCraftExceptionIfExists<
+          QueryException['loader'],
+          'loader',
+          GroupIdentifier
+        >
+      >
+    >;
+  }>;
+};
+
 export type ResourceLikeQueryRef<
   Value,
   Params,
@@ -174,6 +253,7 @@ export type ResourceLikeQueryRef<
   ArgParams,
   SourceParams,
   Insertions,
+  QueryException extends QueryExceptionConstraints = QueryExceptionConstraints,
 > = {
   type: 'resourceLike';
   kind: 'query';
@@ -195,12 +275,13 @@ export type ResourceLikeQueryRef<
     },
     IsMethod extends true
       ? {
-          mutate: (args: ArgParams) => Params;
+          call: (args: ArgParams) => Params;
         }
       : {
           source: ReadonlySource<SourceParams>;
         },
     Insertions,
+    ResourceLikeExceptions<QueryException>,
     {
       [key in `~InternalType`]: 'Used to avoid TS type erasure';
     },
@@ -215,6 +296,7 @@ export type ResourceByIdLikeQueryRef<
   SourceParams,
   Insertions,
   GroupIdentifier,
+  QueryException extends QueryExceptionConstraints = QueryExceptionConstraints,
 > = { type: 'resourceByGroupLike'; kind: 'query' } & {
   readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
 } & {
@@ -227,7 +309,7 @@ export type ResourceByIdLikeQueryRef<
    * return the associated resource or undefined if not existing
    */
   select: (id: GroupIdentifier) =>
-    | {
+    | ({
         readonly value: Signal<Value | undefined>;
         /**
          * Avoids to throw error when accessing value during error state
@@ -237,19 +319,22 @@ export type ResourceByIdLikeQueryRef<
         readonly error: Signal<Error | undefined>;
         readonly isLoading: Signal<boolean>;
         hasValue(): boolean;
-      }
+      } & ResourceLikeExceptions<QueryException, GroupIdentifier>) // todo exception params should be display outside
     | undefined;
 } & MergeObjects<
     [
       Insertions,
       IsMethod extends true
         ? {
-            mutate: (args: ArgParams) => Params;
+            call: (args: ArgParams) => Params;
           }
         : {
             source: ReadonlySource<SourceParams>;
           },
       ResourceByIdRef<GroupIdentifier & string, Value, Params>,
+      [GroupIdentifier] extends [string]
+        ? ResourceByIdLikeExceptions<QueryException, GroupIdentifier>
+        : {},
     ]
   >;
 
@@ -261,6 +346,7 @@ export type QueryRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
+  QueryExceptions extends QueryExceptionConstraints,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeQueryRef<
       Value,
@@ -268,7 +354,8 @@ export type QueryRef<
       IsMethod,
       ArgParams,
       SourceParams,
-      Insertions
+      Insertions,
+      QueryExceptions
     >
   : ResourceByIdLikeQueryRef<
       Value,
@@ -277,7 +364,8 @@ export type QueryRef<
       ArgParams,
       SourceParams,
       Insertions,
-      GroupIdentifier
+      GroupIdentifier,
+      QueryExceptions
     >;
 
 export type QueryOutput<
@@ -287,6 +375,7 @@ export type QueryOutput<
   SourceParams,
   GroupIdentifier,
   Insertions,
+  QueryExceptions extends QueryExceptionConstraints,
 > = QueryRef<
   State,
   Params,
@@ -294,7 +383,8 @@ export type QueryOutput<
   Insertions,
   [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
-  GroupIdentifier
+  GroupIdentifier,
+  QueryExceptions
 >;
 
 export function query<
@@ -318,12 +408,16 @@ export function query<
     FromObjectResourceParams
   >,
 ): QueryOutput<
-  QueryState,
-  QueryParams,
+  StripCraftException<QueryState>,
+  StripCraftException<QueryParams>,
   QueryArgsParams,
-  SourceParams,
+  StripCraftException<QueryParams>,
   GroupIdentifier,
-  {}
+  {},
+  {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  }
 >;
 export function query<
   QueryState extends object | undefined,
@@ -353,12 +447,16 @@ export function query<
     Insertion1
   >,
 ): QueryOutput<
-  QueryState,
-  QueryParams,
+  StripCraftException<QueryState>,
+  StripCraftException<QueryParams>,
   QueryArgsParams,
-  SourceParams,
+  StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1
+  Insertion1,
+  {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  }
 >;
 export function query<
   QueryState extends object | undefined,
@@ -396,12 +494,16 @@ export function query<
     Insertion1
   >,
 ): QueryOutput<
-  QueryState,
-  QueryParams,
+  StripCraftException<QueryState>,
+  StripCraftException<QueryParams>,
   QueryArgsParams,
-  SourceParams,
+  StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2
+  Insertion1 & Insertion2,
+  {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  }
 >;
 export function query<
   QueryState extends object | undefined,
@@ -447,12 +549,16 @@ export function query<
     Insertion1 & Insertion2
   >,
 ): QueryOutput<
-  QueryState,
-  QueryParams,
+  StripCraftException<QueryState>,
+  StripCraftException<QueryParams>,
   QueryArgsParams,
-  SourceParams,
+  StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2 & Insertion3
+  Insertion1 & Insertion2,
+  {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  } & Insertion3
 >;
 export function query<
   QueryState extends object | undefined,
@@ -506,12 +612,17 @@ export function query<
     Insertion1 & Insertion2 & Insertion3
   >,
 ): QueryOutput<
-  QueryState,
-  QueryParams,
+  StripCraftException<QueryState>,
+  StripCraftException<QueryParams>,
   QueryArgsParams,
-  SourceParams,
+  StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2 & Insertion3 & Insertion4
+  Insertion1 & Insertion2,
+  {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  } & Insertion3 &
+    Insertion4
 >;
 export function query<
   QueryState extends object | undefined,
@@ -573,12 +684,18 @@ export function query<
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
 ): QueryOutput<
-  QueryState,
-  QueryParams,
+  StripCraftException<QueryState>,
+  StripCraftException<QueryParams>,
   QueryArgsParams,
-  SourceParams,
+  StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+  Insertion1 & Insertion2,
+  {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  } & Insertion3 &
+    Insertion4 &
+    Insertion5
 >;
 export function query<
   QueryState extends object | undefined,
@@ -648,12 +765,19 @@ export function query<
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
 ): QueryOutput<
-  QueryState,
-  QueryParams,
+  StripCraftException<QueryState>,
+  StripCraftException<QueryParams>,
   QueryArgsParams,
-  SourceParams,
+  StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
+  Insertion1 & Insertion2,
+  {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  } & Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6
 >;
 export function query<
   QueryState extends object | undefined,
@@ -731,10 +855,10 @@ export function query<
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
   >,
 ): QueryOutput<
-  QueryState,
-  QueryParams,
+  StripCraftException<QueryState>,
+  StripCraftException<QueryParams>,
   QueryArgsParams,
-  SourceParams,
+  StripCraftException<QueryParams>,
   GroupIdentifier,
   Insertion1 &
     Insertion2 &
@@ -742,7 +866,11 @@ export function query<
     Insertion4 &
     Insertion5 &
     Insertion6 &
-    Insertion7
+    Insertion7,
+  {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  }
 >;
 /**
  * Creates a reactive query manager that handles data fetching with automatic state tracking.
@@ -760,7 +888,7 @@ export function query<
  *
  * **Query Modes:**
  * - **Params-based (automatic):** Define a `params` function. The query executes automatically when params change.
- * - **Method-based (manual):** Define a `method` function that returns params. Call `mutate()` to trigger execution.
+ * - **Method-based (manual):** Define a `method` function that returns params. Call `call()` to trigger execution.
  * - **Source-based (reactive):** Bind to a `ReadonlySource` for automatic execution when the source changes.
  * - **Resource-based (derived):** Bind to another `ResourceByIdRef` using `fromResourceById` to create derived queries.
  *
@@ -790,7 +918,7 @@ export function query<
  *   - `error`: Signal containing any error that occurred
  *   - `isLoading`: Signal indicating if the query is currently executing
  *   - `hasValue()`: Method to check if a value is available
- *   - `mutate(args)`: Method to trigger the query manually (only for method-based queries)
+ *   - `call(args)`: Method to trigger the query manually (only for method-based queries)
  *   - `source`: The connected source (only for source-based queries)
  *   - `select(id)`: Method to access a specific query instance by ID (only when identifier is provided)
  *   - `resourceParamsSrc`: The underlying params signal
@@ -834,7 +962,7 @@ export function query<
  * console.log(searchQuery.status()); // 'idle'
  *
  * // Manually trigger the query
- * searchQuery.mutate('angular');
+ * searchQuery.call('angular');
  * console.log(searchQuery.status()); // 'loading'
  * ```
  *
@@ -956,12 +1084,13 @@ export function query<
   >,
   ...insertions: any[]
 ): QueryOutput<
-  QueryState,
-  QueryParams,
+  StripCraftException<QueryState>,
+  StripCraftException<QueryParams>,
   QueryArgsParams,
-  SourceParams,
+  StripCraftException<QueryParams>,
   GroupIdentifier,
-  {}
+  {},
+  QueryExceptionConstraints
 > {
   const hasParamsFn = typeof queryConfig.method === 'function';
   const queryResourceParamsFnSignal =
@@ -1030,7 +1159,7 @@ export function query<
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         QueryParams | undefined
       >,
-      method:
+      call:
         hasParamsFn || isSignal(queryConfig.method)
           ? undefined
           : (arg: QueryArgsParams) => {
@@ -1094,6 +1223,7 @@ export function query<
     QueryArgsParams,
     SourceParams,
     GroupIdentifier,
-    {}
+    {},
+    QueryExceptionConstraints
   >;
 }

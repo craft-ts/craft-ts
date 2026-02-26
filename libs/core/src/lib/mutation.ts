@@ -1,7 +1,6 @@
 import {
   computed,
   isSignal,
-  resource,
   ResourceLoaderParams,
   ResourceOptions,
   ResourceRef,
