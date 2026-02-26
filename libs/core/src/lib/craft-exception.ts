@@ -6,7 +6,7 @@ export type CraftExceptionMeta<
   Identifier extends string | undefined = string | undefined,
 > = {
   code: Code;
-  scope: Scope;
+  scope?: Scope;
   identifier?: Identifier;
 };
 
@@ -50,11 +50,23 @@ export function craftException<
   },
   Payload
 > {
-  return {
-    [CRAFT_EXCEPTION_SYMBOL]: true,
-    ...meta,
+  const result = {
+    [CRAFT_EXCEPTION_SYMBOL]: true as const,
+    code: meta.code,
+    scope: meta.scope as Scope,
+    ...(meta.identifier !== undefined ? { identifier: meta.identifier } : {}),
     payload: payload as Payload,
+    [meta.code]: payload as Payload,
   };
+
+  return result as CraftExceptionResult<
+    {
+      code: Code;
+      scope: Scope;
+      identifier?: Identifier;
+    },
+    Payload
+  >;
 }
 
 export function isCraftException(value: unknown): value is AnyCraftException {

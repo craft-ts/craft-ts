@@ -8,7 +8,7 @@ import {
   partialContext,
 } from './craft';
 import { ResourceByIdRef } from './resource-by-id';
-import { QueryOutput, QueryRef } from './query';
+import { QueryExceptionConstraints, QueryOutput, QueryRef } from './query';
 
 type SpecificCraftQueryOutputs<
   ResourceName extends string,
@@ -19,6 +19,7 @@ type SpecificCraftQueryOutputs<
   SourceParams,
   GroupIdentifier,
   InsertionsOutputs,
+  QueryExceptions extends QueryExceptionConstraints,
 > = PartialContext<{
   props: {
     [key in `${ResourceName & string}`]: QueryOutput<
@@ -27,7 +28,8 @@ type SpecificCraftQueryOutputs<
       ResourceParams,
       SourceParams,
       GroupIdentifier,
-      InsertionsOutputs
+      InsertionsOutputs,
+      QueryExceptions
     >;
   };
   _query: {
@@ -37,7 +39,8 @@ type SpecificCraftQueryOutputs<
       ResourceParams,
       SourceParams,
       GroupIdentifier,
-      InsertionsOutputs
+      InsertionsOutputs,
+      QueryExceptions
     >;
   };
 }>;
@@ -53,6 +56,7 @@ type CraftQueryOutputs<
   SourceParams,
   GroupIdentifier,
   InsertionsOutputs,
+  QueryExceptions extends QueryExceptionConstraints,
 > = CraftFactoryUtility<
   Context,
   StoreConfig,
@@ -64,7 +68,8 @@ type CraftQueryOutputs<
     IsMethod,
     SourceParams,
     GroupIdentifier,
-    InsertionsOutputs
+    InsertionsOutputs,
+    QueryExceptions
   >
 >;
 
@@ -492,6 +497,7 @@ export function craftQuery<
   IsMethod,
   SourceParams,
   GroupIdentifier,
+  QueryExceptions extends QueryExceptionConstraints,
 >(
   resourceName: ResourceName,
   queryFactory: (
@@ -502,7 +508,8 @@ export function craftQuery<
     ResourceParams,
     SourceParams,
     GroupIdentifier,
-    InsertionsOutputs
+    InsertionsOutputs,
+    QueryExceptions
   >,
 ): CraftQueryOutputs<
   Context,
@@ -514,7 +521,8 @@ export function craftQuery<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  InsertionsOutputs
+  InsertionsOutputs,
+  QueryExceptions
 > {
   return () => (contextData, injector, storeConfig) => {
     const queryFactoryContext = craftFactoryEntries(contextData);
@@ -535,7 +543,8 @@ export function craftQuery<
       InsertionsOutputs,
       IsMethod,
       SourceParams,
-      GroupIdentifier
+      GroupIdentifier,
+      QueryExceptions
     >;
 
     return partialContext({
@@ -562,7 +571,8 @@ export function craftQuery<
       IsMethod,
       SourceParams,
       GroupIdentifier,
-      InsertionsOutputs
+      InsertionsOutputs,
+      QueryExceptions
     >;
   };
 }

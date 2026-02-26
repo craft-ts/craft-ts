@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { expectTypeOf, Mock, vi } from 'vitest';
 import { craft, CraftFactory } from './craft';
 import { mutation } from './mutation';
-import { query, QueryOutput } from './query';
+import { query, QueryOutput, ResourceLikeQueryRef } from './query';
 import { craftQuery } from './craft-query';
 import { craftMutations } from './craft-mutations';
 import { insertReactOnMutation } from './insert-react-on-mutation';
@@ -886,17 +886,21 @@ describe('craftQuery typing', () => {
         Equal<
           ResultType['props'],
           {
-            user: QueryOutput<
+            user: ResourceLikeQueryRef<
               NoInfer<{
                 id: string;
                 name: string;
                 email: string;
               }>,
               string,
+              false,
               unknown,
-              unknown,
-              unknown,
-              {}
+              string,
+              {},
+              {
+                params: never;
+                loader: never;
+              }
             >;
           }
         >

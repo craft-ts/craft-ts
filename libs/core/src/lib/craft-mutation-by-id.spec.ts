@@ -6,7 +6,7 @@ import { craft } from './craft';
 import { craftMutations } from './craft-mutations';
 import { mutation } from './mutation';
 import { craftQuery } from './craft-query';
-import { query, QueryOutput } from './query';
+import { query, QueryOutput, ResourceByIdLikeQueryRef } from './query';
 import { ResourceByIdRef } from './resource-by-id';
 
 type User = {
@@ -41,7 +41,7 @@ describe('craftMutationById', () => {
             return returnedUser as User;
           },
         }),
-      }))
+      })),
     );
 
     await TestBed.runInInjectionContext(async () => {
@@ -80,7 +80,7 @@ describe('craftMutationById', () => {
           },
           identifier: ({ id }) => id,
         }),
-      }))
+      })),
     );
     await TestBed.runInInjectionContext(async () => {
       const c = injectCraft();
@@ -121,9 +121,8 @@ describe('craftMutationById', () => {
     });
   });
 
-  type InferServerStateResult<T> = T extends InjectionToken<infer U>
-    ? U
-    : never;
+  type InferServerStateResult<T> =
+    T extends InjectionToken<infer U> ? U : never;
 
   it('#1- Should expose private query type', async () => {
     const returnedUser = {
@@ -144,8 +143,8 @@ describe('craftMutationById', () => {
             return returnedUser as User;
           },
           identifier: (params) => params,
-        })
-      )
+        }),
+      ),
     );
 
     type StoreFeatureQueryType = InferServerStateResult<typeof Craft>;
@@ -154,13 +153,18 @@ describe('craftMutationById', () => {
       Equal<
         StoreFeatureQueryType,
         {
-          user: QueryOutput<
+          user: ResourceByIdLikeQueryRef<
             NoInfer<User>,
             string,
-            unknown,
+            false,
             unknown,
             string,
-            {}
+            {},
+            string,
+            {
+              params: never;
+              loader: never;
+            }
           >;
         }
       >

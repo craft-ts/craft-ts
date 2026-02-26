@@ -17,10 +17,50 @@ import { MergeObjects } from './util/util.type';
 import { preservedResource } from './preserved-resource';
 import { craftResource } from './craft-resource';
 import {
+  AnyCraftException,
   ExtractCraftException,
   InsertMetaInCraftExceptionIfExists,
   StripCraftException,
+  isCraftException,
 } from './craft-exception';
+
+function enrichQueryException(
+  exception: AnyCraftException,
+  meta: {
+    scope: 'params' | 'loader';
+    identifier?: string;
+  },
+) {
+  const nextException = {
+    ...exception,
+    scope: meta.scope,
+    [exception.code]: exception.payload,
+  } as AnyCraftException & {
+    scope: 'params' | 'loader';
+    identifier?: string;
+  };
+
+  if (meta.identifier !== undefined) {
+    nextException.identifier = meta.identifier;
+  } else {
+    delete nextException.identifier;
+  }
+
+  return nextException;
+}
+
+function removeExceptionById(
+  state: Record<string, AnyCraftException>,
+  id: string,
+): Record<string, AnyCraftException> {
+  if (!(id in state)) {
+    return state;
+  }
+
+  const nextState = { ...state };
+  delete nextState[id];
+  return nextState;
+}
 
 type QueryConfig<
   ResourceState,
@@ -1092,16 +1132,182 @@ export function query<
   {},
   QueryExceptionConstraints
 > {
-  const hasParamsFn = typeof queryConfig.method === 'function';
+  const hasMethodFn =
+    typeof queryConfig.method === 'function' && !isSignal(queryConfig.method);
   const queryResourceParamsFnSignal =
     queryConfig.params ?? signal<QueryParams | undefined>(undefined);
 
   const isConnectedToSource = isSignal(queryConfig.method);
   const isUsingIdentifier = 'identifier' in queryConfig;
 
+  const methodParamsException = signal<AnyCraftException | undefined>(
+    undefined,
+  );
+  const loaderException = signal<AnyCraftException | undefined>(undefined);
+  const loaderExceptionsById = signal<Record<string, AnyCraftException>>({});
+
+  const setLoaderException = (
+    exception: AnyCraftException | undefined,
+    id?: string,
+  ) => {
+    if (isUsingIdentifier) {
+      if (!id) {
+        return;
+      }
+      loaderExceptionsById.update((state) =>
+        exception
+          ? { ...state, [id]: exception }
+          : removeExceptionById(state, id),
+      );
+      return;
+    }
+
+    loaderException.set(exception);
+  };
+
+  const getIdentifierFromParams = (params: unknown): string | undefined => {
+    if (
+      !isUsingIdentifier ||
+      !('identifier' in queryConfig) ||
+      !queryConfig.identifier
+    ) {
+      return undefined;
+    }
+
+    if (params === undefined || params === null) {
+      return undefined;
+    }
+
+    return queryConfig.identifier(params as any) as string;
+  };
+
+  const sanitizeParamsResult = (value: QueryParams | undefined) => {
+    if (isCraftException(value)) {
+      return undefined;
+    }
+
+    return value;
+  };
+
+  const reactiveParamsException = computed(() => {
+    if (hasMethodFn) {
+      return undefined;
+    }
+
+    if (isConnectedToSource && queryConfig.method) {
+      const sourceValue = (
+        queryConfig.method as unknown as Signal<QueryParams | undefined>
+      )();
+      return isCraftException(sourceValue)
+        ? enrichQueryException(sourceValue, { scope: 'params' })
+        : undefined;
+    }
+
+    if (
+      'params' in queryConfig &&
+      queryConfig.params &&
+      !('fromResourceById' in queryConfig && queryConfig.fromResourceById)
+    ) {
+      const paramsValue = (queryConfig.params as () => QueryParams)();
+      return isCraftException(paramsValue)
+        ? enrichQueryException(paramsValue, { scope: 'params' })
+        : undefined;
+    }
+
+    return undefined;
+  });
+
+  const paramsException = computed(() => {
+    return hasMethodFn ? methodParamsException() : reactiveParamsException();
+  });
+
+  const wrappedParamsFn =
+    'params' in queryConfig && queryConfig.params
+      ? (((...args: unknown[]) =>
+          sanitizeParamsResult(
+            (queryConfig.params as (...args: unknown[]) => QueryParams)(
+              ...args,
+            ),
+          )) as typeof queryConfig.params)
+      : undefined;
+
+  const wrappedSourceParams =
+    isConnectedToSource && queryConfig.method
+      ? ((() =>
+          sanitizeParamsResult(
+            (
+              queryConfig.method as unknown as Signal<QueryParams | undefined>
+            )(),
+          )) as Signal<QueryParams | undefined>)
+      : undefined;
+
+  const wrappedLoader =
+    'loader' in queryConfig && queryConfig.loader
+      ? ((async (param: ResourceLoaderParams<QueryParams>) => {
+          const result = await (
+            queryConfig.loader as (
+              param: ResourceLoaderParams<QueryParams>,
+            ) => Promise<QueryState>
+          )(param);
+
+          if (isCraftException(result)) {
+            const exceptionId = getIdentifierFromParams(param.params);
+            setLoaderException(
+              enrichQueryException(result, {
+                scope: 'loader',
+                identifier: exceptionId,
+              }),
+              exceptionId,
+            );
+            return undefined as QueryState;
+          }
+
+          const successId = getIdentifierFromParams(param.params);
+          setLoaderException(undefined, successId);
+          return result;
+        }) as typeof queryConfig.loader)
+      : undefined;
+
   const resourceParamsSrc = isConnectedToSource
-    ? queryConfig.method
-    : queryResourceParamsFnSignal;
+    ? (wrappedSourceParams as typeof queryConfig.method)
+    : (wrappedParamsFn ?? queryResourceParamsFnSignal);
+
+  const exceptions = computed(() => {
+    const paramsExceptionValue = paramsException();
+
+    if (isUsingIdentifier) {
+      const loaderExceptionsByIdValue = loaderExceptionsById();
+      return {
+        list: [
+          ...(paramsExceptionValue ? [paramsExceptionValue] : []),
+          ...Object.values(loaderExceptionsByIdValue),
+        ],
+        params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
+        loader: loaderExceptionsByIdValue,
+      };
+    }
+
+    const loaderExceptionValue = loaderException();
+    return {
+      list: [paramsExceptionValue, loaderExceptionValue].filter(
+        Boolean,
+      ) as AnyCraftException[],
+      params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
+      loader: (loaderExceptionValue ?? {}) as AnyCraftException | {},
+    };
+  });
+
+  const hasException = computed(() => {
+    if (paramsException()) {
+      return true;
+    }
+
+    if (isUsingIdentifier) {
+      return Object.keys(loaderExceptionsById()).length > 0;
+    }
+
+    return !!loaderException();
+  });
 
   const resourceTarget = isUsingIdentifier
     ? resourceById<
@@ -1114,6 +1320,7 @@ export function query<
       >({
         ...queryConfig,
         params: resourceParamsSrc,
+        loader: wrappedLoader,
         identifier: queryConfig.identifier,
         equalParams: queryConfig.equalParams ?? 'useIdentifier',
       } as any)
@@ -1121,10 +1328,12 @@ export function query<
       ? preservedResource<QueryState, QueryParams>({
           ...queryConfig,
           params: resourceParamsSrc,
+          loader: wrappedLoader,
         } as ResourceOptions<any, any>)
       : craftResource<QueryState, QueryParams>({
           ...queryConfig,
           params: resourceParamsSrc,
+          loader: wrappedLoader,
         } as ResourceOptions<any, any>);
 
   const queryOutputWithoutInsertions = Object.assign(
@@ -1141,6 +1350,27 @@ export function query<
             QueryParams
           >,
           select: (id: GroupIdentifier) => {
+            const selectExceptions = computed(() => {
+              const paramsExceptionValue = paramsException();
+              const loaderExceptionValue =
+                loaderExceptionsById()?.[id as unknown as string];
+
+              return {
+                list: [paramsExceptionValue, loaderExceptionValue].filter(
+                  Boolean,
+                ) as AnyCraftException[],
+                params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
+                loader: (loaderExceptionValue ?? {}) as AnyCraftException | {},
+              };
+            });
+
+            const selectHasException = computed(() => {
+              return (
+                !!paramsException() ||
+                !!loaderExceptionsById()[id as unknown as string]
+              );
+            });
+
             return computed(() => {
               const list = (
                 resourceTarget as ResourceByIdRef<
@@ -1150,38 +1380,59 @@ export function query<
                 >
               )();
               //@ts-expect-error GroupIdentifier & string is not recognized correctly
-              return list[id];
+              const resource = list[id];
+              if (!resource) {
+                return undefined;
+              }
+
+              return Object.assign(resource, {
+                hasException: selectHasException,
+                exceptions: selectExceptions,
+              });
             })();
           },
         }
       : {},
     {
+      hasException,
+      exceptions,
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         QueryParams | undefined
       >,
-      call:
-        hasParamsFn || isSignal(queryConfig.method)
-          ? undefined
-          : (arg: QueryArgsParams) => {
-              const result = (
-                queryConfig.method as unknown as (
-                  args: QueryArgsParams,
-                ) => QueryParams
-              )(arg);
-              if (isUsingIdentifier) {
-                const id = queryConfig.identifier?.(arg as any);
-                (
-                  resourceTarget as ResourceByIdRef<
-                    GroupIdentifier & string,
-                    QueryState,
-                    QueryParams
-                  >
-                ).addById(id as GroupIdentifier & string);
-              }
-              //@ts-expect-error if method is exposed params can not be of type (entity: ResourceRef<NoInfer<FromObjectState>>) => QueryParams
-              queryResourceParamsFnSignal.set(result as QueryParams);
-              return result;
-            },
+      call: !hasMethodFn
+        ? undefined
+        : (arg: QueryArgsParams) => {
+            const result = (
+              queryConfig.method as unknown as (
+                args: QueryArgsParams,
+              ) => QueryParams
+            )(arg);
+
+            if (isCraftException(result)) {
+              methodParamsException.set(
+                enrichQueryException(result, { scope: 'params' }),
+              );
+              return result as QueryParams;
+            }
+
+            if (methodParamsException()) {
+              methodParamsException.set(undefined);
+            }
+
+            if (isUsingIdentifier) {
+              const id = queryConfig.identifier?.(arg as any);
+              (
+                resourceTarget as ResourceByIdRef<
+                  GroupIdentifier & string,
+                  QueryState,
+                  QueryParams
+                >
+              ).addById(id as GroupIdentifier & string);
+            }
+            //@ts-expect-error if method is exposed params can not be of type (entity: ResourceRef<NoInfer<FromObjectState>>) => QueryParams
+            queryResourceParamsFnSignal.set(result as QueryParams);
+            return result;
+          },
     },
   );
 
@@ -1218,10 +1469,10 @@ export function query<
       {} as Record<string, unknown>,
     ),
   ) as unknown as QueryOutput<
-    QueryState,
-    QueryParams,
+    StripCraftException<QueryState>,
+    StripCraftException<QueryParams>,
     QueryArgsParams,
-    SourceParams,
+    StripCraftException<QueryParams>,
     GroupIdentifier,
     {},
     QueryExceptionConstraints

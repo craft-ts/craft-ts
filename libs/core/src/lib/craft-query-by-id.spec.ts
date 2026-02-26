@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Expect, Equal } from 'test-type';
 import { computed, effect, inject, InjectionToken } from '@angular/core';
 import { Mock, vi } from 'vitest';
-import { query, QueryOutput } from './query';
+import { query, QueryOutput, ResourceByIdLikeQueryRef } from './query';
 import { craft } from './craft';
 import { craftQuery } from './craft-query';
 import { craftMutations } from './craft-mutations';
@@ -40,17 +40,22 @@ describe('parallel queries', () => {
       type ExpectQueryByFnTypesToBeRetrieved = Expect<
         Equal<
           typeof queryByIdFn,
-          QueryOutput<
+          ResourceByIdLikeQueryRef<
             {
               id: string;
               name: string;
               email: string;
             },
             string,
-            unknown,
+            false,
             unknown,
             string,
-            {}
+            {},
+            string,
+            {
+              params: never;
+              loader: never;
+            }
           >
         >
       >;
@@ -96,17 +101,22 @@ describe('craftQuery', () => {
       type ExpectUserQueryToBeAnObjectWithResourceByIdentifier = Expect<
         Equal<
           typeof store.getUser,
-          QueryOutput<
+          ResourceByIdLikeQueryRef<
             NoInfer<{
               id: string;
               name: string;
               email: string;
             }>,
             string,
-            unknown,
+            false,
             unknown,
             string,
-            {}
+            {},
+            string,
+            {
+              params: never;
+              loader: never;
+            }
           >
         >
       >;
