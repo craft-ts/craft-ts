@@ -92,10 +92,11 @@ describe('mutation', () => {
         searchChange: 'test',
         timeToWait: 1000,
       });
+      await vi.advanceTimersByTimeAsync(100);
       expect(myMutation.status()).toBe('loading');
       await vi.runAllTimersAsync();
       expect(myMutation.status()).toBe('resolved');
-      expect(myMutation.value()).toBe('test');
+      expect(myMutation.value()).toEqual({ searchChange: 'test' });
     });
   });
 

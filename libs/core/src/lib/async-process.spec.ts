@@ -60,12 +60,6 @@ describe('AsyncProcess', () => {
           (searchConfig) => searchConfig,
         ),
         loader: async ({ params: { timeToWait, searchChange } }) => {
-          console.log(
-            'loader timeToWait',
-            timeToWait,
-            'searchChange',
-            searchChange,
-          );
           type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
           type ExpectSearchChange = Expect<Equal<typeof searchChange, string>>;
           await new Promise((resolve) => setTimeout(resolve, timeToWait));
@@ -80,18 +74,16 @@ describe('AsyncProcess', () => {
           timeToWait: number;
         }>
       >();
-      console.log('set');
       searchSource.set({
         searchChange: 'test',
         timeToWait: 1000,
       });
-      // tick
 
       await vi.advanceTimersByTimeAsync(100);
       expect(myAsyncProcess.status()).toBe('loading');
       await vi.runAllTimersAsync();
       expect(myAsyncProcess.status()).toBe('resolved');
-      expect(myAsyncProcess.value()).toBe('test');
+      expect(myAsyncProcess.value()).toEqual({ searchChange: 'test' });
     });
   });
 

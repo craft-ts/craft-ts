@@ -312,7 +312,10 @@ export function afterRecomputation<State, SourceType>(
   _source: SignalSource<SourceType>,
   callback: (source: SourceType) => State,
 ): ReadonlySource<State> {
-  const derivedSource = signal<State | undefined>(undefined);
+  const initialValue = _source();
+  const derivedSource = signal<State | undefined>(
+    initialValue && callback(initialValue),
+  );
   const effectRef = effect(() => {
     const sourceValue = _source();
     if (sourceValue !== undefined) {
@@ -323,7 +326,7 @@ export function afterRecomputation<State, SourceType>(
     } else {
       derivedSource.set(undefined);
     }
-  });
+  }, {});
   return Object.assign(
     derivedSource,
     SourceBranded,
