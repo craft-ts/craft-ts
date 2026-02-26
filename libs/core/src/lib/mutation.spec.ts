@@ -941,6 +941,65 @@ describe('mutation exceptions', () => {
     });
   });
 
+  it('typing with identifier: return a select exceptions for an identifier', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const failed = signal(true);
+      const mutationRef = mutation({
+        method: (value: string) => value,
+        identifier: (id) => id,
+        loader: async () =>
+          failed()
+            ? craftException(
+                {
+                  code: 'API_ERROR',
+                },
+                { reason: 'missing' as const },
+              )
+            : craftException(
+                {
+                  code: 'HTTP_ERROR',
+                },
+                { reason: 'disconnected' as const },
+              ),
+      });
+
+      mutationRef.mutate('user-1');
+      await vi.runAllTimersAsync();
+
+      expectTypeOf(mutationRef.exceptions().loader).toEqualTypeOf<
+        Partial<
+          Record<
+            string,
+            | CraftExceptionResult<
+                {
+                  code: 'API_ERROR';
+                  scope: 'loader';
+                  identifier: string;
+                },
+                {
+                  reason: 'missing';
+                }
+              >
+            | CraftExceptionResult<
+                {
+                  code: 'HTTP_ERROR';
+                  scope: 'loader';
+                  identifier: string;
+                },
+                {
+                  reason: 'disconnected';
+                }
+              >
+          >
+        >
+      >();
+
+      expectTypeOf(
+        mutationRef.select('')?.exceptions().loader?.code,
+      ).toEqualTypeOf<'API_ERROR' | 'HTTP_ERROR' | undefined>();
+    });
+  });
+
   it('captures exception returned by method and does not trigger loader', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async ({ params }: { params: string }) => ({
