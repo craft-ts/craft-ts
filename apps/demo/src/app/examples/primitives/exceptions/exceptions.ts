@@ -1,0 +1,104 @@
+import { CommonModule } from '@angular/common';
+import { Component, signal } from '@angular/core';
+import { craftException, query } from '@craft-ng/core';
+
+type User = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
+
+@Component({
+  selector: 'app-exceptions',
+  imports: [CommonModule],
+  template: `
+    <h3>Query user with business exceptions</h3>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+      <button type="button" (click)="setScenario('success')">Success</button>
+      <button type="button" (click)="setScenario('not-found')">
+        User not found
+      </button>
+      <button type="button" (click)="setScenario('consent-missing')">
+        Consent missing
+      </button>
+      <button type="button" (click)="setScenario('forbidden')">
+        Access forbidden
+      </button>
+    </div>
+
+    @if (userQuery.isLoading()) {
+      <p>Loading user...</p>
+    } @else if (userQuery.safeValue(); as user) {
+      <div>
+        <p><strong>ID:</strong> {{ user.id }}</p>
+        <p><strong>Name:</strong> {{ user.name }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+      </div>
+    } @else {
+      @switch (userQuery.exceptions().loader?.code) {
+        @case ('UserNotFoundException') {
+          <p>❌ UserNotFoundException</p>
+        }
+        @case ('UserAccessForbiddenException') {
+          <p>⛔ UserAccessForbiddenException</p>
+        }
+        @case ('UserConsentMissingException') {
+          <p>⚠️ UserConsentMissingException</p>
+          <button type="button" (click)="acceptConsent()">
+            Accept consent
+          </button>
+        }
+        @default {
+          <p>No exception</p>
+        }
+      }
+    }
+  `,
+})
+export default class ExceptionsComponent {
+  private readonly scenario = signal<Scenario>('success');
+
+  protected readonly userQuery = query({
+    params: () => this.scenario(),
+    loader: async ({ params }) => this.mockGetUser(params),
+  });
+
+  protected setScenario(scenario: Scenario): void {
+    this.scenario.set(scenario);
+  }
+
+  protected acceptConsent(): void {
+    return;
+  }
+
+  private async mockGetUser(scenario: Scenario) {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    switch (scenario) {
+      case 'not-found':
+        return craftException(
+          { code: 'UserNotFoundException' },
+          { message: 'User does not exist' as const },
+        );
+      case 'consent-missing':
+        return craftException(
+          { code: 'UserConsentMissingException' },
+          { message: 'User consent is required' as const },
+        );
+      case 'forbidden':
+        return craftException(
+          { code: 'UserAccessForbiddenException' },
+          { message: 'Access to this user is forbidden' as const },
+        );
+      default:
+        return {
+          id: 'user-1',
+          name: 'John Doe',
+          email: 'john@doe.dev',
+        } satisfies User;
+    }
+  }
+}
