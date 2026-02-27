@@ -61,6 +61,36 @@ const myQueryParams = queryParam(
 myQueryParams.goTo(5); // Custom method from insertion
 ```
 
+### Parse exceptions (`hasException` / `exceptions().parse`)
+
+```typescript
+import { craftException, queryParam } from '@craft-ng/core';
+
+const mode = queryParam({
+  state: {
+    mode: {
+      fallbackValue: 'success' as const,
+      parse: (value: string) =>
+        value === 'success'
+          ? ('success' as const)
+          : craftException(
+              { code: 'InvalidModeFromUrl' },
+              { received: value },
+            ),
+      serialize: (value) => String(value),
+    },
+  },
+});
+
+if (mode.hasException()) {
+  console.log(mode.exceptions().parse.mode?.code);
+  console.log(mode.exceptions().parse.mode?.payload);
+}
+```
+
+Demo source:
+- [exception-query-param.ts](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-param.ts)
+
 ## Important Notes
 
 ⚠️ **Injection Context**: This function must be called within an injection context. If called outside, it will only return an object containing the configuration under `_config`.

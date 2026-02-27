@@ -14,6 +14,13 @@ import { MergeObjects } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { Prettify } from './util/util.type';
 import { ActivatedRoute, Router } from '@angular/router';
+import {
+  AnyCraftException,
+  ExtractCraftException,
+  InsertMetaInCraftExceptionIfExists,
+  StripCraftException,
+  isCraftException,
+} from './craft-exception';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -25,9 +32,28 @@ export interface QueryParamNavigationOptions {
 export type QueryParamsToState<QueryParamConfigs> = {
   [K in keyof QueryParamConfigs]: 'parse' extends keyof QueryParamConfigs[K]
     ? QueryParamConfigs[K]['parse'] extends (value: string) => infer U
-      ? U
+      ? StripCraftException<U>
       : 'Error1: QueryParamsToState'
     : 'Error2: QueryParamsToState';
+};
+
+type QueryParamParseExceptionsByKey<QueryParamsType> =
+  QueryParamsType extends Record<string, QueryParamConfig<unknown>>
+    ? {
+        [K in keyof QueryParamsType]: InsertMetaInCraftExceptionIfExists<
+          ExtractCraftException<ReturnType<QueryParamsType[K]['parse']>>,
+          'parse',
+          K & string
+        >;
+      }
+    : Record<string, never>;
+
+type QueryParamParseExceptionUnion<QueryParamsType> =
+  QueryParamParseExceptionsByKey<QueryParamsType>[keyof QueryParamParseExceptionsByKey<QueryParamsType>];
+
+export type QueryParamExceptions<QueryParamsType> = {
+  list: QueryParamParseExceptionUnion<QueryParamsType>[];
+  parse: Partial<QueryParamParseExceptionsByKey<QueryParamsType>>;
 };
 
 export type QueryParamOutput<QueryParamsType, Insertions, QueryParamsState> =
@@ -39,14 +65,30 @@ export type QueryParamOutput<QueryParamsType, Insertions, QueryParamsState> =
         },
         IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
         {
+          hasException: Signal<boolean>;
+          exceptions: Signal<QueryParamExceptions<QueryParamsType>>;
+        },
+        {
           _config: QueryParamsType;
         },
       ]
     >;
 
+function enrichQueryParamParseException(
+  exception: AnyCraftException,
+  key: string,
+): AnyCraftException {
+  return {
+    ...exception,
+    scope: 'parse',
+    identifier: key,
+    [exception.code]: exception.payload,
+  };
+}
+
 export interface QueryParamConfig<T = unknown> {
-  fallbackValue: NoInfer<T>;
   parse: (value: string) => T;
+  fallbackValue: NoInfer<T>;
   serialize: (value: NoInfer<T>) => string;
 }
 
@@ -231,7 +273,12 @@ export function queryParam<
           return acc;
         }
         try {
-          acc[key] = config.parse(rawValue);
+          const parsedValue = config.parse(rawValue);
+          if (isCraftException(parsedValue)) {
+            acc[key] = config.fallbackValue;
+            return acc;
+          }
+          acc[key] = parsedValue;
           return acc;
         } catch {
           acc[key] = config.fallbackValue;
@@ -241,6 +288,41 @@ export function queryParam<
       {} as Record<string, unknown>,
     ),
   ) as WritableSignal<QueryParamsToState<QueryParamsType>>;
+
+  const parseExceptions = computed(() =>
+    Object.entries(queryParamsConfig).reduce(
+      (acc, [key, config]) => {
+        const rawValue = queryParamFromUrl()?.[key];
+        if (rawValue === undefined || rawValue === null) {
+          return acc;
+        }
+
+        try {
+          const parsedValue = config.parse(rawValue);
+          if (isCraftException(parsedValue)) {
+            acc[key] = enrichQueryParamParseException(parsedValue, key);
+          }
+          return acc;
+        } catch (error) {
+          if (isCraftException(error)) {
+            acc[key] = enrichQueryParamParseException(error, key);
+          }
+          return acc;
+        }
+      },
+      {} as Record<string, AnyCraftException>,
+    ),
+  );
+
+  const exceptions = computed(() => {
+    const parse = parseExceptions();
+    return {
+      list: Object.values(parse),
+      parse,
+    };
+  }) as Signal<QueryParamExceptions<QueryParamsType>>;
+
+  const hasException = computed(() => exceptions().list.length > 0);
 
   // Get initial values from the url or use the fallback values
   const getDefaultState = () =>
@@ -348,6 +430,8 @@ export function queryParam<
     ) || {};
 
   return Object.assign(queryParamsState.asReadonly(), props, insertionResults, {
+    hasException,
+    exceptions,
     _config: config,
   }) as unknown as QueryParamOutput<QueryParamsType, {}, QueryParamsState>;
 }

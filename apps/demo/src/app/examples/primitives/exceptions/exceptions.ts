@@ -13,32 +13,65 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 @Component({
   selector: 'app-exceptions',
   imports: [CommonModule],
+  styles: [
+    `
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        border: 1px solid #e2e8f0;
+        background: white;
+        border-radius: 6px;
+        color: #4a5568;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn:hover {
+        background: #f8fafc;
+        border-color: #cbd5e0;
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    `,
+  ],
   template: `
     <h3>Query user with business exceptions</h3>
 
-    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-      <button type="button" (click)="setScenario('success')">Success</button>
-      <button type="button" (click)="setScenario('not-found')">
+    <div class="actions">
+      <button type="button" class="btn" (click)="setScenario('success')">
+        Success
+      </button>
+      <button type="button" class="btn" (click)="setScenario('not-found')">
         User not found
       </button>
-      <button type="button" (click)="setScenario('consent-missing')">
+      <button
+        type="button"
+        class="btn"
+        (click)="setScenario('consent-missing')"
+      >
         Consent missing
       </button>
-      <button type="button" (click)="setScenario('forbidden')">
+      <button type="button" class="btn" (click)="setScenario('forbidden')">
         Access forbidden
       </button>
     </div>
 
     @if (userQuery.isLoading()) {
       <p>Loading user...</p>
-    } @else if (userQuery.safeValue(); as user) {
-      <div>
-        <p><strong>ID:</strong> {{ user.id }}</p>
-        <p><strong>Name:</strong> {{ user.name }}</p>
-        <p><strong>Email:</strong> {{ user.email }}</p>
-      </div>
-    } @else {
-      @switch (userQuery.exceptions().loader?.code) {
+    } @else if (userQuery.exceptions().loader; as exception) {
+      <!-- code: "UserNotFoundException" | "UserConsentMissingException" | "UserAccessForbiddenException" -->
+      @let exceptionCode = exception.code;
+      @switch (exceptionCode) {
         @case ('UserNotFoundException') {
           <p>❌ UserNotFoundException</p>
         }
@@ -47,14 +80,18 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
         }
         @case ('UserConsentMissingException') {
           <p>⚠️ UserConsentMissingException</p>
-          <button type="button" (click)="acceptConsent()">
+          <button type="button" class="btn" (click)="acceptConsent()">
             Accept consent
           </button>
         }
-        @default {
-          <p>No exception</p>
-        }
+        @default never;
       }
+    } @else if (userQuery.safeValue(); as user) {
+      <div>
+        <p><strong>ID:</strong> {{ user.id }}</p>
+        <p><strong>Name:</strong> {{ user.name }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+      </div>
     }
   `,
 })

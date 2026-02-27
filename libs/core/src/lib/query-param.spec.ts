@@ -3,6 +3,7 @@ import { queryParam } from './query-param';
 import { provideRouter, Router } from '@angular/router';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
+import { craftException, CraftExceptionResult } from './craft-exception';
 
 describe('queryParams', () => {
   beforeEach(() => {
@@ -355,6 +356,158 @@ describe('queryParams', () => {
       // But state should still have fallback values
       expect(myQueryParams.page()).toBe(1);
       expect(myQueryParams.pageSize()).toBe(10);
+    });
+  });
+});
+
+describe('queryParam exceptions', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    TestBed.configureTestingModule({
+      providers: [provideRouter([])],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('typing: captures parse exception', () => {
+    TestBed.runInInjectionContext(() => {
+      const queryParams = queryParam({
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value) =>
+              value === 'invalid'
+                ? craftException(
+                    { code: 'INVALID_PAGE' },
+                    { reason: 'NaN' as const },
+                  )
+                : parseInt(value, 10),
+            serialize: (value) => String(value),
+          },
+        },
+      });
+
+      expectTypeOf(queryParams.page()).toEqualTypeOf<number>();
+      expectTypeOf(queryParams.exceptions().list).toEqualTypeOf<
+        CraftExceptionResult<
+          {
+            code: 'INVALID_PAGE';
+            scope: 'parse';
+            identifier: 'page';
+          },
+          {
+            reason: 'NaN';
+          }
+        >[]
+      >();
+      expectTypeOf(queryParams.exceptions().parse.page).toEqualTypeOf<
+        | CraftExceptionResult<
+            {
+              code: 'INVALID_PAGE';
+              scope: 'parse';
+              identifier: 'page';
+            },
+            {
+              reason: 'NaN';
+            }
+          >
+        | undefined
+      >();
+    });
+  });
+
+  it('captures parse exception returned by parse function', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const router = TestBed.inject(Router);
+      const queryParams = queryParam({
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value: string) =>
+              value === 'invalid'
+                ? craftException(
+                    { code: 'INVALID_PAGE' },
+                    { reason: 'NaN' as const },
+                  )
+                : parseInt(value, 10),
+            serialize: (value: unknown) => String(value),
+          },
+        },
+      });
+
+      await router.navigate([], { queryParams: { page: 'invalid' } });
+      await vi.runAllTimersAsync();
+
+      expect(queryParams.page()).toBe(1);
+      expect(queryParams.hasException()).toBe(true);
+      expect(queryParams.exceptions().parse.page?.INVALID_PAGE).toEqual({
+        reason: 'NaN',
+      });
+    });
+  });
+
+  it('captures parse exception thrown by parse function', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const router = TestBed.inject(Router);
+      const queryParams = queryParam({
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value: string) => {
+              if (value === 'invalid') {
+                return craftException(
+                  { code: 'INVALID_PAGE' },
+                  { reason: 'throw' as const },
+                );
+              }
+              return parseInt(value, 10);
+            },
+            serialize: (value: unknown) => String(value),
+          },
+        },
+      });
+
+      await router.navigate([], { queryParams: { page: 'invalid' } });
+      await vi.runAllTimersAsync();
+
+      expect(queryParams.page()).toBe(1);
+      expect(queryParams.hasException()).toBe(true);
+      expect(queryParams.exceptions().parse.page?.INVALID_PAGE).toEqual({
+        reason: 'throw',
+      });
+    });
+  });
+
+  it('does not expose non-craft parse errors in exceptions', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const router = TestBed.inject(Router);
+      const queryParams = queryParam({
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value: string) => {
+              if (value === 'invalid') {
+                return craftException(
+                  { code: 'INVALID_PAGE' },
+                  { reason: 'NaN' as const },
+                );
+              }
+              return parseInt(value, 10);
+            },
+            serialize: (value: unknown) => String(value),
+          },
+        },
+      });
+
+      await router.navigate([], { queryParams: { page: 'invalid' } });
+      await vi.runAllTimersAsync();
+
+      expect(queryParams.page()).toBe(1);
+      expect(queryParams.hasException()).toBe(false);
+      expect(queryParams.exceptions().parse).toEqual({});
     });
   });
 });

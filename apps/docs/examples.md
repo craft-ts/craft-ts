@@ -58,6 +58,22 @@
 
 ---
 
+### 8. Exceptions - Business Exceptions
+
+**Description:** Demonstrates business exceptions handling on `query()` with dedicated UI states based on exception codes.
+
+🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exceptions.ts)
+
+---
+
+### 9. Exception QueryParam - Parse Exceptions
+
+**Description:** Demonstrates `queryParam` parse exceptions with two navigation actions (`success` and `exception`) and UI handling through `hasException()` and `exceptions().parse`.
+
+🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-param.ts)
+
+---
+
 ## Craft Examples (Store/Service Abstraction)
 
 ### 1. Query - Basic Example

@@ -101,6 +101,10 @@ updateUserMutation.mutate({
 // When mutation completes, patch confirms the change
 ```
 
+### Query exceptions demo
+
+- [Exceptions demo source (`query` business exceptions)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exceptions.ts)
+
 ## Important Notes
 
 ⚠️ **Injection Context**: This function must be called within an injection context. If called outside, it will only return an object containing the configuration under `_config`.

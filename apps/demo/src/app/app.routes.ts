@@ -41,6 +41,11 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./examples/primitives/exceptions/exceptions'),
   },
   {
+    path: 'exception-query-param',
+    loadComponent: () =>
+      import('./examples/primitives/exceptions/exception-query-param'),
+  },
+  {
     path: 'craft/query/:userId',
     loadComponent: () => import('./examples/craft/query/query'),
   },
