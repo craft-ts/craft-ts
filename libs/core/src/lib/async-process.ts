@@ -15,6 +15,17 @@ import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { isSource } from './util/util';
 import { MergeObjects } from './util/util.type';
 import { craftResource } from './craft-resource';
+import {
+  AnyCraftException,
+  ExtractCraftException,
+  InsertMetaInCraftExceptionIfExists,
+  StripCraftException,
+  isCraftException,
+} from './craft-exception';
+import {
+  createResourceExceptionsRuntime,
+  enrichResourceException,
+} from './resource-exception';
 
 // ! It looks like TS does not handle to expose the ResourceByIdHandler without erasing the () => ... part
 export type AsyncProcessRef<
@@ -25,6 +36,8 @@ export type AsyncProcessRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
+  AsyncProcessExceptions extends
+    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
 > = MergeObjects<
   [
     [unknown] extends [GroupIdentifier]
@@ -35,7 +48,7 @@ export type AsyncProcessRef<
           readonly isLoading: Signal<boolean>;
           readonly safeValue: Signal<Value | undefined>;
           hasValue(): boolean;
-        }
+        } & ResourceLikeAsyncProcessExceptions<AsyncProcessExceptions>
       : {},
     Insertions,
     IsMethod extends true
@@ -65,12 +78,20 @@ export type AsyncProcessRef<
                 readonly value: Signal<Value | undefined>;
                 readonly status: Signal<ResourceStatus>;
                 readonly error: Signal<Error | undefined>;
-                readonly isLoading: Signal<boolean>;
-                readonly safeValue: Signal<Value | undefined>;
-                hasValue(): boolean;
-              }
+              readonly isLoading: Signal<boolean>;
+              readonly safeValue: Signal<Value | undefined>;
+              hasValue(): boolean;
+              } & ResourceLikeAsyncProcessExceptions<
+                AsyncProcessExceptions,
+                GroupIdentifier
+              >
             | undefined;
-        },
+        } & ([GroupIdentifier] extends [string]
+          ? ResourceByIdLikeAsyncProcessExceptions<
+              AsyncProcessExceptions,
+              GroupIdentifier
+            >
+          : {}),
   ]
 >;
 
@@ -93,13 +114,17 @@ type AsyncProcessConfig<
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
          */
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<StripCraftException<Params>>>,
+        ) => GroupIdentifier;
         loader: (
           param: ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<SourceParams>
-                : NoInfer<Params>
+            StripCraftException<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<SourceParams>
+                  : NoInfer<Params>
+              >
             >
           >,
         ) => Promise<ResourceState>;
@@ -109,7 +134,9 @@ type AsyncProcessConfig<
     | {
         method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
         loader?: never;
-        identifier?: (params: NoInfer<NonNullable<Params>>) => GroupIdentifier;
+        identifier?: (
+          params: NoInfer<NonNullable<StripCraftException<Params>>>,
+        ) => GroupIdentifier;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
@@ -117,16 +144,92 @@ type AsyncProcessConfig<
         stream: ResourceStreamingLoader<
           ResourceState,
           ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<SourceParams>
-                : NoInfer<Params>
+            StripCraftException<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<SourceParams>
+                  : NoInfer<Params>
+              >
             >
           >
         >;
         preservePreviousValue?: () => boolean;
       }
   );
+
+export type AsyncProcessExceptionConstraints = {
+  params: AnyCraftException;
+  loader: AnyCraftException;
+};
+
+export type ResourceLikeAsyncProcessExceptions<
+  AsyncProcessException extends
+    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
+  GroupIdentifier = unknown,
+> = {
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: (
+      | InsertMetaInCraftExceptionIfExists<
+          AsyncProcessException['params'],
+          'params',
+          GroupIdentifier
+        >
+      | InsertMetaInCraftExceptionIfExists<
+          AsyncProcessException['loader'],
+          'loader',
+          GroupIdentifier
+        >
+    )[];
+    params?: InsertMetaInCraftExceptionIfExists<
+      AsyncProcessException['params'],
+      'params',
+      unknown
+    >;
+    loader?: InsertMetaInCraftExceptionIfExists<
+      AsyncProcessException['loader'],
+      'loader',
+      GroupIdentifier
+    >;
+  }>;
+};
+
+export type ResourceByIdLikeAsyncProcessExceptions<
+  AsyncProcessException extends
+    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
+  GroupIdentifier extends string = string,
+> = {
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: (
+      | InsertMetaInCraftExceptionIfExists<
+          AsyncProcessException['params'],
+          'params',
+          unknown
+        >
+      | InsertMetaInCraftExceptionIfExists<
+          AsyncProcessException['loader'],
+          'loader',
+          GroupIdentifier
+        >
+    )[];
+    params?: InsertMetaInCraftExceptionIfExists<
+      AsyncProcessException['params'],
+      'params',
+      unknown
+    >;
+    loader: Partial<
+      Record<
+        GroupIdentifier,
+        InsertMetaInCraftExceptionIfExists<
+          AsyncProcessException['loader'],
+          'loader',
+          GroupIdentifier
+        >
+      >
+    >;
+  }>;
+};
 
 export type AsyncProcessOutput<
   State extends object | undefined,
@@ -135,14 +238,20 @@ export type AsyncProcessOutput<
   SourceParams,
   GroupIdentifier,
   Insertions,
+  AsyncProcessExceptions extends
+    AsyncProcessExceptionConstraints = {
+    params: ExtractCraftException<Params>;
+    loader: ExtractCraftException<State>;
+  },
 > = AsyncProcessRef<
-  State,
+  StripCraftException<State>,
   ArgParams,
-  Params,
+  StripCraftException<Params>,
   Insertions,
   [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
-  GroupIdentifier
+  GroupIdentifier,
+  AsyncProcessExceptions
 >;
 
 /**
@@ -718,11 +827,110 @@ export function asyncProcess<
   >(undefined);
 
   const isConnectedToSource = isSource(AsyncProcessConfig.method);
+  const hasMethodFn =
+    typeof AsyncProcessConfig.method === 'function' &&
+    !isSignal(AsyncProcessConfig.method);
 
   const isUsingIdentifier = 'identifier' in AsyncProcessConfig;
 
+  const methodParamsException = signal<AnyCraftException | undefined>(
+    undefined,
+  );
+
+  const getIdentifierFromParams = (params: unknown): string | undefined => {
+    if (!isUsingIdentifier || !('identifier' in AsyncProcessConfig)) {
+      return undefined;
+    }
+
+    if (params === undefined || params === null) {
+      return undefined;
+    }
+
+    return AsyncProcessConfig.identifier?.(params as any) as string | undefined;
+  };
+
+  const sanitizeParamsResult = (value: AsyncProcessParams | undefined) => {
+    if (isCraftException(value)) {
+      return undefined;
+    }
+
+    return value;
+  };
+
+  const reactiveParamsException = computed(() => {
+    if (hasMethodFn) {
+      return undefined;
+    }
+
+    if (isConnectedToSource) {
+      const sourceValue = (
+        AsyncProcessConfig.method as unknown as Signal<
+          AsyncProcessParams | undefined
+        >
+      )();
+      return isCraftException(sourceValue)
+        ? enrichResourceException(sourceValue, { scope: 'params' })
+        : undefined;
+    }
+
+    return undefined;
+  });
+
+  const paramsException = computed(() => {
+    return hasMethodFn ? methodParamsException() : reactiveParamsException();
+  });
+
+  const {
+    setLoaderException,
+    exceptions,
+    hasException,
+    createSelectExceptions,
+    createSelectHasException,
+  } = createResourceExceptionsRuntime({
+    isUsingIdentifier,
+    paramsException,
+  });
+
+  const wrappedSourceParams = isConnectedToSource
+    ? ((() =>
+        sanitizeParamsResult(
+          (
+            AsyncProcessConfig.method as unknown as Signal<
+              AsyncProcessParams | undefined
+            >
+          )(),
+        )) as Signal<AsyncProcessParams | undefined>)
+    : undefined;
+
+  const wrappedLoader =
+    'loader' in AsyncProcessConfig && AsyncProcessConfig.loader
+      ? ((async (param: ResourceLoaderParams<any>) => {
+          const result = await (
+            AsyncProcessConfig.loader as (
+              param: ResourceLoaderParams<any>,
+            ) => Promise<any>
+          )(param);
+
+          if (isCraftException(result)) {
+            const exceptionId = getIdentifierFromParams(param.params);
+            setLoaderException(
+              enrichResourceException(result, {
+                scope: 'loader',
+                identifier: exceptionId,
+              }),
+              exceptionId,
+            );
+            return undefined;
+          }
+
+          const successId = getIdentifierFromParams(param.params);
+          setLoaderException(undefined, successId);
+          return result;
+        }) as typeof AsyncProcessConfig.loader)
+      : undefined;
+
   const resourceParamsSrc = isConnectedToSource
-    ? AsyncProcessConfig.method
+    ? (wrappedSourceParams as typeof AsyncProcessConfig.method)
     : AsyncProcessResourceParamsFnSignal;
 
   const resourceTarget = isUsingIdentifier
@@ -736,11 +944,13 @@ export function asyncProcess<
       >({
         ...AsyncProcessConfig,
         params: resourceParamsSrc,
+        loader: wrappedLoader,
         identifier: AsyncProcessConfig.identifier,
       } as any)
     : craftResource<AsyncProcesstate, AsyncProcessParams>({
         ...AsyncProcessConfig,
         params: resourceParamsSrc,
+        loader: wrappedLoader,
       } as ResourceOptions<any, any>);
 
   return Object.assign(
@@ -757,6 +967,13 @@ export function asyncProcess<
             AsyncProcessParams
           >,
           select: (id: GroupIdentifier) => {
+            const selectExceptions = createSelectExceptions(
+              id as unknown as string,
+            );
+            const selectHasException = createSelectHasException(
+              id as unknown as string,
+            );
+
             return computed(() => {
               const list = (
                 resourceTarget as ResourceByIdRef<
@@ -766,16 +983,37 @@ export function asyncProcess<
                 >
               )();
               //@ts-expect-error GroupIdentifier & string is not recognized correctly
-              return list[id];
+              const resource = list[id];
+              if (!resource) {
+                return undefined;
+              }
+
+              return Object.assign(resource, {
+                hasException: selectHasException,
+                exceptions: selectExceptions,
+              });
             })();
           },
         }
       : {},
     {
+      hasException,
+      exceptions,
       method: isSignal(AsyncProcessConfig.method)
         ? undefined
         : (arg: AsyncProcessArgsParams) => {
             const result = AsyncProcessConfig.method(arg);
+            if (isCraftException(result)) {
+              methodParamsException.set(
+                enrichResourceException(result, { scope: 'params' }),
+              );
+              return result as AsyncProcessParams;
+            }
+
+            if (methodParamsException()) {
+              methodParamsException.set(undefined);
+            }
+
             if (isUsingIdentifier) {
               const id = AsyncProcessConfig.identifier?.(arg as any);
               (

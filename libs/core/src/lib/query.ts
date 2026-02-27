@@ -23,44 +23,10 @@ import {
   StripCraftException,
   isCraftException,
 } from './craft-exception';
-
-function enrichQueryException(
-  exception: AnyCraftException,
-  meta: {
-    scope: 'params' | 'loader';
-    identifier?: string;
-  },
-) {
-  const nextException = {
-    ...exception,
-    scope: meta.scope,
-    [exception.code]: exception.payload,
-  } as AnyCraftException & {
-    scope: 'params' | 'loader';
-    identifier?: string;
-  };
-
-  if (meta.identifier !== undefined) {
-    nextException.identifier = meta.identifier;
-  } else {
-    delete nextException.identifier;
-  }
-
-  return nextException;
-}
-
-function removeExceptionById(
-  state: Record<string, AnyCraftException>,
-  id: string,
-): Record<string, AnyCraftException> {
-  if (!(id in state)) {
-    return state;
-  }
-
-  const nextState = { ...state };
-  delete nextState[id];
-  return nextState;
-}
+import {
+  createResourceExceptionsRuntime,
+  enrichResourceException,
+} from './resource-exception';
 
 type QueryConfig<
   ResourceState,
@@ -1143,27 +1109,6 @@ export function query<
   const methodParamsException = signal<AnyCraftException | undefined>(
     undefined,
   );
-  const loaderException = signal<AnyCraftException | undefined>(undefined);
-  const loaderExceptionsById = signal<Record<string, AnyCraftException>>({});
-
-  const setLoaderException = (
-    exception: AnyCraftException | undefined,
-    id?: string,
-  ) => {
-    if (isUsingIdentifier) {
-      if (!id) {
-        return;
-      }
-      loaderExceptionsById.update((state) =>
-        exception
-          ? { ...state, [id]: exception }
-          : removeExceptionById(state, id),
-      );
-      return;
-    }
-
-    loaderException.set(exception);
-  };
 
   const getIdentifierFromParams = (params: unknown): string | undefined => {
     if (
@@ -1199,7 +1144,7 @@ export function query<
         queryConfig.method as unknown as Signal<QueryParams | undefined>
       )();
       return isCraftException(sourceValue)
-        ? enrichQueryException(sourceValue, { scope: 'params' })
+        ? enrichResourceException(sourceValue, { scope: 'params' })
         : undefined;
     }
 
@@ -1210,7 +1155,7 @@ export function query<
     ) {
       const paramsValue = (queryConfig.params as () => QueryParams)();
       return isCraftException(paramsValue)
-        ? enrichQueryException(paramsValue, { scope: 'params' })
+        ? enrichResourceException(paramsValue, { scope: 'params' })
         : undefined;
     }
 
@@ -1219,6 +1164,17 @@ export function query<
 
   const paramsException = computed(() => {
     return hasMethodFn ? methodParamsException() : reactiveParamsException();
+  });
+
+  const {
+    setLoaderException,
+    exceptions,
+    hasException,
+    createSelectExceptions,
+    createSelectHasException,
+  } = createResourceExceptionsRuntime({
+    isUsingIdentifier,
+    paramsException,
   });
 
   const wrappedParamsFn =
@@ -1253,7 +1209,7 @@ export function query<
           if (isCraftException(result)) {
             const exceptionId = getIdentifierFromParams(param.params);
             setLoaderException(
-              enrichQueryException(result, {
+              enrichResourceException(result, {
                 scope: 'loader',
                 identifier: exceptionId,
               }),
@@ -1271,43 +1227,6 @@ export function query<
   const resourceParamsSrc = isConnectedToSource
     ? (wrappedSourceParams as typeof queryConfig.method)
     : (wrappedParamsFn ?? queryResourceParamsFnSignal);
-
-  const exceptions = computed(() => {
-    const paramsExceptionValue = paramsException();
-
-    if (isUsingIdentifier) {
-      const loaderExceptionsByIdValue = loaderExceptionsById();
-      return {
-        list: [
-          ...(paramsExceptionValue ? [paramsExceptionValue] : []),
-          ...Object.values(loaderExceptionsByIdValue),
-        ],
-        params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
-        loader: loaderExceptionsByIdValue,
-      };
-    }
-
-    const loaderExceptionValue = loaderException();
-    return {
-      list: [paramsExceptionValue, loaderExceptionValue].filter(
-        Boolean,
-      ) as AnyCraftException[],
-      params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
-      loader: (loaderExceptionValue ?? {}) as AnyCraftException | {},
-    };
-  });
-
-  const hasException = computed(() => {
-    if (paramsException()) {
-      return true;
-    }
-
-    if (isUsingIdentifier) {
-      return Object.keys(loaderExceptionsById()).length > 0;
-    }
-
-    return !!loaderException();
-  });
 
   const resourceTarget = isUsingIdentifier
     ? resourceById<
@@ -1350,26 +1269,12 @@ export function query<
             QueryParams
           >,
           select: (id: GroupIdentifier) => {
-            const selectExceptions = computed(() => {
-              const paramsExceptionValue = paramsException();
-              const loaderExceptionValue =
-                loaderExceptionsById()?.[id as unknown as string];
-
-              return {
-                list: [paramsExceptionValue, loaderExceptionValue].filter(
-                  Boolean,
-                ) as AnyCraftException[],
-                params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
-                loader: (loaderExceptionValue ?? {}) as AnyCraftException | {},
-              };
-            });
-
-            const selectHasException = computed(() => {
-              return (
-                !!paramsException() ||
-                !!loaderExceptionsById()[id as unknown as string]
-              );
-            });
+            const selectExceptions = createSelectExceptions(
+              id as unknown as string,
+            );
+            const selectHasException = createSelectHasException(
+              id as unknown as string,
+            );
 
             return computed(() => {
               const list = (
@@ -1410,7 +1315,7 @@ export function query<
 
             if (isCraftException(result)) {
               methodParamsException.set(
-                enrichQueryException(result, { scope: 'params' }),
+                enrichResourceException(result, { scope: 'params' }),
               );
               return result as QueryParams;
             }

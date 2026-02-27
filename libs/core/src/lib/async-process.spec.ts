@@ -1,11 +1,22 @@
 import { craftAsyncProcesses } from './craft-async-process';
 import { asyncProcess } from './async-process';
-import { ResourceStatus, Signal } from '@angular/core';
+import { ResourceStatus, Signal, signal } from '@angular/core';
 import { afterRecomputation } from './after-recomputation';
 import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
+import { craftException, CraftExceptionResult } from './craft-exception';
+
+type EmptyAsyncProcessExceptions = {
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: never[];
+    params?: never;
+    loader?: never;
+  }>;
+};
+
 describe('AsyncProcess', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -176,6 +187,12 @@ describe('AsyncProcess types without identifier', () => {
           readonly error: Signal<Error | undefined>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
+          hasException: Signal<boolean>;
+          exceptions: Signal<{
+            list: never[];
+            params?: never;
+            loader?: never;
+          }>;
         };
         filterChange: {
           readonly value: Signal<
@@ -195,6 +212,12 @@ describe('AsyncProcess types without identifier', () => {
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           additionalInsertion: 'injectedValue';
+          hasException: Signal<boolean>;
+          exceptions: Signal<{
+            list: never[];
+            params?: never;
+            loader?: never;
+          }>;
         };
       }>();
 
@@ -275,6 +298,12 @@ describe('AsyncProcess types without identifier', () => {
           source: ReadonlySource<{
             searchChangeText: string;
           }>;
+          hasException: Signal<boolean>;
+          exceptions: Signal<{
+            list: never[];
+            params?: never;
+            loader?: never;
+          }>;
         };
         filterChange: {
           readonly error: Signal<Error | undefined>;
@@ -294,6 +323,12 @@ describe('AsyncProcess types without identifier', () => {
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           additionalInsertion: 'injectedValue';
+          hasException: Signal<boolean>;
+          exceptions: Signal<{
+            list: never[];
+            params?: never;
+            loader?: never;
+          }>;
         };
       }>();
 
@@ -320,7 +355,8 @@ describe('AsyncProcess types without identifier', () => {
           return { searchChange };
         },
       });
-      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<{
+      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<
+        {
         readonly value: Signal<
           | {
               searchChange: string;
@@ -338,7 +374,14 @@ describe('AsyncProcess types without identifier', () => {
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         method: (args: string) => string;
-      }>();
+          hasException: Signal<boolean>;
+          exceptions: Signal<{
+            list: never[];
+            params?: never;
+            loader?: never;
+          }>;
+        }
+      >();
     });
   });
 
@@ -355,7 +398,8 @@ describe('AsyncProcess types without identifier', () => {
           return { searchChangeResult: searchChange.searchChange };
         },
       });
-      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<{
+      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<
+        {
         readonly value: Signal<
           | {
               searchChangeResult: string;
@@ -375,7 +419,14 @@ describe('AsyncProcess types without identifier', () => {
         source: ReadonlySource<{
           searchChange: string;
         }>;
-      }>();
+          hasException: Signal<boolean>;
+          exceptions: Signal<{
+            list: never[];
+            params?: never;
+            loader?: never;
+          }>;
+        }
+      >();
     });
   });
 });
@@ -428,7 +479,7 @@ describe('AsyncProcess types with identifier', () => {
 
       const search = {} as ReturnType<s['select']>;
       expectTypeOf(search).toEqualTypeOf<
-        | {
+          | ({
             readonly value: Signal<
               | {
                   searchChange: string;
@@ -445,7 +496,7 @@ describe('AsyncProcess types with identifier', () => {
             readonly error: Signal<Error | undefined>;
             readonly isLoading: Signal<boolean>;
             hasValue(): boolean;
-          }
+          } & EmptyAsyncProcessExceptions)
         | undefined
       >();
 
@@ -453,7 +504,8 @@ describe('AsyncProcess types with identifier', () => {
       //.  ^?
 
       const filter = {} as f;
-      expectTypeOf(filter).toEqualTypeOf<{
+      expectTypeOf(filter).toEqualTypeOf<
+        {
         readonly error: Signal<Error | undefined>;
         readonly value: Signal<
           | {
@@ -471,7 +523,14 @@ describe('AsyncProcess types with identifier', () => {
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         additionalInsertion: 'injectedValue';
-      }>();
+          hasException: Signal<boolean>;
+          exceptions: Signal<{
+            list: never[];
+            params?: never;
+            loader?: never;
+          }>;
+        }
+      >();
 
       type methods = ReturnType<
         ReturnType<typeof AsyncProcessOutput>
@@ -541,7 +600,7 @@ describe('AsyncProcess types with identifier', () => {
           new Proxy({}, {}) as any,
         ).props.searchChange.select('test');
         expectTypeOf(search).toEqualTypeOf<
-          | {
+          | ({
               readonly value: Signal<
                 | {
                     searchChangeText: string;
@@ -558,7 +617,7 @@ describe('AsyncProcess types with identifier', () => {
               readonly error: Signal<Error | undefined>;
               readonly isLoading: Signal<boolean>;
               hasValue(): boolean;
-            }
+            } & EmptyAsyncProcessExceptions)
           | undefined
         >();
 
@@ -568,7 +627,8 @@ describe('AsyncProcess types with identifier', () => {
           {} as any,
           {} as any,
         ).props.filterChange;
-        expectTypeOf(filter).toEqualTypeOf<{
+        expectTypeOf(filter).toEqualTypeOf<
+          {
           readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
@@ -586,7 +646,14 @@ describe('AsyncProcess types with identifier', () => {
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           additionalInsertion: 'injectedValue';
-        }>();
+            hasException: Signal<boolean>;
+            exceptions: Signal<{
+              list: never[];
+              params?: never;
+              loader?: never;
+            }>;
+          }
+        >();
 
         type methods = ReturnType<
           ReturnType<typeof AsyncProcessOutput>
@@ -617,7 +684,7 @@ describe('AsyncProcess types with identifier', () => {
       });
       const _entity = _AsyncProcessOutput.select('test');
       expectTypeOf<typeof _entity>().toEqualTypeOf<
-        | {
+        | ({
             readonly value: Signal<
               | {
                   searchChange: string;
@@ -634,7 +701,7 @@ describe('AsyncProcess types with identifier', () => {
               | undefined
             >;
             hasValue(): boolean;
-          }
+          } & EmptyAsyncProcessExceptions)
         | undefined
       >();
     });
@@ -658,6 +725,330 @@ describe('AsyncProcess types with identifier', () => {
       expectTypeOf(_AsyncProcessOutput.select('test')?.value()).toEqualTypeOf<
         { searchChangeResult: string } | undefined
       >();
+    });
+  });
+});
+
+describe('asyncProcess exceptions', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('typing: captures exception returned by method and loader', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const shouldFail = signal(true);
+      const asyncProcessRef = asyncProcess({
+        method: (value: string) =>
+          shouldFail()
+            ? craftException(
+                { code: 'INVALID_USER_ID' },
+                { reason: 'missing' as const },
+              )
+            : value,
+        loader: async ({ params }) => {
+          return shouldFail()
+            ? craftException(
+                { code: 'INVALID_USER_ID' },
+                { reason: 'missing' as const },
+              )
+            : { id: params };
+        },
+      });
+
+      asyncProcessRef.method('user-1');
+      await vi.runAllTimersAsync();
+
+      expectTypeOf(asyncProcessRef.exceptions().list).toEqualTypeOf<
+        (
+          | CraftExceptionResult<
+              {
+                code: 'INVALID_USER_ID';
+                scope: 'params';
+              },
+              {
+                reason: 'missing';
+              }
+            >
+          | CraftExceptionResult<
+              {
+                code: 'INVALID_USER_ID';
+                scope: 'loader';
+              },
+              {
+                reason: 'missing';
+              }
+            >
+        )[]
+      >();
+    });
+  });
+
+  it('typing with identifier: captures exception returned by method and loader', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const shouldFailMethod = signal(true);
+      const shouldFailLoader = signal(true);
+
+      const asyncProcessRef = asyncProcess({
+        method: (value: string) =>
+          shouldFailMethod()
+            ? craftException(
+                { code: 'INVALID_USER_ID' },
+                { reason: 'missing' as const },
+              )
+            : value,
+        identifier: (id) => id,
+        loader: async ({ params }) => {
+          return shouldFailLoader()
+            ? craftException(
+                { code: 'API_ERROR' },
+                { reason: 'missing user' as const },
+              )
+            : { id: params };
+        },
+      });
+
+      asyncProcessRef.method('user-1');
+      await vi.runAllTimersAsync();
+
+      expectTypeOf(asyncProcessRef.exceptions().list).toEqualTypeOf<
+        (
+          | CraftExceptionResult<
+              {
+                code: 'INVALID_USER_ID';
+                scope: 'params';
+              },
+              {
+                reason: 'missing';
+              }
+            >
+          | CraftExceptionResult<
+              {
+                code: 'API_ERROR';
+                scope: 'loader';
+                identifier: string;
+              },
+              {
+                reason: 'missing user';
+              }
+            >
+        )[]
+      >();
+
+      expectTypeOf(asyncProcessRef.exceptions().params).toEqualTypeOf<
+        | CraftExceptionResult<
+            {
+              code: 'INVALID_USER_ID';
+              scope: 'params';
+            },
+            {
+              reason: 'missing';
+            }
+          >
+        | undefined
+      >();
+
+      expectTypeOf(asyncProcessRef.exceptions().loader).toEqualTypeOf<
+        Partial<
+          Record<
+            string,
+            CraftExceptionResult<
+              {
+                code: 'API_ERROR';
+                scope: 'loader';
+                identifier: string;
+              },
+              {
+                reason: 'missing user';
+              }
+            >
+          >
+        >
+      >();
+    });
+  });
+
+  it('typing with identifier: return select exceptions for an identifier', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const asyncProcessRef = asyncProcess({
+        method: (value: string) => value,
+        identifier: (id) => id,
+        loader: async () =>
+          craftException(
+            {
+              code: 'API_ERROR',
+            },
+            { reason: 'missing' as const },
+          ),
+      });
+
+      asyncProcessRef.method('user-1');
+      await vi.runAllTimersAsync();
+
+      expectTypeOf(asyncProcessRef.exceptions().loader).toEqualTypeOf<
+        Partial<
+          Record<
+            string,
+            CraftExceptionResult<
+              {
+                code: 'API_ERROR';
+                scope: 'loader';
+                identifier: string;
+              },
+              {
+                reason: 'missing';
+              }
+            >
+          >
+        >
+      >();
+
+      expectTypeOf(
+        asyncProcessRef.select('')?.exceptions().loader,
+      ).toEqualTypeOf<
+        | CraftExceptionResult<
+            {
+              code: 'API_ERROR';
+              scope: 'loader';
+              identifier: string;
+            },
+            {
+              reason: 'missing';
+            }
+          >
+        | undefined
+      >();
+    });
+  });
+
+  it('typing with identifier: supports union of loader exceptions', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const failed = signal(true);
+      const asyncProcessRef = asyncProcess({
+        method: (value: string) => value,
+        identifier: (id) => id,
+        loader: async () =>
+          failed()
+            ? craftException(
+                {
+                  code: 'API_ERROR',
+                },
+                { reason: 'missing' as const },
+              )
+            : craftException(
+                {
+                  code: 'HTTP_ERROR',
+                },
+                { reason: 'disconnected' as const },
+              ),
+      });
+
+      asyncProcessRef.method('user-1');
+      await vi.runAllTimersAsync();
+
+      expectTypeOf(asyncProcessRef.exceptions().loader).toEqualTypeOf<
+        Partial<
+          Record<
+            string,
+            | CraftExceptionResult<
+                {
+                  code: 'API_ERROR';
+                  scope: 'loader';
+                  identifier: string;
+                },
+                {
+                  reason: 'missing';
+                }
+              >
+            | CraftExceptionResult<
+                {
+                  code: 'HTTP_ERROR';
+                  scope: 'loader';
+                  identifier: string;
+                },
+                {
+                  reason: 'disconnected';
+                }
+              >
+          >
+        >
+      >();
+
+      expectTypeOf(
+        asyncProcessRef.select('')?.exceptions().loader?.code,
+      ).toEqualTypeOf<'API_ERROR' | 'HTTP_ERROR' | undefined>();
+    });
+  });
+
+  it('captures exception returned by method and does not trigger loader', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const loader = vi.fn(async ({ params }: { params: string }) => ({
+        id: params,
+      }));
+
+      const asyncProcessRef = asyncProcess({
+        method: (value: string) =>
+          value.length < 3
+            ? craftException(
+                { code: 'SEARCH_TERM_TOO_SHORT' },
+                { min: 3, received: value.length },
+              )
+            : value,
+        loader: loader as any,
+      });
+
+      asyncProcessRef.method('ab');
+      await vi.runAllTimersAsync();
+
+      expect(loader).not.toHaveBeenCalled();
+      expect(asyncProcessRef.hasException()).toBe(true);
+      expect(asyncProcessRef.exceptions().params?.SEARCH_TERM_TOO_SHORT).toEqual({
+        min: 3,
+        received: 2,
+      });
+    });
+  });
+
+  it('captures exception returned by loader without exposing it in safeValue', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const asyncProcessRef = asyncProcess({
+        method: (value: string) => value,
+        loader: async () =>
+          craftException(
+            { code: 'INVALID_USER_ID', scope: 'loader' },
+            { from: 'loader' as const },
+          ),
+      });
+
+      asyncProcessRef.method('user-1');
+      await vi.runAllTimersAsync();
+
+      expect(asyncProcessRef.exceptions().loader?.INVALID_USER_ID).toEqual({
+        from: 'loader',
+      });
+      expect(asyncProcessRef.safeValue()).toBeUndefined();
+      expect(asyncProcessRef.hasException()).toBe(true);
+    });
+  });
+
+  it('keeps method exceptions global in parallel asyncProcess', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const asyncProcessRef = asyncProcess({
+        method: (id: 'A' | 'B') =>
+          craftException({ code: 'INVALID_ID' }, { params: id }),
+        identifier: (id) => id,
+        loader: async ({ params }) => ({ id: params }),
+      });
+
+      asyncProcessRef.method('A');
+      await vi.runAllTimersAsync();
+
+      expect(asyncProcessRef.exceptions().params?.payload).toEqual({
+        params: 'A',
+      });
+      expect(asyncProcessRef.exceptions().loader).toEqual({});
     });
   });
 });

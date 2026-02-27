@@ -23,6 +23,10 @@ import {
   StripCraftException,
   isCraftException,
 } from './craft-exception';
+import {
+  createResourceExceptionsRuntime,
+  enrichResourceException,
+} from './resource-exception';
 // todo refactor to share code with AsyncProcess
 
 type MutationConfig<
@@ -452,44 +456,6 @@ export type MutationOutput<
   GroupIdentifier,
   MutationExceptions
 >;
-
-function enrichMutationException(
-  exception: AnyCraftException,
-  meta: {
-    scope: 'params' | 'loader';
-    identifier?: string;
-  },
-) {
-  const nextException = {
-    ...exception,
-    scope: meta.scope,
-    [exception.code]: exception.payload,
-  } as AnyCraftException & {
-    scope: 'params' | 'loader';
-    identifier?: string;
-  };
-
-  if (meta.identifier !== undefined) {
-    nextException.identifier = meta.identifier;
-  } else {
-    delete nextException.identifier;
-  }
-
-  return nextException;
-}
-
-function removeMutationExceptionById(
-  state: Record<string, AnyCraftException>,
-  id: string,
-): Record<string, AnyCraftException> {
-  if (!(id in state)) {
-    return state;
-  }
-
-  const nextState = { ...state };
-  delete nextState[id];
-  return nextState;
-}
 
 export function mutation<
   MutationState extends object | undefined,
@@ -1159,27 +1125,6 @@ export function mutation<
   const methodParamsException = signal<AnyCraftException | undefined>(
     undefined,
   );
-  const loaderException = signal<AnyCraftException | undefined>(undefined);
-  const loaderExceptionsById = signal<Record<string, AnyCraftException>>({});
-
-  const setLoaderException = (
-    exception: AnyCraftException | undefined,
-    id?: string,
-  ) => {
-    if (isUsingIdentifier) {
-      if (!id) {
-        return;
-      }
-      loaderExceptionsById.update((state) =>
-        exception
-          ? { ...state, [id]: exception }
-          : removeMutationExceptionById(state, id),
-      );
-      return;
-    }
-
-    loaderException.set(exception);
-  };
 
   const getIdentifierFromParams = (params: unknown): string | undefined => {
     if (!isUsingIdentifier || !('identifier' in mutationConfig)) {
@@ -1215,7 +1160,7 @@ export function mutation<
         mutationConfig.method as unknown as Signal<MutationParams | undefined>
       )();
       return isCraftException(sourceValue)
-        ? enrichMutationException(sourceValue, { scope: 'params' })
+        ? enrichResourceException(sourceValue, { scope: 'params' })
         : undefined;
     }
 
@@ -1225,7 +1170,7 @@ export function mutation<
     ) {
       const paramsValue = (mutationConfig.params as () => MutationParams)();
       return isCraftException(paramsValue)
-        ? enrichMutationException(paramsValue, { scope: 'params' })
+        ? enrichResourceException(paramsValue, { scope: 'params' })
         : undefined;
     }
 
@@ -1234,6 +1179,17 @@ export function mutation<
 
   const paramsException = computed(() => {
     return hasMethodFn ? methodParamsException() : reactiveParamsException();
+  });
+
+  const {
+    setLoaderException,
+    exceptions,
+    hasException,
+    createSelectExceptions,
+    createSelectHasException,
+  } = createResourceExceptionsRuntime({
+    isUsingIdentifier,
+    paramsException,
   });
 
   const wrappedParamsFn =
@@ -1270,7 +1226,7 @@ export function mutation<
           if (isCraftException(result)) {
             const exceptionId = getIdentifierFromParams(param.params);
             setLoaderException(
-              enrichMutationException(result, {
+              enrichResourceException(result, {
                 scope: 'loader',
                 identifier: exceptionId,
               }),
@@ -1288,43 +1244,6 @@ export function mutation<
   const resourceParamsSrc = isConnectedToSource
     ? (wrappedSourceParams as typeof mutationConfig.method)
     : (wrappedParamsFn ?? mutationResourceParamsFnSignal);
-
-  const exceptions = computed(() => {
-    const paramsExceptionValue = paramsException();
-
-    if (isUsingIdentifier) {
-      const loaderExceptionsByIdValue = loaderExceptionsById();
-      return {
-        list: [
-          ...(paramsExceptionValue ? [paramsExceptionValue] : []),
-          ...Object.values(loaderExceptionsByIdValue),
-        ],
-        params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
-        loader: loaderExceptionsByIdValue,
-      };
-    }
-
-    const loaderExceptionValue = loaderException();
-    return {
-      list: [paramsExceptionValue, loaderExceptionValue].filter(
-        Boolean,
-      ) as AnyCraftException[],
-      params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
-      loader: (loaderExceptionValue ?? {}) as AnyCraftException | {},
-    };
-  });
-
-  const hasException = computed(() => {
-    if (paramsException()) {
-      return true;
-    }
-
-    if (isUsingIdentifier) {
-      return Object.keys(loaderExceptionsById()).length > 0;
-    }
-
-    return !!loaderException();
-  });
 
   const resourceTarget = isUsingIdentifier
     ? resourceById<
@@ -1369,26 +1288,12 @@ export function mutation<
             MutationParams
           >,
           select: (id: GroupIdentifier) => {
-            const selectExceptions = computed(() => {
-              const paramsExceptionValue = paramsException();
-              const loaderExceptionValue =
-                loaderExceptionsById()?.[id as unknown as string];
-
-              return {
-                list: [paramsExceptionValue, loaderExceptionValue].filter(
-                  Boolean,
-                ) as AnyCraftException[],
-                params: (paramsExceptionValue ?? {}) as AnyCraftException | {},
-                loader: (loaderExceptionValue ?? {}) as AnyCraftException | {},
-              };
-            });
-
-            const selectHasException = computed(() => {
-              return (
-                !!paramsException() ||
-                !!loaderExceptionsById()[id as unknown as string]
-              );
-            });
+            const selectExceptions = createSelectExceptions(
+              id as unknown as string,
+            );
+            const selectHasException = createSelectHasException(
+              id as unknown as string,
+            );
 
             return computed(() => {
               const list = (
@@ -1431,7 +1336,7 @@ export function mutation<
 
               if (isCraftException(result)) {
                 methodParamsException.set(
-                  enrichMutationException(result, { scope: 'params' }),
+                  enrichResourceException(result, { scope: 'params' }),
                 );
                 return result as MutationParams;
               }
