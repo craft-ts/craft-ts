@@ -1,5 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
-import { addOne, insertSelect, on$, source$, state } from '@craft-ng/core';
+import {
+  addOne,
+  insertLocalStoragePersister,
+  insertSelect,
+  on$,
+  source$,
+  state,
+} from '@craft-ng/core';
 import { LongPressDirective } from './long-press.directive';
 
 type PixelCellState = {
@@ -173,6 +180,10 @@ export default class PixelArtMatrix {
       },
       grid: createInitialGrid(),
     },
+    insertLocalStoragePersister({
+      key: 'pixel-art-matrix-state',
+      storeName: 'pixel-art-matrix',
+    }),
     () => ({
       resetAll$: source$<void>(),
     }),

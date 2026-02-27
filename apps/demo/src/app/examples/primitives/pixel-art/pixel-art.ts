@@ -1,9 +1,9 @@
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-} from '@angular/core';
-import { insertSelect, state } from '@craft-ng/core';
+  insertLocalStoragePersister,
+  insertSelect,
+  state,
+} from '@craft-ng/core';
 
 type PixelCellState = {
   index: number;
@@ -51,7 +51,7 @@ const CELL_INDEXES = Array.from(
         <span>Clics totaux: {{ cells.totalPaintActions() }}</span>
       </div>
 
-        <div class="pixel-art__grid" role="grid" aria-label="Pixel Art 16x16">
+      <div class="pixel-art__grid" role="grid" aria-label="Pixel Art 16x16">
         @for (index of cellIndexes; track index) {
           @let cell = cells.selectCell(index);
           <button
@@ -89,6 +89,10 @@ export default class PixelArt {
       setActiveColor: (color: string) =>
         update((current) => ({ ...current, activeColor: color })),
     }),
+    insertLocalStoragePersister({
+      key: 'pixel-art-ui-state',
+      storeName: 'pixel-art-ui',
+    }),
   );
 
   protected readonly cells = state(
@@ -100,6 +104,10 @@ export default class PixelArt {
           paintCount: 0,
         }) satisfies PixelCellState,
     ),
+    insertLocalStoragePersister({
+      key: 'pixel-art-cells-state',
+      storeName: 'pixel-art-cells',
+    }),
     insertSelect('cell', ({ state, update }) => ({
       paint: () =>
         update((cell) => ({
