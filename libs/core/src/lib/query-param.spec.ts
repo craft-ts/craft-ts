@@ -419,6 +419,57 @@ describe('queryParam exceptions', () => {
     });
   });
 
+  it('typing: exposes exceptions in insertions context', () => {
+    TestBed.runInInjectionContext(() => {
+      queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value) =>
+                value === 'invalid'
+                  ? craftException(
+                      { code: 'INVALID_PAGE' },
+                      { reason: 'NaN' as const },
+                    )
+                  : parseInt(value, 10),
+              serialize: (value) => String(value),
+            },
+          },
+        },
+        ({ exceptions, hasException }) => {
+          expectTypeOf(hasException()).toEqualTypeOf<boolean>();
+          expectTypeOf(exceptions().list).toEqualTypeOf<
+            CraftExceptionResult<
+              {
+                code: 'INVALID_PAGE';
+                scope: 'parse';
+                identifier: 'page';
+              },
+              {
+                reason: 'NaN';
+              }
+            >[]
+          >();
+          expectTypeOf(exceptions().parse.page).toEqualTypeOf<
+            | CraftExceptionResult<
+                {
+                  code: 'INVALID_PAGE';
+                  scope: 'parse';
+                  identifier: 'page';
+                },
+                {
+                  reason: 'NaN';
+                }
+              >
+            | undefined
+          >();
+          return {};
+        },
+      );
+    });
+  });
+
   it('captures parse exception returned by parse function', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);

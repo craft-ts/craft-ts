@@ -418,6 +418,8 @@ export function queryParam<
         const newInsertions = insert({
           state: queryParamsState.asReadonly(),
           config: queryParamsConfig,
+          hasException,
+          exceptions,
           ...methods,
           insertions: acc as {},
         } as InsertionQueryParamsFactoryContext<QueryParamsType, {}>);

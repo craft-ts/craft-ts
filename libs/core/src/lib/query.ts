@@ -10,7 +10,10 @@ import {
   signal,
   WritableSignal,
 } from '@angular/core';
-import { InsertionsResourcesFactory } from './query.core';
+import {
+  InsertionsResourcesFactory,
+  QueryExceptionConstraints,
+} from './query.core';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
@@ -179,11 +182,6 @@ type QueryConfig<
             ) => boolean)
       : never;
   };
-
-export type QueryExceptionConstraints = {
-  params: unknown;
-  loader: unknown;
-};
 
 export type ResourceLikeExceptions<
   QueryException extends QueryExceptionConstraints,
@@ -402,6 +400,10 @@ export function query<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
+  Exceptions extends QueryExceptionConstraints = {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  },
 >(
   queryConfig: QueryConfig<
     QueryState,
@@ -420,10 +422,7 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   {},
-  {
-    params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
-  }
+  Exceptions
 >;
 export function query<
   QueryState extends object | undefined,
@@ -435,6 +434,10 @@ export function query<
   FromObjectState,
   FromObjectResourceParams,
   Insertion1,
+  Exceptions extends QueryExceptionConstraints = {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  },
 >(
   queryConfig: QueryConfig<
     QueryState,
@@ -448,9 +451,11 @@ export function query<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
-    Insertion1
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
+    Insertion1,
+    {}
   >,
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -459,10 +464,7 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   Insertion1,
-  {
-    params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
-  }
+  Exceptions
 >;
 export function query<
   QueryState extends object | undefined,
@@ -475,6 +477,10 @@ export function query<
   FromObjectResourceParams,
   Insertion1,
   Insertion2,
+  Exceptions extends QueryExceptionConstraints = {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  },
 >(
   queryConfig: QueryConfig<
     QueryState,
@@ -488,14 +494,16 @@ export function query<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
@@ -506,10 +514,7 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   Insertion1 & Insertion2,
-  {
-    params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
-  }
+  Exceptions
 >;
 export function query<
   QueryState extends object | undefined,
@@ -523,6 +528,10 @@ export function query<
   Insertion1,
   Insertion2,
   Insertion3,
+  Exceptions extends QueryExceptionConstraints = {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  },
 >(
   queryConfig: QueryConfig<
     QueryState,
@@ -536,21 +545,24 @@ export function query<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
@@ -560,11 +572,8 @@ export function query<
   QueryArgsParams,
   StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2,
-  {
-    params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
-  } & Insertion3
+  Insertion1 & Insertion2 & Insertion3,
+  Exceptions
 >;
 export function query<
   QueryState extends object | undefined,
@@ -579,6 +588,10 @@ export function query<
   Insertion2,
   Insertion3,
   Insertion4,
+  Exceptions extends QueryExceptionConstraints = {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  },
 >(
   queryConfig: QueryConfig<
     QueryState,
@@ -592,28 +605,32 @@ export function query<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
@@ -623,12 +640,8 @@ export function query<
   QueryArgsParams,
   StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2,
-  {
-    params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
-  } & Insertion3 &
-    Insertion4
+  Insertion1 & Insertion2 & Insertion3 & Insertion4,
+  Exceptions
 >;
 export function query<
   QueryState extends object | undefined,
@@ -644,6 +657,10 @@ export function query<
   Insertion3,
   Insertion4,
   Insertion5,
+  Exceptions extends QueryExceptionConstraints = {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  },
 >(
   queryConfig: QueryConfig<
     QueryState,
@@ -657,35 +674,40 @@ export function query<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
@@ -695,13 +717,8 @@ export function query<
   QueryArgsParams,
   StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2,
-  {
-    params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
-  } & Insertion3 &
-    Insertion4 &
-    Insertion5
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+  Exceptions
 >;
 export function query<
   QueryState extends object | undefined,
@@ -718,6 +735,10 @@ export function query<
   Insertion4,
   Insertion5,
   Insertion6,
+  Exceptions extends QueryExceptionConstraints = {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  },
 >(
   queryConfig: QueryConfig<
     QueryState,
@@ -731,42 +752,48 @@ export function query<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
@@ -776,14 +803,8 @@ export function query<
   QueryArgsParams,
   StripCraftException<QueryParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2,
-  {
-    params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
-  } & Insertion3 &
-    Insertion4 &
-    Insertion5 &
-    Insertion6
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
+  Exceptions
 >;
 export function query<
   QueryState extends object | undefined,
@@ -801,6 +822,10 @@ export function query<
   Insertion5,
   Insertion6,
   Insertion7,
+  Exceptions extends QueryExceptionConstraints = {
+    params: ExtractCraftException<QueryParams>;
+    loader: ExtractCraftException<QueryState>;
+  },
 >(
   queryConfig: QueryConfig<
     QueryState,
@@ -814,49 +839,56 @@ export function query<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
   insertion7: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<QueryState>,
-    NoInfer<QueryParams>,
+    NoInfer<StripCraftException<QueryState>>,
+    NoInfer<StripCraftException<QueryParams>>,
+    Exceptions,
     Insertion7,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
   >,
@@ -873,10 +905,7 @@ export function query<
     Insertion5 &
     Insertion6 &
     Insertion7,
-  {
-    params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
-  }
+  Exceptions
 >;
 /**
  * Creates a reactive query manager that handles data fetching with automatic state tracking.
@@ -1346,8 +1375,10 @@ export function query<
     (
       insertions as InsertionsResourcesFactory<
         NoInfer<GroupIdentifier>,
-        NoInfer<QueryState>,
-        NoInfer<QueryParams>,
+        NoInfer<StripCraftException<QueryState>>,
+        NoInfer<StripCraftException<QueryParams>>,
+        QueryExceptionConstraints,
+        {},
         {}
       >[]
     )?.reduce(
@@ -1364,6 +1395,8 @@ export function query<
             resourceParamsSrc: resourceParamsSrc as WritableSignal<
               NoInfer<QueryParams>
             >,
+            hasException,
+            exceptions,
             insertions: acc as {},
             state: resourceTarget.state,
             set: resourceTarget.set,

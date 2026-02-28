@@ -27,7 +27,6 @@ import {
   createResourceExceptionsRuntime,
   enrichResourceException,
 } from './resource-exception';
-// todo refactor to share code with AsyncProcess
 
 type MutationConfig<
   ResourceState,
@@ -63,8 +62,8 @@ type MutationConfig<
           param: ResourceLoaderParams<
             NonNullable<
               [unknown] extends [Params]
-                ? NoInfer<SourceParams>
-                : NoInfer<Params>
+                ? NoInfer<StripCraftException<SourceParams>>
+                : NoInfer<StripCraftException<Params>>
             >
           >,
         ) => Promise<ResourceState>;
@@ -95,8 +94,8 @@ type MutationConfig<
           ResourceLoaderParams<
             NonNullable<
               [unknown] extends [Params]
-                ? NoInfer<SourceParams>
-                : NoInfer<Params>
+                ? NoInfer<StripCraftException<SourceParams>>
+                : NoInfer<StripCraftException<Params>>
             >
           >
         >;
@@ -132,8 +131,8 @@ type MutationConfig<
           ResourceLoaderParams<
             NonNullable<
               [unknown] extends [Params]
-                ? NoInfer<SourceParams>
-                : NoInfer<Params>
+                ? NoInfer<StripCraftException<SourceParams>>
+                : NoInfer<StripCraftException<Params>>
             >
           >
         >;
@@ -171,8 +170,8 @@ type MutationConfig<
           param: ResourceLoaderParams<
             NonNullable<
               [unknown] extends [Params]
-                ? NoInfer<SourceParams>
-                : NoInfer<Params>
+                ? NoInfer<StripCraftException<SourceParams>>
+                : NoInfer<StripCraftException<Params>>
             >
           >,
         ) => Promise<ResourceState>;
@@ -201,8 +200,8 @@ type MutationConfig<
           ResourceLoaderParams<
             NonNullable<
               [unknown] extends [Params]
-                ? NoInfer<SourceParams>
-                : NoInfer<Params>
+                ? NoInfer<StripCraftException<SourceParams>>
+                : NoInfer<StripCraftException<Params>>
             >
           >
         >;
@@ -231,8 +230,8 @@ type MutationConfig<
           param: ResourceLoaderParams<
             NonNullable<
               [unknown] extends [Params]
-                ? NoInfer<SourceParams>
-                : NoInfer<Params>
+                ? NoInfer<StripCraftException<SourceParams>>
+                : NoInfer<StripCraftException<Params>>
             >
           >,
         ) => Promise<ResourceState>;
@@ -245,36 +244,47 @@ export type MutationExceptionConstraints = {
   loader: unknown;
 };
 
+type HasDefinedException<
+  MutationException extends MutationExceptionConstraints,
+> = [MutationException['params']] extends [never]
+  ? [MutationException['loader']] extends [never]
+    ? false
+    : true
+  : true;
+
 export type ResourceLikeMutationExceptions<
   MutationException extends MutationExceptionConstraints,
   GroupIdentifier = unknown,
-> = {
-  hasException: Signal<boolean>;
-  exceptions: Signal<{
-    list: (
-      | InsertMetaInCraftExceptionIfExists<
-          MutationException['params'],
-          'params',
-          unknown
-        >
-      | InsertMetaInCraftExceptionIfExists<
-          MutationException['loader'],
-          'loader',
-          GroupIdentifier
-        >
-    )[];
-    params?: InsertMetaInCraftExceptionIfExists<
-      MutationException['params'],
-      'params',
-      unknown
-    >;
-    loader?: InsertMetaInCraftExceptionIfExists<
-      MutationException['loader'],
-      'loader',
-      GroupIdentifier
-    >;
-  }>;
-};
+> =
+  HasDefinedException<MutationException> extends true
+    ? {
+        hasException: Signal<HasDefinedException<MutationException>>;
+        exceptions: Signal<{
+          list: (
+            | InsertMetaInCraftExceptionIfExists<
+                MutationException['params'],
+                'params',
+                unknown
+              >
+            | InsertMetaInCraftExceptionIfExists<
+                MutationException['loader'],
+                'loader',
+                GroupIdentifier
+              >
+          )[];
+          params?: InsertMetaInCraftExceptionIfExists<
+            MutationException['params'],
+            'params',
+            unknown
+          >;
+          loader?: InsertMetaInCraftExceptionIfExists<
+            MutationException['loader'],
+            'loader',
+            GroupIdentifier
+          >;
+        }>;
+      }
+    : {};
 
 export type ResourceByIdLikeMutationExceptions<
   MutationException extends MutationExceptionConstraints,
@@ -442,10 +452,7 @@ export type MutationOutput<
   SourceParams,
   GroupIdentifier,
   Insertions,
-  MutationExceptions extends MutationExceptionConstraints = {
-    params: ExtractCraftException<Params>;
-    loader: ExtractCraftException<State>;
-  },
+  MutationExceptions extends MutationExceptionConstraints,
 > = MutationRef<
   StripCraftException<State>,
   StripCraftException<Params>,
@@ -466,6 +473,10 @@ export function mutation<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
+  Exceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<MutationParams>;
+    loader: ExtractCraftException<MutationState>;
+  },
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -478,12 +489,13 @@ export function mutation<
     FromObjectResourceParams
   >,
 ): MutationOutput<
-  MutationState,
-  MutationParams,
+  StripCraftException<MutationState>,
+  StripCraftException<MutationParams>,
   MutationArgsParams,
-  SourceParams,
+  StripCraftException<MutationParams>,
   GroupIdentifier,
-  {}
+  {},
+  Exceptions
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -495,6 +507,10 @@ export function mutation<
   FromObjectState,
   FromObjectResourceParams,
   Insertion1,
+  Exceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<MutationParams>;
+    loader: ExtractCraftException<MutationState>;
+  },
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -508,17 +524,20 @@ export function mutation<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
-    Insertion1
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
+    Insertion1,
+    {}
   >,
 ): MutationOutput<
-  MutationState,
-  MutationParams,
+  StripCraftException<MutationState>,
+  StripCraftException<MutationParams>,
   MutationArgsParams,
-  SourceParams,
+  StripCraftException<MutationParams>,
   GroupIdentifier,
-  Insertion1
+  Insertion1,
+  Exceptions
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -531,6 +550,10 @@ export function mutation<
   FromObjectResourceParams,
   Insertion1,
   Insertion2,
+  Exceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<MutationParams>;
+    loader: ExtractCraftException<MutationState>;
+  },
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -544,24 +567,27 @@ export function mutation<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
 ): MutationOutput<
-  MutationState,
-  MutationParams,
+  StripCraftException<MutationState>,
+  StripCraftException<MutationParams>,
   MutationArgsParams,
-  SourceParams,
+  StripCraftException<MutationParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2
+  Insertion1 & Insertion2,
+  Exceptions
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -575,6 +601,10 @@ export function mutation<
   Insertion1,
   Insertion2,
   Insertion3,
+  Exceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<MutationParams>;
+    loader: ExtractCraftException<MutationState>;
+  },
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -588,31 +618,35 @@ export function mutation<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
 ): MutationOutput<
-  MutationState,
-  MutationParams,
+  StripCraftException<MutationState>,
+  StripCraftException<MutationParams>,
   MutationArgsParams,
-  SourceParams,
+  StripCraftException<MutationParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2 & Insertion3
+  Insertion1 & Insertion2 & Insertion3,
+  Exceptions
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -627,6 +661,10 @@ export function mutation<
   Insertion2,
   Insertion3,
   Insertion4,
+  Exceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<MutationParams>;
+    loader: ExtractCraftException<MutationState>;
+  },
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -640,38 +678,43 @@ export function mutation<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
 ): MutationOutput<
-  MutationState,
-  MutationParams,
+  StripCraftException<MutationState>,
+  StripCraftException<MutationParams>,
   MutationArgsParams,
-  SourceParams,
+  StripCraftException<MutationParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2 & Insertion3 & Insertion4
+  Insertion1 & Insertion2 & Insertion3 & Insertion4,
+  Exceptions
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -687,6 +730,10 @@ export function mutation<
   Insertion3,
   Insertion4,
   Insertion5,
+  Exceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<MutationParams>;
+    loader: ExtractCraftException<MutationState>;
+  },
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -700,45 +747,51 @@ export function mutation<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
 ): MutationOutput<
-  MutationState,
-  MutationParams,
+  StripCraftException<MutationState>,
+  StripCraftException<MutationParams>,
   MutationArgsParams,
-  SourceParams,
+  StripCraftException<MutationParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+  Exceptions
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -755,6 +808,10 @@ export function mutation<
   Insertion4,
   Insertion5,
   Insertion6,
+  Exceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<MutationParams>;
+    loader: ExtractCraftException<MutationState>;
+  },
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -768,52 +825,59 @@ export function mutation<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
 ): MutationOutput<
-  MutationState,
-  MutationParams,
+  StripCraftException<MutationState>,
+  StripCraftException<MutationParams>,
   MutationArgsParams,
-  SourceParams,
+  StripCraftException<MutationParams>,
   GroupIdentifier,
-  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
+  Exceptions
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -831,6 +895,10 @@ export function mutation<
   Insertion5,
   Insertion6,
   Insertion7,
+  Exceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<MutationParams>;
+    loader: ExtractCraftException<MutationState>;
+  },
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -844,57 +912,64 @@ export function mutation<
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion1
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion2,
     Insertion1
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion3,
     Insertion1 & Insertion2
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion4,
     Insertion1 & Insertion2 & Insertion3
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion5,
     Insertion1 & Insertion2 & Insertion3 & Insertion4
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion6,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
   >,
   insertion7: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
-    NoInfer<MutationState>,
-    NoInfer<MutationParams>,
+    NoInfer<StripCraftException<MutationState>>,
+    NoInfer<StripCraftException<MutationParams>>,
+    Exceptions,
     Insertion7,
     Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
   >,
 ): MutationOutput<
-  MutationState,
-  MutationParams,
+  StripCraftException<MutationState>,
+  StripCraftException<MutationParams>,
   MutationArgsParams,
-  SourceParams,
+  StripCraftException<MutationParams>,
   GroupIdentifier,
   Insertion1 &
     Insertion2 &
@@ -902,7 +977,8 @@ export function mutation<
     Insertion4 &
     Insertion5 &
     Insertion6 &
-    Insertion7
+    Insertion7,
+  Exceptions
 >;
 
 /**
@@ -1088,6 +1164,10 @@ export function mutation<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
+  Exceptions extends MutationExceptionConstraints = {
+    params: ExtractCraftException<MutationParams>;
+    loader: ExtractCraftException<MutationState>;
+  },
 >(
   mutationConfig: MutationConfig<
     MutationState,
@@ -1106,7 +1186,8 @@ export function mutation<
   MutationArgsParams,
   SourceParams,
   GroupIdentifier,
-  {}
+  {},
+  Exceptions
 > {
   const mutationResourceParamsFnSignal =
     //@ts-expect-error if no params, it will create a signal
@@ -1362,8 +1443,10 @@ export function mutation<
     (
       insertions as InsertionsResourcesFactory<
         NoInfer<GroupIdentifier>,
-        NoInfer<MutationState>,
-        NoInfer<MutationParams>,
+        NoInfer<StripCraftException<MutationState>>,
+        NoInfer<StripCraftException<MutationParams>>,
+        MutationExceptionConstraints,
+        {},
         {}
       >[]
     )?.reduce(
@@ -1380,6 +1463,8 @@ export function mutation<
             resourceParamsSrc: resourceParamsSrc as WritableSignal<
               NoInfer<MutationParams>
             >,
+            hasException,
+            exceptions,
             insertions: acc as {},
             state: resourceTarget.state,
             set: resourceTarget.set,
@@ -1395,6 +1480,7 @@ export function mutation<
     MutationArgsParams,
     SourceParams,
     GroupIdentifier,
-    {}
+    {},
+    Exceptions
   >;
 }

@@ -355,8 +355,7 @@ describe('AsyncProcess types without identifier', () => {
           return { searchChange };
         },
       });
-      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<
-        {
+      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<{
         readonly value: Signal<
           | {
               searchChange: string;
@@ -374,14 +373,13 @@ describe('AsyncProcess types without identifier', () => {
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         method: (args: string) => string;
-          hasException: Signal<boolean>;
-          exceptions: Signal<{
-            list: never[];
-            params?: never;
-            loader?: never;
-          }>;
-        }
-      >();
+        hasException: Signal<boolean>;
+        exceptions: Signal<{
+          list: never[];
+          params?: never;
+          loader?: never;
+        }>;
+      }>();
     });
   });
 
@@ -398,8 +396,7 @@ describe('AsyncProcess types without identifier', () => {
           return { searchChangeResult: searchChange.searchChange };
         },
       });
-      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<
-        {
+      expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<{
         readonly value: Signal<
           | {
               searchChangeResult: string;
@@ -419,14 +416,13 @@ describe('AsyncProcess types without identifier', () => {
         source: ReadonlySource<{
           searchChange: string;
         }>;
-          hasException: Signal<boolean>;
-          exceptions: Signal<{
-            list: never[];
-            params?: never;
-            loader?: never;
-          }>;
-        }
-      >();
+        hasException: Signal<boolean>;
+        exceptions: Signal<{
+          list: never[];
+          params?: never;
+          loader?: never;
+        }>;
+      }>();
     });
   });
 });
@@ -479,7 +475,7 @@ describe('AsyncProcess types with identifier', () => {
 
       const search = {} as ReturnType<s['select']>;
       expectTypeOf(search).toEqualTypeOf<
-          | ({
+        | ({
             readonly value: Signal<
               | {
                   searchChange: string;
@@ -504,8 +500,7 @@ describe('AsyncProcess types with identifier', () => {
       //.  ^?
 
       const filter = {} as f;
-      expectTypeOf(filter).toEqualTypeOf<
-        {
+      expectTypeOf(filter).toEqualTypeOf<{
         readonly error: Signal<Error | undefined>;
         readonly value: Signal<
           | {
@@ -523,14 +518,13 @@ describe('AsyncProcess types with identifier', () => {
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         additionalInsertion: 'injectedValue';
-          hasException: Signal<boolean>;
-          exceptions: Signal<{
-            list: never[];
-            params?: never;
-            loader?: never;
-          }>;
-        }
-      >();
+        hasException: Signal<boolean>;
+        exceptions: Signal<{
+          list: never[];
+          params?: never;
+          loader?: never;
+        }>;
+      }>();
 
       type methods = ReturnType<
         ReturnType<typeof AsyncProcessOutput>
@@ -627,8 +621,7 @@ describe('AsyncProcess types with identifier', () => {
           {} as any,
           {} as any,
         ).props.filterChange;
-        expectTypeOf(filter).toEqualTypeOf<
-          {
+        expectTypeOf(filter).toEqualTypeOf<{
           readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
@@ -646,14 +639,13 @@ describe('AsyncProcess types with identifier', () => {
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           additionalInsertion: 'injectedValue';
-            hasException: Signal<boolean>;
-            exceptions: Signal<{
-              list: never[];
-              params?: never;
-              loader?: never;
-            }>;
-          }
-        >();
+          hasException: Signal<boolean>;
+          exceptions: Signal<{
+            list: never[];
+            params?: never;
+            loader?: never;
+          }>;
+        }>();
 
         type methods = ReturnType<
           ReturnType<typeof AsyncProcessOutput>
@@ -735,6 +727,93 @@ describe('asyncProcess exceptions', () => {
   });
   afterEach(() => {
     vi.resetAllMocks();
+  });
+
+  it('typing: exposes exceptions in insertions context', () => {
+    TestBed.runInInjectionContext(() => {
+      const shouldFail = signal(true);
+
+      asyncProcess(
+        {
+          method: (value: string) =>
+            shouldFail()
+              ? craftException(
+                  { code: 'INVALID_USER_ID_Param' },
+                  { reason: 'missing' as const },
+                )
+              : value,
+          loader: async ({ params }) => {
+            return shouldFail()
+              ? craftException(
+                  { code: 'INVALID_USER_ID_Loader' },
+                  { reason: 'missing' as const },
+                )
+              : {
+                  id: params,
+                  name: 'John Doe',
+                  email: 'test@a.com',
+                };
+          },
+        },
+        ({ exceptions, hasException, state }) => {
+          expectTypeOf(state()).toEqualTypeOf<{
+            id: string;
+            name: string;
+            email: string;
+          }>();
+          expectTypeOf(exceptions()).toEqualTypeOf<{
+            list: (
+              | CraftExceptionResult<
+                  {
+                    code: 'INVALID_USER_ID_Param';
+                    scope: 'params';
+                  },
+                  {
+                    reason: 'missing';
+                  }
+                >
+              | CraftExceptionResult<
+                  {
+                    code: 'INVALID_USER_ID_Loader';
+                    scope: 'loader';
+                  },
+                  {
+                    reason: 'missing';
+                  }
+                >
+            )[];
+            params?:
+              | CraftExceptionResult<
+                  {
+                    code: 'INVALID_USER_ID_Param';
+                    scope: 'params';
+                  },
+                  {
+                    reason: 'missing';
+                  }
+                >
+              | undefined;
+            loader?:
+              | CraftExceptionResult<
+                  {
+                    code: 'INVALID_USER_ID_Loader';
+                    scope: 'loader';
+                  },
+                  {
+                    reason: 'missing';
+                  }
+                >
+              | undefined;
+          }>();
+          expectTypeOf(hasException()).toEqualTypeOf<boolean>();
+          expectTypeOf(exceptions).toBeFunction();
+          expectTypeOf(exceptions()).toHaveProperty('list').toBeArray();
+          expectTypeOf(exceptions()).toHaveProperty('params');
+          expectTypeOf(exceptions()).toHaveProperty('loader');
+          return {};
+        },
+      );
+    });
   });
 
   it('typing: captures exception returned by method and loader', async () => {
@@ -1004,7 +1083,9 @@ describe('asyncProcess exceptions', () => {
 
       expect(loader).not.toHaveBeenCalled();
       expect(asyncProcessRef.hasException()).toBe(true);
-      expect(asyncProcessRef.exceptions().params?.SEARCH_TERM_TOO_SHORT).toEqual({
+      expect(
+        asyncProcessRef.exceptions().params?.SEARCH_TERM_TOO_SHORT,
+      ).toEqual({
         min: 3,
         received: 2,
       });

@@ -223,6 +223,7 @@ export function insertLocalStoragePersister<
   ResourceParams,
   PreviousInsertionsOutputs,
   StateType,
+  QueryExceptions,
   const CacheTime = 300000, // Default cache time in milliseconds (5 minutes)
 >(config: {
   /** Name of your current store, it is mainly used as a prefix for localStorage keys */
@@ -247,6 +248,7 @@ export function insertLocalStoragePersister<
           GroupIdentifier,
           ResourceState,
           ResourceParams,
+          QueryExceptions,
           PreviousInsertionsOutputs
         >
       | InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>,
@@ -260,6 +262,7 @@ export function insertLocalStoragePersister<
     type ResourceContext = InsertionParams<
       ResourceState,
       ResourceParams,
+      QueryExceptions,
       PreviousInsertionsOutputs
     >;
     const persister = localStoragePersister(config.storeName);
@@ -271,7 +274,10 @@ export function insertLocalStoragePersister<
         typeof (context as unknown as ResourceByIdContext).identifier ===
           'function');
     const stateContext = hasState
-      ? (context as InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>)
+      ? (context as InsertionStateFactoryContext<
+          StateType,
+          PreviousInsertionsOutputs
+        >)
       : undefined;
     const resourceTarget = hasResourceById
       ? context.resourceById
@@ -281,8 +287,8 @@ export function insertLocalStoragePersister<
             value: () => stateContext!.state(),
             set: (value: unknown) => stateContext!.set(value as StateType),
           } as unknown as ResourceRef<unknown>)
-        : ((context as unknown) as ResourceContext).resource;
-    const resourceParamsSrc: (() => unknown) = hasState
+        : (context as unknown as ResourceContext).resource;
+    const resourceParamsSrc: () => unknown = hasState
       ? () => undefined
       : (context as unknown as ResourceByIdContext | ResourceContext)
           .resourceParamsSrc;
@@ -304,8 +310,9 @@ export function insertLocalStoragePersister<
         cacheTime: (config?.cacheTime as number | undefined) ?? 300000,
         queryResource: resourceTarget as unknown as ResourceRef<unknown>,
         queryResourceParamsSrc: resourceParamsSrc as any,
-        waitForParamsSrcToBeEqualToPreviousValue:
-          hasState ? false : config.waitForParamsSrcToBeEqualToPreviousValue ?? true,
+        waitForParamsSrcToBeEqualToPreviousValue: hasState
+          ? false
+          : (config.waitForParamsSrcToBeEqualToPreviousValue ?? true),
       });
     }
 

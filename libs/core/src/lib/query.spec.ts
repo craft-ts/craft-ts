@@ -412,6 +412,94 @@ describe('query exceptions', () => {
     vi.resetAllMocks();
   });
 
+  it('typing: exposes exceptions in insertions context', () => {
+    TestBed.runInInjectionContext(() => {
+      const shouldFail = signal(true);
+
+      query(
+        {
+          params: () =>
+            shouldFail()
+              ? craftException(
+                  { code: 'INVALID_USER_ID' },
+                  { reason: 'missing' as const },
+                )
+              : 'user-1',
+          loader: async ({ params }) => {
+            return shouldFail()
+              ? craftException(
+                  { code: 'INVALID_USER_ID' },
+                  { reason: 'missing' as const },
+                )
+              : {
+                  id: params,
+                  name: 'John Doe',
+                  email: 'test@a.com',
+                };
+          },
+        },
+        ({ exceptions, hasException, state, resourceParamsSrc }) => {
+          expectTypeOf(state()).toEqualTypeOf<{
+            id: string;
+            name: string;
+            email: string;
+          }>();
+          expectTypeOf(resourceParamsSrc()).toEqualTypeOf<string | undefined>();
+          expectTypeOf(hasException()).toEqualTypeOf<boolean>();
+          expectTypeOf(exceptions()).toEqualTypeOf<{
+            list: (
+              | CraftExceptionResult<
+                  {
+                    code: 'INVALID_USER_ID';
+                    scope: 'params';
+                  },
+                  {
+                    reason: 'missing';
+                  }
+                >
+              | CraftExceptionResult<
+                  {
+                    code: 'INVALID_USER_ID';
+                    scope: 'loader';
+                  },
+                  {
+                    reason: 'missing';
+                  }
+                >
+            )[];
+            params?:
+              | CraftExceptionResult<
+                  {
+                    code: 'INVALID_USER_ID';
+                    scope: 'params';
+                  },
+                  {
+                    reason: 'missing';
+                  }
+                >
+              | undefined;
+            loader?:
+              | CraftExceptionResult<
+                  {
+                    code: 'INVALID_USER_ID';
+                    scope: 'loader';
+                  },
+                  {
+                    reason: 'missing';
+                  }
+                >
+              | undefined;
+          }>();
+          expectTypeOf(exceptions).toBeFunction();
+          expectTypeOf(exceptions()).toHaveProperty('list').toBeArray();
+          expectTypeOf(exceptions()).toHaveProperty('params');
+          expectTypeOf(exceptions()).toHaveProperty('loader');
+          return {};
+        },
+      );
+    });
+  });
+
   it('typing: captures exception returned by params and loader ', async () => {
     await TestBed.runInInjectionContext(async () => {
       const shouldFail = signal(true);

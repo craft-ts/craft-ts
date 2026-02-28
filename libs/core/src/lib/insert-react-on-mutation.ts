@@ -240,6 +240,7 @@ export function insertReactOnMutation<
   MutationSourceParams,
   MutationGroupIdentifier,
   MutationInsertions,
+  QueryExceptions,
 >(
   mutation:
     | ResourceLikeMutationRef<
@@ -287,6 +288,7 @@ export function insertReactOnMutation<
       | InsertionParams<
           QueryResourceState,
           QueryResourceParams,
+          QueryExceptions,
           QueryInsertions
         >
       | {

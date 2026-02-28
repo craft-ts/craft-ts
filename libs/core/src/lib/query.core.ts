@@ -18,8 +18,9 @@ import {
   ResourceLikeMutationRef,
 } from './mutation';
 import { CraftResourceRef } from './util/craft-resource-ref';
-import { QueryParamsToState } from './query-param';
+import { QueryParamExceptions, QueryParamsToState } from './query-param';
 import { Prettify } from './util/util.type';
+import { InsertMetaInCraftExceptionIfExists } from './craft-exception';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -102,9 +103,7 @@ export type QueryDeclarativeEffect<
        * Run when the mutation is in loading state.
        */
       optimisticUpdate?: (
-        data: UpdateData<QueryAndMutationRecord> & {
-          testData: QueryAndMutationRecord['query']['groupIdentifier'];
-        },
+        data: UpdateData<QueryAndMutationRecord>,
       ) => QueryAndMutationRecord['query']['state'];
       /**
        * Run when the mutation is in loaded state.
@@ -546,11 +545,18 @@ export function setAllUpdatesFromMutationOnQueryValue<
     });
 }
 
+export type QueryExceptionConstraints = {
+  params: unknown;
+  loader: unknown;
+};
+
 export type InsertionParams<
   ResourceState extends object | undefined,
   ResourceParams,
+  Exceptions extends QueryExceptionConstraints,
   PreviousInsertionsOutputs,
 > = {
+  test: ResourceState;
   state: Signal<ResourceState>;
   set: (newState: ResourceState) => ResourceState;
   update: (
@@ -561,6 +567,31 @@ export type InsertionParams<
     : never;
   resource: CraftResourceRef<ResourceState, ResourceParams>;
   resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: (
+      | InsertMetaInCraftExceptionIfExists<
+          Exceptions['params'],
+          'params',
+          unknown
+        >
+      | InsertMetaInCraftExceptionIfExists<
+          Exceptions['loader'],
+          'loader',
+          unknown
+        >
+    )[];
+    params?: InsertMetaInCraftExceptionIfExists<
+      Exceptions['params'],
+      'params',
+      unknown
+    >;
+    loader?: InsertMetaInCraftExceptionIfExists<
+      Exceptions['loader'],
+      'loader',
+      unknown
+    >;
+  }>;
   // 👇 Seems required for insertLocalStoragePersister, otherwise TS says they can be missing
   resourceById: never;
   identifier: never;
@@ -570,11 +601,13 @@ export type InsertionsFactory<
   ResourceState extends object | undefined,
   ResourceParams,
   InsertsOutputs,
+  Exceptions extends QueryExceptionConstraints,
   PreviousInsertionsOutputs = {},
 > = (
   context: InsertionParams<
     ResourceState,
     ResourceParams,
+    Exceptions,
     PreviousInsertionsOutputs
   >,
 ) => InsertsOutputs;
@@ -583,6 +616,7 @@ export type InsertionByIdParams<
   GroupIdentifier extends string,
   ResourceState extends object | undefined,
   ResourceParams,
+  Exceptions extends QueryExceptionConstraints,
   PreviousInsertionsOutputs,
 > = {
   state: Signal<ResourceState>;
@@ -596,6 +630,36 @@ export type InsertionByIdParams<
   resourceById: ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>;
   resource: never;
   resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
+  hasException: Signal<boolean>;
+  exceptions: Signal<{
+    list: (
+      | InsertMetaInCraftExceptionIfExists<
+          Exceptions['params'],
+          'params',
+          unknown
+        >
+      | InsertMetaInCraftExceptionIfExists<
+          Exceptions['loader'],
+          'loader',
+          GroupIdentifier
+        >
+    )[];
+    params?: InsertMetaInCraftExceptionIfExists<
+      Exceptions['params'],
+      'params',
+      unknown
+    >;
+    loader: Partial<
+      Record<
+        GroupIdentifier,
+        InsertMetaInCraftExceptionIfExists<
+          Exceptions['loader'],
+          'loader',
+          GroupIdentifier
+        >
+      >
+    >;
+  }>;
   identifier: (params: NonNullable<ResourceParams>) => GroupIdentifier;
 };
 
@@ -633,6 +697,8 @@ export type InsertionQueryParamsFactoryContext<
 > = QueryParamMethods<QueryParamsState> & {
   state: Signal<QueryParamsState>;
   config: QueryParamsType;
+  hasException: Signal<boolean>;
+  exceptions: Signal<QueryParamExceptions<QueryParamsType>>;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs
     : never;
@@ -642,6 +708,7 @@ export type InsertionsByIdFactory<
   ResourceState extends object | undefined,
   ResourceParams,
   GroupIdentifier extends string,
+  Exceptions extends QueryExceptionConstraints,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
 > = (
@@ -649,6 +716,7 @@ export type InsertionsByIdFactory<
     GroupIdentifier,
     ResourceState,
     ResourceParams,
+    Exceptions,
     PreviousInsertionsOutputs
   >,
 ) => InsertionsOutputs;
@@ -657,19 +725,27 @@ export type InsertionResourceFactoryContext<
   GroupIdentifier,
   ResourceState extends object | undefined,
   ResourceParams,
+  Exceptions extends QueryExceptionConstraints,
   PreviousInsertionsOutputs,
 > = [unknown] extends [GroupIdentifier]
-  ? InsertionParams<ResourceState, ResourceParams, PreviousInsertionsOutputs>
+  ? InsertionParams<
+      ResourceState,
+      ResourceParams,
+      Exceptions,
+      PreviousInsertionsOutputs
+    >
   : InsertionByIdParams<
       GroupIdentifier & string,
       ResourceState,
       ResourceParams,
+      Exceptions,
       PreviousInsertionsOutputs
     >;
 export type InsertionsResourcesFactory<
   GroupIdentifier,
   ResourceState extends object | undefined,
   ResourceParams,
+  Exceptions extends QueryExceptionConstraints,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
 > = (
@@ -677,6 +753,7 @@ export type InsertionsResourcesFactory<
     GroupIdentifier,
     ResourceState,
     ResourceParams,
+    Exceptions,
     PreviousInsertionsOutputs
   >,
 ) => InsertionsOutputs;
@@ -704,7 +781,13 @@ export type DefaultInsertionByIdParams = InsertionByIdParams<
   string,
   {},
   unknown,
+  QueryExceptionConstraints,
   {}
 >;
 
-export type DefaultInsertionParams = InsertionParams<{}, unknown, unknown>;
+export type DefaultInsertionParams = InsertionParams<
+  {},
+  unknown,
+  QueryExceptionConstraints,
+  unknown
+>;
