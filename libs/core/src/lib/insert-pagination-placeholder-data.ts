@@ -1,5 +1,8 @@
 import { computed } from '@angular/core';
-import { InsertionByIdParams } from './query.core';
+import {
+  InsertionByIdParams,
+  ResourceExceptionConstraints,
+} from './query.core';
 
 /**
  * Provides placeholder data during pagination transitions for a smoother user experience.
@@ -42,6 +45,7 @@ export const insertPaginationPlaceholderData = <
   QueryGroupIdentifier extends string,
   QueryInsertions,
   PreviousInsertionsOutputs,
+  Exceptions extends ResourceExceptionConstraints,
 >({
   resourceById,
   resourceParamsSrc,
@@ -50,6 +54,7 @@ export const insertPaginationPlaceholderData = <
   QueryGroupIdentifier,
   QueryResourceState,
   QueryResourceParams,
+  Exceptions,
   PreviousInsertionsOutputs
 >) => {
   let previousPageKey: QueryGroupIdentifier | undefined;

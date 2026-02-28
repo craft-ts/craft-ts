@@ -1,4 +1,4 @@
-import { MergeObject, MergeObjects } from './util/util.type';
+import { MergeObject } from './util/util.type';
 import {
   ContextConstraints,
   CraftFactoryUtility,
@@ -8,7 +8,8 @@ import {
   partialContext,
 } from './craft';
 import { ResourceByIdRef } from './resource-by-id';
-import { QueryExceptionConstraints, QueryOutput, QueryRef } from './query';
+import { QueryOutput, QueryRef } from './query';
+import { ResourceExceptionConstraints } from './query.core';
 
 type SpecificCraftQueryOutputs<
   ResourceName extends string,
@@ -19,7 +20,7 @@ type SpecificCraftQueryOutputs<
   SourceParams,
   GroupIdentifier,
   InsertionsOutputs,
-  QueryExceptions extends QueryExceptionConstraints,
+  QueryExceptions extends ResourceExceptionConstraints,
 > = PartialContext<{
   props: {
     [key in `${ResourceName & string}`]: QueryOutput<
@@ -56,7 +57,7 @@ type CraftQueryOutputs<
   SourceParams,
   GroupIdentifier,
   InsertionsOutputs,
-  QueryExceptions extends QueryExceptionConstraints,
+  QueryExceptions extends ResourceExceptionConstraints,
 > = CraftFactoryUtility<
   Context,
   StoreConfig,
@@ -497,7 +498,7 @@ export function craftQuery<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  QueryExceptions extends QueryExceptionConstraints,
+  QueryExceptions extends ResourceExceptionConstraints,
 >(
   resourceName: ResourceName,
   queryFactory: (

@@ -37,7 +37,8 @@ export type MutationResourceRefHelper<
   QueryAndMutationRecord['mutation']['isMethod'],
   QueryAndMutationRecord['mutation']['args'],
   QueryAndMutationRecord['mutation']['sourceParams'],
-  QueryAndMutationRecord['mutation']['insertions']
+  QueryAndMutationRecord['mutation']['insertions'],
+  QueryAndMutationRecord['mutation']['exceptions']
 >;
 
 export type MutationResourceByIdRefHelper<
@@ -49,7 +50,8 @@ export type MutationResourceByIdRefHelper<
   QueryAndMutationRecord['mutation']['args'],
   QueryAndMutationRecord['mutation']['sourceParams'],
   QueryAndMutationRecord['mutation']['insertions'],
-  QueryAndMutationRecord['mutation']['groupIdentifier']
+  QueryAndMutationRecord['mutation']['groupIdentifier'],
+  QueryAndMutationRecord['mutation']['exceptions']
 >;
 
 type UpdateData<
@@ -369,6 +371,7 @@ export function setAllPatchFromMutationOnQueryValue<
       const optimisticValue = optimisticPatch({
         mutationResource,
         queryResource,
+        //@ts-ignore
         queryResources: undefined,
         queryIdentifier: undefined,
         //@ts-expect-error the mutationParamsSrc depends if fromResourceById is used, this typing part can be improved
@@ -378,6 +381,7 @@ export function setAllPatchFromMutationOnQueryValue<
           keysPath: path.split('.'),
         }),
         mutationIdentifier,
+        //@ts-ignore
         mutationResources,
       });
       const updatedValue = createNestedStateUpdate({
@@ -432,6 +436,7 @@ export function setAllPatchFromMutationOnQueryValue<
             keysPath: path.split('.'),
           }),
           mutationIdentifier,
+          //@ts-ignore
           mutationResources,
         });
         const updatedValue = createNestedStateUpdate({
@@ -545,7 +550,7 @@ export function setAllUpdatesFromMutationOnQueryValue<
     });
 }
 
-export type QueryExceptionConstraints = {
+export type ResourceExceptionConstraints = {
   params: unknown;
   loader: unknown;
 };
@@ -553,7 +558,7 @@ export type QueryExceptionConstraints = {
 export type InsertionParams<
   ResourceState extends object | undefined,
   ResourceParams,
-  Exceptions extends QueryExceptionConstraints,
+  Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs,
 > = {
   test: ResourceState;
@@ -601,7 +606,7 @@ export type InsertionsFactory<
   ResourceState extends object | undefined,
   ResourceParams,
   InsertsOutputs,
-  Exceptions extends QueryExceptionConstraints,
+  Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs = {},
 > = (
   context: InsertionParams<
@@ -616,7 +621,7 @@ export type InsertionByIdParams<
   GroupIdentifier extends string,
   ResourceState extends object | undefined,
   ResourceParams,
-  Exceptions extends QueryExceptionConstraints,
+  Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs,
 > = {
   state: Signal<ResourceState>;
@@ -708,7 +713,7 @@ export type InsertionsByIdFactory<
   ResourceState extends object | undefined,
   ResourceParams,
   GroupIdentifier extends string,
-  Exceptions extends QueryExceptionConstraints,
+  Exceptions extends ResourceExceptionConstraints,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
 > = (
@@ -725,7 +730,7 @@ export type InsertionResourceFactoryContext<
   GroupIdentifier,
   ResourceState extends object | undefined,
   ResourceParams,
-  Exceptions extends QueryExceptionConstraints,
+  Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs,
 > = [unknown] extends [GroupIdentifier]
   ? InsertionParams<
@@ -745,7 +750,7 @@ export type InsertionsResourcesFactory<
   GroupIdentifier,
   ResourceState extends object | undefined,
   ResourceParams,
-  Exceptions extends QueryExceptionConstraints,
+  Exceptions extends ResourceExceptionConstraints,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
 > = (
@@ -781,13 +786,13 @@ export type DefaultInsertionByIdParams = InsertionByIdParams<
   string,
   {},
   unknown,
-  QueryExceptionConstraints,
+  ResourceExceptionConstraints,
   {}
 >;
 
 export type DefaultInsertionParams = InsertionParams<
   {},
   unknown,
-  QueryExceptionConstraints,
+  ResourceExceptionConstraints,
   unknown
 >;

@@ -17,6 +17,7 @@ import {
   setAllUpdatesFromMutationOnQueryValue,
   triggerQueryReloadOnMutationStatusChange,
   setAllPatchFromMutationOnQueryValue,
+  ResourceExceptionConstraints,
 } from '../query.core';
 import { ResourceByIdRef } from '../resource-by-id';
 import { explicitNestedEffect } from './types/util';
@@ -40,6 +41,8 @@ export function reactOnMutationEffect<
   MutationSourceParams,
   MutationGroupIdentifier,
   MutationInsertions,
+  MutationExceptions extends ResourceExceptionConstraints,
+  QueryExceptions extends ResourceExceptionConstraints,
 >(
   {
     queryTargeted,
@@ -52,7 +55,8 @@ export function reactOnMutationEffect<
           QueryIsMethod,
           QueryResourceArgsParams,
           QuerySourceParams,
-          QueryInsertions
+          QueryInsertions,
+          QueryExceptions
         >
       | ResourceByIdLikeQueryRef<
           QueryResourceState,
@@ -61,7 +65,8 @@ export function reactOnMutationEffect<
           QueryResourceArgsParams,
           QuerySourceParams,
           QueryInsertions,
-          QueryGroupIdentifier
+          QueryGroupIdentifier,
+          QueryExceptions
         >;
     mutationTargeted:
       | ResourceLikeMutationRef<
@@ -70,7 +75,8 @@ export function reactOnMutationEffect<
           MutationIsMethod,
           MutationResourceArgsParams,
           MutationSourceParams,
-          MutationInsertions
+          MutationInsertions,
+          MutationExceptions
         >
       | ResourceByIdLikeMutationRef<
           MutationResourceState,
@@ -79,7 +85,8 @@ export function reactOnMutationEffect<
           MutationResourceArgsParams,
           MutationSourceParams,
           MutationInsertions,
-          MutationGroupIdentifier
+          MutationGroupIdentifier,
+          MutationExceptions
         >;
   },
   mutationEffectOptions: QueryDeclarativeEffect<{
@@ -91,7 +98,8 @@ export function reactOnMutationEffect<
       NoInfer<QueryIsMethod>,
       NoInfer<QueryInsertions>,
       NoInfer<QueryGroupIdentifier>,
-      NoInfer<QuerySourceParams>
+      NoInfer<QuerySourceParams>,
+      NoInfer<QueryExceptions>
     >;
     mutation: InternalType<
       NoInfer<MutationResourceState>,
@@ -101,7 +109,8 @@ export function reactOnMutationEffect<
       NoInfer<MutationIsMethod>,
       NoInfer<MutationInsertions>,
       NoInfer<MutationGroupIdentifier>,
-      NoInfer<MutationSourceParams>
+      NoInfer<MutationSourceParams>,
+      NoInfer<MutationExceptions>
     >;
   }>,
 ) {

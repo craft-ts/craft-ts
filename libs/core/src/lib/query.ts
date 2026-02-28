@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import {
   InsertionsResourcesFactory,
-  QueryExceptionConstraints,
+  ResourceExceptionConstraints,
 } from './query.core';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
@@ -184,7 +184,7 @@ type QueryConfig<
   };
 
 export type ResourceLikeExceptions<
-  QueryException extends QueryExceptionConstraints,
+  QueryException extends ResourceExceptionConstraints,
   GroupIdentifier = unknown,
 > = {
   hasException: Signal<boolean>;
@@ -215,7 +215,7 @@ export type ResourceLikeExceptions<
 };
 
 export type ResourceByIdLikeExceptions<
-  QueryException extends QueryExceptionConstraints,
+  QueryException extends ResourceExceptionConstraints,
   GroupIdentifier extends string,
 > = {
   hasException: Signal<boolean>;
@@ -257,7 +257,7 @@ export type ResourceLikeQueryRef<
   ArgParams,
   SourceParams,
   Insertions,
-  QueryException extends QueryExceptionConstraints = QueryExceptionConstraints,
+  QueryException extends ResourceExceptionConstraints,
 > = {
   type: 'resourceLike';
   kind: 'query';
@@ -300,7 +300,7 @@ export type ResourceByIdLikeQueryRef<
   SourceParams,
   Insertions,
   GroupIdentifier,
-  QueryException extends QueryExceptionConstraints = QueryExceptionConstraints,
+  QueryException extends ResourceExceptionConstraints,
 > = { type: 'resourceByGroupLike'; kind: 'query' } & {
   readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
 } & {
@@ -350,7 +350,7 @@ export type QueryRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  QueryExceptions extends QueryExceptionConstraints,
+  QueryExceptions extends ResourceExceptionConstraints,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeQueryRef<
       Value,
@@ -379,7 +379,7 @@ export type QueryOutput<
   SourceParams,
   GroupIdentifier,
   Insertions,
-  QueryExceptions extends QueryExceptionConstraints,
+  QueryExceptions extends ResourceExceptionConstraints,
 > = QueryRef<
   State,
   Params,
@@ -400,7 +400,7 @@ export function query<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
-  Exceptions extends QueryExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
   },
@@ -434,7 +434,7 @@ export function query<
   FromObjectState,
   FromObjectResourceParams,
   Insertion1,
-  Exceptions extends QueryExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
   },
@@ -477,7 +477,7 @@ export function query<
   FromObjectResourceParams,
   Insertion1,
   Insertion2,
-  Exceptions extends QueryExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
   },
@@ -528,7 +528,7 @@ export function query<
   Insertion1,
   Insertion2,
   Insertion3,
-  Exceptions extends QueryExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
   },
@@ -588,7 +588,7 @@ export function query<
   Insertion2,
   Insertion3,
   Insertion4,
-  Exceptions extends QueryExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
   },
@@ -657,7 +657,7 @@ export function query<
   Insertion3,
   Insertion4,
   Insertion5,
-  Exceptions extends QueryExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
   },
@@ -735,7 +735,7 @@ export function query<
   Insertion4,
   Insertion5,
   Insertion6,
-  Exceptions extends QueryExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
   },
@@ -822,7 +822,7 @@ export function query<
   Insertion5,
   Insertion6,
   Insertion7,
-  Exceptions extends QueryExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
   },
@@ -1002,6 +1002,36 @@ export function query<
  * ```
  *
  * @example
+ * Business exceptions with `craftException`
+ * ```ts
+ * import { craftException, query } from '@craft-ng/core';
+ *
+ * const userQuery = query({
+ *   method: (value: string) =>
+ *     value.length < 3
+ *       ? craftException(
+ *           { code: 'SEARCH_TERM_TOO_SHORT' },
+ *           { min: 3, received: value.length },
+ *         )
+ *       : value,
+ *   loader: async ({ params }) =>
+ *     params === 'forbidden'
+ *       ? craftException(
+ *           { code: 'USER_ACCESS_FORBIDDEN' },
+ *           { id: params },
+ *         )
+ *       : { id: params, name: 'John Doe' },
+ * });
+ *
+ * userQuery.call('ab');
+ * console.log(userQuery.hasException()); // true
+ * console.log(userQuery.exceptions().params?.SEARCH_TERM_TOO_SHORT);
+ *
+ * userQuery.call('forbidden');
+ * console.log(userQuery.exceptions().loader?.USER_ACCESS_FORBIDDEN);
+ * ```
+ *
+ * @example
  * Query with identifier for parallel execution
  * ```ts
  * const userDetailsQuery = query({
@@ -1125,7 +1155,7 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   {},
-  QueryExceptionConstraints
+  ResourceExceptionConstraints
 > {
   const hasMethodFn =
     typeof queryConfig.method === 'function' && !isSignal(queryConfig.method);
@@ -1377,7 +1407,7 @@ export function query<
         NoInfer<GroupIdentifier>,
         NoInfer<StripCraftException<QueryState>>,
         NoInfer<StripCraftException<QueryParams>>,
-        QueryExceptionConstraints,
+        ResourceExceptionConstraints,
         {},
         {}
       >[]
@@ -1413,6 +1443,6 @@ export function query<
     StripCraftException<QueryParams>,
     GroupIdentifier,
     {},
-    QueryExceptionConstraints
+    ResourceExceptionConstraints
   >;
 }

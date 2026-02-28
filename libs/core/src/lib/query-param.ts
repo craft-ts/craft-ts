@@ -169,6 +169,32 @@ export interface QueryParamConfig<T = unknown> {
  *
  * myQueryParams.goTo(5); // Custom method from insertion
  * ```
+ *
+ * @example
+ * Parse exceptions with `craftException`
+ * ```ts
+ * import { craftException, queryParam } from '@craft-ng/core';
+ *
+ * const mode = queryParam({
+ *   state: {
+ *     mode: {
+ *       fallbackValue: 'success' as const,
+ *       parse: (value: string) =>
+ *         value === 'success'
+ *           ? ('success' as const)
+ *           : craftException(
+ *               { code: 'INVALID_MODE_FROM_URL' },
+ *               { received: value },
+ *             ),
+ *       serialize: (value) => String(value),
+ *     },
+ *   },
+ * });
+ *
+ * console.log(mode.mode()); // fallbackValue when parse exception occurs
+ * console.log(mode.hasException()); // true/false
+ * console.log(mode.exceptions().parse.mode?.INVALID_MODE_FROM_URL);
+ * ```
  */
 export function queryParam<
   QueryParamsType extends Record<string, QueryParamConfig<unknown>>,

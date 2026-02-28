@@ -130,7 +130,6 @@ describe('reactOnMutation', () => {
           fromResourceById: resourceByIdRef,
           params: (resource) => {
             if (!resource) {
-              debugger;
             }
             return resource?.hasValue() ? resource?.value() : undefined;
           },

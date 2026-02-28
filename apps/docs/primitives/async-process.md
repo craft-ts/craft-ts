@@ -1,11 +1,11 @@
 # AsyncProcess
 
-The `AsyncProcess` primitive creates an async operation that manages asynchronous execution with automatic state tracking.
+The `asyncProcess` primitive creates an async operation that manages asynchronous execution with automatic state tracking.
 
 ## Import
 
 ```typescript
-import { AsyncProcess } from '@craft-ng/core';
+import { asyncProcess } from '@craft-ng/core';
 ```
 
 ## Basic Examples
@@ -92,6 +92,36 @@ console.log(debouncedById1?.value()); // data1 once resolved
 const debouncedById2 = debouncedById.select('2');
 console.log(debouncedById2?.status()); // 'loading' or 'resolved'
 console.log(debouncedById2?.value()); // data2 once resolved
+```
+
+### AsyncProcess exceptions (`hasException` / `exceptions()`)
+
+```typescript
+import { asyncProcess, craftException } from '@craft-ng/core';
+
+const loadUser = asyncProcess({
+  method: (value: string) =>
+    value.length < 3
+      ? craftException(
+          { code: 'SEARCH_TERM_TOO_SHORT' },
+          { min: 3, received: value.length },
+        )
+      : value,
+  loader: async ({ params }) =>
+    params === 'blocked'
+      ? craftException(
+          { code: 'USER_ACCESS_FORBIDDEN' },
+          { id: params },
+        )
+      : { id: params, name: 'John Doe' },
+});
+
+loadUser.method('ab');
+console.log(loadUser.hasException()); // true
+console.log(loadUser.exceptions().params?.SEARCH_TERM_TOO_SHORT);
+
+loadUser.method('blocked');
+console.log(loadUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
 ```
 
 ## Track async native JS api status

@@ -1,5 +1,6 @@
 import { Type } from '@angular/core';
 import { Prettify } from '../util.type';
+import { ResourceExceptionConstraints } from '../../query.core';
 
 // It is not possible to get all the properties key of an optional object, so make the optional properties required
 export type MakeOptionalPropertiesRequired<
@@ -29,6 +30,7 @@ export type InternalType<
   Insertions,
   GroupIdentifier,
   SourceParams,
+  Exceptions extends ResourceExceptionConstraints,
 > = {
   state: State;
   params: Params;
@@ -38,6 +40,7 @@ export type InternalType<
   isMethod?: IsMethod;
   insertions?: Insertions;
   sourceParams?: SourceParams;
+  exceptions: Exceptions;
 };
 
 // from https://github.com/ecyrbe/zodios/blob/main/src/utils.types.ts

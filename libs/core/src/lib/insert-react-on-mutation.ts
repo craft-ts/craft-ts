@@ -4,7 +4,11 @@ import {
   ResourceLikeMutationRef,
 } from './mutation';
 import { ResourceByIdLikeQueryRef, ResourceLikeQueryRef } from './query';
-import { InsertionParams, QueryDeclarativeEffect } from './query.core';
+import {
+  InsertionParams,
+  QueryDeclarativeEffect,
+  ResourceExceptionConstraints,
+} from './query.core';
 import { ResourceByIdRef } from './resource-by-id';
 import { reactOnMutationEffect } from './util/react-on-mutation-effect';
 import { InternalType } from './util/types/util.type';
@@ -240,7 +244,8 @@ export function insertReactOnMutation<
   MutationSourceParams,
   MutationGroupIdentifier,
   MutationInsertions,
-  QueryExceptions,
+  MutationExceptions extends ResourceExceptionConstraints,
+  QueryExceptions extends ResourceExceptionConstraints,
 >(
   mutation:
     | ResourceLikeMutationRef<
@@ -249,7 +254,8 @@ export function insertReactOnMutation<
         MutationIsMethod,
         MutationResourceArgsParams,
         MutationSourceParams,
-        MutationInsertions
+        MutationInsertions,
+        MutationExceptions
       >
     | ResourceByIdLikeMutationRef<
         MutationResourceState,
@@ -258,7 +264,8 @@ export function insertReactOnMutation<
         MutationResourceArgsParams,
         MutationSourceParams,
         MutationInsertions,
-        MutationGroupIdentifier
+        MutationGroupIdentifier,
+        MutationExceptions
       >,
   mutationEffectOptions: QueryDeclarativeEffect<{
     query: InternalType<
@@ -269,7 +276,8 @@ export function insertReactOnMutation<
       NoInfer<QueryIsMethod>,
       NoInfer<QueryInsertions>,
       NoInfer<QueryGroupIdentifier>,
-      NoInfer<QuerySourceParams>
+      NoInfer<QuerySourceParams>,
+      NoInfer<QueryExceptions>
     >;
     mutation: InternalType<
       NoInfer<MutationResourceState>,
@@ -279,7 +287,8 @@ export function insertReactOnMutation<
       NoInfer<MutationIsMethod>,
       NoInfer<MutationInsertions>,
       NoInfer<MutationGroupIdentifier>,
-      NoInfer<MutationSourceParams>
+      NoInfer<MutationSourceParams>,
+      NoInfer<MutationExceptions>
     >;
   }>,
 ) {
@@ -318,7 +327,8 @@ export function insertReactOnMutation<
               QueryIsMethod,
               QueryResourceArgsParams,
               QuerySourceParams,
-              QueryInsertions
+              QueryInsertions,
+              QueryExceptions
             >
           | ResourceByIdLikeQueryRef<
               QueryResourceState,
@@ -327,7 +337,8 @@ export function insertReactOnMutation<
               QueryResourceArgsParams,
               QuerySourceParams,
               QueryInsertions,
-              QueryGroupIdentifier
+              QueryGroupIdentifier,
+              QueryExceptions
             >,
         mutationTargeted: mutation,
       },

@@ -72,12 +72,6 @@ describe('craftMutationById', () => {
         hasValue: () => boolean;
         readonly resourceParamsSrc: WritableSignal<string>;
         source: ReadonlySource<string>;
-        hasException: Signal<boolean>;
-        exceptions: Signal<{
-          list: never[];
-          params?: never;
-          loader?: never;
-        }>;
         type: 'resourceLike';
         kind: 'mutation';
       }>();

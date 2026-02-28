@@ -4,6 +4,7 @@ import {
   InsertionResourceFactoryContext,
   InsertionParams,
   InsertionStateFactoryContext,
+  ResourceExceptionConstraints,
 } from './query.core';
 import { ResourceByIdRef } from './resource-by-id';
 import { ResourceRef } from '@angular/core';
@@ -223,7 +224,7 @@ export function insertLocalStoragePersister<
   ResourceParams,
   PreviousInsertionsOutputs,
   StateType,
-  QueryExceptions,
+  QueryExceptions extends ResourceExceptionConstraints,
   const CacheTime = 300000, // Default cache time in milliseconds (5 minutes)
 >(config: {
   /** Name of your current store, it is mainly used as a prefix for localStorage keys */
@@ -257,6 +258,7 @@ export function insertLocalStoragePersister<
       GroupIdentifier,
       ResourceState,
       ResourceParams,
+      QueryExceptions,
       PreviousInsertionsOutputs
     >;
     type ResourceContext = InsertionParams<

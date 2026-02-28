@@ -541,10 +541,7 @@ describe('queryParam exceptions', () => {
             fallbackValue: 1,
             parse: (value: string) => {
               if (value === 'invalid') {
-                return craftException(
-                  { code: 'INVALID_PAGE' },
-                  { reason: 'NaN' as const },
-                );
+                throw new Error('Non-craft error');
               }
               return parseInt(value, 10);
             },

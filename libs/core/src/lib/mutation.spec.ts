@@ -6,7 +6,6 @@ import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
 import {
   mutation,
-  MutationExceptionConstraints,
   MutationOutput,
 } from './mutation';
 import { craftMutations } from './craft-mutations';

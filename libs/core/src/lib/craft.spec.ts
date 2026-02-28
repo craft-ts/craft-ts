@@ -249,7 +249,7 @@ describe('craft', () => {
         insertReactOnMutation(m, {
           filter: ({ mutationParams, queryIdentifier }) =>
             mutationParams.id === queryIdentifier,
-          optimisticUpdate: ({ mutationParams, testData }) => mutationParams,
+          optimisticUpdate: ({ mutationParams }) => mutationParams,
           reload: {
             onMutationError: true,
           },

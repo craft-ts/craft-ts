@@ -85,6 +85,36 @@ console.log(deleteUser.select('5')?.error()); // Error or undefined
 console.log(deleteUser.select('5')?.value()); // Created user data
 ```
 
+### Mutation exceptions (`hasException` / `exceptions()`)
+
+```typescript
+import { craftException, mutation } from '@craft-ng/core';
+
+const updateUser = mutation({
+  method: (value: string) =>
+    value.length < 3
+      ? craftException(
+          { code: 'SEARCH_TERM_TOO_SHORT' },
+          { min: 3, received: value.length },
+        )
+      : value,
+  loader: async ({ params }) =>
+    params === 'blocked'
+      ? craftException(
+          { code: 'USER_ACCESS_FORBIDDEN' },
+          { id: params },
+        )
+      : { id: params, updated: true },
+});
+
+updateUser.mutate('ab');
+console.log(updateUser.hasException()); // true
+console.log(updateUser.exceptions().params?.SEARCH_TERM_TOO_SHORT);
+
+updateUser.mutate('blocked');
+console.log(updateUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
+```
+
 ## Safe Value Access
 
 Use `safeValue()` instead of `value()` when you want to access the mutation value without throwing an error:

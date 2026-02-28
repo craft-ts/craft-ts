@@ -101,8 +101,37 @@ updateUserMutation.mutate({
 // When mutation completes, patch confirms the change
 ```
 
-### Query exceptions demo
+### Query exceptions (`hasException` / `exceptions()`)
 
+```typescript
+import { craftException, query } from '@craft-ng/core';
+
+const userQuery = query({
+  method: (value: string) =>
+    value.length < 3
+      ? craftException(
+          { code: 'SEARCH_TERM_TOO_SHORT' },
+          { min: 3, received: value.length },
+        )
+      : value,
+  loader: async ({ params }) =>
+    params === 'forbidden'
+      ? craftException(
+          { code: 'USER_ACCESS_FORBIDDEN' },
+          { id: params },
+        )
+      : { id: params, name: 'John Doe' },
+});
+
+userQuery.call('ab');
+console.log(userQuery.hasException()); // true
+console.log(userQuery.exceptions().params?.SEARCH_TERM_TOO_SHORT);
+
+userQuery.call('forbidden');
+console.log(userQuery.exceptions().loader?.USER_ACCESS_FORBIDDEN);
+```
+
+Demo source:
 - [Exceptions demo source (`query` business exceptions)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exceptions.ts)
 
 ## Important Notes

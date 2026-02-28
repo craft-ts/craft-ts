@@ -10,7 +10,10 @@ import {
   signal,
   WritableSignal,
 } from '@angular/core';
-import { InsertionsResourcesFactory } from './query.core';
+import {
+  InsertionsResourcesFactory,
+  ResourceExceptionConstraints,
+} from './query.core';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
@@ -239,13 +242,8 @@ type MutationConfig<
       }
   );
 
-export type MutationExceptionConstraints = {
-  params: unknown;
-  loader: unknown;
-};
-
 type HasDefinedException<
-  MutationException extends MutationExceptionConstraints,
+  MutationException extends ResourceExceptionConstraints,
 > = [MutationException['params']] extends [never]
   ? [MutationException['loader']] extends [never]
     ? false
@@ -253,7 +251,7 @@ type HasDefinedException<
   : true;
 
 export type ResourceLikeMutationExceptions<
-  MutationException extends MutationExceptionConstraints,
+  MutationException extends ResourceExceptionConstraints,
   GroupIdentifier = unknown,
 > =
   HasDefinedException<MutationException> extends true
@@ -287,7 +285,7 @@ export type ResourceLikeMutationExceptions<
     : {};
 
 export type ResourceByIdLikeMutationExceptions<
-  MutationException extends MutationExceptionConstraints,
+  MutationException extends ResourceExceptionConstraints,
   GroupIdentifier extends string,
 > = {
   hasException: Signal<boolean>;
@@ -329,8 +327,7 @@ export type ResourceLikeMutationRef<
   ArgParams,
   SourceParams,
   Insertions,
-  MutationException extends
-    MutationExceptionConstraints = MutationExceptionConstraints,
+  MutationException extends ResourceExceptionConstraints,
 > = {
   type: 'resourceLike';
   kind: 'mutation';
@@ -370,8 +367,7 @@ export type ResourceByIdLikeMutationRef<
   SourceParams,
   Insertions,
   GroupIdentifier,
-  MutationException extends
-    MutationExceptionConstraints = MutationExceptionConstraints,
+  MutationException extends ResourceExceptionConstraints,
 > = { type: 'resourceByGroupLike'; kind: 'mutation' } & {
   readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
 } & {
@@ -419,7 +415,7 @@ export type MutationRef<
   SourceParams,
   GroupIdentifier,
   MutationExceptions extends
-    MutationExceptionConstraints = MutationExceptionConstraints,
+    ResourceExceptionConstraints = ResourceExceptionConstraints,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeMutationRef<
       Value,
@@ -452,7 +448,7 @@ export type MutationOutput<
   SourceParams,
   GroupIdentifier,
   Insertions,
-  MutationExceptions extends MutationExceptionConstraints,
+  MutationExceptions extends ResourceExceptionConstraints,
 > = MutationRef<
   StripCraftException<State>,
   StripCraftException<Params>,
@@ -473,7 +469,7 @@ export function mutation<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
-  Exceptions extends MutationExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
   },
@@ -507,7 +503,7 @@ export function mutation<
   FromObjectState,
   FromObjectResourceParams,
   Insertion1,
-  Exceptions extends MutationExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
   },
@@ -550,7 +546,7 @@ export function mutation<
   FromObjectResourceParams,
   Insertion1,
   Insertion2,
-  Exceptions extends MutationExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
   },
@@ -601,7 +597,7 @@ export function mutation<
   Insertion1,
   Insertion2,
   Insertion3,
-  Exceptions extends MutationExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
   },
@@ -661,7 +657,7 @@ export function mutation<
   Insertion2,
   Insertion3,
   Insertion4,
-  Exceptions extends MutationExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
   },
@@ -730,7 +726,7 @@ export function mutation<
   Insertion3,
   Insertion4,
   Insertion5,
-  Exceptions extends MutationExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
   },
@@ -808,7 +804,7 @@ export function mutation<
   Insertion4,
   Insertion5,
   Insertion6,
-  Exceptions extends MutationExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
   },
@@ -895,7 +891,7 @@ export function mutation<
   Insertion5,
   Insertion6,
   Insertion7,
-  Exceptions extends MutationExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
   },
@@ -1068,6 +1064,36 @@ export function mutation<
  * ```
  *
  * @example
+ * Business exceptions with `craftException`
+ * ```ts
+ * import { craftException, mutation } from '@craft-ng/core';
+ *
+ * const updateUser = mutation({
+ *   method: (value: string) =>
+ *     value.length < 3
+ *       ? craftException(
+ *           { code: 'SEARCH_TERM_TOO_SHORT' },
+ *           { min: 3, received: value.length },
+ *         )
+ *       : value,
+ *   loader: async ({ params }) =>
+ *     params === 'blocked'
+ *       ? craftException(
+ *           { code: 'USER_ACCESS_FORBIDDEN' },
+ *           { id: params },
+ *         )
+ *       : { id: params, updated: true },
+ * });
+ *
+ * updateUser.mutate('ab');
+ * console.log(updateUser.hasException()); // true
+ * console.log(updateUser.exceptions().params?.SEARCH_TERM_TOO_SHORT);
+ *
+ * updateUser.mutate('blocked');
+ * console.log(updateUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
+ * ```
+ *
+ * @example
  * Mutation with identifier for grouping
  * ```ts
  * const deleteItem = mutation({
@@ -1164,7 +1190,7 @@ export function mutation<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
-  Exceptions extends MutationExceptionConstraints = {
+  Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
   },
@@ -1445,7 +1471,7 @@ export function mutation<
         NoInfer<GroupIdentifier>,
         NoInfer<StripCraftException<MutationState>>,
         NoInfer<StripCraftException<MutationParams>>,
-        MutationExceptionConstraints,
+        ResourceExceptionConstraints,
         {},
         {}
       >[]

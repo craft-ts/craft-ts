@@ -83,6 +83,7 @@ const mode = queryParam({
 });
 
 if (mode.hasException()) {
+  console.log(mode.exceptions().list);
   console.log(mode.exceptions().parse.mode?.code);
   console.log(mode.exceptions().parse.mode?.payload);
 }

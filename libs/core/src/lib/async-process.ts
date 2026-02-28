@@ -352,6 +352,36 @@ export type AsyncProcessOutput<
  * ```
  *
  * @example
+ * Business exceptions with `craftException`
+ * ```ts
+ * import { asyncProcess, craftException } from '@craft-ng/core';
+ *
+ * const loadUser = asyncProcess({
+ *   method: (value: string) =>
+ *     value.length < 3
+ *       ? craftException(
+ *           { code: 'SEARCH_TERM_TOO_SHORT' },
+ *           { min: 3, received: value.length },
+ *         )
+ *       : value,
+ *   loader: async ({ params }) =>
+ *     params === 'blocked'
+ *       ? craftException(
+ *           { code: 'USER_ACCESS_FORBIDDEN' },
+ *           { id: params },
+ *         )
+ *       : { id: params, name: 'John Doe' },
+ * });
+ *
+ * loadUser.method('ab');
+ * console.log(loadUser.hasException()); // true
+ * console.log(loadUser.exceptions().params?.SEARCH_TERM_TOO_SHORT);
+ *
+ * loadUser.method('blocked');
+ * console.log(loadUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
+ * ```
+ *
+ * @example
  * Async method with identifier for parallel operations
  * ```ts
  * const delayById = asyncProcess({
