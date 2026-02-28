@@ -93,7 +93,6 @@ const createInitialGrid = (): PixelCellState[][] =>
             matrix.selectGrid().totalCells()
           }}</span
         >
-        <span>Total clicks: {{ matrix.selectGrid().totalPaintActions() }}</span>
       </div>
 
       <div
@@ -224,14 +223,6 @@ export default class PixelArtMatrix {
           state().reduce(
             (count, row) =>
               count + row.filter((cell) => cell.color !== EMPTY_COLOR).length,
-            0,
-          ),
-        ),
-        totalPaintActions: computed(() =>
-          state().reduce(
-            (count, row) =>
-              count +
-              row.reduce((rowCount, cell) => rowCount + cell.paintCount, 0),
             0,
           ),
         ),
