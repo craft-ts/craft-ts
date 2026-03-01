@@ -4,10 +4,12 @@ import {
   InsertionStateFactoryContext,
 } from './query.core';
 import {
+  computed,
   inject,
   InjectionToken,
   Injector,
   linkedSignal,
+  signal,
   Signal,
   WritableSignal,
 } from '@angular/core';
@@ -178,13 +180,13 @@ export function insertForm(
       });
     });
     return {
-      forms: forms,
+      forms: computed(() => forms().map((f) => f.form)),
       select: (formIdentifier: string | number) => {
         const form = forms().find((f) => f.formIdentifier === formIdentifier);
         if (!form) {
           throw new Error(`Form with identifier ${formIdentifier} not found`);
         }
-        return form.form();
+        return form.form;
       },
     };
   };

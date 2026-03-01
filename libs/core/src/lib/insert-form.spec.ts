@@ -12,7 +12,7 @@ describe('insertForm', () => {
     TestBed.runInInjectionContext(() => {
       const loginForm = state(
         {
-          name: '',
+          name: '1',
           password: '',
         } satisfies LoginData,
         insertForm(() => {
@@ -25,6 +25,14 @@ describe('insertForm', () => {
       expectTypeOf(loginForm.form).toEqualTypeOf<
         FieldTree<LoginData, string | number>
       >();
+      expect(loginForm.form.name).toBeDefined();
+      expect(loginForm.form.password).toBeDefined();
+      console.log(
+        'loginForm.form.name().value()',
+        loginForm.form.name().value(),
+      );
+      expect(loginForm.form.name().value()).toBe('1');
+      expect(loginForm.form.password().value()).toBe('');
     });
   });
 
@@ -71,12 +79,13 @@ describe('insertForm', () => {
 
       expect(loginForms.forms()[0]).toBeDefined();
       expect(loginForms.forms()[1]).toBeDefined();
-      console.log('loginForms.select(0)', loginForms.select(0));
       expect(loginForms.select(0)).toBeDefined();
-      console.log('loginForms.select(1)', loginForms.select(1));
-      expect(loginForms.select(1)).toBeDefined();
       expect(loginForms.select(0).name().value()).toBe('1');
+      expect(loginForms.select(0).password().value()).toBe('');
+
+      expect(loginForms.select(1)).toBeDefined();
       expect(loginForms.select(1).name().value()).toBe('2');
+      expect(loginForms.select(1).password().value()).toBe('');
     });
   });
 });
