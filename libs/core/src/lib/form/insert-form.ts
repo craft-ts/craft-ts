@@ -37,8 +37,12 @@ type ExposedFormInsertions<Insertions> = MergeObject<
 
 type ExtractItemType<T> = T extends readonly (infer Item)[] ? Item : never;
 
+type FormRuntimeInsertions<Model> = {
+  validatedFormValue: Signal<ValidatedFormValue<Model>>;
+};
+
 export type FormWithInsertions<Model, Insertions> = MergeObject<
-  FieldTree<Model, string | number>,
+  MergeObject<FieldTree<Model, string | number>, FormRuntimeInsertions<Model>>,
   ExposedFormInsertions<Insertions>
 >;
 
@@ -173,6 +177,31 @@ function createExposedInsertions(
   );
 }
 
+function toBrandedValidatedFormValue<FormValue>(
+  value: FormValue,
+): ValidatedFormValue<FormValue> {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value !== 'object' && typeof value !== 'function') {
+    return undefined;
+  }
+
+  const clonedValue = Array.isArray(value)
+    ? [...value]
+    : { ...(value as Record<PropertyKey, unknown>) };
+
+  Object.defineProperty(clonedValue, validatedFormValueSymbol, {
+    value: true,
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+
+  return clonedValue as ValidatedFormValue<FormValue>;
+}
+
 function executeFormInsertions<Model>(
   formInsertions: InsertionsFormFactory<
     Model,
@@ -188,6 +217,11 @@ function executeFormInsertions<Model>(
     injector: Injector;
   },
 ) {
+  const formWithRuntimeInsertions = createFormWithInsertionsProxy<Model, {}>(
+    options.formRef,
+    {},
+  );
+
   return formInsertions.reduce(
     (acc, insertion) => {
       const nextRawInsertions = runInInjectionContext(options.injector, () =>
@@ -195,7 +229,7 @@ function executeFormInsertions<Model>(
           state: options.state,
           set: options.set,
           update: options.update,
-          form: options.formRef,
+          form: formWithRuntimeInsertions,
           insertions: {
             ...options.inheritedInsertions,
             ...acc.rawInsertionsOutput,
@@ -227,8 +261,24 @@ function createFormWithInsertionsProxy<Model, Insertions>(
   formRef: FieldTree<Model, string | number>,
   exposedInsertions: Record<string, unknown>,
 ) {
+  const formRuntimeInsertions = {
+    validatedFormValue: computed(() => {
+      const formState = formRef();
+
+      if (formState.invalid() || formState.pending()) {
+        return undefined;
+      }
+
+      return toBrandedValidatedFormValue(formState.value());
+    }),
+  } as const;
+
   return new Proxy(formRef as unknown as object, {
     get(target, property, receiver) {
+      if (Reflect.has(formRuntimeInsertions, property)) {
+        return Reflect.get(formRuntimeInsertions, property);
+      }
+
       if (Reflect.has(exposedInsertions, property)) {
         return Reflect.get(exposedInsertions, property);
       }

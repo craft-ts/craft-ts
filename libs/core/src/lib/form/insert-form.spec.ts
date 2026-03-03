@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { state } from '../state';
-import { FieldTree, form } from '@angular/forms/signals';
+import { FieldTree } from '@angular/forms/signals';
 import {
   insertForm,
   ValidatedFormValue,
@@ -95,8 +95,6 @@ describe('insertForm', () => {
     });
   });
 
-  const f = form(signal({ name: '1', password: '' } satisfies LoginData));
-
   it('should chain insertions and expose previous insertions', () => {
     TestBed.runInInjectionContext(() => {
       const loginForm = state(
@@ -117,6 +115,49 @@ describe('insertForm', () => {
 
       expect(loginForm.form.getNameFromForm()).toBe('romain');
       expect(loginForm.form.upperName()).toBe('ROMAIN');
+    });
+  });
+
+  it('should expose form validatedFormValue', () => {
+    TestBed.runInInjectionContext(() => {
+      const loginForm = state(
+        {
+          name: 'romain',
+          password: 'secret',
+        } satisfies LoginData,
+        insertForm(({ form }) => ({})),
+      );
+
+      expect(loginForm.form.validatedFormValue()).toEqual({
+        name: 'romain',
+        password: 'secret',
+      });
+
+      const loginForms = state(
+        [
+          {
+            name: '1',
+            password: '',
+          },
+          {
+            name: '2',
+            password: '',
+          },
+        ] satisfies LoginData[],
+        insertForm(
+          {
+            identifier: ({ index }) => index,
+          },
+          ({ form }) => {
+            expect(form).toBeDefined();
+            return {
+              someInsertion: signal('test').asReadonly(),
+            };
+          },
+        ),
+      );
+
+      expect(loginForms.select(0).validatedFormValue()?.name).toBe('1');
     });
   });
 });
