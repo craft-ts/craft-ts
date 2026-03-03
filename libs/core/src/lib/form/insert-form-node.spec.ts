@@ -1,0 +1,53 @@
+import { TestBed } from '@angular/core/testing';
+import { state } from '../state';
+import { insertForm } from './insert-form';
+import { computed } from '@angular/core';
+import { minLength, required } from '@angular/forms/signals';
+
+type LoginData = {
+  name: string;
+  password: string;
+};
+
+describe('insertSelectFormNode', () => {
+  it.todo('should apply modifier to the form node', () => {
+    TestBed.runInInjectionContext(() => {
+      const form = state(
+        {
+          name: '1',
+          password: '',
+        } satisfies LoginData,
+        insertForm(
+        insertDebouncedFormModel(300),
+          insertSelectFormNode(
+            'name',
+            ({ set }) => ({
+              // todo should expose markAsDirty markAsTouched reset(only reset touxhed ans dirty)
+              clear: () => set((state) => ({ ...state, name: '' })),
+            }),
+            // some can only be apply on the node type
+            insertFormNodeAttributes(({nodeModel}) => ({
+              disable: computed(() => true),
+              required: computed(() => false),
+              hidden: computed(() => false),
+              validators: [cRequired, minLength(3), cValidate(...), cAsyncValiate(queryRef, {
+                success: ...// todo overrride errors,
+                error: ...// todo override errors
+                exception: ...// todo override exception
+              })],
+            })),
+            insertMeta('info', () => ({
+
+            }))
+            // todo expose a activeErrors that should be displayed when the node is touched or dirty
+            insertFormNodeValidators.matchFirst
+            insertFormNodeValidators.matchFirst
+          ),
+        ),
+      );
+
+      expect(form.form.name.disabled()).toBe(true);
+      expect(form.form.password.disabled()).toBe(false);
+    });
+  });
+});

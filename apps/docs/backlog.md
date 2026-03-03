@@ -18,3 +18,4 @@
 - [ ] insertSelect add support for non object/array state (ex: primitive state) and pass the selected state as param to the insertion
 - [ ] Rename craftException to cException
 - [ ] Create a insertContract similar to a class to implement an interface, also add an helper with a proxy to mock the data ?
+- Ajouter le patch pour modifier un state dans les insertions
