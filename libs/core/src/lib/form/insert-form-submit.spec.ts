@@ -63,7 +63,6 @@ describe('insertFormSubmit', () => {
         ),
       );
 
-      const f = form(signal({ test: true }));
       // todo add a way to display some info if submit but not valid/pending
       // todo craft errors from query should be insert and associated to the form
       expect(loginForm.form().submitting()).toBe(false);

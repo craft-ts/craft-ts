@@ -1,9 +1,4 @@
-import {
-  computed,
-  effect,
-  Signal,
-  WritableSignal,
-} from '@angular/core';
+import { computed, effect, Signal, WritableSignal } from '@angular/core';
 import {
   AnyCraftException,
   ExcludeByCode,
@@ -61,12 +56,51 @@ type SubmitContext<
   ) => ExcludeByCode<SubmitExceptionUnion<SubmitCraftResource>, C>;
 };
 
-type HasReturnValidExceptions<Exceptions> =
-  NonNullable<Exceptions> extends AnyCraftException
+type IsValidExceptions<T> =
+  NonNullable<T> extends AnyCraftException
     ? true
-    : [unknown] extends [Exceptions]
+    : [unknown] extends [T]
       ? true
       : false;
+
+type HasReturnValidExceptions<
+  SuccessExceptions,
+  ErrorExceptions,
+  ExceptionExceptions,
+> =
+  IsValidExceptions<SuccessExceptions> extends true
+    ? IsValidExceptions<ErrorExceptions> extends true
+      ? IsValidExceptions<ExceptionExceptions> extends true
+        ? true
+        : {
+            success: true;
+            error: true;
+            exceptions: false;
+          }
+      : {
+          success: true;
+          error: false;
+          exceptions: IsValidExceptions<ExceptionExceptions>;
+        }
+    : {
+        success: false;
+        error: IsValidExceptions<ErrorExceptions>;
+        exceptions: IsValidExceptions<ExceptionExceptions>;
+      };
+type ValidationDetails = {
+  success: boolean;
+  error: boolean;
+  exceptions: boolean;
+};
+
+type InvalidExceptionsMessage<T> = T extends true
+  ? never
+  : T extends ValidationDetails
+    ? `Not valid ${
+        | (T['success'] extends false ? 'success callback' : never)
+        | (T['error'] extends false ? 'error callback' : never)
+        | (T['exceptions'] extends false ? 'exceptions callback' : never)}`
+    : never;
 
 type InsertFormSubmitConfig<
   FormValue,
@@ -95,10 +129,14 @@ type InsertFormSubmitConfig<
       context: SubmitContext<FormValue, SubmitCraftResource>,
     ) => ExceptionExceptions;
   },
-  HasReturnValidExceptions<SuccessExceptions> extends true
+  HasReturnValidExceptions<
+    SuccessExceptions,
+    ErrorExceptions,
+    ExceptionExceptions
+  > extends true
     ? {}
     : {
-        typingError: 'insertFormSubmit callbacks must only return Craft exceptions or undefined';
+        typingError: `insertFormSubmit callbacks must only return Craft exceptions or undefined. ${InvalidExceptionsMessage<HasReturnValidExceptions<SuccessExceptions, ErrorExceptions, ExceptionExceptions>>}`;
       }
 >;
 
@@ -213,16 +251,10 @@ export function insertFormSubmit<
     >;
   }
 > {
+  //@ts-expect-error todo improve type
   return ({ form }) => {
-    // no public API yet
-    const node = form as unknown as {
-      submitState: {
-        selfSubmitting: WritableSignal<boolean>;
-      };
-    };
-
     const _submittingSync = effect(() => {
-      node.submitState.selfSubmitting.set(submitCraftResource.isLoading());
+      form.selfSubmitting.set(submitCraftResource.isLoading());
     });
 
     const hasSubmitExceptions = computed(() => {
@@ -250,11 +282,11 @@ export function insertFormSubmit<
         form,
         exceptions: resourceExceptions,
         omitExceptions,
-      } as SubmitContext<FormValue, SubmitCraftResource>;
+      } as unknown as SubmitContext<FormValue, SubmitCraftResource>;
 
       let mergedExceptions = resourceExceptions as AnyCraftException[];
 
-      if (typeof config.exception === 'function') {
+      if (typeof config?.exception === 'function') {
         const nextExceptions = normalizeExceptionList(
           config.exception(context),
         );
@@ -265,7 +297,7 @@ export function insertFormSubmit<
 
       if (
         submitCraftResource.status() === 'resolved' &&
-        typeof config.success === 'function'
+        typeof config?.success === 'function'
       ) {
         const nextExceptions = normalizeExceptionList(
           config.success({
@@ -281,7 +313,7 @@ export function insertFormSubmit<
 
       if (
         submitCraftResource.status() === 'error' &&
-        typeof config.error === 'function'
+        typeof config?.error === 'function'
       ) {
         const nextExceptions = normalizeExceptionList(
           config.error({

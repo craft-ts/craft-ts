@@ -6,7 +6,7 @@ import {
   ValidatedFormValue,
   validatedFormValueSymbol,
 } from './insert-form';
-import { signal } from '@angular/core';
+import { signal, WritableSignal } from '@angular/core';
 
 type LoginData = {
   name: string;
@@ -170,6 +170,25 @@ describe('insertForm', () => {
       );
 
       expect(loginForms.select(0)().validatedFormValue()?.name).toBe('1');
+    });
+  });
+
+  it('should expose selfSubmitting signal internally', () => {
+    TestBed.runInInjectionContext(() => {
+      const loginForm = state(
+        {
+          name: 'romain',
+          password: 'secret',
+        } satisfies LoginData,
+        insertForm(({ form }) => {
+          const selfSubmitting = form.selfSubmitting;
+          expectTypeOf<typeof selfSubmitting>().toEqualTypeOf<
+            WritableSignal<boolean>
+          >();
+          expect(selfSubmitting).toBeDefined();
+          return {};
+        }),
+      );
     });
   });
 });

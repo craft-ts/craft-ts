@@ -60,15 +60,14 @@ type HasFormExceptionSignalPair<
   Insertions,
   ExceptionName extends string,
   HasExceptionKey extends keyof ExposedFormInsertions<Insertions>,
-> = ExposedFormInsertions<Insertions>[HasExceptionKey] extends Signal<boolean>
-  ? `${Uncapitalize<ExceptionName>}Exceptions` extends keyof ExposedFormInsertions<Insertions>
-    ? ExposedFormInsertions<Insertions>[`${Uncapitalize<ExceptionName>}Exceptions`] extends Signal<
-        unknown
-      >
-      ? true
+> =
+  ExposedFormInsertions<Insertions>[HasExceptionKey] extends Signal<boolean>
+    ? `${Uncapitalize<ExceptionName>}Exceptions` extends keyof ExposedFormInsertions<Insertions>
+      ? ExposedFormInsertions<Insertions>[`${Uncapitalize<ExceptionName>}Exceptions`] extends Signal<unknown>
+        ? true
+        : false
       : false
-    : false
-  : false;
+    : false;
 
 type FormExceptionMap<Insertions> = {
   [K in keyof ExposedFormInsertions<Insertions> as K extends string
@@ -154,6 +153,7 @@ export type InsertionFormFactoryContext<StateType, PreviousInsertionsOutputs> =
   InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> & {
     form: FieldTree<StateType, string | number> & {
       validatedFormValue: Signal<ValidatedFormValue<StateType>>;
+      selfSubmitting: WritableSignal<boolean>;
     };
   };
 
@@ -271,6 +271,8 @@ function executeFormInsertions<Model>(
             validatedFormValue: computed(() =>
               options.formRef().valid() ? options.state() : undefined,
             ),
+            selfSubmitting: (options.formRef() as any).submitState
+              .selfSubmitting as WritableSignal<boolean>,
           }) as any,
           insertions: {
             ...options.inheritedInsertions,
@@ -326,31 +328,28 @@ function createFormExceptionInsertions(
     name: string;
   };
 
-  const exceptionPairs = Object.keys(exposedInsertions).reduce(
-    (acc, key) => {
-      const match = key.match(/^has([A-Z].*)Exceptions$/);
-      if (!match?.[1]) {
-        return acc;
-      }
-
-      const exceptionName = `${match[1].charAt(0).toLowerCase()}${match[1].slice(1)}`;
-      const exceptionsKey = `${exceptionName}Exceptions`;
-      const hasExceptionsSignal = exposedInsertions[key];
-      const exceptionsSignal = exposedInsertions[exceptionsKey];
-
-      if (!isSignal(hasExceptionsSignal) || !isSignal(exceptionsSignal)) {
-        return acc;
-      }
-
-      acc.push({
-        hasExceptionsKey: key,
-        exceptionsKey,
-        name: exceptionName,
-      });
+  const exceptionPairs = Object.keys(exposedInsertions).reduce((acc, key) => {
+    const match = key.match(/^has([A-Z].*)Exceptions$/);
+    if (!match?.[1]) {
       return acc;
-    },
-    [] as ExceptionPair[],
-  );
+    }
+
+    const exceptionName = `${match[1].charAt(0).toLowerCase()}${match[1].slice(1)}`;
+    const exceptionsKey = `${exceptionName}Exceptions`;
+    const hasExceptionsSignal = exposedInsertions[key];
+    const exceptionsSignal = exposedInsertions[exceptionsKey];
+
+    if (!isSignal(hasExceptionsSignal) || !isSignal(exceptionsSignal)) {
+      return acc;
+    }
+
+    acc.push({
+      hasExceptionsKey: key,
+      exceptionsKey,
+      name: exceptionName,
+    });
+    return acc;
+  }, [] as ExceptionPair[]);
 
   if (!exceptionPairs.length) {
     return exposedInsertions;
