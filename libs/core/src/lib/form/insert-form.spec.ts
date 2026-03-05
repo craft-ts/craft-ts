@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { state } from '../state';
-import { FieldTree } from '@angular/forms/signals';
+import { FieldState, FieldTree } from '@angular/forms/signals';
 import {
   insertForm,
   ValidatedFormValue,
@@ -22,8 +22,14 @@ describe('insertForm', () => {
         } satisfies LoginData,
         insertForm(({ form }) => {
           expect(form).toBeDefined();
-          expectTypeOf(form).toEqualTypeOf<
-            FieldTree<LoginData, string | number>
+          expectTypeOf(form()).toEqualTypeOf<
+            FieldState<
+              NoInfer<{
+                name: string;
+                password: string;
+              }>,
+              string | number
+            >
           >();
           return {
             someInsertion: signal('test').asReadonly(),
@@ -36,7 +42,7 @@ describe('insertForm', () => {
       expect(loginForm.form.password).toBeDefined();
       expect(loginForm.form.name().value()).toBe('1');
       expect(loginForm.form.password().value()).toBe('');
-      expect(loginForm.form.someInsertion()).toBe('test');
+      expect(loginForm.form().someInsertion()).toBe('test');
     });
   });
 
@@ -65,8 +71,14 @@ describe('insertForm', () => {
           },
           ({ form }) => {
             expect(form).toBeDefined();
-            expectTypeOf(form).toEqualTypeOf<
-              FieldTree<LoginData, string | number>
+            expectTypeOf(form()).toEqualTypeOf<
+              FieldState<
+                {
+                  name: string;
+                  password: string;
+                },
+                string | number
+              >
             >();
             return {
               someInsertion: signal('test').asReadonly(),
@@ -86,12 +98,12 @@ describe('insertForm', () => {
       expect(loginForms.select(0)).toBeDefined();
       expect(loginForms.select(0).name().value()).toBe('1');
       expect(loginForms.select(0).password().value()).toBe('');
-      expect(loginForms.select(0).someInsertion()).toBe('test');
+      expect(loginForms.select(0)().someInsertion()).toBe('test');
 
       expect(loginForms.select(1)).toBeDefined();
       expect(loginForms.select(1).name().value()).toBe('2');
       expect(loginForms.select(1).password().value()).toBe('');
-      expect(loginForms.select(1).someInsertion()).toBe('test');
+      expect(loginForms.select(1)().someInsertion()).toBe('test');
     });
   });
 
@@ -113,8 +125,8 @@ describe('insertForm', () => {
         ),
       );
 
-      expect(loginForm.form.getNameFromForm()).toBe('romain');
-      expect(loginForm.form.upperName()).toBe('ROMAIN');
+      expect(loginForm.form().getNameFromForm()).toBe('romain');
+      expect(loginForm.form().upperName()).toBe('ROMAIN');
     });
   });
 
@@ -128,7 +140,7 @@ describe('insertForm', () => {
         insertForm(({ form }) => ({})),
       );
 
-      expect(loginForm.form.validatedFormValue()).toEqual({
+      expect(loginForm.form().validatedFormValue()).toEqual({
         name: 'romain',
         password: 'secret',
       });
@@ -157,7 +169,7 @@ describe('insertForm', () => {
         ),
       );
 
-      expect(loginForms.select(0).validatedFormValue()?.name).toBe('1');
+      expect(loginForms.select(0)().validatedFormValue()?.name).toBe('1');
     });
   });
 });

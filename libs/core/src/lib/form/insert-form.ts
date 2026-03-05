@@ -3,12 +3,21 @@ import {
   inject,
   InjectionToken,
   Injector,
+  isSignal,
   linkedSignal,
   runInInjectionContext,
   Signal,
   WritableSignal,
 } from '@angular/core';
-import { FieldTree, form } from '@angular/forms/signals';
+import {
+  CompatFieldState,
+  FieldState,
+  FieldTree,
+  form,
+  MaybeFieldTree,
+  ReadonlyArrayLike,
+  Subfields,
+} from '@angular/forms/signals';
 import {
   InsertionStateFactoryContext,
   InsertionsStateFactory,
@@ -17,6 +26,7 @@ import { Source$ as SourceDollarType } from '../source$';
 import { MergeObject } from '../util/types/util.type';
 import { FilterSource, IsEmptyObject } from '../util/util.type';
 import { isSource } from '../util/util';
+import { AbstractControl } from '@angular/forms';
 
 type Source$Method<SourceType> = [SourceType] extends [void]
   ? () => void
@@ -35,15 +45,74 @@ type ExposedFormInsertions<Insertions> = MergeObject<
   }
 >;
 
-type ExtractItemType<T> = T extends readonly (infer Item)[] ? Item : never;
+type FormExceptionSignal<
+  Insertions,
+  ExceptionName extends string,
+> = `${Uncapitalize<ExceptionName>}Exceptions` extends keyof ExposedFormInsertions<Insertions>
+  ? ExposedFormInsertions<Insertions>[`${Uncapitalize<ExceptionName>}Exceptions`] extends Signal<
+      infer Exceptions
+    >
+    ? Exceptions
+    : never
+  : never;
 
-type FormRuntimeInsertions<Model> = {
-  validatedFormValue: Signal<ValidatedFormValue<Model>>;
+type HasFormExceptionSignalPair<
+  Insertions,
+  ExceptionName extends string,
+  HasExceptionKey extends keyof ExposedFormInsertions<Insertions>,
+> = ExposedFormInsertions<Insertions>[HasExceptionKey] extends Signal<boolean>
+  ? `${Uncapitalize<ExceptionName>}Exceptions` extends keyof ExposedFormInsertions<Insertions>
+    ? ExposedFormInsertions<Insertions>[`${Uncapitalize<ExceptionName>}Exceptions`] extends Signal<
+        unknown
+      >
+      ? true
+      : false
+    : false
+  : false;
+
+type FormExceptionMap<Insertions> = {
+  [K in keyof ExposedFormInsertions<Insertions> as K extends string
+    ? K extends `has${infer Name}Exceptions`
+      ? HasFormExceptionSignalPair<Insertions, Name, K> extends true
+        ? Uncapitalize<Name>
+        : never
+      : never
+    : never]: K extends `has${infer Name}Exceptions`
+    ? FormExceptionSignal<Insertions, Name>
+    : never;
 };
 
-export type FormWithInsertions<Model, Insertions> = MergeObject<
-  MergeObject<FieldTree<Model, string | number>, FormRuntimeInsertions<Model>>,
-  ExposedFormInsertions<Insertions>
+type FormExceptionsInsertion<Insertions> =
+  keyof FormExceptionMap<Insertions> extends never
+    ? {}
+    : {
+        hasExceptions: Signal<boolean>;
+        exceptions: Signal<FormExceptionMap<Insertions>>;
+      };
+
+type ExtractItemType<T> = T extends readonly (infer Item)[] ? Item : never;
+
+type CraftFieldTree<
+  TModel,
+  Insertions,
+  TKey extends string | number = string | number,
+> = (() => [TModel] extends [AbstractControl]
+  ? CompatFieldState<TModel, TKey> & Insertions
+  : FieldState<TModel, TKey> & Insertions) &
+  ([TModel] extends [AbstractControl]
+    ? object
+    : [TModel] extends [ReadonlyArray<infer U>]
+      ? ReadonlyArrayLike<MaybeFieldTree<U, number>>
+      : TModel extends Record<string, any>
+        ? Subfields<TModel>
+        : object);
+
+export type FormWithInsertions<Model, Insertions> = CraftFieldTree<
+  Model,
+  ExposedFormInsertions<Insertions> & {
+    validatedFormValue: Signal<ValidatedFormValue<Model>>;
+  } & FormExceptionsInsertion<Insertions>,
+  string | number
 >;
 
 type InsertFormSimpleOutput<StateType, Insertions> = {
@@ -57,15 +126,12 @@ type InsertFormParallelOutput<StateType, Insertions> = {
   ) => FormWithInsertions<ExtractItemType<StateType>, Insertions>;
 };
 
-type InsertFormSimpleReturn<
-  StateType,
-  Insertions,
-  PreviousInsertionsOutputs,
-> = InsertionsStateFactory<
-  StateType,
-  InsertFormSimpleOutput<StateType, Insertions>,
-  PreviousInsertionsOutputs
->;
+type InsertFormSimpleReturn<StateType, Insertions, PreviousInsertionsOutputs> =
+  InsertionsStateFactory<
+    StateType,
+    InsertFormSimpleOutput<StateType, Insertions>,
+    PreviousInsertionsOutputs
+  >;
 
 type InsertFormParallelReturn<
   StateType,
@@ -86,7 +152,9 @@ type ParallelInsertFormConfig<
 
 export type InsertionFormFactoryContext<StateType, PreviousInsertionsOutputs> =
   InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> & {
-    form: FieldTree<StateType, string | number>;
+    form: FieldTree<StateType, string | number> & {
+      validatedFormValue: Signal<ValidatedFormValue<StateType>>;
+    };
   };
 
 export type InsertionsFormFactory<
@@ -177,31 +245,6 @@ function createExposedInsertions(
   );
 }
 
-function toBrandedValidatedFormValue<FormValue>(
-  value: FormValue,
-): ValidatedFormValue<FormValue> {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-
-  if (typeof value !== 'object' && typeof value !== 'function') {
-    return undefined;
-  }
-
-  const clonedValue = Array.isArray(value)
-    ? [...value]
-    : { ...(value as Record<PropertyKey, unknown>) };
-
-  Object.defineProperty(clonedValue, validatedFormValueSymbol, {
-    value: true,
-    enumerable: false,
-    writable: false,
-    configurable: false,
-  });
-
-  return clonedValue as ValidatedFormValue<FormValue>;
-}
-
 function executeFormInsertions<Model>(
   formInsertions: InsertionsFormFactory<
     Model,
@@ -217,11 +260,6 @@ function executeFormInsertions<Model>(
     injector: Injector;
   },
 ) {
-  const formWithRuntimeInsertions = createFormWithInsertionsProxy<Model, {}>(
-    options.formRef,
-    {},
-  );
-
   return formInsertions.reduce(
     (acc, insertion) => {
       const nextRawInsertions = runInInjectionContext(options.injector, () =>
@@ -229,11 +267,15 @@ function executeFormInsertions<Model>(
           state: options.state,
           set: options.set,
           update: options.update,
-          form: formWithRuntimeInsertions,
+          form: Object.assign(options.formRef, {
+            validatedFormValue: computed(() =>
+              options.formRef().valid() ? options.state() : undefined,
+            ),
+          }) as any,
           insertions: {
             ...options.inheritedInsertions,
             ...acc.rawInsertionsOutput,
-          } as never,
+          },
         }),
       ) as Record<string, unknown>;
 
@@ -261,31 +303,80 @@ function createFormWithInsertionsProxy<Model, Insertions>(
   formRef: FieldTree<Model, string | number>,
   exposedInsertions: Record<string, unknown>,
 ) {
-  const formRuntimeInsertions = {
-    validatedFormValue: computed(() => {
-      const formState = formRef();
-
-      if (formState.invalid() || formState.pending()) {
-        return undefined;
-      }
-
-      return toBrandedValidatedFormValue(formState.value());
-    }),
-  } as const;
+  const exposedInsertionsWithExceptions =
+    createFormExceptionInsertions(exposedInsertions);
 
   return new Proxy(formRef as unknown as object, {
     get(target, property, receiver) {
-      if (Reflect.has(formRuntimeInsertions, property)) {
-        return Reflect.get(formRuntimeInsertions, property);
-      }
-
-      if (Reflect.has(exposedInsertions, property)) {
-        return Reflect.get(exposedInsertions, property);
+      if (Reflect.has(exposedInsertionsWithExceptions, property)) {
+        return Reflect.get(exposedInsertionsWithExceptions, property);
       }
 
       return Reflect.get(target, property, receiver);
     },
   }) as FormWithInsertions<Model, Insertions>;
+}
+
+function createFormExceptionInsertions(
+  exposedInsertions: Record<string, unknown>,
+): Record<string, unknown> {
+  type ExceptionPair = {
+    hasExceptionsKey: string;
+    exceptionsKey: string;
+    name: string;
+  };
+
+  const exceptionPairs = Object.keys(exposedInsertions).reduce(
+    (acc, key) => {
+      const match = key.match(/^has([A-Z].*)Exceptions$/);
+      if (!match?.[1]) {
+        return acc;
+      }
+
+      const exceptionName = `${match[1].charAt(0).toLowerCase()}${match[1].slice(1)}`;
+      const exceptionsKey = `${exceptionName}Exceptions`;
+      const hasExceptionsSignal = exposedInsertions[key];
+      const exceptionsSignal = exposedInsertions[exceptionsKey];
+
+      if (!isSignal(hasExceptionsSignal) || !isSignal(exceptionsSignal)) {
+        return acc;
+      }
+
+      acc.push({
+        hasExceptionsKey: key,
+        exceptionsKey,
+        name: exceptionName,
+      });
+      return acc;
+    },
+    [] as ExceptionPair[],
+  );
+
+  if (!exceptionPairs.length) {
+    return exposedInsertions;
+  }
+
+  const hasExceptions = computed(() =>
+    exceptionPairs.some(({ hasExceptionsKey }) =>
+      Boolean((exposedInsertions[hasExceptionsKey] as Signal<boolean>)()),
+    ),
+  );
+
+  const exceptions = computed(() =>
+    exceptionPairs.reduce(
+      (acc, { exceptionsKey, name }) => {
+        acc[name] = (exposedInsertions[exceptionsKey] as Signal<unknown>)();
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    ),
+  );
+
+  return {
+    ...exposedInsertions,
+    hasExceptions,
+    exceptions,
+  };
 }
 
 function createModelAdapter<Model>(options: {
@@ -313,6 +404,10 @@ function findItemIndexByIdentifier<Item>(
 
 export function insertForm<
   StateType,
+  PreviousInsertionsOutputs = {},
+>(): InsertFormSimpleReturn<StateType, {}, PreviousInsertionsOutputs>;
+export function insertForm<
+  StateType,
   Insertion1,
   PreviousInsertionsOutputs = {},
 >(
@@ -321,11 +416,7 @@ export function insertForm<
     Insertion1,
     PreviousInsertionsOutputs
   >,
-): InsertFormSimpleReturn<
-  StateType,
-  Insertion1,
-  PreviousInsertionsOutputs
->;
+): InsertFormSimpleReturn<StateType, Insertion1, PreviousInsertionsOutputs>;
 export function insertForm<
   StateType,
   Insertion1,
@@ -377,6 +468,13 @@ export function insertForm<
 export function insertForm<
   StateType extends unknown[],
   GroupIdentifier extends string | number,
+  PreviousInsertionsOutputs = {},
+>(
+  config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
+): InsertFormParallelReturn<StateType, {}, PreviousInsertionsOutputs>;
+export function insertForm<
+  StateType extends unknown[],
+  GroupIdentifier extends string | number,
   Insertion1,
   PreviousInsertionsOutputs = {},
 >(
@@ -386,11 +484,7 @@ export function insertForm<
     Insertion1,
     PreviousInsertionsOutputs
   >,
-): InsertFormParallelReturn<
-  StateType,
-  Insertion1,
-  PreviousInsertionsOutputs
->;
+): InsertFormParallelReturn<StateType, Insertion1, PreviousInsertionsOutputs>;
 export function insertForm<
   StateType extends unknown[],
   GroupIdentifier extends string | number,
@@ -486,10 +580,7 @@ export function insertForm(...args: any[]): any {
       const exposedForm = createFormWithInsertionsProxy<
         unknown,
         Record<string, unknown>
-      >(
-        formRef as unknown as FieldTree<unknown, string | number>,
-        exposedInsertionsOutput,
-      );
+      >(formRef, exposedInsertionsOutput);
 
       return {
         form: exposedForm,
@@ -586,14 +677,12 @@ export function insertForm(...args: any[]): any {
       const exposedForm = createFormWithInsertionsProxy<
         unknown,
         Record<string, unknown>
-      >(
-        formRef as unknown as FieldTree<unknown, string | number>,
-        exposedInsertionsOutput,
-      );
+      >(formRef, exposedInsertionsOutput);
 
       const entry: ParallelEntry = {
         formIdentifier,
         form: formRef as unknown as FieldTree<unknown, string | number>,
+        // todo remove exposedForm?
         exposedForm: exposedForm as FormWithInsertions<
           unknown,
           Record<string, unknown>

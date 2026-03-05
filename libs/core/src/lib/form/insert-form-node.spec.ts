@@ -30,18 +30,26 @@ describe('insertSelectFormNode', () => {
               disable: computed(() => true),
               required: computed(() => false),
               hidden: computed(() => false),
-              validators: [cRequired, minLength(3), cValidate(...), cAsyncValiate(queryRef, {
+              validators: [cRequired({
+                when: ...
+              }), minLength(3, {
+                when: ...
+              }), cValidate({
+                name: 'customValidator',
+                when: ...
+                ...
+              }), cAsyncValiate("name", queryRef, {
                 success: ...// todo overrride errors,
                 error: ...// todo override errors
                 exception: ...// todo override exception
               })],
             })),
-            insertMeta('info', () => ({
+            // insertMeta('info', () => ({
 
-            }))
-            // todo expose a activeErrors that should be displayed when the node is touched or dirty
-            insertFormNodeValidators.matchFirst
-            insertFormNodeValidators.matchFirst
+            // }))
+            // // todo expose a activeErrors that should be displayed when the node is touched or dirty
+            // insertFormNodeValidators.matchFirst
+            // insertFormNodeValidators.matchFirst
           ),
         ),
       );
