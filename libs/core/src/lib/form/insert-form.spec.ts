@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { state } from '../state';
-import { FieldState, FieldTree } from '@angular/forms/signals';
+import { FieldState, FieldTree, form } from '@angular/forms/signals';
 import {
   insertForm,
   ValidatedFormValue,
@@ -20,7 +20,7 @@ describe('insertForm', () => {
           name: '1',
           password: '',
         } satisfies LoginData,
-        insertForm(({ form }) => {
+        insertForm(({ form, formIdentifier }) => {
           expect(form).toBeDefined();
           expectTypeOf(form()).toEqualTypeOf<
             FieldState<
@@ -31,15 +31,24 @@ describe('insertForm', () => {
               string | number
             >
           >();
+          expectTypeOf(formIdentifier).toEqualTypeOf<unknown>();
           return {
             someInsertion: signal('test').asReadonly(),
           };
         }),
       );
 
+      const myF = form(
+        signal({
+          name: '',
+          password: '',
+        }),
+      );
+
+      console.log('loginForm.form.name', loginForm.form.name);
+      console.log('loginForm.form.password', loginForm.form.password().value());
+
       expect(loginForm.form).toBeDefined();
-      expect(loginForm.form.name).toBeDefined();
-      expect(loginForm.form.password).toBeDefined();
       expect(loginForm.form.name().value()).toBe('1');
       expect(loginForm.form.password().value()).toBe('');
       expect(loginForm.form().someInsertion()).toBe('test');
@@ -69,7 +78,7 @@ describe('insertForm', () => {
               return index;
             },
           },
-          ({ form }) => {
+          ({ form, formIdentifier }) => {
             expect(form).toBeDefined();
             expectTypeOf(form()).toEqualTypeOf<
               FieldState<
@@ -80,6 +89,8 @@ describe('insertForm', () => {
                 string | number
               >
             >();
+            expectTypeOf(formIdentifier).toEqualTypeOf<number>();
+            expect(formIdentifier).toBeDefined();
             return {
               someInsertion: signal('test').asReadonly(),
             };
@@ -137,7 +148,9 @@ describe('insertForm', () => {
           name: 'romain',
           password: 'secret',
         } satisfies LoginData,
-        insertForm(({ form }) => ({})),
+        insertForm(({ form, setSubmitting }) => {
+          return {};
+        }),
       );
 
       expect(loginForm.form().validatedFormValue()).toEqual({
@@ -169,25 +182,64 @@ describe('insertForm', () => {
         ),
       );
 
+      console.log(
+        'loginForms.select(0)()',
+        loginForms.select(0)().validatedFormValue(),
+      );
+
       expect(loginForms.select(0)().validatedFormValue()?.name).toBe('1');
     });
   });
 
-  it('should expose selfSubmitting signal internally', () => {
+  it('should expose setSubmitting signal internally', () => {
     TestBed.runInInjectionContext(() => {
       const loginForm = state(
         {
           name: 'romain',
           password: 'secret',
         } satisfies LoginData,
-        insertForm(({ form }) => {
-          const selfSubmitting = form.selfSubmitting;
-          expectTypeOf<typeof selfSubmitting>().toEqualTypeOf<
-            WritableSignal<boolean>
+        insertForm(({ form, setSubmitting }) => {
+          expectTypeOf<typeof setSubmitting>().toEqualTypeOf<
+            (submitting: boolean) => void
           >();
-          expect(selfSubmitting).toBeDefined();
+          expect(setSubmitting).toBeDefined();
+          expect(form().submitting()).toBe(false);
+          setSubmitting(true);
+          expect(form().submitting()).toBe(true);
+          setSubmitting(false);
+          expect(form().submitting()).toBe(false);
+
           return {};
         }),
+      );
+    });
+  });
+  it('should expose setSubmitting signal internally for parallel forms', () => {
+    TestBed.runInInjectionContext(() => {
+      const loginForm = state(
+        [
+          {
+            id: 1,
+            name: 'romain',
+            password: 'secret',
+          } as const,
+        ],
+        insertForm(
+          { identifier: ({ item: { id } }) => id },
+          ({ form, setSubmitting }) => {
+            expectTypeOf<typeof setSubmitting>().toEqualTypeOf<
+              (submitting: boolean) => void
+            >();
+            expect(setSubmitting).toBeDefined();
+            expect(form().submitting()).toBe(false);
+            setSubmitting(true);
+            expect(form().submitting()).toBe(true);
+            setSubmitting(false);
+            expect(form().submitting()).toBe(false);
+
+            return {};
+          },
+        ),
       );
     });
   });

@@ -13,11 +13,11 @@ import { mutation } from '../mutation';
 import { form } from '@angular/forms/signals';
 
 type LoginData = {
+  id: string;
   name: string;
   password: string;
 };
 
-// todo tester les erreurs
 describe('insertFormSubmit', () => {
   beforeAll(() => {
     vi.useFakeTimers();
@@ -27,7 +27,7 @@ describe('insertFormSubmit', () => {
   });
   it('should submit the form when submit method is called', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = query({
+      const submitRef = mutation({
         method: (validatedLogin: ValidatedFormValue<LoginData>) => {
           expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
           return validatedLogin;
@@ -39,6 +39,7 @@ describe('insertFormSubmit', () => {
       });
       const loginForm = state(
         {
+          id: '1',
           name: 'John',
           password: '1234',
         } satisfies LoginData,
@@ -97,6 +98,7 @@ describe('insertFormSubmit', () => {
       });
       const loginForm = state(
         {
+          id: '1',
           name: 'John',
           password: '1234',
         } satisfies LoginData,
@@ -159,6 +161,7 @@ describe('insertFormSubmit', () => {
       });
       const loginForm = state(
         {
+          id: '1',
           name: 'John',
           password: '1234',
         } satisfies LoginData,
@@ -240,6 +243,240 @@ describe('insertFormSubmit', () => {
   });
   // todo should have a second arg to map validatedFormValue to the query method
   // todo parallel submit
+});
+
+describe('parallel submit', () => {
+  it('should handle parallel submit correctly, each form should have its own submitting state and exceptions', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const throwRef = signal(false);
+      const submitRef = mutation({
+        method: (validatedLogin: ValidatedFormValue<LoginData>) => {
+          expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
+          return validatedLogin;
+        },
+        identifier: ({ id }) => id,
+        loader: async ({ params: login }) => {
+          await wait(10000);
+          if (throwRef()) {
+            return craftException(
+              { code: 'NameAlreadyExistsException' },
+              { message: 'Name already exists' as const },
+            );
+          }
+          return login;
+        },
+      });
+
+      const loginForms = state(
+        [
+          {
+            id: '1',
+            name: '1',
+            password: '',
+          },
+          {
+            id: '2',
+            name: '2',
+            password: '',
+          },
+        ] satisfies LoginData[],
+        insertForm(
+          {
+            identifier: ({ item: { id } }) => id,
+          },
+          insertFormSubmit(submitRef, {
+            // todo identifier should be overridable in the options of insertFormSubmit
+            // todo insertForm should expose formIdentifier
+            success: ({ submitCraftResource, form }) => {
+              form().reset();
+              // add more exceptions
+              if (submitCraftResource.value()?.name === 'John') {
+                return craftException({
+                  code: 'NameAlreadyExistsExceptionFromSuccess',
+                });
+              }
+              return undefined;
+            },
+            error: ({ submitCraftResource }) => {
+              // add more exceptions
+              if (submitCraftResource.error()?.message === 'failed') {
+                return craftException({ code: 'SubmitFailedFromError' });
+              }
+              return undefined;
+            },
+            exception: ({ submitCraftResource, omitExceptions }) => {
+              // override exceptions
+
+              if (
+                submitCraftResource.exceptions().loader?.code ===
+                'NameAlreadyExistsException'
+              ) {
+                // add more exceptions
+                return craftException({
+                  code: 'NameAlreadyExistsExceptionFromException',
+                });
+              }
+              // override exceptions and omit some exceptions
+              return omitExceptions(['NameAlreadyExistsException']);
+            },
+          }),
+          ({ update }) => ({
+            setName: (name: string) =>
+              update((v) => ({
+                ...v,
+                name,
+              })),
+          }),
+        ),
+      );
+      const form1 = loginForms.select('1')();
+      const form2 = loginForms.select('2')();
+      expect(form1.submitExceptions()).toEqual([]);
+      expect(form2.submitExceptions()).toEqual([]);
+      form1.setName('John');
+      form1.submit();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(form1.submitting()).toBe(true);
+      expect(form2.submitting()).toBe(false);
+      await vi.advanceTimersByTimeAsync(6000);
+      expect(form1.submitting()).toBe(false);
+      expect(form2.submitting()).toBe(false);
+
+      expect(form1.name()).toBe('John');
+
+      expect(form2.name()).toBe('2');
+    });
+  });
+
+  it('should handle parallel submit correctly, each form should have its own submitting state and exceptions', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const throwRef = signal(true);
+      const submitRef = mutation({
+        method: (validatedLogin: ValidatedFormValue<LoginData>) => {
+          expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
+          return validatedLogin;
+        },
+        identifier: ({ id }) => id,
+        loader: async ({ params: login }) => {
+          await wait(10000);
+          if (throwRef()) {
+            return craftException(
+              { code: 'NameAlreadyExistsException' },
+              { message: 'Name already exists' as const },
+            );
+          }
+          return login;
+        },
+      });
+
+      const loginForms = state(
+        [
+          {
+            id: '1',
+            name: '1',
+            password: '',
+          },
+          {
+            id: '2',
+            name: '2',
+            password: '',
+          },
+        ] satisfies LoginData[],
+        insertForm(
+          {
+            identifier: ({ item: { id } }) => id,
+          },
+          insertFormSubmit(submitRef, {
+            success: ({ submitCraftResource, form }) => {
+              form().reset();
+              // add more exceptions
+              if (submitCraftResource.value()?.name === 'John') {
+                return craftException({
+                  code: 'NameAlreadyExistsExceptionFromSuccess',
+                });
+              }
+              return undefined;
+            },
+            error: ({ submitCraftResource }) => {
+              // add more exceptions
+              if (submitCraftResource.error()?.message === 'failed') {
+                return craftException({ code: 'SubmitFailedFromError' });
+              }
+              return undefined;
+            },
+            exception: ({ submitCraftResource, omitExceptions }) => {
+              // override exceptions
+
+              if (
+                submitCraftResource.exceptions().loader?.code ===
+                'NameAlreadyExistsException'
+              ) {
+                // add more exceptions
+                return craftException({
+                  code: 'NameAlreadyExistsExceptionFromException',
+                });
+              }
+              // override exceptions and omit some exceptions
+              return omitExceptions(['NameAlreadyExistsException']);
+            },
+          }),
+          ({ update }) => ({
+            setName: (name: string) =>
+              update((v) => ({
+                ...v,
+                name,
+              })),
+          }),
+        ),
+      );
+      const form1 = loginForms.select('1')();
+      const form2 = loginForms.select('2')();
+      expect(form1.submitExceptions()).toEqual([]);
+      expect(form2.submitExceptions()).toEqual([]);
+      form1.setName('John');
+      form1.submit();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(form1.submitting()).toBe(true);
+      expect(form2.submitting()).toBe(false);
+      await vi.advanceTimersByTimeAsync(6000);
+      expect(form1.submitting()).toBe(false);
+      expect(form2.submitting()).toBe(false);
+
+      expect(form1.name()).toBe('John');
+      // todo manqu l'identifier
+      const r = form1.i.submitExceptions();
+      expectTypeOf(form1.exceptions().submit).toEqualTypeOf<
+        (
+          | CraftExceptionResult<
+              {
+                code: 'NameAlreadyExistsExceptionFromException';
+                identifier: string;
+                scope: 'insertFormSubmitException';
+              },
+              undefined
+            >
+          | CraftExceptionResult<
+              {
+                code: 'NameAlreadyExistsExceptionFromSuccess';
+                identifier: string;
+                scope: 'insertFormSubmitSuccess';
+              },
+              undefined
+            >
+          | CraftExceptionResult<
+              {
+                code: 'SubmitFailedFromError';
+                identifier: string;
+                scope: 'insertFormSubmitError';
+              },
+              undefined
+            >
+        )[]
+      >();
+
+      expect(form2.name()).toBe('2');
+    });
+  });
 });
 
 function wait(ms: number) {

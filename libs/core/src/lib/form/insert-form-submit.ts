@@ -5,35 +5,19 @@ import {
   ExtractCodeFromCraftResultUnion,
   InsertMetaInCraftExceptionIfExists,
 } from '../craft-exception';
-import { ResourceLikeMutationRef } from '../mutation';
-import { ResourceLikeQueryRef } from '../query';
+import {
+  ResourceByIdLikeMutationRef,
+  ResourceLikeMutationExceptions,
+  ResourceLikeMutationRef,
+} from '../mutation';
+import { ResourceByIdLikeQueryRef, ResourceLikeQueryRef } from '../query';
 import {
   FormWithInsertions,
   InsertionsFormFactory,
   ValidatedFormValue,
 } from './insert-form';
-import { MergeObject } from '../util/util.type';
-
-// todo handle parallel resource
-type SubmitResourceLike<FormValue> =
-  | ResourceLikeQueryRef<
-      object | undefined,
-      ValidatedFormValue<FormValue>,
-      true,
-      ValidatedFormValue<FormValue>,
-      unknown,
-      unknown,
-      any
-    >
-  | ResourceLikeMutationRef<
-      object | undefined,
-      ValidatedFormValue<FormValue>,
-      true,
-      ValidatedFormValue<FormValue>,
-      unknown,
-      unknown,
-      any
-    >;
+import { MergeObject, MergeObjects } from '../util/util.type';
+import { ResourceExceptionConstraints } from '../query.core';
 
 type SubmitExceptionUnion<SubmitCraftResource> = SubmitCraftResource extends {
   exceptions: Signal<{ list: (infer ExceptionList)[] }>;
@@ -43,7 +27,21 @@ type SubmitExceptionUnion<SubmitCraftResource> = SubmitCraftResource extends {
 
 type SubmitContext<
   FormValue,
-  SubmitCraftResource,
+  MutationValue,
+  MutationParams,
+  MutationArgParams,
+  MutationSourceParams,
+  MutationInsertions,
+  MutationExceptions extends ResourceExceptionConstraints,
+  SubmitCraftResource = ResourceLikeMutationRef<
+    MutationValue,
+    MutationParams,
+    true,
+    MutationArgParams,
+    MutationSourceParams,
+    MutationInsertions,
+    MutationExceptions
+  >,
   SubmitExceptions = ExtractCodeFromCraftResultUnion<
     SubmitExceptionUnion<SubmitCraftResource>
   >,
@@ -104,40 +102,95 @@ type InvalidExceptionsMessage<T> = T extends true
 
 type InsertFormSubmitConfig<
   FormValue,
-  SubmitCraftResource,
   SuccessExceptions,
   ErrorExceptions,
   ExceptionExceptions,
-> = MergeObject<
-  {
-    /**
-     * Add more exceptions on success, for example to handle specific cases where the resource returns a successful response but you want to display an exception
-     */
-    success?: (
-      context: SubmitContext<FormValue, SubmitCraftResource>,
-    ) => SuccessExceptions;
-    /**
-     * Add more exceptions on error, for example to handle specific cases where the resource returns an error response but you want to display a different exception
-     */
-    error?: (
-      context: SubmitContext<FormValue, SubmitCraftResource>,
-    ) => ErrorExceptions;
-    /**
-     * Override and add more exceptions on exception, for example to handle specific cases where the resource throws an exception but you want to display a different exception
-     */
-    exception?: (
-      context: SubmitContext<FormValue, SubmitCraftResource>,
-    ) => ExceptionExceptions;
-  },
-  HasReturnValidExceptions<
-    SuccessExceptions,
-    ErrorExceptions,
-    ExceptionExceptions
-  > extends true
-    ? {}
-    : {
-        typingError: `insertFormSubmit callbacks must only return Craft exceptions or undefined. ${InvalidExceptionsMessage<HasReturnValidExceptions<SuccessExceptions, ErrorExceptions, ExceptionExceptions>>}`;
-      }
+  MutationValue,
+  MutationParams,
+  MutationArgParams,
+  MutationSourceParams,
+  MutationInsertions,
+  MutationExceptions extends ResourceExceptionConstraints,
+  MutationIdentifier extends string | number | unknown,
+  FormIdentifier extends string | number | unknown,
+> = MergeObjects<
+  [
+    {
+      // todo filter for parallel
+      /**
+       * Add more exceptions on success, for example to handle specific cases where the resource returns a successful response but you want to display an exception
+       */
+      success?: (
+        context: SubmitContext<
+          FormValue,
+          MutationValue,
+          MutationParams,
+          MutationArgParams,
+          MutationSourceParams,
+          MutationInsertions,
+          MutationExceptions
+        >,
+      ) => SuccessExceptions;
+      /**
+       * Add more exceptions on error, for example to handle specific cases where the resource returns an error response but you want to display a different exception
+       */
+      error?: (
+        context: SubmitContext<
+          FormValue,
+          MutationValue,
+          MutationParams,
+          MutationArgParams,
+          MutationSourceParams,
+          MutationInsertions,
+          MutationExceptions
+        >,
+      ) => ErrorExceptions;
+      /**
+       * Override and add more exceptions on exception, for example to handle specific cases where the resource throws an exception but you want to display a different exception
+       */
+      exception?: (
+        context: SubmitContext<
+          FormValue,
+          MutationValue,
+          MutationParams,
+          MutationArgParams,
+          MutationSourceParams,
+          MutationInsertions,
+          MutationExceptions
+        >,
+      ) => ExceptionExceptions;
+    },
+    HasReturnValidExceptions<
+      SuccessExceptions,
+      ErrorExceptions,
+      ExceptionExceptions
+    > extends true
+      ? {}
+      : {
+          typingError: `insertFormSubmit callbacks must only return Craft exceptions or undefined. ${InvalidExceptionsMessage<HasReturnValidExceptions<SuccessExceptions, ErrorExceptions, ExceptionExceptions>>}`;
+        },
+    [unknown] extends [FormIdentifier]
+      ? {}
+      : {
+          filter?: ({
+            formIdentifier,
+            mutationIdentifier,
+            mutationResource,
+          }: {
+            formIdentifier: FormIdentifier;
+            mutationIdentifier: MutationIdentifier;
+            mutationResource: ResourceLikeMutationRef<
+              MutationValue,
+              MutationParams,
+              true,
+              MutationArgParams,
+              MutationSourceParams,
+              MutationInsertions,
+              MutationExceptions
+            >;
+          }) => boolean;
+        },
+  ]
 >;
 
 function isCraftExceptionLike(value: unknown): value is AnyCraftException {
@@ -168,37 +221,42 @@ function normalizeExceptionList(
 }
 
 function triggerSubmitResource<FormValue>(
-  submitCraftResource: SubmitResourceLike<FormValue>,
+  submitCraftResource: ResourceLikeMutationRef<
+    any,
+    any,
+    any,
+    any,
+    any,
+    any,
+    any
+  >,
   validatedFormValue: ValidatedFormValue<FormValue>,
 ) {
   if ('mutate' in submitCraftResource && submitCraftResource.mutate) {
     submitCraftResource.mutate(validatedFormValue);
     return;
   }
-
-  if ('call' in submitCraftResource && submitCraftResource.call) {
-    submitCraftResource.call(validatedFormValue);
-  }
 }
 
 // todo handle GroupIdentifier
 type ToSubmitExceptions<
-  SubmitExceptions extends AnyCraftException | undefined,
+  SubmitExceptions extends AnyCraftException | undefined | unknown,
   SuccessExceptions,
   ErrorExceptions,
   ExceptionExceptions,
+  FormIdentifier extends string | number | unknown,
 > = [unknown] extends [ExceptionExceptions]
   ? Exclude<
       SubmitExceptions &
         InsertMetaInCraftExceptionIfExists<
           SuccessExceptions,
           'insertFormSubmitSuccess',
-          undefined
+          FormIdentifier
         > &
         InsertMetaInCraftExceptionIfExists<
           ErrorExceptions,
           'insertFormSubmitError',
-          undefined
+          FormIdentifier
         >,
       undefined
     >
@@ -206,51 +264,150 @@ type ToSubmitExceptions<
       | InsertMetaInCraftExceptionIfExists<
           ExceptionExceptions,
           'insertFormSubmitException',
-          undefined
+          FormIdentifier
         >
       | InsertMetaInCraftExceptionIfExists<
           SuccessExceptions,
           'insertFormSubmitSuccess',
-          undefined
+          FormIdentifier
         >
       | InsertMetaInCraftExceptionIfExists<
           ErrorExceptions,
           'insertFormSubmitError',
-          undefined
+          FormIdentifier
         >,
       undefined
     >;
 
+/**
+ * For now, only compatible with mutation that accept a method
+ */
 export function insertFormSubmit<
   FormValue,
-  SubmitCraftResource extends SubmitResourceLike<FormValue>,
+  MutationValue,
+  MutationParams,
+  MutationArgParams,
+  MutationSourceParams,
+  MutationInsertions,
+  MutationExceptions extends ResourceExceptionConstraints,
   SuccessExceptions,
   ErrorExceptions,
   ExceptionExceptions,
 >(
-  submitCraftResource: SubmitCraftResource,
+  submitCraftResource: ResourceLikeMutationRef<
+    MutationValue,
+    MutationParams,
+    true,
+    MutationArgParams,
+    MutationSourceParams,
+    MutationInsertions,
+    MutationExceptions
+  >,
   config?: InsertFormSubmitConfig<
     FormValue,
-    SubmitCraftResource,
     SuccessExceptions,
     ErrorExceptions,
-    ExceptionExceptions
+    ExceptionExceptions,
+    NoInfer<MutationValue>,
+    NoInfer<MutationParams>,
+    NoInfer<MutationArgParams>,
+    NoInfer<MutationSourceParams>,
+    NoInfer<MutationInsertions>,
+    NoInfer<MutationExceptions>,
+    unknown,
+    unknown
   >,
 ): InsertionsFormFactory<
   FormValue,
+  unknown,
   {
     submit: () => void;
     hasSubmitExceptions: Signal<boolean>;
     submitExceptions: Signal<
       ToSubmitExceptions<
-        SubmitExceptionUnion<SubmitCraftResource>,
+        | InsertMetaInCraftExceptionIfExists<
+            MutationExceptions['params'],
+            'params',
+            unknown
+          >
+        | InsertMetaInCraftExceptionIfExists<
+            MutationExceptions['loader'],
+            'loader',
+            unknown
+          >,
         SuccessExceptions,
         ErrorExceptions,
-        ExceptionExceptions
+        ExceptionExceptions,
+        unknown
       >[]
     >;
   }
-> {
+>;
+export function insertFormSubmit<
+  FormValue,
+  MutationValue,
+  MutationParams,
+  MutationArgParams,
+  MutationSourceParams,
+  MutationInsertions,
+  MutationExceptions extends ResourceExceptionConstraints,
+  SuccessExceptions,
+  ErrorExceptions,
+  ExceptionExceptions,
+  MutationIdentifier extends string | number,
+  FormIdentifier extends string | number,
+>(
+  submitCraftResourceById: ResourceByIdLikeMutationRef<
+    MutationValue,
+    MutationParams,
+    true,
+    MutationArgParams,
+    MutationSourceParams,
+    MutationInsertions,
+    MutationIdentifier,
+    MutationExceptions
+  >,
+  config?: InsertFormSubmitConfig<
+    FormValue,
+    SuccessExceptions,
+    ErrorExceptions,
+    ExceptionExceptions,
+    NoInfer<MutationValue>,
+    NoInfer<MutationParams>,
+    NoInfer<MutationArgParams>,
+    NoInfer<MutationSourceParams>,
+    NoInfer<MutationInsertions>,
+    NoInfer<MutationExceptions>,
+    NoInfer<MutationIdentifier>,
+    NoInfer<FormIdentifier>
+  >,
+): InsertionsFormFactory<
+  FormValue,
+  FormIdentifier,
+  {
+    submit: () => void;
+    hasSubmitExceptions: Signal<boolean>;
+    submitExceptions: Signal<
+      ToSubmitExceptions<
+        | InsertMetaInCraftExceptionIfExists<
+            MutationExceptions['params'],
+            'params',
+            MutationIdentifier
+          >
+        | InsertMetaInCraftExceptionIfExists<
+            MutationExceptions['loader'],
+            'loader',
+            MutationIdentifier
+          >,
+        SuccessExceptions,
+        ErrorExceptions,
+        ExceptionExceptions,
+        FormIdentifier
+      >[]
+    >;
+  }
+>;
+export function insertFormSubmit(submitCraftResource: any, config?: any): any {
   //@ts-expect-error todo improve type
   return ({ form }) => {
     const _submittingSync = effect(() => {
@@ -270,24 +427,33 @@ export function insertFormSubmit<
         typeof submitCraftResource.exceptions === 'function'
           ? (submitCraftResource.exceptions()?.list ?? [])
           : []
-      ) as SubmitExceptionUnion<SubmitCraftResource>;
+      ) as SubmitExceptionUnion<any>;
 
       const omitExceptions = (codes: string[]) =>
         (resourceExceptions as AnyCraftException[]).filter(
           (exception) => !codes.includes(exception.code),
-        ) as SubmitExceptionUnion<SubmitCraftResource>;
+        ) as SubmitExceptionUnion<any>;
 
       const context = {
         submitCraftResource,
         form,
         exceptions: resourceExceptions,
         omitExceptions,
-      } as unknown as SubmitContext<FormValue, SubmitCraftResource>;
+      } as unknown as SubmitContext<
+        unknown,
+        unknown,
+        unknown,
+        unknown,
+        unknown,
+        unknown,
+        ResourceExceptionConstraints
+      >;
 
       let mergedExceptions = resourceExceptions as AnyCraftException[];
 
       if (typeof config?.exception === 'function') {
         const nextExceptions = normalizeExceptionList(
+          //@ts-ignore
           config.exception(context),
         );
         if (nextExceptions) {
@@ -302,8 +468,8 @@ export function insertFormSubmit<
         const nextExceptions = normalizeExceptionList(
           config.success({
             ...context,
-            exceptions:
-              mergedExceptions as SubmitExceptionUnion<SubmitCraftResource>,
+            //@ts-ignore
+            exceptions: mergedExceptions as SubmitExceptionUnion<any>,
           }),
         );
         if (nextExceptions?.length) {
@@ -318,15 +484,15 @@ export function insertFormSubmit<
         const nextExceptions = normalizeExceptionList(
           config.error({
             ...context,
-            exceptions:
-              mergedExceptions as SubmitExceptionUnion<SubmitCraftResource>,
+            //@ts-ignore
+            exceptions: mergedExceptions as SubmitExceptionUnion<any>,
           }),
         );
         if (nextExceptions?.length) {
           mergedExceptions = [...mergedExceptions, ...nextExceptions];
         }
       }
-      return mergedExceptions as SubmitExceptionUnion<SubmitCraftResource>;
+      return mergedExceptions as SubmitExceptionUnion<any>;
     });
 
     const submitForm = async () => {

@@ -20,6 +20,11 @@ import { craft } from '@craft-ng/core';
 - **Contract enforcement**: Optional type contracts for store implementation
 - **Error detection**: Type-level errors for configuration mistakes
 
+:::warning
+I will explore another approach that relies more on the primitive utilities, and that simplifies customization with your own utilities.
+So, I recommend avoiding creation of custom utilities for now, and waiting for the next iteration of the API before doing so.
+:::
+
 ## Naming Convention
 
 Based on the `options.name` parameter, craft automatically generates:

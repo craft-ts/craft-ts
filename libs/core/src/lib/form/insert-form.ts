@@ -4,6 +4,7 @@ import {
   InjectionToken,
   Injector,
   isSignal,
+  isWritableSignal,
   linkedSignal,
   runInInjectionContext,
   Signal,
@@ -87,6 +88,7 @@ type FormExceptionsInsertion<Insertions> =
     : {
         hasExceptions: Signal<boolean>;
         exceptions: Signal<FormExceptionMap<Insertions>>;
+        i: Insertions;
       };
 
 type ExtractItemType<T> = T extends readonly (infer Item)[] ? Item : never;
@@ -149,20 +151,28 @@ type ParallelInsertFormConfig<
   identifier: (context: { item: ItemType; index: number }) => GroupIdentifier;
 };
 
-export type InsertionFormFactoryContext<StateType, PreviousInsertionsOutputs> =
-  InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> & {
-    form: FieldTree<StateType, string | number> & {
-      validatedFormValue: Signal<ValidatedFormValue<StateType>>;
-      selfSubmitting: WritableSignal<boolean>;
-    };
-  };
+export type InsertionFormFactoryContext<
+  StateType,
+  PreviousInsertionsOutputs,
+  FormIdentifier extends string | number | unknown,
+> = InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> & {
+  form: FieldTree<StateType, string | number>;
+  validatedFormValue: Signal<ValidatedFormValue<StateType>>;
+  setSubmitting: (submitting: boolean) => void;
+  formIdentifier: FormIdentifier;
+};
 
 export type InsertionsFormFactory<
   State,
+  FormIdentifier extends string | number | unknown,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
 > = (
-  context: InsertionFormFactoryContext<State, PreviousInsertionsOutputs>,
+  context: InsertionFormFactoryContext<
+    State,
+    PreviousInsertionsOutputs,
+    FormIdentifier
+  >,
 ) => InsertionsOutputs;
 
 export const validatedFormValueSymbol = Symbol('validatedFormValue');
@@ -172,7 +182,7 @@ export type ValidatedFormValue<FormValue> =
     })
   | undefined;
 
-const RESOURCE_INSTANCE_TOKEN = new InjectionToken<
+const FORM_INSTANCE_TOKEN = new InjectionToken<
   FieldTree<unknown, string | number>
 >(
   'Injection token used to provide a dynamically created signal form instance.',
@@ -208,17 +218,26 @@ function createDynamicSignalForm<Model>(
   const injector = Injector.create({
     providers: [
       {
-        provide: RESOURCE_INSTANCE_TOKEN,
-        useFactory: () => form(model),
+        provide: FORM_INSTANCE_TOKEN,
+        useFactory: () => {
+          const formRef = form(model);
+          const setSubmitting = (formRef() as any).submitState.selfSubmitting;
+
+          // when a form is created with this helper, setSubmitting/selfSubmitting can not be set externally. So expose it here
+          return {
+            formRef,
+            setSubmitting,
+          };
+        },
       },
     ],
     parent: parentInjector,
   });
 
-  return injector.get(RESOURCE_INSTANCE_TOKEN) as unknown as FieldTree<
-    Model,
-    string | number
-  >;
+  return injector.get(FORM_INSTANCE_TOKEN) as unknown as {
+    formRef: FieldTree<Model, string | number>;
+    setSubmitting: (submitting: boolean) => void;
+  };
 }
 
 function createExposedInsertions(
@@ -248,6 +267,7 @@ function createExposedInsertions(
 function executeFormInsertions<Model>(
   formInsertions: InsertionsFormFactory<
     Model,
+    unknown,
     Record<string, unknown>,
     Record<string, unknown>
   >[],
@@ -256,8 +276,10 @@ function executeFormInsertions<Model>(
     state: Signal<Model>;
     set: (newState: Model) => Model;
     update: (updateFn: (currentState: Model) => Model) => Model;
+    setSubmitting: (submitting: boolean) => void;
     inheritedInsertions: Record<string, unknown>;
     injector: Injector;
+    formIdentifier?: string | number | unknown;
   },
 ) {
   return formInsertions.reduce(
@@ -267,20 +289,20 @@ function executeFormInsertions<Model>(
           state: options.state,
           set: options.set,
           update: options.update,
-          form: Object.assign(options.formRef, {
-            validatedFormValue: computed(() =>
-              options.formRef().valid() ? options.state() : undefined,
-            ),
-            selfSubmitting: (options.formRef() as any).submitState
-              .selfSubmitting as WritableSignal<boolean>,
-          }) as any,
+          form: options.formRef,
+          validatedFormValue: computed(() =>
+            options.formRef().valid()
+              ? (options.state() as ValidatedFormValue<Model>)
+              : undefined,
+          ),
+          setSubmitting: options.setSubmitting,
+          formIdentifier: options.formIdentifier!,
           insertions: {
             ...options.inheritedInsertions,
             ...acc.rawInsertionsOutput,
           },
         }),
       ) as Record<string, unknown>;
-
       const nextExposedInsertions = createExposedInsertions(nextRawInsertions);
 
       return {
@@ -299,83 +321,6 @@ function executeFormInsertions<Model>(
       exposedInsertionsOutput: {} as Record<string, unknown>,
     },
   );
-}
-
-function createFormWithInsertionsProxy<Model, Insertions>(
-  formRef: FieldTree<Model, string | number>,
-  exposedInsertions: Record<string, unknown>,
-) {
-  const exposedInsertionsWithExceptions =
-    createFormExceptionInsertions(exposedInsertions);
-
-  return new Proxy(formRef as unknown as object, {
-    get(target, property, receiver) {
-      if (Reflect.has(exposedInsertionsWithExceptions, property)) {
-        return Reflect.get(exposedInsertionsWithExceptions, property);
-      }
-
-      return Reflect.get(target, property, receiver);
-    },
-  }) as FormWithInsertions<Model, Insertions>;
-}
-
-function createFormExceptionInsertions(
-  exposedInsertions: Record<string, unknown>,
-): Record<string, unknown> {
-  type ExceptionPair = {
-    hasExceptionsKey: string;
-    exceptionsKey: string;
-    name: string;
-  };
-
-  const exceptionPairs = Object.keys(exposedInsertions).reduce((acc, key) => {
-    const match = key.match(/^has([A-Z].*)Exceptions$/);
-    if (!match?.[1]) {
-      return acc;
-    }
-
-    const exceptionName = `${match[1].charAt(0).toLowerCase()}${match[1].slice(1)}`;
-    const exceptionsKey = `${exceptionName}Exceptions`;
-    const hasExceptionsSignal = exposedInsertions[key];
-    const exceptionsSignal = exposedInsertions[exceptionsKey];
-
-    if (!isSignal(hasExceptionsSignal) || !isSignal(exceptionsSignal)) {
-      return acc;
-    }
-
-    acc.push({
-      hasExceptionsKey: key,
-      exceptionsKey,
-      name: exceptionName,
-    });
-    return acc;
-  }, [] as ExceptionPair[]);
-
-  if (!exceptionPairs.length) {
-    return exposedInsertions;
-  }
-
-  const hasExceptions = computed(() =>
-    exceptionPairs.some(({ hasExceptionsKey }) =>
-      Boolean((exposedInsertions[hasExceptionsKey] as Signal<boolean>)()),
-    ),
-  );
-
-  const exceptions = computed(() =>
-    exceptionPairs.reduce(
-      (acc, { exceptionsKey, name }) => {
-        acc[name] = (exposedInsertions[exceptionsKey] as Signal<unknown>)();
-        return acc;
-      },
-      {} as Record<string, unknown>,
-    ),
-  );
-
-  return {
-    ...exposedInsertions,
-    hasExceptions,
-    exceptions,
-  };
 }
 
 function createModelAdapter<Model>(options: {
@@ -412,6 +357,7 @@ export function insertForm<
 >(
   insertion1: InsertionsFormFactory<
     StateType,
+    unknown,
     Insertion1,
     PreviousInsertionsOutputs
   >,
@@ -424,11 +370,13 @@ export function insertForm<
 >(
   insertion1: InsertionsFormFactory<
     StateType,
+    unknown,
     Insertion1,
     PreviousInsertionsOutputs
   >,
   insertion2: InsertionsFormFactory<
     StateType,
+    unknown,
     Insertion2,
     PreviousInsertionsOutputs & Insertion1
   >,
@@ -446,16 +394,19 @@ export function insertForm<
 >(
   insertion1: InsertionsFormFactory<
     StateType,
+    unknown,
     Insertion1,
     PreviousInsertionsOutputs
   >,
   insertion2: InsertionsFormFactory<
     StateType,
+    unknown,
     Insertion2,
     PreviousInsertionsOutputs & Insertion1
   >,
   insertion3: InsertionsFormFactory<
     StateType,
+    unknown,
     Insertion3,
     PreviousInsertionsOutputs & Insertion1 & Insertion2
   >,
@@ -480,6 +431,7 @@ export function insertForm<
   config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
   insertion1: InsertionsFormFactory<
     ExtractItemType<StateType>,
+    GroupIdentifier,
     Insertion1,
     PreviousInsertionsOutputs
   >,
@@ -494,11 +446,13 @@ export function insertForm<
   config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
   insertion1: InsertionsFormFactory<
     ExtractItemType<StateType>,
+    GroupIdentifier,
     Insertion1,
     PreviousInsertionsOutputs
   >,
   insertion2: InsertionsFormFactory<
     ExtractItemType<StateType>,
+    GroupIdentifier,
     Insertion2,
     PreviousInsertionsOutputs & Insertion1
   >,
@@ -518,16 +472,19 @@ export function insertForm<
   config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
   insertion1: InsertionsFormFactory<
     ExtractItemType<StateType>,
+    GroupIdentifier,
     Insertion1,
     PreviousInsertionsOutputs
   >,
   insertion2: InsertionsFormFactory<
     ExtractItemType<StateType>,
+    GroupIdentifier,
     Insertion2,
     PreviousInsertionsOutputs & Insertion1
   >,
   insertion3: InsertionsFormFactory<
     ExtractItemType<StateType>,
+    GroupIdentifier,
     Insertion3,
     PreviousInsertionsOutputs & Insertion1 & Insertion2
   >,
@@ -543,6 +500,7 @@ export function insertForm(...args: any[]): any {
   const formInsertions = (
     hasParallelConfig ? args.slice(1) : args
   ) as InsertionsFormFactory<
+    unknown,
     unknown,
     Record<string, unknown>,
     Record<string, unknown>
@@ -564,32 +522,46 @@ export function insertForm(...args: any[]): any {
         asReadonly: () => context.state,
       });
       const formRef = form(model);
+      const setSubmitting = (formRef() as any).submitState.selfSubmitting;
       const { exposedInsertionsOutput } = executeFormInsertions(
         formInsertions,
         {
           formRef,
+          setSubmitting: (submitting: boolean) => setSubmitting.set(submitting),
           state: context.state,
           set: (newState: unknown) => context.set(newState),
           update: (updateFn: (currentState: unknown) => unknown) =>
             context.update(updateFn),
           inheritedInsertions,
           injector,
+          formIdentifier: () => undefined,
         },
       );
-      const exposedForm = createFormWithInsertionsProxy<
-        unknown,
-        Record<string, unknown>
-      >(formRef, exposedInsertionsOutput);
+
+      const extraFields = {
+        ...exposedInsertionsOutput,
+        validatedFormValue: computed(() =>
+          formRef().valid()
+            ? (context.state() as ValidatedFormValue<unknown>)
+            : undefined,
+        ),
+      };
+
+      for (const key in extraFields) {
+        //@ts-expect-error add extra fields to formRef inner value, it is hard to do otherwise without loosing some fields
+        formRef()[key] = extraFields[key];
+      }
 
       return {
-        form: exposedForm,
+        form: formRef,
       };
     }
 
     type ParallelEntry = {
       formIdentifier: string | number;
-      form: FieldTree<unknown, string | number>;
-      exposedForm: FormWithInsertions<unknown, Record<string, unknown>>;
+      form: FieldTree<unknown, string | number> & {
+        validatedFormValue: Signal<ValidatedFormValue<unknown>>;
+      };
     };
 
     const formsByIdentifier = new Map<string | number, ParallelEntry>();
@@ -660,32 +632,45 @@ export function insertForm(...args: any[]): any {
           updateItem(formIdentifier, updateFn),
         asReadonly: () => itemState,
       });
-      const formRef = createDynamicSignalForm(injector, model);
+      const { formRef, setSubmitting } = createDynamicSignalForm(
+        injector,
+        model,
+      );
+
       const { exposedInsertionsOutput } = executeFormInsertions(
         formInsertions,
         {
           formRef,
+          setSubmitting,
           state: itemState,
           set: (newState: unknown) => setItem(formIdentifier, newState),
           update: (updateFn: (currentState: unknown) => unknown) =>
             updateItem(formIdentifier, updateFn),
           inheritedInsertions,
           injector,
+          formIdentifier,
         },
       );
-      const exposedForm = createFormWithInsertionsProxy<
-        unknown,
-        Record<string, unknown>
-      >(formRef, exposedInsertionsOutput);
+
+      const extraFields = {
+        ...exposedInsertionsOutput,
+        validatedFormValue: computed(() =>
+          formRef().valid()
+            ? (selectItem(formIdentifier) as ValidatedFormValue<unknown>)
+            : undefined,
+        ),
+      };
+
+      for (const key in extraFields) {
+        //@ts-expect-error add extra fields to formRef inner value, it is hard to do otherwise without loosing some fields
+        formRef()[key] = extraFields[key];
+      }
 
       const entry: ParallelEntry = {
         formIdentifier,
-        form: formRef as unknown as FieldTree<unknown, string | number>,
-        // todo remove exposedForm?
-        exposedForm: exposedForm as FormWithInsertions<
-          unknown,
-          Record<string, unknown>
-        >,
+        form: formRef as unknown as FieldTree<unknown, string | number> & {
+          validatedFormValue: Signal<ValidatedFormValue<unknown>>;
+        },
       };
       formsByIdentifier.set(formIdentifier, entry);
       return entry;
@@ -730,7 +715,7 @@ export function insertForm(...args: any[]): any {
           throw new Error(`Form with identifier ${formIdentifier} not found`);
         }
 
-        return selectedEntry.exposedForm;
+        return selectedEntry.form;
       },
     };
   };

@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import {
   craft,
   craftQueryParams,
   craftSources,
+  insertForm,
   queryParam,
   signalSource,
   source$,
@@ -114,4 +115,42 @@ export default class TestComponent {
     child: computed(() => state()),
     add: () => update((v) => [...v, this.instance(v.length + 1)]),
   }));
+
+  loginForm = state(
+    [
+      {
+        id: 1,
+        name: '1',
+        password: '',
+      },
+    ],
+    insertForm(
+      {
+        identifier: ({ item }) => item.id,
+      },
+      ({ form, formIdentifier }) => {
+        console.log('formIdentifier', formIdentifier);
+        console.log('form', form);
+        console.log('form()', form());
+
+        return {
+          someInsertion: signal('test').asReadonly(),
+        };
+      },
+      ({ setSubmitting, insertions: { someInsertion } }) => {
+        setSubmitting(true);
+        console.log('someInsertion', someInsertion());
+        return {};
+      },
+    ),
+  );
+
+  ngAfterViewInit(): void {
+    const f = this.loginForm.select(1);
+    // const f = this.loginForm.form;
+    const r = f();
+    console.log('r', r);
+    console.log('submitting', r.submitting());
+    f().someInsertion();
+  }
 }
