@@ -24,6 +24,8 @@ type EntryBindings<Service> = Prettify<
 
 export type ToInjectBindings<Service> = EntryBindings<Service>;
 
+// todo doc
+
 /**
  * Creates an Angular `inject()` helper bound to a service and keeps selected
  * `...Entry` writable signals synchronized with external signals.

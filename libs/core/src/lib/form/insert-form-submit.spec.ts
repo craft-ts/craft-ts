@@ -29,10 +29,12 @@ describe('insertFormSubmit', () => {
     await TestBed.runInInjectionContext(async () => {
       const submitRef = mutation({
         method: (validatedLogin: ValidatedFormValue<LoginData>) => {
+          console.log('mutation validatedLogin', validatedLogin);
           expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
           return validatedLogin;
         },
         loader: async ({ params: login }) => {
+          console.log('mutation login', login);
           await wait(10000);
           return login;
         },
@@ -71,6 +73,7 @@ describe('insertFormSubmit', () => {
       expect(loginForm.form().submitExceptions()).toEqual([]);
       loginForm.form().submit();
       await vi.advanceTimersByTimeAsync(5000);
+      console.log('submitRef.isLoading()', submitRef.isLoading());
       expect(loginForm.form().submitting()).toBe(true); // todo should be true
       await vi.advanceTimersByTimeAsync(6000);
       expect(loginForm.form().submitting()).toBe(false); // todo should be false
@@ -106,6 +109,10 @@ describe('insertFormSubmit', () => {
       );
       // todo check exceptions are propertly associated to the form and can be displayed in the template
       // todo in form expose hasExceptions
+      console.log(
+        'loginForm.form().hasExceptions',
+        loginForm.form().hasExceptions,
+      );
       expectTypeOf(loginForm.form().hasExceptions()).toEqualTypeOf<boolean>();
       expectTypeOf(loginForm.form().exceptions().submit).toEqualTypeOf<
         CraftExceptionResult<

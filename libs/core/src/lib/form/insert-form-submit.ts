@@ -232,6 +232,7 @@ function triggerSubmitResource<FormValue>(
   >,
   validatedFormValue: ValidatedFormValue<FormValue>,
 ) {
+  console.log('triggerSubmitResource');
   if ('mutate' in submitCraftResource && submitCraftResource.mutate) {
     submitCraftResource.mutate(validatedFormValue);
     return;
@@ -409,9 +410,10 @@ export function insertFormSubmit<
 >;
 export function insertFormSubmit(submitCraftResource: any, config?: any): any {
   //@ts-expect-error todo improve type
-  return ({ form }) => {
+  return ({ form, setSubmitting }) => {
     const _submittingSync = effect(() => {
-      form.selfSubmitting.set(submitCraftResource.isLoading());
+      console.log('submitCraftResource', submitCraftResource.isLoading());
+      setSubmitting(submitCraftResource.isLoading());
     });
 
     const hasSubmitExceptions = computed(() => {
@@ -496,7 +498,8 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
     });
 
     const submitForm = async () => {
-      const validatedFormValue = form.validatedFormValue();
+      const validatedFormValue = form().validatedFormValue();
+
       if (!validatedFormValue) {
         return;
       }

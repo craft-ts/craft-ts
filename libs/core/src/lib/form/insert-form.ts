@@ -3,8 +3,6 @@ import {
   inject,
   InjectionToken,
   Injector,
-  isSignal,
-  isWritableSignal,
   linkedSignal,
   runInInjectionContext,
   Signal,
@@ -292,7 +290,9 @@ function executeFormInsertions<Model>(
           form: options.formRef,
           validatedFormValue: computed(() =>
             options.formRef().valid()
-              ? (options.state() as ValidatedFormValue<Model>)
+              ? (Object.assign(options.formRef().value() as object, {
+                  [validatedFormValueSymbol]: true,
+                }) as ValidatedFormValue<Model>)
               : undefined,
           ),
           setSubmitting: options.setSubmitting,
@@ -542,7 +542,9 @@ export function insertForm(...args: any[]): any {
         ...exposedInsertionsOutput,
         validatedFormValue: computed(() =>
           formRef().valid()
-            ? (context.state() as ValidatedFormValue<unknown>)
+            ? (Object.assign(formRef().value() as object, {
+                [validatedFormValueSymbol]: true,
+              }) as ValidatedFormValue<unknown>)
             : undefined,
         ),
       };

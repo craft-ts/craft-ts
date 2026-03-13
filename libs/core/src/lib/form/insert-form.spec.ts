@@ -156,6 +156,7 @@ describe('insertForm', () => {
       expect(loginForm.form().validatedFormValue()).toEqual({
         name: 'romain',
         password: 'secret',
+        [validatedFormValueSymbol]: true,
       });
 
       const loginForms = state(
