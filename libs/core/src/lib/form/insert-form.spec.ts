@@ -6,7 +6,8 @@ import {
   ValidatedFormValue,
   validatedFormValueSymbol,
 } from './insert-form';
-import { signal, WritableSignal } from '@angular/core';
+import { computed, signal } from '@angular/core';
+import { craftException } from '../craft-exception';
 
 type LoginData = {
   name: string;
@@ -242,6 +243,68 @@ describe('insertForm', () => {
           },
         ),
       );
+    });
+  });
+
+  it('should map insertion exceptions to form exception helpers', () => {
+    TestBed.runInInjectionContext(() => {
+      const submitException = craftException(
+        { code: 'NAME_ALREADY_EXISTS' },
+        { message: 'Name already exists' as const },
+      );
+      const validationException = craftException(
+        { code: 'PASSWORD_TOO_SHORT' },
+        { minLength: 8 as const },
+      );
+      const submitExceptions = signal<(typeof submitException)[]>([]);
+      const validationExceptions = signal<(typeof validationException)[]>([]);
+
+      const loginForm = state(
+        {
+          name: 'romain',
+          password: 'secret',
+        } satisfies LoginData,
+        insertForm(() => ({
+          hasSubmitExceptions: computed(() => submitExceptions().length > 0),
+          submitExceptions: submitExceptions.asReadonly(),
+          hasValidationExceptions: computed(
+            () => validationExceptions().length > 0,
+          ),
+          validationExceptions: validationExceptions.asReadonly(),
+          clearSubmitExceptions: () => submitExceptions.set([]),
+        })),
+      );
+
+      expectTypeOf(loginForm.form().hasExceptions()).toEqualTypeOf<boolean>();
+      expectTypeOf(loginForm.form().exceptions().submit).toEqualTypeOf<
+        (typeof submitException)[]
+      >();
+      expectTypeOf(loginForm.form().exceptions().validation).toEqualTypeOf<
+        (typeof validationException)[]
+      >();
+
+      expect(loginForm.form().hasExceptions()).toBe(false);
+      expect(loginForm.form().exceptions()).toEqual({
+        submit: [],
+        validation: [],
+      });
+
+      submitExceptions.set([submitException]);
+
+      expect(loginForm.form().hasExceptions()).toBe(true);
+      expect(loginForm.form().exceptions()).toEqual({
+        submit: [submitException],
+        validation: [],
+      });
+
+      validationExceptions.set([validationException]);
+
+      expect(loginForm.form().hasExceptions()).toBe(true);
+
+      expect(loginForm.form().exceptions()).toEqual({
+        submit: [submitException],
+        validation: [validationException],
+      });
     });
   });
 });

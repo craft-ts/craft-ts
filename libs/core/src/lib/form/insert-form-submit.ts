@@ -1,4 +1,10 @@
-import { computed, effect, Signal, WritableSignal } from '@angular/core';
+import {
+  assertInInjectionContext,
+  computed,
+  effect,
+  Signal,
+  WritableSignal,
+} from '@angular/core';
 import {
   AnyCraftException,
   ExcludeByCode,
@@ -232,7 +238,6 @@ function triggerSubmitResource<FormValue>(
   >,
   validatedFormValue: ValidatedFormValue<FormValue>,
 ) {
-  console.log('triggerSubmitResource');
   if ('mutate' in submitCraftResource && submitCraftResource.mutate) {
     submitCraftResource.mutate(validatedFormValue);
     return;
@@ -410,24 +415,53 @@ export function insertFormSubmit<
 >;
 export function insertFormSubmit(submitCraftResource: any, config?: any): any {
   //@ts-expect-error todo improve type
-  return ({ form, setSubmitting }) => {
+  return ({ form, setSubmitting, formIdentifier }) => {
+    const submitCraftResourceTarget = computed(() =>
+      formIdentifier
+        ? (
+            submitCraftResource as ResourceByIdLikeMutationRef<
+              unknown,
+              unknown,
+              true,
+              unknown,
+              unknown,
+              unknown,
+              unknown,
+              ResourceExceptionConstraints
+            >
+          ).select(formIdentifier)
+        : (submitCraftResource as ResourceLikeMutationRef<
+            unknown,
+            unknown,
+            true,
+            unknown,
+            unknown,
+            unknown,
+            ResourceExceptionConstraints
+          >),
+    );
+
     const _submittingSync = effect(() => {
-      console.log('submitCraftResource', submitCraftResource.isLoading());
-      setSubmitting(submitCraftResource.isLoading());
+      setSubmitting(submitCraftResourceTarget()?.isLoading() ?? false);
     });
 
+    // todo should be derieved from submitExceptions because success cb can add more excpetions
     const hasSubmitExceptions = computed(() => {
-      return 'hasException' in submitCraftResource &&
-        typeof submitCraftResource.hasException === 'function'
-        ? (submitCraftResource.hasException?.() ?? false)
+      const _submitCraftResourceTarget = submitCraftResourceTarget();
+      return _submitCraftResourceTarget &&
+        'hasException' in _submitCraftResourceTarget &&
+        typeof _submitCraftResourceTarget.hasException === 'function'
+        ? (_submitCraftResourceTarget.hasException?.() ?? false)
         : false;
     }) as Signal<boolean>;
 
     const submitExceptions = computed(() => {
+      const _submitCraftResourceTarget = submitCraftResourceTarget();
       const resourceExceptions = (
-        'exceptions' in submitCraftResource &&
-        typeof submitCraftResource.exceptions === 'function'
-          ? (submitCraftResource.exceptions()?.list ?? [])
+        _submitCraftResourceTarget &&
+        'exceptions' in _submitCraftResourceTarget &&
+        typeof _submitCraftResourceTarget.exceptions === 'function'
+          ? (_submitCraftResourceTarget.exceptions()?.list ?? [])
           : []
       ) as SubmitExceptionUnion<any>;
 
@@ -437,7 +471,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
         ) as SubmitExceptionUnion<any>;
 
       const context = {
-        submitCraftResource,
+        submitCraftResource: submitCraftResourceTarget(),
         form,
         exceptions: resourceExceptions,
         omitExceptions,
@@ -453,7 +487,11 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
 
       let mergedExceptions = resourceExceptions as AnyCraftException[];
 
-      if (typeof config?.exception === 'function') {
+      if (
+        typeof config?.exception === 'function' &&
+        //@ts-expect-error todo improve type
+        submitCraftResourceTarget()?.hasException()
+      ) {
         const nextExceptions = normalizeExceptionList(
           //@ts-ignore
           config.exception(context),
@@ -464,7 +502,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       }
 
       if (
-        submitCraftResource.status() === 'resolved' &&
+        submitCraftResourceTarget()?.status() === 'resolved' &&
         typeof config?.success === 'function'
       ) {
         const nextExceptions = normalizeExceptionList(
@@ -480,7 +518,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       }
 
       if (
-        submitCraftResource.status() === 'error' &&
+        submitCraftResourceTarget()?.status() === 'error' &&
         typeof config?.error === 'function'
       ) {
         const nextExceptions = normalizeExceptionList(
@@ -503,6 +541,13 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       if (!validatedFormValue) {
         return;
       }
+      if (!submitCraftResource) {
+        console.warn(
+          'No submit resource found for form submission. Please check that the resource is correctly passed to insertFormSubmit and that the formIdentifier (if used) is correct.',
+        );
+        return;
+      }
+      //@ts-ignore todo improve type
       triggerSubmitResource(submitCraftResource, validatedFormValue);
 
       return;

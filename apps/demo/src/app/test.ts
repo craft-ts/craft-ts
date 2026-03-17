@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, effect, signal } from '@angular/core';
 import {
   craft,
   craftQueryParams,
@@ -116,6 +116,18 @@ export default class TestComponent {
     add: () => update((v) => [...v, this.instance(v.length + 1)]),
   }));
 
+  test = state(
+    {
+      myProperty: 1,
+    },
+    ({ state }) => {
+      effect(() => {
+        console.log('state', state());
+      });
+      return {};
+    },
+  );
+
   loginForm = state(
     [
       {
@@ -132,6 +144,9 @@ export default class TestComponent {
         console.log('formIdentifier', formIdentifier);
         console.log('form', form);
         console.log('form()', form());
+        effect(() => {
+          console.log('form', form());
+        });
 
         return {
           someInsertion: signal('test').asReadonly(),

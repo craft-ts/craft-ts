@@ -6,11 +6,9 @@ import {
   validatedFormValueSymbol,
 } from './insert-form';
 import { insertFormSubmit } from './insert-form-submit';
-import { query } from '../query';
 import { signal } from '@angular/core';
 import { craftException, CraftExceptionResult } from '../craft-exception';
 import { mutation } from '../mutation';
-import { form } from '@angular/forms/signals';
 
 type LoginData = {
   id: string;
@@ -29,12 +27,10 @@ describe('insertFormSubmit', () => {
     await TestBed.runInInjectionContext(async () => {
       const submitRef = mutation({
         method: (validatedLogin: ValidatedFormValue<LoginData>) => {
-          console.log('mutation validatedLogin', validatedLogin);
           expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
           return validatedLogin;
         },
         loader: async ({ params: login }) => {
-          console.log('mutation login', login);
           await wait(10000);
           return login;
         },
@@ -66,17 +62,14 @@ describe('insertFormSubmit', () => {
         ),
       );
 
-      // todo add a way to display some info if submit but not valid/pending
-      // todo craft errors from query should be insert and associated to the form
       expect(loginForm.form().submitting()).toBe(false);
-      expect(loginForm.form().hasSubmitExceptions()).toBe(false); // todo move in form()
+      expect(loginForm.form().hasSubmitExceptions()).toBe(false);
       expect(loginForm.form().submitExceptions()).toEqual([]);
       loginForm.form().submit();
       await vi.advanceTimersByTimeAsync(5000);
-      console.log('submitRef.isLoading()', submitRef.isLoading());
-      expect(loginForm.form().submitting()).toBe(true); // todo should be true
+      expect(loginForm.form().submitting()).toBe(true);
       await vi.advanceTimersByTimeAsync(6000);
-      expect(loginForm.form().submitting()).toBe(false); // todo should be false
+      expect(loginForm.form().submitting()).toBe(false);
     });
   });
 
@@ -107,12 +100,7 @@ describe('insertFormSubmit', () => {
         } satisfies LoginData,
         insertForm(insertFormSubmit(submitRef)),
       );
-      // todo check exceptions are propertly associated to the form and can be displayed in the template
-      // todo in form expose hasExceptions
-      console.log(
-        'loginForm.form().hasExceptions',
-        loginForm.form().hasExceptions,
-      );
+
       expectTypeOf(loginForm.form().hasExceptions()).toEqualTypeOf<boolean>();
       expectTypeOf(loginForm.form().exceptions().submit).toEqualTypeOf<
         CraftExceptionResult<
@@ -191,8 +179,10 @@ describe('insertFormSubmit', () => {
               }
               return undefined;
             },
-            exception: ({ submitCraftResource, omitExceptions }) => {
+            exception: (data) => {
+              console.log('data', data);
               // override exceptions
+              const { submitCraftResource, omitExceptions } = data;
 
               if (
                 submitCraftResource.exceptions().loader?.code ===
@@ -253,6 +243,12 @@ describe('insertFormSubmit', () => {
 });
 
 describe('parallel submit', () => {
+  beforeAll(() => {
+    vi.useFakeTimers();
+  });
+  afterAll(() => {
+    vi.useRealTimers();
+  });
   it('should handle parallel submit correctly, each form should have its own submitting state and exceptions', async () => {
     await TestBed.runInInjectionContext(async () => {
       const throwRef = signal(false);
@@ -292,10 +288,8 @@ describe('parallel submit', () => {
             identifier: ({ item: { id } }) => id,
           },
           insertFormSubmit(submitRef, {
-            // todo identifier should be overridable in the options of insertFormSubmit
-            // todo insertForm should expose formIdentifier
             success: ({ submitCraftResource, form }) => {
-              form().reset();
+              form().reset(); // todo should be done elsewhere ?
               // add more exceptions
               if (submitCraftResource.value()?.name === 'John') {
                 return craftException({
@@ -313,6 +307,7 @@ describe('parallel submit', () => {
             },
             exception: ({ submitCraftResource, omitExceptions }) => {
               // override exceptions
+              console.log('submitCraftResource', submitCraftResource);
 
               if (
                 submitCraftResource.exceptions().loader?.code ===
@@ -340,24 +335,33 @@ describe('parallel submit', () => {
       const form2 = loginForms.select('2')();
       expect(form1.submitExceptions()).toEqual([]);
       expect(form2.submitExceptions()).toEqual([]);
+
       form1.setName('John');
       form1.submit();
+
       await vi.advanceTimersByTimeAsync(5000);
+
       expect(form1.submitting()).toBe(true);
       expect(form2.submitting()).toBe(false);
       await vi.advanceTimersByTimeAsync(6000);
       expect(form1.submitting()).toBe(false);
       expect(form2.submitting()).toBe(false);
 
-      expect(form1.name()).toBe('John');
+      console.log('form1', form1.value());
 
-      expect(form2.name()).toBe('2');
+      console.log('form1.name', form1.value().name);
+      console.log('form2.name', form2.value().name);
+
+      expect(form1.value().name).toBe('John');
+
+      expect(form2.value().name).toBe('2');
     });
   });
 
   it('should handle parallel submit correctly, each form should have its own submitting state and exceptions', async () => {
     await TestBed.runInInjectionContext(async () => {
       const throwRef = signal(true);
+
       const submitRef = mutation({
         method: (validatedLogin: ValidatedFormValue<LoginData>) => {
           expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
@@ -365,6 +369,7 @@ describe('parallel submit', () => {
         },
         identifier: ({ id }) => id,
         loader: async ({ params: login }) => {
+          console.log('mutation login', login);
           await wait(10000);
           if (throwRef()) {
             return craftException(
@@ -449,9 +454,7 @@ describe('parallel submit', () => {
       expect(form1.submitting()).toBe(false);
       expect(form2.submitting()).toBe(false);
 
-      expect(form1.name()).toBe('John');
-      // todo manqu l'identifier
-      const r = form1.i.submitExceptions();
+      expect(form1.value().name).toBe('John');
       expectTypeOf(form1.exceptions().submit).toEqualTypeOf<
         (
           | CraftExceptionResult<
@@ -481,7 +484,7 @@ describe('parallel submit', () => {
         )[]
       >();
 
-      expect(form2.name()).toBe('2');
+      expect(form2.value().name).toBe('2');
     });
   });
 });

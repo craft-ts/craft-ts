@@ -86,7 +86,6 @@ type FormExceptionsInsertion<Insertions> =
     : {
         hasExceptions: Signal<boolean>;
         exceptions: Signal<FormExceptionMap<Insertions>>;
-        i: Insertions;
       };
 
 type ExtractItemType<T> = T extends readonly (infer Item)[] ? Item : never;
@@ -209,17 +208,77 @@ function isParallelInsertFormConfig(
   );
 }
 
-function createDynamicSignalForm<Model>(
-  parentInjector: Injector,
-  model: WritableSignal<Model>,
-) {
+function createDynamicSignalForm<Model>({
+  parentInjector,
+  model,
+  formInsertions,
+  setItem,
+  formIdentifier,
+  itemState,
+  updateItem,
+  inheritedInsertions,
+  selectItem,
+}: {
+  parentInjector: Injector;
+  model: WritableSignal<Model>;
+  formInsertions: InsertionsFormFactory<
+    unknown,
+    unknown,
+    Record<string, unknown>,
+    Record<string, unknown>
+  >[];
+  setItem: (formIdentifier: string | number, nextItem: unknown) => unknown;
+  formIdentifier: string | number;
+  itemState: Signal<unknown>;
+  updateItem: (
+    formIdentifier: string | number,
+    updateFn: (currentItem: unknown) => unknown,
+  ) => unknown;
+  inheritedInsertions: Record<string, unknown>;
+  selectItem: (formIdentifier: string | number) => any;
+}) {
   const injector = Injector.create({
     providers: [
       {
         provide: FORM_INSTANCE_TOKEN,
         useFactory: () => {
           const formRef = form(model);
-          const setSubmitting = (formRef() as any).submitState.selfSubmitting;
+          //@ts-expect-error add validatedFormValue to formRef inner value, it is hard to do otherwise without loosing some fields
+          formRef()['validatedFormValue'] = computed(() =>
+            formRef().valid()
+              ? (Object.assign(formRef().value() as object, {
+                  [validatedFormValueSymbol]: true,
+                }) as ValidatedFormValue<Model>)
+              : undefined,
+          );
+          const setSubmitting = (formRef() as any).submitState.selfSubmitting
+            .set;
+
+          const { rawInsertionsOutput, exposedInsertionsOutput } =
+            executeFormInsertions(formInsertions, {
+              formRef,
+              setSubmitting,
+              state: itemState,
+              set: (newState: unknown) => setItem(formIdentifier, newState),
+              update: (updateFn: (currentState: unknown) => unknown) =>
+                updateItem(formIdentifier, updateFn),
+              inheritedInsertions,
+              injector,
+              formIdentifier,
+            });
+
+          const extraFields = {
+            ...exposedInsertionsOutput,
+            ...createFormExceptions(
+              rawInsertionsOutput,
+              exposedInsertionsOutput,
+            ),
+          };
+
+          for (const key in extraFields) {
+            //@ts-expect-error add extra fields to formRef inner value, it is hard to do otherwise without loosing some fields
+            formRef()[key] = extraFields[key];
+          }
 
           // when a form is created with this helper, setSubmitting/selfSubmitting can not be set externally. So expose it here
           return {
@@ -260,6 +319,62 @@ function createExposedInsertions(
     },
     {} as Record<string, unknown>,
   );
+}
+
+function toExceptionInsertionName(name: string) {
+  return `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
+}
+
+function createFormExceptions(
+  rawInsertionsOutput: Record<string, unknown>,
+  exposedInsertionsOutput: Record<string, unknown>,
+) {
+  const exceptionInsertions = Object.entries(exposedInsertionsOutput).flatMap(
+    ([key, value]) => {
+      const match = /^has(.+)Exceptions$/.exec(key);
+      if (!match || typeof value !== 'function') {
+        return [];
+      }
+
+      const insertionName = toExceptionInsertionName(match[1]);
+      const exceptionsKey = `${insertionName}Exceptions`;
+      const exceptionSignal = exposedInsertionsOutput[exceptionsKey];
+
+      if (typeof exceptionSignal !== 'function') {
+        return [];
+      }
+
+      return [
+        {
+          insertionName,
+          hasExceptionSignal: value as Signal<boolean>,
+          exceptionSignal: exceptionSignal as Signal<unknown>,
+        },
+      ];
+    },
+  );
+
+  if (exceptionInsertions.length === 0) {
+    return {};
+  }
+
+  return {
+    hasExceptions: computed(() =>
+      exceptionInsertions.some(({ hasExceptionSignal }) =>
+        hasExceptionSignal(),
+      ),
+    ),
+    exceptions: computed(() =>
+      exceptionInsertions.reduce(
+        (acc, { insertionName, exceptionSignal }) => {
+          acc[insertionName] = exceptionSignal();
+          return acc;
+        },
+        {} as Record<string, unknown>,
+      ),
+    ),
+    i: rawInsertionsOutput,
+  };
 }
 
 function executeFormInsertions<Model>(
@@ -522,10 +637,17 @@ export function insertForm(...args: any[]): any {
         asReadonly: () => context.state,
       });
       const formRef = form(model);
+      //@ts-expect-error add validatedFormValue to formRef inner value, it is hard to do otherwise without loosing some fields
+      formRef()['validatedFormValue'] = computed(() =>
+        formRef().valid()
+          ? (Object.assign(formRef().value() as object, {
+              [validatedFormValueSymbol]: true,
+            }) as ValidatedFormValue<unknown>)
+          : undefined,
+      );
       const setSubmitting = (formRef() as any).submitState.selfSubmitting;
-      const { exposedInsertionsOutput } = executeFormInsertions(
-        formInsertions,
-        {
+      const { rawInsertionsOutput, exposedInsertionsOutput } =
+        executeFormInsertions(formInsertions, {
           formRef,
           setSubmitting: (submitting: boolean) => setSubmitting.set(submitting),
           state: context.state,
@@ -534,19 +656,12 @@ export function insertForm(...args: any[]): any {
             context.update(updateFn),
           inheritedInsertions,
           injector,
-          formIdentifier: () => undefined,
-        },
-      );
+          formIdentifier: undefined,
+        });
 
       const extraFields = {
         ...exposedInsertionsOutput,
-        validatedFormValue: computed(() =>
-          formRef().valid()
-            ? (Object.assign(formRef().value() as object, {
-                [validatedFormValueSymbol]: true,
-              }) as ValidatedFormValue<unknown>)
-            : undefined,
-        ),
+        ...createFormExceptions(rawInsertionsOutput, exposedInsertionsOutput),
       };
 
       for (const key in extraFields) {
@@ -634,39 +749,17 @@ export function insertForm(...args: any[]): any {
           updateItem(formIdentifier, updateFn),
         asReadonly: () => itemState,
       });
-      const { formRef, setSubmitting } = createDynamicSignalForm(
-        injector,
+      const { formRef } = createDynamicSignalForm({
+        parentInjector: injector,
         model,
-      );
-
-      const { exposedInsertionsOutput } = executeFormInsertions(
         formInsertions,
-        {
-          formRef,
-          setSubmitting,
-          state: itemState,
-          set: (newState: unknown) => setItem(formIdentifier, newState),
-          update: (updateFn: (currentState: unknown) => unknown) =>
-            updateItem(formIdentifier, updateFn),
-          inheritedInsertions,
-          injector,
-          formIdentifier,
-        },
-      );
-
-      const extraFields = {
-        ...exposedInsertionsOutput,
-        validatedFormValue: computed(() =>
-          formRef().valid()
-            ? (selectItem(formIdentifier) as ValidatedFormValue<unknown>)
-            : undefined,
-        ),
-      };
-
-      for (const key in extraFields) {
-        //@ts-expect-error add extra fields to formRef inner value, it is hard to do otherwise without loosing some fields
-        formRef()[key] = extraFields[key];
-      }
+        setItem,
+        formIdentifier,
+        itemState,
+        updateItem,
+        inheritedInsertions,
+        selectItem,
+      });
 
       const entry: ParallelEntry = {
         formIdentifier,
