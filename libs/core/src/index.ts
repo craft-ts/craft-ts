@@ -43,3 +43,4 @@ export * from './lib/from-event-to-source$';
 export * from './lib/on$';
 export * from './lib/form/insert-form';
 export * from './lib/form/insert-form-submit';
+export * from './lib/form/validator';
