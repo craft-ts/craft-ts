@@ -4,114 +4,34 @@ import {
   InjectionToken,
   Injector,
   linkedSignal,
-  runInInjectionContext,
   Signal,
   WritableSignal,
 } from '@angular/core';
-import {
-  CompatFieldState,
-  FieldState,
-  FieldTree,
-  form,
-  MaybeFieldTree,
-  ReadonlyArrayLike,
-  Subfields,
-} from '@angular/forms/signals';
+import { FieldTree, form } from '@angular/forms/signals';
 import {
   InsertionStateFactoryContext,
   InsertionsStateFactory,
 } from '../query.core';
-import { Source$ as SourceDollarType } from '../source$';
-import { MergeObject } from '../util/types/util.type';
-import { FilterSource, IsEmptyObject } from '../util/util.type';
-import { isSource } from '../util/util';
-import { AbstractControl } from '@angular/forms';
+import {
+  createFormExceptions,
+  executeFormInsertions,
+  validatedFormValueSymbol,
+} from './insert-form-internals';
+import type {
+  FormWithInsertions,
+  InsertionsFormFactory,
+  ValidatedFormValue,
+} from './insert-form-internals';
 
-type Source$Method<SourceType> = [SourceType] extends [void]
-  ? () => void
-  : (value: SourceType) => void;
-
-type ExposedFormInsertions<Insertions> = MergeObject<
-  IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
-  {
-    [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
-      ? K
-      : never]: FilterSource<Insertions>[K] extends SourceDollarType<
-      infer SourceType
-    >
-      ? Source$Method<SourceType>
-      : never;
-  }
->;
-
-type FormExceptionSignal<
-  Insertions,
-  ExceptionName extends string,
-> = `${Uncapitalize<ExceptionName>}Exceptions` extends keyof ExposedFormInsertions<Insertions>
-  ? ExposedFormInsertions<Insertions>[`${Uncapitalize<ExceptionName>}Exceptions`] extends Signal<
-      infer Exceptions
-    >
-    ? Exceptions
-    : never
-  : never;
-
-type HasFormExceptionSignalPair<
-  Insertions,
-  ExceptionName extends string,
-  HasExceptionKey extends keyof ExposedFormInsertions<Insertions>,
-> =
-  ExposedFormInsertions<Insertions>[HasExceptionKey] extends Signal<boolean>
-    ? `${Uncapitalize<ExceptionName>}Exceptions` extends keyof ExposedFormInsertions<Insertions>
-      ? ExposedFormInsertions<Insertions>[`${Uncapitalize<ExceptionName>}Exceptions`] extends Signal<unknown>
-        ? true
-        : false
-      : false
-    : false;
-
-type FormExceptionMap<Insertions> = {
-  [K in keyof ExposedFormInsertions<Insertions> as K extends string
-    ? K extends `has${infer Name}Exceptions`
-      ? HasFormExceptionSignalPair<Insertions, Name, K> extends true
-        ? Uncapitalize<Name>
-        : never
-      : never
-    : never]: K extends `has${infer Name}Exceptions`
-    ? FormExceptionSignal<Insertions, Name>
-    : never;
-};
-
-type FormExceptionsInsertion<Insertions> =
-  keyof FormExceptionMap<Insertions> extends never
-    ? {}
-    : {
-        hasExceptions: Signal<boolean>;
-        exceptions: Signal<FormExceptionMap<Insertions>>;
-      };
+export { validatedFormValueSymbol } from './insert-form-internals';
+export type {
+  FormWithInsertions,
+  InsertionFormFactoryContext,
+  InsertionsFormFactory,
+  ValidatedFormValue,
+} from './insert-form-internals';
 
 type ExtractItemType<T> = T extends readonly (infer Item)[] ? Item : never;
-
-type CraftFieldTree<
-  TModel,
-  Insertions,
-  TKey extends string | number = string | number,
-> = (() => [TModel] extends [AbstractControl]
-  ? CompatFieldState<TModel, TKey> & Insertions
-  : FieldState<TModel, TKey> & Insertions) &
-  ([TModel] extends [AbstractControl]
-    ? object
-    : [TModel] extends [ReadonlyArray<infer U>]
-      ? ReadonlyArrayLike<MaybeFieldTree<U, number>>
-      : TModel extends Record<string, any>
-        ? Subfields<TModel>
-        : object);
-
-export type FormWithInsertions<Model, Insertions> = CraftFieldTree<
-  Model,
-  ExposedFormInsertions<Insertions> & {
-    validatedFormValue: Signal<ValidatedFormValue<Model>>;
-  } & FormExceptionsInsertion<Insertions>,
-  string | number
->;
 
 type InsertFormSimpleOutput<StateType, Insertions> = {
   form: FormWithInsertions<StateType, Insertions>;
@@ -148,53 +68,11 @@ type ParallelInsertFormConfig<
   identifier: (context: { item: ItemType; index: number }) => GroupIdentifier;
 };
 
-export type InsertionFormFactoryContext<
-  StateType,
-  PreviousInsertionsOutputs,
-  FormIdentifier extends string | number | unknown,
-> = InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> & {
-  form: FieldTree<StateType, string | number>;
-  validatedFormValue: Signal<ValidatedFormValue<StateType>>;
-  setSubmitting: (submitting: boolean) => void;
-  formIdentifier: FormIdentifier;
-};
-
-export type InsertionsFormFactory<
-  State,
-  FormIdentifier extends string | number | unknown,
-  InsertionsOutputs,
-  PreviousInsertionsOutputs = {},
-> = (
-  context: InsertionFormFactoryContext<
-    State,
-    PreviousInsertionsOutputs,
-    FormIdentifier
-  >,
-) => InsertionsOutputs;
-
-export const validatedFormValueSymbol = Symbol('validatedFormValue');
-export type ValidatedFormValue<FormValue> =
-  | (FormValue & {
-      [validatedFormValueSymbol]: true;
-    })
-  | undefined;
-
 const FORM_INSTANCE_TOKEN = new InjectionToken<
   FieldTree<unknown, string | number>
 >(
   'Injection token used to provide a dynamically created signal form instance.',
 );
-
-function isSource$(value: unknown): value is SourceDollarType<unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'emit' in value &&
-    typeof (value as SourceDollarType<unknown>).emit === 'function' &&
-    'subscribe' in value &&
-    typeof (value as SourceDollarType<unknown>).subscribe === 'function'
-  );
-}
 
 function isParallelInsertFormConfig(
   value: unknown,
@@ -295,147 +173,6 @@ function createDynamicSignalForm<Model>({
     formRef: FieldTree<Model, string | number>;
     setSubmitting: (submitting: boolean) => void;
   };
-}
-
-function createExposedInsertions(
-  rawInsertionsOutput: Record<string, unknown>,
-): Record<string, unknown> {
-  return Object.entries(rawInsertionsOutput).reduce(
-    (acc, [key, value]) => {
-      if (isSource(value)) {
-        return acc;
-      }
-
-      if (isSource$(value)) {
-        const localSource = value;
-        acc[key] = (payload: unknown) => {
-          localSource.emit(payload as never);
-        };
-        return acc;
-      }
-
-      acc[key] = value;
-      return acc;
-    },
-    {} as Record<string, unknown>,
-  );
-}
-
-function toExceptionInsertionName(name: string) {
-  return `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
-}
-
-function createFormExceptions(
-  rawInsertionsOutput: Record<string, unknown>,
-  exposedInsertionsOutput: Record<string, unknown>,
-) {
-  const exceptionInsertions = Object.entries(exposedInsertionsOutput).flatMap(
-    ([key, value]) => {
-      const match = /^has(.+)Exceptions$/.exec(key);
-      if (!match || typeof value !== 'function') {
-        return [];
-      }
-
-      const insertionName = toExceptionInsertionName(match[1]);
-      const exceptionsKey = `${insertionName}Exceptions`;
-      const exceptionSignal = exposedInsertionsOutput[exceptionsKey];
-
-      if (typeof exceptionSignal !== 'function') {
-        return [];
-      }
-
-      return [
-        {
-          insertionName,
-          hasExceptionSignal: value as Signal<boolean>,
-          exceptionSignal: exceptionSignal as Signal<unknown>,
-        },
-      ];
-    },
-  );
-
-  if (exceptionInsertions.length === 0) {
-    return {};
-  }
-
-  return {
-    hasExceptions: computed(() =>
-      exceptionInsertions.some(({ hasExceptionSignal }) =>
-        hasExceptionSignal(),
-      ),
-    ),
-    exceptions: computed(() =>
-      exceptionInsertions.reduce(
-        (acc, { insertionName, exceptionSignal }) => {
-          acc[insertionName] = exceptionSignal();
-          return acc;
-        },
-        {} as Record<string, unknown>,
-      ),
-    ),
-    i: rawInsertionsOutput,
-  };
-}
-
-function executeFormInsertions<Model>(
-  formInsertions: InsertionsFormFactory<
-    Model,
-    unknown,
-    Record<string, unknown>,
-    Record<string, unknown>
-  >[],
-  options: {
-    formRef: FieldTree<Model, string | number>;
-    state: Signal<Model>;
-    set: (newState: Model) => Model;
-    update: (updateFn: (currentState: Model) => Model) => Model;
-    setSubmitting: (submitting: boolean) => void;
-    inheritedInsertions: Record<string, unknown>;
-    injector: Injector;
-    formIdentifier?: string | number | unknown;
-  },
-) {
-  return formInsertions.reduce(
-    (acc, insertion) => {
-      const nextRawInsertions = runInInjectionContext(options.injector, () =>
-        insertion({
-          state: options.state,
-          set: options.set,
-          update: options.update,
-          form: options.formRef,
-          validatedFormValue: computed(() =>
-            options.formRef().valid()
-              ? (Object.assign(options.formRef().value() as object, {
-                  [validatedFormValueSymbol]: true,
-                }) as ValidatedFormValue<Model>)
-              : undefined,
-          ),
-          setSubmitting: options.setSubmitting,
-          formIdentifier: options.formIdentifier!,
-          insertions: {
-            ...options.inheritedInsertions,
-            ...acc.rawInsertionsOutput,
-          },
-        }),
-      ) as Record<string, unknown>;
-      const nextExposedInsertions = createExposedInsertions(nextRawInsertions);
-
-      return {
-        rawInsertionsOutput: {
-          ...acc.rawInsertionsOutput,
-          ...nextRawInsertions,
-        },
-        exposedInsertionsOutput: {
-          ...acc.exposedInsertionsOutput,
-          ...nextExposedInsertions,
-        },
-      };
-    },
-    {
-      rawInsertionsOutput: {} as Record<string, unknown>,
-      exposedInsertionsOutput: {} as Record<string, unknown>,
-    },
-  );
 }
 
 function createModelAdapter<Model>(options: {
