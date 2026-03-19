@@ -173,10 +173,28 @@ function toExceptionInsertionName(name: string) {
   return `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
 }
 
+function isSignal<T>(value: unknown): value is Signal<T> {
+  return typeof value === 'function';
+}
+
+function toExceptionRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 export function createFormExceptions(
   rawInsertionsOutput: Record<string, unknown>,
   exposedInsertionsOutput: Record<string, unknown>,
 ) {
+  const directHasExceptions = isSignal<boolean>(
+    exposedInsertionsOutput['hasExceptions'],
+  )
+    ? (exposedInsertionsOutput['hasExceptions'] as Signal<boolean>)
+    : undefined;
+  const directExceptions = isSignal(exposedInsertionsOutput['exceptions'])
+    ? (exposedInsertionsOutput['exceptions'] as Signal<unknown>)
+    : undefined;
   const exceptionInsertions = Object.entries(exposedInsertionsOutput).flatMap(
     ([key, value]) => {
       const match = /^has(.+)Exceptions$/.exec(key);
@@ -202,15 +220,21 @@ export function createFormExceptions(
     },
   );
 
-  if (exceptionInsertions.length === 0) {
+  if (
+    exceptionInsertions.length === 0 &&
+    !directHasExceptions &&
+    !directExceptions
+  ) {
     return {};
   }
 
   return {
-    hasExceptions: computed(() =>
-      exceptionInsertions.some(({ hasExceptionSignal }) =>
-        hasExceptionSignal(),
-      ),
+    hasExceptions: computed(
+      () =>
+        (directHasExceptions?.() ?? false) ||
+        exceptionInsertions.some(({ hasExceptionSignal }) =>
+          hasExceptionSignal(),
+        ),
     ),
     exceptions: computed(() =>
       exceptionInsertions.reduce(
@@ -218,7 +242,9 @@ export function createFormExceptions(
           acc[insertionName] = exceptionSignal();
           return acc;
         },
-        {} as Record<string, unknown>,
+        {
+          ...toExceptionRecord(directExceptions?.()),
+        },
       ),
     ),
     i: rawInsertionsOutput,
@@ -321,9 +347,8 @@ export function decorateFormTreeWithInsertions<Model>({
       : undefined,
   );
 
-  const { rawInsertionsOutput, exposedInsertionsOutput } = executeFormInsertions(
-    formInsertions,
-    {
+  const { rawInsertionsOutput, exposedInsertionsOutput } =
+    executeFormInsertions(formInsertions, {
       formRef,
       state,
       set,
@@ -332,8 +357,7 @@ export function decorateFormTreeWithInsertions<Model>({
       inheritedInsertions,
       injector,
       formIdentifier,
-    },
-  );
+    });
 
   const extraFields = {
     ...exposedInsertionsOutput,
