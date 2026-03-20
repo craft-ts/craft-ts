@@ -41,6 +41,24 @@ export type ValidatorUtilBrand<
   type: Type;
 } & Meta;
 
+export type ValidatorResult<
+  TValue,
+  Name extends string,
+  Exceptions,
+  Type extends ValidatorType = 'sync',
+  Identifier = unknown,
+  Meta extends object = {},
+> = {
+  readonly __validatorResult?: {
+    readonly value: TValue;
+    readonly name: Name;
+    readonly exceptions: Exceptions;
+    readonly type: Type;
+    readonly identifier: Identifier;
+    readonly meta: Meta;
+  };
+};
+
 export type ValidatorSuccess<
   Name extends string,
   Type extends ValidatorType = 'sync',
@@ -81,7 +99,10 @@ export type Validator<
   Exceptions,
   Type extends ValidatorType = 'sync',
   Meta extends object = {},
-> = () => ValidatorExecutionOutput<Name, Exceptions, Type, Meta>;
+  TValue = unknown,
+  Identifier = unknown,
+> = (() => ValidatorExecutionOutput<Name, Exceptions, Type, Meta>) &
+  ValidatorResult<TValue, Name, Exceptions, Type, Identifier, Meta>;
 
 export type ValidatorModel<TValue> = () => {
   value: () => TValue;
@@ -94,10 +115,11 @@ export type DeferredValidator<
   Type extends ValidatorType = 'sync',
   Identifier = unknown,
   Meta extends object = {},
-> = (
+> = ((
   model?: ValidatorModel<TValue>,
   identifier?: Identifier,
-) => Validator<Name, Exceptions, Type, Meta>;
+) => Validator<Name, Exceptions, Type, Meta, TValue, Identifier>) &
+  ValidatorResult<TValue, Name, Exceptions, Type, Identifier, Meta>;
 
 type ValidatorOption<TValue> = TValue | (() => TValue);
 
@@ -124,12 +146,12 @@ type ValidatorException<
   Payload
 >;
 
-type CRequiredException = ValidatorException<'required'>;
-type CEmailException = ValidatorException<'email'>;
-type CMinException = ValidatorException<'min', number>;
-type CMaxException = ValidatorException<'max', number>;
-type CMinLengthException = ValidatorException<'minLength', number>;
-type CMaxLengthException = ValidatorException<'maxLength', number>;
+export type CRequiredException = ValidatorException<'required'>;
+export type CEmailException = ValidatorException<'email'>;
+export type CMinException = ValidatorException<'min', number>;
+export type CMaxException = ValidatorException<'max', number>;
+export type CMinLengthException = ValidatorException<'minLength', number>;
+export type CMaxLengthException = ValidatorException<'maxLength', number>;
 type CPatternException = ValidatorException<'pattern', RegExp>;
 
 type CRequiredConfig<TValue> = ValidatorConfigWithOptionalModel<TValue>;
@@ -723,7 +745,7 @@ function createDeferredValidator<
       model: ValidatorModel<TValue>;
       identifier?: Identifier;
     },
-  ) => Validator<Name, Exceptions, Type, Meta>,
+  ) => Validator<Name, Exceptions, Type, Meta, TValue, Identifier>,
 ): DeferredValidator<TValue, Name, Exceptions, Type, Identifier, Meta> {
   return (model, identifier) =>
     createValidator({
@@ -739,7 +761,7 @@ function createRequiredValidator<TValue>({
 }: {
   model: ValidatorModel<TValue>;
   when?: ValidatorOption<boolean>;
-}): Validator<'cRequired', CRequiredException> {
+}): Validator<'cRequired', CRequiredException, 'sync', {}, TValue> {
   return () => {
     if (shouldValidate(when) && isEmpty(model().value())) {
       return createValidatorException(
@@ -760,7 +782,7 @@ function createEmailValidator<TValue extends string | null | undefined>({
 }: {
   model: ValidatorModel<TValue>;
   when?: ValidatorOption<boolean>;
-}): Validator<'cEmail', CEmailException> {
+}): Validator<'cEmail', CEmailException, 'sync', {}, TValue> {
   return () => {
     if (!shouldValidate(when)) {
       return createValidatorSuccess('cEmail', SYNC_VALIDATOR_TYPE);
@@ -793,7 +815,7 @@ function createMinValidator<TValue extends number | string | null | undefined>({
   model: ValidatorModel<TValue>;
   when?: ValidatorOption<boolean>;
   min: ValidatorOption<number | undefined>;
-}): Validator<'cMin', CMinException> {
+}): Validator<'cMin', CMinException, 'sync', {}, TValue> {
   return () => {
     if (!shouldValidate(when)) {
       return createValidatorSuccess('cMin', SYNC_VALIDATOR_TYPE);
@@ -834,7 +856,7 @@ function createMaxValidator<TValue extends number | string | null | undefined>({
   model: ValidatorModel<TValue>;
   when?: ValidatorOption<boolean>;
   max: ValidatorOption<number | undefined>;
-}): Validator<'cMax', CMaxException> {
+}): Validator<'cMax', CMaxException, 'sync', {}, TValue> {
   return () => {
     if (!shouldValidate(when)) {
       return createValidatorSuccess('cMax', SYNC_VALIDATOR_TYPE);
@@ -875,7 +897,7 @@ function createMinLengthValidator<TValue extends ValueWithLengthOrSize>({
   model: ValidatorModel<TValue>;
   when?: ValidatorOption<boolean>;
   minLength: ValidatorOption<number | undefined>;
-}): Validator<'cMinLength', CMinLengthException> {
+}): Validator<'cMinLength', CMinLengthException, 'sync', {}, TValue> {
   return () => {
     if (!shouldValidate(when)) {
       return createValidatorSuccess('cMinLength', SYNC_VALIDATOR_TYPE);
@@ -914,7 +936,7 @@ function createMaxLengthValidator<TValue extends ValueWithLengthOrSize>({
   model: ValidatorModel<TValue>;
   when?: ValidatorOption<boolean>;
   maxLength: ValidatorOption<number | undefined>;
-}): Validator<'cMaxLength', CMaxLengthException> {
+}): Validator<'cMaxLength', CMaxLengthException, 'sync', {}, TValue> {
   return () => {
     if (!shouldValidate(when)) {
       return createValidatorSuccess('cMaxLength', SYNC_VALIDATOR_TYPE);
@@ -953,7 +975,7 @@ function createPatternValidator<TValue extends string | null | undefined>({
   model: ValidatorModel<TValue>;
   when?: ValidatorOption<boolean>;
   pattern: ValidatorOption<RegExp | undefined>;
-}): Validator<'cPattern', CPatternException> {
+}): Validator<'cPattern', CPatternException, 'sync', {}, TValue> {
   return () => {
     if (!shouldValidate(when)) {
       return createValidatorSuccess('cPattern', SYNC_VALIDATOR_TYPE);
@@ -994,7 +1016,7 @@ function createCustomSyncValidator<TValue, Name extends string, Exceptions>({
   when?: ValidatorOption<boolean>;
   name: Name;
   validate: (context: ValidatorContext<TValue>) => Exceptions | undefined;
-}): Validator<Name, Exceptions, 'sync'> {
+}): Validator<Name, Exceptions, 'sync', {}, TValue> {
   return () => {
     if (!shouldValidate(when)) {
       return createValidatorSuccess(name, SYNC_VALIDATOR_TYPE);
@@ -1031,7 +1053,7 @@ function createCustomAsyncValidator<TValue, Name extends string, Exceptions>({
   validate: (
     context: ValidatorContext<TValue>,
   ) => Promise<Exceptions | undefined> | Exceptions | undefined;
-}): Validator<Name, Exceptions, 'async'> {
+}): Validator<Name, Exceptions, 'async', {}, TValue> {
   return async () => {
     if (!shouldValidate(when)) {
       return createValidatorSuccess(name, ASYNC_VALIDATOR_TYPE);
@@ -1297,7 +1319,7 @@ function createAsyncValidator<
     FormIdentifier
   >;
   runtime: AsyncValidatorRuntime;
-}): Validator<Name, any, 'async', AsyncValidatorMeta> {
+}): Validator<Name, any, 'async', AsyncValidatorMeta, TValue, FormIdentifier> {
   return async () => {
     const queryStatus = queryCraftResource.status();
     const status =
@@ -1412,15 +1434,13 @@ function createAsyncValidator<
 
 export function cRequired<TValue>(
   model: ValidatorModel<TValue>,
-): Validator<'cRequired', CRequiredException>;
+): ValidatorResult<TValue, 'cRequired', CRequiredException>;
 export function cRequired<TValue>(
   config?: CRequiredConfig<TValue>,
-): DeferredValidator<TValue, 'cRequired', CRequiredException>;
+): ValidatorResult<TValue, 'cRequired', CRequiredException>;
 export function cRequired<TValue>(
   input?: ValidatorModel<TValue> | CRequiredConfig<TValue>,
-):
-  | Validator<'cRequired', CRequiredException>
-  | DeferredValidator<TValue, 'cRequired', CRequiredException> {
+): ValidatorResult<TValue, 'cRequired', CRequiredException> {
   if (isValidatorModel(input)) {
     return createRequiredValidator({
       model: input,
@@ -1432,15 +1452,15 @@ export function cRequired<TValue>(
 
 export function cEmail<TValue extends string | null | undefined>(
   model: ValidatorModel<TValue>,
-): Validator<'cEmail', CEmailException>;
+): ValidatorResult<TValue, 'cEmail', CEmailException> &
+  Validator<'cEmail', CEmailException, 'sync', {}, TValue>;
 export function cEmail<TValue extends string | null | undefined>(
   config?: CEmailConfig<TValue>,
-): DeferredValidator<TValue, 'cEmail', CEmailException>;
+): ValidatorResult<TValue, 'cEmail', CEmailException> &
+  DeferredValidator<TValue, 'cEmail', CEmailException>;
 export function cEmail<TValue extends string | null | undefined>(
   input?: ValidatorModel<TValue> | CEmailConfig<TValue>,
-):
-  | Validator<'cEmail', CEmailException>
-  | DeferredValidator<TValue, 'cEmail', CEmailException> {
+): ValidatorResult<TValue, 'cEmail', CEmailException> {
   if (isValidatorModel(input)) {
     return createEmailValidator({
       model: input,
@@ -1452,7 +1472,8 @@ export function cEmail<TValue extends string | null | undefined>(
 
 export function cMin<TValue extends number | string | null | undefined>(
   config: CMinConfig<TValue>,
-): DeferredValidator<TValue, 'cMin', CMinException> {
+): ValidatorResult<TValue, 'cMin', CMinException> &
+  DeferredValidator<TValue, 'cMin', CMinException> {
   return createDeferredValidator(config, ({ model, when }) =>
     createMinValidator({
       model,
@@ -1464,7 +1485,8 @@ export function cMin<TValue extends number | string | null | undefined>(
 
 export function cMax<TValue extends number | string | null | undefined>(
   config: CMaxConfig<TValue>,
-): DeferredValidator<TValue, 'cMax', CMaxException> {
+): ValidatorResult<TValue, 'cMax', CMaxException> &
+  DeferredValidator<TValue, 'cMax', CMaxException> {
   return createDeferredValidator(config, ({ model, when }) =>
     createMaxValidator({
       model,
@@ -1476,35 +1498,36 @@ export function cMax<TValue extends number | string | null | undefined>(
 
 export function cMinLength<TValue extends ValueWithLengthOrSize>(
   config: CMinLengthConfig<TValue>,
-): DeferredValidator<TValue, 'cMinLength', CMinLengthException> {
+): ValidatorResult<TValue, 'cMinLength', CMinLengthException> &
+  DeferredValidator<TValue, 'cMinLength', CMinLengthException> {
   return createDeferredValidator(config, createMinLengthValidator);
 }
 
 export function cMaxLength<TValue extends ValueWithLengthOrSize>(
   config: CMaxLengthConfig<TValue>,
-): DeferredValidator<TValue, 'cMaxLength', CMaxLengthException> {
+): ValidatorResult<TValue, 'cMaxLength', CMaxLengthException> &
+  DeferredValidator<TValue, 'cMaxLength', CMaxLengthException> {
   return createDeferredValidator(config, createMaxLengthValidator);
 }
 
 export function cPattern<TValue extends string | null | undefined>(
   config: CPatternConfig<TValue>,
-): DeferredValidator<TValue, 'cPattern', CPatternException> {
+): ValidatorResult<TValue, 'cPattern', CPatternException> &
+  DeferredValidator<TValue, 'cPattern', CPatternException> {
   return createDeferredValidator(config, createPatternValidator);
 }
 
 export function cValidator<TValue, const Name extends string, Exceptions>(
   config: CValidateSyncConfig<TValue, Name, Exceptions>,
-): DeferredValidator<TValue, Name, Exceptions, 'sync'>;
+): ValidatorResult<TValue, Name, Exceptions, 'sync'>;
 export function cValidator<TValue, const Name extends string, Exceptions>(
   config: CValidateAsyncConfig<TValue, Name, Exceptions>,
-): DeferredValidator<TValue, Name, Exceptions, 'async'>;
+): ValidatorResult<TValue, Name, Exceptions, 'async'>;
 export function cValidator<TValue, const Name extends string, Exceptions>(
   config:
     | CValidateSyncConfig<TValue, Name, Exceptions>
     | CValidateAsyncConfig<TValue, Name, Exceptions>,
-):
-  | DeferredValidator<TValue, Name, Exceptions, 'sync'>
-  | DeferredValidator<TValue, Name, Exceptions, 'async'> {
+): ValidatorResult<TValue, Name, Exceptions, ValidatorType> {
   if (config.type === ASYNC_VALIDATOR_TYPE) {
     return createDeferredValidator(config, createCustomAsyncValidator);
   }
@@ -1544,7 +1567,7 @@ export function cAsyncValidator<
     unknown,
     unknown
   >,
-): DeferredValidator<
+): ValidatorResult<
   TValue,
   Name,
   CAsyncValidatorOutputExceptions<
@@ -1559,7 +1582,23 @@ export function cAsyncValidator<
   'async',
   unknown,
   AsyncValidatorMeta
->;
+> &
+  DeferredValidator<
+    TValue,
+    Name,
+    CAsyncValidatorOutputExceptions<
+      AsyncValidatorExceptionUnion<
+        AsyncValidatorQueryTarget<QueryValue, QueryExceptions, unknown>
+      >,
+      SuccessExceptions,
+      ErrorExceptions,
+      ExceptionExceptions,
+      unknown
+    >,
+    'async',
+    unknown,
+    AsyncValidatorMeta
+  >;
 export function cAsyncValidator<
   TValue,
   const Name extends string,
@@ -1594,7 +1633,7 @@ export function cAsyncValidator<
     Identifier,
     Identifier
   >,
-): DeferredValidator<
+): ValidatorResult<
   TValue,
   Name,
   CAsyncValidatorOutputExceptions<
@@ -1609,13 +1648,31 @@ export function cAsyncValidator<
   'async',
   Identifier,
   AsyncValidatorMeta
->;
+> &
+  DeferredValidator<
+    TValue,
+    Name,
+    CAsyncValidatorOutputExceptions<
+      AsyncValidatorExceptionUnion<
+        AsyncValidatorQueryTarget<QueryValue, QueryExceptions, Identifier>
+      >,
+      SuccessExceptions,
+      ErrorExceptions,
+      ExceptionExceptions,
+      Identifier
+    >,
+    'async',
+    Identifier,
+    AsyncValidatorMeta
+  >;
 export function cAsyncValidator(name: string, queryRef: any, config?: any) {
-  return (model?: ValidatorModel<unknown>, identifier?: string | number) => {
+  return (model?: ValidatorModel<unknown>, identifier?: unknown) => {
     const resolvedModel = resolveValidatorModel(undefined, model);
 
     if (isResourceByIdLikeQueryRef(queryRef)) {
-      const resolvedIdentifier = resolveValidatorIdentifier(identifier);
+      const resolvedIdentifier = resolveValidatorIdentifier(identifier) as
+        | string
+        | number;
       const queryCraftResource = createAsyncValidatorQueryTarget(
         queryRef,
         resolvedIdentifier,

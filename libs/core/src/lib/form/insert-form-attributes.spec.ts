@@ -1,11 +1,17 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { craftException } from '../craft-exception';
+import { craftException, CraftExceptionResult } from '../craft-exception';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
 import { insertSelectFormTree } from './insert-select-form-tree';
-import { cRequired, cValidator } from './validator';
+import {
+  cRequired,
+  CRequiredException,
+  cValidator,
+  ValidatorResult,
+} from './validator';
+import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 
 async function flushAsyncValidation() {
   await Promise.resolve();
@@ -20,7 +26,6 @@ describe('insertFormAttributes', () => {
       const disabled = signal(false);
       const hidden = signal(false);
       const readonly = signal(false);
-      const required = signal(false);
 
       const fieldForm = state(
         '' as string,
@@ -29,7 +34,6 @@ describe('insertFormAttributes', () => {
             disable: disabled.asReadonly(),
             hidden: hidden.asReadonly(),
             readonly: readonly.asReadonly(),
-            required: required.asReadonly(),
           })),
         ),
       );
@@ -37,18 +41,15 @@ describe('insertFormAttributes', () => {
       expect(fieldForm.form().disabled()).toBe(false);
       expect(fieldForm.form().hidden()).toBe(false);
       expect(fieldForm.form().readonly()).toBe(false);
-      expect(fieldForm.form().required()).toBe(false);
 
       disabled.set(true);
       hidden.set(true);
       readonly.set(true);
-      required.set(true);
       TestBed.tick();
 
       expect(fieldForm.form().disabled()).toBe(true);
       expect(fieldForm.form().hidden()).toBe(true);
       expect(fieldForm.form().readonly()).toBe(true);
-      expect(fieldForm.form().required()).toBe(true);
     });
   });
 
@@ -65,9 +66,11 @@ describe('insertFormAttributes', () => {
         insertForm(
           insertSelectFormTree(
             'profile',
-            insertFormAttributes(() => ({
-              hidden: hidden.asReadonly(),
-            })),
+            // insertFormAttributes(({ nodeModel }) => ({
+            //   hidden: hidden.asReadonly(),
+            // })),
+            insertNoopTypingAnchor,
+            insertSelectFormTree('name', ({ state, set }) => ({})),
           ),
         ),
       );
@@ -83,17 +86,19 @@ describe('insertFormAttributes', () => {
 
   it('should expose sync validator exceptions as list and byValidator', () => {
     TestBed.runInInjectionContext(() => {
+      const fieldState = signal('' as string);
+
       const fieldForm = state(
-        '' as string,
+        fieldState,
         insertForm(
-          insertFormAttributes(() => ({
-            required: () => true,
+          insertFormAttributes(({ nodeModel }) => ({
             validators: [
-              cRequired,
+              cRequired(),
               cValidator({
                 name: 'hasAtSign',
-                validate: ({ value }) =>
-                  value === '' || value.includes('@')
+                validate: () =>
+                  nodeModel().value() === '' ||
+                  nodeModel().value().includes('@')
                     ? undefined
                     : craftException(
                         { code: 'MISSING_AT' },
@@ -105,13 +110,57 @@ describe('insertFormAttributes', () => {
         ),
       );
 
+      expectTypeOf(fieldForm.form().exceptions().list).toEqualTypeOf<
+        [
+          ValidatorResult<
+            unknown,
+            'cRequired',
+            CRequiredException,
+            'sync',
+            unknown,
+            {}
+          >,
+          ValidatorResult<
+            unknown,
+            'hasAtSign',
+            CraftExceptionResult<
+              {
+                code: 'MISSING_AT';
+                scope: undefined;
+                identifier?: undefined;
+              },
+              {
+                message: 'Missing @';
+              }
+            >,
+            'sync',
+            unknown,
+            {}
+          >,
+        ]
+      >();
+      expectTypeOf(fieldForm.form().exceptions().byValidator).toEqualTypeOf<{
+        cRequired: CRequiredException;
+        hasAtSign: CraftExceptionResult<
+          {
+            code: 'MISSING_AT';
+            scope: undefined;
+            identifier?: undefined;
+          },
+          {
+            message: 'Missing @';
+          }
+        >;
+      }>();
+
       expect(fieldForm.form().invalid()).toBe(true);
+
       expect(fieldForm.form().exceptions().list).toHaveLength(1);
       expect(fieldForm.form().exceptions().byValidator).toMatchObject({
         cRequired: { code: 'required' },
       });
 
-      fieldForm.set('romain');
+      fieldState.set('romain');
       TestBed.tick();
 
       expect(fieldForm.form().exceptions().list).toHaveLength(1);
@@ -119,7 +168,7 @@ describe('insertFormAttributes', () => {
         hasAtSign: { code: 'MISSING_AT' },
       });
 
-      fieldForm.set('romain@example.com');
+      fieldState.set('romain@example.com');
       TestBed.tick();
 
       expect(fieldForm.form().exceptions()).toEqual({
@@ -131,8 +180,10 @@ describe('insertFormAttributes', () => {
 
   it('should expose async validator exceptions through exceptions().list and exceptions().byValidator', async () => {
     await TestBed.runInInjectionContext(async () => {
+      const fieldState = signal('' as string);
+
       const fieldForm = state(
-        '' as string,
+        fieldState,
         insertForm(
           insertFormAttributes(() => ({
             validators: [
@@ -154,7 +205,7 @@ describe('insertFormAttributes', () => {
         ),
       );
 
-      fieldForm.set('taken');
+      fieldState.set('taken');
       TestBed.tick();
 
       expect(fieldForm.form().pending()).toBe(true);
@@ -166,7 +217,7 @@ describe('insertFormAttributes', () => {
         isAvailable: { code: 'USERNAME_TAKEN' },
       });
 
-      fieldForm.set('available');
+      fieldState.set('available');
       TestBed.tick();
 
       await flushAsyncValidation();

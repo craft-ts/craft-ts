@@ -17,7 +17,7 @@ type SelectedTarget<
   ? Extract<Item, object>
   : StateType extends Record<string, unknown>
     ? Name extends keyof StateType
-      ? Extract<StateType[Name], object>
+      ? StateType[Name]
       : never
     : never;
 

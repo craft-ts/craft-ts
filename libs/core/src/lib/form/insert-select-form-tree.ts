@@ -23,20 +23,22 @@ type SelectedFormTreeTarget<
   ? Extract<Item, object>
   : StateType extends Record<string, unknown>
     ? Name extends keyof StateType
-      ? Extract<StateType[Name], object>
+      ? StateType[Name]
       : never
     : never;
 
 type IsArray<T> = T extends any[] ? true : false;
 
-type MaybeFormWithInsertions<Model, Insertions> =
-  [Extract<Model, object>] extends [never]
-    ? never
-    : undefined extends Model
-      ? FormWithInsertions<Extract<Model, object>, Insertions> | undefined
-      : FormWithInsertions<Extract<Model, object>, Insertions>;
+type MaybeFormWithInsertions<Model, Insertions> = [
+  Extract<Model, object>,
+] extends [never]
+  ? never
+  : undefined extends Model
+    ? FormWithInsertions<Extract<Model, object>, Insertions> | undefined
+    : FormWithInsertions<Extract<Model, object>, Insertions>;
 
-type SelectFormTreeMethodName<Name extends string> = `select${Capitalize<Name>}`;
+type SelectFormTreeMethodName<Name extends string> =
+  `select${Capitalize<Name>}`;
 
 type ArrayInsertSelectFormTreeOutput<
   StateType,
@@ -45,10 +47,12 @@ type ArrayInsertSelectFormTreeOutput<
 > = {
   [K in SelectFormTreeMethodName<Name>]: (
     id: number,
-  ) => FormWithInsertions<
-    Extract<ExtractItemType<StateType>, object>,
-    MergeInsertions<Insertions>
-  > | undefined;
+  ) =>
+    | FormWithInsertions<
+        Extract<ExtractItemType<StateType>, object>,
+        MergeInsertions<Insertions>
+      >
+    | undefined;
 } & {
   items: () => Array<
     FormWithInsertions<
@@ -160,7 +164,7 @@ function createInsertSelectFormTreeItemRuntime(
         return undefined;
       }
 
-      const itemForm = ((context.form as unknown) as ReadonlyArrayLike<unknown>)[
+      const itemForm = (context.form as unknown as ReadonlyArrayLike<unknown>)[
         id
       ];
       if (!isFieldTree(itemForm)) {
@@ -265,7 +269,9 @@ function createInsertSelectFormTreePropertyRuntime(
         return undefined;
       }
 
-      const propertyForm = (context.form as Record<string, unknown>)[propertyKey];
+      const propertyForm = (context.form as Record<string, unknown>)[
+        propertyKey
+      ];
       if (!isFieldTree(propertyForm)) {
         return undefined;
       }
@@ -507,11 +513,15 @@ export function insertSelectFormTree(
     const currentState = context.state();
 
     if (Array.isArray(currentState)) {
-      return createInsertSelectFormTreeItemRuntime(name, ...insertions)(context);
+      return createInsertSelectFormTreeItemRuntime(
+        name,
+        ...insertions,
+      )(context);
     }
 
-    return createInsertSelectFormTreePropertyRuntime(name, ...insertions)(
-      context,
-    );
+    return createInsertSelectFormTreePropertyRuntime(
+      name,
+      ...insertions,
+    )(context);
   };
 }

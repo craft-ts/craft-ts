@@ -136,7 +136,7 @@ describe('insertSelectFormTree', () => {
     });
   });
 
-  it('should not expose scalar child fields as selectable form trees', () => {
+  it('should expose scalar child fields as selectable form trees', () => {
     TestBed.runInInjectionContext(() => {
       const profileForm = state(
         {
@@ -147,13 +147,13 @@ describe('insertSelectFormTree', () => {
           status: 'draft',
         } satisfies ProfileFormValue,
         insertForm(
-          insertSelectFormTree('status', ({ form }) => ({
-            impossible: () => true,
+          insertSelectFormTree('status', ({ form, state }) => ({
+            possible: () => true,
           })),
         ),
       );
 
-      expect(profileForm.form().selectStatus()).toBeUndefined();
+      expect(profileForm.form().selectStatus()).toBeDefined();
     });
   });
 });
