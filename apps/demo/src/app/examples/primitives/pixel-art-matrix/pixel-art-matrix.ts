@@ -238,28 +238,27 @@ export default class PixelArtMatrix {
           ({
             state,
             update,
+            patch,
             insertions: {
               paintRowWithTargetCellColor$,
               paintColumnWithTargetCellColor$,
             },
           }) => ({
             paint: () =>
-              update((targetCell) => ({
-                ...targetCell,
+              patch(({ color, paintCount }) => ({
                 color:
-                  targetCell.color === this.matrix.selectUi().activeColor
+                  color === this.matrix.selectUi().activeColor
                     ? EMPTY_COLOR
                     : this.matrix.selectUi().activeColor,
-                paintCount: targetCell.paintCount + 1,
+                paintCount: paintCount + 1,
               })),
             paintCountStr: computed(
               () => `Painted ${state().paintCount} times`,
             ),
             paintCellOnSameRow: on$(paintRowWithTargetCellColor$, ({ color }) =>
-              update((targetCell) => ({
-                ...targetCell,
+              patch(({ paintCount }) => ({
                 color,
-                paintCount: targetCell.paintCount + 1,
+                paintCount: paintCount + 1,
               })),
             ),
             paintCellOnSameColumn: on$(

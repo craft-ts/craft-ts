@@ -263,6 +263,7 @@ export function executeFormInsertions<Model>(
     state: Signal<Model>;
     set: (newState: Model) => Model;
     update: (updateFn: (currentState: Model) => Model) => Model;
+    patch: (patchFn: (currentState: Model) => Partial<Model>) => Model;
     setSubmitting: (submitting: boolean) => void;
     inheritedInsertions: Record<string, unknown>;
     injector: Injector;
@@ -276,6 +277,7 @@ export function executeFormInsertions<Model>(
           state: options.state,
           set: options.set,
           update: options.update,
+          patch: options.patch,
           form: options.formRef,
           validatedFormValue: computed(() =>
             options.formRef().valid()
@@ -318,6 +320,7 @@ export function decorateFormTreeWithInsertions<Model>({
   state,
   set,
   update,
+  patch,
   setSubmitting,
   inheritedInsertions,
   injector,
@@ -333,6 +336,7 @@ export function decorateFormTreeWithInsertions<Model>({
   state: Signal<Model>;
   set: (newState: Model) => Model;
   update: (updateFn: (currentState: Model) => Model) => Model;
+  patch: (patchFn: (currentState: Model) => Partial<Model>) => Model;
   setSubmitting: (submitting: boolean) => void;
   inheritedInsertions: Record<string, unknown>;
   injector: Injector;
@@ -353,6 +357,7 @@ export function decorateFormTreeWithInsertions<Model>({
       state,
       set,
       update,
+      patch,
       setSubmitting,
       inheritedInsertions,
       injector,

@@ -567,6 +567,9 @@ export type InsertionParams<
   update: (
     updateFn: (currentState: ResourceState) => ResourceState,
   ) => ResourceState;
+  patch: (
+    patchFn: (currentState: ResourceState) => Partial<ResourceState>,
+  ) => ResourceState;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs
     : never;
@@ -629,6 +632,9 @@ export type InsertionByIdParams<
   update: (
     updateFn: (currentState: ResourceState) => ResourceState,
   ) => ResourceState;
+  patch: (
+    patchFn: (currentState: ResourceState) => Partial<ResourceState>,
+  ) => ResourceState;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs
     : never;
@@ -673,6 +679,9 @@ export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
     state: Signal<StateType>;
     set: (newState: StateType) => StateType;
     update: (updateFn: (currentState: StateType) => StateType) => StateType;
+    patch: (
+      patchFn: (currentState: StateType) => Partial<StateType>,
+    ) => StateType;
     insertions: keyof PreviousInsertionsOutputs extends string
       ? PreviousInsertionsOutputs
       : never;

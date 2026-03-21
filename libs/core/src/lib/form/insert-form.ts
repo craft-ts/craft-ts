@@ -140,6 +140,11 @@ function createDynamicSignalForm<Model>({
               set: (newState: unknown) => setItem(formIdentifier, newState),
               update: (updateFn: (currentState: unknown) => unknown) =>
                 updateItem(formIdentifier, updateFn),
+              patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
+                updateItem(formIdentifier, (current) => ({
+                  ...(current as object),
+                  ...patchFn(current),
+                })),
               inheritedInsertions,
               injector,
               formIdentifier,
@@ -391,6 +396,8 @@ export function insertForm(...args: any[]): any {
           set: (newState: unknown) => context.set(newState),
           update: (updateFn: (currentState: unknown) => unknown) =>
             context.update(updateFn),
+          patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
+            context.patch(patchFn as any),
           inheritedInsertions,
           injector,
           formIdentifier: undefined,

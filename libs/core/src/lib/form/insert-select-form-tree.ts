@@ -180,6 +180,11 @@ function createInsertSelectFormTreeItemRuntime(
           set: (newState: unknown) => setItemState(id, newState),
           update: (updateFn: (currentState: unknown) => unknown) =>
             updateItemState(id, updateFn),
+          patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
+            updateItemState(id, (current) => ({
+              ...(current as object),
+              ...patchFn(current),
+            })),
           setSubmitting: context.setSubmitting,
           inheritedInsertions,
           injector,
@@ -285,6 +290,11 @@ function createInsertSelectFormTreePropertyRuntime(
           set: (newState: unknown) => setPropertyState(newState),
           update: (updateFn: (currentState: unknown) => unknown) =>
             updatePropertyState(updateFn),
+          patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
+            updatePropertyState((current) => ({
+              ...(current as object),
+              ...patchFn(current),
+            })),
           setSubmitting: context.setSubmitting,
           inheritedInsertions,
           injector,

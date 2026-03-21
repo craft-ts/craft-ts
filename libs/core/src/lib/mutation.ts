@@ -1495,6 +1495,11 @@ export function mutation<
             state: resourceTarget.state,
             set: resourceTarget.set,
             update: resourceTarget.update,
+            patch: (patchFn: (currentState: any) => Partial<any>) =>
+              resourceTarget.update((current: any) => ({
+                ...current,
+                ...patchFn(current),
+              })),
           } as any),
         };
       },

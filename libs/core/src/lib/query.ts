@@ -1431,6 +1431,11 @@ export function query<
             state: resourceTarget.state,
             set: resourceTarget.set,
             update: resourceTarget.update,
+            patch: (patchFn: (currentState: any) => Partial<any>) =>
+              resourceTarget.update((current: any) => ({
+                ...current,
+                ...patchFn(current),
+              })),
           } as any), // try to improve the type here
         };
       },

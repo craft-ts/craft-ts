@@ -241,6 +241,36 @@ function createInsertSelectItemRuntime(
 
                   return nextState;
                 },
+                patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
+                  const currentSelectedState = select(id);
+                  if (currentSelectedState === undefined) {
+                    return undefined;
+                  }
+
+                  const nextState = {
+                    ...(currentSelectedState as object),
+                    ...patchFn(currentSelectedState),
+                  };
+                  update((currentState: unknown) => {
+                    if (!Array.isArray(currentState)) {
+                      return currentState;
+                    }
+
+                    if (
+                      id < 0 ||
+                      id >= currentState.length ||
+                      !Number.isInteger(id)
+                    ) {
+                      return currentState;
+                    }
+
+                    const nextRootState = [...currentState];
+                    nextRootState[id] = nextState;
+                    return nextRootState;
+                  });
+
+                  return nextState;
+                },
                 insertions: {
                   ...inheritedInsertions,
                   ...acc.rawInsertionsOutput,
@@ -403,6 +433,12 @@ function createInsertSelectPropertyRuntime(
               state: selectedPropertySignal,
               set: setProperty,
               update: updateProperty,
+              patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
+                return updateProperty((current) => ({
+                  ...(current as object),
+                  ...patchFn(current),
+                }));
+              },
               insertions: {
                 ...inheritedInsertions,
                 ...acc.rawInsertionsOutput,
