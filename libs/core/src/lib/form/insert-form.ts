@@ -551,7 +551,7 @@ export function insertForm(...args: any[]): any {
         });
 
         if (!selectedEntry) {
-          throw new Error(`Form with identifier ${formIdentifier} not found`);
+          return undefined;
         }
 
         return selectedEntry.form;

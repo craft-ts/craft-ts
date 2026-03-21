@@ -67,4 +67,8 @@ export const appRoutes: Route[] = [
     path: 'craft/full-demo',
     loadComponent: () => import('./examples/craft/full-demo/full-demo'),
   },
+  {
+    path: 'login-form',
+    loadComponent: () => import('./examples/primitives/forms/login-form'),
+  },
 ];

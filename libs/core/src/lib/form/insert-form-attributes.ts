@@ -7,9 +7,17 @@ import {
   type Signal,
 } from '@angular/core';
 import { type FieldTree } from '@angular/forms/signals';
-import type { InsertionsFormFactory } from './insert-form';
-import type { ValidatorModel, ValidatorResult } from './validator';
+import type {
+  InsertionFormFactoryContext,
+  InsertionsFormFactory,
+} from './insert-form';
+import {
+  VALIDATOR_OUTPUT_SYMBOL,
+  ValidatorOutput,
+  type ValidatorModel,
+} from './validator';
 import type { MergeObject, Prettify, UnionToTuple } from '../util/util.type';
+import { CraftExceptionResult } from '../craft-exception';
 
 type FormAttributeInput<T> = Signal<T> | (() => T);
 
@@ -22,11 +30,17 @@ type ValidatorExecution = () => unknown;
 type ValidatorExecutionFactory<TValue, FormIdentifier> = (
   model?: ValidatorModel<TValue>,
   identifier?: FormIdentifier,
-) => ValidatorExecution;
+) => unknown;
 
 type ValidatorExecutionInput<TValue, FormIdentifier> =
   | ValidatorExecution
   | ValidatorExecutionFactory<TValue, FormIdentifier>;
+
+type ValidatorRuntimeDescriptor = {
+  name: string;
+  type: 'sync' | 'async';
+  kind: 'output' | 'deferred';
+};
 
 type InternalFieldContext<TValue> = {
   fieldTree: FieldTree<TValue, string | number>;
@@ -105,7 +119,15 @@ export type InsertFormAttributesConfig<S, Exceptions> = {
   validators?: Exceptions[];
 };
 
-export type InsertFormAttributesContext<TValue> = {
+export type InsertFormAttributesContext<
+  TValue,
+  PreviousInsertionsOutputs = {},
+  FormIdentifier extends string | number | unknown = unknown,
+> = InsertionFormFactoryContext<
+  TValue,
+  PreviousInsertionsOutputs,
+  FormIdentifier
+> & {
   nodeModel: ValidatorModel<TValue>;
 };
 
@@ -126,6 +148,40 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return (
+    (typeof value === 'object' || typeof value === 'function') &&
+    value !== null &&
+    'then' in value &&
+    typeof (value as { then?: unknown }).then === 'function'
+  );
+}
+
+function getValidatorRuntime(
+  value: unknown,
+): ValidatorRuntimeDescriptor | undefined {
+  if (typeof value !== 'function') {
+    return undefined;
+  }
+
+  const runtime = (
+    value as {
+      [VALIDATOR_OUTPUT_SYMBOL]?: unknown;
+    }
+  )[VALIDATOR_OUTPUT_SYMBOL];
+
+  if (
+    !isObjectRecord(runtime) ||
+    typeof runtime['name'] !== 'string' ||
+    (runtime['type'] !== 'sync' && runtime['type'] !== 'async') ||
+    (runtime['kind'] !== 'output' && runtime['kind'] !== 'deferred')
+  ) {
+    return undefined;
+  }
+
+  return runtime as ValidatorRuntimeDescriptor;
+}
+
 function bindValidatorDescriptor<TValue, FormIdentifier>(
   validatorInput: ValidatorExecutionInput<TValue, FormIdentifier>,
   nodeModel: ValidatorModel<TValue>,
@@ -137,27 +193,83 @@ function bindValidatorDescriptor<TValue, FormIdentifier>(
   }
 
   const validatorInputFn = validatorInput as Function;
-  const validator =
-    validatorInputFn.length === 0
-      ? (validatorInput as ValidatorExecution)
-      : (validatorInput as ValidatorExecutionFactory<TValue, FormIdentifier>)(
+  const runtime = getValidatorRuntime(validatorInput);
+
+  if (runtime?.kind === 'output') {
+    return {
+      execute: () =>
+        (validatorInput as ValidatorExecutionFactory<TValue, FormIdentifier>)(
           nodeModel,
           formIdentifier,
-        );
-
-  if (typeof validator !== 'function') {
-    return undefined;
+        ),
+      fallbackName:
+        runtime.name ||
+        validatorInputFn.name ||
+        `insertFormAttributesValidator${index + 1}`,
+      kind: runtime.type,
+    };
   }
 
-  const validatorFn = validator as Function;
+  if (runtime?.kind === 'deferred') {
+    const validator = (
+      validatorInput as ValidatorExecutionFactory<TValue, FormIdentifier>
+    )(nodeModel, formIdentifier);
+
+    if (typeof validator !== 'function') {
+      return undefined;
+    }
+
+    const validatorFn = validator as Function;
+
+    return {
+      execute: validator as ValidatorExecution,
+      fallbackName:
+        runtime.name ||
+        validatorFn.name ||
+        validatorInputFn.name ||
+        `insertFormAttributesValidator${index + 1}`,
+      kind: runtime.type,
+    };
+  }
+
+  if (validatorInputFn.length === 0) {
+    return {
+      execute: validatorInput as ValidatorExecution,
+      fallbackName:
+        validatorInputFn.name || `insertFormAttributesValidator${index + 1}`,
+      kind: isAsyncFunction(validatorInput) ? 'async' : 'sync',
+    };
+  }
+
+  const validator = (
+    validatorInput as ValidatorExecutionFactory<TValue, FormIdentifier>
+  )(nodeModel, formIdentifier);
+
+  if (typeof validator === 'function') {
+    const validatorFn = validator as Function;
+
+    return {
+      execute: validator as ValidatorExecution,
+      fallbackName:
+        validatorFn.name ||
+        validatorInputFn.name ||
+        `insertFormAttributesValidator${index + 1}`,
+      kind: isAsyncFunction(validator) ? 'async' : 'sync',
+    };
+  }
 
   return {
-    execute: validator,
+    execute: () =>
+      (validatorInput as ValidatorExecutionFactory<TValue, FormIdentifier>)(
+        nodeModel,
+        formIdentifier,
+      ),
     fallbackName:
-      validatorFn.name ||
-      validatorInputFn.name ||
-      `insertFormAttributesValidator${index + 1}`,
-    kind: isAsyncFunction(validator) ? 'async' : 'sync',
+      validatorInputFn.name || `insertFormAttributesValidator${index + 1}`,
+    kind:
+      isPromiseLike(validator) || isAsyncFunction(validatorInput)
+        ? 'async'
+        : 'sync',
   };
 }
 
@@ -331,42 +443,67 @@ function createAsyncValidatorState(
 }
 
 type ExceptionByValidatorEntry<Exception> =
-  Exception extends ValidatorResult<any, infer Name, infer E>
+  Exception extends ValidatorOutput<any, infer Name, infer E>
     ? { [Key in Name]: E }
+    : never;
+
+type ExtractValidatorMetadata<Validator> =
+  Validator extends ValidatorOutput<
+    infer TValue,
+    infer Name,
+    infer Exceptions,
+    infer Type,
+    infer Identifier,
+    infer Meta
+  >
+    ? Exceptions
     : never;
 
 type ExceptionsByValidatorFromTuple<
   ExceptionsTuple extends unknown[],
-  Acc extends object = {},
+  Acc = {},
 > = ExceptionsTuple extends [infer Head, ...infer Tail]
   ? ExceptionsByValidatorFromTuple<
       Tail,
-      Head extends ValidatorResult<any, infer Name, infer E>
-        ? MergeObject<Acc, { [Key in Name]: E }>
-        : Acc
+      Head extends CraftExceptionResult<infer M, infer P>
+        ? MergeObject<
+            Acc,
+            {
+              [Key in M['code']]: Head;
+            }
+          >
+        : Head
     >
   : Prettify<Acc>;
 
-type ExceptionsByValidator<Exception> = ExceptionsByValidatorFromTuple<
-  UnionToTuple<Exception>
+type ExceptionsList<Exception> = UnionToTuple<
+  ExtractValidatorMetadata<NonNullable<Exception>>
+>;
+
+type ExceptionsByValidator<Validators> = ExceptionsByValidatorFromTuple<
+  UnionToTuple<ExtractValidatorMetadata<NonNullable<Validators>>>
 >;
 
 export function insertFormAttributes<
   StateType,
-  Exceptions,
+  Validators,
   FormIdentifier extends string | number | unknown,
   PreviousInsertionsOutputs = {},
 >(
   _factory: (
-    context: InsertFormAttributesContext<StateType>,
-  ) => InsertFormAttributesConfig<StateType, Exceptions>,
+    context: InsertFormAttributesContext<
+      StateType,
+      PreviousInsertionsOutputs,
+      FormIdentifier
+    >,
+  ) => InsertFormAttributesConfig<StateType, Validators>,
 ): InsertionsFormFactory<
   StateType,
   FormIdentifier,
   {
     exceptions: Signal<{
-      list: UnionToTuple<Exceptions>;
-      byValidator: ExceptionsByValidator<NonNullable<Exceptions>>;
+      list: ExceptionsList<Validators>;
+      byValidator: ExceptionsByValidator<NonNullable<Validators>>;
     }>;
     hasExceptions: Signal<boolean>;
   },
@@ -379,6 +516,7 @@ export function insertFormAttributes<
       value: fieldNode.value,
     });
     const config = _factory({
+      ...context,
       nodeModel,
     });
 
@@ -398,11 +536,6 @@ export function insertFormAttributes<
       const readonly = computed(config.readonly);
       fieldNode.logicNode.logic.readonly.push(() => readonly());
     }
-
-    // if (config.required) {
-    //   const required = computed(config.required);
-    //   fieldNode.logicNode.logic.getMetadata(REQUIRED).push(() => required());
-    // }
 
     const shouldSkipValidation = computed(
       () => fieldNode.hidden() || fieldNode.disabled() || fieldNode.readonly(),
@@ -518,6 +651,12 @@ export function insertFormAttributes<
     return {
       exceptions,
       hasExceptions: computed(() => exceptions().list.length > 0),
+    } as {
+      exceptions: Signal<{
+        list: ExceptionsList<Validators>;
+        byValidator: ExceptionsByValidator<NonNullable<Validators>>;
+      }>;
+      hasExceptions: Signal<boolean>;
     };
   };
 }

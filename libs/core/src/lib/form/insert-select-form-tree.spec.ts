@@ -148,12 +148,15 @@ describe('insertSelectFormTree', () => {
         } satisfies ProfileFormValue,
         insertForm(
           insertSelectFormTree('status', ({ form, state }) => ({
-            possible: () => true,
+            possible: () => true as boolean,
           })),
         ),
       );
 
-      expect(profileForm.form().selectStatus()).toBeDefined();
+      expect(profileForm.form().selectStatus()().possible()).toBeDefined();
+      expectTypeOf(
+        profileForm.form().selectStatus()().possible(),
+      ).toEqualTypeOf<boolean>();
     });
   });
 });

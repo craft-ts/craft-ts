@@ -32,17 +32,6 @@ function createField<TValue>(initialValue: TValue) {
   };
 }
 
-function createExpectedSuccess<Name extends string>(
-  brand: Name,
-  type: ValidatorType = 'sync',
-) {
-  return {
-    valid: true,
-    __brand: brand,
-    type,
-  };
-}
-
 function createExpectedException<
   Name extends string,
   Code extends string,
@@ -55,16 +44,6 @@ function createExpectedException<
     [code]: payload,
     __brand: brand,
     type,
-  };
-}
-
-function createExpectedAsyncSuccess<Name extends string>(
-  brand: Name,
-  status: ResourceStatus,
-) {
-  return {
-    ...createExpectedSuccess(brand, 'async'),
-    status,
   };
 }
 
@@ -106,13 +85,13 @@ describe('validator', () => {
       );
 
       setValue('test');
-      expect(validator()).toEqual(createExpectedSuccess('cRequired'));
+      expect(validator()).toBeUndefined();
 
       setValue('');
       const skippedValidator = cRequired({
         when: () => false,
-      })(field);
-      expect(skippedValidator()).toEqual(createExpectedSuccess('cRequired'));
+      });
+      expect(skippedValidator(field)).toBeUndefined();
     });
   });
 
@@ -121,7 +100,7 @@ describe('validator', () => {
       const { field, setValue } = createField('');
       const validator = cEmail(field);
 
-      expect(validator()).toEqual(createExpectedSuccess('cEmail'));
+      expect(validator()).toBeUndefined();
 
       setValue('invalid-email');
       expect(validator()).toEqual(
@@ -130,11 +109,11 @@ describe('validator', () => {
 
       const skippedValidator = cEmail({
         when: () => false,
-      })(field);
-      expect(skippedValidator()).toEqual(createExpectedSuccess('cEmail'));
+      });
+      expect(skippedValidator(field)).toBeUndefined();
 
       setValue('valid@email.dev');
-      expect(validator()).toEqual(createExpectedSuccess('cEmail'));
+      expect(validator()).toBeUndefined();
     });
   });
 
@@ -144,21 +123,23 @@ describe('validator', () => {
       const validator = cMin({
         min: () => 3,
         when: () => true,
-      })(field);
+      });
 
-      expect(validator()).toEqual(createExpectedSuccess('cMin'));
+      expect(validator(field)).toBeUndefined();
 
       setValue('2');
-      expect(validator()).toEqual(createExpectedException('cMin', 'min', 3));
+      expect(validator(field)).toEqual(
+        createExpectedException('cMin', 'min', 3),
+      );
 
       const skippedValidator = cMin({
         min: () => 3,
         when: () => false,
-      })(field);
-      expect(skippedValidator()).toEqual(createExpectedSuccess('cMin'));
+      });
+      expect(skippedValidator(field)).toBeUndefined();
 
       setValue('3');
-      expect(validator()).toEqual(createExpectedSuccess('cMin'));
+      expect(validator(field)).toBeUndefined();
     });
   });
 
@@ -171,22 +152,24 @@ describe('validator', () => {
         max: () => 10,
         model: debouncedField,
         when: () => true,
-      })(baseField);
+      });
 
-      expect(validator()).toEqual(createExpectedSuccess('cMax'));
+      expect(validator(baseField)).toBeUndefined();
 
       setBaseValue('100');
-      expect(validator()).toEqual(createExpectedSuccess('cMax'));
+      expect(validator(baseField)).toBeUndefined();
 
       setDebouncedValue('11');
-      expect(validator()).toEqual(createExpectedException('cMax', 'max', 10));
+      expect(validator(baseField)).toEqual(
+        createExpectedException('cMax', 'max', 10),
+      );
 
       const skippedValidator = cMax({
         max: () => 10,
         model: debouncedField,
         when: () => false,
-      })(baseField);
-      expect(skippedValidator()).toEqual(createExpectedSuccess('cMax'));
+      });
+      expect(skippedValidator(baseField)).toBeUndefined();
     });
   });
 
@@ -206,23 +189,25 @@ describe('validator', () => {
         }),
       ] as const;
 
-      const [requiredValidator, minValidator, maxValidator] = validators.map(
-        (validatorFactory) => validatorFactory(baseField),
-      );
+      const requiredValidator = validators[0](baseField);
+      const minValidator = validators[1];
+      const maxValidator = validators[2];
 
       expect(requiredValidator()).toEqual(
         createExpectedException('cRequired', 'required', undefined),
       );
 
       setBaseValue('2');
-      expect(minValidator()).toEqual(createExpectedException('cMin', 'min', 3));
+      expect(minValidator(baseField)).toEqual(
+        createExpectedException('cMin', 'min', 3),
+      );
 
-      expect(maxValidator()).toEqual(
+      expect(maxValidator(baseField)).toEqual(
         createExpectedException('cMax', 'max', 10),
       );
 
       setDebouncedValue('9');
-      expect(maxValidator()).toEqual(createExpectedSuccess('cMax'));
+      expect(maxValidator(baseField)).toBeUndefined();
     });
   });
 
@@ -232,23 +217,23 @@ describe('validator', () => {
       const validator = cMaxLength({
         maxLength: 3,
         when: () => true,
-      })(field);
+      });
 
-      expect(validator()).toEqual(createExpectedSuccess('cMaxLength'));
+      expect(validator(field)).toBeUndefined();
 
       setValue('abcd');
-      expect(validator()).toEqual(
+      expect(validator(field)).toEqual(
         createExpectedException('cMaxLength', 'maxLength', 3),
       );
 
       const skippedValidator = cMaxLength({
         maxLength: 3,
         when: () => false,
-      })(field);
-      expect(skippedValidator()).toEqual(createExpectedSuccess('cMaxLength'));
+      });
+      expect(skippedValidator(field)).toBeUndefined();
 
       setValue('abc');
-      expect(validator()).toEqual(createExpectedSuccess('cMaxLength'));
+      expect(validator(field)).toBeUndefined();
     });
   });
 
@@ -258,23 +243,23 @@ describe('validator', () => {
       const validator = cMinLength({
         minLength: 3,
         when: () => true,
-      })(field);
+      });
 
-      expect(validator()).toEqual(createExpectedSuccess('cMinLength'));
+      expect(validator(field)).toBeUndefined();
 
       setValue('ab');
-      expect(validator()).toEqual(
+      expect(validator(field)).toEqual(
         createExpectedException('cMinLength', 'minLength', 3),
       );
 
       const skippedValidator = cMinLength({
         minLength: 3,
         when: () => false,
-      })(field);
-      expect(skippedValidator()).toEqual(createExpectedSuccess('cMinLength'));
+      });
+      expect(skippedValidator(field)).toBeUndefined();
 
       setValue('abc');
-      expect(validator()).toEqual(createExpectedSuccess('cMinLength'));
+      expect(validator(field)).toBeUndefined();
     });
   });
 
@@ -284,23 +269,23 @@ describe('validator', () => {
       const validator = cPattern({
         pattern: () => /^\d+$/,
         when: () => true,
-      })(field);
+      });
 
-      expect(validator()).toEqual(createExpectedSuccess('cPattern'));
+      expect(validator(field)).toBeUndefined();
 
       setValue('abc');
-      expect(validator()).toEqual(
+      expect(validator(field)).toEqual(
         createExpectedException('cPattern', 'pattern', /^\d+$/),
       );
 
       const skippedValidator = cPattern({
         pattern: () => /^\d+$/,
         when: () => false,
-      })(field);
-      expect(skippedValidator()).toEqual(createExpectedSuccess('cPattern'));
+      });
+      expect(skippedValidator(field)).toBeUndefined();
 
       setValue('123');
-      expect(validator()).toEqual(createExpectedSuccess('cPattern'));
+      expect(validator(field)).toBeUndefined();
     });
   });
 
@@ -320,12 +305,12 @@ describe('validator', () => {
                 },
               )
             : undefined,
-      })(field);
+      });
 
-      expect(validator()).toEqual(createExpectedSuccess('myCustomValidator'));
+      expect(validator(field)).toBeUndefined();
 
       setValue('blocked');
-      expect(validator()).toEqual({
+      expect(validator(field)).toEqual({
         ...craftException(
           {
             code: 'blockedValue',
@@ -353,9 +338,9 @@ describe('validator', () => {
             },
             undefined,
           ),
-      })(field);
+      });
 
-      expect(validator()).toEqual(createExpectedSuccess('aliasValidator'));
+      expect(validator(field)).toBeUndefined();
     });
   });
 
@@ -374,14 +359,12 @@ describe('validator', () => {
                 'taken',
               )
             : undefined,
-      })(field);
+      });
 
-      await expect(validator()).resolves.toEqual(
-        createExpectedSuccess('asyncCustomValidator', 'async'),
-      );
+      await expect(validator(field)).resolves.toBeUndefined();
 
       setValue('taken');
-      await expect(validator()).resolves.toEqual({
+      await expect(validator(field)).resolves.toEqual({
         ...craftException(
           {
             code: 'alreadyTaken',
@@ -430,26 +413,24 @@ describe('cAsyncValidator', () => {
         .parameter(0)
         .toEqualTypeOf<FormValidator<string>>();
 
-      const validator = cAsyncValidator('checkUsername', usernameQuery)(field);
+      const validator = cAsyncValidator('checkUsername', usernameQuery);
 
       await vi.advanceTimersByTimeAsync(0);
-      await expect(validator()).resolves.toEqual(
+      await expect(validator(field)).resolves.toEqual(
         createExpectedAsyncInvalid('checkUsername', 'loading'),
       );
 
       await vi.advanceTimersByTimeAsync(1000);
-      await expect(validator()).resolves.toEqual(
-        createExpectedAsyncSuccess('checkUsername', 'resolved'),
-      );
+      await expect(validator(field)).resolves.toBeUndefined();
 
       setValue('taken');
       await vi.advanceTimersByTimeAsync(0);
-      await expect(validator()).resolves.toEqual(
+      await expect(validator(field)).resolves.toEqual(
         createExpectedAsyncInvalid('checkUsername', 'loading'),
       );
 
       await vi.advanceTimersByTimeAsync(1000);
-      await expect(validator()).resolves.toEqual(
+      await expect(validator(field)).resolves.toEqual(
         createExpectedAsyncException(
           'checkUsername',
           'alreadyTaken',
@@ -497,10 +478,10 @@ describe('cAsyncValidator', () => {
 
           return omitExceptions(['alreadyTaken']);
         },
-      })(field);
+      });
 
       await vi.advanceTimersByTimeAsync(1000);
-      await expect(validator()).resolves.toEqual({
+      await expect(validator(field)).resolves.toEqual({
         ...craftException({
           code: 'alreadyTakenMapped',
         }),
@@ -542,37 +523,22 @@ describe('cAsyncValidator', () => {
         .parameter(0)
         .toEqualTypeOf<FormValidator<string, '1' | '2'>>();
 
-      const validator1 = cAsyncValidator('parallelUsername', usernameQuery)(
-        firstField.field,
-        '1',
-      );
-      const validator2 = cAsyncValidator('parallelUsername', usernameQuery)(
-        secondField.field,
-        '2',
-      );
+      const validator = cAsyncValidator('parallelUsername', usernameQuery);
 
       await vi.advanceTimersByTimeAsync(1000);
-      await expect(validator1()).resolves.toEqual(
-        createExpectedAsyncSuccess('parallelUsername', 'resolved'),
-      );
-      await expect(validator2()).resolves.toEqual(
-        createExpectedAsyncSuccess('parallelUsername', 'resolved'),
-      );
+      await expect(validator(firstField.field, '1')).resolves.toBeUndefined();
+      await expect(validator(secondField.field, '2')).resolves.toBeUndefined();
 
       secondField.setValue('taken');
       await vi.advanceTimersByTimeAsync(0);
-      await expect(validator1()).resolves.toEqual(
-        createExpectedAsyncSuccess('parallelUsername', 'resolved'),
-      );
-      await expect(validator2()).resolves.toEqual(
+      await expect(validator(firstField.field, '1')).resolves.toBeUndefined();
+      await expect(validator(secondField.field, '2')).resolves.toEqual(
         createExpectedAsyncInvalid('parallelUsername', 'loading'),
       );
 
       await vi.advanceTimersByTimeAsync(1000);
-      await expect(validator1()).resolves.toEqual(
-        createExpectedAsyncSuccess('parallelUsername', 'resolved'),
-      );
-      await expect(validator2()).resolves.toEqual(
+      await expect(validator(firstField.field, '1')).resolves.toBeUndefined();
+      await expect(validator(secondField.field, '2')).resolves.toEqual(
         createExpectedAsyncException(
           'parallelUsername',
           'alreadyTaken',

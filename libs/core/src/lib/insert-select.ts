@@ -241,7 +241,9 @@ function createInsertSelectItemRuntime(
 
                   return nextState;
                 },
-                patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
+                patch: (
+                  patchFn: (currentState: unknown) => Partial<unknown>,
+                ) => {
                   const currentSelectedState = select(id);
                   if (currentSelectedState === undefined) {
                     return undefined;

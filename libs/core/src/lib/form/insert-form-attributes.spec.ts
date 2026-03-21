@@ -1,16 +1,11 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craftException, CraftExceptionResult } from '../craft-exception';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
 import { insertSelectFormTree } from './insert-select-form-tree';
-import {
-  cRequired,
-  CRequiredException,
-  cValidator,
-  ValidatorResult,
-} from './validator';
+import { cRequired, CRequiredException, cValidator } from './validator';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 
 async function flushAsyncValidation() {
@@ -84,6 +79,75 @@ describe('insertFormAttributes', () => {
     });
   });
 
+  it('should expose the current insertion payload to the insertFormAttributes callback', () => {
+    TestBed.runInInjectionContext(() => {
+      const profileState = signal({
+        email: 'romain@example.com',
+      });
+      let submittingState = false;
+
+      const profileForm = state(
+        profileState,
+        insertForm(
+          ({ state }) => ({
+            upperEmail: computed(() => state().email.toUpperCase()),
+          }),
+          insertFormAttributes((context) => {
+            expect(context.nodeModel().value()).toEqual({
+              email: 'romain@example.com',
+            });
+            expect(context.state().email).toBe('romain@example.com');
+            expect(context.insertions.upperEmail()).toBe(
+              'ROMAIN@EXAMPLE.COM',
+            );
+            expect(context.form().value()).toEqual({
+              email: 'romain@example.com',
+            });
+            expect(context.validatedFormValue()?.email).toBe(
+              'romain@example.com',
+            );
+            expect(context.formIdentifier).toBeUndefined();
+
+            context.setSubmitting(true);
+            submittingState = context.form().submitting();
+            context.setSubmitting(false);
+
+            context.set({
+              email: 'set@example.com',
+            });
+            expect(context.form().value()).toEqual({
+              email: 'set@example.com',
+            });
+
+            context.patch(() => ({
+              email: 'patch@example.com',
+            }));
+            expect(context.form().value()).toEqual({
+              email: 'patch@example.com',
+            });
+
+            context.update((current) => ({
+              email: current.email.toUpperCase(),
+            }));
+            expect(context.form().value()).toEqual({
+              email: 'PATCH@EXAMPLE.COM',
+            });
+            expect(context.insertions.upperEmail()).toBe('PATCH@EXAMPLE.COM');
+
+            return {};
+          }),
+        ),
+      );
+
+      expect(submittingState).toBe(true);
+      expect(profileForm.form().submitting()).toBe(false);
+      expect(profileForm.form().value()).toEqual({
+        email: 'PATCH@EXAMPLE.COM',
+      });
+      expect(profileForm.form().upperEmail()).toBe('PATCH@EXAMPLE.COM');
+    });
+  });
+
   it('should expose sync validator exceptions as list and byValidator', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal('' as string);
@@ -112,36 +176,22 @@ describe('insertFormAttributes', () => {
 
       expectTypeOf(fieldForm.form().exceptions().list).toEqualTypeOf<
         [
-          ValidatorResult<
-            unknown,
-            'cRequired',
-            CRequiredException,
-            'sync',
-            unknown,
-            {}
-          >,
-          ValidatorResult<
-            unknown,
-            'hasAtSign',
-            CraftExceptionResult<
-              {
-                code: 'MISSING_AT';
-                scope: undefined;
-                identifier?: undefined;
-              },
-              {
-                message: 'Missing @';
-              }
-            >,
-            'sync',
-            unknown,
-            {}
+          CRequiredException,
+          CraftExceptionResult<
+            {
+              code: 'MISSING_AT';
+              scope: undefined;
+              identifier?: undefined;
+            },
+            {
+              message: 'Missing @';
+            }
           >,
         ]
       >();
       expectTypeOf(fieldForm.form().exceptions().byValidator).toEqualTypeOf<{
-        cRequired: CRequiredException;
-        hasAtSign: CraftExceptionResult<
+        required: CRequiredException;
+        MISSING_AT: CraftExceptionResult<
           {
             code: 'MISSING_AT';
             scope: undefined;
@@ -223,6 +273,111 @@ describe('insertFormAttributes', () => {
       await flushAsyncValidation();
 
       expect(fieldForm.form().exceptions()).toEqual({
+        list: [],
+        byValidator: {},
+      });
+    });
+  });
+
+  it('should expose sync validator exceptions as list and byValidator at the field level', () => {
+    TestBed.runInInjectionContext(() => {
+      const fieldState = signal({
+        email: '',
+      });
+
+      const fieldForm = state(
+        fieldState,
+        insertForm(
+          insertSelectFormTree(
+            'email',
+            () => ({
+              testInnerValue: fieldState().email,
+            }),
+            insertNoopTypingAnchor,
+            insertFormAttributes(({ nodeModel }) => ({
+              validators: [
+                cRequired(),
+                cValidator({
+                  name: 'hasAtSign',
+                  validate: () =>
+                    nodeModel().value() === '' ||
+                    nodeModel().value().includes('@')
+                      ? undefined
+                      : craftException(
+                          { code: 'MISSING_AT' },
+                          { message: 'Missing @' as const },
+                        ),
+                }),
+              ],
+            })),
+          ),
+        ),
+      );
+
+      expectTypeOf(
+        fieldForm.form().selectEmail()().exceptions().list,
+      ).toEqualTypeOf<
+        [
+          CRequiredException,
+          CraftExceptionResult<
+            {
+              code: 'MISSING_AT';
+              scope: undefined;
+              identifier?: undefined;
+            },
+            {
+              message: 'Missing @';
+            }
+          >,
+        ]
+      >();
+      expectTypeOf(
+        fieldForm.form().selectEmail()().exceptions().byValidator,
+      ).toEqualTypeOf<{
+        required: CRequiredException;
+        MISSING_AT: CraftExceptionResult<
+          {
+            code: 'MISSING_AT';
+            scope: undefined;
+            identifier?: undefined;
+          },
+          {
+            message: 'Missing @';
+          }
+        >;
+      }>();
+
+      expect(fieldForm.form().invalid()).toBe(true);
+
+      expect(fieldForm.form().selectEmail()().exceptions().list).toHaveLength(
+        1,
+      );
+      expect(
+        fieldForm.form().selectEmail()().exceptions().byValidator,
+      ).toMatchObject({
+        cRequired: { code: 'required' },
+      });
+
+      fieldState.set({
+        email: 'romain',
+      });
+      TestBed.tick();
+
+      expect(fieldForm.form().selectEmail()().exceptions().list).toHaveLength(
+        1,
+      );
+      expect(
+        fieldForm.form().selectEmail()().exceptions().byValidator,
+      ).toMatchObject({
+        hasAtSign: { code: 'MISSING_AT' },
+      });
+
+      fieldState.set({
+        email: 'romain@example.com',
+      });
+      TestBed.tick();
+
+      expect(fieldForm.form().selectEmail()().exceptions()).toEqual({
         list: [],
         byValidator: {},
       });

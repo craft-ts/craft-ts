@@ -28,6 +28,7 @@ import { GlobalPersisterHandlerService } from '@craft-ng/core';
           >Pixel Art Matrix</a
         >
         <a routerLink="/exceptions" routerLinkActive="active">Exceptions</a>
+        <a routerLink="/login-form" routerLinkActive="active">Login Form</a>
         <a routerLink="/exception-query-param" routerLinkActive="active"
           >Exception QueryParam</a
         >

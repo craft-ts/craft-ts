@@ -7,9 +7,16 @@ import {
 } from '@angular/core';
 import {
   asyncProcess,
+  cMinLength,
+  cRequired,
+  insertForm,
+  insertFormAttributes,
+  insertFormSubmit,
   insertLocalStoragePersister,
+  insertNoopTypingAnchor,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
+  insertSelectFormTree,
   mutation,
   on$,
   query,
@@ -19,13 +26,15 @@ import {
   removeOne,
   source$,
   state,
+  ValidatedFormValue,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, User } from './api.service';
+import { FormField } from '@angular/forms/signals';
 
 @Component({
   selector: 'app-granular-mutation',
-  imports: [CommonModule, StatusComponent],
+  imports: [CommonModule, StatusComponent, FormField],
   template: `
     <div class="container">
       <main class="content">
@@ -33,7 +42,7 @@ import { ApiService, User } from './api.service';
           <div class="card">
             <h2 class="card-title">
               User Management:
-              <app-status [status]="usersQuery.currentPageStatus()" />
+              <app-status [status]="usersByPage.status()" />
             </h2>
 
             <div
@@ -73,9 +82,11 @@ import { ApiService, User } from './api.service';
                   </tr>
                 </thead>
                 <tbody>
-                  @if (usersQuery.currentPageData()) {
-                    @for (user of usersQuery.currentPageData(); track user.id) {
+                  @if (this.usersByPage().length) {
+                    @for (user of this.usersByPage(); track user.id) {
                       <tr>
+                        @let userForm = this.usersByPage.select(user.id);
+
                         <td>
                           <input
                             type="checkbox"
@@ -85,7 +96,36 @@ import { ApiService, User } from './api.service';
                         </td>
                         <td>{{ user.id }}</td>
 
-                        <td>{{ user.name }}</td>
+                        <!-- todo -->
+                        <td>
+                          @let nameField = userForm().selectName();
+                          <input type="text" [formField]="nameField" />
+                          hasExceptions{{nameField().hasExceptions()}}
+                          @if (nameField().hasExceptions()) {
+                            <div class="field-errors">
+                              @for (
+                                error of nameField().exceptions().list;
+                                track error.code
+                              ) {
+                                {{nameField().exceptions().list | json}}
+                                @let code = error.code;
+                                @switch (code) {
+                                  @case ('required') {
+                                    <span>Name is required.</span>
+                                  }
+                                  @case ('minLength') {
+                                    <span>
+                                      Name must be at least
+                                      {{ error.payload }} characters
+                                      long.
+                                    </span>
+                                  }
+                                  @default never;
+                                }
+                              }
+                            </div>
+                          }
+                        </td>
 
                         <td>
                           @let delayDeleteUserRef =
@@ -120,8 +160,8 @@ import { ApiService, User } from './api.service';
                       </tr>
                     } @empty {
                       @if (
-                        usersQuery.currentPageStatus() === 'resolved' ||
-                        usersQuery.currentPageStatus() === 'local'
+                        usersByPage.status() === 'resolved' ||
+                        usersByPage.status() === 'local'
                       ) {
                         <tr>
                           <td
@@ -245,7 +285,20 @@ export default class FullDemo {
     },
   });
 
-  protected readonly usersQuery = query(
+  private readonly updateUserName = mutation({
+    method: (
+      payload: NonNullable<
+        ValidatedFormValue<{ userName: string; user: User }>
+      >,
+    ) => ({
+      ...payload.user,
+      name: payload.userName,
+    }),
+    identifier: ({ id }) => id,
+    loader: ({ params: user }) => this.apiService.updateItem(user),
+  });
+
+  private readonly usersQuery = query(
     {
       params: this.pagination,
       identifier: (params) => `${params.page}-${params.pageSize}`,
@@ -299,6 +352,31 @@ export default class FullDemo {
       },
     }),
   );
+
+  protected readonly usersByPage = state(
+    computed(() => this.usersQuery.currentPageData() ?? []),
+    () => ({
+      status: this.usersQuery.currentPageStatus,
+    }),
+    insertForm(
+      { identifier: ({ item: { id } }) => id },
+      insertFormSubmit(this.updateUserName),
+      insertSelectFormTree(
+        'name',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({
+          validators: [cRequired(), cMinLength({ minLength: 3 })],
+        })),
+      ),
+    ),
+  );
+
+  constructor() {
+    // effect(() => {
+    //   const nameFieldTree = this.usersByPage.select('1')?.().selectName();
+    //   console.log('nameFieldTree', nameFieldTree());
+    // });
+  }
 
   protected readonly selectedRows = state(
     reactiveWritableSignal([] as string[], (sync) => ({

@@ -29,9 +29,7 @@ type SelectedFormTreeTarget<
 
 type IsArray<T> = T extends any[] ? true : false;
 
-type MaybeFormWithInsertions<Model, Insertions> = [
-  Extract<Model, object>,
-] extends [never]
+type MaybeFormWithInsertions<Model, Insertions> = [Model] extends [never]
   ? never
   : undefined extends Model
     ? FormWithInsertions<Extract<Model, object>, Insertions> | undefined
@@ -91,10 +89,6 @@ type InsertSelectFormTreeReturn<
     : ObjectInsertSelectFormTreeOutput<StateType, Name, Insertions>,
   PreviousInsertionsOutputs
 >;
-
-function isSelectableFormValue(value: unknown): value is object {
-  return typeof value === 'object' && value !== null;
-}
 
 function isFieldTree(
   value: unknown,
@@ -159,11 +153,6 @@ function createInsertSelectFormTreeItemRuntime(
     };
 
     const selectItemForm = (id: number) => {
-      const currentItem = selectItemState(id);
-      if (!isSelectableFormValue(currentItem)) {
-        return undefined;
-      }
-
       const itemForm = (context.form as unknown as ReadonlyArrayLike<unknown>)[
         id
       ];
@@ -269,11 +258,6 @@ function createInsertSelectFormTreePropertyRuntime(
     };
 
     const selectPropertyForm = () => {
-      const currentProperty = selectPropertyState();
-      if (!isSelectableFormValue(currentProperty)) {
-        return undefined;
-      }
-
       const propertyForm = (context.form as Record<string, unknown>)[
         propertyKey
       ];

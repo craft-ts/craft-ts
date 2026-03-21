@@ -18,4 +18,11 @@
 - [ ] insertSelect add support for non object/array state (ex: primitive state) and pass the selected state as param to the insertion
 - [ ] Rename craftException to cException
 - [ ] Create a insertContract similar to a class to implement an interface, also add an helper with a proxy to mock the data ?
-- Ajouter le patch pour modifier un state dans les insertions
+
+- forms:
+  - Gérer les appels async des valdiateurs en parallèle
+  - un validatorModelRef et debounce model 'blur' ou un time
+  - exposer toute la payload et insertions dans insertFormAttributes
+  - vérifier l'état du form si des validateurs sont en pending
+  - ajouter un état submitted ou autre qui signifie que le user a essayé de submit le form (pour afficher les erreurs seulement après) et exposer un expcetion submittedOrDirty
+  - login form exemple, expliquer comment trigger une exception au submit et debounce les erreurs
