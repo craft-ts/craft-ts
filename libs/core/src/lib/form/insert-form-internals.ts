@@ -3,9 +3,11 @@ import {
   computed,
   Injector,
   runInInjectionContext,
+  signal,
   Signal,
 } from '@angular/core';
 import {
+  applyEach,
   CompatFieldState,
   FieldState,
   FieldTree,
@@ -13,6 +15,7 @@ import {
   ReadonlyArrayLike,
   Subfields,
 } from '@angular/forms/signals';
+import type { SchemaPathTree } from '@angular/forms/signals';
 import type { InsertionStateFactoryContext } from '../query.core';
 import { Source$ as SourceDollarType } from '../source$';
 import { MergeObject } from '../util/types/util.type';
@@ -98,6 +101,7 @@ type CraftFieldTree<
 export type FormWithInsertions<Model, Insertions> = CraftFieldTree<
   Model,
   ExposedFormInsertions<Insertions> & {
+    hasAttemptedSubmit: Signal<boolean>;
     validatedFormValue: Signal<ValidatedFormValue<Model>>;
   } & FormExceptionsInsertion<Insertions>,
   string | number
@@ -109,7 +113,11 @@ export type InsertionFormFactoryContext<
   FormIdentifier extends string | number | unknown,
 > = InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> & {
   form: FieldTree<StateType, string | number>;
+  schemaPath: SchemaPathTree<StateType>;
   validatedFormValue: Signal<ValidatedFormValue<StateType>>;
+  validatorModelRef: Signal<StateType>;
+  setValidatorModelRef: (nextModel: Signal<StateType>) => void;
+  setAttemptedSubmit: () => void;
   setSubmitting: (submitting: boolean) => void;
   formIdentifier: FormIdentifier;
 };
@@ -133,6 +141,58 @@ export type ValidatedFormValue<FormValue> =
       [validatedFormValueSymbol]: true;
     })
   | undefined;
+
+const arrayItemSchemaPathRegistry = new WeakMap<object, unknown>();
+
+function isObjectLike(value: unknown): value is object {
+  return (typeof value === 'object' || typeof value === 'function') && value !== null;
+}
+
+export function registerArrayItemSchemaPaths(
+  model: unknown,
+  schemaPath: unknown,
+) {
+  if (!isObjectLike(schemaPath)) {
+    return;
+  }
+
+  if (Array.isArray(model)) {
+    applyEach(schemaPath as never, (itemSchemaPath) => {
+      if (isObjectLike(itemSchemaPath)) {
+        arrayItemSchemaPathRegistry.set(schemaPath, itemSchemaPath);
+      }
+
+      const firstItem = model[0];
+      if (firstItem !== undefined) {
+        registerArrayItemSchemaPaths(firstItem, itemSchemaPath);
+      }
+    });
+    return;
+  }
+
+  if (!model || typeof model !== 'object') {
+    return;
+  }
+
+  for (const key of Object.keys(model)) {
+    registerArrayItemSchemaPaths(
+      (model as Record<string, unknown>)[key],
+      (schemaPath as Record<string, unknown>)[key],
+    );
+  }
+}
+
+export function getArrayItemSchemaPath<Item>(
+  schemaPath: SchemaPathTree<readonly Item[]>,
+) {
+  if (!isObjectLike(schemaPath)) {
+    return undefined;
+  }
+
+  return arrayItemSchemaPathRegistry.get(schemaPath) as
+    | SchemaPathTree<Item>
+    | undefined;
+}
 
 function isSource$(value: unknown): value is SourceDollarType<unknown> {
   return (
@@ -260,7 +320,10 @@ export function executeFormInsertions<Model>(
   >[],
   options: {
     formRef: FieldTree<Model, string | number>;
+    schemaPath: SchemaPathTree<Model>;
     state: Signal<Model>;
+    validatorModelRef: Signal<Model>;
+    setAttemptedSubmit: () => void;
     set: (newState: Model) => Model;
     update: (updateFn: (currentState: Model) => Model) => Model;
     patch: (patchFn: (currentState: Model) => Partial<Model>) => Model;
@@ -270,6 +333,8 @@ export function executeFormInsertions<Model>(
     formIdentifier?: string | number | unknown;
   },
 ) {
+  const validatorModelRef = signal(options.validatorModelRef);
+
   return formInsertions.reduce(
     (acc, insertion) => {
       const nextRawInsertions = runInInjectionContext(options.injector, () =>
@@ -279,6 +344,7 @@ export function executeFormInsertions<Model>(
           update: options.update,
           patch: options.patch,
           form: options.formRef,
+          schemaPath: options.schemaPath,
           validatedFormValue: computed(() =>
             options.formRef().valid()
               ? (Object.assign(options.formRef().value() as object, {
@@ -286,6 +352,10 @@ export function executeFormInsertions<Model>(
                 }) as ValidatedFormValue<Model>)
               : undefined,
           ),
+          validatorModelRef: validatorModelRef(),
+          setValidatorModelRef: (nextModel: Signal<Model>) =>
+            validatorModelRef.set(nextModel),
+          setAttemptedSubmit: options.setAttemptedSubmit,
           setSubmitting: options.setSubmitting,
           formIdentifier: options.formIdentifier!,
           insertions: {
@@ -316,8 +386,12 @@ export function executeFormInsertions<Model>(
 
 export function decorateFormTreeWithInsertions<Model>({
   formRef,
+  schemaPath,
   formInsertions,
   state,
+  validatorModelRef,
+  hasAttemptedSubmit,
+  setAttemptedSubmit,
   set,
   update,
   patch,
@@ -327,6 +401,7 @@ export function decorateFormTreeWithInsertions<Model>({
   formIdentifier,
 }: {
   formRef: FieldTree<Model, string | number>;
+  schemaPath: SchemaPathTree<Model>;
   formInsertions: InsertionsFormFactory<
     Model,
     unknown,
@@ -334,6 +409,9 @@ export function decorateFormTreeWithInsertions<Model>({
     Record<string, unknown>
   >[];
   state: Signal<Model>;
+  validatorModelRef: Signal<Model>;
+  hasAttemptedSubmit?: Signal<boolean>;
+  setAttemptedSubmit: () => void;
   set: (newState: Model) => Model;
   update: (updateFn: (currentState: Model) => Model) => Model;
   patch: (patchFn: (currentState: Model) => Partial<Model>) => Model;
@@ -342,6 +420,11 @@ export function decorateFormTreeWithInsertions<Model>({
   injector: Injector;
   formIdentifier: string | number | unknown;
 }) {
+  if (hasAttemptedSubmit) {
+    //@ts-expect-error add hasAttemptedSubmit to selected formRef inner value, it is hard to do otherwise without loosing some fields
+    formRef()['hasAttemptedSubmit'] = hasAttemptedSubmit;
+  }
+
   //@ts-expect-error add validatedFormValue to selected formRef inner value, it is hard to do otherwise without loosing some fields
   formRef()['validatedFormValue'] = computed(() =>
     formRef().valid()
@@ -354,7 +437,10 @@ export function decorateFormTreeWithInsertions<Model>({
   const { rawInsertionsOutput, exposedInsertionsOutput } =
     executeFormInsertions(formInsertions, {
       formRef,
+      schemaPath,
       state,
+      validatorModelRef,
+      setAttemptedSubmit,
       set,
       update,
       patch,

@@ -228,6 +228,64 @@ describe('insertFormAttributes', () => {
     });
   });
 
+  it('should expose visibleExceptions only after field dirty or submit attempt', () => {
+    TestBed.runInInjectionContext(() => {
+      const fieldState = signal({
+        email: '',
+      });
+
+      const fieldForm = state(
+        fieldState,
+        insertForm(
+          ({ setSubmitting }) => ({
+            setSubmitting,
+          }),
+          insertSelectFormTree(
+            'email',
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+          ),
+        ),
+      );
+
+      expectTypeOf(
+        fieldForm.form().selectEmail()().visibleExceptions().list,
+      ).toEqualTypeOf<[CRequiredException]>();
+
+      expect(fieldForm.form().selectEmail()().exceptions().list).toHaveLength(1);
+      expect(fieldForm.form().selectEmail()().visibleExceptions()).toEqual({
+        list: [],
+        byValidator: {},
+      });
+
+      fieldForm.form().selectEmail()().markAsDirty();
+      TestBed.tick();
+
+      expect(
+        fieldForm.form().selectEmail()().visibleExceptions().list,
+      ).toHaveLength(1);
+
+      fieldForm.form().reset();
+      TestBed.tick();
+
+      expect(fieldForm.form().hasAttemptedSubmit()).toBe(false);
+      expect(fieldForm.form().selectEmail()().visibleExceptions()).toEqual({
+        list: [],
+        byValidator: {},
+      });
+
+      fieldForm.form().setSubmitting(true);
+      TestBed.tick();
+
+      expect(fieldForm.form().hasAttemptedSubmit()).toBe(true);
+      expect(
+        fieldForm.form().selectEmail()().visibleExceptions().list,
+      ).toHaveLength(1);
+    });
+  });
+
   it('should expose async validator exceptions through exceptions().list and exceptions().byValidator', async () => {
     await TestBed.runInInjectionContext(async () => {
       const fieldState = signal('' as string);
@@ -273,6 +331,76 @@ describe('insertFormAttributes', () => {
       await flushAsyncValidation();
 
       expect(fieldForm.form().exceptions()).toEqual({
+        list: [],
+        byValidator: {},
+      });
+    });
+  });
+
+  it('should use validatorModelRef for descendant validators instead of the field value', () => {
+    TestBed.runInInjectionContext(() => {
+      const fieldState = signal({
+        email: 'romain@example.com',
+      });
+      const debouncedModel = signal({
+        email: 'romain',
+      });
+
+      const fieldForm = state(
+        fieldState,
+        insertForm(
+          ({ setValidatorModelRef }) => {
+            setValidatorModelRef(debouncedModel.asReadonly());
+            return {};
+          },
+          insertSelectFormTree(
+            'email',
+            insertNoopTypingAnchor,
+            insertFormAttributes(({ nodeModel, form }) => {
+              expect(form().value()).toBe('romain@example.com');
+              expect(nodeModel().value()).toBe('romain');
+
+              return {
+                validators: [
+                  cValidator({
+                    name: 'hasAtSign',
+                    validate: () =>
+                      nodeModel().value() === '' ||
+                      nodeModel().value().includes('@')
+                        ? undefined
+                        : craftException(
+                            { code: 'MISSING_AT' },
+                            { message: 'Missing @' as const },
+                          ),
+                  }),
+                ],
+              };
+            }),
+          ),
+        ),
+      );
+
+      expect(fieldForm.form().value()).toEqual({
+        email: 'romain@example.com',
+      });
+      expect(fieldForm.form().selectEmail()().value()).toBe(
+        'romain@example.com',
+      );
+      expect(
+        fieldForm.form().selectEmail()().exceptions().byValidator,
+      ).toMatchObject({
+        hasAtSign: { code: 'MISSING_AT' },
+      });
+
+      debouncedModel.set({
+        email: 'romain@example.com',
+      });
+      TestBed.tick();
+
+      expect(fieldForm.form().value()).toEqual({
+        email: 'romain@example.com',
+      });
+      expect(fieldForm.form().selectEmail()().exceptions()).toEqual({
         list: [],
         byValidator: {},
       });

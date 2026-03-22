@@ -6,7 +6,7 @@ import {
   ValidatedFormValue,
   validatedFormValueSymbol,
 } from './insert-form';
-import { computed, signal } from '@angular/core';
+import { computed, Signal, signal } from '@angular/core';
 import { craftException } from '../craft-exception';
 
 type LoginData = {
@@ -142,6 +142,92 @@ describe('insertForm', () => {
     });
   });
 
+  it('should expose validatorModelRef by default and allow overriding it for descendant insertions', () => {
+    TestBed.runInInjectionContext(() => {
+      const debouncedModel = signal<LoginData>({
+        name: 'debounced',
+        password: 'shadow',
+      });
+
+      const loginForm = state(
+        {
+          name: 'romain',
+          password: 'secret',
+        } satisfies LoginData,
+        insertForm(
+          ({ state, validatorModelRef, setValidatorModelRef }) => {
+            expectTypeOf(validatorModelRef()).toEqualTypeOf<LoginData>();
+            expectTypeOf<typeof setValidatorModelRef>().toEqualTypeOf<
+              (nextModel: Signal<LoginData>) => void
+            >();
+            expect(validatorModelRef()).toEqual(state());
+
+            setValidatorModelRef(debouncedModel.asReadonly());
+
+            return {};
+          },
+          ({ state, validatorModelRef }) => {
+            expect(state()).toEqual({
+              name: 'romain',
+              password: 'secret',
+            });
+            expect(validatorModelRef()).toEqual({
+              name: 'debounced',
+              password: 'shadow',
+            });
+
+            return {
+              validatorSnapshot: computed(() => validatorModelRef()),
+            };
+          },
+        ),
+      );
+
+      expect(loginForm.form().validatorSnapshot()).toEqual({
+        name: 'debounced',
+        password: 'shadow',
+      });
+
+      debouncedModel.set({
+        name: 'later',
+        password: 'value',
+      });
+
+      expect(loginForm.form().validatorSnapshot()).toEqual({
+        name: 'later',
+        password: 'value',
+      });
+      expect(loginForm.form().value()).toEqual({
+        name: 'romain',
+        password: 'secret',
+      });
+    });
+  });
+
+  it('should expose schemaPath in insertion context', () => {
+    TestBed.runInInjectionContext(() => {
+      const loginForm = state(
+        {
+          name: 'romain',
+          password: 'secret',
+        } satisfies LoginData,
+        insertForm(({ schemaPath }) => {
+          expect(schemaPath).toBeDefined();
+          expect(schemaPath.name).toBeDefined();
+          expect(schemaPath.password).toBeDefined();
+
+          return {
+            hasNameSchemaPath: () => !!schemaPath.name,
+            hasPasswordSchemaPath: () => !!schemaPath.password,
+          };
+        }),
+      );
+
+      expect(loginForm.form().hasNameSchemaPath()).toBe(true);
+      expect(loginForm.form().hasPasswordSchemaPath()).toBe(true);
+    });
+  });
+
   it('should expose form validatedFormValue', () => {
     TestBed.runInInjectionContext(() => {
       const loginForm = state(
@@ -216,6 +302,77 @@ describe('insertForm', () => {
       );
     });
   });
+
+  it('should keep hasAttemptedSubmit independent from submitting and reset it on form reset', () => {
+    TestBed.runInInjectionContext(() => {
+      const loginForm = state(
+        {
+          name: 'romain',
+          password: 'secret',
+        } satisfies LoginData,
+        insertForm(({ form, setSubmitting }) => {
+          const reset = form().reset.bind(form());
+          return {
+            setSubmitting,
+            reset,
+          };
+        }),
+      );
+
+      expect(loginForm.form().setSubmitting).toBeDefined();
+      expect(loginForm.form().reset).toBeDefined();
+      expectTypeOf(loginForm.form().hasAttemptedSubmit()).toEqualTypeOf<
+        boolean
+      >();
+
+      expect(loginForm.form().submitting()).toBe(false);
+      expect(loginForm.form().hasAttemptedSubmit()).toBe(false);
+
+      loginForm.form().setSubmitting(true);
+
+      expect(loginForm.form().submitting()).toBe(true);
+      expect(loginForm.form().hasAttemptedSubmit()).toBe(true);
+
+      loginForm.form().setSubmitting(false);
+
+      expect(loginForm.form().submitting()).toBe(false);
+      expect(loginForm.form().hasAttemptedSubmit()).toBe(true);
+
+      loginForm.form().reset();
+
+      expect(loginForm.form().hasAttemptedSubmit()).toBe(false);
+    });
+  });
+
+  it('should expose setAttemptedSubmit independently from submitting', () => {
+    TestBed.runInInjectionContext(() => {
+      const loginForm = state(
+        {
+          name: 'romain',
+          password: 'secret',
+        } satisfies LoginData,
+        insertForm(({ setAttemptedSubmit }) => {
+          return {
+            setAttemptedSubmit,
+          };
+        }),
+      );
+
+      expect(loginForm.form().setAttemptedSubmit).toBeDefined();
+      expectTypeOf(loginForm.form().setAttemptedSubmit).toEqualTypeOf<
+        () => void
+      >();
+
+      expect(loginForm.form().submitting()).toBe(false);
+      expect(loginForm.form().hasAttemptedSubmit()).toBe(false);
+
+      loginForm.form().setAttemptedSubmit();
+
+      expect(loginForm.form().submitting()).toBe(false);
+      expect(loginForm.form().hasAttemptedSubmit()).toBe(true);
+    });
+  });
+
   it('should expose setSubmitting signal internally for parallel forms', () => {
     TestBed.runInInjectionContext(() => {
       const loginForm = state(

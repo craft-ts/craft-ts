@@ -415,7 +415,7 @@ export function insertFormSubmit<
 >;
 export function insertFormSubmit(submitCraftResource: any, config?: any): any {
   //@ts-expect-error todo improve type
-  return ({ form, setSubmitting, formIdentifier }) => {
+  return ({ form, setAttemptedSubmit, setSubmitting, formIdentifier }) => {
     const submitCraftResourceTarget = computed(() =>
       formIdentifier
         ? (
@@ -445,7 +445,6 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       setSubmitting(submitCraftResourceTarget()?.isLoading() ?? false);
     });
 
-    // todo should be derieved from submitExceptions because success cb can add more excpetions
     const hasSubmitExceptions = computed(() => {
       const _submitCraftResourceTarget = submitCraftResourceTarget();
       return _submitCraftResourceTarget &&
@@ -536,6 +535,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
     });
 
     const submitForm = async () => {
+      setAttemptedSubmit();
       const validatedFormValue = form().validatedFormValue();
 
       if (!validatedFormValue) {

@@ -56,23 +56,21 @@ type LoginData = {
               placeholder="Enter your email"
               [formField]="loginForm.form.email"
             />
-            @if (emailField().hasExceptions()) {
-              <div class="field-errors">
-                @for (
-                  error of emailField().exceptions().list;
-                  track error.code
-                ) {
-                  @switch (error.code) {
-                    @case ('required') {
-                      <span>Email is required.</span>
-                    }
-                    @case ('email') {
-                      <span>Please enter a valid email address.</span>
-                    }
+            <div class="field-errors">
+              @for (
+                error of emailField().visibleExceptions().list;
+                track error.code
+              ) {
+                @switch (error.code) {
+                  @case ('required') {
+                    <span>Email is required.</span>
+                  }
+                  @case ('email') {
+                    <span>Please enter a valid email address.</span>
                   }
                 }
-              </div>
-            }
+              }
+            </div>
           </div>
 
           <div class="form-group">
@@ -84,32 +82,28 @@ type LoginData = {
               placeholder="Enter your password"
               [formField]="loginForm.form.password"
             />
-            @if (passwordField().hasExceptions()) {
-              <div class="field-errors">
-                @for (
-                  error of passwordField().exceptions().list;
-                  track error.code
-                ) {
-                  @switch (error.code) {
-                    @case ('required') {
-                      <span>Password is required.</span>
-                    }
+            <div class="field-errors">
+              @for (
+                error of passwordField().visibleExceptions().list;
+                track error.code
+              ) {
+                @switch (error.code) {
+                  @case ('required') {
+                    <span>Password is required.</span>
                   }
                 }
-              </div>
-            }
+              }
+            </div>
           </div>
 
-          <button
-            type="submit"
-            class="submit-btn"
-            [disabled]="loginForm.form().submitting()"
-          >
+          <button type="submit" class="submit-btn">
             {{ loginForm.form().submitting() ? 'Logging in...' : 'Log in' }}
           </button>
         </form>
       </div>
     </div>
+
+    hasAttemptedSubmit:{{ loginForm.form().hasAttemptedSubmit() }}
   `,
   styles: [
     `

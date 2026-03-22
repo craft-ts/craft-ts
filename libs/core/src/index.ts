@@ -17,6 +17,7 @@ export * from './lib/craft-exception';
 export * from './lib/insert-local-storage-persister';
 export * from './lib/insert-noop-typing-anchor';
 export * from './lib/insert-select';
+export * from './lib/inject-service';
 export * from './lib/linked-source';
 export * from './lib/mutation';
 export * from './lib/query-param';

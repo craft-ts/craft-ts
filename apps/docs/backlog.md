@@ -21,8 +21,8 @@
 
 - forms:
   - Gérer les appels async des valdiateurs en parallèle
-  - un validatorModelRef et debounce model 'blur' ou un time
-  - exposer toute la payload et insertions dans insertFormAttributes
   - vérifier l'état du form si des validateurs sont en pending
   - ajouter un état submitted ou autre qui signifie que le user a essayé de submit le form (pour afficher les erreurs seulement après) et exposer un expcetion submittedOrDirty
   - login form exemple, expliquer comment trigger une exception au submit et debounce les erreurs
+  - il faut vraiment que les validateurs comme cRequired appellent les originaux pour mettre à jour le html avec le bon tag et ajouter testes
+  - ajouter des insertions à insertForm

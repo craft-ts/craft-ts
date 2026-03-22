@@ -688,10 +688,18 @@ export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
   };
 
 export type QueryParamMethods<QueryParamsState> = {
-  patch: (
-    params: Partial<QueryParamsState>,
-    options?: QueryParamNavigationOptions,
-  ) => void;
+  patch: {
+    (
+      patchFn: (
+        currentParams: QueryParamsState,
+      ) => Partial<QueryParamsState>,
+      options?: QueryParamNavigationOptions,
+    ): QueryParamsState;
+    (
+      params: Partial<QueryParamsState>,
+      options?: QueryParamNavigationOptions,
+    ): QueryParamsState;
+  };
   reset: (options?: QueryParamNavigationOptions) => void;
   set: (
     params: QueryParamsState,

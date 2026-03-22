@@ -75,6 +75,7 @@ type InternalFieldNodeLogic<TValue> = {
 
 type InternalFieldNode<TValue> = {
   value: Signal<TValue>;
+  dirty: Signal<boolean>;
   hidden: Signal<boolean>;
   disabled: Signal<boolean>;
   readonly: Signal<boolean>;
@@ -135,6 +136,18 @@ const EMPTY_EXCEPTIONS: FormNodeExceptions = {
   list: [],
   byValidator: {},
 };
+
+function getHasAttemptedSubmitSignal(
+  formRef: FieldTree<unknown, string | number>,
+): Signal<boolean> | undefined {
+  const hasAttemptedSubmit = (formRef() as unknown as Record<string, unknown>)[
+    'hasAttemptedSubmit'
+  ];
+
+  return typeof hasAttemptedSubmit === 'function'
+    ? (hasAttemptedSubmit as Signal<boolean>)
+    : undefined;
+}
 
 function isAsyncFunction(
   value: unknown,
@@ -505,6 +518,10 @@ export function insertFormAttributes<
       list: ExceptionsList<Validators>;
       byValidator: ExceptionsByValidator<NonNullable<Validators>>;
     }>;
+    visibleExceptions: Signal<{
+      list: ExceptionsList<Validators>;
+      byValidator: ExceptionsByValidator<NonNullable<Validators>>;
+    }>;
     hasExceptions: Signal<boolean>;
   },
   PreviousInsertionsOutputs
@@ -512,8 +529,9 @@ export function insertFormAttributes<
   return (context) => {
     const injector = inject(Injector);
     const fieldNode = context.form() as unknown as InternalFieldNode<StateType>;
+    const hasAttemptedSubmit = getHasAttemptedSubmitSignal(context.form);
     const nodeModel: ValidatorModel<StateType> = () => ({
-      value: fieldNode.value,
+      value: context.validatorModelRef,
     });
     const config = _factory({
       ...context,
@@ -648,11 +666,24 @@ export function insertFormAttributes<
       };
     });
 
+    const visibleExceptions = computed<FormNodeExceptions>(() => {
+      if (!fieldNode.dirty() && !(hasAttemptedSubmit?.() ?? false)) {
+        return EMPTY_EXCEPTIONS;
+      }
+
+      return exceptions();
+    });
+
     return {
       exceptions,
+      visibleExceptions,
       hasExceptions: computed(() => exceptions().list.length > 0),
     } as {
       exceptions: Signal<{
+        list: ExceptionsList<Validators>;
+        byValidator: ExceptionsByValidator<NonNullable<Validators>>;
+      }>;
+      visibleExceptions: Signal<{
         list: ExceptionsList<Validators>;
         byValidator: ExceptionsByValidator<NonNullable<Validators>>;
       }>;

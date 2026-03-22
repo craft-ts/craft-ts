@@ -9,6 +9,8 @@ import { insertFormSubmit } from './insert-form-submit';
 import { signal } from '@angular/core';
 import { craftException, CraftExceptionResult } from '../craft-exception';
 import { mutation } from '../mutation';
+import { insertFormAttributes } from './insert-form-attributes';
+import { cRequired } from './validator';
 
 type LoginData = {
   id: string;
@@ -238,6 +240,36 @@ describe('insertFormSubmit', () => {
       >();
     });
   });
+
+  it('should mark the form as attempted before returning when submit is called on an invalid form', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const loaderSpy = vi.fn(async ({ params }: { params: string }) => params);
+      const submitRef = mutation({
+        method: (validatedValue: ValidatedFormValue<string>) => validatedValue,
+        loader: loaderSpy,
+      });
+
+      const loginForm = state(
+        '' as string,
+        insertForm(
+          insertFormAttributes(() => ({
+            validators: [cRequired()],
+          })),
+          insertFormSubmit(submitRef),
+        ),
+      );
+
+      expect(loginForm.form().hasAttemptedSubmit()).toBe(false);
+      expect(loginForm.form().submitting()).toBe(false);
+
+      await loginForm.form().submit();
+
+      expect(loaderSpy).not.toHaveBeenCalled();
+      expect(loginForm.form().submitting()).toBe(false);
+      expect(loginForm.form().hasAttemptedSubmit()).toBe(true);
+    });
+  });
+
   // todo should have a second arg to map validatedFormValue to the query method
   // todo parallel submit
 });
@@ -399,8 +431,7 @@ describe('parallel submit', () => {
             identifier: ({ item: { id } }) => id,
           },
           insertFormSubmit(submitRef, {
-            success: ({ submitCraftResource, form }) => {
-              form().reset();
+            success: ({ submitCraftResource }) => {
               // add more exceptions
               if (submitCraftResource.value()?.name === 'John') {
                 return craftException({

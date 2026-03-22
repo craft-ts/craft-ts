@@ -1,7 +1,8 @@
-import { inject, Injector, linkedSignal } from '@angular/core';
+import { inject, Injector, linkedSignal, Signal } from '@angular/core';
 import { FieldTree, ReadonlyArrayLike } from '@angular/forms/signals';
 import {
   decorateFormTreeWithInsertions,
+  getArrayItemSchemaPath,
   type FormWithInsertions,
   type InsertionFormFactoryContext,
   type InsertionsFormFactory,
@@ -96,6 +97,18 @@ function isFieldTree(
   return typeof value === 'function';
 }
 
+function getHasAttemptedSubmitSignal(
+  formRef: FieldTree<unknown, string | number>,
+): Signal<boolean> | undefined {
+  const hasAttemptedSubmit = (formRef() as unknown as Record<string, unknown>)[
+    'hasAttemptedSubmit'
+  ];
+
+  return typeof hasAttemptedSubmit === 'function'
+    ? (hasAttemptedSubmit as Signal<boolean>)
+    : undefined;
+}
+
 function createInsertSelectFormTreeItemRuntime(
   entityName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,10 +175,24 @@ function createInsertSelectFormTreeItemRuntime(
 
       if (!decoratedForms.has(itemForm)) {
         const itemState = linkedSignal(() => selectItemState(id));
+        const itemValidatorModelRef = linkedSignal(() => {
+          const currentValidatorModel = context.validatorModelRef();
+          if (!Array.isArray(currentValidatorModel)) {
+            return undefined;
+          }
+
+          return currentValidatorModel[id];
+        });
         decorateFormTreeWithInsertions({
           formRef: itemForm as FieldTree<unknown, string | number>,
+          schemaPath:
+            getArrayItemSchemaPath(context.schemaPath as never) ??
+            (context.schemaPath as never),
           formInsertions: itemInsertions,
           state: itemState,
+          validatorModelRef: itemValidatorModelRef,
+          hasAttemptedSubmit: getHasAttemptedSubmitSignal(context.form),
+          setAttemptedSubmit: context.setAttemptedSubmit,
           set: (newState: unknown) => setItemState(id, newState),
           update: (updateFn: (currentState: unknown) => unknown) =>
             updateItemState(id, updateFn),
@@ -221,7 +248,6 @@ function createInsertSelectFormTreePropertyRuntime(
   ) => {
     const injector = inject(Injector);
     const selectPropertyMethodName = `select${propertyKey.charAt(0).toUpperCase()}${propertyKey.slice(1)}`;
-    const decoratedForms = new WeakSet<FieldTree<unknown, string | number>>();
     const inheritedInsertions =
       (context.insertions as Record<string, unknown> | undefined) ?? {};
 
@@ -257,41 +283,48 @@ function createInsertSelectFormTreePropertyRuntime(
       return nextProperty;
     };
 
-    const selectPropertyForm = () => {
-      const propertyForm = (context.form as Record<string, unknown>)[
-        propertyKey
-      ];
-      if (!isFieldTree(propertyForm)) {
+    const propertyForm = (context.form as Record<string, unknown>)[propertyKey];
+    if (!isFieldTree(propertyForm)) {
+      return {
+        [selectPropertyMethodName]: () => undefined,
+      };
+    }
+
+    const propertyState = linkedSignal(() => selectPropertyState());
+    const propertyValidatorModelRef = linkedSignal(() => {
+      const currentValidatorModel = context.validatorModelRef();
+      if (!currentValidatorModel || typeof currentValidatorModel !== 'object') {
         return undefined;
       }
 
-      if (!decoratedForms.has(propertyForm)) {
-        const propertyState = linkedSignal(() => selectPropertyState());
-        decorateFormTreeWithInsertions({
-          formRef: propertyForm as FieldTree<unknown, string | number>,
-          formInsertions: propertyInsertions,
-          state: propertyState,
-          set: (newState: unknown) => setPropertyState(newState),
-          update: (updateFn: (currentState: unknown) => unknown) =>
-            updatePropertyState(updateFn),
-          patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
-            updatePropertyState((current) => ({
-              ...(current as object),
-              ...patchFn(current),
-            })),
-          setSubmitting: context.setSubmitting,
-          inheritedInsertions,
-          injector,
-          formIdentifier: context.formIdentifier,
-        });
-        decoratedForms.add(propertyForm);
-      }
-
-      return propertyForm;
-    };
+      return (currentValidatorModel as Record<string, unknown>)[propertyKey];
+    });
+    decorateFormTreeWithInsertions({
+      formRef: propertyForm as FieldTree<unknown, string | number>,
+      schemaPath:
+        ((context.schemaPath as Record<string, unknown>)[propertyKey] as never) ??
+        (context.schemaPath as never),
+      formInsertions: propertyInsertions,
+      state: propertyState,
+      validatorModelRef: propertyValidatorModelRef,
+      hasAttemptedSubmit: getHasAttemptedSubmitSignal(context.form),
+      setAttemptedSubmit: context.setAttemptedSubmit,
+      set: (newState: unknown) => setPropertyState(newState),
+      update: (updateFn: (currentState: unknown) => unknown) =>
+        updatePropertyState(updateFn),
+      patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
+        updatePropertyState((current) => ({
+          ...(current as object),
+          ...patchFn(current),
+        })),
+      setSubmitting: context.setSubmitting,
+      inheritedInsertions,
+      injector,
+      formIdentifier: context.formIdentifier,
+    });
 
     return {
-      [selectPropertyMethodName]: selectPropertyForm,
+      [selectPropertyMethodName]: () => propertyForm,
     };
   };
 }
@@ -499,7 +532,7 @@ export function insertSelectFormTree(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...insertions: InsertionsFormFactory<any, any, any, any>[]
-) {
+): InsertionsFormFactory<any, any, any, any> {
   return (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: InsertionFormFactoryContext<any, any, any>,

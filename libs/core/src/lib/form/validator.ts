@@ -16,6 +16,7 @@ import {
 } from '../craft-exception';
 import { ResourceByIdLikeQueryRef, ResourceLikeQueryRef } from '../query';
 import { ResourceExceptionConstraints } from '../query.core';
+import { metadata, REQUIRED } from '@angular/forms/signals';
 
 export const FORM_VALIDATOR_SYMBOL = Symbol('FORM_VALIDATOR_SYMBOL');
 export const VALIDATOR_OUTPUT_SYMBOL = Symbol('VALIDATOR_OUTPUT_SYMBOL');

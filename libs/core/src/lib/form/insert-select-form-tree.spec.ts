@@ -1,5 +1,6 @@
 import { computed } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { required } from '@angular/forms/signals';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertSelectFormTree } from './insert-select-form-tree';
@@ -133,6 +134,62 @@ describe('insertSelectFormTree', () => {
 
       expect(addressBookForm().addresses[0].city).toBe('Lyon');
       expect(addressesForm().items()[0]().cityLabel()).toBe('Lyon (75000)');
+    });
+  });
+
+  it('should expose schemaPath in nested array item insertions', () => {
+    TestBed.runInInjectionContext(() => {
+      const addressBookForm = state(
+        {
+          addresses: [{ city: 'Paris', zip: '75000' }],
+        } satisfies AddressBookFormValue,
+        insertForm(
+          insertSelectFormTree(
+            'addresses',
+            insertNoopTypingAnchor,
+            insertSelectFormTree('address', ({ schemaPath }) => ({
+              hasCitySchemaPath: () => !!schemaPath.city,
+              hasZipSchemaPath: () => !!schemaPath.zip,
+            })),
+          ),
+        ),
+      );
+
+      const addressForm = addressBookForm
+        .form()
+        .selectAddresses()()
+        .selectAddress(0);
+
+      expect(addressForm?.().hasCitySchemaPath()).toBe(true);
+      expect(addressForm?.().hasZipSchemaPath()).toBe(true);
+    });
+  });
+
+  it('should allow nested insertions to register Angular schema rules from schemaPath', () => {
+    TestBed.runInInjectionContext(() => {
+      const profileForm = state(
+        {
+          credentials: {
+            name: '',
+            password: 'secret',
+          },
+          status: 'draft',
+        } satisfies ProfileFormValue,
+        insertForm(
+          insertSelectFormTree(
+            'credentials',
+            insertNoopTypingAnchor,
+            insertSelectFormTree('name', ({ schemaPath }) => {
+              required(schemaPath);
+              return {};
+            }),
+          ),
+        ),
+      );
+
+      expect(profileForm.form().selectCredentials().name().invalid()).toBe(
+        true,
+      );
     });
   });
 
