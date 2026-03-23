@@ -8,11 +8,16 @@ import { insertSelectFormTree } from './insert-select-form-tree';
 import { cRequired, CRequiredException, cValidator } from './validator';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 
-async function flushAsyncValidation() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
-  TestBed.tick();
+function createHasAtSignValidator(value: () => string) {
+  return cValidator({
+    name: 'hasAtSign',
+    validWhen: () => value() === '' || value().includes('@'),
+    exception: () =>
+      craftException(
+        { code: 'MISSING_AT' },
+        { message: 'Missing @' as const },
+      ),
+  });
 }
 
 describe('insertFormAttributes', () => {
@@ -61,9 +66,10 @@ describe('insertFormAttributes', () => {
         insertForm(
           insertSelectFormTree(
             'profile',
-            // insertFormAttributes(({ nodeModel }) => ({
-            //   hidden: hidden.asReadonly(),
-            // })),
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              hidden: hidden.asReadonly(),
+            })),
             insertNoopTypingAnchor,
             insertSelectFormTree('name', ({ state, set }) => ({})),
           ),
@@ -97,9 +103,7 @@ describe('insertFormAttributes', () => {
               email: 'romain@example.com',
             });
             expect(context.state().email).toBe('romain@example.com');
-            expect(context.insertions.upperEmail()).toBe(
-              'ROMAIN@EXAMPLE.COM',
-            );
+            expect(context.insertions.upperEmail()).toBe('ROMAIN@EXAMPLE.COM');
             expect(context.form().value()).toEqual({
               email: 'romain@example.com',
             });
@@ -155,20 +159,10 @@ describe('insertFormAttributes', () => {
       const fieldForm = state(
         fieldState,
         insertForm(
-          insertFormAttributes(({ nodeModel }) => ({
+          insertFormAttributes(({ form }) => ({
             validators: [
               cRequired(),
-              cValidator({
-                name: 'hasAtSign',
-                validate: () =>
-                  nodeModel().value() === '' ||
-                  nodeModel().value().includes('@')
-                    ? undefined
-                    : craftException(
-                        { code: 'MISSING_AT' },
-                        { message: 'Missing @' as const },
-                      ),
-              }),
+              createHasAtSignValidator(() => form().value()),
             ],
           })),
         ),
@@ -254,7 +248,9 @@ describe('insertFormAttributes', () => {
         fieldForm.form().selectEmail()().visibleExceptions().list,
       ).toEqualTypeOf<[CRequiredException]>();
 
-      expect(fieldForm.form().selectEmail()().exceptions().list).toHaveLength(1);
+      expect(fieldForm.form().selectEmail()().exceptions().list).toHaveLength(
+        1,
+      );
       expect(fieldForm.form().selectEmail()().visibleExceptions()).toEqual({
         list: [],
         byValidator: {},
@@ -286,29 +282,15 @@ describe('insertFormAttributes', () => {
     });
   });
 
-  it('should expose async validator exceptions through exceptions().list and exceptions().byValidator', async () => {
-    await TestBed.runInInjectionContext(async () => {
+  it('should derive custom validator exceptions from signal form errors', () => {
+    TestBed.runInInjectionContext(() => {
       const fieldState = signal('' as string);
 
       const fieldForm = state(
         fieldState,
         insertForm(
-          insertFormAttributes(() => ({
-            validators: [
-              cValidator({
-                name: 'isAvailable',
-                type: 'async',
-                validate: async ({ value }) => {
-                  await Promise.resolve();
-                  return value === 'taken'
-                    ? craftException(
-                        { code: 'USERNAME_TAKEN' },
-                        { message: 'Already taken' as const },
-                      )
-                    : undefined;
-                },
-              }),
-            ],
+          insertFormAttributes(({ form }) => ({
+            validators: [createHasAtSignValidator(() => form().value())],
           })),
         ),
       );
@@ -316,19 +298,13 @@ describe('insertFormAttributes', () => {
       fieldState.set('taken');
       TestBed.tick();
 
-      expect(fieldForm.form().pending()).toBe(true);
-
-      await flushAsyncValidation();
-
       expect(fieldForm.form().exceptions().list).toHaveLength(1);
       expect(fieldForm.form().exceptions().byValidator).toMatchObject({
-        isAvailable: { code: 'USERNAME_TAKEN' },
+        hasAtSign: { code: 'MISSING_AT' },
       });
 
-      fieldState.set('available');
+      fieldState.set('taken@example.com');
       TestBed.tick();
-
-      await flushAsyncValidation();
 
       expect(fieldForm.form().exceptions()).toEqual({
         list: [],
@@ -337,7 +313,7 @@ describe('insertFormAttributes', () => {
     });
   });
 
-  it('should use validatorModelRef for descendant validators instead of the field value', () => {
+  it('should keep validatorModelRef available without affecting signal-form validators', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal({
         email: 'romain@example.com',
@@ -361,19 +337,7 @@ describe('insertFormAttributes', () => {
               expect(nodeModel().value()).toBe('romain');
 
               return {
-                validators: [
-                  cValidator({
-                    name: 'hasAtSign',
-                    validate: () =>
-                      nodeModel().value() === '' ||
-                      nodeModel().value().includes('@')
-                        ? undefined
-                        : craftException(
-                            { code: 'MISSING_AT' },
-                            { message: 'Missing @' as const },
-                          ),
-                  }),
-                ],
+                validators: [createHasAtSignValidator(() => form().value())],
               };
             }),
           ),
@@ -386,6 +350,16 @@ describe('insertFormAttributes', () => {
       expect(fieldForm.form().selectEmail()().value()).toBe(
         'romain@example.com',
       );
+      expect(fieldForm.form().selectEmail()().exceptions()).toEqual({
+        list: [],
+        byValidator: {},
+      });
+
+      fieldState.set({
+        email: 'romain',
+      });
+      TestBed.tick();
+
       expect(
         fieldForm.form().selectEmail()().exceptions().byValidator,
       ).toMatchObject({
@@ -397,9 +371,17 @@ describe('insertFormAttributes', () => {
       });
       TestBed.tick();
 
-      expect(fieldForm.form().value()).toEqual({
+      expect(
+        fieldForm.form().selectEmail()().exceptions().byValidator,
+      ).toMatchObject({
+        hasAtSign: { code: 'MISSING_AT' },
+      });
+
+      fieldState.set({
         email: 'romain@example.com',
       });
+      TestBed.tick();
+
       expect(fieldForm.form().selectEmail()().exceptions()).toEqual({
         list: [],
         byValidator: {},
@@ -422,20 +404,10 @@ describe('insertFormAttributes', () => {
               testInnerValue: fieldState().email,
             }),
             insertNoopTypingAnchor,
-            insertFormAttributes(({ nodeModel }) => ({
+            insertFormAttributes(({ form }) => ({
               validators: [
                 cRequired(),
-                cValidator({
-                  name: 'hasAtSign',
-                  validate: () =>
-                    nodeModel().value() === '' ||
-                    nodeModel().value().includes('@')
-                      ? undefined
-                      : craftException(
-                          { code: 'MISSING_AT' },
-                          { message: 'Missing @' as const },
-                        ),
-                }),
+                createHasAtSignValidator(() => form().value()),
               ],
             })),
           ),

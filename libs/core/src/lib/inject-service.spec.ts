@@ -12,7 +12,7 @@ import {
 } from '@angular/platform-browser/testing';
 import { Subject } from 'rxjs';
 import { afterRecomputation } from './after-recomputation';
-import { injectService2 } from './inject-service';
+import { injectService } from './inject-service';
 import { on$ } from './on$';
 import { source$ } from './source$';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -59,7 +59,7 @@ describe('injectService2', () => {
     }
 
     await TestBed.runInInjectionContext(async () => {
-      const result = injectService2(
+      const result = injectService(
         MyService,
         ({ total, reset, resetCalls }) => ({
           total,
@@ -111,7 +111,7 @@ describe('injectService2', () => {
       const replaceTotal = signalSource<number>();
       const pushEvent$ = new Subject<number>();
 
-      const result = injectService2(
+      const result = injectService(
         MyService,
         ({ reset, total, idInput, receivedEvents, add, events }) => ({
           reset: on$(reset$, () => reset()),
@@ -175,7 +175,7 @@ describe('injectService2', () => {
     }
 
     TestBed.runInInjectionContext(() => {
-      const result = injectService2(
+      const result = injectService(
         MyService,
         ({ total, reset, editableTotal, events, idInput, add }) => {
           expectTypeOf(total).toEqualTypeOf<Signal<number>>();
@@ -218,7 +218,7 @@ describe('injectService2', () => {
     }
 
     TestBed.runInInjectionContext(() => {
-      const result = injectService2(MyWritableService, ({ total }) => {
+      const result = injectService(MyWritableService, ({ total }) => {
         expectTypeOf(total).toMatchTypeOf<WritableSignal<number>>();
 
         return {
@@ -241,7 +241,7 @@ describe('injectService2', () => {
     }
 
     await TestBed.runInInjectionContext(async () => {
-      const result = injectService2(
+      const result = injectService(
         MyService,
         ({ total }) => ({
           total,
@@ -273,7 +273,7 @@ describe('injectService2', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      injectService2(
+      injectService(
         MyService,
         ({ total }) => ({
           total,

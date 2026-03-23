@@ -18,6 +18,7 @@
 - [ ] insertSelect add support for non object/array state (ex: primitive state) and pass the selected state as param to the insertion
 - [ ] Rename craftException to cException
 - [ ] Create a insertContract similar to a class to implement an interface, also add an helper with a proxy to mock the data ?
+- ajouter inject service à la doc
 
 - forms:
   - Gérer les appels async des valdiateurs en parallèle
@@ -26,3 +27,4 @@
   - login form exemple, expliquer comment trigger une exception au submit et debounce les erreurs
   - il faut vraiment que les validateurs comme cRequired appellent les originaux pour mettre à jour le html avec le bon tag et ajouter testes
   - ajouter des insertions à insertForm
+  - supprimer modalValidatorRef

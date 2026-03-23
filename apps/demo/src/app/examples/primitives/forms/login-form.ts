@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { FormField } from '@angular/forms/signals';
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { FormField, required } from '@angular/forms/signals';
 import {
   cEmail,
   cRequired,
@@ -13,6 +13,8 @@ import {
   state,
   ValidatedFormValue,
   insertNoopTypingAnchor,
+  cMin,
+  cMinLength,
 } from '@craft-ng/core';
 
 type LoginData = {
@@ -73,7 +75,7 @@ type LoginData = {
             </div>
           </div>
 
-          <div class="form-group">
+          <!-- <div class="form-group">
             <label for="password">Password</label>
             @let passwordField = loginForm.form().selectPassword();
             <input
@@ -94,7 +96,7 @@ type LoginData = {
                 }
               }
             </div>
-          </div>
+          </div> -->
 
           <button type="submit" class="submit-btn">
             {{ loginForm.form().submitting() ? 'Logging in...' : 'Log in' }}
@@ -102,8 +104,10 @@ type LoginData = {
         </form>
       </div>
     </div>
-
-    hasAttemptedSubmit:{{ loginForm.form().hasAttemptedSubmit() }}
+    errors:
+    {{ loginForm.form().selectEmail()().errors() | json }} hasAttemptedSubmit:{{
+      loginForm.form().hasAttemptedSubmit()
+    }}/exceptions {{ loginForm.form().selectEmail()().exceptions() | json }}
   `,
   styles: [
     `
@@ -228,22 +232,32 @@ export default class LoginFormComponent {
     { email: '', password: '' } satisfies LoginData,
     insertForm(
       insertFormSubmit(this.loginMutation),
+      ({ schemaPath }) => {
+        required(schemaPath.email);
+        return {};
+      },
       insertSelectFormTree(
         'email',
         insertNoopTypingAnchor,
+        // ({ schemaPath, form }) => {
+        //   debugger;
+        //   console.log('schemaPath', schemaPath);
+        //   required(schemaPath);
+        //   return {
+        //     errors: form().errors,
+        //   };
+        // },
         insertFormAttributes(() => ({
-          validators: [cRequired(), cEmail()],
+          validators: [cRequired(), cEmail(), cMinLength({ minLength: 5 })],
         })),
       ),
-      insertSelectFormTree(
-        'password',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired()],
-        })),
-      ),
+      //   insertSelectFormTree(
+      //     'password',
+      //     insertNoopTypingAnchor,
+      //     insertFormAttributes(() => ({
+      //       validators: [cRequired()],
+      //     })),
+      //   ),
     ),
   );
-
-  constructor() {}
 }

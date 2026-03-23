@@ -83,6 +83,7 @@ export default defineConfig({
           { text: 'source$', link: '/utils/source$' },
           { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },
           { text: 'on$', link: '/utils/on$' },
+          { text: 'injectService', link: '/utils/inject-service' },
           {
             text: 'reactiveWritableSignal',
             link: '/utils/reactive-writable-signal',

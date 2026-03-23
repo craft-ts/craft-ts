@@ -60,16 +60,16 @@ export type InjectService2Output<Service, Insertions> = Prettify<
   FilterSource<Insertions>
 >;
 
-export function injectService2<Service, Insertion1>(
+export function injectService<Service, Insertion1>(
   token: Type<Service>,
   insertion1: InjectService2InsertionFactory<Service, Insertion1>,
 ): InjectService2Output<Service, Insertion1>;
-export function injectService2<Service, Insertion1, Insertion2>(
+export function injectService<Service, Insertion1, Insertion2>(
   token: Type<Service>,
   insertion1: InjectService2InsertionFactory<Service, Insertion1>,
   insertion2: InjectService2InsertionFactory<Service, Insertion2, Insertion1>,
 ): InjectService2Output<Service, Insertion1 & Insertion2>;
-export function injectService2<Service, Insertion1, Insertion2, Insertion3>(
+export function injectService<Service, Insertion1, Insertion2, Insertion3>(
   token: Type<Service>,
   insertion1: InjectService2InsertionFactory<Service, Insertion1>,
   insertion2: InjectService2InsertionFactory<Service, Insertion2, Insertion1>,
@@ -79,7 +79,7 @@ export function injectService2<Service, Insertion1, Insertion2, Insertion3>(
     Insertion1 & Insertion2
   >,
 ): InjectService2Output<Service, Insertion1 & Insertion2 & Insertion3>;
-export function injectService2<
+export function injectService<
   Service,
   Insertion1,
   Insertion2,
@@ -103,7 +103,7 @@ export function injectService2<
   Service,
   Insertion1 & Insertion2 & Insertion3 & Insertion4
 >;
-export function injectService2<
+export function injectService<
   Service,
   Insertion1,
   Insertion2,
@@ -135,14 +135,119 @@ export function injectService2<
 >;
 
 /**
- * Alternative API to expose or bind service public entries through insertions.
+ * Creates a typed facade over an injected Angular service.
  *
- * Nothing is exposed by default. The callback receives all public service entries
- * and must explicitly return what should be exposed. Returned bindings targeting
- * public connectable entries are applied but hidden from the final result.
+ * `injectService` exposes nothing by default. Each insertion callback receives the
+ * public entries of the injected service and must explicitly return the API that
+ * should be exposed.
+ *
+ * Returned entries can be:
+ * - service signals or writable signals
+ * - bound service methods
+ * - renamed service entries
+ * - derived values such as `computed(...)`
+ * - hidden bindings created with utilities like `on$` or `afterRecomputation`
+ *
+ * Bindings returning a branded source are applied but filtered out of the final
+ * result, which makes `injectService` useful for wiring internal reactions without
+ * leaking implementation details in the public API.
+ *
+ * Multiple insertion callbacks can be chained. Each later insertion receives the
+ * previous outputs through `context.insertions`, which is useful to progressively
+ * build higher-level computed values.
+ *
+ * Service methods are exposed already bound to the service instance.
+ *
+ * @example
+ * Build a small navigation facade from `Router`
+ * ```ts
+ * import { Component, computed } from '@angular/core';
+ * import { Router } from '@angular/router';
+ * import { injectService, on$, source$ } from '@craft-ng/core';
+ *
+ * @Component({
+ *   selector: 'app-terms-page',
+ *   template: '',
+ *   standalone: true,
+ * })
+ * export class TermsPageComponent {
+ *   private readonly userAccept = source$<void>();
+ *
+ *   readonly navigation = injectService(
+ *     Router,
+ *     ({ navigateByUrl, currentNavigation }) => ({
+ *       decline: () => navigateByUrl('/terms/declined'),
+ *       navigateOnAccept: on$(this.userAccept, () =>
+ *         navigateByUrl('/checkout/shipping', { replaceUrl: true }),
+ *       ),
+ *       isNavigating: computed(() => currentNavigation() !== null),
+ *     }),
+ *   );
+ * }
+ * ```
+ *
+ * @example
+ * Build a checkout-oriented facade from a broader service
+ * ```ts
+ * import { Component, computed, Injectable, signal } from '@angular/core';
+ * import { injectService } from '@craft-ng/core';
+ *
+ * @Injectable({ providedIn: 'root' })
+ * class CheckoutService {
+ *   cart = signal([{ sku: 'starter', quantity: 1, price: 20 }]);
+ *   coupon = signal<string | null>(null);
+ *   status = signal<'editing' | 'submitting' | 'submitted'>('editing');
+ *   total = computed(() =>
+ *     this.cart().reduce(
+ *       (sum, item) => sum + item.quantity * item.price,
+ *       0,
+ *     ),
+ *   );
+ *
+ *   submitOrder() {
+ *     this.status.set('submitting');
+ *   }
+ *
+ *   resetOrder() {
+ *     this.cart.set([]);
+ *     this.coupon.set(null);
+ *     this.status.set('editing');
+ *   }
+ * }
+ *
+ * @Component({
+ *   selector: 'app-checkout-summary',
+ *   template: '',
+ *   standalone: true,
+ * })
+ * export class CheckoutSummaryComponent {
+ *   readonly checkout = injectService(
+ *     CheckoutService,
+ *     ({ cart, coupon, status, total, submitOrder, resetOrder }) => ({
+ *       total,
+ *       status,
+ *       itemCount: computed(() =>
+ *         cart().reduce((count, item) => count + item.quantity, 0),
+ *       ),
+ *       hasCoupon: computed(() => coupon() !== null),
+ *       clear: resetOrder,
+ *       submit: submitOrder,
+ *     }),
+ *     ({ insertions }) => ({
+ *       canSubmit: computed(
+ *         () =>
+ *           insertions.itemCount() > 0 && insertions.status() === 'editing',
+ *       ),
+ *       summaryLabel: computed(
+ *         () => `${insertions.itemCount()} items - ${insertions.total()} EUR`,
+ *       ),
+ *     }),
+ *   );
+ * }
+ * ```
  */
-export function injectService2<Service>(args: any): any {
-  assertInInjectionContext(injectService2);
+export function injectService<Service>(...args: any[]): any {
+  assertInInjectionContext(injectService);
 
   const [token, ...insertions] = args as [
     Type<unknown>,
