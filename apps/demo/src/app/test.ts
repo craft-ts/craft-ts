@@ -2,9 +2,11 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, effect, signal } from '@angular/core';
 import {
   craft,
+  craftException,
   craftQueryParams,
   craftSources,
   insertForm,
+  query,
   queryParam,
   signalSource,
   source$,
@@ -93,6 +95,24 @@ const { injectHost1Craft } = craft(
       />
     }
     <button (click)="pState.add()">Add</button>
+
+    <hr />
+
+    <button (click)="shouldFail.set(!shouldFail())">
+      Toggle query failure (currently: {{ shouldFail() }})
+    </button>
+    <button (click)="q.call(true)">
+      Call query (currently: {{ shouldFail() }})
+    </button>
+    <div>
+      Query status: {{ q.status() }}
+      <br />
+      Query data: {{ q.safeValue() | json }}
+      <br />
+      Query error: {{ q.error() | json }}
+      <br />
+      Query exceptions: {{ q.exceptions().list | json }}
+    </div>
   `,
 })
 export default class TestComponent {
@@ -159,6 +179,30 @@ export default class TestComponent {
       },
     ),
   );
+
+  shouldFail = signal(false);
+
+  q = query({
+    method: (test: boolean) =>
+      this.shouldFail()
+        ? craftException(
+            { code: 'INVALID_USER_ID' },
+            { reason: 'missing' as const },
+          )
+        : 'user-1',
+    loader: async ({ params }) => {
+      return this.shouldFail()
+        ? craftException(
+            { code: 'INVALID_USER_ID' },
+            { reason: 'missing' as const },
+          )
+        : {
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          };
+    },
+  });
 
   ngAfterViewInit(): void {
     const f = this.loginForm.select(1);

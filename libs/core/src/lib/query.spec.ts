@@ -755,6 +755,8 @@ describe('query exceptions', () => {
 
       expect(queryRef.exceptions().params).toEqual({});
       expect(queryRef.hasException()).toBe(false);
+
+      expect(queryRef.status()).toBe('error');
     });
   });
 

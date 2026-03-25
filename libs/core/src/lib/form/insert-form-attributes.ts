@@ -1,7 +1,4 @@
-import {
-  computed,
-  type Signal,
-} from '@angular/core';
+import { computed, type Signal } from '@angular/core';
 import {
   type FieldTree,
   disabled,
@@ -318,6 +315,9 @@ export function insertFormAttributes<
       list: ExceptionsList<Validators>;
       byValidator: ExceptionsByValidator<NonNullable<Validators>>;
     }>;
+    /**
+     * Exceptions that should be visible to the user. By default, all exceptions are hidden until the field is dirty or the form has been attempted to be submitted at least once.
+     */
     visibleExceptions: Signal<{
       list: ExceptionsList<Validators>;
       byValidator: ExceptionsByValidator<NonNullable<Validators>>;
@@ -360,8 +360,8 @@ export function insertFormAttributes<
       () => context.form().errors() ?? [],
     ) as Signal<ValidationError.WithFieldTree[]>;
 
-    const validatorDescriptors = (config.validators ?? [])
-      .map((validatorInput, index) =>
+    const validatorDescriptors = (config.validators ?? []).map(
+      (validatorInput, index) =>
         bindValidatorDescriptor(
           validatorInput as ValidatorExecutionInput<StateType, FormIdentifier>,
           schemaPath,
@@ -369,7 +369,7 @@ export function insertFormAttributes<
           context.formIdentifier,
           index,
         ),
-      );
+    );
 
     const signalValidatorResults = validatorDescriptors.map((descriptor) =>
       computed(() => {

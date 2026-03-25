@@ -3,6 +3,7 @@ import {
   inject,
   InjectionToken,
   Injector,
+  isSignal,
   linkedSignal,
   signal,
   Signal,
@@ -394,6 +395,10 @@ function createLazyFormTree<Model>(options: {
           const actualValue = actualState?.[property];
           if (actualValue !== undefined) {
             if (typeof actualValue === 'function') {
+              if (isSignal(actualValue)) {
+                return actualValue;
+              }
+
               return (...args: unknown[]) =>
                 (actualValue as (...args: unknown[]) => unknown).apply(
                   actualState,
@@ -730,6 +735,566 @@ export function insertForm<
   PreviousInsertionsOutputs
 >;
 export function insertForm<
+  StateType,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  PreviousInsertionsOutputs = {},
+>(
+  insertion1: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+): InsertFormSimpleReturn<
+  StateType,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  PreviousInsertionsOutputs = {},
+>(
+  insertion1: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+): InsertFormSimpleReturn<
+  StateType,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  PreviousInsertionsOutputs = {},
+>(
+  insertion1: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+): InsertFormSimpleReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion7,
+  PreviousInsertionsOutputs = {},
+>(
+  insertion1: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+  insertion7: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion7,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6
+  >,
+): InsertFormSimpleReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6 &
+    Insertion7,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion7,
+  Insertion8,
+  PreviousInsertionsOutputs = {},
+>(
+  insertion1: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+  insertion7: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion7,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6
+  >,
+  insertion8: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion8,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7
+  >,
+): InsertFormSimpleReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6 &
+    Insertion7 &
+    Insertion8,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion7,
+  Insertion8,
+  Insertion9,
+  PreviousInsertionsOutputs = {},
+>(
+  insertion1: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+  insertion7: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion7,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6
+  >,
+  insertion8: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion8,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7
+  >,
+  insertion9: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion9,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7 &
+      Insertion8
+  >,
+): InsertFormSimpleReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6 &
+    Insertion7 &
+    Insertion8 &
+    Insertion9,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion7,
+  Insertion8,
+  Insertion9,
+  Insertion10,
+  PreviousInsertionsOutputs = {},
+>(
+  insertion1: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+  insertion7: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion7,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6
+  >,
+  insertion8: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion8,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7
+  >,
+  insertion9: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion9,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7 &
+      Insertion8
+  >,
+  insertion10: InsertionsFormFactory<
+    StateType,
+    unknown,
+    Insertion10,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7 &
+      Insertion8 &
+      Insertion9
+  >,
+): InsertFormSimpleReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6 &
+    Insertion7 &
+    Insertion8 &
+    Insertion9 &
+    Insertion10,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
   StateType extends unknown[],
   GroupIdentifier extends string | number,
   PreviousInsertionsOutputs = {},
@@ -805,6 +1370,580 @@ export function insertForm<
 ): InsertFormParallelReturn<
   StateType,
   Insertion1 & Insertion2 & Insertion3,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType extends unknown[],
+  GroupIdentifier extends string | number,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  PreviousInsertionsOutputs = {},
+>(
+  config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
+  insertion1: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+): InsertFormParallelReturn<
+  StateType,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType extends unknown[],
+  GroupIdentifier extends string | number,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  PreviousInsertionsOutputs = {},
+>(
+  config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
+  insertion1: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+): InsertFormParallelReturn<
+  StateType,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType extends unknown[],
+  GroupIdentifier extends string | number,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  PreviousInsertionsOutputs = {},
+>(
+  config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
+  insertion1: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+): InsertFormParallelReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType extends unknown[],
+  GroupIdentifier extends string | number,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion7,
+  PreviousInsertionsOutputs = {},
+>(
+  config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
+  insertion1: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+  insertion7: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion7,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6
+  >,
+): InsertFormParallelReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6 &
+    Insertion7,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType extends unknown[],
+  GroupIdentifier extends string | number,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion7,
+  Insertion8,
+  PreviousInsertionsOutputs = {},
+>(
+  config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
+  insertion1: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+  insertion7: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion7,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6
+  >,
+  insertion8: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion8,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7
+  >,
+): InsertFormParallelReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6 &
+    Insertion7 &
+    Insertion8,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType extends unknown[],
+  GroupIdentifier extends string | number,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion7,
+  Insertion8,
+  Insertion9,
+  PreviousInsertionsOutputs = {},
+>(
+  config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
+  insertion1: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+  insertion7: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion7,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6
+  >,
+  insertion8: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion8,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7
+  >,
+  insertion9: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion9,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7 &
+      Insertion8
+  >,
+): InsertFormParallelReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6 &
+    Insertion7 &
+    Insertion8 &
+    Insertion9,
+  PreviousInsertionsOutputs
+>;
+export function insertForm<
+  StateType extends unknown[],
+  GroupIdentifier extends string | number,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion4,
+  Insertion5,
+  Insertion6,
+  Insertion7,
+  Insertion8,
+  Insertion9,
+  Insertion10,
+  PreviousInsertionsOutputs = {},
+>(
+  config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
+  insertion1: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+  insertion5: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion5,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4
+  >,
+  insertion6: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion6,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5
+  >,
+  insertion7: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion7,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6
+  >,
+  insertion8: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion8,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7
+  >,
+  insertion9: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion9,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7 &
+      Insertion8
+  >,
+  insertion10: InsertionsFormFactory<
+    ExtractItemType<StateType>,
+    GroupIdentifier,
+    Insertion10,
+    PreviousInsertionsOutputs &
+      Insertion1 &
+      Insertion2 &
+      Insertion3 &
+      Insertion4 &
+      Insertion5 &
+      Insertion6 &
+      Insertion7 &
+      Insertion8 &
+      Insertion9
+  >,
+): InsertFormParallelReturn<
+  StateType,
+  Insertion1 &
+    Insertion2 &
+    Insertion3 &
+    Insertion4 &
+    Insertion5 &
+    Insertion6 &
+    Insertion7 &
+    Insertion8 &
+    Insertion9 &
+    Insertion10,
   PreviousInsertionsOutputs
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

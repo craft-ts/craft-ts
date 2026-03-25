@@ -182,7 +182,6 @@ describe('insertFormSubmit', () => {
               return undefined;
             },
             exception: (data) => {
-              console.log('data', data);
               // override exceptions
               const { submitCraftResource, omitExceptions } = data;
 
@@ -270,6 +269,47 @@ describe('insertFormSubmit', () => {
     });
   });
 
+  it('should submit the form without config (no second argument)', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const throwRef = signal(false);
+      const submitRef = mutation({
+        method: (validatedLogin: ValidatedFormValue<LoginData>) => {
+          return validatedLogin;
+        },
+        loader: async ({ params: login }) => {
+          await wait(10000);
+          if (throwRef()) {
+            return craftException(
+              { code: 'NameAlreadyExistsException' },
+              { message: 'Name already exists' as const },
+            );
+          }
+          return login;
+        },
+      });
+      const loginForm = state(
+        {
+          id: '1',
+          name: 'John',
+          password: '1234',
+        } satisfies LoginData,
+        insertForm(insertFormSubmit(submitRef)),
+      );
+
+      expect(loginForm.form().submitting()).toBe(false);
+      expect(loginForm.form().hasSubmitExceptions()).toBe(false);
+      expect(loginForm.form().submitExceptions()).toEqual([]);
+
+      loginForm.form().submit();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(loginForm.form().submitting()).toBe(true);
+      await vi.advanceTimersByTimeAsync(6000);
+      expect(loginForm.form().submitting()).toBe(false);
+      expect(loginForm.form().hasSubmitExceptions()).toBe(false);
+      expect(loginForm.form().submitExceptions()).toEqual([]);
+    });
+  });
+
   // todo should have a second arg to map validatedFormValue to the query method
   // todo parallel submit
 });
@@ -339,7 +379,6 @@ describe('parallel submit', () => {
             },
             exception: ({ submitCraftResource, omitExceptions }) => {
               // override exceptions
-              console.log('submitCraftResource', submitCraftResource);
 
               if (
                 submitCraftResource.exceptions().loader?.code ===

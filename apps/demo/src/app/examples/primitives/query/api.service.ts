@@ -65,7 +65,6 @@ export class ApiService {
   }
 
   async updateItem(updatedItem: User): Promise<User> {
-    console.log('updatedItem', updatedItem);
     if (this.updateError()) {
       await delay(null, 3000);
       throw new Error('Api error during update');

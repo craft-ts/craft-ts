@@ -445,6 +445,12 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       setSubmitting(submitCraftResourceTarget()?.isLoading() ?? false);
     });
 
+    const _resetFormOnResolved = effect(() => {
+      if (submitCraftResourceTarget()?.status() === 'resolved') {
+        form().reset();
+      }
+    });
+
     const hasSubmitExceptions = computed(() => {
       const _submitCraftResourceTarget = submitCraftResourceTarget();
       return _submitCraftResourceTarget &&

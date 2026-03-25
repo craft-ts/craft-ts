@@ -28,3 +28,5 @@
   - il faut vraiment que les validateurs comme cRequired appellent les originaux pour mettre à jour le html avec le bon tag et ajouter testes
   - ajouter des insertions à insertForm
   - supprimer modalValidatorRef
+  - afficher erreur si form submit mutation n'a pas la même payload que le form value
+  - on ne peut pas utilise formRoot pour la soumission, créer une directive alternative ?

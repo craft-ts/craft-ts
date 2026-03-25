@@ -142,6 +142,128 @@ describe('insertForm', () => {
     });
   });
 
+  it('should expose up to 10 chained insertions', () => {
+    TestBed.runInInjectionContext(() => {
+      const loginForm = state(
+        {
+          name: 'romain',
+          password: 'secret',
+        } satisfies LoginData,
+        insertForm(
+          () => ({
+            insertion1: () => '1',
+          }),
+          ({ insertions }) => {
+            expectTypeOf(insertions.insertion1).toEqualTypeOf<() => string>();
+            return {
+              insertion2: () => `${insertions.insertion1()}2`,
+            };
+          },
+          ({ insertions }) => {
+            expectTypeOf(insertions.insertion2).toEqualTypeOf<() => string>();
+            return {
+              insertion3: () => `${insertions.insertion2()}3`,
+            };
+          },
+          ({ insertions }) => ({
+            insertion4: () => `${insertions.insertion3()}4`,
+          }),
+          ({ insertions }) => ({
+            insertion5: () => `${insertions.insertion4()}5`,
+          }),
+          ({ insertions }) => ({
+            insertion6: () => `${insertions.insertion5()}6`,
+          }),
+          ({ insertions }) => ({
+            insertion7: () => `${insertions.insertion6()}7`,
+          }),
+          ({ insertions }) => ({
+            insertion8: () => `${insertions.insertion7()}8`,
+          }),
+          ({ insertions }) => ({
+            insertion9: () => `${insertions.insertion8()}9`,
+          }),
+          ({ insertions }) => {
+            expectTypeOf(insertions.insertion9).toEqualTypeOf<() => string>();
+            expectTypeOf(insertions.insertion1).toEqualTypeOf<() => string>();
+            return {
+              insertion10: () => `${insertions.insertion9()}10`,
+            };
+          },
+        ),
+      );
+
+      expectTypeOf(loginForm.form().insertion10).toEqualTypeOf<() => string>();
+      expect(loginForm.form().insertion10()).toBe('12345678910');
+    });
+  });
+
+  it('should expose up to 10 chained insertions in parallel mode', () => {
+    TestBed.runInInjectionContext(() => {
+      const loginForms = state(
+        [
+          {
+            name: '1',
+            password: '',
+          },
+          {
+            name: '2',
+            password: '',
+          },
+        ] satisfies LoginData[],
+        insertForm(
+          {
+            identifier: ({ item }) => item.name,
+          },
+          ({ formIdentifier }) => ({
+            insertion1: () => `${formIdentifier}-1`,
+          }),
+          ({ insertions }) => ({
+            insertion2: () => `${insertions.insertion1()}-2`,
+          }),
+          ({ insertions }) => ({
+            insertion3: () => `${insertions.insertion2()}-3`,
+          }),
+          ({ insertions }) => ({
+            insertion4: () => `${insertions.insertion3()}-4`,
+          }),
+          ({ insertions }) => ({
+            insertion5: () => `${insertions.insertion4()}-5`,
+          }),
+          ({ insertions }) => ({
+            insertion6: () => `${insertions.insertion5()}-6`,
+          }),
+          ({ insertions }) => ({
+            insertion7: () => `${insertions.insertion6()}-7`,
+          }),
+          ({ insertions }) => ({
+            insertion8: () => `${insertions.insertion7()}-8`,
+          }),
+          ({ insertions }) => ({
+            insertion9: () => `${insertions.insertion8()}-9`,
+          }),
+          ({ formIdentifier, insertions }) => {
+            expectTypeOf(formIdentifier).toEqualTypeOf<string>();
+            expectTypeOf(insertions.insertion9).toEqualTypeOf<() => string>();
+            return {
+              insertion10: () => `${insertions.insertion9()}-10`,
+            };
+          },
+        ),
+      );
+
+      expectTypeOf(loginForms.select('1')().insertion10).toEqualTypeOf<
+        () => string
+      >();
+      expect(loginForms.select('1')().insertion10()).toBe(
+        '1-1-2-3-4-5-6-7-8-9-10',
+      );
+      expect(loginForms.select('2')().insertion10()).toBe(
+        '2-1-2-3-4-5-6-7-8-9-10',
+      );
+    });
+  });
+
   it('should expose validatorModelRef by default and allow overriding it for descendant insertions', () => {
     TestBed.runInInjectionContext(() => {
       const debouncedModel = signal<LoginData>({

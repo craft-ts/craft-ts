@@ -71,4 +71,9 @@ export const appRoutes: Route[] = [
     path: 'login-form',
     loadComponent: () => import('./examples/primitives/forms/login-form'),
   },
+  {
+    path: 'team-invitations',
+    loadComponent: () =>
+      import('./examples/primitives/forms/team-invitations'),
+  },
 ];

@@ -29,6 +29,9 @@ import { GlobalPersisterHandlerService } from '@craft-ng/core';
         >
         <a routerLink="/exceptions" routerLinkActive="active">Exceptions</a>
         <a routerLink="/login-form" routerLinkActive="active">Login Form</a>
+        <a routerLink="/team-invitations" routerLinkActive="active"
+          >Team Invitations</a
+        >
         <a routerLink="/exception-query-param" routerLinkActive="active"
           >Exception QueryParam</a
         >

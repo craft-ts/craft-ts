@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { FormField, required } from '@angular/forms/signals';
 import {
   cEmail,
@@ -13,7 +13,6 @@ import {
   state,
   ValidatedFormValue,
   insertNoopTypingAnchor,
-  cMin,
   cMinLength,
 } from '@craft-ng/core';
 
@@ -75,7 +74,7 @@ type LoginData = {
             </div>
           </div>
 
-          <!-- <div class="form-group">
+          <div class="form-group">
             <label for="password">Password</label>
             @let passwordField = loginForm.form().selectPassword();
             <input
@@ -96,7 +95,7 @@ type LoginData = {
                 }
               }
             </div>
-          </div> -->
+          </div>
 
           <button type="submit" class="submit-btn">
             {{ loginForm.form().submitting() ? 'Logging in...' : 'Log in' }}
@@ -239,25 +238,17 @@ export default class LoginFormComponent {
       insertSelectFormTree(
         'email',
         insertNoopTypingAnchor,
-        // ({ schemaPath, form }) => {
-        //   debugger;
-        //   console.log('schemaPath', schemaPath);
-        //   required(schemaPath);
-        //   return {
-        //     errors: form().errors,
-        //   };
-        // },
         insertFormAttributes(() => ({
           validators: [cRequired(), cEmail(), cMinLength({ minLength: 5 })],
         })),
       ),
-      //   insertSelectFormTree(
-      //     'password',
-      //     insertNoopTypingAnchor,
-      //     insertFormAttributes(() => ({
-      //       validators: [cRequired()],
-      //     })),
-      //   ),
+      insertSelectFormTree(
+        'password',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({
+          validators: [cRequired()],
+        })),
+      ),
     ),
   );
 }

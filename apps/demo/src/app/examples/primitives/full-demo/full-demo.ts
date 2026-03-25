@@ -3,12 +3,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  inject,
+  signal,
 } from '@angular/core';
+import { FormField } from '@angular/forms/signals';
 import {
   asyncProcess,
   cMinLength,
   cRequired,
+  injectService,
   insertForm,
   insertFormAttributes,
   insertFormSubmit,
@@ -26,11 +28,11 @@ import {
   removeOne,
   source$,
   state,
+  updateOne,
   ValidatedFormValue,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, User } from './api.service';
-import { FormField } from '@angular/forms/signals';
 
 @Component({
   selector: 'app-granular-mutation',
@@ -62,6 +64,14 @@ import { FormField } from '@angular/forms/signals';
               <button class="action-btn reset-btn" (click)="reset$.emit()">
                 Reset Filters
               </button>
+              <label style="margin-left: auto; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                <input
+                  type="checkbox"
+                  [checked]="apiService.throwError()"
+                  (change)="apiService.toggleUpdateError()"
+                />
+                Simulate API error
+              </label>
             </div>
 
             <div class="table-container">
@@ -96,34 +106,100 @@ import { FormField } from '@angular/forms/signals';
                         </td>
                         <td>{{ user.id }}</td>
 
-                        <!-- todo -->
                         <td>
                           @let nameField = userForm().selectName();
-                          <input type="text" [formField]="nameField" />
-                          hasExceptions{{nameField().hasExceptions()}}
-                          @if (nameField().hasExceptions()) {
-                            <div class="field-errors">
-                              @for (
-                                error of nameField().exceptions().list;
-                                track error.code
-                              ) {
-                                {{nameField().exceptions().list | json}}
-                                @let code = error.code;
-                                @switch (code) {
-                                  @case ('required') {
-                                    <span>Name is required.</span>
+                          <!-- todo remove editingUserId -->
+                          <!-- todo le form().submit() ne déclenche pas l'appel ? -->
+                          <!-- todo afficher status de chargement du save -->
+                          <!-- todo si form pas save et dif, afficher une état pour signaler que ce n'est pas save -->
+                          @if (userForm().isEditing()) {
+                            <form
+                              (submit)="
+                                $event.preventDefault(); userForm().submit()
+                              "
+                              novalidate
+                            >
+                              <div class="inline-edit">
+                                <input
+                                  type="text"
+                                  class="inline-edit-input"
+                                  [formField]="nameField"
+                                />
+                                <button
+                                  class="inline-edit-btn save-btn"
+                                  title="Save"
+                                  type="submit"
+                                  (click)="userForm().toggleEditing()"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  class="inline-edit-btn cancel-btn"
+                                  type="button"
+                                  title="Cancel"
+                                  (click)="
+                                    userForm().toggleEditing()
+                                  "
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </form>
+                            @if (
+                              nameField().visibleExceptions().list.length > 0
+                            ) {
+                              <div class="field-errors">
+                                @for (
+                                  error of nameField().exceptions().list;
+                                  track error.code
+                                ) {
+                                  @let code = error.code;
+                                  @switch (code) {
+                                    @case ('required') {
+                                      <span>Name is required.</span>
+                                    }
+                                    @case ('minLength') {
+                                      <span>
+                                        Name must be at least
+                                        {{ error.payload }} characters
+                                        long.
+                                      </span>
+                                    }
+                                    @default never;
                                   }
-                                  @case ('minLength') {
-                                    <span>
-                                      Name must be at least
-                                      {{ error.payload }} characters
-                                      long.
-                                    </span>
-                                  }
-                                  @default never;
                                 }
+                              </div>
+                            }
+                          } @else {
+                            <div class="inline-display">
+                              <span [class.unsaved]="userForm().dirty() && !userForm().submitting()">{{ user.name }}</span>
+                              @if (userForm().submitting()) {
+                                <span class="spinner"></span>
+                              } @else {
+                                <button
+                                  class="inline-edit-icon"
+                                  title="Edit name"
+                                  (click)="userForm().toggleEditing()"
+                                >
+                                  ✎
+                                </button>
                               }
                             </div>
+                          }
+
+                          @if(userForm().hasExceptions()) {
+                            @for(exception of  userForm().exceptions().submit; track exception.code) {
+                              @let code = exception.code;
+                              @switch (code) {
+                                @case('HttpError') {
+                                  <div class="field-errors">
+                                    An error occurred while updating the user.
+                                  </div>
+                                }
+                                @default never;
+                              }
+
+                            }
                           }
                         </td>
 
@@ -245,7 +321,17 @@ export default class FullDemo {
       reset: on$(this.reset$, () => reset()),
     }),
   );
-  private readonly apiService = inject(ApiService);
+  protected readonly apiService = injectService(
+    ApiService,
+    ({ throwError, bulkDelete, deleteItem, getDataList, updateItem }) => ({
+      toggleUpdateError: () => throwError.update((v) => !v),
+      throwError,
+      bulkDelete,
+      deleteItem,
+      getDataList,
+      updateItem,
+    }),
+  );
 
   protected readonly bulkDelete = mutation({
     method: (ids: string[]) => ids,
@@ -279,25 +365,17 @@ export default class FullDemo {
         : undefined;
     },
     identifier: ({ id }) => id,
-    loader: ({ params: user }) => {
-      console.log('mutation loader user', user);
-      return this.apiService.updateItem(user);
-    },
-  });
-
-  private readonly updateUserName = mutation({
-    method: (
-      payload: NonNullable<
-        ValidatedFormValue<{ userName: string; user: User }>
-      >,
-    ) => ({
-      ...payload.user,
-      name: payload.userName,
-    }),
-    identifier: ({ id }) => id,
     loader: ({ params: user }) => this.apiService.updateItem(user),
   });
 
+  private readonly updateUserName = mutation({
+    method: (payload: NonNullable<ValidatedFormValue<User>>) => payload,
+    identifier: ({ id }) => id,
+    loader: async ({ params: user }) => this.apiService.updateItem(user),
+  });
+
+  // todo expose handle all exceptions in the template
+  // todo if there is an exception, the status is not updated to error / fallback won't be triggered
   private readonly usersQuery = query(
     {
       params: this.pagination,
@@ -351,12 +429,40 @@ export default class FullDemo {
           queryResource.safeValue()?.length === 0,
       },
     }),
+    insertReactOnMutation(this.updateUserName, {
+      filter: ({ mutationIdentifier, queryResource }) =>
+        !!queryResource
+          .safeValue()
+          ?.some((item) => item.id === mutationIdentifier),
+      optimisticUpdate: ({ queryResource, mutationParams }) =>
+        updateOne({
+          entities: queryResource.value(),
+          update: {
+            id: mutationParams.id,
+            changes: mutationParams,
+          },
+        }),
+      reload: {
+        onMutationError: true,
+      },
+    }),
   );
 
+  private readonly currentUsersPageResource = computed(() => {
+    const currentIdentifier = this.usersQuery.currentIdentifier();
+    if (!currentIdentifier) {
+      return undefined;
+    }
+
+    return this.usersQuery._resourceById()[currentIdentifier];
+  });
+
   protected readonly usersByPage = state(
-    computed(() => this.usersQuery.currentPageData() ?? []),
+    computed(() => this.currentUsersPageResource()?.safeValue() ?? []),
     () => ({
-      status: this.usersQuery.currentPageStatus,
+      status: computed(
+        () => this.currentUsersPageResource()?.status() ?? ('idle' as const),
+      ),
     }),
     insertForm(
       { identifier: ({ item: { id } }) => id },
@@ -368,15 +474,16 @@ export default class FullDemo {
           validators: [cRequired(), cMinLength({ minLength: 3 })],
         })),
       ),
+      () => {
+        const isEditing = signal<boolean>(false);
+
+        return {
+          isEditing: isEditing.asReadonly(),
+          toggleEditing: () => isEditing.update((v) => !v),
+        };
+      },
     ),
   );
-
-  constructor() {
-    // effect(() => {
-    //   const nameFieldTree = this.usersByPage.select('1')?.().selectName();
-    //   console.log('nameFieldTree', nameFieldTree());
-    // });
-  }
 
   protected readonly selectedRows = state(
     reactiveWritableSignal([] as string[], (sync) => ({
@@ -415,9 +522,7 @@ export default class FullDemo {
             ? current.filter((item) => item !== id)
             : [...current, id],
         ),
-      isSelected: (id: string) => {
-        return selectedRows().includes(id);
-      },
+      isSelected: (id: string) => selectedRows().includes(id),
       isAllSelected,
       isSomeSelected: computed(
         () =>

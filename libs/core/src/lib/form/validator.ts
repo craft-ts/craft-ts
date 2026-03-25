@@ -208,9 +208,9 @@ type CValidateSimpleSyncConfig<
   TPathKind extends PathKind = PathKind.Root,
 > = CValidateBaseConfig<TValue, Name, Identifier, TPathKind> &
   ValidatorConfig & {
-  validWhen: ValidatorOption<boolean>;
-  exception: ValidatorOption<Exceptions>;
-};
+    validWhen: ValidatorOption<boolean>;
+    exception: ValidatorOption<Exceptions>;
+  };
 
 type CValidateSyncConfig<
   TValue,
@@ -219,20 +219,8 @@ type CValidateSyncConfig<
   Identifier = unknown,
   TPathKind extends PathKind = PathKind.Root,
 > =
-  | CValidateAdvancedSyncConfig<
-      TValue,
-      Name,
-      Exceptions,
-      Identifier,
-      TPathKind
-    >
-  | CValidateSimpleSyncConfig<
-      TValue,
-      Name,
-      Exceptions,
-      Identifier,
-      TPathKind
-    >;
+  | CValidateAdvancedSyncConfig<TValue, Name, Exceptions, Identifier, TPathKind>
+  | CValidateSimpleSyncConfig<TValue, Name, Exceptions, Identifier, TPathKind>;
 
 const SYNC_VALIDATOR_TYPE = 'sync' as const;
 let customValidatorKindId = 0;
@@ -360,16 +348,16 @@ function createRequiredValidator<TValue>({
         when ? { when: () => shouldValidate(when) } : undefined,
       );
 
-      return computed(() =>
-        findValidationErrorByKind(errors(), 'required')
+      return computed(() => {
+        return findValidationErrorByKind(errors(), 'required')
           ? createValidatorException(
               'cRequired',
               SYNC_VALIDATOR_TYPE,
               'required',
               undefined,
             )
-          : undefined,
-      );
+          : undefined;
+      });
     },
     {
       name: 'cRequired',
@@ -651,8 +639,7 @@ function createCustomSyncValidator<
   return createSignalValidator(
     ({ schemaPath, errors }) => {
       validate(schemaPath, () =>
-        !shouldValidate(config.when) ||
-        resolveValidatorOption(config.validWhen)
+        !shouldValidate(config.when) || resolveValidatorOption(config.validWhen)
           ? undefined
           : { kind: internalErrorKind },
       );
