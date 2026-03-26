@@ -61,56 +61,78 @@ import { Component, input, ResourceStatus } from '@angular/core';
       }
 
       @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-2px); }
-        75% { transform: translateX(2px); }
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-2px);
+        }
+        75% {
+          transform: translateX(2px);
+        }
       }
 
       @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
       }
     `,
   ],
   template: `
-    @switch(status()) { @case ('idle') {
-    <span class="badge-container">
-      <span class="status-emoji">🛌</span>
-      <span class="badge badge-gray">Idle</span>
-    </span>
-    } @case ('error') {
-    <span class="badge-container">
-      <span class="status-emoji error">❌</span>
-      <span class="badge badge-red">Error</span>
-    </span>
-    } @case ('loading') {
-    <span class="badge-container">
-      <span class="status-emoji loading">⏳</span>
-      <span class="badge badge-orange">Loading</span>
-    </span>
-    } @case ('reloading') {
-    <span class="badge-container">
-      <span class="status-emoji loading">🔄</span>
-      <span class="badge badge-orange">Reloading</span>
-    </span>
-    } @case ('resolved') {
-    <span class="badge-container">
-      <span class="status-emoji success">✅</span>
-      <span class="badge badge-green">Loaded</span>
-    </span>
-    } @case ('local') {
-    <span class="badge-container">
-      <span class="status-emoji">📦</span>
-      <span class="badge badge-blue">Local</span>
-    </span>
-    } @default {
-    <span class="badge-container">
-      <span class="status-emoji">-</span>
-      <span class="badge badge-darkgray">-</span>
-    </span>
-    } }
+    @let _status = this.status();
+    @switch (_status) {
+      @case ('idle') {
+        <span class="badge-container">
+          <span class="status-emoji">🛌</span>
+          <span class="badge badge-gray">Idle</span>
+        </span>
+      }
+      @case ('error') {
+        <span class="badge-container">
+          <span class="status-emoji error">❌</span>
+          <span class="badge badge-red">Error</span>
+        </span>
+      }
+      @case ('loading') {
+        <span class="badge-container">
+          <span class="status-emoji loading">⏳</span>
+          <span class="badge badge-orange">Loading</span>
+        </span>
+      }
+      @case ('reloading') {
+        <span class="badge-container">
+          <span class="status-emoji loading">🔄</span>
+          <span class="badge badge-orange">Reloading</span>
+        </span>
+      }
+      @case ('resolved') {
+        <span class="badge-container">
+          <span class="status-emoji success">✅</span>
+          <span class="badge badge-green">Loaded</span>
+        </span>
+      }
+      @case ('local') {
+        <span class="badge-container">
+          <span class="status-emoji">📦</span>
+          <span class="badge badge-blue">Local</span>
+        </span>
+      }
+      @case ('exception') {
+        <span class="badge-container">
+          <span class="status-emoji error">⚠️</span>
+          <span class="badge badge-red">Exception</span>
+        </span>
+      }
+      @default never;
+    }
   `,
 })
 export class StatusComponent {
-  readonly status = input.required<ResourceStatus>();
+  readonly status = input.required<ResourceStatus | 'exception'>();
 }

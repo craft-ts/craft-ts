@@ -92,7 +92,7 @@ import { ApiService, User } from './api.service';
                   </tr>
                 </thead>
                 <tbody>
-                  @if (this.usersByPage().length) {
+                  @if (usersByPage.displayUsers()) {
                     @for (user of this.usersByPage(); track user.id) {
                       <tr>
                         @let userForm = this.usersByPage.select(user.id);
@@ -247,6 +247,16 @@ import { ApiService, User } from './api.service';
                             No users found
                           </td>
                         </tr>
+                      } @else if (usersByPage.status() === 'exception') {
+                        <tr>
+                          <td
+                            colspan="5"
+                            style="text-align: center; padding: 32px"
+                          >
+                            Exception
+                          </td>
+                        </tr>
+
                       } @else {
                         <tr>
                           <td
@@ -258,10 +268,27 @@ import { ApiService, User } from './api.service';
                         </tr>
                       }
                     }
-                  } @else {
+                  } @else if(usersByPage.isLoading()) {
                     <tr>
                       <td colspan="5" style="text-align: center; padding: 32px">
                         Loading...
+                      </td>
+                    </tr>
+                  } @else {
+                    <tr>
+                      <td
+                        colspan="5"
+                        style="text-align: center; padding: 32px"
+                      >
+                        @for(exception of usersByPage.exceptions()?.list; track exception.code) {
+                          @let code = exception.code;
+                          @switch (code) {
+                            @case('HttpError') {
+                              <div>An error occurred while fetching users.</div>
+                            }
+                            @default never;
+                          }
+                        }
                       </td>
                     </tr>
                   }
@@ -374,8 +401,6 @@ export default class FullDemo {
     loader: async ({ params: user }) => this.apiService.updateItem(user),
   });
 
-  // todo expose handle all exceptions in the template
-  // todo if there is an exception, the status is not updated to error / fallback won't be triggered
   private readonly usersQuery = query(
     {
       params: this.pagination,
@@ -448,21 +473,30 @@ export default class FullDemo {
     }),
   );
 
+  tl = this.usersQuery.exceptions().list;
+
   private readonly currentUsersPageResource = computed(() => {
     const currentIdentifier = this.usersQuery.currentIdentifier();
     if (!currentIdentifier) {
       return undefined;
     }
 
-    return this.usersQuery._resourceById()[currentIdentifier];
+    return this.usersQuery.select(currentIdentifier);
   });
 
   protected readonly usersByPage = state(
-    computed(() => this.currentUsersPageResource()?.safeValue() ?? []),
+    computed(() => this.usersQuery.currentPageData() ?? []),
     () => ({
-      status: computed(
-        () => this.currentUsersPageResource()?.status() ?? ('idle' as const),
+      status: computed(() =>
+        this.currentUsersPageResource()?.hasException()
+          ? 'exception'
+          : (this.currentUsersPageResource()?.status() ?? 'idle'),
       ),
+      isLoading: computed(
+        () => this.currentUsersPageResource()?.isLoading() ?? false,
+      ),
+      exceptions: computed(() => this.currentUsersPageResource()?.exceptions()),
+      displayUsers: computed(() => !!this.usersQuery.currentPageData()?.length),
     }),
     insertForm(
       { identifier: ({ item: { id } }) => id },
