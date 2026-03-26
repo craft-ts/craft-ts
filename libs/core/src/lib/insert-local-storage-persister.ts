@@ -243,17 +243,7 @@ export function insertLocalStoragePersister<
    */
   cacheTime?: CacheTime;
 }) {
-  return (
-    context:
-      | InsertionResourceFactoryContext<
-          GroupIdentifier,
-          ResourceState,
-          ResourceParams,
-          QueryExceptions,
-          PreviousInsertionsOutputs
-        >
-      | InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>,
-  ) => {
+  return (_context: unknown) => {
     type ResourceByIdContext = InsertionByIdParams<
       GroupIdentifier,
       ResourceState,
@@ -267,6 +257,15 @@ export function insertLocalStoragePersister<
       QueryExceptions,
       PreviousInsertionsOutputs
     >;
+    const context = _context as
+      | InsertionResourceFactoryContext<
+          GroupIdentifier,
+          ResourceState,
+          ResourceParams,
+          QueryExceptions,
+          PreviousInsertionsOutputs
+        >
+      | InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>;
     const persister = localStoragePersister(config.storeName);
     const hasResourceById = 'resourceById' in context;
     const hasState = 'state' in context && !('resource' in context);
