@@ -302,8 +302,9 @@ function createInsertSelectFormTreePropertyRuntime(
     decorateFormTreeWithInsertions({
       formRef: propertyForm as FieldTree<unknown, string | number>,
       schemaPath:
-        ((context.schemaPath as Record<string, unknown>)[propertyKey] as never) ??
-        (context.schemaPath as never),
+        ((context.schemaPath as Record<string, unknown>)[
+          propertyKey
+        ] as never) ?? (context.schemaPath as never),
       formInsertions: propertyInsertions,
       state: propertyState,
       validatorModelRef: propertyValidatorModelRef,

@@ -19,14 +19,10 @@
 - [ ] Rename craftException to cException
 - [ ] Create a insertContract similar to a class to implement an interface, also add an helper with a proxy to mock the data ?
 - ajouter inject service à la doc
+- Update craftInject to enable similar behavior to injectService
 
 - forms:
   - Gérer les appels async des valdiateurs en parallèle
-  - vérifier l'état du form si des validateurs sont en pending
-  - ajouter un état submitted ou autre qui signifie que le user a essayé de submit le form (pour afficher les erreurs seulement après) et exposer un expcetion submittedOrDirty
   - login form exemple, expliquer comment trigger une exception au submit et debounce les erreurs
-  - il faut vraiment que les validateurs comme cRequired appellent les originaux pour mettre à jour le html avec le bon tag et ajouter testes
-  - ajouter des insertions à insertForm
-  - supprimer modalValidatorRef
   - afficher erreur si form submit mutation n'a pas la même payload que le form value
   - on ne peut pas utilise formRoot pour la soumission, créer une directive alternative ?

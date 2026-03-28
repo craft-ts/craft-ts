@@ -116,12 +116,8 @@ function readValueAtPath(value: unknown, path: readonly LazyPathSegment[]) {
 function createSubmissionController<Model>() {
   const hasAttemptedSubmit = signal(false);
   const submitting = signal(false);
-  let submitState:
-    | Pick<WritableSignal<boolean>, 'set'>
-    | undefined;
-  let originalReset:
-    | ((...args: unknown[]) => unknown)
-    | undefined;
+  let submitState: Pick<WritableSignal<boolean>, 'set'> | undefined;
+  let originalReset: ((...args: unknown[]) => unknown) | undefined;
 
   return {
     hasAttemptedSubmit: hasAttemptedSubmit.asReadonly(),
@@ -230,7 +226,9 @@ function createLazyFormTree<Model>(options: {
         | {
             logicNode?: {
               logic: {
-                hidden: { push: (logic: (context: unknown) => unknown) => void };
+                hidden: {
+                  push: (logic: (context: unknown) => unknown) => void;
+                };
                 disabledReasons: {
                   push: (logic: (context: unknown) => unknown) => void;
                 };
@@ -284,158 +282,155 @@ function createLazyFormTree<Model>(options: {
       return stateProxyCache.get(pathKey)!;
     }
 
-    const stateProxy = new Proxy(
-      {} as Record<string, unknown>,
-      {
-        get: (_target, property) => {
-          if (typeof property !== 'string') {
-            return undefined;
-          }
+    const stateProxy = new Proxy({} as Record<string, unknown>, {
+      get: (_target, property) => {
+        if (typeof property !== 'string') {
+          return undefined;
+        }
 
-          const extraValue = getExtras(path)[property];
-          if (extraValue !== undefined) {
-            return extraValue;
-          }
+        const extraValue = getExtras(path)[property];
+        if (extraValue !== undefined) {
+          return extraValue;
+        }
 
-          if (property === 'value') {
-            return () => readValueAtPath(options.model(), path);
-          }
+        if (property === 'value') {
+          return () => readValueAtPath(options.model(), path);
+        }
 
-          if (property === 'submitting') {
-            return options.submitting;
-          }
+        if (property === 'submitting') {
+          return options.submitting;
+        }
 
-          if (property === 'hasAttemptedSubmit') {
-            return options.hasAttemptedSubmit;
-          }
+        if (property === 'hasAttemptedSubmit') {
+          return options.hasAttemptedSubmit;
+        }
 
-          if (property === 'logicNode') {
-            const store = getLogicStore(path);
-            const pushBufferedLogic = (
-              kind:
-                | 'hidden'
-                | 'disabledReasons'
-                | 'readonly'
-                | 'syncErrors'
-                | 'asyncErrors',
-              logic: (context: unknown) => unknown,
-            ) => {
-              const actualState = resolveActualState(path) as
-                | {
-                    logicNode?: {
-                      logic: Record<
-                        typeof kind,
-                        { push: (value: (context: unknown) => unknown) => void }
-                      >;
-                    };
-                  }
-                | undefined;
+        if (property === 'logicNode') {
+          const store = getLogicStore(path);
+          const pushBufferedLogic = (
+            kind:
+              | 'hidden'
+              | 'disabledReasons'
+              | 'readonly'
+              | 'syncErrors'
+              | 'asyncErrors',
+            logic: (context: unknown) => unknown,
+          ) => {
+            const actualState = resolveActualState(path) as
+              | {
+                  logicNode?: {
+                    logic: Record<
+                      typeof kind,
+                      { push: (value: (context: unknown) => unknown) => void }
+                    >;
+                  };
+                }
+              | undefined;
 
-              if (actualState?.logicNode) {
-                actualState.logicNode.logic[kind].push(logic);
-                return;
-              }
+            if (actualState?.logicNode) {
+              actualState.logicNode.logic[kind].push(logic);
+              return;
+            }
 
-              store[kind].push(logic);
-            };
+            store[kind].push(logic);
+          };
 
-            return {
-              logic: {
-                hidden: {
-                  push: (logic: (context: unknown) => unknown) =>
-                    pushBufferedLogic('hidden', logic),
-                },
-                disabledReasons: {
-                  push: (logic: (context: unknown) => unknown) =>
-                    pushBufferedLogic('disabledReasons', logic),
-                },
-                readonly: {
-                  push: (logic: (context: unknown) => unknown) =>
-                    pushBufferedLogic('readonly', logic),
-                },
-                syncErrors: {
-                  push: (logic: (context: unknown) => unknown) =>
-                    pushBufferedLogic('syncErrors', logic),
-                },
-                asyncErrors: {
-                  push: (logic: (context: unknown) => unknown) =>
-                    pushBufferedLogic('asyncErrors', logic),
-                },
-                getMetadata: (key: unknown) => ({
-                  push: (logic: () => unknown) => {
-                    const actualState = resolveActualState(path) as
-                      | {
-                          logicNode?: {
-                            logic: {
-                              getMetadata: (metadataKey: unknown) => {
-                                push: (value: () => unknown) => void;
-                              };
+          return {
+            logic: {
+              hidden: {
+                push: (logic: (context: unknown) => unknown) =>
+                  pushBufferedLogic('hidden', logic),
+              },
+              disabledReasons: {
+                push: (logic: (context: unknown) => unknown) =>
+                  pushBufferedLogic('disabledReasons', logic),
+              },
+              readonly: {
+                push: (logic: (context: unknown) => unknown) =>
+                  pushBufferedLogic('readonly', logic),
+              },
+              syncErrors: {
+                push: (logic: (context: unknown) => unknown) =>
+                  pushBufferedLogic('syncErrors', logic),
+              },
+              asyncErrors: {
+                push: (logic: (context: unknown) => unknown) =>
+                  pushBufferedLogic('asyncErrors', logic),
+              },
+              getMetadata: (key: unknown) => ({
+                push: (logic: () => unknown) => {
+                  const actualState = resolveActualState(path) as
+                    | {
+                        logicNode?: {
+                          logic: {
+                            getMetadata: (metadataKey: unknown) => {
+                              push: (value: () => unknown) => void;
                             };
                           };
-                        }
-                      | undefined;
+                        };
+                      }
+                    | undefined;
 
-                    if (actualState?.logicNode) {
-                      actualState.logicNode.logic.getMetadata(key).push(logic);
-                      return;
-                    }
+                  if (actualState?.logicNode) {
+                    actualState.logicNode.logic.getMetadata(key).push(logic);
+                    return;
+                  }
 
-                    const metadataEntries = store.metadata.get(key) ?? [];
-                    metadataEntries.push(logic);
-                    store.metadata.set(key, metadataEntries);
-                  },
-                }),
-              },
-            };
+                  const metadataEntries = store.metadata.get(key) ?? [];
+                  metadataEntries.push(logic);
+                  store.metadata.set(key, metadataEntries);
+                },
+              }),
+            },
+          };
+        }
+
+        const actualState = resolveActualState(path) as
+          | Record<string, unknown>
+          | undefined;
+        const actualValue = actualState?.[property];
+        if (actualValue !== undefined) {
+          if (typeof actualValue === 'function') {
+            if (isSignal(actualValue)) {
+              return actualValue;
+            }
+
+            return (...args: unknown[]) =>
+              (actualValue as (...args: unknown[]) => unknown).apply(
+                actualState,
+                args,
+              );
           }
 
-          const actualState = resolveActualState(path) as
+          return actualValue;
+        }
+
+        if (booleanSignalFallbacks.has(property)) {
+          return () => booleanSignalFallbacks.get(property);
+        }
+
+        return (...args: unknown[]) => {
+          const nextActualState = resolveActualState(path) as
             | Record<string, unknown>
             | undefined;
-          const actualValue = actualState?.[property];
-          if (actualValue !== undefined) {
-            if (typeof actualValue === 'function') {
-              if (isSignal(actualValue)) {
-                return actualValue;
-              }
+          const nextActualValue = nextActualState?.[property];
 
-              return (...args: unknown[]) =>
-                (actualValue as (...args: unknown[]) => unknown).apply(
-                  actualState,
-                  args,
-                );
-            }
-
-            return actualValue;
+          if (typeof nextActualValue === 'function') {
+            return nextActualValue.apply(nextActualState, args);
           }
 
-          if (booleanSignalFallbacks.has(property)) {
-            return () => booleanSignalFallbacks.get(property);
-          }
-
-          return (...args: unknown[]) => {
-            const nextActualState = resolveActualState(path) as
-              | Record<string, unknown>
-              | undefined;
-            const nextActualValue = nextActualState?.[property];
-
-            if (typeof nextActualValue === 'function') {
-              return nextActualValue.apply(nextActualState, args);
-            }
-
-            return nextActualValue;
-          };
-        },
-        set: (_target, property, value) => {
-          if (typeof property !== 'string') {
-            return false;
-          }
-
-          getExtras(path)[property] = value;
-          return true;
-        },
+          return nextActualValue;
+        };
       },
-    );
+      set: (_target, property, value) => {
+        if (typeof property !== 'string') {
+          return false;
+        }
+
+        getExtras(path)[property] = value;
+        return true;
+      },
+    });
 
     stateProxyCache.set(pathKey, stateProxy);
     return stateProxy;
@@ -589,28 +584,32 @@ function createDynamicSignalForm<Model>({
       {
         provide: FORM_INSTANCE_TOKEN,
         useFactory: () => {
-          const { formRef, setSubmitting, rawInsertionsOutput, exposedInsertionsOutput } =
-            createConfiguredForm({
-              model,
-              formInsertions,
-              state: itemState,
-              validatorModelRef: model.asReadonly(),
-              set: (newState: Model) => setItem(formIdentifier, newState),
-              update: (updateFn: (currentState: Model) => Model) =>
-                updateItem(formIdentifier, updateFn),
-              patch: (patchFn: (currentState: Model) => Partial<Model>) =>
-                updateItem(
-                  formIdentifier,
-                  (current) =>
-                    ({
-                      ...(current as object),
-                      ...patchFn(current),
-                    }) as Model,
-                ),
-              inheritedInsertions,
-              injector,
-              formIdentifier,
-            });
+          const {
+            formRef,
+            setSubmitting,
+            rawInsertionsOutput,
+            exposedInsertionsOutput,
+          } = createConfiguredForm({
+            model,
+            formInsertions,
+            state: itemState,
+            validatorModelRef: model.asReadonly(),
+            set: (newState: Model) => setItem(formIdentifier, newState),
+            update: (updateFn: (currentState: Model) => Model) =>
+              updateItem(formIdentifier, updateFn),
+            patch: (patchFn: (currentState: Model) => Partial<Model>) =>
+              updateItem(
+                formIdentifier,
+                (current) =>
+                  ({
+                    ...(current as object),
+                    ...patchFn(current),
+                  }) as Model,
+              ),
+            inheritedInsertions,
+            injector,
+            formIdentifier,
+          });
 
           const extraFields = {
             ...exposedInsertionsOutput,
@@ -876,12 +875,7 @@ export function insertForm<
   >,
 ): InsertFormSimpleReturn<
   StateType,
-  Insertion1 &
-    Insertion2 &
-    Insertion3 &
-    Insertion4 &
-    Insertion5 &
-    Insertion6,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
   PreviousInsertionsOutputs
 >;
 export function insertForm<
@@ -1520,12 +1514,7 @@ export function insertForm<
   >,
 ): InsertFormParallelReturn<
   StateType,
-  Insertion1 &
-    Insertion2 &
-    Insertion3 &
-    Insertion4 &
-    Insertion5 &
-    Insertion6,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
   PreviousInsertionsOutputs
 >;
 export function insertForm<

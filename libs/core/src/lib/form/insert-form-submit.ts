@@ -277,9 +277,6 @@ type ToSubmitExceptions<
       undefined
     >;
 
-/**
- * For now, only compatible with mutation that accept a method
- */
 export function insertFormSubmit<
   FormValue,
   MutationValue,

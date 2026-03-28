@@ -3,6 +3,7 @@ import { Component, computed, effect, signal } from '@angular/core';
 import { FormField } from '@angular/forms/signals';
 import {
   cAsyncValidate,
+  cEmail,
   craft,
   craftException,
   craftQueryParams,
@@ -180,4 +181,30 @@ export default class TestComponent {
   );
 
   shouldFail = signal(false);
+}
+
+function t() {
+  const userFormState = state(
+    { name: '', email: '' },
+    insertForm(
+      insertSelectFormTree(
+        'name',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({
+          validators: [cRequired()],
+        })),
+      ),
+      insertSelectFormTree(
+        'email',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({
+          validators: [cRequired(), cEmail()],
+        })),
+      ),
+    ),
+  );
+
+  const form = userFormState.form();
+  const nameField = form.selectName();
+  const emailField = form.selectEmail();
 }

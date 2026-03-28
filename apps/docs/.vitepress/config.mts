@@ -58,6 +58,10 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Forms',
+        items: [{ text: 'Overview', link: '/forms/index' }],
+      },
+      {
         text: 'Store',
         items: [
           { text: 'craft', link: '/store/craft' },

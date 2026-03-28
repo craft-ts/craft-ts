@@ -1,5 +1,5 @@
 ---
-title: "@craft-ng: composer des logiques d'etat complexes sans sacrifier la type-safety"
+title: "@craft-ng: composer des logiques d'état complexes sans sacrifier la type-safety"
 published: false
 description: 'Un tour complet des primitives, insertions et sources de @craft-ng pour ecrire un code composable, declaratif et reactif en Angular.'
 tags: angular, typescript, signals, state
@@ -15,48 +15,46 @@ Quand je construis une feature Angular un peu serieuse, je veux toujours la meme
 
 C'est exactement l'objectif de @craft-ng.
 
-Une lib complete pour gerer tous les types d'etat d'une application:
+Une lib complète pour gérer tous les types d'état d'une application:
 
-- **client state**: etats locaux, listes, UI, selection...
+- **client state**: états locaux, listes, UI, selection...
 - **server state**: chargement, cache, mutation, pagination, optimistic update...
 - **URL state**: query params synchronises, type-safe, avec fallback
 
-Pour i states les plus complexes, des insertions pretes a l'emploi pour se rendre la vie plus facile.
+Pour les states les plus complexes, des insertions prêtes à l'emploi pour se rendre la vie plus facile.
 
-Qu'ils soient simples ou complexes, le principe reste toujours le meme.
+Qu'ils soient simples ou complexes, le principe reste toujours le même.
 
-L'idee n'est pas de reinventer un store monolithique de plus.
-L'idee, c'est que la logique est portee par des **primitives declaratives et reactives**, que tu peux assembler, enrichir et composer sans casser ce qui existe.
+L'idée n'est pas de réinventer un store monolithique de plus.
+L'idée, c'est que la logique est portée par des **primitives déclaratives et réactives**, que tu peux assembler, enrichir et composer.
 
-Ces primitives peuvent etre utilisees:
+Ces primitives peuvent être utilisées:
 
-1. **directement dans les composants** — elles se lient automatiquement aux cycles de vie Angular. De mon point de vue, le composant n'est pas la pour gerer la logique, mais pour aider a l'orchestrer.
-2. **dans des services Angular** — pour profiter des mecanismes d'injection et de partage qu'on connait deja.
-3. **dans un store craft** — pour aller plus loin et gerer l'orchestration a un niveau superieur, tout en beneficiant des memes principes de composition.
+1. **directement dans les composants** — elles se lient automatiquement aux cycles de vie Angular. De mon point de vue, le composant n'est pas là pour gérer la logique, mais pour aider à l'orchestrer.
+2. **dans des services Angular** — pour profiter des mécanismes d'injection et de partage qu'on connaît déjà.
+3. **dans un store craft** — pour aller plus loin et gérer l'orchestration à un niveau supérieur, tout en bénéficiant des mêmes principes de composition.
 
 Dans cet article, je vais:
 
-- presenter la structure commune des primitives
-- montrer comment exposer méthodes et etat derives via les insertions
+- présenter la structure commune des primitives
+- montrer comment exposer méthodes et état dérivés via les insertions
 - donner un exemple concret pour chaque primitive
 - faire un tour rapide des insertions utiles
-- expliquer pourquoi source$ change vraiment la facon de structurer le state
+- expliquer pourquoi source$ change vraiment la façon de structurer le state
 - terminer avec injectService et le store craft
 
 > ⚠️ **@craft-ng est une librairie experimentale.** Je ne recommande pas de l'utiliser en production pour le moment. Cet article est avant tout un partage des concepts.
 
 ## 1) Une structure commune a toutes les primitives
 
-Que tu utilises state, query, mutation, asyncProcess ou queryParam, la logique de composition reste la meme:
+Que tu utilises state, query, mutation, asyncProcess ou queryParam, la logique de composition reste la même:
 
 1. une configuration de base
-2. des insertions pour exposer des méthodes / des etats derives
+2. des insertions pour exposer des méthodes / des états derives
 
 ![Structure commune des primitives](./assets/01-structure-primitives.png)
 
-Ce point est cle: tu n'apprends pas 5 APIs differentes, tu apprends un modele mental unique.
-
-// todo on récupère les insertions précédentes ?
+Ce point est clé: tu n'apprends pas 5 APIs différentes, tu apprends un modèle mental unique.
 
 ## 2) Les primitives: fonctionnement + exemples concrets
 
@@ -64,16 +62,15 @@ Dans la pratique, chaque primtive apporte ses fonctionnalités qui lui sont prop
 
 ### state
 
-state gere le client state synchrone.
-C'est la base pour modeler un etat local, l'etendre, puis le specialiser.
+state gère le client state synchrone.
+C'est la base pour modeler un état local, l'étendre, puis le spécialiser.
 
-Avec insertSelect (disponible dans la prochaine version) et insertEntities, on garde une responsabilite claire par zone d'etat, meme avec des objets imbriqués.
+Avec insertSelect, permet d'accéder et de gérer la logique au plus proche de la cible.
 
 ![state avec insertSelect et insertEntities](./assets/02-state-insert-select-entities.png)
 
 Ce que j'aime ici:
 
-- l'etat reste granulaire
 - les méthodes suivent la structure du state
 - la lecture du code reste directe
 
@@ -103,7 +100,7 @@ La version source$ est tres pratique quand tu veux un flux event-driven.
 
 ![mutation pilotee par source$](./assets/04-mutation-source.png)
 
-> On peut aussi les appeler en parallele, avec des identifiers, pour gerer des cas plus complexes (ex: plusieurs mutations de suppression dans une liste).
+> On peut aussi les appeler en parallele, avec des identifiers, pour gérer des cas plus complexes (ex: plusieurs mutations de suppression dans une liste).
 
 ### query
 
@@ -125,7 +122,7 @@ asyncProcess est ideal pour des traitements async qui ne sont pas strictement de
 
 ### queryParam
 
-queryParam synchronise l'etat avec l'URL, tout en restant type-safe (parse/serialize/fallback).
+queryParam synchronise l'état avec l'URL, tout en restant type-safe (parse/serialize/fallback).
 
 ![queryParam type-safe](./assets/06-query-param.png)
 
@@ -140,7 +137,7 @@ Si tu veux voir des versions plus completes des patterns presentes ici, je te co
 
 Ces exemples m'ont servi de base pour structurer les snippets de cet article.
 
-## 3) Exposer méthodes et etat derive avec les insertions
+## 3) Exposer méthodes et état derive avec les insertions
 
 Tu peux partir simple, puis enrichir sans casser le contrat initial.
 
@@ -192,7 +189,7 @@ Pour synchroniser automatiquement le cache query avec le resultat d'une mutation
 ### insertLocalStoragePersister (state/query/mutation/asyncProcess)
 
 Pour persister et rehydrater automatiquement avec localStorage.
-Tres utile pour garder l'etat entre sessions.
+Tres utile pour garder l'état entre sessions.
 
 ### insertEntities
 
@@ -200,7 +197,7 @@ Pour manipuler des collections avec des utilitaires prets a l'emploi (add, set, 
 
 ### insertSelect
 
-Pour cibler un sous-arbre d'etat et exposer des méthodes/derives au bon endroit.
+Pour cibler un sous-arbre d'état et exposer des méthodes/derives au bon endroit.
 Hyper utile sur des structures imbriquées. (Prochainement disponible)
 
 ## 5) Pourquoi source$ est un vrai levier d'architecture

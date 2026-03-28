@@ -432,11 +432,9 @@ describe('insertForm', () => {
           name: 'romain',
           password: 'secret',
         } satisfies LoginData,
-        insertForm(({ form, setSubmitting }) => {
-          const reset = form().reset.bind(form());
+        insertForm(({ setSubmitting }) => {
           return {
             setSubmitting,
-            reset,
           };
         }),
       );
@@ -525,28 +523,32 @@ describe('insertForm', () => {
     });
   });
 
-  it('should expose formTree externally', () => {
-    const myState = state(
-      {
-        id: 1,
-        name: '1',
-        password: '',
-      },
-      insertForm(),
-    );
-    expect(myState.form.password).toBeDefined();
-
-    const forms = state(
-      [
+  it('should expose formTree externally', async () => {
+    const forms = await TestBed.runInInjectionContext(async () => {
+      const myState = state(
         {
           id: 1,
           name: '1',
           password: '',
         },
-      ],
-      insertForm({ identifier: ({ item }) => item.id }),
-    );
-    expect(forms.select('1').password).toBeDefined();
+        insertForm(),
+      );
+      expect(myState.form.password).toBeDefined();
+
+      return state(
+        [
+          {
+            id: 1,
+            name: '1',
+            password: 'myPassword',
+          },
+        ],
+        insertForm({ identifier: ({ item }) => item.id }),
+      );
+    });
+
+    expect(forms.select(1)).toBeDefined();
+    expect(forms.select(1).password).toBeDefined();
   });
 
   it('should map insertion exceptions to form exception helpers', () => {

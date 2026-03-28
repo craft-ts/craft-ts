@@ -1413,23 +1413,6 @@ export function cValidate<
 export const cValidator = cValidate;
 
 export function cAsyncValidate<
-  /**
-   * Creates an async validator with resource reference integration.
-   *
-   * @example
-   * ```typescript
-   * const validator = cAsyncValidate(userResource, {
-   *   validate: (value) => validateUserEmail(value),
-   *   onSuccess: (result) => handleSuccess(result),
-   *   onError: (error) => handleError(error),
-   * });
-   * ```
-   *
-   * @internal
-   * @deprecated This API is still under active development and does not works correctly in all cases.
-   *
-   * @see {@link createCustomAsyncValidator}
-   */
   TValue,
   TResourceRef extends AnyAsyncCraftResourceRef,
   const Name extends string,
