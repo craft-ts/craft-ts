@@ -1,4 +1,4 @@
-import { computed, Signal } from '@angular/core';
+import { computed, type ResourceRef, Signal } from '@angular/core';
 import {
   email,
   emailError,
@@ -6,18 +6,30 @@ import {
   maxLength,
   min,
   minLength,
+  type PathKind,
   pattern,
   required,
-  validate,
-  type PathKind,
   type SchemaPath,
   SchemaPathRules,
+  validate,
+  validateAsync,
   type ValidationError,
 } from '@angular/forms/signals';
 import {
-  CraftExceptionResult,
+  AnyCraftException,
   CRAFT_EXCEPTION_SYMBOL,
+  CraftExceptionResult,
+  ExcludeByCode,
+  ExtractCodeFromCraftResultUnion,
+  isCraftException,
 } from '../craft-exception';
+import {
+  ResourceByIdLikeMutationRef,
+  ResourceLikeMutationRef,
+} from '../mutation';
+import { ResourceByIdLikeQueryRef, ResourceLikeQueryRef } from '../query';
+import { ResourceExceptionConstraints } from '../query.core';
+import { MergeObjects } from '../util/util.type';
 export const VALIDATOR_OUTPUT_SYMBOL = Symbol('VALIDATOR_OUTPUT_SYMBOL');
 
 export type ValidatorType = 'sync' | 'async';
@@ -39,21 +51,41 @@ export type ValidatorSuccess<
   valid: true;
 } & ValidatorUtilBrand<Name, Type, Meta>;
 
+export type ValidatorPending<
+  Name extends string,
+  Type extends ValidatorType = 'async',
+  Meta extends object = {},
+> = {
+  valid: false;
+} & ValidatorUtilBrand<Name, Type, Meta>;
+
 type ValidatorExceptionOutput<
   Name extends string,
   Exceptions,
   Type extends ValidatorType,
   Meta extends object,
-> = Exceptions extends undefined
-  ? never
-  : Exceptions & ValidatorUtilBrand<Name, Type, Meta>;
+> =
+  Exclude<Exceptions, undefined> extends never
+    ? never
+    :
+        | (Exclude<Exceptions, undefined> &
+            ValidatorUtilBrand<Name, Type, Meta>)
+        | ((
+            | Exclude<Exceptions, undefined>[]
+            | readonly Exclude<Exceptions, undefined>[]
+          ) &
+            ValidatorUtilBrand<Name, Type, Meta>);
 
 type DirectValidatorExecutionOutput<
   Name extends string,
   Exceptions,
   Type extends ValidatorType,
   Meta extends object,
-> = undefined | ValidatorExceptionOutput<Name, Exceptions, Type, Meta>;
+> =
+  | undefined
+  | ValidatorSuccess<Name, Type, Meta>
+  | ValidatorPending<Name, Type, Meta>
+  | ValidatorExceptionOutput<Name, Exceptions, Type, Meta>;
 
 type ValidatorRuntimeKind = 'signal';
 
@@ -222,7 +254,250 @@ type CValidateSyncConfig<
   | CValidateAdvancedSyncConfig<TValue, Name, Exceptions, Identifier, TPathKind>
   | CValidateSimpleSyncConfig<TValue, Name, Exceptions, Identifier, TPathKind>;
 
+type AnyAsyncCraftResourceRef =
+  | ResourceLikeQueryRef<any, any, any, any, any, any, any>
+  | ResourceByIdLikeQueryRef<any, any, any, any, any, any, any, any>
+  | ResourceLikeMutationRef<any, any, any, any, any, any, any>
+  | ResourceByIdLikeMutationRef<any, any, any, any, any, any, any, any>;
+
+type AsyncValidatorRequest<TResourceRef extends AnyAsyncCraftResourceRef> =
+  TResourceRef extends ResourceLikeQueryRef<
+    any,
+    infer Params,
+    infer IsMethod,
+    infer ArgParams,
+    any,
+    any,
+    any
+  >
+    ? IsMethod extends true
+      ? ArgParams
+      : Params
+    : TResourceRef extends ResourceByIdLikeQueryRef<
+          any,
+          infer Params,
+          infer IsMethod,
+          infer ArgParams,
+          any,
+          any,
+          any,
+          any
+        >
+      ? IsMethod extends true
+        ? ArgParams
+        : Params
+      : TResourceRef extends ResourceLikeMutationRef<
+            any,
+            infer Params,
+            infer IsMethod,
+            infer ArgParams,
+            any,
+            any,
+            any
+          >
+        ? IsMethod extends true
+          ? ArgParams
+          : Params
+        : TResourceRef extends ResourceByIdLikeMutationRef<
+              any,
+              infer Params,
+              infer IsMethod,
+              infer ArgParams,
+              any,
+              any,
+              any,
+              any
+            >
+          ? IsMethod extends true
+            ? ArgParams
+            : Params
+          : never;
+
+type AsyncValidatorResourceTarget<TResourceRef> = TResourceRef extends {
+  select: (...args: any[]) => infer SelectedResource;
+}
+  ? NonNullable<SelectedResource>
+  : TResourceRef;
+
+type AsyncValidatorResourceIdentifier<TResourceRef> =
+  TResourceRef extends ResourceByIdLikeQueryRef<
+    any,
+    any,
+    any,
+    any,
+    any,
+    any,
+    infer Identifier,
+    any
+  >
+    ? Identifier
+    : TResourceRef extends ResourceByIdLikeMutationRef<
+          any,
+          any,
+          any,
+          any,
+          any,
+          any,
+          infer Identifier,
+          any
+        >
+      ? Identifier
+      : unknown;
+
+type AsyncValidatorResourceExceptionUnion<TResource> = TResource extends {
+  exceptions: Signal<{ list: (infer Exception)[] }>;
+}
+  ? Exception
+  : never;
+
+type ExtractValidatorExceptionItems<T> = T extends readonly (infer Item)[]
+  ? Item
+  : T;
+
+type AsyncValidatorContext<
+  TValue,
+  TResourceRef extends AnyAsyncCraftResourceRef,
+  Identifier = unknown,
+  TPathKind extends PathKind = PathKind.Root,
+  TResource = AsyncValidatorResourceTarget<TResourceRef>,
+  ResourceExceptions = AsyncValidatorResourceExceptionUnion<TResource>,
+  ResourceExceptionCodes = ExtractCodeFromCraftResultUnion<ResourceExceptions>,
+> = ValidatorBindingContext<TValue, Identifier, TPathKind> & {
+  validateAsyncCraftResource: TResource;
+  omitExceptions: <C extends ResourceExceptionCodes>(
+    codes: readonly C[],
+  ) => ExcludeByCode<ResourceExceptions, C>[];
+};
+
+type IsValidAsyncExceptions<T> = [unknown] extends [T]
+  ? true
+  : NonNullable<T> extends AnyCraftException
+    ? true
+    : NonNullable<T> extends readonly (infer Item)[]
+      ? Item extends AnyCraftException
+        ? true
+        : false
+      : false;
+
+type HasValidAsyncExceptionReturn<
+  SuccessExceptions,
+  ErrorExceptions,
+  ExceptionExceptions,
+> =
+  IsValidAsyncExceptions<SuccessExceptions> extends true
+    ? IsValidAsyncExceptions<ErrorExceptions> extends true
+      ? IsValidAsyncExceptions<ExceptionExceptions> extends true
+        ? true
+        : {
+            success: true;
+            error: true;
+            exceptions: false;
+          }
+      : {
+          success: true;
+          error: false;
+          exceptions: IsValidAsyncExceptions<ExceptionExceptions>;
+        }
+    : {
+        success: false;
+        error: IsValidAsyncExceptions<ErrorExceptions>;
+        exceptions: IsValidAsyncExceptions<ExceptionExceptions>;
+      };
+
+type ValidationDetails = {
+  success: boolean;
+  error: boolean;
+  exceptions: boolean;
+};
+
+type InvalidAsyncExceptionsMessage<T> = T extends true
+  ? never
+  : T extends ValidationDetails
+    ? `Not valid ${
+        | (T['success'] extends false ? 'exceptionsOnSuccess callback' : never)
+        | (T['error'] extends false ? 'error callback' : never)
+        | (T['exceptions'] extends false ? 'onException callback' : never)}`
+    : never;
+
+type CAsyncValidateConfig<
+  TValue,
+  Name extends string,
+  TResourceRef extends AnyAsyncCraftResourceRef,
+  SuccessExceptions,
+  ErrorExceptions,
+  ExceptionExceptions,
+  Identifier = unknown,
+  TPathKind extends PathKind = PathKind.Root,
+> = MergeObjects<
+  [
+    ValidatorConfig & {
+      name: Name;
+      isValidSuccess?: (
+        context: AsyncValidatorContext<
+          TValue,
+          TResourceRef,
+          Identifier,
+          TPathKind
+        >,
+      ) => boolean;
+      exceptionsOnSuccess?: (
+        context: AsyncValidatorContext<
+          TValue,
+          TResourceRef,
+          Identifier,
+          TPathKind
+        >,
+      ) => SuccessExceptions;
+      error?: (
+        context: AsyncValidatorContext<
+          TValue,
+          TResourceRef,
+          Identifier,
+          TPathKind
+        >,
+      ) => ErrorExceptions;
+      onException?: (
+        context: AsyncValidatorContext<
+          TValue,
+          TResourceRef,
+          Identifier,
+          TPathKind
+        >,
+      ) => ExceptionExceptions;
+    },
+    HasValidAsyncExceptionReturn<
+      SuccessExceptions,
+      ErrorExceptions,
+      ExceptionExceptions
+    > extends true
+      ? {}
+      : {
+          typingError: `cAsyncValidate callbacks must only return Craft exceptions, arrays of Craft exceptions, or undefined. ${InvalidAsyncExceptionsMessage<HasValidAsyncExceptionReturn<SuccessExceptions, ErrorExceptions, ExceptionExceptions>>}`;
+        },
+  ]
+>;
+
+type ToAsyncValidatorExceptions<
+  ResourceExceptions,
+  SuccessExceptions,
+  ErrorExceptions,
+  ExceptionExceptions,
+> = [unknown] extends [ExceptionExceptions]
+  ? Exclude<
+      | ResourceExceptions
+      | ExtractValidatorExceptionItems<SuccessExceptions>
+      | ExtractValidatorExceptionItems<ErrorExceptions>,
+      undefined
+    >
+  : Exclude<
+      | ExtractValidatorExceptionItems<SuccessExceptions>
+      | ExtractValidatorExceptionItems<ErrorExceptions>
+      | ExtractValidatorExceptionItems<ExceptionExceptions>,
+      undefined
+    >;
+
 const SYNC_VALIDATOR_TYPE = 'sync' as const;
+const ASYNC_VALIDATOR_TYPE = 'async' as const;
 let customValidatorKindId = 0;
 
 function resolveValidatorOption<TValue>(
@@ -237,6 +512,113 @@ function resolveValidatorOption<TValue>(
 
 function shouldValidate(when?: ValidatorOption<boolean>): boolean {
   return when ? resolveValidatorOption(when) : true;
+}
+
+function createValidatorPending<
+  const Name extends string,
+  const Type extends ValidatorType,
+  Meta extends object = {},
+>(brand: Name, type: Type, meta?: Meta): ValidatorPending<Name, Type, Meta> {
+  return Object.assign(
+    {
+      valid: false,
+    },
+    meta ?? {},
+    {
+      __brand: brand,
+      type,
+    },
+  ) as ValidatorPending<Name, Type, Meta>;
+}
+
+type NormalizedCraftExceptionOutput = {
+  raw: AnyCraftException | AnyCraftException[];
+  list: AnyCraftException[];
+};
+
+function normalizeCraftExceptionOutput(
+  value: unknown,
+): NormalizedCraftExceptionOutput | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    const list = value.filter(isCraftException);
+
+    return {
+      raw: list,
+      list,
+    };
+  }
+
+  if (!isCraftException(value)) {
+    return undefined;
+  }
+
+  return {
+    raw: value,
+    list: [value],
+  };
+}
+
+function hasResourceExceptions(value: unknown): boolean {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'hasException' in value &&
+    typeof (value as { hasException?: unknown }).hasException === 'function'
+  ) {
+    return !!(value as { hasException: Signal<boolean> }).hasException();
+  }
+
+  return getResourceExceptionList(value).length > 0;
+}
+
+function getResourceExceptionList(value: unknown): AnyCraftException[] {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !('exceptions' in value) ||
+    typeof (value as { exceptions?: unknown }).exceptions !== 'function'
+  ) {
+    return [];
+  }
+
+  const exceptionList = (
+    value as { exceptions: Signal<{ list?: unknown[] }> }
+  ).exceptions()?.list;
+
+  return Array.isArray(exceptionList)
+    ? exceptionList.filter(isCraftException)
+    : [];
+}
+
+function isResourceRefWithSelection(
+  value: AnyAsyncCraftResourceRef,
+): value is
+  | ResourceByIdLikeQueryRef<any, any, any, any, any, any, any, any>
+  | ResourceByIdLikeMutationRef<any, any, any, any, any, any, any, any> {
+  return 'select' in value && typeof value.select === 'function';
+}
+
+function resolveAsyncValidatorResourceTarget<
+  TResourceRef extends AnyAsyncCraftResourceRef,
+>(
+  resourceRef: TResourceRef,
+  identifier: AsyncValidatorResourceIdentifier<TResourceRef>,
+): AsyncValidatorResourceTarget<TResourceRef> | undefined {
+  if (!isResourceRefWithSelection(resourceRef)) {
+    return resourceRef as AsyncValidatorResourceTarget<TResourceRef>;
+  }
+
+  if (identifier === undefined || identifier === null) {
+    return undefined;
+  }
+
+  return resourceRef.select(
+    identifier as Parameters<typeof resourceRef.select>[0],
+  ) as AsyncValidatorResourceTarget<TResourceRef> | undefined;
 }
 
 function withValidatorBrand<
@@ -288,6 +670,7 @@ function createValidatorException<
   payload: Payload,
   meta?: Meta,
 ): ValidatorException<Code, Payload> & ValidatorUtilBrand<Name, Type, Meta> {
+  //@ts-expect-error I do not understand the error type 😅
   return withValidatorBrand(
     brand,
     type,
@@ -665,6 +1048,294 @@ function createCustomSyncValidator<
   );
 }
 
+function createCustomAsyncValidator<
+  TValue,
+  TResourceRef extends AnyAsyncCraftResourceRef,
+  Name extends string,
+  SuccessExceptions,
+  ErrorExceptions,
+  ExceptionExceptions,
+  Identifier = unknown,
+  TPathKind extends PathKind = PathKind.Root,
+>(
+  resourceRef: TResourceRef,
+  config: CAsyncValidateConfig<
+    TValue,
+    Name,
+    TResourceRef,
+    SuccessExceptions,
+    ErrorExceptions,
+    ExceptionExceptions,
+    Identifier,
+    TPathKind
+  >,
+): ValidatorOutput<
+  TValue,
+  Name,
+  ToAsyncValidatorExceptions<
+    AsyncValidatorResourceExceptionUnion<
+      AsyncValidatorResourceTarget<TResourceRef>
+    >,
+    SuccessExceptions,
+    ErrorExceptions,
+    ExceptionExceptions
+  >,
+  'async',
+  Identifier,
+  {},
+  TPathKind
+> {
+  const { name } = config;
+  const internalErrorKind = `ng-craft.cAsyncValidate.${name}.${++customValidatorKindId}`;
+
+  return createSignalValidator(
+    (bindingContext) => {
+      const validatorCraftResourceTarget = computed(() =>
+        bindingContext.identifier
+          ? (
+              resourceRef as ResourceByIdLikeMutationRef<
+                unknown,
+                unknown,
+                true,
+                unknown,
+                unknown,
+                unknown,
+                unknown,
+                ResourceExceptionConstraints
+              >
+            ).select(bindingContext.identifier)
+          : (resourceRef as ResourceLikeMutationRef<
+              unknown,
+              unknown,
+              true,
+              unknown,
+              unknown,
+              unknown,
+              ResourceExceptionConstraints
+            >),
+      );
+
+      const validateAsyncCraftResource = computed(() =>
+        resolveAsyncValidatorResourceTarget(
+          resourceRef,
+          bindingContext.identifier as AsyncValidatorResourceIdentifier<TResourceRef>,
+        ),
+      );
+      let currentRequestSignal:
+        | Signal<AsyncValidatorRequest<TResourceRef> | undefined>
+        | undefined;
+
+      const createAsyncContext = (
+        currentResource: AsyncValidatorResourceTarget<TResourceRef>,
+      ) => {
+        const resourceExceptions = getResourceExceptionList(
+          currentResource,
+        ) as AsyncValidatorResourceExceptionUnion<
+          AsyncValidatorResourceTarget<TResourceRef>
+        >[];
+
+        return {
+          ...bindingContext,
+          validateAsyncCraftResource: currentResource,
+          omitExceptions: (
+            codes: readonly ExtractCodeFromCraftResultUnion<
+              AsyncValidatorResourceExceptionUnion<
+                AsyncValidatorResourceTarget<TResourceRef>
+              >
+            >[],
+          ) =>
+            resourceExceptions.filter(
+              (exception) => !codes.includes(exception.code as never),
+            ) as ExcludeByCode<
+              AsyncValidatorResourceExceptionUnion<
+                AsyncValidatorResourceTarget<TResourceRef>
+              >,
+              ExtractCodeFromCraftResultUnion<
+                AsyncValidatorResourceExceptionUnion<
+                  AsyncValidatorResourceTarget<TResourceRef>
+                >
+              >
+            >[],
+        } as AsyncValidatorContext<TValue, TResourceRef, Identifier, TPathKind>;
+      };
+
+      const resolveSuccessResult = (
+        asyncContext: AsyncValidatorContext<
+          TValue,
+          TResourceRef,
+          Identifier,
+          TPathKind
+        >,
+      ) => {
+        const exceptions = normalizeCraftExceptionOutput(
+          config.exceptionsOnSuccess?.(asyncContext),
+        );
+        const valid = config.isValidSuccess?.(asyncContext) ?? true;
+
+        return {
+          exceptions,
+          invalid: !valid || !!exceptions?.list.length,
+        };
+      };
+
+      const resolveExceptionResult = (
+        asyncContext: AsyncValidatorContext<
+          TValue,
+          TResourceRef,
+          Identifier,
+          TPathKind
+        >,
+      ) => {
+        const resourceExceptions = normalizeCraftExceptionOutput(
+          getResourceExceptionList(asyncContext.validateAsyncCraftResource),
+        );
+        const override = normalizeCraftExceptionOutput(
+          config.onException?.(asyncContext),
+        );
+
+        return override ?? resourceExceptions;
+      };
+
+      const resolveErrorResult = (
+        asyncContext: AsyncValidatorContext<
+          TValue,
+          TResourceRef,
+          Identifier,
+          TPathKind
+        >,
+      ) => normalizeCraftExceptionOutput(config.error?.(asyncContext));
+
+      validateAsync(bindingContext.schemaPath, {
+        params: (fieldContext) => {
+          if (!shouldValidate(config.when)) {
+            return undefined;
+          }
+
+          return (
+            //@ts-ignore todo
+            config.params?.(fieldContext) ??
+            (fieldContext.value() as AsyncValidatorRequest<TResourceRef>)
+          );
+        },
+        factory: validatorCraftResourceTarget as unknown as () => ResourceRef<
+          unknown | undefined
+        >, // ! validatorCraftResourceTarget is a signal, but as the factory expect a function it may works
+        onSuccess: () => {
+          const currentResource = validateAsyncCraftResource();
+
+          if (!currentResource) {
+            return undefined;
+          }
+
+          const asyncContext = createAsyncContext(currentResource);
+
+          if (hasResourceExceptions(currentResource)) {
+            return resolveExceptionResult(asyncContext)?.list.length
+              ? { kind: internalErrorKind }
+              : undefined;
+          }
+
+          return resolveSuccessResult(asyncContext).invalid
+            ? { kind: internalErrorKind }
+            : undefined;
+        },
+        onError: () => {
+          const currentResource = validateAsyncCraftResource();
+
+          if (!currentResource) {
+            return undefined;
+          }
+
+          return resolveErrorResult(createAsyncContext(currentResource))?.list
+            .length
+            ? { kind: internalErrorKind }
+            : undefined;
+        },
+      });
+
+      return computed(() => {
+        if (currentRequestSignal?.() === undefined) {
+          return undefined;
+        }
+
+        const currentResource = validateAsyncCraftResource();
+
+        if (!currentResource || currentResource.isLoading()) {
+          return createValidatorPending(name, ASYNC_VALIDATOR_TYPE);
+        }
+
+        if (
+          !findValidationErrorByKind(bindingContext.errors(), internalErrorKind)
+        ) {
+          return undefined;
+        }
+
+        const asyncContext = createAsyncContext(currentResource);
+
+        if (hasResourceExceptions(currentResource)) {
+          const exceptionResult = resolveExceptionResult(asyncContext);
+
+          return exceptionResult
+            ? withValidatorBrand(
+                name,
+                ASYNC_VALIDATOR_TYPE,
+                exceptionResult.raw as ToAsyncValidatorExceptions<
+                  AsyncValidatorResourceExceptionUnion<
+                    AsyncValidatorResourceTarget<TResourceRef>
+                  >,
+                  SuccessExceptions,
+                  ErrorExceptions,
+                  ExceptionExceptions
+                >,
+              )
+            : undefined;
+        }
+
+        if (currentResource.status() === 'error') {
+          const errorResult = resolveErrorResult(asyncContext);
+
+          return errorResult
+            ? withValidatorBrand(
+                name,
+                ASYNC_VALIDATOR_TYPE,
+                errorResult.raw as ToAsyncValidatorExceptions<
+                  AsyncValidatorResourceExceptionUnion<
+                    AsyncValidatorResourceTarget<TResourceRef>
+                  >,
+                  SuccessExceptions,
+                  ErrorExceptions,
+                  ExceptionExceptions
+                >,
+              )
+            : undefined;
+        }
+
+        const successResult = resolveSuccessResult(asyncContext);
+
+        return successResult.exceptions
+          ? withValidatorBrand(
+              name,
+              ASYNC_VALIDATOR_TYPE,
+              successResult.exceptions.raw as ToAsyncValidatorExceptions<
+                AsyncValidatorResourceExceptionUnion<
+                  AsyncValidatorResourceTarget<TResourceRef>
+                >,
+                SuccessExceptions,
+                ErrorExceptions,
+                ExceptionExceptions
+              >,
+            )
+          : undefined;
+      });
+    },
+    {
+      name,
+      type: ASYNC_VALIDATOR_TYPE,
+      kind: 'signal',
+    },
+  );
+}
+
 export function cRequired<TValue>(
   config?: CRequiredConfig<TValue>,
 ): ValidatorOutput<TValue, 'cRequired', CRequiredException>;
@@ -740,3 +1411,62 @@ export function cValidate<
 }
 
 export const cValidator = cValidate;
+
+export function cAsyncValidate<
+  /**
+   * Creates an async validator with resource reference integration.
+   *
+   * @example
+   * ```typescript
+   * const validator = cAsyncValidate(userResource, {
+   *   validate: (value) => validateUserEmail(value),
+   *   onSuccess: (result) => handleSuccess(result),
+   *   onError: (error) => handleError(error),
+   * });
+   * ```
+   *
+   * @internal
+   * @deprecated This API is still under active development and does not works correctly in all cases.
+   *
+   * @see {@link createCustomAsyncValidator}
+   */
+  TValue,
+  TResourceRef extends AnyAsyncCraftResourceRef,
+  const Name extends string,
+  SuccessExceptions = undefined,
+  ErrorExceptions = undefined,
+  ExceptionExceptions = unknown,
+  TPathKind extends PathKind = PathKind.Root,
+  Identifier = AsyncValidatorResourceIdentifier<TResourceRef>,
+>(
+  resourceRef: TResourceRef,
+  config: CAsyncValidateConfig<
+    TValue,
+    Name,
+    TResourceRef,
+    SuccessExceptions,
+    ErrorExceptions,
+    ExceptionExceptions,
+    Identifier,
+    TPathKind
+  >,
+): ValidatorOutput<
+  TValue,
+  Name,
+  ToAsyncValidatorExceptions<
+    AsyncValidatorResourceExceptionUnion<
+      AsyncValidatorResourceTarget<TResourceRef>
+    >,
+    SuccessExceptions,
+    ErrorExceptions,
+    ExceptionExceptions
+  >,
+  'async',
+  Identifier,
+  {},
+  TPathKind
+> {
+  return createCustomAsyncValidator(resourceRef, config);
+}
+
+export const cAsyncValidator = cAsyncValidate;

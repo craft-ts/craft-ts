@@ -242,10 +242,10 @@ describe('insertFormSubmit', () => {
 
   it('should mark the form as attempted before returning when submit is called on an invalid form', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const loaderSpy = vi.fn(async ({ params }: { params: string }) => params);
+      const loaderSpy = vi.fn(async ({ params }: any) => params);
       const submitRef = mutation({
         method: (validatedValue: ValidatedFormValue<string>) => validatedValue,
-        loader: loaderSpy,
+        loader: async ({ params }: { params: string }) => loaderSpy({ params }),
       });
 
       const loginForm = state(

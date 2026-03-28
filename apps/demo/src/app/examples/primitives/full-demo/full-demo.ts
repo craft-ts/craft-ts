@@ -301,20 +301,26 @@ import { ApiService, User } from './api.service';
                 [value]="pagination().pageSize"
                 (change)="updatePageSize($event)"
                 style="margin-right: 8px"
+                [disabled]="usersByPage.disablePaginationWhileEditing()"
               >
                 <option [value]="2">2</option>
                 <option [value]="4">4</option>
                 <option [value]="8">8</option>
                 <option [value]="16">16</option>
               </select>
-              <button class="btn" (click)="pagination.previousPage()">
+              <button [disabled]="usersByPage.disablePaginationWhileEditing()" class="btn" (click)="pagination.previousPage()">
                 Previous
               </button>
               <span class="current-page">
                 {{ pagination().page }}
               </span>
-              <button class="btn" (click)="pagination.nextPage()">Next</button>
+              <button [disabled]="usersByPage.disablePaginationWhileEditing()" class="btn" (click)="pagination.nextPage()">Next</button>
             </div>
+            @if(usersByPage.disablePaginationWhileEditing()) {
+              <div style="margin-top: 16px; color: red;">
+                Pagination is disabled while editing, due to a current limitation/error from the Angular formField directive
+              </div>
+            }
           </div>
         </div>
       </main>
@@ -325,6 +331,7 @@ import { ApiService, User } from './api.service';
 })
 export default class FullDemo {
   protected readonly reset$ = source$<void>();
+
   protected readonly pagination = queryParam(
     {
       state: {
@@ -473,8 +480,6 @@ export default class FullDemo {
     }),
   );
 
-  tl = this.usersQuery.exceptions().list;
-
   private readonly currentUsersPageResource = computed(() => {
     const currentIdentifier = this.usersQuery.currentIdentifier();
     if (!currentIdentifier) {
@@ -517,6 +522,12 @@ export default class FullDemo {
         };
       },
     ),
+    ({ state, insertions: { select } }) => ({
+      // due to a formField directive error, we need to disable pagination while editing
+      disablePaginationWhileEditing: computed(() =>
+        state().some(({ id }) => select(id)()?.isEditing()),
+      ),
+    }),
   );
 
   protected readonly selectedRows = state(

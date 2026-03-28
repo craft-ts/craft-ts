@@ -151,7 +151,7 @@ describe('insertForm', () => {
         } satisfies LoginData,
         insertForm(
           () => ({
-            insertion1: () => '1',
+            insertion1: () => '1' as string,
           }),
           ({ insertions }) => {
             expectTypeOf(insertions.insertion1).toEqualTypeOf<() => string>();
@@ -443,9 +443,9 @@ describe('insertForm', () => {
 
       expect(loginForm.form().setSubmitting).toBeDefined();
       expect(loginForm.form().reset).toBeDefined();
-      expectTypeOf(loginForm.form().hasAttemptedSubmit()).toEqualTypeOf<
-        boolean
-      >();
+      expectTypeOf(
+        loginForm.form().hasAttemptedSubmit(),
+      ).toEqualTypeOf<boolean>();
 
       expect(loginForm.form().submitting()).toBe(false);
       expect(loginForm.form().hasAttemptedSubmit()).toBe(false);
@@ -523,6 +523,30 @@ describe('insertForm', () => {
         ),
       );
     });
+  });
+
+  it('should expose formTree externally', () => {
+    const myState = state(
+      {
+        id: 1,
+        name: '1',
+        password: '',
+      },
+      insertForm(),
+    );
+    expect(myState.form.password).toBeDefined();
+
+    const forms = state(
+      [
+        {
+          id: 1,
+          name: '1',
+          password: '',
+        },
+      ],
+      insertForm({ identifier: ({ item }) => item.id }),
+    );
+    expect(forms.select('1').password).toBeDefined();
   });
 
   it('should map insertion exceptions to form exception helpers', () => {

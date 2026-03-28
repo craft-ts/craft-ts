@@ -73,7 +73,13 @@ type QueryConfig<
          */
         method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
         loader: (
-          param: NoInfer<ResourceLoaderParams<Params>>,
+          param: ResourceLoaderParams<
+            NonNullable<
+              [unknown] extends [Params]
+                ? NoInfer<StripCraftException<SourceParams>>
+                : NoInfer<StripCraftException<Params>>
+            >
+          >,
         ) => Promise<ResourceState>;
         params?: never;
         fromResourceById?: never;

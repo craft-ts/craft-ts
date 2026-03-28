@@ -1,11 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, signal } from '@angular/core';
+import { FormField } from '@angular/forms/signals';
 import {
+  cAsyncValidate,
   craft,
   craftException,
   craftQueryParams,
   craftSources,
+  cRequired,
   insertForm,
+  insertFormAttributes,
+  insertNoopTypingAnchor,
+  insertSelectFormTree,
   query,
   queryParam,
   signalSource,
@@ -76,7 +82,7 @@ const { injectHost1Craft } = craft(
 @Component({
   selector: 'app-test',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormField],
   template: `
     page: {{ store.pagePage() | json }}
     <button (click)="store.emitReset()">Reset page</button
@@ -96,23 +102,10 @@ const { injectHost1Craft } = craft(
     }
     <button (click)="pState.add()">Add</button>
 
-    <hr />
+    <input [formField]="loginStateWithForm.form().selectPassword()" />
+    {{ loginStateWithForm.form().selectPassword()().exceptions().list | json }}
 
-    <button (click)="shouldFail.set(!shouldFail())">
-      Toggle query failure (currently: {{ shouldFail() }})
-    </button>
-    <button (click)="q.call(true)">
-      Call query (currently: {{ shouldFail() }})
-    </button>
-    <div>
-      Query status: {{ q.status() }}
-      <br />
-      Query data: {{ q.safeValue() | json }}
-      <br />
-      Query error: {{ q.error() | json }}
-      <br />
-      Query exceptions: {{ q.exceptions().list | json }}
-    </div>
+    <hr />
   `,
 })
 export default class TestComponent {
@@ -148,68 +141,43 @@ export default class TestComponent {
     },
   );
 
-  loginForm = state(
-    [
-      {
-        id: 1,
-        name: '1',
-        password: '',
-      },
-    ],
-    insertForm(
-      {
-        identifier: ({ item }) => item.id,
-      },
-      ({ form, formIdentifier }) => {
-        console.log('formIdentifier', formIdentifier);
-        console.log('form', form);
-        console.log('form()', form());
-        effect(() => {
-          console.log('form', form());
-        });
+  checkEmailValidity = query({
+    method: (payload: { name: string; password: string; id: string }) => {
+      debugger;
+      return payload.name === 'errorParams'
+        ? craftException({ code: 'INVALID_EMAIL' })
+        : payload;
+    },
+    // identifier: (payload) => payload.id,
+    loader: async ({ params }) => {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      return params.name === 'errorLoader'
+        ? craftException({ code: 'LOADER_ERROR' })
+        : { email: params };
+    },
+  });
 
-        return {
-          someInsertion: signal('test').asReadonly(),
-        };
-      },
-      ({ setSubmitting, insertions: { someInsertion } }) => {
-        setSubmitting(true);
-        console.log('someInsertion', someInsertion());
-        return {};
-      },
+  loginStateWithForm = state(
+    {
+      id: 1,
+      name: '1',
+      password: '',
+    },
+    insertForm(
+      insertSelectFormTree(
+        'password',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({
+          validators: [
+            cRequired(),
+            cAsyncValidate(this.checkEmailValidity, {
+              name: 'emailValidator',
+            }),
+          ],
+        })),
+      ),
     ),
   );
 
   shouldFail = signal(false);
-
-  q = query({
-    method: (test: boolean) =>
-      this.shouldFail()
-        ? craftException(
-            { code: 'INVALID_USER_ID' },
-            { reason: 'missing' as const },
-          )
-        : 'user-1',
-    loader: async ({ params }) => {
-      return this.shouldFail()
-        ? craftException(
-            { code: 'INVALID_USER_ID' },
-            { reason: 'missing' as const },
-          )
-        : {
-            id: params,
-            name: 'John Doe',
-            email: 'test@a.com',
-          };
-    },
-  });
-
-  ngAfterViewInit(): void {
-    const f = this.loginForm.select(1);
-    // const f = this.loginForm.form;
-    const r = f();
-    console.log('r', r);
-    console.log('submitting', r.submitting());
-    f().someInsertion();
-  }
 }
