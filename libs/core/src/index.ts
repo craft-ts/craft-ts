@@ -47,3 +47,4 @@ export * from './lib/form/insert-form-attributes';
 export * from './lib/form/insert-select-form-tree';
 export * from './lib/form/insert-form-submit';
 export * from './lib/form/validator';
+export * from './lib/insert-entities';
