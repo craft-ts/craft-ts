@@ -2,13 +2,14 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, effect, signal } from '@angular/core';
 import { FormField } from '@angular/forms/signals';
 import {
+  afterRecomputation,
   cAsyncValidate,
-  cEmail,
   craft,
   craftException,
   craftQueryParams,
   craftSources,
   cRequired,
+  injectService,
   insertForm,
   insertFormAttributes,
   insertNoopTypingAnchor,
@@ -18,7 +19,9 @@ import {
   signalSource,
   source$,
   state,
+  toSource,
 } from '@craft-ng/core';
+import { Router } from 'node_modules/@angular/router/types/_router_module-chunk';
 
 const { craftGenericQueryParams } = craft(
   {
@@ -144,7 +147,6 @@ export default class TestComponent {
 
   checkEmailValidity = query({
     method: (payload: { name: string; password: string; id: string }) => {
-      debugger;
       return payload.name === 'errorParams'
         ? craftException({ code: 'INVALID_EMAIL' })
         : payload;
@@ -181,30 +183,13 @@ export default class TestComponent {
   );
 
   shouldFail = signal(false);
-}
 
-function t() {
-  const userFormState = state(
-    { name: '', email: '' },
-    insertForm(
-      insertSelectFormTree(
-        'name',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired()],
-        })),
-      ),
-      insertSelectFormTree(
-        'email',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired(), cEmail()],
-        })),
-      ),
-    ),
-  );
+  s = signal('init');
 
-  const form = userFormState.form();
-  const nameField = form.selectName();
-  const emailField = form.selectEmail();
+  r = toSource(this.s);
+
+  protected readonly router = injectService(Router, ({ navigate }) => ({
+    cancel: () => navigate(['/']),
+    backOnSaveSuccess: afterRecomputation(this.r, () => navigate(['/'])),
+  }));
 }
