@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, signal } from '@angular/core';
 import { FormField } from '@angular/forms/signals';
+import { Router } from '@angular/router';
 import {
   afterRecomputation,
   cAsyncValidate,
@@ -21,7 +22,6 @@ import {
   state,
   toSource,
 } from '@craft-ng/core';
-import { Router } from 'node_modules/@angular/router/types/_router_module-chunk';
 
 const { craftGenericQueryParams } = craft(
   {
