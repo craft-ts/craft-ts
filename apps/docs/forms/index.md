@@ -440,11 +440,3 @@ const userFormState = state(
   ),
 );
 ```
-
-## Resources
-
-- [insertForm](./insert-form)
-- [insertFormAttributes](./insert-form-attributes)
-- [insertFormSubmit](./insert-form-submit)
-- [insertSelectFormTree](./insert-select-form-tree)
-- [Validators](./validators)

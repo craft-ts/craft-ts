@@ -79,5 +79,3 @@ And run the following launch configuration in VSCode:
   ]
 }
 ```
-
-// todo state, factoriser les insertions siganture+implem
