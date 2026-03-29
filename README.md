@@ -22,7 +22,7 @@ npm i @craft-ng/core@latest
 
 ## 📖 Documentation
 
-Full documentation is available at: **[ng-craft.dev](https://ng-craft.dev)** *(coming soon)*
+Full documentation is available at: **[ng-craft.dev](https://ng-craft.dev)** _(coming soon)_
 
 ### Quick Start
 
