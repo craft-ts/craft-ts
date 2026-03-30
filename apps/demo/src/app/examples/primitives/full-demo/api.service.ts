@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { craftException } from '@craft-ng/core';
 
 export type User = {
   id: string;
@@ -26,9 +27,13 @@ export class ApiService {
     { id: '10', name: 'Lupette' },
   ]);
 
-  public readonly updateError = signal(false);
+  public readonly throwError = signal(false);
 
-  async getDataList(data: { page: number; pageSize: number }): Promise<User[]> {
+  async getDataList(data: { page: number; pageSize: number }) {
+    if (this.throwError()) {
+      await delay(null, 2000);
+      return craftException({ code: 'HttpError' });
+    }
     const dataList = this.dataList();
     const result = dataList.slice(
       (data.page - 1) * data.pageSize,
@@ -37,7 +42,11 @@ export class ApiService {
     return delay(result, 2000);
   }
 
-  async getItemById(itemId: User['id']): Promise<User> {
+  async getItemById(itemId: User['id']) {
+    if (this.throwError()) {
+      await delay(null, 2000);
+      return craftException({ code: 'HttpError' });
+    }
     const dataList = this.dataList();
     const item = dataList.find((dataItem) => dataItem.id === itemId);
     if (!item) {
@@ -46,12 +55,20 @@ export class ApiService {
     return delay(item, 2000);
   }
 
-  async addItem(newItem: User): Promise<User> {
+  async addItem(newItem: User) {
+    if (this.throwError()) {
+      await delay(null, 2000);
+      return craftException({ code: 'HttpError' });
+    }
     this.dataList.set([newItem, ...this.dataList()]);
-    return delay(newItem, 5000);
+    return delay(newItem, 2000);
   }
 
-  async deleteItem(itemId: User['id']): Promise<User> {
+  async deleteItem(itemId: User['id']) {
+    if (this.throwError()) {
+      await delay(null, 2000);
+      return craftException({ code: 'HttpError' });
+    }
     const deletedItem = this.dataList().find(
       (dataItem) => dataItem.id === itemId,
     );
@@ -64,10 +81,10 @@ export class ApiService {
     return delay(deletedItem, 2000);
   }
 
-  async updateItem(updatedItem: User): Promise<User> {
-    if (this.updateError()) {
-      await delay(null, 5000);
-      throw new Error('Api error during update');
+  async updateItem(updatedItem: User) {
+    if (this.throwError()) {
+      await delay(null, 2000);
+      return craftException({ code: 'HttpError' });
     }
     this.dataList.set(
       this.dataList().map((dataItem) =>
@@ -77,7 +94,11 @@ export class ApiService {
     return delay(updatedItem, 2000);
   }
 
-  async bulkDelete(itemIds: User['id'][]): Promise<User[]> {
+  async bulkDelete(itemIds: User['id'][]) {
+    if (this.throwError()) {
+      await delay(null, 2000);
+      return craftException({ code: 'HttpError' });
+    }
     const deletedItems = this.dataList().filter((dataItem) =>
       itemIds.includes(dataItem.id),
     );

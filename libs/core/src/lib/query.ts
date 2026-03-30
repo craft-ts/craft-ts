@@ -73,7 +73,13 @@ type QueryConfig<
          */
         method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
         loader: (
-          param: NoInfer<ResourceLoaderParams<Params>>,
+          param: ResourceLoaderParams<
+            NonNullable<
+              [unknown] extends [Params]
+                ? NoInfer<StripCraftException<SourceParams>>
+                : NoInfer<StripCraftException<Params>>
+            >
+          >,
         ) => Promise<ResourceState>;
         params?: never;
         fromResourceById?: never;
@@ -1431,6 +1437,11 @@ export function query<
             state: resourceTarget.state,
             set: resourceTarget.set,
             update: resourceTarget.update,
+            patch: (patchFn: (currentState: any) => Partial<any>) =>
+              resourceTarget.update((current: any) => ({
+                ...current,
+                ...patchFn(current),
+              })),
           } as any), // try to improve the type here
         };
       },

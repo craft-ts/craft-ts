@@ -46,7 +46,7 @@
 
 **Description:** Interactive pixel art board powered by `state` + `insertSelect` on a flat array.
 
-🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts)
+🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/primitives/pixel-art/pixel-art.ts&initialpath=/pixel-art)
 
 ---
 
@@ -54,7 +54,7 @@
 
 **Description:** Interactive 2D pixel grid leveraging advanced composition with nested `insertSelect` and internal `source$` to orchestrate fluid declarative reactivity between rows and cells.
 
-🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts)
+🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts&initialpath=/pixel-art-matrix)
 
 ---
 
@@ -62,7 +62,7 @@
 
 **Description:** Demonstrates business exceptions handling on `query()` with dedicated UI states based on exception codes.
 
-🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exceptions.ts)
+🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/primitives/exceptions/exceptions.ts&initialpath=/exceptions)
 
 ---
 
@@ -70,7 +70,7 @@
 
 **Description:** Demonstrates `queryParam` parse exceptions with two navigation actions (`success` and `exception`) and UI handling through `hasException()` and `exceptions().parse`.
 
-🔗 [Source code](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-param.ts)
+🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/primitives/exceptions/exception-query-param.ts&initialpath=/exception-query-param)
 
 ---
 

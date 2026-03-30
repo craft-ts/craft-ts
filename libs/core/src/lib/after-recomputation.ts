@@ -309,7 +309,7 @@ import { SourceBranded } from './util/util';
  * ```
  */
 export function afterRecomputation<State, SourceType>(
-  _source: SignalSource<SourceType>,
+  _source: ReadonlySource<SourceType>,
   callback: (source: SourceType) => State,
 ): ReadonlySource<State> {
   const initialValue = _source();

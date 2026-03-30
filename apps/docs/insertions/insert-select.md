@@ -7,6 +7,10 @@
 
 This makes it possible to write nested insertions with a single API, without switching helpers based on the state shape, and it helps drive complex object logic.
 
+::: info
+This insertion can only be used by `state` primitive.
+:::
+
 ## Import
 
 ```typescript
@@ -83,6 +87,7 @@ insertSelect(
   })),
 );
 ```
+
 :::
 
 ## Pixel Art examples

@@ -3,13 +3,22 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  inject,
+  signal,
 } from '@angular/core';
+import { FormField } from '@angular/forms/signals';
 import {
   asyncProcess,
+  cMinLength,
+  cRequired,
+  injectService,
+  insertForm,
+  insertFormAttributes,
+  insertFormSubmit,
   insertLocalStoragePersister,
+  insertNoopTypingAnchor,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
+  insertSelectFormTree,
   mutation,
   on$,
   query,
@@ -19,13 +28,15 @@ import {
   removeOne,
   source$,
   state,
+  updateOne,
+  ValidatedFormValue,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, User } from './api.service';
 
 @Component({
   selector: 'app-granular-mutation',
-  imports: [CommonModule, StatusComponent],
+  imports: [CommonModule, StatusComponent, FormField],
   template: `
     <div class="container">
       <main class="content">
@@ -33,7 +44,7 @@ import { ApiService, User } from './api.service';
           <div class="card">
             <h2 class="card-title">
               User Management:
-              <app-status [status]="usersQuery.currentPageStatus()" />
+              <app-status [status]="usersByPage.status()" />
             </h2>
 
             <div
@@ -53,6 +64,14 @@ import { ApiService, User } from './api.service';
               <button class="action-btn reset-btn" (click)="reset$.emit()">
                 Reset Filters
               </button>
+              <label style="margin-left: auto; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                <input
+                  type="checkbox"
+                  [checked]="apiService.throwError()"
+                  (change)="apiService.toggleUpdateError()"
+                />
+                Simulate API error
+              </label>
             </div>
 
             <div class="table-container">
@@ -73,9 +92,11 @@ import { ApiService, User } from './api.service';
                   </tr>
                 </thead>
                 <tbody>
-                  @if (usersQuery.currentPageData()) {
-                    @for (user of usersQuery.currentPageData(); track user.id) {
+                  @if (usersByPage.displayUsers()) {
+                    @for (user of this.usersByPage(); track user.id) {
                       <tr>
+                        @let userForm = this.usersByPage.select(user.id);
+
                         <td>
                           <input
                             type="checkbox"
@@ -85,7 +106,102 @@ import { ApiService, User } from './api.service';
                         </td>
                         <td>{{ user.id }}</td>
 
-                        <td>{{ user.name }}</td>
+                        <td>
+                          @let nameField = userForm().selectName();
+                          <!-- todo remove editingUserId -->
+                          <!-- todo le form().submit() ne déclenche pas l'appel ? -->
+                          <!-- todo afficher status de chargement du save -->
+                          <!-- todo si form pas save et dif, afficher une état pour signaler que ce n'est pas save -->
+                          @if (userForm().isEditing()) {
+                            <form
+                              (submit)="
+                                $event.preventDefault(); userForm().submit()
+                              "
+                              novalidate
+                            >
+                              <div class="inline-edit">
+                                <input
+                                  type="text"
+                                  class="inline-edit-input"
+                                  [formField]="nameField"
+                                />
+                                <button
+                                  class="inline-edit-btn save-btn"
+                                  title="Save"
+                                  type="submit"
+                                  (click)="userForm().toggleEditing()"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  class="inline-edit-btn cancel-btn"
+                                  type="button"
+                                  title="Cancel"
+                                  (click)="
+                                    userForm().toggleEditing()
+                                  "
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </form>
+                            @if (
+                              nameField().visibleExceptions().list.length > 0
+                            ) {
+                              <div class="field-errors">
+                                @for (
+                                  error of nameField().exceptions().list;
+                                  track error.code
+                                ) {
+                                  @let code = error.code;
+                                  @switch (code) {
+                                    @case ('required') {
+                                      <span>Name is required.</span>
+                                    }
+                                    @case ('minLength') {
+                                      <span>
+                                        Name must be at least
+                                        {{ error.payload }} characters
+                                        long.
+                                      </span>
+                                    }
+                                    @default never;
+                                  }
+                                }
+                              </div>
+                            }
+                          } @else {
+                            <div class="inline-display">
+                              <span [class.unsaved]="userForm().dirty() && !userForm().submitting()">{{ user.name }}</span>
+                              @if (userForm().submitting()) {
+                                <span class="spinner"></span>
+                              } @else {
+                                <button
+                                  class="inline-edit-icon"
+                                  title="Edit name"
+                                  (click)="userForm().toggleEditing()"
+                                >
+                                  ✎
+                                </button>
+                              }
+                            </div>
+                          }
+
+                          @if(userForm().hasExceptions()) {
+                            @for(exception of  userForm().exceptions().submit; track exception.code) {
+                              @let code = exception.code;
+                              @switch (code) {
+                                @case('HttpError') {
+                                  <div class="field-errors">
+                                    An error occurred while updating the user.
+                                  </div>
+                                }
+                                @default never;
+                              }
+
+                            }
+                          }
+                        </td>
 
                         <td>
                           @let delayDeleteUserRef =
@@ -120,8 +236,8 @@ import { ApiService, User } from './api.service';
                       </tr>
                     } @empty {
                       @if (
-                        usersQuery.currentPageStatus() === 'resolved' ||
-                        usersQuery.currentPageStatus() === 'local'
+                        usersByPage.status() === 'resolved' ||
+                        usersByPage.status() === 'local'
                       ) {
                         <tr>
                           <td
@@ -131,6 +247,16 @@ import { ApiService, User } from './api.service';
                             No users found
                           </td>
                         </tr>
+                      } @else if (usersByPage.status() === 'exception') {
+                        <tr>
+                          <td
+                            colspan="5"
+                            style="text-align: center; padding: 32px"
+                          >
+                            Exception
+                          </td>
+                        </tr>
+
                       } @else {
                         <tr>
                           <td
@@ -142,10 +268,27 @@ import { ApiService, User } from './api.service';
                         </tr>
                       }
                     }
-                  } @else {
+                  } @else if(usersByPage.isLoading()) {
                     <tr>
                       <td colspan="5" style="text-align: center; padding: 32px">
                         Loading...
+                      </td>
+                    </tr>
+                  } @else {
+                    <tr>
+                      <td
+                        colspan="5"
+                        style="text-align: center; padding: 32px"
+                      >
+                        @for(exception of usersByPage.exceptions()?.list; track exception.code) {
+                          @let code = exception.code;
+                          @switch (code) {
+                            @case('HttpError') {
+                              <div>An error occurred while fetching users.</div>
+                            }
+                            @default never;
+                          }
+                        }
                       </td>
                     </tr>
                   }
@@ -158,20 +301,26 @@ import { ApiService, User } from './api.service';
                 [value]="pagination().pageSize"
                 (change)="updatePageSize($event)"
                 style="margin-right: 8px"
+                [disabled]="usersByPage.disablePaginationWhileEditing()"
               >
                 <option [value]="2">2</option>
                 <option [value]="4">4</option>
                 <option [value]="8">8</option>
                 <option [value]="16">16</option>
               </select>
-              <button class="btn" (click)="pagination.previousPage()">
+              <button [disabled]="usersByPage.disablePaginationWhileEditing()" class="btn" (click)="pagination.previousPage()">
                 Previous
               </button>
               <span class="current-page">
                 {{ pagination().page }}
               </span>
-              <button class="btn" (click)="pagination.nextPage()">Next</button>
+              <button [disabled]="usersByPage.disablePaginationWhileEditing()" class="btn" (click)="pagination.nextPage()">Next</button>
             </div>
+            @if(usersByPage.disablePaginationWhileEditing()) {
+              <div style="margin-top: 16px; color: red;">
+                Pagination is disabled while editing, due to a current limitation/error from the Angular formField directive
+              </div>
+            }
           </div>
         </div>
       </main>
@@ -182,6 +331,7 @@ import { ApiService, User } from './api.service';
 })
 export default class FullDemo {
   protected readonly reset$ = source$<void>();
+
   protected readonly pagination = queryParam(
     {
       state: {
@@ -205,7 +355,17 @@ export default class FullDemo {
       reset: on$(this.reset$, () => reset()),
     }),
   );
-  private readonly apiService = inject(ApiService);
+  protected readonly apiService = injectService(
+    ApiService,
+    ({ throwError, bulkDelete, deleteItem, getDataList, updateItem }) => ({
+      toggleUpdateError: () => throwError.update((v) => !v),
+      throwError,
+      bulkDelete,
+      deleteItem,
+      getDataList,
+      updateItem,
+    }),
+  );
 
   protected readonly bulkDelete = mutation({
     method: (ids: string[]) => ids,
@@ -239,13 +399,16 @@ export default class FullDemo {
         : undefined;
     },
     identifier: ({ id }) => id,
-    loader: ({ params: user }) => {
-      console.log('mutation loader user', user);
-      return this.apiService.updateItem(user);
-    },
+    loader: ({ params: user }) => this.apiService.updateItem(user),
   });
 
-  protected readonly usersQuery = query(
+  private readonly updateUserName = mutation({
+    method: (payload: NonNullable<ValidatedFormValue<User>>) => payload,
+    identifier: ({ id }) => id,
+    loader: async ({ params: user }) => this.apiService.updateItem(user),
+  });
+
+  private readonly usersQuery = query(
     {
       params: this.pagination,
       identifier: (params) => `${params.page}-${params.pageSize}`,
@@ -298,6 +461,73 @@ export default class FullDemo {
           queryResource.safeValue()?.length === 0,
       },
     }),
+    insertReactOnMutation(this.updateUserName, {
+      filter: ({ mutationIdentifier, queryResource }) =>
+        !!queryResource
+          .safeValue()
+          ?.some((item) => item.id === mutationIdentifier),
+      optimisticUpdate: ({ queryResource, mutationParams }) =>
+        updateOne({
+          entities: queryResource.value(),
+          update: {
+            id: mutationParams.id,
+            changes: mutationParams,
+          },
+        }),
+      reload: {
+        onMutationError: true,
+      },
+    }),
+  );
+
+  private readonly currentUsersPageResource = computed(() => {
+    const currentIdentifier = this.usersQuery.currentIdentifier();
+    if (!currentIdentifier) {
+      return undefined;
+    }
+
+    return this.usersQuery.select(currentIdentifier);
+  });
+
+  protected readonly usersByPage = state(
+    computed(() => this.usersQuery.currentPageData() ?? []),
+    () => ({
+      status: computed(() =>
+        this.currentUsersPageResource()?.hasException()
+          ? 'exception'
+          : (this.currentUsersPageResource()?.status() ?? 'idle'),
+      ),
+      isLoading: computed(
+        () => this.currentUsersPageResource()?.isLoading() ?? false,
+      ),
+      exceptions: computed(() => this.currentUsersPageResource()?.exceptions()),
+      displayUsers: computed(() => !!this.usersQuery.currentPageData()?.length),
+    }),
+    insertForm(
+      { identifier: ({ item: { id } }) => id },
+      insertFormSubmit(this.updateUserName),
+      insertSelectFormTree(
+        'name',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({
+          validators: [cRequired(), cMinLength({ minLength: 3 })],
+        })),
+      ),
+      () => {
+        const isEditing = signal<boolean>(false);
+
+        return {
+          isEditing: isEditing.asReadonly(),
+          toggleEditing: () => isEditing.update((v) => !v),
+        };
+      },
+    ),
+    ({ state, insertions: { select } }) => ({
+      // due to a formField directive error, we need to disable pagination while editing
+      disablePaginationWhileEditing: computed(() =>
+        state().some(({ id }) => select(id)()?.isEditing()),
+      ),
+    }),
   );
 
   protected readonly selectedRows = state(
@@ -337,9 +567,7 @@ export default class FullDemo {
             ? current.filter((item) => item !== id)
             : [...current, id],
         ),
-      isSelected: (id: string) => {
-        return selectedRows().includes(id);
-      },
+      isSelected: (id: string) => selectedRows().includes(id),
       isAllSelected,
       isSomeSelected: computed(
         () =>

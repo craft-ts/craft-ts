@@ -112,3 +112,13 @@ export type InsertMetaInCraftExceptionIfExists<
             Payload
           >
     : Exception;
+
+export type ExtractCodeFromCraftResultUnion<T> =
+  T extends CraftExceptionResult<infer E, any> ? E['code'] : never;
+
+export type ExcludeByCode<T, C> =
+  T extends CraftExceptionResult<infer E, any>
+    ? E['code'] extends C
+      ? never
+      : T
+    : never;

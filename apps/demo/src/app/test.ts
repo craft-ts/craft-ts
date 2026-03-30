@@ -1,13 +1,26 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed } from '@angular/core';
+import { Component, computed, effect, signal } from '@angular/core';
+import { FormField } from '@angular/forms/signals';
+import { Router } from '@angular/router';
 import {
+  afterRecomputation,
+  cAsyncValidate,
   craft,
+  craftException,
   craftQueryParams,
   craftSources,
+  cRequired,
+  injectService,
+  insertForm,
+  insertFormAttributes,
+  insertNoopTypingAnchor,
+  insertSelectFormTree,
+  query,
   queryParam,
   signalSource,
   source$,
   state,
+  toSource,
 } from '@craft-ng/core';
 
 const { craftGenericQueryParams } = craft(
@@ -73,7 +86,7 @@ const { injectHost1Craft } = craft(
 @Component({
   selector: 'app-test',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormField],
   template: `
     page: {{ store.pagePage() | json }}
     <button (click)="store.emitReset()">Reset page</button
@@ -92,6 +105,11 @@ const { injectHost1Craft } = craft(
       />
     }
     <button (click)="pState.add()">Add</button>
+
+    <input [formField]="loginStateWithForm.form().selectPassword()" />
+    {{ loginStateWithForm.form().selectPassword()().exceptions().list | json }}
+
+    <hr />
   `,
 })
 export default class TestComponent {
@@ -113,5 +131,65 @@ export default class TestComponent {
   pState = state([this.instance(1)], ({ state, update }) => ({
     child: computed(() => state()),
     add: () => update((v) => [...v, this.instance(v.length + 1)]),
+  }));
+
+  test = state(
+    {
+      myProperty: 1,
+    },
+    ({ state }) => {
+      effect(() => {
+        console.log('state', state());
+      });
+      return {};
+    },
+  );
+
+  checkEmailValidity = query({
+    method: (payload: { name: string; password: string; id: string }) => {
+      return payload.name === 'errorParams'
+        ? craftException({ code: 'INVALID_EMAIL' })
+        : payload;
+    },
+    // identifier: (payload) => payload.id,
+    loader: async ({ params }) => {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      return params.name === 'errorLoader'
+        ? craftException({ code: 'LOADER_ERROR' })
+        : { email: params };
+    },
+  });
+
+  loginStateWithForm = state(
+    {
+      id: 1,
+      name: '1',
+      password: '',
+    },
+    insertForm(
+      insertSelectFormTree(
+        'password',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({
+          validators: [
+            cRequired(),
+            cAsyncValidate(this.checkEmailValidity, {
+              name: 'emailValidator',
+            }),
+          ],
+        })),
+      ),
+    ),
+  );
+
+  shouldFail = signal(false);
+
+  s = signal('init');
+
+  r = toSource(this.s);
+
+  protected readonly router = injectService(Router, ({ navigate }) => ({
+    cancel: () => navigate(['/']),
+    backOnSaveSuccess: afterRecomputation(this.r, () => navigate(['/'])),
   }));
 }

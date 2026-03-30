@@ -415,6 +415,7 @@ export function queryParam<
       navOptions?: QueryParamNavigationOptions,
     ) => {
       navigate(params, navOptions);
+      return params;
     },
     update: (
       updateFn: (
@@ -424,16 +425,27 @@ export function queryParam<
     ) => {
       const newState = updateFn(queryParamsState());
       navigate(newState, navOptions);
+      return newState;
     },
     patch: (
-      params: Partial<QueryParamsToState<QueryParamsType>>,
+      paramsOrPatchFn:
+        | Partial<QueryParamsToState<QueryParamsType>>
+        | ((
+            currentParams: QueryParamsToState<QueryParamsType>,
+          ) => Partial<QueryParamsToState<QueryParamsType>>),
       navOptions?: QueryParamNavigationOptions,
     ) => {
+      const params =
+        typeof paramsOrPatchFn === 'function'
+          ? paramsOrPatchFn(queryParamsState())
+          : paramsOrPatchFn;
       const newState = { ...queryParamsState(), ...params };
       navigate(newState, navOptions);
+      return newState;
     },
     reset: (navOptions?: QueryParamNavigationOptions) => {
-      navigate(getDefaultState(), navOptions);
+      const defaultState = getDefaultState();
+      navigate(defaultState, navOptions);
     },
   };
 

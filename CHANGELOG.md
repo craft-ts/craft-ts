@@ -1,3 +1,18 @@
+## 0.1.0 (2026-03-29)
+
+### 🚀 Features
+
+- **core:** extract insert select changes ([6dcca39](https://github.com/ng-angular-stack/ng-craft/commit/6dcca39))
+- **exceptions:** add exceptions component and routing ([c3f12df](https://github.com/ng-angular-stack/ng-craft/commit/c3f12df))
+
+### 🩹 Fixes
+
+- **core:** add missing insert-select implementation ([ae8dc4a](https://github.com/ng-angular-stack/ng-craft/commit/ae8dc4a))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.0.2 (2026-02-13)
 
 ### 🚀 Features

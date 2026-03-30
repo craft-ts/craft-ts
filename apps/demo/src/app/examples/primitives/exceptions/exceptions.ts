@@ -45,7 +45,7 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
     `,
   ],
   template: `
-    <h3>Query user with business exceptions</h3>
+    <h3>Query user with business exceptions ({{userQuery.status()}})</h3>
 
     <div class="actions">
       <button type="button" class="btn" (click)="setScenario('success')">

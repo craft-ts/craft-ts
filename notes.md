@@ -9,41 +9,23 @@ Run `docs:publish`, then from the VSCode editor, add a commit with all the chang
 1. Être connecté à npm : `npm whoami` (si erreur, faire `npm login`)
 2. Avoir build le projet : `nx build ng-craft-core`
 
-### Commandes pour publier
+### Commandes pour publier la lib
 
-**Option 1 : Processus complet automatisé**
-
-```bash
-nx release --first-release
-```
-
-Cette commande :
-
-- Demande le type de bump (major/minor/patch)
-- Build automatiquement via `preVersionCommand`
-- Met à jour les versions dans package.json
-- Génère/met à jour le CHANGELOG.md
-- Crée un commit et tag git
-- Publie sur npm
-
-**Option 2 : Processus manuel en 2 étapes**
+Générer un grannular token, puis depuis ce projet= `npm config set //registry.npmjs.org/:\_authToken=TOKENKEY``
 
 ```bash
-nx release version     # calcule et applique les nouvelles versions
-nx release publish     # publie sur npm (selon "packageRoot" de chaque projet)
+npm login
+
+# 1. Versionner le package
+nx release version 0.1.0
+
+# 2. Publier sur npm
+nx release publish
 ```
 
-**Option 3 : Publication manuelle depuis dist/**
-
-```bash
-cd dist/libs/core && npm publish --access public
-```
+Puis mettre à jour les versions dans les packages.json
 
 ### Notes
-
-- Le flag `--first-release` est nécessaire la première fois ou quand il n'y a pas de tags git précédents
-- La version est mise à jour dans `dist/libs/core/package.json` automatiquement
-- Penser à mettre à jour manuellement `libs/core/package.json` après publication
 
 ## Tests with UI
 
@@ -79,5 +61,3 @@ And run the following launch configuration in VSCode:
   ]
 }
 ```
-
-// todo state, factoriser les insertions siganture+implem

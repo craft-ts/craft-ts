@@ -12,9 +12,15 @@
 - [ ] Standardize craftState => craftStates naming where possible
 - [ ] Add to-source$ utility to create a source from a DOM event
 - [ ] Proposer un state ou un pattern pour gérer les tree (à explorer)
-
-- [ ] Tester insertion localStorage
 - [ ] add crossLayerEvent to insertSelect (from bottom to top)
-- [ ] insertSelect add support for non object/array state (ex: primitive state) and pass the selected state as param to the insertion
 - [ ] Rename craftException to cException
 - [ ] Create a insertContract similar to a class to implement an interface, also add an helper with a proxy to mock the data ?
+- ajouter inject service à la doc
+- Update craftInject to enable similar behavior to injectService
+- Explore an explicit way to pass dependencies of primitives (it would be easier for testing)
+
+- forms:
+  - Gérer les appels async des valdiateurs en parallèle
+  - login form exemple, expliquer comment trigger une exception au submit et debounce les erreurs
+  - afficher erreur si form submit mutation n'a pas la même payload que le form value
+  - on ne peut pas utilise formRoot pour la soumission, créer une directive alternative ?

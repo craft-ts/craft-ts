@@ -327,6 +327,11 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
         set: (newState: StateType) => stateSignal.set(newState),
         update: (updateFn: (currentState: StateType) => StateType) =>
           stateSignal.update(updateFn),
+        patch: (patchFn: (currentState: StateType) => Partial<StateType>) =>
+          stateSignal.update((current) => ({
+            ...current,
+            ...patchFn(current),
+          })),
         insertions: acc.rawInsertionsOutput as {},
       } as InsertionStateFactoryContext<StateType, {}>) as Record<
         string,

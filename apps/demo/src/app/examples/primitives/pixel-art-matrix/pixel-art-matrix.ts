@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  Signal,
+} from '@angular/core';
 import {
   addOne,
   insertLocalStoragePersister,
@@ -197,23 +202,7 @@ export default class PixelArtMatrix {
       ({ state, update, set, insertions: { resetAll$ } }) => ({
         paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
         addRow: () =>
-          update((currentGrid) => {
-            const columnCount = currentGrid[0]?.length ?? GRID_SIZE;
-            const nextIndex = currentGrid
-              .flat()
-              .reduce((max, cell) => Math.max(max, cell.index), -1);
-            const newRow = Array.from(
-              { length: columnCount },
-              (_unused, i) => ({
-                index: nextIndex + i + 1,
-                columnIndex: i,
-                color: EMPTY_COLOR,
-                paintCount: 0,
-              }),
-            );
-
-            return [...currentGrid, newRow];
-          }),
+          update((currentGrid) => [...currentGrid, createNextRow(currentGrid)]),
         resetGrid: on$(resetAll$, () => set(createInitialGrid())),
         rowIndexes: computed(() => state().map((_row, index) => index)),
         totalCells: computed(() =>
@@ -238,12 +227,7 @@ export default class PixelArtMatrix {
             return set(
               addOne({
                 entities: state(),
-                entity: {
-                  index: nextIndex + 1,
-                  columnIndex: state().length,
-                  color: EMPTY_COLOR,
-                  paintCount: 0,
-                },
+                entity: createNewCell(nextIndex, state),
               }),
             );
           },
@@ -254,28 +238,27 @@ export default class PixelArtMatrix {
           ({
             state,
             update,
+            patch,
             insertions: {
               paintRowWithTargetCellColor$,
               paintColumnWithTargetCellColor$,
             },
           }) => ({
             paint: () =>
-              update((targetCell) => ({
-                ...targetCell,
+              patch(({ color, paintCount }) => ({
                 color:
-                  targetCell.color === this.matrix.selectUi().activeColor
+                  color === this.matrix.selectUi().activeColor
                     ? EMPTY_COLOR
                     : this.matrix.selectUi().activeColor,
-                paintCount: targetCell.paintCount + 1,
+                paintCount: paintCount + 1,
               })),
             paintCountStr: computed(
               () => `Painted ${state().paintCount} times`,
             ),
             paintCellOnSameRow: on$(paintRowWithTargetCellColor$, ({ color }) =>
-              update((targetCell) => ({
-                ...targetCell,
+              patch(({ paintCount }) => ({
                 color,
-                paintCount: targetCell.paintCount + 1,
+                paintCount: paintCount + 1,
               })),
             ),
             paintCellOnSameColumn: on$(
@@ -296,4 +279,29 @@ export default class PixelArtMatrix {
       ),
     ),
   );
+}
+function createNewCell(
+  nextIndex: number,
+  state: Signal<PixelCellState[]>,
+): { index: number; columnIndex: number; color: string; paintCount: number } {
+  return {
+    index: nextIndex + 1,
+    columnIndex: state().length,
+    color: EMPTY_COLOR,
+    paintCount: 0,
+  };
+}
+
+function createNextRow(currentGrid: PixelCellState[][]) {
+  const columnCount = currentGrid[0]?.length ?? GRID_SIZE;
+  const nextIndex = currentGrid
+    .flat()
+    .reduce((max, cell) => Math.max(max, cell.index), -1);
+  const newRow = Array.from({ length: columnCount }, (_unused, i) => ({
+    index: nextIndex + i + 1,
+    columnIndex: i,
+    color: EMPTY_COLOR,
+    paintCount: 0,
+  }));
+  return newRow;
 }

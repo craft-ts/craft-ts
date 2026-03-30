@@ -61,6 +61,7 @@ apps/docs/
 │   ├── source.md
 │   ├── to-source.md
 │   ├── stacked-source.md
+│   ├── inject-service.md
 │   └── source-from-event.md
 ├── examples.md             # Examples
 └── press-kit.md            # Press kit & resources
