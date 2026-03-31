@@ -13,8 +13,9 @@ import { query } from '@craft-ng/core';
 ### Params-based query
 
 ```typescript
+const id = signal(1);
 const myQuery = query({
-  params: { id: 1 },
+  params: () => ({ id: id() }),
   loader: async ({ params }) => {
     const response = await fetch(`/api/users/${params.id}`);
     return response.json();
@@ -116,10 +117,7 @@ const userQuery = query({
       : value,
   loader: async ({ params }) =>
     params === 'forbidden'
-      ? craftException(
-          { code: 'USER_ACCESS_FORBIDDEN' },
-          { id: params },
-        )
+      ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
       : { id: params, name: 'John Doe' },
 });
 
@@ -132,6 +130,7 @@ console.log(userQuery.exceptions().loader?.USER_ACCESS_FORBIDDEN);
 ```
 
 Demo source:
+
 - [Exceptions demo source (`query` business exceptions)](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exceptions.ts)
 
 ## Important Notes
