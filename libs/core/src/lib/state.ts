@@ -71,16 +71,16 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
  * console.log(counter()); // 0
  *
  * @example
- * // State with a linkedSignal
+ * // State with a computed
  * const origin = signal(5);
- * const doubled = state(linkedSignal(() => origin() * 2));
+ * const doubled = state(computed(() => origin() * 2));
  * console.log(doubled()); // 10
  *
  * @example
- * // State with insertions to add methods
+ * // State with insertions to add methods (Method-based)
  * const origin = signal(5);
  * const counter = state(
- *   linkedSignal(() => origin() * 2),
+ *   computed(() => origin() * 2),
  *   ({ update, set }) => ({
  *     increment: () => update((current) => current + 1),
  *     reset: () => set(0),
@@ -95,8 +95,8 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
  * @example
  * // State with multiple insertions (methods and computed properties)
  * const origin = signal(5);
- * const counter = state(
- *   linkedSignal(() => origin() * 2),
+ * const counterDouble = state(
+ *   computed(() => origin() * 2),
  *   ({ update, set }) => ({
  *     increment: () => update((current) => current + 1),
  *     reset: () => set(0),
@@ -105,24 +105,25 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
  *     isOdd: computed(() => state() % 2 === 1),
  *   })
  * );
- * console.log(counter()); // 10
- * console.log(counter.isOdd()); // false
- * counter.increment();
- * console.log(counter()); // 11
- * console.log(counter.isOdd()); // true
+ * console.log(counterDouble()); // 10
+ * console.log(counterDouble.isOdd()); // false
+ * counterDouble.increment();
+ * console.log(counterDouble()); // 11
+ * console.log(counterDouble.isOdd()); // true
  *
  * @example
- * // State with source binding (methods bound to sources are not exposed)
- * const sourceSignal = source<number>();
- * const myState = state(0, ({ set }) => ({
- *   setValue: afterRecomputation(sourceSignal, (value) => set(value)),
- *   reset: () => set(0),
+ * // State with source binding (Event-based)
+ * const increment = source$<void>();
+ * const reset = source$<void>();
+ * const myState = state(0, ({ update, set }) => ({
+ *   setValue: on$(increment, () => update(value => value + 1)),
+ *   reset: () => on$(reset, () => set(0)),
  * }));
  * console.log(myState()); // 0
  * // Note: setValue is not exposed on myState, only used internally
- * sourceSignal.set(34);
+ * increment.emit();
  * console.log(myState()); // 34
- * myState.reset();
+ * reset.emit();
  * console.log(myState()); // 0
  */
 export function state<StateType>(

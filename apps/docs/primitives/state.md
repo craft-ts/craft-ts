@@ -17,24 +17,24 @@ const counter = state(0);
 console.log(counter()); // 0
 ```
 
-### State with a linkedSignal
+### State with a computed
 
 ```typescript
-import { signal, linkedSignal } from '@angular/core';
+import { signal, computed } from '@angular/core';
 
 const origin = signal(5);
-const doubled = state(linkedSignal(() => origin() * 2));
+const doubled = state(computed(() => origin() * 2));
 console.log(doubled()); // 10
 ```
 
-### State with insertions to add methods
+### State with insertions to add methods (Method-based)
 
 ```typescript
-import { signal, linkedSignal, computed } from '@angular/core';
+import { signal, computed, computed } from '@angular/core';
 
 const origin = signal(5);
 const counter = state(
-  linkedSignal(() => origin() * 2),
+  computed(() => origin() * 2),
   ({ update, set }) => ({
     increment: () => update((current) => current + 1),
     reset: () => set(0),
@@ -51,11 +51,9 @@ console.log(counter()); // 0
 ### State with multiple insertions (methods and computed properties)
 
 ```typescript
-import { signal, linkedSignal, computed } from '@angular/core';
-
 const origin = signal(5);
 const counter = state(
-  linkedSignal(() => origin() * 2),
+  computed(() => origin() * 2),
   ({ update, set }) => ({
     increment: () => update((current) => current + 1),
     reset: () => set(0),
@@ -72,82 +70,25 @@ console.log(counter()); // 11
 console.log(counter.isOdd()); // true
 ```
 
-### State with source binding
+### State with source binding (Event-based)
 
 Methods bound to sources using `on$` are not exposed on the state, they only work internally:
 
 ```typescript
-const sourceSignal = source$<number>();
-const myState = state(0, ({ set }) => ({
-  setValue: on$(sourceSignal, (value) => set(value)),
-  reset: () => set(0),
+const increment = source$<void>();
+const reset = source$<void>();
+const myState = state(0, ({ update, set }) => ({
+  setValue: on$(increment, () => update((v) => v + 1)),
+  reset: () => on$(reset, () => set(0)),
 }));
 
 console.log(myState()); // 0
 // Note: setValue is not exposed on myState, only used internally
-sourceSignal.emit(34);
+increment.emit();
 console.log(myState()); // 34
-myState.reset();
+reset.emit();
 console.log(myState()); // 0
 ```
-
-## Parallel States
-
-You can generate multiple state instances in parallel with a single `state(...)` declaration.
-
-### 1) Parallel state with `method` + `state`
-
-```typescript
-const todosById = state(
-  {
-    method: (id: number) => id,
-    state: ({ params: id }) => ({ id, done: false }),
-  },
-  ({ stateById }) => ({
-    toggle: (id: number) =>
-      stateById.select(id)?.update((todo) => ({ ...todo, done: !todo.done })),
-  }),
-);
-
-todosById.create(1);
-console.log(todosById.select(1)); // { id: 1, done: false }
-todosById.toggle(1);
-console.log(todosById.select(1)); // { id: 1, done: true }
-```
-
-### 2) Parallel state from `params` signal
-
-```typescript
-const currentId = signal(0);
-const itemById = state({
-  params: currentId,
-  identifier: (id) => id,
-  state: ({ params: id }) => ({ id, selected: false }),
-});
-
-console.log(itemById(0)); // { id: 0, selected: false }
-currentId.set(1);
-console.log(itemById(1)); // { id: 1, selected: false }
-```
-
-### 3) Parallel state from `from` signal (array/object)
-
-```typescript
-const ids = signal([0, 1, 2]);
-const rows = state({
-  from: ids,
-  identifier: ({ index }) => index,
-  state: ({ params: { index } }) => ({ index, active: false }),
-});
-
-console.log(rows(0)); // { index: 0, active: false }
-```
-
-## Typing Note
-
-For better TypeScript inference, pass Angular `Signal` values (`signal`, `linkedSignal`) rather than manually widening to `WritableSignal`.
-
-This avoids overload inference limitations in complex generic calls.
 
 ## Best Practices
 
