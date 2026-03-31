@@ -50,7 +50,7 @@ Dans cet article, je vais:
 Que tu utilises state, query, mutation, asyncProcess ou queryParam, la logique de composition reste la même:
 
 1. une configuration de base
-2. des insertions pour exposer des méthodes / des états derives
+2. des insertions pour exposer des méthodes / des états dérives / des réactions
 
 ![Structure commune des primitives](./assets/01-structure-primitives.png)
 
@@ -137,11 +137,45 @@ Si tu veux voir des versions plus complètes des patterns présentes ici, je te 
 
 Ces exemples m'ont servi de base pour structurer les snippets de cet article.
 
-## 3) Exposer méthodes et état derive avec les insertions
+## 3) Exposer méthodes et état derive avec les insertions (Method-based)
 
 Tu peux partir simple, puis enrichir sans casser le contrat initial.
 
-### Creer de la logique reutilisable est tres simple
+### Method-based insertions
+
+```typescript
+import { state } from '@craft-ng/core';
+const counter = state(0, ({ update, set }) => ({
+  increment: () => update((current) => current + 1),
+  decrement: () => update((current) => current - 1),
+  reset: () => set(0),
+}));
+console.log(counter()); // 0
+counter.increment();
+console.log(counter()); // 1
+counter.reset();
+console.log(counter()); // 0
+```
+
+### Source-based insertions (Event-based)
+
+```typescript
+import { source$, state, on$ } from '@craft-ng/core';
+
+const incrementTrigger$ = source$<void>();
+const resetTrigger$ = source$<void>();
+const counter = state(0, ({ set }) => ({
+  increment: on$(incrementTrigger$, () => set((v) => v + 1)),
+  reset: on$(resetTrigger$, () => set(0)),
+}));
+console.log(counter()); // 0
+incrementTrigger$.emit();
+console.log(counter()); // 1
+resetTrigger$.emit();
+console.log(counter()); // 0
+```
+
+### Créer de la logique réutilisable est très simple
 
 Tu peux extraire une insertion dans une fonction custom et la rebrancher partout:
 
@@ -149,7 +183,7 @@ Tu peux extraire une insertion dans une fonction custom et la rebrancher partout
 const counter = state(0, (context) => myCustomFn(context));
 ```
 
-Implementation simple (dans cet esprit):
+Implémentation simple (dans cet esprit):
 
 ```ts
 const myCustomFn = ({
@@ -173,7 +207,7 @@ myState.increment();
 myState.isOdd();
 ```
 
-Pour les cas plus pousses, j'etudie differents patterns pour que ca reste aussi simple que possible cote API et usage.
+Pour les cas plus poussés, j'étudie différents patterns pour que ca reste aussi simple que possible cote API et usage.
 
 ## 4) Tour rapide de quelques insertions utiles
 
@@ -186,18 +220,18 @@ Resultat: UX plus fluide, moins de flicker.
 
 Pour synchroniser automatiquement le cache query avec le resultat d'une mutation (patch/optimistic/reload selon le besoin).
 
-### insertLocalStoragePersister (state/query/mutation/asyncProcess)
+### insertLocalStoragePersister (state/query/asyncProcess)
 
 Pour persister et rehydrater automatiquement avec localStorage.
 Tres utile pour garder l'état entre sessions.
 
-### insertEntities
+### insertEntities (state)
 
 Pour manipuler des collections avec des utilitaires prets a l'emploi (add, set, update, remove, upsert...), en restant type-safe.
 
-### insertSelect
+### insertSelect (state)
 
-Pour cibler un sous-arbre d'état et exposer des méthodes/derives au bon endroit.
+Pour cibler un sous-arbre d'état et exposer des méthodes/dérives au bon endroit.
 Hyper utile sur des structures imbriquées. (Prochainement disponible)
 
 ## 5) Pourquoi source$ est un vrai levier d'architecture
@@ -206,17 +240,17 @@ source$ est l'outil que j'utilise pour garder des states granulaires sans perdre
 
 Cela correspond grosso-modo à un subject dans RxJS.
 
-### Cas 1: plusieurs states reagissent au meme evenement
+### Cas 1: plusieurs states réagissent au même événement
 
-Au lieu d'un gros state qui gère tout, plusieurs states petits et lisibles peuvent reagir au meme trigger.
+Au lieu d'un gros state qui gère tout, plusieurs states petits et lisibles peuvent réagir au même trigger.
 
 ![Un evenement, plusieurs states granulaires](./assets/07-source-multi-states.png)
 
 Ca donne:
 
-- responsabilites claires
+- responsabilités claires
 - meilleure DX
-- flux de mise a jour plus facile a raisonner
+- flux de mise à jour plus facile à raisonner
 
 Et surtout: tu peux commencer avec une méthode exposée, puis migrer vers une réaction on$ sans rearchitecture lourde.
 
@@ -240,8 +274,8 @@ Et si tu veux rester dans un style state-driven et réagir à des changements d'
 
 ## 6) La philosophie continue avec injectService
 
-injectService permet de construire une facade typee au-dessus d'un service Angular trop large.
-Tu exposes uniquement ce qui est utile au cas d'usage, tu derives proprement, et tu gardes la maitrise de l'API publique.
+injectService permet de construire une facade typee au-dessus d'un service Angular .
+Tu exposes uniquement ce qui est utile au cas d'usage, tu dérives proprement, et tu gardes la maitrise de l'API publique.
 
 ![injectService pour construire une facade typee](./assets/09-inject-service-facade.png)
 
