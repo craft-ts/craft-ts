@@ -76,7 +76,7 @@ Ce que j'aime ici:
 
 ### mutation
 
-mutation sert a modifier (UPDATE/PUT/PATCH/DELETE) des données cote serveur.
+mutation: sert a modifier (UPDATE/PUT/PATCH/DELETE) des données cote serveur.
 Tu peux la piloter par méthode directe ou par source$.
 
 Version méthode directe avec `.mutate(...)`:
@@ -96,7 +96,7 @@ const updateUser = mutation({
 updateUser.mutate({ id: '42', name: 'Romain' });
 ```
 
-La version source$ est tres pratique quand tu veux un flux event-driven.
+La version `source$` est tres pratique quand tu veux un flux event-driven.
 
 ![mutation pilotee par source$](./assets/04-mutation-source.png)
 
@@ -104,19 +104,19 @@ La version source$ est tres pratique quand tu veux un flux event-driven.
 
 ### query
 
-query gere le server state (chargement, valeur, erreur, cache) et peut tourner en parallele via identifier (ex: pour faire de la pagination).
+query: gère le server state (chargement, valeur, erreur, cache) et peut tourner en parallele via identifier (ex: pour faire de la pagination).
 
 Avec insertPaginationPlaceholderData + insertReactOnMutation, on obtient:
 
 - une pagination fluide
-- des updates reactifs liés aux mutations (optimistic update/patch, auto reload).
-- moins de code imperatif
+- des updates réactifs liés aux mutations (optimistic update/patch, auto reload).
+- moins de code impératif
 
 ![query avec pagination placeholder et réaction mutation](./assets/03-query-pagination-react-mutation.png)
 
 ### asyncProcess
 
-asyncProcess est ideal pour des traitements async qui ne sont pas strictement des queries/metiers CRUD (debounce, wrappers API natives, orchestration).
+asyncProcess est idéal pour des traitements async qui ne sont pas strictement des queries/métiers CRUD (debounce, wrappers API natives, orchestration).
 
 ![asyncProcess pour orchestration async](./assets/05-async-process.png)
 
@@ -126,14 +126,14 @@ queryParam synchronise l'état avec l'URL, tout en restant type-safe (parse/seri
 
 ![queryParam type-safe](./assets/06-query-param.png)
 
-## Exemples de la doc qui m'ont inspire
+## Exemples de la doc qui m'ont inspiré
 
-Si tu veux voir des versions plus completes des patterns presentes ici, je te conseille particulierement:
+Si tu veux voir des versions plus complètes des patterns présentes ici, je te conseille particulièrement:
 
 - les exemples primitives (query, mutation, full demo): https://ng-angular-stack.github.io/craft/examples
 - l'approche list-with-pagination pour visualiser insertPaginationPlaceholderData en contexte
 - les exemples Pixel Art / Pixel Art Matrix pour voir insertSelect sur des structures plus profondes
-- la section exceptions pour les cas metier avec erreurs type-safe, pour ne pas perdre d'information et offrir la meilleur UX/UI à tes utilisateurs
+- la section exceptions pour les cas métier avec erreurs type-safe, pour ne pas perdre d'information et offrir la meilleure UX/UI à tes utilisateurs
 
 Ces exemples m'ont servi de base pour structurer les snippets de cet article.
 
@@ -208,7 +208,7 @@ Cela correspond grosso-modo à un subject dans RxJS.
 
 ### Cas 1: plusieurs states reagissent au meme evenement
 
-Au lieu d'un gros state qui gere tout, plusieurs states petits et lisibles peuvent reagir au meme trigger.
+Au lieu d'un gros state qui gère tout, plusieurs states petits et lisibles peuvent reagir au meme trigger.
 
 ![Un evenement, plusieurs states granulaires](./assets/07-source-multi-states.png)
 
