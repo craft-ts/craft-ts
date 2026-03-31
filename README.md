@@ -31,7 +31,7 @@ npm i @craft-ng/core@latest
 
 ## 📖 Documentation
 
-Full documentation is available at: **[ng-craft.dev](https://ng-craft.dev)** _(coming soon)_
+Full documentation is available at: **[ng-craft.dev]([https://ng-craft.dev](https://ng-angular-stack.github.io/craft/))** 
 
 ### Quick Start
 
@@ -55,9 +55,10 @@ export class CounterComponent {
     ({ update, set }) => ({
       increment: () => update((current) => current + 1),
       reset: () => set(0),
-    }),
-    ({ state }) => ({
       isOdd: computed(() => state() % 2 === 1),
+    }),
+    ({ insertions: { isOdd }) => ({
+      isEven: computed(() => !isOdd()),
     }),
   );
 }
