@@ -50,6 +50,7 @@ const usersState = state(
 usersState.usersAddMany({
   newEntities: [{ id: '1', name: 'Romain', selected: false }],
 });
+usersState.selectFilters().setSearch('@craft-ng');
 ```
 
 ## 03 - query + pagination + reactOnMutation
@@ -113,15 +114,17 @@ import { asyncProcess } from '@craft-ng/core';
 
 const delaySearch = asyncProcess({
   method: (term: string) => term,
-  loader: async ({ params }) => {
+  loader: async ({ params: term }) => {
     await new Promise((resolve) => setTimeout(resolve, 250));
-    return fetch(`/api/search?q=${params}`).then((r) => r.json());
+    return term;
   },
 });
 
-delaySearch.method('signal');
-delaySearch.status();
-delaySearch.safeValue();
+delaySearch.safeValue(); // undefined
+delaySearch.status(); // 'idle'
+delaySearch.method('@craft-ng');
+delaySearch.status(); // 'loading' -> after 250ms -> 'resolved'
+delaySearch.safeValue(); // '@craft-ng'
 ```
 
 ## 06 - queryParam

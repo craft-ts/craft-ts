@@ -5,42 +5,42 @@ description: 'Un tour complet des primitives, insertions et sources de @craft-ng
 tags: angular, typescript, signals, state
 ---
 
-Quand je construis une feature Angular un peu serieuse, je veux toujours la meme chose:
+Quand je construis une feature Angular un peu sérieuse, je veux toujours la même chose:
 
-- un seule source de vérité
-- un flux de donnees clair
+- une seule source de vérité
+- un flux de données clair
 - un code composable
 - une DX solide
-- et surtout une type-safety qui m'evite de jouer aux devinettes
+- et surtout une type-safety qui m'évite de jouer aux devinettes
 
 C'est exactement l'objectif de @craft-ng.
 
 Une lib complète pour gérer tous les types d'état d'une application:
 
-- **client state**: états locaux, listes, UI, selection...
+- **client state**: états locaux, listes, UI, sélection...
 - **server state**: chargement, cache, mutation, pagination, optimistic update...
-- **URL state**: query params synchronises, type-safe, avec fallback
+- **URL state**: query params synchronisés, type-safe, avec fallback
 
-Pour les states les plus complexes, des insertions prêtes à l'emploi pour se rendre la vie plus facile.
+Des utilitaires prêts à l'emploi pour se rendre la vie plus facile.
+
+Une approche Method-based ou Event-based pour s'adapter à tous les styles de code.
 
 Qu'ils soient simples ou complexes, le principe reste toujours le même.
 
-L'idée n'est pas de réinventer un store monolithique de plus.
-L'idée, c'est que la logique est portée par des **primitives déclaratives et réactives**, que tu peux assembler, enrichir et composer.
-
-Ces primitives peuvent être utilisées:
-
-1. **directement dans les composants** — elles se lient automatiquement aux cycles de vie Angular. De mon point de vue, le composant n'est pas là pour gérer la logique, mais pour aider à l'orchestrer.
-2. **dans des services Angular** — pour profiter des mécanismes d'injection et de partage qu'on connaît déjà.
-3. **dans un store craft** — pour aller plus loin et gérer l'orchestration à un niveau supérieur, tout en bénéficiant des mêmes principes de composition.
+1. Les « primitives », basées sur les signals, ont chacune leur rôle et portent un state et sa logique.
+2. Elles sont utilisables directement dans les composants et les services.
+3. Elles suivent toutes le même principe : primitive(config, insertion1, insertion2, ...).
+4. Les insertions servent à ajouter de la logique (modifiers, réactions, états dérivés, method-based/event-based...).
+5. Ce pattern, combiné aux utilitaires de craft-ng insert..., permet d'obtenir un niveau inégalé de composition, offrant une gestion fluide aussi bien pour les cas simples que complexes.
+6. Un store craft est disponible pour orchestrer ces primitives. Il peut être composé par d'autres stores, et être lui-même composable.
 
 Dans cet article, je vais:
 
 - présenter la structure commune des primitives
-- montrer comment exposer méthodes et état dérivés via les insertions
+- montrer comment exposer méthodes, état dérivés, et réagir à un événement via les insertions
 - donner un exemple concret pour chaque primitive
 - faire un tour rapide des insertions utiles
-- expliquer pourquoi source$ change vraiment la façon de structurer le state
+- expliquer pourquoi source$ (event-based) change vraiment la façon de structurer le state
 - terminer avec injectService et le store craft
 
 > ⚠️ **@craft-ng est une librairie experimentale.** Je ne recommande pas de l'utiliser en production pour le moment. Cet article est avant tout un partage des concepts.
@@ -63,11 +63,40 @@ Dans la pratique, chaque primtive apporte ses fonctionnalités qui lui sont prop
 ### state
 
 state gère le client state synchrone.
-C'est la base pour modeler un état local, l'étendre, puis le spécialiser.
+C'est la base pour modéliser un état client, global ou local, le composer, et le spécialiser.
 
-Avec insertSelect, permet d'accéder et de gérer la logique au plus proche de la cible.
+Combiné à `insertSelect`, le state devient redoutable pour gérer des structures imbriquées de manière fluide et type-safe.
 
-![state avec insertSelect et insertEntities](./assets/02-state-insert-select-entities.png)
+```typescript
+import {
+  addMany,
+  insertEntities,
+  insertSelect,
+  state,
+  updateOne,
+} from '@craft-ng/core';
+
+type User = { id: string; name: string; selected: boolean };
+
+const usersState = state(
+  {
+    filters: { search: '' },
+    users: [] as User[],
+  },
+  insertEntities({
+    path: 'users',
+    methods: [addMany, updateOne],
+  }),
+  insertSelect('filters', ({ set }) => ({
+    setSearch: (search: string) => set({ search }),
+  })),
+);
+
+usersState.usersAddMany({
+  newEntities: [{ id: '1', name: 'Romain', selected: false }],
+});
+usersState.selectFilters().setSearch('@craft-ng');
+```
 
 Ce que j'aime ici:
 
@@ -96,15 +125,11 @@ const updateUser = mutation({
 updateUser.mutate({ id: '42', name: 'Romain' });
 ```
 
-La version `source$` est tres pratique quand tu veux un flux event-driven.
-
-![mutation pilotee par source$](./assets/04-mutation-source.png)
-
-> On peut aussi les appeler en parallele, avec des identifiers, pour gérer des cas plus complexes (ex: plusieurs mutations de suppression dans une liste).
+> On peut aussi les appeler en parallèle, avec des identifiers, pour gérer des cas plus complexes (ex: plusieurs mutations de suppression dans une liste).
 
 ### query
 
-query: gère le server state (chargement, valeur, erreur, cache) et peut tourner en parallele via identifier (ex: pour faire de la pagination).
+query: gère le server state (chargement, valeur, erreur, cache) et peut tourner en parallèle via identifier (ex: pour faire de la pagination).
 
 Avec insertPaginationPlaceholderData + insertReactOnMutation, on obtient:
 
@@ -118,7 +143,23 @@ Avec insertPaginationPlaceholderData + insertReactOnMutation, on obtient:
 
 asyncProcess est idéal pour des traitements async qui ne sont pas strictement des queries/métiers CRUD (debounce, wrappers API natives, orchestration).
 
-![asyncProcess pour orchestration async](./assets/05-async-process.png)
+```typescript
+import { asyncProcess } from '@craft-ng/core';
+
+const delaySearch = asyncProcess({
+  method: (term: string) => term,
+  loader: async ({ params: term }) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return term;
+  },
+});
+
+delaySearch.safeValue(); // undefined
+delaySearch.status(); // 'idle'
+delaySearch.method('@craft-ng');
+delaySearch.status(); // 'loading' -> after 250ms -> 'resolved'
+delaySearch.safeValue(); // '@craft-ng'
+```
 
 ### queryParam
 

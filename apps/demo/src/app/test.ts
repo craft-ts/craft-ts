@@ -3,6 +3,7 @@ import { Component, computed, effect, signal } from '@angular/core';
 import { FormField } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import {
+  addMany,
   afterRecomputation,
   cAsyncValidate,
   craft,
@@ -11,9 +12,11 @@ import {
   craftSources,
   cRequired,
   injectService,
+  insertEntities,
   insertForm,
   insertFormAttributes,
   insertNoopTypingAnchor,
+  insertSelect,
   insertSelectFormTree,
   query,
   queryParam,
@@ -21,6 +24,7 @@ import {
   source$,
   state,
   toSource,
+  updateOne,
 } from '@craft-ng/core';
 
 const { craftGenericQueryParams } = craft(
@@ -113,6 +117,24 @@ const { injectHost1Craft } = craft(
   `,
 })
 export default class TestComponent {
+  usersState = state(
+    {
+      filters: { search: '' },
+      users: [] as User[],
+    },
+    insertEntities({
+      path: 'users',
+      methods: [addMany, updateOne],
+    }),
+    insertSelect('filters', ({ set }) => ({
+      setSearch: (search: string) => set({ search }),
+    })),
+  );
+
+  t = this.usersState.usersAddMany({
+    newEntities: [{ id: '1', name: 'Romain', selected: false }],
+  });
+  t2 = this.usersState.selectFilters().setSearch('@craft-ng');
   store = injectHostCraft();
   store1 = injectHost1Craft();
 
@@ -193,3 +215,4 @@ export default class TestComponent {
     backOnSaveSuccess: afterRecomputation(this.r, () => navigate(['/'])),
   }));
 }
+type User = { id: string; name: string; selected: boolean };
