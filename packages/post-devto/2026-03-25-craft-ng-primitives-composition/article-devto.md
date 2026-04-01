@@ -1,8 +1,9 @@
 ---
-title: "@craft-ng: composer des logiques d'état complexes sans sacrifier la type-safety"
-published: false
-description: 'Un tour complet des primitives, insertions et sources de @craft-ng pour ecrire un code composable, declaratif et reactif en Angular.'
+title: '@craft-ng: Associer l’art de la composition & du state management dans Angular'
+published: true
+description: 'Un tour complet des primitives, insertions et sources de @craft-ng pour écrire un code composable, déclaratif et réactif en Angular.'
 tags: angular, typescript, signals, state
+cover_image: https://dev-to-uploads.s3.amazonaws.com/uploads/articles/fu5ophzxv8l1o1ucmu4f.png
 ---
 
 Quand je construis une feature Angular un peu sérieuse, je veux toujours la même chose:
@@ -12,10 +13,11 @@ Quand je construis une feature Angular un peu sérieuse, je veux toujours la mê
 - un code composable
 - une DX solide
 - et surtout une type-safety qui m'évite de jouer aux devinettes
+- des outils pour pensés pour simplifier l'UX/UI
 
 C'est exactement l'objectif de @craft-ng.
 
-Une lib complète pour gérer tous les types d'état d'une application:
+Une lib complète de state management pour tous les types d'état d'une application:
 
 - **client state**: états locaux, listes, UI, sélection...
 - **server state**: chargement, cache, mutation, pagination, optimistic update...
@@ -45,14 +47,34 @@ Dans cet article, je vais:
 
 > ⚠️ **@craft-ng est une librairie experimentale.** Je ne recommande pas de l'utiliser en production pour le moment. Cet article est avant tout un partage des concepts.
 
-## 1) Une structure commune a toutes les primitives
+La doc: https://ng-angular-stack.github.io/craft/
+
+## 1) Une structure commune à toutes les primitives
 
 Que tu utilises state, query, mutation, asyncProcess ou queryParam, la logique de composition reste la même:
 
 1. une configuration de base
 2. des insertions pour exposer des méthodes / des états dérives / des réactions
 
-![Structure commune des primitives](./assets/01-structure-primitives.png)
+```typescript
+import { computed } from '@angular/core';
+
+const counter = state(
+  0, // config
+  // insertion 1
+  ({ set, update }) => ({
+    increment: () => update((current) => current + 1),
+    reset: () => set(0),
+  }),
+  // insertion 2
+  ({ state }) => ({
+    isOdd: computed(() => state() % 2 === 1),
+  }),
+);
+
+counter.increment();
+counter.isOdd();
+```
 
 Ce point est clé: tu n'apprends pas 5 APIs différentes, tu apprends un modèle mental unique.
 
@@ -68,14 +90,6 @@ C'est la base pour modéliser un état client, global ou local, le composer, et 
 Combiné à `insertSelect`, le state devient redoutable pour gérer des structures imbriquées de manière fluide et type-safe.
 
 ```typescript
-import {
-  addMany,
-  insertEntities,
-  insertSelect,
-  state,
-  updateOne,
-} from '@craft-ng/core';
-
 type User = { id: string; name: string; selected: boolean };
 
 const usersState = state(
@@ -83,19 +97,12 @@ const usersState = state(
     filters: { search: '' },
     users: [] as User[],
   },
-  insertEntities({
-    path: 'users',
-    methods: [addMany, updateOne],
-  }),
   insertSelect('filters', ({ set }) => ({
-    setSearch: (search: string) => set({ search }),
+    set,
   })),
 );
 
-usersState.usersAddMany({
-  newEntities: [{ id: '1', name: 'Romain', selected: false }],
-});
-usersState.selectFilters().setSearch('@craft-ng');
+usersState.selectFilters().set('@craft-ng');
 ```
 
 Ce que j'aime ici:
@@ -103,10 +110,15 @@ Ce que j'aime ici:
 - les méthodes suivent la structure du state
 - la lecture du code reste directe
 
+Pourquoi avoir créé un `state` alors qu'il y a déjà les signals d'Angular ?
+
+- pour bénéficier du système de composition via les insertions
+- exposer les méthodes qui modifient l'état pour le rendre prédictif
+- encapsuler toute la logique qui lui est associée
+
 ### mutation
 
 mutation: sert a modifier (UPDATE/PUT/PATCH/DELETE) des données cote serveur.
-Tu peux la piloter par méthode directe ou par source$.
 
 Version méthode directe avec `.mutate(...)`:
 
@@ -118,18 +130,27 @@ const updateUser = mutation({
       method: 'PATCH',
       body: JSON.stringify(params),
     });
-    return response.json();
+    return response.json() as User;
   },
 });
 
 updateUser.mutate({ id: '42', name: 'Romain' });
 ```
 
-> On peut aussi les appeler en parallèle, avec des identifiers, pour gérer des cas plus complexes (ex: plusieurs mutations de suppression dans une liste).
+> On peut aussi les appeler en parallèle, avec des identifiers, pour gérer des cas plus complexes (cf. l'exemple dans full-demo).
+
+Pourquoi avoir créé une `mutation` alors qu'il y a déjà les resources d'Angular ?
+
+- pour bénéficier du système de composition via les insertions
+- permettre des appels api en parallèle via les identifiers
+- retourner des `craftException` typés en cas d'erreur métier (ex: validation), pour ne pas perdre d'information et offrir la meilleure UX/UI à tes utilisateurs
+- peut s'appeler comme une méthode directe `myMutationRef.mutate(...)`
 
 ### query
 
 query: gère le server state (chargement, valeur, erreur, cache) et peut tourner en parallèle via identifier (ex: pour faire de la pagination).
+
+C'est la primitive qui est faîte pour représenter une ressource distante, avec des utilitaires pour gérer le cache, les updates liés aux mutations, la pagination...
 
 Avec insertPaginationPlaceholderData + insertReactOnMutation, on obtient:
 
@@ -137,7 +158,41 @@ Avec insertPaginationPlaceholderData + insertReactOnMutation, on obtient:
 - des updates réactifs liés aux mutations (optimistic update/patch, auto reload).
 - moins de code impératif
 
-![query avec pagination placeholder et réaction mutation](./assets/03-query-pagination-react-mutation.png)
+```typescript
+import {
+  insertPaginationPlaceholderData,
+  insertReactOnMutation,
+  mutation,
+  query,
+} from '@craft-ng/core';
+
+const updateUser = mutation({
+  method: (payload: { id: string; name: string }) => payload,
+  loader: async ({ params }) => params,
+});
+
+const page = signal(1);
+const usersQuery = query(
+  {
+    params: page,
+    identifier: (page) => `${page}`,
+    loader: async ({ params: currentPage }) =>
+      fetch(`/api/users?page=${currentPage}`).then((r) => r.json()),
+  },
+  insertPaginationPlaceholderData,
+  insertReactOnMutation(updateUser, {
+    patch: {
+      name: ({ mutationParams }) => mutationParams.name,
+    },
+  }),
+);
+```
+
+Pourquoi avoir créé une `query` alors qu'il y a déjà les resources d'Angular ?
+
+- pour bénéficier du système de composition via les insertions
+- permettre des appels api en parallèle via les identifiers
+- retourner des `craftException` typés en cas d'erreur métier (ex: validation), pour ne pas perdre d'information et offrir la meilleure UX/UI à tes utilisateurs
 
 ### asyncProcess
 
@@ -161,11 +216,46 @@ delaySearch.status(); // 'loading' -> after 250ms -> 'resolved'
 delaySearch.safeValue(); // '@craft-ng'
 ```
 
+Pourquoi avoir créé un `asyncProcess` alors qu'il y a déjà les resources d'Angular ?
+
+- permet de profiter du système de composition via les insertions
+- retourner des `craftException` typés en cas d'erreur métier
+
 ### queryParam
 
 queryParam synchronise l'état avec l'URL, tout en restant type-safe (parse/serialize/fallback).
 
-![queryParam type-safe](./assets/06-query-param.png)
+```typescript
+import { queryParam } from '@craft-ng/core';
+
+const tableParams = queryParam(
+  {
+    state: {
+      page: {
+        fallbackValue: 1,
+        parse: (v) => parseInt(v, 10),
+        serialize: (v) => String(v),
+      },
+      search: {
+        fallbackValue: '',
+        parse: (v) => v,
+        serialize: (v) => v,
+      },
+    },
+  },
+  ({ patch, reset }) => ({ patch, reset }),
+);
+
+tableParams.patch({ page: 2 });
+```
+
+Pourquoi avoir créé un `queryParam` alors qu'on peut utiliser `withComponentInputBinding`pour récupérer un query param dans un input ?
+
+- `queryParam` peut être utilisé dans un service providé au niveau du composant
+- possède une valeur de fallback en cas de non présence du query param ou d'une valeur invalide
+- permet de modifier ce query param via les insertions
+- profite du système de composition via les insertions
+- permet de retourner des `craftException` typés en cas d'erreur métier au parse d'un query param
 
 ## Exemples de la doc qui m'ont inspiré
 
@@ -178,7 +268,7 @@ Si tu veux voir des versions plus complètes des patterns présentes ici, je te 
 
 Ces exemples m'ont servi de base pour structurer les snippets de cet article.
 
-## 3) Exposer méthodes et état derive avec les insertions (Method-based)
+## 3) Exposer des méthodes et état dérivé avec les insertions (Method-based)
 
 Tu peux partir simple, puis enrichir sans casser le contrat initial.
 
@@ -285,7 +375,23 @@ Cela correspond grosso-modo à un subject dans RxJS.
 
 Au lieu d'un gros state qui gère tout, plusieurs states petits et lisibles peuvent réagir au même trigger.
 
-![Un evenement, plusieurs states granulaires](./assets/07-source-multi-states.png)
+```typescript
+import { on$, source$, state } from '@craft-ng/core';
+
+const resetFilters$ = source$<void>();
+
+const search = state('', ({ set }) => ({
+  set,
+  reset: on$(resetFilters$, () => set('')),
+}));
+
+const page = state(1, ({ set }) => ({
+  set,
+  reset: on$(resetFilters$, () => set(1)),
+}));
+
+resetFilters$.emit();
+```
 
 Ca donne:
 
@@ -297,28 +403,63 @@ Et surtout: tu peux commencer avec une méthode exposée, puis migrer vers une r
 
 ### Cas 2: state imbriqué + insertSelect
 
-Dans des structures profondes, insertSelect permet d'exposer le bon niveau d'API.
-Tu peux aussi exposer une source$ plus haut, puis reagir dans plusieurs zones nested sans destructurer 5 couches partout.
+Dans des structures profondes, insertSelect permet d'associer des méthodes et des états dérivés à une niveau plus profond.
+Parfois, j'utilise source$ à un haut niveau, puis je réagis à cette source$ depuis des niveau imbriqués.
+Cela me permet de modifier l'état au plus proche de l'endroit où il est modifié.
+
+> Pour les states complexes avec des imbrications, le modèle mentale devient plus souple et plus facile à raisonner.
 
 ### Cas 3: event-driven (et pont avec Observable)
 
-source$ + on$ permettent de reagir a des evenements, y compris depuis un Observable.
-Pour ceux qui aiment l'event-driven, c'est tres naturel.
+source$ + on$ permettent de réagir à des événements, y compris depuis un Observable.
+Pour ceux qui aiment l'event-driven, c'est très naturel.
 
 Et si tu veux rester dans un style state-driven et réagir à des changements d'état, il y a aussi:
 
 - reactiveWritableSignal
-- afterRecomputation
-- toSource
 
-![reactiveWritableSignal, toSource et afterRecomputation](./assets/08-reactive-writable-signal-to-source.png)
+Dans cet exemple, ce me permet de créer un linkedSignal, qui réagit à des changements d'états de d'autres signals.
+Cela me permet retirer les ids qui ont été supprimés de la sélection, sans devoir faire du code impératif pour écouter les changements de page et de suppression.
+
+```typescript
+const selectedIds = reactiveWritableSignal([] as string[], (sync) => ({
+  resetWhenCurrentPageIsResolved: sync(
+    users.currentPageStatus,
+    ({ params, current }) => (params === 'resolved' ? [] : current),
+  ),
+  resetWhenBulkDeleteIsResolved: sync(
+    bulkDelete.status,
+    ({ params, current }) => (params === 'resolved' ? [] : current),
+  ),
+})); // WritableSignal<string[]>
+```
+
+- `afterRecomputation` : qui déclenche son callBack si le résultat de sa source n'est pas `undefined`.
+- `toSource`: transforme un signal en source. La première lecture d'une source renverra toujours `undefined`, puis dès que la source change, le résultat sera synchronisé.
 
 ## 6) La philosophie continue avec injectService
 
-injectService permet de construire une facade typee au-dessus d'un service Angular .
+injectService permet de construire une facade typée au-dessus d'un service Angular .
 Tu exposes uniquement ce qui est utile au cas d'usage, tu dérives proprement, et tu gardes la maitrise de l'API publique.
 
-![injectService pour construire une facade typee](./assets/09-inject-service-facade.png)
+```typescript
+import { computed } from '@angular/core';
+import { injectService } from '@craft-ng/core';
+
+const checkout = injectService(
+  CheckoutService,
+  ({ cart, total, submitOrder }) => ({
+    total,
+    itemCount: computed(() => cart().length),
+    submit: submitOrder,
+  }),
+  ({ insertions }) => ({
+    canSubmit: computed(() => insertions.itemCount() > 0),
+  }),
+);
+
+checkout.canSubmit();
+```
 
 ## 7) Et au-dessus: le store `craft`
 
@@ -337,7 +478,13 @@ A l'heure où j'écris cet article, d'autres utilitaires arrivent dans la même 
 
 Le prochain utilitaire, si je devais n'en partager qu'un :
 
-- un wrapper autour des signal forms, avec gestion type-safe des erreurs et de la logique complexe interdépendante.
+- un formulaire à la pointe de la technologie (en plus de tout ce que permet le signal form d'Angular):
+  - création de formulaire en parallèle
+  - intégration avec les autres primitives (pour le submit, et les validations asynchrones)
+  - gestion fine des erreurs (validation, submit, async validators), tout est inféré, permettant d'avoir la liste exhaustive des erreurs associées à un champ.
+  - Gestion de la logique interdépendante grâce aux mécanismes de composition offerts par la lib.
+
+(Actuellement, j'ai un wrapper du signalForm, mais j'ai 2 cas qui sont impossibles à gérer. J'attends un peu de voir si Angular permet d'étendre le signalForm, ou si je dois faire une implémentation custom pour garder la philosophie de composition et de type-safety.)
 
 N'hésite pas à aller voir la doc ou à mettre une étoile sur le repo si tu veux suivre l'évolution de la lib, ou à me faire un retour si tu as des idées d'amélioration !
 
