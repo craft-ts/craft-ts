@@ -342,9 +342,11 @@ Pour les cas plus poussés, j'étudie différents patterns pour que ca reste aus
 
 ## 4) Tour rapide de quelques insertions utiles
 
+Voici quelques insertions qui me semblent particulièrement utiles pour gérer des cas courants. Je ferai un focus dessus dans de prochains articles.
+
 ### insertPaginationPlaceholderData (query)
 
-Pour garder les donnees de la page precedente pendant le chargement de la suivante.
+Pour garder les données de la page precedente pendant le chargement de la suivante.
 Resultat: UX plus fluide, moins de flicker.
 
 ### insertReactOnMutation (query)
