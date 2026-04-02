@@ -23,7 +23,13 @@ type IsUnknown<T> = unknown extends T
     : false
   : false;
 
-type IsRomain<T> = T extends 'Romain' ? true : false;
+type IsSameLiteral<A, B> = [A] extends [B]
+  ? B extends A
+    ? true
+    : false
+  : false;
+
+type IsRomain<T> = IsSameLiteral<T, 'Romain'>;
 
 type IsSquareMarked<T> = T extends { checked: true } ? true : false;
 
@@ -42,14 +48,29 @@ async function whatCanBeDerived() {
   type Name = string;
   const _name: Name = 'Romain';
   //.   ^?
-  type IsNameRomain = IsRomain<Name>;
+  type _IsNameRomain = IsRomain<typeof _name>;
   //.  ^?
 
   type Square = object;
   const _firstSquare: Square = { word: 'Signals', checked: true };
   type _FirstSquare = typeof _firstSquare;
   //   ^?
-  type IsSquareMarked = IsSquareMarked<typeof _firstSquare>;
+  type _IsSquareMarked = IsSquareMarked<typeof _firstSquare>;
+  //.  ^?
+}
+
+function case2() {
+  type Name = string;
+  const _name = 'Romain' satisfies Name;
+  //.   ^?
+  type _IsNameRomain = IsRomain<typeof _name>;
+  //.  ^?
+
+  type Square = object;
+  const _firstSquare: Square = { word: 'Signals', checked: true };
+  type _FirstSquare = typeof _firstSquare;
+  //   ^?
+  type _IsSquareMarked = IsSquareMarked<typeof _firstSquare>;
   //.  ^?
 }
 
