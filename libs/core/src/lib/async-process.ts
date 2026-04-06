@@ -78,24 +78,24 @@ export type AsyncProcessRef<
            * return the associated resource or undefined if not existing
            */
           select: (id: GroupIdentifier) =>
-            | {
+            | ({
                 readonly value: Signal<Value | undefined>;
                 readonly status: Signal<ResourceStatus>;
                 readonly error: Signal<Error | undefined>;
-              readonly isLoading: Signal<boolean>;
-              readonly safeValue: Signal<Value | undefined>;
-              hasValue(): boolean;
+                readonly isLoading: Signal<boolean>;
+                readonly safeValue: Signal<Value | undefined>;
+                hasValue(): boolean;
               } & ResourceLikeAsyncProcessExceptions<
                 AsyncProcessExceptions,
                 GroupIdentifier
-              >
+              >)
             | undefined;
         } & ([GroupIdentifier] extends [string]
-          ? ResourceByIdLikeAsyncProcessExceptions<
-              AsyncProcessExceptions,
-              GroupIdentifier
-            >
-          : {}),
+            ? ResourceByIdLikeAsyncProcessExceptions<
+                AsyncProcessExceptions,
+                GroupIdentifier
+              >
+            : {}),
   ]
 >;
 
@@ -957,7 +957,8 @@ export function asyncProcess<
   const hasParamsFn =
     'params' in AsyncProcessConfig &&
     typeof AsyncProcessConfig.params === 'function';
-  const isConnectedToSource = !hasParamsFn && isSource(AsyncProcessConfig.method);
+  const isConnectedToSource =
+    !hasParamsFn && isSource(AsyncProcessConfig.method);
   const hasMethodFn =
     !hasParamsFn &&
     typeof AsyncProcessConfig.method === 'function' &&
@@ -1046,9 +1047,7 @@ export function asyncProcess<
   const wrappedParamsFn = hasParamsFn
     ? ((() =>
         sanitizeParamsResult(
-          (
-            AsyncProcessConfig as { params: () => AsyncProcessParams }
-          ).params(),
+          (AsyncProcessConfig as { params: () => AsyncProcessParams }).params(),
         )) as () => AsyncProcessParams | undefined)
     : undefined;
 
@@ -1154,37 +1153,42 @@ export function asyncProcess<
       ...(hasParamsFn
         ? { resourceParamsSrc }
         : {
-            method:
-              isSignal(AsyncProcessConfig.method)
-                ? undefined
-                : (arg: AsyncProcessArgsParams) => {
-                    const result = (AsyncProcessConfig as { method: (args: AsyncProcessArgsParams) => AsyncProcessParams }).method(arg);
-                    if (isCraftException(result)) {
-                      methodParamsException.set(
-                        enrichResourceException(result, { scope: 'params' }),
-                      );
-                      return result as AsyncProcessParams;
+            method: isSignal(AsyncProcessConfig.method)
+              ? undefined
+              : (arg: AsyncProcessArgsParams) => {
+                  const result = (
+                    AsyncProcessConfig as {
+                      method: (
+                        args: AsyncProcessArgsParams,
+                      ) => AsyncProcessParams;
                     }
-
-                    if (methodParamsException()) {
-                      methodParamsException.set(undefined);
-                    }
-
-                    if (isUsingIdentifier) {
-                      const id = AsyncProcessConfig.identifier?.(arg as any);
-                      (
-                        resourceTarget as ResourceByIdRef<
-                          GroupIdentifier & string,
-                          AsyncProcesstate,
-                          AsyncProcessParams
-                        >
-                      ).addById(id as GroupIdentifier & string);
-                    }
-                    AsyncProcessResourceParamsFnSignal.set(
-                      result as AsyncProcessParams,
+                  ).method(arg);
+                  if (isCraftException(result)) {
+                    methodParamsException.set(
+                      enrichResourceException(result, { scope: 'params' }),
                     );
-                    return result;
-                  },
+                    return result as AsyncProcessParams;
+                  }
+
+                  if (methodParamsException()) {
+                    methodParamsException.set(undefined);
+                  }
+
+                  if (isUsingIdentifier) {
+                    const id = AsyncProcessConfig.identifier?.(arg as any);
+                    (
+                      resourceTarget as ResourceByIdRef<
+                        GroupIdentifier & string,
+                        AsyncProcesstate,
+                        AsyncProcessParams
+                      >
+                    ).addById(id as GroupIdentifier & string);
+                  }
+                  AsyncProcessResourceParamsFnSignal.set(
+                    result as AsyncProcessParams,
+                  );
+                  return result;
+                },
           }),
     },
     (
