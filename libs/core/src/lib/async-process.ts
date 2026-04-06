@@ -55,9 +55,13 @@ export type AsyncProcessRef<
       ? {
           method: (args: ArgParams) => Params;
         }
-      : {
-          source: ReadonlySource<SourceParams>;
-        },
+      : IsMethod extends 'params'
+        ? {
+            readonly resourceParamsSrc: Signal<Params | undefined>;
+          }
+        : {
+            source: ReadonlySource<SourceParams>;
+          },
     [unknown] extends [GroupIdentifier]
       ? {}
       : ResourceByIdRef<GroupIdentifier & string, Value, Params> & {
@@ -126,6 +130,7 @@ type AsyncProcessConfig<
             >
           >,
         ) => Promise<ResourceState>;
+        params?: never;
         stream?: never;
         preservePreviousValue?: () => boolean;
       }
@@ -149,6 +154,29 @@ type AsyncProcessConfig<
             >
           >
         >;
+        params?: never;
+        preservePreviousValue?: () => boolean;
+      }
+    | {
+        /**
+         * A reactive function which determines the request to be made. Whenever the request changes, the
+         * loader will be triggered to fetch a new value for the resource.
+         */
+        params: () => Params;
+        /**
+         * A unique identifier for the resource, derived from the params.
+         * It should be a string that uniquely identifies the resource based on the params.
+         */
+        identifier?: (
+          params: NoInfer<NonNullable<StripCraftException<Params>>>,
+        ) => GroupIdentifier;
+        loader: (
+          param: ResourceLoaderParams<
+            NonNullable<NoInfer<StripCraftException<Params>>>
+          >,
+        ) => Promise<ResourceState>;
+        method?: never;
+        stream?: never;
         preservePreviousValue?: () => boolean;
       }
   );
@@ -240,7 +268,11 @@ export type AsyncProcessOutput<
   ArgParams,
   StripCraftException<Params>,
   Insertions,
-  [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
+  [unknown] extends [ArgParams]
+    ? [unknown] extends [SourceParams]
+      ? 'params'
+      : false
+    : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
   GroupIdentifier,
   AsyncProcessExceptions
@@ -444,7 +476,7 @@ export function asyncProcess<
   StripCraftException<AsyncProcesstate>,
   StripCraftException<AsyncProcessParams>,
   AsyncProcessArgsParams,
-  StripCraftException<AsyncProcessParams>,
+  SourceParams,
   GroupIdentifier,
   {},
   Exceptions
@@ -480,7 +512,7 @@ export function asyncProcess<
   StripCraftException<AsyncProcesstate>,
   StripCraftException<AsyncProcessParams>,
   AsyncProcessArgsParams,
-  StripCraftException<AsyncProcessParams>,
+  SourceParams,
   GroupIdentifier,
   Insertion1,
   Exceptions
@@ -524,7 +556,7 @@ export function asyncProcess<
   StripCraftException<AsyncProcesstate>,
   StripCraftException<AsyncProcessParams>,
   AsyncProcessArgsParams,
-  StripCraftException<AsyncProcessParams>,
+  SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2,
   Exceptions
@@ -577,7 +609,7 @@ export function asyncProcess<
   StripCraftException<AsyncProcesstate>,
   StripCraftException<AsyncProcessParams>,
   AsyncProcessArgsParams,
-  StripCraftException<AsyncProcessParams>,
+  SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3,
   Exceptions
@@ -639,7 +671,7 @@ export function asyncProcess<
   StripCraftException<AsyncProcesstate>,
   StripCraftException<AsyncProcessParams>,
   AsyncProcessArgsParams,
-  StripCraftException<AsyncProcessParams>,
+  SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4,
   Exceptions
@@ -710,7 +742,7 @@ export function asyncProcess<
   StripCraftException<AsyncProcesstate>,
   StripCraftException<AsyncProcessParams>,
   AsyncProcessArgsParams,
-  StripCraftException<AsyncProcessParams>,
+  SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
   Exceptions
@@ -790,7 +822,7 @@ export function asyncProcess<
   StripCraftException<AsyncProcesstate>,
   StripCraftException<AsyncProcessParams>,
   AsyncProcessArgsParams,
-  StripCraftException<AsyncProcessParams>,
+  SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
   Exceptions
@@ -879,7 +911,7 @@ export function asyncProcess<
   StripCraftException<AsyncProcesstate>,
   StripCraftException<AsyncProcessParams>,
   AsyncProcessArgsParams,
-  StripCraftException<AsyncProcessParams>,
+  SourceParams,
   GroupIdentifier,
   Insertion1 &
     Insertion2 &
@@ -922,8 +954,12 @@ export function asyncProcess<
     AsyncProcessParams | undefined
   >(undefined);
 
-  const isConnectedToSource = isSource(AsyncProcessConfig.method);
+  const hasParamsFn =
+    'params' in AsyncProcessConfig &&
+    typeof AsyncProcessConfig.params === 'function';
+  const isConnectedToSource = !hasParamsFn && isSource(AsyncProcessConfig.method);
   const hasMethodFn =
+    !hasParamsFn &&
     typeof AsyncProcessConfig.method === 'function' &&
     !isSignal(AsyncProcessConfig.method);
 
@@ -956,6 +992,15 @@ export function asyncProcess<
   const reactiveParamsException = computed(() => {
     if (hasMethodFn) {
       return undefined;
+    }
+
+    if (hasParamsFn) {
+      const paramsValue = (
+        AsyncProcessConfig as { params: () => AsyncProcessParams }
+      ).params();
+      return isCraftException(paramsValue)
+        ? enrichResourceException(paramsValue, { scope: 'params' })
+        : undefined;
     }
 
     if (isConnectedToSource) {
@@ -998,6 +1043,15 @@ export function asyncProcess<
         )) as Signal<AsyncProcessParams | undefined>)
     : undefined;
 
+  const wrappedParamsFn = hasParamsFn
+    ? ((() =>
+        sanitizeParamsResult(
+          (
+            AsyncProcessConfig as { params: () => AsyncProcessParams }
+          ).params(),
+        )) as () => AsyncProcessParams | undefined)
+    : undefined;
+
   const wrappedLoader =
     'loader' in AsyncProcessConfig && AsyncProcessConfig.loader
       ? ((async (param: ResourceLoaderParams<any>) => {
@@ -1027,7 +1081,9 @@ export function asyncProcess<
 
   const resourceParamsSrc = isConnectedToSource
     ? (wrappedSourceParams as typeof AsyncProcessConfig.method)
-    : AsyncProcessResourceParamsFnSignal;
+    : hasParamsFn
+      ? wrappedParamsFn
+      : AsyncProcessResourceParamsFnSignal;
 
   const resourceTarget = isUsingIdentifier
     ? resourceById<
@@ -1095,36 +1151,41 @@ export function asyncProcess<
     {
       hasException,
       exceptions,
-      method: isSignal(AsyncProcessConfig.method)
-        ? undefined
-        : (arg: AsyncProcessArgsParams) => {
-            const result = AsyncProcessConfig.method(arg);
-            if (isCraftException(result)) {
-              methodParamsException.set(
-                enrichResourceException(result, { scope: 'params' }),
-              );
-              return result as AsyncProcessParams;
-            }
+      ...(hasParamsFn
+        ? { resourceParamsSrc }
+        : {
+            method:
+              isSignal(AsyncProcessConfig.method)
+                ? undefined
+                : (arg: AsyncProcessArgsParams) => {
+                    const result = (AsyncProcessConfig as { method: (args: AsyncProcessArgsParams) => AsyncProcessParams }).method(arg);
+                    if (isCraftException(result)) {
+                      methodParamsException.set(
+                        enrichResourceException(result, { scope: 'params' }),
+                      );
+                      return result as AsyncProcessParams;
+                    }
 
-            if (methodParamsException()) {
-              methodParamsException.set(undefined);
-            }
+                    if (methodParamsException()) {
+                      methodParamsException.set(undefined);
+                    }
 
-            if (isUsingIdentifier) {
-              const id = AsyncProcessConfig.identifier?.(arg as any);
-              (
-                resourceTarget as ResourceByIdRef<
-                  GroupIdentifier & string,
-                  AsyncProcesstate,
-                  AsyncProcessParams
-                >
-              ).addById(id as GroupIdentifier & string);
-            }
-            AsyncProcessResourceParamsFnSignal.set(
-              result as AsyncProcessParams,
-            );
-            return result;
-          },
+                    if (isUsingIdentifier) {
+                      const id = AsyncProcessConfig.identifier?.(arg as any);
+                      (
+                        resourceTarget as ResourceByIdRef<
+                          GroupIdentifier & string,
+                          AsyncProcesstate,
+                          AsyncProcessParams
+                        >
+                      ).addById(id as GroupIdentifier & string);
+                    }
+                    AsyncProcessResourceParamsFnSignal.set(
+                      result as AsyncProcessParams,
+                    );
+                    return result;
+                  },
+          }),
     },
     (
       insertions as InsertionsResourcesFactory<

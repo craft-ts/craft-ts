@@ -1133,3 +1133,150 @@ describe('asyncProcess exceptions', () => {
     });
   });
 });
+
+describe('AsyncProcess with params config', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('should accept params config and auto-trigger loader', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const myAsyncProcess = asyncProcess({
+        params: () => '5',
+        loader: async ({ params }) => {
+          return {
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          };
+        },
+      });
+
+      await vi.runAllTimersAsync();
+      expect(myAsyncProcess.status()).toBe('resolved');
+      expect(myAsyncProcess.value()).toEqual({
+        id: '5',
+        name: 'John Doe',
+        email: 'test@a.com',
+      });
+    });
+  });
+
+  it('should accept params config with identifier', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const myAsyncProcess = asyncProcess({
+        params: () => '5',
+        identifier: (params) => params,
+        loader: async ({ params }) => {
+          return {
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          };
+        },
+      });
+
+      await vi.runAllTimersAsync();
+      const entity = myAsyncProcess.select('5');
+      expect(entity).toBeDefined();
+      expect(entity?.value()).toEqual({
+        id: '5',
+        name: 'John Doe',
+        email: 'test@a.com',
+      });
+    });
+  });
+});
+
+describe('AsyncProcess types with params config', () => {
+  it('should infer correctly the types of asyncProcess with params (no identifier)', () => {
+    TestBed.runInInjectionContext(() => {
+      const _asyncProcessOutput = asyncProcess({
+        params: () => '5',
+        loader: async ({ params }) => {
+          return {
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          };
+        },
+      });
+
+      expectTypeOf<typeof _asyncProcessOutput>().toEqualTypeOf<{
+        readonly value: Signal<
+          | {
+              id: string;
+              name: string;
+              email: string;
+            }
+          | undefined
+        >;
+        readonly safeValue: Signal<
+          | {
+              id: string;
+              name: string;
+              email: string;
+            }
+          | undefined
+        >;
+        readonly status: Signal<ResourceStatus>;
+        readonly error: Signal<Error | undefined>;
+        readonly isLoading: Signal<boolean>;
+        hasValue: () => boolean;
+        readonly resourceParamsSrc: Signal<string | undefined>;
+        hasException: Signal<boolean>;
+        exceptions: Signal<{
+          list: never[];
+          params?: never;
+          loader?: never;
+        }>;
+      }>();
+    });
+  });
+
+  it('should infer correctly the types of asyncProcess with params and identifier', () => {
+    TestBed.runInInjectionContext(() => {
+      const _asyncProcessOutput = asyncProcess({
+        params: () => '5',
+        identifier: (params) => params,
+        loader: async ({ params }) => {
+          return {
+            id: params,
+            name: 'John Doe',
+            email: 'test@a.com',
+          };
+        },
+      });
+
+      const entity = _asyncProcessOutput.select('5');
+      expectTypeOf(entity).toEqualTypeOf<
+        | ({
+            readonly value: Signal<
+              | {
+                  id: string;
+                  name: string;
+                  email: string;
+                }
+              | undefined
+            >;
+            readonly status: Signal<ResourceStatus>;
+            readonly error: Signal<Error | undefined>;
+            readonly isLoading: Signal<boolean>;
+            readonly safeValue: Signal<
+              | {
+                  id: string;
+                  name: string;
+                  email: string;
+                }
+              | undefined
+            >;
+            hasValue(): boolean;
+          } & EmptyAsyncProcessExceptions)
+        | undefined
+      >();
+    });
+  });
+});
