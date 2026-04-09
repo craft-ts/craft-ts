@@ -5,12 +5,15 @@ describe('reactiveWritableSignal', () => {
   it('1- Should use initialValue on first read', () => {
     const source = signal(10);
 
-    const result = reactiveWritableSignal(5, (sync) => ({
-      onSourceChange: sync(source, ({ params, current }) => params + current),
+    const sourceSum = reactiveWritableSignal(5, (sync) => ({
+      addSourceToValueWhenSourceChange: sync(
+        source,
+        ({ params, current }) => params + current,
+      ),
     }));
 
     // First read returns initialValue
-    expect(result()).toEqual(5);
+    expect(sourceSum()).toEqual(5);
   });
 
   it('2- Should react to source signal changes', () => {

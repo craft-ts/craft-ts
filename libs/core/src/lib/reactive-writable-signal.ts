@@ -71,8 +71,8 @@ export function reactiveWritableSignal<State>(
         current: NoInfer<State>;
       }) => NoInfer<State>,
       options?: SyncOptions,
-    ) => ReactionEntry<State, Params>,
-  ) => Record<string, ReactionEntry<State, any>>,
+    ) => ReactionEntry<NoInfer<State>, NoInfer<Params>>,
+  ) => Record<string, ReactionEntry<NoInfer<State>, any>>,
 ): WritableSignal<State> {
   // Helper function to create reaction entries
   const sync = <Params>(
