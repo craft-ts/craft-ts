@@ -1,0 +1,4 @@
+interface:
+  display_name: "Translate Spec To ng-craft"
+  short_description: "Map specs to ng-craft utilities"
+  default_prompt: "Use $translate-spec-to-ng-craft to map this functional spec to @craft-ng/core primitives, insertions, and craft utilities."
