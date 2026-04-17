@@ -96,14 +96,7 @@ export default class PixelArt {
   );
 
   protected readonly cells = state(
-    CELL_INDEXES.map(
-      (index) =>
-        ({
-          index,
-          color: EMPTY_COLOR,
-          paintCount: 0,
-        }) satisfies PixelCellState,
-    ),
+    initializePixelCells(), // { index: number; color: string; paintCount: number;}[]
     insertLocalStoragePersister({
       key: 'pixel-art-cells-state',
       storeName: 'pixel-art-cells',
@@ -135,5 +128,16 @@ export default class PixelArt {
         state().reduce((count, cell) => count + cell.paintCount, 0),
       ),
     }),
+  );
+}
+
+function initializePixelCells() {
+  return CELL_INDEXES.map(
+    (index) =>
+      ({
+        index,
+        color: EMPTY_COLOR,
+        paintCount: 0,
+      }) satisfies PixelCellState,
   );
 }
