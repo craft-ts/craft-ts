@@ -5,6 +5,8 @@ import { signal } from '@angular/core';
 // todoBefore name du service faire que ce soit un object name/scope pour éviter des galères de typage poiur commencer
 // todoBefore analyser les testes pour les corriger si besoin
 // todoBefore mettre des #error-check-docs:inputs dans les tests pour faire le lien avec la doc et éviter les confusions
+// todoBefore vérifier le type retourner dans la signature de l'host par yield* CounterToYield((state) => {state}) pour qu'ici ça réduise bien à state et pas Counter
+// todo add contexte et dire qu'il doit absolument résoudre via inject d'anular
 describe('service', () => {
   it('should enable to create a service-like using service and inject it.', () => {
     const { injectCounter } = service('Counter', () =>
@@ -390,3 +392,6 @@ describe.todo(
 describe.todo('enable inject options'); // handle optional params to expose....
 
 // todo queryparams, penser à des Symbol qui force à faire des merges, et pas à spread pour qu'on puisse les garder et les concaténer ?
+
+// todo injectService.explicit + eslint pour connaître toutes les deps d'une injection déclarative ?
+// readonly counter = injectCounter.explicit({initialValueRef: this.initialValue}, ({initialValueRef}) => ({ inputs:  {initialValue: initialValueRef}}})); // with a type that force to handle all the deps, and if a new dep is added in the service, it will throw an error until it's handled in the explicit call
