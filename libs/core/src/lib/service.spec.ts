@@ -3,10 +3,8 @@ import { state } from './state';
 import { signal } from '@angular/core';
 import { Subject } from 'rxjs';
 
-// todoBefore name du service faire que ce soit un object name/scope pour éviter des galères de typage poiur commencer
 // todoBefore analyser les testes pour les corriger si besoin
 // todoBefore mettre des #error-check-docs:inputs dans les tests pour faire le lien avec la doc et éviter les confusions
-// todoBefore vérifier le type retourner dans la signature de l'host par yield* CounterToYield((state) => {state}) pour qu'ici ça réduise bien à state et pas Counter
 // todo add contexte et dire qu'il doit absolument résoudre via inject d'anular
 describe('service', () => {
   it('should enable to create a service-like using service and inject it.', () => {
