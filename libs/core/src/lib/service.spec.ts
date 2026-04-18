@@ -799,7 +799,7 @@ describe.todo(
 // todo later
 describe.todo('enable inject options'); // handle optional params to expose....
 
-// todo queryparams, penser à des Symbol qui force à faire des merges, et pas à spread pour qu'on puisse les garder et les concaténer ?
+// todo later queryparams, penser à des Symbol qui force à faire des merges, et pas à spread pour qu'on puisse les garder et les concaténer ?
 
 // todo later injectService.explicit + eslint pour connaître toutes les deps d'une injection déclarative ?
 // readonly counter = injectCounter.explicit({initialValueRef: this.initialValue}, ({initialValueRef}) => ({ inputs:  {initialValue: initialValueRef}}})); // with a type that force to handle all the deps, and if a new dep is added in the service, it will throw an error until it's handled in the explicit call
