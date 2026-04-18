@@ -121,7 +121,7 @@ describe.todo('scope', () => {
     // for services that need to be provided at root but with some specific configuration (like inputs) that make it impossible to provide them with the provideService helper (or for external services like HttpClient)
     // the aim of this scope is to enable to inject it in global services but it force to provide it manually for testes
     const { injectCounter, provideCounter } = service(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
     );
 
