@@ -553,10 +553,11 @@ describe('serviceToYield should enable to binding inputs', () => {
   });
 });
 
-// todo later
+// todo later & typage
 describe.todo(
-  'injectService/ServiceToYield should expose an optional parameter that can be used to only expose what is needed and yield* dep must be used to declare non exposed fields',
+  'injectService/ServiceToYield should expose an optional parameter that can be used to only expose what is needed and yield* dep must be used to declare non exposed fields. “Any dependency that is used but not exposed must be yielded (with yield*) in order to be counted.”',
   () => {
+    // ! limitation, state return a signal and that looks weird to expose it and his methods separately, maybe we can have a helper to do that automatically for state ? or maybe it's not a problem and it can be used like that, but it is something to think about for the ergonomics of the API
     it('should enable to use only some exposed field when using injectCounterExtended', () => {
       const { injectCounterExtended } = service(
         'CounterExtended',
