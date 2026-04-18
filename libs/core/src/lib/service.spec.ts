@@ -716,24 +716,18 @@ describe.todo('contract à implémenter pour les services');
 describe.todo('yield typage'); // with option like skipHost/optional
 // todo renvoyer une erreur si un yield d'un service à fournir est fait dans un service global (pas de host pour résoudre la dépendance)
 
-// todo inject/...toYield avec second paramètre pour savoir et exposer uniquement ce qu'il y a beosin
-// const counter = yield* CounterToYield(function* ({increment, state, decrement}) => {
-// const useDecrement = yield* decrement();
-// triggerDecrementObservable.subscribe(() => useDecrement());
-//. return {increment, state}
-// });
-//});
-// “Toute dépendance utilisée mais non exposée doit être yield*ée pour être comptée.”
-
+// todo later
 describe.todo('compose/inject'); // todo tester si un composant override un provider si c'est bien résolu...
 
+// todo later
 describe.todo(
   'testing exposing a public with symbol to know the deps and what to mock',
 );
 
+// todo later
 describe.todo('enable inject options'); // handle optional params to expose....
 
 // todo queryparams, penser à des Symbol qui force à faire des merges, et pas à spread pour qu'on puisse les garder et les concaténer ?
 
-// todo injectService.explicit + eslint pour connaître toutes les deps d'une injection déclarative ?
+// todo later injectService.explicit + eslint pour connaître toutes les deps d'une injection déclarative ?
 // readonly counter = injectCounter.explicit({initialValueRef: this.initialValue}, ({initialValueRef}) => ({ inputs:  {initialValue: initialValueRef}}})); // with a type that force to handle all the deps, and if a new dep is added in the service, it will throw an error until it's handled in the explicit call
