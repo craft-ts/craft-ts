@@ -12,6 +12,7 @@ declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 declare const SERVICE_YIELD_METADATA: unique symbol;
 
 const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol('service-exposure-token-marker');
+const SERVICE_ROOT_EXPOSURE_KEY = '$self' as const;
 
 type Simplify<ObjectType> = {
   [Key in keyof ObjectType]: ObjectType[Key];
@@ -207,9 +208,17 @@ type CallableShell<Value> = Value extends (...args: infer Args) => infer Result
   ? (...args: Args) => Result
   : never;
 
-type ExposedOutput<Output, Exposed> = Output extends (...args: any[]) => any
-  ? CallableShell<Output> & Exposed
+type RootExposureKey = typeof SERVICE_ROOT_EXPOSURE_KEY;
+
+type PublicExposedOutput<Exposed> = Exposed extends object
+  ? Omit<Exposed, RootExposureKey>
   : Exposed;
+
+type ExposedOutput<Output, Exposed> = Output extends (...args: any[]) => any
+  ? RootExposureKey extends keyof Exposed
+    ? CallableShell<Output> & PublicExposedOutput<Exposed>
+    : PublicExposedOutput<Exposed>
+  : PublicExposedOutput<Exposed>;
 
 type OutputDependencyKeys<Output extends object> = Extract<
   keyof Output,
@@ -226,9 +235,47 @@ type DependencyToken<Key extends string, Value> = {
   readonly [SERVICE_EXPOSURE_TOKEN_MARKER]: ExposureTokenMetadata<Key, Value>;
 };
 
-type ExposureTokens<Output extends object> = {
+type PropertyExposureTokens<Output extends object> = {
   [Key in OutputDependencyKeys<Output>]: DependencyToken<Key, Output[Key]>;
 };
+
+type CallableExposureRootToken<Output extends (...args: any[]) => any> = {
+  /**
+   * Root callable token for the exposed service.
+   *
+   * `yield* $self()` gives access to the original callable service without
+   * exposing it publicly.
+   *
+   * Returning `$self` from the exposure object re-attaches that callable to
+   * the root of the final exposed value.
+   *
+   * Example:
+   * `return { $self, incrementCounter: increment }`
+   *
+   * The final result stays callable via `myRef()`, but never exposes a public
+   * `myRef.$self` property.
+   */
+  $self: DependencyToken<RootExposureKey, Output>;
+};
+
+type ExposureTokens<Output extends object> = PropertyExposureTokens<Output> &
+  (Output extends (...args: any[]) => any
+    ? CallableExposureRootToken<Output>
+    : {});
+
+type ExposureTokenKeys<Output extends object> = Extract<
+  keyof ExposureTokens<Output>,
+  string
+>;
+
+type ExposureTokenValue<
+  Output extends object,
+  Key extends ExposureTokenKeys<Output>,
+> = Key extends OutputDependencyKeys<Output>
+  ? Output[Key]
+  : Key extends RootExposureKey
+    ? Output
+    : never;
 
 type TokenSourceKey<Value> =
   Value extends {
@@ -268,10 +315,29 @@ type ServiceDependencyAccessRequest<Key extends string, Result> = Readonly<{
   resolve: () => Result;
 }>;
 
-type ExposureYield<Output extends object> = ServiceDependencyAccessRequest<
-  OutputDependencyKeys<Output>,
-  Output[OutputDependencyKeys<Output>]
+type ExposureYield<Output extends object> = {
+  [Key in ExposureTokenKeys<Output>]: ServiceDependencyAccessRequest<
+    Key,
+    ExposureTokenValue<Output, Key>
+  >;
+}[ExposureTokenKeys<Output>];
+
+type InvalidRootExposureAliases<Exposed extends object> = Extract<
+  {
+    [Key in keyof Exposed]-?: TokenSourceKey<Exposed[Key]> extends RootExposureKey
+      ? Key extends RootExposureKey
+        ? never
+        : Key & string
+      : never;
+  }[keyof Exposed],
+  string
 >;
+
+type ValidateRootExposure<Exposed extends object> = [
+  InvalidRootExposureAliases<Exposed>,
+] extends [never]
+  ? Exposed
+  : never;
 
 type ExposureSelector<
   Output extends object,
@@ -279,7 +345,11 @@ type ExposureSelector<
   Yielded = never,
 > = (
   dependencies: ExposureTokens<Output>,
-) => Exposed | Generator<Yielded, Exposed, unknown>;
+) => ValidateRootExposure<Exposed> | Generator<
+  Yielded,
+  ValidateRootExposure<Exposed>,
+  unknown
+>;
 
 type MergeObjectUnion<Union> = [Union] extends [never]
   ? {}
@@ -564,7 +634,7 @@ type InjectHelper<
         >,
       ): ExposedOutput<
         SelectableOutput<Inputs, undefined, Output>,
-        MaterializeExposureResult<Exposed>
+        MaterializeExposureResult<ValidateRootExposure<Exposed>>
       >;
       <
         Config extends Partial<InputBindings<Inputs, Scope>>,
@@ -581,7 +651,7 @@ type InjectHelper<
         >,
       ): ExposedOutput<
         SelectableOutput<Inputs, Config, Output>,
-        MaterializeExposureResult<Exposed>
+        MaterializeExposureResult<ValidateRootExposure<Exposed>>
       >;
     },
     Metadata
@@ -638,7 +708,7 @@ type YieldHelper<
         | ExposureYield<SelectableOutput<Inputs, undefined, Output>>,
         ExposedOutput<
           SelectableOutput<Inputs, undefined, Output>,
-          MaterializeExposureResult<Exposed>
+          MaterializeExposureResult<ValidateRootExposure<Exposed>>
         >,
         unknown
       >;
@@ -664,7 +734,7 @@ type YieldHelper<
         | ExposureYield<SelectableOutput<Inputs, Config, Output>>,
         ExposedOutput<
           SelectableOutput<Inputs, Config, Output>,
-          MaterializeExposureResult<Exposed>
+          MaterializeExposureResult<ValidateRootExposure<Exposed>>
         >,
         unknown
       >;
@@ -1015,7 +1085,7 @@ function resolveExposedService(
     ? runGeneratorFactory(exposure, injector, hostScope)
     : exposure;
 
-  return createExposedServiceValue(serviceValue, resolvedExposure);
+  return createExposedServiceValue(resolvedExposure);
 }
 
 function* exposeServiceValue(
@@ -1035,7 +1105,7 @@ function* exposeServiceValue(
       >
     : exposure;
 
-  return createExposedServiceValue(serviceValue, resolvedExposure);
+  return createExposedServiceValue(resolvedExposure);
 }
 
 type RuntimeExposureToken = (() => Generator<
@@ -1060,6 +1130,13 @@ function createExposureTokens(
           return undefined;
         }
 
+        if (
+          property === SERVICE_ROOT_EXPOSURE_KEY &&
+          typeof serviceValue !== 'function'
+        ) {
+          return undefined;
+        }
+
         return createExposureToken(serviceValue, property);
       },
     },
@@ -1070,9 +1147,12 @@ function createExposureToken(
   serviceValue: unknown,
   key: string,
 ): RuntimeExposureToken {
-  const resolve = () => Reflect.get(Object(serviceValue), key);
+  const resolve =
+    key === SERVICE_ROOT_EXPOSURE_KEY
+      ? () => serviceValue
+      : () => Reflect.get(Object(serviceValue), key);
   const token = function* () {
-    return (yield createDependencyAccessRequest(serviceValue, key)) as unknown;
+    return (yield createDependencyAccessRequest(key, resolve)) as unknown;
   } as RuntimeExposureToken;
 
   Object.defineProperty(token, SERVICE_EXPOSURE_TOKEN_MARKER, {
@@ -1088,53 +1168,92 @@ function createExposureToken(
 }
 
 function createDependencyAccessRequest(
-  serviceValue: unknown,
   key: string,
+  resolve: () => unknown,
 ): ServiceDependencyAccessRequest<string, unknown> {
   return {
     [SERVICE_DEPENDENCY_ACCESS_MARKER]: true,
     key,
-    resolve: () => Reflect.get(Object(serviceValue), key),
+    resolve,
   };
 }
 
-function createExposedServiceValue(
-  serviceValue: unknown,
-  exposedValue: unknown,
-): unknown {
+type RuntimeCallable = (...args: any[]) => unknown;
+
+type RuntimeMaterializedExposure = {
+  value: unknown;
+  rootCallable?: RuntimeCallable;
+};
+
+function createExposedServiceValue(exposedValue: unknown): unknown {
   const materializedExposure = materializeExposedValue(exposedValue);
 
+  if (!materializedExposure.rootCallable) {
+    return materializedExposure.value;
+  }
+
   if (
-    typeof serviceValue !== 'function' ||
-    !isNonCallableObject(materializedExposure)
+    !isNonCallableObject(materializedExposure.value) ||
+    Reflect.ownKeys(materializedExposure.value).length === 0
   ) {
-    return materializedExposure;
+    return materializedExposure.rootCallable;
   }
 
   return createCallableExposureProxy(
-    serviceValue as (...args: any[]) => unknown,
-    materializedExposure,
+    materializedExposure.rootCallable,
+    materializedExposure.value,
   );
 }
 
-function materializeExposedValue(exposedValue: unknown): unknown {
+function materializeExposedValue(
+  exposedValue: unknown,
+): RuntimeMaterializedExposure {
   if (isRuntimeExposureToken(exposedValue)) {
-    return exposedValue[SERVICE_EXPOSURE_TOKEN_MARKER].resolve();
+    const resolvedValue = exposedValue[SERVICE_EXPOSURE_TOKEN_MARKER].resolve();
+
+    return isRootRuntimeExposureToken(exposedValue) &&
+      typeof resolvedValue === 'function'
+      ? {
+          value: resolvedValue,
+          rootCallable: resolvedValue as RuntimeCallable,
+        }
+      : { value: resolvedValue };
   }
 
   if (!isNonCallableObject(exposedValue)) {
-    return exposedValue;
+    return { value: exposedValue };
   }
 
   const materialized: Record<PropertyKey, unknown> = {};
+  let rootCallable: RuntimeCallable | undefined;
 
   for (const key of Reflect.ownKeys(exposedValue)) {
-    materialized[key] = unwrapDirectExposureToken(
+    const resolvedValue = unwrapDirectExposureToken(
       Reflect.get(exposedValue, key, exposedValue),
     );
+
+    if (
+      key === SERVICE_ROOT_EXPOSURE_KEY &&
+      typeof resolvedValue === 'function'
+    ) {
+      rootCallable = resolvedValue as RuntimeCallable;
+      continue;
+    }
+
+    materialized[key] = resolvedValue;
   }
 
-  return materialized;
+  if (rootCallable && Reflect.ownKeys(materialized).length === 0) {
+    return {
+      value: rootCallable,
+      rootCallable,
+    };
+  }
+
+  return {
+    value: materialized,
+    rootCallable,
+  };
 }
 
 function unwrapDirectExposureToken(value: unknown): unknown {
@@ -1258,6 +1377,12 @@ function isRuntimeExposureToken(value: unknown): value is RuntimeExposureToken {
     typeof value === 'function' &&
     SERVICE_EXPOSURE_TOKEN_MARKER in value
   );
+}
+
+function isRootRuntimeExposureToken(
+  value: RuntimeExposureToken,
+): boolean {
+  return value[SERVICE_EXPOSURE_TOKEN_MARKER].key === SERVICE_ROOT_EXPOSURE_KEY;
 }
 
 function assertAbstractMarker(

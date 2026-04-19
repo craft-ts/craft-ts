@@ -682,7 +682,7 @@ describe('serviceToYield should enable to binding inputs', () => {
 });
 
 describe('injectService/ServiceToYield should expose an optional parameter that can be used to only expose what is needed and yield* dep must be used to declare non exposed fields. “Any dependency that is used but not exposed must be yielded (with yield*) in order to be counted.”', () => {
-  it('should enable to use only some exposed field when using injectCounter', () => {
+  it('should enable to explicitly re-expose the root callable when using injectCounter', () => {
     const { injectCounter } = service(
       { name: 'Counter', scope: 'global' },
       () =>
@@ -693,14 +693,19 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterHandler = injectCounter({}, ({ increment }) => ({
+      const counterHandler = injectCounter({}, ({ $self, increment }) => ({
+        $self,
         increment,
       }));
 
       //@ts-expect-error decrement should not be accessible because it is not exposed
       expect(counterHandler.decrement).toBeUndefined();
 
+      //@ts-expect-error $self should not be accessible because it is merged back at the root
+      expect(counterHandler.$self).toBeUndefined();
+
       expect('decrement' in counterHandler).toBe(false);
+      expect('$self' in counterHandler).toBe(false);
       expect(counterHandler()).toBe(10);
       counterHandler.increment();
       expect(counterHandler()).toBe(11);
@@ -805,7 +810,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
-  it('should enable to use only some exposed field when using CounterToYield', () => {
+  it('should not keep the root callable implicitly when using CounterToYield without $self', () => {
     const { CounterToYield } = service(
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
@@ -823,7 +828,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
             initialValue: signal(10),
           },
           ({ increment }) => ({
-            increment,
+            incrementCounter: increment,
           }),
         );
 
@@ -838,9 +843,98 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       const counterHandler = injectCounterExtended();
 
       expect('decrement' in counterHandler).toBe(false);
+      expect('incrementCounter' in counterHandler).toBe(true);
+      //@ts-expect-error counterHandler should not be callable without exposing $self
+      expect(() => counterHandler()).toThrow(TypeError);
+      counterHandler.incrementCounter();
+      //@ts-expect-error counterHandler should not be callable without exposing $self
+      expect(() => counterHandler()).toThrow(TypeError);
+    });
+  });
+
+  it('should enable to explicitly re-expose the root callable when using CounterToYield', () => {
+    const { CounterToYield } = service(
+      { name: 'Counter', scope: 'function' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    const { injectCounterExtended } = service(
+      { name: 'CounterExtended', scope: 'global' },
+      function* () {
+        return yield* CounterToYield(
+          {
+            initialValue: signal(10),
+          },
+          ({ $self, increment }) => ({
+            $self,
+            incrementCounter: increment,
+          }),
+        );
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const counterHandler = injectCounterExtended();
+
+      //@ts-expect-error $self should not be accessible because it is merged back at the root
+      expect(counterHandler.$self).toBeUndefined();
+
+      expect('$self' in counterHandler).toBe(false);
       expect(counterHandler()).toBe(10);
-      counterHandler.increment();
+      counterHandler.incrementCounter();
       expect(counterHandler()).toBe(11);
+    });
+  });
+
+  it('should enable to track hidden root callable dependencies from ServiceToYield', () => {
+    const triggerDecrementObservable = new Subject<void>();
+
+    const { CounterToYield } = service(
+      { name: 'Counter', scope: 'function' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    const { injectCounterExtended } = service(
+      { name: 'CounterExtended', scope: 'global' },
+      function* () {
+        return yield* CounterToYield(
+          {
+            initialValue: signal(10),
+          },
+          function* ({ $self, increment, decrement }) {
+            const stateRef = yield* $self();
+            const decrementRef = yield* decrement();
+
+            triggerDecrementObservable.subscribe(() => {
+              stateRef();
+              decrementRef();
+            });
+
+            return {
+              $self,
+              incrementCounter: increment,
+            };
+          },
+        );
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const counterHandler = injectCounterExtended();
+
+      expect(counterHandler()).toBe(10);
+      counterHandler.incrementCounter();
+      expect(counterHandler()).toBe(11);
+      triggerDecrementObservable.next();
+      expect(counterHandler()).toBe(10);
     });
   });
 });
@@ -1097,7 +1191,8 @@ describe('typing can track all derived dependencies (only the properties that ar
           {
             initialValue: signal(10),
           },
-          ({ increment }) => ({
+          ({ $self, increment }) => ({
+            $self,
             incrementCounter: increment,
           }),
         );
@@ -1119,11 +1214,12 @@ describe('typing can track all derived dependencies (only the properties that ar
           mustBeProvided: [
             { Counter: GetServiceOutput<typeof CounterToYield> },
           ];
-          derivedPropertiesUsed: Pick<
-            GetServiceOutput<typeof CounterToYield>,
-            'increment'
-          >;
+          derivedPropertiesUsed: {
+            $self: GetServiceOutput<typeof CounterToYield>;
+            increment: GetServiceOutput<typeof CounterToYield>['increment'];
+          };
           derivedPropertiesExposed: {
+            $self: GetServiceOutput<typeof CounterToYield>;
             incrementCounter: GetServiceOutput<
               typeof CounterToYield
             >['increment'];
@@ -1155,12 +1251,17 @@ describe('typing can track all derived dependencies (only the properties that ar
           {
             initialValue: signal(10),
           },
-          function* ({ increment, decrement }) {
+          function* ({ $self, increment, decrement }) {
+            const stateRef = yield* $self();
             const triggerDecrementRef = yield* decrement();
 
-            triggerDecrementObservable.subscribe(() => triggerDecrementRef());
+            triggerDecrementObservable.subscribe(() => {
+              stateRef();
+              triggerDecrementRef();
+            });
 
             return {
+              $self,
               incrementCounter: increment,
             };
           },
@@ -1183,11 +1284,13 @@ describe('typing can track all derived dependencies (only the properties that ar
           mustBeProvided: [
             { Counter: GetServiceOutput<typeof CounterToYield> },
           ];
-          derivedPropertiesUsed: Pick<
-            GetServiceOutput<typeof CounterToYield>,
-            'increment' | 'decrement'
-          >;
+          derivedPropertiesUsed: {
+            $self: GetServiceOutput<typeof CounterToYield>;
+            increment: GetServiceOutput<typeof CounterToYield>['increment'];
+            decrement: GetServiceOutput<typeof CounterToYield>['decrement'];
+          };
           derivedPropertiesExposed: {
+            $self: GetServiceOutput<typeof CounterToYield>;
             incrementCounter: GetServiceOutput<
               typeof CounterToYield
             >['increment'];
