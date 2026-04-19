@@ -842,7 +842,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 });
 
 describe('typing can track all dependencies (direct and child dependencies)', () => {
-  it('should enable to track injectCounter scope', () => {
+  it('should enable to track injectCounter global scope', () => {
     const { injectCounter } = service(
       { name: 'Counter', scope: 'toProvide' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
@@ -855,9 +855,28 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     type CounterDependencies = GetInjectedServiceDependencies<injectCounter>; // todo create GetInjectedServiceDependencies and return a ServiceDependencies
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
-      scope: 'toProvide';
+      scope: 'global';
       dependencies: {};
       mustBeProvided: [];
+    }>();
+  });
+
+  it('should enable to track injectCounter scope', () => {
+    const { injectCounter } = service(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    type CounterDependencies = GetInjectedServiceDependencies<injectCounter>;
+
+    expectTypeOf<CounterDependencies>().toEqualTypeOf<{
+      scope: 'toProvide';
+      dependencies: {};
+      mustBeProvided: ['Counter'];
     }>();
   });
 
@@ -894,7 +913,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
           mustBeProvided: [];
         };
       };
-      mustBeProvided: [];
+      mustBeProvided: ['CounterExtended', 'Counter'];
     }>();
   });
 
@@ -914,7 +933,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<ManuallyProvidedAtRoot1ToYieldDependencies>().toEqualTypeOf<{
       scope: 'manuallyProvidedAtRoot';
       dependencies: {};
-      mustBeProvided: [];
+      mustBeProvided: ['ManuallyProvidedAtRoot1'];
     }>();
   });
 
@@ -972,20 +991,24 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         ManuallyProvidedAtRoot1: {
           scope: 'manuallyProvidedAtRoot';
           dependencies: {};
-          mustBeProvided: [];
+          mustBeProvided: ['ManuallyProvidedAtRoot1'];
         };
         ManuallyProvidedAtRoot2: {
           scope: 'manuallyProvidedAtRoot';
           dependencies: {};
-          mustBeProvided: [];
+          mustBeProvided: ['ManuallyProvidedAtRoot2'];
         };
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [];
+          mustBeProvided: ['Counter'];
         };
       };
-      mustBeProvided: ['ManuallyProvidedAtRoot1', 'ManuallyProvidedAtRoot2'];
+      mustBeProvided: [
+        'ManuallyProvidedAtRoot1',
+        'ManuallyProvidedAtRoot2',
+        'Counter',
+      ];
     }>();
   });
 });
