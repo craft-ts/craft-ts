@@ -6,7 +6,15 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { Subject } from 'rxjs';
-import { abstract, service, toValue } from './service';
+import {
+  abstract,
+  createAngularTest,
+  mock,
+  real,
+  service,
+  toValue,
+  useValue,
+} from './service';
 import type {
   GetInjectedServiceDependencies,
   GetServiceOutput,
@@ -1302,6 +1310,249 @@ describe('typing can track all derived dependencies (only the properties that ar
         { Counter: GetServiceOutput<typeof CounterToYield> },
       ];
     }>();
+  });
+});
+
+describe('createAngularTest', () => {
+  it('should expose a runtime metadata helper for testing', () => {
+    const {
+      injectCounter,
+      provideCounter,
+      CounterToProvide,
+      COUNTER_META_DATA,
+    } = service({ name: 'Counter', scope: 'manuallyProvidedAtRoot' }, () =>
+      state(0, ({ update }) => ({
+        increment: () => update((value) => value + 1),
+      })),
+    );
+
+    expect(COUNTER_META_DATA.name).toBe('Counter');
+    expect(COUNTER_META_DATA.scope).toBe('manuallyProvidedAtRoot');
+    expect(COUNTER_META_DATA.inject).toBe(injectCounter);
+    expect(COUNTER_META_DATA.provide).toBe(provideCounter);
+    expect(COUNTER_META_DATA.token).toBe(CounterToProvide);
+  });
+
+  it('should fail at typing time when a required child service is not covered', () => {
+    const { CounterToYield, COUNTER_META_DATA } = service(
+      { name: 'Counter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { COUNTER_EXTENDED_META_DATA } = service(
+      { name: 'CounterExtended', scope: 'toProvide' },
+      function* () {
+        return yield* CounterToYield();
+      },
+    );
+
+    if (false) {
+      //@ts-expect-error Counter should be covered because it is a toProvide dependency
+      createAngularTest(COUNTER_EXTENDED_META_DATA, {});
+    }
+
+    expect(COUNTER_META_DATA.name).toBe('Counter');
+  });
+
+  it('should enable a mocked ancestor to prune a branch of required descendants', () => {
+    const { ChildCounterToYield, CHILD_COUNTER_META_DATA } = service(
+      { name: 'ChildCounter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { ParentCounterToYield, PARENT_COUNTER_META_DATA } = service(
+      { name: 'ParentCounter', scope: 'toProvide' },
+      function* () {
+        const counter = yield* ChildCounterToYield();
+
+        return {
+          increment: counter.increment,
+        };
+      },
+    );
+
+    const { ROOT_COUNTER_META_DATA } = service(
+      { name: 'RootCounter', scope: 'toProvide' },
+      function* () {
+        return yield* ParentCounterToYield();
+      },
+    );
+
+    const testRef = createAngularTest(ROOT_COUNTER_META_DATA, {
+      ParentCounter: mock(PARENT_COUNTER_META_DATA, {
+        increment: vi.fn(),
+      }),
+    });
+
+    expect(testRef.mocks.ParentCounter.increment).toBeTypeOf('function');
+    expect(CHILD_COUNTER_META_DATA.name).toBe('ChildCounter');
+  });
+
+  it('should still require descendants when a service is provided as real', () => {
+    const { CounterToYield, COUNTER_META_DATA } = service(
+      { name: 'Counter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { ParentCounterToYield, PARENT_COUNTER_META_DATA } = service(
+      { name: 'ParentCounter', scope: 'toProvide' },
+      function* () {
+        const counter = yield* CounterToYield();
+
+        return {
+          increment: counter.increment,
+        };
+      },
+    );
+
+    const { ROOT_COUNTER_META_DATA } = service(
+      { name: 'RootCounter', scope: 'toProvide' },
+      function* () {
+        return yield* ParentCounterToYield();
+      },
+    );
+
+    if (false) {
+      //@ts-expect-error Counter should remain required because ParentCounter is real and does not prune its children
+      createAngularTest(ROOT_COUNTER_META_DATA, {
+        ParentCounter: real(PARENT_COUNTER_META_DATA),
+      });
+    }
+
+    expect(COUNTER_META_DATA.name).toBe('Counter');
+  });
+
+  it('should auto provide the SUT and inject a callable child mock built with $self', () => {
+    const { CounterToYield, COUNTER_META_DATA } = service(
+      { name: 'Counter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { COUNTER_EXTENDED_META_DATA } = service(
+      { name: 'CounterExtended', scope: 'toProvide' },
+      function* () {
+        const counter = yield* CounterToYield();
+
+        return {
+          read: () => counter(),
+          incrementThroughCounter: () => counter.increment(),
+        };
+      },
+    );
+
+    const increment = vi.fn();
+    const rootCallable = vi.fn(() => 41);
+
+    const { sut, mocks } = createAngularTest(COUNTER_EXTENDED_META_DATA, {
+      Counter: mock(COUNTER_META_DATA, {
+        $self: rootCallable,
+        increment,
+      }),
+    });
+
+    expectTypeOf(mocks.Counter.increment).toEqualTypeOf(increment);
+    expectTypeOf(mocks.Counter()).toEqualTypeOf<number>();
+
+    expect(sut.read()).toBe(41);
+    sut.incrementThroughCounter();
+    expect(mocks.Counter()).toBe(41);
+    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+    expect('$self' in mocks.Counter).toBe(false);
+    //@ts-expect-error $self should never be part of the public mock
+    expect(mocks.Counter.$self).toBeUndefined();
+  });
+
+  it('should support real manuallyProvidedAtRoot dependencies', () => {
+    const { CounterToYield, COUNTER_META_DATA } = service(
+      { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
+      () =>
+        state(10, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { GLOBAL_COUNTER_META_DATA } = service(
+      { name: 'GlobalCounter', scope: 'global' },
+      function* () {
+        const counter = yield* CounterToYield();
+
+        return {
+          read: () => counter(),
+          increment: () => counter.increment(),
+        };
+      },
+    );
+
+    const { sut } = createAngularTest(GLOBAL_COUNTER_META_DATA, {
+      Counter: real(COUNTER_META_DATA),
+    });
+
+    expect(sut.read()).toBe(10);
+    sut.increment();
+    expect(sut.read()).toBe(11);
+  });
+
+  it('should support useValue without pruning child dependencies', () => {
+    const { ChildCounterToYield, CHILD_COUNTER_META_DATA } = service(
+      { name: 'ChildCounter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { ParentCounterToYield, PARENT_COUNTER_META_DATA } = service(
+      { name: 'ParentCounter', scope: 'toProvide' },
+      function* () {
+        const counter = yield* ChildCounterToYield();
+
+        return {
+          read: () => counter(),
+        };
+      },
+    );
+
+    const { ROOT_COUNTER_META_DATA } = service(
+      { name: 'RootCounter', scope: 'toProvide' },
+      function* () {
+        return yield* ParentCounterToYield();
+      },
+    );
+
+    const providedParentCounter = {
+      read: () => 99,
+    };
+
+    if (false) {
+      //@ts-expect-error ChildCounter should still be covered because useValue does not prune the branch
+      createAngularTest(ROOT_COUNTER_META_DATA, {
+        ParentCounter: useValue(
+          PARENT_COUNTER_META_DATA,
+          providedParentCounter,
+        ),
+      });
+    }
+
+    const { sut, mocks } = createAngularTest(ROOT_COUNTER_META_DATA, {
+      ParentCounter: useValue(PARENT_COUNTER_META_DATA, providedParentCounter),
+      ChildCounter: real(CHILD_COUNTER_META_DATA),
+    });
+
+    expect(mocks.ParentCounter.read()).toBe(99);
+    expect(sut.read()).toBe(99);
+    expect(CHILD_COUNTER_META_DATA.name).toBe('ChildCounter');
   });
 });
 

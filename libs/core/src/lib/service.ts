@@ -7,12 +7,15 @@ import {
   Provider,
   Signal,
 } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 
 declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 declare const SERVICE_YIELD_METADATA: unique symbol;
+declare const SERVICE_META_DATA_TYPE: unique symbol;
 
 const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol('service-exposure-token-marker');
 const SERVICE_ROOT_EXPOSURE_KEY = '$self' as const;
+const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
 
 type Simplify<ObjectType> = {
   [Key in keyof ObjectType]: ObjectType[Key];
@@ -68,6 +71,47 @@ export type GetServiceOutput<ServiceHelper> =
     ? Output
     : never;
 
+type ConstantCase<
+  Value extends string,
+  IsStart extends boolean = true,
+> = Value extends `${infer First}${infer Rest}`
+  ? First extends Lowercase<First>
+    ? `${Uppercase<First>}${ConstantCase<Rest, false>}`
+    : First extends `${number}`
+      ? `${First}${ConstantCase<Rest, false>}`
+      : `${IsStart extends true ? '' : '_'}${First}${ConstantCase<
+          Rest,
+          false
+        >}`
+  : '';
+
+type ServiceMetaDataKey<Name extends string> = `${ConstantCase<Name>}_META_DATA`;
+
+type MetaDataTypeInfo<MetaData> = MetaData extends {
+  readonly [SERVICE_META_DATA_TYPE]?: infer Info;
+}
+  ? Info
+  : never;
+
+type GetServiceMetaDataInputs<MetaData> = MetaDataTypeInfo<MetaData> extends {
+  inputs: infer Inputs extends object;
+}
+  ? Inputs
+  : {};
+
+type GetServiceMetaDataOutput<MetaData> = MetaDataTypeInfo<MetaData> extends {
+  output: infer Output;
+}
+  ? Output
+  : never;
+
+type GetServiceMetaDataDependencies<MetaData> =
+  MetaDataTypeInfo<MetaData> extends {
+    dependencies: infer Dependencies;
+  }
+    ? Dependencies
+    : never;
+
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
 const SERVICE_REQUIREMENT_MARKER = Symbol('service-requirement-marker');
 const SERVICE_YIELD_REQUEST_MARKER = Symbol('service-yield-request-marker');
@@ -89,6 +133,47 @@ type ServiceScope = ConcreteServiceScope | 'abstract';
 type RequirementScope = 'toProvide' | 'manuallyProvidedAtRoot';
 
 type AnyFactory = (...args: any[]) => any;
+
+type ExtractHelperValue<HelperObject> = HelperObject[keyof HelperObject];
+
+export type ServiceMetaData<
+  Name extends string = string,
+  Scope extends ConcreteServiceScope = ConcreteServiceScope,
+  Inputs extends object = {},
+  Output = unknown,
+  Dependencies = ServiceDependencies,
+  InjectHelper = (...args: any[]) => unknown,
+> = Simplify<
+  {
+    readonly kind: 'service-meta-data';
+    readonly name: Name;
+    readonly scope: Scope;
+    readonly inject: InjectHelper;
+    readonly [SERVICE_META_DATA_TYPE]?: {
+      inputs: Inputs;
+      output: Output;
+      dependencies: Dependencies;
+    };
+  } & (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
+    ? { readonly provide: () => Provider }
+    : {}) &
+    (Scope extends 'manuallyProvidedAtRoot'
+      ? { readonly token: InjectionToken<Output> }
+      : {})
+>;
+
+type AnyServiceMetaData = ServiceMetaData<
+  string,
+  ConcreteServiceScope,
+  any,
+  any,
+  any,
+  any
+>;
+
+type InternalServiceMetaData = AnyServiceMetaData & {
+  readonly [SERVICE_RUNTIME_DEFINITION]: ConcreteRuntimeDefinition;
+};
 
 type UnionToIntersection<Union> = (
   Union extends any ? (value: Union) => void : never
@@ -755,6 +840,23 @@ type RequirementHelper<Name extends string, Contract> = {
   [Key in `${Capitalize<Name>}Requirement`]: ServiceRequirement<Contract, Name>;
 };
 
+type ServiceMetaDataHelper<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output,
+  Metadata extends ServiceTrackingMetadata,
+> = {
+  [Key in ServiceMetaDataKey<Name>]: ServiceMetaData<
+    Name,
+    Scope,
+    Inputs,
+    Output,
+    ResolveServiceTrackingMetadata<Metadata>,
+    ExtractHelperValue<InjectHelper<Name, Scope, Inputs, Output, Metadata>>
+  >;
+};
+
 type ConcreteServiceApi<
   Name extends string,
   Scope extends ConcreteServiceScope,
@@ -763,6 +865,7 @@ type ConcreteServiceApi<
   Metadata extends ServiceTrackingMetadata,
 > = InjectHelper<Name, Scope, Inputs, Output, Metadata> &
   YieldHelper<Name, Scope, Inputs, Output, Metadata> &
+  ServiceMetaDataHelper<Name, Scope, Inputs, Output, Metadata> &
   (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
     ? ProvideHelper<Name>
     : {}) &
@@ -783,7 +886,226 @@ type ConcreteRuntimeDefinition = {
   initialBindings?: Record<string, unknown>;
 };
 
+type RealCapableScope = 'toProvide' | 'manuallyProvidedAtRoot';
+
+type DependencyTreeNode = ServiceDependencies<
+  ConcreteServiceScope,
+  any,
+  any,
+  any
+>;
+
+type DependencyTreeChildren<Node> = Node extends {
+  dependencies: infer Dependencies extends object;
+}
+  ? Dependencies
+  : {};
+
+type DependencyTreeScope<Node> = Node extends { scope: infer Scope }
+  ? Scope
+  : never;
+
+type FlattenDependencyTree<
+  Tree extends object,
+> = Simplify<
+  MergeObjectUnion<
+    {
+      [Name in Extract<keyof Tree, string>]:
+        | { [Key in Name]: Tree[Name] }
+        | FlattenDependencyTree<DependencyTreeChildren<Tree[Name]>>;
+    }[Extract<keyof Tree, string>]
+  >
+>;
+
+type MockImplementation<Output> = Simplify<
+  (Output extends object
+    ? Partial<{
+        [Key in Extract<keyof Output, string>]: Output[Key];
+      }>
+    : {}) &
+    (Output extends (...args: any[]) => any
+      ? { $self?: CallableShell<Output> }
+      : {})
+>;
+
+type PublicMockShape<Implementation> = Implementation extends object
+  ? Omit<Implementation, RootExposureKey>
+  : {};
+
+type MockPublicValue<Output, Implementation> = [Implementation] extends [
+  undefined,
+]
+  ? {}
+  : Output extends (...args: any[]) => any
+    ? RootExposureKey extends keyof NonNullable<Implementation>
+      ? CallableShell<Output> & PublicMockShape<NonNullable<Implementation>>
+      : PublicMockShape<NonNullable<Implementation>>
+    : PublicMockShape<NonNullable<Implementation>>;
+
+type MockServiceOverride<
+  MetaData extends AnyServiceMetaData,
+  Implementation = undefined,
+> = {
+  readonly kind: 'mock';
+  readonly meta: MetaData;
+  readonly implementation: Implementation;
+};
+
+type UseValueServiceOverride<
+  MetaData extends AnyServiceMetaData,
+  Value = GetServiceMetaDataOutput<MetaData>,
+> = {
+  readonly kind: 'useValue';
+  readonly meta: MetaData;
+  readonly value: Value;
+};
+
+type RealServiceOverride<MetaData extends AnyServiceMetaData> = {
+  readonly kind: 'real';
+  readonly meta: MetaData;
+};
+
+type AnyServiceOverride =
+  | MockServiceOverride<AnyServiceMetaData, any>
+  | UseValueServiceOverride<AnyServiceMetaData, any>
+  | RealServiceOverride<AnyServiceMetaData>;
+
+type OverrideKind<Override> = Override extends { kind: infer Kind }
+  ? Kind
+  : never;
+
+type OverrideForDependencyNode<Name extends string, Node> =
+  | MockServiceOverride<
+      ServiceMetaData<
+        Name,
+        Extract<DependencyTreeScope<Node>, ConcreteServiceScope>,
+        any,
+        any,
+        Node,
+        any
+      >,
+      any
+    >
+  | UseValueServiceOverride<
+      ServiceMetaData<
+        Name,
+        Extract<DependencyTreeScope<Node>, ConcreteServiceScope>,
+        any,
+        any,
+        Node,
+        any
+      >,
+      any
+    >
+  | (DependencyTreeScope<Node> extends RealCapableScope
+      ? RealServiceOverride<
+          ServiceMetaData<
+            Name,
+            Extract<DependencyTreeScope<Node>, RealCapableScope>,
+            any,
+            any,
+            Node,
+            any
+          >
+        >
+      : never);
+
+type ServiceTestingDependencyTree<MetaData extends AnyServiceMetaData> =
+  GetServiceMetaDataDependencies<MetaData> extends {
+    dependencies: infer Dependencies extends object;
+  }
+    ? Dependencies
+    : {};
+
+type FlattenedServiceTestingDependencyTree<
+  MetaData extends AnyServiceMetaData,
+> = FlattenDependencyTree<ServiceTestingDependencyTree<MetaData>>;
+
+type ServiceTestOverrides<MetaData extends AnyServiceMetaData> = Partial<{
+  [Name in keyof FlattenedServiceTestingDependencyTree<MetaData> & string]:
+    OverrideForDependencyNode<
+    Name,
+    FlattenedServiceTestingDependencyTree<MetaData>[Name]
+  >;
+}>;
+
+type MissingCoverageForTree<Tree extends object, Overrides> = {
+  [Name in Extract<keyof Tree, string>]: MissingCoverageForNode<
+    Name,
+    Tree[Name],
+    Overrides
+  >;
+}[Extract<keyof Tree, string>];
+
+type OverrideAtPath<Overrides, Name extends string> = Name extends keyof Overrides
+  ? NonNullable<Overrides[Name]>
+  : never;
+
+type MissingCoverageForNode<
+  Name extends string,
+  Node,
+  Overrides,
+> = [OverrideAtPath<Overrides, Name>] extends [never]
+  ? DependencyTreeScope<Node> extends RequirementScope
+    ? Name
+    : MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>
+  : OverrideKind<OverrideAtPath<Overrides, Name>> extends 'mock'
+    ? never
+    : OverrideKind<OverrideAtPath<Overrides, Name>> extends 'real' | 'useValue'
+      ? MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>
+      : DependencyTreeScope<Node> extends RequirementScope
+        ? Name
+        : MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>;
+
+type AssertServiceTestCoverage<
+  MetaData extends AnyServiceMetaData,
+  Overrides,
+> = [MissingCoverageForTree<
+  ServiceTestingDependencyTree<MetaData>,
+  Overrides
+>] extends [never]
+  ? {}
+  : {
+      ERROR_missing_service_test_overrides: MissingCoverageForTree<
+        ServiceTestingDependencyTree<MetaData>,
+        Overrides
+      >;
+    };
+
+type ResolvedMockValue<Override> =
+  Override extends MockServiceOverride<infer MetaData, infer Implementation>
+    ? MockPublicValue<GetServiceMetaDataOutput<MetaData>, Implementation>
+    : Override extends UseValueServiceOverride<any, infer Value>
+      ? Value
+      : never;
+
+type CreateAngularTestMocks<Overrides> = Simplify<{
+  [Name in keyof Overrides as NonNullable<
+    Overrides[Name]
+  > extends MockServiceOverride<any, any> | UseValueServiceOverride<any, any>
+    ? Name
+    : never]: ResolvedMockValue<NonNullable<Overrides[Name]>>;
+}>;
+
+type ServiceTestBindings<MetaData extends AnyServiceMetaData> = Partial<
+  InputBindings<
+    GetServiceMetaDataInputs<MetaData>,
+    Extract<MetaData['scope'], ConcreteServiceScope>
+  >
+>;
+
+type RuntimeServiceTestOverride = {
+  readonly kind: 'mock' | 'useValue';
+  readonly value: unknown;
+};
+
 export type MaybeSignal<T> = T | Signal<T>;
+
+const SERVICE_TEST_OVERRIDES = new InjectionToken<
+  ReadonlyMap<ConcreteRuntimeDefinition, RuntimeServiceTestOverride>
+>('service-test-overrides', {
+  factory: () => new Map(),
+});
 
 export function toValue<T>(value: MaybeSignal<T>): T {
   return isSignal(value) ? value() : value;
@@ -793,6 +1115,152 @@ export function abstract<Contract>(): AbstractMarker<Contract> {
   return {
     [ABSTRACT_SERVICE_MARKER]: () => undefined as Contract,
   } as AbstractMarker<Contract>;
+}
+
+export function mock<
+  MetaData extends AnyServiceMetaData,
+  Implementation extends
+    MockImplementation<GetServiceMetaDataOutput<MetaData>> | undefined = undefined,
+>(
+  meta: MetaData,
+  implementation?: Implementation,
+): MockServiceOverride<MetaData, Implementation> {
+  return {
+    kind: 'mock',
+    meta,
+    implementation: implementation as Implementation,
+  };
+}
+
+export function useValue<
+  MetaData extends AnyServiceMetaData,
+  Value extends GetServiceMetaDataOutput<MetaData>,
+>(
+  meta: MetaData,
+  value: Value,
+): UseValueServiceOverride<MetaData, Value> {
+  return {
+    kind: 'useValue',
+    meta,
+    value,
+  };
+}
+
+export function real<
+  MetaData extends ServiceMetaData<
+    string,
+    RealCapableScope,
+    any,
+    any,
+    any,
+    any
+  >,
+>(meta: MetaData): RealServiceOverride<MetaData> {
+  return {
+    kind: 'real',
+    meta,
+  };
+}
+
+export const provide = real;
+
+export function createAngularTest<
+  MetaData extends AnyServiceMetaData,
+  const Overrides extends ServiceTestOverrides<MetaData>,
+  Bindings extends ServiceTestBindings<MetaData> | undefined = undefined,
+>(
+  meta: MetaData,
+  overrides: Overrides & AssertServiceTestCoverage<MetaData, Overrides>,
+  options?: {
+    bindings?: Bindings;
+    providers?: Provider[];
+  },
+): {
+  sut: MaybeErrorOutput<
+    GetServiceMetaDataInputs<MetaData>,
+    Bindings,
+    GetServiceMetaDataOutput<MetaData>
+  >;
+  mocks: CreateAngularTestMocks<Overrides>;
+} {
+  const internalMetaData = meta as InternalServiceMetaData;
+  const providers = [...(options?.providers ?? [])];
+  const runtimeOverrides = new Map<
+    ConcreteRuntimeDefinition,
+    RuntimeServiceTestOverride
+  >();
+  const mocks: Record<string, unknown> = {};
+
+  if (meta.scope === 'toProvide' || meta.scope === 'manuallyProvidedAtRoot') {
+    if (!('provide' in meta) || typeof meta.provide !== 'function') {
+      throw new Error(
+        `Missing provide helper for service "${meta.name}" in createAngularTest.`,
+      );
+    }
+
+    providers.push(meta.provide());
+  }
+
+  for (const [name, override] of Object.entries(overrides)) {
+    if (!override) {
+      continue;
+    }
+
+    const internalOverrideMetaData = override.meta as InternalServiceMetaData;
+
+    if (override.kind === 'real') {
+      if (
+        !('provide' in override.meta) ||
+        typeof override.meta.provide !== 'function'
+      ) {
+        throw new Error(
+          `real(${override.meta.name}) is only supported for toProvide and manuallyProvidedAtRoot services.`,
+        );
+      }
+
+      providers.push(override.meta.provide());
+      continue;
+    }
+
+    const publicValue =
+      override.kind === 'useValue'
+        ? override.value
+        : createServiceTestMockValue(override.implementation);
+
+    runtimeOverrides.set(
+      internalOverrideMetaData[SERVICE_RUNTIME_DEFINITION],
+      {
+        kind: override.kind,
+        value: publicValue,
+      },
+    );
+    mocks[name] = publicValue;
+  }
+
+  providers.push({
+    provide: SERVICE_TEST_OVERRIDES,
+    useValue: runtimeOverrides,
+  });
+
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    providers,
+  });
+
+  return TestBed.runInInjectionContext(() => ({
+    sut:
+      options?.bindings === undefined
+        ? internalMetaData.inject()
+        : internalMetaData.inject(options.bindings),
+    mocks,
+  })) as {
+    sut: MaybeErrorOutput<
+      GetServiceMetaDataInputs<MetaData>,
+      Bindings,
+      GetServiceMetaDataOutput<MetaData>
+    >;
+    mocks: CreateAngularTestMocks<Overrides>;
+  };
 }
 
 export function service<Name extends string, Contract>(
@@ -848,6 +1316,7 @@ export function service(
   const toYieldName = `${capitalizedName}ToYield`;
   const requirementName = `${capitalizedName}Requirement`;
   const toProvideName = `${capitalizedName}ToProvide`;
+  const metaDataName = toMetaDataPropertyName(options.name);
 
   if (options.scope === 'abstract') {
     assertAbstractMarker(factoryOrMarker);
@@ -941,10 +1410,63 @@ export function service(
     api[toProvideName] = token;
   }
 
+  api[metaDataName] = createServiceMetaData({
+    name: options.name,
+    scope: options.scope,
+    inject: api[injectName] as (...args: any[]) => unknown,
+    provide:
+      options.scope === 'toProvide' || options.scope === 'manuallyProvidedAtRoot'
+        ? (api[provideName] as (() => Provider) | undefined)
+        : undefined,
+    token:
+      options.scope === 'manuallyProvidedAtRoot'
+        ? (token as InjectionToken<unknown>)
+        : undefined,
+    runtimeDefinition,
+  });
+
   return api;
 
   function abstractInject() {}
   function concreteInject() {}
+}
+
+function createServiceMetaData(config: {
+  name: string;
+  scope: ConcreteServiceScope;
+  inject: (...args: any[]) => unknown;
+  provide?: () => Provider;
+  token?: InjectionToken<unknown>;
+  runtimeDefinition: ConcreteRuntimeDefinition;
+}): AnyServiceMetaData {
+  const metaData: Record<string, unknown> = {
+    kind: 'service-meta-data',
+    name: config.name,
+    scope: config.scope,
+    inject: config.inject,
+  };
+
+  if (config.provide) {
+    metaData['provide'] = config.provide;
+  }
+
+  if (config.token) {
+    metaData['token'] = config.token;
+  }
+
+  Object.defineProperty(metaData, SERVICE_RUNTIME_DEFINITION, {
+    value: config.runtimeDefinition,
+    enumerable: false,
+    configurable: false,
+  });
+
+  return metaData as AnyServiceMetaData;
+}
+
+function createServiceTestMockValue(implementation: unknown): unknown {
+  return implementation === undefined
+    ? {}
+    : createExposedServiceValue(implementation);
 }
 
 function createProviders(definition: ConcreteRuntimeDefinition): Provider {
@@ -993,6 +1515,12 @@ function resolveConcreteService(
   injector: Injector,
   bindings?: Record<string, unknown>,
 ): unknown {
+  const serviceOverride = getServiceTestOverride(injector, definition);
+
+  if (serviceOverride) {
+    return serviceOverride.value;
+  }
+
   if (definition.scope === 'function') {
     return createConcreteServiceInstance(definition, injector, bindings);
   }
@@ -1002,6 +1530,13 @@ function resolveConcreteService(
   }
 
   return injector.get(definition.token!);
+}
+
+function getServiceTestOverride(
+  injector: Injector,
+  definition: ConcreteRuntimeDefinition,
+): RuntimeServiceTestOverride | undefined {
+  return injector.get(SERVICE_TEST_OVERRIDES).get(definition);
 }
 
 function createConcreteServiceInstance(
@@ -1411,4 +1946,11 @@ function assertDependencyScope(
 
 function capitalize(value: string): string {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
+function toMetaDataPropertyName(value: string): string {
+  return `${value
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase()}_META_DATA`;
 }

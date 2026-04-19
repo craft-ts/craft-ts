@@ -319,17 +319,19 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
       : (stateSignal as Signal<StateType>);
+  const originalSet = stateSignal.set.bind(stateSignal);
+  const originalUpdate = stateSignal.update.bind(stateSignal);
   const insertionsOutput = (
     insertions as InsertionsStateFactory<StateType, {}>[]
   ).reduce(
     (acc, insert) => {
       const nextRawInsertions = insert({
         state: readonlyStateSignal,
-        set: (newState: StateType) => stateSignal.set(newState),
+        set: (newState: StateType) => originalSet(newState),
         update: (updateFn: (currentState: StateType) => StateType) =>
-          stateSignal.update(updateFn),
+          originalUpdate(updateFn),
         patch: (patchFn: (currentState: StateType) => Partial<StateType>) =>
-          stateSignal.update((current) => ({
+          originalUpdate((current) => ({
             ...current,
             ...patchFn(current),
           })),
