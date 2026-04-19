@@ -3,8 +3,8 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { createAngularTest, mock, real } from './create-angular-test';
-import { service } from './service';
+import { setupCraftServiceTest, mock, real } from './setup-craft-service-test';
+import { craftService } from './craft-service';
 import { state } from './state';
 
 beforeAll(() => {
@@ -22,16 +22,16 @@ beforeAll(() => {
   }
 });
 
-describe('createAngularTest', () => {
-  it('should keep metadata as a secondary createAngularTest entry', () => {
+describe('setupCraftServiceTest', () => {
+  it('should keep metadata as a secondary setupCraftServiceTest entry', () => {
     const { injectCounter: Counter, CounterToYield, COUNTER_META_DATA } =
-      service({ name: 'Counter', scope: 'toProvide' }, () =>
+      craftService({ name: 'Counter', scope: 'toProvide' }, () =>
         state(0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         })),
       );
 
-    const { COUNTER_EXTENDED_META_DATA } = service(
+    const { COUNTER_EXTENDED_META_DATA } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
         const counter = yield* CounterToYield();
@@ -44,7 +44,7 @@ describe('createAngularTest', () => {
 
     const rootCallable = vi.fn(() => 14);
 
-    const { sut, mocks } = createAngularTest(COUNTER_EXTENDED_META_DATA, {
+    const { sut, mocks } = setupCraftServiceTest(COUNTER_EXTENDED_META_DATA, {
       Counter: mock({
         $self: rootCallable,
         increment: vi.fn(),
@@ -56,8 +56,8 @@ describe('createAngularTest', () => {
     expect(mocks.Counter()).toBe(14);
   });
 
-  it('should fail at typing time when a required child service is not covered', () => {
-    const { CounterToYield } = service(
+  it('should fail at typing time when a required child craftService is not covered', () => {
+    const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () =>
         state(0, ({ update }) => ({
@@ -65,7 +65,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectCounterExtended: CounterExtended } = service(
+    const { injectCounterExtended: CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
         return yield* CounterToYield();
@@ -74,12 +74,12 @@ describe('createAngularTest', () => {
 
     if (false) {
       //@ts-expect-error Counter should be covered because it is a toProvide dependency
-      createAngularTest(CounterExtended, {});
+      setupCraftServiceTest(CounterExtended, {});
     }
   });
 
   it('should enable a mocked ancestor to prune a branch of required descendants', () => {
-    const { ChildCounterToYield } = service(
+    const { ChildCounterToYield } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       () =>
         state(0, ({ update }) => ({
@@ -87,7 +87,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectParentCounter: ParentCounter, ParentCounterToYield } = service(
+    const { injectParentCounter: ParentCounter, ParentCounterToYield } = craftService(
       { name: 'ParentCounter', scope: 'toProvide' },
       function* () {
         const counter = yield* ChildCounterToYield();
@@ -98,14 +98,14 @@ describe('createAngularTest', () => {
       },
     );
 
-    const { injectRootCounter: RootCounter } = service(
+    const { injectRootCounter: RootCounter } = craftService(
       { name: 'RootCounter', scope: 'toProvide' },
       function* () {
         return yield* ParentCounterToYield();
       },
     );
 
-    const testRef = createAngularTest(RootCounter, {
+    const testRef = setupCraftServiceTest(RootCounter, {
       ParentCounter: mock({
         increment: vi.fn(),
       }),
@@ -115,8 +115,8 @@ describe('createAngularTest', () => {
     expect(testRef.mocks.ParentCounter.increment).toBeTypeOf('function');
   });
 
-  it('should still require descendants when a service is provided as real', () => {
-    const { CounterToYield } = service(
+  it('should still require descendants when a craftService is provided as real', () => {
+    const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () =>
         state(0, ({ update }) => ({
@@ -124,7 +124,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectParentCounter: ParentCounter, ParentCounterToYield } = service(
+    const { injectParentCounter: ParentCounter, ParentCounterToYield } = craftService(
       { name: 'ParentCounter', scope: 'toProvide' },
       function* () {
         const counter = yield* CounterToYield();
@@ -135,7 +135,7 @@ describe('createAngularTest', () => {
       },
     );
 
-    const { injectRootCounter: RootCounter } = service(
+    const { injectRootCounter: RootCounter } = craftService(
       { name: 'RootCounter', scope: 'toProvide' },
       function* () {
         return yield* ParentCounterToYield();
@@ -144,21 +144,21 @@ describe('createAngularTest', () => {
 
     if (false) {
       //@ts-expect-error Counter should remain required because ParentCounter is real and does not prune its children
-      createAngularTest(RootCounter, {
+      setupCraftServiceTest(RootCounter, {
         ParentCounter: real(),
       });
     }
 
     if (false) {
       //@ts-expect-error Counter should remain required because ParentCounter is real and does not prune its children
-      createAngularTest(RootCounter, {
+      setupCraftServiceTest(RootCounter, {
         ParentCounter: real(ParentCounter),
       });
     }
   });
 
   it('should not require overriding a global dependency', () => {
-    const { CounterToYield } = service(
+    const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
         state(10, ({ update }) => ({
@@ -166,7 +166,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectCounterConsumer: CounterConsumer } = service(
+    const { injectCounterConsumer: CounterConsumer } = craftService(
       { name: 'CounterConsumer', scope: 'toProvide' },
       function* () {
         const counter = yield* CounterToYield();
@@ -178,7 +178,7 @@ describe('createAngularTest', () => {
       },
     );
 
-    const { sut } = createAngularTest(CounterConsumer, {});
+    const { sut } = setupCraftServiceTest(CounterConsumer, {});
 
     expect(sut.read()).toBe(10);
     sut.increment();
@@ -186,7 +186,7 @@ describe('createAngularTest', () => {
   });
 
   it('should allow mocking a global dependency with an implicit mock override', () => {
-    const { CounterToYield } = service(
+    const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
         state(10, ({ update }) => ({
@@ -194,7 +194,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectCounterConsumer: CounterConsumer } = service(
+    const { injectCounterConsumer: CounterConsumer } = craftService(
       { name: 'CounterConsumer', scope: 'toProvide' },
       function* () {
         const counter = yield* CounterToYield();
@@ -209,7 +209,7 @@ describe('createAngularTest', () => {
     const rootCallable = vi.fn(() => 41);
     const increment = vi.fn();
 
-    const { sut, mocks } = createAngularTest(CounterConsumer, {
+    const { sut, mocks } = setupCraftServiceTest(CounterConsumer, {
       Counter: mock({
         $self: rootCallable,
         increment,
@@ -226,7 +226,7 @@ describe('createAngularTest', () => {
   });
 
   it('should allow mocking a global dependency with the explicit inject helper fallback', () => {
-    const { injectCounter: Counter, CounterToYield } = service(
+    const { injectCounter: Counter, CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
         state(10, ({ update }) => ({
@@ -234,7 +234,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectCounterConsumer: CounterConsumer } = service(
+    const { injectCounterConsumer: CounterConsumer } = craftService(
       { name: 'CounterConsumer', scope: 'toProvide' },
       function* () {
         const counter = yield* CounterToYield();
@@ -249,7 +249,7 @@ describe('createAngularTest', () => {
     const rootCallable = vi.fn(() => 41);
     const increment = vi.fn();
 
-    const { sut, mocks } = createAngularTest(CounterConsumer, {
+    const { sut, mocks } = setupCraftServiceTest(CounterConsumer, {
       Counter: mock(Counter, {
         $self: rootCallable,
         increment,
@@ -266,7 +266,7 @@ describe('createAngularTest', () => {
   });
 
   it('should type derived mocks with only the used properties and keep extras optional', () => {
-    const { injectCounter: Counter, CounterToYield } = service(
+    const { injectCounter: Counter, CounterToYield } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () =>
         state(0, ({ update }) => ({
@@ -275,7 +275,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectCounterExtended: CounterExtended } = service(
+    const { injectCounterExtended: CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
         return yield* CounterToYield(undefined, ({ $self, increment }) => ({
@@ -287,7 +287,7 @@ describe('createAngularTest', () => {
 
     if (false) {
       //@ts-expect-error $self is required because the derivation uses it
-      createAngularTest(CounterExtended, {
+      setupCraftServiceTest(CounterExtended, {
         Counter: mock({
           increment: vi.fn(),
         }),
@@ -298,7 +298,7 @@ describe('createAngularTest', () => {
     const decrement = vi.fn();
     const rootCallable = vi.fn(() => 41);
 
-    const { sut, mocks } = createAngularTest(CounterExtended, {
+    const { sut, mocks } = setupCraftServiceTest(CounterExtended, {
       Counter: mock({
         $self: rootCallable,
         increment,
@@ -317,7 +317,7 @@ describe('createAngularTest', () => {
   });
 
   it('should keep explicit mock fallback with inject helper', () => {
-    const { injectCounter: Counter, CounterToYield } = service(
+    const { injectCounter: Counter, CounterToYield } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () =>
         state(0, ({ update }) => ({
@@ -325,7 +325,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectCounterExtended: CounterExtended } = service(
+    const { injectCounterExtended: CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
         const counter = yield* CounterToYield();
@@ -340,7 +340,7 @@ describe('createAngularTest', () => {
     const increment = vi.fn();
     const rootCallable = vi.fn(() => 41);
 
-    const { sut, mocks } = createAngularTest(CounterExtended, {
+    const { sut, mocks } = setupCraftServiceTest(CounterExtended, {
       Counter: mock(Counter, {
         $self: rootCallable,
         increment,
@@ -354,7 +354,7 @@ describe('createAngularTest', () => {
   });
 
   it('should support implicit real for manuallyProvidedAtRoot dependencies', () => {
-    const { CounterToYield } = service(
+    const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       () =>
         state(10, ({ update }) => ({
@@ -362,7 +362,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectGlobalCounter: GlobalCounter } = service(
+    const { injectGlobalCounter: GlobalCounter } = craftService(
       { name: 'GlobalCounter', scope: 'global' },
       function* () {
         const counter = yield* CounterToYield();
@@ -374,7 +374,7 @@ describe('createAngularTest', () => {
       },
     );
 
-    const { sut } = createAngularTest(GlobalCounter, {
+    const { sut } = setupCraftServiceTest(GlobalCounter, {
       Counter: real(),
     });
 
@@ -384,7 +384,7 @@ describe('createAngularTest', () => {
   });
 
   it('should support explicit real fallback with inject helper', () => {
-    const { injectCounter: Counter, CounterToYield } = service(
+    const { injectCounter: Counter, CounterToYield } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       () =>
         state(10, ({ update }) => ({
@@ -392,7 +392,7 @@ describe('createAngularTest', () => {
         })),
     );
 
-    const { injectGlobalCounter: GlobalCounter } = service(
+    const { injectGlobalCounter: GlobalCounter } = craftService(
       { name: 'GlobalCounter', scope: 'global' },
       function* () {
         const counter = yield* CounterToYield();
@@ -404,7 +404,7 @@ describe('createAngularTest', () => {
       },
     );
 
-    const { sut } = createAngularTest(GlobalCounter, {
+    const { sut } = setupCraftServiceTest(GlobalCounter, {
       Counter: real(Counter),
     });
 

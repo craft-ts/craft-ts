@@ -76,11 +76,11 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./examples/primitives/forms/team-invitations'),
   },
   {
-    path: 'service/counter',
-    loadComponent: () => import('./examples/service/service-counter'),
+    path: 'craft-service/counter',
+    loadComponent: () => import('./examples/craft-service/craft-service-counter'),
   },
   {
-    path: 'service/user-detail',
-    loadComponent: () => import('./examples/service/service-user-detail'),
+    path: 'craft-service/user-detail',
+    loadComponent: () => import('./examples/craft-service/craft-service-user-detail'),
   },
 ];

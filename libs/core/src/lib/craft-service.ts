@@ -7,7 +7,7 @@ import {
   Provider,
   Signal,
 } from '@angular/core';
-import { SERVICE_ROOT_EXPOSURE_KEY } from './service.shared';
+import { SERVICE_ROOT_EXPOSURE_KEY } from './craft-service.shared';
 import type {
   CallableShell,
   ConcreteServiceScope,
@@ -16,7 +16,7 @@ import type {
   RootExposureKey,
   Simplify,
   UnionToTuple,
-} from './service.shared';
+} from './craft-service.shared';
 
 declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 declare const SERVICE_YIELD_METADATA: unique symbol;
@@ -997,11 +997,11 @@ export function abstract<Contract>(): AbstractMarker<Contract> {
   } as AbstractMarker<Contract>;
 }
 
-export function service<Name extends string, Contract>(
+export function craftService<Name extends string, Contract>(
   options: { name: Name; scope: 'abstract' },
   marker: AbstractMarker<Contract>,
 ): AbstractServiceApi<Name, Contract>;
-export function service<
+export function craftService<
   Name extends string,
   Scope extends RequirementScope,
   Requirement extends ServiceRequirement<any, any>,
@@ -1022,7 +1022,7 @@ export function service<
   FactoryOutput<Factory>,
   ServiceHelperMetadata<Name, Scope, Factory>
 >;
-export function service<
+export function craftService<
   Name extends string,
   Scope extends ConcreteServiceScope,
   Factory extends AnyFactory,
@@ -1036,7 +1036,7 @@ export function service<
   FactoryOutput<Factory>,
   ServiceHelperMetadata<Name, Scope, Factory>
 >;
-export function service(
+export function craftService(
   options: {
     name: string;
     scope: ServiceScope;
@@ -1242,7 +1242,7 @@ export function getServiceMetaData(target: unknown): AnyServiceMetaData {
   }
 
   throw new Error(
-    'Expected a service inject helper or a service metadata object.',
+    'Expected a craftService inject helper or a service metadata object.',
   );
 }
 
@@ -1260,7 +1260,7 @@ function createProviders(definition: ConcreteRuntimeDefinition): Provider {
 
   if (!concreteToken) {
     throw new Error(
-      `service("${definition.name}") cannot create providers for scope "${definition.scope}".`,
+      `craftService("${definition.name}") cannot create providers for scope "${definition.scope}".`,
     );
   }
 
@@ -1380,7 +1380,7 @@ function runGeneratorFactory(
     }
 
     throw new Error(
-      'service generators can only yield service dependencies or exposed dependency helpers.',
+      'craftService generators can only yield craftService dependencies or exposed dependency helpers.',
     );
   }
 
@@ -1730,7 +1730,7 @@ function assertAbstractMarker(
     value === null ||
     !(ABSTRACT_SERVICE_MARKER in value)
   ) {
-    throw new Error('service scope "abstract" expects abstract<T>().');
+    throw new Error('craftService scope "abstract" expects abstract<T>().');
   }
 }
 
@@ -1741,7 +1741,7 @@ function assertDependencyScope(
 ) {
   if (hostScope === 'global' && dependencyScope === 'toProvide') {
     throw new Error(
-      `Global service cannot depend on toProvide service "${dependencyName}".`,
+      `Global craftService cannot depend on toProvide craftService "${dependencyName}".`,
     );
   }
 }

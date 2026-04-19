@@ -4,7 +4,7 @@ import {
   createExposedServiceValue,
   getServiceMetaData,
   SERVICE_RUNTIME_OVERRIDES,
-} from './service';
+} from './craft-service';
 import type {
   CallableShell,
   ConcreteServiceScope,
@@ -15,7 +15,7 @@ import type {
   RequirementScope,
   RootExposureKey,
   Simplify,
-} from './service.shared';
+} from './craft-service.shared';
 import type {
   GetInjectedServiceDependencies,
   GetServiceReferenceOutput,
@@ -24,7 +24,7 @@ import type {
   ServiceMetaData,
   ServiceReference,
   ServiceRuntimeOverride,
-} from './service';
+} from './craft-service';
 
 type GetServiceDependenciesTree<Target extends ServiceReference> =
   Target extends ServiceMetaData<any, any, any, any, infer Dependencies, any, any>
@@ -286,7 +286,7 @@ function assertOverrideReferenceName(name: string, reference: unknown) {
 
   if (metaData.name !== name) {
     throw new Error(
-      `Test override "${name}" does not match service reference "${metaData.name}".`,
+      `Test override "${name}" does not match craftService reference "${metaData.name}".`,
     );
   }
 }
@@ -336,7 +336,7 @@ export function real(reference?: unknown): AnyRealServiceOverride {
 
 export const provide = real;
 
-export function createAngularTest<
+export function setupCraftServiceTest<
   Target extends ServiceReference,
   const Overrides extends Record<string, unknown>,
   Bindings extends ServiceBindings<Target> | undefined = undefined,
@@ -367,7 +367,7 @@ export function createAngularTest<
       typeof internalMetaData.provide !== 'function'
     ) {
       throw new Error(
-        `Missing provide helper for service "${internalMetaData.name}" in createAngularTest.`,
+        `Missing provide helper for craftService "${internalMetaData.name}" in setupCraftServiceTest.`,
       );
     }
 

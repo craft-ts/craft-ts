@@ -1,7 +1,7 @@
 export * from './lib/after-recomputation';
 export * from './lib/async-process';
 export * from './lib/computed-source';
-export * from './lib/create-angular-test';
+export * from './lib/setup-craft-service-test';
 export * from './lib/craft-async-process';
 export * from './lib/craft-computed';
 export * from './lib/craft-inject';
@@ -40,7 +40,7 @@ export * from './lib/local-storage-persister';
 export * from './lib/global-persister-handler.service';
 export * from './lib/util/entities-util';
 export * from './lib/reactive-writable-signal';
-export * from './lib/service';
+export * from './lib/craft-service';
 export * from './lib/source$';
 export * from './lib/from-event-to-source$';
 export * from './lib/on$';

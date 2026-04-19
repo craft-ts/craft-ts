@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import {
-  service,
+  craftService,
   query,
   toValue,
   type MaybeSignal,
@@ -31,9 +31,9 @@ const USERS: User[] = [
   { id: '5', name: 'Lucie', email: 'lucie@craft.dev' },
 ];
 
-// -- UsersApi: global service exposing multiple endpoints --
+// -- UsersApi: global craftService exposing multiple endpoints --
 
-const { UsersApiToYield } = service(
+const { UsersApiToYield } = craftService(
   { name: 'UsersApi', scope: 'global' },
   () => ({
     getUser: (userId: string) => {
@@ -52,9 +52,9 @@ const { UsersApiToYield } = service(
   }),
 );
 
-// -- User: toProvide service that yields UsersApi and exposes a query --
+// -- User: toProvide craftService that yields UsersApi and exposes a query --
 
-const { injectUser, provideUser } = service(
+const { injectUser, provideUser } = craftService(
   { name: 'User', scope: 'toProvide' },
   function* (inputs: { userId: MaybeSignal<string> }) {
     const usersApi = yield* UsersApiToYield();
@@ -72,12 +72,12 @@ const { injectUser, provideUser } = service(
 // -- Component --
 
 @Component({
-  selector: 'app-service-user-detail',
+  selector: 'app-craft-service-user-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [provideUser()],
   template: `
     <div class="user-detail">
-      <h2>User Detail (service + query)</h2>
+      <h2>craftService User Detail (query)</h2>
 
       <div class="controls">
         <label>
@@ -164,7 +164,7 @@ const { injectUser, provideUser } = service(
     }
   `,
 })
-export default class ServiceUserDetailComponent {
+export default class CraftServiceUserDetailComponent {
   protected readonly userId = state(signal('1'), ({ set }) => ({
     setUserId: (event: Event | null) => {
       if (event) {

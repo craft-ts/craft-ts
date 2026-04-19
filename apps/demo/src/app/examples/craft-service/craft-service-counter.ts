@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { service, state } from '@craft-ng/core';
+import { craftService, state } from '@craft-ng/core';
 
-const { injectCounter, provideCounter } = service(
+const { injectCounter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
   () =>
     state(0, ({ update, set }) => ({
@@ -12,12 +12,12 @@ const { injectCounter, provideCounter } = service(
 );
 
 @Component({
-  selector: 'app-service-counter',
+  selector: 'app-craft-service-counter',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [provideCounter()],
   template: `
     <div class="counter-demo">
-      <h2>Service Counter (toProvide scope)</h2>
+      <h2>craftService Counter (toProvide scope)</h2>
       <p class="value">{{ counter() }}</p>
       <div class="actions">
         <button (click)="counter.decrement()">-</button>
@@ -57,6 +57,6 @@ const { injectCounter, provideCounter } = service(
     }
   `,
 })
-export default class ServiceCounterComponent {
+export default class CraftServiceCounterComponent {
   protected readonly counter = injectCounter();
 }
