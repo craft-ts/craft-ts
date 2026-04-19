@@ -11,6 +11,9 @@ import {
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
 const SERVICE_REQUIREMENT_MARKER = Symbol('service-requirement-marker');
 const SERVICE_YIELD_REQUEST_MARKER = Symbol('service-yield-request-marker');
+const SERVICE_DEPENDENCY_ACCESS_MARKER = Symbol(
+  'service-dependency-access-marker',
+);
 
 const PROVIDED_ELSEWHERE = 'Provided elsewhere #warn-check-docs:inputs' as const;
 
@@ -126,6 +129,47 @@ type AllowedProvidedElsewhere<Scope extends ConcreteServiceScope> =
     ? typeof PROVIDED_ELSEWHERE
     : never;
 
+type SelectableOutput<Inputs extends object, Config, Output> =
+  MaybeErrorOutput<Inputs, Config, Output> extends infer Result
+    ? Result extends object
+      ? Result
+      : never
+    : never;
+
+type CallableShell<Value> = Value extends (...args: infer Args) => infer Result
+  ? (...args: Args) => Result
+  : never;
+
+type ExposedOutput<Output, Exposed> = Output extends (...args: any[]) => any
+  ? CallableShell<Output> & Exposed
+  : Exposed;
+
+type OutputDependencyKeys<Output extends object> = Extract<keyof Output, string>;
+
+type ServiceDependencyAccessRequest<Key extends string, Result> = Readonly<{
+  [SERVICE_DEPENDENCY_ACCESS_MARKER]: true;
+  key: Key;
+  resolve: () => Result;
+}>;
+
+type DependencyAccessHelpers<Output extends object> = {
+  [Key in OutputDependencyKeys<Output>]: () => Generator<
+    ServiceDependencyAccessRequest<Key, Output[Key]>,
+    Output[Key],
+    unknown
+  >;
+};
+
+type ExposureYield<Output extends object> = ServiceDependencyAccessRequest<
+  OutputDependencyKeys<Output>,
+  Output[OutputDependencyKeys<Output>]
+>;
+
+type ExposureSelector<Output extends object, Exposed> = (
+  output: Output,
+  dependencies: DependencyAccessHelpers<Output>,
+) => Exposed | Generator<ExposureYield<Output>, Exposed, unknown>;
+
 type ServiceYieldRequest<
   Scope extends ConcreteServiceScope,
   Result,
@@ -159,6 +203,14 @@ type InjectHelper<
     <Config extends Partial<InputBindings<Inputs, Scope>>>(
       bindings: Config,
     ): MaybeErrorOutput<Inputs, Config, Output>;
+    <Exposed>(
+      bindings: undefined,
+      expose: ExposureSelector<SelectableOutput<Inputs, undefined, Output>, Exposed>,
+    ): ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>;
+    <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
+      bindings: Config,
+      expose: ExposureSelector<SelectableOutput<Inputs, Config, Output>, Exposed>,
+    ): ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>;
   };
 };
 
@@ -172,14 +224,35 @@ type YieldHelper<
     (): Generator<
       ServiceYieldRequest<Scope, MaybeErrorOutput<Inputs, undefined, Output>>,
       MaybeErrorOutput<Inputs, undefined, Output>,
-      MaybeErrorOutput<Inputs, undefined, Output>
+      unknown
     >;
     <Config extends Partial<InputBindings<Inputs, Scope>>>(
       bindings: Config,
     ): Generator<
       ServiceYieldRequest<Scope, MaybeErrorOutput<Inputs, Config, Output>>,
       MaybeErrorOutput<Inputs, Config, Output>,
-      MaybeErrorOutput<Inputs, Config, Output>
+      unknown
+    >;
+    <Exposed>(
+      bindings: undefined,
+      expose: ExposureSelector<SelectableOutput<Inputs, undefined, Output>, Exposed>,
+    ): Generator<
+      | ServiceYieldRequest<
+          Scope,
+          SelectableOutput<Inputs, undefined, Output>
+        >
+      | ExposureYield<SelectableOutput<Inputs, undefined, Output>>,
+      ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>,
+      unknown
+    >;
+    <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
+      bindings: Config,
+      expose: ExposureSelector<SelectableOutput<Inputs, Config, Output>, Exposed>,
+    ): Generator<
+      ServiceYieldRequest<Scope, SelectableOutput<Inputs, Config, Output>> |
+        ExposureYield<SelectableOutput<Inputs, Config, Output>>,
+      ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>,
+      unknown
     >;
   };
 };
@@ -317,13 +390,31 @@ export function service(
   runtimeDefinition.token = token;
 
   const api: Record<string, unknown> = {
-    [injectName]: (bindings?: Record<string, unknown>) => {
+    [injectName]: (
+      bindings?: Record<string, unknown>,
+      expose?: RuntimeExposureSelector,
+    ) => {
       assertInInjectionContext(concreteInject);
       const injector = inject(Injector);
-      return resolveConcreteService(runtimeDefinition, injector, bindings);
+      const serviceValue = resolveConcreteService(runtimeDefinition, injector, bindings);
+      return expose
+        ? resolveExposedService(serviceValue, expose, injector, runtimeDefinition.scope)
+        : serviceValue;
     },
-    [toYieldName]: function* (bindings?: Record<string, unknown>) {
-      return (yield createYieldRequest(runtimeDefinition, bindings)) as unknown;
+    [toYieldName]: function* (
+      bindings?: Record<string, unknown>,
+      expose?: RuntimeExposureSelector,
+    ) {
+      const serviceValue = (yield createYieldRequest(
+        runtimeDefinition,
+        bindings,
+      )) as unknown;
+
+      if (!expose) {
+        return serviceValue;
+      }
+
+      return (yield* exposeServiceValue(serviceValue, expose)) as unknown;
     },
   };
 
@@ -425,12 +516,20 @@ function runGeneratorFactory(
   while (!current.done) {
     const yielded = current.value;
 
-    if (!isServiceYieldRequest(yielded)) {
-      throw new Error('service generators can only yield service dependencies.');
+    if (isServiceYieldRequest(yielded)) {
+      const resolved = yielded.resolve(injector, hostScope);
+      current = iterator.next(resolved);
+      continue;
     }
 
-    const resolved = yielded.resolve(injector, hostScope);
-    current = iterator.next(resolved);
+    if (isServiceDependencyAccessRequest(yielded)) {
+      current = iterator.next(yielded.resolve());
+      continue;
+    }
+
+    throw new Error(
+      'service generators can only yield service dependencies or exposed dependency helpers.',
+    );
   }
 
   return current.value;
@@ -458,6 +557,166 @@ function createInputProxy(bindings: Record<string, unknown>): Record<string, unk
   });
 }
 
+function resolveExposedService(
+  serviceValue: unknown,
+  expose: RuntimeExposureSelector,
+  injector: Injector,
+  hostScope: ConcreteServiceScope,
+): unknown {
+  const exposure = expose(
+    serviceValue as object,
+    createDependencyAccessHelpers(serviceValue),
+  );
+  const resolvedExposure = isGenerator(exposure)
+    ? runGeneratorFactory(exposure, injector, hostScope)
+    : exposure;
+
+  return createExposedServiceValue(serviceValue, resolvedExposure);
+}
+
+function* exposeServiceValue(
+  serviceValue: unknown,
+  expose: RuntimeExposureSelector,
+): Generator<ServiceDependencyAccessRequest<string, unknown>, unknown, unknown> {
+  const exposure = expose(
+    serviceValue as object,
+    createDependencyAccessHelpers(serviceValue),
+  );
+  const resolvedExposure = isGenerator(exposure)
+    ? yield* (exposure as Generator<
+        ServiceDependencyAccessRequest<string, unknown>,
+        unknown,
+        unknown
+      >)
+    : exposure;
+
+  return createExposedServiceValue(serviceValue, resolvedExposure);
+}
+
+function createDependencyAccessHelpers(
+  serviceValue: unknown,
+): Record<
+  string,
+  () => Generator<ServiceDependencyAccessRequest<string, unknown>, unknown, unknown>
+> {
+  return new Proxy(
+    {},
+    {
+      get(_target, property) {
+        if (typeof property !== 'string') {
+          return undefined;
+        }
+
+        return function* () {
+          return (yield createDependencyAccessRequest(
+            serviceValue,
+            property,
+          )) as unknown;
+        };
+      },
+    },
+  );
+}
+
+function createDependencyAccessRequest(
+  serviceValue: unknown,
+  key: string,
+): ServiceDependencyAccessRequest<string, unknown> {
+  return {
+    [SERVICE_DEPENDENCY_ACCESS_MARKER]: true,
+    key,
+    resolve: () => Reflect.get(Object(serviceValue), key),
+  };
+}
+
+function createExposedServiceValue(
+  serviceValue: unknown,
+  exposedValue: unknown,
+): unknown {
+  if (typeof serviceValue !== 'function' || !isObjectLike(exposedValue)) {
+    return exposedValue;
+  }
+
+  return createCallableExposureProxy(
+    serviceValue as (...args: any[]) => unknown,
+    exposedValue,
+  );
+}
+
+function createCallableExposureProxy(
+  serviceValue: (...args: any[]) => unknown,
+  exposedValue: object,
+) {
+  const exposedKeys = new Set(Reflect.ownKeys(exposedValue));
+  const forwardedTargetKeys = new Set<PropertyKey>(
+    Reflect.ownKeys(serviceValue).filter(
+      (key) =>
+        typeof key === 'symbol' ||
+        Reflect.getOwnPropertyDescriptor(serviceValue, key)?.configurable ===
+          false,
+    ),
+  );
+
+  return new Proxy(serviceValue, {
+    get(target, property, receiver) {
+      if (exposedKeys.has(property)) {
+        return Reflect.get(exposedValue, property, exposedValue);
+      }
+
+      if (
+        forwardedTargetKeys.has(property) ||
+        (typeof property === 'string' && property in Function.prototype)
+      ) {
+        return Reflect.get(target, property, receiver);
+      }
+
+      return undefined;
+    },
+    has(_target, property) {
+      return (
+        exposedKeys.has(property) ||
+        forwardedTargetKeys.has(property) ||
+        (typeof property === 'string' && property in Function.prototype)
+      );
+    },
+    ownKeys() {
+      return Array.from(
+        new Set([...Array.from(forwardedTargetKeys), ...Reflect.ownKeys(exposedValue)]),
+      ) as Array<string | symbol>;
+    },
+    getOwnPropertyDescriptor(target, property) {
+      if (exposedKeys.has(property)) {
+        return (
+          Reflect.getOwnPropertyDescriptor(exposedValue, property) ?? {
+            configurable: true,
+            enumerable: true,
+            writable: true,
+            value: Reflect.get(exposedValue, property, exposedValue),
+          }
+        );
+      }
+
+      if (forwardedTargetKeys.has(property)) {
+        return Reflect.getOwnPropertyDescriptor(target, property);
+      }
+
+      return undefined;
+    },
+  });
+}
+
+function isObjectLike(value: unknown): value is object {
+  return (typeof value === 'object' && value !== null) || typeof value === 'function';
+}
+
+type RuntimeExposureSelector = (
+  output: object,
+  dependencies: Record<
+    string,
+    () => Generator<ServiceDependencyAccessRequest<string, unknown>, unknown, unknown>
+  >,
+) => unknown;
+
 function isGenerator(
   value: unknown,
 ): value is Generator<unknown, unknown, unknown> {
@@ -476,6 +735,16 @@ function isServiceYieldRequest(
     typeof value === 'object' &&
     value !== null &&
     SERVICE_YIELD_REQUEST_MARKER in value
+  );
+}
+
+function isServiceDependencyAccessRequest(
+  value: unknown,
+): value is ServiceDependencyAccessRequest<string, unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    SERVICE_DEPENDENCY_ACCESS_MARKER in value
   );
 }
 

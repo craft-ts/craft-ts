@@ -674,164 +674,172 @@ describe('serviceToYield should enable to binding inputs', () => {
   });
 });
 
-describe.todo(
-  'injectService/ServiceToYield should expose an optional parameter that can be used to only expose what is needed and yield* dep must be used to declare non exposed fields. “Any dependency that is used but not exposed must be yielded (with yield*) in order to be counted.”',
-  () => {
-    // ! limitation, state return a signal and that looks weird to expose it and his methods separately, maybe we can have a helper to do that automatically for state ? or maybe it's not a problem and it can be used like that, but it is something to think about for the ergonomics of the API
-    it('should enable to use only some exposed field when using injectCounterExtended', () => {
-      const { injectCounterExtended } = service(
-        'CounterExtended',
-        function* () {
-          return state(10, ({ update }) => ({
-            increment: update((v) => v + 1),
-            decrement: update((v) => v - 1),
-          }));
-        },
-      );
+describe('injectService/ServiceToYield should expose an optional parameter that can be used to only expose what is needed and yield* dep must be used to declare non exposed fields. “Any dependency that is used but not exposed must be yielded (with yield*) in order to be counted.”', () => {
+  it('should enable to use only some exposed field when using injectCounter', () => {
+    const { injectCounter } = service(
+      { name: 'Counter', scope: 'global' },
+      () =>
+        state(10, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
 
-      TestBed.runInInjectionContext(() => {
-        const counterHandler = injectCounterExtended({}, (counter) => ({
-          increment: counter.increment,
-          // decrement is not exposed
+    TestBed.runInInjectionContext(() => {
+      const counterHandler = injectCounter({}, (counter) => ({
+        increment: counter.increment,
+      }));
+
+      //@ts-expect-error decrement should not be accessible because it is not exposed
+      counterHandler.decrement;
+
+      expect('decrement' in counterHandler).toBe(false);
+      expect(counterHandler()).toBe(10);
+      counterHandler.increment();
+      expect(counterHandler()).toBe(11);
+    });
+  });
+
+  it('should enable to track hidden dependencies when using injectCounter', () => {
+    const { injectCounter } = service(
+      { name: 'Counter', scope: 'global' },
+      () => {
+        const counter = state(10, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
         }));
 
-        //@ts-expect-error decrement should not be accessible because it's not exposed in the second parameter of injectCounterExtended
-        counterHandler.decrement();
+        return {
+          state: counter,
+          increment: counter.increment,
+          decrement: counter.decrement,
+        };
+      },
+    );
 
-        expect(counterHandler()).toBe(10);
-        counterHandler.increment();
-        expect(counterHandler()).toBe(11);
-      });
-    });
+    TestBed.runInInjectionContext(() => {
+      const triggerDecrementObservable = new Subject<void>();
+      const counterHandler = injectCounter(
+        {},
+        function* ({ state, increment }, { decrement }) {
+          const decrementRef = yield* decrement();
+          triggerDecrementObservable.subscribe(() => decrementRef());
 
-    it('should enable to track all used fields', () => {
-      const { injectCounterExtended } = service(
-        { name: 'CounterExtended', scope: 'global' },
-        () => {
-          return state(10, ({ update, state }) => ({
-            increment: update((v) => v + 1),
-            decrement: update((v) => v - 1),
+          return {
             state,
-          }));
+            increment,
+          };
         },
       );
 
-      TestBed.runInInjectionContext(() => {
-        const triggerDecrementObservable = new Subject<void>();
-        const counterHandler = injectCounterExtended(
-          {},
-          function* ({ state, increment, decrement }) {
-            const decrementRef = yield* decrement(); // we need to yield* it to be able to track it and know that it's used in the service, even if it's not exposed
+      //@ts-expect-error decrement should not be accessible because it is not exposed
+      counterHandler.decrement;
+
+      expect('decrement' in counterHandler).toBe(false);
+      expect(counterHandler.state()).toBe(10);
+      counterHandler.increment();
+      expect(counterHandler.state()).toBe(11);
+      triggerDecrementObservable.next();
+      expect(counterHandler.state()).toBe(10);
+    });
+  });
+
+  it('should enable to track hidden dependencies from ServiceToYield', () => {
+    const triggerDecrementObservable = new Subject<void>();
+
+    const { CounterToYield } = service(
+      { name: 'Counter', scope: 'function' },
+      (inputs: { initialValue: MaybeSignal<number> }) => {
+        const counter = state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        }));
+
+        return {
+          state: counter,
+          increment: counter.increment,
+          decrement: counter.decrement,
+        };
+      },
+    );
+
+    const { injectCounterExtended } = service(
+      { name: 'CounterExtended', scope: 'global' },
+      function* () {
+        return yield* CounterToYield(
+          {
+            initialValue: signal(10),
+          },
+          function* ({ state, increment }, { decrement }) {
+            const decrementRef = yield* decrement();
             triggerDecrementObservable.subscribe(() => decrementRef());
+
             return {
               state,
               increment,
             };
           },
         );
+      },
+    );
 
-        //@ts-expect-error decrement should not be accessible because it's not exposed in the second parameter of injectCounterExtended
-        counterHandler.decrement();
+    TestBed.runInInjectionContext(() => {
+      const counterHandler = injectCounterExtended();
 
-        expect(counterHandler.state()).toBe(10);
-        counterHandler.increment();
-        expect(counterHandler.state()).toBe(11);
-        triggerDecrementObservable.next();
-        expect(counterHandler.state()).toBe(10);
-      });
+      //@ts-expect-error decrement should not be accessible because it is not exposed
+      counterHandler.decrement;
+
+      expect('decrement' in counterHandler).toBe(false);
+      expect(counterHandler.state()).toBe(10);
+      counterHandler.increment();
+      expect(counterHandler.state()).toBe(11);
+      triggerDecrementObservable.next();
+      expect(counterHandler.state()).toBe(10);
     });
+  });
 
-    it('should enable to track all used fields from ServiceToYield', () => {
-      const { CounterToYield } = service(
-        { name: 'Counter', scope: 'function' },
-        (inputs: { initialValue: MaybeSignal<number> }) =>
-          state(toValue(inputs.initialValue), ({ update }) => ({
-            increment: update((v) => v + 1),
-            decrement: update((v) => v - 1),
-            state: toValue(inputs.initialValue),
-          })),
-      );
+  it('should enable to use only some exposed field when using CounterToYield', () => {
+    const { CounterToYield } = service(
+      { name: 'Counter', scope: 'function' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
 
-      const triggerDecrementObservable = new Subject<void>();
+    const { injectCounterExtended } = service(
+      { name: 'CounterExtended', scope: 'global' },
+      function* () {
+        const partialCounter = yield* CounterToYield(
+          {
+            initialValue: signal(10),
+          },
+          (counter) => ({
+            state: counter,
+            increment: counter.increment,
+          }),
+        );
 
-      const { injectCounterExtended } = service(
-        'CounterExtended',
-        function* () {
-          const counter = yield* CounterToYield(
-            {
-              initialValue: signal(10),
-            },
-            function* ({ state, increment, decrement }) {
-              const decrementRef = yield* decrement(); // we need to yield* it to be able to track it and know that it's used in the service, even if it's not exposed
-              triggerDecrementObservable.subscribe(() => decrementRef());
-              return {
-                increment,
-                state,
-              };
-            },
-          );
-          return counter;
-        },
-      );
+        //@ts-expect-error decrement should not be accessible because it is not exposed
+        partialCounter.decrement;
 
-      TestBed.runInInjectionContext(() => {
-        const triggerDecrementObservable = new Subject<void>();
-        const counterHandler = injectCounterExtended();
+        return partialCounter;
+      },
+    );
 
-        //@ts-expect-error decrement should not be accessible because it's not exposed in the second parameter of injectCounterExtended
-        counterHandler.decrement();
+    TestBed.runInInjectionContext(() => {
+      const counterHandler = injectCounterExtended();
 
-        expect(counterHandler.state()).toBe(10);
-        counterHandler.increment();
-        expect(counterHandler.state()).toBe(11);
-        triggerDecrementObservable.next();
-        expect(counterHandler.state()).toBe(10);
-      });
+      expect('decrement' in counterHandler).toBe(false);
+      expect(counterHandler()).toBe(10);
+      expect(counterHandler.state()).toBe(10);
+      counterHandler.increment();
+      expect(counterHandler()).toBe(11);
+      expect(counterHandler.state()).toBe(11);
     });
-
-    it('should enable to use only some exposed field when using CounterToYield', () => {
-      const { CounterToYield } = service(
-        { name: 'Counter', scope: 'function' },
-        (inputs: { initialValue: MaybeSignal<number> }) =>
-          state(toValue(inputs.initialValue), ({ update }) => ({
-            increment: update((v) => v + 1),
-            decrement: update((v) => v - 1),
-          })),
-      );
-
-      const { injectCounterExtended } = service(
-        'CounterExtended',
-        function* () {
-          const partialCounter = yield* CounterToYield(
-            {
-              initialValue: signal(10),
-            },
-            (counter) => ({
-              state: counter,
-              increment: counter.increment,
-            }),
-          );
-
-          //@ts-expect-error decrement should not be accessible because it's not exposed in the second parameter of CounterToYield
-          partialCounter.decrement();
-
-          expect(partialCounter.state()).toBe(10);
-
-          return partialCounter;
-        },
-      );
-
-      TestBed.runInInjectionContext(() => {
-        const counterHandler = injectCounterExtended();
-        expect(counterHandler()).toBe(10);
-        counterHandler.increment();
-        expect(counterHandler()).toBe(11);
-      });
-    });
-
-    // todo later improve typing to check that only the exposed fields are accessible in the yield* and if a non exposed field is used, it should throw a typescript error
-  },
-);
+  });
+});
 
 describe.todo('contract à implémenter pour les services');
 
