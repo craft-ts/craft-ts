@@ -857,7 +857,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
       dependencies: {};
-      manuallyProvidedAtRoot: [];
+      mustBeProvided: [];
     }>();
   });
 
@@ -891,10 +891,10 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          manuallyProvidedAtRoot: [];
+          mustBeProvided: [];
         };
       };
-      manuallyProvidedAtRoot: [];
+      mustBeProvided: [];
     }>();
   });
 
@@ -914,7 +914,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<ManuallyProvidedAtRoot1ToYieldDependencies>().toEqualTypeOf<{
       scope: 'manuallyProvidedAtRoot';
       dependencies: {};
-      manuallyProvidedAtRoot: [];
+      mustBeProvided: [];
     }>();
   });
 
@@ -972,23 +972,20 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         ManuallyProvidedAtRoot1: {
           scope: 'manuallyProvidedAtRoot';
           dependencies: {};
-          manuallyProvidedAtRoot: [];
+          mustBeProvided: [];
         };
         ManuallyProvidedAtRoot2: {
           scope: 'manuallyProvidedAtRoot';
           dependencies: {};
-          manuallyProvidedAtRoot: [];
+          mustBeProvided: [];
         };
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          manuallyProvidedAtRoot: [];
+          mustBeProvided: [];
         };
       };
-      manuallyProvidedAtRoot: [
-        'ManuallyProvidedAtRoot1',
-        'ManuallyProvidedAtRoot2',
-      ];
+      mustBeProvided: ['ManuallyProvidedAtRoot1', 'ManuallyProvidedAtRoot2'];
     }>();
   });
 });

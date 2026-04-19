@@ -11,7 +11,7 @@ import {
 export type ServiceDependencies = {
   scope: unknown; // it may be necessary to change to unknown
   dependencies: {}; // a mapping of dependency by name {[key in ServiceName]: ServiceDependencies}, it may be necessary to change to unknown
-  manuallyProvidedAtRoot: []; // list of service names that are manually provided at root level, it may be necessary to change to unknown, it should list all child dependencies that are manually provided at root level, not only direct dependencies
+  mustBeProvided: []; // list of service names that must be provided (flagged as 'toProvide' and 'manuallyProvidedAtRoot'), it may be necessary to change to unknown, it should list all child dependencies that are manually provided at root level, not only direct dependencies
 };
 
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
