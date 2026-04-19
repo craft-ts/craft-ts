@@ -17,6 +17,8 @@ import type {
 // todoBefore analyser les testes pour les corriger si besoin
 // todoBefore mettre des #error-check-docs:inputs dans les tests pour faire le lien avec la doc et éviter les confusions
 
+// todo later ne pas passer d'input et passer une dérivation inject...
+
 beforeAll(() => {
   try {
     TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -696,7 +698,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       }));
 
       //@ts-expect-error decrement should not be accessible because it is not exposed
-      counterHandler.decrement;
+      expect(counterHandler.decrement).toBeUndefined();
 
       expect('decrement' in counterHandler).toBe(false);
       expect(counterHandler()).toBe(10);
@@ -738,7 +740,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       );
 
       //@ts-expect-error decrement should not be accessible because it is not exposed
-      counterHandler.decrement;
+      expect(counterHandler.decrement).toBeUndefined();
 
       expect('decrement' in counterHandler).toBe(false);
       expect(counterHandler.state()).toBe(10);
@@ -792,7 +794,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       const counterHandler = injectCounterExtended();
 
       //@ts-expect-error decrement should not be accessible because it is not exposed
-      counterHandler.decrement;
+      expect(counterHandler.decrement).toBeUndefined();
 
       expect('decrement' in counterHandler).toBe(false);
       expect(counterHandler.state()).toBe(10);
@@ -826,7 +828,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
         );
 
         //@ts-expect-error decrement should not be accessible because it is not exposed
-        partialCounter.decrement;
+        expect(partialCounter.decrement).toBeUndefined();
 
         return partialCounter;
       },
@@ -917,7 +919,9 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [{ Counter: GetServiceOutput<typeof CounterToYield> }];
+          mustBeProvided: [
+            { Counter: GetServiceOutput<typeof CounterToYield> },
+          ];
         };
       };
       mustBeProvided: [
@@ -1030,7 +1034,9 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [{ Counter: GetServiceOutput<typeof CounterToYield> }];
+          mustBeProvided: [
+            { Counter: GetServiceOutput<typeof CounterToYield> },
+          ];
         };
       };
       mustBeProvided: [
@@ -1110,13 +1116,17 @@ describe('typing can track all derived dependencies (only the properties that ar
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [{ Counter: GetServiceOutput<typeof CounterToYield> }];
+          mustBeProvided: [
+            { Counter: GetServiceOutput<typeof CounterToYield> },
+          ];
           derivedPropertiesUsed: Pick<
             GetServiceOutput<typeof CounterToYield>,
             'increment'
           >;
           derivedPropertiesExposed: {
-            incrementCounter: GetServiceOutput<typeof CounterToYield>['increment'];
+            incrementCounter: GetServiceOutput<
+              typeof CounterToYield
+            >['increment'];
           };
         };
       };
@@ -1170,13 +1180,17 @@ describe('typing can track all derived dependencies (only the properties that ar
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [{ Counter: GetServiceOutput<typeof CounterToYield> }];
+          mustBeProvided: [
+            { Counter: GetServiceOutput<typeof CounterToYield> },
+          ];
           derivedPropertiesUsed: Pick<
             GetServiceOutput<typeof CounterToYield>,
             'increment' | 'decrement'
           >;
           derivedPropertiesExposed: {
-            incrementCounter: GetServiceOutput<typeof CounterToYield>['increment'];
+            incrementCounter: GetServiceOutput<
+              typeof CounterToYield
+            >['increment'];
           };
         };
       };
