@@ -1,16 +1,38 @@
 import { TestBed } from '@angular/core/testing';
 import { state } from './state';
-import { signal } from '@angular/core';
+import { InjectionToken, signal } from '@angular/core';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
 import { Subject } from 'rxjs';
+import { abstract, service, toValue } from './service';
+import type { MaybeSignal } from './service';
 
 // todoBefore analyser les testes pour les corriger si besoin
 // todoBefore mettre des #error-check-docs:inputs dans les tests pour faire le lien avec la doc et éviter les confusions
 // todo add contexte et dire qu'il doit absolument résoudre via inject d'anular
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
+
 describe('service', () => {
   it('should enable to create a service-like using service and inject it.', () => {
     const { injectCounter } = service(
       { name: 'Counter', scope: 'global' },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     TestBed.runInInjectionContext(() => {
@@ -24,7 +46,8 @@ describe('service', () => {
   it('should enable to yield another service', () => {
     const { CounterToYield } = service(
       { name: 'Counter', scope: 'global' },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     const { injectCounterExtended } = service(
@@ -32,13 +55,12 @@ describe('service', () => {
       function* () {
         const counter = yield* CounterToYield();
 
-        return {
-          ...counter,
+        return Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
           },
-        };
+        });
       },
     );
 
@@ -52,17 +74,14 @@ describe('service', () => {
     });
   });
 
-  // todo trhow error if yield a service toProvide in a global
-
-  // todo eslint rule to block inject inside service
+  // todo later eslint rule to block inject inside service
 });
-describe.todo('scope', () => {
-  it('should enable to create a global service by just passing a name', () => {
+describe('scope', () => {
+  it('should enable to create a global service by passing a name/scope', () => {
     const { injectCounter } = service(
       { name: 'Counter', scope: 'global' },
       () =>
-        // todo force to always add a scope (esaier for type, after that try to only pass the name)
-        state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     TestBed.runInInjectionContext(() => {
@@ -77,7 +96,8 @@ describe.todo('scope', () => {
     //@ts-expect-error provideCounter should not be defined for global service because it is provided automatically, it should not be possible to provide it manually
     const { injectCounter, provideCounter } = service(
       { name: 'Counter', scope: 'global' },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     expect(provideCounter).toBeUndefined();
@@ -88,7 +108,8 @@ describe.todo('scope', () => {
   it('should enable to create a global service by passing a name/scope', () => {
     const { injectCounter } = service(
       { name: 'Counter', scope: 'global' },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     TestBed.runInInjectionContext(() => {
@@ -102,7 +123,8 @@ describe.todo('scope', () => {
   it('should enable to create a toProvide service by passing a name/scope', () => {
     const { injectCounter, provideCounter } = service(
       { name: 'Counter', scope: 'toProvide' },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     TestBed.configureTestingModule({
@@ -119,11 +141,14 @@ describe.todo('scope', () => {
 
   it('should enable to create a manuallyProvidedAtRoot service by passing a name/scope', () => {
     // for services that need to be provided at root but with some specific configuration (like inputs) that make it impossible to provide them with the provideService helper (or for external services like HttpClient)
-    // the aim of this scope is to enable to inject it in global services but it force to provide it manually for testes
-    const { injectCounter, provideCounter } = service(
+    // the aim of this scope is to enable to inject it in global services while still exposing a public token for manual root providers
+    const { injectCounter, provideCounter, CounterToProvide } = service(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
+
+    expect(CounterToProvide).toBeInstanceOf(InjectionToken);
 
     TestBed.configureTestingModule({
       providers: [provideCounter()],
@@ -137,10 +162,34 @@ describe.todo('scope', () => {
     });
   });
 
+  it('should enable to manually provide a manuallyProvidedAtRoot service through CounterToProvide', () => {
+    const { injectCounter, CounterToProvide } = service(
+      { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+    );
+
+    const manualCounter = state(10, ({ update }) => ({
+      increment: () => update((v) => v + 1),
+    }));
+
+    TestBed.configureTestingModule({
+      providers: [{ provide: CounterToProvide, useValue: manualCounter }],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const counter = injectCounter();
+      expect(counter()).toBe(10);
+      counter.increment();
+      expect(counter()).toBe(11);
+    });
+  });
+
   it('should enable to create a function service by passing a name/scope (mostly used for reusability and composition/inputs...)', () => {
     const { injectCounter } = service(
       { name: 'Counter', scope: 'function' },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     TestBed.runInInjectionContext(() => {
@@ -156,16 +205,18 @@ describe.todo('scope', () => {
       (): number;
       increment(): void;
     }
-    const { injectCounter, provideCounter } = service(
+    const counterService = service(
       { name: 'Counter', scope: 'abstract' },
       abstract<Counter>(), // todo create abstract helper that just return the type and do nothing else, to be used for abstract service
     );
+    const { injectCounter } = counterService;
 
     expectTypeOf(injectCounter).toEqualTypeOf<() => Counter>();
     expect(injectCounter).toBeDefined();
 
     //@ts-expect-error provideCounter should not be defined because it's an abstract service, an implementation service should provide through requirement CounterRequirement
-    expect(provideCounter).toBeDefined();
+    const { provideCounter } = counterService;
+    expect(provideCounter).toBeUndefined();
   });
 
   it('should enable to create a service from an abstract service through requirement (It should provide the implementation service and abstract service)', () => {
@@ -186,7 +237,8 @@ describe.todo('scope', () => {
         scope: 'toProvide',
         requirement: CounterRequirement,
       },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     // todo provideCounterImpl should provide CounterImpl and the source of CounterRequirement
@@ -216,13 +268,14 @@ describe.todo('scope', () => {
     );
 
     //@ts-expect-error it should not be possible to create a global service from an abstract service, it should force to provide an implementation
-    const { injectCounterImpl, provideCounterImpl } = service(
+    service(
       {
         name: 'CounterImpl',
         scope: 'global',
         requirement: CounterRequirement,
       },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
   });
 
@@ -236,7 +289,7 @@ describe.todo('scope', () => {
     );
 
     //@ts-expect-error it should not be possible to create a service if the requirement is not satisfied,
-    const { injectCounterImpl, provideCounterImpl } = service(
+    service(
       {
         name: 'CounterImpl',
         scope: 'global',
@@ -249,10 +302,24 @@ describe.todo('scope', () => {
   it('should not enable to create a global service that depends on a toProvide service', () => {
     const { injectCounter, provideCounter, CounterToYield } = service(
       { name: 'Counter', scope: 'toProvide' },
-      () => state(0, ({ update }) => ({ increment: update((v) => v + 1) })),
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     //@ts-expect-error it should not be possible to create a global service that depends on a toProvide service because the dependency cannot be resolved, it should force to provide the service in the test or use manuallyProvidedAtRoot for the service that need to be yield in a global service
+    service({ name: 'GlobalCounter', scope: 'global' }, function* () {
+      const counter = yield* CounterToYield();
+      return counter;
+    });
+  });
+
+  it('should enable to create a global service that depends on a manuallyProvidedAtRoot service', () => {
+    const { provideCounter, CounterToYield } = service(
+      { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+    );
+
     const { injectGlobalCounter } = service(
       { name: 'GlobalCounter', scope: 'global' },
       function* () {
@@ -260,6 +327,17 @@ describe.todo('scope', () => {
         return counter;
       },
     );
+
+    TestBed.configureTestingModule({
+      providers: [provideCounter()],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const counter = injectGlobalCounter();
+      expect(counter()).toBe(0);
+      counter.increment();
+      expect(counter()).toBe(1);
+    });
   });
 });
 
@@ -273,7 +351,7 @@ describe('injectService should enable to binding inputs', () => {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
       }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })), // todo create toValue helper
     );
 
@@ -297,7 +375,7 @@ describe('injectService should enable to binding inputs', () => {
         optionalProperty2?: MaybeSignal<number>; // todo create MaybeSignal
       }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })), // todo create toValue helper
     );
 
@@ -317,7 +395,7 @@ describe('injectService should enable to binding inputs', () => {
 
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })),
     );
 
@@ -338,17 +416,14 @@ describe('injectService should enable to binding inputs', () => {
 
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })),
     );
 
     TestBed.runInInjectionContext(() => {
-      // todo make a test that force to pass an input, and if it's not passed, throw an error
-      const counter = injectCounter();
-      // expect error to be thrown or a string to be returned
-      expectTypeOf(
-        counter,
-      ).toEqualTypeOf<'Inputs Error, initialValue is not provided'>();
+      expect(() => injectCounter()).toThrow(
+        'Inputs Error, initialValue is not provided',
+      );
     });
   });
   it('should provide a string token to say that the input is already provided', () => {
@@ -358,7 +433,7 @@ describe('injectService should enable to binding inputs', () => {
 
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })),
     );
 
@@ -389,12 +464,12 @@ describe('injectService should enable to binding inputs', () => {
 describe('serviceToYield should enable to binding inputs', () => {
   it('should enable to bind a raw input', () => {
     const { CounterToYield } = service(
-      'Counter',
+      { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
       }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })),
     );
 
@@ -403,13 +478,12 @@ describe('serviceToYield should enable to binding inputs', () => {
       function* () {
         const counter = yield* CounterToYield({ initialValue: 10 });
 
-        return {
-          ...counter,
+        return Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
           },
-        };
+        });
       },
     );
 
@@ -425,12 +499,12 @@ describe('serviceToYield should enable to binding inputs', () => {
 
   it('should enable to bind a signal input', () => {
     const { CounterToYield } = service(
-      'Counter',
+      { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
       }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })),
     );
 
@@ -439,13 +513,12 @@ describe('serviceToYield should enable to binding inputs', () => {
       function* () {
         const counter = yield* CounterToYield({ initialValue: signal(10) });
 
-        return {
-          ...counter,
+        return Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
           },
-        };
+        });
       },
     );
 
@@ -461,14 +534,14 @@ describe('serviceToYield should enable to binding inputs', () => {
 
   it('should enable to bind an optional input and not bind an optional input', () => {
     const { CounterToYield } = service(
-      'Counter',
+      { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>;
         optionalProperty1?: MaybeSignal<number>; // todo create MaybeSignal
         optionalProperty2?: MaybeSignal<number>; // todo create MaybeSignal
       }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })),
     );
 
@@ -480,13 +553,12 @@ describe('serviceToYield should enable to binding inputs', () => {
           optionalProperty1: signal(20),
         });
 
-        return {
-          ...counter,
+        return Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
           },
-        };
+        });
       },
     );
 
@@ -502,55 +574,36 @@ describe('serviceToYield should enable to binding inputs', () => {
 
   it('should return a string as an error "Inputs Error, xxx is not provided" if an input is not provided or blocks the yield', () => {
     const { CounterToYield } = service(
-      'Counter',
+      { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
       }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })),
     );
 
     const { injectCounterExtended } = service(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        //@ts-expect-error it should not be possible to yield if an input is not provided, it should throw an error or return a string error
-        const counter = yield* CounterToYield();
-
-        // The aim is to show that something went wrong because the input is not provided
-        // if possible return a string error that can be easily identifiable in the test to avoid confusion with other errors
-        // otherwise it is enough if their is a typescript error when yield
-        expectTypeOf(
-          counter,
-        ).toEqualTypeOf<'Inputs Error, initialValue is not provided #error-check-docs:inputs'>();
-
-        return {
-          ...counter,
-          incrementTwice: () => {
-            counter.increment();
-            counter.increment();
-          },
-        };
+        return yield* CounterToYield();
       },
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounterExtended();
-      expect(counter()).toBe(10);
-      counter.increment();
-      expect(counter()).toBe(11);
-      counter.incrementTwice();
-      expect(counter()).toBe(13);
+      expect(() => injectCounterExtended()).toThrow(
+        'Inputs Error, initialValue is not provided',
+      );
     });
   });
   it('should provide a string token to say that the input is already provided', () => {
     const { CounterToYield } = service(
-      'Counter',
+      { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
       }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })),
     );
 
@@ -563,14 +616,13 @@ describe('serviceToYield should enable to binding inputs', () => {
           initialValue: 'Provided elsewhere #warn-check-docs:inputs',
         });
 
-        return {
-          ...counter1,
+        return Object.assign(counter1, {
           incrementTwice: () => {
             counter1.increment();
             counter1.increment();
           },
           counter2,
-        };
+        });
       },
     );
 
@@ -589,7 +641,7 @@ describe('serviceToYield should enable to binding inputs', () => {
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: update((v) => v + 1),
+          increment: () => update((v) => v + 1),
         })),
     );
 
@@ -622,7 +674,6 @@ describe('serviceToYield should enable to binding inputs', () => {
   });
 });
 
-// todo later & typage
 describe.todo(
   'injectService/ServiceToYield should expose an optional parameter that can be used to only expose what is needed and yield* dep must be used to declare non exposed fields. “Any dependency that is used but not exposed must be yielded (with yield*) in order to be counted.”',
   () => {
