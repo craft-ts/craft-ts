@@ -991,8 +991,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       ];
     }>();
   });
-
-  // todo later cas derived
 });
 
 // todo later
