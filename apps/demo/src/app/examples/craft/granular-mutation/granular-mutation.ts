@@ -1,11 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-  craft,
-  craftInject,
-  craftQueryParam,
-  craftMutations,
-  craftQuery,
+  craftService,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
@@ -14,18 +10,17 @@ import {
   queryParam,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiService, User } from './api.service';
+import { ApiServiceToYield, type User } from './api.service';
 
-const { injectGranularMutationCraft, provideGranularMutationCraft } = craft(
-  {
-    name: 'granularMutation',
-    providedIn: 'scoped',
-  },
-  craftInject(() => ({
-    ApiService,
-  })),
-  craftQueryParam('pagination', () =>
-    queryParam(
+const { injectGranularMutation, provideGranularMutation } = craftService(
+  { name: 'GranularMutation', scope: 'toProvide' },
+  function* () {
+    const { getDataList, updateItem } = yield* ApiServiceToYield(
+      {},
+      ({ getDataList, updateItem }) => ({ getDataList, updateItem }),
+    );
+
+    const pagination = queryParam(
       {
         state: {
           page: {
@@ -46,26 +41,22 @@ const { injectGranularMutationCraft, provideGranularMutationCraft } = craft(
         updatePageSize: (newPageSize: number) =>
           patch({ pageSize: newPageSize, page: 1 }),
       }),
-    ),
-  ),
-  craftMutations(({ apiService }) => ({
-    updateUserName: mutation({
+    );
+
+    const updateUserName = mutation({
       method: (payload: User) => ({
         ...payload,
         name: payload.name + '-',
       }),
       identifier: ({ id }) => id,
-      loader: ({ params: user }) => apiService.updateItem(user),
-    }),
-  })),
-  craftQuery('users', ({ pagination, apiService, updateUserName }) =>
-    query(
+      loader: ({ params: user }) => updateItem(user),
+    });
+
+    const users = query(
       {
         params: pagination,
         identifier: (params) => `${params.page}-${params.pageSize}`,
-        loader: ({ params: pagination }) => {
-          return apiService.getDataList(pagination);
-        },
+        loader: ({ params: pagination }) => getDataList(pagination),
       },
       insertLocalStoragePersister({
         storeName: 'demo-app-craft',
@@ -87,8 +78,10 @@ const { injectGranularMutationCraft, provideGranularMutationCraft } = craft(
           });
         },
       }),
-    ),
-  ),
+    );
+
+    return { pagination, users, updateUserName };
+  },
 );
 
 @Component({
@@ -127,7 +120,7 @@ const { injectGranularMutationCraft, provideGranularMutationCraft } = craft(
                         <td>
                           <button
                             class="action-btn"
-                            (click)="store.mutateUpdateUserName(user)"
+                            (click)="store.updateUserName.mutate(user)"
                             [disabled]="
                               store.updateUserName.select(user.id)?.isLoading()
                             "
@@ -186,13 +179,13 @@ const { injectGranularMutationCraft, provideGranularMutationCraft } = craft(
                 <option [value]="8">8</option>
                 <option [value]="16">16</option>
               </select>
-              <button class="btn" (click)="store.previousPagePagination()">
+              <button class="btn" (click)="store.pagination.previousPage()">
                 Previous
               </button>
               <span class="current-page">
                 {{ store.pagination().page }}
               </span>
-              <button class="btn" (click)="store.nextPagePagination()">
+              <button class="btn" (click)="store.pagination.nextPage()">
                 Next
               </button>
             </div>
@@ -203,13 +196,13 @@ const { injectGranularMutationCraft, provideGranularMutationCraft } = craft(
   `,
   styleUrls: ['./granular-mutation.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideGranularMutationCraft()],
+  providers: [provideGranularMutation()],
 })
 export default class GranularMutationCraft {
-  protected readonly store = injectGranularMutationCraft({});
+  protected readonly store = injectGranularMutation();
 
   protected updatePageSize(event: Event) {
     const value = Number((event.target as HTMLSelectElement).value);
-    this.store.updatePageSizePagination(value);
+    this.store.pagination.updatePageSize(value);
   }
 }

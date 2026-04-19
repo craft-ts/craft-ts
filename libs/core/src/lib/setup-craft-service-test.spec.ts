@@ -1,11 +1,19 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { setupCraftServiceTest, mock, real } from './setup-craft-service-test';
-import { craftService } from './craft-service';
+import { provideRouter, Router } from '@angular/router';
+import { setupCraftServiceTest, mock, provide } from './setup-craft-service-test';
+import { craftDependency, craftService } from './craft-service';
 import { state } from './state';
+
+@Component({
+  standalone: true,
+  template: '',
+})
+class CheckoutPage {}
 
 beforeAll(() => {
   try {
@@ -115,7 +123,7 @@ describe('setupCraftServiceTest', () => {
     expect(testRef.mocks.ParentCounter.increment).toBeTypeOf('function');
   });
 
-  it('should still require descendants when a craftService is provided as real', () => {
+  it('should still require descendants when a craftService is provided with provide()', () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () =>
@@ -143,16 +151,16 @@ describe('setupCraftServiceTest', () => {
     );
 
     if (false) {
-      //@ts-expect-error Counter should remain required because ParentCounter is real and does not prune its children
+      //@ts-expect-error Counter should remain required because ParentCounter is provided and does not prune its children
       setupCraftServiceTest(RootCounter, {
-        ParentCounter: real(),
+        ParentCounter: provide(),
       });
     }
 
     if (false) {
-      //@ts-expect-error Counter should remain required because ParentCounter is real and does not prune its children
+      //@ts-expect-error Counter should remain required because ParentCounter is provided and does not prune its children
       setupCraftServiceTest(RootCounter, {
-        ParentCounter: real(ParentCounter),
+        ParentCounter: provide(ParentCounter),
       });
     }
   });
@@ -353,7 +361,7 @@ describe('setupCraftServiceTest', () => {
     expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
   });
 
-  it('should support implicit real for manuallyProvidedAtRoot dependencies', () => {
+  it('should support implicit provide() for manuallyProvidedAtRoot dependencies', () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       () =>
@@ -375,7 +383,7 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { sut } = setupCraftServiceTest(GlobalCounter, {
-      Counter: real(),
+      Counter: provide(),
     });
 
     expect(sut.read()).toBe(10);
@@ -383,7 +391,7 @@ describe('setupCraftServiceTest', () => {
     expect(sut.read()).toBe(11);
   });
 
-  it('should support explicit real fallback with inject helper', () => {
+  it('should support explicit provide() fallback with inject helper', () => {
     const { injectCounter: Counter, CounterToYield } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       () =>
@@ -405,11 +413,140 @@ describe('setupCraftServiceTest', () => {
     );
 
     const { sut } = setupCraftServiceTest(GlobalCounter, {
-      Counter: real(Counter),
+      Counter: provide(Counter),
     });
 
     expect(sut.read()).toBe(10);
     sut.increment();
     expect(sut.read()).toBe(11);
+  });
+
+  it('should allow a global adapted Router without override when provideRouter is supplied', () => {
+    const { RouterToYield } = craftDependency({
+      name: 'Router',
+      scope: 'global',
+      token: Router,
+    });
+
+    const { injectNavigation: Navigation } = craftService(
+      { name: 'Navigation', scope: 'toProvide' },
+      function* () {
+        const router = yield* RouterToYield();
+
+        return {
+          readUrl: () => router.url,
+        };
+      },
+    );
+
+    const { sut } = setupCraftServiceTest(
+      Navigation,
+      {},
+      {
+        providers: [provideRouter([])],
+      },
+    );
+
+    expect(typeof sut.readUrl()).toBe('string');
+  });
+
+  it('should allow mocking a global adapted Router', async () => {
+    const { RouterToYield } = craftDependency({
+      name: 'Router',
+      scope: 'global',
+      token: Router,
+    });
+
+    const { injectNavigation: Navigation } = craftService(
+      { name: 'Navigation', scope: 'toProvide' },
+      function* () {
+        const router = yield* RouterToYield(
+          undefined,
+          ({ navigateByUrl }) => ({
+            navigateByUrl,
+          }),
+        );
+
+        return {
+          goToCheckout: () => router.navigateByUrl('/checkout'),
+        };
+      },
+    );
+
+    const navigateByUrl = vi.fn(() => Promise.resolve(true));
+    const { sut, mocks } = setupCraftServiceTest(Navigation, {
+      Router: mock({
+        navigateByUrl,
+      }),
+    });
+
+    await sut.goToCheckout();
+
+    expect(mocks.Router.navigateByUrl).toHaveBeenCalledWith('/checkout');
+  });
+
+  it('should require explicit coverage for a manuallyProvidedAtRoot adapted Router', async () => {
+    const { injectRouter: RouterDependency, RouterToYield } = craftDependency({
+      name: 'Router',
+      scope: 'manuallyProvidedAtRoot',
+      token: Router,
+      provide: () => provideRouter([]),
+    });
+
+    const { injectNavigation: Navigation } = craftService(
+      { name: 'Navigation', scope: 'global' },
+      function* () {
+        const router = yield* RouterToYield();
+
+        return {
+          readUrl: () => router.url,
+        };
+      },
+    );
+
+    if (false) {
+      //@ts-expect-error Router should be explicitly covered because it is manuallyProvidedAtRoot
+      setupCraftServiceTest(Navigation, {}, { providers: [provideRouter([])] });
+    }
+
+    const { sut } = setupCraftServiceTest(
+      Navigation,
+      {
+        Router: provide(RouterDependency),
+      },
+      {
+        providers: [provideRouter([])],
+      },
+    );
+
+    expect(typeof sut.readUrl()).toBe('string');
+
+    const { injectRouteNavigation: RouteNavigation } = craftService(
+      { name: 'RouteNavigation', scope: 'global' },
+      function* () {
+        const router = yield* RouterToYield();
+
+        return {
+          goToCheckout: () => router.navigateByUrl('/checkout'),
+          readUrl: () => router.url,
+        };
+      },
+    );
+
+    const routeNavigationTest = setupCraftServiceTest(
+      RouteNavigation,
+      {
+        Router: provide(),
+      },
+      {
+        providers: [
+          provideRouter([{ path: 'checkout', component: CheckoutPage }]),
+        ],
+      },
+    );
+
+    await routeNavigationTest.sut.goToCheckout();
+
+    expect(routeNavigationTest.sut.readUrl()).toBe('/checkout');
   });
 });

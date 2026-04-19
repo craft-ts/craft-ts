@@ -1,11 +1,14 @@
 import {
   assertInInjectionContext,
+  EnvironmentProviders,
   inject,
   InjectionToken,
   Injector,
   isSignal,
   Provider,
   Signal,
+  Type,
+  untracked,
 } from '@angular/core';
 import { SERVICE_ROOT_EXPOSURE_KEY } from './craft-service.shared';
 import type {
@@ -139,6 +142,11 @@ type AnyFactory = (...args: any[]) => any;
 
 type ExtractHelperValue<HelperObject> = HelperObject[keyof HelperObject];
 
+export type CraftServiceProvider =
+  | Provider
+  | EnvironmentProviders
+  | CraftServiceProvider[];
+
 export type ServiceMetaData<
   Name extends string = string,
   Scope extends ConcreteServiceScope = ConcreteServiceScope,
@@ -169,7 +177,7 @@ export type ServiceMetaData<
       Tracking
     >;
   } & (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-    ? { readonly provide: () => Provider }
+    ? { readonly provide: () => CraftServiceProvider }
     : {}) &
     (Scope extends 'manuallyProvidedAtRoot'
       ? { readonly token: InjectionToken<Output> }
@@ -851,7 +859,7 @@ type YieldHelper<
 };
 
 type ProvideHelper<Name extends string> = {
-  [Key in `provide${Capitalize<Name>}`]: () => Provider;
+  [Key in `provide${Capitalize<Name>}`]: () => CraftServiceProvider;
 };
 
 type ToProvideTokenHelper<Name extends string, Output> = {
@@ -899,6 +907,43 @@ type ConcreteServiceApi<
 type AbstractServiceApi<Name extends string, Contract> = {
   [Key in `inject${Capitalize<Name>}`]: () => Contract;
 } & RequirementHelper<Name, Contract>;
+
+type DependencySourceToken<Output> = Type<Output> | InjectionToken<Output>;
+
+type DependencyApi<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Output,
+> = ConcreteServiceApi<
+  Name,
+  Scope,
+  {},
+  Output,
+  ServiceTrackingMetadata<Name, Scope, Output, never>
+>;
+
+type GlobalTokenDependencyOptions<Name extends string, Output> = {
+  name: Name;
+  scope: 'global';
+  token: DependencySourceToken<Output>;
+};
+
+type GlobalInjectedDependencyOptions<Name extends string, Output> = {
+  name: Name;
+  scope: 'global';
+  inject: () => Output;
+};
+
+type ProviderCapableDependencyOptions<
+  Name extends string,
+  Scope extends RequirementScope,
+  Output,
+> = {
+  name: Name;
+  scope: Scope;
+  token: DependencySourceToken<Output>;
+  provide: () => CraftServiceProvider;
+};
 
 type ConcreteRuntimeDefinition = {
   factory: AnyFactory;
@@ -1002,6 +1047,67 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
     'AnonymousCraftRequirement',
     new InjectionToken<Contract>('CraftRequirementToken'),
   );
+}
+
+export function craftDependency<Name extends string, Output>(
+  options: GlobalTokenDependencyOptions<Name, Output>,
+): DependencyApi<Name, 'global', Output>;
+export function craftDependency<Name extends string, Output>(
+  options: GlobalInjectedDependencyOptions<Name, Output>,
+): DependencyApi<Name, 'global', Output>;
+export function craftDependency<
+  Name extends string,
+  Scope extends RequirementScope,
+  Output,
+>(
+  options: ProviderCapableDependencyOptions<Name, Scope, Output>,
+): DependencyApi<Name, Scope, Output>;
+export function craftDependency(
+  options:
+    | GlobalTokenDependencyOptions<string, unknown>
+    | GlobalInjectedDependencyOptions<string, unknown>
+    | ProviderCapableDependencyOptions<
+        string,
+        RequirementScope,
+        unknown
+      >,
+): unknown {
+  const api = craftService(
+    {
+      name: options.name,
+      scope: options.scope,
+    },
+    () => {
+      const dependencyValue =
+        'inject' in options ? options.inject() : inject(options.token);
+
+      return adaptExternalDependencyValue(dependencyValue);
+    },
+  ) as Record<string, unknown>;
+
+  if ('provide' in options) {
+    const provideName = `provide${capitalize(options.name)}`;
+    const metaDataName = toMetaDataPropertyName(options.name);
+    const provideDependency = api[provideName];
+
+    if (typeof provideDependency === 'function') {
+      const composedProvide = () => [options.provide(), provideDependency()];
+
+      api[provideName] = composedProvide;
+
+      const metaData = api[metaDataName] as
+        | {
+            provide?: () => CraftServiceProvider;
+          }
+        | undefined;
+
+      if (metaData) {
+        metaData.provide = composedProvide;
+      }
+    }
+  }
+
+  return api;
 }
 
 export function craftService<Name extends string, Contract>(
@@ -1187,7 +1293,7 @@ function createServiceMetaData(config: {
   name: string;
   scope: ConcreteServiceScope;
   inject: (...args: any[]) => unknown;
-  provide?: () => Provider;
+  provide?: () => CraftServiceProvider;
   token?: InjectionToken<unknown>;
   runtimeDefinition: ConcreteRuntimeDefinition;
 }): InternalServiceMetaData {
@@ -1256,7 +1362,7 @@ export function getServiceMetaData(target: unknown): AnyServiceMetaData {
   }
 
   throw new Error(
-    'Expected a craftService inject helper or a service metadata object.',
+    'Expected a craftService/craftDependency inject helper or a service metadata object.',
   );
 }
 
@@ -1269,7 +1375,7 @@ function isServiceMetaData(value: unknown): value is InternalServiceMetaData {
   );
 }
 
-function createProviders(definition: ConcreteRuntimeDefinition): Provider {
+function createProviders(definition: ConcreteRuntimeDefinition): CraftServiceProvider {
   const concreteToken = definition.token;
 
   if (!concreteToken) {
@@ -1294,6 +1400,36 @@ function createProviders(definition: ConcreteRuntimeDefinition): Provider {
   }
 
   return providers;
+}
+
+function adaptExternalDependencyValue<Value>(value: Value): Value {
+  if (!isObjectLike(value)) {
+    return value;
+  }
+
+  const target = value as object;
+  const boundMethods = new Map<PropertyKey, unknown>();
+
+  return new Proxy(target, {
+    get(_proxyTarget, property) {
+      const entry = Reflect.get(target, property, target);
+
+      if (typeof entry === 'function' && !isSignal(entry)) {
+        if (!boundMethods.has(property)) {
+          boundMethods.set(property, (...args: unknown[]) =>
+            untracked(() => Reflect.apply(entry, target, args)),
+          );
+        }
+
+        return boundMethods.get(property);
+      }
+
+      return entry;
+    },
+    apply(proxyTarget, _thisArg, args) {
+      return Reflect.apply(proxyTarget as (...args: unknown[]) => unknown, target, args);
+    },
+  }) as Value;
 }
 
 function createYieldRequest(
@@ -1394,7 +1530,7 @@ function runGeneratorFactory(
     }
 
     throw new Error(
-      'craftService generators can only yield craftService dependencies or exposed dependency helpers.',
+      'craftService/craftDependency generators can only yield craftService dependencies or exposed dependency helpers.',
     );
   }
 

@@ -1,10 +1,10 @@
-import { Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   createExposedServiceValue,
   getServiceMetaData,
   SERVICE_RUNTIME_OVERRIDES,
 } from './craft-service';
+import type { CraftServiceProvider } from './craft-service';
 import type {
   CallableShell,
   ConcreteServiceScope,
@@ -128,7 +128,7 @@ type AnyMockServiceOverride =
   | ExplicitMockServiceOverride<any, any>;
 
 type ImplicitRealServiceOverride = {
-  readonly kind: 'real';
+  readonly kind: 'provide';
   readonly reference?: undefined;
 };
 
@@ -136,7 +136,7 @@ type ExplicitRealServiceOverride<
   Reference extends ServiceReference<string, RealCapableScope> =
     ServiceReference<string, RealCapableScope>,
 > = {
-  readonly kind: 'real';
+  readonly kind: 'provide';
   readonly reference: Reference;
 };
 
@@ -226,7 +226,7 @@ type MissingCoverageForNode<
     : MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>
   : OverrideKind<OverrideAtPath<Overrides, Name>> extends 'mock'
     ? never
-    : OverrideKind<OverrideAtPath<Overrides, Name>> extends 'real'
+    : OverrideKind<OverrideAtPath<Overrides, Name>> extends 'provide'
       ? MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>
       : DependencyNodeScope<Node> extends RequirementScope
         ? Name
@@ -286,7 +286,7 @@ function assertOverrideReferenceName(name: string, reference: unknown) {
 
   if (metaData.name !== name) {
     throw new Error(
-      `Test override "${name}" does not match craftService reference "${metaData.name}".`,
+      `Test override "${name}" does not match craftService/craftDependency reference "${metaData.name}".`,
     );
   }
 }
@@ -321,20 +321,18 @@ export function mock(
   };
 }
 
-export function real(): ImplicitRealServiceOverride;
-export function real<
+export function provide(): ImplicitRealServiceOverride;
+export function provide<
   Reference extends ServiceReference<string, RealCapableScope>,
 >(reference: Reference): ExplicitRealServiceOverride<Reference>;
-export function real(reference?: unknown): AnyRealServiceOverride {
+export function provide(reference?: unknown): AnyRealServiceOverride {
   return reference === undefined
-    ? { kind: 'real' }
+    ? { kind: 'provide' }
     : {
-        kind: 'real',
+        kind: 'provide',
         reference: reference as ServiceReference<string, RealCapableScope>,
       };
 }
-
-export const provide = real;
 
 export function setupCraftServiceTest<
   Target extends ServiceReference,
@@ -347,7 +345,7 @@ export function setupCraftServiceTest<
     AssertServiceTestCoverage<Target, Overrides>,
   options?: {
     bindings?: Bindings;
-    providers?: Provider[];
+    providers?: CraftServiceProvider[];
   },
 ): {
   sut: ResolvedServiceOutput<Target, Bindings>;
@@ -367,7 +365,7 @@ export function setupCraftServiceTest<
       typeof internalMetaData.provide !== 'function'
     ) {
       throw new Error(
-        `Missing provide helper for craftService "${internalMetaData.name}" in setupCraftServiceTest.`,
+        `Missing provide helper for craftService/craftDependency "${internalMetaData.name}" in setupCraftServiceTest.`,
       );
     }
 
@@ -381,7 +379,7 @@ export function setupCraftServiceTest<
       continue;
     }
 
-    if (override.kind === 'real') {
+    if (override.kind === 'provide') {
       if (override.reference) {
         assertOverrideReferenceName(name, override.reference);
       }

@@ -1,28 +1,23 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { ApiService } from './api.service';
+import { ApiServiceToYield } from './api.service';
 import { StatusComponent } from '../../../ui/status.component';
 import {
-  craft,
-  craftInject,
-  craftQueryParam,
-  craftQuery,
+  craftService,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   query,
   queryParam,
 } from '@craft-ng/core';
 
-const { injectUserListCraft, provideUserListCraft } = craft(
-  {
-    name: 'userList',
-    providedIn: 'scoped',
-  },
-  craftInject(() => ({
-    ApiService,
-  })),
-  craftQueryParam('pagination', () =>
-    queryParam(
+const { injectUserList, provideUserList } = craftService(
+  { name: 'UserList', scope: 'toProvide' },
+  function* () {
+    const { getDataList } = yield* ApiServiceToYield({}, ({ getDataList }) => ({
+      getDataList,
+    }));
+
+    const pagination = queryParam(
       {
         state: {
           page: {
@@ -43,23 +38,25 @@ const { injectUserListCraft, provideUserListCraft } = craft(
         updatePageSize: (newPageSize: number) =>
           patch({ pageSize: newPageSize, page: 1 }),
       }),
-    ),
-  ),
-  craftQuery('users', ({ pagination, apiService }) =>
-    query(
+    );
+
+    const users = query(
       {
         params: pagination,
         identifier: (params) => `${params.page}-${params.pageSize}`,
-        loader: ({ params: pagination }) => apiService.getDataList(pagination),
+        loader: ({ params: pagination }) => getDataList(pagination),
       },
       insertLocalStoragePersister({
         storeName: 'demo-app-craft',
         key: 'list-with-pagination',
       }),
       insertPaginationPlaceholderData,
-    ),
-  ),
+    );
+
+    return { pagination, users };
+  },
 );
+
 @Component({
   selector: 'app-list-with-pagination',
   imports: [CommonModule, StatusComponent],
@@ -129,13 +126,13 @@ const { injectUserListCraft, provideUserListCraft } = craft(
                 <option [value]="8">8</option>
                 <option [value]="16">16</option>
               </select>
-              <button class="btn" (click)="store.previousPagePagination()">
+              <button class="btn" (click)="store.pagination.previousPage()">
                 Previous
               </button>
               <span class="current-page">
                 {{ store.pagination().page }}
               </span>
-              <button class="btn" (click)="store.nextPagePagination()">
+              <button class="btn" (click)="store.pagination.nextPage()">
                 Next
               </button>
             </div>
@@ -146,13 +143,13 @@ const { injectUserListCraft, provideUserListCraft } = craft(
   `,
   styleUrls: ['./list-with-pagination.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideUserListCraft()],
+  providers: [provideUserList()],
 })
 export default class ListWithPaginationCraft {
-  protected readonly store = injectUserListCraft();
+  protected readonly store = injectUserList();
 
   protected updatePageSize(event: Event) {
     const value = Number((event.target as HTMLSelectElement).value);
-    this.store.updatePageSizePagination(value);
+    this.store.pagination.updatePageSize(value);
   }
 }
