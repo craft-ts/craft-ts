@@ -14,9 +14,6 @@ import type {
   MaybeSignal,
 } from './craft-service';
 
-// todoBefore analyser les testes pour les corriger si besoin
-// todoBefore mettre des #error-check-docs:inputs dans les tests pour faire le lien avec la doc et éviter les confusions
-
 // todo later ne pas passer d'input et passer une dérivation inject...
 
 beforeAll(() => {
