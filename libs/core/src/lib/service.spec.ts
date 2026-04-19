@@ -7,7 +7,11 @@ import {
 } from '@angular/platform-browser/testing';
 import { Subject } from 'rxjs';
 import { abstract, service, toValue } from './service';
-import type { MaybeSignal } from './service';
+import type {
+  GetInjectedServiceDependencies,
+  GetToYieldServiceDependencies,
+  MaybeSignal,
+} from './service';
 
 // todoBefore analyser les testes pour les corriger si besoin
 // todoBefore mettre des #error-check-docs:inputs dans les tests pour faire le lien avec la doc et éviter les confusions
@@ -844,7 +848,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 describe('typing can track all dependencies (direct and child dependencies)', () => {
   it('should enable to track injectCounter global scope', () => {
     const { injectCounter } = service(
-      { name: 'Counter', scope: 'toProvide' },
+      { name: 'Counter', scope: 'global' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
           increment: () => update((v) => v + 1),
@@ -852,7 +856,9 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         })),
     );
 
-    type CounterDependencies = GetInjectedServiceDependencies<injectCounter>; // todo create GetInjectedServiceDependencies and return a ServiceDependencies
+    type CounterDependencies = GetInjectedServiceDependencies<
+      typeof injectCounter
+    >;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'global';
@@ -871,7 +877,9 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         })),
     );
 
-    type CounterDependencies = GetInjectedServiceDependencies<injectCounter>;
+    type CounterDependencies = GetInjectedServiceDependencies<
+      typeof injectCounter
+    >;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
@@ -901,8 +909,9 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       },
     );
 
-    type CounterDependencies =
-      GetInjectedServiceDependencies<injectCounterExtended>;
+    type CounterDependencies = GetInjectedServiceDependencies<
+      typeof injectCounterExtended
+    >;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
@@ -910,7 +919,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [];
+          mustBeProvided: ['Counter'];
         };
       };
       mustBeProvided: ['CounterExtended', 'Counter'];
@@ -928,7 +937,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     );
 
     type ManuallyProvidedAtRoot1ToYieldDependencies =
-      GetToYieldServiceDependencies<ManuallyProvidedAtRoot1ToYield>; // todo create GetToYieldServiceDependencies and return a ServiceDependencies
+      GetToYieldServiceDependencies<typeof ManuallyProvidedAtRoot1ToYield>;
 
     expectTypeOf<ManuallyProvidedAtRoot1ToYieldDependencies>().toEqualTypeOf<{
       scope: 'manuallyProvidedAtRoot';
@@ -982,8 +991,9 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       },
     );
 
-    type CounterExtendedDependencies =
-      GetInjectedServiceDependencies<injectCounterExtended>;
+    type CounterExtendedDependencies = GetInjectedServiceDependencies<
+      typeof injectCounterExtended
+    >;
 
     expectTypeOf<CounterExtendedDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
@@ -1005,16 +1015,19 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         };
       };
       mustBeProvided: [
+        'CounterExtended',
+        'Counter',
         'ManuallyProvidedAtRoot1',
         'ManuallyProvidedAtRoot2',
-        'Counter',
       ];
     }>();
   });
 });
 
 // todo later
-describe('typing can track all derived dependencies (only the properties that are derived/used) for direct and child dependencies', () => {});
+describe.todo(
+  'typing can track all derived dependencies (only the properties that are derived/used) for direct and child dependencies',
+);
 
 describe.todo('contract à implémenter pour les services');
 

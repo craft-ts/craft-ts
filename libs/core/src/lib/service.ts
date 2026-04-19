@@ -8,11 +8,42 @@ import {
   Signal,
 } from '@angular/core';
 
-export type ServiceDependencies = {
-  scope: unknown; // it may be necessary to change to unknown
-  dependencies: {}; // a mapping of dependency by name {[key in ServiceName]: ServiceDependencies}, it may be necessary to change to unknown
-  mustBeProvided: []; // list of service names that must be provided (flagged as 'toProvide' and 'manuallyProvidedAtRoot'), it may be necessary to change to unknown, it should list all child dependencies that are manually provided at root level, not only direct dependencies
+declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
+declare const SERVICE_YIELD_METADATA: unique symbol;
+
+type Simplify<ObjectType> = {
+  [Key in keyof ObjectType]: ObjectType[Key];
+} & {};
+
+export type ServiceDependencies<
+  Scope = unknown,
+  Dependencies = {},
+  MustBeProvided = [],
+> = {
+  scope: Scope;
+  dependencies: Simplify<Dependencies>;
+  mustBeProvided: MustBeProvided;
 };
+
+type WithTrackedDependencies<
+  Helper,
+  Metadata,
+> = Helper & {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: Metadata;
+};
+
+type ExtractTrackedMetadata<Helper> =
+  Helper extends {
+    readonly [SERVICE_HELPER_DEPENDENCIES]?: infer Metadata;
+  }
+    ? Metadata
+    : never;
+
+export type GetInjectedServiceDependencies<InjectService> =
+  ResolveServiceTrackingMetadata<ExtractTrackedMetadata<InjectService>>;
+
+export type GetToYieldServiceDependencies<ToYieldService> =
+  ResolveServiceTrackingMetadata<ExtractTrackedMetadata<ToYieldService>>;
 
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
 const SERVICE_REQUIREMENT_MARKER = Symbol('service-requirement-marker');
@@ -35,6 +66,26 @@ type ServiceScope = ConcreteServiceScope | 'abstract';
 type RequirementScope = 'toProvide' | 'manuallyProvidedAtRoot';
 
 type AnyFactory = (...args: any[]) => any;
+
+type UnionToIntersection<Union> = (
+  Union extends any ? (value: Union) => void : never
+) extends (value: infer Intersection) => void
+  ? Intersection
+  : never;
+
+type GetUnionLast<Union> =
+  UnionToIntersection<
+    Union extends any ? () => Union : never
+  > extends () => infer Last
+    ? Last
+    : never;
+
+type UnionToTuple<Union, Tuple extends unknown[] = []> = [Union] extends [never]
+  ? Tuple
+  : UnionToTuple<
+      Exclude<Union, GetUnionLast<Union>>,
+      [GetUnionLast<Union>, ...Tuple]
+    >;
 
 type FactoryInputs<Factory> = Factory extends (...args: infer Args) => any
   ? Args extends []
@@ -167,11 +218,119 @@ type ExposureSelector<Output extends object, Exposed> = (
   dependencies: DependencyAccessHelpers<Output>,
 ) => Exposed | Generator<ExposureYield<Output>, Exposed, unknown>;
 
+type ServiceTrackingMetadata<
+  Name extends string = string,
+  Scope extends ConcreteServiceScope = ConcreteServiceScope,
+  Yielded = unknown,
+> = {
+  name: Name;
+  scope: Scope;
+  yielded: Yielded;
+};
+
+type DependencyRequests<Yielded> = UnionToTuple<
+  Extract<Yielded, ServiceYieldRequest<any, any, ServiceTrackingMetadata>>
+>;
+
+type DependencyMetadata<Request> =
+  Request extends ServiceYieldRequest<any, any, infer Metadata> ? Metadata : never;
+
+type DependencyName<Request> = DependencyMetadata<Request> extends ServiceTrackingMetadata<
+  infer Name,
+  any,
+  any
+>
+  ? Name
+  : never;
+
+type DependencyDefinition<Request> =
+  ResolveServiceTrackingMetadata<DependencyMetadata<Request>>;
+
+type DependencyMustBeProvided<Request> =
+  DependencyDefinition<Request> extends ServiceDependencies<any, any, infer Must>
+    ? Must
+    : [];
+
+type AppendUnique<
+  Accumulator extends string[],
+  Value extends string,
+> = Value extends Accumulator[number] ? Accumulator : [...Accumulator, Value];
+
+type MergeMustBeProvided<
+  Values extends string[],
+  Accumulator extends string[] = [],
+> = Values extends [
+  infer First extends string,
+  ...infer Rest extends string[],
+]
+  ? MergeMustBeProvided<Rest, AppendUnique<Accumulator, First>>
+  : Accumulator;
+
+type FlattenDependencyMustBeProvided<
+  Requests extends unknown[],
+  Accumulator extends string[] = [],
+> = Requests extends [infer First, ...infer Rest]
+  ? FlattenDependencyMustBeProvided<
+      Rest,
+      MergeMustBeProvided<
+        [...Accumulator, ...Extract<DependencyMustBeProvided<First>, string[]>]
+      >
+    >
+  : Accumulator;
+
+type DependencyRecord<Request> =
+  DependencyMetadata<Request> extends ServiceTrackingMetadata<
+    infer Name extends string,
+    any,
+    any
+  >
+    ? { [Key in Name]: DependencyDefinition<Request> }
+    : {};
+
+type ResolveServiceTrackingMetadata<Metadata> =
+  Metadata extends ServiceTrackingMetadata<
+    infer Name extends string,
+    infer Scope extends ConcreteServiceScope,
+    infer Yielded
+  >
+    ? ServiceDependencies<
+        Scope,
+        BuildDependencyMap<DependencyRequests<Yielded>>,
+        [
+          ...SelfMustBeProvided<Name, Scope>,
+          ...FlattenDependencyMustBeProvided<DependencyRequests<Yielded>>,
+        ]
+      >
+    : never;
+
+type BuildDependencyMap<
+  Requests extends unknown[],
+  Accumulator extends object = {},
+> = Requests extends [infer First, ...infer Rest]
+  ? BuildDependencyMap<
+      Rest,
+      Simplify<Accumulator & DependencyRecord<First>>
+    >
+  : Simplify<Accumulator>;
+
+type SelfMustBeProvided<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+> = Scope extends 'toProvide' | 'manuallyProvidedAtRoot' ? [Name] : [];
+
+type ServiceHelperMetadata<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Factory extends AnyFactory,
+> = ServiceTrackingMetadata<Name, Scope, FactoryYields<Factory>>;
+
 type ServiceYieldRequest<
   Scope extends ConcreteServiceScope,
   Result,
+  Metadata extends ServiceTrackingMetadata = ServiceTrackingMetadata,
 > = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
+  readonly [SERVICE_YIELD_METADATA]?: Metadata;
   scope: Scope;
   resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
 }>;
@@ -196,27 +355,31 @@ type InjectHelper<
   Scope extends ConcreteServiceScope,
   Inputs extends object,
   Output,
+  Metadata,
 > = {
-  [Key in `inject${Capitalize<Name>}`]: {
-    (): MaybeErrorOutput<Inputs, undefined, Output>;
-    <Config extends Partial<InputBindings<Inputs, Scope>>>(
-      bindings: Config,
-    ): MaybeErrorOutput<Inputs, Config, Output>;
-    <Exposed>(
-      bindings: undefined,
-      expose: ExposureSelector<
-        SelectableOutput<Inputs, undefined, Output>,
-        Exposed
-      >,
-    ): ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>;
-    <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
-      bindings: Config,
-      expose: ExposureSelector<
-        SelectableOutput<Inputs, Config, Output>,
-        Exposed
-      >,
-    ): ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>;
-  };
+  [Key in `inject${Capitalize<Name>}`]: WithTrackedDependencies<
+    {
+      (): MaybeErrorOutput<Inputs, undefined, Output>;
+      <Config extends Partial<InputBindings<Inputs, Scope>>>(
+        bindings: Config,
+      ): MaybeErrorOutput<Inputs, Config, Output>;
+      <Exposed>(
+        bindings: undefined,
+        expose: ExposureSelector<
+          SelectableOutput<Inputs, undefined, Output>,
+          Exposed
+        >,
+      ): ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>;
+      <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
+        bindings: Config,
+        expose: ExposureSelector<
+          SelectableOutput<Inputs, Config, Output>,
+          Exposed
+        >,
+      ): ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>;
+    },
+    Metadata
+  >;
 };
 
 type YieldHelper<
@@ -224,45 +387,65 @@ type YieldHelper<
   Scope extends ConcreteServiceScope,
   Inputs extends object,
   Output,
+  Metadata extends ServiceTrackingMetadata,
 > = {
-  [Key in `${Capitalize<Name>}ToYield`]: {
-    (): Generator<
-      ServiceYieldRequest<Scope, MaybeErrorOutput<Inputs, undefined, Output>>,
-      MaybeErrorOutput<Inputs, undefined, Output>,
-      unknown
-    >;
-    <Config extends Partial<InputBindings<Inputs, Scope>>>(
-      bindings: Config,
-    ): Generator<
-      ServiceYieldRequest<Scope, MaybeErrorOutput<Inputs, Config, Output>>,
-      MaybeErrorOutput<Inputs, Config, Output>,
-      unknown
-    >;
-    <Exposed>(
-      bindings: undefined,
-      expose: ExposureSelector<
-        SelectableOutput<Inputs, undefined, Output>,
-        Exposed
-      >,
-    ): Generator<
-      | ServiceYieldRequest<Scope, SelectableOutput<Inputs, undefined, Output>>
-      | ExposureYield<SelectableOutput<Inputs, undefined, Output>>,
-      ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>,
-      unknown
-    >;
-    <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
-      bindings: Config,
-      expose: ExposureSelector<
-        SelectableOutput<Inputs, Config, Output>,
-        Exposed
-      >,
-    ): Generator<
-      | ServiceYieldRequest<Scope, SelectableOutput<Inputs, Config, Output>>
-      | ExposureYield<SelectableOutput<Inputs, Config, Output>>,
-      ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>,
-      unknown
-    >;
-  };
+  [Key in `${Capitalize<Name>}ToYield`]: WithTrackedDependencies<
+    {
+      (): Generator<
+        ServiceYieldRequest<
+          Scope,
+          MaybeErrorOutput<Inputs, undefined, Output>,
+          Metadata
+        >,
+        MaybeErrorOutput<Inputs, undefined, Output>,
+        unknown
+      >;
+      <Config extends Partial<InputBindings<Inputs, Scope>>>(
+        bindings: Config,
+      ): Generator<
+        ServiceYieldRequest<
+          Scope,
+          MaybeErrorOutput<Inputs, Config, Output>,
+          Metadata
+        >,
+        MaybeErrorOutput<Inputs, Config, Output>,
+        unknown
+      >;
+      <Exposed>(
+        bindings: undefined,
+        expose: ExposureSelector<
+          SelectableOutput<Inputs, undefined, Output>,
+          Exposed
+        >,
+      ): Generator<
+        | ServiceYieldRequest<
+            Scope,
+            SelectableOutput<Inputs, undefined, Output>,
+            Metadata
+          >
+        | ExposureYield<SelectableOutput<Inputs, undefined, Output>>,
+        ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>,
+        unknown
+      >;
+      <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
+        bindings: Config,
+        expose: ExposureSelector<
+          SelectableOutput<Inputs, Config, Output>,
+          Exposed
+        >,
+      ): Generator<
+        | ServiceYieldRequest<
+            Scope,
+            SelectableOutput<Inputs, Config, Output>,
+            Metadata
+          >
+        | ExposureYield<SelectableOutput<Inputs, Config, Output>>,
+        ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>,
+        unknown
+      >;
+    },
+    Metadata
+  >;
 };
 
 type ProvideHelper<Name extends string> = {
@@ -282,8 +465,9 @@ type ConcreteServiceApi<
   Scope extends ConcreteServiceScope,
   Inputs extends object,
   Output,
-> = InjectHelper<Name, Scope, Inputs, Output> &
-  YieldHelper<Name, Scope, Inputs, Output> &
+  Metadata extends ServiceTrackingMetadata,
+> = InjectHelper<Name, Scope, Inputs, Output, Metadata> &
+  YieldHelper<Name, Scope, Inputs, Output, Metadata> &
   (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
     ? ProvideHelper<Name>
     : {}) &
@@ -338,7 +522,8 @@ export function service<
   Name,
   Scope,
   FactoryInputs<Factory>,
-  FactoryOutput<Factory>
+  FactoryOutput<Factory>,
+  ServiceHelperMetadata<Name, Scope, Factory>
 >;
 export function service<
   Name extends string,
@@ -351,7 +536,8 @@ export function service<
   Name,
   Scope,
   FactoryInputs<Factory>,
-  FactoryOutput<Factory>
+  FactoryOutput<Factory>,
+  ServiceHelperMetadata<Name, Scope, Factory>
 >;
 export function service(
   options: {
