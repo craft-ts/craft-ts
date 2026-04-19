@@ -15,7 +15,8 @@ import type {
 
 // todoBefore analyser les testes pour les corriger si besoin
 // todoBefore mettre des #error-check-docs:inputs dans les tests pour faire le lien avec la doc et éviter les confusions
-// todo add contexte et dire qu'il doit absolument résoudre via inject d'anular
+
+// todo reaction in derived part improvments (es-lint to prevent error ?)
 beforeAll(() => {
   try {
     TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -725,7 +726,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       const triggerDecrementObservable = new Subject<void>();
       const counterHandler = injectCounter(
         {},
-        function* ({ state, increment }, { decrement }) {
+        function* ({ state, increment, decrement }) {
           const decrementRef = yield* decrement();
           triggerDecrementObservable.subscribe(() => decrementRef());
 
@@ -1024,10 +1025,131 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
   });
 });
 
-// todo later
-describe.todo(
-  'typing can track all derived dependencies (only the properties that are derived/used) for direct and child dependencies',
-);
+describe('typing can track all derived dependencies (only the properties that are derived/used) for direct and child dependencies', () => {
+  // todo simuler un composant/directive pour le inject?
+  it('should enable to track injectCounter global scope', () => {
+    const { injectCounter } = service(
+      { name: 'Counter', scope: 'global' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    type CounterDependencies = GetInjectedServiceDependencies<
+      typeof injectCounter
+    >;
+
+    expectTypeOf<CounterDependencies>().toEqualTypeOf<{
+      scope: 'global';
+      dependencies: {};
+      mustBeProvided: [];
+    }>();
+  });
+
+  it('should enable to track derived properties from CounterToYield dependency (without internal reactions)', () => {
+    const { CounterToYield } = service(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    const { injectCounterExtended } = service(
+      { name: 'CounterExtended', scope: 'toProvide' },
+      function* () {
+        const partialCounter = yield* CounterToYield(
+          {
+            initialValue: signal(10),
+          },
+          (counter) => ({
+            incrementCounter: counter.increment,
+          }),
+        );
+
+        return partialCounter;
+      },
+    );
+
+    type CounterDependencies = GetInjectedServiceDependencies<
+      typeof injectCounterExtended
+    >;
+
+    expectTypeOf<CounterDependencies>().toEqualTypeOf<{
+      scope: 'toProvide';
+      dependencies: {
+        Counter: {
+          scope: 'toProvide';
+          dependencies: {};
+          mustBeProvided: ['Counter'];
+          derivedPropertiesUsed: ['increment'];
+          derivedPropertiesExposed: ['incrementCounter'];
+        };
+      };
+      mustBeProvided: ['CounterExtended', 'Counter'];
+    }>();
+  });
+
+  it('should enable to track derived properties from CounterToYield dependency (with internal reactions)', () => {
+    const triggerDecrementObservable = new Subject<void>();
+    const { CounterToYield } = service(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    const { injectCounterExtended } = service(
+      { name: 'CounterExtended', scope: 'toProvide' },
+      function* () {
+        const partialCounter = yield* CounterToYield(
+          {
+            initialValue: signal(10),
+          },
+          function* (counter, { decrement }) {
+            const triggerDecrementRef = yield* decrement();
+
+            triggerDecrementObservable.subscribe(() => triggerDecrementRef());
+
+            return {
+              state: () => counter(),
+              increment: counter.increment,
+            };
+          },
+        );
+
+        return partialCounter;
+      },
+    );
+
+    type CounterDependencies = GetInjectedServiceDependencies<
+      typeof injectCounterExtended
+    >;
+
+    expectTypeOf<CounterDependencies>().toEqualTypeOf<{
+      scope: 'toProvide';
+      dependencies: {
+        Counter: {
+          scope: 'toProvide';
+          dependencies: {};
+          mustBeProvided: ['Counter'];
+          derivedPropertiesUsed: [
+            {
+              in;
+            },
+          ];
+          derivedPropertiesExposed: ['incrementCounter'];
+        };
+      };
+      mustBeProvided: ['CounterExtended', 'Counter'];
+    }>();
+  });
+});
 
 describe.todo('contract à implémenter pour les services');
 
