@@ -8,6 +8,12 @@ import {
   Signal,
 } from '@angular/core';
 
+export type ServiceDependencies = {
+  scope: unknown; // it may be necessary to change to unknown
+  dependencies: {}; // a mapping of dependency by name {[key in ServiceName]: ServiceDependencies}, it may be necessary to change to unknown
+  manuallyProvidedAtRoot: []; // list of service names that are manually provided at root level, it may be necessary to change to unknown, it should list all child dependencies that are manually provided at root level, not only direct dependencies
+};
+
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
 const SERVICE_REQUIREMENT_MARKER = Symbol('service-requirement-marker');
 const SERVICE_YIELD_REQUEST_MARKER = Symbol('service-yield-request-marker');
@@ -15,7 +21,8 @@ const SERVICE_DEPENDENCY_ACCESS_MARKER = Symbol(
   'service-dependency-access-marker',
 );
 
-const PROVIDED_ELSEWHERE = 'Provided elsewhere #warn-check-docs:inputs' as const;
+const PROVIDED_ELSEWHERE =
+  'Provided elsewhere #warn-check-docs:inputs' as const;
 
 type ConcreteServiceScope =
   | 'global'
@@ -41,28 +48,18 @@ type FactoryReturn<Factory> = Factory extends (...args: any[]) => infer Result
   ? Result
   : never;
 
-type FactoryOutput<Factory> = FactoryReturn<Factory> extends Generator<
-  any,
-  infer Result,
-  any
->
-  ? Result
-  : FactoryReturn<Factory>;
+type FactoryOutput<Factory> =
+  FactoryReturn<Factory> extends Generator<any, infer Result, any>
+    ? Result
+    : FactoryReturn<Factory>;
 
-type FactoryYields<Factory> = FactoryReturn<Factory> extends Generator<
-  infer Yielded,
-  any,
-  any
->
-  ? Yielded
-  : never;
+type FactoryYields<Factory> =
+  FactoryReturn<Factory> extends Generator<infer Yielded, any, any>
+    ? Yielded
+    : never;
 
-type YieldedServiceScope<Yielded> = Yielded extends ServiceYieldRequest<
-  infer Scope,
-  any
->
-  ? Scope
-  : never;
+type YieldedServiceScope<Yielded> =
+  Yielded extends ServiceYieldRequest<infer Scope, any> ? Scope : never;
 
 type ValidateFactoryScope<
   Scope extends ConcreteServiceScope,
@@ -72,23 +69,20 @@ type ValidateFactoryScope<
 type ValidateRequirementFactory<
   Factory extends AnyFactory,
   Requirement extends ServiceRequirement<any, any>,
-> = FactoryOutput<Factory> extends RequirementContract<Requirement>
-  ? unknown
-  : never;
+> =
+  FactoryOutput<Factory> extends RequirementContract<Requirement>
+    ? unknown
+    : never;
 
 type ValidateYieldedScope<
   Scope extends ConcreteServiceScope,
   Yielded,
   Value,
-> =
-  Scope extends 'global'
-    ? Extract<
-        YieldedServiceScope<Yielded>,
-        'toProvide'
-      > extends never
-      ? Value
-      : never
-    : Value;
+> = Scope extends 'global'
+  ? Extract<YieldedServiceScope<Yielded>, 'toProvide'> extends never
+    ? Value
+    : never
+  : Value;
 
 type OptionalKeys<ObjectType extends object> = {
   [Key in keyof ObjectType]-?: {} extends Pick<ObjectType, Key> ? Key : never;
@@ -144,7 +138,10 @@ type ExposedOutput<Output, Exposed> = Output extends (...args: any[]) => any
   ? CallableShell<Output> & Exposed
   : Exposed;
 
-type OutputDependencyKeys<Output extends object> = Extract<keyof Output, string>;
+type OutputDependencyKeys<Output extends object> = Extract<
+  keyof Output,
+  string
+>;
 
 type ServiceDependencyAccessRequest<Key extends string, Result> = Readonly<{
   [SERVICE_DEPENDENCY_ACCESS_MARKER]: true;
@@ -184,7 +181,9 @@ type AbstractMarker<Contract> = {
 };
 
 type RequirementContract<Requirement> =
-  Requirement extends ServiceRequirement<infer Contract, any> ? Contract : never;
+  Requirement extends ServiceRequirement<infer Contract, any>
+    ? Contract
+    : never;
 
 export type ServiceRequirement<Contract, Name extends string = string> = {
   readonly [SERVICE_REQUIREMENT_MARKER]: true;
@@ -205,11 +204,17 @@ type InjectHelper<
     ): MaybeErrorOutput<Inputs, Config, Output>;
     <Exposed>(
       bindings: undefined,
-      expose: ExposureSelector<SelectableOutput<Inputs, undefined, Output>, Exposed>,
+      expose: ExposureSelector<
+        SelectableOutput<Inputs, undefined, Output>,
+        Exposed
+      >,
     ): ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>;
     <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
       bindings: Config,
-      expose: ExposureSelector<SelectableOutput<Inputs, Config, Output>, Exposed>,
+      expose: ExposureSelector<
+        SelectableOutput<Inputs, Config, Output>,
+        Exposed
+      >,
     ): ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>;
   };
 };
@@ -235,22 +240,25 @@ type YieldHelper<
     >;
     <Exposed>(
       bindings: undefined,
-      expose: ExposureSelector<SelectableOutput<Inputs, undefined, Output>, Exposed>,
+      expose: ExposureSelector<
+        SelectableOutput<Inputs, undefined, Output>,
+        Exposed
+      >,
     ): Generator<
-      | ServiceYieldRequest<
-          Scope,
-          SelectableOutput<Inputs, undefined, Output>
-        >
+      | ServiceYieldRequest<Scope, SelectableOutput<Inputs, undefined, Output>>
       | ExposureYield<SelectableOutput<Inputs, undefined, Output>>,
       ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>,
       unknown
     >;
     <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
       bindings: Config,
-      expose: ExposureSelector<SelectableOutput<Inputs, Config, Output>, Exposed>,
+      expose: ExposureSelector<
+        SelectableOutput<Inputs, Config, Output>,
+        Exposed
+      >,
     ): Generator<
-      ServiceYieldRequest<Scope, SelectableOutput<Inputs, Config, Output>> |
-        ExposureYield<SelectableOutput<Inputs, Config, Output>>,
+      | ServiceYieldRequest<Scope, SelectableOutput<Inputs, Config, Output>>
+      | ExposureYield<SelectableOutput<Inputs, Config, Output>>,
       ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>,
       unknown
     >;
@@ -326,7 +334,12 @@ export function service<
   factory: Factory &
     ValidateFactoryScope<Scope, Factory> &
     ValidateRequirementFactory<Factory, Requirement>,
-): ConcreteServiceApi<Name, Scope, FactoryInputs<Factory>, FactoryOutput<Factory>>;
+): ConcreteServiceApi<
+  Name,
+  Scope,
+  FactoryInputs<Factory>,
+  FactoryOutput<Factory>
+>;
 export function service<
   Name extends string,
   Scope extends ConcreteServiceScope,
@@ -334,9 +347,18 @@ export function service<
 >(
   options: { name: Name; scope: Scope },
   factory: Factory & ValidateFactoryScope<Scope, Factory>,
-): ConcreteServiceApi<Name, Scope, FactoryInputs<Factory>, FactoryOutput<Factory>>;
+): ConcreteServiceApi<
+  Name,
+  Scope,
+  FactoryInputs<Factory>,
+  FactoryOutput<Factory>
+>;
 export function service(
-  options: { name: string; scope: ServiceScope; requirement?: ServiceRequirement<unknown> },
+  options: {
+    name: string;
+    scope: ServiceScope;
+    requirement?: ServiceRequirement<unknown>;
+  },
   factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
 ): unknown {
   const capitalizedName = capitalize(options.name);
@@ -396,9 +418,18 @@ export function service(
     ) => {
       assertInInjectionContext(concreteInject);
       const injector = inject(Injector);
-      const serviceValue = resolveConcreteService(runtimeDefinition, injector, bindings);
+      const serviceValue = resolveConcreteService(
+        runtimeDefinition,
+        injector,
+        bindings,
+      );
       return expose
-        ? resolveExposedService(serviceValue, expose, injector, runtimeDefinition.scope)
+        ? resolveExposedService(
+            serviceValue,
+            expose,
+            injector,
+            runtimeDefinition.scope,
+          )
         : serviceValue;
     },
     [toYieldName]: function* (
@@ -418,7 +449,10 @@ export function service(
     },
   };
 
-  if (options.scope === 'toProvide' || options.scope === 'manuallyProvidedAtRoot') {
+  if (
+    options.scope === 'toProvide' ||
+    options.scope === 'manuallyProvidedAtRoot'
+  ) {
     api[provideName] = () => createProviders(runtimeDefinition);
   }
 
@@ -535,7 +569,9 @@ function runGeneratorFactory(
   return current.value;
 }
 
-function createInputProxy(bindings: Record<string, unknown>): Record<string, unknown> {
+function createInputProxy(
+  bindings: Record<string, unknown>,
+): Record<string, unknown> {
   return new Proxy<Record<string, unknown>>({} as Record<string, unknown>, {
     get(_target, property) {
       if (typeof property !== 'string') {
@@ -577,17 +613,21 @@ function resolveExposedService(
 function* exposeServiceValue(
   serviceValue: unknown,
   expose: RuntimeExposureSelector,
-): Generator<ServiceDependencyAccessRequest<string, unknown>, unknown, unknown> {
+): Generator<
+  ServiceDependencyAccessRequest<string, unknown>,
+  unknown,
+  unknown
+> {
   const exposure = expose(
     serviceValue as object,
     createDependencyAccessHelpers(serviceValue),
   );
   const resolvedExposure = isGenerator(exposure)
-    ? yield* (exposure as Generator<
+    ? yield* exposure as Generator<
         ServiceDependencyAccessRequest<string, unknown>,
         unknown,
         unknown
-      >)
+      >
     : exposure;
 
   return createExposedServiceValue(serviceValue, resolvedExposure);
@@ -597,7 +637,11 @@ function createDependencyAccessHelpers(
   serviceValue: unknown,
 ): Record<
   string,
-  () => Generator<ServiceDependencyAccessRequest<string, unknown>, unknown, unknown>
+  () => Generator<
+    ServiceDependencyAccessRequest<string, unknown>,
+    unknown,
+    unknown
+  >
 > {
   return new Proxy(
     {},
@@ -681,7 +725,10 @@ function createCallableExposureProxy(
     },
     ownKeys() {
       return Array.from(
-        new Set([...Array.from(forwardedTargetKeys), ...Reflect.ownKeys(exposedValue)]),
+        new Set([
+          ...Array.from(forwardedTargetKeys),
+          ...Reflect.ownKeys(exposedValue),
+        ]),
       ) as Array<string | symbol>;
     },
     getOwnPropertyDescriptor(target, property) {
@@ -706,14 +753,20 @@ function createCallableExposureProxy(
 }
 
 function isObjectLike(value: unknown): value is object {
-  return (typeof value === 'object' && value !== null) || typeof value === 'function';
+  return (
+    (typeof value === 'object' && value !== null) || typeof value === 'function'
+  );
 }
 
 type RuntimeExposureSelector = (
   output: object,
   dependencies: Record<
     string,
-    () => Generator<ServiceDependencyAccessRequest<string, unknown>, unknown, unknown>
+    () => Generator<
+      ServiceDependencyAccessRequest<string, unknown>,
+      unknown,
+      unknown
+    >
   >,
 ) => unknown;
 

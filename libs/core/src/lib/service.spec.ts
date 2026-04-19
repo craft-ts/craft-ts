@@ -841,14 +841,169 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
   });
 });
 
+describe('typing can track all dependencies (direct and child dependencies)', () => {
+  it('should enable to track injectCounter scope', () => {
+    const { injectCounter } = service(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    type CounterDependencies = GetInjectedServiceDependencies<injectCounter>; // todo create GetInjectedServiceDependencies and return a ServiceDependencies
+
+    expectTypeOf<CounterDependencies>().toEqualTypeOf<{
+      scope: 'toProvide';
+      dependencies: {};
+      manuallyProvidedAtRoot: [];
+    }>();
+  });
+
+  it('should enable to track injectCounterExtended dependencies', () => {
+    const { CounterToYield } = service(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    const { injectCounterExtended } = service(
+      { name: 'CounterExtended', scope: 'toProvide' },
+      function* () {
+        const partialCounter = yield* CounterToYield({
+          initialValue: signal(10),
+        });
+
+        return partialCounter;
+      },
+    );
+
+    type CounterDependencies =
+      GetInjectedServiceDependencies<injectCounterExtended>;
+
+    expectTypeOf<CounterDependencies>().toEqualTypeOf<{
+      scope: 'toProvide';
+      dependencies: {
+        Counter: {
+          scope: 'toProvide';
+          dependencies: {};
+          manuallyProvidedAtRoot: [];
+        };
+      };
+      manuallyProvidedAtRoot: [];
+    }>();
+  });
+
+  it('should enable to track dependencies of a ServiceToYield', () => {
+    const { ManuallyProvidedAtRoot1ToYield } = service(
+      { name: 'ManuallyProvidedAtRoot1', scope: 'manuallyProvidedAtRoot' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    type ManuallyProvidedAtRoot1ToYieldDependencies =
+      GetToYieldServiceDependencies<ManuallyProvidedAtRoot1ToYield>; // todo create GetToYieldServiceDependencies and return a ServiceDependencies
+
+    expectTypeOf<ManuallyProvidedAtRoot1ToYieldDependencies>().toEqualTypeOf<{
+      scope: 'manuallyProvidedAtRoot';
+      dependencies: {};
+      manuallyProvidedAtRoot: [];
+    }>();
+  });
+
+  it('should enable to track child dependencies of injectCounterExtended', () => {
+    const { ManuallyProvidedAtRoot1ToYield } = service(
+      { name: 'ManuallyProvidedAtRoot1', scope: 'manuallyProvidedAtRoot' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    const { ManuallyProvidedAtRoot2ToYield } = service(
+      { name: 'ManuallyProvidedAtRoot2', scope: 'manuallyProvidedAtRoot' },
+      () =>
+        state(100, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    const { CounterToYield } = service(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: { initialValue: MaybeSignal<number> }) =>
+        state(toValue(inputs.initialValue), ({ update }) => ({
+          increment: () => update((v) => v + 1),
+          decrement: () => update((v) => v - 1),
+        })),
+    );
+
+    const { injectCounterExtended } = service(
+      { name: 'CounterExtended', scope: 'toProvide' },
+      function* () {
+        const manuallyProvidedAtRoot1 = yield* ManuallyProvidedAtRoot1ToYield();
+        const manuallyProvidedAtRoot2 = yield* ManuallyProvidedAtRoot2ToYield();
+        const partialCounter = yield* CounterToYield({
+          initialValue: signal(10),
+        });
+
+        return {
+          partialCounter,
+          manuallyProvidedAtRoot1,
+          manuallyProvidedAtRoot2,
+        };
+      },
+    );
+
+    type CounterExtendedDependencies =
+      GetInjectedServiceDependencies<injectCounterExtended>;
+
+    expectTypeOf<CounterExtendedDependencies>().toEqualTypeOf<{
+      scope: 'toProvide';
+      dependencies: {
+        ManuallyProvidedAtRoot1: {
+          scope: 'manuallyProvidedAtRoot';
+          dependencies: {};
+          manuallyProvidedAtRoot: [];
+        };
+        ManuallyProvidedAtRoot2: {
+          scope: 'manuallyProvidedAtRoot';
+          dependencies: {};
+          manuallyProvidedAtRoot: [];
+        };
+        Counter: {
+          scope: 'toProvide';
+          dependencies: {};
+          manuallyProvidedAtRoot: [];
+        };
+      };
+      manuallyProvidedAtRoot: [
+        'ManuallyProvidedAtRoot1',
+        'ManuallyProvidedAtRoot2',
+      ];
+    }>();
+  });
+
+  // todo later cas derived
+});
+
+// todo later
+describe('typing can track all derived dependencies (only the properties that are derived/used) for direct and child dependencies', () => {});
+
 describe.todo('contract à implémenter pour les services');
 
 // todo later
-describe.todo('yield typage'); // with option like skipHost/optional
-// todo renvoyer une erreur si un yield d'un service à fournir est fait dans un service global (pas de host pour résoudre la dépendance)
-
-// todo later
 describe.todo('compose/inject'); // todo tester si un composant override un provider si c'est bien résolu...
+
+// todo later a "compose" helper that merge several services ?
 
 // todo later
 describe.todo(
@@ -862,3 +1017,5 @@ describe.todo('enable inject options'); // handle optional params to expose....
 
 // todo later injectService.explicit + eslint pour connaître toutes les deps d'une injection déclarative ?
 // readonly counter = injectCounter.explicit({initialValueRef: this.initialValue}, ({initialValueRef}) => ({ inputs:  {initialValue: initialValueRef}}})); // with a type that force to handle all the deps, and if a new dep is added in the service, it will throw an error until it's handled in the explicit call
+
+// todo later with option like skipHost/optional
