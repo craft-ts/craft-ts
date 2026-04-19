@@ -16,7 +16,6 @@ import type {
 // todoBefore analyser les testes pour les corriger si besoin
 // todoBefore mettre des #error-check-docs:inputs dans les tests pour faire le lien avec la doc et éviter les confusions
 
-// todo reaction in derived part improvments (es-lint to prevent error ?)
 beforeAll(() => {
   try {
     TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -691,8 +690,8 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterHandler = injectCounter({}, (counter) => ({
-        increment: counter.increment,
+      const counterHandler = injectCounter({}, ({ increment }) => ({
+        increment,
       }));
 
       //@ts-expect-error decrement should not be accessible because it is not exposed
@@ -775,7 +774,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
           {
             initialValue: signal(10),
           },
-          function* ({ state, increment }, { decrement }) {
+          function* ({ state, increment, decrement }) {
             const decrementRef = yield* decrement();
             triggerDecrementObservable.subscribe(() => decrementRef());
 
@@ -820,9 +819,8 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
           {
             initialValue: signal(10),
           },
-          (counter) => ({
-            state: counter,
-            increment: counter.increment,
+          ({ increment }) => ({
+            increment,
           }),
         );
 
@@ -838,10 +836,8 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 
       expect('decrement' in counterHandler).toBe(false);
       expect(counterHandler()).toBe(10);
-      expect(counterHandler.state()).toBe(10);
       counterHandler.increment();
       expect(counterHandler()).toBe(11);
-      expect(counterHandler.state()).toBe(11);
     });
   });
 });
@@ -1065,8 +1061,8 @@ describe('typing can track all derived dependencies (only the properties that ar
           {
             initialValue: signal(10),
           },
-          (counter) => ({
-            incrementCounter: counter.increment,
+          ({ increment }) => ({
+            incrementCounter: increment,
           }),
         );
 
@@ -1111,14 +1107,13 @@ describe('typing can track all derived dependencies (only the properties that ar
           {
             initialValue: signal(10),
           },
-          function* (counter, { decrement }) {
+          function* ({ increment, decrement }) {
             const triggerDecrementRef = yield* decrement();
 
             triggerDecrementObservable.subscribe(() => triggerDecrementRef());
 
             return {
-              state: () => counter(),
-              increment: counter.increment,
+              incrementCounter: increment,
             };
           },
         );
@@ -1138,11 +1133,7 @@ describe('typing can track all derived dependencies (only the properties that ar
           scope: 'toProvide';
           dependencies: {};
           mustBeProvided: ['Counter'];
-          derivedPropertiesUsed: [
-            {
-              in;
-            },
-          ];
+          derivedPropertiesUsed: ['increment', 'decrement'];
           derivedPropertiesExposed: ['incrementCounter'];
         };
       };

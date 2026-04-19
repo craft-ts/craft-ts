@@ -11,19 +11,30 @@ import {
 declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 declare const SERVICE_YIELD_METADATA: unique symbol;
 
+const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol('service-exposure-token-marker');
+
 type Simplify<ObjectType> = {
   [Key in keyof ObjectType]: ObjectType[Key];
 } & {};
+
+type DerivedPropertiesTracking<
+  Used extends string[] = [],
+  Exposed extends string[] = [],
+> = {
+  derivedPropertiesUsed: Used;
+  derivedPropertiesExposed: Exposed;
+};
 
 export type ServiceDependencies<
   Scope = unknown,
   Dependencies = {},
   MustBeProvided = [],
-> = {
+  Derived = undefined,
+> = Simplify<{
   scope: Scope;
   dependencies: Simplify<Dependencies>;
   mustBeProvided: MustBeProvided;
-};
+} & (Derived extends undefined ? {} : Derived)>;
 
 type WithTrackedDependencies<
   Helper,
@@ -110,7 +121,7 @@ type FactoryYields<Factory> =
     : never;
 
 type YieldedServiceScope<Yielded> =
-  Yielded extends ServiceYieldRequest<infer Scope, any> ? Scope : never;
+  Yielded extends ServiceYieldRequest<infer Scope, any, any> ? Scope : never;
 
 type ValidateFactoryScope<
   Scope extends ConcreteServiceScope,
@@ -194,42 +205,132 @@ type OutputDependencyKeys<Output extends object> = Extract<
   string
 >;
 
+type ExposureTokenMetadata<Key extends string = string, Value = unknown> = {
+  key: Key;
+  value: Value;
+};
+
+type DependencyToken<Key extends string, Value> = {
+  (): Generator<ServiceDependencyAccessRequest<Key, Value>, Value, unknown>;
+  readonly [SERVICE_EXPOSURE_TOKEN_MARKER]: ExposureTokenMetadata<Key, Value>;
+};
+
+type ExposureTokens<Output extends object> = {
+  [Key in OutputDependencyKeys<Output>]: DependencyToken<Key, Output[Key]>;
+};
+
+type TokenSourceKey<Value> =
+  Value extends {
+    readonly [SERVICE_EXPOSURE_TOKEN_MARKER]: ExposureTokenMetadata<
+      infer Key,
+      any
+    >;
+  }
+    ? Key
+    : never;
+
+type TokenResolvedValue<Value> =
+  Value extends {
+    readonly [SERVICE_EXPOSURE_TOKEN_MARKER]: ExposureTokenMetadata<
+      any,
+      infer Resolved
+    >;
+  }
+    ? Resolved
+    : never;
+
+type MaterializeExposureValue<Value> = [TokenResolvedValue<Value>] extends [
+  never,
+]
+  ? Value
+  : TokenResolvedValue<Value>;
+
+type MaterializeExposureResult<Value> = Value extends object
+  ? {
+      [Key in keyof Value]: MaterializeExposureValue<Value[Key]>;
+    }
+  : MaterializeExposureValue<Value>;
+
 type ServiceDependencyAccessRequest<Key extends string, Result> = Readonly<{
   [SERVICE_DEPENDENCY_ACCESS_MARKER]: true;
   key: Key;
   resolve: () => Result;
 }>;
 
-type DependencyAccessHelpers<Output extends object> = {
-  [Key in OutputDependencyKeys<Output>]: () => Generator<
-    ServiceDependencyAccessRequest<Key, Output[Key]>,
-    Output[Key],
-    unknown
-  >;
-};
-
 type ExposureYield<Output extends object> = ServiceDependencyAccessRequest<
   OutputDependencyKeys<Output>,
   Output[OutputDependencyKeys<Output>]
 >;
 
-type ExposureSelector<Output extends object, Exposed> = (
-  output: Output,
-  dependencies: DependencyAccessHelpers<Output>,
-) => Exposed | Generator<ExposureYield<Output>, Exposed, unknown>;
+type ExposureSelector<
+  Output extends object,
+  Exposed extends object,
+  Yielded = never,
+> = (
+  dependencies: ExposureTokens<Output>,
+) => Exposed | Generator<Yielded, Exposed, unknown>;
+
+type KeyTuple<Keys extends string> = UnionToTuple<Keys> extends infer Tuple
+  ? Tuple extends string[]
+    ? Tuple
+    : []
+  : [];
+
+type DirectlyExposedSourceKeys<Exposed extends object> = Extract<
+  {
+    [Key in keyof Exposed]-?: TokenSourceKey<Exposed[Key]>;
+  }[keyof Exposed],
+  string
+>;
+
+type DirectlyExposedPropertyNames<Exposed extends object> = Extract<
+  {
+    [Key in keyof Exposed]-?: [TokenSourceKey<Exposed[Key]>] extends [never]
+      ? never
+      : Key & string;
+  }[keyof Exposed],
+  string
+>;
+
+type YieldedExposureKeys<Yielded> = Extract<
+  Yielded extends ServiceDependencyAccessRequest<infer Key, any> ? Key : never,
+  string
+>;
+
+type DerivedPropertiesForExposure<
+  Exposed extends object,
+  Yielded,
+> = DerivedPropertiesTracking<
+  MergeMustBeProvided<
+    [
+      ...KeyTuple<DirectlyExposedSourceKeys<Exposed>>,
+      ...KeyTuple<YieldedExposureKeys<Yielded>>,
+    ]
+  >,
+  KeyTuple<DirectlyExposedPropertyNames<Exposed>>
+>;
 
 type ServiceTrackingMetadata<
   Name extends string = string,
   Scope extends ConcreteServiceScope = ConcreteServiceScope,
   Yielded = unknown,
+  Derived = undefined,
 > = {
   name: Name;
   scope: Scope;
   yielded: Yielded;
+  derived: Derived;
 };
 
+type AnyServiceTrackingMetadata = ServiceTrackingMetadata<
+  string,
+  ConcreteServiceScope,
+  unknown,
+  any
+>;
+
 type DependencyRequests<Yielded> = UnionToTuple<
-  Extract<Yielded, ServiceYieldRequest<any, any, ServiceTrackingMetadata>>
+  Extract<Yielded, ServiceYieldRequest<any, any, any>>
 >;
 
 type DependencyMetadata<Request> =
@@ -237,6 +338,7 @@ type DependencyMetadata<Request> =
 
 type DependencyName<Request> = DependencyMetadata<Request> extends ServiceTrackingMetadata<
   infer Name,
+  any,
   any,
   any
 >
@@ -282,6 +384,7 @@ type DependencyRecord<Request> =
   DependencyMetadata<Request> extends ServiceTrackingMetadata<
     infer Name extends string,
     any,
+    any,
     any
   >
     ? { [Key in Name]: DependencyDefinition<Request> }
@@ -291,7 +394,8 @@ type ResolveServiceTrackingMetadata<Metadata> =
   Metadata extends ServiceTrackingMetadata<
     infer Name extends string,
     infer Scope extends ConcreteServiceScope,
-    infer Yielded
+    infer Yielded,
+    infer Derived
   >
     ? ServiceDependencies<
         Scope,
@@ -299,7 +403,8 @@ type ResolveServiceTrackingMetadata<Metadata> =
         [
           ...SelfMustBeProvided<Name, Scope>,
           ...FlattenDependencyMustBeProvided<DependencyRequests<Yielded>>,
-        ]
+        ],
+        Derived
       >
     : never;
 
@@ -324,10 +429,28 @@ type ServiceHelperMetadata<
   Factory extends AnyFactory,
 > = ServiceTrackingMetadata<Name, Scope, FactoryYields<Factory>>;
 
+type WithDerivedProperties<
+  Metadata extends AnyServiceTrackingMetadata,
+  Exposed extends object,
+  Yielded,
+> = Metadata extends ServiceTrackingMetadata<
+  infer Name extends string,
+  infer Scope extends ConcreteServiceScope,
+  infer ChildYielded,
+  any
+>
+  ? ServiceTrackingMetadata<
+      Name,
+      Scope,
+      ChildYielded,
+      DerivedPropertiesForExposure<Exposed, Yielded>
+    >
+  : never;
+
 type ServiceYieldRequest<
   Scope extends ConcreteServiceScope,
   Result,
-  Metadata extends ServiceTrackingMetadata = ServiceTrackingMetadata,
+  Metadata extends AnyServiceTrackingMetadata = AnyServiceTrackingMetadata,
 > = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
   readonly [SERVICE_YIELD_METADATA]?: Metadata;
@@ -363,20 +486,39 @@ type InjectHelper<
       <Config extends Partial<InputBindings<Inputs, Scope>>>(
         bindings: Config,
       ): MaybeErrorOutput<Inputs, Config, Output>;
-      <Exposed>(
+      <
+        Exposed extends object,
+        Yielded extends ExposureYield<
+          SelectableOutput<Inputs, undefined, Output>
+        > = never,
+      >(
         bindings: undefined,
         expose: ExposureSelector<
           SelectableOutput<Inputs, undefined, Output>,
-          Exposed
+          Exposed,
+          Yielded
         >,
-      ): ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>;
-      <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
+      ): ExposedOutput<
+        SelectableOutput<Inputs, undefined, Output>,
+        MaterializeExposureResult<Exposed>
+      >;
+      <
+        Config extends Partial<InputBindings<Inputs, Scope>>,
+        Exposed extends object,
+        Yielded extends ExposureYield<
+          SelectableOutput<Inputs, Config, Output>
+        > = never,
+      >(
         bindings: Config,
         expose: ExposureSelector<
           SelectableOutput<Inputs, Config, Output>,
-          Exposed
+          Exposed,
+          Yielded
         >,
-      ): ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>;
+      ): ExposedOutput<
+        SelectableOutput<Inputs, Config, Output>,
+        MaterializeExposureResult<Exposed>
+      >;
     },
     Metadata
   >;
@@ -387,7 +529,7 @@ type YieldHelper<
   Scope extends ConcreteServiceScope,
   Inputs extends object,
   Output,
-  Metadata extends ServiceTrackingMetadata,
+  Metadata extends AnyServiceTrackingMetadata,
 > = {
   [Key in `${Capitalize<Name>}ToYield`]: WithTrackedDependencies<
     {
@@ -411,36 +553,55 @@ type YieldHelper<
         MaybeErrorOutput<Inputs, Config, Output>,
         unknown
       >;
-      <Exposed>(
+      <
+        Exposed extends object,
+        Yielded extends ExposureYield<
+          SelectableOutput<Inputs, undefined, Output>
+        > = never,
+      >(
         bindings: undefined,
         expose: ExposureSelector<
           SelectableOutput<Inputs, undefined, Output>,
-          Exposed
+          Exposed,
+          Yielded
         >,
       ): Generator<
         | ServiceYieldRequest<
             Scope,
             SelectableOutput<Inputs, undefined, Output>,
-            Metadata
+            WithDerivedProperties<Metadata, Exposed, Yielded>
           >
         | ExposureYield<SelectableOutput<Inputs, undefined, Output>>,
-        ExposedOutput<SelectableOutput<Inputs, undefined, Output>, Exposed>,
+        ExposedOutput<
+          SelectableOutput<Inputs, undefined, Output>,
+          MaterializeExposureResult<Exposed>
+        >,
         unknown
       >;
-      <Config extends Partial<InputBindings<Inputs, Scope>>, Exposed>(
+      <
+        Config extends Partial<InputBindings<Inputs, Scope>>,
+        Exposed extends object,
+        Yielded extends ExposureYield<
+          SelectableOutput<Inputs, Config, Output>
+        > = never,
+      >(
         bindings: Config,
         expose: ExposureSelector<
           SelectableOutput<Inputs, Config, Output>,
-          Exposed
+          Exposed,
+          Yielded
         >,
       ): Generator<
         | ServiceYieldRequest<
             Scope,
             SelectableOutput<Inputs, Config, Output>,
-            Metadata
+            WithDerivedProperties<Metadata, Exposed, Yielded>
           >
         | ExposureYield<SelectableOutput<Inputs, Config, Output>>,
-        ExposedOutput<SelectableOutput<Inputs, Config, Output>, Exposed>,
+        ExposedOutput<
+          SelectableOutput<Inputs, Config, Output>,
+          MaterializeExposureResult<Exposed>
+        >,
         unknown
       >;
     },
@@ -785,10 +946,7 @@ function resolveExposedService(
   injector: Injector,
   hostScope: ConcreteServiceScope,
 ): unknown {
-  const exposure = expose(
-    serviceValue as object,
-    createDependencyAccessHelpers(serviceValue),
-  );
+  const exposure = expose(createExposureTokens(serviceValue));
   const resolvedExposure = isGenerator(exposure)
     ? runGeneratorFactory(exposure, injector, hostScope)
     : exposure;
@@ -804,10 +962,7 @@ function* exposeServiceValue(
   unknown,
   unknown
 > {
-  const exposure = expose(
-    serviceValue as object,
-    createDependencyAccessHelpers(serviceValue),
-  );
+  const exposure = expose(createExposureTokens(serviceValue));
   const resolvedExposure = isGenerator(exposure)
     ? yield* exposure as Generator<
         ServiceDependencyAccessRequest<string, unknown>,
@@ -819,16 +974,20 @@ function* exposeServiceValue(
   return createExposedServiceValue(serviceValue, resolvedExposure);
 }
 
-function createDependencyAccessHelpers(
+type RuntimeExposureToken = (() => Generator<
+  ServiceDependencyAccessRequest<string, unknown>,
+  unknown,
+  unknown
+>) & {
+  [SERVICE_EXPOSURE_TOKEN_MARKER]: {
+    key: string;
+    resolve: () => unknown;
+  };
+};
+
+function createExposureTokens(
   serviceValue: unknown,
-): Record<
-  string,
-  () => Generator<
-    ServiceDependencyAccessRequest<string, unknown>,
-    unknown,
-    unknown
-  >
-> {
+): Record<string, RuntimeExposureToken> {
   return new Proxy(
     {},
     {
@@ -837,15 +996,31 @@ function createDependencyAccessHelpers(
           return undefined;
         }
 
-        return function* () {
-          return (yield createDependencyAccessRequest(
-            serviceValue,
-            property,
-          )) as unknown;
-        };
+        return createExposureToken(serviceValue, property);
       },
     },
   );
+}
+
+function createExposureToken(
+  serviceValue: unknown,
+  key: string,
+): RuntimeExposureToken {
+  const resolve = () => Reflect.get(Object(serviceValue), key);
+  const token = function* () {
+    return (yield createDependencyAccessRequest(serviceValue, key)) as unknown;
+  } as RuntimeExposureToken;
+
+  Object.defineProperty(token, SERVICE_EXPOSURE_TOKEN_MARKER, {
+    value: {
+      key,
+      resolve,
+    },
+    enumerable: false,
+    configurable: false,
+  });
+
+  return token;
 }
 
 function createDependencyAccessRequest(
@@ -863,14 +1038,45 @@ function createExposedServiceValue(
   serviceValue: unknown,
   exposedValue: unknown,
 ): unknown {
-  if (typeof serviceValue !== 'function' || !isObjectLike(exposedValue)) {
-    return exposedValue;
+  const materializedExposure = materializeExposedValue(exposedValue);
+
+  if (
+    typeof serviceValue !== 'function' ||
+    !isNonCallableObject(materializedExposure)
+  ) {
+    return materializedExposure;
   }
 
   return createCallableExposureProxy(
     serviceValue as (...args: any[]) => unknown,
-    exposedValue,
+    materializedExposure,
   );
+}
+
+function materializeExposedValue(exposedValue: unknown): unknown {
+  if (isRuntimeExposureToken(exposedValue)) {
+    return exposedValue[SERVICE_EXPOSURE_TOKEN_MARKER].resolve();
+  }
+
+  if (!isNonCallableObject(exposedValue)) {
+    return exposedValue;
+  }
+
+  const materialized: Record<PropertyKey, unknown> = {};
+
+  for (const key of Reflect.ownKeys(exposedValue)) {
+    materialized[key] = unwrapDirectExposureToken(
+      Reflect.get(exposedValue, key, exposedValue),
+    );
+  }
+
+  return materialized;
+}
+
+function unwrapDirectExposureToken(value: unknown): unknown {
+  return isRuntimeExposureToken(value)
+    ? value[SERVICE_EXPOSURE_TOKEN_MARKER].resolve()
+    : value;
 }
 
 function createCallableExposureProxy(
@@ -944,16 +1150,12 @@ function isObjectLike(value: unknown): value is object {
   );
 }
 
+function isNonCallableObject(value: unknown): value is object {
+  return typeof value === 'object' && value !== null;
+}
+
 type RuntimeExposureSelector = (
-  output: object,
-  dependencies: Record<
-    string,
-    () => Generator<
-      ServiceDependencyAccessRequest<string, unknown>,
-      unknown,
-      unknown
-    >
-  >,
+  dependencies: Record<string, RuntimeExposureToken>,
 ) => unknown;
 
 function isGenerator(
@@ -984,6 +1186,13 @@ function isServiceDependencyAccessRequest(
     typeof value === 'object' &&
     value !== null &&
     SERVICE_DEPENDENCY_ACCESS_MARKER in value
+  );
+}
+
+function isRuntimeExposureToken(value: unknown): value is RuntimeExposureToken {
+  return (
+    typeof value === 'function' &&
+    SERVICE_EXPOSURE_TOKEN_MARKER in value
   );
 }
 
