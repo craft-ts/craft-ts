@@ -1,6 +1,7 @@
 export * from './lib/after-recomputation';
 export * from './lib/async-process';
 export * from './lib/computed-source';
+export * from './lib/create-angular-test';
 export * from './lib/craft-async-process';
 export * from './lib/craft-computed';
 export * from './lib/craft-inject';

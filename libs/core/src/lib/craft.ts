@@ -2208,6 +2208,7 @@ export function craft(
 
       // Filter out connected methods from the returned store
       if (connectedMethodNames.size > 0) {
+        //@ts-ignore
         const filteredStore = Object.keys(tokenValue).reduce((acc, key) => {
           if (!connectedMethodNames.has(key)) {
             acc[key] = (tokenValue as any)[key];

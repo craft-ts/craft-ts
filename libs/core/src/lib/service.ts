@@ -7,19 +7,24 @@ import {
   Provider,
   Signal,
 } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { SERVICE_ROOT_EXPOSURE_KEY } from './service.shared';
+import type {
+  CallableShell,
+  ConcreteServiceScope,
+  MergeObjectUnion,
+  RequirementScope,
+  RootExposureKey,
+  Simplify,
+  UnionToTuple,
+} from './service.shared';
 
 declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 declare const SERVICE_YIELD_METADATA: unique symbol;
 declare const SERVICE_META_DATA_TYPE: unique symbol;
 
 const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol('service-exposure-token-marker');
-const SERVICE_ROOT_EXPOSURE_KEY = '$self' as const;
+const SERVICE_RUNTIME_META = Symbol('service-runtime-meta');
 const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
-
-type Simplify<ObjectType> = {
-  [Key in keyof ObjectType]: ObjectType[Key];
-} & {};
 
 type DerivedPropertiesTracking<
   Used extends object = {},
@@ -112,6 +117,12 @@ type GetServiceMetaDataDependencies<MetaData> =
     ? Dependencies
     : never;
 
+type GetServiceMetaDataTracking<MetaData> = MetaDataTypeInfo<MetaData> extends {
+  tracking: infer Tracking;
+}
+  ? Tracking
+  : never;
+
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
 const SERVICE_REQUIREMENT_MARKER = Symbol('service-requirement-marker');
 const SERVICE_YIELD_REQUEST_MARKER = Symbol('service-yield-request-marker');
@@ -122,15 +133,7 @@ const SERVICE_DEPENDENCY_ACCESS_MARKER = Symbol(
 const PROVIDED_ELSEWHERE =
   'Provided elsewhere #warn-check-docs:inputs' as const;
 
-type ConcreteServiceScope =
-  | 'global'
-  | 'toProvide'
-  | 'manuallyProvidedAtRoot'
-  | 'function';
-
 type ServiceScope = ConcreteServiceScope | 'abstract';
-
-type RequirementScope = 'toProvide' | 'manuallyProvidedAtRoot';
 
 type AnyFactory = (...args: any[]) => any;
 
@@ -143,6 +146,7 @@ export type ServiceMetaData<
   Output = unknown,
   Dependencies = ServiceDependencies,
   InjectHelper = (...args: any[]) => unknown,
+  Tracking = unknown,
 > = Simplify<
   {
     readonly kind: 'service-meta-data';
@@ -153,7 +157,17 @@ export type ServiceMetaData<
       inputs: Inputs;
       output: Output;
       dependencies: Dependencies;
+      tracking: Tracking;
     };
+    readonly [SERVICE_RUNTIME_META]?: ServiceMetaData<
+      Name,
+      Scope,
+      Inputs,
+      Output,
+      Dependencies,
+      InjectHelper,
+      Tracking
+    >;
   } & (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
     ? { readonly provide: () => Provider }
     : {}) &
@@ -171,29 +185,25 @@ type AnyServiceMetaData = ServiceMetaData<
   any
 >;
 
+type WithServiceRuntimeMeta<Helper, MetaData extends AnyServiceMetaData> =
+  Helper & {
+    readonly [SERVICE_RUNTIME_META]?: MetaData;
+  };
+
+type ExtractServiceRuntimeMeta<ServiceReference> =
+  ServiceReference extends {
+    readonly [SERVICE_RUNTIME_META]?: infer MetaData extends AnyServiceMetaData;
+  }
+    ? MetaData
+    : never;
+
+type AnyServiceRuntimeReference = {
+  readonly [SERVICE_RUNTIME_META]?: AnyServiceMetaData;
+};
+
 type InternalServiceMetaData = AnyServiceMetaData & {
   readonly [SERVICE_RUNTIME_DEFINITION]: ConcreteRuntimeDefinition;
 };
-
-type UnionToIntersection<Union> = (
-  Union extends any ? (value: Union) => void : never
-) extends (value: infer Intersection) => void
-  ? Intersection
-  : never;
-
-type GetUnionLast<Union> =
-  UnionToIntersection<
-    Union extends any ? () => Union : never
-  > extends () => infer Last
-    ? Last
-    : never;
-
-type UnionToTuple<Union, Tuple extends unknown[] = []> = [Union] extends [never]
-  ? Tuple
-  : UnionToTuple<
-      Exclude<Union, GetUnionLast<Union>>,
-      [GetUnionLast<Union>, ...Tuple]
-    >;
 
 type FactoryInputs<Factory> = Factory extends (...args: infer Args) => any
   ? Args extends []
@@ -288,12 +298,6 @@ type SelectableOutput<Inputs extends object, Config, Output> =
       ? Result
       : never
     : never;
-
-type CallableShell<Value> = Value extends (...args: infer Args) => infer Result
-  ? (...args: Args) => Result
-  : never;
-
-type RootExposureKey = typeof SERVICE_ROOT_EXPOSURE_KEY;
 
 type PublicExposedOutput<Exposed> = Exposed extends object
   ? Omit<Exposed, RootExposureKey>
@@ -436,10 +440,6 @@ type ExposureSelector<
   unknown
 >;
 
-type MergeObjectUnion<Union> = [Union] extends [never]
-  ? {}
-  : Simplify<UnionToIntersection<Union>>;
-
 type ExposureSourceRecord<Value> = [TokenSourceKey<Value>] extends [never]
   ? never
   : {
@@ -482,7 +482,7 @@ type DerivedPropertiesForExposure<
   DirectlyExposedProperties<Exposed>
 >;
 
-type ServiceTrackingMetadata<
+export type ServiceTrackingMetadata<
   Name extends string = string,
   Scope extends ConcreteServiceScope = ConcreteServiceScope,
   Output = unknown,
@@ -666,7 +666,7 @@ type WithDerivedProperties<
     >
   : never;
 
-type ServiceYieldRequest<
+export type ServiceYieldRequest<
   Scope extends ConcreteServiceScope,
   Result,
   Metadata extends AnyServiceTrackingMetadata = AnyServiceTrackingMetadata,
@@ -692,15 +692,32 @@ export type ServiceRequirement<Contract, Name extends string = string> = {
   readonly name: Name;
 };
 
+type ServiceRuntimeMetaDefinition<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output,
+  Metadata extends AnyServiceTrackingMetadata,
+> = ServiceMetaData<
+  Name,
+  Scope,
+  Inputs,
+  Output,
+  ResolveServiceTrackingMetadata<Metadata>,
+  (...args: any[]) => unknown,
+  Metadata
+>;
+
 type InjectHelper<
   Name extends string,
   Scope extends ConcreteServiceScope,
   Inputs extends object,
   Output,
-  Metadata,
+  Metadata extends AnyServiceTrackingMetadata,
 > = {
   [Key in `inject${Capitalize<Name>}`]: WithTrackedDependencies<
-    {
+    WithServiceRuntimeMeta<
+      {
       (): MaybeErrorOutput<Inputs, undefined, Output>;
       <Config extends Partial<InputBindings<Inputs, Scope>>>(
         bindings: Config,
@@ -738,7 +755,9 @@ type InjectHelper<
         SelectableOutput<Inputs, Config, Output>,
         MaterializeExposureResult<ValidateRootExposure<Exposed>>
       >;
-    },
+      },
+      ServiceRuntimeMetaDefinition<Name, Scope, Inputs, Output, Metadata>
+    >,
     Metadata
   >;
 };
@@ -751,7 +770,8 @@ type YieldHelper<
   Metadata extends AnyServiceTrackingMetadata,
 > = {
   [Key in `${Capitalize<Name>}ToYield`]: WithTrackedDependencies<
-    {
+    WithServiceRuntimeMeta<
+      {
       (): Generator<
         ServiceYieldRequest<
           Scope,
@@ -823,7 +843,9 @@ type YieldHelper<
         >,
         unknown
       >;
-    },
+      },
+      ServiceRuntimeMetaDefinition<Name, Scope, Inputs, Output, Metadata>
+    >,
     Metadata
   >;
 };
@@ -853,7 +875,8 @@ type ServiceMetaDataHelper<
     Inputs,
     Output,
     ResolveServiceTrackingMetadata<Metadata>,
-    ExtractHelperValue<InjectHelper<Name, Scope, Inputs, Output, Metadata>>
+    ExtractHelperValue<InjectHelper<Name, Scope, Inputs, Output, Metadata>>,
+    Metadata
   >;
 };
 
@@ -886,226 +909,83 @@ type ConcreteRuntimeDefinition = {
   initialBindings?: Record<string, unknown>;
 };
 
-type RealCapableScope = 'toProvide' | 'manuallyProvidedAtRoot';
+export type ServiceReference<
+  Name extends string = string,
+  Scope extends ConcreteServiceScope = ConcreteServiceScope,
+  Inputs extends object = any,
+  Output = unknown,
+  Dependencies = any,
+> =
+  | ServiceMetaData<Name, Scope, Inputs, Output, Dependencies, any, any>
+  | {
+      readonly [SERVICE_RUNTIME_META]?: ServiceMetaData<
+        Name,
+        Scope,
+        Inputs,
+        Output,
+        Dependencies,
+        any,
+        any
+      >;
+    };
 
-type DependencyTreeNode = ServiceDependencies<
+type AnyServiceReference = ServiceReference<
+  string,
   ConcreteServiceScope,
   any,
   any,
   any
 >;
 
-type DependencyTreeChildren<Node> = Node extends {
-  dependencies: infer Dependencies extends object;
-}
-  ? Dependencies
-  : {};
+export type GetServiceReferenceMeta<Reference extends ServiceReference> =
+  Reference extends AnyServiceMetaData
+    ? Reference
+    : ExtractServiceRuntimeMeta<Reference>;
 
-type DependencyTreeScope<Node> = Node extends { scope: infer Scope }
-  ? Scope
-  : never;
+export type GetServiceInputs<Reference extends ServiceReference> =
+  GetServiceMetaDataInputs<GetServiceReferenceMeta<Reference>>;
 
-type FlattenDependencyTree<
-  Tree extends object,
-> = Simplify<
-  MergeObjectUnion<
-    {
-      [Name in Extract<keyof Tree, string>]:
-        | { [Key in Name]: Tree[Name] }
-        | FlattenDependencyTree<DependencyTreeChildren<Tree[Name]>>;
-    }[Extract<keyof Tree, string>]
+export type GetServiceReferenceOutput<Reference extends ServiceReference> =
+  GetServiceMetaDataOutput<GetServiceReferenceMeta<Reference>>;
+
+export type GetServiceTrackingMetadata<Reference extends ServiceReference> =
+  Reference extends AnyServiceMetaData
+    ? GetServiceMetaDataTracking<Reference>
+    : ExtractTrackedMetadata<Reference>;
+
+export type ServiceBindings<Reference extends ServiceReference> = Partial<
+  InputBindings<
+    GetServiceInputs<Reference>,
+    Extract<GetServiceReferenceMeta<Reference>['scope'], ConcreteServiceScope>
   >
 >;
 
-type MockImplementation<Output> = Simplify<
-  (Output extends object
-    ? Partial<{
-        [Key in Extract<keyof Output, string>]: Output[Key];
-      }>
-    : {}) &
-    (Output extends (...args: any[]) => any
-      ? { $self?: CallableShell<Output> }
-      : {})
+export type ResolvedServiceOutput<
+  Reference extends ServiceReference,
+  Bindings,
+> = MaybeErrorOutput<
+  GetServiceInputs<Reference>,
+  Bindings,
+  GetServiceReferenceOutput<Reference>
 >;
 
-type PublicMockShape<Implementation> = Implementation extends object
-  ? Omit<Implementation, RootExposureKey>
-  : {};
-
-type MockPublicValue<Output, Implementation> = [Implementation] extends [
-  undefined,
-]
-  ? {}
-  : Output extends (...args: any[]) => any
-    ? RootExposureKey extends keyof NonNullable<Implementation>
-      ? CallableShell<Output> & PublicMockShape<NonNullable<Implementation>>
-      : PublicMockShape<NonNullable<Implementation>>
-    : PublicMockShape<NonNullable<Implementation>>;
-
-type MockServiceOverride<
-  MetaData extends AnyServiceMetaData,
-  Implementation = undefined,
-> = {
-  readonly kind: 'mock';
-  readonly meta: MetaData;
-  readonly implementation: Implementation;
-};
-
-type UseValueServiceOverride<
-  MetaData extends AnyServiceMetaData,
-  Value = GetServiceMetaDataOutput<MetaData>,
-> = {
-  readonly kind: 'useValue';
-  readonly meta: MetaData;
-  readonly value: Value;
-};
-
-type RealServiceOverride<MetaData extends AnyServiceMetaData> = {
-  readonly kind: 'real';
-  readonly meta: MetaData;
-};
-
-type AnyServiceOverride =
-  | MockServiceOverride<AnyServiceMetaData, any>
-  | UseValueServiceOverride<AnyServiceMetaData, any>
-  | RealServiceOverride<AnyServiceMetaData>;
-
-type OverrideKind<Override> = Override extends { kind: infer Kind }
-  ? Kind
-  : never;
-
-type OverrideForDependencyNode<Name extends string, Node> =
-  | MockServiceOverride<
-      ServiceMetaData<
-        Name,
-        Extract<DependencyTreeScope<Node>, ConcreteServiceScope>,
-        any,
-        any,
-        Node,
-        any
-      >,
-      any
-    >
-  | UseValueServiceOverride<
-      ServiceMetaData<
-        Name,
-        Extract<DependencyTreeScope<Node>, ConcreteServiceScope>,
-        any,
-        any,
-        Node,
-        any
-      >,
-      any
-    >
-  | (DependencyTreeScope<Node> extends RealCapableScope
-      ? RealServiceOverride<
-          ServiceMetaData<
-            Name,
-            Extract<DependencyTreeScope<Node>, RealCapableScope>,
-            any,
-            any,
-            Node,
-            any
-          >
-        >
-      : never);
-
-type ServiceTestingDependencyTree<MetaData extends AnyServiceMetaData> =
-  GetServiceMetaDataDependencies<MetaData> extends {
-    dependencies: infer Dependencies extends object;
-  }
-    ? Dependencies
-    : {};
-
-type FlattenedServiceTestingDependencyTree<
-  MetaData extends AnyServiceMetaData,
-> = FlattenDependencyTree<ServiceTestingDependencyTree<MetaData>>;
-
-type ServiceTestOverrides<MetaData extends AnyServiceMetaData> = Partial<{
-  [Name in keyof FlattenedServiceTestingDependencyTree<MetaData> & string]:
-    OverrideForDependencyNode<
-    Name,
-    FlattenedServiceTestingDependencyTree<MetaData>[Name]
-  >;
-}>;
-
-type MissingCoverageForTree<Tree extends object, Overrides> = {
-  [Name in Extract<keyof Tree, string>]: MissingCoverageForNode<
-    Name,
-    Tree[Name],
-    Overrides
-  >;
-}[Extract<keyof Tree, string>];
-
-type OverrideAtPath<Overrides, Name extends string> = Name extends keyof Overrides
-  ? NonNullable<Overrides[Name]>
-  : never;
-
-type MissingCoverageForNode<
-  Name extends string,
-  Node,
-  Overrides,
-> = [OverrideAtPath<Overrides, Name>] extends [never]
-  ? DependencyTreeScope<Node> extends RequirementScope
-    ? Name
-    : MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>
-  : OverrideKind<OverrideAtPath<Overrides, Name>> extends 'mock'
-    ? never
-    : OverrideKind<OverrideAtPath<Overrides, Name>> extends 'real' | 'useValue'
-      ? MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>
-      : DependencyTreeScope<Node> extends RequirementScope
-        ? Name
-        : MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>;
-
-type AssertServiceTestCoverage<
-  MetaData extends AnyServiceMetaData,
-  Overrides,
-> = [MissingCoverageForTree<
-  ServiceTestingDependencyTree<MetaData>,
-  Overrides
->] extends [never]
-  ? {}
-  : {
-      ERROR_missing_service_test_overrides: MissingCoverageForTree<
-        ServiceTestingDependencyTree<MetaData>,
-        Overrides
-      >;
+export type ServiceRuntimeOverride =
+  | {
+      readonly kind: 'useValue';
+      readonly value: unknown;
+    }
+  | {
+      readonly kind: 'instantiate';
+      instance?: unknown;
     };
 
-type ResolvedMockValue<Override> =
-  Override extends MockServiceOverride<infer MetaData, infer Implementation>
-    ? MockPublicValue<GetServiceMetaDataOutput<MetaData>, Implementation>
-    : Override extends UseValueServiceOverride<any, infer Value>
-      ? Value
-      : never;
-
-type CreateAngularTestMocks<Overrides> = Simplify<{
-  [Name in keyof Overrides as NonNullable<
-    Overrides[Name]
-  > extends MockServiceOverride<any, any> | UseValueServiceOverride<any, any>
-    ? Name
-    : never]: ResolvedMockValue<NonNullable<Overrides[Name]>>;
-}>;
-
-type ServiceTestBindings<MetaData extends AnyServiceMetaData> = Partial<
-  InputBindings<
-    GetServiceMetaDataInputs<MetaData>,
-    Extract<MetaData['scope'], ConcreteServiceScope>
-  >
->;
-
-type RuntimeServiceTestOverride = {
-  readonly kind: 'mock' | 'useValue';
-  readonly value: unknown;
-};
-
-export type MaybeSignal<T> = T | Signal<T>;
-
-const SERVICE_TEST_OVERRIDES = new InjectionToken<
-  ReadonlyMap<ConcreteRuntimeDefinition, RuntimeServiceTestOverride>
->('service-test-overrides', {
+export const SERVICE_RUNTIME_OVERRIDES = new InjectionToken<
+  ReadonlyMap<string, ServiceRuntimeOverride>
+>('service-runtime-overrides', {
   factory: () => new Map(),
 });
+
+export type MaybeSignal<T> = T | Signal<T>;
 
 export function toValue<T>(value: MaybeSignal<T>): T {
   return isSignal(value) ? value() : value;
@@ -1115,152 +995,6 @@ export function abstract<Contract>(): AbstractMarker<Contract> {
   return {
     [ABSTRACT_SERVICE_MARKER]: () => undefined as Contract,
   } as AbstractMarker<Contract>;
-}
-
-export function mock<
-  MetaData extends AnyServiceMetaData,
-  Implementation extends
-    MockImplementation<GetServiceMetaDataOutput<MetaData>> | undefined = undefined,
->(
-  meta: MetaData,
-  implementation?: Implementation,
-): MockServiceOverride<MetaData, Implementation> {
-  return {
-    kind: 'mock',
-    meta,
-    implementation: implementation as Implementation,
-  };
-}
-
-export function useValue<
-  MetaData extends AnyServiceMetaData,
-  Value extends GetServiceMetaDataOutput<MetaData>,
->(
-  meta: MetaData,
-  value: Value,
-): UseValueServiceOverride<MetaData, Value> {
-  return {
-    kind: 'useValue',
-    meta,
-    value,
-  };
-}
-
-export function real<
-  MetaData extends ServiceMetaData<
-    string,
-    RealCapableScope,
-    any,
-    any,
-    any,
-    any
-  >,
->(meta: MetaData): RealServiceOverride<MetaData> {
-  return {
-    kind: 'real',
-    meta,
-  };
-}
-
-export const provide = real;
-
-export function createAngularTest<
-  MetaData extends AnyServiceMetaData,
-  const Overrides extends ServiceTestOverrides<MetaData>,
-  Bindings extends ServiceTestBindings<MetaData> | undefined = undefined,
->(
-  meta: MetaData,
-  overrides: Overrides & AssertServiceTestCoverage<MetaData, Overrides>,
-  options?: {
-    bindings?: Bindings;
-    providers?: Provider[];
-  },
-): {
-  sut: MaybeErrorOutput<
-    GetServiceMetaDataInputs<MetaData>,
-    Bindings,
-    GetServiceMetaDataOutput<MetaData>
-  >;
-  mocks: CreateAngularTestMocks<Overrides>;
-} {
-  const internalMetaData = meta as InternalServiceMetaData;
-  const providers = [...(options?.providers ?? [])];
-  const runtimeOverrides = new Map<
-    ConcreteRuntimeDefinition,
-    RuntimeServiceTestOverride
-  >();
-  const mocks: Record<string, unknown> = {};
-
-  if (meta.scope === 'toProvide' || meta.scope === 'manuallyProvidedAtRoot') {
-    if (!('provide' in meta) || typeof meta.provide !== 'function') {
-      throw new Error(
-        `Missing provide helper for service "${meta.name}" in createAngularTest.`,
-      );
-    }
-
-    providers.push(meta.provide());
-  }
-
-  for (const [name, override] of Object.entries(overrides)) {
-    if (!override) {
-      continue;
-    }
-
-    const internalOverrideMetaData = override.meta as InternalServiceMetaData;
-
-    if (override.kind === 'real') {
-      if (
-        !('provide' in override.meta) ||
-        typeof override.meta.provide !== 'function'
-      ) {
-        throw new Error(
-          `real(${override.meta.name}) is only supported for toProvide and manuallyProvidedAtRoot services.`,
-        );
-      }
-
-      providers.push(override.meta.provide());
-      continue;
-    }
-
-    const publicValue =
-      override.kind === 'useValue'
-        ? override.value
-        : createServiceTestMockValue(override.implementation);
-
-    runtimeOverrides.set(
-      internalOverrideMetaData[SERVICE_RUNTIME_DEFINITION],
-      {
-        kind: override.kind,
-        value: publicValue,
-      },
-    );
-    mocks[name] = publicValue;
-  }
-
-  providers.push({
-    provide: SERVICE_TEST_OVERRIDES,
-    useValue: runtimeOverrides,
-  });
-
-  TestBed.resetTestingModule();
-  TestBed.configureTestingModule({
-    providers,
-  });
-
-  return TestBed.runInInjectionContext(() => ({
-    sut:
-      options?.bindings === undefined
-        ? internalMetaData.inject()
-        : internalMetaData.inject(options.bindings),
-    mocks,
-  })) as {
-    sut: MaybeErrorOutput<
-      GetServiceMetaDataInputs<MetaData>,
-      Bindings,
-      GetServiceMetaDataOutput<MetaData>
-    >;
-    mocks: CreateAngularTestMocks<Overrides>;
-  };
 }
 
 export function service<Name extends string, Contract>(
@@ -1410,7 +1144,7 @@ export function service(
     api[toProvideName] = token;
   }
 
-  api[metaDataName] = createServiceMetaData({
+  const serviceMetaData = createServiceMetaData({
     name: options.name,
     scope: options.scope,
     inject: api[injectName] as (...args: any[]) => unknown,
@@ -1424,6 +1158,10 @@ export function service(
         : undefined,
     runtimeDefinition,
   });
+  api[metaDataName] = serviceMetaData;
+
+  attachServiceRuntimeMeta(api[injectName], serviceMetaData);
+  attachServiceRuntimeMeta(api[toYieldName], serviceMetaData);
 
   return api;
 
@@ -1438,7 +1176,7 @@ function createServiceMetaData(config: {
   provide?: () => Provider;
   token?: InjectionToken<unknown>;
   runtimeDefinition: ConcreteRuntimeDefinition;
-}): AnyServiceMetaData {
+}): InternalServiceMetaData {
   const metaData: Record<string, unknown> = {
     kind: 'service-meta-data',
     name: config.name,
@@ -1460,13 +1198,61 @@ function createServiceMetaData(config: {
     configurable: false,
   });
 
-  return metaData as AnyServiceMetaData;
+  Object.defineProperty(metaData, SERVICE_RUNTIME_META, {
+    value: metaData,
+    enumerable: false,
+    configurable: false,
+  });
+
+  return metaData as InternalServiceMetaData;
 }
 
-function createServiceTestMockValue(implementation: unknown): unknown {
-  return implementation === undefined
-    ? {}
-    : createExposedServiceValue(implementation);
+function attachServiceRuntimeMeta(
+  helper: unknown,
+  metaData: InternalServiceMetaData,
+) {
+  if (typeof helper !== 'function') {
+    return;
+  }
+
+  Object.defineProperty(helper, SERVICE_RUNTIME_META, {
+    value: metaData,
+    enumerable: false,
+    configurable: false,
+  });
+}
+
+export function getServiceMetaData(target: unknown): AnyServiceMetaData {
+  if (isServiceMetaData(target)) {
+    return target;
+  }
+
+  if (
+    typeof target === 'object' ||
+    typeof target === 'function'
+  ) {
+    const runtimeMeta = Reflect.get(
+      target as object,
+      SERVICE_RUNTIME_META,
+    ) as InternalServiceMetaData | undefined;
+
+    if (runtimeMeta) {
+      return runtimeMeta;
+    }
+  }
+
+  throw new Error(
+    'Expected a service inject helper or a service metadata object.',
+  );
+}
+
+function isServiceMetaData(value: unknown): value is InternalServiceMetaData {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Reflect.get(value, 'kind') === 'service-meta-data' &&
+    SERVICE_RUNTIME_DEFINITION in value
+  );
 }
 
 function createProviders(definition: ConcreteRuntimeDefinition): Provider {
@@ -1515,10 +1301,26 @@ function resolveConcreteService(
   injector: Injector,
   bindings?: Record<string, unknown>,
 ): unknown {
-  const serviceOverride = getServiceTestOverride(injector, definition);
+  const serviceOverride = getServiceRuntimeOverride(injector, definition.name);
 
   if (serviceOverride) {
-    return serviceOverride.value;
+    if (serviceOverride.kind === 'useValue') {
+      return serviceOverride.value;
+    }
+
+    if (bindings !== undefined && definition.initialBindings === undefined) {
+      definition.initialBindings = bindings;
+    }
+
+    if (serviceOverride.instance === undefined) {
+      serviceOverride.instance = createConcreteServiceInstance(
+        definition,
+        injector,
+        bindings,
+      );
+    }
+
+    return serviceOverride.instance;
   }
 
   if (definition.scope === 'function') {
@@ -1532,11 +1334,11 @@ function resolveConcreteService(
   return injector.get(definition.token!);
 }
 
-function getServiceTestOverride(
+function getServiceRuntimeOverride(
   injector: Injector,
-  definition: ConcreteRuntimeDefinition,
-): RuntimeServiceTestOverride | undefined {
-  return injector.get(SERVICE_TEST_OVERRIDES).get(definition);
+  serviceName: string,
+): ServiceRuntimeOverride | undefined {
+  return injector.get(SERVICE_RUNTIME_OVERRIDES).get(serviceName);
 }
 
 function createConcreteServiceInstance(
@@ -1720,7 +1522,7 @@ type RuntimeMaterializedExposure = {
   rootCallable?: RuntimeCallable;
 };
 
-function createExposedServiceValue(exposedValue: unknown): unknown {
+export function createExposedServiceValue(exposedValue: unknown): unknown {
   const materializedExposure = materializeExposedValue(exposedValue);
 
   if (!materializedExposure.rootCallable) {

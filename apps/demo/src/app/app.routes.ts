@@ -73,7 +73,14 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'team-invitations',
-    loadComponent: () =>
-      import('./examples/primitives/forms/team-invitations'),
+    loadComponent: () => import('./examples/primitives/forms/team-invitations'),
+  },
+  {
+    path: 'service/counter',
+    loadComponent: () => import('./examples/service/service-counter'),
+  },
+  {
+    path: 'service/user-detail',
+    loadComponent: () => import('./examples/service/service-user-detail'),
   },
 ];
