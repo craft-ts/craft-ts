@@ -997,6 +997,13 @@ export function abstract<Contract>(): AbstractMarker<Contract> {
   } as AbstractMarker<Contract>;
 }
 
+export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
+  return createServiceRequirement(
+    'AnonymousCraftRequirement',
+    new InjectionToken<Contract>('CraftRequirementToken'),
+  );
+}
+
 export function craftService<Name extends string, Contract>(
   options: { name: Name; scope: 'abstract' },
   marker: AbstractMarker<Contract>,
@@ -1055,11 +1062,7 @@ export function craftService(
   if (options.scope === 'abstract') {
     assertAbstractMarker(factoryOrMarker);
     const token = new InjectionToken(`${capitalizedName}AbstractServiceToken`);
-    const requirement: ServiceRequirement<unknown> = {
-      [SERVICE_REQUIREMENT_MARKER]: true,
-      token,
-      name: options.name,
-    };
+    const requirement = createServiceRequirement(options.name, token);
 
     return {
       [injectName]: () => {
@@ -1167,6 +1170,17 @@ export function craftService(
 
   function abstractInject() {}
   function concreteInject() {}
+}
+
+function createServiceRequirement<Contract, Name extends string>(
+  name: Name,
+  token: InjectionToken<Contract>,
+): ServiceRequirement<Contract, Name> {
+  return {
+    [SERVICE_REQUIREMENT_MARKER]: true,
+    token,
+    name,
+  };
 }
 
 function createServiceMetaData(config: {

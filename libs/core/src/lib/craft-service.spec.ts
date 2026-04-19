@@ -1,12 +1,17 @@
 import { TestBed } from '@angular/core/testing';
 import { state } from './state';
-import { InjectionToken, signal } from '@angular/core';
+import { inject, InjectionToken, signal } from '@angular/core';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { Subject } from 'rxjs';
-import { abstract, craftService, toValue } from './craft-service';
+import {
+  abstract,
+  craftRequirement,
+  craftService,
+  toValue,
+} from './craft-service';
 import type {
   GetInjectedServiceDependencies,
   GetServiceOutput,
@@ -262,6 +267,95 @@ describe('scope', () => {
     });
   });
 
+  it('should enable to create a craftService from craftRequirement inline', () => {
+    interface Counter {
+      (): number;
+      increment(): void;
+    }
+
+    const { injectCounterImpl, provideCounterImpl } = craftService(
+      {
+        name: 'CounterImpl',
+        scope: 'toProvide',
+        requirement: craftRequirement<Counter>(),
+      },
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+    );
+
+    TestBed.configureTestingModule({
+      providers: [provideCounterImpl()],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const counterImpl = injectCounterImpl();
+      expect(counterImpl()).toBe(0);
+      counterImpl.increment();
+      expect(counterImpl()).toBe(1);
+    });
+  });
+
+  it('should allow an inline craftRequirement with a named interface contract', () => {
+    interface Counter {
+      increment(): void;
+    }
+
+    const increment = vi.fn();
+    const { injectCounterImpl, provideCounterImpl } = craftService(
+      {
+        name: 'CounterImpl',
+        scope: 'toProvide',
+        requirement: craftRequirement<Counter>(),
+      },
+      () => ({
+        increment,
+      }),
+    );
+
+    TestBed.configureTestingModule({
+      providers: [provideCounterImpl()],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const counterImpl = injectCounterImpl();
+      counterImpl.increment();
+      expect(increment).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('should expose a token on craftRequirement that aliases the concrete instance', () => {
+    interface Counter {
+      (): number;
+      increment(): void;
+    }
+
+    const CounterRequirement = craftRequirement<Counter>();
+    const { injectCounterImpl, provideCounterImpl } = craftService(
+      {
+        name: 'CounterImpl',
+        scope: 'toProvide',
+        requirement: CounterRequirement,
+      },
+      () =>
+        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+    );
+
+    expect(CounterRequirement.token).toBeInstanceOf(InjectionToken);
+
+    TestBed.configureTestingModule({
+      providers: [provideCounterImpl()],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const counterImpl = injectCounterImpl();
+      const counter = inject(CounterRequirement.token);
+
+      expect(counter).toBe(counterImpl);
+      counter.increment();
+      expect(counterImpl()).toBe(1);
+    });
+  });
+
   it('should not enable to create a global craftService from an abstract craftService', () => {
     const { CounterRequirement } = craftService(
       { name: 'Counter', scope: 'abstract' },
@@ -301,6 +395,40 @@ describe('scope', () => {
       },
       () => state(0),
     );
+  });
+
+  it('should not enable to create a global craftService from craftRequirement inline', () => {
+    if (false) {
+      //@ts-expect-error it should not be possible to create a global craftService from craftRequirement, it should force to provide an implementation
+      craftService(
+        {
+          name: 'CounterImpl',
+          scope: 'global',
+          requirement: craftRequirement<{
+            increment(): void;
+          }>(),
+        },
+        () => ({
+          increment: () => undefined,
+        }),
+      );
+    }
+  });
+
+  it('should not enable to create a craftService from craftRequirement inline if the contract is not satisfied', () => {
+    if (false) {
+      //@ts-expect-error it should not be possible to create a craftService if the craftRequirement contract is not satisfied
+      craftService(
+        {
+          name: 'CounterImpl',
+          scope: 'toProvide',
+          requirement: craftRequirement<{
+            increment(): void;
+          }>(),
+        },
+        () => state(0),
+      );
+    }
   });
 
   it('should not enable to create a global craftService that depends on a toProvide craftService', () => {
