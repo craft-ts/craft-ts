@@ -18,11 +18,11 @@ type Simplify<ObjectType> = {
 } & {};
 
 type DerivedPropertiesTracking<
-  Used extends string[] = [],
-  Exposed extends string[] = [],
+  Used extends object = {},
+  Exposed extends object = {},
 > = {
-  derivedPropertiesUsed: Used;
-  derivedPropertiesExposed: Exposed;
+  derivedPropertiesUsed: Simplify<Used>;
+  derivedPropertiesExposed: Simplify<Exposed>;
 };
 
 export type ServiceDependencies<
@@ -55,6 +55,17 @@ export type GetInjectedServiceDependencies<InjectService> =
 
 export type GetToYieldServiceDependencies<ToYieldService> =
   ResolveServiceTrackingMetadata<ExtractTrackedMetadata<ToYieldService>>;
+
+export type GetServiceOutput<ServiceHelper> =
+  ExtractTrackedMetadata<ServiceHelper> extends ServiceTrackingMetadata<
+    any,
+    any,
+    infer Output,
+    any,
+    any
+  >
+    ? Output
+    : never;
 
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
 const SERVICE_REQUIREMENT_MARKER = Symbol('service-requirement-marker');
@@ -270,54 +281,62 @@ type ExposureSelector<
   dependencies: ExposureTokens<Output>,
 ) => Exposed | Generator<Yielded, Exposed, unknown>;
 
-type KeyTuple<Keys extends string> = UnionToTuple<Keys> extends infer Tuple
-  ? Tuple extends string[]
-    ? Tuple
-    : []
-  : [];
+type MergeObjectUnion<Union> = [Union] extends [never]
+  ? {}
+  : Simplify<UnionToIntersection<Union>>;
 
-type DirectlyExposedSourceKeys<Exposed extends object> = Extract<
+type ExposureSourceRecord<Value> = [TokenSourceKey<Value>] extends [never]
+  ? never
+  : {
+      [Key in TokenSourceKey<Value>]: MaterializeExposureValue<Value>;
+    };
+
+type ExposureAliasRecord<Key extends PropertyKey, Value> =
+  [TokenSourceKey<Value>] extends [never]
+    ? never
+    : Key extends string
+      ? { [Property in Key]: MaterializeExposureValue<Value> }
+      : never;
+
+type DirectlyUsedProperties<Exposed extends object> = MergeObjectUnion<
   {
-    [Key in keyof Exposed]-?: TokenSourceKey<Exposed[Key]>;
-  }[keyof Exposed],
-  string
+    [Key in keyof Exposed]-?: ExposureSourceRecord<Exposed[Key]>;
+  }[keyof Exposed]
 >;
 
-type DirectlyExposedPropertyNames<Exposed extends object> = Extract<
+type DirectlyExposedProperties<Exposed extends object> = MergeObjectUnion<
   {
-    [Key in keyof Exposed]-?: [TokenSourceKey<Exposed[Key]>] extends [never]
-      ? never
-      : Key & string;
-  }[keyof Exposed],
-  string
+    [Key in keyof Exposed]-?: ExposureAliasRecord<Key, Exposed[Key]>;
+  }[keyof Exposed]
 >;
 
-type YieldedExposureKeys<Yielded> = Extract<
-  Yielded extends ServiceDependencyAccessRequest<infer Key, any> ? Key : never,
-  string
+type YieldedUsedProperties<Yielded> = MergeObjectUnion<
+  Yielded extends ServiceDependencyAccessRequest<
+    infer Key extends string,
+    infer Result
+  >
+    ? { [Property in Key]: Result }
+    : never
 >;
 
 type DerivedPropertiesForExposure<
   Exposed extends object,
   Yielded,
 > = DerivedPropertiesTracking<
-  MergeMustBeProvided<
-    [
-      ...KeyTuple<DirectlyExposedSourceKeys<Exposed>>,
-      ...KeyTuple<YieldedExposureKeys<Yielded>>,
-    ]
-  >,
-  KeyTuple<DirectlyExposedPropertyNames<Exposed>>
+  DirectlyUsedProperties<Exposed> & YieldedUsedProperties<Yielded>,
+  DirectlyExposedProperties<Exposed>
 >;
 
 type ServiceTrackingMetadata<
   Name extends string = string,
   Scope extends ConcreteServiceScope = ConcreteServiceScope,
+  Output = unknown,
   Yielded = unknown,
   Derived = undefined,
 > = {
   name: Name;
   scope: Scope;
+  output: Output;
   yielded: Yielded;
   derived: Derived;
 };
@@ -325,6 +344,7 @@ type ServiceTrackingMetadata<
 type AnyServiceTrackingMetadata = ServiceTrackingMetadata<
   string,
   ConcreteServiceScope,
+  unknown,
   unknown,
   any
 >;
@@ -340,6 +360,7 @@ type DependencyName<Request> = DependencyMetadata<Request> extends ServiceTracki
   infer Name,
   any,
   any,
+  any,
   any
 >
   ? Name
@@ -348,41 +369,84 @@ type DependencyName<Request> = DependencyMetadata<Request> extends ServiceTracki
 type DependencyDefinition<Request> =
   ResolveServiceTrackingMetadata<DependencyMetadata<Request>>;
 
-type DependencyMustBeProvided<Request> =
-  DependencyDefinition<Request> extends ServiceDependencies<any, any, infer Must>
-    ? Must
-    : [];
+type ProvidedServiceEntry<Name extends string, Output> = {
+  [Key in Name]: Output;
+};
 
-type AppendUnique<
-  Accumulator extends string[],
-  Value extends string,
-> = Value extends Accumulator[number] ? Accumulator : [...Accumulator, Value];
+type ProvidedServiceEntryName<Entry> = Extract<keyof Entry, string>;
+
+type ProvidedServiceNames<Entries extends object[]> = [Entries[number]] extends [
+  never,
+]
+  ? never
+  : ProvidedServiceEntryName<Entries[number]>;
+
+type AppendUniqueProvidedService<
+  Accumulator extends object[],
+  Entry extends object,
+> = ProvidedServiceEntryName<Entry> extends ProvidedServiceNames<Accumulator>
+  ? Accumulator
+  : [...Accumulator, Entry];
 
 type MergeMustBeProvided<
-  Values extends string[],
-  Accumulator extends string[] = [],
+  Values extends object[],
+  Accumulator extends object[] = [],
 > = Values extends [
-  infer First extends string,
-  ...infer Rest extends string[],
+  infer First extends object,
+  ...infer Rest extends object[],
 ]
-  ? MergeMustBeProvided<Rest, AppendUnique<Accumulator, First>>
+  ? MergeMustBeProvided<Rest, AppendUniqueProvidedService<Accumulator, First>>
   : Accumulator;
 
 type FlattenDependencyMustBeProvided<
   Requests extends unknown[],
-  Accumulator extends string[] = [],
+  Accumulator extends object[] = [],
 > = Requests extends [infer First, ...infer Rest]
   ? FlattenDependencyMustBeProvided<
       Rest,
-      MergeMustBeProvided<
-        [...Accumulator, ...Extract<DependencyMustBeProvided<First>, string[]>]
-      >
+      [...Accumulator, ...Extract<DependencyMustBeProvided<First>, object[]>]
     >
   : Accumulator;
+
+type InitialMustBeProvided<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Output,
+> = Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
+  ? [ProvidedServiceEntry<Name, Output>]
+  : [];
+
+type ResolveMustBeProvided<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Output,
+  Requests extends unknown[],
+> = MergeMustBeProvided<
+  FlattenDependencyMustBeProvided<
+    Requests,
+    InitialMustBeProvided<Name, Scope, Output>
+  >
+>;
+
+type ResolveServiceMustBeProvided<Metadata> =
+  Metadata extends ServiceTrackingMetadata<
+    infer Name extends string,
+    infer Scope extends ConcreteServiceScope,
+    infer Output,
+    infer Yielded,
+    any
+  >
+    ? ResolveMustBeProvided<Name, Scope, Output, DependencyRequests<Yielded>>
+    : [];
+
+type DependencyMustBeProvided<Request> = ResolveServiceMustBeProvided<
+  DependencyMetadata<Request>
+>;
 
 type DependencyRecord<Request> =
   DependencyMetadata<Request> extends ServiceTrackingMetadata<
     infer Name extends string,
+    any,
     any,
     any,
     any
@@ -394,16 +458,14 @@ type ResolveServiceTrackingMetadata<Metadata> =
   Metadata extends ServiceTrackingMetadata<
     infer Name extends string,
     infer Scope extends ConcreteServiceScope,
+    infer Output,
     infer Yielded,
     infer Derived
   >
     ? ServiceDependencies<
         Scope,
         BuildDependencyMap<DependencyRequests<Yielded>>,
-        [
-          ...SelfMustBeProvided<Name, Scope>,
-          ...FlattenDependencyMustBeProvided<DependencyRequests<Yielded>>,
-        ],
+        ResolveServiceMustBeProvided<Metadata>,
         Derived
       >
     : never;
@@ -418,16 +480,16 @@ type BuildDependencyMap<
     >
   : Simplify<Accumulator>;
 
-type SelfMustBeProvided<
-  Name extends string,
-  Scope extends ConcreteServiceScope,
-> = Scope extends 'toProvide' | 'manuallyProvidedAtRoot' ? [Name] : [];
-
 type ServiceHelperMetadata<
   Name extends string,
   Scope extends ConcreteServiceScope,
   Factory extends AnyFactory,
-> = ServiceTrackingMetadata<Name, Scope, FactoryYields<Factory>>;
+> = ServiceTrackingMetadata<
+  Name,
+  Scope,
+  FactoryOutput<Factory>,
+  FactoryYields<Factory>
+>;
 
 type WithDerivedProperties<
   Metadata extends AnyServiceTrackingMetadata,
@@ -436,12 +498,14 @@ type WithDerivedProperties<
 > = Metadata extends ServiceTrackingMetadata<
   infer Name extends string,
   infer Scope extends ConcreteServiceScope,
+  infer Output,
   infer ChildYielded,
   any
 >
   ? ServiceTrackingMetadata<
       Name,
       Scope,
+      Output,
       ChildYielded,
       DerivedPropertiesForExposure<Exposed, Yielded>
     >

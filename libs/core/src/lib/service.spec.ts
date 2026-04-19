@@ -9,6 +9,7 @@ import { Subject } from 'rxjs';
 import { abstract, service, toValue } from './service';
 import type {
   GetInjectedServiceDependencies,
+  GetServiceOutput,
   GetToYieldServiceDependencies,
   MaybeSignal,
 } from './service';
@@ -881,7 +882,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
       dependencies: {};
-      mustBeProvided: ['Counter'];
+      mustBeProvided: [{ Counter: GetServiceOutput<typeof injectCounter> }];
     }>();
   });
 
@@ -916,10 +917,13 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: ['Counter'];
+          mustBeProvided: [{ Counter: GetServiceOutput<typeof CounterToYield> }];
         };
       };
-      mustBeProvided: ['CounterExtended', 'Counter'];
+      mustBeProvided: [
+        { CounterExtended: GetServiceOutput<typeof injectCounterExtended> },
+        { Counter: GetServiceOutput<typeof CounterToYield> },
+      ];
     }>();
   });
 
@@ -939,7 +943,13 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<ManuallyProvidedAtRoot1ToYieldDependencies>().toEqualTypeOf<{
       scope: 'manuallyProvidedAtRoot';
       dependencies: {};
-      mustBeProvided: ['ManuallyProvidedAtRoot1'];
+      mustBeProvided: [
+        {
+          ManuallyProvidedAtRoot1: GetServiceOutput<
+            typeof ManuallyProvidedAtRoot1ToYield
+          >;
+        },
+      ];
     }>();
   });
 
@@ -998,24 +1008,44 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         ManuallyProvidedAtRoot1: {
           scope: 'manuallyProvidedAtRoot';
           dependencies: {};
-          mustBeProvided: ['ManuallyProvidedAtRoot1'];
+          mustBeProvided: [
+            {
+              ManuallyProvidedAtRoot1: GetServiceOutput<
+                typeof ManuallyProvidedAtRoot1ToYield
+              >;
+            },
+          ];
         };
         ManuallyProvidedAtRoot2: {
           scope: 'manuallyProvidedAtRoot';
           dependencies: {};
-          mustBeProvided: ['ManuallyProvidedAtRoot2'];
+          mustBeProvided: [
+            {
+              ManuallyProvidedAtRoot2: GetServiceOutput<
+                typeof ManuallyProvidedAtRoot2ToYield
+              >;
+            },
+          ];
         };
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: ['Counter'];
+          mustBeProvided: [{ Counter: GetServiceOutput<typeof CounterToYield> }];
         };
       };
       mustBeProvided: [
-        'CounterExtended',
-        'Counter',
-        'ManuallyProvidedAtRoot1',
-        'ManuallyProvidedAtRoot2',
+        { CounterExtended: GetServiceOutput<typeof injectCounterExtended> },
+        { Counter: GetServiceOutput<typeof CounterToYield> },
+        {
+          ManuallyProvidedAtRoot1: GetServiceOutput<
+            typeof ManuallyProvidedAtRoot1ToYield
+          >;
+        },
+        {
+          ManuallyProvidedAtRoot2: GetServiceOutput<
+            typeof ManuallyProvidedAtRoot2ToYield
+          >;
+        },
       ];
     }>();
   });
@@ -1080,12 +1110,20 @@ describe('typing can track all derived dependencies (only the properties that ar
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: ['Counter'];
-          derivedPropertiesUsed: ['increment'];
-          derivedPropertiesExposed: ['incrementCounter'];
+          mustBeProvided: [{ Counter: GetServiceOutput<typeof CounterToYield> }];
+          derivedPropertiesUsed: Pick<
+            GetServiceOutput<typeof CounterToYield>,
+            'increment'
+          >;
+          derivedPropertiesExposed: {
+            incrementCounter: GetServiceOutput<typeof CounterToYield>['increment'];
+          };
         };
       };
-      mustBeProvided: ['CounterExtended', 'Counter'];
+      mustBeProvided: [
+        { CounterExtended: GetServiceOutput<typeof injectCounterExtended> },
+        { Counter: GetServiceOutput<typeof CounterToYield> },
+      ];
     }>();
   });
 
@@ -1132,12 +1170,20 @@ describe('typing can track all derived dependencies (only the properties that ar
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: ['Counter'];
-          derivedPropertiesUsed: ['increment', 'decrement'];
-          derivedPropertiesExposed: ['incrementCounter'];
+          mustBeProvided: [{ Counter: GetServiceOutput<typeof CounterToYield> }];
+          derivedPropertiesUsed: Pick<
+            GetServiceOutput<typeof CounterToYield>,
+            'increment' | 'decrement'
+          >;
+          derivedPropertiesExposed: {
+            incrementCounter: GetServiceOutput<typeof CounterToYield>['increment'];
+          };
         };
       };
-      mustBeProvided: ['CounterExtended', 'Counter'];
+      mustBeProvided: [
+        { CounterExtended: GetServiceOutput<typeof injectCounterExtended> },
+        { Counter: GetServiceOutput<typeof CounterToYield> },
+      ];
     }>();
   });
 });
