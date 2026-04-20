@@ -1,4 +1,8 @@
 export const SERVICE_ROOT_EXPOSURE_KEY = '$self' as const;
+export const SERVICE_PROVIDED_INPUT_KEY = '$provided' as const;
+export const CRAFT_SERVICE_PROVIDER_BRAND = Symbol(
+  'craft-service-provider-brand',
+);
 
 export type Simplify<ObjectType> = {
   [Key in keyof ObjectType]: ObjectType[Key];
@@ -19,6 +23,7 @@ export type CallableShell<Value> = Value extends (...args: infer Args) => infer 
   : never;
 
 export type RootExposureKey = typeof SERVICE_ROOT_EXPOSURE_KEY;
+export type ProvidedInputKey = typeof SERVICE_PROVIDED_INPUT_KEY;
 
 export type UnionToIntersection<Union> = (
   Union extends any ? (value: Union) => void : never

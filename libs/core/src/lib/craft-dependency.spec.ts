@@ -189,6 +189,70 @@ describe('craftDependency', () => {
     });
   });
 
+  it('should expose $provided to dependency adaptations while keeping it hidden from public bindings', () => {
+    const API_BASE_URL = new InjectionToken<string>('ApiBaseUrl');
+
+    @Injectable()
+    class CatalogDriver {
+      readonly baseUrl = inject(API_BASE_URL);
+
+      fetchProducts() {
+        return `${this.baseUrl}/products`;
+      }
+    }
+
+    const { injectCatalog, CatalogToYield, provideCatalog } = craftDependency(
+      {
+        name: 'Catalog',
+        scope: 'toProvide',
+        token: CatalogDriver,
+        provide: (provided: { apiBaseUrl: string }) => [
+          {
+            provide: API_BASE_URL,
+            useValue: provided.apiBaseUrl,
+          },
+          {
+            provide: CatalogDriver,
+            useClass: CatalogDriver,
+          },
+        ],
+      },
+      (catalog, inputs: { $provided: { apiBaseUrl: string }; prefix: string }) => ({
+        fetchPrefixedProducts: () => `${inputs.prefix}:${catalog.fetchProducts()}`,
+        readDriverBaseUrl: () => catalog.baseUrl,
+        readProvidedBaseUrl: () => inputs.$provided.apiBaseUrl,
+      }),
+    );
+
+    TestBed.configureTestingModule({
+      providers: [provideCatalog({ apiBaseUrl: '/api' })],
+    });
+
+    if (false) {
+      //@ts-expect-error $provided should not be a public inject binding for craftDependency
+      injectCatalog({
+        prefix: 'catalog',
+        $provided: { apiBaseUrl: '/override' },
+      });
+    }
+
+    if (false) {
+      //@ts-expect-error $provided should not be a public yield binding for craftDependency
+      CatalogToYield({
+        prefix: 'catalog',
+        $provided: { apiBaseUrl: '/override' },
+      });
+    }
+
+    TestBed.runInInjectionContext(() => {
+      const catalog = injectCatalog({ prefix: 'catalog' });
+
+      expect(catalog.readDriverBaseUrl()).toBe('/api');
+      expect(catalog.readProvidedBaseUrl()).toBe('/api');
+      expect(catalog.fetchPrefixedProducts()).toBe('catalog:/api/products');
+    });
+  });
+
   it('should expose XToProvide and provideX for manuallyProvidedAtRoot dependencies', () => {
     @Injectable()
     class CounterDriver {

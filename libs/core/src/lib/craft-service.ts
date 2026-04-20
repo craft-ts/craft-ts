@@ -10,11 +10,16 @@ import {
   Type,
   untracked,
 } from '@angular/core';
-import { SERVICE_ROOT_EXPOSURE_KEY } from './craft-service.shared';
+import {
+  CRAFT_SERVICE_PROVIDER_BRAND,
+  SERVICE_PROVIDED_INPUT_KEY,
+  SERVICE_ROOT_EXPOSURE_KEY,
+} from './craft-service.shared';
 import type {
   CallableShell,
   ConcreteServiceScope,
   MergeObjectUnion,
+  ProvidedInputKey,
   RequirementScope,
   RootExposureKey,
   Simplify,
@@ -126,6 +131,13 @@ type GetServiceMetaDataTracking<MetaData> = MetaDataTypeInfo<MetaData> extends {
   ? Tracking
   : never;
 
+type GetServiceMetaDataProvidedInput<MetaData> =
+  MetaDataTypeInfo<MetaData> extends {
+    providedInput: infer ProvidedInput;
+  }
+    ? ProvidedInput
+    : never;
+
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
 const SERVICE_REQUIREMENT_MARKER = Symbol('service-requirement-marker');
 const SERVICE_YIELD_REQUEST_MARKER = Symbol('service-yield-request-marker');
@@ -140,12 +152,38 @@ type ServiceScope = ConcreteServiceScope | 'abstract';
 
 type AnyFactory = (...args: any[]) => any;
 
+type PublicServiceInputs<Inputs extends object> = Simplify<
+  Omit<Inputs, ProvidedInputKey>
+>;
+
+type HasProvidedInput<Inputs extends object> =
+  unknown extends Inputs
+    ? false
+    : ProvidedInputKey extends keyof Inputs
+      ? true
+      : false;
+
+type ServiceProvidedInput<Inputs extends object> =
+  HasProvidedInput<Inputs> extends true
+    ? Inputs[ProvidedInputKey & keyof Inputs]
+    : never;
+
 type ExtractHelperValue<HelperObject> = HelperObject[keyof HelperObject];
 
 export type CraftServiceProvider =
   | Provider
   | EnvironmentProviders
   | CraftServiceProvider[];
+
+export type BrandedServiceProvider<
+  Name extends string = string,
+  Scope extends RequirementScope = RequirementScope,
+> = Provider & {
+  readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: {
+    name: Name;
+    scope: Scope;
+  };
+};
 
 export type ServiceMetaData<
   Name extends string = string,
@@ -155,6 +193,7 @@ export type ServiceMetaData<
   Dependencies = ServiceDependencies,
   InjectHelper = (...args: any[]) => unknown,
   Tracking = unknown,
+  ProvidedInput = never,
 > = Simplify<
   {
     readonly kind: 'service-meta-data';
@@ -166,6 +205,7 @@ export type ServiceMetaData<
       output: Output;
       dependencies: Dependencies;
       tracking: Tracking;
+      providedInput: ProvidedInput;
     };
     readonly [SERVICE_RUNTIME_META]?: ServiceMetaData<
       Name,
@@ -174,24 +214,35 @@ export type ServiceMetaData<
       Output,
       Dependencies,
       InjectHelper,
-      Tracking
+      Tracking,
+      ProvidedInput
     >;
   } & (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-    ? { readonly provide: () => CraftServiceProvider }
+    ? [ProvidedInput] extends [never]
+      ? { readonly provide: () => CraftServiceProvider }
+      : { readonly provide: (provided: ProvidedInput) => CraftServiceProvider }
     : {}) &
     (Scope extends 'manuallyProvidedAtRoot'
       ? { readonly token: InjectionToken<Output> }
       : {})
 >;
 
-type AnyServiceMetaData = ServiceMetaData<
-  string,
-  ConcreteServiceScope,
-  any,
-  any,
-  any,
-  any
->;
+type AnyServiceMetaData = {
+  readonly kind: 'service-meta-data';
+  readonly name: string;
+  readonly scope: ConcreteServiceScope;
+  readonly inject: (...args: any[]) => unknown;
+  readonly provide?: (...args: any[]) => CraftServiceProvider;
+  readonly token?: InjectionToken<unknown>;
+  readonly [SERVICE_META_DATA_TYPE]?: {
+    inputs: any;
+    output: any;
+    dependencies: any;
+    tracking: any;
+    providedInput: any;
+  };
+  readonly [SERVICE_RUNTIME_META]?: AnyServiceMetaData;
+};
 
 type WithServiceRuntimeMeta<Helper, MetaData extends AnyServiceMetaData> =
   Helper & {
@@ -251,6 +302,15 @@ type ValidateRequirementFactory<
     ? unknown
     : never;
 
+type ValidateProvidedInputScope<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+> = HasProvidedInput<Inputs> extends true
+  ? Scope extends RequirementScope
+    ? unknown
+    : never
+  : unknown;
+
 type ValidateYieldedScope<
   Scope extends ConcreteServiceScope,
   Yielded,
@@ -294,6 +354,16 @@ type InputBindings<
   : {
       [Key in keyof Inputs]: Inputs[Key] | AllowedProvidedElsewhere<Scope>;
     };
+
+type PublicInputBindings<
+  Inputs extends object,
+  Scope extends ConcreteServiceScope,
+> = InputBindings<PublicServiceInputs<Inputs>, Scope>;
+
+type StrictBindings<
+  Shape extends object,
+  Candidate extends object,
+> = Exclude<keyof Candidate, keyof Shape> extends never ? Candidate : never;
 
 type AllowedProvidedElsewhere<Scope extends ConcreteServiceScope> =
   Scope extends 'global' | 'toProvide' | 'manuallyProvidedAtRoot'
@@ -709,11 +779,12 @@ type ServiceRuntimeMetaDefinition<
 > = ServiceMetaData<
   Name,
   Scope,
-  Inputs,
+  PublicServiceInputs<Inputs>,
   Output,
   ResolveServiceTrackingMetadata<Metadata>,
   (...args: any[]) => unknown,
-  Metadata
+  Metadata,
+  ServiceProvidedInput<Inputs>
 >;
 
 type InjectHelper<
@@ -726,41 +797,47 @@ type InjectHelper<
   [Key in `inject${Capitalize<Name>}`]: WithTrackedDependencies<
     WithServiceRuntimeMeta<
       {
-      (): MaybeErrorOutput<Inputs, undefined, Output>;
-      <Config extends Partial<InputBindings<Inputs, Scope>>>(
-        bindings: Config,
-      ): MaybeErrorOutput<Inputs, Config, Output>;
+      (): MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>;
+      <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
+        bindings: StrictBindings<
+          Partial<PublicInputBindings<Inputs, Scope>>,
+          Config
+        >,
+      ): MaybeErrorOutput<PublicServiceInputs<Inputs>, Config, Output>;
       <
         Exposed extends object,
         Yielded extends ExposureYield<
-          SelectableOutput<Inputs, undefined, Output>
+          SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>
         > = never,
       >(
         bindings: undefined,
         expose: ExposureSelector<
-          SelectableOutput<Inputs, undefined, Output>,
+          SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
           Exposed,
           Yielded
         >,
       ): ExposedOutput<
-        SelectableOutput<Inputs, undefined, Output>,
+        SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
         MaterializeExposureResult<ValidateRootExposure<Exposed>>
       >;
       <
-        Config extends Partial<InputBindings<Inputs, Scope>>,
+        Config extends Partial<PublicInputBindings<Inputs, Scope>>,
         Exposed extends object,
         Yielded extends ExposureYield<
-          SelectableOutput<Inputs, Config, Output>
+          SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>
         > = never,
       >(
-        bindings: Config,
+        bindings: StrictBindings<
+          Partial<PublicInputBindings<Inputs, Scope>>,
+          Config
+        >,
         expose: ExposureSelector<
-          SelectableOutput<Inputs, Config, Output>,
+          SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
           Exposed,
           Yielded
         >,
       ): ExposedOutput<
-        SelectableOutput<Inputs, Config, Output>,
+        SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
         MaterializeExposureResult<ValidateRootExposure<Exposed>>
       >;
       },
@@ -783,70 +860,80 @@ type YieldHelper<
       (): Generator<
         ServiceYieldRequest<
           Scope,
-          MaybeErrorOutput<Inputs, undefined, Output>,
+          MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>,
           Metadata
         >,
-        MaybeErrorOutput<Inputs, undefined, Output>,
+        MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>,
         unknown
       >;
-      <Config extends Partial<InputBindings<Inputs, Scope>>>(
-        bindings: Config,
+      <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
+        bindings: StrictBindings<
+          Partial<PublicInputBindings<Inputs, Scope>>,
+          Config
+        >,
       ): Generator<
         ServiceYieldRequest<
           Scope,
-          MaybeErrorOutput<Inputs, Config, Output>,
+          MaybeErrorOutput<PublicServiceInputs<Inputs>, Config, Output>,
           Metadata
         >,
-        MaybeErrorOutput<Inputs, Config, Output>,
+        MaybeErrorOutput<PublicServiceInputs<Inputs>, Config, Output>,
         unknown
       >;
       <
         Exposed extends object,
         Yielded extends ExposureYield<
-          SelectableOutput<Inputs, undefined, Output>
+          SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>
         > = never,
       >(
         bindings: undefined,
         expose: ExposureSelector<
-          SelectableOutput<Inputs, undefined, Output>,
+          SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
           Exposed,
           Yielded
         >,
       ): Generator<
         | ServiceYieldRequest<
             Scope,
-            SelectableOutput<Inputs, undefined, Output>,
+            SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
             WithDerivedProperties<Metadata, Exposed, Yielded>
           >
-        | ExposureYield<SelectableOutput<Inputs, undefined, Output>>,
+        | ExposureYield<
+            SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>
+          >,
         ExposedOutput<
-          SelectableOutput<Inputs, undefined, Output>,
+          SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
           MaterializeExposureResult<ValidateRootExposure<Exposed>>
         >,
         unknown
       >;
       <
-        Config extends Partial<InputBindings<Inputs, Scope>>,
+        Config extends Partial<PublicInputBindings<Inputs, Scope>>,
         Exposed extends object,
         Yielded extends ExposureYield<
-          SelectableOutput<Inputs, Config, Output>
+          SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>
         > = never,
       >(
-        bindings: Config,
+        bindings: StrictBindings<
+          Partial<PublicInputBindings<Inputs, Scope>>,
+          Config
+        >,
         expose: ExposureSelector<
-          SelectableOutput<Inputs, Config, Output>,
+          SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
           Exposed,
           Yielded
         >,
       ): Generator<
         | ServiceYieldRequest<
             Scope,
-            SelectableOutput<Inputs, Config, Output>,
+            SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
             WithDerivedProperties<Metadata, Exposed, Yielded>
           >
-        | ExposureYield<SelectableOutput<Inputs, Config, Output>>,
+        | ExposureYield<
+            SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>
+          >,
         ExposedOutput<
-          SelectableOutput<Inputs, Config, Output>,
+          SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
           MaterializeExposureResult<ValidateRootExposure<Exposed>>
         >,
         unknown
@@ -858,8 +945,18 @@ type YieldHelper<
   >;
 };
 
-type ProvideHelper<Name extends string> = {
-  [Key in `provide${Capitalize<Name>}`]: () => Provider;
+type ProvideHelper<
+  Name extends string,
+  Scope extends RequirementScope,
+  Inputs extends object,
+> = {
+  [Key in `provide${Capitalize<Name>}`]: [ServiceProvidedInput<Inputs>] extends [
+    never,
+  ]
+    ? () => BrandedServiceProvider<Name, Scope>
+    : (
+        provided: ServiceProvidedInput<Inputs>,
+      ) => BrandedServiceProvider<Name, Scope>;
 };
 
 type ToProvideTokenHelper<Name extends string, Output> = {
@@ -880,11 +977,12 @@ type ServiceMetaDataHelper<
   [Key in ServiceMetaDataKey<Name>]: ServiceMetaData<
     Name,
     Scope,
-    Inputs,
+    PublicServiceInputs<Inputs>,
     Output,
     ResolveServiceTrackingMetadata<Metadata>,
     ExtractHelperValue<InjectHelper<Name, Scope, Inputs, Output, Metadata>>,
-    Metadata
+    Metadata,
+    ServiceProvidedInput<Inputs>
   >;
 };
 
@@ -898,7 +996,7 @@ type ConcreteServiceApi<
   YieldHelper<Name, Scope, Inputs, Output, Metadata> &
   ServiceMetaDataHelper<Name, Scope, Inputs, Output, Metadata> &
   (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-    ? ProvideHelper<Name>
+    ? ProvideHelper<Name, Extract<Scope, RequirementScope>, Inputs>
     : {}) &
   (Scope extends 'manuallyProvidedAtRoot'
     ? ToProvideTokenHelper<Name, Output>
@@ -913,14 +1011,15 @@ type DependencySourceToken<Output> = Type<Output> | InjectionToken<Output>;
 type DependencyApi<
   Name extends string,
   Scope extends ConcreteServiceScope,
+  Inputs extends object,
   Output,
-> = ConcreteServiceApi<
-  Name,
-  Scope,
-  {},
-  Output,
-  ServiceTrackingMetadata<Name, Scope, Output, never>
->;
+  Metadata extends ServiceTrackingMetadata = ServiceTrackingMetadata<
+    Name,
+    Scope,
+    Output,
+    never
+  >,
+> = ConcreteServiceApi<Name, Scope, Inputs, Output, Metadata>;
 
 type GlobalTokenDependencyOptions<Name extends string, Output> = {
   name: Name;
@@ -934,16 +1033,78 @@ type GlobalInjectedDependencyOptions<Name extends string, Output> = {
   inject: () => Output;
 };
 
+type DependencyProvideFactory<Inputs extends object> = [
+  ServiceProvidedInput<Inputs>,
+] extends [never]
+  ? () => CraftServiceProvider
+  : (provided: ServiceProvidedInput<Inputs>) => CraftServiceProvider;
+
 type ProviderCapableDependencyOptions<
   Name extends string,
   Scope extends RequirementScope,
   Output,
+  Inputs extends object = {},
 > = {
   name: Name;
   scope: Scope;
   token: DependencySourceToken<Output>;
-  provide: () => CraftServiceProvider;
+  provide: DependencyProvideFactory<Inputs>;
 };
+
+type AnyDependencyFactory<Dependency> = (
+  dependency: Dependency,
+  inputs: any,
+) => any;
+
+type DependencyFactoryInputs<Factory> = Factory extends (
+  dependency: any,
+  inputs: infer Inputs extends object,
+) => any
+  ? Inputs
+  : {};
+
+type DependencyFactoryReturn<Factory, Output> = [Factory] extends [undefined]
+  ? Output
+  : Factory extends (...args: any[]) => infer Result
+    ? Result
+    : never;
+
+type DependencyFactoryOutput<Factory, Output> =
+  DependencyFactoryReturn<Factory, Output> extends Generator<any, infer Result, any>
+    ? Result
+    : DependencyFactoryReturn<Factory, Output>;
+
+type DependencyFactoryYields<Factory> =
+  Factory extends (...args: any[]) => infer Result
+    ? Result extends Generator<infer Yielded, any, any>
+      ? Yielded
+      : never
+    : never;
+
+type DependencyFactoryOutputFromResult<Result> =
+  Result extends Generator<any, infer Output, any> ? Output : Result;
+
+type DependencyFactoryYieldsFromResult<Result> =
+  Result extends Generator<infer Yielded, any, any> ? Yielded : never;
+
+type WrappedDependencyFactory<
+  Dependency,
+  Factory extends AnyDependencyFactory<Dependency>,
+> = (
+  inputs: DependencyFactoryInputs<Factory>,
+) => DependencyFactoryReturn<Factory, Dependency>;
+
+type CraftDependencyTrackingMetadata<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Dependency,
+  Factory extends AnyDependencyFactory<Dependency> | undefined,
+> = ServiceTrackingMetadata<
+  Name,
+  Scope,
+  DependencyFactoryOutput<Factory, Dependency>,
+  DependencyFactoryYields<NonNullable<Factory>>
+>;
 
 type ConcreteRuntimeDefinition = {
   factory: AnyFactory;
@@ -952,6 +1113,8 @@ type ConcreteRuntimeDefinition = {
   token?: InjectionToken<unknown>;
   requirement?: ServiceRequirement<unknown>;
   initialBindings?: Record<string, unknown>;
+  hasProvidedInput: boolean;
+  externalProviders?: (provided: unknown) => CraftServiceProvider;
 };
 
 export type ServiceReference<
@@ -963,15 +1126,7 @@ export type ServiceReference<
 > =
   | ServiceMetaData<Name, Scope, Inputs, Output, Dependencies, any, any>
   | {
-      readonly [SERVICE_RUNTIME_META]?: ServiceMetaData<
-        Name,
-        Scope,
-        Inputs,
-        Output,
-        Dependencies,
-        any,
-        any
-      >;
+      readonly [SERVICE_RUNTIME_META]?: AnyServiceMetaData;
     };
 
 type AnyServiceReference = ServiceReference<
@@ -992,6 +1147,9 @@ export type GetServiceInputs<Reference extends ServiceReference> =
 
 export type GetServiceReferenceOutput<Reference extends ServiceReference> =
   GetServiceMetaDataOutput<GetServiceReferenceMeta<Reference>>;
+
+export type GetServiceProvidedInput<Reference extends ServiceReference> =
+  GetServiceMetaDataProvidedInput<GetServiceReferenceMeta<Reference>>;
 
 export type GetServiceTrackingMetadata<Reference extends ServiceReference> =
   Reference extends AnyServiceMetaData
@@ -1113,17 +1271,140 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  */
 export function craftDependency<Name extends string, Output>(
   options: GlobalTokenDependencyOptions<Name, Output>,
-): DependencyApi<Name, 'global', Output>;
+): DependencyApi<Name, 'global', {}, Output>;
+export function craftDependency<
+  Name extends string,
+  Output,
+  Inputs extends object,
+  FactoryResult,
+>(
+  options: GlobalTokenDependencyOptions<Name, Output>,
+  adaptFactory: ((
+    dependency: Output,
+    inputs: Inputs,
+  ) => FactoryResult) &
+    ValidateProvidedInputScope<'global', Inputs> &
+    ValidateYieldedScope<
+      'global',
+      DependencyFactoryYieldsFromResult<FactoryResult>,
+      unknown
+    >,
+): DependencyApi<
+  Name,
+  'global',
+  Inputs,
+  DependencyFactoryOutputFromResult<FactoryResult>,
+  ServiceTrackingMetadata<
+    Name,
+    'global',
+    DependencyFactoryOutputFromResult<FactoryResult>,
+    DependencyFactoryYieldsFromResult<FactoryResult>
+  >
+>;
 export function craftDependency<Name extends string, Output>(
   options: GlobalInjectedDependencyOptions<Name, Output>,
-): DependencyApi<Name, 'global', Output>;
+): DependencyApi<Name, 'global', {}, Output>;
+export function craftDependency<
+  Name extends string,
+  Output,
+  Inputs extends object,
+  FactoryResult,
+>(
+  options: GlobalInjectedDependencyOptions<Name, Output>,
+  adaptFactory: ((
+    dependency: Output,
+    inputs: Inputs,
+  ) => FactoryResult) &
+    ValidateProvidedInputScope<'global', Inputs> &
+    ValidateYieldedScope<
+      'global',
+      DependencyFactoryYieldsFromResult<FactoryResult>,
+      unknown
+    >,
+): DependencyApi<
+  Name,
+  'global',
+  Inputs,
+  DependencyFactoryOutputFromResult<FactoryResult>,
+  ServiceTrackingMetadata<
+    Name,
+    'global',
+    DependencyFactoryOutputFromResult<FactoryResult>,
+    DependencyFactoryYieldsFromResult<FactoryResult>
+  >
+>;
 export function craftDependency<
   Name extends string,
   Scope extends RequirementScope,
   Output,
 >(
   options: ProviderCapableDependencyOptions<Name, Scope, Output>,
-): DependencyApi<Name, Scope, Output>;
+): DependencyApi<Name, Scope, {}, Output>;
+export function craftDependency<
+  Name extends string,
+  Scope extends RequirementScope,
+  Output,
+  Inputs extends object,
+  ProvidedInput,
+  FactoryResult,
+>(
+  options: {
+    name: Name;
+    scope: Scope;
+    token: DependencySourceToken<Output>;
+    provide: (provided: ProvidedInput) => CraftServiceProvider;
+  },
+  adaptFactory: ((
+    dependency: Output,
+    inputs: Inputs & { $provided: ProvidedInput },
+  ) => FactoryResult) &
+    ValidateYieldedScope<
+      Scope,
+      DependencyFactoryYieldsFromResult<FactoryResult>,
+      unknown
+    >,
+): DependencyApi<
+  Name,
+  Scope,
+  Inputs & { $provided: ProvidedInput },
+  DependencyFactoryOutputFromResult<FactoryResult>,
+  ServiceTrackingMetadata<
+    Name,
+    Scope,
+    DependencyFactoryOutputFromResult<FactoryResult>,
+    DependencyFactoryYieldsFromResult<FactoryResult>
+  >
+>;
+export function craftDependency<
+  Name extends string,
+  Scope extends RequirementScope,
+  Output,
+  Inputs extends object,
+  FactoryResult,
+>(
+  options: ProviderCapableDependencyOptions<Name, Scope, Output, Inputs>,
+  adaptFactory: ((
+    dependency: Output,
+    inputs: Inputs,
+  ) => FactoryResult) &
+    ValidateProvidedInputScope<Scope, Inputs> &
+    ValidateYieldedScope<
+      Scope,
+      DependencyFactoryYieldsFromResult<FactoryResult>,
+      unknown
+    >,
+): DependencyApi<
+  Name,
+  Scope,
+  Inputs,
+  DependencyFactoryOutputFromResult<FactoryResult>,
+  ServiceTrackingMetadata<
+    Name,
+    Scope,
+    DependencyFactoryOutputFromResult<FactoryResult>,
+    DependencyFactoryYieldsFromResult<FactoryResult>
+  >
+>;
 export function craftDependency(
   options:
     | GlobalTokenDependencyOptions<string, unknown>
@@ -1131,42 +1412,53 @@ export function craftDependency(
     | ProviderCapableDependencyOptions<
         string,
         RequirementScope,
-        unknown
+        unknown,
+        object
       >,
+  adaptFactory?: AnyDependencyFactory<unknown>,
 ): unknown {
-  const api = craftService(
-    {
-      name: options.name,
-      scope: options.scope,
-    },
-    () => {
-      const dependencyValue =
-        'inject' in options ? options.inject() : inject(options.token);
+  const api = (
+    adaptFactory
+      ? craftService(
+          {
+            name: options.name,
+            scope: options.scope,
+          },
+          (inputs: Record<string, unknown>) => {
+            const dependencyValue = adaptExternalDependencyValue(
+              'inject' in options ? options.inject() : inject(options.token),
+            );
 
-      return adaptExternalDependencyValue(dependencyValue);
-    },
+            return adaptFactory(dependencyValue, inputs);
+          },
+        )
+      : craftService(
+          {
+            name: options.name,
+            scope: options.scope,
+          },
+          () => {
+            const dependencyValue =
+              'inject' in options ? options.inject() : inject(options.token);
+
+            return adaptExternalDependencyValue(dependencyValue);
+          },
+        )
   ) as Record<string, unknown>;
 
+  const injectName = `inject${capitalize(options.name)}`;
+  const internalMetaData = getServiceMetaData(
+    api[injectName],
+  ) as InternalServiceMetaData;
+
+  if (adaptFactory) {
+    internalMetaData[SERVICE_RUNTIME_DEFINITION].hasProvidedInput =
+      factoryUsesProvidedInput(adaptFactory);
+  }
+
   if ('provide' in options) {
-    const provideName = `provide${capitalize(options.name)}`;
-    const metaDataName = toMetaDataPropertyName(options.name);
-    const provideDependency = api[provideName];
-
-    if (typeof provideDependency === 'function') {
-      const composedProvide = () => [options.provide(), provideDependency()];
-
-      api[provideName] = composedProvide;
-
-      const metaData = api[metaDataName] as
-        | {
-            provide?: () => CraftServiceProvider;
-          }
-        | undefined;
-
-      if (metaData) {
-        metaData.provide = composedProvide;
-      }
-    }
+    internalMetaData[SERVICE_RUNTIME_DEFINITION].externalProviders =
+      options.provide as (provided: unknown) => CraftServiceProvider;
   }
 
   return api;
@@ -1280,6 +1572,7 @@ export function craftService<
     requirement: Requirement;
   },
   factory: Factory &
+    ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
     ValidateFactoryScope<Scope, Factory> &
     ValidateRequirementFactory<Factory, Requirement>,
 ): ConcreteServiceApi<
@@ -1295,7 +1588,10 @@ export function craftService<
   Factory extends AnyFactory,
 >(
   options: { name: Name; scope: Scope },
-  factory: Factory & ValidateFactoryScope<Scope, Factory>,
+  factory:
+    & Factory
+    & ValidateProvidedInputScope<Scope, FactoryInputs<Factory>>
+    & ValidateFactoryScope<Scope, Factory>,
 ): ConcreteServiceApi<
   Name,
   Scope,
@@ -1339,6 +1635,7 @@ export function craftService(
     name: options.name,
     scope: options.scope,
     requirement: options.requirement,
+    hasProvidedInput: factoryUsesProvidedInput(concreteFactory),
   };
 
   const token =
@@ -1400,7 +1697,8 @@ export function craftService(
     options.scope === 'toProvide' ||
     options.scope === 'manuallyProvidedAtRoot'
   ) {
-    api[provideName] = () => createProviders(runtimeDefinition);
+    api[provideName] = (provided?: unknown) =>
+      createProviders(runtimeDefinition, provided);
   }
 
   if (options.scope === 'manuallyProvidedAtRoot' && token) {
@@ -1413,7 +1711,9 @@ export function craftService(
     inject: api[injectName] as (...args: any[]) => unknown,
     provide:
       options.scope === 'toProvide' || options.scope === 'manuallyProvidedAtRoot'
-        ? (api[provideName] as (() => Provider) | undefined)
+        ? (api[provideName] as
+            | ((...args: any[]) => CraftServiceProvider)
+            | undefined)
         : undefined,
     token:
       options.scope === 'manuallyProvidedAtRoot'
@@ -1447,7 +1747,7 @@ function createServiceMetaData(config: {
   name: string;
   scope: ConcreteServiceScope;
   inject: (...args: any[]) => unknown;
-  provide?: () => CraftServiceProvider;
+  provide?: (...args: any[]) => CraftServiceProvider;
   token?: InjectionToken<unknown>;
   runtimeDefinition: ConcreteRuntimeDefinition;
 }): InternalServiceMetaData {
@@ -1456,6 +1756,7 @@ function createServiceMetaData(config: {
     name: config.name,
     scope: config.scope,
     inject: config.inject,
+    usesProvidedInput: config.runtimeDefinition.hasProvidedInput,
   };
 
   if (config.provide) {
@@ -1529,7 +1830,10 @@ function isServiceMetaData(value: unknown): value is InternalServiceMetaData {
   );
 }
 
-function createProviders(definition: ConcreteRuntimeDefinition): CraftServiceProvider {
+function createProviders(
+  definition: ConcreteRuntimeDefinition,
+  providedConfig?: unknown,
+): BrandedServiceProvider<string, RequirementScope> {
   const concreteToken = definition.token;
 
   if (!concreteToken) {
@@ -1538,22 +1842,49 @@ function createProviders(definition: ConcreteRuntimeDefinition): CraftServicePro
     );
   }
 
-  const providers: Provider[] = [
+  const providers: CraftServiceProvider[] = [];
+
+  if (definition.externalProviders) {
+    providers.push(definition.externalProviders(providedConfig));
+  }
+
+  const concreteProviders: Provider[] = [
     {
       provide: concreteToken,
       useFactory: () =>
-        createConcreteServiceInstance(definition, inject(Injector)),
+        createConcreteServiceInstance(
+          definition,
+          inject(Injector),
+          undefined,
+          providedConfig,
+        ),
     },
   ];
 
   if (definition.requirement) {
-    providers.push({
+    concreteProviders.push({
       provide: definition.requirement.token,
       useExisting: concreteToken,
     });
   }
 
-  return providers;
+  providers.push(concreteProviders);
+
+  const brandedProviders = providers as BrandedServiceProvider<
+    string,
+    RequirementScope
+  >;
+
+  Object.defineProperty(brandedProviders, CRAFT_SERVICE_PROVIDER_BRAND, {
+    value: {
+      name: definition.name,
+      scope: definition.scope,
+    },
+    enumerable: false,
+    configurable: false,
+  });
+
+  return brandedProviders;
 }
 
 function adaptExternalDependencyValue<Value>(value: Value): Value {
@@ -1621,6 +1952,7 @@ function resolveConcreteService(
         definition,
         injector,
         bindings,
+        undefined,
       );
     }
 
@@ -1649,9 +1981,10 @@ function createConcreteServiceInstance(
   definition: ConcreteRuntimeDefinition,
   injector: Injector,
   bindingsOverride?: Record<string, unknown>,
+  providedConfig?: unknown,
 ): unknown {
   const bindings = bindingsOverride ?? definition.initialBindings ?? {};
-  const inputs = createInputProxy(bindings);
+  const inputs = createInputProxy(bindings, providedConfig);
   const result =
     definition.factory.length > 0
       ? definition.factory(inputs)
@@ -1693,18 +2026,27 @@ function runGeneratorFactory(
 
 function createInputProxy(
   bindings: Record<string, unknown>,
+  providedConfig?: unknown,
 ): Record<string, unknown> {
+  const resolvedBindings =
+    providedConfig === undefined
+      ? bindings
+      : {
+          ...bindings,
+          [SERVICE_PROVIDED_INPUT_KEY]: providedConfig,
+        };
+
   return new Proxy<Record<string, unknown>>({} as Record<string, unknown>, {
     get(_target, property) {
       if (typeof property !== 'string') {
         return undefined;
       }
 
-      if (!Object.prototype.hasOwnProperty.call(bindings, property)) {
+      if (!Object.prototype.hasOwnProperty.call(resolvedBindings, property)) {
         throw new Error(`Inputs Error, ${property} is not provided`);
       }
 
-      const value = bindings[property];
+      const value = resolvedBindings[property];
 
       if (value === PROVIDED_ELSEWHERE) {
         throw new Error(`Inputs Error, ${property} is not provided`);
@@ -2048,6 +2390,10 @@ function assertDependencyScope(
       `Global craftService cannot depend on toProvide craftService "${dependencyName}".`,
     );
   }
+}
+
+function factoryUsesProvidedInput(factory: AnyFactory): boolean {
+  return factory.toString().includes(SERVICE_PROVIDED_INPUT_KEY);
 }
 
 function capitalize(value: string): string {

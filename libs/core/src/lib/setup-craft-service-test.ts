@@ -4,27 +4,27 @@ import {
   getServiceMetaData,
   SERVICE_RUNTIME_OVERRIDES,
 } from './craft-service';
-import type { CraftServiceProvider } from './craft-service';
+import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
 import type {
-  CallableShell,
-  ConcreteServiceScope,
-  DependencyNodeScope,
-  DependencyTreeChildren,
-  FlattenDependencyTree,
-  RealCapableScope,
-  RequirementScope,
-  RootExposureKey,
-  Simplify,
-} from './craft-service.shared';
-import type {
+  BrandedServiceProvider,
+  CraftServiceProvider,
   GetInjectedServiceDependencies,
   GetServiceReferenceOutput,
   ResolvedServiceOutput,
   ServiceBindings,
   ServiceMetaData,
   ServiceReference,
-  ServiceRuntimeOverride,
 } from './craft-service';
+import type {
+  CallableShell,
+  ConcreteServiceScope,
+  DependencyNodeScope,
+  DependencyTreeChildren,
+  FlattenDependencyTree,
+  RequirementScope,
+  RootExposureKey,
+  Simplify,
+} from './craft-service.shared';
 
 type GetServiceDependenciesTree<Target extends ServiceReference> =
   Target extends ServiceMetaData<any, any, any, any, infer Dependencies, any, any>
@@ -127,28 +127,9 @@ type AnyMockServiceOverride =
   | ImplicitMockServiceOverride<any>
   | ExplicitMockServiceOverride<any, any>;
 
-type ImplicitRealServiceOverride = {
-  readonly kind: 'provide';
-  readonly reference?: undefined;
-};
-
-type ExplicitRealServiceOverride<
-  Reference extends ServiceReference<string, RealCapableScope> =
-    ServiceReference<string, RealCapableScope>,
-> = {
-  readonly kind: 'provide';
-  readonly reference: Reference;
-};
-
-type AnyRealServiceOverride =
-  | ImplicitRealServiceOverride
-  | ExplicitRealServiceOverride<any>;
-
-type AnyServiceOverride = AnyMockServiceOverride | AnyRealServiceOverride;
-
-type OverrideKind<Override> = Override extends { kind: infer Kind }
-  ? Kind
-  : never;
+type AnyServiceOverride =
+  | AnyMockServiceOverride
+  | BrandedServiceProvider<string, RequirementScope>;
 
 type OverrideForDependencyNode<Name extends string, Node> =
   | ImplicitMockServiceOverride<MockImplementationForNode<Node>>
@@ -156,14 +137,11 @@ type OverrideForDependencyNode<Name extends string, Node> =
       ServiceReference<Name, Extract<DependencyNodeScope<Node>, ConcreteServiceScope>>,
       MockImplementationForNode<Node>
     >
-  | (DependencyNodeScope<Node> extends RealCapableScope
-      ? | ImplicitRealServiceOverride
-        | ExplicitRealServiceOverride<
-            ServiceReference<
-              Name,
-              Extract<DependencyNodeScope<Node>, RealCapableScope>
-            >
-          >
+  | (DependencyNodeScope<Node> extends RequirementScope
+      ? BrandedServiceProvider<
+          Name,
+          Extract<DependencyNodeScope<Node>, RequirementScope>
+        >
       : never);
 
 type MissingCoverageForTree<Tree extends object, Overrides> = {
@@ -224,9 +202,12 @@ type MissingCoverageForNode<
   ? DependencyNodeScope<Node> extends RequirementScope
     ? Name
     : MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>
-  : OverrideKind<OverrideAtPath<Overrides, Name>> extends 'mock'
+  : OverrideAtPath<Overrides, Name> extends AnyMockServiceOverride
     ? never
-    : OverrideKind<OverrideAtPath<Overrides, Name>> extends 'provide'
+    : OverrideAtPath<Overrides, Name> extends BrandedServiceProvider<
+          Name,
+          RequirementScope
+        >
       ? MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>
       : DependencyNodeScope<Node> extends RequirementScope
         ? Name
@@ -281,6 +262,23 @@ function createMockPublicValue(implementation: unknown): unknown {
     : createExposedServiceValue(implementation);
 }
 
+function getProviderOverrideMeta(
+  value: unknown,
+): { name: string; scope: RequirementScope } | undefined {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !(CRAFT_SERVICE_PROVIDER_BRAND in value)
+  ) {
+    return undefined;
+  }
+
+  return Reflect.get(
+    value,
+    CRAFT_SERVICE_PROVIDER_BRAND,
+  ) as { name: string; scope: RequirementScope } | undefined;
+}
+
 function assertOverrideReferenceName(name: string, reference: unknown) {
   const metaData = getServiceMetaData(reference);
 
@@ -289,6 +287,33 @@ function assertOverrideReferenceName(name: string, reference: unknown) {
       `Test override "${name}" does not match craftService/craftDependency reference "${metaData.name}".`,
     );
   }
+}
+
+function assertProviderOverrideName(name: string, provider: unknown) {
+  const metaData = getProviderOverrideMeta(provider);
+
+  if (!metaData) {
+    throw new Error(
+      `Expected a raw provider returned by provide${name}(...).`,
+    );
+  }
+
+  if (metaData.name !== name) {
+    throw new Error(
+      `Test override "${name}" does not match provider value for "${metaData.name}".`,
+    );
+  }
+}
+
+function isMockServiceOverride(
+  override: AnyServiceOverride,
+): override is AnyMockServiceOverride {
+  return (
+    typeof override === 'object' &&
+    override !== null &&
+    'kind' in override &&
+    override.kind === 'mock'
+  );
 }
 
 export function mock<
@@ -321,19 +346,6 @@ export function mock(
   };
 }
 
-export function provide(): ImplicitRealServiceOverride;
-export function provide<
-  Reference extends ServiceReference<string, RealCapableScope>,
->(reference: Reference): ExplicitRealServiceOverride<Reference>;
-export function provide(reference?: unknown): AnyRealServiceOverride {
-  return reference === undefined
-    ? { kind: 'provide' }
-    : {
-        kind: 'provide',
-        reference: reference as ServiceReference<string, RealCapableScope>,
-      };
-}
-
 /**
  * Sets up a `craftService` or `craftDependency` in Angular's `TestBed` with typed
  * dependency coverage.
@@ -344,7 +356,7 @@ export function provide(reference?: unknown): AnyRealServiceOverride {
  * are either:
  *
  * - mocked through `mock(...)`
- * - explicitly provided through `provide(...)`
+ * - covered by the real raw provider returned by `provideX(...)`
  * - or pruned by mocking one of their ancestors
  *
  * Global dependencies remain optional to override, but can still be mocked. For
@@ -380,9 +392,7 @@ export function provide(reference?: unknown): AnyRealServiceOverride {
  * Force explicit coverage for a manually provided dependency
  * ```ts
  * const { sut } = setupCraftServiceTest(Navigation, {
- *   Router: provide(),
- * }, {
- *   providers: [provideRouter([])],
+ *   Router: provideAppRouter(),
  * });
  * ```
  */
@@ -405,8 +415,11 @@ export function setupCraftServiceTest<
 } {
   const internalMetaData = getServiceMetaData(target);
   const providers = [...(options?.providers ?? [])];
-  const runtimeOverrides = new Map<string, ServiceRuntimeOverride>();
+  const runtimeOverrides = new Map<string, { kind: 'useValue'; value: unknown }>();
   const mocks: Record<string, unknown> = {};
+  const hasExplicitTargetProvider = providers.some(
+    (provider) => getProviderOverrideMeta(provider)?.name === internalMetaData.name,
+  );
 
   if (
     internalMetaData.scope === 'toProvide' ||
@@ -421,7 +434,15 @@ export function setupCraftServiceTest<
       );
     }
 
-    providers.push(internalMetaData.provide());
+    if (!hasExplicitTargetProvider) {
+      if (Reflect.get(internalMetaData, 'usesProvidedInput') === true) {
+        throw new Error(
+          `setupCraftServiceTest requires an explicit provider for "${internalMetaData.name}" because it uses $provided.`,
+        );
+      }
+
+      providers.push(internalMetaData.provide());
+    }
   }
 
   for (const [name, override] of Object.entries(overrides) as Array<
@@ -431,14 +452,9 @@ export function setupCraftServiceTest<
       continue;
     }
 
-    if (override.kind === 'provide') {
-      if (override.reference) {
-        assertOverrideReferenceName(name, override.reference);
-      }
-
-      runtimeOverrides.set(name, {
-        kind: 'instantiate',
-      });
+    if (!isMockServiceOverride(override)) {
+      assertProviderOverrideName(name, override);
+      providers.push(override);
       continue;
     }
 

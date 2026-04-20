@@ -148,6 +148,36 @@ describe('scope', () => {
     });
   });
 
+  it('should expose provider config through $provided for a toProvide craftService while keeping public bindings separate', () => {
+    const { injectCounter, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: {
+        $provided: { initialValue: number };
+        step: number;
+      }) =>
+        state(inputs.$provided.initialValue, ({ update }) => ({
+          increment: () => update((value) => value + inputs.step),
+          readStep: () => inputs.step,
+          readProvidedInitialValue: () => inputs.$provided.initialValue,
+        })),
+    );
+
+    TestBed.configureTestingModule({
+      providers: [provideCounter({ initialValue: 10 })],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const counter = injectCounter({ step: 2 });
+
+      expect(counter()).toBe(10);
+      expect(counter.readStep()).toBe(2);
+      expect(counter.readProvidedInitialValue()).toBe(10);
+
+      counter.increment();
+      expect(counter()).toBe(12);
+    });
+  });
+
   it('should enable to create a manuallyProvidedAtRoot craftService by passing a name/scope', () => {
     // for services that need to be provided at root but with some specific configuration (like inputs) that make it impossible to provide them with the provideService helper (or for external services like HttpClient)
     // the aim of this scope is to enable to inject it in global services while still exposing a public token for manual root providers
@@ -168,6 +198,30 @@ describe('scope', () => {
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
+    });
+  });
+
+  it('should expose provider config through $provided for a manuallyProvidedAtRoot craftService', () => {
+    const { injectCounter, provideCounter, CounterToProvide } = craftService(
+      { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
+      (inputs: { $provided: { initialValue: number } }) =>
+        state(inputs.$provided.initialValue, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+          readProvidedInitialValue: () => inputs.$provided.initialValue,
+        })),
+    );
+
+    TestBed.configureTestingModule({
+      providers: [provideCounter({ initialValue: 7 })],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const counter = injectCounter();
+      const providedCounter = inject(CounterToProvide);
+
+      expect(counter).toBe(providedCounter);
+      expect(counter()).toBe(7);
+      expect(counter.readProvidedInitialValue()).toBe(7);
     });
   });
 
@@ -207,6 +261,26 @@ describe('scope', () => {
       counter.increment();
       expect(counter()).toBe(1);
     });
+  });
+
+  it('should only allow $provided on provider-capable scopes', () => {
+    if (false) {
+      //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
+      craftService(
+        { name: 'Counter', scope: 'global' },
+        (inputs: { $provided: { initialValue: number } }) =>
+          state(inputs.$provided.initialValue),
+      );
+    }
+
+    if (false) {
+      //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
+      craftService(
+        { name: 'Counter', scope: 'function' },
+        (inputs: { $provided: { initialValue: number } }) =>
+          state(inputs.$provided.initialValue),
+      );
+    }
   });
 
   it('should enable to create an abstract craftService by passing a name/scope', () => {
@@ -474,6 +548,44 @@ describe('scope', () => {
 });
 
 describe('injectService should enable to binding inputs', () => {
+  it('should keep $provided private from inject helpers and preserve the provider value at runtime', () => {
+    const { injectCounter, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: {
+        $provided: { initialValue: number };
+        step: number;
+      }) =>
+        state(inputs.$provided.initialValue, ({ update }) => ({
+          increment: () => update((value) => value + inputs.step),
+        })),
+    );
+
+    TestBed.configureTestingModule({
+      providers: [provideCounter({ initialValue: 10 })],
+    });
+
+    if (false) {
+      //@ts-expect-error $provided should not be a public inject binding
+      injectCounter({
+        step: 2,
+        $provided: { initialValue: 99 },
+      });
+    }
+
+    TestBed.runInInjectionContext(() => {
+      const counter = Reflect.apply(injectCounter, undefined, [
+        {
+          step: 2,
+          $provided: { initialValue: 99 },
+        },
+      ]);
+
+      expect(counter()).toBe(10);
+      counter.increment();
+      expect(counter()).toBe(12);
+    });
+  });
+
   it('should enable to bind a signal input', () => {
     const { injectCounter } = craftService(
       { name: 'Counter', scope: 'global' },
@@ -594,6 +706,54 @@ describe('injectService should enable to binding inputs', () => {
 
 // todoBefore generatrice aussi
 describe('serviceToYield should enable to binding inputs', () => {
+  it('should keep $provided private from yield helpers', () => {
+    const { CounterToYield, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: {
+        $provided: { initialValue: number };
+        step: number;
+      }) =>
+        state(inputs.$provided.initialValue, ({ update }) => ({
+          increment: () => update((value) => value + inputs.step),
+        })),
+    );
+
+    const { injectCounterExtended, provideCounterExtended } = craftService(
+      { name: 'CounterExtended', scope: 'toProvide' },
+      function* () {
+        const counter = yield* CounterToYield({ step: 2 });
+
+        return {
+          read: () => counter(),
+          increment: () => counter.increment(),
+        };
+      },
+    );
+
+    if (false) {
+      //@ts-expect-error $provided should not be a public CounterToYield binding
+      CounterToYield({
+        step: 2,
+        $provided: { initialValue: 99 },
+      });
+    }
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideCounter({ initialValue: 10 }),
+        provideCounterExtended(),
+      ],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const counterExtended = injectCounterExtended();
+
+      expect(counterExtended.read()).toBe(10);
+      counterExtended.increment();
+      expect(counterExtended.read()).toBe(12);
+    });
+  });
+
   it('should enable to bind a raw input', () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
