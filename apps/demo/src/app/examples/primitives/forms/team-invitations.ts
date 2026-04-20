@@ -15,7 +15,6 @@ import {
 import {
   cEmail,
   cRequired,
-  injectService,
   insertForm,
   insertFormAttributes,
   insertNoopTypingAnchor,
@@ -23,10 +22,10 @@ import {
   state,
 } from '@craft-ng/core';
 import {
+  injectInvitationValidationService,
   InvitationRole,
   InvitationValidationRequest,
   InvitationValidationResult,
-  InvitationValidationService,
 } from './invitation-validation.service';
 
 type WorkspaceInvitation = {
@@ -90,11 +89,12 @@ function findInvitationAsyncError(
   );
 }
 
-function insertInvitationAsyncValidation(
-  validationService: {
-    validateInvitation: InvitationValidationService['validateInvitation'];
-  },
-) {
+function insertInvitationAsyncValidation(validationService: {
+  validateInvitation: (
+    request: InvitationValidationRequest,
+    abortSignal: AbortSignal,
+  ) => Promise<InvitationValidationResult>;
+}) {
   return ({ schemaPath }: { schemaPath: unknown }) => {
     validateAsync<
       WorkspaceInvitation,
@@ -339,12 +339,8 @@ function insertInvitationAsyncValidation(
 })
 export default class TeamInvitationsComponent {
   private nextInvitationId = INITIAL_INVITATIONS.length + 1;
-  private readonly invitationValidationService = injectService(
-    InvitationValidationService,
-    ({ validateInvitation }) => ({
-      validateInvitation,
-    }),
-  );
+  private readonly invitationValidationService =
+    injectInvitationValidationService();
 
   protected readonly roleOptions = ROLE_OPTIONS;
 
@@ -352,12 +348,19 @@ export default class TeamInvitationsComponent {
     INITIAL_INVITATIONS.map((invitation) => ({ ...invitation })),
     ({ set, update }) => ({
       addRow: () =>
-        update((current) => [...current, createInvitation(this.nextInvitationId++)]),
+        update((current) => [
+          ...current,
+          createInvitation(this.nextInvitationId++),
+        ]),
       removeRow: (id: number) =>
-        update((current) => current.filter((invitation) => invitation.id !== id)),
+        update((current) =>
+          current.filter((invitation) => invitation.id !== id),
+        ),
       resetDemo: () => {
         this.nextInvitationId = INITIAL_INVITATIONS.length + 1;
-        return set(INITIAL_INVITATIONS.map((invitation) => ({ ...invitation })));
+        return set(
+          INITIAL_INVITATIONS.map((invitation) => ({ ...invitation })),
+        );
       },
     }),
     insertForm(
@@ -440,7 +443,10 @@ export default class TeamInvitationsComponent {
 
   protected isInvitationReady(form: InvitationForm) {
     const invitationState = form();
-    return invitationState.valid() && !findInvitationAsyncError(invitationState.errors());
+    return (
+      invitationState.valid() &&
+      !findInvitationAsyncError(invitationState.errors())
+    );
   }
 
   protected getInvitationStatus(

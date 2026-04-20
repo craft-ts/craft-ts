@@ -77,10 +77,16 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'craft-service/counter',
-    loadComponent: () => import('./examples/craft-service/craft-service-counter'),
+    loadComponent: () =>
+      import('./examples/craft-service/craft-service-counter'),
   },
   {
     path: 'craft-service/user-detail',
-    loadComponent: () => import('./examples/craft-service/craft-service-user-detail'),
+    loadComponent: () =>
+      import('./examples/craft-service/craft-service-user-detail'),
+  },
+  {
+    path: 'playground',
+    loadComponent: () => import('./examples/playground/playground'),
   },
 ];

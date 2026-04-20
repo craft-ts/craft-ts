@@ -565,4 +565,39 @@ describe('setupCraftServiceTest', () => {
 
     expect(routeNavigationTest.sut.readUrl()).toBe('/checkout');
   });
+
+  it('should help with autocompletion the mocking of a global service dependency', async () => {
+    const { injectService1, Service1ToYield } = craftService(
+      { name: 'Service1', scope: 'global' },
+      () => {
+        return state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }));
+      },
+    );
+
+    const { injectService2, Service2ToYield } = craftService(
+      { name: 'Service2', scope: 'global' },
+      () => {
+        return state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }));
+      },
+    );
+
+    const { injectServiceHost } = craftService(
+      { name: 'ServiceHost', scope: 'global' },
+      function* () {
+        const _service1 = yield* Service1ToYield();
+        const _service2 = yield* Service2ToYield();
+
+        return state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }));
+      },
+    );
+
+    setupCraftServiceTest(injectServiceHost, {}); // todo I do not have any autcompletion/help to isolate my current global service
+    setupCraftServiceTest(injectServiceHost, { Service1: mock({}) }); // todo mock does not help to build the mock of my current global service
+  });
 });

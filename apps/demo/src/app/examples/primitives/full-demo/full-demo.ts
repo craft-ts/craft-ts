@@ -10,7 +10,6 @@ import {
   asyncProcess,
   cMinLength,
   cRequired,
-  injectService,
   insertForm,
   insertFormAttributes,
   insertFormSubmit,
@@ -32,7 +31,7 @@ import {
   ValidatedFormValue,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiService, User } from './api.service';
+import { injectApiService, User } from './api.service';
 
 @Component({
   selector: 'app-granular-mutation',
@@ -355,17 +354,7 @@ export default class FullDemo {
       reset: on$(this.reset$, () => reset()),
     }),
   );
-  protected readonly apiService = injectService(
-    ApiService,
-    ({ throwError, bulkDelete, deleteItem, getDataList, updateItem }) => ({
-      toggleUpdateError: () => throwError.update((v) => !v),
-      throwError,
-      bulkDelete,
-      deleteItem,
-      getDataList,
-      updateItem,
-    }),
-  );
+  protected readonly apiService = injectApiService();
 
   protected readonly bulkDelete = mutation({
     method: (ids: string[]) => ids,

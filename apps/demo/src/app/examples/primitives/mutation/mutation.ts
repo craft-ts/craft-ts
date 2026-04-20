@@ -1,15 +1,10 @@
 import { CommonModule } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  input,
-} from '@angular/core';
-import { ApiService, User } from './api.service';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { injectApiService, User } from './api.service';
 import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import {
   craftDependency,
-  injectService,
   query,
   mutation,
   insertLocalStoragePersister,
@@ -56,10 +51,7 @@ const { injectRouter } = craftDependency({
 })
 export default class GlobalQuery {
   public readonly userId = input<string>();
-  private readonly apiService = injectService(
-    ApiService,
-    ({ getItemById, updateItem }) => ({ getItemById, updateItem }),
-  );
+  private readonly apiService = injectApiService();
 
   protected readonly updateUserName = mutation({
     method: (payload: { userName: string; user: User }) => ({

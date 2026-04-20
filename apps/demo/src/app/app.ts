@@ -54,6 +54,7 @@ import { GlobalPersisterHandlerService } from '@craft-ng/core';
         <a routerLink="/craft-service/user-detail" routerLinkActive="active"
           >craftService User Detail</a
         >
+        <a routerLink="/playground" routerLinkActive="active">Playground</a>
       </nav>
       <main class="content">
         <router-outlet></router-outlet>

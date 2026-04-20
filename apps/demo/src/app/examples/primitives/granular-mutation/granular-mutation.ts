@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-  injectService,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
@@ -10,7 +9,7 @@ import {
   queryParam,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiService, User } from './api.service';
+import { injectApiService, User } from './api.service';
 
 @Component({
   selector: 'app-granular-mutation',
@@ -142,10 +141,7 @@ export default class GranularMutation {
         patch({ pageSize: newPageSize, page: 1 }),
     }),
   );
-  private readonly apiService = injectService(
-    ApiService,
-    ({ getDataList, updateItem }) => ({ getDataList, updateItem }),
-  );
+  private readonly apiService = injectApiService();
 
   protected readonly updateUserName = mutation({
     method: (payload: User) => ({

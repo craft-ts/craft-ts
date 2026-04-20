@@ -151,10 +151,7 @@ describe('scope', () => {
   it('should expose provider config through $provided for a toProvide craftService while keeping public bindings separate', () => {
     const { injectCounter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: {
-        $provided: { initialValue: number };
-        step: number;
-      }) =>
+      (inputs: { $provided: { initialValue: number }; step: number }) =>
         state(inputs.$provided.initialValue, ({ update }) => ({
           increment: () => update((value) => value + inputs.step),
           readStep: () => inputs.step,
@@ -551,10 +548,7 @@ describe('injectService should enable to binding inputs', () => {
   it('should keep $provided private from inject helpers and preserve the provider value at runtime', () => {
     const { injectCounter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: {
-        $provided: { initialValue: number };
-        step: number;
-      }) =>
+      (inputs: { $provided: { initialValue: number }; step: number }) =>
         state(inputs.$provided.initialValue, ({ update }) => ({
           increment: () => update((value) => value + inputs.step),
         })),
@@ -709,10 +703,7 @@ describe('serviceToYield should enable to binding inputs', () => {
   it('should keep $provided private from yield helpers', () => {
     const { CounterToYield, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: {
-        $provided: { initialValue: number };
-        step: number;
-      }) =>
+      (inputs: { $provided: { initialValue: number }; step: number }) =>
         state(inputs.$provided.initialValue, ({ update }) => ({
           increment: () => update((value) => value + inputs.step),
         })),

@@ -1,15 +1,10 @@
 import { CommonModule } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  input,
-} from '@angular/core';
-import { ApiService } from './api.service';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { injectApiService } from './api.service';
 import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import {
   craftDependency,
-  injectService,
   insertLocalStoragePersister,
   query,
 } from '@craft-ng/core';
@@ -49,10 +44,7 @@ const { injectRouter } = craftDependency({
 export default class GlobalQuery {
   public readonly userId = input<string>();
 
-  private readonly apiService = injectService(
-    ApiService,
-    ({ getItemById }) => ({ getItemById }),
-  );
+  private readonly apiService = injectApiService();
   private readonly router = injectRouter(undefined, ({ navigate }) => ({
     navigate,
   }));
