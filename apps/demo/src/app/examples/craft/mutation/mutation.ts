@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
   input,
 } from '@angular/core';
 import { ApiServiceToYield, type User } from './api.service';
@@ -10,6 +9,7 @@ import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import {
   craftService,
+  craftDependency,
   insertLocalStoragePersister,
   insertReactOnMutation,
   query,
@@ -17,6 +17,12 @@ import {
   toValue,
   type MaybeSignal,
 } from '@craft-ng/core';
+
+const { injectRouter } = craftDependency({
+  name: 'Router',
+  scope: 'global',
+  token: Router,
+});
 
 const { injectUserMutation } = craftService(
   { name: 'UserMutation', scope: 'global' },
@@ -90,7 +96,9 @@ const { injectUserMutation } = craftService(
 export default class MutationCraft {
   public readonly userId = input<string>();
 
-  private readonly router = inject(Router);
+  private readonly router = injectRouter(undefined, ({ navigate }) => ({
+    navigate,
+  }));
 
   protected readonly store = injectUserMutation({
     userId: this.userId,

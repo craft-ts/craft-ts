@@ -2,13 +2,23 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
   input,
 } from '@angular/core';
 import { ApiService } from './api.service';
 import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
-import { insertLocalStoragePersister, query } from '@craft-ng/core';
+import {
+  craftDependency,
+  injectService,
+  insertLocalStoragePersister,
+  query,
+} from '@craft-ng/core';
+
+const { injectRouter } = craftDependency({
+  name: 'Router',
+  scope: 'global',
+  token: Router,
+});
 
 @Component({
   selector: 'app-query',
@@ -39,8 +49,13 @@ import { insertLocalStoragePersister, query } from '@craft-ng/core';
 export default class GlobalQuery {
   public readonly userId = input<string>();
 
-  private readonly apiService = inject(ApiService);
-  private readonly router = inject(Router);
+  private readonly apiService = injectService(
+    ApiService,
+    ({ getItemById }) => ({ getItemById }),
+  );
+  private readonly router = injectRouter(undefined, ({ navigate }) => ({
+    navigate,
+  }));
 
   protected readonly userQuery = query(
     {

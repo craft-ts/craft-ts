@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
   input,
 } from '@angular/core';
 import { ApiServiceToYield } from './api.service';
@@ -10,11 +9,18 @@ import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import {
   craftService,
+  craftDependency,
   insertLocalStoragePersister,
   query,
   toValue,
   type MaybeSignal,
 } from '@craft-ng/core';
+
+const { injectRouter } = craftDependency({
+  name: 'Router',
+  scope: 'global',
+  token: Router,
+});
 
 const { injectUserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
@@ -65,7 +71,9 @@ const { injectUserQuery } = craftService(
 export default class GlobalQuery {
   public readonly userId = input<string>();
 
-  private readonly router = inject(Router);
+  private readonly router = injectRouter(undefined, ({ navigate }) => ({
+    navigate,
+  }));
 
   protected readonly user = injectUserQuery({
     userId: this.userId,

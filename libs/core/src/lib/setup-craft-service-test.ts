@@ -334,6 +334,58 @@ export function provide(reference?: unknown): AnyRealServiceOverride {
       };
 }
 
+/**
+ * Sets up a `craftService` or `craftDependency` in Angular's `TestBed` with typed
+ * dependency coverage.
+ *
+ * `setupCraftServiceTest` reads the runtime metadata attached to an inject helper
+ * or a metadata object and instantiates the target inside an Angular injection
+ * context. Its type system checks the dependency tree so required child services
+ * are either:
+ *
+ * - mocked through `mock(...)`
+ * - explicitly provided through `provide(...)`
+ * - or pruned by mocking one of their ancestors
+ *
+ * Global dependencies remain optional to override, but can still be mocked. For
+ * real Angular providers such as `provideRouter(...)`, use the `options.providers`
+ * array.
+ *
+ * The returned `sut` is the fully injected service output. The returned `mocks`
+ * object contains the public mock values actually injected into the test tree.
+ *
+ * @example
+ * Mock a required child service
+ * ```ts
+ * const { sut, mocks } = setupCraftServiceTest(CounterExtended, {
+ *   Counter: mock({
+ *     $self: vi.fn(() => 41),
+ *     increment: vi.fn(),
+ *   }),
+ * });
+ *
+ * sut.incrementCounter();
+ * expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+ * ```
+ *
+ * @example
+ * Use the real router while keeping explicit Angular providers in the test setup
+ * ```ts
+ * const { sut } = setupCraftServiceTest(Navigation, {}, {
+ *   providers: [provideRouter([])],
+ * });
+ * ```
+ *
+ * @example
+ * Force explicit coverage for a manually provided dependency
+ * ```ts
+ * const { sut } = setupCraftServiceTest(Navigation, {
+ *   Router: provide(),
+ * }, {
+ *   providers: [provideRouter([])],
+ * });
+ * ```
+ */
 export function setupCraftServiceTest<
   Target extends ServiceReference,
   const Overrides extends Record<string, unknown>,

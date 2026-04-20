@@ -2,18 +2,25 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
   input,
 } from '@angular/core';
 import { ApiService, User } from './api.service';
 import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import {
+  craftDependency,
+  injectService,
   query,
   mutation,
   insertLocalStoragePersister,
   insertReactOnMutation,
 } from '@craft-ng/core';
+
+const { injectRouter } = craftDependency({
+  name: 'Router',
+  scope: 'global',
+  token: Router,
+});
 
 @Component({
   selector: 'app-mutation',
@@ -49,7 +56,10 @@ import {
 })
 export default class GlobalQuery {
   public readonly userId = input<string>();
-  private readonly apiService = inject(ApiService);
+  private readonly apiService = injectService(
+    ApiService,
+    ({ getItemById, updateItem }) => ({ getItemById, updateItem }),
+  );
 
   protected readonly updateUserName = mutation({
     method: (payload: { userName: string; user: User }) => ({
@@ -76,7 +86,9 @@ export default class GlobalQuery {
     }),
   );
 
-  private readonly router = inject(Router);
+  private readonly router = injectRouter(undefined, ({ navigate }) => ({
+    navigate,
+  }));
 
   protected updateUserNameFn(newName: string) {
     const user = this.userQuery.hasValue() ? this.userQuery.value() : null;

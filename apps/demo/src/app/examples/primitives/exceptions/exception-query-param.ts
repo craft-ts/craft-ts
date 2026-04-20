@@ -1,7 +1,19 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { craftException, queryParam } from '@craft-ng/core';
+import { craftDependency, craftException, queryParam } from '@craft-ng/core';
+
+const { injectActivatedRoute } = craftDependency({
+  name: 'ActivatedRoute',
+  scope: 'global',
+  token: ActivatedRoute,
+});
+
+const { injectRouter } = craftDependency({
+  name: 'Router',
+  scope: 'global',
+  token: Router,
+});
 
 @Component({
   selector: 'app-exception-query-param',
@@ -71,8 +83,10 @@ import { craftException, queryParam } from '@craft-ng/core';
   `,
 })
 export default class ExceptionQueryParamComponent {
-  private readonly router = inject(Router);
-  private readonly activatedRoute = inject(ActivatedRoute);
+  private readonly router = injectRouter(undefined, ({ navigate }) => ({
+    navigate,
+  }));
+  private readonly activatedRoute = injectActivatedRoute();
 
   protected readonly modeQueryParam = queryParam({
     state: {

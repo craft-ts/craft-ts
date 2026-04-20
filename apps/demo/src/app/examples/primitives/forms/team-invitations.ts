@@ -3,7 +3,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  inject,
   resource,
 } from '@angular/core';
 import {
@@ -16,6 +15,7 @@ import {
 import {
   cEmail,
   cRequired,
+  injectService,
   insertForm,
   insertFormAttributes,
   insertNoopTypingAnchor,
@@ -91,7 +91,9 @@ function findInvitationAsyncError(
 }
 
 function insertInvitationAsyncValidation(
-  validationService: InvitationValidationService,
+  validationService: {
+    validateInvitation: InvitationValidationService['validateInvitation'];
+  },
 ) {
   return ({ schemaPath }: { schemaPath: unknown }) => {
     validateAsync<
@@ -337,8 +339,11 @@ function insertInvitationAsyncValidation(
 })
 export default class TeamInvitationsComponent {
   private nextInvitationId = INITIAL_INVITATIONS.length + 1;
-  private readonly invitationValidationService = inject(
+  private readonly invitationValidationService = injectService(
     InvitationValidationService,
+    ({ validateInvitation }) => ({
+      validateInvitation,
+    }),
   );
 
   protected readonly roleOptions = ROLE_OPTIONS;

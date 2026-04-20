@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ApiService } from './api.service';
 import { StatusComponent } from '../../../ui/status.component';
 import {
+  injectService,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   query,
@@ -114,7 +115,10 @@ export default class ListWithPagination {
         patch({ pageSize: newPageSize, page: 1 }),
     }),
   );
-  private readonly apiService = inject(ApiService);
+  private readonly apiService = injectService(
+    ApiService,
+    ({ getDataList }) => ({ getDataList }),
+  );
 
   protected readonly usersQuery = query(
     {

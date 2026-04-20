@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
+  injectService,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
@@ -141,7 +142,10 @@ export default class GranularMutation {
         patch({ pageSize: newPageSize, page: 1 }),
     }),
   );
-  private readonly apiService = inject(ApiService);
+  private readonly apiService = injectService(
+    ApiService,
+    ({ getDataList, updateItem }) => ({ getDataList, updateItem }),
+  );
 
   protected readonly updateUserName = mutation({
     method: (payload: User) => ({

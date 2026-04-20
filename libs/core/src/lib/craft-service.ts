@@ -859,7 +859,7 @@ type YieldHelper<
 };
 
 type ProvideHelper<Name extends string> = {
-  [Key in `provide${Capitalize<Name>}`]: () => CraftServiceProvider;
+  [Key in `provide${Capitalize<Name>}`]: () => Provider;
 };
 
 type ToProvideTokenHelper<Name extends string, Output> = {
@@ -1049,6 +1049,68 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
   );
 }
 
+/**
+ * Adapts an external Angular dependency so it can participate in the `craftService`
+ * ecosystem.
+ *
+ * `craftDependency` is useful for services such as `Router`, `HttpClient`,
+ * `ActivatedRoute`, custom `InjectionToken`s, or any dependency resolved through
+ * `inject(...)` that you want to:
+ *
+ * - expose through generated helpers like `injectRouter()` and `RouterToYield()`
+ * - derive partially with the same opaque exposure tokens as `craftService`
+ * - track as a leaf dependency in `GetInjectedServiceDependencies`
+ * - reuse in `setupCraftServiceTest(...)`
+ *
+ * External instance methods are automatically bound to their source instance so
+ * exposing `navigateByUrl`, `get`, or similar methods is safe.
+ *
+ * Use the token form when the dependency should support provider-capable scopes
+ * such as `toProvide` or `manuallyProvidedAtRoot`. Use the callback form only for
+ * `global` dependencies resolved through custom `inject(...)` logic.
+ *
+ * @example
+ * Adapt `Router` as a global dependency
+ * ```ts
+ * import { Router } from '@angular/router';
+ * import { craftDependency } from '@craft-ng/core';
+ *
+ * const { injectRouter, RouterToYield } = craftDependency({
+ *   name: 'Router',
+ *   scope: 'global',
+ *   token: Router,
+ * });
+ * ```
+ *
+ * @example
+ * Adapt an injected token through the callback form
+ * ```ts
+ * import { inject, InjectionToken } from '@angular/core';
+ * import { craftDependency } from '@craft-ng/core';
+ *
+ * const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
+ *
+ * const { injectCurrentRoute } = craftDependency({
+ *   name: 'CurrentRoute',
+ *   scope: 'global',
+ *   inject: () => inject(CURRENT_ROUTE),
+ * });
+ * ```
+ *
+ * @example
+ * Adapt a provider-capable dependency for explicit test coverage
+ * ```ts
+ * import { Router, provideRouter } from '@angular/router';
+ * import { craftDependency } from '@craft-ng/core';
+ *
+ * const { provideAppRouter, AppRouterToProvide } = craftDependency({
+ *   name: 'AppRouter',
+ *   scope: 'manuallyProvidedAtRoot',
+ *   token: Router,
+ *   provide: () => provideRouter([]),
+ * });
+ * ```
+ */
 export function craftDependency<Name extends string, Output>(
   options: GlobalTokenDependencyOptions<Name, Output>,
 ): DependencyApi<Name, 'global', Output>;
@@ -1110,6 +1172,98 @@ export function craftDependency(
   return api;
 }
 
+/**
+ * Creates a named Angular-friendly service boundary with generated inject, yield,
+ * provider, and metadata helpers.
+ *
+ * `craftService` is designed for composing reactive features through explicit
+ * dependencies instead of hidden `inject(...)` calls inside arbitrary code. Each
+ * crafted service receives a stable name and scope, which are then reflected in
+ * helpers such as:
+ *
+ * - `injectCounter(...)`
+ * - `CounterToYield(...)`
+ * - `provideCounter()` for provider-capable scopes
+ * - `CounterToProvide` for `manuallyProvidedAtRoot`
+ * - `COUNTER_META_DATA`
+ *
+ * When a service yields other crafted services, its dependency tree becomes
+ * available to the type system and to `setupCraftServiceTest(...)`.
+ *
+ * Partial exposure works through opaque dependency tokens. Returned tokens become
+ * public API, while values used internally but not exposed must be declared with
+ * `yield* token()`. Callable services can opt back into exposing their root
+ * callable through the reserved `$self` token.
+ *
+ * The supported scopes are:
+ *
+ * - `global`: singleton provided at root
+ * - `toProvide`: explicit provider helper required
+ * - `manuallyProvidedAtRoot`: explicit provider helper plus public token
+ * - `function`: new instance on each injection
+ * - `abstract`: typed contract only, with no concrete implementation
+ *
+ * @example
+ * Create a global callable counter service
+ * ```ts
+ * import { craftService, state } from '@craft-ng/core';
+ *
+ * const { injectCounter } = craftService(
+ *   { name: 'Counter', scope: 'global' },
+ *   () =>
+ *     state(0, ({ update }) => ({
+ *       increment: () => update((value) => value + 1),
+ *     })),
+ * );
+ * ```
+ *
+ * @example
+ * Compose another service through `yield*`
+ * ```ts
+ * const { CounterToYield } = craftService(
+ *   { name: 'Counter', scope: 'global' },
+ *   () =>
+ *     state(0, ({ update }) => ({
+ *       increment: () => update((value) => value + 1),
+ *     })),
+ * );
+ *
+ * const { injectCounterFacade } = craftService(
+ *   { name: 'CounterFacade', scope: 'global' },
+ *   function* () {
+ *     const counter = yield* CounterToYield();
+ *
+ *     return {
+ *       read: () => counter(),
+ *       increment: () => counter.increment(),
+ *     };
+ *   },
+ * );
+ * ```
+ *
+ * @example
+ * Expose only part of a dependency through opaque tokens
+ * ```ts
+ * const { CounterToYield } = craftService(
+ *   { name: 'Counter', scope: 'toProvide' },
+ *   () =>
+ *     state(0, ({ update }) => ({
+ *       increment: () => update((value) => value + 1),
+ *       decrement: () => update((value) => value - 1),
+ *     })),
+ * );
+ *
+ * const { injectCounterExtended } = craftService(
+ *   { name: 'CounterExtended', scope: 'toProvide' },
+ *   function* () {
+ *     return yield* CounterToYield(undefined, ({ $self, increment }) => ({
+ *       $self,
+ *       incrementCounter: increment,
+ *     }));
+ *   },
+ * );
+ * ```
+ */
 export function craftService<Name extends string, Contract>(
   options: { name: Name; scope: 'abstract' },
   marker: AbstractMarker<Contract>,
