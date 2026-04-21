@@ -9,8 +9,6 @@ import { setupCraftServiceTest, mock } from './setup-craft-service-test';
 import {
   toCraftService,
   craftService,
-  GetInjectedServiceDependencies,
-  GetServiceTrackingMetadata,
 } from './craft-service';
 import { state } from './state';
 

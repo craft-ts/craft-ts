@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { query, ResourceByIdLikeQueryRef } from './query';
-import { craft } from './craft';
-import { craftQuery } from './craft-query';
+import { craftService } from './craft-service';
 import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { computed, signal } from '@angular/core';
@@ -102,15 +101,12 @@ describe('query with identifier>', () => {
   });
 });
 
-describe('craftQuery using query', () => {
+describe('craftService using query', () => {
   it('1- Should expose a query resource', () => {
-    const { injectCraft } = craft(
-      {
-        name: '',
-        providedIn: 'root',
-      },
-      craftQuery('user', () =>
-        query({
+    const { injectQueryStore } = craftService(
+      { name: 'QueryStore', scope: 'global' },
+      () => ({
+        user: query({
           params: () => '5',
           loader: async ({ params }) => {
             return {
@@ -120,11 +116,11 @@ describe('craftQuery using query', () => {
             };
           },
         }),
-      ),
+      }),
     );
 
     TestBed.runInInjectionContext(() => {
-      const store = injectCraft();
+      const store = injectQueryStore();
 
       expect(store.user).toBeDefined();
     });
@@ -133,13 +129,10 @@ describe('craftQuery using query', () => {
 
 describe('query Insertions output', () => {
   it('should accept an Insertions output, that appear in the store', () => {
-    const { injectCraft } = craft(
-      {
-        name: '',
-        providedIn: 'root',
-      },
-      craftQuery('user', () =>
-        query(
+    const { injectQueryStore } = craftService(
+      { name: 'QueryStore', scope: 'global' },
+      () => ({
+        user: query(
           {
             params: () => '5',
             loader: async ({ params }) => {
@@ -156,23 +149,20 @@ describe('query Insertions output', () => {
             },
           }),
         ),
-      ),
+      }),
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectCraft();
+      const store = injectQueryStore();
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
   it('should accept an Insertion, with the correct resource infer', () => {
-    const { injectCraft } = craft(
-      {
-        name: '',
-        providedIn: 'root',
-      },
-      craftQuery('user', () =>
-        query(
+    const { injectQueryStore } = craftService(
+      { name: 'QueryStore', scope: 'global' },
+      () => ({
+        user: query(
           {
             params: () => '5',
             loader: async ({ params }) => {
@@ -202,23 +192,20 @@ describe('query Insertions output', () => {
             };
           },
         ),
-      ),
+      }),
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectCraft();
+      const store = injectQueryStore();
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
   it('should accept an Insertion, with the correct resourceById infer', () => {
-    const { injectCraft } = craft(
-      {
-        name: '',
-        providedIn: 'root',
-      },
-      craftQuery('user', () =>
-        query(
+    const { injectQueryStore } = craftService(
+      { name: 'QueryStore', scope: 'global' },
+      () => ({
+        user: query(
           {
             params: () => '5',
             identifier: (params) => params,
@@ -250,23 +237,20 @@ describe('query Insertions output', () => {
             };
           },
         ),
-      ),
+      }),
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectCraft();
+      const store = injectQueryStore();
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
   it('should accept an insertion output, that appear in the store', () => {
-    const { injectCraft } = craft(
-      {
-        name: '',
-        providedIn: 'root',
-      },
-      craftQuery('user', () =>
-        query(
+    const { injectQueryStore } = craftService(
+      { name: 'QueryStore', scope: 'global' },
+      () => ({
+        user: query(
           {
             params: () => '5',
             loader: async ({ params }) => {
@@ -286,10 +270,10 @@ describe('query Insertions output', () => {
             };
           },
         ),
-      ),
+      }),
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectCraft();
+      const store = injectQueryStore();
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
       }>();
@@ -297,13 +281,10 @@ describe('query Insertions output', () => {
     });
   });
   it('should accept multiple insertions, that appear in the store', () => {
-    const { injectCraft } = craft(
-      {
-        name: '',
-        providedIn: 'root',
-      },
-      craftQuery('user', () =>
-        query(
+    const { injectQueryStore } = craftService(
+      { name: 'QueryStore', scope: 'global' },
+      () => ({
+        user: query(
           {
             params: () => '5',
             loader: async ({ params }) => {
@@ -334,10 +315,10 @@ describe('query Insertions output', () => {
             };
           },
         ),
-      ),
+      }),
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectCraft();
+      const store = injectQueryStore();
       //insert 1
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
@@ -350,13 +331,10 @@ describe('query Insertions output', () => {
     });
   });
   it('should accept seven insertions, all outputs appear in the store', () => {
-    const { injectCraft } = craft(
-      {
-        name: '',
-        providedIn: 'root',
-      },
-      craftQuery('user', () =>
-        query(
+    const { injectQueryStore } = craftService(
+      { name: 'QueryStore', scope: 'global' },
+      () => ({
+        user: query(
           {
             params: () => '5',
             loader: async ({ params }) => {
@@ -382,10 +360,10 @@ describe('query Insertions output', () => {
           // insert 7
           ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
         ),
-      ),
+      }),
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectCraft();
+      const store = injectQueryStore();
       expectTypeOf(store.user.ext1).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext2).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext3).toEqualTypeOf<number>();

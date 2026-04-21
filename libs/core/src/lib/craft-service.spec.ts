@@ -305,7 +305,7 @@ describe('scope', () => {
       abstract<{
         (): number;
         increment(): void;
-      }>(), // todo create abstract helper that just return the type and do nothing else, to be used for abstract craftService
+      }>(),
     );
 
     // todo CounterRequirement should only be exposed when scope: 'abstract' is set
