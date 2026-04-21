@@ -582,6 +582,10 @@ type AnyServiceTrackingMetadata = ServiceTrackingMetadata<
   any
 >;
 
+type WholeServiceUsageTracking = {
+  usesWholeService: true;
+};
+
 type DependencyRequests<Yielded> = UnionToTuple<
   Extract<Yielded, ServiceYieldRequest<any, any, any>>
 >;
@@ -603,21 +607,54 @@ type DependencyName<Request> =
     ? Name
     : never;
 
-type DependencyDefinition<Request> = ResolveServiceTrackingMetadata<
-  DependencyMetadata<Request>
->;
+type NodeDerivedProperties<Node> = Node extends {
+  derivedPropertiesUsed: infer Used extends object;
+  derivedPropertiesExposed: infer Exposed extends object;
+}
+  ? DerivedPropertiesTracking<Used, Exposed>
+  : undefined;
 
-type DependencyRecord<Request> =
-  DependencyMetadata<Request> extends ServiceTrackingMetadata<
-    infer Name extends string,
-    any,
-    any,
-    any,
-    any,
-    any
-  >
-    ? { [Key in Name]: DependencyDefinition<Request> }
-    : {};
+type MergeDerivedProperties<
+  Left,
+  Right,
+> = [Left] extends [DerivedPropertiesTracking<infer LeftUsed, infer LeftExposed>]
+  ? [Right] extends [DerivedPropertiesTracking<infer RightUsed, infer RightExposed>]
+    ? DerivedPropertiesTracking<
+        Simplify<LeftUsed & RightUsed>,
+        Simplify<LeftExposed & RightExposed>
+      >
+    : undefined
+  : undefined;
+
+type DependencyChildren<Node> = Node extends {
+  dependencies: infer Dependencies extends object;
+}
+  ? Dependencies
+  : {};
+
+type DependencyScope<Node> = Node extends { scope: infer Scope } ? Scope : never;
+
+type MergeDependencyNodeMaps<
+  Left extends object,
+  Right extends object,
+> = Simplify<{
+  [Name in Extract<keyof Left | keyof Right, string>]: Name extends keyof Left
+    ? Name extends keyof Right
+      ? MergeDependencyNodes<Left[Name], Right[Name]>
+      : Left[Name]
+    : Name extends keyof Right
+      ? Right[Name]
+      : never;
+}>;
+
+type MergeDependencyNodes<
+  Left,
+  Right,
+> = ServiceDependencies<
+  DependencyScope<Left> & DependencyScope<Right>,
+  MergeDependencyNodeMaps<DependencyChildren<Left>, DependencyChildren<Right>>,
+  MergeDerivedProperties<NodeDerivedProperties<Left>, NodeDerivedProperties<Right>>
+>;
 
 type ResolveServiceTrackingMetadata<Metadata> =
   Metadata extends ServiceTrackingMetadata<
@@ -635,11 +672,141 @@ type ResolveServiceTrackingMetadata<Metadata> =
       >
     : never;
 
+type DependencyDefinition<Request> = ResolveServiceTrackingMetadata<
+  DependencyMetadata<Request>
+>;
+
+type DependencyRecord<Request> =
+  DependencyMetadata<Request> extends ServiceTrackingMetadata<
+    infer Name extends string,
+    any,
+    any,
+    any,
+    any,
+    any
+  >
+    ? { [Key in Name]: DependencyDefinition<Request> }
+    : {};
+
 type BuildDependencyMap<
   Requests extends unknown[],
   Accumulator extends object = {},
 > = Requests extends [infer First, ...infer Rest]
-  ? BuildDependencyMap<Rest, Simplify<Accumulator & DependencyRecord<First>>>
+  ? BuildDependencyMap<
+      Rest,
+      MergeDependencyNodeMaps<Accumulator, DependencyRecord<First>>
+    >
+  : Simplify<Accumulator>;
+
+type NormalizeWholeServiceUsage<Derived> = [Derived] extends [undefined]
+  ? WholeServiceUsageTracking
+  : Derived;
+
+type TrackedNodeUsage<Node> = Node extends { usesWholeService: true }
+  ? WholeServiceUsageTracking
+  : NodeDerivedProperties<Node>;
+
+type MergeTrackedDependencyUsage<
+  Left,
+  Right,
+> = Left extends WholeServiceUsageTracking
+  ? WholeServiceUsageTracking
+  : Right extends WholeServiceUsageTracking
+    ? WholeServiceUsageTracking
+    : [Left] extends [DerivedPropertiesTracking<infer LeftUsed, infer LeftExposed>]
+      ? [Right] extends [
+          DerivedPropertiesTracking<infer RightUsed, infer RightExposed>,
+        ]
+        ? DerivedPropertiesTracking<
+            Simplify<LeftUsed & RightUsed>,
+            Simplify<LeftExposed & RightExposed>
+          >
+        : WholeServiceUsageTracking
+      : WholeServiceUsageTracking;
+
+type MergeTrackedDependencyNodes<
+  Left,
+  Right,
+> = Simplify<
+  {
+    scope: DependencyScope<Left> & DependencyScope<Right>;
+    dependencies: MergeTrackedDependencyNodeMaps<
+      DependencyChildren<Left>,
+      DependencyChildren<Right>
+    >;
+  } & MergeTrackedDependencyUsage<TrackedNodeUsage<Left>, TrackedNodeUsage<Right>>
+>;
+
+type MergeTrackedDependencyNodeMaps<
+  Left extends object,
+  Right extends object,
+> = Simplify<{
+  [Name in Extract<keyof Left | keyof Right, string>]: Name extends keyof Left
+    ? Name extends keyof Right
+      ? MergeTrackedDependencyNodes<Left[Name], Right[Name]>
+      : Left[Name]
+    : Name extends keyof Right
+      ? Right[Name]
+      : never;
+}>;
+
+type ResolveTrackedDependencyMetadata<Metadata> =
+  Metadata extends ServiceTrackingMetadata<
+    infer Name extends string,
+    infer Scope extends ConcreteServiceScope,
+    infer Output,
+    infer Yielded,
+    infer Derived,
+    any
+  >
+    ? Simplify<
+        {
+          scope: Scope;
+          dependencies: BuildTrackedDependencyMap<DependencyRequests<Yielded>>;
+        } & NormalizeWholeServiceUsage<Derived>
+      >
+    : never;
+
+type TrackedDependencyRecord<Request> =
+  DependencyMetadata<Request> extends ServiceTrackingMetadata<
+    infer Name extends string,
+    any,
+    any,
+    any,
+    any,
+    any
+  >
+    ? {
+        [Key in Name]: ResolveTrackedDependencyMetadata<DependencyMetadata<Request>>;
+      }
+    : {};
+
+type BuildTrackedDependencyMap<
+  Requests extends unknown[],
+  Accumulator extends object = {},
+> = Requests extends [infer First, ...infer Rest]
+  ? BuildTrackedDependencyMap<
+      Rest,
+      MergeTrackedDependencyNodeMaps<Accumulator, TrackedDependencyRecord<First>>
+    >
+  : Simplify<Accumulator>;
+
+type FlattenTrackedDependencyNodeMapFromTracking<Tracking> =
+  Tracking extends ServiceTrackingMetadata<any, any, any, infer Yielded, any, any>
+    ? BuildFlattenedTrackedDependencyNodeMap<DependencyRequests<Yielded>>
+    : {};
+
+type BuildFlattenedTrackedDependencyNodeMap<
+  Requests extends unknown[],
+  Accumulator extends object = {},
+> = Requests extends [infer First, ...infer Rest]
+  ? BuildFlattenedTrackedDependencyNodeMap<
+      Rest,
+      MergeTrackedDependencyNodeMaps<
+        MergeTrackedDependencyNodeMaps<Accumulator, TrackedDependencyRecord<First>>,
+        FlattenTrackedDependencyNodeMapFromTracking<DependencyMetadata<First>>
+      >
+    >
   : Simplify<Accumulator>;
 
 type ServiceHelperMetadata<
@@ -1098,6 +1265,12 @@ export type GetServiceTrackingMetadata<Reference extends ServiceReference> =
   Reference extends AnyServiceMetaData
     ? GetServiceMetaDataTracking<Reference>
     : ExtractTrackedMetadata<Reference>;
+
+export type GetMergedServiceDependencyNodeMap<
+  Reference extends ServiceReference,
+> = FlattenTrackedDependencyNodeMapFromTracking<
+  GetServiceTrackingMetadata<Reference>
+>;
 
 export type ServiceBindings<Reference extends ServiceReference> = Partial<
   InputBindings<

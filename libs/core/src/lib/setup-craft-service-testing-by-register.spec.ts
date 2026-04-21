@@ -158,6 +158,109 @@ describe('setupCraftServiceTestingByRegister', () => {
     expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
   });
 
+  it('should allow a minimal mock when a dependency is only used through derivations', () => {
+    const { CounterToYield } = craftService(
+      { name: 'Counter', scope: 'global' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+          decrement: () => update((value) => value - 1),
+        })),
+    );
+
+    const { injectCounterFeature, provideCounterFeature } = craftService(
+      { name: 'CounterFeature', scope: 'toProvide' },
+      function* () {
+        return yield* CounterToYield(undefined, ({ $self, increment }) => ({
+          $self,
+          incrementCounter: increment,
+        }));
+      },
+    );
+
+    const rootCallable = vi.fn(() => 41);
+    const increment = vi.fn();
+
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
+      injectCounterFeature,
+      {
+        CounterFeature: provideCounterFeature(),
+        Counter: {
+          $self: rootCallable,
+          increment,
+        },
+      },
+    );
+
+    expect(sut()).toBe(41);
+    sut.incrementCounter();
+    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+    expect('$self' in mocks.Counter).toBe(false);
+
+    if (false) {
+      //@ts-expect-error minimal derived mocks should not expose unused full-service members
+      expect(mocks.Counter.decrement).toBeDefined();
+    }
+  });
+
+  it('should keep a full-service mock public shape without exposing $self', () => {
+    const { CounterToYield } = craftService(
+      { name: 'Counter', scope: 'global' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+          decrement: () => update((value) => value - 1),
+        })),
+    );
+
+    const { injectCounterConsumer, provideCounterConsumer } = craftService(
+      { name: 'CounterConsumer', scope: 'toProvide' },
+      function* () {
+        const counter = yield* CounterToYield();
+        const { incrementCounter } = yield* CounterToYield(
+          undefined,
+          ({ increment }) => ({
+            incrementCounter: increment,
+          }),
+        );
+
+        return {
+          read: () => counter(),
+          increment: () => incrementCounter(),
+          decrement: () => counter.decrement(),
+        };
+      },
+    );
+
+    const rootCallable = vi.fn(() => 41);
+    const increment = vi.fn();
+    const decrement = vi.fn();
+
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
+      injectCounterConsumer,
+      {
+        CounterConsumer: provideCounterConsumer(),
+        Counter: {
+          $self: rootCallable,
+          increment,
+          decrement,
+        },
+      },
+    );
+
+    expect(sut.read()).toBe(41);
+    sut.increment();
+    sut.decrement();
+    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+    expect(mocks.Counter.decrement).toHaveBeenCalledTimes(1);
+    expect('$self' in mocks.Counter).toBe(false);
+
+    if (false) {
+      //@ts-expect-error public full-service mocks should still hide $self
+      expect(mocks.Counter.$self).toBeDefined();
+    }
+  });
+
   it('should require a provider for manuallyProvidedAtRoot dependencies', () => {
     const { CounterToYield, provideCounter } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },

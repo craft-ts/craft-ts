@@ -1,6 +1,7 @@
 import type {
   BrandedServiceProvider,
   GetInjectedServiceDependencies,
+  GetMergedServiceDependencyNodeMap,
   GetServiceReferenceMeta,
   GetServiceReferenceOutput,
   GetServiceTrackingMetadata,
@@ -14,7 +15,6 @@ import type {
   ConcreteServiceScope,
   DependencyNodeScope,
   DependencyTreeChildren,
-  FlattenDependencyTree,
   MergeObjectUnion,
   RequirementScope,
   RootExposureKey,
@@ -88,8 +88,8 @@ type RootNodeRecord<Target extends ServiceReference> = {
   [Name in RootServiceName<Target>]: GetServiceDependenciesTree<Target>;
 };
 
-type FullDependencyTree<Target extends ServiceReference> = Simplify<
-  RootNodeRecord<Target> & FlattenDependencyTree<ServiceDependencyChildren<Target>>
+type RegisterNodeMap<Target extends ServiceReference> = Simplify<
+  RootNodeRecord<Target> & GetMergedServiceDependencyNodeMap<Target>
 >;
 
 type RootOutputRecord<Target extends ServiceReference> = {
@@ -135,14 +135,33 @@ type MockImplementation<Output> = Simplify<
       : {})
 >;
 
+type CompleteMockImplementation<Output> = Simplify<
+  (Output extends object
+    ? {
+        [Key in Extract<keyof Output, string>]-?: Output[Key];
+      }
+    : {}) &
+    (Output extends (...args: any[]) => any
+      ? { $self: CallableShell<Output> }
+      : {})
+>;
+
+type DependencyNodeUsesWholeService<Node> = Node extends {
+  usesWholeService: true;
+}
+  ? true
+  : false;
+
 type MockImplementationForNode<
   Target extends ServiceReference,
   Name extends string,
   Node,
-> = Simplify<
-  MockImplementation<DependencyOutputForName<Target, Name>> &
-    RequiredUsedMockImplementation<DependencyNodeDerivedPropertiesUsed<Node>>
->;
+> = DependencyNodeUsesWholeService<Node> extends true
+  ? CompleteMockImplementation<DependencyOutputForName<Target, Name>>
+  : Simplify<
+      MockImplementation<DependencyOutputForName<Target, Name>> &
+        RequiredUsedMockImplementation<DependencyNodeDerivedPropertiesUsed<Node>>
+    >;
 
 type ProviderOverrideForNode<Name extends string, Node> =
   DependencyNodeScope<Node> extends RequirementScope
@@ -176,9 +195,9 @@ type RootRegisterEntry<
   : RegisterRealEntry;
 
 type RegisterShapeForTarget<Target extends ServiceReference> = Simplify<{
-  [Name in Extract<keyof FullDependencyTree<Target>, string>]: Name extends RootServiceName<Target>
+  [Name in Extract<keyof RegisterNodeMap<Target>, string>]: Name extends RootServiceName<Target>
     ? RootRegisterEntry<Target, Extract<Name, RootServiceName<Target>>>
-    : RegisterEntryForNode<Target, Name, FullDependencyTree<Target>[Name]>;
+    : RegisterEntryForNode<Target, Name, RegisterNodeMap<Target>[Name]>;
 }>;
 
 type RegisterEntryKind<Entry> = Entry extends RegisterNotReachedEntry
