@@ -541,3 +541,5 @@ export function setupCraftServiceTestingByRegister<
     mocks: CreateRegisterMocks<Register>;
   };
 }
+
+export const setupTestingService = setupCraftServiceTestingByRegister;

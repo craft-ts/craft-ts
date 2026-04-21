@@ -5,7 +5,7 @@ import {
 } from '@angular/platform-browser/testing';
 import { beforeAll, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { craftService } from './craft-service';
-import { setupTestingService } from './setup-testing-service';
+import { setupCraftServiceTestingByRegister } from './setup-craft-service-testing-by-register';
 import { state } from './state';
 
 beforeAll(() => {
@@ -23,7 +23,7 @@ beforeAll(() => {
   }
 });
 
-describe('setupTestingService', () => {
+describe('setupCraftServiceTestingByRegister', () => {
   it('should return the real sut, keep only explicit mocks and allow notReached descendants', () => {
     const { ChildCounterToYield } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
@@ -57,7 +57,7 @@ describe('setupTestingService', () => {
 
     const incrementParent = vi.fn();
 
-    const { sut, mocks } = setupTestingService(
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
       injectRootCounter,
       {
         RootCounter: provideRootCounter(),
@@ -103,7 +103,7 @@ describe('setupTestingService', () => {
       },
     );
 
-    const { sut, mocks } = setupTestingService(
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
       injectCounterConsumer,
       {
         CounterConsumer: provideCounterConsumer(),
@@ -141,7 +141,7 @@ describe('setupTestingService', () => {
     const rootCallable = vi.fn(() => 41);
     const increment = vi.fn();
 
-    const { sut, mocks } = setupTestingService(
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
       injectCounterConsumer,
       {
         CounterConsumer: provideCounterConsumer(),
@@ -181,7 +181,7 @@ describe('setupTestingService', () => {
     const rootCallable = vi.fn(() => 41);
     const increment = vi.fn();
 
-    const { sut, mocks } = setupTestingService(
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
       injectCounterFeature,
       {
         CounterFeature: provideCounterFeature(),
@@ -236,7 +236,7 @@ describe('setupTestingService', () => {
     const increment = vi.fn();
     const decrement = vi.fn();
 
-    const { sut, mocks } = setupTestingService(
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
       injectCounterConsumer,
       {
         CounterConsumer: provideCounterConsumer(),
@@ -282,7 +282,7 @@ describe('setupTestingService', () => {
       },
     );
 
-    const { sut } = setupTestingService(
+    const { sut } = setupCraftServiceTestingByRegister(
       injectCounterConsumer,
       {
         CounterConsumer: provideCounterConsumer(),
@@ -345,7 +345,7 @@ describe('setupTestingService', () => {
 
     const incrementLeft = vi.fn();
 
-    const { sut, mocks } = setupTestingService(
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
       injectRootCounter,
       {
         RootCounter: provideRootCounter(),
@@ -413,7 +413,7 @@ describe('setupTestingService', () => {
 
     const incrementParent = vi.fn();
 
-    const { sut, mocks } = setupTestingService(
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
       injectRootCounter,
       {
         RootCounter: provideRootCounter(),
@@ -478,7 +478,7 @@ describe('setupTestingService', () => {
 
     const incrementLeft = vi.fn();
 
-    const { sut, mocks } = setupTestingService(
+    const { sut, mocks } = setupCraftServiceTestingByRegister(
       injectRootCounter,
       {
         RootCounter: provideRootCounter(),
@@ -571,7 +571,7 @@ describe('setupTestingService', () => {
     );
 
     if (false) {
-      const _mockedRoot = setupTestingService(injectRootCounter, {
+      const _mockedRoot = setupCraftServiceTestingByRegister(injectRootCounter, {
         RootCounter: {
           //@ts-expect-error the root cannot be mocked
           incrementRoot: vi.fn(),
@@ -582,7 +582,7 @@ describe('setupTestingService', () => {
         ChildCounter: 'notReached',
       });
 
-      const _realRoot = setupTestingService(injectRootCounter, {
+      const _realRoot = setupCraftServiceTestingByRegister(injectRootCounter, {
         //@ts-expect-error the root cannot be marked as real for a toProvide sut
         RootCounter: 'real',
         ParentCounter: {
@@ -591,7 +591,7 @@ describe('setupTestingService', () => {
         ChildCounter: 'notReached',
       });
 
-      const _unreachedRoot = setupTestingService(
+      const _unreachedRoot = setupCraftServiceTestingByRegister(
         injectRootCounter,
         {
           //@ts-expect-error the root cannot be marked as notReached
@@ -604,7 +604,7 @@ describe('setupTestingService', () => {
       );
 
       //@ts-expect-error a reachable shared child cannot be marked as notReached
-      const _sharedChild = setupTestingService(injectRootCounter, {
+      const _sharedChild = setupCraftServiceTestingByRegister(injectRootCounter, {
         RootCounter: provideRootCounter(),
         ParentCounter: {
           incrementParent: vi.fn(),
@@ -612,7 +612,7 @@ describe('setupTestingService', () => {
         ChildCounter: 'notReached',
       });
 
-      const _realManual = setupTestingService(
+      const _realManual = setupCraftServiceTestingByRegister(
         injectCounterConsumer,
         {
           CounterConsumer: provideCounterConsumer(),
@@ -621,7 +621,7 @@ describe('setupTestingService', () => {
         },
       );
 
-      const _providerGlobal = setupTestingService(
+      const _providerGlobal = setupCraftServiceTestingByRegister(
         injectNavigation,
         {
           Navigation: provideNavigation(),
@@ -630,7 +630,7 @@ describe('setupTestingService', () => {
         },
       );
 
-      const _reachableChild = setupTestingService(
+      const _reachableChild = setupCraftServiceTestingByRegister(
         injectCounterConsumer,
         //@ts-expect-error a reachable dependency cannot be marked as notReached
         {

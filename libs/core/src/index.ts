@@ -1,7 +1,7 @@
 export * from './lib/after-recomputation';
 export * from './lib/async-process';
 export * from './lib/computed-source';
-export * from './lib/setup-testing-service';
+export { setupTestingService } from './lib/setup-craft-service-testing-by-register';
 export * from './lib/craft-async-process';
 export * from './lib/craft-computed';
 export * from './lib/craft-inject';
@@ -50,3 +50,4 @@ export * from './lib/form/insert-select-form-tree';
 export * from './lib/form/insert-form-submit';
 export * from './lib/form/validator';
 export * from './lib/insert-entities';
+export * from './lib/setup-craft-service-testing-by-register';
