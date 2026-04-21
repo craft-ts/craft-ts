@@ -4,14 +4,14 @@ import { injectApiService, User } from './api.service';
 import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import {
-  craftDependency,
+  toCraftService,
   query,
   mutation,
   insertLocalStoragePersister,
   insertReactOnMutation,
 } from '@craft-ng/core';
 
-const { injectRouter } = craftDependency({
+const { injectRouter } = toCraftService({
   name: 'Router',
   scope: 'global',
   token: Router,

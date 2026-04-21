@@ -614,11 +614,12 @@ type NodeDerivedProperties<Node> = Node extends {
   ? DerivedPropertiesTracking<Used, Exposed>
   : undefined;
 
-type MergeDerivedProperties<
-  Left,
-  Right,
-> = [Left] extends [DerivedPropertiesTracking<infer LeftUsed, infer LeftExposed>]
-  ? [Right] extends [DerivedPropertiesTracking<infer RightUsed, infer RightExposed>]
+type MergeDerivedProperties<Left, Right> = [Left] extends [
+  DerivedPropertiesTracking<infer LeftUsed, infer LeftExposed>,
+]
+  ? [Right] extends [
+      DerivedPropertiesTracking<infer RightUsed, infer RightExposed>,
+    ]
     ? DerivedPropertiesTracking<
         Simplify<LeftUsed & RightUsed>,
         Simplify<LeftExposed & RightExposed>
@@ -632,7 +633,9 @@ type DependencyChildren<Node> = Node extends {
   ? Dependencies
   : {};
 
-type DependencyScope<Node> = Node extends { scope: infer Scope } ? Scope : never;
+type DependencyScope<Node> = Node extends { scope: infer Scope }
+  ? Scope
+  : never;
 
 type MergeDependencyNodeMaps<
   Left extends object,
@@ -647,13 +650,13 @@ type MergeDependencyNodeMaps<
       : never;
 }>;
 
-type MergeDependencyNodes<
-  Left,
-  Right,
-> = ServiceDependencies<
+type MergeDependencyNodes<Left, Right> = ServiceDependencies<
   DependencyScope<Left> & DependencyScope<Right>,
   MergeDependencyNodeMaps<DependencyChildren<Left>, DependencyChildren<Right>>,
-  MergeDerivedProperties<NodeDerivedProperties<Left>, NodeDerivedProperties<Right>>
+  MergeDerivedProperties<
+    NodeDerivedProperties<Left>,
+    NodeDerivedProperties<Right>
+  >
 >;
 
 type ResolveServiceTrackingMetadata<Metadata> =
@@ -706,35 +709,35 @@ type TrackedNodeUsage<Node> = Node extends { usesWholeService: true }
   ? WholeServiceUsageTracking
   : NodeDerivedProperties<Node>;
 
-type MergeTrackedDependencyUsage<
-  Left,
-  Right,
-> = Left extends WholeServiceUsageTracking
-  ? WholeServiceUsageTracking
-  : Right extends WholeServiceUsageTracking
+type MergeTrackedDependencyUsage<Left, Right> =
+  Left extends WholeServiceUsageTracking
     ? WholeServiceUsageTracking
-    : [Left] extends [DerivedPropertiesTracking<infer LeftUsed, infer LeftExposed>]
-      ? [Right] extends [
-          DerivedPropertiesTracking<infer RightUsed, infer RightExposed>,
-        ]
-        ? DerivedPropertiesTracking<
-            Simplify<LeftUsed & RightUsed>,
-            Simplify<LeftExposed & RightExposed>
-          >
-        : WholeServiceUsageTracking
-      : WholeServiceUsageTracking;
+    : Right extends WholeServiceUsageTracking
+      ? WholeServiceUsageTracking
+      : [Left] extends [
+            DerivedPropertiesTracking<infer LeftUsed, infer LeftExposed>,
+          ]
+        ? [Right] extends [
+            DerivedPropertiesTracking<infer RightUsed, infer RightExposed>,
+          ]
+          ? DerivedPropertiesTracking<
+              Simplify<LeftUsed & RightUsed>,
+              Simplify<LeftExposed & RightExposed>
+            >
+          : WholeServiceUsageTracking
+        : WholeServiceUsageTracking;
 
-type MergeTrackedDependencyNodes<
-  Left,
-  Right,
-> = Simplify<
+type MergeTrackedDependencyNodes<Left, Right> = Simplify<
   {
     scope: DependencyScope<Left> & DependencyScope<Right>;
     dependencies: MergeTrackedDependencyNodeMaps<
       DependencyChildren<Left>,
       DependencyChildren<Right>
     >;
-  } & MergeTrackedDependencyUsage<TrackedNodeUsage<Left>, TrackedNodeUsage<Right>>
+  } & MergeTrackedDependencyUsage<
+    TrackedNodeUsage<Left>,
+    TrackedNodeUsage<Right>
+  >
 >;
 
 type MergeTrackedDependencyNodeMaps<
@@ -777,7 +780,9 @@ type TrackedDependencyRecord<Request> =
     any
   >
     ? {
-        [Key in Name]: ResolveTrackedDependencyMetadata<DependencyMetadata<Request>>;
+        [Key in Name]: ResolveTrackedDependencyMetadata<
+          DependencyMetadata<Request>
+        >;
       }
     : {};
 
@@ -787,12 +792,22 @@ type BuildTrackedDependencyMap<
 > = Requests extends [infer First, ...infer Rest]
   ? BuildTrackedDependencyMap<
       Rest,
-      MergeTrackedDependencyNodeMaps<Accumulator, TrackedDependencyRecord<First>>
+      MergeTrackedDependencyNodeMaps<
+        Accumulator,
+        TrackedDependencyRecord<First>
+      >
     >
   : Simplify<Accumulator>;
 
 type FlattenTrackedDependencyNodeMapFromTracking<Tracking> =
-  Tracking extends ServiceTrackingMetadata<any, any, any, infer Yielded, any, any>
+  Tracking extends ServiceTrackingMetadata<
+    any,
+    any,
+    any,
+    infer Yielded,
+    any,
+    any
+  >
     ? BuildFlattenedTrackedDependencyNodeMap<DependencyRequests<Yielded>>
     : {};
 
@@ -803,7 +818,10 @@ type BuildFlattenedTrackedDependencyNodeMap<
   ? BuildFlattenedTrackedDependencyNodeMap<
       Rest,
       MergeTrackedDependencyNodeMaps<
-        MergeTrackedDependencyNodeMaps<Accumulator, TrackedDependencyRecord<First>>,
+        MergeTrackedDependencyNodeMaps<
+          Accumulator,
+          TrackedDependencyRecord<First>
+        >,
         FlattenTrackedDependencyNodeMapFromTracking<DependencyMetadata<First>>
       >
     >
@@ -1200,7 +1218,7 @@ type WrappedDependencyFactory<
   inputs: DependencyFactoryInputs<Factory>,
 ) => DependencyFactoryReturn<Factory, Dependency>;
 
-type CraftDependencyTrackingMetadata<
+type toCraftServiceTrackingMetadata<
   Name extends string,
   Scope extends ConcreteServiceScope,
   Dependency,
@@ -1327,7 +1345,7 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * Adapts an external Angular dependency so it can participate in the `craftService`
  * ecosystem.
  *
- * `craftDependency` is useful for services such as `Router`, `HttpClient`,
+ * `toCraftService` is useful for services such as `Router`, `HttpClient`,
  * `ActivatedRoute`, custom `InjectionToken`s, or any dependency resolved through
  * `inject(...)` that you want to:
  *
@@ -1347,9 +1365,9 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * Adapt `Router` as a global dependency
  * ```ts
  * import { Router } from '@angular/router';
- * import { craftDependency } from '@craft-ng/core';
+ * import { toCraftService } from '@craft-ng/core';
  *
- * const { injectRouter, RouterToYield } = craftDependency({
+ * const { injectRouter, RouterToYield } = toCraftService({
  *   name: 'Router',
  *   scope: 'global',
  *   token: Router,
@@ -1360,11 +1378,11 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * Adapt an injected token through the callback form
  * ```ts
  * import { inject, InjectionToken } from '@angular/core';
- * import { craftDependency } from '@craft-ng/core';
+ * import { toCraftService } from '@craft-ng/core';
  *
  * const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
  *
- * const { injectCurrentRoute } = craftDependency({
+ * const { injectCurrentRoute } = toCraftService({
  *   name: 'CurrentRoute',
  *   scope: 'global',
  *   inject: () => inject(CURRENT_ROUTE),
@@ -1375,9 +1393,9 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * Adapt a provider-capable dependency for explicit test coverage
  * ```ts
  * import { Router, provideRouter } from '@angular/router';
- * import { craftDependency } from '@craft-ng/core';
+ * import { toCraftService } from '@craft-ng/core';
  *
- * const { provideAppRouter, AppRouterToProvide } = craftDependency({
+ * const { provideAppRouter, AppRouterToProvide } = toCraftService({
  *   name: 'AppRouter',
  *   scope: 'manuallyProvidedAtRoot',
  *   token: Router,
@@ -1385,10 +1403,10 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * });
  * ```
  */
-export function craftDependency<Name extends string, Output>(
+export function toCraftService<Name extends string, Output>(
   options: GlobalTokenDependencyOptions<Name, Output>,
 ): DependencyApi<Name, 'global', {}, Output>;
-export function craftDependency<
+export function toCraftService<
   Name extends string,
   Output,
   Inputs extends object,
@@ -1414,10 +1432,10 @@ export function craftDependency<
     DependencyFactoryYieldsFromResult<FactoryResult>
   >
 >;
-export function craftDependency<Name extends string, Output>(
+export function toCraftService<Name extends string, Output>(
   options: GlobalInjectedDependencyOptions<Name, Output>,
 ): DependencyApi<Name, 'global', {}, Output>;
-export function craftDependency<
+export function toCraftService<
   Name extends string,
   Output,
   Inputs extends object,
@@ -1443,14 +1461,14 @@ export function craftDependency<
     DependencyFactoryYieldsFromResult<FactoryResult>
   >
 >;
-export function craftDependency<
+export function toCraftService<
   Name extends string,
   Scope extends RequirementScope,
   Output,
 >(
   options: ProviderCapableDependencyOptions<Name, Scope, Output>,
 ): DependencyApi<Name, Scope, {}, Output>;
-export function craftDependency<
+export function toCraftService<
   Name extends string,
   Scope extends RequirementScope,
   Output,
@@ -1485,7 +1503,7 @@ export function craftDependency<
     DependencyFactoryYieldsFromResult<FactoryResult>
   >
 >;
-export function craftDependency<
+export function toCraftService<
   Name extends string,
   Scope extends RequirementScope,
   Output,
@@ -1512,7 +1530,7 @@ export function craftDependency<
     DependencyFactoryYieldsFromResult<FactoryResult>
   >
 >;
-export function craftDependency(
+export function toCraftService(
   options:
     | GlobalTokenDependencyOptions<string, unknown>
     | GlobalInjectedDependencyOptions<string, unknown>
@@ -1920,7 +1938,7 @@ export function getServiceMetaData(target: unknown): AnyServiceMetaData {
   }
 
   throw new Error(
-    'Expected a craftService/craftDependency inject helper or a service metadata object.',
+    'Expected a craftService/toCraftService inject helper or a service metadata object.',
   );
 }
 
@@ -2124,7 +2142,7 @@ function runGeneratorFactory(
     }
 
     throw new Error(
-      'craftService/craftDependency generators can only yield craftService dependencies or exposed dependency helpers.',
+      'craftService/toCraftService generators can only yield craftService dependencies or exposed dependency helpers.',
     );
   }
 

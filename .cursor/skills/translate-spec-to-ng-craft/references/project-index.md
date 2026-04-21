@@ -19,18 +19,9 @@ Use this file to confirm the exact exported symbol names before recommending an 
 - `apps/docs/insertions/insert-entities.md`
 - `apps/docs/insertions/insert-local-storage.md`
 - `apps/docs/insertions/insert-select.md`
-- `apps/docs/store/craft.md`
-- `apps/docs/store/craft-state.md`
-- `apps/docs/store/craft-query.md`
-- `apps/docs/store/craft-mutation.md`
-- `apps/docs/store/craft-query-param.md`
-- `apps/docs/store/craft-query-params.md`
-- `apps/docs/store/craft-sources.md`
-- `apps/docs/store/craft-inputs.md`
-- `apps/docs/store/craft-computed.md`
-- `apps/docs/store/craft-async-processes.md`
-- `apps/docs/store/craft-inject.md`
-- `apps/docs/store/craft-set-all-queries-params-standalone.md`
+- `apps/docs/store/craft-service.md`
+- `apps/docs/store/to-craft-service.md`
+- `apps/docs/store/setup-craft-service-testing-by-register.md`
 - `apps/docs/utils/on$.md`
 - `apps/docs/utils/source$.md`
 - `apps/docs/utils/reactive-writable-signal.md`
@@ -47,6 +38,7 @@ Use this file to confirm the exact exported symbol names before recommending an 
 - `apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts`
 
 Use this example for:
+
 - `queryParam` pagination state
 - paged `query`
 - `insertPaginationPlaceholderData`
@@ -57,6 +49,7 @@ Use this example for:
 - `apps/demo/src/app/examples/craft/full-demo/full-demo.ts`
 
 Use this example for:
+
 - `craft`
 - `craftQueryParam`
 - `craftQuery`
@@ -74,6 +67,7 @@ Use this example for:
 - `apps/demo/src/app/examples/primitives/full-demo/full-demo.ts`
 
 Use this example for:
+
 - primitives-only composition
 - inline form editing
 - delayed delete flows

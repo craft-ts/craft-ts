@@ -1,21 +1,22 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { ApiServiceToYield } from './api.service';
-import { Router } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import {
   craftService,
-  craftDependency,
+  toCraftService,
   insertLocalStoragePersister,
   query,
   toValue,
   type MaybeSignal,
 } from '@craft-ng/core';
 
-const { injectRouter } = craftDependency({
+const { injectRouter } = toCraftService({
   name: 'Router',
-  scope: 'global',
+  scope: 'manuallyProvidedAtRoot',
   token: Router,
+  provide: provideRouter,
 });
 
 const { injectUserQuery } = craftService(

@@ -1,15 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { craftDependency, craftException, queryParam } from '@craft-ng/core';
+import { toCraftService, craftException, queryParam } from '@craft-ng/core';
 
-const { injectActivatedRoute } = craftDependency({
+const { injectActivatedRoute } = toCraftService({
   name: 'ActivatedRoute',
   scope: 'global',
   token: ActivatedRoute,
 });
 
-const { injectRouter } = craftDependency({
+const { injectRouter } = toCraftService({
   name: 'Router',
   scope: 'global',
   token: Router,

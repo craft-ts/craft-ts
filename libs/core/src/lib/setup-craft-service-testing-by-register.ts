@@ -34,23 +34,28 @@ import type {
 type RegisterRealEntry = 'real';
 type RegisterNotReachedEntry = 'notReached';
 
-type TrackingYielded<Tracking> = Tracking extends ServiceTrackingMetadata<
-  any,
-  any,
-  any,
-  infer Yielded,
-  any,
-  any
->
-  ? Yielded
-  : never;
+type TrackingYielded<Tracking> =
+  Tracking extends ServiceTrackingMetadata<
+    any,
+    any,
+    any,
+    infer Yielded,
+    any,
+    any
+  >
+    ? Yielded
+    : never;
 
 type FlattenedDependencyOutputRecordsFromTracking<Tracking> = Simplify<
   MergeObjectUnion<
-    Extract<TrackingYielded<Tracking>, ServiceYieldRequest<any, any, any>> extends infer Request
+    Extract<
+      TrackingYielded<Tracking>,
+      ServiceYieldRequest<any, any, any>
+    > extends infer Request
       ? Request extends ServiceYieldRequest<any, any, infer DependencyTracking>
-        ? DependencyOutputRecordFromTracking<DependencyTracking> |
-            FlattenedDependencyOutputRecordsFromTracking<DependencyTracking>
+        ?
+            | DependencyOutputRecordFromTracking<DependencyTracking>
+            | FlattenedDependencyOutputRecordsFromTracking<DependencyTracking>
         : never
       : never
   >
@@ -71,7 +76,15 @@ type DependencyOutputRecordFromTracking<Tracking> =
     : never;
 
 type GetServiceDependenciesTree<Target extends ServiceReference> =
-  Target extends ServiceMetaData<any, any, any, any, infer Dependencies, any, any>
+  Target extends ServiceMetaData<
+    any,
+    any,
+    any,
+    any,
+    infer Dependencies,
+    any,
+    any
+  >
     ? Dependencies
     : GetInjectedServiceDependencies<Target>;
 
@@ -99,7 +112,9 @@ type RootOutputRecord<Target extends ServiceReference> = {
 
 type DependencyOutputMap<Target extends ServiceReference> = Simplify<
   RootOutputRecord<Target> &
-    FlattenedDependencyOutputRecordsFromTracking<GetServiceTrackingMetadata<Target>>
+    FlattenedDependencyOutputRecordsFromTracking<
+      GetServiceTrackingMetadata<Target>
+    >
 >;
 
 type DependencyOutputForName<
@@ -115,9 +130,7 @@ type DependencyNodeDerivedPropertiesUsed<Node> = Node extends {
   ? Used
   : {};
 
-type RequiredUsedMockImplementation<
-  UsedProperties extends object,
-> = Simplify<{
+type RequiredUsedMockImplementation<UsedProperties extends object> = Simplify<{
   [Key in Extract<keyof UsedProperties, string>]-?: Key extends RootExposureKey
     ? UsedProperties[Key] extends (...args: any[]) => any
       ? CallableShell<UsedProperties[Key]>
@@ -157,12 +170,15 @@ type MockImplementationForNode<
   Target extends ServiceReference,
   Name extends string,
   Node,
-> = DependencyNodeUsesWholeService<Node> extends true
-  ? CompleteMockImplementation<DependencyOutputForName<Target, Name>>
-  : Simplify<
-      MockImplementation<DependencyOutputForName<Target, Name>> &
-        RequiredUsedMockImplementation<DependencyNodeDerivedPropertiesUsed<Node>>
-    >;
+> =
+  DependencyNodeUsesWholeService<Node> extends true
+    ? CompleteMockImplementation<DependencyOutputForName<Target, Name>>
+    : Simplify<
+        MockImplementation<DependencyOutputForName<Target, Name>> &
+          RequiredUsedMockImplementation<
+            DependencyNodeDerivedPropertiesUsed<Node>
+          >
+      >;
 
 type ProviderOverrideForNode<Name extends string, Node> =
   DependencyNodeScope<Node> extends RequirementScope
@@ -172,9 +188,8 @@ type ProviderOverrideForNode<Name extends string, Node> =
       >
     : never;
 
-type OpenMarkerForScope<Scope> = Extract<Scope, RequirementScope> extends never
-  ? RegisterRealEntry
-  : never;
+type OpenMarkerForScope<Scope> =
+  Extract<Scope, RequirementScope> extends never ? RegisterRealEntry : never;
 
 type OpenRegisterEntryForNode<Name extends string, Node> =
   | ProviderOverrideForNode<Name, Node>
@@ -192,12 +207,16 @@ type RegisterEntryForNode<
 type RootRegisterEntry<
   Target extends ServiceReference,
   Name extends RootServiceName<Target>,
-> = RootServiceScope<Target> extends RequirementScope
-  ? ProviderOverrideForNode<Name, GetServiceDependenciesTree<Target>>
-  : RegisterRealEntry;
+> =
+  RootServiceScope<Target> extends RequirementScope
+    ? ProviderOverrideForNode<Name, GetServiceDependenciesTree<Target>>
+    : RegisterRealEntry;
 
 type RegisterShapeForTarget<Target extends ServiceReference> = Simplify<{
-  [Name in Extract<keyof RegisterNodeMap<Target>, string>]: Name extends RootServiceName<Target>
+  [Name in Extract<
+    keyof RegisterNodeMap<Target>,
+    string
+  >]: Name extends RootServiceName<Target>
     ? RootRegisterEntry<Target, Extract<Name, RootServiceName<Target>>>
     : RegisterEntryForNode<Target, Name, RegisterNodeMap<Target>[Name]>;
 }>;
@@ -210,18 +229,16 @@ type RegisterEntryKind<Entry> = Entry extends RegisterNotReachedEntry
       ? 'provider'
       : 'mock';
 
-type EntryOpensBranch<Node, Entry> = DependencyNodeScope<Node> extends RequirementScope
-  ? Entry extends BrandedServiceProvider<any, any>
-    ? true
-    : false
-  : Entry extends RegisterRealEntry
-    ? true
-    : false;
+type EntryOpensBranch<Node, Entry> =
+  DependencyNodeScope<Node> extends RequirementScope
+    ? Entry extends BrandedServiceProvider<any, any>
+      ? true
+      : false
+    : Entry extends RegisterRealEntry
+      ? true
+      : false;
 
-type ReachableNamesForTree<
-  Tree extends object,
-  Register extends object,
-> = {
+type ReachableNamesForTree<Tree extends object, Register extends object> = {
   [Name in Extract<keyof Tree, string>]: ReachableNamesForNode<
     Name,
     Tree[Name],
@@ -261,7 +278,10 @@ type ReachableNotReachedNames<
   Register extends object,
 > = Extract<
   {
-    [Name in Extract<ReachableRegisterNames<Target, Register>, string>]: Name extends keyof Register
+    [Name in Extract<
+      ReachableRegisterNames<Target, Register>,
+      string
+    >]: Name extends keyof Register
       ? RegisterEntryKind<Register[Name]> extends 'notReached'
         ? Name
         : never
@@ -298,14 +318,15 @@ type ExtraRegisterKeys<
 type InvalidRootRegisterValue<
   Target extends ServiceReference,
   Register extends object,
-> = RootServiceName<Target> extends keyof Register
-  ? Register[RootServiceName<Target>] extends RootRegisterEntry<
+> =
+  RootServiceName<Target> extends keyof Register
+    ? Register[RootServiceName<Target>] extends RootRegisterEntry<
         Target,
         RootServiceName<Target>
       >
-    ? never
-    : RootServiceName<Target>
-  : RootServiceName<Target>;
+      ? never
+      : RootServiceName<Target>
+    : RootServiceName<Target>;
 
 type AssertValidRegister<
   Target extends ServiceReference,
@@ -344,15 +365,16 @@ type PublicMockShape<Implementation> = Implementation extends object
   ? Omit<Implementation, RootExposureKey>
   : {};
 
-type MockRootCallable<Implementation> = NonNullable<Implementation> extends {
-  $self: infer Root extends (...args: any[]) => any;
-}
-  ? Root
-  : never;
+type MockRootCallable<Implementation> =
+  NonNullable<Implementation> extends {
+    $self: infer Root extends (...args: any[]) => any;
+  }
+    ? Root
+    : never;
 
-type MockPublicValueFromImplementation<Implementation> = [Implementation] extends [
-  undefined,
-]
+type MockPublicValueFromImplementation<Implementation> = [
+  Implementation,
+] extends [undefined]
   ? {}
   : [MockRootCallable<Implementation>] extends [never]
     ? PublicMockShape<NonNullable<Implementation>>
@@ -400,10 +422,9 @@ function getProviderOverrideMeta(
     return undefined;
   }
 
-  return Reflect.get(
-    value,
-    CRAFT_SERVICE_PROVIDER_BRAND,
-  ) as { name: string; scope: RequirementScope } | undefined;
+  return Reflect.get(value, CRAFT_SERVICE_PROVIDER_BRAND) as
+    | { name: string; scope: RequirementScope }
+    | undefined;
 }
 
 function isProviderOverride(
@@ -416,9 +437,7 @@ function assertProviderOverrideName(name: string, provider: unknown) {
   const metaData = getProviderOverrideMeta(provider);
 
   if (!metaData) {
-    throw new Error(
-      `Expected a raw provider returned by provide${name}(...).`,
-    );
+    throw new Error(`Expected a raw provider returned by provide${name}(...).`);
   }
 
   if (metaData.name !== name) {
@@ -460,6 +479,27 @@ function assertRootRuntimeEntry(
  * - the literal `"real"` for non-provider scopes
  * - a raw mock object
  * - the literal `"notReached"` when the node is fully pruned by mocked ancestors
+ *
+ * The returned `sut` is the resolved root service. The returned `mocks` object
+ * only contains entries for dependencies that were actually mocked with raw
+ * objects.
+ *
+ * @example
+ * ```ts
+ * const { sut, mocks } = setupCraftServiceTestingByRegister(
+ *   injectCounterConsumer,
+ *   {
+ *     CounterConsumer: provideCounterConsumer(),
+ *     Counter: {
+ *       $self: vi.fn(() => 41),
+ *       increment: vi.fn(),
+ *     },
+ *   },
+ * );
+ *
+ * expect(sut.read()).toBe(41);
+ * expect(mocks.Counter.increment).toBeDefined();
+ * ```
  */
 export function setupCraftServiceTestingByRegister<
   Target extends ServiceReference,
@@ -478,7 +518,10 @@ export function setupCraftServiceTestingByRegister<
 } {
   const internalMetaData = getServiceMetaData(target);
   const providers = [...(options?.providers ?? [])];
-  const runtimeOverrides = new Map<string, { kind: 'useValue'; value: unknown }>();
+  const runtimeOverrides = new Map<
+    string,
+    { kind: 'useValue'; value: unknown }
+  >();
   const mocks: Record<string, unknown> = {};
   const rootEntry = register[
     internalMetaData.name as keyof Register
@@ -542,4 +585,5 @@ export function setupCraftServiceTestingByRegister<
   };
 }
 
+/** Backward-compatible alias for `setupCraftServiceTestingByRegister`. */
 export const setupTestingService = setupCraftServiceTestingByRegister;

@@ -65,6 +65,8 @@ export default defineConfig({
         text: 'Store',
         items: [
           { text: 'craft', link: '/store/craft' },
+          { text: 'craftService', link: '/store/craft-service' },
+          { text: 'toCraftService', link: '/store/to-craft-service' },
           { text: 'craftState', link: '/store/craft-state' },
           { text: 'craftSources', link: '/store/craft-sources' },
           { text: 'craftInputs', link: '/store/craft-inputs' },
@@ -79,6 +81,10 @@ export default defineConfig({
             link: '/store/craft-set-all-queries-params-standalone',
           },
           { text: 'craftInject', link: '/store/craft-inject' },
+          {
+            text: 'setupCraftServiceTestingByRegister',
+            link: '/store/setup-craft-service-testing-by-register',
+          },
         ],
       },
       {

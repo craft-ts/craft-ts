@@ -5,7 +5,7 @@ import {
 } from '@angular/platform-browser/testing';
 import { Injectable, inject, InjectionToken, signal } from '@angular/core';
 import { state } from './state';
-import { craftDependency, craftService } from './craft-service';
+import { toCraftService, craftService } from './craft-service';
 import type {
   GetInjectedServiceDependencies,
   GetServiceOutput,
@@ -30,7 +30,7 @@ beforeEach(() => {
   TestBed.resetTestingModule();
 });
 
-describe('craftDependency', () => {
+describe('toCraftService', () => {
   it('should adapt an injectable class in global scope and keep exposed methods bound to the source instance', async () => {
     @Injectable({
       providedIn: 'root',
@@ -44,7 +44,7 @@ describe('craftDependency', () => {
       }
     }
 
-    const { RouterLikeToYield } = craftDependency({
+    const { RouterLikeToYield } = toCraftService({
       name: 'RouterLike',
       scope: 'global',
       token: RouterLike,
@@ -90,7 +90,7 @@ describe('craftDependency', () => {
       ],
     });
 
-    const { injectCurrentRoute } = craftDependency({
+    const { injectCurrentRoute } = toCraftService({
       name: 'CurrentRoute',
       scope: 'global',
       inject: () => inject(CURRENT_ROUTE),
@@ -121,7 +121,7 @@ describe('craftDependency', () => {
       ],
     });
 
-    const { CounterToYield } = craftDependency({
+    const { CounterToYield } = toCraftService({
       name: 'Counter',
       scope: 'global',
       token: COUNTER,
@@ -159,7 +159,7 @@ describe('craftDependency', () => {
       }
     }
 
-    const { injectCounterDriver, provideCounterDriver } = craftDependency({
+    const { injectCounterDriver, provideCounterDriver } = toCraftService({
       name: 'CounterDriver',
       scope: 'toProvide',
       token: CounterDriver,
@@ -196,7 +196,7 @@ describe('craftDependency', () => {
       }
     }
 
-    const { injectCatalog, CatalogToYield, provideCatalog } = craftDependency(
+    const { injectCatalog, CatalogToYield, provideCatalog } = toCraftService(
       {
         name: 'Catalog',
         scope: 'toProvide',
@@ -228,7 +228,7 @@ describe('craftDependency', () => {
     });
 
     if (false) {
-      //@ts-expect-error $provided should not be a public inject binding for craftDependency
+      //@ts-expect-error $provided should not be a public inject binding for toCraftService
       injectCatalog({
         prefix: 'catalog',
         $provided: { apiBaseUrl: '/override' },
@@ -236,7 +236,7 @@ describe('craftDependency', () => {
     }
 
     if (false) {
-      //@ts-expect-error $provided should not be a public yield binding for craftDependency
+      //@ts-expect-error $provided should not be a public yield binding for toCraftService
       CatalogToYield({
         prefix: 'catalog',
         $provided: { apiBaseUrl: '/override' },
@@ -266,7 +266,7 @@ describe('craftDependency', () => {
       injectCounterDriver,
       provideCounterDriver,
       CounterDriverToProvide,
-    } = craftDependency({
+    } = toCraftService({
       name: 'CounterDriver',
       scope: 'manuallyProvidedAtRoot',
       token: CounterDriver,
@@ -313,7 +313,7 @@ describe('craftDependency', () => {
       ],
     });
 
-    const { CounterToYield } = craftDependency({
+    const { CounterToYield } = toCraftService({
       name: 'Counter',
       scope: 'global',
       token: COUNTER,
@@ -365,7 +365,7 @@ describe('craftDependency', () => {
   it('should only allow the callback form on global scope', () => {
     const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
 
-    const { injectCurrentRoute } = craftDependency({
+    const { injectCurrentRoute } = toCraftService({
       name: 'CurrentRoute',
       scope: 'global',
       token: CURRENT_ROUTE,
@@ -374,7 +374,7 @@ describe('craftDependency', () => {
     expect(injectCurrentRoute).toBeDefined();
 
     if (false) {
-      const { provideCounterDriver } = craftDependency({
+      const { provideCounterDriver } = toCraftService({
         name: 'CounterDriver',
         scope: 'toProvide',
         token: CURRENT_ROUTE,
@@ -385,7 +385,7 @@ describe('craftDependency', () => {
     }
 
     if (false) {
-      const { provideCounterDriver } = craftDependency({
+      const { provideCounterDriver } = toCraftService({
         name: 'CounterDriver',
         scope: 'manuallyProvidedAtRoot',
         token: CURRENT_ROUTE,
@@ -397,7 +397,7 @@ describe('craftDependency', () => {
 
     if (false) {
       //@ts-expect-error callback-based dependencies should stay limited to global scope
-      craftDependency({
+      toCraftService({
         name: 'CounterDriver',
         scope: 'toProvide',
         inject: () => inject(CURRENT_ROUTE),
@@ -406,7 +406,7 @@ describe('craftDependency', () => {
 
     if (false) {
       //@ts-expect-error callback-based dependencies should stay limited to global scope
-      craftDependency({
+      toCraftService({
         name: 'CounterDriver',
         scope: 'manuallyProvidedAtRoot',
         inject: () => inject(CURRENT_ROUTE),

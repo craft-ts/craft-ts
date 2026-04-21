@@ -33,7 +33,7 @@ describe('setupCraftServiceTestingByRegister', () => {
         })),
     );
 
-    const { ParentCounterToYield, provideParentCounter } = craftService(
+    const { ParentCounterToYield } = craftService(
       { name: 'ParentCounter', scope: 'toProvide' },
       function* () {
         const child = yield* ChildCounterToYield();

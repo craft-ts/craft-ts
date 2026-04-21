@@ -1,15 +1,11 @@
 import { CommonModule } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  input,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { ApiServiceToYield, type User } from './api.service';
 import { Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import {
   craftService,
-  craftDependency,
+  toCraftService,
   insertLocalStoragePersister,
   insertReactOnMutation,
   query,
@@ -18,7 +14,7 @@ import {
   type MaybeSignal,
 } from '@craft-ng/core';
 
-const { injectRouter } = craftDependency({
+const { injectRouter } = toCraftService({
   name: 'Router',
   scope: 'global',
   token: Router,

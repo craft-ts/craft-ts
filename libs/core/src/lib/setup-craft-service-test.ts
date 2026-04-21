@@ -27,7 +27,15 @@ import type {
 } from './craft-service.shared';
 
 type GetServiceDependenciesTree<Target extends ServiceReference> =
-  Target extends ServiceMetaData<any, any, any, any, infer Dependencies, any, any>
+  Target extends ServiceMetaData<
+    any,
+    any,
+    any,
+    any,
+    infer Dependencies,
+    any,
+    any
+  >
     ? Dependencies
     : GetInjectedServiceDependencies<Target>;
 
@@ -47,9 +55,7 @@ type DependencyNodeDerivedPropertiesUsed<Node> = Node extends {
   ? Used
   : {};
 
-type RequiredUsedMockImplementation<
-  UsedProperties extends object,
-> = Simplify<{
+type RequiredUsedMockImplementation<UsedProperties extends object> = Simplify<{
   [Key in Extract<keyof UsedProperties, string>]-?: Key extends RootExposureKey
     ? UsedProperties[Key] extends (...args: any[]) => any
       ? CallableShell<UsedProperties[Key]>
@@ -93,15 +99,16 @@ type MockPublicValue<Output, Implementation> = [Implementation] extends [
       : PublicMockShape<NonNullable<Implementation>>
     : PublicMockShape<NonNullable<Implementation>>;
 
-type MockRootCallable<Implementation> = NonNullable<Implementation> extends {
-  $self: infer Root extends (...args: any[]) => any;
-}
-  ? CallableShell<Root>
-  : never;
+type MockRootCallable<Implementation> =
+  NonNullable<Implementation> extends {
+    $self: infer Root extends (...args: any[]) => any;
+  }
+    ? CallableShell<Root>
+    : never;
 
-type MockPublicValueFromImplementation<Implementation> = [Implementation] extends [
-  undefined,
-]
+type MockPublicValueFromImplementation<Implementation> = [
+  Implementation,
+] extends [undefined]
   ? {}
   : [MockRootCallable<Implementation>] extends [never]
     ? PublicMockShape<NonNullable<Implementation>>
@@ -134,7 +141,10 @@ type AnyServiceOverride =
 type OverrideForDependencyNode<Name extends string, Node> =
   | ImplicitMockServiceOverride<MockImplementationForNode<Node>>
   | ExplicitMockServiceOverride<
-      ServiceReference<Name, Extract<DependencyNodeScope<Node>, ConcreteServiceScope>>,
+      ServiceReference<
+        Name,
+        Extract<DependencyNodeScope<Node>, ConcreteServiceScope>
+      >,
       MockImplementationForNode<Node>
     >
   | (DependencyNodeScope<Node> extends RequirementScope
@@ -152,9 +162,10 @@ type MissingCoverageForTree<Tree extends object, Overrides> = {
   >;
 }[Extract<keyof Tree, string>];
 
-type OverrideAtPath<Overrides, Name extends string> = Name extends keyof Overrides
-  ? NonNullable<Overrides[Name]>
-  : never;
+type OverrideAtPath<
+  Overrides,
+  Name extends string,
+> = Name extends keyof Overrides ? NonNullable<Overrides[Name]> : never;
 
 type InvalidOverrideEntry<
   Target extends ServiceReference,
@@ -171,10 +182,7 @@ type InvalidOverrideEntry<
       : Name
     : Name;
 
-type InvalidOverrideEntries<
-  Target extends ServiceReference,
-  Overrides,
-> = {
+type InvalidOverrideEntries<Target extends ServiceReference, Overrides> = {
   [Name in Extract<keyof Overrides, string>]: InvalidOverrideEntry<
     Target,
     Name,
@@ -194,11 +202,9 @@ type AssertValidServiceTestOverrides<
       >;
     };
 
-type MissingCoverageForNode<
-  Name extends string,
-  Node,
-  Overrides,
-> = [OverrideAtPath<Overrides, Name>] extends [never]
+type MissingCoverageForNode<Name extends string, Node, Overrides> = [
+  OverrideAtPath<Overrides, Name>,
+] extends [never]
   ? DependencyNodeScope<Node> extends RequirementScope
     ? Name
     : MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>
@@ -213,13 +219,9 @@ type MissingCoverageForNode<
         ? Name
         : MissingCoverageForTree<DependencyTreeChildren<Node>, Overrides>;
 
-type AssertServiceTestCoverage<
-  Target extends ServiceReference,
-  Overrides,
-> = [MissingCoverageForTree<
-  ServiceDependencyChildren<Target>,
-  Overrides
->] extends [never]
+type AssertServiceTestCoverage<Target extends ServiceReference, Overrides> = [
+  MissingCoverageForTree<ServiceDependencyChildren<Target>, Overrides>,
+] extends [never]
   ? {}
   : {
       ERROR_missing_service_test_overrides: MissingCoverageForTree<
@@ -273,10 +275,9 @@ function getProviderOverrideMeta(
     return undefined;
   }
 
-  return Reflect.get(
-    value,
-    CRAFT_SERVICE_PROVIDER_BRAND,
-  ) as { name: string; scope: RequirementScope } | undefined;
+  return Reflect.get(value, CRAFT_SERVICE_PROVIDER_BRAND) as
+    | { name: string; scope: RequirementScope }
+    | undefined;
 }
 
 function assertOverrideReferenceName(name: string, reference: unknown) {
@@ -284,7 +285,7 @@ function assertOverrideReferenceName(name: string, reference: unknown) {
 
   if (metaData.name !== name) {
     throw new Error(
-      `Test override "${name}" does not match craftService/craftDependency reference "${metaData.name}".`,
+      `Test override "${name}" does not match craftService/toCraftService reference "${metaData.name}".`,
     );
   }
 }
@@ -293,9 +294,7 @@ function assertProviderOverrideName(name: string, provider: unknown) {
   const metaData = getProviderOverrideMeta(provider);
 
   if (!metaData) {
-    throw new Error(
-      `Expected a raw provider returned by provide${name}(...).`,
-    );
+    throw new Error(`Expected a raw provider returned by provide${name}(...).`);
   }
 
   if (metaData.name !== name) {
@@ -316,14 +315,14 @@ function isMockServiceOverride(
   );
 }
 
-export function mock<
-  Implementation extends object,
->(
+export function mock<Implementation extends object>(
   implementation: Implementation,
 ): ImplicitMockServiceOverride<Implementation>;
 export function mock<
   Reference extends ServiceReference,
-  Implementation extends MockImplementation<GetServiceReferenceOutput<Reference>>,
+  Implementation extends MockImplementation<
+    GetServiceReferenceOutput<Reference>
+  >,
 >(
   reference: Reference,
   implementation: Implementation,
@@ -347,7 +346,7 @@ export function mock(
 }
 
 /**
- * Sets up a `craftService` or `craftDependency` in Angular's `TestBed` with typed
+ * Sets up a `craftService` or `toCraftService` in Angular's `TestBed` with typed
  * dependency coverage.
  *
  * `setupCraftServiceTest` reads the runtime metadata attached to an inject helper
@@ -415,10 +414,14 @@ export function setupCraftServiceTest<
 } {
   const internalMetaData = getServiceMetaData(target);
   const providers = [...(options?.providers ?? [])];
-  const runtimeOverrides = new Map<string, { kind: 'useValue'; value: unknown }>();
+  const runtimeOverrides = new Map<
+    string,
+    { kind: 'useValue'; value: unknown }
+  >();
   const mocks: Record<string, unknown> = {};
   const hasExplicitTargetProvider = providers.some(
-    (provider) => getProviderOverrideMeta(provider)?.name === internalMetaData.name,
+    (provider) =>
+      getProviderOverrideMeta(provider)?.name === internalMetaData.name,
   );
 
   if (
@@ -430,7 +433,7 @@ export function setupCraftServiceTest<
       typeof internalMetaData.provide !== 'function'
     ) {
       throw new Error(
-        `Missing provide helper for craftService/craftDependency "${internalMetaData.name}" in setupCraftServiceTest.`,
+        `Missing provide helper for craftService/toCraftService "${internalMetaData.name}" in setupCraftServiceTest.`,
       );
     }
 

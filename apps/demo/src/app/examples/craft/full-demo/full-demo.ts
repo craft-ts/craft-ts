@@ -61,11 +61,9 @@ const { injectFullDemo, provideFullDemo } = craftService(
         previousPage: () => patch({ page: state().page - 1 }),
         updatePageSize: (newPageSize: number) =>
           patch({ pageSize: newPageSize, page: 1 }),
-        reset: () => reset(),
+        reset: on$(reset$, () => reset()),
       }),
     );
-
-    on$(reset$, () => pagination.reset());
 
     const bulkDelete = mutation({
       method: (ids: string[]) => ids,
