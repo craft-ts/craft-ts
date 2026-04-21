@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { ApiServiceToYield } from './api.service';
-import { provideRouter, Router, Routes } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { StatusComponent } from '../../../ui/status.component';
 import {
   craftService,
@@ -12,15 +12,12 @@ import {
   type MaybeSignal,
 } from '@craft-ng/core';
 
-const { injectCraftRouter } = toCraftService(
-  {
-    name: 'CraftRouter',
-    scope: 'manuallyProvidedAtRoot',
-    token: Router,
-    provide: (provided: { routes: Routes }) => provideRouter(provided.routes),
-  },
-  (router, _inputs: { $provided: { routes: Routes } }) => router,
-);
+const { injectCraftRouter } = toCraftService({
+  name: 'CraftRouter',
+  scope: 'manuallyProvidedAtRoot',
+  token: Router,
+  provide: provideRouter,
+});
 
 const { injectUserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },

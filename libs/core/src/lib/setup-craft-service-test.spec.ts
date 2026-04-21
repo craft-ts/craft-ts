@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Injectable, inject, InjectionToken } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -447,6 +447,49 @@ describe('setupCraftServiceTest', () => {
     );
 
     expect(sut()).toBe(5);
+  });
+
+  it('should require an explicit provider when a raw external dependency only uses provider inputs', () => {
+    const API_BASE_URL = new InjectionToken<string>('ApiBaseUrl');
+
+    @Injectable()
+    class CatalogDriver {
+      readonly baseUrl = inject(API_BASE_URL);
+
+      fetchProducts() {
+        return `${this.baseUrl}/products`;
+      }
+    }
+
+    const { injectCatalog: Catalog, provideCatalog } = toCraftService({
+      name: 'Catalog',
+      scope: 'toProvide',
+      token: CatalogDriver,
+      provide: (provided: { apiBaseUrl: string }) => [
+        {
+          provide: API_BASE_URL,
+          useValue: provided.apiBaseUrl,
+        },
+        {
+          provide: CatalogDriver,
+          useClass: CatalogDriver,
+        },
+      ],
+    });
+
+    expect(() => setupCraftServiceTest(Catalog, {})).toThrow(
+      'setupCraftServiceTest requires an explicit provider for "Catalog" because it uses $provided.',
+    );
+
+    const { sut } = setupCraftServiceTest(
+      Catalog,
+      {},
+      {
+        providers: [provideCatalog({ apiBaseUrl: '/api' })],
+      },
+    );
+
+    expect(sut.fetchProducts()).toBe('/api/products');
   });
 
   it('should allow a global adapted Router without override when provideRouter is supplied', () => {

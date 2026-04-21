@@ -1466,8 +1466,32 @@ export function toCraftService<
   Scope extends RequirementScope,
   Output,
 >(
-  options: ProviderCapableDependencyOptions<Name, Scope, Output>,
+  options: {
+    name: Name;
+    scope: Scope;
+    token: DependencySourceToken<Output>;
+    provide: () => CraftServiceProvider;
+  },
 ): DependencyApi<Name, Scope, {}, Output>;
+export function toCraftService<
+  Name extends string,
+  Scope extends RequirementScope,
+  Output,
+  ProvidedInput,
+>(
+  options: {
+    name: Name;
+    scope: Scope;
+    token: DependencySourceToken<Output>;
+    provide: (provided: ProvidedInput) => CraftServiceProvider;
+  },
+): DependencyApi<
+  Name,
+  Scope,
+  { $provided: ProvidedInput },
+  Output,
+  ServiceTrackingMetadata<Name, Scope, Output, never, undefined, ProvidedInput>
+>;
 export function toCraftService<
   Name extends string,
   Scope extends RequirementScope,
@@ -1575,16 +1599,26 @@ export function toCraftService(
   const internalMetaData = getServiceMetaData(
     api[injectName],
   ) as InternalServiceMetaData;
+  const runtimeDefinition = internalMetaData[SERVICE_RUNTIME_DEFINITION];
 
   if (adaptFactory) {
-    internalMetaData[SERVICE_RUNTIME_DEFINITION].hasProvidedInput =
-      factoryUsesProvidedInput(adaptFactory);
+    runtimeDefinition.hasProvidedInput = factoryUsesProvidedInput(adaptFactory);
   }
 
   if ('provide' in options) {
-    internalMetaData[SERVICE_RUNTIME_DEFINITION].externalProviders =
-      options.provide as (provided: unknown) => CraftServiceProvider;
+    runtimeDefinition.externalProviders = options.provide as (
+      provided: unknown,
+    ) => CraftServiceProvider;
+    runtimeDefinition.hasProvidedInput =
+      runtimeDefinition.hasProvidedInput ||
+      provideFactoryUsesProvidedInput(options.provide);
   }
+
+  Reflect.set(
+    internalMetaData,
+    'usesProvidedInput',
+    runtimeDefinition.hasProvidedInput,
+  );
 
   return api;
 }
@@ -2514,6 +2548,12 @@ function assertDependencyScope(
 
 function factoryUsesProvidedInput(factory: AnyFactory): boolean {
   return factory.toString().includes(SERVICE_PROVIDED_INPUT_KEY);
+}
+
+function provideFactoryUsesProvidedInput(
+  provideFactory: (...args: any[]) => CraftServiceProvider,
+): boolean {
+  return provideFactory.length > 0;
 }
 
 function capitalize(value: string): string {

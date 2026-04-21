@@ -184,6 +184,52 @@ describe('toCraftService', () => {
     });
   });
 
+  it('should infer provider inputs for raw toProvide external dependencies without exposing $provided publicly', () => {
+    const API_BASE_URL = new InjectionToken<string>('ApiBaseUrl');
+
+    @Injectable()
+    class CatalogDriver {
+      readonly baseUrl = inject(API_BASE_URL);
+
+      fetchProducts() {
+        return `${this.baseUrl}/products`;
+      }
+    }
+
+    const { injectCatalog, provideCatalog } = toCraftService({
+      name: 'Catalog',
+      scope: 'toProvide',
+      token: CatalogDriver,
+      provide: (provided: { apiBaseUrl: string }) => [
+        {
+          provide: API_BASE_URL,
+          useValue: provided.apiBaseUrl,
+        },
+        {
+          provide: CatalogDriver,
+          useClass: CatalogDriver,
+        },
+      ],
+    });
+
+    if (false) {
+      provideCatalog({ apiBaseUrl: '/api' });
+
+      //@ts-expect-error $provided should not be a public inject binding for raw dependencies
+      injectCatalog({
+        $provided: { apiBaseUrl: '/override' },
+      });
+    }
+
+    TestBed.configureTestingModule({
+      providers: [provideCatalog({ apiBaseUrl: '/api' })],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      expect(injectCatalog().fetchProducts()).toBe('/api/products');
+    });
+  });
+
   it('should expose $provided to dependency adaptations while keeping it hidden from public bindings', () => {
     const API_BASE_URL = new InjectionToken<string>('ApiBaseUrl');
 
@@ -289,6 +335,56 @@ describe('toCraftService', () => {
       expect(counterDriver).toBe(providedCounterDriver);
       counterDriver.increment();
       expect(providedCounterDriver.total()).toBe(1);
+    });
+  });
+
+  it('should infer provider inputs for raw manuallyProvidedAtRoot external dependencies', () => {
+    const API_BASE_URL = new InjectionToken<string>('ApiBaseUrl');
+
+    @Injectable()
+    class CatalogDriver {
+      readonly baseUrl = inject(API_BASE_URL);
+
+      fetchProducts() {
+        return `${this.baseUrl}/products`;
+      }
+    }
+
+    const { injectCatalog, provideCatalog, CatalogToProvide } = toCraftService({
+      name: 'Catalog',
+      scope: 'manuallyProvidedAtRoot',
+      token: CatalogDriver,
+      provide: (provided: { apiBaseUrl: string }) => [
+        {
+          provide: API_BASE_URL,
+          useValue: provided.apiBaseUrl,
+        },
+        {
+          provide: CatalogDriver,
+          useClass: CatalogDriver,
+        },
+      ],
+    });
+
+    if (false) {
+      provideCatalog({ apiBaseUrl: '/api' });
+
+      //@ts-expect-error $provided should not be a public inject binding for raw dependencies
+      injectCatalog({
+        $provided: { apiBaseUrl: '/override' },
+      });
+    }
+
+    TestBed.configureTestingModule({
+      providers: [provideCatalog({ apiBaseUrl: '/api' })],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const catalog = injectCatalog();
+      const providedCatalog = inject(CatalogToProvide);
+
+      expect(catalog).toBe(providedCatalog);
+      expect(catalog.fetchProducts()).toBe('/api/products');
     });
   });
 
