@@ -62,25 +62,10 @@ export default defineConfig({
         items: [{ text: 'Overview', link: '/forms/index' }],
       },
       {
-        text: 'Store',
+        text: 'Service',
         items: [
-          { text: 'craft', link: '/store/craft' },
           { text: 'craftService', link: '/store/craft-service' },
           { text: 'toCraftService', link: '/store/to-craft-service' },
-          { text: 'craftState', link: '/store/craft-state' },
-          { text: 'craftSources', link: '/store/craft-sources' },
-          { text: 'craftInputs', link: '/store/craft-inputs' },
-          { text: 'craftComputedStates', link: '/store/craft-computed' },
-          { text: 'craftAsyncProcesses', link: '/store/craft-async-process' },
-          { text: 'craftQuery', link: '/store/craft-query' },
-          { text: 'craftQueryParam', link: '/store/craft-query-param' },
-          { text: 'craftQueryParams', link: '/store/craft-query-params' },
-          { text: 'craftMutations', link: '/store/craft-mutation' },
-          {
-            text: 'craftSetAllQueriesParamsStandalone',
-            link: '/store/craft-set-all-queries-params-standalone',
-          },
-          { text: 'craftInject', link: '/store/craft-inject' },
           {
             text: 'setupCraftServiceTestingByRegister',
             link: '/store/setup-craft-service-testing-by-register',

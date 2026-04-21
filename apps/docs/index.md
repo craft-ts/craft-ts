@@ -28,7 +28,7 @@ features:
   - title: Granular State Management
     details: Promotes creating granular "slices" with declarative state, isolating each state piece for better maintainability.
   - title: Flexible Architecture
-    details: Method-based approach that can evolve to source-based for event-driven architecture. Create global, local, or feature stores that compose effortlessly.
+    details: Method-based approach that can evolve to source-based for event-driven architecture. Create global, local, or feature services that compose effortlessly.
   - title: Frictionless DX
-    details: Designed for a smooth developer experience with maximum TypeScript inference, declarative state creation, and evolutionary store composition.
+    details: Designed for a smooth developer experience with maximum TypeScript inference, declarative state creation, and evolutionary service composition.
 ---
