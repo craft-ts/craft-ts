@@ -100,10 +100,7 @@ const updateUser = mutation({
       : value,
   loader: async ({ params }) =>
     params === 'blocked'
-      ? craftException(
-          { code: 'USER_ACCESS_FORBIDDEN' },
-          { id: params },
-        )
+      ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
       : { id: params, updated: true },
 });
 
@@ -143,4 +140,4 @@ Prefer `safeValue()` in templates and computed signals to avoid unexpected error
 
 - [query](/primitives/query) - For data fetching
 - [AsyncProcess](/primitives/async-process) - For simple async operations
-- [Store Mutation](/store/craft-mutation) - For store integration
+- [craftService](/store/craft-service) - For integrating mutations inside reusable services

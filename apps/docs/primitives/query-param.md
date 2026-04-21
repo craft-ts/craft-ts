@@ -73,10 +73,7 @@ const mode = queryParam({
       parse: (value: string) =>
         value === 'success'
           ? ('success' as const)
-          : craftException(
-              { code: 'InvalidModeFromUrl' },
-              { received: value },
-            ),
+          : craftException({ code: 'InvalidModeFromUrl' }, { received: value }),
       serialize: (value) => String(value),
     },
   },
@@ -90,6 +87,7 @@ if (mode.hasException()) {
 ```
 
 Demo source:
+
 - [exception-query-param.ts](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-param.ts)
 
 ## Important Notes
@@ -143,4 +141,4 @@ const options = queryParam({
 ## See Also
 
 - [state](/primitives/state) - For non-URL state
-- [Store QueryParams](/store/craft-query-params) - For store integration
+- [craftService](/store/craft-service) - For integrating URL state inside reusable services

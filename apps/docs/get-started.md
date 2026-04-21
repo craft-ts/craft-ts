@@ -78,15 +78,13 @@ export class CounterComponent {
 }
 ```
 
-### Using craft store with craftState
+### Extract reusable logic with craftService
 
-For more complex state management, use `craft` to create a store with `craftState`:
+For logic that should live outside a single component, wrap your primitives in a named service with `craftService`:
 
 ```typescript
-import { Component } from '@angular/core';
-import { craft, craftState } from '@craft-ng/core';
-import { state } from '@craft-ng/core';
-import { computed } from '@angular/core';
+import { Component, computed } from '@angular/core';
+import { craftService, state } from '@craft-ng/core';
 
 interface Todo {
   id: string;
@@ -94,82 +92,75 @@ interface Todo {
   completed: boolean;
 }
 
-// Create a craft store
-const { injectTodosCraft } = craft(
-  { name: 'todos', providedIn: 'root' },
-  craftState('list', () =>
-    state(
-      [] as Todo[],
-      // Methods
-      ({ state, set }) => ({
-        add: (title: string) => {
-          const newTodo = {
-            id: crypto.randomUUID(),
-            title,
-            completed: false,
-          };
-          set([...state(), newTodo]);
+const { injectTodos } = craftService({ name: 'Todos', scope: 'global' }, () => {
+  const items = state([] as Todo[], ({ state, set }) => ({
+    add: (title: string) => {
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) {
+        return;
+      }
+
+      set([
+        ...state(),
+        {
+          id: crypto.randomUUID(),
+          title: trimmedTitle,
+          completed: false,
         },
-        toggle: (id: string) => {
-          set(
-            state().map((todo) =>
-              todo.id === id ? { ...todo, completed: !todo.completed } : todo,
-            ),
-          );
-        },
-        remove: (id: string) => {
-          set(state().filter((todo) => todo.id !== id));
-        },
-      }),
-      // Computed properties
-      ({ state }) => ({
-        completed: computed(() => state().filter((t) => t.completed)),
-        remaining: computed(() => state().filter((t) => !t.completed)),
-        count: computed(() => state().length),
-      }),
-    ),
-  ),
-);
+      ]);
+    },
+    toggle: (id: string) => {
+      set(
+        state().map((todo) =>
+          todo.id === id ? { ...todo, completed: !todo.completed } : todo,
+        ),
+      );
+    },
+    remove: (id: string) => set(state().filter((todo) => todo.id !== id)),
+  }));
+
+  return {
+    items,
+    total: computed(() => items().length),
+    remaining: computed(() => items().filter((todo) => !todo.completed).length),
+    addTodo: items.add,
+    toggleTodo: items.toggle,
+    removeTodo: items.remove,
+  };
+});
 
 @Component({
   selector: 'app-todos',
   standalone: true,
   template: `
     <div>
-      <h2>Todos ({{ store.listCount() }})</h2>
+      <h2>Todos ({{ store.total() }})</h2>
       <input
         #input
         type="text"
-        (keyup.enter)="addTodo(input.value); input.value = ''"
+        (keyup.enter)="store.addTodo(input.value); input.value = ''"
       />
 
       <ul>
-        @for (todo of store.list(); track todo.id) {
+        @for (todo of store.items(); track todo.id) {
           <li>
             <input
               type="checkbox"
               [checked]="todo.completed"
-              (change)="store.listToggle(todo.id)"
+              (change)="store.toggleTodo(todo.id)"
             />
             {{ todo.title }}
-            <button (click)="store.listRemove(todo.id)">Delete</button>
+            <button (click)="store.removeTodo(todo.id)">Delete</button>
           </li>
         }
       </ul>
 
-      <p>Remaining: {{ store.listRemaining().length }}</p>
-      <p>Completed: {{ store.listCompleted().length }}</p>
+      <p>Remaining: {{ store.remaining() }}</p>
     </div>
   `,
 })
 export class TodosComponent {
-  store = injectTodosCraft();
-
-  addTodo(title: string) {
-    if (title.trim()) {
-      this.store.listAdd(title);
-    }
-  }
+  readonly store = injectTodos();
 }
 ```
 
@@ -177,4 +168,5 @@ export class TodosComponent {
 
 - Explore the [Introduction](/introduction) to understand the core concepts
 - Learn about [Primitives](/primitives/state) to build reactive state
-- Discover [Store](/store/craft) patterns to extract logic from components and manage complex state
+- Discover [craftService](/store/craft-service) patterns to extract logic from components and services
+- Use [toCraftService](/store/to-craft-service) to adapt existing Angular dependencies

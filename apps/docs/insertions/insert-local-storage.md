@@ -60,4 +60,4 @@ const myAsyncProcess = asyncProcess(
 
 - [state](/primitives/state) - Base primitive for state
 - [insertReactOnMutation](/insertions/insert-react-on-mutation) - React to mutations
-- [Store](/store/craft) - Compose insertions in stores
+- [craftService](/store/craft-service) - Compose persisted primitives inside reusable services

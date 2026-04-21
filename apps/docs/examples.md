@@ -74,11 +74,11 @@
 
 ---
 
-## Craft Examples (Store/Service Abstraction)
+## Service Examples
 
 ### 1. Query - Basic Example
 
-**Description:** Demonstrates the use of `craftQuery` to fetch user data with automatic cache and state management.
+**Description:** Demonstrates a reusable query-oriented service built with `craftService` and reactive primitives.
 
 🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/query/query.ts&initialpath=/craft/query/1)
 
@@ -86,7 +86,7 @@
 
 ### 2. Mutation - Data Modification
 
-**Description:** Illustrates the use of `craftMutations` to create, update, and delete users with automatic cache invalidation.
+**Description:** Illustrates a mutation-oriented service that creates, updates, and deletes users with reactive cache synchronization.
 
 🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/mutation/mutation.ts&initialpath=/craft/mutation/1)
 
@@ -94,7 +94,7 @@
 
 ### 3. List with Pagination - Paginated List
 
-**Description:** Demonstrates managing a paginated list with `craftQueryParam` to synchronize pagination state with the URL and `insertPaginationPlaceholderData` for a smooth user experience.
+**Description:** Demonstrates managing a paginated list service with `queryParam` and `insertPaginationPlaceholderData` for a smooth user experience.
 
 🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/list-with-pagination/list-with-pagination.ts&initialpath=/craft/list-with-pagination)
 
@@ -102,7 +102,7 @@
 
 ### 4. Granular Mutation - Granular Mutations
 
-**Description:** Shows how to perform granular mutations on lists with `insertReactOnMutation` to automatically update the cache without reloading all data.
+**Description:** Shows how to perform granular list mutations inside a service with `insertReactOnMutation` to update cached data without reloading everything.
 
 🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/granular-mutation/granular-mutation.ts&initialpath=/craft/granular-mutation)
 
@@ -110,7 +110,7 @@
 
 ### 5. Full Demo - Complete Demo
 
-**Description:** Comprehensive example combining queries, mutations, async methods, state management, query params, pagination, and localStorage persistence. Demonstrates all Craft features in a realistic application.
+**Description:** Comprehensive example combining queries, mutations, async methods, state management, query params, pagination, and localStorage persistence in a realistic service-oriented application.
 
 🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/full-demo/full-demo.ts&initialpath=/craft/full-demo)
 

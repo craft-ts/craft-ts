@@ -561,4 +561,4 @@ products.updateOne({
 - [queryParam](/primitives/query-param) - URL state synchronization
 - [entities-util](/utils/entities-util) - Entity manipulation utilities
 - [insertLocalStorage](/insertions/insert-local-storage) - Persist state
-- [Store](/store/craft) - Compose insertions in stores
+- [craftService](/store/craft-service) - Compose entity state inside reusable services

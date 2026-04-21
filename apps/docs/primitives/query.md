@@ -205,4 +205,4 @@ Prefer `safeValue()` in templates and computed signals to avoid unexpected error
 - [mutation](/primitives/mutation) - For server updates
 - [AsyncProcess](/primitives/async-process) - For one-off async operations
 - [insertReactOnMutation](/insertions/insert-react-on-mutation) - React to mutation changes
-- [Store Query](/store/craft-query) - For store integration
+- [craftService](/store/craft-service) - For integrating queries inside reusable services

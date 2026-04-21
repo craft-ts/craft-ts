@@ -163,47 +163,48 @@ console.log(page()); // 1
 console.log(filters()); // []
 ```
 
-### Using on$ in a craft store
+### Using on$ in a craft service
 
 ```typescript
-import { craft, craftSources, craftState } from '@craft-ng/core';
-import { state, source$ } from '@craft-ng/core';
+import { craftService, state, source$ } from '@craft-ng/core';
 import { on$ } from '@craft-ng/core';
 
-const { injectFiltersCraft } = craft(
-  { name: 'filters', providedIn: 'root' },
-  craftSources({
-    reset: source$<void>(),
-  }),
-  craftState('search', ({ reset }) =>
-    state('', ({ set }) => ({
+const { injectFilters } = craftService(
+  { name: 'Filters', scope: 'global' },
+  () => {
+    const reset = source$<void>();
+    const search = state('', ({ set }) => ({
       set,
       // Internal: reset on source emission
       handleReset: on$(reset, () => set('')),
-    })),
-  ),
-  craftState('category', ({ reset }) =>
-    state('all', ({ set }) => ({
+    }));
+    const category = state('all', ({ set }) => ({
       set,
       // Internal: reset on source emission
       handleReset: on$(reset, () => set('all')),
-    })),
-  ),
+    }));
+
+    return {
+      search,
+      category,
+      resetFilters: () => reset.emit(),
+    };
+  },
 );
 
-const store = injectFiltersCraft();
+const filters = injectFilters();
 
-store.search.set('angular');
-store.category.set('frameworks');
+filters.search.set('angular');
+filters.category.set('frameworks');
 
-console.log(store.search()); // 'angular'
-console.log(store.category()); // 'frameworks'
+console.log(filters.search()); // 'angular'
+console.log(filters.category()); // 'frameworks'
 
 // Reset all filters
-store.setReset();
+filters.resetFilters();
 
-console.log(store.search()); // ''
-console.log(store.category()); // 'all'
+console.log(filters.search()); // ''
+console.log(filters.category()); // 'all'
 ```
 
 ### Conditional state updates
@@ -331,4 +332,4 @@ console.log(lastClick()); // { x: 150, y: 250 }
 - [`source$`](/utils/source$) - Create reactive sources
 - [`afterRecomputation`](/utils/after-recomputation) - Transform sources for method parameters
 - [`state`](/primitives/state) - Create reactive state with insertions
-- [`craftSources`](/store/craft-sources) - Define sources in craft stores
+- [`craftService`](/store/craft-service) - Organize coordinated states inside reusable services

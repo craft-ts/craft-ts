@@ -105,5 +105,5 @@ export class UsersListComponent {
 
 - [query](/primitives/query) - Base primitive for queries
 - [insertReactOnMutation](/insertions/insert-react-on-mutation) - React to mutations
-- [Store](/store/craft) - Compose insertions in stores
+- [craftService](/store/craft-service) - Compose paginated queries inside reusable services
 ````

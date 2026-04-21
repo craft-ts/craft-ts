@@ -119,194 +119,80 @@ When `resetSource.emit()` is called, `search` will be reset to `''` and `page`to
 
 [on$](/utils/on$) - For more info.
 
-### Store Composition
+### Service Composition
 
-Create stores (global, local, or feature-level) designed for composition that integrate effortlessly:
+Compose named services that package primitives and Angular dependencies behind an explicit API:
 
-- **Global stores** for application-wide state
-- **Local stores** for component-specific state
-- **Feature stores** for reusable pieces of logic
+- **`craftService`** for the services you author
+- **`toCraftService`** to adapt existing Angular services or tokens
+- **Explicit scopes** for app-wide, provider-mounted, or factory-style lifecycles
 
 ```typescript
-// 👇 create a global store, that enable to fetch an user, mutate his email and optimize the UX by performing a type-safe optimistic update and a reload if an error occurred.
-const { injectUserGlobalCraft } = craft(
-  {
-    name: 'userGlobal',
-    providedIn: 'root',
-  },
-  craftMutations(() => ({
-    userEmail: mutation({
+import {
+  craftService,
+  insertReactOnMutation,
+  mutation,
+  query,
+  state,
+} from '@craft-ng/core';
+
+type User = { id: string; email: string };
+
+const { UserApiToYield } = craftService(
+  { name: 'UserApi', scope: 'global' },
+  () => ({
+    getUser: (id: string): Promise<User> =>
+      fetch(`/api/users/${id}`).then((response) => response.json()),
+
+    updateEmail: (payload: { id: string; email: string }): Promise<User> =>
+      fetch(`/api/users/${payload.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }).then((response) => response.json()),
+  }),
+);
+
+const { injectUserProfile } = craftService(
+  { name: 'UserProfile', scope: 'global' },
+  function* () {
+    const api = yield* UserApiToYield();
+    const userId = state('5', ({ set }) => ({ set }));
+
+    const updateEmail = mutation({
       method: (payload: { id: string; email: string }) => payload,
-      loader: async ({ params }) => {
-        const response = await fetch('/api/users', {
-          method: 'POST',
-          body: JSON.stringify(params),
-        });
-        return response.json() as User;
-      },
-    }),
-  })),
-  craftQuery('user', ({ userEmail }) =>
-    query(
+      loader: ({ params }) => api.updateEmail(params),
+    });
+
+    const user = query(
       {
-        params: () => '5',
-        loader: async ({ params }) => {
-          const response = await fetch(`/api/users/${params}`);
-          return response.json() as User;
-        },
+        params: () => userId(),
+        loader: ({ params }) => api.getUser(params),
       },
-      insertReactOnMutation(userEmail, {
-        optimisticUpdate: ({ queryResource, mutationParams }) => {
-          return {
-            ...queryResource.value(),
-            email: mutationParams.email,
-          };
+      insertReactOnMutation(updateEmail, {
+        optimisticPatch: {
+          email: ({ mutationParams }) => mutationParams.email,
         },
         reload: {
           onMutationError: true,
         },
       }),
-    ),
-  ),
-);
-```
+    );
 
-Bind shared store inputs and methods to the host states and sources.
-
-> Here a common example of a feature store that manage user posts with pagination and filtering capabilities, resetting filters and pagination when needed, and displaying post details when a post is selected.
-
-```typescript
-const { craftPaginationFeature } = craft(
-  {
-    name: 'pagination',
-    providedIn: 'feature',
-  },
-  craftQueryParams(() => ({
-    pagination: queryParam(
-      {
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: unknown) => String(value),
-          },
-          pageSize: {
-            fallbackValue: 10,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: unknown) => String(value),
-          },
-        },
-      },
-      ({ set, reset }) => ({ set, reset }),
-    ),
-  })),
-);
-
-const { craftPostDetailsFeature } = craft(
-  {
-    name: 'postDetails',
-    providedIn: 'feature',
-  },
-  craftInputs({
-    postId: undefined as string | undefined,
-    userId: undefined as string | undefined,
-  }),
-  craftQuery('post', ({ userId, postId }) =>
-    query({
-      params: () => ({
-        userId: userId(),
-        postId: postId(),
-      }),
-      loader: async ({ params: { userId, postId } }) => {
-        const response = await fetch(`/api/users/${userId}/posts/${postId}`);
-        return response.json();
-      },
-    }),
-  ),
-);
-
-const { injectUserPostsCraft } = craft(
-  {
-    name: 'userPosts',
-    providedIn: 'root',
-  },
-  craftInputs({
-    userId: undefined as string | undefined,
-  }),
-  craftSources({
-    resetFilters: source$<void>(),
-  }),
-  craftPaginationFeature(({ reset }) => ({
-    methods: {
-      // bind pagination reset to the resetFilters source
-      reset: resetFilters,
-    },
-  })),
-  craftQueryParams(({ reset }) => ({
-    postCategory: queryParam(
-      {
-        state: {
-          categoryName: {
-            fallbackValue: '',
-            parse: (value: string) => value,
-            serialize: (value: unknown) => value,
-          },
-        },
-      },
-      ({ set, reset }) => ({
-        set,
-        reset: on$(resetFilters, () => reset()),
-      }),
-    ),
-  })),
-  craftQuery('posts', ({ userId, pagination, postCategory }) =>
-    query({
-      params: () => ({
-        pagination: pagination(),
-        userId: userId(),
-        postCategory: postCategory(),
-      }),
-      loader: async ({
-        params: {
-          userId,
-          pagination: { page, pageSize },
-          postCategory: { categoryName },
-        },
-      }) => {
-        const response = await fetch(
-          `/api/users/${userId}/posts?page=${page}&size=${pageSize}&category=${categoryName}`,
-        );
-        return response.json();
-      },
-    }),
-  ),
-  craftState('selectedPostId', ({ resetFilters }) =>
-    state(undefined as string | undefined, ({ set }) => ({
-      set,
-      reset: on$(resetFilters, () => set(undefined)),
-    })),
-  ),
-  craftPostDetailsFeature(({ userId, selectedPostId }) => ({
-    inputs: {
+    return {
       userId,
-      postId: selectedPostId,
-    },
-  })),
+      user,
+      updateEmail,
+    };
+  },
 );
 
-// In a component:
-@Component()
-class UserPostsComponent {
-  readonly userId = input.required<string>();
-
-  readonly store = injectUserPostsCraft({
-    input: {
-      // bind the store inputs to component signal variable
-      userId: this.userId,
-    },
-  });
-}
+const profile = injectUserProfile();
+profile.userId.set('42');
+profile.updateEmail.mutate({ id: '42', email: 'new@email.com' });
+console.log(profile.user.value().email);
 ```
+
+`craftService` composes the primitives you author. `toCraftService` adapts existing Angular dependencies so they can participate in the same typed composition and testing workflow.
 
 ### 100% type-safe - Maximum TypeScript Inference
 
@@ -317,7 +203,7 @@ Utilizes TypeScript inference to the maximum, limiting types you need to declare
 Designed for a **smooth developer experience** with:
 
 - Declarative state creation
-- Evolutionary store composition
+- Explicit service composition
 - Clear and intuitive API
 
 ## Key Features
@@ -339,7 +225,8 @@ import {
   queryParam,
   query,
   mutation,
-  craft,
+  craftService,
+  toCraftService,
   // ... and more
 } from '@craft-ng/core';
 ```
@@ -349,5 +236,6 @@ import {
 Ready to dive in? Start with:
 
 - [Primitives](/primitives/state) - Learn the building blocks
-- [Store](/store/craft) - Create composable stores
+- [craftService](/store/craft-service) - Compose reusable service boundaries
+- [toCraftService](/store/to-craft-service) - Adapt Angular services into the same model
 - [Examples](/examples) - See it in action

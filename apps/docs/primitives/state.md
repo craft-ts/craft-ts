@@ -100,5 +100,5 @@ console.log(myState()); // 0
 ## See Also
 
 - [AsyncProcess](/primitives/async-process) - For async operations
-- [Store](/store/craft) - For composing multiple states
+- [craftService](/store/craft-service) - Package multiple states behind a reusable service boundary
 - [Insertions](/insertions/insert-local-storage) - For enhancing state behavior
