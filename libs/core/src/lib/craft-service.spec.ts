@@ -721,6 +721,7 @@ describe('serviceToYield should enable to binding inputs', () => {
       },
     );
 
+    // eslint-disable-next-line no-constant-condition
     if (false) {
       //@ts-expect-error $provided should not be a public CounterToYield binding
       CounterToYield({
@@ -1233,7 +1234,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'global';
       dependencies: {};
-      mustBeProvided: [];
     }>();
   });
 
@@ -1254,7 +1254,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
       dependencies: {};
-      mustBeProvided: [{ Counter: GetServiceOutput<typeof injectCounter> }];
     }>();
   });
 
@@ -1289,15 +1288,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [
-            { Counter: GetServiceOutput<typeof CounterToYield> },
-          ];
         };
       };
-      mustBeProvided: [
-        { CounterExtended: GetServiceOutput<typeof injectCounterExtended> },
-        { Counter: GetServiceOutput<typeof CounterToYield> },
-      ];
     }>();
   });
 
@@ -1317,13 +1309,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<ManuallyProvidedAtRoot1ToYieldDependencies>().toEqualTypeOf<{
       scope: 'manuallyProvidedAtRoot';
       dependencies: {};
-      mustBeProvided: [
-        {
-          ManuallyProvidedAtRoot1: GetServiceOutput<
-            typeof ManuallyProvidedAtRoot1ToYield
-          >;
-        },
-      ];
     }>();
   });
 
@@ -1382,47 +1367,16 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         ManuallyProvidedAtRoot1: {
           scope: 'manuallyProvidedAtRoot';
           dependencies: {};
-          mustBeProvided: [
-            {
-              ManuallyProvidedAtRoot1: GetServiceOutput<
-                typeof ManuallyProvidedAtRoot1ToYield
-              >;
-            },
-          ];
         };
         ManuallyProvidedAtRoot2: {
           scope: 'manuallyProvidedAtRoot';
           dependencies: {};
-          mustBeProvided: [
-            {
-              ManuallyProvidedAtRoot2: GetServiceOutput<
-                typeof ManuallyProvidedAtRoot2ToYield
-              >;
-            },
-          ];
         };
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [
-            { Counter: GetServiceOutput<typeof CounterToYield> },
-          ];
         };
       };
-      mustBeProvided: [
-        { CounterExtended: GetServiceOutput<typeof injectCounterExtended> },
-        { Counter: GetServiceOutput<typeof CounterToYield> },
-        {
-          ManuallyProvidedAtRoot1: GetServiceOutput<
-            typeof ManuallyProvidedAtRoot1ToYield
-          >;
-        },
-        {
-          ManuallyProvidedAtRoot2: GetServiceOutput<
-            typeof ManuallyProvidedAtRoot2ToYield
-          >;
-        },
-      ];
     }>();
   });
 });
@@ -1446,7 +1400,6 @@ describe('typing can track all derived dependencies (only the properties that ar
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'global';
       dependencies: {};
-      mustBeProvided: [];
     }>();
   });
 
@@ -1487,9 +1440,6 @@ describe('typing can track all derived dependencies (only the properties that ar
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [
-            { Counter: GetServiceOutput<typeof CounterToYield> },
-          ];
           derivedPropertiesUsed: {
             $self: GetServiceOutput<typeof CounterToYield>;
             increment: GetServiceOutput<typeof CounterToYield>['increment'];
@@ -1502,10 +1452,6 @@ describe('typing can track all derived dependencies (only the properties that ar
           };
         };
       };
-      mustBeProvided: [
-        { CounterExtended: GetServiceOutput<typeof injectCounterExtended> },
-        { Counter: GetServiceOutput<typeof CounterToYield> },
-      ];
     }>();
   });
 
@@ -1557,9 +1503,6 @@ describe('typing can track all derived dependencies (only the properties that ar
         Counter: {
           scope: 'toProvide';
           dependencies: {};
-          mustBeProvided: [
-            { Counter: GetServiceOutput<typeof CounterToYield> },
-          ];
           derivedPropertiesUsed: {
             $self: GetServiceOutput<typeof CounterToYield>;
             increment: GetServiceOutput<typeof CounterToYield>['increment'];
@@ -1573,10 +1516,6 @@ describe('typing can track all derived dependencies (only the properties that ar
           };
         };
       };
-      mustBeProvided: [
-        { CounterExtended: GetServiceOutput<typeof injectCounterExtended> },
-        { Counter: GetServiceOutput<typeof CounterToYield> },
-      ];
     }>();
   });
 });

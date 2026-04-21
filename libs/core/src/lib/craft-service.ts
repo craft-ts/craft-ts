@@ -45,27 +45,23 @@ type DerivedPropertiesTracking<
 export type ServiceDependencies<
   Scope = unknown,
   Dependencies = {},
-  MustBeProvided = [],
   Derived = undefined,
-> = Simplify<{
-  scope: Scope;
-  dependencies: Simplify<Dependencies>;
-  mustBeProvided: MustBeProvided;
-} & (Derived extends undefined ? {} : Derived)>;
+> = Simplify<
+  {
+    scope: Scope;
+    dependencies: Simplify<Dependencies>;
+  } & (Derived extends undefined ? {} : Derived)
+>;
 
-type WithTrackedDependencies<
-  Helper,
-  Metadata,
-> = Helper & {
+type WithTrackedDependencies<Helper, Metadata> = Helper & {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: Metadata;
 };
 
-type ExtractTrackedMetadata<Helper> =
-  Helper extends {
-    readonly [SERVICE_HELPER_DEPENDENCIES]?: infer Metadata;
-  }
-    ? Metadata
-    : never;
+type ExtractTrackedMetadata<Helper> = Helper extends {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: infer Metadata;
+}
+  ? Metadata
+  : never;
 
 export type GetInjectedServiceDependencies<InjectService> =
   ResolveServiceTrackingMetadata<ExtractTrackedMetadata<InjectService>>;
@@ -78,6 +74,7 @@ export type GetServiceOutput<ServiceHelper> =
     any,
     any,
     infer Output,
+    any,
     any,
     any
   >
@@ -92,13 +89,11 @@ type ConstantCase<
     ? `${Uppercase<First>}${ConstantCase<Rest, false>}`
     : First extends `${number}`
       ? `${First}${ConstantCase<Rest, false>}`
-      : `${IsStart extends true ? '' : '_'}${First}${ConstantCase<
-          Rest,
-          false
-        >}`
+      : `${IsStart extends true ? '' : '_'}${First}${ConstantCase<Rest, false>}`
   : '';
 
-type ServiceMetaDataKey<Name extends string> = `${ConstantCase<Name>}_META_DATA`;
+type ServiceMetaDataKey<Name extends string> =
+  `${ConstantCase<Name>}_META_DATA`;
 
 type MetaDataTypeInfo<MetaData> = MetaData extends {
   readonly [SERVICE_META_DATA_TYPE]?: infer Info;
@@ -106,17 +101,19 @@ type MetaDataTypeInfo<MetaData> = MetaData extends {
   ? Info
   : never;
 
-type GetServiceMetaDataInputs<MetaData> = MetaDataTypeInfo<MetaData> extends {
-  inputs: infer Inputs extends object;
-}
-  ? Inputs
-  : {};
+type GetServiceMetaDataInputs<MetaData> =
+  MetaDataTypeInfo<MetaData> extends {
+    inputs: infer Inputs extends object;
+  }
+    ? Inputs
+    : {};
 
-type GetServiceMetaDataOutput<MetaData> = MetaDataTypeInfo<MetaData> extends {
-  output: infer Output;
-}
-  ? Output
-  : never;
+type GetServiceMetaDataOutput<MetaData> =
+  MetaDataTypeInfo<MetaData> extends {
+    output: infer Output;
+  }
+    ? Output
+    : never;
 
 type GetServiceMetaDataDependencies<MetaData> =
   MetaDataTypeInfo<MetaData> extends {
@@ -125,11 +122,12 @@ type GetServiceMetaDataDependencies<MetaData> =
     ? Dependencies
     : never;
 
-type GetServiceMetaDataTracking<MetaData> = MetaDataTypeInfo<MetaData> extends {
-  tracking: infer Tracking;
-}
-  ? Tracking
-  : never;
+type GetServiceMetaDataTracking<MetaData> =
+  MetaDataTypeInfo<MetaData> extends {
+    tracking: infer Tracking;
+  }
+    ? Tracking
+    : never;
 
 type GetServiceMetaDataProvidedInput<MetaData> =
   MetaDataTypeInfo<MetaData> extends {
@@ -156,12 +154,11 @@ type PublicServiceInputs<Inputs extends object> = Simplify<
   Omit<Inputs, ProvidedInputKey>
 >;
 
-type HasProvidedInput<Inputs extends object> =
-  unknown extends Inputs
-    ? false
-    : ProvidedInputKey extends keyof Inputs
-      ? true
-      : false;
+type HasProvidedInput<Inputs extends object> = unknown extends Inputs
+  ? false
+  : ProvidedInputKey extends keyof Inputs
+    ? true
+    : false;
 
 type ServiceProvidedInput<Inputs extends object> =
   HasProvidedInput<Inputs> extends true
@@ -244,17 +241,18 @@ type AnyServiceMetaData = {
   readonly [SERVICE_RUNTIME_META]?: AnyServiceMetaData;
 };
 
-type WithServiceRuntimeMeta<Helper, MetaData extends AnyServiceMetaData> =
-  Helper & {
-    readonly [SERVICE_RUNTIME_META]?: MetaData;
-  };
+type WithServiceRuntimeMeta<
+  Helper,
+  MetaData extends AnyServiceMetaData,
+> = Helper & {
+  readonly [SERVICE_RUNTIME_META]?: MetaData;
+};
 
-type ExtractServiceRuntimeMeta<ServiceReference> =
-  ServiceReference extends {
-    readonly [SERVICE_RUNTIME_META]?: infer MetaData extends AnyServiceMetaData;
-  }
-    ? MetaData
-    : never;
+type ExtractServiceRuntimeMeta<ServiceReference> = ServiceReference extends {
+  readonly [SERVICE_RUNTIME_META]?: infer MetaData extends AnyServiceMetaData;
+}
+  ? MetaData
+  : never;
 
 type AnyServiceRuntimeReference = {
   readonly [SERVICE_RUNTIME_META]?: AnyServiceMetaData;
@@ -305,11 +303,12 @@ type ValidateRequirementFactory<
 type ValidateProvidedInputScope<
   Scope extends ConcreteServiceScope,
   Inputs extends object,
-> = HasProvidedInput<Inputs> extends true
-  ? Scope extends RequirementScope
-    ? unknown
-    : never
-  : unknown;
+> =
+  HasProvidedInput<Inputs> extends true
+    ? Scope extends RequirementScope
+      ? unknown
+      : never
+    : unknown;
 
 type ValidateYieldedScope<
   Scope extends ConcreteServiceScope,
@@ -360,10 +359,8 @@ type PublicInputBindings<
   Scope extends ConcreteServiceScope,
 > = InputBindings<PublicServiceInputs<Inputs>, Scope>;
 
-type StrictBindings<
-  Shape extends object,
-  Candidate extends object,
-> = Exclude<keyof Candidate, keyof Shape> extends never ? Candidate : never;
+type StrictBindings<Shape extends object, Candidate extends object> =
+  Exclude<keyof Candidate, keyof Shape> extends never ? Candidate : never;
 
 type AllowedProvidedElsewhere<Scope extends ConcreteServiceScope> =
   Scope extends 'global' | 'toProvide' | 'manuallyProvidedAtRoot'
@@ -438,31 +435,30 @@ type ExposureTokenKeys<Output extends object> = Extract<
 type ExposureTokenValue<
   Output extends object,
   Key extends ExposureTokenKeys<Output>,
-> = Key extends OutputDependencyKeys<Output>
-  ? Output[Key]
-  : Key extends RootExposureKey
-    ? Output
-    : never;
+> =
+  Key extends OutputDependencyKeys<Output>
+    ? Output[Key]
+    : Key extends RootExposureKey
+      ? Output
+      : never;
 
-type TokenSourceKey<Value> =
-  Value extends {
-    readonly [SERVICE_EXPOSURE_TOKEN_MARKER]: ExposureTokenMetadata<
-      infer Key,
-      any
-    >;
-  }
-    ? Key
-    : never;
+type TokenSourceKey<Value> = Value extends {
+  readonly [SERVICE_EXPOSURE_TOKEN_MARKER]: ExposureTokenMetadata<
+    infer Key,
+    any
+  >;
+}
+  ? Key
+  : never;
 
-type TokenResolvedValue<Value> =
-  Value extends {
-    readonly [SERVICE_EXPOSURE_TOKEN_MARKER]: ExposureTokenMetadata<
-      any,
-      infer Resolved
-    >;
-  }
-    ? Resolved
-    : never;
+type TokenResolvedValue<Value> = Value extends {
+  readonly [SERVICE_EXPOSURE_TOKEN_MARKER]: ExposureTokenMetadata<
+    any,
+    infer Resolved
+  >;
+}
+  ? Resolved
+  : never;
 
 type MaterializeExposureValue<Value> = [TokenResolvedValue<Value>] extends [
   never,
@@ -491,7 +487,9 @@ type ExposureYield<Output extends object> = {
 
 type InvalidRootExposureAliases<Exposed extends object> = Extract<
   {
-    [Key in keyof Exposed]-?: TokenSourceKey<Exposed[Key]> extends RootExposureKey
+    [Key in keyof Exposed]-?: TokenSourceKey<
+      Exposed[Key]
+    > extends RootExposureKey
       ? Key extends RootExposureKey
         ? never
         : Key & string
@@ -512,11 +510,9 @@ type ExposureSelector<
   Yielded = never,
 > = (
   dependencies: ExposureTokens<Output>,
-) => ValidateRootExposure<Exposed> | Generator<
-  Yielded,
-  ValidateRootExposure<Exposed>,
-  unknown
->;
+) =>
+  | ValidateRootExposure<Exposed>
+  | Generator<Yielded, ValidateRootExposure<Exposed>, unknown>;
 
 type ExposureSourceRecord<Value> = [TokenSourceKey<Value>] extends [never]
   ? never
@@ -524,12 +520,13 @@ type ExposureSourceRecord<Value> = [TokenSourceKey<Value>] extends [never]
       [Key in TokenSourceKey<Value>]: MaterializeExposureValue<Value>;
     };
 
-type ExposureAliasRecord<Key extends PropertyKey, Value> =
-  [TokenSourceKey<Value>] extends [never]
-    ? never
-    : Key extends string
-      ? { [Property in Key]: MaterializeExposureValue<Value> }
-      : never;
+type ExposureAliasRecord<Key extends PropertyKey, Value> = [
+  TokenSourceKey<Value>,
+] extends [never]
+  ? never
+  : Key extends string
+    ? { [Property in Key]: MaterializeExposureValue<Value> }
+    : never;
 
 type DirectlyUsedProperties<Exposed extends object> = MergeObjectUnion<
   {
@@ -566,12 +563,14 @@ export type ServiceTrackingMetadata<
   Output = unknown,
   Yielded = unknown,
   Derived = undefined,
+  ProvidedInput = never,
 > = {
   name: Name;
   scope: Scope;
   output: Output;
   yielded: Yielded;
   derived: Derived;
+  providedInput: ProvidedInput;
 };
 
 type AnyServiceTrackingMetadata = ServiceTrackingMetadata<
@@ -579,6 +578,7 @@ type AnyServiceTrackingMetadata = ServiceTrackingMetadata<
   ConcreteServiceScope,
   unknown,
   unknown,
+  any,
   any
 >;
 
@@ -587,98 +587,30 @@ type DependencyRequests<Yielded> = UnionToTuple<
 >;
 
 type DependencyMetadata<Request> =
-  Request extends ServiceYieldRequest<any, any, infer Metadata> ? Metadata : never;
+  Request extends ServiceYieldRequest<any, any, infer Metadata>
+    ? Metadata
+    : never;
 
-type DependencyName<Request> = DependencyMetadata<Request> extends ServiceTrackingMetadata<
-  infer Name,
-  any,
-  any,
-  any,
-  any
->
-  ? Name
-  : never;
-
-type DependencyDefinition<Request> =
-  ResolveServiceTrackingMetadata<DependencyMetadata<Request>>;
-
-type ProvidedServiceEntry<Name extends string, Output> = {
-  [Key in Name]: Output;
-};
-
-type ProvidedServiceEntryName<Entry> = Extract<keyof Entry, string>;
-
-type ProvidedServiceNames<Entries extends object[]> = [Entries[number]] extends [
-  never,
-]
-  ? never
-  : ProvidedServiceEntryName<Entries[number]>;
-
-type AppendUniqueProvidedService<
-  Accumulator extends object[],
-  Entry extends object,
-> = ProvidedServiceEntryName<Entry> extends ProvidedServiceNames<Accumulator>
-  ? Accumulator
-  : [...Accumulator, Entry];
-
-type MergeMustBeProvided<
-  Values extends object[],
-  Accumulator extends object[] = [],
-> = Values extends [
-  infer First extends object,
-  ...infer Rest extends object[],
-]
-  ? MergeMustBeProvided<Rest, AppendUniqueProvidedService<Accumulator, First>>
-  : Accumulator;
-
-type FlattenDependencyMustBeProvided<
-  Requests extends unknown[],
-  Accumulator extends object[] = [],
-> = Requests extends [infer First, ...infer Rest]
-  ? FlattenDependencyMustBeProvided<
-      Rest,
-      [...Accumulator, ...Extract<DependencyMustBeProvided<First>, object[]>]
-    >
-  : Accumulator;
-
-type InitialMustBeProvided<
-  Name extends string,
-  Scope extends ConcreteServiceScope,
-  Output,
-> = Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-  ? [ProvidedServiceEntry<Name, Output>]
-  : [];
-
-type ResolveMustBeProvided<
-  Name extends string,
-  Scope extends ConcreteServiceScope,
-  Output,
-  Requests extends unknown[],
-> = MergeMustBeProvided<
-  FlattenDependencyMustBeProvided<
-    Requests,
-    InitialMustBeProvided<Name, Scope, Output>
-  >
->;
-
-type ResolveServiceMustBeProvided<Metadata> =
-  Metadata extends ServiceTrackingMetadata<
-    infer Name extends string,
-    infer Scope extends ConcreteServiceScope,
-    infer Output,
-    infer Yielded,
+type DependencyName<Request> =
+  DependencyMetadata<Request> extends ServiceTrackingMetadata<
+    infer Name,
+    any,
+    any,
+    any,
+    any,
     any
   >
-    ? ResolveMustBeProvided<Name, Scope, Output, DependencyRequests<Yielded>>
-    : [];
+    ? Name
+    : never;
 
-type DependencyMustBeProvided<Request> = ResolveServiceMustBeProvided<
+type DependencyDefinition<Request> = ResolveServiceTrackingMetadata<
   DependencyMetadata<Request>
 >;
 
 type DependencyRecord<Request> =
   DependencyMetadata<Request> extends ServiceTrackingMetadata<
     infer Name extends string,
+    any,
     any,
     any,
     any,
@@ -693,12 +625,12 @@ type ResolveServiceTrackingMetadata<Metadata> =
     infer Scope extends ConcreteServiceScope,
     infer Output,
     infer Yielded,
-    infer Derived
+    infer Derived,
+    any
   >
     ? ServiceDependencies<
         Scope,
         BuildDependencyMap<DependencyRequests<Yielded>>,
-        ResolveServiceMustBeProvided<Metadata>,
         Derived
       >
     : never;
@@ -707,10 +639,7 @@ type BuildDependencyMap<
   Requests extends unknown[],
   Accumulator extends object = {},
 > = Requests extends [infer First, ...infer Rest]
-  ? BuildDependencyMap<
-      Rest,
-      Simplify<Accumulator & DependencyRecord<First>>
-    >
+  ? BuildDependencyMap<Rest, Simplify<Accumulator & DependencyRecord<First>>>
   : Simplify<Accumulator>;
 
 type ServiceHelperMetadata<
@@ -721,28 +650,33 @@ type ServiceHelperMetadata<
   Name,
   Scope,
   FactoryOutput<Factory>,
-  FactoryYields<Factory>
+  FactoryYields<Factory>,
+  undefined,
+  ServiceProvidedInput<FactoryInputs<Factory>>
 >;
 
 type WithDerivedProperties<
   Metadata extends AnyServiceTrackingMetadata,
   Exposed extends object,
   Yielded,
-> = Metadata extends ServiceTrackingMetadata<
-  infer Name extends string,
-  infer Scope extends ConcreteServiceScope,
-  infer Output,
-  infer ChildYielded,
-  any
->
-  ? ServiceTrackingMetadata<
-      Name,
-      Scope,
-      Output,
-      ChildYielded,
-      DerivedPropertiesForExposure<Exposed, Yielded>
-    >
-  : never;
+> =
+  Metadata extends ServiceTrackingMetadata<
+    infer Name extends string,
+    infer Scope extends ConcreteServiceScope,
+    infer Output,
+    infer ChildYielded,
+    any,
+    infer ProvidedInput
+  >
+    ? ServiceTrackingMetadata<
+        Name,
+        Scope,
+        Output,
+        ChildYielded,
+        DerivedPropertiesForExposure<Exposed, Yielded>,
+        ProvidedInput
+      >
+    : never;
 
 export type ServiceYieldRequest<
   Scope extends ConcreteServiceScope,
@@ -797,49 +731,49 @@ type InjectHelper<
   [Key in `inject${Capitalize<Name>}`]: WithTrackedDependencies<
     WithServiceRuntimeMeta<
       {
-      (): MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>;
-      <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
-        bindings: StrictBindings<
-          Partial<PublicInputBindings<Inputs, Scope>>,
-          Config
-        >,
-      ): MaybeErrorOutput<PublicServiceInputs<Inputs>, Config, Output>;
-      <
-        Exposed extends object,
-        Yielded extends ExposureYield<
-          SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>
-        > = never,
-      >(
-        bindings: undefined,
-        expose: ExposureSelector<
+        (): MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>;
+        <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
+          bindings: StrictBindings<
+            Partial<PublicInputBindings<Inputs, Scope>>,
+            Config
+          >,
+        ): MaybeErrorOutput<PublicServiceInputs<Inputs>, Config, Output>;
+        <
+          Exposed extends object,
+          Yielded extends ExposureYield<
+            SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>
+          > = never,
+        >(
+          bindings: undefined,
+          expose: ExposureSelector<
+            SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
+            Exposed,
+            Yielded
+          >,
+        ): ExposedOutput<
           SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
-          Exposed,
-          Yielded
-        >,
-      ): ExposedOutput<
-        SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
-        MaterializeExposureResult<ValidateRootExposure<Exposed>>
-      >;
-      <
-        Config extends Partial<PublicInputBindings<Inputs, Scope>>,
-        Exposed extends object,
-        Yielded extends ExposureYield<
-          SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>
-        > = never,
-      >(
-        bindings: StrictBindings<
-          Partial<PublicInputBindings<Inputs, Scope>>,
-          Config
-        >,
-        expose: ExposureSelector<
+          MaterializeExposureResult<ValidateRootExposure<Exposed>>
+        >;
+        <
+          Config extends Partial<PublicInputBindings<Inputs, Scope>>,
+          Exposed extends object,
+          Yielded extends ExposureYield<
+            SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>
+          > = never,
+        >(
+          bindings: StrictBindings<
+            Partial<PublicInputBindings<Inputs, Scope>>,
+            Config
+          >,
+          expose: ExposureSelector<
+            SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
+            Exposed,
+            Yielded
+          >,
+        ): ExposedOutput<
           SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
-          Exposed,
-          Yielded
-        >,
-      ): ExposedOutput<
-        SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
-        MaterializeExposureResult<ValidateRootExposure<Exposed>>
-      >;
+          MaterializeExposureResult<ValidateRootExposure<Exposed>>
+        >;
       },
       ServiceRuntimeMetaDefinition<Name, Scope, Inputs, Output, Metadata>
     >,
@@ -857,87 +791,87 @@ type YieldHelper<
   [Key in `${Capitalize<Name>}ToYield`]: WithTrackedDependencies<
     WithServiceRuntimeMeta<
       {
-      (): Generator<
-        ServiceYieldRequest<
-          Scope,
+        (): Generator<
+          ServiceYieldRequest<
+            Scope,
+            MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>,
+            Metadata
+          >,
           MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>,
-          Metadata
-        >,
-        MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>,
-        unknown
-      >;
-      <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
-        bindings: StrictBindings<
-          Partial<PublicInputBindings<Inputs, Scope>>,
-          Config
-        >,
-      ): Generator<
-        ServiceYieldRequest<
-          Scope,
+          unknown
+        >;
+        <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
+          bindings: StrictBindings<
+            Partial<PublicInputBindings<Inputs, Scope>>,
+            Config
+          >,
+        ): Generator<
+          ServiceYieldRequest<
+            Scope,
+            MaybeErrorOutput<PublicServiceInputs<Inputs>, Config, Output>,
+            Metadata
+          >,
           MaybeErrorOutput<PublicServiceInputs<Inputs>, Config, Output>,
-          Metadata
-        >,
-        MaybeErrorOutput<PublicServiceInputs<Inputs>, Config, Output>,
-        unknown
-      >;
-      <
-        Exposed extends object,
-        Yielded extends ExposureYield<
-          SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>
-        > = never,
-      >(
-        bindings: undefined,
-        expose: ExposureSelector<
-          SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
-          Exposed,
-          Yielded
-        >,
-      ): Generator<
-        | ServiceYieldRequest<
-            Scope,
-            SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
-            WithDerivedProperties<Metadata, Exposed, Yielded>
-          >
-        | ExposureYield<
+          unknown
+        >;
+        <
+          Exposed extends object,
+          Yielded extends ExposureYield<
             SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>
+          > = never,
+        >(
+          bindings: undefined,
+          expose: ExposureSelector<
+            SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
+            Exposed,
+            Yielded
           >,
-        ExposedOutput<
-          SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
-          MaterializeExposureResult<ValidateRootExposure<Exposed>>
-        >,
-        unknown
-      >;
-      <
-        Config extends Partial<PublicInputBindings<Inputs, Scope>>,
-        Exposed extends object,
-        Yielded extends ExposureYield<
-          SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>
-        > = never,
-      >(
-        bindings: StrictBindings<
-          Partial<PublicInputBindings<Inputs, Scope>>,
-          Config
-        >,
-        expose: ExposureSelector<
-          SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
-          Exposed,
-          Yielded
-        >,
-      ): Generator<
-        | ServiceYieldRequest<
-            Scope,
-            SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
-            WithDerivedProperties<Metadata, Exposed, Yielded>
-          >
-        | ExposureYield<
+        ): Generator<
+          | ServiceYieldRequest<
+              Scope,
+              SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
+              WithDerivedProperties<Metadata, Exposed, Yielded>
+            >
+          | ExposureYield<
+              SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>
+            >,
+          ExposedOutput<
+            SelectableOutput<PublicServiceInputs<Inputs>, undefined, Output>,
+            MaterializeExposureResult<ValidateRootExposure<Exposed>>
+          >,
+          unknown
+        >;
+        <
+          Config extends Partial<PublicInputBindings<Inputs, Scope>>,
+          Exposed extends object,
+          Yielded extends ExposureYield<
             SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>
+          > = never,
+        >(
+          bindings: StrictBindings<
+            Partial<PublicInputBindings<Inputs, Scope>>,
+            Config
           >,
-        ExposedOutput<
-          SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
-          MaterializeExposureResult<ValidateRootExposure<Exposed>>
-        >,
-        unknown
-      >;
+          expose: ExposureSelector<
+            SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
+            Exposed,
+            Yielded
+          >,
+        ): Generator<
+          | ServiceYieldRequest<
+              Scope,
+              SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
+              WithDerivedProperties<Metadata, Exposed, Yielded>
+            >
+          | ExposureYield<
+              SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>
+            >,
+          ExposedOutput<
+            SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
+            MaterializeExposureResult<ValidateRootExposure<Exposed>>
+          >,
+          unknown
+        >;
       },
       ServiceRuntimeMetaDefinition<Name, Scope, Inputs, Output, Metadata>
     >,
@@ -950,9 +884,9 @@ type ProvideHelper<
   Scope extends RequirementScope,
   Inputs extends object,
 > = {
-  [Key in `provide${Capitalize<Name>}`]: [ServiceProvidedInput<Inputs>] extends [
-    never,
-  ]
+  [Key in `provide${Capitalize<Name>}`]: [
+    ServiceProvidedInput<Inputs>,
+  ] extends [never]
     ? () => BrandedServiceProvider<Name, Scope>
     : (
         provided: ServiceProvidedInput<Inputs>,
@@ -972,7 +906,7 @@ type ServiceMetaDataHelper<
   Scope extends ConcreteServiceScope,
   Inputs extends object,
   Output,
-  Metadata extends ServiceTrackingMetadata,
+  Metadata extends AnyServiceTrackingMetadata,
 > = {
   [Key in ServiceMetaDataKey<Name>]: ServiceMetaData<
     Name,
@@ -991,7 +925,7 @@ type ConcreteServiceApi<
   Scope extends ConcreteServiceScope,
   Inputs extends object,
   Output,
-  Metadata extends ServiceTrackingMetadata,
+  Metadata extends AnyServiceTrackingMetadata,
 > = InjectHelper<Name, Scope, Inputs, Output, Metadata> &
   YieldHelper<Name, Scope, Inputs, Output, Metadata> &
   ServiceMetaDataHelper<Name, Scope, Inputs, Output, Metadata> &
@@ -1013,7 +947,7 @@ type DependencyApi<
   Scope extends ConcreteServiceScope,
   Inputs extends object,
   Output,
-  Metadata extends ServiceTrackingMetadata = ServiceTrackingMetadata<
+  Metadata extends AnyServiceTrackingMetadata = ServiceTrackingMetadata<
     Name,
     Scope,
     Output,
@@ -1070,16 +1004,21 @@ type DependencyFactoryReturn<Factory, Output> = [Factory] extends [undefined]
     : never;
 
 type DependencyFactoryOutput<Factory, Output> =
-  DependencyFactoryReturn<Factory, Output> extends Generator<any, infer Result, any>
+  DependencyFactoryReturn<Factory, Output> extends Generator<
+    any,
+    infer Result,
+    any
+  >
     ? Result
     : DependencyFactoryReturn<Factory, Output>;
 
-type DependencyFactoryYields<Factory> =
-  Factory extends (...args: any[]) => infer Result
-    ? Result extends Generator<infer Yielded, any, any>
-      ? Yielded
-      : never
-    : never;
+type DependencyFactoryYields<Factory> = Factory extends (
+  ...args: any[]
+) => infer Result
+  ? Result extends Generator<infer Yielded, any, any>
+    ? Yielded
+    : never
+  : never;
 
 type DependencyFactoryOutputFromResult<Result> =
   Result extends Generator<any, infer Output, any> ? Output : Result;
@@ -1103,7 +1042,11 @@ type CraftDependencyTrackingMetadata<
   Name,
   Scope,
   DependencyFactoryOutput<Factory, Dependency>,
-  DependencyFactoryYields<NonNullable<Factory>>
+  DependencyFactoryYields<NonNullable<Factory>>,
+  undefined,
+  [Factory] extends [undefined]
+    ? never
+    : ServiceProvidedInput<DependencyFactoryInputs<NonNullable<Factory>>>
 >;
 
 type ConcreteRuntimeDefinition = {
@@ -1279,10 +1222,7 @@ export function craftDependency<
   FactoryResult,
 >(
   options: GlobalTokenDependencyOptions<Name, Output>,
-  adaptFactory: ((
-    dependency: Output,
-    inputs: Inputs,
-  ) => FactoryResult) &
+  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
     ValidateProvidedInputScope<'global', Inputs> &
     ValidateYieldedScope<
       'global',
@@ -1311,10 +1251,7 @@ export function craftDependency<
   FactoryResult,
 >(
   options: GlobalInjectedDependencyOptions<Name, Output>,
-  adaptFactory: ((
-    dependency: Output,
-    inputs: Inputs,
-  ) => FactoryResult) &
+  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
     ValidateProvidedInputScope<'global', Inputs> &
     ValidateYieldedScope<
       'global',
@@ -1383,10 +1320,7 @@ export function craftDependency<
   FactoryResult,
 >(
   options: ProviderCapableDependencyOptions<Name, Scope, Output, Inputs>,
-  adaptFactory: ((
-    dependency: Output,
-    inputs: Inputs,
-  ) => FactoryResult) &
+  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
     ValidateProvidedInputScope<Scope, Inputs> &
     ValidateYieldedScope<
       Scope,
@@ -1588,10 +1522,9 @@ export function craftService<
   Factory extends AnyFactory,
 >(
   options: { name: Name; scope: Scope },
-  factory:
-    & Factory
-    & ValidateProvidedInputScope<Scope, FactoryInputs<Factory>>
-    & ValidateFactoryScope<Scope, Factory>,
+  factory: Factory &
+    ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
+    ValidateFactoryScope<Scope, Factory>,
 ): ConcreteServiceApi<
   Name,
   Scope,
@@ -1710,7 +1643,8 @@ export function craftService(
     scope: options.scope,
     inject: api[injectName] as (...args: any[]) => unknown,
     provide:
-      options.scope === 'toProvide' || options.scope === 'manuallyProvidedAtRoot'
+      options.scope === 'toProvide' ||
+      options.scope === 'manuallyProvidedAtRoot'
         ? (api[provideName] as
             | ((...args: any[]) => CraftServiceProvider)
             | undefined)
@@ -1802,14 +1736,10 @@ export function getServiceMetaData(target: unknown): AnyServiceMetaData {
     return target;
   }
 
-  if (
-    typeof target === 'object' ||
-    typeof target === 'function'
-  ) {
-    const runtimeMeta = Reflect.get(
-      target as object,
-      SERVICE_RUNTIME_META,
-    ) as InternalServiceMetaData | undefined;
+  if (typeof target === 'object' || typeof target === 'function') {
+    const runtimeMeta = Reflect.get(target as object, SERVICE_RUNTIME_META) as
+      | InternalServiceMetaData
+      | undefined;
 
     if (runtimeMeta) {
       return runtimeMeta;
@@ -1912,7 +1842,11 @@ function adaptExternalDependencyValue<Value>(value: Value): Value {
       return entry;
     },
     apply(proxyTarget, _thisArg, args) {
-      return Reflect.apply(proxyTarget as (...args: unknown[]) => unknown, target, args);
+      return Reflect.apply(
+        proxyTarget as (...args: unknown[]) => unknown,
+        target,
+        args,
+      );
     },
   }) as Value;
 }
@@ -2356,15 +2290,10 @@ function isServiceDependencyAccessRequest(
 }
 
 function isRuntimeExposureToken(value: unknown): value is RuntimeExposureToken {
-  return (
-    typeof value === 'function' &&
-    SERVICE_EXPOSURE_TOKEN_MARKER in value
-  );
+  return typeof value === 'function' && SERVICE_EXPOSURE_TOKEN_MARKER in value;
 }
 
-function isRootRuntimeExposureToken(
-  value: RuntimeExposureToken,
-): boolean {
+function isRootRuntimeExposureToken(value: RuntimeExposureToken): boolean {
   return value[SERVICE_EXPOSURE_TOKEN_MARKER].key === SERVICE_ROOT_EXPOSURE_KEY;
 }
 

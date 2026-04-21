@@ -5,14 +5,9 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { provideRouter, Router } from '@angular/router';
-import { setupCraftServiceTest, mock } from './setup-craft-service-test';
-import {
-  craftDependency,
-  craftService,
-  GetInjectedServiceDependencies,
-  GetServiceTrackingMetadata,
-} from './craft-service';
+import { craftDependency, craftService } from './craft-service';
 import { state } from './state';
+import { setupTest } from './setup-test';
 
 @Component({
   standalone: true,
@@ -35,43 +30,7 @@ beforeAll(() => {
   }
 });
 
-describe('setupCraftServiceTest', () => {
-  it('should keep metadata as a secondary setupCraftServiceTest entry', () => {
-    const {
-      injectCounter: Counter,
-      CounterToYield,
-      COUNTER_META_DATA,
-    } = craftService({ name: 'Counter', scope: 'toProvide' }, () =>
-      state(0, ({ update }) => ({
-        increment: () => update((value) => value + 1),
-      })),
-    );
-
-    const { COUNTER_EXTENDED_META_DATA } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
-      function* () {
-        const counter = yield* CounterToYield();
-
-        return {
-          read: () => counter(),
-        };
-      },
-    );
-
-    const rootCallable = vi.fn(() => 14);
-
-    const { sut, mocks } = setupCraftServiceTest(COUNTER_EXTENDED_META_DATA, {
-      Counter: mock({
-        $self: rootCallable,
-        increment: vi.fn(),
-      }),
-    });
-
-    expect(COUNTER_META_DATA.inject).toBe(Counter);
-    expect(sut.read()).toBe(14);
-    expect(mocks.Counter()).toBe(14);
-  });
-
+describe('setupTest', () => {
   it('should fail at typing time when a required child craftService is not covered', () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'toProvide' },
@@ -90,7 +49,7 @@ describe('setupCraftServiceTest', () => {
 
     if (false) {
       //@ts-expect-error Counter should be covered because it is a toProvide dependency
-      setupCraftServiceTest(CounterExtended, {});
+      setupTest(CounterExtended, () => ({}));
     }
   });
 
@@ -119,13 +78,17 @@ describe('setupCraftServiceTest', () => {
       },
     );
 
-    const testRef = setupCraftServiceTest(RootCounter, {
-      ParentCounter: mock({
-        increment: vi.fn(),
+    const testRef = setupTest(
+      RootCounter,
+      ({ ParentCounter: ParentCounterDep, _nestedDeps: { ChildCounter } }) => ({
+        ParentCounter: ParentCounterDep.mock({
+          increment: vi.fn(),
+        }),
       }),
-    });
+    );
 
     expect(ParentCounter).toBeDefined();
+    expect(ChildCounterToYield).toBeDefined();
     expect(testRef.mocks.ParentCounter.increment).toBeTypeOf('function');
   });
 
@@ -163,9 +126,9 @@ describe('setupCraftServiceTest', () => {
     // eslint-disable-next-line no-constant-condition
     if (false) {
       //@ts-expect-error Counter should remain required because ParentCounter is provided and does not prune its children
-      setupCraftServiceTest(RootCounter, {
+      setupTest(RootCounter, () => ({
         ParentCounter: provideParentCounter(),
-      });
+      }));
     }
 
     expect(ParentCounter).toBeDefined();
@@ -192,7 +155,7 @@ describe('setupCraftServiceTest', () => {
       },
     );
 
-    const { sut } = setupCraftServiceTest(CounterConsumer, {});
+    const { sut } = setupTest(CounterConsumer, () => ({}));
 
     expect(sut.read()).toBe(10);
     sut.increment();
@@ -223,12 +186,12 @@ describe('setupCraftServiceTest', () => {
     const rootCallable = vi.fn(() => 41);
     const increment = vi.fn();
 
-    const { sut, mocks } = setupCraftServiceTest(CounterConsumer, {
-      Counter: mock({
+    const { sut, mocks } = setupTest(CounterConsumer, ({ Counter }) => ({
+      Counter: Counter.mock({
         $self: rootCallable,
         increment,
       }),
-    });
+    }));
 
     expect(sut.read()).toBe(41);
     sut.increment();
@@ -239,7 +202,7 @@ describe('setupCraftServiceTest', () => {
     expect(mocks.Counter.$self).toBeUndefined();
   });
 
-  it('should allow mocking a global dependency with the explicit inject helper fallback', () => {
+  it('should expose direct dependency helpers through the callback API', () => {
     const { injectCounter: Counter, CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
@@ -263,12 +226,12 @@ describe('setupCraftServiceTest', () => {
     const rootCallable = vi.fn(() => 41);
     const increment = vi.fn();
 
-    const { sut, mocks } = setupCraftServiceTest(CounterConsumer, {
-      Counter: mock(Counter, {
+    const { sut, mocks } = setupTest(CounterConsumer, ({ Counter }) => ({
+      Counter: Counter.mock({
         $self: rootCallable,
         increment,
       }),
-    });
+    }));
 
     expect(sut.read()).toBe(41);
     sut.increment();
@@ -300,25 +263,28 @@ describe('setupCraftServiceTest', () => {
     );
 
     if (false) {
-      //@ts-expect-error $self is required because the derivation uses it
-      setupCraftServiceTest(CounterExtended, {
-        Counter: mock({
+      setupTest(CounterExtended, ({ Counter }) => ({
+        //@ts-expect-error $self is required because the derivation uses it
+        Counter: Counter.mock({
           increment: vi.fn(),
         }),
-      });
+      }));
     }
 
     const increment = vi.fn();
     const decrement = vi.fn();
     const rootCallable = vi.fn(() => 41);
 
-    const { sut, mocks } = setupCraftServiceTest(CounterExtended, {
-      Counter: mock({
-        $self: rootCallable,
-        increment,
-        decrement,
+    const { sut, mocks } = setupTest(
+      CounterExtended,
+      ({ Counter: CounterDep }) => ({
+        Counter: CounterDep.mock({
+          $self: rootCallable,
+          increment,
+          decrement,
+        }),
       }),
-    });
+    );
 
     expect(Counter).toBeDefined();
     expectTypeOf(mocks.Counter.increment).toEqualTypeOf(increment);
@@ -330,7 +296,63 @@ describe('setupCraftServiceTest', () => {
     expect('$self' in mocks.Counter).toBe(false);
   });
 
-  it('should keep explicit mock fallback with inject helper', () => {
+  it('should expose nested dependencies through _nestedDeps for typed mocking', () => {
+    const { CounterToYield } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      (inputs: { $provided: { initialValue: number } }) =>
+        state(inputs.$provided.initialValue, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+          decrement: () => update((value) => value - 1),
+        })),
+    );
+
+    const { CounterExtendedToYield } = craftService(
+      { name: 'CounterExtended', scope: 'toProvide' },
+      function* () {
+        return yield* CounterToYield(undefined, ({ $self, increment }) => ({
+          $self,
+          incrementCounter: increment,
+        }));
+      },
+    );
+
+    const increment = vi.fn();
+    const decrement = vi.fn();
+    const rootCallable = vi.fn(() => 41);
+
+    const { injectRootCounter: RootCounter } = craftService(
+      { name: 'RootCounter', scope: 'toProvide' },
+      function* () {
+        return yield* CounterExtendedToYield();
+      },
+    );
+
+    const { sut, mocks } = setupTest(
+      RootCounter,
+      ({ CounterExtended, _nestedDeps: { Counter } }) => ({
+        CounterExtended: CounterExtended.mock({
+          incrementCounter: vi.fn(),
+          $self: vi.fn(() => 99),
+        }),
+        Counter: Counter.mock({
+          $self: rootCallable,
+          increment,
+          decrement,
+        }),
+      }),
+    );
+
+    expectTypeOf(mocks.Counter.increment).toEqualTypeOf(increment);
+    expectTypeOf(mocks.Counter()).toEqualTypeOf<number>();
+    expectTypeOf(mocks.CounterExtended.incrementCounter).toBeFunction();
+    expect(sut()).toBe(99);
+    sut.incrementCounter();
+    expect(mocks.CounterExtended.incrementCounter).toHaveBeenCalledTimes(1);
+    expect(mocks.Counter.increment).toHaveBeenCalledTimes(0);
+    expect(mocks.Counter.decrement).toHaveBeenCalledTimes(0);
+  });
+
+  it('should keep nested dependency coverage pruned when an ancestor is mocked', () => {
     const { injectCounter: Counter, CounterToYield } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () =>
@@ -339,32 +361,46 @@ describe('setupCraftServiceTest', () => {
         })),
     );
 
-    const { injectCounterExtended: CounterExtended } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
-      function* () {
-        const counter = yield* CounterToYield();
+    const { injectCounterExtended: CounterExtended, CounterExtendedToYield } =
+      craftService(
+        { name: 'CounterExtended', scope: 'toProvide' },
+        function* () {
+          const counter = yield* CounterToYield();
 
-        return {
-          read: () => counter(),
-          incrementThroughCounter: () => counter.increment(),
-        };
+          return {
+            read: () => counter(),
+            incrementThroughCounter: () => counter.increment(),
+          };
+        },
+      );
+
+    const { injectCounterHost: CounterHost } = craftService(
+      { name: 'CounterHost', scope: 'toProvide' },
+      function* () {
+        return yield* CounterExtendedToYield();
       },
     );
 
-    const increment = vi.fn();
+    const incrementThroughCounter = vi.fn();
     const rootCallable = vi.fn(() => 41);
 
-    const { sut, mocks } = setupCraftServiceTest(CounterExtended, {
-      Counter: mock(Counter, {
-        $self: rootCallable,
-        increment,
+    const { sut, mocks } = setupTest(
+      CounterHost,
+      ({ CounterExtended, _nestedDeps: { Counter } }) => ({
+        CounterExtended: CounterExtended.mock({
+          read: rootCallable,
+          incrementThroughCounter,
+        }),
       }),
-    });
+    );
 
     expect(sut.read()).toBe(41);
     sut.incrementThroughCounter();
-    expect(mocks.Counter()).toBe(41);
-    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+    expect(mocks.CounterExtended.read).toBe(rootCallable);
+    expect(mocks.CounterExtended.incrementThroughCounter).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(Counter).toBeDefined();
   });
 
   it('should support a real raw provider override for manuallyProvidedAtRoot dependencies', () => {
@@ -388,9 +424,9 @@ describe('setupCraftServiceTest', () => {
       },
     );
 
-    const { sut } = setupCraftServiceTest(GlobalCounter, {
+    const { sut } = setupTest(GlobalCounter, () => ({
       Counter: provideCounter(),
-    });
+    }));
 
     expect(sut.read()).toBe(10);
     sut.increment();
@@ -418,9 +454,9 @@ describe('setupCraftServiceTest', () => {
       },
     );
 
-    const { sut } = setupCraftServiceTest(CounterExtended, {
+    const { sut } = setupTest(CounterExtended, () => ({
       Counter: provideCounter({ initialValue: 10 }),
-    });
+    }));
 
     expect(sut.read()).toBe(10);
     sut.increment();
@@ -436,17 +472,13 @@ describe('setupCraftServiceTest', () => {
         })),
     );
 
-    expect(() => setupCraftServiceTest(Counter, {})).toThrow(
-      'setupCraftServiceTest requires an explicit provider for "Counter" because it uses $provided.',
+    expect(() => setupTest(Counter, () => ({}))).toThrow(
+      'setupTest requires an explicit provider for "Counter" because it uses $provided.',
     );
 
-    const { sut } = setupCraftServiceTest(
-      Counter,
-      {},
-      {
-        providers: [provideCounter({ initialValue: 5 })],
-      },
-    );
+    const { sut } = setupTest(Counter, () => ({}), {
+      providers: [provideCounter({ initialValue: 5 })],
+    });
 
     expect(sut()).toBe(5);
   });
@@ -469,13 +501,9 @@ describe('setupCraftServiceTest', () => {
       },
     );
 
-    const { sut } = setupCraftServiceTest(
-      Navigation,
-      {},
-      {
-        providers: [provideRouter([])],
-      },
-    );
+    const { sut } = setupTest(Navigation, () => ({}), {
+      providers: [provideRouter([])],
+    });
 
     expect(typeof sut.readUrl()).toBe('string');
   });
@@ -501,11 +529,11 @@ describe('setupCraftServiceTest', () => {
     );
 
     const navigateByUrl = vi.fn(() => Promise.resolve(true));
-    const { sut, mocks } = setupCraftServiceTest(Navigation, {
-      Router: mock({
+    const { sut, mocks } = setupTest(Navigation, ({ Router }) => ({
+      Router: Router.mock({
         navigateByUrl,
       }),
-    });
+    }));
 
     await sut.goToCheckout();
 
@@ -536,12 +564,12 @@ describe('setupCraftServiceTest', () => {
     // eslint-disable-next-line no-constant-condition
     if (false) {
       //@ts-expect-error Router should be explicitly covered because it is manuallyProvidedAtRoot
-      setupCraftServiceTest(Navigation, {}, { providers: [provideRouter([])] });
+      setupTest(Navigation, () => ({}), { providers: [provideRouter([])] });
     }
 
-    const { sut } = setupCraftServiceTest(Navigation, {
+    const { sut } = setupTest(Navigation, () => ({
       Router: provideRouterDependency(),
-    });
+    }));
 
     expect(typeof sut.readUrl()).toBe('string');
 
@@ -557,47 +585,72 @@ describe('setupCraftServiceTest', () => {
       },
     );
 
-    const routeNavigationTest = setupCraftServiceTest(RouteNavigation, {
+    const routeNavigationTest = setupTest(RouteNavigation, () => ({
       Router: provideRouterDependency(),
-    });
+    }));
 
     await routeNavigationTest.sut.goToCheckout();
 
     expect(routeNavigationTest.sut.readUrl()).toBe('/checkout');
   });
 
-  it('should help with autocompletion the mocking of a global service dependency', async () => {
-    const { injectService1, Service1ToYield } = craftService(
+  it('should allow typed helper mocks for a global service dependency', () => {
+    const { Service1ToYield } = craftService(
       { name: 'Service1', scope: 'global' },
-      () => {
-        return state(0, ({ update }) => ({
+      () =>
+        state(0, ({ update }) => ({
           increment: () => update((value) => value + 1),
-        }));
-      },
-    );
-
-    const { injectService2, Service2ToYield } = craftService(
-      { name: 'Service2', scope: 'global' },
-      () => {
-        return state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        }));
-      },
+          decrement: () => update((value) => value - 1),
+        })),
     );
 
     const { injectServiceHost } = craftService(
       { name: 'ServiceHost', scope: 'global' },
       function* () {
-        const _service1 = yield* Service1ToYield();
-        const _service2 = yield* Service2ToYield();
+        const service1 = yield* Service1ToYield();
 
-        return state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        }));
+        return {
+          incrementThroughService1: () => service1.increment(),
+        };
       },
     );
 
-    setupCraftServiceTest(injectServiceHost, {}); // todo I do not have any autcompletion/help to isolate my current global service
-    setupCraftServiceTest(injectServiceHost, { Service1: mock({}) }); // todo mock does not help to build the mock of my current global service
+    const increment = vi.fn();
+
+    const { sut, mocks } = setupTest(injectServiceHost, ({ _nestedDeps: {} }) => ({
+
+    }));
+
+    expectTypeOf(mocks.Service1.increment).toEqualTypeOf(increment);
+    sut.incrementThroughService1();
+    expect(mocks.Service1.increment).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reject unknown object shorthand override keys at typing time', () => {
+    const { Service1ToYield } = craftService(
+      { name: 'Service1', scope: 'global' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { injectServiceHost } = craftService(
+      { name: 'ServiceHost', scope: 'global' },
+      function* () {
+        const service1 = yield* Service1ToYield();
+
+        return {
+          incrementThroughService1: () => service1.increment(),
+        };
+      },
+    );
+
+    if (false) {
+      //@ts-expect-error UnknownService is not part of ServiceHost dependencies
+      setupTest(injectServiceHost, () => ({
+        UnknownService: {},
+      }));
+    }
   });
 });
