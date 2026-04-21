@@ -3,12 +3,7 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import {
-  Injectable,
-  inject,
-  InjectionToken,
-  signal,
-} from '@angular/core';
+import { Injectable, inject, InjectionToken, signal } from '@angular/core';
 import { state } from './state';
 import { craftDependency, craftService } from './craft-service';
 import type {
@@ -217,8 +212,12 @@ describe('craftDependency', () => {
           },
         ],
       },
-      (catalog, inputs: { $provided: { apiBaseUrl: string }; prefix: string }) => ({
-        fetchPrefixedProducts: () => `${inputs.prefix}:${catalog.fetchProducts()}`,
+      (
+        catalog,
+        inputs: { $provided: { apiBaseUrl: string }; prefix: string },
+      ) => ({
+        fetchPrefixedProducts: () =>
+          `${inputs.prefix}:${catalog.fetchProducts()}`,
         readDriverBaseUrl: () => catalog.baseUrl,
         readProvidedBaseUrl: () => inputs.$provided.apiBaseUrl,
       }),
@@ -263,18 +262,21 @@ describe('craftDependency', () => {
       }
     }
 
-    const { injectCounterDriver, provideCounterDriver, CounterDriverToProvide } =
-      craftDependency({
-        name: 'CounterDriver',
-        scope: 'manuallyProvidedAtRoot',
-        token: CounterDriver,
-        provide: () => [
-          {
-            provide: CounterDriver,
-            useClass: CounterDriver,
-          },
-        ],
-      });
+    const {
+      injectCounterDriver,
+      provideCounterDriver,
+      CounterDriverToProvide,
+    } = craftDependency({
+      name: 'CounterDriver',
+      scope: 'manuallyProvidedAtRoot',
+      token: CounterDriver,
+      provide: () => [
+        {
+          provide: CounterDriver,
+          useClass: CounterDriver,
+        },
+      ],
+    });
 
     TestBed.configureTestingModule({
       providers: [provideCounterDriver()],
@@ -320,18 +322,17 @@ describe('craftDependency', () => {
     const { injectCounterFacade } = craftService(
       { name: 'CounterFacade', scope: 'global' },
       function* () {
-        return yield* CounterToYield(undefined, function* ({
-          $self,
-          increment,
-          decrement,
-        }) {
-          yield* decrement();
+        return yield* CounterToYield(
+          undefined,
+          function* ({ $self, increment, decrement }) {
+            yield* decrement();
 
-          return {
-            $self,
-            incrementCounter: increment,
-          };
-        });
+            return {
+              $self,
+              incrementCounter: increment,
+            };
+          },
+        );
       },
     );
 
@@ -345,7 +346,6 @@ describe('craftDependency', () => {
         Counter: {
           scope: 'global';
           dependencies: {};
-          mustBeProvided: [];
           derivedPropertiesUsed: {
             $self: GetServiceOutput<typeof CounterToYield>;
             increment: GetServiceOutput<typeof CounterToYield>['increment'];
@@ -359,7 +359,6 @@ describe('craftDependency', () => {
           };
         };
       };
-      mustBeProvided: [];
     }>();
   });
 

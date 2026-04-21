@@ -24,30 +24,7 @@ beforeAll(() => {
 });
 
 describe('setupTestingService', () => {
-  it('should fail at typing time when a required direct dependency is not decided', () => {
-    const { CounterToYield } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        })),
-    );
-
-    const { injectCounterExtended: CounterExtended } = craftService(
-      { name: 'CounterExtended', scope: 'toProvide' },
-      function* () {
-        return yield* CounterToYield();
-      },
-    );
-
-    if (false) {
-      //@ts-expect-error Counter is a required branch decision
-      const _missing = setupTestingService(CounterExtended, () => ({}));
-      expect(_missing).toBeDefined();
-    }
-  });
-
-  it('should resolve a provided branch and mock a required child', () => {
+  it('should return the real sut, keep only explicit mocks and allow notReached descendants', () => {
     const { ChildCounterToYield } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       () =>
@@ -56,7 +33,7 @@ describe('setupTestingService', () => {
         })),
     );
 
-    const { ParentCounterToYield } = craftService(
+    const { ParentCounterToYield, provideParentCounter } = craftService(
       { name: 'ParentCounter', scope: 'toProvide' },
       function* () {
         const child = yield* ChildCounterToYield();
@@ -67,63 +44,7 @@ describe('setupTestingService', () => {
       },
     );
 
-    const { injectRootCounter: RootCounter } = craftService(
-      { name: 'RootCounter', scope: 'toProvide' },
-      function* () {
-        const parent = yield* ParentCounterToYield();
-
-        return {
-          incrementRoot: () => parent.incrementParent(),
-        };
-      },
-    );
-
-    const increment = vi.fn();
-
-    const { sut, mocks, register } = setupTestingService(
-      RootCounter,
-      ({ ParentCounter }) => ({
-        ParentCounter: ParentCounter.provide().branch(({ ChildCounter }) => ({
-          ChildCounter: ChildCounter.mock({
-            increment,
-          }),
-        })),
-      }),
-    );
-
-    expectTypeOf(mocks.ChildCounter.increment).toEqualTypeOf(increment);
-    sut.incrementRoot();
-    expect(mocks.ChildCounter.increment).toHaveBeenCalledTimes(1);
-    expect(register.provided.map((entry) => entry.name)).toEqual([
-      'RootCounter',
-      'ParentCounter',
-    ]);
-    expect(register.mocked.map((entry) => entry.name)).toEqual([
-      'ChildCounter',
-    ]);
-  });
-
-  it('should prune a mocked parent branch', () => {
-    const { ChildCounterToYield } = craftService(
-      { name: 'ChildCounter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        })),
-    );
-
-    const { ParentCounterToYield } = craftService(
-      { name: 'ParentCounter', scope: 'toProvide' },
-      function* () {
-        const child = yield* ChildCounterToYield();
-
-        return {
-          incrementParent: () => child.increment(),
-        };
-      },
-    );
-
-    const { injectRootCounter: RootCounter } = craftService(
+    const { injectRootCounter, provideRootCounter } = craftService(
       { name: 'RootCounter', scope: 'toProvide' },
       function* () {
         const parent = yield* ParentCounterToYield();
@@ -136,148 +57,32 @@ describe('setupTestingService', () => {
 
     const incrementParent = vi.fn();
 
-    const { sut, mocks, register } = setupTestingService(
-      RootCounter,
-      ({ ParentCounter }) => ({
-        ParentCounter: ParentCounter.mock({
+    const { sut, mocks } = setupTestingService(
+      injectRootCounter,
+      {
+        RootCounter: provideRootCounter(),
+        ParentCounter: {
           incrementParent,
-        }),
-      }),
+        },
+        ChildCounter: 'notReached',
+      },
     );
+
+    expectTypeOf(mocks.ParentCounter.incrementParent).toEqualTypeOf<
+      typeof incrementParent
+    >();
 
     sut.incrementRoot();
     expect(mocks.ParentCounter.incrementParent).toHaveBeenCalledTimes(1);
-    expect(register.provided.map((entry) => entry.name)).toEqual([
-      'RootCounter',
-    ]);
-    expect(register.mocked.map((entry) => entry.name)).toEqual([
-      'ParentCounter',
-    ]);
-  });
-
-  it('should dedupe a shared descendant configured through a single branch', () => {
-    const { ChildCounterToYield } = craftService(
-      { name: 'ChildCounter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        })),
-    );
-
-    const { LeftCounterToYield } = craftService(
-      { name: 'LeftCounter', scope: 'toProvide' },
-      function* () {
-        const child = yield* ChildCounterToYield();
-
-        return {
-          incrementLeft: () => child.increment(),
-        };
-      },
-    );
-
-    const { RightCounterToYield } = craftService(
-      { name: 'RightCounter', scope: 'toProvide' },
-      function* () {
-        const child = yield* ChildCounterToYield();
-
-        return {
-          incrementRight: () => child.increment(),
-        };
-      },
-    );
-
-    const { injectRootCounter: RootCounter } = craftService(
-      { name: 'RootCounter', scope: 'toProvide' },
-      function* () {
-        const left = yield* LeftCounterToYield();
-        const right = yield* RightCounterToYield();
-
-        return {
-          incrementRoot: () => {
-            left.incrementLeft();
-            right.incrementRight();
-          },
-        };
-      },
-    );
-
-    const increment = vi.fn();
-
-    const { sut, mocks, register } = setupTestingService(
-      RootCounter,
-      ({ LeftCounter, RightCounter }) => ({
-        LeftCounter: LeftCounter.provide().branch(({ ChildCounter }) => ({
-          ChildCounter: ChildCounter.mock({
-            increment,
-          }),
-        })),
-        RightCounter: RightCounter.provide(),
-      }),
-    );
-
-    sut.incrementRoot();
-    expect(mocks.ChildCounter.increment).toHaveBeenCalledTimes(2);
-    expect(register.provided.map((entry) => entry.name)).toEqual([
-      'RootCounter',
-      'LeftCounter',
-      'RightCounter',
-    ]);
-    expect(register.mocked.map((entry) => entry.name)).toEqual([
-      'ChildCounter',
-    ]);
-  });
-
-  it('should fail at typing time when a shared service is decided twice across branches', () => {
-    const { ChildCounterToYield } = craftService(
-      { name: 'ChildCounter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        })),
-    );
-
-    const { LeftCounterToYield } = craftService(
-      { name: 'LeftCounter', scope: 'toProvide' },
-      function* () {
-        return yield* ChildCounterToYield();
-      },
-    );
-
-    const { RightCounterToYield } = craftService(
-      { name: 'RightCounter', scope: 'toProvide' },
-      function* () {
-        return yield* ChildCounterToYield();
-      },
-    );
-
-    const { injectRootCounter: RootCounter } = craftService(
-      { name: 'RootCounter', scope: 'toProvide' },
-      function* () {
-        yield* LeftCounterToYield();
-        return yield* RightCounterToYield();
-      },
-    );
+    expect('ChildCounter' in mocks).toBe(false);
 
     if (false) {
-      const _duplicate =
-        //@ts-expect-error ChildCounter cannot be resolved twice across branches
-        setupTestingService(RootCounter, ({ LeftCounter, RightCounter }) => ({
-          LeftCounter: LeftCounter.provide().branch(({ ChildCounter }) => ({
-            ChildCounter: ChildCounter.mock({
-              increment: vi.fn(),
-            }),
-          })),
-          RightCounter: RightCounter.provide().branch(({ ChildCounter }) => ({
-            ChildCounter: ChildCounter.mock({
-              increment: vi.fn(),
-            }),
-          })),
-        }));
-      expect(_duplicate).toBeDefined();
+      //@ts-expect-error only mocked services are exposed through `mocks`
+      expect(mocks.ChildCounter).toBeDefined();
     }
   });
 
-  it('should ignore a global dependency by default and still allow mocking it explicitly', () => {
+  it('should use the real implementation for a global dependency marked as real', () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
@@ -286,7 +91,7 @@ describe('setupTestingService', () => {
         })),
     );
 
-    const { injectCounterConsumer: CounterConsumer } = craftService(
+    const { injectCounterConsumer, provideCounterConsumer } = craftService(
       { name: 'CounterConsumer', scope: 'toProvide' },
       function* () {
         const counter = yield* CounterToYield();
@@ -298,43 +103,31 @@ describe('setupTestingService', () => {
       },
     );
 
-    const defaultRef = setupTestingService(CounterConsumer, () => ({}));
-    expect(defaultRef.sut.read()).toBe(10);
-    expect(defaultRef.register.provided.map((entry) => entry.name)).toEqual([
-      'CounterConsumer',
-    ]);
-    expect(defaultRef.register.mocked).toEqual([]);
+    const { sut, mocks } = setupTestingService(
+      injectCounterConsumer,
+      {
+        CounterConsumer: provideCounterConsumer(),
+        Counter: 'real',
+      },
+    );
 
-    const rootCallable = vi.fn(() => 41);
-    const increment = vi.fn();
-
-    const mockedRef = setupTestingService(CounterConsumer, ({ Counter }) => ({
-      Counter: Counter.mock({
-        $self: rootCallable,
-        increment,
-      }),
-    }));
-
-    expect(mockedRef.sut.read()).toBe(41);
-    mockedRef.sut.increment();
-    expect(mockedRef.mocks.Counter()).toBe(41);
-    expect(mockedRef.mocks.Counter.increment).toHaveBeenCalledTimes(1);
-    expect(mockedRef.register.mocked.map((entry) => entry.name)).toEqual([
-      'Counter',
-    ]);
+    expect(sut.read()).toBe(10);
+    sut.increment();
+    expect(sut.read()).toBe(11);
+    expect(Object.keys(mocks)).toEqual([]);
   });
 
-  it('should support an explicit raw provider for manuallyProvidedAtRoot dependencies', () => {
-    const { CounterToYield, provideCounter } = craftService(
-      { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
+  it('should allow mocking a global dependency with a raw object', () => {
+    const { CounterToYield } = craftService(
+      { name: 'Counter', scope: 'global' },
       () =>
         state(10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         })),
     );
 
-    const { injectGlobalCounter: GlobalCounter } = craftService(
-      { name: 'GlobalCounter', scope: 'global' },
+    const { injectCounterConsumer, provideCounterConsumer } = craftService(
+      { name: 'CounterConsumer', scope: 'toProvide' },
       function* () {
         const counter = yield* CounterToYield();
 
@@ -345,64 +138,516 @@ describe('setupTestingService', () => {
       },
     );
 
-    const { sut, register } = setupTestingService(GlobalCounter, ({ Counter }) => ({
-      Counter: Counter.provide(provideCounter()),
-    }));
+    const rootCallable = vi.fn(() => 41);
+    const increment = vi.fn();
 
-    expect(sut.read()).toBe(10);
+    const { sut, mocks } = setupTestingService(
+      injectCounterConsumer,
+      {
+        CounterConsumer: provideCounterConsumer(),
+        Counter: {
+          $self: rootCallable,
+          increment,
+        },
+      },
+    );
+
+    expect(sut.read()).toBe(41);
     sut.increment();
-    expect(sut.read()).toBe(11);
-    expect(register.provided.map((entry) => entry.name)).toEqual([
-      'Counter',
-    ]);
+    expect(mocks.Counter()).toBe(41);
+    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
   });
 
-  it('should require an explicit raw provider when a child service uses $provided', () => {
+  it('should allow a minimal mock when a dependency is only used through derivations', () => {
+    const { CounterToYield } = craftService(
+      { name: 'Counter', scope: 'global' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+          decrement: () => update((value) => value - 1),
+        })),
+    );
+
+    const { injectCounterFeature, provideCounterFeature } = craftService(
+      { name: 'CounterFeature', scope: 'toProvide' },
+      function* () {
+        return yield* CounterToYield(undefined, ({ $self, increment }) => ({
+          $self,
+          incrementCounter: increment,
+        }));
+      },
+    );
+
+    const rootCallable = vi.fn(() => 41);
+    const increment = vi.fn();
+
+    const { sut, mocks } = setupTestingService(
+      injectCounterFeature,
+      {
+        CounterFeature: provideCounterFeature(),
+        Counter: {
+          $self: rootCallable,
+          increment,
+        },
+      },
+    );
+
+    expect(sut()).toBe(41);
+    sut.incrementCounter();
+    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+    expect('$self' in mocks.Counter).toBe(false);
+
+    if (false) {
+      //@ts-expect-error minimal derived mocks should not expose unused full-service members
+      expect(mocks.Counter.decrement).toBeDefined();
+    }
+  });
+
+  it('should keep a full-service mock public shape without exposing $self', () => {
+    const { CounterToYield } = craftService(
+      { name: 'Counter', scope: 'global' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+          decrement: () => update((value) => value - 1),
+        })),
+    );
+
+    const { injectCounterConsumer, provideCounterConsumer } = craftService(
+      { name: 'CounterConsumer', scope: 'toProvide' },
+      function* () {
+        const counter = yield* CounterToYield();
+        const { incrementCounter } = yield* CounterToYield(
+          undefined,
+          ({ increment }) => ({
+            incrementCounter: increment,
+          }),
+        );
+
+        return {
+          read: () => counter(),
+          increment: () => incrementCounter(),
+          decrement: () => counter.decrement(),
+        };
+      },
+    );
+
+    const rootCallable = vi.fn(() => 41);
+    const increment = vi.fn();
+    const decrement = vi.fn();
+
+    const { sut, mocks } = setupTestingService(
+      injectCounterConsumer,
+      {
+        CounterConsumer: provideCounterConsumer(),
+        Counter: {
+          $self: rootCallable,
+          increment,
+          decrement,
+        },
+      },
+    );
+
+    expect(sut.read()).toBe(41);
+    sut.increment();
+    sut.decrement();
+    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+    expect(mocks.Counter.decrement).toHaveBeenCalledTimes(1);
+    expect('$self' in mocks.Counter).toBe(false);
+
+    if (false) {
+      //@ts-expect-error public full-service mocks should still hide $self
+      expect(mocks.Counter.$self).toBeDefined();
+    }
+  });
+
+  it('should require a provider for manuallyProvidedAtRoot dependencies', () => {
     const { CounterToYield, provideCounter } = craftService(
-      { name: 'Counter', scope: 'toProvide' },
-      (inputs: { $provided: { initialValue: number } }) =>
-        state(inputs.$provided.initialValue, ({ update }) => ({
+      { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
+      () =>
+        state(7, ({ update }) => ({
           increment: () => update((value) => value + 1),
         })),
     );
 
-    const { injectCounterHost: CounterHost } = craftService(
-      { name: 'CounterHost', scope: 'toProvide' },
+    const { injectCounterConsumer, provideCounterConsumer } = craftService(
+      { name: 'CounterConsumer', scope: 'toProvide' },
       function* () {
         const counter = yield* CounterToYield();
 
         return {
           read: () => counter(),
           increment: () => counter.increment(),
+        };
+      },
+    );
+
+    const { sut } = setupTestingService(
+      injectCounterConsumer,
+      {
+        CounterConsumer: provideCounterConsumer(),
+        Counter: provideCounter(),
+      },
+    );
+
+    expect(sut.read()).toBe(7);
+    sut.increment();
+    expect(sut.read()).toBe(8);
+  });
+
+  it('should keep a shared descendant reachable through a real sibling branch when another branch is mocked', () => {
+    const { SharedCounterToYield, provideSharedCounter } = craftService(
+      { name: 'SharedCounter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { LeftCounterToYield } = craftService(
+      { name: 'LeftCounter', scope: 'toProvide' },
+      function* () {
+        const shared = yield* SharedCounterToYield();
+
+        return {
+          incrementLeft: () => shared.increment(),
+        };
+      },
+    );
+
+    const { RightCounterToYield, provideRightCounter } = craftService(
+      { name: 'RightCounter', scope: 'toProvide' },
+      function* () {
+        const shared = yield* SharedCounterToYield();
+
+        return {
+          incrementRight: () => shared.increment(),
+          readSharedFromRight: () => shared(),
+        };
+      },
+    );
+
+    const { injectRootCounter, provideRootCounter } = craftService(
+      { name: 'RootCounter', scope: 'toProvide' },
+      function* () {
+        const left = yield* LeftCounterToYield();
+        const right = yield* RightCounterToYield();
+
+        return {
+          incrementRoot: () => {
+            left.incrementLeft();
+            right.incrementRight();
+          },
+          readShared: () => right.readSharedFromRight(),
+        };
+      },
+    );
+
+    const incrementLeft = vi.fn();
+
+    const { sut, mocks } = setupTestingService(
+      injectRootCounter,
+      {
+        RootCounter: provideRootCounter(),
+        LeftCounter: {
+          incrementLeft,
+        },
+        RightCounter: provideRightCounter(),
+        SharedCounter: provideSharedCounter(),
+      },
+    );
+
+    sut.incrementRoot();
+
+    expect(mocks.LeftCounter.incrementLeft).toHaveBeenCalledTimes(1);
+    expect(sut.readShared()).toBe(1);
+    expect('SharedCounter' in mocks).toBe(false);
+  });
+
+  it('should allow pruning a deep sub-branch while keeping the same descendant real through another path', () => {
+    const { ChildCounterToYield, provideChildCounter } = craftService(
+      { name: 'ChildCounter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { MidCounterToYield } = craftService(
+      { name: 'MidCounter', scope: 'toProvide' },
+      function* () {
+        const child = yield* ChildCounterToYield();
+
+        return {
+          incrementMid: () => child.increment(),
+        };
+      },
+    );
+
+    const { ParentCounterToYield } = craftService(
+      { name: 'ParentCounter', scope: 'toProvide' },
+      function* () {
+        const mid = yield* MidCounterToYield();
+
+        return {
+          incrementParent: () => mid.incrementMid(),
+        };
+      },
+    );
+
+    const { injectRootCounter, provideRootCounter } = craftService(
+      { name: 'RootCounter', scope: 'toProvide' },
+      function* () {
+        const parent = yield* ParentCounterToYield();
+        const child = yield* ChildCounterToYield();
+
+        return {
+          incrementRoot: () => {
+            parent.incrementParent();
+            child.increment();
+          },
+          readChild: () => child(),
+        };
+      },
+    );
+
+    const incrementParent = vi.fn();
+
+    const { sut, mocks } = setupTestingService(
+      injectRootCounter,
+      {
+        RootCounter: provideRootCounter(),
+        ParentCounter: {
+          incrementParent,
+        },
+        MidCounter: 'notReached',
+        ChildCounter: provideChildCounter(),
+      },
+    );
+
+    sut.incrementRoot();
+
+    expect(mocks.ParentCounter.incrementParent).toHaveBeenCalledTimes(1);
+    expect(sut.readChild()).toBe(1);
+    expect('MidCounter' in mocks).toBe(false);
+  });
+
+  it('should allow notReached once an entire branch is fully pruned', () => {
+    const { SharedCounterToYield } = craftService(
+      { name: 'SharedCounter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { LeftCounterToYield } = craftService(
+      { name: 'LeftCounter', scope: 'toProvide' },
+      function* () {
+        const shared = yield* SharedCounterToYield();
+
+        return {
+          incrementLeft: () => shared.increment(),
+        };
+      },
+    );
+
+    const { RightCounterToYield, provideRightCounter } = craftService(
+      { name: 'RightCounter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          incrementRight: () => update((value) => value + 1),
+        })),
+    );
+
+    const { injectRootCounter, provideRootCounter } = craftService(
+      { name: 'RootCounter', scope: 'toProvide' },
+      function* () {
+        const left = yield* LeftCounterToYield();
+        const right = yield* RightCounterToYield();
+
+        return {
+          incrementRoot: () => {
+            left.incrementLeft();
+            right.incrementRight();
+          },
+          readRight: () => right(),
+        };
+      },
+    );
+
+    const incrementLeft = vi.fn();
+
+    const { sut, mocks } = setupTestingService(
+      injectRootCounter,
+      {
+        RootCounter: provideRootCounter(),
+        LeftCounter: {
+          incrementLeft,
+        },
+        RightCounter: provideRightCounter(),
+        SharedCounter: 'notReached',
+      },
+    );
+
+    sut.incrementRoot();
+
+    expect(mocks.LeftCounter.incrementLeft).toHaveBeenCalledTimes(1);
+    expect(sut.readRight()).toBe(1);
+    expect('SharedCounter' in mocks).toBe(false);
+  });
+
+  it('should reject invalid register combinations at typing time', () => {
+    const { ChildCounterToYield, provideChildCounter } = craftService(
+      { name: 'ChildCounter', scope: 'toProvide' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { ParentCounterToYield } = craftService(
+      { name: 'ParentCounter', scope: 'toProvide' },
+      function* () {
+        const child = yield* ChildCounterToYield();
+
+        return {
+          incrementParent: () => child.increment(),
+        };
+      },
+    );
+
+    const { injectRootCounter, provideRootCounter } = craftService(
+      { name: 'RootCounter', scope: 'toProvide' },
+      function* () {
+        const parent = yield* ParentCounterToYield();
+        const child = yield* ChildCounterToYield();
+
+        return {
+          incrementRoot: () => {
+            parent.incrementParent();
+            child.increment();
+          },
+        };
+      },
+    );
+
+    const { CounterToYield, provideCounter } = craftService(
+      { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
+      () =>
+        state(0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+    );
+
+    const { injectCounterConsumer, provideCounterConsumer } = craftService(
+      { name: 'CounterConsumer', scope: 'toProvide' },
+      function* () {
+        const counter = yield* CounterToYield();
+
+        return {
+          read: () => counter(),
+          increment: () => counter.increment(),
+        };
+      },
+    );
+
+    const { RouterToYield } = craftService(
+      { name: 'Router', scope: 'global' },
+      () => ({
+        url: '/real',
+      }),
+    );
+
+    const { injectNavigation, provideNavigation } = craftService(
+      { name: 'Navigation', scope: 'toProvide' },
+      function* () {
+        const router = yield* RouterToYield();
+
+        return {
+          readUrl: () => router.url,
         };
       },
     );
 
     if (false) {
-      const _missingProvider = setupTestingService(
-        CounterHost,
-        ({ Counter }) => ({
-          //@ts-expect-error Counter requires an explicit raw provider because it uses $provided
-          Counter: Counter.provide(),
-        }),
+      const _mockedRoot = setupTestingService(injectRootCounter, {
+        RootCounter: {
+          //@ts-expect-error the root cannot be mocked
+          incrementRoot: vi.fn(),
+        },
+        ParentCounter: {
+          incrementParent: vi.fn(),
+        },
+        ChildCounter: 'notReached',
+      });
+
+      const _realRoot = setupTestingService(injectRootCounter, {
+        //@ts-expect-error the root cannot be marked as real for a toProvide sut
+        RootCounter: 'real',
+        ParentCounter: {
+          incrementParent: vi.fn(),
+        },
+        ChildCounter: 'notReached',
+      });
+
+      const _unreachedRoot = setupTestingService(
+        injectRootCounter,
+        {
+          //@ts-expect-error the root cannot be marked as notReached
+          RootCounter: 'notReached',
+          ParentCounter: {
+            incrementParent: vi.fn(),
+          },
+          ChildCounter: 'notReached',
+        },
       );
-      expect(_missingProvider).toBeDefined();
+
+      //@ts-expect-error a reachable shared child cannot be marked as notReached
+      const _sharedChild = setupTestingService(injectRootCounter, {
+        RootCounter: provideRootCounter(),
+        ParentCounter: {
+          incrementParent: vi.fn(),
+        },
+        ChildCounter: 'notReached',
+      });
+
+      const _realManual = setupTestingService(
+        injectCounterConsumer,
+        {
+          CounterConsumer: provideCounterConsumer(),
+          //@ts-expect-error `real` is not valid for manuallyProvidedAtRoot
+          Counter: 'real',
+        },
+      );
+
+      const _providerGlobal = setupTestingService(
+        injectNavigation,
+        {
+          Navigation: provideNavigation(),
+          //@ts-expect-error providers are not valid for globals
+          Router: provideNavigation(),
+        },
+      );
+
+      const _reachableChild = setupTestingService(
+        injectCounterConsumer,
+        //@ts-expect-error a reachable dependency cannot be marked as notReached
+        {
+          CounterConsumer: provideCounterConsumer(),
+          Counter: 'notReached',
+        },
+      );
+
+      expect(_mockedRoot).toBeDefined();
+      expect(_realRoot).toBeDefined();
+      expect(_unreachedRoot).toBeDefined();
+      expect(_sharedChild).toBeDefined();
+      expect(_realManual).toBeDefined();
+      expect(_providerGlobal).toBeDefined();
+      expect(_reachableChild).toBeDefined();
+      expect(provideChildCounter).toBeDefined();
+      expect(provideCounter).toBeDefined();
     }
-
-    const { sut, register } = setupTestingService(CounterHost, ({ Counter }) => ({
-      Counter: Counter.provide(
-        provideCounter({
-          initialValue: 41,
-        }),
-      ),
-    }));
-
-    expect(sut.read()).toBe(41);
-    sut.increment();
-    expect(sut.read()).toBe(42);
-    expect(register.provided.map((entry) => entry.name)).toEqual([
-      'CounterHost',
-      'Counter',
-    ]);
   });
 });

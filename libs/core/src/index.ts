@@ -1,8 +1,6 @@
 export * from './lib/after-recomputation';
 export * from './lib/async-process';
 export * from './lib/computed-source';
-export * from './lib/setup-test';
-export * from './lib/setup-craft-service-testing-by-register';
 export * from './lib/setup-testing-service';
 export * from './lib/craft-async-process';
 export * from './lib/craft-computed';
@@ -30,7 +28,6 @@ export * from './lib/signal-source';
 export * from './lib/stacked-source';
 export * from './lib/state';
 export * from './lib/to-source';
-export * from './lib/to-register';
 export * from './lib/to-inject';
 export * from './lib/util/extract-signal-props-and-methods';
 export * from './lib/util/source.type';
