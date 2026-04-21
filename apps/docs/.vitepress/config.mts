@@ -8,6 +8,26 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: '/assets/favicon.png',
+    search: {
+      provider: 'local',
+      options: {
+        translations: {
+          button: {
+            buttonText: 'Rechercher',
+            buttonAriaLabel: 'Rechercher dans la documentation',
+          },
+          modal: {
+            noResultsText: 'Aucun resultat',
+            resetButtonTitle: 'Effacer la recherche',
+            footer: {
+              selectText: 'Selectionner',
+              navigateText: 'Naviguer',
+              closeText: 'Fermer',
+            },
+          },
+        },
+      },
+    },
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Docs', link: '/get-started' },
