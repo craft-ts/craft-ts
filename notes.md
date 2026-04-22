@@ -14,6 +14,10 @@ Run `docs:publish`, then from the VSCode editor, add a commit with all the chang
 Générer un grannular token, puis depuis ce projet= `npm config set //registry.npmjs.org/:\_authToken=TOKENKEY``
 Ou le mettre à jour: https://www.npmjs.com/settings/ronnain/tokens/
 
+(Penser à bien cocher By-pass two-factor authentication pour ce token, sinon la publication échouera)
+
+npm config set //registry.npmjs.org/:\_authToken "VOTRE_TOKEN"
+
 ```bash
 npm login
 

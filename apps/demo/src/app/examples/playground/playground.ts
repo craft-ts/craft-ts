@@ -60,8 +60,8 @@ const { ApiServiceToYield } = craftService(
 
 // -- Playground service: composes query + mutation --
 
-const { injectPlayground, providePlayground } = craftService(
-  { name: 'Playground', scope: 'toProvide' },
+const { injectPlayground } = craftService(
+  { name: 'Playground', scope: 'function' },
   function* () {
     const api = yield* ApiServiceToYield();
 
@@ -105,7 +105,6 @@ const { injectPlayground, providePlayground } = craftService(
 @Component({
   selector: 'app-playground',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [providePlayground()],
   template: `
     <div class="playground">
       <h2>Playground</h2>

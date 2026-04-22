@@ -114,6 +114,16 @@
 
 🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/full-demo/full-demo.ts&initialpath=/craft/full-demo)
 
+---
+
+### 6. Playground - Shareable Sandbox
+
+**Description:** Shareable playground built with `craftService`, `query()`, and `mutation()` to experiment with a small todo flow.
+
+🔗 [Open page in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/playground/playground.ts&initialpath=/playground)
+
+📄 [View source file](https://github.com/ng-angular-stack/ng-craft-demo/blob/main/src/app/examples/playground/playground.ts)
+
 ## Notes
 
 All examples include their own `api.service.ts` to simulate API calls and are fully functional.
