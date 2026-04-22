@@ -1465,27 +1465,23 @@ export function toCraftService<
   Name extends string,
   Scope extends RequirementScope,
   Output,
->(
-  options: {
-    name: Name;
-    scope: Scope;
-    token: DependencySourceToken<Output>;
-    provide: () => CraftServiceProvider;
-  },
-): DependencyApi<Name, Scope, {}, Output>;
+>(options: {
+  name: Name;
+  scope: Scope;
+  token: DependencySourceToken<Output>;
+  provide: () => CraftServiceProvider;
+}): DependencyApi<Name, Scope, {}, Output>;
 export function toCraftService<
   Name extends string,
   Scope extends RequirementScope,
   Output,
   ProvidedInput,
->(
-  options: {
-    name: Name;
-    scope: Scope;
-    token: DependencySourceToken<Output>;
-    provide: (provided: ProvidedInput) => CraftServiceProvider;
-  },
-): DependencyApi<
+>(options: {
+  name: Name;
+  scope: Scope;
+  token: DependencySourceToken<Output>;
+  provide: (provided: ProvidedInput) => CraftServiceProvider;
+}): DependencyApi<
   Name,
   Scope,
   { $provided: ProvidedInput },
