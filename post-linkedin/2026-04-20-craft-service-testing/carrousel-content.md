@@ -1,4 +1,4 @@
-# craftService & setupCraftServiceTest
+# craftService
 
 Des services Angular composables et testables de bout en bout
 
@@ -66,7 +66,7 @@ const { CounterToYield } = craftService(
     })),
 );
 
-const { injectCounterFacade } = craftService(
+const { injectCounterFacade, provideCounterFacade } = craftService(
   { name: 'CounterFacade', scope: 'toProvide' },
   function* () {
     const counter = yield* CounterToYield();
@@ -151,23 +151,25 @@ const { injectCounterExtended } = craftService(
 `decrement` = invisible, non exposé.
 
 Le type résultant ne contient que ce qui est déclaré.
+Un double intérêt pour les tests : on peut mocker uniquement ce qui est exposé, et le typage nous protège des changements d'implémentation.
 
 ---
 
-# 6. Tester avec setupCraftServiceTest
+# 6. Tester avec setupCraftServiceTestingByRegister
 
 Et c'est là que ça devient intéressant.
 
-L'arbre de dépendances inféré par `yield*` sert directement au testing.
+L'arbre de dépendances inféré par `yield*` sert directement à construire un registre de test exhaustif.
 
 ```ts
-import { setupCraftServiceTest, mock } from '@craft-ng/core';
+import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
 
-const { sut, mocks } = setupCraftServiceTest(CounterFacade, {
-  Counter: mock({
+const { sut, mocks } = setupCraftServiceTestingByRegister(injectCounterFacade, {
+  CounterFacade: provideCounterFacade(),
+  Counter: {
     $self: vi.fn(() => 42),
     increment: vi.fn(),
-  }),
+  },
 });
 
 expect(sut.read()).toBe(42);
@@ -176,52 +178,67 @@ expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
 ```
 
 `sut` = le service sous test, injecté dans un vrai TestBed Angular.
-`mocks` = les mocks typés de chaque dépendance.
+`mocks` = uniquement les dépendances mockées dans le registre.
 
 ---
 
 # 7. Couverture obligatoire (type-safe)
 
-Le système de types **force** la couverture de chaque dépendance `toProvide`.
+Le système de types **force** un registre plat et exhaustif pour tout l'arbre atteignable.
 
 ```ts
 // ❌ Erreur de compilation
-setupCraftServiceTest(CounterFacade, {});
-//                                    ^
-// ERROR: missing_service_test_overrides: "Counter"
+setupCraftServiceTestingByRegister(injectCounterFacade, {
+  CounterFacade: provideCounterFacade(),
+  // Counter manque
+});
 ```
 
-Chaque branche de l'arbre doit être couverte :
+Chaque nœud doit être déclaré explicitement :
 
-- soit par un `mock(...)` qui coupe la branche
+- soit par un mock brut `{ ... }` (typé)
+- soit par `'real'`
 - soit par le vrai provider `provideCounter()`
+- soit par `'notReached'` si une branche est coupée par un ancêtre mocké
 
-Les dépendances `global` restent optionnelles.
+Plus de zones implicites : le registre décrit tout l'état du graphe de test.
 
 ---
 
-# 8. mock ou vrai provider ?
+# 8. Mock, `real` ou vrai provider ?
 
-Mocker coupe la branche : les sous-dépendances disparaissent.
+Le registre vous oblige à préciser le statut de chaque service.
 
 ```ts
-// Mock = la branche entière est coupée
-setupCraftServiceTest(Root, {
-  Parent: mock({ increment: vi.fn() }),
-  // ChildCounter n'est plus requis !
+// Mock brut = la branche entière est coupée
+setupCraftServiceTestingByRegister(injectRootCounter, {
+  RootCounter: provideRootCounter(),
+  ParentCounter: { increment: vi.fn() },
+  ChildCounter: 'notReached',
 });
 ```
 
 ```ts
-// Vrai provider = les enfants restent requis
-setupCraftServiceTest(Root, {
-  Parent: provideParent(),
-  ChildCounter: mock({ ... }),
-  // ChildCounter est toujours requis
+// 'real' = on garde l'implémentation réelle d'un global/function
+setupCraftServiceTestingByRegister(injectCounterFacade, {
+  CounterFacade: provideCounterFacade(),
+  Counter: 'real',
 });
 ```
 
-Le typage s'adapte dynamiquement à votre stratégie de test.
+```ts
+// Vrai provider = les enfants restent atteignables
+setupCraftServiceTestingByRegister(injectRootCounter, {
+  RootCounter: provideRootCounter(),
+  ParentCounter: provideParentCounter(),
+  ChildCounter: {
+    $self: vi.fn(() => 0),
+    increment: vi.fn(),
+  },
+});
+```
+
+Le typage s'adapte dynamiquement à votre stratégie de test, mais rien n'est caché.
 
 ---
 
@@ -237,7 +254,9 @@ Chaque craftService déclare un **scope** qui définit son cycle de vie :
 
 - **`function`** — Nouvelle instance à chaque injection. Aucun singleton, aucun partage.
 
-Chaque scope impacte directement le comportement de `setupCraftServiceTest` (couverture obligatoire ou optionnelle).
+- **`abstract`** — Déclare un contrat sans implémentation. Expose `XRequirement` pour obliger une implémentation concrète plus tard.
+
+Chaque scope impacte directement le comportement de `setupCraftServiceTestingByRegister` (provider réel, `real`, mock ou exigence de couverture).
 
 On détaillera chaque scope avec des exemples concrets dans un prochain post.
 
@@ -245,14 +264,13 @@ On détaillera chaque scope avec des exemples concrets dans un prochain post.
 
 # 10. Résumé
 
-`craftService` + `setupCraftServiceTest` :
+`craftService` + `setupCraftServiceTestingByRegister` :
 
 ✅ Basé sur le DI Angular natif
+✅ Inputs natifs des fonctions et typées
 ✅ Composition via `yield*` (= `inject()`)
 ✅ Arbre de dépendances inféré par les types
 ✅ Exposition partielle typée
-✅ Couverture de test forcée à la compilation
-✅ Mocks ou vrais providers, au choix
-✅ Zéro boilerplate de TestBed
+✅ Registre de test exhaustif et typé
 
 📚 Doc : https://ng-angular-stack.github.io/craft/
