@@ -694,8 +694,6 @@ describe('injectService should enable to binding inputs', () => {
       expect(counter()).toBe(2);
     });
   });
-
-  // todo cas où on yield 2 fois un craftService fonction (ça devrait faire 2 instances différentes, mais avec les mêmes inputs)
 });
 
 // todoBefore generatrice aussi
