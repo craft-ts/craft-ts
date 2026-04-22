@@ -8,12 +8,12 @@
 
 ### Core concepts
 
-1. There are 5 **Primitives**, built on top of signals, each encapsulate their own state and logic.  
-2. They can be used directly in both components and services.  
-3. They all follow the same pattern: `primitive(config, insertion1, insertion2, ...)`.  
-4. Insertions are used to extend behavior (modifiers, reactions, derived state, method-based or event-based logic, etc.).  
-5. This pattern, combined with `insert...` utilities from **craft-ng**, enables a high level of composition, making it easy to scale from simple to complex use cases.  
-6. A `craft` store is available to orchestrate these primitives. It can be composed with other stores and is itself fully composable.  
+1. There are 5 **Primitives**, built on top of signals, each encapsulate their own state and logic.
+2. They can be used directly in both components and services.
+3. They all follow the same pattern: `primitive(config, insertion1, insertion2, ...)`.
+4. Insertions are used to extend behavior (modifiers, reactions, derived state, method-based or event-based logic, etc.).
+5. This pattern, combined with `insert...` utilities from **craft-ng**, enables a high level of composition, making it easy to scale from simple to complex use cases.
+6. A `craft` store is available to orchestrate these primitives. It can be composed with other stores and is itself fully composable.
 
 ### Why @craft-ng/core?
 
@@ -31,7 +31,7 @@ npm i @craft-ng/core@latest
 
 ## 📖 Documentation
 
-Full documentation is available at: **[ng-craft.dev]([https://ng-craft.dev](https://ng-angular-stack.github.io/craft/))** 
+Full documentation is available at: **[ng-angular-stack.github.io/craft](<[https://ng-angular-stack.github.io/craft/](https://ng-angular-stack.github.io/craft/)>)**
 
 ### Quick Start
 
