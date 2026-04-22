@@ -12,6 +12,7 @@ Run `docs:publish`, then from the VSCode editor, add a commit with all the chang
 ### Commandes pour publier la lib
 
 Générer un grannular token, puis depuis ce projet= `npm config set //registry.npmjs.org/:\_authToken=TOKENKEY``
+Ou le mettre à jour: https://www.npmjs.com/settings/ronnain/tokens/
 
 ```bash
 npm login
