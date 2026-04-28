@@ -1,0 +1,57 @@
+{
+  "name": "@craft-ng/dev-tools",
+  "version": "0.1.8",
+  "description": "Development tools for ng-craft: ESLint configs, ESLint rules, and codemods",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./eslint-rules": {
+      "types": "./src/eslint-rules/index.d.cts",
+      "default": "./src/eslint-rules/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "craft-brand": "./src/bin/craft-brand.js"
+  },
+  "files": [
+    "src/**/*",
+    "README.md"
+  ],
+  "dependencies": {
+    "tslib": "^2.3.0",
+    "ts-morph": "^24.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@angular-eslint/eslint-plugin": ">=21.0.0",
+    "@typescript-eslint/eslint-plugin": ">=8.0.0",
+    "eslint": ">=9.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@angular-eslint/eslint-plugin": {
+      "optional": true
+    },
+    "@typescript-eslint/eslint-plugin": {
+      "optional": true
+    },
+    "eslint": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "ng-craft",
+    "angular",
+    "codemod",
+    "eslint",
+    "eslint-config",
+    "eslint-plugin",
+    "typescript"
+  ]
+}

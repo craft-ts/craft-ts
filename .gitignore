@@ -50,3 +50,4 @@ __screenshots__/
 ## VitePress
 /apps/docs/.vitepress/cache
 /apps/docs/.vitepress/dist
+vitest.config.*.timestamp*

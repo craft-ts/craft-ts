@@ -4,12 +4,9 @@ import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
 import { Equal, Expect } from 'test-type';
-import {
-  mutation,
-  MutationOutput,
-} from './mutation';
-import { craftMutations } from './craft-mutations';
+import { mutation, MutationOutput } from './mutation';
 import { craftException, CraftExceptionResult } from './craft-exception';
+import { craftService } from './craft-service';
 
 type EmptyMutationExceptions = {
   hasException: Signal<boolean>;
@@ -19,6 +16,11 @@ type EmptyMutationExceptions = {
     loader?: never;
   }>;
 };
+
+function removeMutate<T extends object>(resource: T): Omit<T, 'mutate'> {
+  const { mutate: _mutate, ...rest } = resource as T & { mutate?: unknown };
+  return rest as Omit<T, 'mutate'>;
+}
 
 describe('mutation', () => {
   beforeEach(() => {
@@ -133,47 +135,70 @@ describe('mutation', () => {
 describe('mutation types without identifier', () => {
   it('should infer correctly the types of mutation', () => {
     TestBed.runInInjectionContext(() => {
-      const mutationsOutput = craftMutations(() => ({
-        // should enable to provide multiples status
-        // should provide async method by id
-        searchChange: mutation({
-          method: ({
-            timeToWait,
-            searchChange,
-          }: {
-            timeToWait: number;
-            searchChange: string;
-          }) => ({
-            timeToWait,
-            searchChange,
-          }),
-          loader: async ({ params: { timeToWait, searchChange } }) => {
-            type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-            type ExpectSearchChange = Expect<
-              Equal<typeof searchChange, string>
-            >;
-            await new Promise((resolve) => setTimeout(resolve, timeToWait));
-            return { searchChange };
-          },
-        }),
-        filterChange: mutation(
-          {
-            method: ({ filter }: { filter: string }) => ({
-              filter,
+      const { injectMutations } = craftService(
+        { name: 'Mutations', scope: 'function' },
+        () => {
+          const searchChange = mutation({
+            method: ({
+              timeToWait,
+              searchChange,
+            }: {
+              timeToWait: number;
+              searchChange: string;
+            }) => ({
+              timeToWait,
+              searchChange,
             }),
-            loader: async ({ params: { filter } }) => {
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { filter };
+            loader: async ({ params: { timeToWait, searchChange } }) => {
+              type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
+              type ExpectSearchChange = Expect<
+                Equal<typeof searchChange, string>
+              >;
+              await new Promise((resolve) => setTimeout(resolve, timeToWait));
+              return { searchChange };
             },
-          },
-          () => ({
-            additionalInsertion: 'injectedValue' as const,
-          }),
-        ),
-      }));
+          });
+          const filterChange = mutation(
+            {
+              method: ({ filter }: { filter: string }) => ({
+                filter,
+              }),
+              loader: async ({ params: { filter } }) => {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                return { filter };
+              },
+            },
+            () => ({
+              additionalInsertion: 'injectedValue' as const,
+            }),
+          );
 
-      type props = ReturnType<ReturnType<typeof mutationsOutput>>['props'];
-      type s = props['filterChange'];
+          return {
+            props: {
+              searchChange: removeMutate(searchChange),
+              filterChange: removeMutate(filterChange),
+            },
+            methods: {
+              mutateSearchChange: (args: {
+                timeToWait: number;
+                searchChange: string;
+              }) => {
+                searchChange.mutate(args);
+                return args;
+              },
+              mutateFilterChange: (args: { filter: string }) => {
+                filterChange.mutate(args);
+                return args;
+              },
+            },
+          };
+        },
+      );
+
+      const mutationsOutput = injectMutations();
+      expect(mutationsOutput.props.searchChange.kind).toBe('mutation');
+
+      type props = (typeof mutationsOutput)['props'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
           '~InternalType': 'Used to avoid TS type erasure';
@@ -231,8 +256,8 @@ describe('mutation types without identifier', () => {
         };
       }>();
 
-      type methods = ReturnType<ReturnType<typeof mutationsOutput>>['methods'];
-      expectTypeOf<methods>().toEqualTypeOf<
+      type methods = (typeof mutationsOutput)['methods'];
+      expectTypeOf<methods>().toMatchTypeOf<
         {
           mutateSearchChange: (args: {
             timeToWait: number;
@@ -253,38 +278,55 @@ describe('mutation types without identifier', () => {
   it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>();
-      const mutationsOutput = craftMutations(() => ({
-        // should enable to provide multiples status
-        // should provide async method by id
-        searchChange: mutation({
-          method: afterRecomputation(searchSource, (searchChange) => {
-            return searchChange;
-          }),
-          loader: async ({ params: { searchChangeText } }) => {
-            type ExpectSearchChangeText = Expect<
-              Equal<typeof searchChangeText, string>
-            >;
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            return { searchChangeText };
-          },
-        }),
-        filterChange: mutation(
-          {
-            method: ({ filter }: { filter: string }) => ({
-              filter,
+      const { injectMutations } = craftService(
+        { name: 'Mutations', scope: 'function' },
+        () => {
+          const searchChange = mutation({
+            method: afterRecomputation(searchSource, (searchChange) => {
+              return searchChange;
             }),
-            loader: async ({ params: { filter } }) => {
+            loader: async ({ params: { searchChangeText } }) => {
+              type ExpectSearchChangeText = Expect<
+                Equal<typeof searchChangeText, string>
+              >;
               await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { filter };
+              return { searchChangeText };
             },
-          },
-          () => ({
-            additionalInsertion: 'injectedValue' as const,
-          }),
-        ),
-      }));
+          });
+          const filterChange = mutation(
+            {
+              method: ({ filter }: { filter: string }) => ({
+                filter,
+              }),
+              loader: async ({ params: { filter } }) => {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                return { filter };
+              },
+            },
+            () => ({
+              additionalInsertion: 'injectedValue' as const,
+            }),
+          );
 
-      type props = ReturnType<ReturnType<typeof mutationsOutput>>['props'];
+          return {
+            props: {
+              searchChange: removeMutate(searchChange),
+              filterChange: removeMutate(filterChange),
+            },
+            methods: {
+              mutateFilterChange: (args: { filter: string }) => {
+                filterChange.mutate(args);
+                return args;
+              },
+            },
+          };
+        },
+      );
+
+      const mutationsOutput = injectMutations();
+      expect(mutationsOutput.props.filterChange.kind).toBe('mutation');
+
+      type props = (typeof mutationsOutput)['props'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
           '~InternalType': 'Used to avoid TS type erasure';
@@ -347,7 +389,7 @@ describe('mutation types without identifier', () => {
         };
       }>();
 
-      type methods = ReturnType<ReturnType<typeof mutationsOutput>>['methods'];
+      type methods = (typeof mutationsOutput)['methods'];
       //   ^?
       expectTypeOf<methods>().toEqualTypeOf<{
         mutateFilterChange: (args: { filter: string }) => {
@@ -428,47 +470,71 @@ describe('mutation types without identifier', () => {
 describe('mutation types with identifier', () => {
   it('should infer correctly the types of mutation', () => {
     TestBed.runInInjectionContext(() => {
-      const mutationsOutput = craftMutations(() => ({
-        // should enable to provide multiples status
-        // should provide async method by id
-        searchChange: mutation({
-          method: ({
-            timeToWait,
-            searchChange,
-          }: {
-            timeToWait: number;
-            searchChange: string;
-          }) => ({
-            timeToWait,
-            searchChange,
-          }),
-          identifier: (params) => params.searchChange,
-          loader: async ({ params: { timeToWait, searchChange } }) => {
-            type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-            type ExpectSearchChange = Expect<
-              Equal<typeof searchChange, string>
-            >;
-            await new Promise((resolve) => setTimeout(resolve, timeToWait));
-            return { searchChange };
-          },
-        }),
-        filterChange: mutation(
-          {
-            method: ({ filter }: { filter: string }) => ({
-              filter,
+      const { injectMutations } = craftService(
+        { name: 'Mutations', scope: 'function' },
+        () => {
+          const searchChange = mutation({
+            method: ({
+              timeToWait,
+              searchChange,
+            }: {
+              timeToWait: number;
+              searchChange: string;
+            }) => ({
+              timeToWait,
+              searchChange,
             }),
-            loader: async ({ params: { filter } }) => {
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { filter };
+            identifier: (params) => params.searchChange,
+            loader: async ({ params: { timeToWait, searchChange } }) => {
+              type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
+              type ExpectSearchChange = Expect<
+                Equal<typeof searchChange, string>
+              >;
+              await new Promise((resolve) => setTimeout(resolve, timeToWait));
+              return { searchChange };
             },
-          },
-          () => ({
-            additionalInsertion: 'injectedValue' as const,
-          }),
-        ),
-      }));
+          });
+          const filterChange = mutation(
+            {
+              method: ({ filter }: { filter: string }) => ({
+                filter,
+              }),
+              loader: async ({ params: { filter } }) => {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                return { filter };
+              },
+            },
+            () => ({
+              additionalInsertion: 'injectedValue' as const,
+            }),
+          );
 
-      type props = ReturnType<ReturnType<typeof mutationsOutput>>['props'];
+          return {
+            props: {
+              searchChange: removeMutate(searchChange),
+              filterChange: removeMutate(filterChange),
+            },
+            methods: {
+              mutateSearchChange: (args: {
+                timeToWait: number;
+                searchChange: string;
+              }) => {
+                searchChange.mutate(args);
+                return args;
+              },
+              mutateFilterChange: (args: { filter: string }) => {
+                filterChange.mutate(args);
+                return args;
+              },
+            },
+          };
+        },
+      );
+
+      const mutationsOutput = injectMutations();
+      expect(mutationsOutput.props.searchChange.kind).toBe('mutation');
+
+      type props = (typeof mutationsOutput)['props'];
       type s = props['searchChange'];
 
       const search = {} as ReturnType<s['select']>;
@@ -526,8 +592,8 @@ describe('mutation types with identifier', () => {
         kind: 'mutation';
       }>();
 
-      type methods = ReturnType<ReturnType<typeof mutationsOutput>>['methods'];
-      expectTypeOf<methods>().toEqualTypeOf<
+      type methods = (typeof mutationsOutput)['methods'];
+      expectTypeOf<methods>().toMatchTypeOf<
         {
           mutateSearchChange: (args: {
             timeToWait: number;
@@ -548,114 +614,116 @@ describe('mutation types with identifier', () => {
   it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>();
-      const mutationsOutput = craftMutations(() => ({
-        // should enable to provide multiples status
-        // should provide async method by id
-        searchChange: mutation({
-          method: afterRecomputation(searchSource, (searchChange) => {
-            return searchChange;
-          }),
-          identifier: (params) => params.searchChangeText,
-          loader: async ({ params: { searchChangeText } }) => {
-            type ExpectSearchChangeText = Expect<
-              Equal<typeof searchChangeText, string>
-            >;
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            return { searchChangeText };
-          },
-        }),
-        filterChange: mutation(
-          {
-            method: ({ filter }: { filter: string }) => ({
-              filter,
+      const { injectMutations } = craftService(
+        { name: 'Mutations', scope: 'function' },
+        () => {
+          const searchChange = mutation({
+            method: afterRecomputation(searchSource, (searchChange) => {
+              return searchChange;
             }),
-            loader: async ({ params: { filter } }) => {
+            identifier: (params) => params.searchChangeText,
+            loader: async ({ params: { searchChangeText } }) => {
+              type ExpectSearchChangeText = Expect<
+                Equal<typeof searchChangeText, string>
+              >;
               await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { filter };
+              return { searchChangeText };
             },
-          },
-          () => ({
-            additionalInsertion: 'injectedValue' as const,
-          }),
-        ),
-      }));
+          });
+          const filterChange = mutation(
+            {
+              method: ({ filter }: { filter: string }) => ({
+                filter,
+              }),
+              loader: async ({ params: { filter } }) => {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                return { filter };
+              },
+            },
+            () => ({
+              additionalInsertion: 'injectedValue' as const,
+            }),
+          );
 
-      type props = ReturnType<ReturnType<typeof mutationsOutput>>['props'];
-      try {
-        const search = mutationsOutput({} as any, {} as any)(
-          {} as any,
-          {} as any,
-          {} as any,
-          {} as any,
-        ).props.searchChange.select('test');
-        expectTypeOf(search).toEqualTypeOf<
+          return {
+            props: {
+              searchChange: removeMutate(searchChange),
+              filterChange: removeMutate(filterChange),
+            },
+            methods: {
+              mutateFilterChange: (args: { filter: string }) => {
+                filterChange.mutate(args);
+                return args;
+              },
+            },
+          };
+        },
+      );
+
+      const mutationsOutput = injectMutations();
+
+      type props = (typeof mutationsOutput)['props'];
+      const search = mutationsOutput.props.searchChange.select('test');
+      expectTypeOf(search).toEqualTypeOf<
+        | {
+            readonly value: Signal<
+              | {
+                  searchChangeText: string;
+                }
+              | undefined
+            >;
+            readonly safeValue: Signal<
+              | {
+                  searchChangeText: string;
+                }
+              | undefined
+            >;
+            readonly status: Signal<ResourceStatus>;
+            readonly error: Signal<Error | undefined>;
+            readonly isLoading: Signal<boolean>;
+            hasValue(): boolean;
+          }
+        | undefined
+      >();
+
+      const filter = mutationsOutput.props.filterChange;
+      expectTypeOf<typeof filter>().toEqualTypeOf<{
+        '~InternalType': 'Used to avoid TS type erasure';
+        readonly error: Signal<Error | undefined>;
+        readonly value: Signal<
           | {
-              readonly value: Signal<
-                | {
-                    searchChangeText: string;
-                  }
-                | undefined
-              >;
-              readonly safeValue: Signal<
-                | {
-                    searchChangeText: string;
-                  }
-                | undefined
-              >;
-              readonly status: Signal<ResourceStatus>;
-              readonly error: Signal<Error | undefined>;
-              readonly isLoading: Signal<boolean>;
-              hasValue(): boolean;
+              filter: string;
             }
           | undefined
-        >();
-
-        const filter = mutationsOutput({} as any, {} as any)(
-          {} as any,
-          {} as any,
-          {} as any,
-          {} as any,
-        ).props.filterChange;
-        expectTypeOf<typeof filter>().toEqualTypeOf<{
-          '~InternalType': 'Used to avoid TS type erasure';
-          readonly error: Signal<Error | undefined>;
-          readonly value: Signal<
-            | {
-                filter: string;
-              }
-            | undefined
-          >;
-          readonly status: Signal<ResourceStatus>;
-          readonly isLoading: Signal<boolean>;
-          hasValue: () => boolean;
-          readonly safeValue: Signal<
-            | {
-                filter: string;
-              }
-            | undefined
-          >;
-          readonly resourceParamsSrc: WritableSignal<
-            NoInfer<{
+        >;
+        readonly status: Signal<ResourceStatus>;
+        readonly isLoading: Signal<boolean>;
+        hasValue: () => boolean;
+        readonly safeValue: Signal<
+          | {
               filter: string;
-            }>
-          >;
-          additionalInsertion: 'injectedValue';
-          type: 'resourceLike';
-          kind: 'mutation';
-        }>();
-
-        type methods = ReturnType<
-          ReturnType<typeof mutationsOutput>
-        >['methods'];
-        //   ^?
-        expectTypeOf<methods>().toEqualTypeOf<{
-          mutateFilterChange: (args: { filter: string }) => {
+            }
+          | undefined
+        >;
+        readonly resourceParamsSrc: WritableSignal<
+          NoInfer<{
             filter: string;
-          };
-        }>();
-      } catch (error) {
-        console.error(error);
-      }
+          }>
+        >;
+        additionalInsertion: 'injectedValue';
+        type: 'resourceLike';
+        kind: 'mutation';
+      }>();
+
+      type methods = (typeof mutationsOutput)['methods'];
+      //   ^?
+      expectTypeOf<methods>().toEqualTypeOf<{
+        mutateFilterChange: (args: { filter: string }) => {
+          filter: string;
+        };
+      }>();
+
+      expectTypeOf<props>().toBeObject();
     });
   });
 

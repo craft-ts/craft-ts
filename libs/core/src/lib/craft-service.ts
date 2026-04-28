@@ -1121,6 +1121,19 @@ type ConcreteServiceApi<
     ? ToProvideTokenHelper<Name, Output>
     : {});
 
+export type CraftServiceApi<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output,
+  Metadata extends AnyServiceTrackingMetadata = ServiceTrackingMetadata<
+    Name,
+    Scope,
+    Output,
+    never
+  >,
+> = ConcreteServiceApi<Name, Scope, Inputs, Output, Metadata>;
+
 type AbstractServiceApi<Name extends string, Contract> = {
   [Key in `inject${Capitalize<Name>}`]: () => Contract;
 } & RequirementHelper<Name, Contract>;

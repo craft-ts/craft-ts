@@ -1,12 +1,12 @@
-import { craftAsyncProcesses } from './craft-async-process';
 import { asyncProcess } from './async-process';
 import { ResourceStatus, Signal, signal } from '@angular/core';
 import { afterRecomputation } from './after-recomputation';
 import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
-import { Equal, Expect } from 'test-type';
 import { craftException, CraftExceptionResult } from './craft-exception';
+import { craftService } from './craft-service';
+import { Equal, Expect } from 'test-type';
 
 type EmptyAsyncProcessExceptions = {
   hasException: Signal<boolean>;
@@ -16,6 +16,11 @@ type EmptyAsyncProcessExceptions = {
     loader?: never;
   }>;
 };
+
+function removeMethod<T extends object>(resource: T): Omit<T, 'method'> {
+  const { method: _method, ...rest } = resource as T & { method?: unknown };
+  return rest as Omit<T, 'method'>;
+}
 
 describe('AsyncProcess', () => {
   beforeEach(() => {
@@ -128,47 +133,70 @@ describe('AsyncProcess', () => {
 describe('AsyncProcess types without identifier', () => {
   it('should infer correctly the types of AsyncProcess', () => {
     TestBed.runInInjectionContext(() => {
-      const AsyncProcessOutput = craftAsyncProcesses(() => ({
-        // should enable to provide multiples status
-        // should provide async method by id
-        searchChange: asyncProcess({
-          method: ({
-            timeToWait,
-            searchChange,
-          }: {
-            timeToWait: number;
-            searchChange: string;
-          }) => ({
-            timeToWait,
-            searchChange,
-          }),
-          loader: async ({ params: { timeToWait, searchChange } }) => {
-            type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-            type ExpectSearchChange = Expect<
-              Equal<typeof searchChange, string>
-            >;
-            await new Promise((resolve) => setTimeout(resolve, timeToWait));
-            return { searchChange };
-          },
-        }),
-        filterChange: asyncProcess(
-          {
-            method: ({ filter }: { filter: string }) => ({
-              filter,
+      const { injectAsyncProcessOutput } = craftService(
+        { name: 'AsyncProcessOutput', scope: 'function' },
+        () => {
+          const searchChange = asyncProcess({
+            method: ({
+              timeToWait,
+              searchChange,
+            }: {
+              timeToWait: number;
+              searchChange: string;
+            }) => ({
+              timeToWait,
+              searchChange,
             }),
-            loader: async ({ params: { filter } }) => {
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { filter };
+            loader: async ({ params: { timeToWait, searchChange } }) => {
+              type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
+              type ExpectSearchChange = Expect<
+                Equal<typeof searchChange, string>
+              >;
+              await new Promise((resolve) => setTimeout(resolve, timeToWait));
+              return { searchChange };
             },
-          },
-          () => ({
-            additionalInsertion: 'injectedValue' as const,
-          }),
-        ),
-      }));
+          });
+          const filterChange = asyncProcess(
+            {
+              method: ({ filter }: { filter: string }) => ({
+                filter,
+              }),
+              loader: async ({ params: { filter } }) => {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                return { filter };
+              },
+            },
+            () => ({
+              additionalInsertion: 'injectedValue' as const,
+            }),
+          );
 
-      type props = ReturnType<ReturnType<typeof AsyncProcessOutput>>['props'];
-      type s = props['searchChange'];
+          return {
+            props: {
+              searchChange: removeMethod(searchChange),
+              filterChange: removeMethod(filterChange),
+            },
+            methods: {
+              setSearchChange: (args: {
+                timeToWait: number;
+                searchChange: string;
+              }) => {
+                searchChange.method(args);
+                return args;
+              },
+              setFilterChange: (args: { filter: string }) => {
+                filterChange.method(args);
+                return args;
+              },
+            },
+          };
+        },
+      );
+
+      const AsyncProcessOutput = injectAsyncProcessOutput();
+      expect(AsyncProcessOutput.props.searchChange.hasException()).toBe(false);
+
+      type props = (typeof AsyncProcessOutput)['props'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
           readonly value: Signal<
@@ -221,10 +249,8 @@ describe('AsyncProcess types without identifier', () => {
         };
       }>();
 
-      type methods = ReturnType<
-        ReturnType<typeof AsyncProcessOutput>
-      >['methods'];
-      expectTypeOf<methods>().toEqualTypeOf<
+      type methods = (typeof AsyncProcessOutput)['methods'];
+      expectTypeOf<methods>().branded.toEqualTypeOf<
         {
           setSearchChange: (args: {
             timeToWait: number;
@@ -245,38 +271,55 @@ describe('AsyncProcess types without identifier', () => {
   it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>();
-      const AsyncProcessOutput = craftAsyncProcesses(() => ({
-        // should enable to provide multiples status
-        // should provide async method by id
-        searchChange: asyncProcess({
-          method: afterRecomputation(searchSource, (searchChange) => {
-            return searchChange;
-          }),
-          loader: async ({ params: { searchChangeText } }) => {
-            type ExpectSearchChangeText = Expect<
-              Equal<typeof searchChangeText, string>
-            >;
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            return { searchChangeText };
-          },
-        }),
-        filterChange: asyncProcess(
-          {
-            method: ({ filter }: { filter: string }) => ({
-              filter,
+      const { injectAsyncProcessOutput } = craftService(
+        { name: 'AsyncProcessOutput', scope: 'function' },
+        () => {
+          const searchChange = asyncProcess({
+            method: afterRecomputation(searchSource, (searchChange) => {
+              return searchChange;
             }),
-            loader: async ({ params: { filter } }) => {
+            loader: async ({ params: { searchChangeText } }) => {
+              type ExpectSearchChangeText = Expect<
+                Equal<typeof searchChangeText, string>
+              >;
               await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { filter };
+              return { searchChangeText };
             },
-          },
-          () => ({
-            additionalInsertion: 'injectedValue' as const,
-          }),
-        ),
-      }));
+          });
+          const filterChange = asyncProcess(
+            {
+              method: ({ filter }: { filter: string }) => ({
+                filter,
+              }),
+              loader: async ({ params: { filter } }) => {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                return { filter };
+              },
+            },
+            () => ({
+              additionalInsertion: 'injectedValue' as const,
+            }),
+          );
 
-      type props = ReturnType<ReturnType<typeof AsyncProcessOutput>>['props'];
+          return {
+            props: {
+              searchChange: removeMethod(searchChange),
+              filterChange: removeMethod(filterChange),
+            },
+            methods: {
+              setFilterChange: (args: { filter: string }) => {
+                filterChange.method(args);
+                return args;
+              },
+            },
+          };
+        },
+      );
+
+      const AsyncProcessOutput = injectAsyncProcessOutput();
+      expect(AsyncProcessOutput.props.filterChange.status()).toBe('idle');
+
+      type props = (typeof AsyncProcessOutput)['props'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
           readonly error: Signal<Error | undefined>;
@@ -332,9 +375,7 @@ describe('AsyncProcess types without identifier', () => {
         };
       }>();
 
-      type methods = ReturnType<
-        ReturnType<typeof AsyncProcessOutput>
-      >['methods'];
+      type methods = (typeof AsyncProcessOutput)['methods'];
       //   ^?
       expectTypeOf<methods>().toEqualTypeOf<{
         setFilterChange: (args: { filter: string }) => {
@@ -430,47 +471,71 @@ describe('AsyncProcess types without identifier', () => {
 describe('AsyncProcess types with identifier', () => {
   it('should infer correctly the types of AsyncProcess', () => {
     TestBed.runInInjectionContext(() => {
-      const AsyncProcessOutput = craftAsyncProcesses(() => ({
-        // should enable to provide multiples status
-        // should provide async method by id
-        searchChange: asyncProcess({
-          method: ({
-            timeToWait,
-            searchChange,
-          }: {
-            timeToWait: number;
-            searchChange: string;
-          }) => ({
-            timeToWait,
-            searchChange,
-          }),
-          identifier: (params) => params.searchChange,
-          loader: async ({ params: { timeToWait, searchChange } }) => {
-            type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-            type ExpectSearchChange = Expect<
-              Equal<typeof searchChange, string>
-            >;
-            await new Promise((resolve) => setTimeout(resolve, timeToWait));
-            return { searchChange };
-          },
-        }),
-        filterChange: asyncProcess(
-          {
-            method: ({ filter }: { filter: string }) => ({
-              filter,
+      const { injectAsyncProcessOutput } = craftService(
+        { name: 'AsyncProcessOutput', scope: 'function' },
+        () => {
+          const searchChange = asyncProcess({
+            method: ({
+              timeToWait,
+              searchChange,
+            }: {
+              timeToWait: number;
+              searchChange: string;
+            }) => ({
+              timeToWait,
+              searchChange,
             }),
-            loader: async ({ params: { filter } }) => {
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { filter };
+            identifier: (params) => params.searchChange,
+            loader: async ({ params: { timeToWait, searchChange } }) => {
+              type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
+              type ExpectSearchChange = Expect<
+                Equal<typeof searchChange, string>
+              >;
+              await new Promise((resolve) => setTimeout(resolve, timeToWait));
+              return { searchChange };
             },
-          },
-          () => ({
-            additionalInsertion: 'injectedValue' as const,
-          }),
-        ),
-      }));
+          });
+          const filterChange = asyncProcess(
+            {
+              method: ({ filter }: { filter: string }) => ({
+                filter,
+              }),
+              loader: async ({ params: { filter } }) => {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                return { filter };
+              },
+            },
+            () => ({
+              additionalInsertion: 'injectedValue' as const,
+            }),
+          );
 
-      type props = ReturnType<ReturnType<typeof AsyncProcessOutput>>['props'];
+          return {
+            props: {
+              searchChange: removeMethod(searchChange),
+              filterChange: removeMethod(filterChange),
+            },
+            methods: {
+              setSearchChange: (args: {
+                timeToWait: number;
+                searchChange: string;
+              }) => {
+                searchChange.method(args);
+                return args;
+              },
+              setFilterChange: (args: { filter: string }) => {
+                filterChange.method(args);
+                return args;
+              },
+            },
+          };
+        },
+      );
+
+      const AsyncProcessOutput = injectAsyncProcessOutput();
+      expect(AsyncProcessOutput.props.searchChange.hasException()).toBe(false);
+
+      type props = (typeof AsyncProcessOutput)['props'];
       type s = props['searchChange'];
 
       const search = {} as ReturnType<s['select']>;
@@ -526,10 +591,8 @@ describe('AsyncProcess types with identifier', () => {
         }>;
       }>();
 
-      type methods = ReturnType<
-        ReturnType<typeof AsyncProcessOutput>
-      >['methods'];
-      expectTypeOf<methods>().toEqualTypeOf<
+      type methods = (typeof AsyncProcessOutput)['methods'];
+      expectTypeOf<methods>().branded.toEqualTypeOf<
         {
           setSearchChange: (args: {
             timeToWait: number;
@@ -550,49 +613,57 @@ describe('AsyncProcess types with identifier', () => {
   it.skip('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>();
-      const AsyncProcessOutput = craftAsyncProcesses(() => ({
-        // should enable to provide multiples status
-        // should provide async method by id
-        searchChange: asyncProcess({
-          method: afterRecomputation(searchSource, (searchChange) => {
-            return searchChange;
-          }),
-          identifier: (params) => params.searchChangeText,
-          loader: async ({ params: { searchChangeText } }) => {
-            type ExpectSearchChangeText = Expect<
-              Equal<typeof searchChangeText, string>
-            >;
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            return { searchChangeText };
-          },
-        }),
-        filterChange: asyncProcess(
-          {
-            method: ({ filter }: { filter: string }) => ({
-              filter,
+      const { injectAsyncProcessOutput } = craftService(
+        { name: 'AsyncProcessOutput', scope: 'function' },
+        () => {
+          const searchChange = asyncProcess({
+            method: afterRecomputation(searchSource, (searchChange) => {
+              return searchChange;
             }),
-            loader: async ({ params: { filter } }) => {
+            identifier: (params) => params.searchChangeText,
+            loader: async ({ params: { searchChangeText } }) => {
+              type ExpectSearchChangeText = Expect<
+                Equal<typeof searchChangeText, string>
+              >;
               await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { filter };
+              return { searchChangeText };
             },
-          },
-          () => ({
-            additionalInsertion: 'injectedValue' as const,
-          }),
-        ),
-      }));
+          });
+          const filterChange = asyncProcess(
+            {
+              method: ({ filter }: { filter: string }) => ({
+                filter,
+              }),
+              loader: async ({ params: { filter } }) => {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                return { filter };
+              },
+            },
+            () => ({
+              additionalInsertion: 'injectedValue' as const,
+            }),
+          );
 
-      type props = ReturnType<ReturnType<typeof AsyncProcessOutput>>['props'];
+          return {
+            props: {
+              searchChange: removeMethod(searchChange),
+              filterChange: removeMethod(filterChange),
+            },
+            methods: {
+              setFilterChange: (args: { filter: string }) => {
+                filterChange.method(args);
+                return args;
+              },
+            },
+          };
+        },
+      );
+
+      const AsyncProcessOutput = injectAsyncProcessOutput();
+      expect(AsyncProcessOutput.props.filterChange.status()).toBe('idle');
+
       try {
-        const search = AsyncProcessOutput(
-          new Proxy({}, {}) as any,
-          new Proxy({}, {}) as any,
-        )(
-          new Proxy({}, {}) as any,
-          new Proxy({}, {}) as any,
-          new Proxy({}, {}) as any,
-          new Proxy({}, {}) as any,
-        ).props.searchChange.select('test');
+        const search = AsyncProcessOutput.props.searchChange.select('test');
         expectTypeOf(search).toEqualTypeOf<
           | ({
               readonly value: Signal<
@@ -615,12 +686,7 @@ describe('AsyncProcess types with identifier', () => {
           | undefined
         >();
 
-        const filter = AsyncProcessOutput({} as any, {} as any)(
-          {} as any,
-          {} as any,
-          {} as any,
-          {} as any,
-        ).props.filterChange;
+        const filter = AsyncProcessOutput.props.filterChange;
         expectTypeOf(filter).toEqualTypeOf<{
           readonly error: Signal<Error | undefined>;
           readonly value: Signal<
@@ -647,9 +713,7 @@ describe('AsyncProcess types with identifier', () => {
           }>;
         }>();
 
-        type methods = ReturnType<
-          ReturnType<typeof AsyncProcessOutput>
-        >['methods'];
+        type methods = (typeof AsyncProcessOutput)['methods'];
         //   ^?
         expectTypeOf<methods>().toEqualTypeOf<{
           setFilterChange: (args: { filter: string }) => {

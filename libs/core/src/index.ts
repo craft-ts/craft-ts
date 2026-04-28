@@ -1,4 +1,5 @@
 export * from './lib/after-recomputation';
+export * from './lib/app-checked-di';
 export * from './lib/async-process';
 export * from './lib/computed-source';
 export * from './lib/craft-exception';
@@ -37,3 +38,5 @@ export * from './lib/form/insert-form-submit';
 export * from './lib/form/validator';
 export * from './lib/insert-entities';
 export * from './lib/setup-craft-service-testing-by-register';
+export * from './lib/branded-component/branded-component';
+export * from './lib/craft-routes';

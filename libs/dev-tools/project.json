@@ -1,0 +1,58 @@
+{
+  "name": "dev-tools",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/dev-tools/src",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "manifestRootsToUpdate": ["dist/{projectRoot}"],
+      "currentVersionResolver": "git-tag",
+      "fallbackCurrentVersionResolver": "disk"
+    }
+  },
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/dev-tools",
+        "main": "libs/dev-tools/src/index.ts",
+        "tsConfig": "libs/dev-tools/tsconfig.lib.json",
+        "assets": [
+          "libs/dev-tools/*.md",
+          {
+            "input": "libs/dev-tools/src/eslint",
+            "glob": "**/*.mjs",
+            "output": "src/eslint"
+          },
+          {
+            "input": "libs/dev-tools/src/eslint-rules",
+            "glob": "**/*.cjs",
+            "output": "src/eslint-rules"
+          },
+          {
+            "input": "libs/dev-tools/src/eslint-rules",
+            "glob": "**/*.d.cts",
+            "output": "src/eslint-rules"
+          },
+          {
+            "input": "libs/dev-tools/src",
+            "glob": "tsconfig.codemod.json",
+            "output": "src"
+          },
+          {
+            "input": "libs/dev-tools/src/scripts",
+            "glob": "**/*.ts",
+            "output": "src/scripts"
+          }
+        ]
+      }
+    },
+    "nx-release-publish": {
+      "options": {
+        "packageRoot": "dist/{projectRoot}"
+      }
+    }
+  }
+}

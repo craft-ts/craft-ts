@@ -16,7 +16,8 @@
     "customConditions": ["@ng-craft/source"],
     "paths": {
       "@craft-ng/core": ["libs/core/src/index.ts"],
-      "test-type": ["libs/test-type/src/index.ts"]
+      "test-type": ["libs/test-type/src/index.ts"],
+      "@craft-ng/dev-tools": ["libs/dev-tools/src/index.ts"]
     }
   }
 }

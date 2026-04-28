@@ -8,6 +8,6 @@ import { appRoutes } from './app.routes';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(appRoutes, withComponentInputBinding()),
+    provideRouter(appRoutes.toRoutes(), withComponentInputBinding()),
   ],
 };
