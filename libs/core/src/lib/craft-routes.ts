@@ -169,6 +169,45 @@ type RemainingRoutePublicProperties<RouteDefinition> = Simplify<
   >
 >;
 
+type RouteProvidedServiceNamesFromEntry<Entry> =
+  Entry extends BrandedServiceProvider<infer Name, any>
+    ? Name
+    : Entry extends readonly unknown[]
+      ? RouteProvidedServiceNames<Entry>
+      : never;
+
+type RouteProvidedServiceNames<Providers> = Providers extends readonly unknown[]
+  ? RouteProvidedServiceNamesFromEntry<Providers[number]>
+  : never;
+
+type StripRouteProvidedDependency<
+  Dependency,
+  ProvidedNames extends string,
+> = Dependency extends {
+  dependencies: infer Dependencies extends object;
+}
+  ? Simplify<
+      Omit<Dependency, 'dependencies'> & {
+        dependencies: StripRouteProvidedDepsMap<Dependencies, ProvidedNames>;
+      }
+    >
+  : Dependency;
+
+type StripRouteProvidedDepsMap<
+  Deps extends object,
+  ProvidedNames extends string,
+> = Simplify<
+  Omit<
+    {
+      [Name in Extract<keyof Deps, string>]: StripRouteProvidedDependency<
+        Deps[Name],
+        ProvidedNames
+      >;
+    },
+    ProvidedNames
+  >
+>;
+
 export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
   Omit<
     ComponentDepsMap<RouteDefinition>,
@@ -177,7 +216,7 @@ export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
     (ComponentDepsMap<RouteDefinition> extends { deps: object }
       ? {
           deps: Simplify<
-            Omit<
+            StripRouteProvidedDepsMap<
               DepsMap<ComponentDepsMap<RouteDefinition>>,
               RouteProvidedServiceNames<
                 RouteDefinition extends { providers: infer Providers }
@@ -195,17 +234,6 @@ export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
         })
 >;
 
-type RouteProvidedServiceNamesFromEntry<Entry> =
-  Entry extends BrandedServiceProvider<infer Name, any>
-    ? Name
-    : Entry extends readonly unknown[]
-      ? RouteProvidedServiceNames<Entry>
-      : never;
-
-type RouteProvidedServiceNames<Providers> = Providers extends readonly unknown[]
-  ? RouteProvidedServiceNamesFromEntry<Providers[number]>
-  : never;
-
 type ResolveCraftRouteMetaDataComponentDeps<RouteDefinition> = Simplify<
   Omit<
     ComponentDepsMap<RouteDefinition>,
@@ -214,7 +242,7 @@ type ResolveCraftRouteMetaDataComponentDeps<RouteDefinition> = Simplify<
     (ComponentDepsMap<RouteDefinition> extends { deps: object }
       ? {
           deps: Simplify<
-            Omit<
+            StripRouteProvidedDepsMap<
               DepsMap<ComponentDepsMap<RouteDefinition>>,
               RouteProvidedServiceNames<
                 RouteDefinition extends { providers: infer Providers }

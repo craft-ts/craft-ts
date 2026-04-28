@@ -39,4 +39,5 @@ export * from './lib/form/validator';
 export * from './lib/insert-entities';
 export * from './lib/setup-craft-service-testing-by-register';
 export * from './lib/branded-component/branded-component';
+export * from './lib/craft-app-config';
 export * from './lib/craft-routes';

@@ -149,6 +149,7 @@ describe('AppCheckedDI', () => {
       ['Input "userId" is not provided in AppComponent']
     >();
   });
+
   it('should return combined errors', () => {
     const { injectCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
