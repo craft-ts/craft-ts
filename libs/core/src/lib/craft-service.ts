@@ -20,6 +20,7 @@ import type {
   ConcreteServiceScope,
   MergeObjectUnion,
   ProvidedInputKey,
+  RealCapableScope,
   RequirementScope,
   RootExposureKey,
   Simplify,
@@ -305,7 +306,7 @@ type ValidateProvidedInputScope<
   Inputs extends object,
 > =
   HasProvidedInput<Inputs> extends true
-    ? Scope extends RequirementScope
+    ? Scope extends RealCapableScope
       ? unknown
       : never
     : unknown;
@@ -1066,7 +1067,7 @@ type YieldHelper<
 
 type ProvideHelper<
   Name extends string,
-  Scope extends RequirementScope,
+  Scope extends RealCapableScope,
   Inputs extends object,
 > = {
   [Key in `provide${Capitalize<Name>}`]: [
@@ -1115,7 +1116,7 @@ type ConcreteServiceApi<
   YieldHelper<Name, Scope, Inputs, Output, Metadata> &
   ServiceMetaDataHelper<Name, Scope, Inputs, Output, Metadata> &
   (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-    ? ProvideHelper<Name, Extract<Scope, RequirementScope>, Inputs>
+    ? ProvideHelper<Name, Extract<Scope, RealCapableScope>, Inputs>
     : {}) &
   (Scope extends 'manuallyProvidedAtRoot'
     ? ToProvideTokenHelper<Name, Output>
@@ -1173,7 +1174,7 @@ type DependencyProvideFactory<Inputs extends object> = [
 
 type ProviderCapableDependencyOptions<
   Name extends string,
-  Scope extends RequirementScope,
+  Scope extends RealCapableScope,
   Output,
   Inputs extends object = {},
 > = {
@@ -1476,7 +1477,7 @@ export function toCraftService<
 >;
 export function toCraftService<
   Name extends string,
-  Scope extends RequirementScope,
+  Scope extends RealCapableScope,
   Output,
 >(options: {
   name: Name;
@@ -1486,7 +1487,7 @@ export function toCraftService<
 }): DependencyApi<Name, Scope, {}, Output>;
 export function toCraftService<
   Name extends string,
-  Scope extends RequirementScope,
+  Scope extends RealCapableScope,
   Output,
   ProvidedInput,
 >(options: {
@@ -1503,7 +1504,7 @@ export function toCraftService<
 >;
 export function toCraftService<
   Name extends string,
-  Scope extends RequirementScope,
+  Scope extends RealCapableScope,
   Output,
   Inputs extends object,
   ProvidedInput,
@@ -1538,7 +1539,7 @@ export function toCraftService<
 >;
 export function toCraftService<
   Name extends string,
-  Scope extends RequirementScope,
+  Scope extends RealCapableScope,
   Output,
   Inputs extends object,
   FactoryResult,
@@ -1569,7 +1570,7 @@ export function toCraftService(
     | GlobalInjectedDependencyOptions<string, unknown>
     | ProviderCapableDependencyOptions<
         string,
-        RequirementScope,
+        RealCapableScope,
         unknown,
         object
       >,
@@ -1746,7 +1747,7 @@ export function craftService<Name extends string, Contract>(
 ): AbstractServiceApi<Name, Contract>;
 export function craftService<
   Name extends string,
-  Scope extends RequirementScope,
+  Scope extends RealCapableScope,
   Requirement extends ServiceRequirement<any, any>,
   Factory extends AnyFactory,
 >(

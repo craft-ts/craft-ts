@@ -60,24 +60,49 @@ type DependencyScope<Node> = Node extends { scope: infer Scope }
   ? Scope
   : never;
 
+type IsRequirementScopedServiceDependency<Dependency> = [
+  DependencyScope<Dependency>,
+] extends [never]
+  ? false
+  : DependencyScope<Dependency> extends RequirementScope
+    ? true
+    : false;
+
+type IsComponentGenDepsDependency<Dependency> = Dependency extends {
+  deps: infer _Deps extends object;
+  provided: infer _Provided extends object;
+}
+  ? true
+  : false;
+
+type ComponentMissingProviderRecord<Dependency> =
+  IsComponentGenDepsDependency<Dependency> extends true
+    ? Dependency extends {
+        missingProvider: infer MissingProvider extends object;
+      }
+      ? MissingProvider
+      : {}
+    : {};
+
+type DirectMissingProviderRecord<Name extends string, Dependency> =
+  IsRequirementScopedServiceDependency<Dependency> extends true
+    ? {
+        [Key in Name]: Dependency;
+      }
+    : {};
+
 type MissingProviderRecordFromDependency<
   Name extends string,
   Dependency,
 > = MergeObjectUnion<
-  | (DependencyScope<Dependency> extends RequirementScope
-      ? {
-          [Key in Name]: Dependency;
-        }
-      : {})
-  | MissingProvidersFromDepsMap<DependencyChildren<Dependency>>
-  | (Dependency extends {
-      missingProvider: infer MissingProvider extends object;
-    }
-      ? MissingProvider
+  | DirectMissingProviderRecord<Name, Dependency>
+  | ComponentMissingProviderRecord<Dependency>
+  | (IsRequirementScopedServiceDependency<Dependency> extends true
+      ? MissingProvidersFromDepsMap<DependencyChildren<Dependency>>
       : {})
 >;
 
-type MissingProvidersFromDepsMap<Deps extends object> = Simplify<
+export type MissingProvidersFromDepsMap<Deps extends object> = Simplify<
   MergeObjectUnion<
     {
       [Name in Extract<
@@ -99,12 +124,9 @@ type ComputedMissingProviders<Input> = Simplify<
 >;
 
 export type GetDeps<Input extends object> = Simplify<
-  Omit<Input, 'missingProvider'> &
-    ([keyof ComputedMissingProviders<Input>] extends [never]
-      ? {}
-      : {
-          missingProvider: ComputedMissingProviders<Input>;
-        })
+  Omit<Input, 'missingProvider'> & {
+    missingProvider: ComputedMissingProviders<Input>;
+  }
 >;
 
 export function deps(value: AngularBrandDeps = {}): AngularBrandDeps {

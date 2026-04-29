@@ -16,9 +16,14 @@ export type ConcreteServiceScope =
 
 export type RealCapableScope = 'toProvide' | 'manuallyProvidedAtRoot';
 
-export type RequirementScope = 'toProvide' | 'manuallyProvidedAtRoot';
+export type RequirementScope =
+  | 'toProvide'
+  | 'manuallyProvidedAtRoot'
+  | 'abstract';
 
-export type CallableShell<Value> = Value extends (...args: infer Args) => infer Result
+export type CallableShell<Value> = Value extends (
+  ...args: infer Args
+) => infer Result
   ? (...args: Args) => Result
   : never;
 
@@ -38,10 +43,9 @@ export type GetUnionLast<Union> =
     ? Last
     : never;
 
-export type UnionToTuple<
+export type UnionToTuple<Union, Tuple extends unknown[] = []> = [
   Union,
-  Tuple extends unknown[] = [],
-> = [Union] extends [never]
+] extends [never]
   ? Tuple
   : UnionToTuple<
       Exclude<Union, GetUnionLast<Union>>,
@@ -62,9 +66,7 @@ export type DependencyNodeScope<Node> = Node extends { scope: infer Scope }
   ? Scope
   : never;
 
-export type FlattenDependencyTree<
-  Tree extends object,
-> = Simplify<
+export type FlattenDependencyTree<Tree extends object> = Simplify<
   MergeObjectUnion<
     {
       [Name in Extract<keyof Tree, string>]:

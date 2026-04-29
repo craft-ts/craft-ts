@@ -1,10 +1,7 @@
 import type { ApplicationConfig } from '@angular/core';
+import type { MissingProvidersFromDepsMap } from './branded-component/branded-component';
 import type { BrandedServiceProvider } from './craft-service';
-import type {
-  MergeObjectUnion,
-  RequirementScope,
-  Simplify,
-} from './craft-service.shared';
+import type { Simplify } from './craft-service.shared';
 
 type AngularApplicationProvider = ApplicationConfig['providers'][number];
 type AngularApplicationProviders = readonly AngularApplicationProvider[];
@@ -24,44 +21,6 @@ type ExplicitMissingProviderMap<Input> = Input extends {
 }
   ? MissingProvider
   : {};
-
-type DependencyChildren<Node> = Node extends {
-  dependencies: infer Dependencies extends object;
-}
-  ? Dependencies
-  : {};
-
-type DependencyScope<Node> = Node extends { scope: infer Scope }
-  ? Scope
-  : never;
-
-type MissingProviderRecordFromDependency<
-  Name extends string,
-  Dependency,
-> = MergeObjectUnion<
-  | (DependencyScope<Dependency> extends RequirementScope
-      ? {
-          [Key in Name]: Dependency;
-        }
-      : {})
-  | MissingProvidersFromDepsMap<DependencyChildren<Dependency>>
-  | (Dependency extends {
-      missingProvider: infer MissingProvider extends object;
-    }
-      ? MissingProvider
-      : {})
->;
-
-type MissingProvidersFromDepsMap<Deps extends object> = Simplify<
-  MergeObjectUnion<
-    {
-      [Name in Extract<
-        keyof Deps,
-        string
-      >]: MissingProviderRecordFromDependency<Name, Deps[Name]>;
-    }[Extract<keyof Deps, string>]
-  >
->;
 
 type AppProvidedServiceNamesFromEntry<Entry> =
   Entry extends BrandedServiceProvider<infer Name, any>

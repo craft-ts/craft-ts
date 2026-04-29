@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common';
 import { Component, input } from '@angular/core';
 import { describe, expectTypeOf, it } from 'vitest';
 import {
@@ -79,57 +80,154 @@ describe('GetDeps', () => {
       provided: {
         Counter: unknown;
       };
+      missingProvider: {};
     }>();
   });
 
-  it.todo(
-    'merges child missing providers with explicit local missing providers',
-    () => {
-      const { injectCounter } = craftService(
-        { name: 'Counter', scope: 'toProvide' },
-        () => ({
-          increment: () => 1,
-        }),
-      );
+  it('keeps an empty missingProvider map when there is nothing to provide', () => {
+    type ComponentDeps = GetDeps<{
+      deps: {
+        CommonModule: CommonModule;
+      };
+      provided: {};
+    }>;
 
-      class HttpClient {}
+    expectTypeOf<ComponentDeps>().toEqualTypeOf<{
+      deps: {
+        CommonModule: CommonModule;
+      };
+      provided: {};
+      missingProvider: {};
+    }>();
+  });
 
-      type CounterDependency = GetInjectedServiceDependencies<
-        typeof injectCounter
-      >;
-      type ChildDeps = GetDeps<{
-        deps: {
-          Counter: CounterDependency;
+  it('ignores child component GenDeps when their missingProvider map is empty', () => {
+    const { injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => ({
+        increment: () => 1,
+      }),
+    );
+
+    @Component({
+      selector: 'lib-status',
+      template: ` Status `,
+    })
+    class StatusComponent {}
+
+    class HttpClient {}
+
+    type CounterDependency = GetInjectedServiceDependencies<
+      typeof injectCounter
+    >;
+    type StatusDeps = GetDeps<{
+      deps: {
+        CommonModule: CommonModule;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<StatusComponent>;
+    }>;
+
+    type ParentDeps = GetDeps<{
+      deps: {
+        CommonModule: CommonModule;
+        GenDeps_StatusComponent: StatusDeps;
+        Counter: CounterDependency;
+      };
+      provided: {
+        Counter: unknown;
+      };
+      missingProvider: {
+        HttpClient: HttpClient;
+      };
+    }>;
+
+    expectTypeOf<ParentDeps['missingProvider']>().toEqualTypeOf<{
+      HttpClient: HttpClient;
+    }>();
+  });
+
+  it('flattens child component missing providers into the parent map', () => {
+    const { injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => ({
+        increment: () => 1,
+      }),
+    );
+
+    @Component({
+      selector: 'lib-status',
+      template: ` Status `,
+    })
+    class StatusComponent {}
+
+    class HttpClient {}
+
+    type CounterDependency = GetInjectedServiceDependencies<
+      typeof injectCounter
+    >;
+    type StatusDeps = GetDeps<{
+      deps: {
+        Counter: CounterDependency;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<StatusComponent>;
+    }>;
+
+    type ParentDeps = GetDeps<{
+      deps: {
+        CommonModule: CommonModule;
+        GenDeps_StatusComponent: StatusDeps;
+      };
+      provided: {};
+      missingProvider: {
+        HttpClient: HttpClient;
+      };
+    }>;
+
+    expectTypeOf<ParentDeps['missingProvider']>().toEqualTypeOf<{
+      Counter: CounterDependency;
+      HttpClient: HttpClient;
+    }>();
+  });
+
+  it('keeps transitive service missing providers flat at the top level', () => {
+    const { CounterToYield, injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => ({
+        increment: () => 1,
+      }),
+    );
+
+    const { injectCounterExtended } = craftService(
+      { name: 'CounterExtended', scope: 'toProvide' },
+      function* () {
+        yield* CounterToYield();
+
+        return {
+          increment: () => 2,
         };
-        provided: {};
-      }>;
+      },
+    );
 
-      type ParentDeps = GetDeps<{
-        deps: {
-          Child: ChildDeps;
-        };
-        provided: {};
-        missingProvider: {
-          HttpClient: HttpClient;
-        };
-      }>;
+    type CounterDependency = GetInjectedServiceDependencies<
+      typeof injectCounter
+    >;
+    type CounterExtendedDependency = GetInjectedServiceDependencies<
+      typeof injectCounterExtended
+    >;
+    type ComponentDeps = GetDeps<{
+      deps: {
+        CounterExtended: CounterExtendedDependency;
+      };
+      provided: {};
+    }>;
 
-      type Result = ParentDeps['missingProvider'];
-
-      // todo fix that
-      // expectTypeOf<Result>().toEqualTypeOf<{
-      //   Counter: CounterDependency;
-      //   HttpClient: HttpClient;
-      // }>();
-
-      expectTypeOf<Omit<ParentDeps, 'missingProvider'>>().toEqualTypeOf<{
-        deps: {
-          Child: ChildDeps;
-        };
-        provided: {};
-      }>();
-    },
-  );
+    expectTypeOf<ComponentDeps['missingProvider']>().toEqualTypeOf<{
+      CounterExtended: CounterExtendedDependency;
+      Counter: CounterDependency;
+    }>();
+  });
 });
 
 describe('GetPublicComponentProperties', () => {

@@ -1,9 +1,9 @@
 import type {
   MergeObjectUnion,
-  RequirementScope,
   Simplify,
   UnionToTuple,
 } from './craft-service.shared';
+import type { MissingProvidersFromDepsMap } from './branded-component/branded-component';
 
 type DepsMap<Input> = Input extends { deps: infer Deps extends object }
   ? Deps
@@ -20,44 +20,6 @@ type PublicPropertiesMap<Input> = Input extends {
 }
   ? PublicProperties
   : {};
-
-type DependencyChildren<Node> = Node extends {
-  dependencies: infer Dependencies extends object;
-}
-  ? Dependencies
-  : {};
-
-type DependencyScope<Node> = Node extends { scope: infer Scope }
-  ? Scope
-  : never;
-
-type MissingProviderRecordFromDependency<
-  Name extends string,
-  Dependency,
-> = MergeObjectUnion<
-  | (DependencyScope<Dependency> extends RequirementScope
-      ? {
-          [Key in Name]: Dependency;
-        }
-      : {})
-  | MissingProvidersFromDepsMap<DependencyChildren<Dependency>>
-  | (Dependency extends {
-      missingProvider: infer MissingProvider extends object;
-    }
-      ? MissingProvider
-      : {})
->;
-
-type MissingProvidersFromDepsMap<Deps extends object> = Simplify<
-  MergeObjectUnion<
-    {
-      [Name in Extract<
-        keyof Deps,
-        string
-      >]: MissingProviderRecordFromDependency<Name, Deps[Name]>;
-    }[Extract<keyof Deps, string>]
-  >
->;
 
 type MissingProviderMap<Input> = Input extends {
   missingProvider: infer MissingProvider extends object;
