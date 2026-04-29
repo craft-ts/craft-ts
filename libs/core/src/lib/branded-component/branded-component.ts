@@ -1,3 +1,4 @@
+import type { InputSignalWithTransform } from '@angular/core';
 import type {
   MergeObjectUnion,
   RequirementScope,
@@ -16,14 +17,28 @@ type ExtractPublicInstance<Component> = Component extends abstract new (
   ? Instance
   : Component;
 
+type ToPublicSignalType<T> =
+  T extends InputSignalWithTransform<infer ReadT, any> ? () => ReadT : T;
+
+type InputSignalPropertyKeys<Instance> = Extract<
+  {
+    [K in keyof Instance]: Instance[K] extends InputSignalWithTransform<
+      any,
+      any
+    >
+      ? K
+      : never;
+  }[keyof Instance],
+  string
+>;
+
 export type GetPublicComponentProperties<Component> =
   ExtractPublicInstance<Component> extends object
-    ? Simplify<
-        Pick<
-          ExtractPublicInstance<Component>,
-          keyof ExtractPublicInstance<Component>
-        >
-      >
+    ? Simplify<{
+        [K in InputSignalPropertyKeys<
+          ExtractPublicInstance<Component>
+        >]: ToPublicSignalType<ExtractPublicInstance<Component>[K]>;
+      }>
     : never;
 
 export type DerivedService<Service, Tracking extends object> = Simplify<

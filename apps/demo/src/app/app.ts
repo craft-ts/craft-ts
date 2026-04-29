@@ -1,6 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { GlobalPersisterHandlerService } from '@craft-ng/core';
+import {
+  GlobalPersisterHandlerService,
+  type GetDeps,
+  type GetPublicComponentProperties,
+} from '@craft-ng/core';
 
 @Component({
   imports: [RouterModule],
@@ -245,3 +249,12 @@ export class App {
     window.location.reload();
   }
 }
+
+export type GenDeps_App = GetDeps<{
+  deps: {
+    RouterModule: RouterModule;
+    GlobalPersisterHandlerService: GlobalPersisterHandlerService;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<App>;
+}>;

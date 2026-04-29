@@ -1,15 +1,16 @@
-import { Component, Injectable, inject, InjectionToken } from '@angular/core';
+import { Component, inject, Injectable, InjectionToken } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
-  BrowserTestingModule,
-  platformBrowserTesting,
+    BrowserTestingModule,
+    platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { provideRouter, Router } from '@angular/router';
-import { setupCraftServiceTest, mock } from './setup-craft-service-test';
+import { type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 import {
-  toCraftService,
-  craftService,
+    craftService,
+    toCraftService,
 } from './craft-service';
+import { mock, setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
 
 @Component({
@@ -642,3 +643,9 @@ describe('setupCraftServiceTest', () => {
     setupCraftServiceTest(injectServiceHost, { Service1: mock({}) }); // todo mock does not help to build the mock of my current global service
   });
 });
+
+export type GenDeps_CheckoutPage = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: GetPublicComponentProperties<CheckoutPage>;
+    }>;

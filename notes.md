@@ -66,3 +66,9 @@ And run the following launch configuration in VSCode:
   ]
 }
 ```
+
+## Mettre à jour les deps des composants
+
+1- Faire le build de la lib dev-tools
+
+2- `node dist/libs/dev-tools/src/scripts/angular-brand-codemod.js --root apps/demo/src`

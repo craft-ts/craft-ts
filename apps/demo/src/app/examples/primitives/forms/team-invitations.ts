@@ -7,10 +7,10 @@ import {
 } from '@angular/core';
 import {
   FormField,
-  type SchemaPath,
   SchemaPathRules,
-  type ValidationError,
   validateAsync,
+  type SchemaPath,
+  type ValidationError,
 } from '@angular/forms/signals';
 import {
   cEmail,
@@ -20,6 +20,9 @@ import {
   insertNoopTypingAnchor,
   insertSelectFormTree,
   state,
+  type GetDeps,
+  type GetInjectedServiceDependencies,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 import {
   injectInvitationValidationService,
@@ -482,3 +485,15 @@ export default class TeamInvitationsComponent {
     }
   }
 }
+
+export type GenDeps_TeamInvitationsComponent = GetDeps<{
+  deps: {
+    CommonModule: CommonModule;
+    FormField: FormField<any>;
+    InvitationValidationService: GetInjectedServiceDependencies<
+      typeof injectInvitationValidationService
+    >;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<TeamInvitationsComponent>;
+}>;

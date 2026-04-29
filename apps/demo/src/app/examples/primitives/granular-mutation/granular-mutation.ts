@@ -1,14 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-  insertLocalStoragePersister,
-  insertPaginationPlaceholderData,
-  insertReactOnMutation,
-  mutation,
-  query,
-  queryParam,
+    insertLocalStoragePersister,
+    insertPaginationPlaceholderData,
+    insertReactOnMutation,
+    mutation,
+    query,
+    queryParam,
+    type GetDeps, type GetInjectedServiceDependencies, type GetPublicComponentProperties
 } from '@craft-ng/core';
-import { StatusComponent } from '../../../ui/status.component';
+import { StatusComponent, type GenDeps_StatusComponent } from '../../../ui/status.component';
 import { injectApiService, User } from './api.service';
 
 @Component({
@@ -187,3 +188,13 @@ export default class GranularMutation {
     this.pagination.updatePageSize(value);
   }
 }
+
+export type GenDeps_GranularMutation = GetDeps<{
+      deps: {
+        CommonModule: CommonModule;
+        GenDeps_StatusComponent: GenDeps_StatusComponent;
+        ApiService: GetInjectedServiceDependencies<typeof injectApiService>;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<GranularMutation>;
+    }>;

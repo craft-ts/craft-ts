@@ -1,27 +1,28 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { ApiServiceToYield, type User } from './api.service';
-import { Router } from '@angular/router';
-import { StatusComponent } from '../../../ui/status.component';
 import {
   craftService,
-  toCraftService,
   insertLocalStoragePersister,
   insertReactOnMutation,
-  query,
   mutation,
+  query,
   toValue,
+  type DerivedService,
+  type GetDeps,
+  type GetInjectedServiceDependencies,
+  type GetPublicComponentProperties,
+  type GetServiceOutput,
   type MaybeSignal,
 } from '@craft-ng/core';
+import {
+  StatusComponent,
+  type GenDeps_StatusComponent,
+} from '../../../ui/status.component';
+import { ApiServiceToYield, type User } from './api.service';
+import { injectCraftRouter } from '../../../shared/router.service';
 
-const { injectRouter } = toCraftService({
-  name: 'Router',
-  scope: 'global',
-  token: Router,
-});
-
-const { injectUserMutation } = craftService(
-  { name: 'UserMutation', scope: 'global' },
+const { injectUserMutation, provideUserMutation } = craftService(
+  { name: 'UserMutation', scope: 'toProvide' },
   function* (inputs: { userId: MaybeSignal<string | undefined> }) {
     const { getItemById, updateItem } = yield* ApiServiceToYield(
       {},
@@ -60,6 +61,7 @@ const { injectUserMutation } = craftService(
 @Component({
   selector: 'app-mutation',
   imports: [CommonModule, StatusComponent],
+  providers: [provideUserMutation()],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['mutation.css'],
   template: `
@@ -92,7 +94,7 @@ const { injectUserMutation } = craftService(
 export default class MutationCraft {
   public readonly userId = input<string>();
 
-  private readonly router = injectRouter(undefined, ({ navigate }) => ({
+  private readonly router = injectCraftRouter(undefined, ({ navigate }) => ({
     navigate,
   }));
 
@@ -124,3 +126,26 @@ export default class MutationCraft {
     ]);
   }
 }
+
+export type GenDeps_MutationCraft = GetDeps<{
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+    CraftRouter: DerivedService<
+      GetInjectedServiceDependencies<typeof injectCraftRouter>,
+      {
+        derivedPropertiesUsed: {
+          navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
+        };
+        derivedPropertiesExposed: {
+          navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
+        };
+      }
+    >;
+    UserMutation: GetInjectedServiceDependencies<typeof injectUserMutation>;
+  };
+  provided: {
+    UserMutation: ReturnType<typeof injectUserMutation>;
+  };
+  publicProperties: GetPublicComponentProperties<MutationCraft>;
+}>;

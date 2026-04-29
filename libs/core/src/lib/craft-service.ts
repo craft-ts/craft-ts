@@ -168,6 +168,16 @@ type ServiceProvidedInput<Inputs extends object> =
 
 type ExtractHelperValue<HelperObject> = HelperObject[keyof HelperObject];
 
+type NormalizeProvidedInput<Args extends unknown[]> = Args extends []
+  ? never
+  : Args extends [infer Only]
+    ? Only
+    : Args;
+
+type ProvideArguments<ProvidedInput> = [ProvidedInput] extends [never]
+  ? []
+  : [ProvidedInput];
+
 export type CraftServiceProvider =
   | Provider
   | EnvironmentProviders
@@ -192,6 +202,7 @@ export type ServiceMetaData<
   InjectHelper = (...args: any[]) => unknown,
   Tracking = unknown,
   ProvidedInput = never,
+  ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = Simplify<
   {
     readonly kind: 'service-meta-data';
@@ -213,12 +224,11 @@ export type ServiceMetaData<
       Dependencies,
       InjectHelper,
       Tracking,
-      ProvidedInput
+      ProvidedInput,
+      ProvideArgs
     >;
   } & (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-    ? [ProvidedInput] extends [never]
-      ? { readonly provide: () => CraftServiceProvider }
-      : { readonly provide: (provided: ProvidedInput) => CraftServiceProvider }
+    ? { readonly provide: (...args: ProvideArgs) => CraftServiceProvider }
     : {}) &
     (Scope extends 'manuallyProvidedAtRoot'
       ? { readonly token: InjectionToken<Output> }
@@ -896,6 +906,8 @@ type ServiceRuntimeMetaDefinition<
   Inputs extends object,
   Output,
   Metadata extends AnyServiceTrackingMetadata,
+  ProvidedInput = ServiceProvidedInput<Inputs>,
+  ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = ServiceMetaData<
   Name,
   Scope,
@@ -904,7 +916,8 @@ type ServiceRuntimeMetaDefinition<
   ResolveServiceTrackingMetadata<Metadata>,
   (...args: any[]) => unknown,
   Metadata,
-  ServiceProvidedInput<Inputs>
+  ProvidedInput,
+  ProvideArgs
 >;
 
 type InjectHelper<
@@ -913,6 +926,8 @@ type InjectHelper<
   Inputs extends object,
   Output,
   Metadata extends AnyServiceTrackingMetadata,
+  ProvidedInput = ServiceProvidedInput<Inputs>,
+  ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = {
   [Key in `inject${Capitalize<Name>}`]: WithTrackedDependencies<
     WithServiceRuntimeMeta<
@@ -961,7 +976,15 @@ type InjectHelper<
           MaterializeExposureResult<ValidateRootExposure<Exposed>>
         >;
       },
-      ServiceRuntimeMetaDefinition<Name, Scope, Inputs, Output, Metadata>
+      ServiceRuntimeMetaDefinition<
+        Name,
+        Scope,
+        Inputs,
+        Output,
+        Metadata,
+        ProvidedInput,
+        ProvideArgs
+      >
     >,
     Metadata
   >;
@@ -973,6 +996,8 @@ type YieldHelper<
   Inputs extends object,
   Output,
   Metadata extends AnyServiceTrackingMetadata,
+  ProvidedInput = ServiceProvidedInput<Inputs>,
+  ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = {
   [Key in `${Capitalize<Name>}ToYield`]: WithTrackedDependencies<
     WithServiceRuntimeMeta<
@@ -1059,7 +1084,15 @@ type YieldHelper<
           unknown
         >;
       },
-      ServiceRuntimeMetaDefinition<Name, Scope, Inputs, Output, Metadata>
+      ServiceRuntimeMetaDefinition<
+        Name,
+        Scope,
+        Inputs,
+        Output,
+        Metadata,
+        ProvidedInput,
+        ProvideArgs
+      >
     >,
     Metadata
   >;
@@ -1068,15 +1101,11 @@ type YieldHelper<
 type ProvideHelper<
   Name extends string,
   Scope extends RealCapableScope,
-  Inputs extends object,
+  ProvideArgs extends unknown[],
 > = {
-  [Key in `provide${Capitalize<Name>}`]: [
-    ServiceProvidedInput<Inputs>,
-  ] extends [never]
-    ? () => BrandedServiceProvider<Name, Scope>
-    : (
-        provided: ServiceProvidedInput<Inputs>,
-      ) => BrandedServiceProvider<Name, Scope>;
+  [Key in `provide${Capitalize<Name>}`]: (
+    ...args: ProvideArgs
+  ) => BrandedServiceProvider<Name, Scope>;
 };
 
 type ToProvideTokenHelper<Name extends string, Output> = {
@@ -1093,6 +1122,8 @@ type ServiceMetaDataHelper<
   Inputs extends object,
   Output,
   Metadata extends AnyServiceTrackingMetadata,
+  ProvidedInput = ServiceProvidedInput<Inputs>,
+  ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = {
   [Key in ServiceMetaDataKey<Name>]: ServiceMetaData<
     Name,
@@ -1100,9 +1131,20 @@ type ServiceMetaDataHelper<
     PublicServiceInputs<Inputs>,
     Output,
     ResolveServiceTrackingMetadata<Metadata>,
-    ExtractHelperValue<InjectHelper<Name, Scope, Inputs, Output, Metadata>>,
+    ExtractHelperValue<
+      InjectHelper<
+        Name,
+        Scope,
+        Inputs,
+        Output,
+        Metadata,
+        ProvidedInput,
+        ProvideArgs
+      >
+    >,
     Metadata,
-    ServiceProvidedInput<Inputs>
+    ProvidedInput,
+    ProvideArgs
   >;
 };
 
@@ -1116,7 +1158,11 @@ type ConcreteServiceApi<
   YieldHelper<Name, Scope, Inputs, Output, Metadata> &
   ServiceMetaDataHelper<Name, Scope, Inputs, Output, Metadata> &
   (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-    ? ProvideHelper<Name, Extract<Scope, RealCapableScope>, Inputs>
+    ? ProvideHelper<
+        Name,
+        Extract<Scope, RealCapableScope>,
+        ProvideArguments<ServiceProvidedInput<Inputs>>
+      >
     : {}) &
   (Scope extends 'manuallyProvidedAtRoot'
     ? ToProvideTokenHelper<Name, Output>
@@ -1152,7 +1198,41 @@ type DependencyApi<
     Output,
     never
   >,
-> = ConcreteServiceApi<Name, Scope, Inputs, Output, Metadata>;
+  ProvidedInput = ServiceProvidedInput<Inputs>,
+  ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
+> = InjectHelper<
+  Name,
+  Scope,
+  Inputs,
+  Output,
+  Metadata,
+  ProvidedInput,
+  ProvideArgs
+> &
+  YieldHelper<
+    Name,
+    Scope,
+    Inputs,
+    Output,
+    Metadata,
+    ProvidedInput,
+    ProvideArgs
+  > &
+  ServiceMetaDataHelper<
+    Name,
+    Scope,
+    Inputs,
+    Output,
+    Metadata,
+    ProvidedInput,
+    ProvideArgs
+  > &
+  (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
+    ? ProvideHelper<Name, Extract<Scope, RealCapableScope>, ProvideArgs>
+    : {}) &
+  (Scope extends 'manuallyProvidedAtRoot'
+    ? ToProvideTokenHelper<Name, Output>
+    : {});
 
 type GlobalTokenDependencyOptions<Name extends string, Output> = {
   name: Name;
@@ -1166,22 +1246,40 @@ type GlobalInjectedDependencyOptions<Name extends string, Output> = {
   inject: () => Output;
 };
 
-type DependencyProvideFactory<Inputs extends object> = [
-  ServiceProvidedInput<Inputs>,
-] extends [never]
-  ? () => CraftServiceProvider
-  : (provided: ServiceProvidedInput<Inputs>) => CraftServiceProvider;
+type DependencyProvideFactory<Inputs extends object> = (
+  ...args: ProvideArguments<ServiceProvidedInput<Inputs>>
+) => CraftServiceProvider;
+
+type AnyDependencyProvideFactory = (...args: any[]) => CraftServiceProvider;
+
+type DependencyProvideFactoryArgs<Provide extends AnyDependencyProvideFactory> =
+  Parameters<Provide>;
+
+type DependencyProvideFactoryInput<
+  Provide extends AnyDependencyProvideFactory,
+> = NormalizeProvidedInput<Parameters<Provide>>;
+
+type WithDependencyProvidedInput<
+  Inputs extends object,
+  Provide extends AnyDependencyProvideFactory,
+> = [DependencyProvideFactoryInput<Provide>] extends [never]
+  ? Inputs
+  : Inputs & {
+      $provided: DependencyProvideFactoryInput<Provide>;
+    };
 
 type ProviderCapableDependencyOptions<
   Name extends string,
   Scope extends RealCapableScope,
   Output,
   Inputs extends object = {},
+  Provide extends
+    AnyDependencyProvideFactory = DependencyProvideFactory<Inputs>,
 > = {
   name: Name;
   scope: Scope;
   token: DependencySourceToken<Output>;
-  provide: DependencyProvideFactory<Inputs>;
+  provide: Provide;
 };
 
 type AnyDependencyFactory<Dependency> = (
@@ -1256,7 +1354,7 @@ type ConcreteRuntimeDefinition = {
   requirement?: ServiceRequirement<unknown>;
   initialBindings?: Record<string, unknown>;
   hasProvidedInput: boolean;
-  externalProviders?: (provided: unknown) => CraftServiceProvider;
+  externalProviders?: (...args: unknown[]) => CraftServiceProvider;
 };
 
 export type ServiceReference<
@@ -1479,46 +1577,43 @@ export function toCraftService<
   Name extends string,
   Scope extends RealCapableScope,
   Output,
->(options: {
-  name: Name;
-  scope: Scope;
-  token: DependencySourceToken<Output>;
-  provide: () => CraftServiceProvider;
-}): DependencyApi<Name, Scope, {}, Output>;
-export function toCraftService<
-  Name extends string,
-  Scope extends RealCapableScope,
-  Output,
-  ProvidedInput,
->(options: {
-  name: Name;
-  scope: Scope;
-  token: DependencySourceToken<Output>;
-  provide: (provided: ProvidedInput) => CraftServiceProvider;
-}): DependencyApi<
+  Provide extends AnyDependencyProvideFactory,
+>(
+  options: ProviderCapableDependencyOptions<Name, Scope, Output, {}, Provide>,
+): DependencyApi<
   Name,
   Scope,
-  { $provided: ProvidedInput },
+  {},
   Output,
-  ServiceTrackingMetadata<Name, Scope, Output, never, undefined, ProvidedInput>
+  ServiceTrackingMetadata<
+    Name,
+    Scope,
+    Output,
+    never,
+    undefined,
+    DependencyProvideFactoryInput<Provide>
+  >,
+  DependencyProvideFactoryInput<Provide>,
+  DependencyProvideFactoryArgs<Provide>
 >;
 export function toCraftService<
   Name extends string,
   Scope extends RealCapableScope,
   Output,
   Inputs extends object,
-  ProvidedInput,
+  Provide extends AnyDependencyProvideFactory,
   FactoryResult,
 >(
-  options: {
-    name: Name;
-    scope: Scope;
-    token: DependencySourceToken<Output>;
-    provide: (provided: ProvidedInput) => CraftServiceProvider;
-  },
+  options: ProviderCapableDependencyOptions<
+    Name,
+    Scope,
+    Output,
+    Inputs,
+    Provide
+  >,
   adaptFactory: ((
     dependency: Output,
-    inputs: Inputs & { $provided: ProvidedInput },
+    inputs: WithDependencyProvidedInput<Inputs, Provide>,
   ) => FactoryResult) &
     ValidateYieldedScope<
       Scope,
@@ -1528,41 +1623,18 @@ export function toCraftService<
 ): DependencyApi<
   Name,
   Scope,
-  Inputs & { $provided: ProvidedInput },
+  WithDependencyProvidedInput<Inputs, Provide>,
   DependencyFactoryOutputFromResult<FactoryResult>,
   ServiceTrackingMetadata<
     Name,
     Scope,
     DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>
-  >
->;
-export function toCraftService<
-  Name extends string,
-  Scope extends RealCapableScope,
-  Output,
-  Inputs extends object,
-  FactoryResult,
->(
-  options: ProviderCapableDependencyOptions<Name, Scope, Output, Inputs>,
-  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
-    ValidateProvidedInputScope<Scope, Inputs> &
-    ValidateYieldedScope<
-      Scope,
-      DependencyFactoryYieldsFromResult<FactoryResult>,
-      unknown
-    >,
-): DependencyApi<
-  Name,
-  Scope,
-  Inputs,
-  DependencyFactoryOutputFromResult<FactoryResult>,
-  ServiceTrackingMetadata<
-    Name,
-    Scope,
-    DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>
-  >
+    DependencyFactoryYieldsFromResult<FactoryResult>,
+    undefined,
+    DependencyProvideFactoryInput<Provide>
+  >,
+  DependencyProvideFactoryInput<Provide>,
+  DependencyProvideFactoryArgs<Provide>
 >;
 export function toCraftService(
   options:
@@ -1617,7 +1689,7 @@ export function toCraftService(
 
   if ('provide' in options) {
     runtimeDefinition.externalProviders = options.provide as (
-      provided: unknown,
+      ...args: unknown[]
     ) => CraftServiceProvider;
     runtimeDefinition.hasProvidedInput =
       runtimeDefinition.hasProvidedInput ||
@@ -1881,7 +1953,7 @@ export function craftService(
     options.scope === 'toProvide' ||
     options.scope === 'manuallyProvidedAtRoot'
   ) {
-    api[provideName] = (provided?: unknown) =>
+    api[provideName] = (...provided: unknown[]) =>
       createProviders(runtimeDefinition, provided);
   }
 
@@ -2013,7 +2085,7 @@ function isServiceMetaData(value: unknown): value is InternalServiceMetaData {
 
 function createProviders(
   definition: ConcreteRuntimeDefinition,
-  providedConfig?: unknown,
+  providedArgs: unknown[] = [],
 ): BrandedServiceProvider<string, RequirementScope> {
   const concreteToken = definition.token;
 
@@ -2024,9 +2096,10 @@ function createProviders(
   }
 
   const providers: CraftServiceProvider[] = [];
+  const providedConfig = normalizeProvidedConfig(providedArgs);
 
   if (definition.externalProviders) {
-    providers.push(definition.externalProviders(providedConfig));
+    providers.push(definition.externalProviders(...providedArgs));
   }
 
   const concreteProviders: Provider[] = [
@@ -2066,6 +2139,14 @@ function createProviders(
   });
 
   return brandedProviders;
+}
+
+function normalizeProvidedConfig(providedArgs: unknown[]): unknown {
+  if (providedArgs.length === 0) {
+    return undefined;
+  }
+
+  return providedArgs.length === 1 ? providedArgs[0] : providedArgs;
 }
 
 function adaptExternalDependencyValue<Value>(value: Value): Value {

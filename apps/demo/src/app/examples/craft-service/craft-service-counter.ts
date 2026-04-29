@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { craftService, state } from '@craft-ng/core';
+import { craftService, state, type GetDeps, type GetInjectedServiceDependencies, type GetPublicComponentProperties } from '@craft-ng/core';
 
 const { injectCounter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
@@ -60,3 +60,13 @@ const { injectCounter, provideCounter } = craftService(
 export default class CraftServiceCounterComponent {
   protected readonly counter = injectCounter();
 }
+
+export type GenDeps_CraftServiceCounterComponent = GetDeps<{
+      deps: {
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+      };
+      provided: {
+        Counter: ReturnType<typeof provideCounter>;
+      };
+      publicProperties: GetPublicComponentProperties<CraftServiceCounterComponent>;
+    }>;

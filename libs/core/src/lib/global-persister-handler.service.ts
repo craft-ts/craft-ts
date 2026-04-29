@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { type GetDeps } from '@craft-ng/core';
 
 /**
  * Global service for managing persistence operations.
@@ -69,3 +70,8 @@ export class GlobalPersisterHandlerService {
     keysToRemove.forEach((key) => localStorage.removeItem(key));
   }
 }
+
+export type GenDeps_GlobalPersisterHandlerService = GetDeps<{
+      deps: {};
+      provided: {};
+    }>;

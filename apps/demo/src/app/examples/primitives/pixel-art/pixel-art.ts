@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
-  insertLocalStoragePersister,
-  insertSelect,
-  state,
+    insertLocalStoragePersister,
+    insertSelect,
+    state,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 type PixelCellState = {
@@ -141,3 +143,9 @@ function initializePixelCells() {
       }) satisfies PixelCellState,
   );
 }
+
+export type GenDeps_PixelArt = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: GetPublicComponentProperties<PixelArt>;
+    }>;

@@ -3,13 +3,30 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { Injectable, inject, InjectionToken, signal } from '@angular/core';
+import {
+  Component,
+  Injectable,
+  inject,
+  InjectionToken,
+  signal,
+} from '@angular/core';
+import {
+  provideRouter,
+  Router,
+  withComponentInputBinding,
+} from '@angular/router';
 import { state } from './state';
 import { toCraftService, craftService } from './craft-service';
 import type {
   GetInjectedServiceDependencies,
   GetServiceOutput,
 } from './craft-service';
+
+@Component({
+  standalone: true,
+  template: '',
+})
+class CheckoutPage {}
 
 beforeAll(() => {
   try {
@@ -335,6 +352,34 @@ describe('toCraftService', () => {
       expect(counterDriver).toBe(providedCounterDriver);
       counterDriver.increment();
       expect(providedCounterDriver.total()).toBe(1);
+    });
+  });
+
+  it('should forward provider rest arguments and expose both Router tokens for manuallyProvidedAtRoot dependencies', () => {
+    const { injectCraftRouter, provideCraftRouter, CraftRouterToProvide } =
+      toCraftService({
+        name: 'CraftRouter',
+        scope: 'manuallyProvidedAtRoot',
+        token: Router,
+        provide: provideRouter,
+      });
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftRouter(
+          [{ path: 'checkout', component: CheckoutPage }],
+          withComponentInputBinding(),
+        ),
+      ],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const angularRouter = inject(Router);
+      const craftRouter = inject(CraftRouterToProvide);
+
+      expect(injectCraftRouter().url).toBe(angularRouter.url);
+      expect(craftRouter.url).toBe(angularRouter.url);
+      expect(typeof craftRouter.navigateByUrl).toBe('function');
     });
   });
 

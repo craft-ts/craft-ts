@@ -231,7 +231,7 @@ describe('GetDeps', () => {
 });
 
 describe('GetPublicComponentProperties', () => {
-  it('extracts only the public component instance surface', () => {
+  it('extracts only input signals from the public component instance surface', () => {
     @Component({
       selector: 'lib-login-form',
       template: ` Login Form `,
@@ -252,7 +252,7 @@ describe('GetPublicComponentProperties', () => {
     >;
 
     expectTypeOf<keyof PublicProperties>().toEqualTypeOf<
-      'userId' | 'userMandatoryId' | 'submit'
+      'userId' | 'userMandatoryId'
     >();
 
     expectTypeOf<ReturnType<PublicProperties['userId']>>().toEqualTypeOf<
@@ -262,10 +262,6 @@ describe('GetPublicComponentProperties', () => {
     expectTypeOf<
       ReturnType<PublicProperties['userMandatoryId']>
     >().toEqualTypeOf<string>();
-
-    expectTypeOf<
-      ReturnType<PublicProperties['submit']>
-    >().toEqualTypeOf<boolean>();
   });
 
   it('accepts an instance type directly', () => {
@@ -286,5 +282,49 @@ describe('GetPublicComponentProperties', () => {
     expectTypeOf<
       ReturnType<PublicProperties['userMandatoryId']>
     >().toEqualTypeOf<string>();
+  });
+
+  it('strips internal InputSignal brand symbols — input properties are exposed as plain callables', () => {
+    @Component({
+      selector: 'lib-signal-component',
+      template: ``,
+    })
+    class SignalComponent {
+      readonly label = input<string>();
+      readonly count = input.required<number>();
+    }
+
+    type PublicProperties = GetPublicComponentProperties<
+      typeof SignalComponent
+    >;
+
+    // Each input is exposed as a plain callable, not as InputSignal
+    expectTypeOf<PublicProperties['label']>().toEqualTypeOf<
+      () => string | undefined
+    >();
+    expectTypeOf<PublicProperties['count']>().toEqualTypeOf<() => number>();
+
+    // The branded symbol keys from InputSignal are not present
+    expectTypeOf<keyof PublicProperties>().toEqualTypeOf<'label' | 'count'>();
+  });
+
+  it('omits non-signal public members', () => {
+    @Component({
+      selector: 'lib-mixed-component',
+      template: ``,
+    })
+    class MixedComponent {
+      readonly value = input<boolean>();
+      compute(): string {
+        return 'result';
+      }
+    }
+
+    type PublicProperties = GetPublicComponentProperties<typeof MixedComponent>;
+
+    expectTypeOf<keyof PublicProperties>().toEqualTypeOf<'value'>();
+    expectTypeOf<PublicProperties['value']>().toEqualTypeOf<
+      () => boolean | undefined
+    >();
   });
 });

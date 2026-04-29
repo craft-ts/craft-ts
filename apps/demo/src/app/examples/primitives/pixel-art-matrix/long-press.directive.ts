@@ -1,4 +1,5 @@
 import { Directive, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { type GetDeps } from '@craft-ng/core';
 
 @Directive({
   selector: '[appLongPress]',
@@ -52,3 +53,8 @@ export class LongPressDirective {
     this.timer = null;
   }
 }
+
+export type GenDeps_LongPressDirective = GetDeps<{
+      deps: {};
+      provided: {};
+    }>;

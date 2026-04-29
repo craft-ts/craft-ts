@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormField } from '@angular/forms/signals';
+import { type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { state } from '../state';
 import { insertForm } from './insert-form';
@@ -58,3 +59,11 @@ describe('parallel form DOM bindings', () => {
     ).toBe('');
   });
 });
+
+export type GenDeps_ParallelSelectedFieldBindingsComponent = GetDeps<{
+      deps: {
+        FormField: FormField;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<ParallelSelectedFieldBindingsComponent>;
+    }>;

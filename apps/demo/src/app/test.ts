@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
-import { craftService, MaybeSignal, state, toValue } from '@craft-ng/core';
+import { craftService, MaybeSignal, state, toValue, type GetDeps, type GetInjectedServiceDependencies, type GetPublicComponentProperties } from '@craft-ng/core';
 
 const { injectCounter } = craftService(
   { name: 'Counter', scope: 'function' },
@@ -31,3 +31,12 @@ export default class TestComponent {
   counter1 = injectCounter({ initialValue: 0 });
   counter2 = injectCounter({ initialValue: 200 });
 }
+
+export type GenDeps_TestComponent = GetDeps<{
+      deps: {
+        CommonModule: CommonModule;
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<TestComponent>;
+    }>;

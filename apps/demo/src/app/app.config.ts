@@ -1,12 +1,13 @@
 import { provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { withComponentInputBinding } from '@angular/router';
 import { craftAppConfig } from '@craft-ng/core';
 import { appRoutes } from './app.routes';
+import { provideCraftRouter } from './shared/router.service';
 
 export const appConfig = craftAppConfig({
   routingDeps: appRoutes.META_DATA,
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(appRoutes.toRoutes(), withComponentInputBinding()),
+    provideCraftRouter(appRoutes.toRoutes(), withComponentInputBinding()),
   ],
 });

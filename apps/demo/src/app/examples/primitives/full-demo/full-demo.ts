@@ -29,8 +29,14 @@ import {
   state,
   updateOne,
   ValidatedFormValue,
+  type GetDeps,
+  type GetInjectedServiceDependencies,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import { StatusComponent } from '../../../ui/status.component';
+import {
+  StatusComponent,
+  type GenDeps_StatusComponent,
+} from '../../../ui/status.component';
 import { injectApiService, User } from './api.service';
 
 @Component({
@@ -587,3 +593,14 @@ export default class FullDemo {
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export type GenDeps_FullDemo = GetDeps<{
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+    FormField: FormField<any>;
+    ApiService: GetInjectedServiceDependencies<typeof injectApiService>;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<FullDemo>;
+}>;
