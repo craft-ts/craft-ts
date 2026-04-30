@@ -77,6 +77,7 @@ export type GetServiceOutput<ServiceHelper> =
     infer Output,
     any,
     any,
+    any,
     any
   >
     ? Output
@@ -203,11 +204,13 @@ export type ServiceMetaData<
   Tracking = unknown,
   ProvidedInput = never,
   ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
+  BrowserBoundary extends boolean = false,
 > = Simplify<
   {
     readonly kind: 'service-meta-data';
     readonly name: Name;
     readonly scope: Scope;
+    readonly browserBoundary: BrowserBoundary;
     readonly inject: InjectHelper;
     readonly [SERVICE_META_DATA_TYPE]?: {
       inputs: Inputs;
@@ -225,7 +228,8 @@ export type ServiceMetaData<
       InjectHelper,
       Tracking,
       ProvidedInput,
-      ProvideArgs
+      ProvideArgs,
+      BrowserBoundary
     >;
   } & (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
     ? { readonly provide: (...args: ProvideArgs) => CraftServiceProvider }
@@ -239,6 +243,7 @@ type AnyServiceMetaData = {
   readonly kind: 'service-meta-data';
   readonly name: string;
   readonly scope: ConcreteServiceScope;
+  readonly browserBoundary: boolean;
   readonly inject: (...args: any[]) => unknown;
   readonly provide?: (...args: any[]) => CraftServiceProvider;
   readonly token?: InjectionToken<unknown>;
@@ -575,6 +580,7 @@ export type ServiceTrackingMetadata<
   Yielded = unknown,
   Derived = undefined,
   ProvidedInput = never,
+  BrowserBoundary extends boolean = false,
 > = {
   name: Name;
   scope: Scope;
@@ -582,6 +588,7 @@ export type ServiceTrackingMetadata<
   yielded: Yielded;
   derived: Derived;
   providedInput: ProvidedInput;
+  browserBoundary: BrowserBoundary;
 };
 
 type AnyServiceTrackingMetadata = ServiceTrackingMetadata<
@@ -590,8 +597,34 @@ type AnyServiceTrackingMetadata = ServiceTrackingMetadata<
   unknown,
   unknown,
   any,
-  any
+  any,
+  boolean
 >;
+
+type WithBrowserBoundary<Derived, BrowserBoundary extends boolean> = Simplify<
+  {
+    browserBoundary: BrowserBoundary;
+  } & ([Derived] extends [undefined] ? {} : Derived)
+>;
+
+type TrackingBrowserBoundary<Metadata> =
+  Metadata extends ServiceTrackingMetadata<
+    any,
+    any,
+    any,
+    any,
+    any,
+    any,
+    infer BrowserBoundary extends boolean
+  >
+    ? BrowserBoundary
+    : false;
+
+type DependencyBrowserBoundary<Node> = Node extends {
+  browserBoundary: infer BrowserBoundary extends boolean;
+}
+  ? BrowserBoundary
+  : false;
 
 type WholeServiceUsageTracking = {
   usesWholeService: true;
@@ -609,6 +642,7 @@ type DependencyMetadata<Request> =
 type DependencyName<Request> =
   DependencyMetadata<Request> extends ServiceTrackingMetadata<
     infer Name,
+    any,
     any,
     any,
     any,
@@ -664,9 +698,12 @@ type MergeDependencyNodeMaps<
 type MergeDependencyNodes<Left, Right> = ServiceDependencies<
   DependencyScope<Left> & DependencyScope<Right>,
   MergeDependencyNodeMaps<DependencyChildren<Left>, DependencyChildren<Right>>,
-  MergeDerivedProperties<
-    NodeDerivedProperties<Left>,
-    NodeDerivedProperties<Right>
+  WithBrowserBoundary<
+    MergeDerivedProperties<
+      NodeDerivedProperties<Left>,
+      NodeDerivedProperties<Right>
+    >,
+    DependencyBrowserBoundary<Left> & DependencyBrowserBoundary<Right>
   >
 >;
 
@@ -677,12 +714,13 @@ type ResolveServiceTrackingMetadata<Metadata> =
     infer Output,
     infer Yielded,
     infer Derived,
-    any
+    any,
+    infer BrowserBoundary extends boolean
   >
     ? ServiceDependencies<
         Scope,
         BuildDependencyMap<DependencyRequests<Yielded>>,
-        Derived
+        WithBrowserBoundary<Derived, BrowserBoundary>
       >
     : never;
 
@@ -693,6 +731,7 @@ type DependencyDefinition<Request> = ResolveServiceTrackingMetadata<
 type DependencyRecord<Request> =
   DependencyMetadata<Request> extends ServiceTrackingMetadata<
     infer Name extends string,
+    any,
     any,
     any,
     any,
@@ -745,9 +784,12 @@ type MergeTrackedDependencyNodes<Left, Right> = Simplify<
       DependencyChildren<Left>,
       DependencyChildren<Right>
     >;
-  } & MergeTrackedDependencyUsage<
-    TrackedNodeUsage<Left>,
-    TrackedNodeUsage<Right>
+  } & WithBrowserBoundary<
+    MergeTrackedDependencyUsage<
+      TrackedNodeUsage<Left>,
+      TrackedNodeUsage<Right>
+    >,
+    DependencyBrowserBoundary<Left> & DependencyBrowserBoundary<Right>
   >
 >;
 
@@ -771,19 +813,24 @@ type ResolveTrackedDependencyMetadata<Metadata> =
     infer Output,
     infer Yielded,
     infer Derived,
-    any
+    any,
+    infer BrowserBoundary extends boolean
   >
     ? Simplify<
         {
           scope: Scope;
           dependencies: BuildTrackedDependencyMap<DependencyRequests<Yielded>>;
-        } & NormalizeWholeServiceUsage<Derived>
+        } & WithBrowserBoundary<
+          NormalizeWholeServiceUsage<Derived>,
+          BrowserBoundary
+        >
       >
     : never;
 
 type TrackedDependencyRecord<Request> =
   DependencyMetadata<Request> extends ServiceTrackingMetadata<
     infer Name extends string,
+    any,
     any,
     any,
     any,
@@ -817,6 +864,7 @@ type FlattenTrackedDependencyNodeMapFromTracking<Tracking> =
     any,
     infer Yielded,
     any,
+    any,
     any
   >
     ? BuildFlattenedTrackedDependencyNodeMap<DependencyRequests<Yielded>>
@@ -842,13 +890,15 @@ type ServiceHelperMetadata<
   Name extends string,
   Scope extends ConcreteServiceScope,
   Factory extends AnyFactory,
+  BrowserBoundary extends boolean = false,
 > = ServiceTrackingMetadata<
   Name,
   Scope,
   FactoryOutput<Factory>,
   FactoryYields<Factory>,
   undefined,
-  ServiceProvidedInput<FactoryInputs<Factory>>
+  ServiceProvidedInput<FactoryInputs<Factory>>,
+  BrowserBoundary
 >;
 
 type WithDerivedProperties<
@@ -862,7 +912,8 @@ type WithDerivedProperties<
     infer Output,
     infer ChildYielded,
     any,
-    infer ProvidedInput
+    infer ProvidedInput,
+    infer BrowserBoundary extends boolean
   >
     ? ServiceTrackingMetadata<
         Name,
@@ -870,7 +921,8 @@ type WithDerivedProperties<
         Output,
         ChildYielded,
         DerivedPropertiesForExposure<Exposed, Yielded>,
-        ProvidedInput
+        ProvidedInput,
+        BrowserBoundary
       >
     : never;
 
@@ -917,7 +969,8 @@ type ServiceRuntimeMetaDefinition<
   (...args: any[]) => unknown,
   Metadata,
   ProvidedInput,
-  ProvideArgs
+  ProvideArgs,
+  TrackingBrowserBoundary<Metadata>
 >;
 
 type InjectHelper<
@@ -1144,7 +1197,8 @@ type ServiceMetaDataHelper<
     >,
     Metadata,
     ProvidedInput,
-    ProvideArgs
+    ProvideArgs,
+    TrackingBrowserBoundary<Metadata>
   >;
 };
 
@@ -1186,6 +1240,12 @@ type AbstractServiceApi<Name extends string, Contract> = {
 } & RequirementHelper<Name, Contract>;
 
 type DependencySourceToken<Output> = Type<Output> | InjectionToken<Output>;
+type DependencySourceOutput<Token> =
+  Token extends Type<infer Output>
+    ? Output
+    : Token extends InjectionToken<infer Output>
+      ? Output
+      : never;
 
 type DependencyApi<
   Name extends string,
@@ -1234,10 +1294,13 @@ type DependencyApi<
     ? ToProvideTokenHelper<Name, Output>
     : {});
 
-type GlobalTokenDependencyOptions<Name extends string, Output> = {
+type GlobalTokenDependencyOptions<
+  Name extends string,
+  Token extends DependencySourceToken<any>,
+> = {
   name: Name;
   scope: 'global';
-  token: DependencySourceToken<Output>;
+  token: Token;
 };
 
 type GlobalInjectedDependencyOptions<Name extends string, Output> = {
@@ -1271,14 +1334,14 @@ type WithDependencyProvidedInput<
 type ProviderCapableDependencyOptions<
   Name extends string,
   Scope extends RealCapableScope,
-  Output,
+  Token extends DependencySourceToken<any>,
   Inputs extends object = {},
   Provide extends
     AnyDependencyProvideFactory = DependencyProvideFactory<Inputs>,
 > = {
   name: Name;
   scope: Scope;
-  token: DependencySourceToken<Output>;
+  token: Token;
   provide: Provide;
 };
 
@@ -1335,6 +1398,7 @@ type toCraftServiceTrackingMetadata<
   Scope extends ConcreteServiceScope,
   Dependency,
   Factory extends AnyDependencyFactory<Dependency> | undefined,
+  BrowserBoundary extends boolean = false,
 > = ServiceTrackingMetadata<
   Name,
   Scope,
@@ -1343,13 +1407,15 @@ type toCraftServiceTrackingMetadata<
   undefined,
   [Factory] extends [undefined]
     ? never
-    : ServiceProvidedInput<DependencyFactoryInputs<NonNullable<Factory>>>
+    : ServiceProvidedInput<DependencyFactoryInputs<NonNullable<Factory>>>,
+  BrowserBoundary
 >;
 
 type ConcreteRuntimeDefinition = {
   factory: AnyFactory;
   name: string;
   scope: ConcreteServiceScope;
+  browserBoundary: boolean;
   token?: InjectionToken<unknown>;
   requirement?: ServiceRequirement<unknown>;
   initialBindings?: Record<string, unknown>;
@@ -1364,7 +1430,18 @@ export type ServiceReference<
   Output = unknown,
   Dependencies = any,
 > =
-  | ServiceMetaData<Name, Scope, Inputs, Output, Dependencies, any, any>
+  | ServiceMetaData<
+      Name,
+      Scope,
+      Inputs,
+      Output,
+      Dependencies,
+      any,
+      any,
+      any,
+      any,
+      boolean
+    >
   | {
       readonly [SERVICE_RUNTIME_META]?: AnyServiceMetaData;
     };
@@ -1515,91 +1592,254 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * });
  * ```
  */
-export function toCraftService<Name extends string, Output>(
-  options: GlobalTokenDependencyOptions<Name, Output>,
-): DependencyApi<Name, 'global', {}, Output>;
-export function toCraftService<
-  Name extends string,
-  Output,
-  Inputs extends object,
-  FactoryResult,
->(
-  options: GlobalTokenDependencyOptions<Name, Output>,
-  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
-    ValidateProvidedInputScope<'global', Inputs> &
-    ValidateYieldedScope<
-      'global',
-      DependencyFactoryYieldsFromResult<FactoryResult>,
-      unknown
-    >,
-): DependencyApi<
+export function toCraftService<const Name extends string, Output>(options: {
+  name: Name;
+  scope: 'global';
+  token: DependencySourceToken<Output>;
+  browserBoundary: true;
+}): DependencyApi<
   Name,
   'global',
-  Inputs,
-  DependencyFactoryOutputFromResult<FactoryResult>,
-  ServiceTrackingMetadata<
-    Name,
-    'global',
-    DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>
-  >
->;
-export function toCraftService<Name extends string, Output>(
-  options: GlobalInjectedDependencyOptions<Name, Output>,
-): DependencyApi<Name, 'global', {}, Output>;
-export function toCraftService<
-  Name extends string,
+  {},
   Output,
-  Inputs extends object,
-  FactoryResult,
->(
-  options: GlobalInjectedDependencyOptions<Name, Output>,
-  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
-    ValidateProvidedInputScope<'global', Inputs> &
-    ValidateYieldedScope<
-      'global',
-      DependencyFactoryYieldsFromResult<FactoryResult>,
-      unknown
-    >,
-): DependencyApi<
+  ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
+>;
+export function toCraftService<const Name extends string, Output>(options: {
+  name: Name;
+  scope: 'global';
+  token: DependencySourceToken<Output>;
+  browserBoundary?: false;
+}): DependencyApi<
   Name,
   'global',
-  Inputs,
-  DependencyFactoryOutputFromResult<FactoryResult>,
-  ServiceTrackingMetadata<
-    Name,
-    'global',
-    DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>
-  >
->;
-export function toCraftService<
-  Name extends string,
-  Scope extends RealCapableScope,
-  Output,
-  Provide extends AnyDependencyProvideFactory,
->(
-  options: ProviderCapableDependencyOptions<Name, Scope, Output, {}, Provide>,
-): DependencyApi<
-  Name,
-  Scope,
   {},
   Output,
   ServiceTrackingMetadata<
     Name,
-    Scope,
+    'global',
     Output,
     never,
     undefined,
-    DependencyProvideFactoryInput<Provide>
+    never,
+    false
+  >
+>;
+export function toCraftService<
+  const Name extends string,
+  Output,
+  Inputs extends object,
+  FactoryResult,
+>(
+  options: {
+    name: Name;
+    scope: 'global';
+    token: DependencySourceToken<Output>;
+    browserBoundary: true;
+  },
+  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
+    ValidateProvidedInputScope<'global', Inputs> &
+    ValidateYieldedScope<
+      'global',
+      DependencyFactoryYieldsFromResult<FactoryResult>,
+      unknown
+    >,
+): DependencyApi<
+  Name,
+  'global',
+  Inputs,
+  DependencyFactoryOutputFromResult<FactoryResult>,
+  ServiceTrackingMetadata<
+    Name,
+    'global',
+    DependencyFactoryOutputFromResult<FactoryResult>,
+    DependencyFactoryYieldsFromResult<FactoryResult>,
+    undefined,
+    never,
+    true
+  >
+>;
+export function toCraftService<
+  const Name extends string,
+  Output,
+  Inputs extends object,
+  FactoryResult,
+>(
+  options: {
+    name: Name;
+    scope: 'global';
+    token: DependencySourceToken<Output>;
+    browserBoundary?: false;
+  },
+  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
+    ValidateProvidedInputScope<'global', Inputs> &
+    ValidateYieldedScope<
+      'global',
+      DependencyFactoryYieldsFromResult<FactoryResult>,
+      unknown
+    >,
+): DependencyApi<
+  Name,
+  'global',
+  Inputs,
+  DependencyFactoryOutputFromResult<FactoryResult>,
+  ServiceTrackingMetadata<
+    Name,
+    'global',
+    DependencyFactoryOutputFromResult<FactoryResult>,
+    DependencyFactoryYieldsFromResult<FactoryResult>,
+    undefined,
+    never,
+    false
+  >
+>;
+export function toCraftService<const Name extends string, Output>(
+  options: GlobalInjectedDependencyOptions<Name, Output> & {
+    browserBoundary: true;
+  },
+): DependencyApi<
+  Name,
+  'global',
+  {},
+  Output,
+  ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
+>;
+export function toCraftService<const Name extends string, Output>(
+  options: GlobalInjectedDependencyOptions<Name, Output> & {
+    browserBoundary?: false;
+  },
+): DependencyApi<
+  Name,
+  'global',
+  {},
+  Output,
+  ServiceTrackingMetadata<
+    Name,
+    'global',
+    Output,
+    never,
+    undefined,
+    never,
+    false
+  >
+>;
+export function toCraftService<
+  const Name extends string,
+  Output,
+  Inputs extends object,
+  FactoryResult,
+>(
+  options: GlobalInjectedDependencyOptions<Name, Output> & {
+    browserBoundary: true;
+  },
+  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
+    ValidateProvidedInputScope<'global', Inputs> &
+    ValidateYieldedScope<
+      'global',
+      DependencyFactoryYieldsFromResult<FactoryResult>,
+      unknown
+    >,
+): DependencyApi<
+  Name,
+  'global',
+  Inputs,
+  DependencyFactoryOutputFromResult<FactoryResult>,
+  ServiceTrackingMetadata<
+    Name,
+    'global',
+    DependencyFactoryOutputFromResult<FactoryResult>,
+    DependencyFactoryYieldsFromResult<FactoryResult>,
+    undefined,
+    never,
+    true
+  >
+>;
+export function toCraftService<
+  const Name extends string,
+  Output,
+  Inputs extends object,
+  FactoryResult,
+>(
+  options: GlobalInjectedDependencyOptions<Name, Output> & {
+    browserBoundary?: false;
+  },
+  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
+    ValidateProvidedInputScope<'global', Inputs> &
+    ValidateYieldedScope<
+      'global',
+      DependencyFactoryYieldsFromResult<FactoryResult>,
+      unknown
+    >,
+): DependencyApi<
+  Name,
+  'global',
+  Inputs,
+  DependencyFactoryOutputFromResult<FactoryResult>,
+  ServiceTrackingMetadata<
+    Name,
+    'global',
+    DependencyFactoryOutputFromResult<FactoryResult>,
+    DependencyFactoryYieldsFromResult<FactoryResult>,
+    undefined,
+    never,
+    false
+  >
+>;
+export function toCraftService<
+  const Name extends string,
+  Scope extends RealCapableScope,
+  Token extends DependencySourceToken<any>,
+  Provide extends AnyDependencyProvideFactory,
+>(
+  options: ProviderCapableDependencyOptions<Name, Scope, Token, {}, Provide> & {
+    browserBoundary: true;
+  },
+): DependencyApi<
+  Name,
+  Scope,
+  {},
+  DependencySourceOutput<Token>,
+  ServiceTrackingMetadata<
+    Name,
+    Scope,
+    DependencySourceOutput<Token>,
+    never,
+    undefined,
+    DependencyProvideFactoryInput<Provide>,
+    true
   >,
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
 export function toCraftService<
-  Name extends string,
+  const Name extends string,
   Scope extends RealCapableScope,
-  Output,
+  Token extends DependencySourceToken<any>,
+  Provide extends AnyDependencyProvideFactory,
+>(
+  options: ProviderCapableDependencyOptions<Name, Scope, Token, {}, Provide> & {
+    browserBoundary?: false;
+  },
+): DependencyApi<
+  Name,
+  Scope,
+  {},
+  DependencySourceOutput<Token>,
+  ServiceTrackingMetadata<
+    Name,
+    Scope,
+    DependencySourceOutput<Token>,
+    never,
+    undefined,
+    DependencyProvideFactoryInput<Provide>,
+    false
+  >,
+  DependencyProvideFactoryInput<Provide>,
+  DependencyProvideFactoryArgs<Provide>
+>;
+export function toCraftService<
+  const Name extends string,
+  Scope extends RealCapableScope,
+  Token extends DependencySourceToken<any>,
   Inputs extends object,
   Provide extends AnyDependencyProvideFactory,
   FactoryResult,
@@ -1607,12 +1847,14 @@ export function toCraftService<
   options: ProviderCapableDependencyOptions<
     Name,
     Scope,
-    Output,
+    Token,
     Inputs,
     Provide
-  >,
+  > & {
+    browserBoundary: true;
+  },
   adaptFactory: ((
-    dependency: Output,
+    dependency: DependencySourceOutput<Token>,
     inputs: WithDependencyProvidedInput<Inputs, Provide>,
   ) => FactoryResult) &
     ValidateYieldedScope<
@@ -1631,21 +1873,72 @@ export function toCraftService<
     DependencyFactoryOutputFromResult<FactoryResult>,
     DependencyFactoryYieldsFromResult<FactoryResult>,
     undefined,
-    DependencyProvideFactoryInput<Provide>
+    DependencyProvideFactoryInput<Provide>,
+    true
+  >,
+  DependencyProvideFactoryInput<Provide>,
+  DependencyProvideFactoryArgs<Provide>
+>;
+export function toCraftService<
+  const Name extends string,
+  Scope extends RealCapableScope,
+  Token extends DependencySourceToken<any>,
+  Inputs extends object,
+  Provide extends AnyDependencyProvideFactory,
+  FactoryResult,
+>(
+  options: ProviderCapableDependencyOptions<
+    Name,
+    Scope,
+    Token,
+    Inputs,
+    Provide
+  > & {
+    browserBoundary?: false;
+  },
+  adaptFactory: ((
+    dependency: DependencySourceOutput<Token>,
+    inputs: WithDependencyProvidedInput<Inputs, Provide>,
+  ) => FactoryResult) &
+    ValidateYieldedScope<
+      Scope,
+      DependencyFactoryYieldsFromResult<FactoryResult>,
+      unknown
+    >,
+): DependencyApi<
+  Name,
+  Scope,
+  WithDependencyProvidedInput<Inputs, Provide>,
+  DependencyFactoryOutputFromResult<FactoryResult>,
+  ServiceTrackingMetadata<
+    Name,
+    Scope,
+    DependencyFactoryOutputFromResult<FactoryResult>,
+    DependencyFactoryYieldsFromResult<FactoryResult>,
+    undefined,
+    DependencyProvideFactoryInput<Provide>,
+    false
   >,
   DependencyProvideFactoryInput<Provide>,
   DependencyProvideFactoryArgs<Provide>
 >;
 export function toCraftService(
   options:
-    | GlobalTokenDependencyOptions<string, unknown>
-    | GlobalInjectedDependencyOptions<string, unknown>
-    | ProviderCapableDependencyOptions<
+    | (GlobalTokenDependencyOptions<string, DependencySourceToken<unknown>> & {
+        browserBoundary?: boolean;
+      })
+    | (GlobalInjectedDependencyOptions<string, unknown> & {
+        browserBoundary?: boolean;
+      })
+    | (ProviderCapableDependencyOptions<
         string,
         RealCapableScope,
-        unknown,
-        object
-      >,
+        DependencySourceToken<unknown>,
+        object,
+        AnyDependencyProvideFactory
+      > & {
+        browserBoundary?: boolean;
+      }),
   adaptFactory?: AnyDependencyFactory<unknown>,
 ): unknown {
   const api = (
@@ -1654,6 +1947,7 @@ export function toCraftService(
           {
             name: options.name,
             scope: options.scope,
+            browserBoundary: options.browserBoundary,
           },
           (inputs: Record<string, unknown>) => {
             const dependencyValue = adaptExternalDependencyValue(
@@ -1667,6 +1961,7 @@ export function toCraftService(
           {
             name: options.name,
             scope: options.scope,
+            browserBoundary: options.browserBoundary,
           },
           () => {
             const dependencyValue =
@@ -1822,11 +2117,13 @@ export function craftService<
   Scope extends RealCapableScope,
   Requirement extends ServiceRequirement<any, any>,
   Factory extends AnyFactory,
+  BrowserBoundary extends boolean = false,
 >(
   options: {
     name: Name;
     scope: Scope;
     requirement: Requirement;
+    browserBoundary?: BrowserBoundary;
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -1837,14 +2134,15 @@ export function craftService<
   Scope,
   FactoryInputs<Factory>,
   FactoryOutput<Factory>,
-  ServiceHelperMetadata<Name, Scope, Factory>
+  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>
 >;
 export function craftService<
   Name extends string,
   Scope extends ConcreteServiceScope,
   Factory extends AnyFactory,
+  BrowserBoundary extends boolean = false,
 >(
-  options: { name: Name; scope: Scope },
+  options: { name: Name; scope: Scope; browserBoundary?: BrowserBoundary },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
     ValidateFactoryScope<Scope, Factory>,
@@ -1853,13 +2151,14 @@ export function craftService<
   Scope,
   FactoryInputs<Factory>,
   FactoryOutput<Factory>,
-  ServiceHelperMetadata<Name, Scope, Factory>
+  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>
 >;
 export function craftService(
   options: {
     name: string;
     scope: ServiceScope;
     requirement?: ServiceRequirement<unknown>;
+    browserBoundary?: boolean;
   },
   factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
 ): unknown {
@@ -1890,6 +2189,7 @@ export function craftService(
     factory: concreteFactory,
     name: options.name,
     scope: options.scope,
+    browserBoundary: options.browserBoundary ?? false,
     requirement: options.requirement,
     hasProvidedInput: factoryUsesProvidedInput(concreteFactory),
   };
@@ -2012,6 +2312,7 @@ function createServiceMetaData(config: {
     kind: 'service-meta-data',
     name: config.name,
     scope: config.scope,
+    browserBoundary: config.runtimeDefinition.browserBoundary,
     inject: config.inject,
     usesProvidedInput: config.runtimeDefinition.hasProvidedInput,
   };

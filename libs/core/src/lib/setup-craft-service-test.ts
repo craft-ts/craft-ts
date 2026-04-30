@@ -34,7 +34,10 @@ type GetServiceDependenciesTree<Target extends ServiceReference> =
     any,
     infer Dependencies,
     any,
-    any
+    any,
+    any,
+    any,
+    boolean
   >
     ? Dependencies
     : GetInjectedServiceDependencies<Target>;

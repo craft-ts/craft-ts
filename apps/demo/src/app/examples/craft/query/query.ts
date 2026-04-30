@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
   craftService,
@@ -12,12 +12,12 @@ import {
   type GetServiceOutput,
   type MaybeSignal,
 } from '@craft-ng/core';
+import { injectCraftRouter } from '../../../shared/router.service';
 import {
   StatusComponent,
   type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield } from './api.service';
-import { injectCraftRouter } from '../../../shared/router.service';
 
 const { injectUserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
@@ -41,7 +41,7 @@ const { injectUserQuery } = craftService(
 
 @Component({
   selector: 'app-query',
-  imports: [CommonModule, StatusComponent],
+  imports: [JsonPipe, StatusComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['query.css'],
   template: `
@@ -68,7 +68,7 @@ const { injectUserQuery } = craftService(
 export default class GlobalQuery {
   public readonly userId = input<string>();
 
-  private readonly router = injectCraftRouter(undefined, ({ navigate }) => ({
+  protected readonly router = injectCraftRouter(undefined, ({ navigate }) => ({
     navigate,
   }));
 
@@ -95,7 +95,7 @@ export default class GlobalQuery {
 
 export type GenDeps_GlobalQuery = GetDeps<{
   deps: {
-    CommonModule: CommonModule;
+    JsonPipe: JsonPipe;
     GenDeps_StatusComponent: GenDeps_StatusComponent;
     CraftRouter: DerivedService<
       GetInjectedServiceDependencies<typeof injectCraftRouter>,

@@ -41,6 +41,7 @@ type TrackingYielded<Tracking> =
     any,
     infer Yielded,
     any,
+    any,
     any
   >
     ? Yielded
@@ -68,6 +69,7 @@ type DependencyOutputRecordFromTracking<Tracking> =
     infer Output,
     any,
     any,
+    any,
     any
   >
     ? {
@@ -83,7 +85,10 @@ type GetServiceDependenciesTree<Target extends ServiceReference> =
     any,
     infer Dependencies,
     any,
-    any
+    any,
+    any,
+    any,
+    boolean
   >
     ? Dependencies
     : GetInjectedServiceDependencies<Target>;

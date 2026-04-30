@@ -10,11 +10,14 @@ import {
   abstract,
   craftRequirement,
   craftService,
+  getServiceMetaData,
   toValue,
 } from './craft-service';
 import type {
   GetInjectedServiceDependencies,
+  GetServiceReferenceMeta,
   GetServiceOutput,
+  GetServiceTrackingMetadata,
   GetToYieldServiceDependencies,
   MaybeSignal,
 } from './craft-service';
@@ -50,6 +53,48 @@ describe('craftService', () => {
       counter.increment();
       expect(counter()).toBe(1);
     });
+  });
+
+  it('should expose browserBoundary in runtime metadata and preserve literal typing', () => {
+    const {
+      injectBrowserCounter,
+      BrowserCounterToYield,
+      BROWSER_COUNTER_META_DATA,
+    } = craftService(
+      {
+        name: 'BrowserCounter',
+        scope: 'global',
+        browserBoundary: true,
+      },
+      () => state(0),
+    );
+
+    const { injectDefaultCounter, DEFAULT_COUNTER_META_DATA } = craftService(
+      { name: 'DefaultCounter', scope: 'global' },
+      () => state(0),
+    );
+
+    expect(BROWSER_COUNTER_META_DATA.browserBoundary).toBe(true);
+    expect(DEFAULT_COUNTER_META_DATA.browserBoundary).toBe(false);
+    expect(getServiceMetaData(injectBrowserCounter).browserBoundary).toBe(true);
+    expect(getServiceMetaData(injectDefaultCounter).browserBoundary).toBe(
+      false,
+    );
+
+    expectTypeOf(
+      BROWSER_COUNTER_META_DATA.browserBoundary,
+    ).toEqualTypeOf<true>();
+    expectTypeOf(
+      DEFAULT_COUNTER_META_DATA.browserBoundary,
+    ).toEqualTypeOf<false>();
+    expectTypeOf<
+      GetServiceReferenceMeta<typeof injectBrowserCounter>['browserBoundary']
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      GetServiceTrackingMetadata<
+        typeof BrowserCounterToYield
+      >['browserBoundary']
+    >().toEqualTypeOf<true>();
   });
 
   it('should enable to yield another craftService', () => {
@@ -1231,6 +1276,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'global';
+      browserBoundary: false;
       dependencies: {};
     }>();
   });
@@ -1251,7 +1297,48 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
+      browserBoundary: false;
       dependencies: {};
+    }>();
+  });
+
+  it('should preserve browserBoundary on a dependency node', () => {
+    const { BrowserStorageToYield } = craftService(
+      {
+        name: 'BrowserStorage',
+        scope: 'global',
+        browserBoundary: true,
+      },
+      () => ({
+        read: () => localStorage.getItem('key'),
+      }),
+    );
+
+    const { injectStorageConsumer } = craftService(
+      { name: 'StorageConsumer', scope: 'global' },
+      function* () {
+        const storage = yield* BrowserStorageToYield();
+
+        return {
+          read: () => storage.read(),
+        };
+      },
+    );
+
+    type StorageConsumerDependencies = GetInjectedServiceDependencies<
+      typeof injectStorageConsumer
+    >;
+
+    expectTypeOf<StorageConsumerDependencies>().toEqualTypeOf<{
+      scope: 'global';
+      browserBoundary: false;
+      dependencies: {
+        BrowserStorage: {
+          scope: 'global';
+          browserBoundary: true;
+          dependencies: {};
+        };
+      };
     }>();
   });
 
@@ -1282,9 +1369,11 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
+      browserBoundary: false;
       dependencies: {
         Counter: {
           scope: 'toProvide';
+          browserBoundary: false;
           dependencies: {};
         };
       };
@@ -1306,6 +1395,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
 
     expectTypeOf<ManuallyProvidedAtRoot1ToYieldDependencies>().toEqualTypeOf<{
       scope: 'manuallyProvidedAtRoot';
+      browserBoundary: false;
       dependencies: {};
     }>();
   });
@@ -1361,17 +1451,21 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
 
     expectTypeOf<CounterExtendedDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
+      browserBoundary: false;
       dependencies: {
         ManuallyProvidedAtRoot1: {
           scope: 'manuallyProvidedAtRoot';
+          browserBoundary: false;
           dependencies: {};
         };
         ManuallyProvidedAtRoot2: {
           scope: 'manuallyProvidedAtRoot';
+          browserBoundary: false;
           dependencies: {};
         };
         Counter: {
           scope: 'toProvide';
+          browserBoundary: false;
           dependencies: {};
         };
       };
@@ -1397,6 +1491,7 @@ describe('typing can track all derived dependencies (only the properties that ar
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'global';
+      browserBoundary: false;
       dependencies: {};
     }>();
   });
@@ -1434,9 +1529,11 @@ describe('typing can track all derived dependencies (only the properties that ar
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
+      browserBoundary: false;
       dependencies: {
         Counter: {
           scope: 'toProvide';
+          browserBoundary: false;
           dependencies: {};
           derivedPropertiesUsed: {
             $self: GetServiceOutput<typeof CounterToYield>;
@@ -1497,9 +1594,11 @@ describe('typing can track all derived dependencies (only the properties that ar
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
+      browserBoundary: false;
       dependencies: {
         Counter: {
           scope: 'toProvide';
+          browserBoundary: false;
           dependencies: {};
           derivedPropertiesUsed: {
             $self: GetServiceOutput<typeof CounterToYield>;

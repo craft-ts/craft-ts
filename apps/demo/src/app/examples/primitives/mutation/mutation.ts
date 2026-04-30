@@ -50,7 +50,7 @@ import { injectCraftRouter } from '../../../shared/router.service';
     </button>
   `,
 })
-export default class GlobalQuery {
+export default class MutationDemoComponent {
   public readonly userId = input<string>();
   private readonly apiService = injectApiService();
 
@@ -118,5 +118,5 @@ export type GenDeps_GlobalQuery = GetDeps<{
     >;
   };
   provided: {};
-  publicProperties: GetPublicComponentProperties<GlobalQuery>;
+  publicProperties: GetPublicComponentProperties<MutationDemoComponent>;
 }>;

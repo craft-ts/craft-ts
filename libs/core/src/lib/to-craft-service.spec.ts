@@ -16,10 +16,16 @@ import {
   withComponentInputBinding,
 } from '@angular/router';
 import { state } from './state';
-import { toCraftService, craftService } from './craft-service';
+import {
+  craftService,
+  getServiceMetaData,
+  toCraftService,
+} from './craft-service';
 import type {
   GetInjectedServiceDependencies,
   GetServiceOutput,
+  GetServiceReferenceMeta,
+  GetServiceTrackingMetadata,
 } from './craft-service';
 
 @Component({
@@ -118,6 +124,50 @@ describe('toCraftService', () => {
     });
   });
 
+  it('should expose browserBoundary in runtime metadata and preserve literal typing', () => {
+    const ROUTE = new InjectionToken<{ path: string }>('Route');
+
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: ROUTE,
+          useValue: {
+            path: '/checkout',
+          },
+        },
+      ],
+    });
+
+    const { injectBrowserRoute, BrowserRouteToYield, BROWSER_ROUTE_META_DATA } =
+      toCraftService({
+        name: 'BrowserRoute',
+        scope: 'global',
+        inject: () => inject(ROUTE),
+        browserBoundary: true,
+      });
+
+    const { DEFAULT_ROUTE_META_DATA } = toCraftService({
+      name: 'DefaultRoute',
+      scope: 'global',
+      inject: () => inject(ROUTE),
+    });
+
+    expect(BROWSER_ROUTE_META_DATA.browserBoundary).toBe(true);
+    expect(DEFAULT_ROUTE_META_DATA.browserBoundary).toBe(false);
+    expect(getServiceMetaData(injectBrowserRoute).browserBoundary).toBe(true);
+
+    expectTypeOf(BROWSER_ROUTE_META_DATA.browserBoundary).toEqualTypeOf<true>();
+    expectTypeOf(
+      DEFAULT_ROUTE_META_DATA.browserBoundary,
+    ).toEqualTypeOf<false>();
+    expectTypeOf<
+      GetServiceReferenceMeta<typeof injectBrowserRoute>['browserBoundary']
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      GetServiceTrackingMetadata<typeof BrowserRouteToYield>['browserBoundary']
+    >().toEqualTypeOf<true>();
+  });
+
   it('should support $self derivation for callable external dependencies', () => {
     function createCounter() {
       return state(10, ({ update }) => ({
@@ -138,10 +188,11 @@ describe('toCraftService', () => {
       ],
     });
 
-    const { CounterToYield } = toCraftService({
+    const { CounterToYield, COUNTER_META_DATA } = toCraftService({
       name: 'Counter',
       scope: 'global',
       token: COUNTER,
+      browserBoundary: true,
     });
 
     const { injectCounterFacade } = craftService(
@@ -454,10 +505,11 @@ describe('toCraftService', () => {
       ],
     });
 
-    const { CounterToYield } = toCraftService({
+    const { CounterToYield, COUNTER_META_DATA } = toCraftService({
       name: 'Counter',
       scope: 'global',
-      token: COUNTER,
+      inject: () => inject(COUNTER),
+      browserBoundary: true,
     });
 
     const { injectCounterFacade } = craftService(
@@ -481,25 +533,34 @@ describe('toCraftService', () => {
       typeof injectCounterFacade
     >;
 
-    expectTypeOf<CounterFacadeDependencies>().toEqualTypeOf<{
-      scope: 'global';
-      dependencies: {
-        Counter: {
-          scope: 'global';
-          dependencies: {};
-          derivedPropertiesUsed: {
-            $self: GetServiceOutput<typeof CounterToYield>;
-            increment: GetServiceOutput<typeof CounterToYield>['increment'];
-            decrement: GetServiceOutput<typeof CounterToYield>['decrement'];
-          };
-          derivedPropertiesExposed: {
-            $self: GetServiceOutput<typeof CounterToYield>;
-            incrementCounter: GetServiceOutput<
-              typeof CounterToYield
-            >['increment'];
-          };
-        };
-      };
+    expectTypeOf(COUNTER_META_DATA.browserBoundary).toEqualTypeOf<true>();
+    expectTypeOf<
+      GetServiceTrackingMetadata<typeof CounterToYield>['browserBoundary']
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      CounterFacadeDependencies['scope']
+    >().toEqualTypeOf<'global'>();
+    expectTypeOf<
+      CounterFacadeDependencies['browserBoundary']
+    >().toEqualTypeOf<false>();
+    expectTypeOf<
+      CounterFacadeDependencies['dependencies']['Counter']['scope']
+    >().toEqualTypeOf<'global'>();
+    expectTypeOf<
+      CounterFacadeDependencies['dependencies']['Counter']['browserBoundary']
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      CounterFacadeDependencies['dependencies']['Counter']['derivedPropertiesUsed']
+    >().toEqualTypeOf<{
+      $self: GetServiceOutput<typeof CounterToYield>;
+      increment: GetServiceOutput<typeof CounterToYield>['increment'];
+      decrement: GetServiceOutput<typeof CounterToYield>['decrement'];
+    }>();
+    expectTypeOf<
+      CounterFacadeDependencies['dependencies']['Counter']['derivedPropertiesExposed']
+    >().toEqualTypeOf<{
+      $self: GetServiceOutput<typeof CounterToYield>;
+      incrementCounter: GetServiceOutput<typeof CounterToYield>['increment'];
     }>();
   });
 });
