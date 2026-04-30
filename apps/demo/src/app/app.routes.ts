@@ -1,6 +1,7 @@
 import { craftRoutes } from '@craft-ng/core';
 
-export const { appRoutes } = craftRoutes([
+export const { appRoutes, injectTeamId, injectCraftLazyLayoutTeamIdData } =
+  craftRoutes([
   {
     path: '',
     loadComponent: () => import('./test'),
@@ -97,6 +98,16 @@ export const { appRoutes } = craftRoutes([
     loadComponent: () => import('./examples/craft/full-demo/full-demo'),
   },
   {
+    path: 'craft/lazy-layout/:teamId',
+    data: {
+      someParentRouteData: 'foo',
+    },
+    loadChildren: () =>
+      import('./examples/craft/lazy-layout/lazy-layout.routes').then(
+        (m) => m.lazyLayoutAppRoutes,
+      ),
+  },
+  {
     path: 'login-form',
     componentDeps:
       {} as import('./examples/primitives/forms/login-form').GenDeps_LoginFormComponent,
@@ -128,4 +139,4 @@ export const { appRoutes } = craftRoutes([
       {} as import('./examples/playground/playground').GenDeps_PlaygroundComponent,
     loadComponent: () => import('./examples/playground/playground'),
   },
-]);
+  ]);

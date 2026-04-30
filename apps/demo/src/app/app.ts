@@ -52,6 +52,11 @@ import {
         <a routerLink="/craft/full-demo" routerLinkActive="active"
           >Craft Full Demo</a
         >
+        <a
+          routerLink="/craft/lazy-layout/100/users/42"
+          routerLinkActive="active"
+          >Craft Lazy Layout</a
+        >
         <a routerLink="/craft-service/counter" routerLinkActive="active"
           >craftService Counter</a
         >

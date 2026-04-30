@@ -73,7 +73,9 @@ describe('AppCheckedDI', () => {
     type APP_CHECKED_DI = AppCheckedDI<GenDeps_AppComponent, APP_ROUTES>;
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
-      ['Injected Counter is not provided in path: "some-path"']
+      [
+        'Injected Counter is not provided in path: "some-path" (or you may scope this properties as protected/private)',
+      ]
     >();
   });
 
@@ -192,7 +194,47 @@ describe('AppCheckedDI', () => {
       [
         'Input "userId" is not provided in AppComponent',
         'Input "userId" is not provided in path: "some-path"',
-        'Injected Counter is not provided in path: "query/:userId"',
+        'Injected Counter is not provided in path: "query/:userId" (or you may scope this properties as protected/private)',
+      ]
+    >();
+  });
+
+  it('should report composed lazy child paths for missing inputs and providers', () => {
+    const { injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type GenDeps_AppComponent = GetDeps<{
+      deps: {};
+      provided: {};
+      missingProvider: {};
+      publicProperties: {};
+    }>;
+
+    type APP_ROUTES = readonly [
+      {
+        path: 'lazy-parent';
+      },
+      {
+        path: 'lazy-parent/child';
+        deps: {};
+        provided: {};
+        missingProvider: {
+          Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        };
+        publicProperties: {
+          userId: () => string;
+        };
+      },
+    ];
+
+    type APP_CHECKED_DI = AppCheckedDI<GenDeps_AppComponent, APP_ROUTES>;
+
+    expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
+      [
+        'Input "userId" is not provided in path: "lazy-parent/child"',
+        'Injected Counter is not provided in path: "lazy-parent/child" (or you may scope this properties as protected/private)',
       ]
     >();
   });

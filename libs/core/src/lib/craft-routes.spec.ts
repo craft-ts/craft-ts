@@ -85,6 +85,53 @@ function createActivatedRouteStub(
   };
 }
 
+function createNestedActivatedRouteStub(config: {
+  parentPath: string;
+  childPath: string;
+  parentParams?: Params;
+  parentData?: Data;
+  childParams?: Params;
+  childData?: Data;
+}) {
+  const parentParamsSubject = new BehaviorSubject<Params>(
+    config.parentParams ?? {},
+  );
+  const parentDataSubject = new BehaviorSubject<Data>(config.parentData ?? {});
+  const childParamsSubject = new BehaviorSubject<Params>(config.childParams ?? {});
+  const childDataSubject = new BehaviorSubject<Data>(config.childData ?? {});
+
+  const childRoute = {
+    routeConfig: {
+      path: config.childPath,
+    },
+    params: childParamsSubject.asObservable(),
+    data: childDataSubject.asObservable(),
+    snapshot: {
+      params: childParamsSubject.value,
+      data: childDataSubject.value,
+    },
+    children: [],
+  } as unknown as ActivatedRoute;
+
+  const parentRoute = {
+    routeConfig: {
+      path: config.parentPath,
+    },
+    params: parentParamsSubject.asObservable(),
+    data: parentDataSubject.asObservable(),
+    snapshot: {
+      params: parentParamsSubject.value,
+      data: parentDataSubject.value,
+    },
+    children: [childRoute],
+  } as unknown as ActivatedRoute;
+
+  return {
+    route: parentRoute,
+    childRoute,
+  };
+}
+
 function flattenProviders(
   providers: NonNullable<Route['providers']> | undefined,
 ): unknown[] {
@@ -239,6 +286,75 @@ describe('craftRoutes', () => {
     expect(userId()).toBe(12);
   });
 
+  it('should accept craft-aware loadChildren without componentDeps and defer lazy route conversion', async () => {
+    let loaded = false;
+    const childRoutes = craftRoutes([
+      {
+        path: 'details/:teamId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'users/:userId',
+        loadChildren: () => {
+          loaded = true;
+          return childRoutes.appRoutes;
+        },
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+
+    expect(loaded).toBe(false);
+    expect(routeConfig.loadChildren).toBeTypeOf('function');
+
+    const lazyRoutes = (await routeConfig.loadChildren?.()) as
+      | Route[]
+      | undefined;
+
+    expect(loaded).toBe(true);
+    expect(lazyRoutes).toHaveLength(1);
+    expect(lazyRoutes?.[0]?.path).toBe('details/:teamId');
+  });
+
+  it('should resolve params from the matching child ActivatedRoute in lazy contexts', () => {
+    const { appRoutes, injectUserId, injectUsersUserIdData } = craftRoutes([
+      {
+        path: 'users/:userId',
+        data: {
+          title: 'Lazy route',
+        },
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+    const routeConfig = appRoutes.toRoutes()[0];
+    const activatedRoute = createNestedActivatedRouteStub({
+      parentPath: 'craft/lazy-layout',
+      childPath: 'users/:userId',
+      childParams: {
+        userId: '42',
+      },
+      childData: {
+        title: 'Lazy route',
+      },
+    });
+    const injector = createRouteInjector(
+      routeConfig.providers,
+      activatedRoute.route,
+    );
+
+    const userId = runInInjectionContext(injector, () => injectUserId());
+    const routeData = runInInjectionContext(injector, () =>
+      injectUsersUserIdData(),
+    );
+
+    expect(userId()).toBe('42');
+    expect(routeData().title).toBe('Lazy route');
+  });
+
   it('should accept craft canActivate/canMatch guard contracts', () => {
     const pending = signal<GuardResult | undefined>(undefined);
 
@@ -290,6 +406,26 @@ describe('craftRoutes', () => {
     expect(createRoutes).toThrow(
       'Route "query/:userId" must define "componentDeps" as an object.',
     );
+  });
+
+  it('should keep lazy child inject helpers scoped to the lazy module result', () => {
+    const childRoutes = craftRoutes([
+      {
+        path: 'details/:teamId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+    const parentRoutes = craftRoutes([
+      {
+        path: 'users',
+        loadChildren: () => childRoutes.appRoutes,
+      },
+    ]);
+
+    expect(childRoutes.injectTeamId).toBeTypeOf('function');
+    // @ts-expect-error lazy child helpers should stay scoped to the lazy routes module
+    type LazyHelperShouldStayLocal = typeof parentRoutes.injectTeamId;
   });
 
   it('should remove route params and data keys from component publicProperties', () => {
@@ -956,6 +1092,56 @@ describe('AppRoutes.META_DATA', () => {
       readonly [
         {
           path: 'counter';
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should flatten lazy route metadata and inherit providers, params and data', () => {
+    const { injectCounter, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+      };
+      provided: {};
+      publicProperties: {
+        sectionTitle: () => string;
+        userId: () => string;
+      };
+    }>;
+
+    const childRoutes = craftRoutes([
+      {
+        path: 'details',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'users/:userId',
+        data: {
+          sectionTitle: 'Users',
+        },
+        loadChildren: () => childRoutes.appRoutes,
+        providers: [provideCounter()],
+      },
+    ]);
+
+    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'users/:userId';
+        },
+        {
+          path: 'users/:userId/details';
+          deps: {};
           provided: {};
           publicProperties: {};
         },

@@ -31,9 +31,19 @@ import type { MergeObjectUnion, Simplify } from './craft-service.shared';
 
 type AngularRouteBase = Omit<
   Route,
-  'canActivate' | 'canMatch' | 'children' | 'data' | 'path' | 'providers'
+  | 'canActivate'
+  | 'canMatch'
+  | 'children'
+  | 'component'
+  | 'data'
+  | 'loadChildren'
+  | 'loadComponent'
+  | 'path'
+  | 'providers'
 >;
 type AngularRouteProviders = NonNullable<Route['providers']>;
+type AngularRouteComponent = NonNullable<Route['component']>;
+type AngularLoadComponent = NonNullable<Route['loadComponent']>;
 type ComponentDepsMap<RouteDefinition> = RouteDefinition extends {
   componentDeps: infer ComponentDeps extends object;
 }
@@ -159,9 +169,22 @@ type RoutePath<RouteDefinition> = RouteDefinition extends {
   ? Path
   : never;
 
-type RouteProvidedPublicPropertyNames<RouteDefinition> =
-  | PathParamNames<RoutePath<RouteDefinition>>
-  | RouteDataPublicPropertyNames<RouteDefinition>;
+type JoinRoutePaths<
+  ParentPath extends string,
+  ChildPath extends string,
+> = ParentPath extends ''
+  ? ChildPath
+  : ChildPath extends ''
+    ? ParentPath
+    : `${ParentPath}/${ChildPath}`;
+
+type MergeRoutePublicPropertyValues<
+  ParentPublicProperties extends object,
+  CurrentPublicProperties extends object,
+> = Simplify<
+  Omit<ParentPublicProperties, keyof CurrentPublicProperties> &
+    CurrentPublicProperties
+>;
 
 type RouteProvidedPublicPropertyValues<RouteDefinition> = Simplify<
   RouteParamPublicPropertyValues<RoutePath<RouteDefinition>> &
@@ -170,12 +193,29 @@ type RouteProvidedPublicPropertyValues<RouteDefinition> = Simplify<
       : {})
 >;
 
-type RouteSatisfiedPublicPropertyNames<RouteDefinition> = {
+type RouteProvidedPublicPropertyValuesWithInherited<
+  RouteDefinition,
+  InheritedPublicProperties extends object,
+> = MergeRoutePublicPropertyValues<
+  InheritedPublicProperties,
+  RouteProvidedPublicPropertyValues<RouteDefinition>
+>;
+
+type RouteSatisfiedPublicPropertyNames<
+  RouteDefinition,
+  InheritedPublicProperties extends object = {},
+> = {
   [Key in Extract<
     keyof PublicPropertiesMap<ComponentDepsMap<RouteDefinition>>,
     string
-  >]: Key extends keyof RouteProvidedPublicPropertyValues<RouteDefinition>
-    ? RouteProvidedPublicPropertyValues<RouteDefinition>[Key] extends PublicPropertyValue<
+  >]: Key extends keyof RouteProvidedPublicPropertyValuesWithInherited<
+    RouteDefinition,
+    InheritedPublicProperties
+  >
+    ? RouteProvidedPublicPropertyValuesWithInherited<
+        RouteDefinition,
+        InheritedPublicProperties
+      >[Key] extends PublicPropertyValue<
         PublicPropertiesMap<ComponentDepsMap<RouteDefinition>>[Key]
       >
       ? Key
@@ -186,10 +226,16 @@ type RouteSatisfiedPublicPropertyNames<RouteDefinition> = {
   string
 >];
 
-type RemainingRoutePublicProperties<RouteDefinition> = Simplify<
+type RemainingRoutePublicProperties<
+  RouteDefinition,
+  InheritedPublicProperties extends object = {},
+> = Simplify<
   Omit<
     PublicPropertiesMap<ComponentDepsMap<RouteDefinition>>,
-    RouteSatisfiedPublicPropertyNames<RouteDefinition>
+    RouteSatisfiedPublicPropertyNames<
+      RouteDefinition,
+      InheritedPublicProperties
+    >
   >
 >;
 
@@ -203,6 +249,17 @@ type RouteProvidedServiceNamesFromEntry<Entry> =
 type RouteProvidedServiceNames<Providers> = Providers extends readonly unknown[]
   ? RouteProvidedServiceNamesFromEntry<Providers[number]>
   : never;
+
+type RouteParamServiceNames<Path extends string> =
+  PathParamNames<Path> extends infer ParamName extends string
+    ? ParamServiceName<ParamName>
+    : never;
+
+type RouteAutoProvidedServiceNames<RouteDefinition> =
+  | RouteParamServiceNames<RoutePath<RouteDefinition>>
+  | (RouteDefinition extends { data: Data }
+      ? RouteDataServiceName<RoutePath<RouteDefinition>>
+      : never);
 
 type StripRouteProvidedDependency<
   Dependency,
@@ -312,12 +369,19 @@ type RouteDepsMap<RouteDefinition> = Simplify<
   >
 >;
 
-type RouteResolvedDepsMap<RouteDefinition> = Simplify<
+type RouteSelfProvidedServiceNames<RouteDefinition> =
+  | RouteAutoProvidedServiceNames<RouteDefinition>
+  | RouteProvidedServiceNames<
+      RouteDefinition extends { providers: infer Providers } ? Providers : never
+    >;
+
+type RouteResolvedDepsMap<
+  RouteDefinition,
+  InheritedServiceNames extends string = never,
+> = Simplify<
   StripRouteProvidedDepsMap<
     RouteDepsMap<RouteDefinition>,
-    RouteProvidedServiceNames<
-      RouteDefinition extends { providers: infer Providers } ? Providers : never
-    >
+    InheritedServiceNames | RouteSelfProvidedServiceNames<RouteDefinition>
   >
 >;
 
@@ -343,52 +407,47 @@ export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
         })
 >;
 
-type ResolveCraftRouteMetaDataComponentDeps<RouteDefinition> = Simplify<
+type ResolveCraftRouteMetaDataComponentDeps<
+  RouteDefinition,
+  InheritedServiceNames extends string = never,
+  InheritedPublicProperties extends object = {},
+> = Simplify<
   Omit<
     ComponentDepsMap<RouteDefinition>,
     'deps' | 'missingProvider' | 'publicProperties'
   > &
     (ShouldExposeRouteDeps<RouteDefinition> extends true
       ? {
-          deps: RouteResolvedDepsMap<RouteDefinition>;
+          deps: RouteResolvedDepsMap<RouteDefinition, InheritedServiceNames>;
         }
       : {}) &
     (ComponentDepsMap<RouteDefinition> extends { publicProperties: object }
       ? {
-          publicProperties: RemainingRoutePublicProperties<RouteDefinition>;
+          publicProperties: RemainingRoutePublicProperties<
+            RouteDefinition,
+            InheritedPublicProperties
+          >;
         }
       : {})
 >;
 
-type CraftRouteMetaDataEntry<RouteDefinition> = Simplify<
+type CraftRouteMetaDataEntry<
+  RouteDefinition,
+  ResolvedPath extends string = RoutePath<RouteDefinition>,
+  InheritedServiceNames extends string = never,
+  InheritedPublicProperties extends object = {},
+> = Simplify<
   {
-    path: RoutePath<RouteDefinition>;
-  } & ResolveCraftRouteMetaDataComponentDeps<RouteDefinition>
+    path: ResolvedPath;
+  } & ResolveCraftRouteMetaDataComponentDeps<
+    RouteDefinition,
+    InheritedServiceNames,
+    InheritedPublicProperties
+  >
 >;
 
-export type CraftRoutesMetaData<
-  Routes extends readonly AnyCraftRouteDefinition[],
-> = {
-  [Index in keyof Routes]: CraftRouteMetaDataEntry<Routes[Index]>;
-};
-
-type AnyCraftRouteDefinition = Simplify<
-  AngularRouteBase & {
-    canActivate?: CraftRouteCanActivateGuard;
-    canMatch?: CraftRouteCanMatchGuard;
-    path: string;
-    providers?: AngularRouteProviders;
-    data?: Data;
-    componentDeps: unknown;
-    paramsProvider?: (
-      params: Signal<Record<string, string>>,
-    ) => Record<string, unknown>;
-  }
->;
-
-export type CraftRouteDefinition<
+type CraftRouteSharedFields<
   Path extends string = string,
-  ComponentDeps = unknown,
   RouteData extends Data = Data,
   Providers extends AngularRouteProviders = AngularRouteProviders,
 > = Simplify<
@@ -398,12 +457,169 @@ export type CraftRouteDefinition<
     path: Path;
     providers?: Providers;
     data?: RouteData;
-    componentDeps: ComponentDeps;
     paramsProvider?: [PathParamNames<Path>] extends [never]
       ? never
       : RouteParamsProvider<Path>;
   }
 >;
+
+type AnyCraftRouteSharedFields = Simplify<
+  AngularRouteBase & {
+    canActivate?: CraftRouteCanActivateGuard;
+    canMatch?: CraftRouteCanMatchGuard;
+    path: string;
+    providers?: AngularRouteProviders;
+    data?: Data;
+    paramsProvider?: (
+      params: Signal<Record<string, string>>,
+    ) => Record<string, unknown>;
+  }
+>;
+
+type CraftRouteComponentTarget =
+  | {
+      component: AngularRouteComponent;
+      loadComponent?: never;
+      loadChildren?: never;
+    }
+  | {
+      component?: never;
+      loadComponent: AngularLoadComponent;
+      loadChildren?: never;
+    };
+
+export type CraftRouteDefinition<
+  Path extends string = string,
+  ComponentDeps = unknown,
+  RouteData extends Data = Data,
+  Providers extends AngularRouteProviders = AngularRouteProviders,
+> = Simplify<
+  CraftRouteSharedFields<Path, RouteData, Providers> &
+    CraftRouteComponentTarget & {
+      componentDeps: ComponentDeps;
+    }
+>;
+
+type CraftRouteLoadChildrenCallback<
+  Routes extends readonly AnyCraftRouteDefinition[],
+> = () => CraftRoutesApp<Routes> | Promise<CraftRoutesApp<Routes>>;
+
+export type CraftLazyRouteDefinition<
+  Path extends string = string,
+  ChildRoutes extends
+    readonly AnyCraftRouteDefinition[] = readonly AnyCraftRouteDefinition[],
+  RouteData extends Data = Data,
+  Providers extends AngularRouteProviders = AngularRouteProviders,
+> = Simplify<
+  CraftRouteSharedFields<Path, RouteData, Providers> & {
+    component?: never;
+    componentDeps?: never;
+    loadChildren: CraftRouteLoadChildrenCallback<ChildRoutes>;
+    loadComponent?: never;
+  }
+>;
+
+type AnyCraftComponentRouteDefinition = Simplify<
+  AnyCraftRouteSharedFields &
+    CraftRouteComponentTarget & {
+      componentDeps: unknown;
+    }
+>;
+
+type AnyCraftLazyRouteDefinition = Simplify<
+  AnyCraftRouteSharedFields & {
+    component?: never;
+    componentDeps?: never;
+    loadChildren: (...args: any[]) => unknown;
+    loadComponent?: never;
+  }
+>;
+
+type AnyCraftRouteDefinition =
+  | AnyCraftComponentRouteDefinition
+  | AnyCraftLazyRouteDefinition;
+
+type LoadChildrenRoutes<RouteDefinition> = RouteDefinition extends {
+  loadChildren: (...args: any[]) => infer Output;
+}
+  ? Awaited<Output> extends CraftRoutesApp<infer Routes>
+    ? Routes
+    : never
+  : never;
+
+type RouteInheritedServiceNames<
+  RouteDefinition,
+  InheritedServiceNames extends string,
+> = InheritedServiceNames | RouteSelfProvidedServiceNames<RouteDefinition>;
+
+type RouteInheritedPublicProperties<
+  RouteDefinition,
+  InheritedPublicProperties extends object,
+> = MergeRoutePublicPropertyValues<
+  InheritedPublicProperties,
+  RouteProvidedPublicPropertyValues<RouteDefinition>
+>;
+
+type FlattenCraftRouteMetaDataEntry<
+  RouteDefinition extends AnyCraftRouteDefinition,
+  ParentPath extends string = '',
+  InheritedServiceNames extends string = never,
+  InheritedPublicProperties extends object = {},
+> = readonly [
+  CraftRouteMetaDataEntry<
+    RouteDefinition,
+    JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
+    InheritedServiceNames,
+    InheritedPublicProperties
+  >,
+  ...(RouteDefinition extends AnyCraftLazyRouteDefinition
+    ? CraftRoutesMetaDataWithContext<
+        LoadChildrenRoutes<RouteDefinition>,
+        JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
+        RouteInheritedServiceNames<RouteDefinition, InheritedServiceNames>,
+        RouteInheritedPublicProperties<
+          RouteDefinition,
+          InheritedPublicProperties
+        >
+      >
+    : readonly [])
+];
+
+type CraftRoutesMetaDataWithContext<
+  Routes extends readonly AnyCraftRouteDefinition[],
+  ParentPath extends string,
+  InheritedServiceNames extends string,
+  InheritedPublicProperties extends object,
+> = number extends Routes['length']
+  ? readonly CraftRouteMetaDataEntry<
+      Routes[number],
+      string,
+      InheritedServiceNames,
+      InheritedPublicProperties
+    >[]
+  : Routes extends readonly [
+        infer Head extends AnyCraftRouteDefinition,
+        ...infer Tail extends readonly AnyCraftRouteDefinition[],
+      ]
+    ? readonly [
+        ...FlattenCraftRouteMetaDataEntry<
+          Head,
+          ParentPath,
+          InheritedServiceNames,
+          InheritedPublicProperties
+        >,
+        ...CraftRoutesMetaDataWithContext<
+          Tail,
+          ParentPath,
+          InheritedServiceNames,
+          InheritedPublicProperties
+        >,
+      ]
+    : readonly [];
+
+export type CraftRoutesMetaData<
+  Routes extends readonly AnyCraftRouteDefinition[],
+> = CraftRoutesMetaDataWithContext<Routes, '', never, {}>;
 
 type CraftRouteValueServiceApi<Name extends string, Output> = CraftServiceApi<
   Name,
@@ -516,17 +732,44 @@ function toGuardServiceName(routeIndex: number, guardKind: string): string {
   return `craftRoute${routeIndex}${guardKind}`;
 }
 
-function injectRouteParamsSignal(): Signal<Record<string, string>> {
+function findActivatedRouteByPath(
+  route: ActivatedRoute,
+  routePath: string,
+): ActivatedRoute | null {
+  if (route.routeConfig?.path === routePath) {
+    return route;
+  }
+
+  for (const child of route.children) {
+    const match = findActivatedRouteByPath(child, routePath);
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
+function injectRouteParamsSignal(routePath: string): Signal<Record<string, string>> {
   const activatedRoute = inject(ActivatedRoute);
-  return toSignal(activatedRoute.params, {
-    initialValue: activatedRoute.snapshot.params,
+  const resolvedRoute =
+    findActivatedRouteByPath(activatedRoute, routePath) ?? activatedRoute;
+
+  return toSignal(resolvedRoute.params, {
+    initialValue: resolvedRoute.snapshot.params,
   }) as Signal<Record<string, string>>;
 }
 
-function injectRouteDataSignal<RouteData extends Data>(): Signal<RouteData> {
+function injectRouteDataSignal<RouteData extends Data>(
+  routePath: string,
+): Signal<RouteData> {
   const activatedRoute = inject(ActivatedRoute);
-  return toSignal(activatedRoute.data, {
-    initialValue: activatedRoute.snapshot.data,
+  const resolvedRoute =
+    findActivatedRouteByPath(activatedRoute, routePath) ?? activatedRoute;
+
+  return toSignal(resolvedRoute.data, {
+    initialValue: resolvedRoute.snapshot.data,
   }) as Signal<RouteData>;
 }
 
@@ -550,7 +793,7 @@ function provideRouteValueService(
 }
 
 function getRouteComponentDeps(
-  route: AnyCraftRouteDefinition,
+  route: AnyCraftComponentRouteDefinition,
 ): Record<string, unknown> {
   if (
     !route.componentDeps ||
@@ -563,6 +806,38 @@ function getRouteComponentDeps(
   }
 
   return route.componentDeps as Record<string, unknown>;
+}
+
+function isCraftLazyRoute(
+  route: AnyCraftRouteDefinition,
+): route is AnyCraftLazyRouteDefinition {
+  return 'loadChildren' in route && typeof route.loadChildren === 'function';
+}
+
+function isCraftRoutesApp(value: unknown): value is CraftRoutesApp {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'toRoutes' in value &&
+    typeof value.toRoutes === 'function' &&
+    'META_DATA' in value
+  );
+}
+
+function createLoadChildren(
+  routePath: string,
+  loadChildren: AnyCraftLazyRouteDefinition['loadChildren'],
+): NonNullable<Route['loadChildren']> {
+  return () =>
+    Promise.resolve(loadChildren()).then((childRoutes) => {
+      if (!isCraftRoutesApp(childRoutes)) {
+        throw new Error(
+          `Route "${routePath}" loadChildren must return a craftRoutes appRoutes object.`,
+        );
+      }
+
+      return childRoutes.toRoutes();
+    });
 }
 
 function createGuardExecutor<Inputs extends object, Output>(
@@ -724,16 +999,21 @@ export function craftRoutes<
   }
 
   const META_DATA = routes.map((route) => {
-    const componentDeps = getRouteComponentDeps(route);
+    const restComponentDeps = isCraftLazyRoute(route)
+      ? {}
+      : (() => {
+          const componentDeps = getRouteComponentDeps(route);
+          const { missingProvider: _missingProvider, ...restComponentDeps } =
+            componentDeps;
 
-    const { missingProvider: _missingProvider, ...restComponentDeps } =
-      componentDeps;
+          return restComponentDeps;
+        })();
 
     return {
       path: route.path,
       ...restComponentDeps,
     };
-  }) as CraftRoutesMetaData<Routes>;
+  }) as unknown as CraftRoutesMetaData<Routes>;
 
   const appRoutes: CraftRoutesApp<Routes> = {
     toRoutes: () => routes.map((route, index) => toAngularRoute(route, index)),
@@ -773,8 +1053,13 @@ export function craftRoutes<
 
       autoProviders.push(
         provideRouteValueService(serviceName, routeService, () => {
-          const paramsSignal = injectRouteParamsSignal();
-          const providedParams = route.paramsProvider?.(paramsSignal);
+          const paramsSignal = injectRouteParamsSignal(route.path);
+          const paramsProvider = route.paramsProvider as
+            | ((
+                params: Signal<Record<string, string>>,
+              ) => Record<string, unknown>)
+            | undefined;
+          const providedParams = paramsProvider?.(paramsSignal);
 
           if (providedParams && paramName in providedParams) {
             return providedParams[paramName];
@@ -792,7 +1077,7 @@ export function craftRoutes<
       if (routeService) {
         autoProviders.push(
           provideRouteValueService(serviceName, routeService, () =>
-            injectRouteDataSignal(),
+            injectRouteDataSignal(route.path),
           ),
         );
       }
@@ -802,6 +1087,7 @@ export function craftRoutes<
       canActivate,
       canMatch,
       componentDeps: _componentDeps,
+      loadChildren,
       paramsProvider,
       ...angularRoute
     } = route;
@@ -811,11 +1097,15 @@ export function craftRoutes<
     const wrappedCanMatch = canMatch
       ? createCanMatchGuard(route.path, routeIndex, canMatch)
       : undefined;
+    const wrappedLoadChildren = loadChildren
+      ? createLoadChildren(route.path, loadChildren)
+      : undefined;
 
     return {
       ...angularRoute,
       canActivate: wrappedCanActivate ? [wrappedCanActivate] : undefined,
       canMatch: wrappedCanMatch ? [wrappedCanMatch] : undefined,
+      loadChildren: wrappedLoadChildren,
       providers:
         autoProviders.length > 0 || route.providers?.length
           ? [...autoProviders, ...(route.providers ?? [])]

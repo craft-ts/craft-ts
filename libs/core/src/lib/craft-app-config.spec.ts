@@ -136,6 +136,54 @@ describe('craftAppConfig', () => {
     >();
   });
 
+  it('should remove app providers from lazy child routes in APP_CONFIG_META_DATA', () => {
+    const { injectCounter, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const childRoutes = craftRoutes([
+      {
+        path: 'child',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'lazy-parent',
+        loadChildren: () => childRoutes.appRoutes,
+      },
+    ]);
+
+    const appConfig = craftAppConfig({
+      routingDeps: appRoutes.META_DATA,
+      providers: [provideCounter()],
+    });
+
+    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'lazy-parent';
+        },
+        {
+          path: 'lazy-parent/child';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
   it('should include generator guard missing providers in APP_CONFIG_META_DATA', () => {
     const { injectCounter, CounterToYield } = craftService(
       { name: 'Counter', scope: 'toProvide' },
@@ -238,7 +286,7 @@ describe('craftAppConfig appStart', () => {
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      providers: craftAppConfig({ routingDeps: [] as const }).providers,
+      providers: [...craftAppConfig({ routingDeps: [] as const }).providers],
     });
 
     await TestBed.inject(ApplicationInitStatus).donePromise;
