@@ -11,6 +11,8 @@ import {
   craftRequirement,
   craftService,
   getServiceMetaData,
+  onAppStart,
+  runServiceAppStart,
   toValue,
 } from './craft-service';
 import type {
@@ -95,6 +97,64 @@ describe('craftService', () => {
         typeof BrowserCounterToYield
       >['browserBoundary']
     >().toEqualTypeOf<true>();
+  });
+
+  it('should expose appStart in runtime metadata and preserve literal typing', async () => {
+    let resolveAppStart!: () => void;
+    const waitXTime = new Promise<void>((resolve) => {
+      resolveAppStart = resolve;
+    });
+    const calls: string[] = [];
+
+    const { injectAppStartCounter, APP_START_COUNTER_META_DATA } = craftService(
+      {
+        name: 'AppStartCounter',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          calls.push('started');
+          return waitXTime;
+        });
+
+        return state(0);
+      },
+    );
+
+    expect(APP_START_COUNTER_META_DATA.appStart).toBe(true);
+    expect(getServiceMetaData(injectAppStartCounter).appStart).toBe(true);
+    expectTypeOf(APP_START_COUNTER_META_DATA.appStart).toEqualTypeOf<true>();
+    expectTypeOf<
+      GetServiceReferenceMeta<typeof injectAppStartCounter>['appStart']
+    >().toEqualTypeOf<true>();
+
+    await TestBed.runInInjectionContext(async () => {
+      const service = injectAppStartCounter();
+      const pendingStart = runServiceAppStart(injectAppStartCounter, service);
+
+      expect(calls).toEqual(['started']);
+      expect(runServiceAppStart(injectAppStartCounter, service)).toBeUndefined();
+
+      resolveAppStart();
+      await pendingStart;
+    });
+  });
+
+  it('should fail at runtime when onAppStart is used without appStart: true', () => {
+    const { injectInvalidAppStart } = craftService(
+      { name: 'InvalidAppStart', scope: 'global' },
+      function* () {
+        yield* onAppStart(() => undefined);
+        return 1;
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      expect(() => injectInvalidAppStart()).toThrow(
+        'craftService("InvalidAppStart") used onAppStart(...) without enabling appStart: true.',
+      );
+    });
   });
 
   it('should enable to yield another craftService', () => {

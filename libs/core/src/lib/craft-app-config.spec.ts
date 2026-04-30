@@ -1,10 +1,57 @@
 import '@angular/compiler';
-import { InjectionToken, Type } from '@angular/core';
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { ApplicationInitStatus, InjectionToken, Type } from '@angular/core';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import { TestBed } from '@angular/core/testing';
+import { beforeAll, describe, expect, expectTypeOf, it } from 'vitest';
 import { GetDeps } from './branded-component/branded-component';
 import { craftAppConfig, toApplicationConfig } from './craft-app-config';
 import { craftRoutes } from './craft-routes';
-import { craftService, GetInjectedServiceDependencies } from './craft-service';
+import {
+  craftService,
+  GetInjectedServiceDependencies,
+  onAppStart,
+} from './craft-service';
+
+const appStartCalls: string[] = [];
+
+const { injectAppStartCounter } = craftService(
+  {
+    name: 'AppStartCounter',
+    scope: 'toProvide',
+    appStart: true,
+  },
+  function* () {
+    yield* onAppStart(() => {
+      appStartCalls.push('started');
+      return undefined;
+    });
+    return 1;
+  },
+);
+
+declare module './craft-app-config' {
+  interface CraftAppStartRegistry {
+    MustRunOnStart: typeof injectAppStartCounter;
+  }
+}
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
 
 describe('craftAppConfig', () => {
   it('should expose APP_CONFIG_META_DATA with computed missing providers', () => {
@@ -149,5 +196,53 @@ describe('craftAppConfig', () => {
 
     expect(applicationConfig.providers).toEqual(appConfig.providers);
     expect(applicationConfig.providers).not.toBe(appConfig.providers);
+  });
+});
+
+describe('craftAppConfig appStart', () => {
+  it('should treat appStart services as provided at app root in APP_CONFIG_META_DATA', () => {
+    type CounterRouteDeps = GetDeps<{
+      deps: {
+        AppStartCounter: GetInjectedServiceDependencies<typeof injectAppStartCounter>;
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'counter',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as CounterRouteDeps,
+      },
+    ]);
+
+    const appConfig = craftAppConfig({
+      routingDeps: appRoutes.META_DATA,
+    });
+
+    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'counter';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should run registered appStart services during app initialization', async () => {
+    appStartCalls.length = 0;
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: craftAppConfig({ routingDeps: [] as const }).providers,
+    });
+
+    await TestBed.inject(ApplicationInitStatus).donePromise;
+
+    expect(appStartCalls).toEqual(['started']);
   });
 });

@@ -10,6 +10,7 @@ import {
   Type,
   untracked,
 } from '@angular/core';
+import type { Observable } from 'rxjs';
 import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   SERVICE_PROVIDED_INPUT_KEY,
@@ -34,6 +35,10 @@ declare const SERVICE_META_DATA_TYPE: unique symbol;
 const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol('service-exposure-token-marker');
 const SERVICE_RUNTIME_META = Symbol('service-runtime-meta');
 const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
+const SERVICE_APP_START_REQUEST_MARKER = Symbol(
+  'service-app-start-request-marker',
+);
+const REGISTERED_APP_START_SERVICES = new Map<string, ServiceReference>();
 
 type DerivedPropertiesTracking<
   Used extends object = {},
@@ -205,12 +210,14 @@ export type ServiceMetaData<
   ProvidedInput = never,
   ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
   BrowserBoundary extends boolean = false,
+  AppStart extends boolean = false,
 > = Simplify<
   {
     readonly kind: 'service-meta-data';
     readonly name: Name;
     readonly scope: Scope;
     readonly browserBoundary: BrowserBoundary;
+    readonly appStart: AppStart;
     readonly inject: InjectHelper;
     readonly [SERVICE_META_DATA_TYPE]?: {
       inputs: Inputs;
@@ -229,7 +236,8 @@ export type ServiceMetaData<
       Tracking,
       ProvidedInput,
       ProvideArgs,
-      BrowserBoundary
+      BrowserBoundary,
+      AppStart
     >;
   } & (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
     ? { readonly provide: (...args: ProvideArgs) => CraftServiceProvider }
@@ -244,6 +252,7 @@ type AnyServiceMetaData = {
   readonly name: string;
   readonly scope: ConcreteServiceScope;
   readonly browserBoundary: boolean;
+  readonly appStart: boolean;
   readonly inject: (...args: any[]) => unknown;
   readonly provide?: (...args: any[]) => CraftServiceProvider;
   readonly token?: InjectionToken<unknown>;
@@ -344,6 +353,51 @@ type RequiredKeys<ObjectType extends object> = Exclude<
   keyof ObjectType,
   OptionalKeys<ObjectType>
 >;
+
+type AppStartResult = Observable<unknown> | Promise<unknown> | void;
+
+type AppStartCapableScope = 'global' | RealCapableScope;
+
+type HasRequiredPublicInputs<Inputs extends object> = [
+  RequiredKeys<PublicServiceInputs<Inputs>>,
+] extends [never]
+  ? false
+  : true;
+
+type ValidateAppStartScope<
+  Scope extends ConcreteServiceScope,
+  IsEnabled extends boolean,
+> = IsEnabled extends true
+  ? Scope extends AppStartCapableScope
+    ? unknown
+    : never
+  : unknown;
+
+type ValidateAppStartInputs<
+  Inputs extends object,
+  IsEnabled extends boolean,
+> = IsEnabled extends true
+  ? HasProvidedInput<Inputs> extends true
+    ? never
+    : HasRequiredPublicInputs<Inputs> extends true
+      ? never
+      : unknown
+  : unknown;
+
+type ValidateAppStartFactory<
+  Factory extends AnyFactory,
+  IsEnabled extends boolean,
+> = IsEnabled extends true
+  ? FactoryReturn<Factory> extends Generator<infer Yielded, any, any>
+    ? Extract<Yielded, ServiceAppStartRequest> extends never
+      ? never
+      : unknown
+    : never
+  : FactoryReturn<Factory> extends Generator<infer Yielded, any, any>
+    ? Extract<Yielded, ServiceAppStartRequest> extends never
+      ? unknown
+      : never
+    : unknown;
 
 type MissingInputKeys<Inputs extends object, Config> = Exclude<
   RequiredKeys<Inputs>,
@@ -937,6 +991,11 @@ export type ServiceYieldRequest<
   resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
 }>;
 
+type ServiceAppStartRequest = Readonly<{
+  [SERVICE_APP_START_REQUEST_MARKER]: true;
+  run: () => AppStartResult;
+}>;
+
 type AbstractMarker<Contract> = {
   readonly [ABSTRACT_SERVICE_MARKER]: () => Contract;
 };
@@ -958,6 +1017,7 @@ type ServiceRuntimeMetaDefinition<
   Inputs extends object,
   Output,
   Metadata extends AnyServiceTrackingMetadata,
+  AppStart extends boolean = false,
   ProvidedInput = ServiceProvidedInput<Inputs>,
   ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = ServiceMetaData<
@@ -970,7 +1030,8 @@ type ServiceRuntimeMetaDefinition<
   Metadata,
   ProvidedInput,
   ProvideArgs,
-  TrackingBrowserBoundary<Metadata>
+  TrackingBrowserBoundary<Metadata>,
+  AppStart
 >;
 
 type InjectHelper<
@@ -979,6 +1040,7 @@ type InjectHelper<
   Inputs extends object,
   Output,
   Metadata extends AnyServiceTrackingMetadata,
+  AppStart extends boolean = false,
   ProvidedInput = ServiceProvidedInput<Inputs>,
   ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = {
@@ -1035,6 +1097,7 @@ type InjectHelper<
         Inputs,
         Output,
         Metadata,
+        AppStart,
         ProvidedInput,
         ProvideArgs
       >
@@ -1049,6 +1112,7 @@ type YieldHelper<
   Inputs extends object,
   Output,
   Metadata extends AnyServiceTrackingMetadata,
+  AppStart extends boolean = false,
   ProvidedInput = ServiceProvidedInput<Inputs>,
   ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = {
@@ -1143,6 +1207,7 @@ type YieldHelper<
         Inputs,
         Output,
         Metadata,
+        AppStart,
         ProvidedInput,
         ProvideArgs
       >
@@ -1175,6 +1240,7 @@ type ServiceMetaDataHelper<
   Inputs extends object,
   Output,
   Metadata extends AnyServiceTrackingMetadata,
+  AppStart extends boolean = false,
   ProvidedInput = ServiceProvidedInput<Inputs>,
   ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = {
@@ -1191,6 +1257,7 @@ type ServiceMetaDataHelper<
         Inputs,
         Output,
         Metadata,
+        AppStart,
         ProvidedInput,
         ProvideArgs
       >
@@ -1198,7 +1265,8 @@ type ServiceMetaDataHelper<
     Metadata,
     ProvidedInput,
     ProvideArgs,
-    TrackingBrowserBoundary<Metadata>
+    TrackingBrowserBoundary<Metadata>,
+    AppStart
   >;
 };
 
@@ -1208,9 +1276,10 @@ type ConcreteServiceApi<
   Inputs extends object,
   Output,
   Metadata extends AnyServiceTrackingMetadata,
-> = InjectHelper<Name, Scope, Inputs, Output, Metadata> &
-  YieldHelper<Name, Scope, Inputs, Output, Metadata> &
-  ServiceMetaDataHelper<Name, Scope, Inputs, Output, Metadata> &
+  AppStart extends boolean = false,
+> = InjectHelper<Name, Scope, Inputs, Output, Metadata, AppStart> &
+  YieldHelper<Name, Scope, Inputs, Output, Metadata, AppStart> &
+  ServiceMetaDataHelper<Name, Scope, Inputs, Output, Metadata, AppStart> &
   (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
     ? ProvideHelper<
         Name,
@@ -1233,7 +1302,8 @@ export type CraftServiceApi<
     Output,
     never
   >,
-> = ConcreteServiceApi<Name, Scope, Inputs, Output, Metadata>;
+  AppStart extends boolean = false,
+> = ConcreteServiceApi<Name, Scope, Inputs, Output, Metadata, AppStart>;
 
 type AbstractServiceApi<Name extends string, Contract> = {
   [Key in `inject${Capitalize<Name>}`]: () => Contract;
@@ -1266,6 +1336,7 @@ type DependencyApi<
   Inputs,
   Output,
   Metadata,
+  false,
   ProvidedInput,
   ProvideArgs
 > &
@@ -1275,6 +1346,7 @@ type DependencyApi<
     Inputs,
     Output,
     Metadata,
+    false,
     ProvidedInput,
     ProvideArgs
   > &
@@ -1284,6 +1356,7 @@ type DependencyApi<
     Inputs,
     Output,
     Metadata,
+    false,
     ProvidedInput,
     ProvideArgs
   > &
@@ -1416,11 +1489,14 @@ type ConcreteRuntimeDefinition = {
   name: string;
   scope: ConcreteServiceScope;
   browserBoundary: boolean;
+  appStart: boolean;
   token?: InjectionToken<unknown>;
   requirement?: ServiceRequirement<unknown>;
   initialBindings?: Record<string, unknown>;
   hasProvidedInput: boolean;
   externalProviders?: (...args: unknown[]) => CraftServiceProvider;
+  appStartHooks: Map<unknown, () => AppStartResult>;
+  startedAppStartServices: Set<unknown>;
 };
 
 export type ServiceReference<
@@ -1515,6 +1591,12 @@ export type MaybeSignal<T> = T | Signal<T>;
 
 export function toValue<T>(value: MaybeSignal<T>): T {
   return isSignal(value) ? value() : value;
+}
+
+export function* onAppStart(
+  run: () => AppStartResult,
+): Generator<ServiceAppStartRequest, void, unknown> {
+  yield createAppStartRequest(run);
 }
 
 export function abstract<Contract>(): AbstractMarker<Contract> {
@@ -2114,6 +2196,33 @@ export function craftService<Name extends string, Contract>(
 ): AbstractServiceApi<Name, Contract>;
 export function craftService<
   Name extends string,
+  Scope extends AppStartCapableScope,
+  Requirement extends ServiceRequirement<any, any>,
+  Factory extends AnyFactory,
+  BrowserBoundary extends boolean = false,
+>(
+  options: {
+    name: Name;
+    scope: Scope;
+    requirement: Requirement;
+    browserBoundary?: BrowserBoundary;
+    appStart: true;
+  },
+  factory: Factory &
+    ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
+    ValidateFactoryScope<Scope, Factory> &
+    ValidateRequirementFactory<Factory, Requirement> &
+    ValidateAppStartInputs<FactoryInputs<Factory>, true>,
+): ConcreteServiceApi<
+  Name,
+  Scope,
+  FactoryInputs<Factory>,
+  FactoryOutput<Factory>,
+  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>,
+  true
+>;
+export function craftService<
+  Name extends string,
   Scope extends RealCapableScope,
   Requirement extends ServiceRequirement<any, any>,
   Factory extends AnyFactory,
@@ -2124,6 +2233,7 @@ export function craftService<
     scope: Scope;
     requirement: Requirement;
     browserBoundary?: BrowserBoundary;
+    appStart?: false;
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -2134,7 +2244,32 @@ export function craftService<
   Scope,
   FactoryInputs<Factory>,
   FactoryOutput<Factory>,
-  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>
+  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>,
+  false
+>;
+export function craftService<
+  Name extends string,
+  Scope extends AppStartCapableScope,
+  Factory extends AnyFactory,
+  BrowserBoundary extends boolean = false,
+>(
+  options: {
+    name: Name;
+    scope: Scope;
+    browserBoundary?: BrowserBoundary;
+    appStart: true;
+  },
+  factory: Factory &
+    ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
+    ValidateFactoryScope<Scope, Factory> &
+    ValidateAppStartInputs<FactoryInputs<Factory>, true>,
+): ConcreteServiceApi<
+  Name,
+  Scope,
+  FactoryInputs<Factory>,
+  FactoryOutput<Factory>,
+  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>,
+  true
 >;
 export function craftService<
   Name extends string,
@@ -2142,7 +2277,12 @@ export function craftService<
   Factory extends AnyFactory,
   BrowserBoundary extends boolean = false,
 >(
-  options: { name: Name; scope: Scope; browserBoundary?: BrowserBoundary },
+  options: {
+    name: Name;
+    scope: Scope;
+    browserBoundary?: BrowserBoundary;
+    appStart?: false;
+  },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
     ValidateFactoryScope<Scope, Factory>,
@@ -2151,7 +2291,8 @@ export function craftService<
   Scope,
   FactoryInputs<Factory>,
   FactoryOutput<Factory>,
-  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>
+  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>,
+  false
 >;
 export function craftService(
   options: {
@@ -2159,6 +2300,7 @@ export function craftService(
     scope: ServiceScope;
     requirement?: ServiceRequirement<unknown>;
     browserBoundary?: boolean;
+    appStart?: boolean;
   },
   factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
 ): unknown {
@@ -2190,8 +2332,11 @@ export function craftService(
     name: options.name,
     scope: options.scope,
     browserBoundary: options.browserBoundary ?? false,
+    appStart: options.appStart ?? false,
     requirement: options.requirement,
     hasProvidedInput: factoryUsesProvidedInput(concreteFactory),
+    appStartHooks: new Map(),
+    startedAppStartServices: new Set(),
   };
 
   const token =
@@ -2283,6 +2428,13 @@ export function craftService(
   attachServiceRuntimeMeta(api[injectName], serviceMetaData);
   attachServiceRuntimeMeta(api[toYieldName], serviceMetaData);
 
+  if (runtimeDefinition.appStart) {
+    REGISTERED_APP_START_SERVICES.set(
+      runtimeDefinition.name,
+      api[injectName] as ServiceReference,
+    );
+  }
+
   return api;
 
   function abstractInject() {}
@@ -2313,6 +2465,7 @@ function createServiceMetaData(config: {
     name: config.name,
     scope: config.scope,
     browserBoundary: config.runtimeDefinition.browserBoundary,
+    appStart: config.runtimeDefinition.appStart,
     inject: config.inject,
     usesProvidedInput: config.runtimeDefinition.hasProvidedInput,
   };
@@ -2557,16 +2710,36 @@ function createConcreteServiceInstance(
       ? definition.factory(inputs)
       : definition.factory();
 
-  return isGenerator(result)
-    ? runGeneratorFactory(result, injector, definition.scope)
-    : result;
+  if (!isGenerator(result)) {
+    return result;
+  }
+
+  const resolved = runGeneratorFactory(result, injector, definition.scope);
+
+  if (resolved.appStartHook) {
+    if (!definition.appStart) {
+      throw new Error(
+        `craftService("${definition.name}") used onAppStart(...) without enabling appStart: true.`,
+      );
+    }
+
+    definition.appStartHooks.set(resolved.value, resolved.appStartHook);
+  }
+
+  return resolved.value;
 }
+
+type GeneratorFactoryResult = {
+  value: unknown;
+  appStartHook?: () => AppStartResult;
+};
 
 function runGeneratorFactory(
   iterator: Generator<unknown, unknown, unknown>,
   injector: Injector,
   hostScope: ConcreteServiceScope,
-): unknown {
+): GeneratorFactoryResult {
+  let appStartHook: (() => AppStartResult) | undefined;
   let current = iterator.next();
 
   while (!current.done) {
@@ -2583,12 +2756,27 @@ function runGeneratorFactory(
       continue;
     }
 
+    if (isServiceAppStartRequest(yielded)) {
+      if (appStartHook) {
+        throw new Error(
+          'craftService generators can only declare onAppStart(...) once.',
+        );
+      }
+
+      appStartHook = yielded.run;
+      current = iterator.next(undefined);
+      continue;
+    }
+
     throw new Error(
-      'craftService/toCraftService generators can only yield craftService dependencies or exposed dependency helpers.',
+      'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
     );
   }
 
-  return current.value;
+  return {
+    value: current.value,
+    appStartHook,
+  };
 }
 
 function createInputProxy(
@@ -2632,7 +2820,7 @@ function resolveExposedService(
 ): unknown {
   const exposure = expose(createExposureTokens(serviceValue));
   const resolvedExposure = isGenerator(exposure)
-    ? runGeneratorFactory(exposure, injector, hostScope)
+    ? runGeneratorFactory(exposure, injector, hostScope).value
     : exposure;
 
   return createExposedServiceValue(resolvedExposure);
@@ -2726,6 +2914,49 @@ function createDependencyAccessRequest(
     key,
     resolve,
   };
+}
+
+function createAppStartRequest(
+  run: () => AppStartResult,
+): ServiceAppStartRequest {
+  return {
+    [SERVICE_APP_START_REQUEST_MARKER]: true,
+    run,
+  };
+}
+
+export function runServiceAppStart(
+  reference: ServiceReference,
+  serviceValue: unknown,
+): AppStartResult {
+  const metaData = getServiceMetaData(reference) as InternalServiceMetaData;
+  const definition = metaData[SERVICE_RUNTIME_DEFINITION];
+
+  if (!definition.appStart) {
+    throw new Error(
+      `craftService("${definition.name}") is not configured with appStart: true.`,
+    );
+  }
+
+  if (definition.startedAppStartServices.has(serviceValue)) {
+    return;
+  }
+
+  const hook = definition.appStartHooks.get(serviceValue);
+
+  if (!hook) {
+    throw new Error(
+      `craftService("${definition.name}") is configured with appStart: true but did not declare onAppStart(...).`,
+    );
+  }
+
+  definition.startedAppStartServices.add(serviceValue);
+
+  return hook();
+}
+
+export function getRegisteredAppStartServices(): readonly ServiceReference[] {
+  return Array.from(REGISTERED_APP_START_SERVICES.values());
 }
 
 type RuntimeCallable = (...args: any[]) => unknown;
@@ -2919,6 +3150,16 @@ function isServiceDependencyAccessRequest(
     typeof value === 'object' &&
     value !== null &&
     SERVICE_DEPENDENCY_ACCESS_MARKER in value
+  );
+}
+
+function isServiceAppStartRequest(
+  value: unknown,
+): value is ServiceAppStartRequest {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    SERVICE_APP_START_REQUEST_MARKER in value
   );
 }
 
