@@ -2,6 +2,7 @@ export * from './lib/after-recomputation';
 export * from './lib/app-checked-di';
 export * from './lib/async-process';
 export * from './lib/computed-source';
+export * from './lib/craft-http-client';
 export * from './lib/craft-exception';
 export * from './lib/insert-local-storage-persister';
 export * from './lib/insert-noop-typing-anchor';

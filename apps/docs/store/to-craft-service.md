@@ -145,6 +145,41 @@ const { injectCatalog, provideCatalog } = toCraftService(
 );
 ```
 
+## `HttpClient` Example
+
+`toCraftService` is also a good fit for Angular dependencies such as `HttpClient`.
+
+```typescript
+import { HttpClient } from '@angular/common/http';
+import { craftService, toCraftService } from '@craft-ng/core';
+
+type User = { id: string; email: string };
+
+const { HttpClientToYield } = toCraftService({
+  name: 'HttpClient',
+  scope: 'global',
+  token: HttpClient,
+});
+
+const { injectUsersApi } = craftService(
+  { name: 'UsersApi', scope: 'global' },
+  function* () {
+    const http = yield* HttpClientToYield(undefined, ({ get, post }) => ({
+      get,
+      post,
+    }));
+
+    return {
+      listUsers: () => http.get<User[]>('/api/users'),
+      createUser: (payload: Pick<User, 'email'>) =>
+        http.post<User>('/api/users', payload),
+    };
+  },
+);
+```
+
+This keeps `HttpClient` explicit in the dependency graph while still letting you expose only the methods your service actually needs.
+
 ## Method Binding Behavior
 
 When adapting class instances, exposed methods stay bound to their original instance. This makes extracted methods like `navigateByUrl` safe to call after derivation.

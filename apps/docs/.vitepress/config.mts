@@ -110,6 +110,15 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Type-safe DI/Routes',
+        items: [
+          {
+            text: 'Browser Boundaries',
+            link: '/type-safe-di-routes/browser-boundaries',
+          },
+        ],
+      },
+      {
         text: 'Examples',
         link: '/examples',
       },

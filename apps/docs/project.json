@@ -10,6 +10,12 @@
         "command": "vitepress dev apps/docs"
       }
     },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config apps/docs/vitest.config.mts"
+      }
+    },
     "build": {
       "executor": "nx:run-commands",
       "outputs": ["{options.outputPath}"],
