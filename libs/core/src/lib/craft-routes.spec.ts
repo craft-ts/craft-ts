@@ -6,17 +6,42 @@ import {
   Injector,
   input,
   runInInjectionContext,
+  signal,
   Type,
   type Signal,
 } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
 import {
   ActivatedRoute,
+  type ActivatedRouteSnapshot,
+  type CanActivateFn,
+  type CanMatchFn,
   type Data,
+  type GuardResult,
   type Params,
+  type PartialMatchRouteSnapshot,
   type Route,
+  type RouterStateSnapshot,
+  type UrlSegment,
 } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import {
+  BehaviorSubject,
+  combineLatest,
+  firstValueFrom,
+  map,
+} from 'rxjs';
+import {
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+} from 'vitest';
 import {
   craftService,
   GetInjectedServiceDependencies,
@@ -93,6 +118,69 @@ function createRouteInjector(
   });
 }
 
+function configureRouteTestingModule(
+  providers: NonNullable<Route['providers']> | undefined,
+  activatedRoute: ActivatedRoute,
+) {
+  TestBed.configureTestingModule({
+    providers: [
+      {
+        provide: ActivatedRoute,
+        useValue: activatedRoute,
+      },
+      {
+        provide: SERVICE_RUNTIME_OVERRIDES,
+        useValue: new Map(),
+      },
+      ...flattenProviders(providers),
+    ] as never[],
+  });
+}
+
+const activatedRouteSnapshotStub = {} as ActivatedRouteSnapshot;
+const routerStateSnapshotStub = {} as RouterStateSnapshot;
+const partialMatchRouteSnapshotStub = {} as PartialMatchRouteSnapshot;
+const urlSegmentsStub = [] as UrlSegment[];
+
+function getCanActivateGuard(route: Route): CanActivateFn {
+  const guard = route.canActivate?.[0];
+
+  if (typeof guard !== 'function') {
+    throw new Error('Expected route.canActivate[0] to be a function.');
+  }
+
+  return guard as CanActivateFn;
+}
+
+function getCanMatchGuard(route: Route): CanMatchFn {
+  const guard = route.canMatch?.[0];
+
+  if (typeof guard !== 'function') {
+    throw new Error('Expected route.canMatch[0] to be a function.');
+  }
+
+  return guard as CanMatchFn;
+}
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
+
+beforeEach(() => {
+  TestBed.resetTestingModule();
+});
+
 describe('craftRoutes', () => {
   it('should expose typed inject helpers for params and route data', () => {
     const routes = craftRoutes([
@@ -149,6 +237,44 @@ describe('craftRoutes', () => {
 
     expectTypeOf(userId).toEqualTypeOf<Signal<number>>();
     expect(userId()).toBe(12);
+  });
+
+  it('should accept craft canActivate/canMatch guard contracts', () => {
+    const pending = signal<GuardResult | undefined>(undefined);
+
+    craftRoutes([
+      {
+        path: 'signal-guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        canActivate: () => pending,
+      },
+      {
+        path: 'observable-guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        canActivate: function* () {
+          return new BehaviorSubject<GuardResult | undefined>(
+            undefined,
+          ).asObservable();
+        },
+      },
+      {
+        path: 'match-guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        canMatch: function* () {
+          return true;
+        },
+      },
+      {
+        path: 'invalid-match-guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        // @ts-expect-error canMatch does not accept Observable results
+        canMatch: () => new BehaviorSubject(true).asObservable(),
+      },
+    ]);
   });
 
   it('should throw when componentDeps is missing', () => {
@@ -341,6 +467,228 @@ describe('craftRoutes', () => {
       },
     ]);
   });
+
+  it('should wrap craft guards into Angular guard arrays', () => {
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        canActivate: () => true,
+        canMatch: () => true,
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+
+    expect(routeConfig.canActivate).toHaveLength(1);
+    expect(routeConfig.canMatch).toHaveLength(1);
+  });
+
+  it('should wait for a defined signal result in canActivate and then accept', async () => {
+    const guardResult = signal<GuardResult | undefined>(undefined);
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        canActivate: () => guardResult,
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub();
+    const canActivate = getCanActivateGuard(routeConfig);
+    configureRouteTestingModule(routeConfig.providers, activatedRoute.route);
+    const result = TestBed.runInInjectionContext(() =>
+      canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+    );
+    const guardPromise = firstValueFrom(result as any);
+    let resolved = false;
+
+    guardPromise.then(() => {
+      resolved = true;
+    });
+
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    guardResult.set(true);
+
+    expect(await guardPromise).toBe(true);
+  });
+
+  it('should wait for a defined signal result in canActivate and then reject', async () => {
+    const guardResult = signal<GuardResult | undefined>(undefined);
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        canActivate: () => guardResult,
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub();
+    const canActivate = getCanActivateGuard(routeConfig);
+    configureRouteTestingModule(routeConfig.providers, activatedRoute.route);
+    const result = TestBed.runInInjectionContext(() =>
+      canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+    );
+    const guardPromise = firstValueFrom(result as any);
+    let resolved = false;
+
+    guardPromise.then(() => {
+      resolved = true;
+    });
+
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    guardResult.set(false);
+
+    expect(await guardPromise).toBe(false);
+  });
+
+  it('should allow canActivate generators to yield multiple services and return an observable', async () => {
+    const authAccess$ = new BehaviorSubject(true);
+    const entityOperational$ = new BehaviorSubject(true);
+    const { AuthToYield, provideAuth } = craftService(
+      { name: 'Auth', scope: 'toProvide' },
+      () => ({
+        canAccess$: authAccess$.asObservable(),
+      }),
+    );
+    const { EntityToYield, provideEntity } = craftService(
+      { name: 'Entity', scope: 'toProvide' },
+      () => ({
+        isOperational$: entityOperational$.asObservable(),
+      }),
+    );
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        providers: [provideAuth(), provideEntity()],
+        canActivate: function* () {
+          const auth = yield* AuthToYield();
+          const entity = yield* EntityToYield();
+
+          return combineLatest([auth.canAccess$, entity.isOperational$]).pipe(
+            map(([canAccess, isOperational]) => canAccess && isOperational),
+          );
+        },
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub();
+    const injector = createRouteInjector(
+      routeConfig.providers,
+      activatedRoute.route,
+    );
+    const canActivate = getCanActivateGuard(routeConfig);
+    const result = runInInjectionContext(injector, () =>
+      canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+    );
+
+    expect(await firstValueFrom(result as any)).toBe(true);
+  });
+
+  it('should allow canMatch generators to yield services and return a synchronous result', () => {
+    const { PermissionsToYield, providePermissions } = craftService(
+      { name: 'Permissions', scope: 'toProvide' },
+      () => ({
+        allow: true,
+      }),
+    );
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        providers: [providePermissions()],
+        canMatch: function* () {
+          const permissions = yield* PermissionsToYield();
+
+          return permissions.allow;
+        },
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub();
+    const injector = createRouteInjector(
+      routeConfig.providers,
+      activatedRoute.route,
+    );
+    const canMatch = getCanMatchGuard(routeConfig);
+
+    const result = runInInjectionContext(injector, () =>
+      canMatch(routeConfig, urlSegmentsStub, partialMatchRouteSnapshotStub),
+    );
+
+    expect(result).toBe(true);
+  });
+
+  it('should throw when canMatch returns an observable', () => {
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        canMatch: (() =>
+          new BehaviorSubject<GuardResult | undefined>(
+            true,
+          ).asObservable()) as unknown as never,
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub();
+    const injector = createRouteInjector(
+      routeConfig.providers,
+      activatedRoute.route,
+    );
+    const canMatch = getCanMatchGuard(routeConfig);
+
+    expect(() =>
+      runInInjectionContext(injector, () =>
+        canMatch(routeConfig, urlSegmentsStub, partialMatchRouteSnapshotStub),
+      ),
+    ).toThrow(
+      'Route "guard" canMatch guard must return a synchronous GuardResult.',
+    );
+  });
+
+  it('should throw when canActivate synchronously returns undefined', () => {
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'guard',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        canActivate: (() => undefined) as unknown as never,
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub();
+    const injector = createRouteInjector(
+      routeConfig.providers,
+      activatedRoute.route,
+    );
+    const canActivate = getCanActivateGuard(routeConfig);
+
+    expect(() =>
+      runInInjectionContext(injector, () =>
+        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+      ),
+    ).toThrow(
+      'Route "guard" canActivate guard must not synchronously return undefined.',
+    );
+  });
 });
 
 describe('AppRoutes.META_DATA', () => {
@@ -509,6 +857,105 @@ describe('AppRoutes.META_DATA', () => {
         {
           path: 'query/:userId';
           deps: {}; // no more Counter dependency since it's provided in this route, so it should be removed from deps
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should include generator guard deps in META_DATA', () => {
+    const { injectCounter, CounterToYield } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type GuardRouteDeps = GetDeps<{
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'counter',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as GuardRouteDeps,
+        canActivate: function* () {
+          yield* CounterToYield();
+          return true;
+        },
+      },
+    ]);
+
+    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'counter';
+          deps: {
+            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+          };
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should remove generator guard deps when satisfied by route providers', () => {
+    const { CounterToYield, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type GuardRouteDeps = GetDeps<{
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'counter',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as GuardRouteDeps,
+        providers: [provideCounter()],
+        canActivate: function* () {
+          yield* CounterToYield();
+          return true;
+        },
+      },
+    ]);
+
+    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'counter';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should not add deps to META_DATA for non-generator canActivate guards', () => {
+    type GuardRouteDeps = GetDeps<{
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'counter',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as GuardRouteDeps,
+        canActivate: () => true,
+      },
+    ]);
+
+    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'counter';
           provided: {};
           publicProperties: {};
         },

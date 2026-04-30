@@ -1,14 +1,38 @@
-import { computed, inject, type Signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, type Data, type Route } from '@angular/router';
+import { computed, inject, isSignal, type Signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import {
+  ActivatedRoute,
+  type ActivatedRouteSnapshot,
+  type CanActivateFn,
+  type CanMatchFn,
+  type Data,
+  type GuardResult,
+  type MaybeAsync,
+  type PartialMatchRouteSnapshot,
+  type Route,
+  type RouterStateSnapshot,
+  type UrlSegment,
+} from '@angular/router';
+import {
+  Observable,
+  filter,
+  isObservable,
+  take,
+  throwIfEmpty,
+} from 'rxjs';
 import {
   craftService,
   type BrandedServiceProvider,
   type CraftServiceApi,
+  type GetInjectedServiceDependencies,
+  type ServiceTrackingMetadata,
 } from './craft-service';
 import type { MergeObjectUnion, Simplify } from './craft-service.shared';
 
-type AngularRouteBase = Omit<Route, 'children' | 'data' | 'path' | 'providers'>;
+type AngularRouteBase = Omit<
+  Route,
+  'canActivate' | 'canMatch' | 'children' | 'data' | 'path' | 'providers'
+>;
 type AngularRouteProviders = NonNullable<Route['providers']>;
 type ComponentDepsMap<RouteDefinition> = RouteDefinition extends {
   componentDeps: infer ComponentDeps extends object;
@@ -208,23 +232,108 @@ type StripRouteProvidedDepsMap<
   >
 >;
 
+type CraftRouteCanActivateResult =
+  | GuardResult
+  | Promise<GuardResult>
+  | Observable<GuardResult | undefined>
+  | Signal<GuardResult | undefined>;
+
+type CraftRouteCanActivateGuard = (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot,
+) =>
+  | CraftRouteCanActivateResult
+  | Generator<unknown, CraftRouteCanActivateResult, unknown>;
+
+type CraftRouteCanMatchGuard = (
+  route: Route,
+  segments: UrlSegment[],
+  currentSnapshot?: PartialMatchRouteSnapshot,
+) => GuardResult | Generator<unknown, GuardResult, unknown>;
+
+type GuardOf<RouteDefinition, GuardName extends 'canActivate' | 'canMatch'> =
+  RouteDefinition extends {
+    [Key in GuardName]?: infer Guard;
+  }
+    ? Guard
+    : never;
+
+type GuardReturn<Guard> = Guard extends (...args: any[]) => infer Result
+  ? Result
+  : never;
+
+type IsGeneratorReturn<Result> = [Result] extends [never]
+  ? false
+  : [Result] extends [Generator<any, any, any>]
+    ? true
+    : false;
+
+type HasGeneratorGuard<RouteDefinition> = true extends
+  | IsGeneratorReturn<GuardReturn<GuardOf<RouteDefinition, 'canActivate'>>>
+  | IsGeneratorReturn<GuardReturn<GuardOf<RouteDefinition, 'canMatch'>>>
+  ? true
+  : false;
+
+type GuardServiceDependencies<Output, Yielded> =
+  GetInjectedServiceDependencies<
+    CraftServiceApi<
+      'craftRouteGuard',
+      'function',
+      {},
+      Output,
+      ServiceTrackingMetadata<'craftRouteGuard', 'function', Output, Yielded>
+    >['injectCraftRouteGuard']
+  >;
+
+type GuardDependenciesFromReturn<Result> = [Result] extends [never]
+  ? {}
+  : [Result] extends [Generator<infer Yielded, infer Output, any>]
+  ? GuardServiceDependencies<Output, Yielded> extends {
+      dependencies: infer Dependencies extends object;
+    }
+    ? Dependencies
+    : {}
+  : {};
+
+type RouteGuardDepsMap<RouteDefinition> = Simplify<
+  MergeObjectUnion<
+    | GuardDependenciesFromReturn<
+        GuardReturn<GuardOf<RouteDefinition, 'canActivate'>>
+      >
+    | GuardDependenciesFromReturn<
+        GuardReturn<GuardOf<RouteDefinition, 'canMatch'>>
+      >
+  >
+>;
+
+type RouteDepsMap<RouteDefinition> = Simplify<
+  MergeObjectUnion<
+    DepsMap<ComponentDepsMap<RouteDefinition>> | RouteGuardDepsMap<RouteDefinition>
+  >
+>;
+
+type RouteResolvedDepsMap<RouteDefinition> = Simplify<
+  StripRouteProvidedDepsMap<
+    RouteDepsMap<RouteDefinition>,
+    RouteProvidedServiceNames<
+      RouteDefinition extends { providers: infer Providers } ? Providers : never
+    >
+  >
+>;
+
+type ShouldExposeRouteDeps<RouteDefinition> =
+  ComponentDepsMap<RouteDefinition> extends { deps: object }
+    ? true
+    : HasGeneratorGuard<RouteDefinition>;
+
 export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
   Omit<
     ComponentDepsMap<RouteDefinition>,
     'deps' | 'missingProvider' | 'publicProperties'
   > &
-    (ComponentDepsMap<RouteDefinition> extends { deps: object }
+    (ShouldExposeRouteDeps<RouteDefinition> extends true
       ? {
-          deps: Simplify<
-            StripRouteProvidedDepsMap<
-              DepsMap<ComponentDepsMap<RouteDefinition>>,
-              RouteProvidedServiceNames<
-                RouteDefinition extends { providers: infer Providers }
-                  ? Providers
-                  : never
-              >
-            >
-          >;
+          deps: RouteResolvedDepsMap<RouteDefinition>;
         }
       : {}) &
     ([keyof RemainingRoutePublicProperties<RouteDefinition>] extends [never]
@@ -239,18 +348,9 @@ type ResolveCraftRouteMetaDataComponentDeps<RouteDefinition> = Simplify<
     ComponentDepsMap<RouteDefinition>,
     'deps' | 'missingProvider' | 'publicProperties'
   > &
-    (ComponentDepsMap<RouteDefinition> extends { deps: object }
+    (ShouldExposeRouteDeps<RouteDefinition> extends true
       ? {
-          deps: Simplify<
-            StripRouteProvidedDepsMap<
-              DepsMap<ComponentDepsMap<RouteDefinition>>,
-              RouteProvidedServiceNames<
-                RouteDefinition extends { providers: infer Providers }
-                  ? Providers
-                  : never
-              >
-            >
-          >;
+          deps: RouteResolvedDepsMap<RouteDefinition>;
         }
       : {}) &
     (ComponentDepsMap<RouteDefinition> extends { publicProperties: object }
@@ -274,6 +374,8 @@ export type CraftRoutesMetaData<
 
 type AnyCraftRouteDefinition = Simplify<
   AngularRouteBase & {
+    canActivate?: CraftRouteCanActivateGuard;
+    canMatch?: CraftRouteCanMatchGuard;
     path: string;
     providers?: AngularRouteProviders;
     data?: Data;
@@ -291,6 +393,8 @@ export type CraftRouteDefinition<
   Providers extends AngularRouteProviders = AngularRouteProviders,
 > = Simplify<
   AngularRouteBase & {
+    canActivate?: CraftRouteCanActivateGuard;
+    canMatch?: CraftRouteCanMatchGuard;
     path: Path;
     providers?: Providers;
     data?: RouteData;
@@ -386,6 +490,10 @@ function toPascalCase(value: string): string {
     .join('');
 }
 
+function capitalize(value: string): string {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
 function toParamServiceName(paramName: string): string {
   return toPascalCase(paramName);
 }
@@ -402,6 +510,10 @@ function toRouteBaseServiceName(path: string): string {
 
 function toRouteDataServiceName(path: string): string {
   return `${toRouteBaseServiceName(path)}Data`;
+}
+
+function toGuardServiceName(routeIndex: number, guardKind: string): string {
+  return `craftRoute${routeIndex}${guardKind}`;
 }
 
 function injectRouteParamsSignal(): Signal<Record<string, string>> {
@@ -453,6 +565,145 @@ function getRouteComponentDeps(
   return route.componentDeps as Record<string, unknown>;
 }
 
+function createGuardExecutor<Inputs extends object, Output>(
+  serviceName: string,
+  factory: (inputs: Inputs) => Output | Generator<unknown, Output, unknown>,
+): (inputs: Inputs) => Output {
+  const serviceApi = craftService(
+    { name: serviceName, scope: 'function' },
+    factory as never,
+  ) as CraftServiceApi<string, 'function', Inputs, Output>;
+  const injectKey = `inject${capitalize(serviceName)}`;
+  const injectGuard = (serviceApi as Record<string, unknown>)[injectKey];
+
+  if (typeof injectGuard !== 'function') {
+    throw new Error(`Route guard "${serviceName}" is missing its injector.`);
+  }
+
+  return injectGuard as (inputs: Inputs) => Output;
+}
+
+function createPendingGuardResult(
+  source: Observable<GuardResult | undefined>,
+  routePath: string,
+): Observable<GuardResult> {
+  return source.pipe(
+    filter((value): value is GuardResult => value !== undefined),
+    take(1),
+    throwIfEmpty(() =>
+      new Error(
+        `Route "${routePath}" canActivate guard completed before emitting a defined result.`,
+      ),
+    ),
+  );
+}
+
+function assertCanActivateResult(
+  result: GuardResult | undefined,
+  routePath: string,
+): GuardResult {
+  if (result === undefined) {
+    throw new Error(
+      `Route "${routePath}" canActivate guard must not synchronously return undefined. Return false to reject or use a Signal/Observable that stays undefined while waiting.`,
+    );
+  }
+
+  return result;
+}
+
+function normalizeCanActivateResult(
+  result: unknown,
+  routePath: string,
+): MaybeAsync<GuardResult> {
+  if (isSignal(result)) {
+    return createPendingGuardResult(
+      toObservable(result as Signal<GuardResult | undefined>),
+      routePath,
+    );
+  }
+
+  if (isObservable(result)) {
+    return createPendingGuardResult(
+      result as Observable<GuardResult | undefined>,
+      routePath,
+    );
+  }
+
+  if (isPromiseLike(result)) {
+    return Promise.resolve(result).then((value) =>
+      assertCanActivateResult(value as GuardResult | undefined, routePath),
+    );
+  }
+
+  return assertCanActivateResult(result as GuardResult | undefined, routePath);
+}
+
+function normalizeCanMatchResult(result: unknown, routePath: string): GuardResult {
+  if (
+    result === undefined ||
+    isSignal(result) ||
+    isObservable(result) ||
+    isPromiseLike(result)
+  ) {
+    throw new Error(
+      `Route "${routePath}" canMatch guard must return a synchronous GuardResult. Promise, Observable, Signal and undefined are not supported.`,
+    );
+  }
+
+  return result as GuardResult;
+}
+
+function isPromiseLike(
+  value: unknown,
+): value is PromiseLike<GuardResult | undefined> {
+  if (
+    (typeof value !== 'object' || value === null) &&
+    typeof value !== 'function'
+  ) {
+    return false;
+  }
+
+  return 'then' in value && typeof value.then === 'function';
+}
+
+function createCanActivateGuard(
+  routePath: string,
+  routeIndex: number,
+  guard: CraftRouteCanActivateGuard,
+): CanActivateFn {
+  const executeGuard = createGuardExecutor(
+    toGuardServiceName(routeIndex, 'CanActivateGuard'),
+    (inputs: {
+      route: ActivatedRouteSnapshot;
+      state: RouterStateSnapshot;
+    }) => guard(inputs.route, inputs.state),
+  );
+
+  return (route, state) =>
+    normalizeCanActivateResult(executeGuard({ route, state }), routePath);
+}
+
+function createCanMatchGuard(
+  routePath: string,
+  routeIndex: number,
+  guard: CraftRouteCanMatchGuard,
+): CanMatchFn {
+  const executeGuard = createGuardExecutor(
+    toGuardServiceName(routeIndex, 'CanMatchGuard'),
+    (inputs: {
+      route: Route;
+      segments: UrlSegment[];
+      currentSnapshot?: PartialMatchRouteSnapshot;
+    }) => guard(inputs.route, inputs.segments, inputs.currentSnapshot),
+  );
+
+  return (route, segments, currentSnapshot) =>
+    normalizeCanMatchResult(
+      executeGuard({ route, segments, currentSnapshot }),
+      routePath,
+    );
+}
+
 export function craftRoutes<
   const Routes extends readonly AnyCraftRouteDefinition[],
 >(routes: {
@@ -485,7 +736,7 @@ export function craftRoutes<
   }) as CraftRoutesMetaData<Routes>;
 
   const appRoutes: CraftRoutesApp<Routes> = {
-    toRoutes: () => routes.map((route) => toAngularRoute(route)),
+    toRoutes: () => routes.map((route, index) => toAngularRoute(route, index)),
     META_DATA,
   };
 
@@ -506,7 +757,10 @@ export function craftRoutes<
     helpers[injectKey] = serviceApi[injectKey as InjectHelperName<string>];
   }
 
-  function toAngularRoute(route: AnyCraftRouteDefinition): Route {
+  function toAngularRoute(
+    route: AnyCraftRouteDefinition,
+    routeIndex: number,
+  ): Route {
     const autoProviders: AngularRouteProviders = [];
 
     for (const paramName of extractRouteParamNames(route.path)) {
@@ -545,13 +799,23 @@ export function craftRoutes<
     }
 
     const {
+      canActivate,
+      canMatch,
       componentDeps: _componentDeps,
       paramsProvider,
       ...angularRoute
     } = route;
+    const wrappedCanActivate = canActivate
+      ? createCanActivateGuard(route.path, routeIndex, canActivate)
+      : undefined;
+    const wrappedCanMatch = canMatch
+      ? createCanMatchGuard(route.path, routeIndex, canMatch)
+      : undefined;
 
     return {
       ...angularRoute,
+      canActivate: wrappedCanActivate ? [wrappedCanActivate] : undefined,
+      canMatch: wrappedCanMatch ? [wrappedCanMatch] : undefined,
       providers:
         autoProviders.length > 0 || route.providers?.length
           ? [...autoProviders, ...(route.providers ?? [])]
