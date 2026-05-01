@@ -1,5 +1,6 @@
 import nx from '@nx/eslint-plugin';
 import baseConfig from '../../eslint.config.mjs';
+import craftRules from '../../libs/dev-tools/src/eslint-rules/index.cjs';
 
 export default [
   ...baseConfig,
@@ -7,6 +8,9 @@ export default [
   ...nx.configs['flat/angular-template'],
   {
     files: ['**/*.ts'],
+    plugins: {
+      'craft-ng': craftRules,
+    },
     rules: {
       '@angular-eslint/directive-selector': [
         'error',
@@ -25,6 +29,7 @@ export default [
         },
       ],
       '@typescript-eslint/no-empty-object-type': 'off',
+      'craft-ng/brand-angular-deps-match': 'error',
     },
   },
   {

@@ -53,6 +53,7 @@ Discovery behavior:
 - `craft-brand` auto-discovers `craft-brand.config.ts` by walking upward from `--root`
 - the ESLint rule `brand-angular-deps-match` uses the same upward discovery from the analyzed file, bounded by `context.cwd`
 - `--config <path>` overrides auto-discovery for the CLI
+- `brand-angular-deps-match` can also autofix an existing `GenDeps_*` alias in the current file
 
 Current scope:
 
@@ -77,6 +78,7 @@ export default [
       'craft-ng': craftRules
     },
     rules: {
+      // Adds a Quick Fix in VS Code through the ESLint extension
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/no-direct-angular-class-export': 'error',
@@ -119,7 +121,7 @@ module.exports = defineConfig([
         },
       ],
       '@typescript-eslint/consistent-type-definitions': 'off',
-      // Ajoutez vos règles craft-ng ici
+      // `brand-angular-deps-match` refreshes existing GenDeps aliases with ESLint autofix
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/no-direct-angular-class-export': 'error',
@@ -132,3 +134,23 @@ module.exports = defineConfig([
   },
 ]);
 ```
+
+## Editor / AI Refresh
+
+`GenDeps_* = GetDeps<...>` remains a source artifact generated in your `.ts` files.
+
+Use two refresh flows:
+
+- Current file: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`, or run `eslint --fix path/to/file.ts`
+- Bulk refresh: run `craft-brand --root <source-root>`
+
+Recommended workflow:
+
+- after changing `inject(...)`, constructor injection, component `imports`, `providers`, or `viewProviders`, run the Quick Fix for the current file
+- when doing a larger refactor or upgrading a whole app/lib, run `craft-brand --root <source-root>`
+
+Notes:
+
+- the ESLint Quick Fix only updates files that already contain a `GenDeps_*` alias
+- first-time generation still goes through `craft-brand`
+- the same flow works well for AI agents: file-local updates via `eslint --fix`, bulk updates via `craft-brand --root`

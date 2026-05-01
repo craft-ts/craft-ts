@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -11,7 +11,7 @@ const brandAngularDepsMatchRule = require('./brand-angular-deps-match.cjs');
 
 const tempDirectories: string[] = [];
 
-describe('brand-angular-deps/match-component-deps', () => {
+describe('brand-angular-deps-match', () => {
   afterEach(async () => {
     await Promise.all(
       tempDirectories.splice(0).map((directory) =>
@@ -20,142 +20,129 @@ describe('brand-angular-deps/match-component-deps', () => {
     );
   });
 
-  it('accepts matching deps groups', async () => {
-    const messages = await lintFixture({
+  it('accepts matching GenDeps aliases', async () => {
+    const { messages } = await lintFixture({
       'src/app/demo.ts': `
         import { CommonModule } from '@angular/common';
-        import { Component, inject } from '@angular/core';
-        import { brandAngularSymbol, deps } from '@craft-ng/core';
+        import { Component, Injectable, inject } from '@angular/core';
+        import {
+          type GetDeps,
+          type GetPublicComponentProperties,
+        } from '@craft-ng/core';
 
+        @Injectable({ providedIn: 'root' })
         class ApiService {}
 
-        function provideDemo() {
-          return [];
-        }
-
         @Component({
+          standalone: true,
           imports: [CommonModule],
-          providers: [provideDemo()],
+          template: '',
         })
-        class DemoComponent {
-          private api = inject(ApiService);
+        export class DemoComponent {
+          private readonly api = inject(ApiService);
         }
 
-        export default brandAngularSymbol(DemoComponent, deps({
-          injected: [ApiService],
-          importDeps: [CommonModule],
-          providers: [provideDemo],
-        }));
+        export type GenDeps_DemoComponent = GetDeps<{
+          deps: {
+            CommonModule: CommonModule;
+            ApiService: ApiService;
+          };
+          provided: {};
+          publicProperties: GetPublicComponentProperties<DemoComponent>;
+        }>;
       `,
     });
 
     expect(messages).toEqual([]);
   });
 
-  it('reports injected mismatches', async () => {
-    const messages = await lintFixture({
+  it('reports stale deps, provided, and missingProvider sections and autofixes the file', async () => {
+    const staleFixture = {
+      'src/app/api.service.ts': `
+        import { Injectable } from '@angular/core';
+
+        @Injectable({ providedIn: 'root' })
+        export class ApiService {}
+      `,
+      'src/app/child.ts': `
+        import { Component } from '@angular/core';
+        import {
+          type GetDeps,
+          type GetPublicComponentProperties,
+        } from '@craft-ng/core';
+
+        @Component({
+          standalone: true,
+          template: '',
+        })
+        export class ChildComponent {}
+
+        export type GenDeps_ChildComponent = GetDeps<{
+          deps: {};
+          provided: {};
+          publicProperties: GetPublicComponentProperties<ChildComponent>;
+        }>;
+      `,
+      'src/app/http-client.ts': `
+        export class HttpClient {}
+      `,
+      'src/app/user.store.ts': `
+        export class UserStore {}
+      `,
       'src/app/demo.ts': `
-        import { CommonModule } from '@angular/common';
         import { Component, inject } from '@angular/core';
-        import { brandAngularSymbol, deps } from '@craft-ng/core';
-
-        class ApiService {}
-
-        @Component({
-          imports: [CommonModule],
-        })
-        class DemoComponent {
-          private api = inject(ApiService);
-        }
-
-        export default brandAngularSymbol(DemoComponent, deps({
-          injected: [],
-          importDeps: [CommonModule],
-          providers: [],
-        }));
-      `,
-    });
-
-    expect(messages).toEqual([
-      'deps.injected does not match the Angular symbol. Expected [ApiService] but found [].',
-    ]);
-  });
-
-  it('reports importDeps mismatches for inject-prefixed helpers', async () => {
-    const messages = await lintFixture({
-      'src/app/demo.ts': `
-        import { CommonModule } from '@angular/common';
-        import { Component } from '@angular/core';
-        import { brandAngularSymbol, deps } from '@craft-ng/core';
+        import {
+          type GetDeps,
+          type GetPublicComponentProperties,
+        } from '@craft-ng/core';
+        import { ApiService } from './api.service';
+        import { ChildComponent } from './child';
+        import { HttpClient } from './http-client';
+        import { UserStore } from './user.store';
 
         @Component({
-          imports: [CommonModule],
+          standalone: true,
+          imports: [ChildComponent],
+          providers: [UserStore],
+          template: '',
         })
-        class DemoComponent {
-          private api = injectApiService();
+        export class DemoComponent {
+          private readonly api = inject(ApiService);
+          private readonly http = inject(HttpClient);
         }
 
-        export default brandAngularSymbol(DemoComponent, deps({
-          injected: [injectApiService],
-          importDeps: [],
-          providers: [],
-        }));
+        export type GenDeps_DemoComponent = GetDeps<{
+          deps: {
+            ApiService: ApiService;
+          };
+          provided: {};
+          publicProperties: GetPublicComponentProperties<DemoComponent>;
+        }>;
       `,
-    });
+    } satisfies Record<string, string>;
+
+    const { messages } = await lintFixture(staleFixture);
 
     expect(messages).toEqual([
-      'deps.importDeps does not match the Angular symbol. Expected [CommonModule] but found [].',
+      'GenDeps_DemoComponent is out of date for deps, provided, and missingProvider. Run ESLint --fix on this file or craft-brand --root <source-root> to refresh it.',
     ]);
+
+    const { output } = await lintFixture(staleFixture, { fix: true });
+
+    expect(output).toMatch(
+      /import \{[^}]*ChildComponent[^}]*type GenDeps_ChildComponent[^}]*\} from ['"]\.\/child['"];/,
+    );
+    expect(output).toContain('ApiService: ApiService;');
+    expect(output).toContain(
+      'GenDeps_ChildComponent: GenDeps_ChildComponent;',
+    );
+    expect(output).toContain('HttpClient: HttpClient;');
+    expect(output).toContain('UserStore: UserStore;');
+    expect(output).toMatch(/missingProvider: \{[\s\S]*HttpClient: HttpClient;/);
   });
 
-  it('reports provider mismatches', async () => {
-    const messages = await lintFixture({
-      'src/app/demo.ts': `
-        import { Component } from '@angular/core';
-        import { brandAngularSymbol, deps } from '@craft-ng/core';
-
-        function provideDemo() {
-          return [];
-        }
-
-        @Component({
-          providers: [provideDemo()],
-        })
-        class DemoComponent {}
-
-        export default brandAngularSymbol(DemoComponent, deps({
-          injected: [],
-          importDeps: [],
-          providers: [],
-        }));
-      `,
-    });
-
-    expect(messages).toEqual([
-      'deps.providers does not match the Angular symbol. Expected [provideDemo] but found [].',
-    ]);
-  });
-
-  it('reports invalid deps shapes', async () => {
-    const messages = await lintFixture({
-      'src/app/demo.ts': `
-        import { Component } from '@angular/core';
-        import { brandAngularSymbol, deps } from '@craft-ng/core';
-
-        @Component({})
-        class DemoComponent {}
-
-        export default brandAngularSymbol(DemoComponent, deps([]));
-      `,
-    });
-
-    expect(messages).toEqual([
-      'deps(...) must be called with an object literal.',
-    ]);
-  });
-
-  it('applies project config rules when checking branded deps groups', async () => {
-    const messages = await lintFixture({
+  it('applies craft-brand.config.ts rules when autofixing GenDeps aliases', async () => {
+    const configFixture = {
       'craft-brand.config.ts': `
         import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
 
@@ -183,19 +170,65 @@ describe('brand-angular-deps/match-component-deps', () => {
       `,
       'src/app/demo.ts': `
         import { Component } from '@angular/core';
-        import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-        import { brandAngularSymbol, deps } from '@craft-ng/core';
+        import { TranslatePipe } from '@ngx-translate/core';
+        import {
+          type GetDeps,
+          type GetPublicComponentProperties,
+        } from '@craft-ng/core';
 
         @Component({
+          standalone: true,
           imports: [TranslatePipe],
+          template: '',
         })
-        class DemoComponent {}
+        export class DemoComponent {}
 
-        export default brandAngularSymbol(DemoComponent, deps({
-          injected: [TranslateService],
-          importDeps: [TranslatePipe],
-          providers: [],
-        }));
+        export type GenDeps_DemoComponent = GetDeps<{
+          deps: {
+            TranslatePipe: TranslatePipe;
+          };
+          provided: {};
+          publicProperties: GetPublicComponentProperties<DemoComponent>;
+        }>;
+      `,
+    } satisfies Record<string, string>;
+
+    const { messages: configMessages } = await lintFixture(configFixture);
+
+    expect(configMessages).toEqual([
+      'GenDeps_DemoComponent is out of date for deps and missingProvider. Run ESLint --fix on this file or craft-brand --root <source-root> to refresh it.',
+    ]);
+
+    const { output } = await lintFixture(
+      configFixture,
+      { fix: true },
+    );
+
+    expect(output).toMatch(
+      /import \{[^}]*TranslatePipe[^}]*type TranslateService[^}]*\} from ['"]@ngx-translate\/core['"];/,
+    );
+    expect(output).toContain('TranslateService: TranslateService;');
+    expect(output).toMatch(
+      /missingProvider: \{[\s\S]*TranslateService: TranslateService;/,
+    );
+  });
+
+  it('ignores files without an existing GenDeps alias', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { CommonModule } from '@angular/common';
+        import { Component, inject } from '@angular/core';
+
+        class ApiService {}
+
+        @Component({
+          standalone: true,
+          imports: [CommonModule],
+          template: '',
+        })
+        export class DemoComponent {
+          private readonly api = inject(ApiService);
+        }
       `,
     });
 
@@ -203,7 +236,15 @@ describe('brand-angular-deps/match-component-deps', () => {
   });
 });
 
-async function lintFixture(files: Record<string, string>): Promise<string[]> {
+async function lintFixture(
+  files: Record<string, string>,
+  options: {
+    fix?: boolean;
+  } = {},
+): Promise<{
+  messages: string[];
+  output: string | undefined;
+}> {
   const tempDirectory = await mkdtemp(join(tmpdir(), 'brand-angular-deps-rule-'));
   tempDirectories.push(tempDirectory);
 
@@ -221,11 +262,13 @@ async function lintFixture(files: Record<string, string>): Promise<string[]> {
       null,
       2,
     ),
+    ...baseFixtureFiles(),
     ...files,
   });
 
   const eslint = new ESLint({
     cwd: tempDirectory,
+    fix: options.fix,
     overrideConfigFile: true,
     overrideConfig: [
       {
@@ -252,7 +295,48 @@ async function lintFixture(files: Record<string, string>): Promise<string[]> {
   });
 
   const results = await eslint.lintFiles(['src/**/*.ts']);
-  return results.flatMap((result) => result.messages.map((message) => message.message));
+  if (options.fix) {
+    await ESLint.outputFixes(results);
+  }
+
+  const output = files['src/app/demo.ts']
+    ? await readFile(join(tempDirectory, 'src/app/demo.ts'), 'utf8')
+    : undefined;
+
+  return {
+    messages: results.flatMap((result) =>
+      result.messages.map((message) => message.message),
+    ),
+    output,
+  };
+}
+
+function baseFixtureFiles(): Record<string, string> {
+  return {
+    'src/angular-common.d.ts': `
+      declare module '@angular/common' {
+        export declare class CommonModule {}
+      }
+    `,
+    'src/angular-core.d.ts': `
+      declare module '@angular/core' {
+        export declare function Component(metadata: unknown): ClassDecorator;
+        export declare function Directive(metadata?: unknown): ClassDecorator;
+        export declare function Pipe(metadata?: unknown): ClassDecorator;
+        export declare function Injectable(metadata?: unknown): ClassDecorator;
+        export declare function inject<T>(token: T): T;
+      }
+    `,
+    'src/craft-ng-core.d.ts': `
+      declare module '@craft-ng/core' {
+        export type DerivedService<T, U> = T & U;
+        export type GetDeps<T> = T;
+        export type GetInjectedServiceDependencies<T> = T;
+        export type GetPublicComponentProperties<T> = T;
+        export type GetServiceOutput<T> = T;
+      }
+    `,
+  };
 }
 
 async function writeFixtureFiles(
