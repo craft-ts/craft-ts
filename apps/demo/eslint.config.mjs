@@ -24,6 +24,7 @@ export default [
           style: 'kebab-case',
         },
       ],
+      '@typescript-eslint/no-empty-object-type': 'off',
     },
   },
   {
