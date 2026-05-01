@@ -153,6 +153,54 @@ describe('brand-angular-deps/match-component-deps', () => {
       'deps(...) must be called with an object literal.',
     ]);
   });
+
+  it('applies project config rules when checking branded deps groups', async () => {
+    const messages = await lintFixture({
+      'craft-brand.config.ts': `
+        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+
+        export default defineAngularBrandConfig({
+          importAugmentations: [
+            {
+              match: {
+                module: '@ngx-translate/core',
+                symbols: ['TranslatePipe'],
+                metadata: ['imports'],
+              },
+              deps: [{ key: 'TranslateService', symbol: 'TranslateService' }],
+              missingProvider: [
+                { key: 'TranslateService', symbol: 'TranslateService' },
+              ],
+            },
+          ],
+        });
+      `,
+      'src/ngx-translate.d.ts': `
+        declare module '@ngx-translate/core' {
+          export declare class TranslatePipe {}
+          export declare class TranslateService {}
+        }
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+        import { brandAngularSymbol, deps } from '@craft-ng/core';
+
+        @Component({
+          imports: [TranslatePipe],
+        })
+        class DemoComponent {}
+
+        export default brandAngularSymbol(DemoComponent, deps({
+          injected: [TranslateService],
+          importDeps: [TranslatePipe],
+          providers: [],
+        }));
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
 });
 
 async function lintFixture(files: Record<string, string>): Promise<string[]> {
@@ -168,7 +216,7 @@ async function lintFixture(files: Record<string, string>): Promise<string[]> {
           strict: true,
           target: 'ES2022',
         },
-        include: ['src/**/*.ts'],
+        include: ['src/**/*.ts', 'src/**/*.d.ts'],
       },
       null,
       2,

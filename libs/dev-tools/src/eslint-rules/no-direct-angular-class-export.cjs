@@ -5,7 +5,11 @@ process.env.TS_NODE_PROJECT ??= path.resolve(
   __dirname,
   '../tsconfig.codemod.json',
 );
-require('ts-node/register/transpile-only');
+try {
+  require('ts-node/register/transpile-only');
+} catch {
+  require('@swc-node/register/register');
+}
 
 const { Project, Node, SyntaxKind } = require('ts-morph');
 const { getAngularKind } = require('../scripts/angular-brand-codemod.ts');

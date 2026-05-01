@@ -15,11 +15,33 @@ import {
   TypeNode,
   ts,
 } from 'ts-morph';
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { basename, extname, isAbsolute, join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export type AngularKind = 'component' | 'directive' | 'pipe' | 'injectable';
+export type AngularBrandMetadataContext = 'imports' | 'hostDirectives';
+
+export type AngularBrandConfigEntry = {
+  key: string;
+  symbol: string;
+  module?: string;
+};
+
+export type AngularBrandImportAugmentationRule = {
+  match: {
+    module: string;
+    symbols?: readonly string[];
+    metadata?: readonly AngularBrandMetadataContext[];
+  };
+  deps?: readonly AngularBrandConfigEntry[];
+  missingProvider?: readonly AngularBrandConfigEntry[];
+};
+
+export type AngularBrandConfig = {
+  importAugmentations?: readonly AngularBrandImportAugmentationRule[];
+};
 
 export type TransformResult = {
   changed: boolean;
@@ -38,6 +60,8 @@ export type AngularBrandCodemodOptions = {
   transformOnlyStandaloneDeclarables?: boolean;
   includeProviders?: boolean;
   includeViewProviders?: boolean;
+  config?: AngularBrandConfig;
+  configFilePath?: string;
 };
 
 export type AngularClassSearchResult = {
@@ -75,8 +99,9 @@ export type GeneratedDependencyGroups = {
 };
 
 type GeneratedDependencyGroupAugmentation = {
-  deps: GeneratedDependencyEntry[];
-  missingProvider: GeneratedDependencyEntry[];
+  deps: GeneratedDependencyDescriptor[];
+  missingProvider: GeneratedDependencyDescriptor[];
+  legacyInjectedDependencies: GeneratedDependencyDescriptor[];
 };
 
 export type DependencyAnalysisResult = Omit<TransformResult, 'changed'> & {
@@ -97,6 +122,7 @@ type MetadataDependencyGroups = {
   hostDirectives: string[];
   providers: string[];
   viewProviders: string[];
+  occurrences: MetadataDependencyOccurrence[];
   warnings: string[];
 };
 
@@ -110,6 +136,11 @@ type InjectedDependencyDescriptor = {
   entry: GeneratedDependencyEntry;
 };
 
+type GeneratedDependencyDescriptor = {
+  dependencyText: string;
+  entry: GeneratedDependencyEntry;
+};
+
 type InjectCallDependencyExtractionResult = DependencyExtractionResult & {
   generatedDependencies: InjectedDependencyDescriptor[];
 };
@@ -118,6 +149,7 @@ type DependencyReferenceResolution = {
   kind: 'class' | 'enum' | 'function' | 'variable' | 'namespace' | 'unknown';
   classDeclaration?: ClassDeclaration;
   moduleSpecifier?: string;
+  importedName?: string;
 };
 
 type TrackedHelperResolution = {
@@ -138,7 +170,35 @@ type HelperExposureTracking = {
   }>;
 };
 
-type NormalizedOptions = Required<AngularBrandCodemodOptions>;
+type MetadataDependencyOccurrence = {
+  dependencyText: string;
+  symbolName: string;
+  moduleSpecifier?: string;
+  metadataContext: AngularBrandMetadataContext;
+};
+
+type NormalizedAngularBrandImportAugmentationRule = {
+  match: {
+    module: string;
+    symbols?: string[];
+    metadata: AngularBrandMetadataContext[];
+  };
+  deps: AngularBrandConfigEntry[];
+  missingProvider: AngularBrandConfigEntry[];
+};
+
+type NormalizedAngularBrandConfig = {
+  importAugmentations: NormalizedAngularBrandImportAugmentationRule[];
+};
+
+type NormalizedOptions = {
+  helperImportPath: string;
+  transformOnlyStandaloneDeclarables: boolean;
+  includeProviders: boolean;
+  includeViewProviders: boolean;
+  config?: AngularBrandConfig;
+  configFilePath?: string;
+};
 
 type InjectDecoratorTokenResult =
   | { found: false }
@@ -168,7 +228,39 @@ const DEFAULT_OPTIONS: NormalizedOptions = {
   transformOnlyStandaloneDeclarables: false,
   includeProviders: true,
   includeViewProviders: true,
+  config: undefined,
+  configFilePath: undefined,
 };
+
+const ANGULAR_BRAND_CONFIG_FILE_NAME = 'craft-brand.config.ts';
+const DEFAULT_ANGULAR_BRAND_METADATA_CONTEXTS: AngularBrandMetadataContext[] = [
+  'imports',
+  'hostDirectives',
+];
+const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
+  importAugmentations: [
+    {
+      match: {
+        module: '@angular/router',
+      },
+      deps: [
+        {
+          key: 'Router',
+          symbol: 'Router',
+          module: '@angular/router',
+        },
+      ],
+      missingProvider: [
+        {
+          key: 'Router',
+          symbol: 'Router',
+          module: '@angular/router',
+        },
+      ],
+    },
+  ],
+});
+const angularBrandConfigCache = new Map<string, AngularBrandConfig>();
 
 const PRIMITIVE_TYPE_TEXTS = new Set([
   'any',
@@ -213,6 +305,369 @@ const IGNORED_DIRECTORIES = new Set([
   'out-tsc',
   'tmp',
 ]);
+
+export function defineAngularBrandConfig<Config extends AngularBrandConfig>(
+  config: Config,
+): Config {
+  return config;
+}
+
+export function discoverAngularBrandConfigFilePath(
+  searchFromDir: string,
+  stopDir?: string,
+): string | undefined {
+  const resolvedStopDir = stopDir ? resolve(stopDir) : undefined;
+  let currentDir = resolve(searchFromDir);
+
+  while (true) {
+    const candidatePath = join(currentDir, ANGULAR_BRAND_CONFIG_FILE_NAME);
+    if (existsSync(candidatePath) && statSync(candidatePath).isFile()) {
+      return candidatePath;
+    }
+
+    if (resolvedStopDir && currentDir === resolvedStopDir) {
+      return undefined;
+    }
+
+    const parentDir = dirname(currentDir);
+    if (parentDir === currentDir) {
+      return undefined;
+    }
+
+    currentDir = parentDir;
+  }
+}
+
+export function loadAngularBrandConfigFromFile(
+  configFilePath: string,
+): AngularBrandConfig {
+  const resolvedConfigFilePath = resolve(configFilePath);
+  const cachedConfig = angularBrandConfigCache.get(resolvedConfigFilePath);
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
+  if (
+    !existsSync(resolvedConfigFilePath) ||
+    !statSync(resolvedConfigFilePath).isFile()
+  ) {
+    throw new Error(
+      `Angular brand config file not found at "${resolvedConfigFilePath}".`,
+    );
+  }
+
+  try {
+    const sourceText = readFileSync(resolvedConfigFilePath, 'utf8');
+    const transpiled = ts.transpileModule(sourceText, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+      },
+      fileName: resolvedConfigFilePath,
+    });
+    const module = { exports: {} as Record<string, unknown> };
+    const moduleRequire = createRequire(resolvedConfigFilePath);
+    const compiledModule = new Function(
+      'exports',
+      'require',
+      'module',
+      '__filename',
+      '__dirname',
+      transpiled.outputText,
+    ) as (
+      exports: Record<string, unknown>,
+      require: (specifier: string) => unknown,
+      module: { exports: Record<string, unknown> },
+      __filename: string,
+      __dirname: string,
+    ) => void;
+
+    compiledModule(
+      module.exports,
+      (specifier: string) => {
+        if (specifier === '@craft-ng/dev-tools') {
+          return { defineAngularBrandConfig };
+        }
+
+        return moduleRequire(specifier);
+      },
+      module,
+      resolvedConfigFilePath,
+      dirname(resolvedConfigFilePath),
+    );
+
+    const exportedConfig =
+      module.exports.default ?? (module.exports.__esModule ? module.exports.default : module.exports);
+    const validatedConfig = validateAngularBrandConfig(
+      exportedConfig,
+      resolvedConfigFilePath,
+    );
+
+    angularBrandConfigCache.set(resolvedConfigFilePath, validatedConfig);
+    return validatedConfig;
+  } catch (error: unknown) {
+    throw new Error(
+      `Invalid Angular brand config at "${resolvedConfigFilePath}": ${getErrorMessage(error)}`,
+    );
+  }
+}
+
+function resolveAngularBrandConfig(
+  sourceFile: SourceFile,
+  options: NormalizedOptions,
+): NormalizedAngularBrandConfig {
+  const explicitConfig =
+    options.config ??
+    (options.configFilePath
+      ? loadAngularBrandConfigFromFile(options.configFilePath)
+      : loadDiscoveredAngularBrandConfig(dirname(sourceFile.getFilePath())));
+
+  return normalizeAngularBrandConfig(explicitConfig);
+}
+
+function loadDiscoveredAngularBrandConfig(
+  searchFromDir: string,
+  stopDir?: string,
+): AngularBrandConfig | undefined {
+  const discoveredConfigPath = discoverAngularBrandConfigFilePath(
+    searchFromDir,
+    stopDir,
+  );
+
+  return discoveredConfigPath
+    ? loadAngularBrandConfigFromFile(discoveredConfigPath)
+    : undefined;
+}
+
+function normalizeAngularBrandConfig(
+  config?: AngularBrandConfig,
+): NormalizedAngularBrandConfig {
+  const builtInRules = (DEFAULT_ANGULAR_BRAND_CONFIG.importAugmentations ?? []).map(
+    normalizeAngularBrandImportAugmentationRule,
+  );
+  const configuredRules = (config?.importAugmentations ?? []).map(
+    normalizeAngularBrandImportAugmentationRule,
+  );
+
+  return {
+    importAugmentations: [...builtInRules, ...configuredRules],
+  };
+}
+
+function normalizeAngularBrandImportAugmentationRule(
+  rule: AngularBrandImportAugmentationRule,
+): NormalizedAngularBrandImportAugmentationRule {
+  return {
+    match: {
+      module: rule.match.module,
+      symbols: rule.match.symbols ? [...rule.match.symbols] : undefined,
+      metadata: rule.match.metadata
+        ? [...rule.match.metadata]
+        : [...DEFAULT_ANGULAR_BRAND_METADATA_CONTEXTS],
+    },
+    deps: rule.deps ? [...rule.deps] : [],
+    missingProvider: rule.missingProvider ? [...rule.missingProvider] : [],
+  };
+}
+
+function validateAngularBrandConfig(
+  value: unknown,
+  configFilePath: string,
+): AngularBrandConfig {
+  if (!isPlainObject(value)) {
+    throw new Error('Expected the default export to be an object.');
+  }
+
+  const importAugmentations = readOptionalArray(
+    value.importAugmentations,
+    'importAugmentations',
+    configFilePath,
+  )?.map((entry, index) =>
+    validateAngularBrandImportAugmentationRule(
+      entry,
+      `importAugmentations[${index}]`,
+      configFilePath,
+    ),
+  );
+
+  return {
+    importAugmentations: importAugmentations ?? [],
+  };
+}
+
+function validateAngularBrandImportAugmentationRule(
+  value: unknown,
+  pathLabel: string,
+  configFilePath: string,
+): AngularBrandImportAugmentationRule {
+  if (!isPlainObject(value)) {
+    throw new Error(`${pathLabel} must be an object.`);
+  }
+
+  if (!isPlainObject(value.match)) {
+    throw new Error(`${pathLabel}.match must be an object.`);
+  }
+
+  const moduleSpecifier = readRequiredString(
+    value.match.module,
+    `${pathLabel}.match.module`,
+    configFilePath,
+  );
+  const symbols = readOptionalStringArray(
+    value.match.symbols,
+    `${pathLabel}.match.symbols`,
+    configFilePath,
+  );
+  const metadata =
+    readOptionalStringArray(
+      value.match.metadata,
+      `${pathLabel}.match.metadata`,
+      configFilePath,
+    )?.map((context) => validateAngularBrandMetadataContext(context, pathLabel)) ??
+    undefined;
+
+  return {
+    match: {
+      module: moduleSpecifier,
+      symbols,
+      metadata,
+    },
+    deps:
+      readOptionalArray(value.deps, `${pathLabel}.deps`, configFilePath)?.map(
+        (entry, index) =>
+          validateAngularBrandConfigEntry(
+            entry,
+            `${pathLabel}.deps[${index}]`,
+            configFilePath,
+          ),
+      ) ?? [],
+    missingProvider:
+      readOptionalArray(
+        value.missingProvider,
+        `${pathLabel}.missingProvider`,
+        configFilePath,
+      )?.map((entry, index) =>
+        validateAngularBrandConfigEntry(
+          entry,
+          `${pathLabel}.missingProvider[${index}]`,
+          configFilePath,
+        ),
+      ) ?? [],
+  };
+}
+
+function validateAngularBrandConfigEntry(
+  value: unknown,
+  pathLabel: string,
+  configFilePath: string,
+): AngularBrandConfigEntry {
+  if (!isPlainObject(value)) {
+    throw new Error(`${pathLabel} must be an object.`);
+  }
+
+  const key = readRequiredString(value.key, `${pathLabel}.key`, configFilePath);
+  const symbol = readRequiredString(
+    value.symbol,
+    `${pathLabel}.symbol`,
+    configFilePath,
+  );
+  const moduleSpecifier = readOptionalString(
+    value.module,
+    `${pathLabel}.module`,
+    configFilePath,
+  );
+
+  return {
+    key,
+    symbol,
+    module: moduleSpecifier,
+  };
+}
+
+function validateAngularBrandMetadataContext(
+  value: string,
+  pathLabel: string,
+): AngularBrandMetadataContext {
+  if (value === 'imports' || value === 'hostDirectives') {
+    return value;
+  }
+
+  throw new Error(
+    `${pathLabel}.match.metadata must contain only "imports" or "hostDirectives".`,
+  );
+}
+
+function readOptionalArray(
+  value: unknown,
+  pathLabel: string,
+  configFilePath: string,
+): unknown[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error(`${pathLabel} in "${configFilePath}" must be an array.`);
+  }
+
+  return value;
+}
+
+function readRequiredString(
+  value: unknown,
+  pathLabel: string,
+  configFilePath: string,
+): string {
+  const stringValue = readOptionalString(value, pathLabel, configFilePath);
+  if (!stringValue) {
+    throw new Error(`${pathLabel} in "${configFilePath}" must be a string.`);
+  }
+
+  return stringValue;
+}
+
+function readOptionalString(
+  value: unknown,
+  pathLabel: string,
+  configFilePath: string,
+): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== 'string') {
+    throw new Error(`${pathLabel} in "${configFilePath}" must be a string.`);
+  }
+
+  return value;
+}
+
+function readOptionalStringArray(
+  value: unknown,
+  pathLabel: string,
+  configFilePath: string,
+): string[] | undefined {
+  const arrayValue = readOptionalArray(value, pathLabel, configFilePath);
+  if (!arrayValue) {
+    return undefined;
+  }
+
+  return arrayValue.map((entry, index) =>
+    readRequiredString(entry, `${pathLabel}[${index}]`, configFilePath),
+  );
+}
+
+function isPlainObject(
+  value: unknown,
+): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export function transformSourceFile(
   sourceFile: SourceFile,
@@ -264,6 +719,10 @@ export function analyzeSourceFileDependencies(
   options: AngularBrandCodemodOptions = {},
 ): DependencyAnalysisResult {
   const normalizedOptions = normalizeOptions(options);
+  const angularBrandConfig = resolveAngularBrandConfig(
+    sourceFile,
+    normalizedOptions,
+  );
   const result: DependencyAnalysisResult = {
     skipped: false,
     warnings: [],
@@ -326,6 +785,27 @@ export function analyzeSourceFileDependencies(
       : { entries: [], warnings: [] };
   const constructorDeps = extractConstructorDeps(classDeclaration);
   const injectCallDeps = extractInjectCallDeps(classDeclaration);
+  const generatedDependencyAugmentation =
+    createGeneratedDependencyGroupAugmentation(
+      sourceFile,
+      metadataDeps.occurrences,
+      angularBrandConfig,
+    );
+  const syntheticDependencyTexts = mergeDeps(
+    generatedDependencyAugmentation.deps.map(
+      (dependency) => dependency.dependencyText,
+    ),
+    generatedDependencyAugmentation.legacyInjectedDependencies.map(
+      (dependency) => dependency.dependencyText,
+    ),
+  );
+  const injectedDependencies = [
+    ...constructorDeps.dependencies.map((dependencyText) => ({
+      dependencyText,
+      entry: createGeneratedDependencyEntry(sourceFile, dependencyText, 'inject'),
+    })),
+      ...injectCallDeps.generatedDependencies,
+  ];
 
   result.warnings.push(
     ...metadataDeps.warnings,
@@ -340,32 +820,24 @@ export function analyzeSourceFileDependencies(
     metadataDeps.hostDirectives,
     metadataDeps.providers,
     metadataDeps.viewProviders,
+    syntheticDependencyTexts,
   );
   result.dependencyGroups = {
     injected: mergeDeps(
       constructorDeps.dependencies,
       injectCallDeps.dependencies,
+      generatedDependencyAugmentation.legacyInjectedDependencies.map(
+        (dependency) => dependency.dependencyText,
+      ),
     ),
     importDeps: mergeDeps(metadataDeps.imports, metadataDeps.hostDirectives),
     providers: mergeDeps(metadataDeps.providers, metadataDeps.viewProviders),
   };
-  const generatedDependencyAugmentation =
-    createGeneratedDependencyGroupAugmentation(sourceFile, metadataDeps);
   result.generatedTypeName = getGeneratedDepsTypeName(className);
   result.generatedDependencyGroups = createGeneratedDependencyGroups(
     sourceFile,
     result.dependencyGroups.importDeps,
-    [
-      ...constructorDeps.dependencies.map((dependencyText) => ({
-        dependencyText,
-        entry: createGeneratedDependencyEntry(
-          sourceFile,
-          dependencyText,
-          'inject',
-        ),
-      })),
-      ...injectCallDeps.generatedDependencies,
-    ],
+    injectedDependencies,
     providedDeps.entries,
     generatedDependencyAugmentation,
   );
@@ -618,6 +1090,7 @@ function emptyGeneratedDependencyGroupAugmentation(): GeneratedDependencyGroupAu
   return {
     deps: [],
     missingProvider: [],
+    legacyInjectedDependencies: [],
   };
 }
 
@@ -637,7 +1110,7 @@ function createGeneratedDependencyGroups(
       createGeneratedDependencyEntry(sourceFile, dependency, 'import'),
     ),
     injectedDependencies.map((dependency) => dependency.entry),
-    augmentation.deps,
+    augmentation.deps.map((dependency) => dependency.entry),
   );
   const provided = mergeGeneratedDependencyEntries(providedEntries);
   const providedKeys = new Set(provided.map((entry) => entry.key));
@@ -668,9 +1141,9 @@ function createGeneratedDependencyGroups(
             'inject',
           ),
       ),
-    augmentation.missingProvider.filter(
-      (entry) => !providedKeys.has(entry.key),
-    ),
+    augmentation.missingProvider
+      .map((dependency) => dependency.entry)
+      .filter((entry) => !providedKeys.has(entry.key)),
   );
 
   return {
@@ -682,36 +1155,81 @@ function createGeneratedDependencyGroups(
 
 function createGeneratedDependencyGroupAugmentation(
   sourceFile: SourceFile,
-  metadataDependencies: Pick<
-    MetadataDependencyGroups,
-    'imports' | 'hostDirectives'
-  >,
+  metadataOccurrences: MetadataDependencyOccurrence[],
+  config: NormalizedAngularBrandConfig,
 ): GeneratedDependencyGroupAugmentation {
-  const metadataImportDependencies = mergeDeps(
-    metadataDependencies.imports,
-    metadataDependencies.hostDirectives,
-  );
-
-  if (
-    !metadataImportDependencies.some(
-      (dependencyText) =>
-        resolveDependencyReference(sourceFile, dependencyText).moduleSpecifier ===
-        '@angular/router',
-    )
-  ) {
+  if (metadataOccurrences.length === 0) {
     return emptyGeneratedDependencyGroupAugmentation();
   }
 
-  const routerEntry = createSyntheticGeneratedDependencyEntry(
-    sourceFile,
-    'Router',
-    'inject',
-    '@angular/router',
-  );
+  const deps: GeneratedDependencyDescriptor[] = [];
+  const missingProvider: GeneratedDependencyDescriptor[] = [];
+  const legacyInjectedDependencies: GeneratedDependencyDescriptor[] = [];
+
+  for (const rule of config.importAugmentations) {
+    if (!metadataOccurrences.some((occurrence) => ruleMatchesMetadataOccurrence(rule, occurrence))) {
+      continue;
+    }
+
+    const generatedDeps = rule.deps.map((entry) =>
+      createConfiguredGeneratedDependencyDescriptor(
+        sourceFile,
+        entry,
+        rule.match.module,
+      ),
+    );
+    const generatedMissingProviders = rule.missingProvider.map((entry) =>
+      createConfiguredGeneratedDependencyDescriptor(
+        sourceFile,
+        entry,
+        rule.match.module,
+      ),
+    );
+
+    deps.push(...generatedDeps);
+    missingProvider.push(...generatedMissingProviders);
+    legacyInjectedDependencies.push(...generatedMissingProviders);
+  }
 
   return {
-    deps: [routerEntry],
-    missingProvider: [routerEntry],
+    deps,
+    missingProvider,
+    legacyInjectedDependencies,
+  };
+}
+
+function ruleMatchesMetadataOccurrence(
+  rule: NormalizedAngularBrandImportAugmentationRule,
+  occurrence: MetadataDependencyOccurrence,
+): boolean {
+  if (occurrence.moduleSpecifier !== rule.match.module) {
+    return false;
+  }
+
+  if (!rule.match.metadata.includes(occurrence.metadataContext)) {
+    return false;
+  }
+
+  return (
+    !rule.match.symbols ||
+    rule.match.symbols.includes(occurrence.symbolName)
+  );
+}
+
+function createConfiguredGeneratedDependencyDescriptor(
+  sourceFile: SourceFile,
+  entry: AngularBrandConfigEntry,
+  defaultModuleSpecifier: string,
+): GeneratedDependencyDescriptor {
+  return {
+    dependencyText: entry.symbol,
+    entry: createSyntheticGeneratedDependencyEntry(
+      sourceFile,
+      entry.symbol,
+      'inject',
+      entry.module ?? defaultModuleSpecifier,
+      entry.key,
+    ),
   };
 }
 
@@ -769,9 +1287,11 @@ function createSyntheticGeneratedDependencyEntry(
   dependencyText: string,
   context: 'import' | 'inject',
   moduleSpecifier: string,
+  key = createGeneratedDependencyKey(dependencyText),
 ): GeneratedDependencyEntry {
   return {
     ...createGeneratedDependencyEntry(sourceFile, dependencyText, context),
+    key,
     typeImport: {
       moduleSpecifier,
       name: dependencyText,
@@ -1216,7 +1736,10 @@ function ensureGeneratedDependencyTypeImports(
 ): void {
   const importsToAdd = new Map<string, Set<string>>();
 
-  for (const entry of generatedDependencyGroups.deps) {
+  for (const entry of [
+    ...generatedDependencyGroups.deps,
+    ...generatedDependencyGroups.missingProvider,
+  ]) {
     if (!entry.typeImport) {
       continue;
     }
@@ -1624,6 +2147,11 @@ export async function runAngularBrandCodemod(
   } = {},
 ): Promise<RunSummary> {
   const rootDir = resolve(options.rootDir ?? process.cwd());
+  const config =
+    options.config ??
+    (options.configFilePath
+      ? loadAngularBrandConfigFromFile(options.configFilePath)
+      : loadDiscoveredAngularBrandConfig(rootDir));
   const tsConfigFilePath = options.tsConfigFilePath
     ? resolve(options.tsConfigFilePath)
     : getDefaultTsConfigPath(rootDir);
@@ -1651,7 +2179,10 @@ export async function runAngularBrandCodemod(
       continue;
     }
 
-    const result = transformSourceFile(sourceFile, options);
+    const result = transformSourceFile(sourceFile, {
+      ...options,
+      config,
+    });
     const report: RunFileReport = {
       ...result,
       filePath: sourceFile.getFilePath(),
@@ -1698,6 +2229,8 @@ function normalizeOptions(
       options.includeProviders ?? DEFAULT_OPTIONS.includeProviders,
     includeViewProviders:
       options.includeViewProviders ?? DEFAULT_OPTIONS.includeViewProviders,
+    config: options.config,
+    configFilePath: options.configFilePath,
   };
 }
 
@@ -1793,6 +2326,7 @@ function extractDecoratorMetadataDepGroups(
   angularKind: AngularKind,
   options: NormalizedOptions,
 ): MetadataDependencyGroups {
+  const sourceFile = classDeclaration.getSourceFile();
   const metadata = getDecoratorMetadataObject(classDeclaration);
   const groups = emptyMetadataDependencyGroups();
 
@@ -1831,6 +2365,19 @@ function extractDecoratorMetadataDepGroups(
     );
   }
 
+  groups.occurrences = [
+    ...groups.imports.map((dependencyText) =>
+      createMetadataDependencyOccurrence(sourceFile, dependencyText, 'imports'),
+    ),
+    ...groups.hostDirectives.map((dependencyText) =>
+      createMetadataDependencyOccurrence(
+        sourceFile,
+        dependencyText,
+        'hostDirectives',
+      ),
+    ),
+  ];
+
   return groups;
 }
 
@@ -1840,7 +2387,24 @@ function emptyMetadataDependencyGroups(): MetadataDependencyGroups {
     hostDirectives: [],
     providers: [],
     viewProviders: [],
+    occurrences: [],
     warnings: [],
+  };
+}
+
+function createMetadataDependencyOccurrence(
+  sourceFile: SourceFile,
+  dependencyText: string,
+  metadataContext: AngularBrandMetadataContext,
+): MetadataDependencyOccurrence {
+  const resolution = resolveDependencyReference(sourceFile, dependencyText);
+
+  return {
+    dependencyText,
+    symbolName:
+      resolution.importedName ?? dependencyText.split('.').pop() ?? dependencyText,
+    moduleSpecifier: resolution.moduleSpecifier,
+    metadataContext,
   };
 }
 
@@ -2268,11 +2832,12 @@ function resolveImportedDependencyReference(
         return {
           kind: 'class',
           classDeclaration: declaration,
+          importedName: rootIdentifier,
           moduleSpecifier,
         };
       }
 
-      return { kind: 'unknown', moduleSpecifier };
+      return { kind: 'unknown', importedName: rootIdentifier, moduleSpecifier };
     }
 
     if (importDeclaration.getNamespaceImport()?.getText() === rootIdentifier) {
@@ -2284,11 +2849,16 @@ function resolveImportedDependencyReference(
         return {
           kind: 'class',
           classDeclaration: declaration,
+          importedName: dependencyText.split('.').pop(),
           moduleSpecifier,
         };
       }
 
-      return { kind: 'namespace', moduleSpecifier };
+      return {
+        kind: 'namespace',
+        importedName: dependencyText.split('.').pop(),
+        moduleSpecifier,
+      };
     }
 
     const namedImport = importDeclaration
@@ -2318,6 +2888,7 @@ function resolveImportedDependencyReference(
       return {
         kind: 'class',
         classDeclaration,
+        importedName: namedImport.getNameNode().getText(),
         moduleSpecifier,
       };
     }
@@ -2325,7 +2896,11 @@ function resolveImportedDependencyReference(
     if (
       declarations.some((declaration) => Node.isEnumDeclaration(declaration))
     ) {
-      return { kind: 'enum', moduleSpecifier };
+      return {
+        kind: 'enum',
+        importedName: namedImport.getNameNode().getText(),
+        moduleSpecifier,
+      };
     }
 
     if (
@@ -2333,7 +2908,11 @@ function resolveImportedDependencyReference(
         Node.isFunctionDeclaration(declaration),
       )
     ) {
-      return { kind: 'function', moduleSpecifier };
+      return {
+        kind: 'function',
+        importedName: namedImport.getNameNode().getText(),
+        moduleSpecifier,
+      };
     }
 
     if (
@@ -2341,10 +2920,18 @@ function resolveImportedDependencyReference(
         Node.isVariableDeclaration(declaration),
       )
     ) {
-      return { kind: 'variable', moduleSpecifier };
+      return {
+        kind: 'variable',
+        importedName: namedImport.getNameNode().getText(),
+        moduleSpecifier,
+      };
     }
 
-    return { kind: 'unknown', moduleSpecifier };
+    return {
+      kind: 'unknown',
+      importedName: namedImport.getNameNode().getText(),
+      moduleSpecifier,
+    };
   }
 
   return undefined;
@@ -3043,6 +3630,9 @@ function parseCliArgs(argv: string[]): AngularBrandCodemodOptions & {
       case '--tsconfig':
         options.tsConfigFilePath = argv[++index];
         break;
+      case '--config':
+        options.configFilePath = argv[++index];
+        break;
       case '--helper-import':
         options.helperImportPath = argv[++index];
         break;
@@ -3075,6 +3665,7 @@ function printHelpAndExit(): never {
 Options:
   --root <dir>                                  Project root. Defaults to cwd.
   --tsconfig <path>                            tsconfig path. Defaults to <root>/tsconfig.json.
+  --config <path>                              Explicit angular brand config file path.
   --helper-import <path>                       Import path for GetDeps.
   --transform-only-standalone-declarables      Only transform standalone components/directives.
   --no-providers                               Do not include metadata providers in generated types.

@@ -5,11 +5,16 @@ process.env.TS_NODE_PROJECT ??= path.resolve(
   __dirname,
   '../tsconfig.codemod.json',
 );
-require('ts-node/register/transpile-only');
+try {
+  require('ts-node/register/transpile-only');
+} catch {
+  require('@swc-node/register/register');
+}
 
 const { Project } = require('ts-morph');
 const {
   analyzeSourceFileDependencies,
+  discoverAngularBrandConfigFilePath,
   readExistingDependencyGroups,
 } = require('../scripts/angular-brand-codemod.ts');
 
@@ -43,7 +48,13 @@ module.exports = {
           filePath,
           text,
         );
-        const analysis = analyzeSourceFileDependencies(sourceFile);
+        const configFilePath = discoverAngularBrandConfigFilePath(
+          path.dirname(filePath),
+          getCwd(context),
+        );
+        const analysis = analyzeSourceFileDependencies(sourceFile, {
+          configFilePath,
+        });
         if (
           !analysis.classDeclaration ||
           analysis.skipped ||

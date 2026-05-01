@@ -35,6 +35,10 @@ describe('docs sidebar', () => {
           text: 'Browser Boundaries',
           link: '/type-safe-di-routes/browser-boundaries',
         },
+        {
+          text: 'Angular Brand Config',
+          link: '/type-safe-di-routes/angular-brand-config',
+        },
       ],
     });
   });
@@ -100,5 +104,38 @@ describe('toCraftService doc page', () => {
     );
     expect(content).toContain("listUsers: () => http.get<User[]>('/api/users'),");
     expect(content).toContain("http.post<User>('/api/users', payload)");
+  });
+});
+
+describe('Angular Brand Config doc page', () => {
+  const content = readFileSync(
+    new URL('../type-safe-di-routes/angular-brand-config.md', import.meta.url),
+    'utf8',
+  );
+
+  it('documents the project config entrypoint and the main rule shape', () => {
+    expect(content).toContain('# Angular Brand Config');
+    expect(content).toContain('craft-brand.config.ts');
+    expect(content).toContain('defineAngularBrandConfig');
+    expect(content).toContain('importAugmentations');
+    expect(content).toContain("module: '@ngx-translate/core'");
+    expect(content).toContain("symbols: ['TranslatePipe']");
+    expect(content).toContain("metadata: ['imports']");
+  });
+
+  it('documents the generated deps and lint alignment behavior', () => {
+    expect(content).toContain('TranslateService: TranslateService;');
+    expect(content).toContain('missingProvider');
+    expect(content).toContain('brand-angular-deps-match');
+    expect(content).toContain('A plain TypeScript import in the file is ignored');
+  });
+
+  it('mentions the built-in router augmentation and related docs', () => {
+    expect(content).toContain('@angular/router');
+    expect(content).toContain('Router');
+    expect(content).toContain('[`toCraftService`](/store/to-craft-service)');
+    expect(content).toContain(
+      '[`Browser Boundaries`](/type-safe-di-routes/browser-boundaries)',
+    );
   });
 });

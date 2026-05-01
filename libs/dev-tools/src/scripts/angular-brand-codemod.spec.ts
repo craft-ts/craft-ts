@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Project } from 'ts-morph';
-import { transformSourceFile } from './angular-brand-codemod';
+import {
+  discoverAngularBrandConfigFilePath,
+  loadAngularBrandConfigFromFile,
+  transformSourceFile,
+} from './angular-brand-codemod';
 
 const tempDirectories: string[] = [];
 
@@ -393,6 +397,442 @@ describe('angular-brand-codemod', () => {
     expect(output).toMatch(/provided: \{[\s\S]*Router: Router;/);
     expect(output).not.toMatch(/missingProvider: \{[\s\S]*Router: Router;/);
   });
+
+  it('applies inline project config rules for metadata imports', async () => {
+    const project = await createTranslateProjectFixture({
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { TranslatePipe } from '@ngx-translate/core';
+
+        @Component({
+          standalone: true,
+          imports: [TranslatePipe],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile, {
+      config: {
+        importAugmentations: [
+          {
+            match: {
+              module: '@ngx-translate/core',
+              symbols: ['TranslatePipe'],
+              metadata: ['imports'],
+            },
+            deps: [{ key: 'TranslateService', symbol: 'TranslateService' }],
+            missingProvider: [
+              { key: 'TranslateService', symbol: 'TranslateService' },
+            ],
+          },
+        ],
+      },
+    });
+    const output = sourceFile.getFullText();
+
+    expect(output).toMatch(
+      /import \{[^}]*TranslatePipe[^}]*type TranslateService[^}]*\} from ['"]@ngx-translate\/core['"];/,
+    );
+    expect(extractGeneratedSection(output, 'deps')).toContain(
+      'TranslateService: TranslateService;',
+    );
+    expect(extractGeneratedSection(output, 'missingProvider')).toContain(
+      'TranslateService: TranslateService;',
+    );
+  });
+
+  it('auto-discovers craft-brand.config.ts from the source file directory', async () => {
+    const project = await createTranslateProjectFixture({
+      'craft-brand.config.ts': `
+        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+
+        export default defineAngularBrandConfig({
+          importAugmentations: [
+            {
+              match: {
+                module: '@ngx-translate/core',
+                symbols: ['TranslatePipe'],
+                metadata: ['imports'],
+              },
+              deps: [{ key: 'TranslateService', symbol: 'TranslateService' }],
+              missingProvider: [
+                { key: 'TranslateService', symbol: 'TranslateService' },
+              ],
+            },
+          ],
+        });
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { TranslatePipe } from '@ngx-translate/core';
+
+        @Component({
+          standalone: true,
+          imports: [TranslatePipe],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const rootDirectory = tempDirectories[tempDirectories.length - 1]!;
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    const discoveredPath = discoverAngularBrandConfigFilePath(
+      join(rootDirectory, 'src/app'),
+    );
+
+    expect(discoveredPath).toBe(join(rootDirectory, 'craft-brand.config.ts'));
+
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(extractGeneratedSection(output, 'deps')).toContain(
+      'TranslateService: TranslateService;',
+    );
+    expect(extractGeneratedSection(output, 'missingProvider')).toContain(
+      'TranslateService: TranslateService;',
+    );
+  });
+
+  it('does not trigger project config rules for plain TS imports outside metadata', async () => {
+    const project = await createTranslateProjectFixture({
+      'craft-brand.config.ts': `
+        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+
+        export default defineAngularBrandConfig({
+          importAugmentations: [
+            {
+              match: {
+                module: '@ngx-translate/core',
+                symbols: ['TranslatePipe'],
+                metadata: ['imports'],
+              },
+              deps: [{ key: 'TranslateService', symbol: 'TranslateService' }],
+              missingProvider: [
+                { key: 'TranslateService', symbol: 'TranslateService' },
+              ],
+            },
+          ],
+        });
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { TranslatePipe } from '@ngx-translate/core';
+
+        @Component({
+          standalone: true,
+          imports: [],
+          template: '',
+        })
+        export class DemoComponent {
+          protected readonly unused = TranslatePipe;
+        }
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(extractGeneratedSection(output, 'deps')).not.toContain(
+      'TranslateService: TranslateService;',
+    );
+    expect(output).not.toContain('type TranslateService');
+    expect(extractGeneratedSection(output, 'missingProvider')).toBe('');
+  });
+
+  it('supports project config rules for hostDirectives metadata', async () => {
+    const project = await createProjectFixture({
+      'src/angular-core.d.ts': `
+        declare module '@angular/core' {
+          export declare function Component(metadata: unknown): ClassDecorator;
+          export declare function Directive(metadata?: unknown): ClassDecorator;
+        }
+      `,
+      'src/acme-host.d.ts': `
+        declare module '@acme/host' {
+          export declare class HostFeatureDirective {}
+          export declare class HostFeatureService {}
+        }
+      `,
+      'craft-brand.config.ts': `
+        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+
+        export default defineAngularBrandConfig({
+          importAugmentations: [
+            {
+              match: {
+                module: '@acme/host',
+                symbols: ['HostFeatureDirective'],
+                metadata: ['hostDirectives'],
+              },
+              deps: [{ key: 'HostFeatureService', symbol: 'HostFeatureService' }],
+              missingProvider: [
+                { key: 'HostFeatureService', symbol: 'HostFeatureService' },
+              ],
+            },
+          ],
+        });
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { HostFeatureDirective } from '@acme/host';
+
+        @Component({
+          standalone: true,
+          hostDirectives: [HostFeatureDirective],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(extractGeneratedSection(output, 'deps')).toContain(
+      'HostFeatureService: HostFeatureService;',
+    );
+    expect(extractGeneratedSection(output, 'missingProvider')).toContain(
+      'HostFeatureService: HostFeatureService;',
+    );
+  });
+
+  it('deduplicates project config entries when several metadata symbols match the same rule', async () => {
+    const project = await createTranslateProjectFixture({
+      'craft-brand.config.ts': `
+        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+
+        export default defineAngularBrandConfig({
+          importAugmentations: [
+            {
+              match: {
+                module: '@ngx-translate/core',
+                metadata: ['imports', 'hostDirectives'],
+              },
+              deps: [{ key: 'TranslateService', symbol: 'TranslateService' }],
+              missingProvider: [
+                { key: 'TranslateService', symbol: 'TranslateService' },
+              ],
+            },
+          ],
+        });
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import {
+          TranslateDirective,
+          TranslatePipe,
+        } from '@ngx-translate/core';
+
+        @Component({
+          standalone: true,
+          imports: [TranslatePipe],
+          hostDirectives: [TranslateDirective],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(output.match(/TranslateService: TranslateService;/g) ?? []).toHaveLength(2);
+    expect(output.match(/type TranslateService/g) ?? []).toHaveLength(1);
+  });
+
+  it('removes configured missing providers when the key is already provided locally', async () => {
+    const project = await createTranslateProjectFixture({
+      'craft-brand.config.ts': `
+        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+
+        export default defineAngularBrandConfig({
+          importAugmentations: [
+            {
+              match: {
+                module: '@ngx-translate/core',
+                symbols: ['TranslatePipe'],
+                metadata: ['imports'],
+              },
+              deps: [{ key: 'TranslateService', symbol: 'TranslateService' }],
+              missingProvider: [
+                { key: 'TranslateService', symbol: 'TranslateService' },
+              ],
+            },
+          ],
+        });
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+
+        @Component({
+          standalone: true,
+          imports: [TranslatePipe],
+          providers: [TranslateService],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(extractGeneratedSection(output, 'deps')).toContain(
+      'TranslateService: TranslateService;',
+    );
+    expect(extractGeneratedSection(output, 'provided')).toContain(
+      'TranslateService: TranslateService;',
+    );
+    expect(extractGeneratedSection(output, 'missingProvider')).not.toContain(
+      'TranslateService: TranslateService;',
+    );
+  });
+
+  it('adds type imports for configured missingProvider-only entries', async () => {
+    const project = await createTranslateProjectFixture({
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { TranslatePipe } from '@ngx-translate/core';
+
+        @Component({
+          standalone: true,
+          imports: [TranslatePipe],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile, {
+      config: {
+        importAugmentations: [
+          {
+            match: {
+              module: '@ngx-translate/core',
+              symbols: ['TranslatePipe'],
+              metadata: ['imports'],
+            },
+            missingProvider: [
+              { key: 'TranslateService', symbol: 'TranslateService' },
+            ],
+          },
+        ],
+      },
+    });
+    const output = sourceFile.getFullText();
+
+    expect(output).toMatch(
+      /import \{[^}]*TranslatePipe[^}]*type TranslateService[^}]*\} from ['"]@ngx-translate\/core['"];/,
+    );
+    expect(extractGeneratedSection(output, 'deps')).not.toContain(
+      'TranslateService: TranslateService;',
+    );
+    expect(extractGeneratedSection(output, 'missingProvider')).toContain(
+      'TranslateService: TranslateService;',
+    );
+  });
+
+  it('throws a clear error for invalid project config files', async () => {
+    const project = await createTranslateProjectFixture({
+      'craft-brand.config.ts': `
+        export default 42;
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { TranslatePipe } from '@ngx-translate/core';
+
+        @Component({
+          standalone: true,
+          imports: [TranslatePipe],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+
+    expect(() => transformSourceFile(sourceFile)).toThrow(
+      /Invalid Angular brand config at ".*craft-brand\.config\.ts": Expected the default export to be an object\./,
+    );
+  });
+
+  it('prefers an explicit configFilePath over auto-discovery', async () => {
+    const project = await createTranslateProjectFixture({
+      'craft-brand.config.ts': `
+        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+
+        export default defineAngularBrandConfig({
+          importAugmentations: [
+            {
+              match: {
+                module: '@ngx-translate/core',
+                symbols: ['TranslatePipe'],
+                metadata: ['imports'],
+              },
+              deps: [{ key: 'WrongService', symbol: 'WrongService' }],
+            },
+          ],
+        });
+      `,
+      'custom-brand.config.ts': `
+        import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+
+        export default defineAngularBrandConfig({
+          importAugmentations: [
+            {
+              match: {
+                module: '@ngx-translate/core',
+                symbols: ['TranslatePipe'],
+                metadata: ['imports'],
+              },
+              deps: [{ key: 'TranslateService', symbol: 'TranslateService' }],
+            },
+          ],
+        });
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { TranslatePipe } from '@ngx-translate/core';
+
+        @Component({
+          standalone: true,
+          imports: [TranslatePipe],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const rootDirectory = tempDirectories[tempDirectories.length - 1]!;
+    const explicitConfig = loadAngularBrandConfigFromFile(
+      join(rootDirectory, 'custom-brand.config.ts'),
+    );
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+
+    transformSourceFile(sourceFile, {
+      configFilePath: join(rootDirectory, 'custom-brand.config.ts'),
+    });
+    const output = sourceFile.getFullText();
+
+    expect(explicitConfig.importAugmentations).toHaveLength(1);
+    expect(extractGeneratedSection(output, 'deps')).toContain(
+      'TranslateService: TranslateService;',
+    );
+    expect(extractGeneratedSection(output, 'deps')).not.toContain(
+      'WrongService: WrongService;',
+    );
+  });
 });
 
 async function createProjectFixture(
@@ -447,6 +887,28 @@ async function createRouterMetadataProjectFixture(
   });
 }
 
+async function createTranslateProjectFixture(
+  files: Record<string, string>,
+): Promise<Project> {
+  return createProjectFixture({
+    'src/angular-core.d.ts': `
+      declare module '@angular/core' {
+        export declare function Component(metadata: unknown): ClassDecorator;
+        export declare function Directive(metadata?: unknown): ClassDecorator;
+      }
+    `,
+    'src/ngx-translate.d.ts': `
+      declare module '@ngx-translate/core' {
+        export declare class TranslatePipe {}
+        export declare class TranslateDirective {}
+        export declare class TranslateService {}
+        export declare class WrongService {}
+      }
+    `,
+    ...files,
+  });
+}
+
 async function writeFixtureFiles(
   rootDirectory: string,
   files: Record<string, string>,
@@ -462,4 +924,15 @@ function getFixtureSourceFile(project: Project, relativePath: string) {
   return project
     .getSourceFiles()
     .find((sourceFile) => sourceFile.getFilePath().endsWith(relativePath))!;
+}
+
+function extractGeneratedSection(
+  output: string,
+  sectionName: 'deps' | 'provided' | 'missingProvider',
+) {
+  const match = output.match(
+    new RegExp(`${sectionName}: \\{([\\s\\S]*?)\\n\\s+\\};`),
+  );
+
+  return match?.[1] ?? '';
 }

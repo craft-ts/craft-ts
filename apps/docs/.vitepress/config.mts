@@ -116,6 +116,10 @@ export default defineConfig({
             text: 'Browser Boundaries',
             link: '/type-safe-di-routes/browser-boundaries',
           },
+          {
+            text: 'Angular Brand Config',
+            link: '/type-safe-di-routes/angular-brand-config',
+          },
         ],
       },
       {
