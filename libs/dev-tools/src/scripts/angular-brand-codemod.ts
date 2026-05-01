@@ -74,6 +74,11 @@ export type GeneratedDependencyGroups = {
   missingProvider: GeneratedDependencyEntry[];
 };
 
+type GeneratedDependencyGroupAugmentation = {
+  deps: GeneratedDependencyEntry[];
+  missingProvider: GeneratedDependencyEntry[];
+};
+
 export type DependencyAnalysisResult = Omit<TransformResult, 'changed'> & {
   classDeclaration?: ClassDeclaration;
 };
@@ -344,6 +349,8 @@ export function analyzeSourceFileDependencies(
     importDeps: mergeDeps(metadataDeps.imports, metadataDeps.hostDirectives),
     providers: mergeDeps(metadataDeps.providers, metadataDeps.viewProviders),
   };
+  const generatedDependencyAugmentation =
+    createGeneratedDependencyGroupAugmentation(sourceFile, metadataDeps);
   result.generatedTypeName = getGeneratedDepsTypeName(className);
   result.generatedDependencyGroups = createGeneratedDependencyGroups(
     sourceFile,
@@ -360,6 +367,7 @@ export function analyzeSourceFileDependencies(
       ...injectCallDeps.generatedDependencies,
     ],
     providedDeps.entries,
+    generatedDependencyAugmentation,
   );
 
   return result;
@@ -606,6 +614,13 @@ function emptyGeneratedDependencyGroups(): GeneratedDependencyGroups {
   };
 }
 
+function emptyGeneratedDependencyGroupAugmentation(): GeneratedDependencyGroupAugmentation {
+  return {
+    deps: [],
+    missingProvider: [],
+  };
+}
+
 function getGeneratedDepsTypeName(className: string): string {
   return `GenDeps_${className}`;
 }
@@ -615,12 +630,14 @@ function createGeneratedDependencyGroups(
   importDependencies: string[],
   injectedDependencies: InjectedDependencyDescriptor[],
   providedEntries: GeneratedDependencyEntry[],
+  augmentation: GeneratedDependencyGroupAugmentation,
 ): GeneratedDependencyGroups {
   const deps = mergeGeneratedDependencyEntries(
     importDependencies.map((dependency) =>
       createGeneratedDependencyEntry(sourceFile, dependency, 'import'),
     ),
     injectedDependencies.map((dependency) => dependency.entry),
+    augmentation.deps,
   );
   const provided = mergeGeneratedDependencyEntries(providedEntries);
   const providedKeys = new Set(provided.map((entry) => entry.key));
@@ -651,12 +668,50 @@ function createGeneratedDependencyGroups(
             'inject',
           ),
       ),
+    augmentation.missingProvider.filter(
+      (entry) => !providedKeys.has(entry.key),
+    ),
   );
 
   return {
     deps,
     provided,
     missingProvider,
+  };
+}
+
+function createGeneratedDependencyGroupAugmentation(
+  sourceFile: SourceFile,
+  metadataDependencies: Pick<
+    MetadataDependencyGroups,
+    'imports' | 'hostDirectives'
+  >,
+): GeneratedDependencyGroupAugmentation {
+  const metadataImportDependencies = mergeDeps(
+    metadataDependencies.imports,
+    metadataDependencies.hostDirectives,
+  );
+
+  if (
+    !metadataImportDependencies.some(
+      (dependencyText) =>
+        resolveDependencyReference(sourceFile, dependencyText).moduleSpecifier ===
+        '@angular/router',
+    )
+  ) {
+    return emptyGeneratedDependencyGroupAugmentation();
+  }
+
+  const routerEntry = createSyntheticGeneratedDependencyEntry(
+    sourceFile,
+    'Router',
+    'inject',
+    '@angular/router',
+  );
+
+  return {
+    deps: [routerEntry],
+    missingProvider: [routerEntry],
   };
 }
 
@@ -706,6 +761,21 @@ function createGeneratedDependencyEntry(
   return {
     key: createGeneratedDependencyKey(dependencyText),
     typeText: createGeneratedDependencyTypeText(sourceFile, dependencyText),
+  };
+}
+
+function createSyntheticGeneratedDependencyEntry(
+  sourceFile: SourceFile,
+  dependencyText: string,
+  context: 'import' | 'inject',
+  moduleSpecifier: string,
+): GeneratedDependencyEntry {
+  return {
+    ...createGeneratedDependencyEntry(sourceFile, dependencyText, context),
+    typeImport: {
+      moduleSpecifier,
+      name: dependencyText,
+    },
   };
 }
 
@@ -1162,12 +1232,28 @@ function ensureGeneratedDependencyTypeImports(
       .getImportDeclarations()
       .find(
         (importDeclaration) =>
-          importDeclaration.getModuleSpecifierValue() === moduleSpecifier,
+          importDeclaration.getModuleSpecifierValue() === moduleSpecifier &&
+          !importDeclaration.getNamespaceImport(),
       );
 
     if (existingImport) {
+      const existingImportNames = new Set(
+        existingImport.getNamedImports().map((namedImport) => {
+          return (
+            namedImport.getAliasNode()?.getText() ??
+            namedImport.getNameNode().getText()
+          );
+        }),
+      );
+      const namesToAdd = [...importNames].filter(
+        (name) => !existingImportNames.has(name),
+      );
+      if (namesToAdd.length === 0) {
+        continue;
+      }
+
       existingImport.addNamedImports(
-        [...importNames].map((name) => ({ name, isTypeOnly: true })),
+        namesToAdd.map((name) => ({ name, isTypeOnly: true })),
       );
       continue;
     }

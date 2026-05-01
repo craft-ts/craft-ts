@@ -255,6 +255,144 @@ describe('angular-brand-codemod', () => {
     );
     expect(output).not.toContain('missingProvider: {};');
   });
+
+  it('adds Router to generated deps when RouterModule is used in component imports', async () => {
+    const project = await createRouterMetadataProjectFixture({
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { RouterModule } from '@angular/router';
+
+        @Component({
+          standalone: true,
+          imports: [RouterModule],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(output).toMatch(
+      /import \{[^}]*type Router[^}]*\} from ['"]@angular\/router['"];/,
+    );
+    expect(output).toContain('RouterModule: RouterModule;');
+    expect(output).toContain('Router: Router;');
+    expect(output).toMatch(/missingProvider: \{[\s\S]*Router: Router;/);
+  });
+
+  it('adds Router to generated deps when standalone router declarables are used in metadata imports', async () => {
+    const project = await createRouterMetadataProjectFixture({
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { RouterOutlet } from '@angular/router';
+
+        @Component({
+          standalone: true,
+          imports: [RouterOutlet],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(output).toContain('RouterOutlet: RouterOutlet;');
+    expect(output).toContain('Router: Router;');
+    expect(output).toMatch(/missingProvider: \{[\s\S]*Router: Router;/);
+  });
+
+  it('emits Router only once when multiple router metadata imports are present', async () => {
+    const project = await createRouterMetadataProjectFixture({
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { RouterModule, RouterOutlet } from '@angular/router';
+
+        @Component({
+          standalone: true,
+          imports: [RouterModule, RouterOutlet],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(output).toContain('RouterModule: RouterModule;');
+    expect(output).toContain('RouterOutlet: RouterOutlet;');
+    expect(output.match(/Router: Router;/g) ?? []).toHaveLength(2);
+  });
+
+  it('does not add Router for non-router metadata imports', async () => {
+    const project = await createRouterMetadataProjectFixture({
+      'src/app/child.ts': `
+        import { Component } from '@angular/core';
+
+        @Component({
+          standalone: true,
+          template: '',
+        })
+        export class ChildComponent {}
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { ChildComponent } from './child';
+
+        @Component({
+          standalone: true,
+          imports: [ChildComponent],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    transformSourceFile(getFixtureSourceFile(project, 'src/app/child.ts'));
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(output).toContain('GenDeps_ChildComponent: GenDeps_ChildComponent;');
+    expect(output).not.toContain('Router: Router;');
+    expect(output).not.toContain('type Router');
+  });
+
+  it('suppresses missingProvider.Router when Router is already provided locally', async () => {
+    const project = await createRouterMetadataProjectFixture({
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { Router, RouterModule } from '@angular/router';
+
+        @Component({
+          standalone: true,
+          imports: [RouterModule],
+          providers: [Router],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+
+    expect(output).toMatch(
+      /import \{[^}]*Router[^}]*\} from ['"]@angular\/router['"];/,
+    );
+    expect(output).not.toContain('type Router');
+    expect(output).toContain('Router: Router;');
+    expect(output).toMatch(/provided: \{[\s\S]*Router: Router;/);
+    expect(output).not.toMatch(/missingProvider: \{[\s\S]*Router: Router;/);
+  });
 });
 
 async function createProjectFixture(
@@ -284,6 +422,28 @@ async function createProjectFixture(
   return new Project({
     skipAddingFilesFromTsConfig: false,
     tsConfigFilePath: join(tempDirectory, 'tsconfig.json'),
+  });
+}
+
+async function createRouterMetadataProjectFixture(
+  files: Record<string, string>,
+): Promise<Project> {
+  return createProjectFixture({
+    'src/angular-core.d.ts': `
+      declare module '@angular/core' {
+        export declare function Component(metadata: unknown): ClassDecorator;
+      }
+    `,
+    'src/angular-router.d.ts': `
+      declare module '@angular/router' {
+        export declare class Router {
+          navigate(commands: unknown[]): void;
+        }
+        export declare class RouterModule {}
+        export declare class RouterOutlet {}
+      }
+    `,
+    ...files,
   });
 }
 
