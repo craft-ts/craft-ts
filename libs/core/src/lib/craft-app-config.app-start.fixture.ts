@@ -27,5 +27,3 @@ declare module './craft-app-config' {
 export const requiredAppStart = {
   MustRunOnStart: injectAppStartCounter,
 } satisfies CraftAppStartRegistry;
-
-export const requiredAppStartFlag = true as const;
