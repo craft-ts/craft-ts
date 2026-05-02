@@ -220,7 +220,7 @@ type RouteSatisfiedPublicPropertyNames<
   string
 >];
 
-type RemainingRoutePublicProperties<
+type UnmatchedRoutePublicProperties<
   RouteDefinition,
   InheritedPublicProperties extends object = {},
 > = Simplify<
@@ -232,6 +232,36 @@ type RemainingRoutePublicProperties<
     >
   >
 >;
+
+type RemainingRoutePublicProperties<
+  RouteDefinition,
+  InheritedPublicProperties extends object = {},
+> = UnmatchedRoutePublicProperties<RouteDefinition, InheritedPublicProperties>;
+
+type RoutePublicPropertyErrorMessage<InputName extends string> =
+  `The input ${InputName} is not matching any route param or data property`;
+
+type MapRoutePublicPropertiesToErrors<
+  RouteDefinition,
+  InheritedPublicProperties extends object = {},
+> = [
+  keyof UnmatchedRoutePublicProperties<
+    RouteDefinition,
+    InheritedPublicProperties
+  >,
+] extends [never]
+  ? {}
+  : {
+      [Path in RoutePath<RouteDefinition>]: {
+        [InputName in Extract<
+          keyof UnmatchedRoutePublicProperties<
+            RouteDefinition,
+            InheritedPublicProperties
+          >,
+          string
+        >]: RoutePublicPropertyErrorMessage<InputName>;
+      };
+    };
 
 type RouteProvidedServiceNamesFromEntry<Entry> =
   Entry extends BrandedServiceProvider<infer Name, any>
@@ -694,14 +724,29 @@ export type CraftRoutesApp<
   META_DATA: CraftRoutesMetaData<Routes>;
 };
 
-export type CraftRoutesResult<
+export type CraftRoutesPublicPropertiesErrors<
   Routes extends readonly AnyCraftRouteDefinition[],
 > = Simplify<
-  {
-    appRoutes: CraftRoutesApp<Routes>;
-  } & ParamInjectHelpers<Routes> &
-    DataInjectHelpers<Routes>
+  MergeObjectUnion<
+    Routes[number] extends infer RouteDefinition
+      ? RouteDefinition extends AnyCraftRouteDefinition
+        ? MapRoutePublicPropertiesToErrors<RouteDefinition>
+        : never
+      : never
+  >
 >;
+
+export type CraftRoutesResult<
+  Routes extends readonly AnyCraftRouteDefinition[],
+  Errors = CraftRoutesPublicPropertiesErrors<Routes>,
+> = keyof Errors extends never
+  ? Simplify<
+      {
+        appRoutes: CraftRoutesApp<Routes>;
+      } & ParamInjectHelpers<Routes> &
+        DataInjectHelpers<Routes>
+    >
+  : Errors;
 
 type AnyRouteValueServiceApi = CraftRouteValueServiceApi<string, unknown>;
 

@@ -506,6 +506,33 @@ describe('craftRoutes', () => {
     }>();
   });
 
+  it('should map unmatched publicProperties to route input errors', () => {
+    const routes = craftRoutes([
+      {
+        path: 'query/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        data: {
+          myCustomData: 'test',
+        },
+        componentDeps: {} as {
+          publicProperties: {
+            userId: () => string;
+            myCustomData: () => string;
+            teamId: () => string;
+          };
+        },
+      },
+    ]);
+
+    type RouteErrors = (typeof routes)['errors'];
+
+    expectTypeOf<RouteErrors>().toEqualTypeOf<{
+      'query/:userId': {
+        teamId: 'The input teamId is not matching any route param or data property';
+      };
+    }>();
+  });
+
   it('should auto provide route params and keep them reactive', () => {
     const { appRoutes, injectUserId } = craftRoutes([
       {

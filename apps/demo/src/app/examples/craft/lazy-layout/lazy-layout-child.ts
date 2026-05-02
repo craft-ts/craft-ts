@@ -1,9 +1,5 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import {
-  GetDeps,
-  type ExtractDeps,
-  type GetPublicComponentProperties,
-} from '@craft-ng/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 import {
   injectCraftLazyLayoutTeamIdData,
   injectTeamId,
@@ -23,14 +19,6 @@ import {
       </p>
 
       <dl>
-        <div>
-          <dt>teamId via input</dt>
-          <dd>{{ teamId() }}</dd>
-        </div>
-        <div>
-          <dt>someParentRouteData via input</dt>
-          <dd>{{ someParentRouteData() }}</dd>
-        </div>
         <div>
           <dt>teamId via inject</dt>
           <dd>{{ injectedTeamId() }}</dd>
@@ -130,8 +118,8 @@ import {
 export default class LazyLayoutChildComponent {
   readonly injectedParentRouteData = injectCraftLazyLayoutTeamIdData();
   readonly injectedTeamId = injectTeamId();
-  readonly someParentRouteData = input.required<string>();
-  readonly teamId = input.required<string>();
+  // readonly someParentRouteData = input.required<string>(); // ! not accessible
+  // readonly teamId = input.required<string>(); // ! not accessible
 }
 
 export type GenDeps_LazyLayoutChildComponent = GetDeps<{
@@ -145,10 +133,6 @@ export type GenDeps_LazyLayoutChildComponent = GetDeps<{
     injectedTeamId: {
       TeamId: ReturnType<typeof injectTeamId>;
     };
-    someParentRouteData: ExtractDeps<
-      LazyLayoutChildComponent['someParentRouteData']
-    >;
-    teamId: ExtractDeps<LazyLayoutChildComponent['teamId']>;
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<LazyLayoutChildComponent>;

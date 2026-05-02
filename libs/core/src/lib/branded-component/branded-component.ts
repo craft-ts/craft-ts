@@ -1,4 +1,4 @@
-import type { InputSignalWithTransform } from '@angular/core';
+import type { InputSignal, InputSignalWithTransform } from '@angular/core';
 import type {
   ExtractServiceHelperDependencyMap,
   SERVICE_HELPER_DEPENDENCIES,
@@ -36,14 +36,9 @@ type InputSignalPropertyKeys<Instance> = Extract<
   string
 >;
 
-export type GetPublicComponentProperties<Component> =
-  ExtractPublicInstance<Component> extends object
-    ? Simplify<{
-        [K in InputSignalPropertyKeys<
-          ExtractPublicInstance<Component>
-        >]: ToPublicSignalType<ExtractPublicInstance<Component>[K]>;
-      }>
-    : never;
+export type GetPublicComponentProperties<Component> = {
+  [Property in keyof Component as `${Component[Property] extends InputSignal<any> ? Property & string : never}`]: Component[Property];
+};
 
 export type DerivedService<Service, Tracking extends object> = Simplify<
   Omit<
