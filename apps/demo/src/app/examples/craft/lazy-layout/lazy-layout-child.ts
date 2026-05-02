@@ -123,7 +123,7 @@ import {
     }
   `,
 })
-export class LazyLayoutChildComponent {
+export default class LazyLayoutChildComponent {
   readonly injectedParentRouteData = injectCraftLazyLayoutTeamIdData();
   readonly injectedTeamId = injectTeamId();
   readonly someParentRouteData = input.required<string>();

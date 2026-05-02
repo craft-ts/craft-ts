@@ -1,17 +1,13 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 import {
   type GetDeps,
   type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import {
-  LazyLayoutChildComponent,
-  type GenDeps_LazyLayoutChildComponent,
-} from './lazy-layout-child';
 
 @Component({
   selector: 'app-lazy-layout',
   standalone: true,
-  imports: [LazyLayoutChildComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="layout">
@@ -29,10 +25,8 @@ import {
           <h2>Layout component</h2>
           <div class="facts">
             <div>
-              <span>Active route</span>
-              <strong
-                >/craft/lazy-layout/{{ teamId() }}/users/{{ userId() }}</strong
-              >
+              <span>Layout route</span>
+              <strong>/craft/lazy-layout/{{ teamId() }}</strong>
             </div>
             <div>
               <span>Parent route input</span>
@@ -45,10 +39,7 @@ import {
           </div>
         </article>
 
-        <app-lazy-layout-child
-          [someParentRouteData]="someParentRouteData()"
-          [teamId]="teamId()"
-        />
+        <router-outlet />
       </div>
     </section>
   `,
@@ -178,16 +169,16 @@ import {
       }
     }
   `,
+  imports: [RouterOutlet],
 })
 export default class LazyLayoutComponent {
   public readonly teamId = input.required<string>();
   public readonly someParentRouteData = input.required<string>();
-  public readonly userId = input.required<string>();
 }
 
 export type GenDeps_LazyLayoutComponent = GetDeps<{
   deps: {
-    GenDeps_LazyLayoutChildComponent: GenDeps_LazyLayoutChildComponent;
+    RouterOutlet: RouterOutlet;
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<LazyLayoutComponent>;

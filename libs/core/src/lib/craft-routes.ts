@@ -480,12 +480,25 @@ type CraftRouteComponentTarget =
   | {
       component: AngularRouteComponent;
       loadComponent?: never;
-      loadChildren?: never;
     }
   | {
       component?: never;
       loadComponent: AngularLoadComponent;
+    };
+
+type CraftRouteLoadChildrenCallback<
+  Routes extends readonly AnyCraftRouteDefinition[],
+> = () => CraftRoutesApp<Routes> | Promise<CraftRoutesApp<Routes>>;
+
+type CraftRouteOptionalLoadChildrenTarget<
+  ChildRoutes extends
+    readonly AnyCraftRouteDefinition[] = readonly AnyCraftRouteDefinition[],
+> =
+  | {
       loadChildren?: never;
+    }
+  | {
+      loadChildren: CraftRouteLoadChildrenCallback<ChildRoutes>;
     };
 
 export type CraftRouteDefinition<
@@ -493,16 +506,15 @@ export type CraftRouteDefinition<
   ComponentDeps = unknown,
   RouteData extends Data = Data,
   Providers extends AngularRouteProviders = AngularRouteProviders,
+  ChildRoutes extends
+    readonly AnyCraftRouteDefinition[] = readonly AnyCraftRouteDefinition[],
 > = Simplify<
   CraftRouteSharedFields<Path, RouteData, Providers> &
-    CraftRouteComponentTarget & {
+    CraftRouteComponentTarget &
+    CraftRouteOptionalLoadChildrenTarget<ChildRoutes> & {
       componentDeps: ComponentDeps;
     }
 >;
-
-type CraftRouteLoadChildrenCallback<
-  Routes extends readonly AnyCraftRouteDefinition[],
-> = () => CraftRoutesApp<Routes> | Promise<CraftRoutesApp<Routes>>;
 
 export type CraftLazyRouteDefinition<
   Path extends string = string,
@@ -521,7 +533,15 @@ export type CraftLazyRouteDefinition<
 
 type AnyCraftComponentRouteDefinition = Simplify<
   AnyCraftRouteSharedFields &
-    CraftRouteComponentTarget & {
+    CraftRouteComponentTarget &
+    (
+      | {
+          loadChildren?: never;
+        }
+      | {
+          loadChildren: (...args: any[]) => unknown;
+        }
+    ) & {
       componentDeps: unknown;
     }
 >;
@@ -560,6 +580,23 @@ type RouteInheritedPublicProperties<
   RouteProvidedPublicPropertyValues<RouteDefinition>
 >;
 
+type FlattenLoadChildrenRouteMetaData<
+  RouteDefinition extends AnyCraftRouteDefinition,
+  ParentPath extends string,
+  InheritedServiceNames extends string,
+  InheritedPublicProperties extends object,
+> = [LoadChildrenRoutes<RouteDefinition>] extends [never]
+  ? readonly []
+  : CraftRoutesMetaDataWithContext<
+      LoadChildrenRoutes<RouteDefinition>,
+      ParentPath,
+      RouteInheritedServiceNames<RouteDefinition, InheritedServiceNames>,
+      RouteInheritedPublicProperties<
+        RouteDefinition,
+        InheritedPublicProperties
+      >
+    >;
+
 type FlattenCraftRouteMetaDataEntry<
   RouteDefinition extends AnyCraftRouteDefinition,
   ParentPath extends string = '',
@@ -572,17 +609,12 @@ type FlattenCraftRouteMetaDataEntry<
     InheritedServiceNames,
     InheritedPublicProperties
   >,
-  ...(RouteDefinition extends AnyCraftLazyRouteDefinition
-    ? CraftRoutesMetaDataWithContext<
-        LoadChildrenRoutes<RouteDefinition>,
-        JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
-        RouteInheritedServiceNames<RouteDefinition, InheritedServiceNames>,
-        RouteInheritedPublicProperties<
-          RouteDefinition,
-          InheritedPublicProperties
-        >
-      >
-    : readonly [])
+  ...FlattenLoadChildrenRouteMetaData<
+    RouteDefinition,
+    JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
+    InheritedServiceNames,
+    InheritedPublicProperties
+  >
 ];
 
 type CraftRoutesMetaDataWithContext<
@@ -740,7 +772,7 @@ function findActivatedRouteByPath(
     return route;
   }
 
-  for (const child of route.children) {
+  for (const child of route.children ?? []) {
     const match = findActivatedRouteByPath(child, routePath);
 
     if (match) {
@@ -808,9 +840,20 @@ function getRouteComponentDeps(
   return route.componentDeps as Record<string, unknown>;
 }
 
-function isCraftLazyRoute(
+function hasRouteComponentTarget(
   route: AnyCraftRouteDefinition,
-): route is AnyCraftLazyRouteDefinition {
+): route is AnyCraftComponentRouteDefinition {
+  return (
+    ('component' in route && route.component !== undefined) ||
+    ('loadComponent' in route && route.loadComponent !== undefined)
+  );
+}
+
+function hasRouteLoadChildren(
+  route: AnyCraftRouteDefinition,
+): route is AnyCraftRouteDefinition & {
+  loadChildren: (...args: any[]) => unknown;
+} {
   return 'loadChildren' in route && typeof route.loadChildren === 'function';
 }
 
@@ -999,15 +1042,15 @@ export function craftRoutes<
   }
 
   const META_DATA = routes.map((route) => {
-    const restComponentDeps = isCraftLazyRoute(route)
-      ? {}
-      : (() => {
+    const restComponentDeps = hasRouteComponentTarget(route)
+      ? (() => {
           const componentDeps = getRouteComponentDeps(route);
           const { missingProvider: _missingProvider, ...restComponentDeps } =
             componentDeps;
 
           return restComponentDeps;
-        })();
+        })()
+      : {};
 
     return {
       path: route.path,
@@ -1097,9 +1140,10 @@ export function craftRoutes<
     const wrappedCanMatch = canMatch
       ? createCanMatchGuard(route.path, routeIndex, canMatch)
       : undefined;
-    const wrappedLoadChildren = loadChildren
-      ? createLoadChildren(route.path, loadChildren)
-      : undefined;
+    const wrappedLoadChildren =
+      loadChildren && hasRouteLoadChildren(route)
+        ? createLoadChildren(route.path, loadChildren)
+        : undefined;
 
     return {
       ...angularRoute,

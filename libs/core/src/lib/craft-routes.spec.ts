@@ -319,6 +319,43 @@ describe('craftRoutes', () => {
     expect(lazyRoutes?.[0]?.path).toBe('details/:teamId');
   });
 
+  it('should accept component routes that also lazy-load children', async () => {
+    let loaded = false;
+    const childRoutes = craftRoutes([
+      {
+        path: 'details/:teamId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+    const { appRoutes, injectUserId } = craftRoutes([
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        loadChildren: () => {
+          loaded = true;
+          return childRoutes.appRoutes;
+        },
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+
+    expectTypeOf(injectUserId).toBeFunction();
+    expect(routeConfig.loadComponent).toBeTypeOf('function');
+    expect(routeConfig.loadChildren).toBeTypeOf('function');
+    expect(loaded).toBe(false);
+
+    const lazyRoutes = (await routeConfig.loadChildren?.()) as
+      | Route[]
+      | undefined;
+
+    expect(loaded).toBe(true);
+    expect(lazyRoutes).toHaveLength(1);
+    expect(lazyRoutes?.[0]?.path).toBe('details/:teamId');
+  });
+
   it('should resolve params from the matching child ActivatedRoute in lazy contexts', () => {
     const { appRoutes, injectUserId, injectUsersUserIdData } = craftRoutes([
       {
@@ -1141,6 +1178,61 @@ describe('AppRoutes.META_DATA', () => {
         },
         {
           path: 'users/:userId/details';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should flatten metadata for layout routes with loadChildren', () => {
+    type LayoutRouteDeps = GetDeps<{
+      provided: {};
+      publicProperties: {
+        userId: () => string;
+        sectionTitle: () => string;
+      };
+    }>;
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: {
+        sectionTitle: () => string;
+        teamId: () => string;
+        userId: () => string;
+      };
+    }>;
+
+    const childRoutes = craftRoutes([
+      {
+        path: 'details/:teamId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'users/:userId',
+        data: {
+          sectionTitle: 'Users',
+        },
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as LayoutRouteDeps,
+        loadChildren: () => childRoutes.appRoutes,
+      },
+    ]);
+
+    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'users/:userId';
+          provided: {};
+          publicProperties: {};
+        },
+        {
+          path: 'users/:userId/details/:teamId';
           deps: {};
           provided: {};
           publicProperties: {};
