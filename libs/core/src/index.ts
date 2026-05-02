@@ -1,6 +1,7 @@
 export * from './lib/after-recomputation';
 export * from './lib/app-checked-di';
 export * from './lib/async-process';
+export * from './lib/browser-boundaries';
 export * from './lib/computed-source';
 export * from './lib/craft-http-client';
 export * from './lib/craft-exception';
@@ -28,6 +29,7 @@ export * from './lib/local-storage-persister';
 export * from './lib/global-persister-handler.service';
 export * from './lib/util/entities-util';
 export * from './lib/reactive-writable-signal';
+export * from './lib/craft-method';
 export * from './lib/craft-service';
 export * from './lib/source$';
 export * from './lib/from-event-to-source$';

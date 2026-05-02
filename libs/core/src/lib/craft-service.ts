@@ -12,6 +12,18 @@ import {
 } from '@angular/core';
 import type { Observable } from 'rxjs';
 import {
+  isGenerator,
+  runCraftGenerator,
+  SERVICE_APP_START_REQUEST_MARKER,
+  SERVICE_DEPENDENCY_ACCESS_MARKER,
+  SERVICE_YIELD_REQUEST_MARKER,
+} from './craft-generator-runtime';
+export {
+  SERVICE_APP_START_REQUEST_MARKER,
+  SERVICE_DEPENDENCY_ACCESS_MARKER,
+  SERVICE_YIELD_REQUEST_MARKER,
+} from './craft-generator-runtime';
+import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   SERVICE_PROVIDED_INPUT_KEY,
   SERVICE_ROOT_EXPOSURE_KEY,
@@ -28,16 +40,16 @@ import type {
   UnionToTuple,
 } from './craft-service.shared';
 
-declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
-declare const SERVICE_YIELD_METADATA: unique symbol;
-declare const SERVICE_META_DATA_TYPE: unique symbol;
+export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
+export declare const SERVICE_YIELD_METADATA: unique symbol;
+export declare const SERVICE_META_DATA_TYPE: unique symbol;
+declare const SERVICE_APP_START_CALLBACK_YIELDED: unique symbol;
 
-const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol('service-exposure-token-marker');
-const SERVICE_RUNTIME_META = Symbol('service-runtime-meta');
-const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
-const SERVICE_APP_START_REQUEST_MARKER = Symbol(
-  'service-app-start-request-marker',
+export const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol(
+  'service-exposure-token-marker',
 );
+export const SERVICE_RUNTIME_META = Symbol('service-runtime-meta');
+const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
 const REGISTERED_APP_START_SERVICES = new Map<string, ServiceReference>();
 
 type DerivedPropertiesTracking<
@@ -86,6 +98,25 @@ export type GetServiceOutput<ServiceHelper> =
     any
   >
     ? Output
+    : never;
+
+export type GetServiceYields<ServiceHelper> =
+  ExtractTrackedMetadata<ServiceHelper> extends ServiceTrackingMetadata<
+    any,
+    infer Scope extends ConcreteServiceScope,
+    infer Output,
+    any,
+    any,
+    any,
+    any
+  >
+    ?
+        | ServiceYieldRequest<
+            Scope,
+            Output,
+            ExtractTrackedMetadata<ServiceHelper>
+          >
+        | (Output extends object ? ExposureYield<Output> : never)
     : never;
 
 type ConstantCase<
@@ -145,10 +176,6 @@ type GetServiceMetaDataProvidedInput<MetaData> =
 
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
 const SERVICE_REQUIREMENT_MARKER = Symbol('service-requirement-marker');
-const SERVICE_YIELD_REQUEST_MARKER = Symbol('service-yield-request-marker');
-const SERVICE_DEPENDENCY_ACCESS_MARKER = Symbol(
-  'service-dependency-access-marker',
-);
 
 const PROVIDED_ELSEWHERE =
   'Provided elsewhere #warn-check-docs:inputs' as const;
@@ -389,12 +416,12 @@ type ValidateAppStartFactory<
   IsEnabled extends boolean,
 > = IsEnabled extends true
   ? FactoryReturn<Factory> extends Generator<infer Yielded, any, any>
-    ? Extract<Yielded, ServiceAppStartRequest> extends never
+    ? Extract<Yielded, ServiceAppStartRequest<any>> extends never
       ? never
       : unknown
     : never
   : FactoryReturn<Factory> extends Generator<infer Yielded, any, any>
-    ? Extract<Yielded, ServiceAppStartRequest> extends never
+    ? Extract<Yielded, ServiceAppStartRequest<any>> extends never
       ? unknown
       : never
     : unknown;
@@ -684,8 +711,21 @@ type WholeServiceUsageTracking = {
   usesWholeService: true;
 };
 
+type DirectDependencyRequestUnion<Yielded> = Extract<
+  Yielded,
+  ServiceYieldRequest<any, any, any>
+>;
+
+type AppStartDependencyRequestUnion<Yielded> =
+  Extract<Yielded, ServiceAppStartRequest<any>> extends infer Request
+    ? Request extends ServiceAppStartRequest<infer AppStartYielded>
+      ? Extract<AppStartYielded, ServiceYieldRequest<any, any, any>>
+      : never
+    : never;
+
 type DependencyRequests<Yielded> = UnionToTuple<
-  Extract<Yielded, ServiceYieldRequest<any, any, any>>
+  | DirectDependencyRequestUnion<Yielded>
+  | AppStartDependencyRequestUnion<Yielded>
 >;
 
 type DependencyMetadata<Request> =
@@ -991,9 +1031,14 @@ export type ServiceYieldRequest<
   resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
 }>;
 
-type ServiceAppStartRequest = Readonly<{
+type AllowedAppStartYield =
+  | ServiceYieldRequest<any, any, any>
+  | ServiceDependencyAccessRequest<string, unknown>;
+
+type ServiceAppStartRequest<Yielded = never> = Readonly<{
   [SERVICE_APP_START_REQUEST_MARKER]: true;
-  run: () => AppStartResult;
+  readonly [SERVICE_APP_START_CALLBACK_YIELDED]?: Yielded;
+  run: () => AppStartResult | Generator<Yielded, AppStartResult, unknown>;
 }>;
 
 type AbstractMarker<Contract> = {
@@ -1317,7 +1362,7 @@ type DependencySourceOutput<Token> =
       ? Output
       : never;
 
-type DependencyApi<
+export type DependencyApi<
   Name extends string,
   Scope extends ConcreteServiceScope,
   Inputs extends object,
@@ -1593,9 +1638,18 @@ export function toValue<T>(value: MaybeSignal<T>): T {
   return isSignal(value) ? value() : value;
 }
 
-export function* onAppStart(
+export function onAppStart(
   run: () => AppStartResult,
-): Generator<ServiceAppStartRequest, void, unknown> {
+): Generator<ServiceAppStartRequest<never>, void, unknown>;
+export function onAppStart<Yielded extends AllowedAppStartYield>(
+  run: () => Generator<Yielded, AppStartResult, unknown>,
+): Generator<ServiceAppStartRequest<Yielded>, void, unknown>;
+export function onAppStart(
+  run: () => Generator<unknown, AppStartResult, unknown>,
+): Generator<ServiceAppStartRequest<unknown>, void, unknown>;
+export function* onAppStart<Yielded>(
+  run: () => AppStartResult | Generator<Yielded, AppStartResult, unknown>,
+): Generator<ServiceAppStartRequest<Yielded>, void, unknown> {
   yield createAppStartRequest(run);
 }
 
@@ -2189,6 +2243,41 @@ export function toCraftService(
  *   },
  * );
  * ```
+ *
+ * @example
+ * Build a global utility around a browser boundary dependency
+ * ```ts
+ * import { LocalStorageServiceToYield, craftService } from '@craft-ng/core';
+ *
+ * const { injectGlobalPersisterHandlerService } = craftService(
+ *   { name: 'GlobalPersisterHandlerService', scope: 'global' },
+ *   function* () {
+ *     const storage = yield* LocalStorageServiceToYield(
+ *       undefined,
+ *       ({ key, length, removeItem }) => ({
+ *         key,
+ *         length,
+ *         removeItem,
+ *       }),
+ *     );
+ *
+ *     return {
+ *       clearAllCache: () => {
+ *         const keysToRemove: string[] = [];
+ *
+ *         for (let index = 0; index < storage.length(); index++) {
+ *           const keyName = storage.key(index);
+ *           if (keyName?.startsWith('ng-craft-')) {
+ *             keysToRemove.push(keyName);
+ *           }
+ *         }
+ *
+ *         keysToRemove.forEach((keyName) => storage.removeItem(keyName));
+ *       },
+ *     };
+ *   },
+ * );
+ * ```
  */
 export function craftService<Name extends string, Contract>(
   options: { name: Name; scope: 'abstract' },
@@ -2714,7 +2803,17 @@ function createConcreteServiceInstance(
     return result;
   }
 
-  const resolved = runGeneratorFactory(result, injector, definition.scope);
+  const resolved = runCraftGenerator({
+    iterator: result,
+    injector,
+    hostScope: definition.scope,
+    invalidYieldErrorMessage:
+      'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
+    multipleAppStartErrorMessage:
+      'craftService generators can only declare onAppStart(...) once.',
+    createAppStartHook: (run) => () =>
+      runAppStartCallback(run, injector, definition.scope),
+  });
 
   if (resolved.appStartHook) {
     if (!definition.appStart) {
@@ -2729,54 +2828,28 @@ function createConcreteServiceInstance(
   return resolved.value;
 }
 
-type GeneratorFactoryResult = {
-  value: unknown;
-  appStartHook?: () => AppStartResult;
-};
-
-function runGeneratorFactory(
-  iterator: Generator<unknown, unknown, unknown>,
+function runAppStartCallback(
+  run: () => AppStartResult | Generator<unknown, AppStartResult, unknown>,
   injector: Injector,
   hostScope: ConcreteServiceScope,
-): GeneratorFactoryResult {
-  let appStartHook: (() => AppStartResult) | undefined;
-  let current = iterator.next();
+): AppStartResult {
+  const result = run();
 
-  while (!current.done) {
-    const yielded = current.value;
-
-    if (isServiceYieldRequest(yielded)) {
-      const resolved = yielded.resolve(injector, hostScope);
-      current = iterator.next(resolved);
-      continue;
-    }
-
-    if (isServiceDependencyAccessRequest(yielded)) {
-      current = iterator.next(yielded.resolve());
-      continue;
-    }
-
-    if (isServiceAppStartRequest(yielded)) {
-      if (appStartHook) {
-        throw new Error(
-          'craftService generators can only declare onAppStart(...) once.',
-        );
-      }
-
-      appStartHook = yielded.run;
-      current = iterator.next(undefined);
-      continue;
-    }
-
-    throw new Error(
-      'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
-    );
+  if (!isGenerator(result)) {
+    return result;
   }
 
-  return {
-    value: current.value,
-    appStartHook,
-  };
+  return runCraftGenerator({
+    iterator: result,
+    injector,
+    hostScope,
+    invalidYieldErrorMessage:
+      'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
+    multipleAppStartErrorMessage:
+      'craftService generators can only declare onAppStart(...) once.',
+    onAppStartNotSupportedErrorMessage:
+      'onAppStart(...) generator callbacks cannot declare onAppStart(...) recursively.',
+  }).value as AppStartResult;
 }
 
 function createInputProxy(
@@ -2820,7 +2893,15 @@ function resolveExposedService(
 ): unknown {
   const exposure = expose(createExposureTokens(serviceValue));
   const resolvedExposure = isGenerator(exposure)
-    ? runGeneratorFactory(exposure, injector, hostScope).value
+    ? runCraftGenerator({
+        iterator: exposure,
+        injector,
+        hostScope,
+        invalidYieldErrorMessage:
+          'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
+        multipleAppStartErrorMessage:
+          'craftService generators can only declare onAppStart(...) once.',
+      }).value
     : exposure;
 
   return createExposedServiceValue(resolvedExposure);
@@ -2916,9 +2997,9 @@ function createDependencyAccessRequest(
   };
 }
 
-function createAppStartRequest(
-  run: () => AppStartResult,
-): ServiceAppStartRequest {
+function createAppStartRequest<Yielded>(
+  run: () => AppStartResult | Generator<Yielded, AppStartResult, unknown>,
+): ServiceAppStartRequest<Yielded> {
   return {
     [SERVICE_APP_START_REQUEST_MARKER]: true,
     run,
@@ -3121,47 +3202,6 @@ function isNonCallableObject(value: unknown): value is object {
 type RuntimeExposureSelector = (
   dependencies: Record<string, RuntimeExposureToken>,
 ) => unknown;
-
-function isGenerator(
-  value: unknown,
-): value is Generator<unknown, unknown, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'next' in value &&
-    typeof value.next === 'function'
-  );
-}
-
-function isServiceYieldRequest(
-  value: unknown,
-): value is ServiceYieldRequest<ConcreteServiceScope, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    SERVICE_YIELD_REQUEST_MARKER in value
-  );
-}
-
-function isServiceDependencyAccessRequest(
-  value: unknown,
-): value is ServiceDependencyAccessRequest<string, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    SERVICE_DEPENDENCY_ACCESS_MARKER in value
-  );
-}
-
-function isServiceAppStartRequest(
-  value: unknown,
-): value is ServiceAppStartRequest {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    SERVICE_APP_START_REQUEST_MARKER in value
-  );
-}
 
 function isRuntimeExposureToken(value: unknown): value is RuntimeExposureToken {
   return typeof value === 'function' && SERVICE_EXPOSURE_TOKEN_MARKER in value;

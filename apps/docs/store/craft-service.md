@@ -73,6 +73,34 @@ The exact helpers depend on the chosen scope.
 - Use `global` when the instance is intentionally shared application-wide.
 - For startup-only logic that should run when the app boots but is not injected elsewhere, prefer `function` together with `provideAppInitializer(...)`. If the same instance also needs to be injected by other services, use `global` instead.
 
+## App Start
+
+`craftService` also supports startup hooks through `appStart: true` and `yield* onAppStart(...)`.
+
+The callback can be a plain function or a generator function. Use the generator form when startup logic needs to `yield*` crafted dependencies:
+
+```typescript
+import { Console, craftService, onAppStart } from '@craft-ng/core';
+
+const { injectAppStartLog } = craftService(
+  {
+    name: 'AppStartLog',
+    scope: 'global',
+    appStart: true,
+  },
+  function* () {
+    yield* onAppStart(function* () {
+      yield* Console.log('startup log');
+      return Promise.resolve();
+    });
+
+    return true;
+  },
+);
+```
+
+Dependencies used only inside that callback are still tracked on the parent service.
+
 ## Basic Example
 
 ```typescript

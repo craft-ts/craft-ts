@@ -1,0 +1,983 @@
+import {
+  craftService,
+  type CraftServiceApi,
+  type GetServiceYields,
+  type ServiceTrackingMetadata,
+} from './craft-service';
+
+type AnyBrowserBoundaryMethod = (...args: any[]) => any;
+
+type MethodArgs<Method> = Method extends (...args: infer Args) => any
+  ? Args
+  : never;
+
+type MethodResult<Method> = Method extends (...args: any[]) => infer Result
+  ? Result
+  : never;
+
+type BrowserBoundaryDsl<Service extends object, Yielded = unknown> = {
+  [Key in keyof Service]: Service[Key] extends (
+    ...args: infer Args
+  ) => infer Result
+    ? (...args: Args) => Generator<Yielded, Result, unknown>
+    : never;
+};
+
+type BrowserBoundaryToYield<Service extends object> = (
+  bindings?: undefined,
+  expose?: (service: Service) => unknown,
+) => Generator<any, any, any>;
+
+type BrowserBoundaryService<Name extends string, Output> = CraftServiceApi<
+  Name,
+  'global',
+  {},
+  Output,
+  ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
+>;
+
+type BrowserCryptoYield = GetServiceYields<
+  BrowserBoundaryService<
+    'BrowserCryptoService',
+    BrowserCryptoServiceApi
+  >['BrowserCryptoServiceToYield']
+>;
+
+type StorageLike = Pick<
+  Storage,
+  'clear' | 'getItem' | 'key' | 'removeItem' | 'setItem'
+> & {
+  readonly length: number;
+};
+
+export type CookieSameSite = 'lax' | 'strict' | 'none';
+
+export type CookieSetOptions = {
+  domain?: string;
+  expires?: Date | string;
+  maxAge?: number;
+  partitioned?: boolean;
+  path?: string;
+  sameSite?: CookieSameSite;
+  secure?: boolean;
+};
+
+export type CookieRemoveOptions = Omit<CookieSetOptions, 'expires' | 'maxAge'>;
+
+export interface ConsoleServiceApi {
+  debug(...data: unknown[]): void;
+  info(...data: unknown[]): void;
+  log(...data: unknown[]): void;
+  warn(...data: unknown[]): void;
+  error(...data: unknown[]): void;
+  trace(...data: unknown[]): void;
+  group(...label: unknown[]): void;
+  groupCollapsed(...label: unknown[]): void;
+  groupEnd(): void;
+  time(label?: string): void;
+  timeEnd(label?: string): void;
+}
+
+export interface StorageServiceApi {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+  clear(): void;
+  key(index: number): string | null;
+  length(): number;
+}
+
+export interface CookiesServiceApi {
+  get(name: string): string | undefined;
+  getAll(): Record<string, string>;
+  set(name: string, value: string, options?: CookieSetOptions): void;
+  remove(name: string, options?: CookieRemoveOptions): void;
+  has(name: string): boolean;
+}
+
+export interface BrowserLocationServiceApi {
+  href(): string;
+  origin(): string;
+  protocol(): string;
+  host(): string;
+  hostname(): string;
+  port(): string;
+  pathname(): string;
+  search(): string;
+  hash(): string;
+  assign(url: string | URL): void;
+  replace(url: string | URL): void;
+  reload(): void;
+}
+
+export interface BrowserHistoryServiceApi {
+  length(): number;
+  state(): any;
+  back(): void;
+  forward(): void;
+  go(delta?: number): void;
+  pushState(data: any, unused: string, url?: string | URL | null): void;
+  replaceState(data: any, unused: string, url?: string | URL | null): void;
+}
+
+export interface BrowserNavigatorServiceApi {
+  userAgent(): string;
+  language(): string;
+  languages(): readonly string[];
+  onLine(): boolean;
+  cookieEnabled(): boolean;
+  sendBeacon(url: string | URL, data?: BodyInit | null): boolean;
+}
+
+export interface BrowserPerformanceServiceApi {
+  now(): number;
+  mark(name: string, options?: PerformanceMarkOptions): PerformanceMark;
+  measure(
+    measureName: string,
+    startOrMeasureOptions?: string | PerformanceMeasureOptions,
+    endMark?: string,
+  ): PerformanceMeasure;
+  clearMarks(markName?: string): void;
+  clearMeasures(measureName?: string): void;
+}
+
+export interface BrowserCryptoServiceApi {
+  randomUUID(): string;
+  getRandomValues<TypedArray extends ArrayBufferView>(
+    typedArray: TypedArray,
+  ): TypedArray;
+  digest(
+    algorithm: AlgorithmIdentifier,
+    data: BufferSource,
+  ): Promise<ArrayBuffer>;
+}
+
+export interface BrowserDocumentServiceApi {
+  title(): string;
+  setTitle(value: string): void;
+  visibilityState(): DocumentVisibilityState;
+  hasFocus(): boolean;
+}
+
+export interface BrowserWindowServiceApi {
+  innerWidth(): number;
+  innerHeight(): number;
+  scrollX(): number;
+  scrollY(): number;
+  scrollTo(...args: [options: ScrollToOptions] | [x: number, y: number]): void;
+  alert(message?: string): void;
+  confirm(message?: string): boolean;
+}
+
+function createBoundaryCall<
+  Service extends object,
+  ToYield extends
+    BrowserBoundaryToYield<Service> = BrowserBoundaryToYield<Service>,
+>(toYield: ToYield) {
+  type Yielded = GetServiceYields<ToYield>;
+
+  return function <Key extends keyof Service & string>(key: Key) {
+    return function* (
+      ...args: MethodArgs<Service[Key]>
+    ): Generator<Yielded, MethodResult<Service[Key]>, unknown> {
+      const exposed = (yield* toYield(undefined, (service) => ({
+        method: service[key],
+      }))) as {
+        method: Service[Key];
+      };
+
+      return (exposed.method as AnyBrowserBoundaryMethod)(
+        ...args,
+      ) as MethodResult<Service[Key]>;
+    };
+  };
+}
+
+function requireBrowserValue<Value>(
+  value: Value | null | undefined,
+  name: string,
+): Value {
+  if (value === undefined || value === null) {
+    throw new Error(
+      `Browser boundary "${name}" is not available outside a browser environment.`,
+    );
+  }
+
+  return value;
+}
+
+function getBrowserWindow() {
+  return requireBrowserValue(globalThis.window, 'window');
+}
+
+function getBrowserDocument() {
+  return requireBrowserValue(globalThis.document, 'document');
+}
+
+function createInMemoryStorage(): StorageLike {
+  const values = new Map<string, string>();
+
+  return {
+    clear: () => {
+      values.clear();
+    },
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => Array.from(values.keys())[index] ?? null,
+    removeItem: (key) => {
+      values.delete(key);
+    },
+    setItem: (key, value) => {
+      values.set(key, value);
+    },
+    get length() {
+      return values.size;
+    },
+  };
+}
+
+function getBrowserStorage(
+  name: 'localStorage' | 'sessionStorage',
+): StorageLike {
+  const browserWindow = getBrowserWindow() as unknown as Window &
+    Record<string | symbol, unknown>;
+  const candidate = browserWindow[name] as Partial<StorageLike> | undefined;
+
+  if (
+    candidate &&
+    typeof candidate.getItem === 'function' &&
+    typeof candidate.setItem === 'function' &&
+    typeof candidate.removeItem === 'function' &&
+    typeof candidate.clear === 'function' &&
+    typeof candidate.key === 'function' &&
+    typeof candidate.length === 'number'
+  ) {
+    return candidate as StorageLike;
+  }
+
+  const fallbackKey = Symbol.for(`craft.browser-boundary.${name}`);
+
+  if (!(fallbackKey in browserWindow)) {
+    Object.defineProperty(browserWindow, fallbackKey, {
+      value: createInMemoryStorage(),
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    });
+  }
+
+  return browserWindow[fallbackKey] as StorageLike;
+}
+
+function getBrowserLocalStorage() {
+  return getBrowserStorage('localStorage');
+}
+
+function getBrowserSessionStorage() {
+  return getBrowserStorage('sessionStorage');
+}
+
+function getBrowserLocation() {
+  return requireBrowserValue(getBrowserWindow().location, 'location');
+}
+
+function getBrowserHistory() {
+  return requireBrowserValue(getBrowserWindow().history, 'history');
+}
+
+function getBrowserNavigator() {
+  return requireBrowserValue(getBrowserWindow().navigator, 'navigator');
+}
+
+function getBrowserPerformance() {
+  return requireBrowserValue(getBrowserWindow().performance, 'performance');
+}
+
+function getBrowserCrypto() {
+  return requireBrowserValue(getBrowserWindow().crypto, 'crypto');
+}
+
+function decodeCookieComponent(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function readCookieEntries(): Array<[string, string]> {
+  const rawCookie = getBrowserDocument().cookie;
+
+  if (!rawCookie) {
+    return [];
+  }
+
+  return rawCookie
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const separatorIndex = part.indexOf('=');
+      const rawName =
+        separatorIndex === -1 ? part : part.slice(0, separatorIndex);
+      const rawValue =
+        separatorIndex === -1 ? '' : part.slice(separatorIndex + 1);
+
+      return [
+        decodeCookieComponent(rawName),
+        decodeCookieComponent(rawValue),
+      ] as const;
+    });
+}
+
+function buildCookieMap() {
+  return Object.fromEntries(readCookieEntries()) as Record<string, string>;
+}
+
+function formatCookieSameSite(value: CookieSameSite) {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function writeCookie(name: string, value: string, options?: CookieSetOptions) {
+  const segments = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
+
+  if (options?.domain) {
+    segments.push(`Domain=${options.domain}`);
+  }
+
+  if (options?.expires) {
+    segments.push(
+      `Expires=${
+        options.expires instanceof Date
+          ? options.expires.toUTCString()
+          : options.expires
+      }`,
+    );
+  }
+
+  if (options?.maxAge !== undefined) {
+    segments.push(`Max-Age=${options.maxAge}`);
+  }
+
+  if (options?.path) {
+    segments.push(`Path=${options.path}`);
+  }
+
+  if (options?.sameSite) {
+    segments.push(`SameSite=${formatCookieSameSite(options.sameSite)}`);
+  }
+
+  if (options?.secure) {
+    segments.push('Secure');
+  }
+
+  if (options?.partitioned) {
+    segments.push('Partitioned');
+  }
+
+  getBrowserDocument().cookie = segments.join('; ');
+}
+
+function removeCookie(name: string, options?: CookieRemoveOptions) {
+  writeCookie(name, '', {
+    ...options,
+    expires: new Date(0),
+    maxAge: 0,
+    path: options?.path ?? '/',
+  });
+}
+
+const consoleService: BrowserBoundaryService<
+  'ConsoleService',
+  ConsoleServiceApi
+> = craftService(
+  {
+    name: 'ConsoleService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): ConsoleServiceApi => ({
+    debug: (...data) => globalThis.console.debug(...data),
+    info: (...data) => globalThis.console.info(...data),
+    log: (...data) => globalThis.console.log(...data),
+    warn: (...data) => globalThis.console.warn(...data),
+    error: (...data) => globalThis.console.error(...data),
+    trace: (...data) => globalThis.console.trace(...data),
+    group: (...label) => globalThis.console.group(...label),
+    groupCollapsed: (...label) => globalThis.console.groupCollapsed(...label),
+    groupEnd: () => globalThis.console.groupEnd(),
+    time: (label) => globalThis.console.time(label),
+    timeEnd: (label) => globalThis.console.timeEnd(label),
+  }),
+);
+export const injectConsoleService: BrowserBoundaryService<
+  'ConsoleService',
+  ConsoleServiceApi
+>['injectConsoleService'] = consoleService.injectConsoleService;
+export const ConsoleServiceToYield: BrowserBoundaryService<
+  'ConsoleService',
+  ConsoleServiceApi
+>['ConsoleServiceToYield'] = consoleService.ConsoleServiceToYield;
+export const CONSOLE_SERVICE_META_DATA: BrowserBoundaryService<
+  'ConsoleService',
+  ConsoleServiceApi
+>['CONSOLE_SERVICE_META_DATA'] = consoleService.CONSOLE_SERVICE_META_DATA;
+
+const localStorageService: BrowserBoundaryService<
+  'LocalStorageService',
+  StorageServiceApi
+> = craftService(
+  {
+    name: 'LocalStorageService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): StorageServiceApi => ({
+    getItem: (key) => getBrowserLocalStorage().getItem(key),
+    setItem: (key, value) => getBrowserLocalStorage().setItem(key, value),
+    removeItem: (key) => getBrowserLocalStorage().removeItem(key),
+    clear: () => getBrowserLocalStorage().clear(),
+    key: (index) => getBrowserLocalStorage().key(index),
+    length: () => getBrowserLocalStorage().length,
+  }),
+);
+export const injectLocalStorageService: BrowserBoundaryService<
+  'LocalStorageService',
+  StorageServiceApi
+>['injectLocalStorageService'] = localStorageService.injectLocalStorageService;
+export const LocalStorageServiceToYield: BrowserBoundaryService<
+  'LocalStorageService',
+  StorageServiceApi
+>['LocalStorageServiceToYield'] = localStorageService.LocalStorageServiceToYield;
+export const LOCAL_STORAGE_SERVICE_META_DATA: BrowserBoundaryService<
+  'LocalStorageService',
+  StorageServiceApi
+>['LOCAL_STORAGE_SERVICE_META_DATA'] =
+  localStorageService.LOCAL_STORAGE_SERVICE_META_DATA;
+
+const sessionStorageService: BrowserBoundaryService<
+  'SessionStorageService',
+  StorageServiceApi
+> = craftService(
+  {
+    name: 'SessionStorageService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): StorageServiceApi => ({
+    getItem: (key) => getBrowserSessionStorage().getItem(key),
+    setItem: (key, value) => getBrowserSessionStorage().setItem(key, value),
+    removeItem: (key) => getBrowserSessionStorage().removeItem(key),
+    clear: () => getBrowserSessionStorage().clear(),
+    key: (index) => getBrowserSessionStorage().key(index),
+    length: () => getBrowserSessionStorage().length,
+  }),
+);
+export const injectSessionStorageService: BrowserBoundaryService<
+  'SessionStorageService',
+  StorageServiceApi
+>['injectSessionStorageService'] =
+  sessionStorageService.injectSessionStorageService;
+export const SessionStorageServiceToYield: BrowserBoundaryService<
+  'SessionStorageService',
+  StorageServiceApi
+>['SessionStorageServiceToYield'] =
+  sessionStorageService.SessionStorageServiceToYield;
+export const SESSION_STORAGE_SERVICE_META_DATA: BrowserBoundaryService<
+  'SessionStorageService',
+  StorageServiceApi
+>['SESSION_STORAGE_SERVICE_META_DATA'] =
+  sessionStorageService.SESSION_STORAGE_SERVICE_META_DATA;
+
+const cookiesService: BrowserBoundaryService<
+  'CookiesService',
+  CookiesServiceApi
+> = craftService(
+  {
+    name: 'CookiesService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): CookiesServiceApi => ({
+    get: (name) => buildCookieMap()[name],
+    getAll: () => buildCookieMap(),
+    set: (name, value, options) => writeCookie(name, value, options),
+    remove: (name, options) => removeCookie(name, options),
+    has: (name) =>
+      Object.prototype.hasOwnProperty.call(buildCookieMap(), name),
+  }),
+);
+export const injectCookiesService: BrowserBoundaryService<
+  'CookiesService',
+  CookiesServiceApi
+>['injectCookiesService'] = cookiesService.injectCookiesService;
+export const CookiesServiceToYield: BrowserBoundaryService<
+  'CookiesService',
+  CookiesServiceApi
+>['CookiesServiceToYield'] = cookiesService.CookiesServiceToYield;
+export const COOKIES_SERVICE_META_DATA: BrowserBoundaryService<
+  'CookiesService',
+  CookiesServiceApi
+>['COOKIES_SERVICE_META_DATA'] = cookiesService.COOKIES_SERVICE_META_DATA;
+
+const browserLocationService: BrowserBoundaryService<
+  'BrowserLocationService',
+  BrowserLocationServiceApi
+> = craftService(
+  {
+    name: 'BrowserLocationService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): BrowserLocationServiceApi => ({
+    href: () => getBrowserLocation().href,
+    origin: () => getBrowserLocation().origin,
+    protocol: () => getBrowserLocation().protocol,
+    host: () => getBrowserLocation().host,
+    hostname: () => getBrowserLocation().hostname,
+    port: () => getBrowserLocation().port,
+    pathname: () => getBrowserLocation().pathname,
+    search: () => getBrowserLocation().search,
+    hash: () => getBrowserLocation().hash,
+    assign: (url) => getBrowserLocation().assign(url),
+    replace: (url) => getBrowserLocation().replace(url),
+    reload: () => getBrowserLocation().reload(),
+  }),
+);
+export const injectBrowserLocationService: BrowserBoundaryService<
+  'BrowserLocationService',
+  BrowserLocationServiceApi
+>['injectBrowserLocationService'] =
+  browserLocationService.injectBrowserLocationService;
+export const BrowserLocationServiceToYield: BrowserBoundaryService<
+  'BrowserLocationService',
+  BrowserLocationServiceApi
+>['BrowserLocationServiceToYield'] =
+  browserLocationService.BrowserLocationServiceToYield;
+export const BROWSER_LOCATION_SERVICE_META_DATA: BrowserBoundaryService<
+  'BrowserLocationService',
+  BrowserLocationServiceApi
+>['BROWSER_LOCATION_SERVICE_META_DATA'] =
+  browserLocationService.BROWSER_LOCATION_SERVICE_META_DATA;
+
+const browserHistoryService: BrowserBoundaryService<
+  'BrowserHistoryService',
+  BrowserHistoryServiceApi
+> = craftService(
+  {
+    name: 'BrowserHistoryService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): BrowserHistoryServiceApi => ({
+    length: () => getBrowserHistory().length,
+    state: () => getBrowserHistory().state,
+    back: () => getBrowserHistory().back(),
+    forward: () => getBrowserHistory().forward(),
+    go: (delta) => getBrowserHistory().go(delta),
+    pushState: (data, unused, url) =>
+      getBrowserHistory().pushState(data, unused, url),
+    replaceState: (data, unused, url) =>
+      getBrowserHistory().replaceState(data, unused, url),
+  }),
+);
+export const injectBrowserHistoryService: BrowserBoundaryService<
+  'BrowserHistoryService',
+  BrowserHistoryServiceApi
+>['injectBrowserHistoryService'] =
+  browserHistoryService.injectBrowserHistoryService;
+export const BrowserHistoryServiceToYield: BrowserBoundaryService<
+  'BrowserHistoryService',
+  BrowserHistoryServiceApi
+>['BrowserHistoryServiceToYield'] =
+  browserHistoryService.BrowserHistoryServiceToYield;
+export const BROWSER_HISTORY_SERVICE_META_DATA: BrowserBoundaryService<
+  'BrowserHistoryService',
+  BrowserHistoryServiceApi
+>['BROWSER_HISTORY_SERVICE_META_DATA'] =
+  browserHistoryService.BROWSER_HISTORY_SERVICE_META_DATA;
+
+const browserNavigatorService: BrowserBoundaryService<
+  'BrowserNavigatorService',
+  BrowserNavigatorServiceApi
+> = craftService(
+  {
+    name: 'BrowserNavigatorService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): BrowserNavigatorServiceApi => ({
+    userAgent: () => getBrowserNavigator().userAgent,
+    language: () => getBrowserNavigator().language,
+    languages: () => getBrowserNavigator().languages,
+    onLine: () => getBrowserNavigator().onLine,
+    cookieEnabled: () => getBrowserNavigator().cookieEnabled,
+    sendBeacon: (url, data) => getBrowserNavigator().sendBeacon(url, data),
+  }),
+);
+export const injectBrowserNavigatorService: BrowserBoundaryService<
+  'BrowserNavigatorService',
+  BrowserNavigatorServiceApi
+>['injectBrowserNavigatorService'] =
+  browserNavigatorService.injectBrowserNavigatorService;
+export const BrowserNavigatorServiceToYield: BrowserBoundaryService<
+  'BrowserNavigatorService',
+  BrowserNavigatorServiceApi
+>['BrowserNavigatorServiceToYield'] =
+  browserNavigatorService.BrowserNavigatorServiceToYield;
+export const BROWSER_NAVIGATOR_SERVICE_META_DATA: BrowserBoundaryService<
+  'BrowserNavigatorService',
+  BrowserNavigatorServiceApi
+>['BROWSER_NAVIGATOR_SERVICE_META_DATA'] =
+  browserNavigatorService.BROWSER_NAVIGATOR_SERVICE_META_DATA;
+
+const browserPerformanceService: BrowserBoundaryService<
+  'BrowserPerformanceService',
+  BrowserPerformanceServiceApi
+> = craftService(
+  {
+    name: 'BrowserPerformanceService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): BrowserPerformanceServiceApi => ({
+    now: () => getBrowserPerformance().now(),
+    mark: (name, options) => getBrowserPerformance().mark(name, options),
+    measure: (measureName, startOrMeasureOptions, endMark) => {
+      if (endMark !== undefined) {
+        return getBrowserPerformance().measure(
+          measureName,
+          startOrMeasureOptions as string,
+          endMark,
+        );
+      }
+
+      if (startOrMeasureOptions !== undefined) {
+        return getBrowserPerformance().measure(
+          measureName,
+          startOrMeasureOptions as string | PerformanceMeasureOptions,
+        );
+      }
+
+      return getBrowserPerformance().measure(measureName);
+    },
+    clearMarks: (markName) => getBrowserPerformance().clearMarks(markName),
+    clearMeasures: (measureName) =>
+      getBrowserPerformance().clearMeasures(measureName),
+  }),
+);
+export const injectBrowserPerformanceService: BrowserBoundaryService<
+  'BrowserPerformanceService',
+  BrowserPerformanceServiceApi
+>['injectBrowserPerformanceService'] =
+  browserPerformanceService.injectBrowserPerformanceService;
+export const BrowserPerformanceServiceToYield: BrowserBoundaryService<
+  'BrowserPerformanceService',
+  BrowserPerformanceServiceApi
+>['BrowserPerformanceServiceToYield'] =
+  browserPerformanceService.BrowserPerformanceServiceToYield;
+export const BROWSER_PERFORMANCE_SERVICE_META_DATA: BrowserBoundaryService<
+  'BrowserPerformanceService',
+  BrowserPerformanceServiceApi
+>['BROWSER_PERFORMANCE_SERVICE_META_DATA'] =
+  browserPerformanceService.BROWSER_PERFORMANCE_SERVICE_META_DATA;
+
+const browserCryptoService: BrowserBoundaryService<
+  'BrowserCryptoService',
+  BrowserCryptoServiceApi
+> = craftService(
+  {
+    name: 'BrowserCryptoService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): BrowserCryptoServiceApi => ({
+    randomUUID: () => getBrowserCrypto().randomUUID(),
+    getRandomValues: <TypedArray extends ArrayBufferView>(
+      typedArray: TypedArray,
+    ) => getBrowserCrypto().getRandomValues(typedArray) as TypedArray,
+    digest: (algorithm, data) =>
+      getBrowserCrypto().subtle.digest(algorithm, data),
+  }),
+);
+export const injectBrowserCryptoService: BrowserBoundaryService<
+  'BrowserCryptoService',
+  BrowserCryptoServiceApi
+>['injectBrowserCryptoService'] =
+  browserCryptoService.injectBrowserCryptoService;
+export const BrowserCryptoServiceToYield: BrowserBoundaryService<
+  'BrowserCryptoService',
+  BrowserCryptoServiceApi
+>['BrowserCryptoServiceToYield'] =
+  browserCryptoService.BrowserCryptoServiceToYield;
+export const BROWSER_CRYPTO_SERVICE_META_DATA: BrowserBoundaryService<
+  'BrowserCryptoService',
+  BrowserCryptoServiceApi
+>['BROWSER_CRYPTO_SERVICE_META_DATA'] =
+  browserCryptoService.BROWSER_CRYPTO_SERVICE_META_DATA;
+
+const browserDocumentService: BrowserBoundaryService<
+  'BrowserDocumentService',
+  BrowserDocumentServiceApi
+> = craftService(
+  {
+    name: 'BrowserDocumentService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): BrowserDocumentServiceApi => ({
+    title: () => getBrowserDocument().title,
+    setTitle: (value) => {
+      getBrowserDocument().title = value;
+    },
+    visibilityState: () => getBrowserDocument().visibilityState,
+    hasFocus: () => getBrowserDocument().hasFocus(),
+  }),
+);
+export const injectBrowserDocumentService: BrowserBoundaryService<
+  'BrowserDocumentService',
+  BrowserDocumentServiceApi
+>['injectBrowserDocumentService'] =
+  browserDocumentService.injectBrowserDocumentService;
+export const BrowserDocumentServiceToYield: BrowserBoundaryService<
+  'BrowserDocumentService',
+  BrowserDocumentServiceApi
+>['BrowserDocumentServiceToYield'] =
+  browserDocumentService.BrowserDocumentServiceToYield;
+export const BROWSER_DOCUMENT_SERVICE_META_DATA: BrowserBoundaryService<
+  'BrowserDocumentService',
+  BrowserDocumentServiceApi
+>['BROWSER_DOCUMENT_SERVICE_META_DATA'] =
+  browserDocumentService.BROWSER_DOCUMENT_SERVICE_META_DATA;
+
+const browserWindowService: BrowserBoundaryService<
+  'BrowserWindowService',
+  BrowserWindowServiceApi
+> = craftService(
+  {
+    name: 'BrowserWindowService',
+    scope: 'global',
+    browserBoundary: true,
+  },
+  (): BrowserWindowServiceApi => ({
+    innerWidth: () => getBrowserWindow().innerWidth,
+    innerHeight: () => getBrowserWindow().innerHeight,
+    scrollX: () => getBrowserWindow().scrollX,
+    scrollY: () => getBrowserWindow().scrollY,
+    scrollTo: (...args) => {
+      if (args.length === 1) {
+        getBrowserWindow().scrollTo(args[0]);
+        return;
+      }
+
+      getBrowserWindow().scrollTo(args[0], args[1]);
+    },
+    alert: (message) => getBrowserWindow().alert(message),
+    confirm: (message) => getBrowserWindow().confirm(message),
+  }),
+);
+export const injectBrowserWindowService: BrowserBoundaryService<
+  'BrowserWindowService',
+  BrowserWindowServiceApi
+>['injectBrowserWindowService'] = browserWindowService.injectBrowserWindowService;
+export const BrowserWindowServiceToYield: BrowserBoundaryService<
+  'BrowserWindowService',
+  BrowserWindowServiceApi
+>['BrowserWindowServiceToYield'] = browserWindowService.BrowserWindowServiceToYield;
+export const BROWSER_WINDOW_SERVICE_META_DATA: BrowserBoundaryService<
+  'BrowserWindowService',
+  BrowserWindowServiceApi
+>['BROWSER_WINDOW_SERVICE_META_DATA'] =
+  browserWindowService.BROWSER_WINDOW_SERVICE_META_DATA;
+
+const callConsole = createBoundaryCall<
+  ConsoleServiceApi,
+  typeof ConsoleServiceToYield
+>(ConsoleServiceToYield);
+const callLocalStorage = createBoundaryCall<
+  StorageServiceApi,
+  typeof LocalStorageServiceToYield
+>(LocalStorageServiceToYield);
+const callSessionStorage = createBoundaryCall<
+  StorageServiceApi,
+  typeof SessionStorageServiceToYield
+>(SessionStorageServiceToYield);
+const callCookies = createBoundaryCall<
+  CookiesServiceApi,
+  typeof CookiesServiceToYield
+>(CookiesServiceToYield);
+const callBrowserLocation = createBoundaryCall<
+  BrowserLocationServiceApi,
+  typeof BrowserLocationServiceToYield
+>(BrowserLocationServiceToYield);
+const callBrowserHistory = createBoundaryCall<
+  BrowserHistoryServiceApi,
+  typeof BrowserHistoryServiceToYield
+>(BrowserHistoryServiceToYield);
+const callBrowserNavigator = createBoundaryCall<
+  BrowserNavigatorServiceApi,
+  typeof BrowserNavigatorServiceToYield
+>(BrowserNavigatorServiceToYield);
+const callBrowserPerformance = createBoundaryCall<
+  BrowserPerformanceServiceApi,
+  typeof BrowserPerformanceServiceToYield
+>(BrowserPerformanceServiceToYield);
+const callBrowserCrypto = createBoundaryCall<
+  BrowserCryptoServiceApi,
+  typeof BrowserCryptoServiceToYield
+>(BrowserCryptoServiceToYield);
+const callBrowserDocument = createBoundaryCall<
+  BrowserDocumentServiceApi,
+  typeof BrowserDocumentServiceToYield
+>(BrowserDocumentServiceToYield);
+const callBrowserWindow = createBoundaryCall<
+  BrowserWindowServiceApi,
+  typeof BrowserWindowServiceToYield
+>(BrowserWindowServiceToYield);
+
+export const Console: BrowserBoundaryDsl<
+  ConsoleServiceApi,
+  GetServiceYields<typeof ConsoleServiceToYield>
+> = {
+  debug: callConsole('debug'),
+  info: callConsole('info'),
+  log: callConsole('log'),
+  warn: callConsole('warn'),
+  error: callConsole('error'),
+  trace: callConsole('trace'),
+  group: callConsole('group'),
+  groupCollapsed: callConsole('groupCollapsed'),
+  groupEnd: callConsole('groupEnd'),
+  time: callConsole('time'),
+  timeEnd: callConsole('timeEnd'),
+};
+
+export const LocalStorage: BrowserBoundaryDsl<
+  StorageServiceApi,
+  GetServiceYields<typeof LocalStorageServiceToYield>
+> = {
+  getItem: callLocalStorage('getItem'),
+  setItem: callLocalStorage('setItem'),
+  removeItem: callLocalStorage('removeItem'),
+  clear: callLocalStorage('clear'),
+  key: callLocalStorage('key'),
+  length: callLocalStorage('length'),
+};
+
+export const SessionStorage: BrowserBoundaryDsl<
+  StorageServiceApi,
+  GetServiceYields<typeof SessionStorageServiceToYield>
+> = {
+  getItem: callSessionStorage('getItem'),
+  setItem: callSessionStorage('setItem'),
+  removeItem: callSessionStorage('removeItem'),
+  clear: callSessionStorage('clear'),
+  key: callSessionStorage('key'),
+  length: callSessionStorage('length'),
+};
+
+export const Cookies: BrowserBoundaryDsl<
+  CookiesServiceApi,
+  GetServiceYields<typeof CookiesServiceToYield>
+> = {
+  get: callCookies('get'),
+  getAll: callCookies('getAll'),
+  set: callCookies('set'),
+  remove: callCookies('remove'),
+  has: callCookies('has'),
+};
+
+export const BrowserLocation: BrowserBoundaryDsl<
+  BrowserLocationServiceApi,
+  GetServiceYields<typeof BrowserLocationServiceToYield>
+> = {
+  href: callBrowserLocation('href'),
+  origin: callBrowserLocation('origin'),
+  protocol: callBrowserLocation('protocol'),
+  host: callBrowserLocation('host'),
+  hostname: callBrowserLocation('hostname'),
+  port: callBrowserLocation('port'),
+  pathname: callBrowserLocation('pathname'),
+  search: callBrowserLocation('search'),
+  hash: callBrowserLocation('hash'),
+  assign: callBrowserLocation('assign'),
+  replace: callBrowserLocation('replace'),
+  reload: callBrowserLocation('reload'),
+};
+
+export const BrowserHistory: BrowserBoundaryDsl<
+  BrowserHistoryServiceApi,
+  GetServiceYields<typeof BrowserHistoryServiceToYield>
+> = {
+  length: callBrowserHistory('length'),
+  state: callBrowserHistory('state'),
+  back: callBrowserHistory('back'),
+  forward: callBrowserHistory('forward'),
+  go: callBrowserHistory('go'),
+  pushState: callBrowserHistory('pushState'),
+  replaceState: callBrowserHistory('replaceState'),
+};
+
+export const BrowserNavigator: BrowserBoundaryDsl<
+  BrowserNavigatorServiceApi,
+  GetServiceYields<typeof BrowserNavigatorServiceToYield>
+> = {
+  userAgent: callBrowserNavigator('userAgent'),
+  language: callBrowserNavigator('language'),
+  languages: callBrowserNavigator('languages'),
+  onLine: callBrowserNavigator('onLine'),
+  cookieEnabled: callBrowserNavigator('cookieEnabled'),
+  sendBeacon: callBrowserNavigator('sendBeacon'),
+};
+
+export const BrowserPerformance: BrowserBoundaryDsl<
+  BrowserPerformanceServiceApi,
+  GetServiceYields<typeof BrowserPerformanceServiceToYield>
+> = {
+  now: callBrowserPerformance('now'),
+  mark: callBrowserPerformance('mark'),
+  measure: callBrowserPerformance('measure'),
+  clearMarks: callBrowserPerformance('clearMarks'),
+  clearMeasures: callBrowserPerformance('clearMeasures'),
+};
+
+export const BrowserCrypto: BrowserBoundaryDsl<
+  BrowserCryptoServiceApi,
+  BrowserCryptoYield
+> = {
+  randomUUID: callBrowserCrypto('randomUUID'),
+  getRandomValues: function* <TypedArray extends ArrayBufferView>(
+    typedArray: TypedArray,
+  ): Generator<
+    BrowserCryptoYield,
+    TypedArray,
+    unknown
+  > {
+    const cryptoService = yield* BrowserCryptoServiceToYield();
+
+    return cryptoService.getRandomValues(typedArray);
+  },
+  digest: callBrowserCrypto('digest'),
+};
+
+export const BrowserDocument: BrowserBoundaryDsl<
+  BrowserDocumentServiceApi,
+  GetServiceYields<typeof BrowserDocumentServiceToYield>
+> = {
+  title: callBrowserDocument('title'),
+  setTitle: callBrowserDocument('setTitle'),
+  visibilityState: callBrowserDocument('visibilityState'),
+  hasFocus: callBrowserDocument('hasFocus'),
+};
+
+export const BrowserWindow: BrowserBoundaryDsl<
+  BrowserWindowServiceApi,
+  GetServiceYields<typeof BrowserWindowServiceToYield>
+> = {
+  innerWidth: callBrowserWindow('innerWidth'),
+  innerHeight: callBrowserWindow('innerHeight'),
+  scrollX: callBrowserWindow('scrollX'),
+  scrollY: callBrowserWindow('scrollY'),
+  scrollTo: callBrowserWindow('scrollTo'),
+  alert: callBrowserWindow('alert'),
+  confirm: callBrowserWindow('confirm'),
+};

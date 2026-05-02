@@ -7,7 +7,12 @@ import {
 } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { craftException, type CraftExceptionResult } from './craft-exception';
-import { toCraftService } from './craft-service';
+import {
+  toCraftService,
+  type DependencyApi,
+  type GetServiceYields,
+  type ServiceTrackingMetadata,
+} from './craft-service';
 
 declare const MISSING_CRAFT_HTTP_CLIENT_SUCCESS_TYPE: unique symbol;
 
@@ -79,13 +84,102 @@ export type CraftHttpClientResult<Success> = Promise<
   CraftHttpClientResolved<Success>
 >;
 
-const { HttpClientAdapterToYield } = toCraftService({
+type HttpClientAdapterApi = DependencyApi<
+  'HttpClientAdapter',
+  'global',
+  {},
+  HttpClient,
+  ServiceTrackingMetadata<
+    'HttpClientAdapter',
+    'global',
+    HttpClient,
+    never,
+    undefined,
+    never,
+    false
+  >
+>;
+
+const httpClientAdapter: HttpClientAdapterApi = toCraftService({
   name: 'HttpClientAdapter',
   scope: 'global',
   token: HttpClient,
 });
+const HttpClientAdapterToYield: HttpClientAdapterApi['HttpClientAdapterToYield'] =
+  httpClientAdapter.HttpClientAdapterToYield;
 
-export const CraftHttpClient = {
+type HttpClientAdapterYield = GetServiceYields<
+  HttpClientAdapterApi['HttpClientAdapterToYield']
+>;
+
+type CraftHttpClientDsl = {
+  get: <Success = MissingCraftHttpClientSuccessType>(
+    ..._enforce: RequireExplicitSuccessType<Success>
+  ) => Generator<
+    HttpClientAdapterYield,
+    (
+      url: string,
+      options?: CraftHttpClientJsonOptions,
+    ) => CraftHttpClientResult<Success>,
+    unknown
+  >;
+  delete: <Success = MissingCraftHttpClientSuccessType>(
+    ..._enforce: RequireExplicitSuccessType<Success>
+  ) => Generator<
+    HttpClientAdapterYield,
+    (
+      url: string,
+      options?: CraftHttpClientJsonRequestOptions,
+    ) => CraftHttpClientResult<Success>,
+    unknown
+  >;
+  post: <Success = MissingCraftHttpClientSuccessType>(
+    ..._enforce: RequireExplicitSuccessType<Success>
+  ) => Generator<
+    HttpClientAdapterYield,
+    (
+      url: string,
+      body: unknown | null,
+      options?: CraftHttpClientJsonOptions,
+    ) => CraftHttpClientResult<Success>,
+    unknown
+  >;
+  put: <Success = MissingCraftHttpClientSuccessType>(
+    ..._enforce: RequireExplicitSuccessType<Success>
+  ) => Generator<
+    HttpClientAdapterYield,
+    (
+      url: string,
+      body: unknown | null,
+      options?: CraftHttpClientJsonOptions,
+    ) => CraftHttpClientResult<Success>,
+    unknown
+  >;
+  patch: <Success = MissingCraftHttpClientSuccessType>(
+    ..._enforce: RequireExplicitSuccessType<Success>
+  ) => Generator<
+    HttpClientAdapterYield,
+    (
+      url: string,
+      body: unknown | null,
+      options?: CraftHttpClientJsonOptions,
+    ) => CraftHttpClientResult<Success>,
+    unknown
+  >;
+  request: <Success = MissingCraftHttpClientSuccessType>(
+    ..._enforce: RequireExplicitSuccessType<Success>
+  ) => Generator<
+    HttpClientAdapterYield,
+    (
+      method: string,
+      url: string,
+      options?: CraftHttpClientJsonRequestOptions,
+    ) => CraftHttpClientResult<Success>,
+    unknown
+  >;
+};
+
+export const CraftHttpClient: CraftHttpClientDsl = {
   get: function* <Success = MissingCraftHttpClientSuccessType>(
     ..._enforce: RequireExplicitSuccessType<Success>
   ) {

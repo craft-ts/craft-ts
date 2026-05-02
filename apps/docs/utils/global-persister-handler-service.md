@@ -1,26 +1,29 @@
 # GlobalPersisterHandlerService
 
-A global service for managing cache persistence operations in craft-ng.
+A global craftService for managing cache persistence operations in @craft-ng.
 
 ## Overview
 
-The `GlobalPersisterHandlerService` provides a centralized way to clear all cached data stored in localStorage by craft-ng. This service is particularly useful when you need to completely remove all persisted data, such as when a user logs out of your application.
+`GlobalPersisterHandlerService` is exposed through the generated `injectGlobalPersisterHandlerService()` helper. It provides a centralized way to clear all cached data stored in `localStorage` by `@craft-ng`.
+
+This helper is useful when you need to completely remove persisted queries, mutations, and related cached data, for example during logout or when switching accounts.
 
 ## Installation
 
-The service is automatically available when you install `@craft-ng/core`:
+The helper is automatically available when you install `@craft-ng/core`:
 
 ```typescript
-import { GlobalPersisterHandlerService } from '@craft-ng/core';
+import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
 ```
 
 ## How it works
 
-The service scans all keys in `localStorage` and removes any key that starts with the `craft-ng-` prefix. This ensures complete cleanup of all data cached by craft-ng, including:
+The underlying global `craftService` scans all keys in `localStorage` and removes any key that starts with the `ng-craft-` prefix. This ensures complete cleanup of all data cached by `@craft-ng`, including:
 
 - Persisted queries
-- Persisted queries by ID
-- Any other data cached by craft-ng's persistence layer
+- Persisted mutations
+- Persisted async processes
+- Any other data cached by the `@craft-ng` persistence layer
 
 ## Basic Usage
 
@@ -28,7 +31,7 @@ The service scans all keys in `localStorage` and removes any key that starts wit
 
 ```typescript
 import { Component, inject } from '@angular/core';
-import { GlobalPersisterHandlerService } from '@craft-ng/core';
+import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
 import { Router } from '@angular/router';
 
 @Component({
@@ -36,17 +39,12 @@ import { Router } from '@angular/router';
   template: ` <button (click)="logout()">Logout</button> `,
 })
 export class HeaderComponent {
-  private readonly persisterHandler = inject(GlobalPersisterHandlerService);
+  private readonly persisterHandler = injectGlobalPersisterHandlerService();
   private readonly router = inject(Router);
 
   logout() {
-    // Clear all craft-ng cached data
     this.persisterHandler.clearAllCache();
-
-    // Clear authentication tokens
     localStorage.removeItem('auth_token');
-
-    // Navigate to login page
     this.router.navigate(['/login']);
   }
 }
@@ -55,21 +53,18 @@ export class HeaderComponent {
 ### Force refresh all data
 
 ```typescript
-import { Component, inject } from '@angular/core';
-import { GlobalPersisterHandlerService } from '@craft-ng/core';
+import { Component } from '@angular/core';
+import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
 
 @Component({
   selector: 'app-settings',
   template: ` <button (click)="clearCache()">Clear Cache & Refresh</button> `,
 })
 export class SettingsComponent {
-  private readonly persisterHandler = inject(GlobalPersisterHandlerService);
+  private readonly persisterHandler = injectGlobalPersisterHandlerService();
 
   clearCache() {
-    // Clear all cached data
     this.persisterHandler.clearAllCache();
-
-    // Reload the page to fetch fresh data
     window.location.reload();
   }
 }
@@ -78,8 +73,8 @@ export class SettingsComponent {
 ### Clear cache when switching accounts
 
 ```typescript
-import { Component, inject } from '@angular/core';
-import { GlobalPersisterHandlerService } from '@craft-ng/core';
+import { Component } from '@angular/core';
+import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
 
 @Component({
   selector: 'app-account-switcher',
@@ -92,7 +87,7 @@ import { GlobalPersisterHandlerService } from '@craft-ng/core';
   `,
 })
 export class AccountSwitcherComponent {
-  private readonly persisterHandler = inject(GlobalPersisterHandlerService);
+  private readonly persisterHandler = injectGlobalPersisterHandlerService();
 
   accounts = [
     { id: 1, name: 'Personal Account' },
@@ -102,10 +97,7 @@ export class AccountSwitcherComponent {
   switchAccount(event: Event) {
     const accountId = (event.target as HTMLSelectElement).value;
 
-    // Clear all cached data from previous account
     this.persisterHandler.clearAllCache();
-
-    // Load new account data
     this.loadAccount(accountId);
   }
 
@@ -145,7 +137,6 @@ ngOnDestroy() {
 Quickly clear all cached data during development or testing.
 
 ```typescript
-// In a debug component
 resetCache() {
   if (environment.development) {
     this.persisterHandler.clearAllCache();

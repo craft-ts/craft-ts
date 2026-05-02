@@ -81,7 +81,6 @@ export default [
       // Adds a Quick Fix in VS Code through the ESLint extension
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
-      'craft-ng/no-direct-angular-class-export': 'error',
     }
   }
 ];
@@ -124,7 +123,6 @@ module.exports = defineConfig([
       // `brand-angular-deps-match` refreshes existing GenDeps aliases with ESLint autofix
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
-      'craft-ng/no-direct-angular-class-export': 'error',
     },
   },
   {

@@ -98,6 +98,8 @@ export default defineConfig({
           { text: 'source$', link: '/utils/source$' },
           { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },
           { text: 'on$', link: '/utils/on$' },
+          { text: 'craftMethod', link: '/utils/craft-method' },
+          { text: 'onAppStart', link: '/utils/on-app-start' },
           {
             text: 'reactiveWritableSignal',
             link: '/utils/reactive-writable-signal',
@@ -112,6 +114,10 @@ export default defineConfig({
       {
         text: 'Type-safe DI/Routes',
         items: [
+          {
+            text: 'Setup',
+            link: '/type-safe-di-routes/setup',
+          },
           {
             text: 'Browser Boundaries',
             link: '/type-safe-di-routes/browser-boundaries',

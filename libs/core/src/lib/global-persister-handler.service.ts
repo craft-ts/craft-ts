@@ -1,77 +1,86 @@
-import { Injectable } from '@angular/core';
-import { type GetDeps } from '@craft-ng/core';
+import { LocalStorageServiceToYield } from './browser-boundaries';
+import {
+  craftService,
+  type CraftServiceApi,
+  type ServiceTrackingMetadata,
+} from './craft-service';
+
+export type GlobalPersisterHandlerServiceApi = {
+  clearAllCache(): void;
+};
+
+type GlobalPersisterHandlerServiceCraftApi = CraftServiceApi<
+  'GlobalPersisterHandlerService',
+  'global',
+  {},
+  GlobalPersisterHandlerServiceApi,
+  ServiceTrackingMetadata<
+    'GlobalPersisterHandlerService',
+    'global',
+    GlobalPersisterHandlerServiceApi,
+    unknown
+  >
+>;
 
 /**
- * Global service for managing persistence operations.
+ * Injects the global craft service responsible for clearing persisted `@craft-ng`
+ * cache entries from `localStorage`.
  *
- * This service provides a centralized way to clear all cached data stored in localStorage
- * by the ng-craft library. It's particularly useful when a user logs out, ensuring all
- * cached queries, mutations, and other persisted data are completely removed.
+ * This helper returns a singleton service created with `craftService({ scope: 'global' })`.
+ * It removes every persisted entry whose key starts with `ng-craft-`, which makes it
+ * useful for logout flows, account switches, or any full cache reset.
  *
  * @example
- * ```typescript
- * import { GlobalPersisterHandlerService } from '@craft-ng/core';
+ * ```ts
+ * import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
  *
  * export class AppComponent {
- *   constructor(private persisterHandler: GlobalPersisterHandlerService) {}
+ *   private readonly persisterHandler = injectGlobalPersisterHandlerService();
  *
  *   logout() {
- *     // Clear all ng-craft cached data from localStorage
+ *     // Clear all @craft-ng cached data from localStorage.
  *     this.persisterHandler.clearAllCache();
- *     // Proceed with logout logic...
  *   }
  * }
  * ```
  */
-@Injectable({
-  providedIn: 'root',
-})
-export class GlobalPersisterHandlerService {
-  /**
-   * Clears all cached data from localStorage that was created by ng-craft.
-   *
-   * This method scans all keys in localStorage and removes any key that starts
-   * with the 'ng-craft-' prefix. This ensures a complete cleanup of all persisted
-   * queries, mutations, and other cached data.
-   *
-   * **Use cases:**
-   * - User logout: Remove all user-specific cached data
-   * - Data reset: Clear all cached data to force fresh data loading
-   * - Privacy: Ensure no data remains in localStorage after user session
-   *
-   * @example
-   * ```typescript
-   * // In a logout handler
-   * logout() {
-   *   this.persisterHandler.clearAllCache();
-   *   this.router.navigate(['/login']);
-   * }
-   * ```
-   *
-   * @example
-   * ```typescript
-   * // Force refresh all data
-   * refreshAllData() {
-   *   this.persisterHandler.clearAllCache();
-   *   window.location.reload();
-   * }
-   * ```
-   */
-  clearAllCache(): void {
-    const keysToRemove: string[] = [];
+const globalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi =
+  craftService(
+    {
+      name: 'GlobalPersisterHandlerService',
+      scope: 'global',
+    },
+    function* () {
+      const storage = yield* LocalStorageServiceToYield(
+        undefined,
+        ({ key, length, removeItem }) => ({
+          key,
+          length,
+          removeItem,
+        }),
+      );
 
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('ng-craft-')) {
-        keysToRemove.push(key);
-      }
-    }
+      return {
+        clearAllCache(): void {
+          const keysToRemove: string[] = [];
+          const storageLength = storage.length();
 
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
-  }
-}
+          for (let index = 0; index < storageLength; index++) {
+            const keyName = storage.key(index);
+            if (keyName?.startsWith('ng-craft-')) {
+              keysToRemove.push(keyName);
+            }
+          }
 
-export type GenDeps_GlobalPersisterHandlerService = GetDeps<{
-      deps: {};
-      provided: {};
-    }>;
+          keysToRemove.forEach((keyName) => storage.removeItem(keyName));
+        },
+      };
+    },
+  );
+
+export const injectGlobalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi['injectGlobalPersisterHandlerService'] =
+  globalPersisterHandlerService.injectGlobalPersisterHandlerService;
+export const GlobalPersisterHandlerServiceToYield: GlobalPersisterHandlerServiceCraftApi['GlobalPersisterHandlerServiceToYield'] =
+  globalPersisterHandlerService.GlobalPersisterHandlerServiceToYield;
+export const GLOBAL_PERSISTER_HANDLER_SERVICE_META_DATA: GlobalPersisterHandlerServiceCraftApi['GLOBAL_PERSISTER_HANDLER_SERVICE_META_DATA'] =
+  globalPersisterHandlerService.GLOBAL_PERSISTER_HANDLER_SERVICE_META_DATA;

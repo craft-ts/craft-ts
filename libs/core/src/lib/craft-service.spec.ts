@@ -6,6 +6,7 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { Subject } from 'rxjs';
+import { Console, ConsoleServiceToYield } from './browser-boundaries';
 import {
   abstract,
   craftRequirement,
@@ -19,6 +20,7 @@ import type {
   GetInjectedServiceDependencies,
   GetServiceReferenceMeta,
   GetServiceOutput,
+  GetServiceYields,
   GetServiceTrackingMetadata,
   GetToYieldServiceDependencies,
   MaybeSignal,
@@ -139,6 +141,89 @@ describe('craftService', () => {
       resolveAppStart();
       await pendingStart;
     });
+  });
+
+  it('should support generator callbacks in onAppStart and wait for their async result', async () => {
+    let resolveAppStart!: () => void;
+    const waitForAppStart = new Promise<void>((resolve) => {
+      resolveAppStart = resolve;
+    });
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const { injectAppStartLog } = craftService(
+      {
+        name: 'AppStartLog',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(function* () {
+          yield* Console.log('This is a log from the appStart callback');
+          return waitForAppStart;
+        });
+
+        return 1;
+      },
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const service = injectAppStartLog();
+      const pendingStart = runServiceAppStart(injectAppStartLog, service);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        'This is a log from the appStart callback',
+      );
+
+      resolveAppStart();
+      await pendingStart;
+    });
+  });
+
+  it('should track dependencies yielded only inside onAppStart generator callbacks', () => {
+    if (false) {
+      type ConsoleAppStartYield = GetServiceYields<typeof ConsoleServiceToYield>;
+
+      const { injectTypedAppStartLog } = craftService(
+        {
+          name: 'TypedAppStartLog',
+          scope: 'toProvide',
+          appStart: true,
+        },
+        function* () {
+          yield* onAppStart(function* (): Generator<
+            ConsoleAppStartYield,
+            undefined,
+            unknown
+          > {
+            const consoleService = yield* ConsoleServiceToYield();
+
+            consoleService.log('typed app start log');
+
+            return undefined;
+          });
+
+          return 1;
+        },
+      );
+
+      type AppStartLogDependencies = GetInjectedServiceDependencies<
+        typeof injectTypedAppStartLog
+      >;
+      type ConsoleDependency =
+        AppStartLogDependencies['dependencies']['ConsoleService'];
+
+      expectTypeOf<AppStartLogDependencies['scope']>().toEqualTypeOf<
+        'toProvide'
+      >();
+      expectTypeOf<AppStartLogDependencies['browserBoundary']>().toEqualTypeOf<
+        false
+      >();
+      expectTypeOf<ConsoleDependency['scope']>().toEqualTypeOf<'global'>();
+      expectTypeOf<
+        ConsoleDependency['browserBoundary']
+      >().toEqualTypeOf<true>();
+      expectTypeOf<ConsoleDependency['dependencies']>().toEqualTypeOf<{}>();
+    }
   });
 
   it('should fail at runtime when onAppStart is used without appStart: true', () => {

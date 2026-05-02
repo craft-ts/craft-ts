@@ -1,15 +1,12 @@
 # Browser Boundaries
 
-> [!WARNING]
-> Upcoming / draft API. This page documents the planned browser DSL surface for `@craft-ng/core`. The exports shown below are not shipped yet.
+Browser boundaries keep direct browser access out of your `craftService` implementations while still making those dependencies explicit in the service graph.
 
-Browser boundaries are intended to keep direct browser access out of your `craftService` implementations.
+Every boundary on this page is backed by a global crafted service marked with `browserBoundary: true`.
 
-Instead of reaching for globals such as `console`, `localStorage`, `location`, or `history` inside a service, the idea is to route those interactions through typed helpers that can be tracked as explicit browser dependencies.
+## Import
 
-## Planned Import
-
-The intended public import shape is:
+The main DSL exports are:
 
 ```typescript
 import {
@@ -27,45 +24,91 @@ import {
 } from '@craft-ng/core';
 ```
 
-This import is shown here as a target API, not as a currently available export list.
+When you need to derive methods for later reuse, each boundary also exposes the usual generated helpers:
+
+```typescript
+import {
+  ConsoleServiceToYield,
+  injectConsoleService,
+  CONSOLE_SERVICE_META_DATA,
+} from '@craft-ng/core';
+```
+
+The same pattern exists for the other boundaries:
+
+- `LocalStorageServiceToYield`
+- `SessionStorageServiceToYield`
+- `CookiesServiceToYield`
+- `BrowserLocationServiceToYield`
+- `BrowserHistoryServiceToYield`
+- `BrowserNavigatorServiceToYield`
+- `BrowserPerformanceServiceToYield`
+- `BrowserCryptoServiceToYield`
+- `BrowserDocumentServiceToYield`
+- `BrowserWindowServiceToYield`
 
 ## Motivation
 
-Direct browser access inside a service makes dependencies harder to see, harder to test, and easier to spread across unrelated business logic.
+Direct browser access inside a service hides dependencies inside business logic and makes tracking harder.
 
-The planned browser DSL has two goals:
+Browser boundaries solve that in two complementary ways:
 
-- keep browser interactions explicit inside generator-based services
-- route those interactions through `yield* X.method(...)` helpers instead of raw globals
-
-Internally, each boundary is expected to sit on a global service marked with `browserBoundary: true`. That keeps the dependency graph able to distinguish application logic from browser-host interactions.
+- use `yield* X.method(...)` when the browser interaction should happen directly inside the generator
+- use `XServiceToYield(...)` when you want to derive bound browser helpers and reuse them inside returned callbacks
 
 ## Mental Model
 
-These APIs are intended to be a DSL, not a public proxy over raw browser objects.
+There are two valid ways to use a browser boundary.
 
-- You use them inside generator-based `craftService(...)` or `toCraftService(...)` implementations.
-- The public surface is method-oriented, including reads, so the usage stays uniform with `yield*`.
-- The underlying implementation is expected to be backed by internal global services flagged as browser boundaries.
+### Direct DSL
 
-That means the usage should feel like this:
+Use the DSL when the browser interaction belongs to the generator itself.
 
 ```typescript
-import { craftService } from '@craft-ng/core';
+import { Console, craftService } from '@craft-ng/core';
 
-const { injectAuditTrail } = craftService(
-  { name: 'AuditTrail', scope: 'global' },
+const { injectBootLogger } = craftService(
+  { name: 'BootLogger', scope: 'global' },
   function* () {
-    yield* Console.log('audit service created');
+    yield* Console.log('boot');
+    yield* Console.info('config loaded');
 
     return {
-      trackUserAction: function* (action: string) {
-        yield* Console.info('user action', action);
-      },
+      ready: true,
     };
   },
 );
 ```
+
+### Derived Service Helper
+
+Use `XServiceToYield(...)` when the browser method needs to stay callable later from a returned method.
+
+```typescript
+import { ConsoleServiceToYield, craftService } from '@craft-ng/core';
+
+const { injectAuditTrail } = craftService(
+  { name: 'AuditTrail', scope: 'global' },
+  function* () {
+    const consoleService = yield* ConsoleServiceToYield(
+      undefined,
+      ({ log, error }) => ({
+        log,
+        error,
+      }),
+    );
+
+    return {
+      trackUserAction: (action: string) =>
+        consoleService.log('user action', action),
+      trackFailure: (error: unknown) =>
+        consoleService.error('unexpected failure', error),
+    };
+  },
+);
+```
+
+That second form is what preserves derivability while still tracking the browser dependency explicitly.
 
 ## Core Examples
 
@@ -82,6 +125,15 @@ yield* Console.error('unexpected failure', error);
 yield* LocalStorage.setItem('token', token);
 
 const persistedToken = yield* LocalStorage.getItem('token');
+const entryCount = yield* LocalStorage.length();
+```
+
+### Session Storage
+
+```typescript
+yield* SessionStorage.setItem('active-tab', 'settings');
+
+const tab = yield* SessionStorage.getItem('active-tab');
 ```
 
 ### Cookies
@@ -93,12 +145,14 @@ yield* Cookies.set('session', sessionId, {
 });
 
 const session = yield* Cookies.get('session');
+const hasSession = yield* Cookies.has('session');
 ```
 
 ### Location
 
 ```typescript
 const href = yield* BrowserLocation.href();
+const pathname = yield* BrowserLocation.pathname();
 
 yield* BrowserLocation.reload();
 ```
@@ -106,14 +160,54 @@ yield* BrowserLocation.reload();
 ### History
 
 ```typescript
-yield* BrowserHistory.back();
+yield* BrowserHistory.replaceState({ step: 2 }, '', '/checkout?step=2');
+
+const state = yield* BrowserHistory.state();
 ```
 
-## Planned API Reference
+### Document
 
-### `Console`
+```typescript
+yield* BrowserDocument.setTitle('Checkout');
 
-Planned methods:
+const title = yield* BrowserDocument.title();
+```
+
+### Window
+
+```typescript
+const width = yield* BrowserWindow.innerWidth();
+
+yield* BrowserWindow.scrollTo(0, 0);
+yield* BrowserWindow.alert('Cache cleared! The page will reload.');
+
+const confirmed = yield* BrowserWindow.confirm(
+  'Cache cleared! The page will reload.',
+);
+
+if (confirmed) {
+  yield* BrowserLocation.reload();
+}
+```
+
+### Performance And Crypto
+
+```typescript
+const now = yield* BrowserPerformance.now();
+const uuid = yield* BrowserCrypto.randomUUID();
+```
+
+## API Reference
+
+Every service below is:
+
+- `scope: 'global'`
+- `browserBoundary: true`
+- exposed both as a DSL object and as generated service helpers
+
+### `Console` and `ConsoleService`
+
+Methods:
 
 - `debug`
 - `info`
@@ -127,20 +221,15 @@ Planned methods:
 - `time`
 - `timeEnd`
 
-### `LocalStorage`
+Generated helpers:
 
-Planned methods:
+- `injectConsoleService`
+- `ConsoleServiceToYield`
+- `CONSOLE_SERVICE_META_DATA`
 
-- `getItem`
-- `setItem`
-- `removeItem`
-- `clear`
-- `key`
-- `length`
+### `LocalStorage` and `LocalStorageService`
 
-### `SessionStorage`
-
-Planned methods:
+Methods:
 
 - `getItem`
 - `setItem`
@@ -149,9 +238,20 @@ Planned methods:
 - `key`
 - `length`
 
-### `Cookies`
+### `SessionStorage` and `SessionStorageService`
 
-Planned methods:
+Methods:
+
+- `getItem`
+- `setItem`
+- `removeItem`
+- `clear`
+- `key`
+- `length`
+
+### `Cookies` and `CookiesService`
+
+Methods:
 
 - `get`
 - `getAll`
@@ -159,9 +259,9 @@ Planned methods:
 - `remove`
 - `has`
 
-### `BrowserLocation`
+### `BrowserLocation` and `BrowserLocationService`
 
-Planned methods:
+Methods:
 
 - `href`
 - `origin`
@@ -176,9 +276,9 @@ Planned methods:
 - `replace`
 - `reload`
 
-### `BrowserHistory`
+### `BrowserHistory` and `BrowserHistoryService`
 
-Planned methods:
+Methods:
 
 - `length`
 - `state`
@@ -188,9 +288,9 @@ Planned methods:
 - `pushState`
 - `replaceState`
 
-### `BrowserNavigator`
+### `BrowserNavigator` and `BrowserNavigatorService`
 
-Planned methods:
+Methods:
 
 - `userAgent`
 - `language`
@@ -199,9 +299,9 @@ Planned methods:
 - `cookieEnabled`
 - `sendBeacon`
 
-### `BrowserPerformance`
+### `BrowserPerformance` and `BrowserPerformanceService`
 
-Planned methods:
+Methods:
 
 - `now`
 - `mark`
@@ -209,40 +309,42 @@ Planned methods:
 - `clearMarks`
 - `clearMeasures`
 
-### `BrowserCrypto`
+### `BrowserCrypto` and `BrowserCryptoService`
 
-Planned methods:
+Methods:
 
 - `randomUUID`
 - `getRandomValues`
 - `digest`
 
-### `BrowserDocument`
+### `BrowserDocument` and `BrowserDocumentService`
 
-Minimal planned surface:
+Methods:
 
 - `title`
 - `setTitle`
 - `visibilityState`
 - `hasFocus`
 
-### `BrowserWindow`
+### `BrowserWindow` and `BrowserWindowService`
 
-Minimal planned surface:
+Methods:
 
 - `innerWidth`
 - `innerHeight`
 - `scrollX`
 - `scrollY`
 - `scrollTo`
+- `alert`
+- `confirm`
 
 ## Related Adapter: `CraftHttpClient`
 
-Unlike `Console`, `LocalStorage`, or `BrowserLocation`, Angular's `HttpClient` is already a DI-managed Angular dependency. It is better understood as a typed service adapter built on top of [`toCraftService`](/store/to-craft-service), not as a browser-host global.
+`CraftHttpClient` is implemented, but it is not a browser boundary.
 
-`CraftHttpClient` is designed to avoid colliding with Angular's own `HttpClient` import from `@angular/common/http`.
+Unlike `Console`, `LocalStorage`, or `BrowserLocation`, Angular's `HttpClient` is already a DI-managed Angular dependency. It is better modeled as a typed craft adapter than as a browser-host global.
 
-Its contract is intentionally different from the browser DSLs:
+Its contract is intentionally different:
 
 - it is not treated as `browserBoundary: true`
 - it requires an explicit success type
@@ -258,26 +360,22 @@ const users = await getUsers('/api/users');
 const createdUser = await createUser('/api/users', payload);
 ```
 
-This shape is intended to work naturally with `query`, `mutation`, and other async service APIs that already understand `craftException` results.
-
 ## Design Constraints
 
-The planned v1 surface is intentionally narrow.
+The browser boundaries stay intentionally narrow.
 
-- Reads are exposed as methods so the API stays uniform with `yield*`.
-- Raw `window`, `document`, and DOM nodes are not intended to be public browser DSL outputs.
-- `BrowserDocument` and `BrowserWindow` should stay minimal rather than becoming generic escape hatches back to browser globals.
+- Reads are exposed as methods so the public API stays uniform with `yield*`.
+- Raw `window`, `document`, and DOM nodes are not exposed as public outputs.
+- `BrowserDocument` and `BrowserWindow` remain minimal rather than becoming generic escape hatches.
 
-This is especially important for DOM access. A broad `document` wrapper would quickly reintroduce the same direct browser interactions the boundary is trying to avoid.
+This keeps the API focused on explicit browser interactions instead of reintroducing broad direct access to host globals.
 
 ## Relationship With `craftService` And `toCraftService`
 
-These browser DSLs are intended to be built internally on top of the same service composition primitives used elsewhere in the library.
+Browser boundaries participate in the same dependency tracking model as any other crafted service.
 
-- [`craftService`](/store/craft-service) provides the generator-based composition model.
-- [`toCraftService`](/store/to-craft-service) is the natural fit for adapting host objects and browser-backed dependencies into craft-compatible services.
-
-In other words, the public browser DSL is expected to be ergonomic, while the internal implementation still benefits from explicit service boundaries, typed dependency tracking, and `browserBoundary: true`.
+- [`craftService`](/store/craft-service) is what you use to consume them and compose higher-level services.
+- [`toCraftService`](/store/to-craft-service) remains the right tool for adapting Angular or host dependencies that are not part of this built-in browser boundary set.
 
 ## See Also
 

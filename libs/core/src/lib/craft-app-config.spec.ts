@@ -13,6 +13,7 @@ import {
   craftService,
   GetInjectedServiceDependencies,
   onAppStart,
+  runServiceAppStart,
 } from './craft-service';
 
 const appStartCalls: string[] = [];
@@ -292,5 +293,68 @@ describe('craftAppConfig appStart', () => {
     await TestBed.inject(ApplicationInitStatus).donePromise;
 
     expect(appStartCalls).toEqual(['started']);
+  });
+
+  it('should run generator-based appStart callbacks during app initialization', async () => {
+    const generatorAppStartCalls: string[] = [];
+    let resolveAppStart!: () => void;
+    const waitForAppStart = new Promise<void>((resolve) => {
+      resolveAppStart = resolve;
+    });
+
+    craftService(
+      {
+        name: 'GeneratorAppStart',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(function* () {
+          generatorAppStartCalls.push('generator-started');
+          return waitForAppStart;
+        });
+
+        return 1;
+      },
+    );
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [...craftAppConfig({ routingDeps: [] as const }).providers],
+    });
+
+    const pendingInitialization = TestBed.inject(ApplicationInitStatus).donePromise;
+
+    expect(generatorAppStartCalls).toEqual(['generator-started']);
+
+    resolveAppStart();
+    await pendingInitialization;
+  });
+
+  it('should reject nested onAppStart declarations inside generator callbacks', () => {
+    const { injectNestedAppStart } = craftService(
+      {
+        name: 'NestedAppStart',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(function* () {
+          yield* (onAppStart(() => undefined) as Generator<any, void, unknown>);
+
+          return undefined;
+        });
+
+        return 1;
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const service = injectNestedAppStart();
+
+      expect(() => runServiceAppStart(injectNestedAppStart, service)).toThrow(
+        'onAppStart(...) generator callbacks cannot declare onAppStart(...) recursively.',
+      );
+    });
   });
 });

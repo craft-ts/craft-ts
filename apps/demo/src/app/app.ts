@@ -1,7 +1,10 @@
-import { Component, inject } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { Component } from '@angular/core';
+import { RouterModule, type Router } from '@angular/router';
 import {
-  GlobalPersisterHandlerService,
+  BrowserLocation,
+  BrowserWindow,
+  craftMethod,
+  GlobalPersisterHandlerServiceToYield,
   type GetDeps,
   type GetPublicComponentProperties,
 } from '@craft-ng/core';
@@ -246,20 +249,25 @@ import {
   `,
 })
 export class App {
-  private readonly persisterHandler = inject(GlobalPersisterHandlerService);
-
-  clearCache() {
-    this.persisterHandler.clearAllCache();
-    alert('Cache cleared! The page will reload.');
-    window.location.reload();
-  }
+  clearCache = craftMethod(function* () {
+    const persister = yield* GlobalPersisterHandlerServiceToYield(
+      undefined,
+      ({ clearAllCache }) => ({ clearAllCache }),
+    );
+    persister.clearAllCache();
+    yield* BrowserWindow.alert('Cache cleared! The page will reload.');
+    yield* BrowserLocation.reload();
+  });
 }
 
 export type GenDeps_App = GetDeps<{
   deps: {
     RouterModule: RouterModule;
-    GlobalPersisterHandlerService: GlobalPersisterHandlerService;
+    Router: Router;
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<App>;
+  missingProvider: {
+    Router: Router;
+  };
 }>;

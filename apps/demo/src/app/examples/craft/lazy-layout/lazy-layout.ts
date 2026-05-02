@@ -3,7 +3,10 @@ import {
   type GetDeps,
   type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import { LazyLayoutChildComponent } from './lazy-layout-child';
+import {
+  LazyLayoutChildComponent,
+  type GenDeps_LazyLayoutChildComponent,
+} from './lazy-layout-child';
 
 @Component({
   selector: 'app-lazy-layout',
@@ -183,7 +186,9 @@ export default class LazyLayoutComponent {
 }
 
 export type GenDeps_LazyLayoutComponent = GetDeps<{
-  deps: {};
+  deps: {
+    GenDeps_LazyLayoutChildComponent: GenDeps_LazyLayoutChildComponent;
+  };
   provided: {};
   publicProperties: GetPublicComponentProperties<LazyLayoutComponent>;
 }>;

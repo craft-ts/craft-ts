@@ -1,4 +1,4 @@
-import { craftService, onAppStart } from '@craft-ng/core';
+import { Console, craftService, onAppStart } from '@craft-ng/core';
 
 export const { injectAppStartLog } = craftService(
   {
@@ -7,8 +7,8 @@ export const { injectAppStartLog } = craftService(
     appStart: true,
   },
   function* () {
-    yield* onAppStart(async () => {
-      console.log('App has started!');
+    yield* onAppStart(function* () {
+      yield* Console.log('This is a log from the appStart callback');
       return new Promise((resolve) => setTimeout(resolve, 1000));
     });
     return 1;

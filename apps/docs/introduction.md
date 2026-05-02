@@ -141,14 +141,13 @@ type User = { id: string; email: string };
 const { UserApiToYield } = craftService(
   { name: 'UserApi', scope: 'global' },
   () => ({
-    getUser: (id: string): Promise<User> =>
-      fetch(`/api/users/${id}`).then((response) => response.json()),
+    getUser: (id: string): Promise<User> => fetch(`/api/users/${id}`),
 
     updateEmail: (payload: { id: string; email: string }): Promise<User> =>
       fetch(`/api/users/${payload.id}`, {
         method: 'PATCH',
         body: JSON.stringify(payload),
-      }).then((response) => response.json()),
+      }),
   }),
 );
 
