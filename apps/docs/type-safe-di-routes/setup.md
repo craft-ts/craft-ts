@@ -152,6 +152,7 @@ export default [
       'craft-ng': craftRules,
     },
     rules: {
+      'craft-ng/brand-angular-gen-deps-required': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
     },
@@ -161,10 +162,11 @@ export default [
 
 What each rule does:
 
-- `craft-ng/brand-angular-deps-match`: keeps existing `GenDeps_*` aliases in sync and powers the ESLint Quick Fix
+- `craft-ng/brand-angular-gen-deps-required`: generates a missing `GenDeps_*` alias for Angular components, directives, and pipes through the ESLint Quick Fix
+- `craft-ng/brand-angular-deps-match`: keeps existing `GenDeps_*` aliases in sync through the same ESLint Quick Fix flow
 - `craft-ng/no-angular-inject`: forbids raw Angular `inject()` / `@Injectable` usage so dependencies go through `craftService(...)` or `toCraftService(...)`
 
-If your project is adopting this progressively, `craft-ng/brand-angular-deps-match` is the minimum rule required for the `GenDeps` refresh workflow. `craft-ng/no-angular-inject` is an architecture-enforcement rule and may require a broader migration.
+If your project is adopting this progressively, enable both `craft-ng/brand-angular-gen-deps-required` and `craft-ng/brand-angular-deps-match` so the same Quick Fix can generate missing aliases and refresh existing ones. `craft-ng/no-angular-inject` is an architecture-enforcement rule and may require a broader migration.
 
 ## 5. When a component changes, regenerate `GenDeps` with the Quick Fix
 
@@ -181,13 +183,13 @@ Typical triggers:
 Recommended workflow:
 
 - first generation or bulk refactor: `npm run craft:brand`
-- one existing file: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`
+- one file without `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`
+- one file with `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`
 - CLI alternative for one file: `eslint --fix src/app/feature/my-component.ts`
 
 Important limits:
 
-- the Quick Fix only updates files that already contain a `GenDeps_*` alias
-- first-time generation still goes through `craft-brand`
+- the Quick Fix only handles the current file
 - if you rename the component class, rerun the generator so the `GenDeps_*` alias name stays aligned
 
 :::warning

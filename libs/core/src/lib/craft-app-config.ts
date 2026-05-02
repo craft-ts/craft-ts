@@ -15,6 +15,10 @@ import {
 
 type AngularApplicationProvider = ApplicationConfig['providers'][number];
 type AngularApplicationProviders = readonly AngularApplicationProvider[];
+export type AppConfigProvidedServiceNamesKey =
+  '__craftAppProvidedServiceNames__';
+export type AppConfigProvidedDependencyValuesKey =
+  '__craftAppProvidedDependencyValues__';
 
 export interface CraftAppStartRegistry {}
 
@@ -35,48 +39,68 @@ type ExplicitMissingProviderMap<Input> = Input extends {
   : {};
 
 type AppProvidedServiceNamesFromEntry<Entry> =
-  Entry extends BrandedServiceProvider<infer Name, any>
+  Entry extends BrandedServiceProvider<infer Name, any, any>
     ? Name
     : Entry extends readonly unknown[]
       ? AppProvidedServiceNames<Entry>
+      : never;
+
+type KnownProvidedDependencyValue<Value> = [unknown] extends [Value]
+  ? never
+  : Value;
+
+type AppProvidedDependencyValuesFromEntry<Entry> =
+  Entry extends BrandedServiceProvider<any, any, infer Output>
+    ? KnownProvidedDependencyValue<Output>
+    : Entry extends readonly unknown[]
+      ? AppProvidedDependencyValues<Entry>
       : never;
 
 type AppProvidedServiceNames<Providers> = Providers extends readonly unknown[]
   ? AppProvidedServiceNamesFromEntry<Providers[number]>
   : never;
 
+type AppProvidedDependencyValues<Providers> =
+  Providers extends readonly unknown[]
+    ? AppProvidedDependencyValuesFromEntry<Providers[number]>
+    : never;
+
 type CraftAppStartRegistryKeys = Extract<keyof CraftAppStartRegistry, string>;
+
+type RequireCraftAppStartConfig = [CraftAppStartRegistryKeys] extends [never]
+  ? {}
+  : {
+      appStart: true;
+    };
 
 type InvalidCraftAppStartRegistryEntries = Extract<
   {
-    [Tag in CraftAppStartRegistryKeys]:
-      CraftAppStartRegistry[Tag] extends ServiceReference
-        ? GetServiceReferenceMeta<CraftAppStartRegistry[Tag]> extends {
-            appStart: true;
-          }
-          ? never
-          : Tag
-        : Tag;
+    [Tag in CraftAppStartRegistryKeys]: CraftAppStartRegistry[Tag] extends ServiceReference
+      ? GetServiceReferenceMeta<CraftAppStartRegistry[Tag]> extends {
+          appStart: true;
+        }
+        ? never
+        : Tag
+      : Tag;
   }[CraftAppStartRegistryKeys],
   string
 >;
 
-type AssertValidCraftAppStartRegistry =
-  [InvalidCraftAppStartRegistryEntries] extends [never]
-    ? {}
-    : {
-        ERROR_invalid_craft_app_start_registry:
-          InvalidCraftAppStartRegistryEntries;
-      };
+type AssertValidCraftAppStartRegistry = [
+  InvalidCraftAppStartRegistryEntries,
+] extends [never]
+  ? {}
+  : {
+      ERROR_invalid_craft_app_start_registry: InvalidCraftAppStartRegistryEntries;
+    };
 
 type RegisteredAppStartServiceNames = {
-  [Tag in CraftAppStartRegistryKeys]:
-    CraftAppStartRegistry[Tag] extends ServiceReference
-      ? Extract<
-          GetServiceReferenceMeta<CraftAppStartRegistry[Tag]>['name'],
-          string
-        >
-      : never;
+  [Tag in CraftAppStartRegistryKeys]: CraftAppStartRegistry[Tag] extends ServiceReference
+    ? Extract<
+        GetServiceReferenceMeta<CraftAppStartRegistry[Tag]>['name'],
+        string
+      >
+    : never;
 }[CraftAppStartRegistryKeys];
 
 type ConfigProvidedServiceNames<Providers> =
@@ -119,7 +143,9 @@ type ResolvedRouteDepsMap<RouteMetaData, Providers> = StripProvidedDepsMap<
 type ResolvedRouteMissingProviders<RouteMetaData, Providers> = Simplify<
   Omit<
     Simplify<
-      MissingProvidersFromDepsMap<ResolvedRouteDepsMap<RouteMetaData, Providers>> &
+      MissingProvidersFromDepsMap<
+        ResolvedRouteDepsMap<RouteMetaData, Providers>
+      > &
         ExplicitMissingProviderMap<RouteMetaData>
     >,
     keyof ProvidedMap<RouteMetaData> | ConfigProvidedServiceNames<Providers>
@@ -154,6 +180,9 @@ export type CraftAppConfigMetaData<
     RoutingDeps[Index],
     Providers
   >;
+} & {
+  readonly __craftAppProvidedServiceNames__?: ConfigProvidedServiceNames<Providers>;
+  readonly __craftAppProvidedDependencyValues__?: AppProvidedDependencyValues<Providers>;
 };
 
 export type CraftAppConfigResult<
@@ -168,7 +197,8 @@ export type CraftAppConfigResult<
 export function craftAppConfig<const RoutingDeps extends readonly unknown[]>(
   config: {
     routingDeps: RoutingDeps;
-  } & AssertValidCraftAppStartRegistry,
+  } & AssertValidCraftAppStartRegistry &
+    RequireCraftAppStartConfig,
 ): CraftAppConfigResult<RoutingDeps, readonly []>;
 export function craftAppConfig<
   const RoutingDeps extends readonly unknown[],
@@ -177,7 +207,8 @@ export function craftAppConfig<
   config: {
     routingDeps: RoutingDeps;
     providers: Providers;
-  } & AssertValidCraftAppStartRegistry,
+  } & AssertValidCraftAppStartRegistry &
+    RequireCraftAppStartConfig,
 ): CraftAppConfigResult<RoutingDeps, Providers>;
 export function craftAppConfig<
   const RoutingDeps extends readonly unknown[],
@@ -186,9 +217,12 @@ export function craftAppConfig<
   config: {
     routingDeps: RoutingDeps;
     providers?: Providers;
-  } & AssertValidCraftAppStartRegistry,
+  } & AssertValidCraftAppStartRegistry &
+    RequireCraftAppStartConfig,
 ): CraftAppConfigResult<RoutingDeps, Providers | readonly []> {
-  const providers = [...(config.providers ?? [])] as AngularApplicationProvider[];
+  const providers = [
+    ...(config.providers ?? []),
+  ] as AngularApplicationProvider[];
   const providerNames = collectProvidedServiceNames(providers);
 
   for (const reference of getRegisteredAppStartServices()) {
@@ -230,8 +264,10 @@ export function craftAppConfig<
 
   return {
     providers,
-    APP_CONFIG_META_DATA:
-      config.routingDeps as CraftAppConfigMetaData<RoutingDeps, Providers | readonly []>,
+    APP_CONFIG_META_DATA: config.routingDeps as CraftAppConfigMetaData<
+      RoutingDeps,
+      Providers | readonly []
+    >,
   };
 }
 

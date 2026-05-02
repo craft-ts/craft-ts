@@ -12,6 +12,9 @@ export default [
       'craft-ng': craftRules,
     },
     rules: {
+      'craft-ng/brand-angular-gen-deps-required': 'error',
+      'craft-ng/prefer-browser-boundaries': 'error',
+      'craft-ng/no-angular-provide-app-initializer': 'error',
       '@angular-eslint/directive-selector': [
         'error',
         {
@@ -29,6 +32,7 @@ export default [
         },
       ],
       '@typescript-eslint/no-empty-object-type': 'off',
+      'craft-ng/app-start-registry-match': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
     },
   },
@@ -36,5 +40,11 @@ export default [
     files: ['**/*.html'],
     // Override or add rules here
     rules: {},
+  },
+  {
+    files: ['src/main.ts', 'apps/demo/src/main.ts'],
+    rules: {
+      'craft-ng/prefer-browser-boundaries': 'off',
+    },
   },
 ];

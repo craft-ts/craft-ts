@@ -6,8 +6,14 @@ import {
 } from '@angular/platform-browser/testing';
 import { TestBed } from '@angular/core/testing';
 import { beforeAll, describe, expect, expectTypeOf, it } from 'vitest';
+import type { AppCheckedDI } from './app-checked-di';
 import { GetDeps } from './branded-component/branded-component';
 import { craftAppConfig, toApplicationConfig } from './craft-app-config';
+import {
+  appStartCalls,
+  injectAppStartCounter,
+  requiredAppStartFlag,
+} from './craft-app-config.app-start.fixture';
 import { craftRoutes } from './craft-routes';
 import {
   craftService,
@@ -15,29 +21,6 @@ import {
   onAppStart,
   runServiceAppStart,
 } from './craft-service';
-
-const appStartCalls: string[] = [];
-
-const { injectAppStartCounter } = craftService(
-  {
-    name: 'AppStartCounter',
-    scope: 'toProvide',
-    appStart: true,
-  },
-  function* () {
-    yield* onAppStart(() => {
-      appStartCalls.push('started');
-      return undefined;
-    });
-    return 1;
-  },
-);
-
-declare module './craft-app-config' {
-  interface CraftAppStartRegistry {
-    MustRunOnStart: typeof injectAppStartCounter;
-  }
-}
 
 beforeAll(() => {
   try {
@@ -77,11 +60,15 @@ describe('craftAppConfig', () => {
       },
     ]);
 
+    // @ts-expect-error craftAppConfig must acknowledge registered appStart services.
+    craftAppConfig({ routingDeps: appRoutes.META_DATA });
+
     const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
     });
 
-    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toEqualTypeOf<
+    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toMatchTypeOf<
       readonly [
         {
           path: 'counter';
@@ -121,11 +108,12 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
       providers: [provideCounter()],
     });
 
-    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toEqualTypeOf<
+    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toMatchTypeOf<
       readonly [
         {
           path: 'counter';
@@ -135,6 +123,34 @@ describe('craftAppConfig', () => {
         },
       ]
     >();
+  });
+
+  it('should make app providers available to AppCheckedDI for AppComponent', () => {
+    const { injectCounter, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type AppComponentDeps = GetDeps<{
+      deps: {
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
+      routingDeps: [] as const,
+      providers: [provideCounter()] as const,
+    });
+
+    type CheckedDI = AppCheckedDI<
+      AppComponentDeps,
+      typeof appConfig.APP_CONFIG_META_DATA
+    >;
+
+    expectTypeOf<CheckedDI>().toEqualTypeOf<true>();
   });
 
   it('should remove app providers from lazy child routes in APP_CONFIG_META_DATA', () => {
@@ -166,11 +182,12 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
       providers: [provideCounter()],
     });
 
-    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toEqualTypeOf<
+    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toMatchTypeOf<
       readonly [
         {
           path: 'lazy-parent';
@@ -209,10 +226,11 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
     });
 
-    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toEqualTypeOf<
+    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toMatchTypeOf<
       readonly [
         {
           path: 'counter';
@@ -232,6 +250,7 @@ describe('craftAppConfig', () => {
   it('should convert to ApplicationConfig', () => {
     const marker = new InjectionToken<string>('marker');
     const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
       routingDeps: [] as const,
       providers: [
         {
@@ -252,7 +271,9 @@ describe('craftAppConfig appStart', () => {
   it('should treat appStart services as provided at app root in APP_CONFIG_META_DATA', () => {
     type CounterRouteDeps = GetDeps<{
       deps: {
-        AppStartCounter: GetInjectedServiceDependencies<typeof injectAppStartCounter>;
+        AppStartCounter: GetInjectedServiceDependencies<
+          typeof injectAppStartCounter
+        >;
       };
       provided: {};
       publicProperties: {};
@@ -267,10 +288,11 @@ describe('craftAppConfig appStart', () => {
     ]);
 
     const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
     });
 
-    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toEqualTypeOf<
+    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toMatchTypeOf<
       readonly [
         {
           path: 'counter';
@@ -287,7 +309,12 @@ describe('craftAppConfig appStart', () => {
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      providers: [...craftAppConfig({ routingDeps: [] as const }).providers],
+      providers: [
+        ...craftAppConfig({
+          appStart: requiredAppStartFlag,
+          routingDeps: [] as const,
+        }).providers,
+      ],
     });
 
     await TestBed.inject(ApplicationInitStatus).donePromise;
@@ -320,10 +347,17 @@ describe('craftAppConfig appStart', () => {
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      providers: [...craftAppConfig({ routingDeps: [] as const }).providers],
+      providers: [
+        ...craftAppConfig({
+          appStart: requiredAppStartFlag,
+          routingDeps: [] as const,
+        }).providers,
+      ],
     });
 
-    const pendingInitialization = TestBed.inject(ApplicationInitStatus).donePromise;
+    const pendingInitialization = TestBed.inject(
+      ApplicationInitStatus,
+    ).donePromise;
 
     expect(generatorAppStartCalls).toEqual(['generator-started']);
 
@@ -340,7 +374,7 @@ describe('craftAppConfig appStart', () => {
       },
       function* () {
         yield* onAppStart(function* () {
-          yield* (onAppStart(() => undefined) as Generator<any, void, unknown>);
+          yield* onAppStart(() => undefined) as Generator<any, void, unknown>;
 
           return undefined;
         });

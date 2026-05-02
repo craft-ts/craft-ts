@@ -39,7 +39,7 @@ export default defineAngularBrandConfig({
 });
 ```
 
-The codemod auto-discovers `craft-brand.config.ts`, and `brand-angular-deps-match` uses the same config so lint and generated types stay aligned.
+The codemod auto-discovers `craft-brand.config.ts`, and both `brand-angular-gen-deps-required` and `brand-angular-deps-match` use the same config so lint and generated types stay aligned.
 
 ## Matching Rules
 

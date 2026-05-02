@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { RouterModule, type Router } from '@angular/router';
 import {
   BrowserLocation,
   BrowserWindow,
@@ -263,7 +263,11 @@ export class App {
 export type GenDeps_App = GetDeps<{
   deps: {
     RouterModule: RouterModule;
+    Router: Router;
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<App>;
+  missingProvider: {
+    Router: Router;
+  };
 }>;

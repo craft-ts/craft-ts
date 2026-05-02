@@ -2,6 +2,8 @@ import { Component } from '@angular/core';
 import { craftService, GetInjectedServiceDependencies } from './craft-service';
 import { GetDeps } from './branded-component/branded-component';
 import type { AppCheckedDI, CanRun } from './app-checked-di';
+import { craftAppConfig } from './craft-app-config';
+import { requiredAppStartFlag } from './craft-app-config.app-start.fixture';
 
 describe('AppCheckedDI', () => {
   it('should return true if all missingProvider and routing inputs are provided', () => {
@@ -237,6 +239,34 @@ describe('AppCheckedDI', () => {
         'Injected Counter is not provided in path: "lazy-parent/child" (or you may scope this properties as protected/private)',
       ]
     >();
+  });
+
+  it('should treat app root providers from APP_CONFIG_META_DATA as provided in AppComponent', () => {
+    const { injectCounter, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type GenDeps_AppComponent = GetDeps<{
+      deps: {
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
+      routingDeps: [] as const,
+      providers: [provideCounter()] as const,
+    });
+
+    type APP_CHECKED_DI = AppCheckedDI<
+      GenDeps_AppComponent,
+      typeof appConfig.APP_CONFIG_META_DATA
+    >;
+
+    expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<true>();
   });
 });
 

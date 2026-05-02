@@ -109,7 +109,9 @@ describe('onAppStart doc page', () => {
 
   it('documents plain and generator callbacks for startup hooks', () => {
     expect(content).toContain('# onAppStart');
-    expect(content).toContain('the callback can be a plain function or a generator function');
+    expect(content).toContain(
+      'the callback can be a plain function or a generator function',
+    );
     expect(content).toContain('appStart: true');
     expect(content).toContain('yield* onAppStart(function* () {');
     expect(content).toContain(
@@ -157,13 +159,19 @@ describe('Type-safe DI/Routes setup doc page', () => {
     );
     expect(content).toContain('craft-brand --root src/app');
     expect(content).toContain('@craft-ng/dev-tools/eslint-rules');
+    expect(content).toContain(
+      "'craft-ng/brand-angular-gen-deps-required': 'error'",
+    );
     expect(content).toContain("'craft-ng/brand-angular-deps-match': 'error'");
     expect(content).toContain("'craft-ng/no-angular-inject': 'error'");
+    expect(content).toContain(
+      'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`',
+    );
     expect(content).toContain(
       'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`',
     );
     expect(content).toContain(
-      'the Quick Fix only updates files that already contain a `GenDeps_*` alias',
+      'generate missing aliases and refresh existing ones',
     );
   });
 });
@@ -199,7 +207,9 @@ describe('Browser Boundaries doc page', () => {
     expect(content).toContain(
       "yield* BrowserWindow.alert('Cache cleared! The page will reload.');",
     );
-    expect(content).toContain('const confirmed = yield* BrowserWindow.confirm(');
+    expect(content).toContain(
+      'const confirmed = yield* BrowserWindow.confirm(',
+    );
     expect(content).toContain('if (confirmed) {');
     expect(content).toContain('- `confirm`');
   });
@@ -247,7 +257,7 @@ describe('craftMethod doc page', () => {
 
   it('documents Browser Boundaries and crafted service composition examples', () => {
     expect(content).toContain(
-      "readonly increment = craftMethod(this, function* (step = 1) {",
+      'readonly increment = craftMethod(this, function* (step = 1) {',
     );
     expect(content).toContain("yield* Console.log('increment is called');");
     expect(content).toContain('readonly increment = craftMethod(function* (');
@@ -331,6 +341,7 @@ describe('Angular Brand Config doc page', () => {
   it('documents the generated deps and lint alignment behavior', () => {
     expect(content).toContain('TranslateService: TranslateService;');
     expect(content).toContain('missingProvider');
+    expect(content).toContain('brand-angular-gen-deps-required');
     expect(content).toContain('brand-angular-deps-match');
     expect(content).toContain(
       'A plain TypeScript import in the file is ignored',

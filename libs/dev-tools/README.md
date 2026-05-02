@@ -51,9 +51,10 @@ Entry semantics:
 Discovery behavior:
 
 - `craft-brand` auto-discovers `craft-brand.config.ts` by walking upward from `--root`
-- the ESLint rule `brand-angular-deps-match` uses the same upward discovery from the analyzed file, bounded by `context.cwd`
+- the ESLint rules `brand-angular-gen-deps-required` and `brand-angular-deps-match` use the same upward discovery from the analyzed file, bounded by `context.cwd`
 - `--config <path>` overrides auto-discovery for the CLI
-- `brand-angular-deps-match` can also autofix an existing `GenDeps_*` alias in the current file
+- `brand-angular-gen-deps-required` can generate a missing `GenDeps_*` alias in the current file
+- `brand-angular-deps-match` can autofix an existing `GenDeps_*` alias in the current file
 
 Current scope:
 
@@ -79,8 +80,10 @@ export default [
     },
     rules: {
       // Adds a Quick Fix in VS Code through the ESLint extension
+      'craft-ng/brand-angular-gen-deps-required': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
+      'craft-ng/prefer-browser-boundaries': 'error',
     }
   }
 ];
@@ -120,9 +123,12 @@ module.exports = defineConfig([
         },
       ],
       '@typescript-eslint/consistent-type-definitions': 'off',
+      // `brand-angular-gen-deps-required` generates missing GenDeps aliases with ESLint autofix
+      'craft-ng/brand-angular-gen-deps-required': 'error',
       // `brand-angular-deps-match` refreshes existing GenDeps aliases with ESLint autofix
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
+      'craft-ng/prefer-browser-boundaries': 'error',
     },
   },
   {
@@ -139,16 +145,17 @@ module.exports = defineConfig([
 
 Use two refresh flows:
 
-- Current file: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`, or run `eslint --fix path/to/file.ts`
+- Current file without `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`, or run `eslint --fix path/to/file.ts`
+- Current file with `GenDeps_*`: trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`, or run `eslint --fix path/to/file.ts`
 - Bulk refresh: run `craft-brand --root <source-root>`
 
 Recommended workflow:
 
 - after changing `inject(...)`, constructor injection, component `imports`, `providers`, or `viewProviders`, run the Quick Fix for the current file
 - when doing a larger refactor or upgrading a whole app/lib, run `craft-brand --root <source-root>`
+- when a browser API already exists in `@craft-ng/core/browser-boundaries`, enable `craft-ng/prefer-browser-boundaries` to prevent direct access to `window`, `document`, `localStorage`, `console`, and similar globals
 
 Notes:
 
-- the ESLint Quick Fix only updates files that already contain a `GenDeps_*` alias
-- first-time generation still goes through `craft-brand`
+- the ESLint Quick Fix can generate a missing alias or refresh an existing one, but only for the current file
 - the same flow works well for AI agents: file-local updates via `eslint --fix`, bulk updates via `craft-brand --root`

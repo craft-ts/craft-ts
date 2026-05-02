@@ -1,9 +1,9 @@
-import type {
-  MergeObjectUnion,
-  Simplify,
-  UnionToTuple,
-} from './craft-service.shared';
+import type { Simplify, UnionToTuple } from './craft-service.shared';
 import type { MissingProvidersFromDepsMap } from './branded-component/branded-component';
+import type {
+  AppConfigProvidedDependencyValuesKey,
+  AppConfigProvidedServiceNamesKey,
+} from './craft-app-config';
 
 type DepsMap<Input> = Input extends { deps: infer Deps extends object }
   ? Deps
@@ -31,6 +31,40 @@ type MissingProviderMap<Input> = Input extends {
         keyof ProvidedMap<Input>
       >
     >;
+
+type AppProvidedServiceNames<Routes> = Routes extends {
+  readonly [Key in AppConfigProvidedServiceNamesKey]?: infer ProvidedNames extends
+    string;
+}
+  ? ProvidedNames
+  : never;
+
+type AppProvidedDependencyValues<Routes> = Routes extends {
+  readonly [Key in AppConfigProvidedDependencyValuesKey]?: infer ProvidedValues;
+}
+  ? ProvidedValues
+  : never;
+
+type AppProvidedValueKeys<MissingProviders extends object, ProvidedValues> = {
+  [Name in Extract<
+    keyof MissingProviders,
+    string
+  >]: MissingProviders[Name] extends ProvidedValues ? Name : never;
+}[Extract<keyof MissingProviders, string>];
+
+type AppMissingProviderMap<
+  AppComponentDeps,
+  AppRoutes extends readonly unknown[],
+> = Simplify<
+  Omit<
+    MissingProviderMap<AppComponentDeps>,
+    | AppProvidedServiceNames<AppRoutes>
+    | AppProvidedValueKeys<
+        MissingProviderMap<AppComponentDeps>,
+        AppProvidedDependencyValues<AppRoutes>
+      >
+  >
+>;
 
 type InputErrorMessage<
   Name extends string,
@@ -96,16 +130,24 @@ type RoutesErrorMessages<Routes extends readonly unknown[]> =
     ? [...RouteErrorMessages<Head>, ...RoutesErrorMessages<Tail>]
     : [];
 
-type AppErrorMessages<AppComponentDeps> = [
+type AppErrorMessages<
+  AppComponentDeps,
+  AppRoutes extends readonly unknown[],
+> = [
   ...InputErrorMessages<AppComponentDeps, 'AppComponent'>,
-  ...InjectedErrorMessages<AppComponentDeps, 'AppComponent'>,
+  ...InjectedErrorMessagesFromNames<
+    UnionToTuple<
+      Extract<keyof AppMissingProviderMap<AppComponentDeps, AppRoutes>, string>
+    >,
+    'AppComponent'
+  >,
 ];
 
 export type AppCheckedDI<
   AppComponentDeps,
   AppRoutes extends readonly unknown[],
 > = [
-  ...AppErrorMessages<AppComponentDeps>,
+  ...AppErrorMessages<AppComponentDeps, AppRoutes>,
   ...RoutesErrorMessages<AppRoutes>,
 ] extends infer Errors extends string[]
   ? Errors extends []

@@ -1,26 +1,53 @@
 const fs = require('node:fs');
+const moduleApi = require('node:module');
 const path = require('node:path');
+const vm = require('node:vm');
 const ts = require('typescript');
-
-process.env.TS_NODE_PROJECT ??= path.resolve(
-  __dirname,
-  '../tsconfig.codemod.json',
-);
-try {
-  require('ts-node/register/transpile-only');
-} catch {
-  require('@swc-node/register/register');
-}
 
 const { Node, Project } = require('ts-morph');
 const {
   analyzeSourceFileDependencies,
   discoverAngularBrandConfigFilePath,
   transformSourceFile,
-} = require('../scripts/angular-brand-codemod.ts');
+} = loadAngularBrandCodemod();
 
 const projectCache = new Map();
 const typePrinter = ts.createPrinter({ removeComments: true });
+
+function loadAngularBrandCodemod() {
+  const filePath = path.resolve(
+    __dirname,
+    '../scripts/angular-brand-codemod.ts',
+  );
+  const compiledFilePath = `${filePath}.cjs`;
+  const sourceText = fs.readFileSync(filePath, 'utf8');
+  const librarySourceText = sourceText.replace(
+    /\n\/\/ Check if this module is being run directly[\s\S]*$/,
+    '\n',
+  );
+  const transpiled = ts.transpileModule(librarySourceText, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+      moduleResolution: ts.ModuleResolutionKind.NodeJs,
+    },
+    fileName: filePath,
+  });
+  const wrappedSource = module.constructor.wrap(transpiled.outputText);
+  const evaluate = vm.runInThisContext(wrappedSource, {
+    filename: compiledFilePath,
+  });
+  const loadedModule = { exports: {} };
+  evaluate(
+    loadedModule.exports,
+    moduleApi.createRequire(compiledFilePath),
+    loadedModule,
+    compiledFilePath,
+    path.dirname(filePath),
+  );
+  return loadedModule.exports;
+}
 
 module.exports = {
   meta: {

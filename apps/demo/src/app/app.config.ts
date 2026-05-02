@@ -6,6 +6,7 @@ import './run-on-app-start/run-on-app-start';
 import { provideCraftRouter } from './shared/router.service';
 
 export const appConfig = craftAppConfig({
+  appStart: true,
   routingDeps: appRoutes.META_DATA,
   providers: [
     provideBrowserGlobalErrorListeners(),

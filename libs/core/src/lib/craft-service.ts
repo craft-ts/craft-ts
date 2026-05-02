@@ -219,10 +219,12 @@ export type CraftServiceProvider =
 export type BrandedServiceProvider<
   Name extends string = string,
   Scope extends RequirementScope = RequirementScope,
+  Output = unknown,
 > = Provider & {
   readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: {
     name: Name;
     scope: Scope;
+    output: Output;
   };
 };
 
@@ -1264,11 +1266,12 @@ type YieldHelper<
 type ProvideHelper<
   Name extends string,
   Scope extends RealCapableScope,
+  Output,
   ProvideArgs extends unknown[],
 > = {
   [Key in `provide${Capitalize<Name>}`]: (
     ...args: ProvideArgs
-  ) => BrandedServiceProvider<Name, Scope>;
+  ) => BrandedServiceProvider<Name, Scope, Output>;
 };
 
 type ToProvideTokenHelper<Name extends string, Output> = {
@@ -1329,6 +1332,7 @@ type ConcreteServiceApi<
     ? ProvideHelper<
         Name,
         Extract<Scope, RealCapableScope>,
+        Output,
         ProvideArguments<ServiceProvidedInput<Inputs>>
       >
     : {}) &
@@ -1406,7 +1410,7 @@ export type DependencyApi<
     ProvideArgs
   > &
   (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-    ? ProvideHelper<Name, Extract<Scope, RealCapableScope>, ProvideArgs>
+    ? ProvideHelper<Name, Extract<Scope, RealCapableScope>, Output, ProvideArgs>
     : {}) &
   (Scope extends 'manuallyProvidedAtRoot'
     ? ToProvideTokenHelper<Name, Output>
@@ -2629,7 +2633,7 @@ function isServiceMetaData(value: unknown): value is InternalServiceMetaData {
 function createProviders(
   definition: ConcreteRuntimeDefinition,
   providedArgs: unknown[] = [],
-): BrandedServiceProvider<string, RequirementScope> {
+): BrandedServiceProvider<string, RequirementScope, unknown> {
   const concreteToken = definition.token;
 
   if (!concreteToken) {
@@ -2669,13 +2673,15 @@ function createProviders(
 
   const brandedProviders = providers as BrandedServiceProvider<
     string,
-    RequirementScope
+    RequirementScope,
+    unknown
   >;
 
   Object.defineProperty(brandedProviders, CRAFT_SERVICE_PROVIDER_BRAND, {
     value: {
       name: definition.name,
       scope: definition.scope,
+      output: undefined,
     },
     enumerable: false,
     configurable: false,
