@@ -40,7 +40,9 @@ import type {
   UnionToTuple,
 } from './craft-service.shared';
 
-export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
+export const SERVICE_HELPER_DEPENDENCIES: unique symbol = Symbol(
+  'service-helper-dependencies',
+);
 export declare const SERVICE_YIELD_METADATA: unique symbol;
 export declare const SERVICE_META_DATA_TYPE: unique symbol;
 declare const SERVICE_APP_START_CALLBACK_YIELDED: unique symbol;
@@ -81,11 +83,29 @@ type ExtractTrackedMetadata<Helper> = Helper extends {
   ? Metadata
   : never;
 
+export type ExtractServiceHelperDependencies<Helper> =
+  ResolveServiceTrackingMetadata<ExtractTrackedMetadata<Helper>>;
+
+export type ExtractServiceHelperDependencyMap<Helper> =
+  ExtractTrackedMetadata<Helper> extends ServiceTrackingMetadata<
+    infer Name extends string,
+    ConcreteServiceScope,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    boolean
+  >
+    ? {
+        [Key in Name]: ExtractServiceHelperDependencies<Helper>;
+      }
+    : never;
+
 export type GetInjectedServiceDependencies<InjectService> =
-  ResolveServiceTrackingMetadata<ExtractTrackedMetadata<InjectService>>;
+  ExtractServiceHelperDependencies<InjectService>;
 
 export type GetToYieldServiceDependencies<ToYieldService> =
-  ResolveServiceTrackingMetadata<ExtractTrackedMetadata<ToYieldService>>;
+  ExtractServiceHelperDependencies<ToYieldService>;
 
 export type GetServiceOutput<ServiceHelper> =
   ExtractTrackedMetadata<ServiceHelper> extends ServiceTrackingMetadata<
@@ -846,6 +866,10 @@ type BuildDependencyMap<
       MergeDependencyNodeMaps<Accumulator, DependencyRecord<First>>
     >
   : Simplify<Accumulator>;
+
+export type ServiceDependencyMapFromYielded<Yielded> = BuildDependencyMap<
+  DependencyRequests<Yielded>
+>;
 
 type NormalizeWholeServiceUsage<Derived> = [Derived] extends [undefined]
   ? WholeServiceUsageTracking

@@ -1,22 +1,23 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-  insertLocalStoragePersister,
-  insertReactOnMutation,
-  mutation,
-  query,
-  type DerivedService,
-  type GetDeps,
-  type GetInjectedServiceDependencies,
-  type GetPublicComponentProperties,
-  type GetServiceOutput,
+    insertLocalStoragePersister,
+    insertReactOnMutation,
+    mutation,
+    query,
+    type DerivedService,
+    type ExtractDeps,
+    type GetDeps,
+    type GetInjectedServiceDependencies,
+    type GetPublicComponentProperties,
+    type GetServiceOutput
 } from '@craft-ng/core';
+import { injectCraftRouter } from '../../../shared/router.service';
 import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
+    StatusComponent,
+    type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { injectApiService, User } from './api.service';
-import { injectCraftRouter } from '../../../shared/router.service';
 
 @Component({
   selector: 'app-mutation',
@@ -120,3 +121,29 @@ export type GenDeps_GlobalQuery = GetDeps<{
   provided: {};
   publicProperties: GetPublicComponentProperties<MutationDemoComponent>;
 }>;
+export type GenDeps_MutationDemoComponent = GetDeps<{
+      deps: {
+        CommonModule: CommonModule;
+        GenDeps_StatusComponent: GenDeps_StatusComponent;
+      };
+      propertiesDeps: {
+        userId: ExtractDeps<MutationDemoComponent["userId"]>;
+        apiService: {
+            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
+          };
+        updateUserName: ExtractDeps<MutationDemoComponent["updateUserName"]>;
+        userQuery: ExtractDeps<MutationDemoComponent["userQuery"]>;
+        router: {
+            CraftRouter: DerivedService<ExtractDeps<typeof injectCraftRouter>["CraftRouter"], {
+              derivedPropertiesUsed: {
+                navigate: GetServiceOutput<typeof injectCraftRouter>["navigate"];
+              };
+              derivedPropertiesExposed: {
+                navigate: GetServiceOutput<typeof injectCraftRouter>["navigate"];
+              };
+            }>;
+          };
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<MutationDemoComponent>;
+    }>;

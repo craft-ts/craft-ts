@@ -6,7 +6,9 @@ import {
     insertPaginationPlaceholderData,
     query,
     queryParam,
-    type GetDeps, type GetInjectedServiceDependencies, type GetPublicComponentProperties
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 import { StatusComponent, type GenDeps_StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield } from './api.service';
@@ -159,7 +161,11 @@ export type GenDeps_ListWithPaginationCraft = GetDeps<{
       deps: {
         CommonModule: CommonModule;
         GenDeps_StatusComponent: GenDeps_StatusComponent;
-        UserList: GetInjectedServiceDependencies<typeof injectUserList>;
+      };
+      propertiesDeps: {
+        store: {
+            UserList: ExtractDeps<typeof injectUserList>["UserList"];
+          };
       };
       provided: {
         UserList: ReturnType<typeof provideUserList>;

@@ -1,12 +1,13 @@
 import { Component } from '@angular/core';
 import { RouterModule, type Router } from '@angular/router';
 import {
-  BrowserLocation,
-  BrowserWindow,
-  craftMethod,
-  GlobalPersisterHandlerServiceToYield,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    BrowserLocation,
+    BrowserWindow,
+    craftMethod,
+    GlobalPersisterHandlerServiceToYield,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 @Component({
@@ -261,13 +262,16 @@ export class App {
 }
 
 export type GenDeps_App = GetDeps<{
-  deps: {
-    RouterModule: RouterModule;
-    Router: Router;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<App>;
-  missingProvider: {
-    Router: Router;
-  };
-}>;
+      deps: {
+        RouterModule: RouterModule;
+        Router: Router;
+      };
+      propertiesDeps: {
+        clearCache: ExtractDeps<App["clearCache"]>;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<App>;
+      missingProvider: {
+        Router: Router;
+      };
+    }>;

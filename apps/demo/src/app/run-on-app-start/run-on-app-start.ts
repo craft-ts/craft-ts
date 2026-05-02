@@ -1,6 +1,6 @@
 import { Console, craftService, onAppStart } from '@craft-ng/core';
 
-export const { injectAppStartLog } = craftService(
+export const { injectAppStartLog, APP_START_LOG_META_DATA } = craftService(
   {
     name: 'AppStartLog',
     scope: 'toProvide',

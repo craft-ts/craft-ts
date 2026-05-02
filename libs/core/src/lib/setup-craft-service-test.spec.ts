@@ -1,15 +1,12 @@
 import { Component, inject, Injectable, InjectionToken } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
-    BrowserTestingModule,
-    platformBrowserTesting,
+  BrowserTestingModule,
+  platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { provideRouter, Router } from '@angular/router';
-import { type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
-import {
-    craftService,
-    toCraftService,
-} from './craft-service';
+import { type GetDeps, type GetPublicComponentProperties } from '../index';
+import { craftService, toCraftService } from './craft-service';
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
 
@@ -645,7 +642,7 @@ describe('setupCraftServiceTest', () => {
 });
 
 export type GenDeps_CheckoutPage = GetDeps<{
-      deps: {};
-      provided: {};
-      publicProperties: GetPublicComponentProperties<CheckoutPage>;
-    }>;
+  deps: {};
+  provided: {};
+  publicProperties: GetPublicComponentProperties<CheckoutPage>;
+}>;

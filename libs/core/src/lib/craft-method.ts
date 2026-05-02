@@ -4,12 +4,16 @@ import {
   Injector,
   runInInjectionContext,
 } from '@angular/core';
+import {
+  SERVICE_HELPER_DEPENDENCIES,
+  type ServiceDependencyMapFromYielded,
+} from './craft-service';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 
-type CraftMethodGenerator<This, Args extends unknown[], Result> = (
+type CraftMethodGenerator<This, Args extends unknown[], Yielded, Result> = (
   this: This,
   ...args: Args
-) => Generator<unknown, Result, unknown>;
+) => Generator<Yielded, Result, unknown>;
 
 type CraftMethodWithReceiver<This, Args extends unknown[], Result> = (
   this: This,
@@ -20,19 +24,23 @@ type CraftMethodWithoutReceiver<Args extends unknown[], Result> = (
   ...args: Args
 ) => Result;
 
-export function craftMethod<This, Args extends unknown[], Result>(
-  factory: CraftMethodGenerator<This, Args, Result>,
-): CraftMethodWithReceiver<This, Args, Result>;
-export function craftMethod<This, Args extends unknown[], Result>(
+type TrackedCraftMethod<Callable, Yielded> = Callable & {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
+};
+
+export function craftMethod<This, Args extends unknown[], Yielded, Result>(
+  factory: CraftMethodGenerator<This, Args, Yielded, Result>,
+): TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded>;
+export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   self: This,
-  factory: CraftMethodGenerator<This, Args, Result>,
-): CraftMethodWithoutReceiver<Args, Result>;
-export function craftMethod<This, Args extends unknown[], Result>(
-  selfOrFactory: This | CraftMethodGenerator<This, Args, Result>,
-  maybeFactory?: CraftMethodGenerator<This, Args, Result>,
+  factory: CraftMethodGenerator<This, Args, Yielded, Result>,
+): TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded>;
+export function craftMethod<This, Args extends unknown[], Yielded, Result>(
+  selfOrFactory: This | CraftMethodGenerator<This, Args, Yielded, Result>,
+  maybeFactory?: CraftMethodGenerator<This, Args, Yielded, Result>,
 ):
-  | CraftMethodWithReceiver<This, Args, Result>
-  | CraftMethodWithoutReceiver<Args, Result> {
+  | TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded>
+  | TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded> {
   assertInInjectionContext(craftMethod);
   const injector = inject(Injector);
 
@@ -40,18 +48,27 @@ export function craftMethod<This, Args extends unknown[], Result>(
     const self = selfOrFactory as This;
     const factory = maybeFactory;
 
-    return (...args: Args) => executeCraftMethod(factory, injector, self, args);
+    return ((...args: Args) =>
+      executeCraftMethod(factory, injector, self, args)) as TrackedCraftMethod<
+      CraftMethodWithoutReceiver<Args, Result>,
+      Yielded
+    >;
   }
 
-  const factory = selfOrFactory as CraftMethodGenerator<This, Args, Result>;
+  const factory = selfOrFactory as CraftMethodGenerator<
+    This,
+    Args,
+    Yielded,
+    Result
+  >;
 
   return function (this: This, ...args: Args) {
     return executeCraftMethod(factory, injector, this, args);
-  };
+  } as TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded>;
 }
 
-function executeCraftMethod<This, Args extends unknown[], Result>(
-  factory: CraftMethodGenerator<This, Args, Result>,
+function executeCraftMethod<This, Args extends unknown[], Yielded, Result>(
+  factory: CraftMethodGenerator<This, Args, Yielded, Result>,
   injector: Injector,
   self: This,
   args: Args,

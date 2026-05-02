@@ -1426,6 +1426,7 @@ export function mutation<
       : {},
     {
       type: isUsingIdentifier ? 'resourceByGroupLike' : 'resourceLike',
+      kind: 'mutation' as const,
       hasException,
       exceptions,
       resourceParamsSrc: resourceParamsSrc as WritableSignal<

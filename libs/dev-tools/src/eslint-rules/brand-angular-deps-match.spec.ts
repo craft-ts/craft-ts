@@ -14,9 +14,9 @@ const tempDirectories: string[] = [];
 describe('brand-angular-deps-match', () => {
   afterEach(async () => {
     await Promise.all(
-      tempDirectories.splice(0).map((directory) =>
-        rm(directory, { force: true, recursive: true }),
-      ),
+      tempDirectories
+        .splice(0)
+        .map((directory) => rm(directory, { force: true, recursive: true })),
     );
   });
 
@@ -82,10 +82,13 @@ describe('brand-angular-deps-match', () => {
         }
 
         export type GenDeps_DemoComponent = GetDeps<{
-          deps: {
-            TeamId: ReturnType<
-              typeof injectTeamId
-            >;
+          deps: {};
+          propertiesDeps: {
+            teamId: {
+              TeamId: ReturnType<
+                typeof injectTeamId
+              >;
+            };
           };
           provided: {};
           publicProperties: GetPublicComponentProperties<DemoComponent>;
@@ -107,6 +110,7 @@ describe('brand-angular-deps-match', () => {
         declare module '@craft-ng/core' {
           export declare function craftService(...args: any[]): any;
           export type DerivedService<T, U> = T & U;
+          export type ExtractDeps<T> = T;
           export type GetDeps<T> = T;
           export type GetInjectedServiceDependencies<T> = T;
           export type GetPublicComponentProperties<T> = T;
@@ -129,8 +133,8 @@ describe('brand-angular-deps-match', () => {
         import { Component } from '@angular/core';
         import {
           type DerivedService,
+          type ExtractDeps,
           type GetDeps,
-          type GetInjectedServiceDependencies,
           type GetPublicComponentProperties,
           type GetServiceOutput,
         } from '@craft-ng/core';
@@ -147,18 +151,21 @@ describe('brand-angular-deps-match', () => {
         }
 
         export type GenDeps_DemoComponent = GetDeps<{
-          deps: {
-            Router: DerivedService<
-              GetInjectedServiceDependencies<typeof injectRouter>,
-              {
-                derivedPropertiesUsed: {
-                  navigate: GetServiceOutput<typeof injectRouter>['navigate'];
-                };
-                derivedPropertiesExposed: {
-                  navigate: GetServiceOutput<typeof injectRouter>['navigate'];
-                };
-              }
-            >;
+          deps: {};
+          propertiesDeps: {
+            router: {
+              Router: DerivedService<
+                ExtractDeps<typeof injectRouter>['Router'],
+                {
+                  derivedPropertiesUsed: {
+                    navigate: GetServiceOutput<typeof injectRouter>['navigate'];
+                  };
+                  derivedPropertiesExposed: {
+                    navigate: GetServiceOutput<typeof injectRouter>['navigate'];
+                  };
+                }
+              >;
+            };
           };
           provided: {};
           publicProperties: GetPublicComponentProperties<DemoComponent>;
@@ -192,6 +199,7 @@ describe('brand-angular-deps-match', () => {
 
         export type GenDeps_ChildComponent = GetDeps<{
           deps: {};
+          propertiesDeps: {};
           provided: {};
           publicProperties: GetPublicComponentProperties<ChildComponent>;
         }>;
@@ -228,6 +236,7 @@ describe('brand-angular-deps-match', () => {
           deps: {
             ApiService: ApiService;
           };
+          propertiesDeps: {};
           provided: {};
           publicProperties: GetPublicComponentProperties<DemoComponent>;
         }>;
@@ -237,7 +246,7 @@ describe('brand-angular-deps-match', () => {
     const { messages } = await lintFixture(staleFixture);
 
     expect(messages).toEqual([
-      'GenDeps_DemoComponent is out of date for deps, provided, and missingProvider. Run ESLint --fix on this file or craft-brand --root <source-root> to refresh it.',
+      'GenDeps_DemoComponent is out of date for deps, propertiesDeps, provided, and missingProvider. Run ESLint --fix on this file or craft-brand --root <source-root> to refresh it.',
     ]);
 
     const { output } = await lintFixture(staleFixture, { fix: true });
@@ -246,9 +255,8 @@ describe('brand-angular-deps-match', () => {
       /import \{[^}]*ChildComponent[^}]*type GenDeps_ChildComponent[^}]*\} from ['"]\.\/child['"];/,
     );
     expect(output).toContain('ApiService: ApiService;');
-    expect(output).toContain(
-      'GenDeps_ChildComponent: GenDeps_ChildComponent;',
-    );
+    expect(output).toContain('GenDeps_ChildComponent: GenDeps_ChildComponent;');
+    expect(output).toContain('propertiesDeps: {');
     expect(output).toContain('HttpClient: HttpClient;');
     expect(output).toContain('UserStore: UserStore;');
     expect(output).toMatch(/missingProvider: \{[\s\S]*HttpClient: HttpClient;/);
@@ -309,13 +317,10 @@ describe('brand-angular-deps-match', () => {
     const { messages: configMessages } = await lintFixture(configFixture);
 
     expect(configMessages).toEqual([
-      'GenDeps_DemoComponent is out of date for deps and missingProvider. Run ESLint --fix on this file or craft-brand --root <source-root> to refresh it.',
+      'GenDeps_DemoComponent is out of date for deps, propertiesDeps, and missingProvider. Run ESLint --fix on this file or craft-brand --root <source-root> to refresh it.',
     ]);
 
-    const { output } = await lintFixture(
-      configFixture,
-      { fix: true },
-    );
+    const { output } = await lintFixture(configFixture, { fix: true });
 
     expect(output).toMatch(
       /import \{[^}]*TranslatePipe[^}]*type TranslateService[^}]*\} from ['"]@ngx-translate\/core['"];/,
@@ -358,7 +363,9 @@ async function lintFixture(
   messages: string[];
   output: string | undefined;
 }> {
-  const tempDirectory = await mkdtemp(join(tmpdir(), 'brand-angular-deps-rule-'));
+  const tempDirectory = await mkdtemp(
+    join(tmpdir(), 'brand-angular-deps-rule-'),
+  );
   tempDirectories.push(tempDirectory);
 
   await writeFixtureFiles(tempDirectory, {
@@ -443,6 +450,7 @@ function baseFixtureFiles(): Record<string, string> {
     'src/craft-ng-core.d.ts': `
       declare module '@craft-ng/core' {
         export type DerivedService<T, U> = T & U;
+        export type ExtractDeps<T> = T;
         export type GetDeps<T> = T;
         export type GetInjectedServiceDependencies<T> = T;
         export type GetPublicComponentProperties<T> = T;

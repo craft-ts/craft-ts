@@ -7,7 +7,9 @@ import {
     mutation,
     query,
     queryParam,
-    type GetDeps, type GetInjectedServiceDependencies, type GetPublicComponentProperties
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 import { StatusComponent, type GenDeps_StatusComponent } from '../../../ui/status.component';
 import { injectApiService, User } from './api.service';
@@ -193,7 +195,14 @@ export type GenDeps_GranularMutation = GetDeps<{
       deps: {
         CommonModule: CommonModule;
         GenDeps_StatusComponent: GenDeps_StatusComponent;
-        ApiService: GetInjectedServiceDependencies<typeof injectApiService>;
+      };
+      propertiesDeps: {
+        pagination: ExtractDeps<GranularMutation["pagination"]>;
+        apiService: {
+            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
+          };
+        updateUserName: ExtractDeps<GranularMutation["updateUserName"]>;
+        usersQuery: ExtractDeps<GranularMutation["usersQuery"]>;
       };
       provided: {};
       publicProperties: GetPublicComponentProperties<GranularMutation>;

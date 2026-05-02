@@ -2,20 +2,21 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { FormField, required } from '@angular/forms/signals';
 import {
-  ValidatedFormValue,
-  cEmail,
-  cMinLength,
-  cRequired,
-  craftException,
-  insertForm,
-  insertFormAttributes,
-  insertFormSubmit,
-  insertNoopTypingAnchor,
-  insertSelectFormTree,
-  mutation,
-  state,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    ValidatedFormValue,
+    cEmail,
+    cMinLength,
+    cRequired,
+    craftException,
+    insertForm,
+    insertFormAttributes,
+    insertFormSubmit,
+    insertNoopTypingAnchor,
+    insertSelectFormTree,
+    mutation,
+    state,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 type LoginData = {
@@ -256,10 +257,14 @@ export default class LoginFormComponent {
 }
 
 export type GenDeps_LoginFormComponent = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    FormField: FormField<any>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<LoginFormComponent>;
-}>;
+      deps: {
+        CommonModule: CommonModule;
+        FormField: FormField;
+      };
+      propertiesDeps: {
+        loginMutation: ExtractDeps<LoginFormComponent["loginMutation"]>;
+        loginForm: ExtractDeps<LoginFormComponent["loginForm"]>;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<LoginFormComponent>;
+    }>;

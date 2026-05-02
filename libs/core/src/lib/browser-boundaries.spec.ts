@@ -22,10 +22,7 @@ import {
   injectLocalStorageService,
   injectSessionStorageService,
 } from './browser-boundaries';
-import {
-  craftService,
-  getServiceMetaData,
-} from './craft-service';
+import { craftService, getServiceMetaData } from './craft-service';
 
 beforeAll(() => {
   try {
@@ -89,9 +86,9 @@ describe('browser boundaries', () => {
     );
 
     expect(getServiceMetaData(injectConsoleService).browserBoundary).toBe(true);
-    expect(getServiceMetaData(injectBrowserLocationService).browserBoundary).toBe(
-      true,
-    );
+    expect(
+      getServiceMetaData(injectBrowserLocationService).browserBoundary,
+    ).toBe(true);
 
     expectTypeOf(
       getServiceMetaData(injectConsoleService).browserBoundary,
@@ -155,7 +152,9 @@ describe('browser boundaries', () => {
   });
 
   it('should support location, history, document, window, and navigator boundaries', () => {
-    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const scrollToSpy = vi
+      .spyOn(window, 'scrollTo')
+      .mockImplementation(() => {});
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
@@ -241,7 +240,9 @@ describe('browser boundaries', () => {
   });
 
   it('should support performance and crypto boundaries', async () => {
-    const performanceNowSpy = vi.spyOn(performance, 'now').mockReturnValue(42.5);
+    const performanceNowSpy = vi
+      .spyOn(performance, 'now')
+      .mockReturnValue(42.5);
     const randomUuidSpy = vi
       .spyOn(crypto, 'randomUUID')
       .mockReturnValue('123e4567-e89b-12d3-a456-426614174000');
@@ -268,9 +269,12 @@ describe('browser boundaries', () => {
       expect(diagnostics.uuid).toBe('123e4567-e89b-12d3-a456-426614174000');
       expect(diagnostics.bytes).toBeInstanceOf(Uint8Array);
       expect(diagnostics.bytes.byteLength).toBe(8);
-      expect(Array.from(diagnostics.bytes).some((value) => value !== 0)).toBe(
-        true,
+      const randomBytes = new Uint8Array(
+        diagnostics.bytes.buffer,
+        diagnostics.bytes.byteOffset,
+        diagnostics.bytes.byteLength,
       );
+      expect(Array.from(randomBytes).some((value) => value !== 0)).toBe(true);
       expect(digest).toBeTruthy();
       expect(digest.byteLength).toBe(32);
     });

@@ -5,7 +5,9 @@ import {
     insertPaginationPlaceholderData,
     query,
     queryParam,
-    type GetDeps, type GetInjectedServiceDependencies, type GetPublicComponentProperties
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 import { StatusComponent, type GenDeps_StatusComponent } from '../../../ui/status.component';
 import { injectApiService } from './api.service';
@@ -141,7 +143,13 @@ export type GenDeps_ListWithPagination = GetDeps<{
       deps: {
         CommonModule: CommonModule;
         GenDeps_StatusComponent: GenDeps_StatusComponent;
-        ApiService: GetInjectedServiceDependencies<typeof injectApiService>;
+      };
+      propertiesDeps: {
+        pagination: ExtractDeps<ListWithPagination["pagination"]>;
+        apiService: {
+            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
+          };
+        usersQuery: ExtractDeps<ListWithPagination["usersQuery"]>;
       };
       provided: {};
       publicProperties: GetPublicComponentProperties<ListWithPagination>;

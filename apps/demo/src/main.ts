@@ -4,6 +4,7 @@ import { appConfig } from './app/app.config';
 import { App, GenDeps_App } from './app/app';
 
 bootstrapApplication(App, toApplicationConfig(appConfig)).catch((err) =>
+  // eslint-disable-next-line craft-ng/prefer-browser-boundaries
   console.error(err),
 );
 

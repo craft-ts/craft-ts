@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { craftService, state, type GetDeps, type GetInjectedServiceDependencies, type GetPublicComponentProperties } from '@craft-ng/core';
+import { craftService, state, type ExtractDeps, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 
 const { injectCounter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
@@ -62,8 +62,11 @@ export default class CraftServiceCounterComponent {
 }
 
 export type GenDeps_CraftServiceCounterComponent = GetDeps<{
-      deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+      deps: {};
+      propertiesDeps: {
+        counter: {
+            Counter: ExtractDeps<typeof injectCounter>["Counter"];
+          };
       };
       provided: {
         Counter: ReturnType<typeof provideCounter>;

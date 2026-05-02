@@ -1,4 +1,6 @@
 import type { InputSignalWithTransform } from '@angular/core';
+import { SERVICE_HELPER_DEPENDENCIES } from '../craft-service';
+import type { ExtractServiceHelperDependencyMap } from '../craft-service';
 import type {
   MergeObjectUnion,
   RequirementScope,
@@ -53,6 +55,12 @@ type GetDepsMap<Input> = Input extends { deps: infer Deps extends object }
   ? Deps
   : {};
 
+type GetPropertiesDepsMap<Input> = Input extends {
+  propertiesDeps: infer PropertiesDeps extends object;
+}
+  ? PropertiesDeps
+  : {};
+
 type GetProvidedMap<Input> = Input extends {
   provided: infer Provided extends object;
 }
@@ -90,6 +98,37 @@ type IsComponentGenDepsDependency<Dependency> = Dependency extends {
   ? true
   : false;
 
+type IsTrackedDependencyNode<Dependency> = Dependency extends {
+  scope: infer _Scope;
+  dependencies: infer _Dependencies extends object;
+}
+  ? true
+  : false;
+
+type ExtractHelperMetadata<Value> = Value extends {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: infer Metadata;
+}
+  ? Metadata
+  : never;
+
+type NormalizeExtractedDeps<Value> = [
+  ExtractServiceHelperDependencyMap<Value>,
+] extends [never]
+  ? Value extends object
+    ? [ExtractHelperMetadata<Value>] extends [never]
+      ? IsComponentGenDepsDependency<Value> extends true
+        ? GetDepsMap<Value>
+        : IsTrackedDependencyNode<Value> extends true
+          ? {}
+          : {}
+      : ExtractHelperMetadata<Value> extends object
+        ? ExtractHelperMetadata<Value>
+        : {}
+    : {}
+  : ExtractServiceHelperDependencyMap<Value>;
+
+export type ExtractDeps<Value> = Simplify<NormalizeExtractedDeps<Value>>;
+
 type ComponentMissingProviderRecord<Dependency> =
   IsComponentGenDepsDependency<Dependency> extends true
     ? Dependency extends {
@@ -98,6 +137,36 @@ type ComponentMissingProviderRecord<Dependency> =
       ? MissingProvider
       : {}
     : {};
+
+type DependencyMapValue<Dependency> = Dependency extends object
+  ? Dependency[Extract<keyof Dependency, string>]
+  : never;
+
+type ContainsNestedDependencyEntries<Dependency> = [
+  Extract<
+    DependencyMapValue<Dependency>,
+    | {
+        scope: unknown;
+        dependencies: object;
+      }
+    | {
+        deps: object;
+        provided: object;
+      }
+  >,
+] extends [never]
+  ? false
+  : true;
+
+type NestedMissingProviderRecord<Dependency> = Dependency extends object
+  ? IsComponentGenDepsDependency<Dependency> extends true
+    ? {}
+    : IsTrackedDependencyNode<Dependency> extends true
+      ? {}
+      : ContainsNestedDependencyEntries<Dependency> extends true
+        ? MissingProvidersFromDepsMap<Dependency>
+        : {}
+  : {};
 
 type DirectMissingProviderRecord<Name extends string, Dependency> =
   IsRequirementScopedServiceDependency<Dependency> extends true
@@ -112,6 +181,7 @@ type MissingProviderRecordFromDependency<
 > = MergeObjectUnion<
   | DirectMissingProviderRecord<Name, Dependency>
   | ComponentMissingProviderRecord<Dependency>
+  | NestedMissingProviderRecord<Dependency>
   | (IsRequirementScopedServiceDependency<Dependency> extends true
       ? MissingProvidersFromDepsMap<DependencyChildren<Dependency>>
       : {})
@@ -128,10 +198,24 @@ export type MissingProvidersFromDepsMap<Deps extends object> = Simplify<
   >
 >;
 
+type MissingProvidersFromPropertiesDeps<Input> = Simplify<
+  MergeObjectUnion<
+    {
+      [PropertyName in Extract<
+        keyof GetPropertiesDepsMap<Input>,
+        string
+      >]: GetPropertiesDepsMap<Input>[PropertyName] extends object
+        ? MissingProvidersFromDepsMap<GetPropertiesDepsMap<Input>[PropertyName]>
+        : {};
+    }[Extract<keyof GetPropertiesDepsMap<Input>, string>]
+  >
+>;
+
 type ComputedMissingProviders<Input> = Simplify<
   Omit<
     Simplify<
       MissingProvidersFromDepsMap<GetDepsMap<Input>> &
+        MissingProvidersFromPropertiesDeps<Input> &
         GetExplicitMissingProviderMap<Input>
     >,
     keyof GetProvidedMap<Input>

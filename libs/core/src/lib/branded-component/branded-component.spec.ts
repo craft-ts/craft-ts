@@ -1,13 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, input } from '@angular/core';
+import { Equal, Expect } from 'test-type';
 import { describe, expectTypeOf, it } from 'vitest';
 import {
   craftService,
+  type ExtractServiceHelperDependencies,
   type GetInjectedServiceDependencies,
   type GetServiceOutput,
 } from '../craft-service';
 import type {
   DerivedService,
+  ExtractDeps,
   GetDeps,
   GetPublicComponentProperties,
 } from './branded-component';
@@ -227,6 +230,58 @@ describe('GetDeps', () => {
       CounterExtended: CounterExtendedDependency;
       Counter: CounterDependency;
     }>();
+  });
+
+  it('extracts tracked helper dependencies through ExtractDeps', () => {
+    const { injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => ({
+        increment: () => 1,
+      }),
+    );
+
+    expectTypeOf<ExtractDeps<typeof injectCounter>>().toEqualTypeOf<{
+      Counter: ExtractServiceHelperDependencies<typeof injectCounter>;
+    }>();
+  });
+
+  it('merges propertiesDeps into missingProvider computation', () => {
+    const { injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => ({
+        increment: () => 1,
+      }),
+    );
+
+    type CounterDependency = GetInjectedServiceDependencies<
+      typeof injectCounter
+    >;
+    type CounterDependencyMap = ExtractDeps<typeof injectCounter>;
+    type ComponentDeps = GetDeps<{
+      deps: {
+        CommonModule: CommonModule;
+      };
+      propertiesDeps: {
+        counter: CounterDependencyMap;
+        label: ExtractDeps<string>;
+      };
+      provided: {};
+    }>;
+
+    type ExpectedPropertiesDeps = {
+      counter: CounterDependencyMap;
+      label: {};
+    };
+    type _PropertiesDeps = Expect<
+      ComponentDeps['propertiesDeps'] extends ExpectedPropertiesDeps
+        ? true
+        : false
+    >;
+    type _MissingProvider = Expect<
+      ComponentDeps['missingProvider']['Counter'] extends CounterDependency
+        ? true
+        : false
+    >;
   });
 });
 

@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import { GetDeps, type ExtractDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 import {
-  injectCraftLazyLayoutTeamIdData,
-  injectTeamId,
+    injectCraftLazyLayoutTeamIdData,
+    injectTeamId,
 } from '../../../app.routes';
 
 @Component({
@@ -131,18 +131,21 @@ export default class LazyLayoutChildComponent {
 }
 
 export type GenDeps_LazyLayoutChildComponent = GetDeps<{
-  deps: {
-    CraftLazyLayoutTeamIdData: ReturnType<
-      typeof injectCraftLazyLayoutTeamIdData
-    >;
-    TeamId: ReturnType<typeof injectTeamId>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<LazyLayoutChildComponent>;
-  missingProvider: {
-    CraftLazyLayoutTeamIdData: ReturnType<
-      typeof injectCraftLazyLayoutTeamIdData
-    >;
-    TeamId: ReturnType<typeof injectTeamId>;
-  };
-}>;
+      deps: {};
+      propertiesDeps: {
+        injectedParentRouteData: {
+            CraftLazyLayoutTeamIdData: ReturnType<typeof injectCraftLazyLayoutTeamIdData>;
+          };
+        injectedTeamId: {
+            TeamId: ReturnType<typeof injectTeamId>;
+          };
+        someParentRouteData: ExtractDeps<LazyLayoutChildComponent["someParentRouteData"]>;
+        teamId: ExtractDeps<LazyLayoutChildComponent["teamId"]>;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<LazyLayoutChildComponent>;
+      missingProvider: {
+        CraftLazyLayoutTeamIdData: ReturnType<typeof injectCraftLazyLayoutTeamIdData>;
+        TeamId: ReturnType<typeof injectTeamId>;
+      };
+    }>;

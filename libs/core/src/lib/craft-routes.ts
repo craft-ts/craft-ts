@@ -393,7 +393,7 @@ type ShouldExposeRouteDeps<RouteDefinition> =
 export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
   Omit<
     ComponentDepsMap<RouteDefinition>,
-    'deps' | 'missingProvider' | 'publicProperties'
+    'deps' | 'propertiesDeps' | 'missingProvider' | 'publicProperties'
   > &
     (ShouldExposeRouteDeps<RouteDefinition> extends true
       ? {
@@ -414,7 +414,7 @@ type ResolveCraftRouteMetaDataComponentDeps<
 > = Simplify<
   Omit<
     ComponentDepsMap<RouteDefinition>,
-    'deps' | 'missingProvider' | 'publicProperties'
+    'deps' | 'propertiesDeps' | 'missingProvider' | 'publicProperties'
   > &
     (ShouldExposeRouteDeps<RouteDefinition> extends true
       ? {
@@ -1045,8 +1045,11 @@ export function craftRoutes<
     const restComponentDeps = hasRouteComponentTarget(route)
       ? (() => {
           const componentDeps = getRouteComponentDeps(route);
-          const { missingProvider: _missingProvider, ...restComponentDeps } =
-            componentDeps;
+          const {
+            propertiesDeps: _propertiesDeps,
+            missingProvider: _missingProvider,
+            ...restComponentDeps
+          } = componentDeps;
 
           return restComponentDeps;
         })()

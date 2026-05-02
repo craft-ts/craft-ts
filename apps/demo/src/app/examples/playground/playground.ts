@@ -4,7 +4,9 @@ import {
     insertReactOnMutation,
     mutation,
     query,
-    type GetDeps, type GetInjectedServiceDependencies, type GetPublicComponentProperties
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 // -- Types --
@@ -245,8 +247,11 @@ export default class PlaygroundComponent {
 }
 
 export type GenDeps_PlaygroundComponent = GetDeps<{
-      deps: {
-        Playground: GetInjectedServiceDependencies<typeof injectPlayground>;
+      deps: {};
+      propertiesDeps: {
+        pg: {
+            Playground: ExtractDeps<typeof injectPlayground>["Playground"];
+          };
       };
       provided: {};
       publicProperties: GetPublicComponentProperties<PlaygroundComponent>;

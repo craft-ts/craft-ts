@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormField } from '@angular/forms/signals';
-import { type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import { type GetDeps, type GetPublicComponentProperties } from '../../index';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { state } from '../state';
 import { insertForm } from './insert-form';
@@ -40,7 +40,9 @@ describe('parallel form DOM bindings', () => {
     );
     fixture.detectChanges();
 
-    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
     expect(input.value).toBe('Alpha');
 
     input.value = '';
@@ -61,9 +63,9 @@ describe('parallel form DOM bindings', () => {
 });
 
 export type GenDeps_ParallelSelectedFieldBindingsComponent = GetDeps<{
-      deps: {
-        FormField: FormField;
-      };
-      provided: {};
-      publicProperties: GetPublicComponentProperties<ParallelSelectedFieldBindingsComponent>;
-    }>;
+  deps: {
+    FormField: typeof FormField;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<ParallelSelectedFieldBindingsComponent>;
+}>;

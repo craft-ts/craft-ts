@@ -136,7 +136,9 @@ describe('craftService', () => {
       const pendingStart = runServiceAppStart(injectAppStartCounter, service);
 
       expect(calls).toEqual(['started']);
-      expect(runServiceAppStart(injectAppStartCounter, service)).toBeUndefined();
+      expect(
+        runServiceAppStart(injectAppStartCounter, service),
+      ).toBeUndefined();
 
       resolveAppStart();
       await pendingStart;
@@ -181,7 +183,9 @@ describe('craftService', () => {
 
   it('should track dependencies yielded only inside onAppStart generator callbacks', () => {
     if (false) {
-      type ConsoleAppStartYield = GetServiceYields<typeof ConsoleServiceToYield>;
+      type ConsoleAppStartYield = GetServiceYields<
+        typeof ConsoleServiceToYield
+      >;
 
       const { injectTypedAppStartLog } = craftService(
         {
@@ -212,12 +216,12 @@ describe('craftService', () => {
       type ConsoleDependency =
         AppStartLogDependencies['dependencies']['ConsoleService'];
 
-      expectTypeOf<AppStartLogDependencies['scope']>().toEqualTypeOf<
-        'toProvide'
-      >();
-      expectTypeOf<AppStartLogDependencies['browserBoundary']>().toEqualTypeOf<
-        false
-      >();
+      expectTypeOf<
+        AppStartLogDependencies['scope']
+      >().toEqualTypeOf<'toProvide'>();
+      expectTypeOf<
+        AppStartLogDependencies['browserBoundary']
+      >().toEqualTypeOf<false>();
       expectTypeOf<ConsoleDependency['scope']>().toEqualTypeOf<'global'>();
       expectTypeOf<
         ConsoleDependency['browserBoundary']
@@ -452,18 +456,18 @@ describe('scope', () => {
 
   it('should only allow $provided on provider-capable scopes', () => {
     if (false) {
-      //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
       craftService(
         { name: 'Counter', scope: 'global' },
+        //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
         (inputs: { $provided: { initialValue: number } }) =>
           state(inputs.$provided.initialValue),
       );
     }
 
     if (false) {
-      //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
       craftService(
         { name: 'Counter', scope: 'function' },
+        //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
         (inputs: { $provided: { initialValue: number } }) =>
           state(inputs.$provided.initialValue),
       );
@@ -626,11 +630,11 @@ describe('scope', () => {
       }>(),
     );
 
-    //@ts-expect-error it should not be possible to create a global craftService from an abstract craftService, it should force to provide an implementation
     craftService(
       {
         name: 'CounterImpl',
         scope: 'global',
+        //@ts-expect-error it should not be possible to create a global craftService from an abstract craftService, it should force to provide an implementation
         requirement: CounterRequirement,
       },
       () =>
@@ -647,11 +651,11 @@ describe('scope', () => {
       }>(),
     );
 
-    //@ts-expect-error it should not be possible to create a craftService if the requirement is not satisfied,
     craftService(
       {
         name: 'CounterImpl',
         scope: 'global',
+        //@ts-expect-error it should not be possible to create a craftService if the requirement is not satisfied,
         requirement: CounterRequirement,
       },
       () => state(0),
@@ -660,11 +664,11 @@ describe('scope', () => {
 
   it('should not enable to create a global craftService from craftRequirement inline', () => {
     if (false) {
-      //@ts-expect-error it should not be possible to create a global craftService from craftRequirement, it should force to provide an implementation
       craftService(
         {
           name: 'CounterImpl',
           scope: 'global',
+          //@ts-expect-error it should not be possible to create a global craftService from craftRequirement, it should force to provide an implementation
           requirement: craftRequirement<{
             increment(): void;
           }>(),
@@ -678,11 +682,11 @@ describe('scope', () => {
 
   it('should not enable to create a craftService from craftRequirement inline if the contract is not satisfied', () => {
     if (false) {
-      //@ts-expect-error it should not be possible to create a craftService if the craftRequirement contract is not satisfied
       craftService(
         {
           name: 'CounterImpl',
           scope: 'toProvide',
+          //@ts-expect-error it should not be possible to create a craftService if the craftRequirement contract is not satisfied
           requirement: craftRequirement<{
             increment(): void;
           }>(),

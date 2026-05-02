@@ -15,8 +15,8 @@ import {
   removeOne,
   source$,
   state,
+  type ExtractDeps,
   type GetDeps,
-  type GetInjectedServiceDependencies,
   type GetPublicComponentProperties,
 } from '@craft-ng/core';
 import {
@@ -417,7 +417,11 @@ export type GenDeps_FullDemoCraft = GetDeps<{
   deps: {
     CommonModule: CommonModule;
     GenDeps_StatusComponent: GenDeps_StatusComponent;
-    FullDemo: GetInjectedServiceDependencies<typeof injectFullDemo>;
+  };
+  propertiesDeps: {
+    store: {
+      FullDemo: ExtractDeps<typeof injectFullDemo>['FullDemo'];
+    };
   };
   provided: {
     FullDemo: ReturnType<typeof provideFullDemo>;

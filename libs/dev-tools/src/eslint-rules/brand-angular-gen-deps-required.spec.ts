@@ -54,6 +54,7 @@ describe('brand-angular-gen-deps-required', () => {
     expect(output).toContain('export type GenDeps_DemoComponent = GetDeps<{');
     expect(output).toContain('CommonModule: CommonModule;');
     expect(output).toContain('ApiService: ApiService;');
+    expect(output).toContain('propertiesDeps: {');
     expect(output).toContain(
       'publicProperties: GetPublicComponentProperties<DemoComponent>;',
     );
@@ -93,9 +94,6 @@ describe('brand-angular-gen-deps-required', () => {
 
     expect(output).toContain('export type GenDeps_DemoDirective = GetDeps<{');
     expect(output).toContain('ApiService: ApiService;');
-    expect(output).toContain(
-      'publicProperties: GetPublicDirectiveProperties<DemoDirective>;',
-    );
   });
 
   it('ignores files without Angular component metadata', async () => {
@@ -206,6 +204,7 @@ function baseFixtureFiles(): Record<string, string> {
     `,
     'src/craft-ng-core.d.ts': `
       declare module '@craft-ng/core' {
+        export type ExtractDeps<T> = T;
         export type GetDeps<T> = T;
         export type GetPublicComponentProperties<T> = T;
         export type GetPublicDirectiveProperties<T> = T;

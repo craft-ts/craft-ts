@@ -1,16 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-    craftService,
-    insertLocalStoragePersister,
-    insertPaginationPlaceholderData,
-    insertReactOnMutation,
-    mutation,
-    query,
-    queryParam,
-    type GetDeps, type GetInjectedServiceDependencies, type GetPublicComponentProperties
+  craftService,
+  insertLocalStoragePersister,
+  insertPaginationPlaceholderData,
+  insertReactOnMutation,
+  mutation,
+  query,
+  queryParam,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import { StatusComponent, type GenDeps_StatusComponent } from '../../../ui/status.component';
+import {
+  StatusComponent,
+  type GenDeps_StatusComponent,
+} from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
 const { injectGranularMutation, provideGranularMutation } = craftService(
@@ -209,13 +214,19 @@ export default class GranularMutationCraft {
 }
 
 export type GenDeps_GranularMutationCraft = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-        GranularMutation: GetInjectedServiceDependencies<typeof injectGranularMutation>;
-      };
-      provided: {
-        GranularMutation: ReturnType<typeof provideGranularMutation>;
-      };
-      publicProperties: GetPublicComponentProperties<GranularMutationCraft>;
-    }>;
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    store: {
+      GranularMutation: ExtractDeps<
+        typeof injectGranularMutation
+      >['GranularMutation'];
+    };
+  };
+  provided: {
+    GranularMutation: ReturnType<typeof provideGranularMutation>;
+  };
+  publicProperties: GetPublicComponentProperties<GranularMutationCraft>;
+}>;

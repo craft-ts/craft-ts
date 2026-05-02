@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, input, ResourceStatus } from '@angular/core';
-import { type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import { type ExtractDeps, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 
 @Component({
   selector: 'app-status',
@@ -141,6 +141,9 @@ export class StatusComponent {
 export type GenDeps_StatusComponent = GetDeps<{
       deps: {
         CommonModule: CommonModule;
+      };
+      propertiesDeps: {
+        status: ExtractDeps<StatusComponent["status"]>;
       };
       provided: {};
       publicProperties: GetPublicComponentProperties<StatusComponent>;

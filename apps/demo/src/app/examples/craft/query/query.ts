@@ -1,18 +1,17 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
+  craftMethod,
   craftService,
   insertLocalStoragePersister,
   query,
   toValue,
-  type DerivedService,
+  type ExtractDeps,
   type GetDeps,
-  type GetInjectedServiceDependencies,
   type GetPublicComponentProperties,
-  type GetServiceOutput,
   type MaybeSignal,
 } from '@craft-ng/core';
-import { injectCraftRouter } from '../../../shared/router.service';
+import { CraftRouterToYield } from '../../../shared/router.service';
 import {
   StatusComponent,
   type GenDeps_StatusComponent,
@@ -68,47 +67,39 @@ const { injectUserQuery } = craftService(
 export default class GlobalQuery {
   public readonly userId = input<string>();
 
-  protected readonly router = injectCraftRouter(undefined, ({ navigate }) => ({
-    navigate,
-  }));
-
   protected readonly user = injectUserQuery({
     userId: this.userId,
   });
 
-  protected nextPage() {
-    this.router.navigate([
-      'craft',
-      'query',
-      parseInt(this.userId() ?? '0') + 1,
-    ]);
-  }
+  protected nextPage = craftMethod(this, function* () {
+    const { navigate } = yield* CraftRouterToYield(
+      undefined,
+      ({ navigate }) => ({ navigate }),
+    );
+    navigate(['craft', 'query', parseInt(this.userId() ?? '0') + 1]);
+  });
 
-  protected previousPage() {
-    this.router.navigate([
-      'craft',
-      'query',
-      parseInt(this.userId() ?? '10') - 1,
-    ]);
-  }
+  protected previousPage = craftMethod(this, function* () {
+    const { navigate } = yield* CraftRouterToYield(
+      undefined,
+      ({ navigate }) => ({ navigate }),
+    );
+    navigate(['craft', 'query', parseInt(this.userId() ?? '10') - 1]);
+  });
 }
 
 export type GenDeps_GlobalQuery = GetDeps<{
   deps: {
     JsonPipe: JsonPipe;
     GenDeps_StatusComponent: GenDeps_StatusComponent;
-    CraftRouter: DerivedService<
-      GetInjectedServiceDependencies<typeof injectCraftRouter>,
-      {
-        derivedPropertiesUsed: {
-          navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
-        };
-        derivedPropertiesExposed: {
-          navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
-        };
-      }
-    >;
-    UserQuery: GetInjectedServiceDependencies<typeof injectUserQuery>;
+  };
+  propertiesDeps: {
+    userId: ExtractDeps<GlobalQuery['userId']>;
+    user: {
+      UserQuery: ExtractDeps<typeof injectUserQuery>['UserQuery'];
+    };
+    nextPage: ExtractDeps<GlobalQuery['nextPage']>;
+    previousPage: ExtractDeps<GlobalQuery['previousPage']>;
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<GlobalQuery>;

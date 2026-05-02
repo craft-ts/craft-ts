@@ -89,7 +89,10 @@ describe('angular-brand-codemod', () => {
       'publicProperties: GetPublicComponentProperties<ParentComponent>;',
     );
     expect(output).toContain('GenDeps_ChildComponent: GenDeps_ChildComponent;');
+    expect(output).toContain('propertiesDeps: {');
+    expect(output).toContain('api: {');
     expect(output).toContain('ApiService: ApiService;');
+    expect(output).toContain('http: {');
     expect(output).toContain('HttpClient: HttpClient;');
     expect(output).toMatch(/provided: \{\s+UserStore: UserStore;\s+\};/m);
     expect(output).toMatch(
@@ -136,6 +139,7 @@ describe('angular-brand-codemod', () => {
     expect(output).not.toContain('deps({');
     expect(output).toContain('export default class DemoComponent {}');
     expect(output).toContain('export type GenDeps_DemoComponent = GetDeps<{');
+    expect(output).toContain('propertiesDeps: {};');
     expect(output).toContain(
       'publicProperties: GetPublicComponentProperties<DemoComponent>;',
     );
@@ -176,6 +180,8 @@ describe('angular-brand-codemod', () => {
     transformSourceFile(sourceFile);
     const output = sourceFile.getFullText();
 
+    expect(output).toContain('propertiesDeps: {');
+    expect(output).toContain('store: {');
     expect(output).toContain('UserStore: ReturnType<typeof injectUserStore>;');
     expect(output).toContain('UserStore: ReturnType<typeof provideUserStore>;');
     expect(output).not.toContain('missingProvider: {};');
@@ -199,6 +205,7 @@ describe('angular-brand-codemod', () => {
           export declare function craftService(...args: any[]): any;
           export declare function toCraftService(...args: any[]): any;
           export type DerivedService<T, U> = T & U;
+          export type ExtractDeps<T> = T;
           export type GetDeps<T> = T;
           export type GetInjectedServiceDependencies<T> = T;
           export type GetPublicComponentProperties<T> = T;
@@ -245,14 +252,17 @@ describe('angular-brand-codemod', () => {
     transformSourceFile(sourceFile);
     const output = sourceFile.getFullText();
 
+    expect(output).toContain('propertiesDeps: {');
+    expect(output).toContain('userId: ExtractDeps<DemoComponent["userId"]>;');
+    expect(output).toContain('apiService: {');
     expect(output).toContain(
-      'ApiService: GetInjectedServiceDependencies<typeof injectApiService>;',
+      'ApiService: ExtractDeps<typeof injectApiService>["ApiService"];',
     );
     expect(output).toContain(
       'publicProperties: GetPublicComponentProperties<DemoComponent>;',
     );
     expect(output).toContain(
-      'Router: DerivedService<GetInjectedServiceDependencies<typeof injectRouter>, {',
+      'Router: DerivedService<ExtractDeps<typeof injectRouter>["Router"], {',
     );
     expect(output).toContain(
       `navigate: GetServiceOutput<typeof injectRouter>["navigate"];`,
@@ -643,7 +653,9 @@ describe('angular-brand-codemod', () => {
     transformSourceFile(sourceFile);
     const output = sourceFile.getFullText();
 
-    expect(output.match(/TranslateService: TranslateService;/g) ?? []).toHaveLength(2);
+    expect(
+      output.match(/TranslateService: TranslateService;/g) ?? [],
+    ).toHaveLength(2);
     expect(output.match(/type TranslateService/g) ?? []).toHaveLength(1);
   });
 

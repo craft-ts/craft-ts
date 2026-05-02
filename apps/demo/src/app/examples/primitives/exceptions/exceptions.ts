@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
-import { craftException, query, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import { craftException, query, type ExtractDeps, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 
 type User = {
   id: string;
@@ -143,6 +143,10 @@ export default class ExceptionsComponent {
 export type GenDeps_ExceptionsComponent = GetDeps<{
       deps: {
         CommonModule: CommonModule;
+      };
+      propertiesDeps: {
+        scenario: ExtractDeps<ExceptionsComponent["scenario"]>;
+        userQuery: ExtractDeps<ExceptionsComponent["userQuery"]>;
       };
       provided: {};
       publicProperties: GetPublicComponentProperties<ExceptionsComponent>;

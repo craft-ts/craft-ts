@@ -11,6 +11,7 @@ import {
     on$,
     source$,
     state,
+    type ExtractDeps,
     type GetDeps,
     type GetPublicComponentProperties
 } from '@craft-ng/core';
@@ -311,6 +312,11 @@ function createNextRow(currentGrid: PixelCellState[][]) {
 export type GenDeps_PixelArtMatrix = GetDeps<{
       deps: {
         GenDeps_LongPressDirective: GenDeps_LongPressDirective;
+      };
+      propertiesDeps: {
+        emptyColor: ExtractDeps<PixelArtMatrix["emptyColor"]>;
+        colorPalette: ExtractDeps<PixelArtMatrix["colorPalette"]>;
+        matrix: ExtractDeps<PixelArtMatrix["matrix"]>;
       };
       provided: {};
       publicProperties: GetPublicComponentProperties<PixelArtMatrix>;

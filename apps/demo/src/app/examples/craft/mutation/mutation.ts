@@ -8,8 +8,8 @@ import {
   mutation,
   query,
   toValue,
+  type ExtractDeps,
   type GetDeps,
-  type GetInjectedServiceDependencies,
   type GetPublicComponentProperties,
   type MaybeSignal,
 } from '@craft-ng/core';
@@ -124,7 +124,14 @@ export type GenDeps_MutationCraft = GetDeps<{
   deps: {
     JsonPipe: JsonPipe;
     GenDeps_StatusComponent: GenDeps_StatusComponent;
-    UserMutation: GetInjectedServiceDependencies<typeof injectUserMutation>;
+  };
+  propertiesDeps: {
+    userId: ExtractDeps<MutationCraft['userId']>;
+    store: {
+      UserMutation: ExtractDeps<typeof injectUserMutation>['UserMutation'];
+    };
+    nextPage: ExtractDeps<MutationCraft['nextPage']>;
+    previousPage: ExtractDeps<MutationCraft['previousPage']>;
   };
   provided: {
     UserMutation: ReturnType<typeof provideUserMutation>;

@@ -216,6 +216,9 @@ function readGeneratedDepsSnapshot(typeAlias) {
 
   snapshot.sections = {
     deps: normalizeText(readTypeLiteralPropertyTypeText(inputType, 'deps')),
+    propertiesDeps: normalizeText(
+      readTypeLiteralPropertyTypeText(inputType, 'propertiesDeps'),
+    ),
     provided: normalizeText(
       readTypeLiteralPropertyTypeText(inputType, 'provided'),
     ),
@@ -254,7 +257,7 @@ function getStaleSections(currentSections, refreshedSections) {
     return [];
   }
 
-  return ['deps', 'provided', 'missingProvider'].filter(
+  return ['deps', 'propertiesDeps', 'provided', 'missingProvider'].filter(
     (sectionName) =>
       currentSections[sectionName] !== refreshedSections[sectionName],
   );

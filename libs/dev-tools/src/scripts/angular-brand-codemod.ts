@@ -17,7 +17,14 @@ import {
 } from 'ts-morph';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path';
+import {
+  basename,
+  dirname,
+  extname,
+  isAbsolute,
+  join,
+  resolve,
+} from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export type AngularKind = 'component' | 'directive' | 'pipe' | 'injectable';
@@ -94,6 +101,7 @@ export type GeneratedDependencyEntry = {
 
 export type GeneratedDependencyGroups = {
   deps: GeneratedDependencyEntry[];
+  propertiesDeps: GeneratedDependencyEntry[];
   provided: GeneratedDependencyEntry[];
   missingProvider: GeneratedDependencyEntry[];
 };
@@ -143,6 +151,11 @@ type GeneratedDependencyDescriptor = {
 
 type InjectCallDependencyExtractionResult = DependencyExtractionResult & {
   generatedDependencies: InjectedDependencyDescriptor[];
+};
+
+type PropertyDependencyExtractionResult = DependencyExtractionResult & {
+  entries: GeneratedDependencyEntry[];
+  missingProvider: GeneratedDependencyEntry[];
 };
 
 type DependencyReferenceResolution = {
@@ -399,7 +412,8 @@ export function loadAngularBrandConfigFromFile(
     );
 
     const exportedConfig =
-      module.exports.default ?? (module.exports.__esModule ? module.exports.default : module.exports);
+      module.exports.default ??
+      (module.exports.__esModule ? module.exports.default : module.exports);
     const validatedConfig = validateAngularBrandConfig(
       exportedConfig,
       resolvedConfigFilePath,
@@ -444,9 +458,9 @@ function loadDiscoveredAngularBrandConfig(
 function normalizeAngularBrandConfig(
   config?: AngularBrandConfig,
 ): NormalizedAngularBrandConfig {
-  const builtInRules = (DEFAULT_ANGULAR_BRAND_CONFIG.importAugmentations ?? []).map(
-    normalizeAngularBrandImportAugmentationRule,
-  );
+  const builtInRules = (
+    DEFAULT_ANGULAR_BRAND_CONFIG.importAugmentations ?? []
+  ).map(normalizeAngularBrandImportAugmentationRule);
   const configuredRules = (config?.importAugmentations ?? []).map(
     normalizeAngularBrandImportAugmentationRule,
   );
@@ -525,8 +539,9 @@ function validateAngularBrandImportAugmentationRule(
       value.match.metadata,
       `${pathLabel}.match.metadata`,
       configFilePath,
-    )?.map((context) => validateAngularBrandMetadataContext(context, pathLabel)) ??
-    undefined;
+    )?.map((context) =>
+      validateAngularBrandMetadataContext(context, pathLabel),
+    ) ?? undefined;
 
   return {
     match: {
@@ -659,9 +674,7 @@ function readOptionalStringArray(
   );
 }
 
-function isPlainObject(
-  value: unknown,
-): value is Record<string, unknown> {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
@@ -784,7 +797,11 @@ export function analyzeSourceFileDependencies(
         )
       : { entries: [], warnings: [] };
   const constructorDeps = extractConstructorDeps(classDeclaration);
-  const injectCallDeps = extractInjectCallDeps(classDeclaration);
+  const propertyDeps = extractPropertyDependencies(
+    sourceFile,
+    classDeclaration,
+    className,
+  );
   const generatedDependencyAugmentation =
     createGeneratedDependencyGroupAugmentation(
       sourceFile,
@@ -799,23 +816,15 @@ export function analyzeSourceFileDependencies(
       (dependency) => dependency.dependencyText,
     ),
   );
-  const injectedDependencies = [
-    ...constructorDeps.dependencies.map((dependencyText) => ({
-      dependencyText,
-      entry: createGeneratedDependencyEntry(sourceFile, dependencyText, 'inject'),
-    })),
-      ...injectCallDeps.generatedDependencies,
-  ];
-
   result.warnings.push(
     ...metadataDeps.warnings,
     ...providedDeps.warnings,
     ...constructorDeps.warnings,
-    ...injectCallDeps.warnings,
+    ...propertyDeps.warnings,
   );
   result.dependencies = mergeDeps(
     constructorDeps.dependencies,
-    injectCallDeps.dependencies,
+    propertyDeps.dependencies,
     metadataDeps.imports,
     metadataDeps.hostDirectives,
     metadataDeps.providers,
@@ -825,7 +834,7 @@ export function analyzeSourceFileDependencies(
   result.dependencyGroups = {
     injected: mergeDeps(
       constructorDeps.dependencies,
-      injectCallDeps.dependencies,
+      propertyDeps.dependencies,
       generatedDependencyAugmentation.legacyInjectedDependencies.map(
         (dependency) => dependency.dependencyText,
       ),
@@ -836,8 +845,10 @@ export function analyzeSourceFileDependencies(
   result.generatedTypeName = getGeneratedDepsTypeName(className);
   result.generatedDependencyGroups = createGeneratedDependencyGroups(
     sourceFile,
+    className,
     result.dependencyGroups.importDeps,
-    injectedDependencies,
+    constructorDeps.dependencies,
+    propertyDeps,
     providedDeps.entries,
     generatedDependencyAugmentation,
   );
@@ -1052,6 +1063,99 @@ export function extractInjectCallDeps(
   };
 }
 
+function extractPropertyDependencies(
+  sourceFile: SourceFile,
+  classDeclaration: ClassDeclaration,
+  className: string,
+): PropertyDependencyExtractionResult {
+  const warnings: string[] = [];
+  const dependencies: string[] = [];
+  const entries: GeneratedDependencyEntry[] = [];
+  const missingProvider: GeneratedDependencyEntry[] = [];
+
+  for (const property of classDeclaration.getProperties()) {
+    if (property.isStatic()) {
+      continue;
+    }
+
+    const propertyName = getStaticPropertyName(property.getNameNode());
+    if (!propertyName) {
+      warnings.push(
+        `Skipped property dependency tracking for ${property.getText()} because the property name is not static.`,
+      );
+      continue;
+    }
+
+    const initializer = property.getInitializer();
+    if (Node.isCallExpression(initializer)) {
+      const expression = initializer.getExpression();
+      const injectMethodName = getInjectMethodName(expression);
+
+      if (injectMethodName?.startsWith('inject')) {
+        const dependencyText =
+          injectMethodName === 'inject'
+            ? getAngularInjectCallDependency(initializer)
+            : getInjectionHelperDependency(expression);
+
+        if (!dependencyText) {
+          warnings.push(
+            `Skipped ${injectMethodName}() property dependency tracking for "${propertyName}" because the dependency is not static.`,
+          );
+        } else {
+          dependencies.push(dependencyText);
+
+          const dependencyEntry =
+            injectMethodName === 'inject'
+              ? createGeneratedDependencyEntry(
+                  sourceFile,
+                  dependencyText,
+                  'inject',
+                )
+              : createGeneratedInjectHelperDependencyEntry(
+                  sourceFile,
+                  initializer,
+                  expression,
+                  dependencyText,
+                );
+
+          entries.push(
+            createGeneratedPropertyDependencyEntry(
+              propertyName,
+              createSingleDependencyMapTypeText(dependencyEntry),
+            ),
+          );
+
+          if (shouldGenerateLocalMissingProvider(sourceFile, dependencyText)) {
+            missingProvider.push(
+              createGeneratedDependencyEntry(
+                sourceFile,
+                dependencyText,
+                'inject',
+              ),
+            );
+          }
+
+          continue;
+        }
+      }
+    }
+
+    entries.push(
+      createGeneratedPropertyDependencyEntry(
+        propertyName,
+        createExtractDepsTypeText(className, propertyName),
+      ),
+    );
+  }
+
+  return {
+    dependencies: mergeDeps(dependencies),
+    warnings,
+    entries,
+    missingProvider: mergeGeneratedDependencyEntries(missingProvider),
+  };
+}
+
 export function mergeDeps(...dependencyGroups: readonly string[][]): string[] {
   const seen = new Set<string>();
   const dependencies: string[] = [];
@@ -1081,6 +1185,7 @@ function emptyDependencyGroups(): DependencyGroups {
 function emptyGeneratedDependencyGroups(): GeneratedDependencyGroups {
   return {
     deps: [],
+    propertiesDeps: [],
     provided: [],
     missingProvider: [],
   };
@@ -1100,47 +1205,37 @@ function getGeneratedDepsTypeName(className: string): string {
 
 function createGeneratedDependencyGroups(
   sourceFile: SourceFile,
+  className: string,
   importDependencies: string[],
-  injectedDependencies: InjectedDependencyDescriptor[],
+  constructorDependencies: string[],
+  propertyDependencies: PropertyDependencyExtractionResult,
   providedEntries: GeneratedDependencyEntry[],
   augmentation: GeneratedDependencyGroupAugmentation,
 ): GeneratedDependencyGroups {
+  const constructorEntries = constructorDependencies.map((dependency) =>
+    createGeneratedDependencyEntry(sourceFile, dependency, 'inject'),
+  );
   const deps = mergeGeneratedDependencyEntries(
     importDependencies.map((dependency) =>
       createGeneratedDependencyEntry(sourceFile, dependency, 'import'),
     ),
-    injectedDependencies.map((dependency) => dependency.entry),
+    constructorEntries,
     augmentation.deps.map((dependency) => dependency.entry),
+  );
+  const propertiesDeps = mergeGeneratedDependencyEntries(
+    propertyDependencies.entries,
   );
   const provided = mergeGeneratedDependencyEntries(providedEntries);
   const providedKeys = new Set(provided.map((entry) => entry.key));
-  const injectedEntriesByKey = new Map(
-    injectedDependencies.map((dependency) => [
-      dependency.entry.key,
-      dependency.entry,
-    ]),
-  );
   const missingProvider = mergeGeneratedDependencyEntries(
-    injectedDependencies
-      .filter((dependency) => {
-        const dependencyKey = dependency.entry.key;
-        return (
-          !providedKeys.has(dependencyKey) &&
-          shouldGenerateLocalMissingProvider(
-            sourceFile,
-            dependency.dependencyText,
-          )
-        );
-      })
-      .map(
-        (dependency) =>
-          injectedEntriesByKey.get(dependency.entry.key) ??
-          createGeneratedDependencyEntry(
-            sourceFile,
-            dependency.dependencyText,
-            'inject',
-          ),
+    constructorDependencies
+      .filter((dependencyText) =>
+        shouldGenerateLocalMissingProvider(sourceFile, dependencyText),
+      )
+      .map((dependencyText) =>
+        createGeneratedDependencyEntry(sourceFile, dependencyText, 'inject'),
       ),
+    propertyDependencies.missingProvider,
     augmentation.missingProvider
       .map((dependency) => dependency.entry)
       .filter((entry) => !providedKeys.has(entry.key)),
@@ -1148,6 +1243,7 @@ function createGeneratedDependencyGroups(
 
   return {
     deps,
+    propertiesDeps,
     provided,
     missingProvider,
   };
@@ -1167,7 +1263,11 @@ function createGeneratedDependencyGroupAugmentation(
   const legacyInjectedDependencies: GeneratedDependencyDescriptor[] = [];
 
   for (const rule of config.importAugmentations) {
-    if (!metadataOccurrences.some((occurrence) => ruleMatchesMetadataOccurrence(rule, occurrence))) {
+    if (
+      !metadataOccurrences.some((occurrence) =>
+        ruleMatchesMetadataOccurrence(rule, occurrence),
+      )
+    ) {
       continue;
     }
 
@@ -1211,8 +1311,7 @@ function ruleMatchesMetadataOccurrence(
   }
 
   return (
-    !rule.match.symbols ||
-    rule.match.symbols.includes(occurrence.symbolName)
+    !rule.match.symbols || rule.match.symbols.includes(occurrence.symbolName)
   );
 }
 
@@ -1316,6 +1415,7 @@ function createGeneratedInjectHelperDependencyEntry(
     key: trackedHelper.serviceName,
     typeText: createTrackedInjectHelperTypeText(
       dependencyText,
+      trackedHelper.serviceName,
       exposureTracking,
     ),
   };
@@ -1323,9 +1423,10 @@ function createGeneratedInjectHelperDependencyEntry(
 
 function createTrackedInjectHelperTypeText(
   dependencyText: string,
+  serviceName: string,
   exposureTracking: HelperExposureTracking | undefined,
 ): string {
-  const baseType = `GetInjectedServiceDependencies<typeof ${dependencyText}>`;
+  const baseType = `ExtractDeps<typeof ${dependencyText}>[${JSON.stringify(serviceName)}]`;
   if (!exposureTracking) {
     return baseType;
   }
@@ -1348,6 +1449,29 @@ function createTrackedInjectHelperTypeText(
     )};`,
     '}>',
   ].join('\n');
+}
+
+function createGeneratedPropertyDependencyEntry(
+  propertyName: string,
+  typeText: string,
+): GeneratedDependencyEntry {
+  return {
+    key: propertyName,
+    typeText,
+  };
+}
+
+function createExtractDepsTypeText(
+  className: string,
+  propertyName: string,
+): string {
+  return `ExtractDeps<${className}[${JSON.stringify(propertyName)}]>`;
+}
+
+function createSingleDependencyMapTypeText(
+  entry: GeneratedDependencyEntry,
+): string {
+  return formatGeneratedDependencyObject([entry]);
 }
 
 function formatHelperExposurePropertiesType(
@@ -1799,6 +1923,11 @@ function formatGeneratedDependencyType(
   return [
     '{',
     `  deps: ${formatGeneratedDependencyObject(generatedDependencyGroups.deps)};`,
+    ...(angularKind === 'component'
+      ? [
+          `  propertiesDeps: ${formatGeneratedDependencyObject(generatedDependencyGroups.propertiesDeps)};`,
+        ]
+      : []),
     `  provided: ${formatGeneratedDependencyObject(generatedDependencyGroups.provided)};`,
     ...(angularKind === 'component'
       ? [`  publicProperties: GetPublicComponentProperties<${className}>;`]
@@ -1985,8 +2114,8 @@ export function ensureHelperImports(
 ): void {
   const missingImports = [
     'DerivedService',
+    'ExtractDeps',
     'GetDeps',
-    'GetInjectedServiceDependencies',
     'GetPublicComponentProperties',
     'GetServiceOutput',
   ].filter(
@@ -2402,7 +2531,9 @@ function createMetadataDependencyOccurrence(
   return {
     dependencyText,
     symbolName:
-      resolution.importedName ?? dependencyText.split('.').pop() ?? dependencyText,
+      resolution.importedName ??
+      dependencyText.split('.').pop() ??
+      dependencyText,
     moduleSpecifier: resolution.moduleSpecifier,
     metadataContext,
   };

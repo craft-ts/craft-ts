@@ -5,9 +5,24 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
+import {
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from 'vitest';
+import { Equal, Expect } from 'test-type';
+import type { ExtractDeps } from './branded-component/branded-component';
 import { Console } from './browser-boundaries';
 import { craftMethod } from './craft-method';
-import { craftService, onAppStart } from './craft-service';
+import {
+  craftService,
+  type GetToYieldServiceDependencies,
+  onAppStart,
+} from './craft-service';
 
 beforeAll(() => {
   try {
@@ -46,14 +61,16 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod(this, function* (step = 1) {
+      readonly increment = craftMethod(this, function* (step: number = 1) {
         yield* Console.log('increment');
         this.counter.update((value) => value + step);
         return this.counter();
       });
     }
 
-    const component = TestBed.runInInjectionContext(() => new CounterComponent());
+    const component = TestBed.runInInjectionContext(
+      () => new CounterComponent(),
+    );
     const increment = component.increment;
 
     expect(increment(2)).toBe(2);
@@ -68,14 +85,16 @@ describe('craftMethod', () => {
 
       readonly increment = craftMethod(function* (
         this: CounterComponent,
-        step = 1,
+        step: number = 1,
       ) {
         this.counter.update((value) => value + step);
         return this.counter();
       });
     }
 
-    const component = TestBed.runInInjectionContext(() => new CounterComponent());
+    const component = TestBed.runInInjectionContext(
+      () => new CounterComponent(),
+    );
 
     expect(component.increment(3)).toBe(3);
     expect(component.counter()).toBe(3);
@@ -85,13 +104,15 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod(this, function* (step = 1) {
+      readonly increment = craftMethod(this, function* (step: number = 1) {
         this.counter.update((value) => value + step);
         return this.counter();
       });
     }
 
-    const component = TestBed.runInInjectionContext(() => new CounterComponent());
+    const component = TestBed.runInInjectionContext(
+      () => new CounterComponent(),
+    );
     const increment = component.increment;
 
     expect(increment(4)).toBe(4);
@@ -109,14 +130,16 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod(this, function* (step = 1) {
+      readonly increment = craftMethod(this, function* (step: number = 1) {
         const worker = yield* CounterWorkerToYield();
         this.counter.set(worker.increment(this.counter(), step));
         return this.counter();
       });
     }
 
-    const component = TestBed.runInInjectionContext(() => new CounterComponent());
+    const component = TestBed.runInInjectionContext(
+      () => new CounterComponent(),
+    );
 
     expect(component.increment(5)).toBe(5);
     expect(component.counter()).toBe(5);
@@ -129,7 +152,9 @@ describe('craftMethod', () => {
       });
     }
 
-    const component = TestBed.runInInjectionContext(() => new InvalidComponent());
+    const component = TestBed.runInInjectionContext(
+      () => new InvalidComponent(),
+    );
 
     expect(() => component.increment()).toThrow(
       'craftMethod(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
@@ -154,11 +179,39 @@ describe('craftMethod', () => {
       });
     }
 
-    const component = TestBed.runInInjectionContext(() => new CounterComponent());
+    const component = TestBed.runInInjectionContext(
+      () => new CounterComponent(),
+    );
 
-    expectTypeOf(component.increment).toEqualTypeOf<(step: number) => number>();
-    expectTypeOf(component.decrement).toEqualTypeOf<
+    expectTypeOf(component.increment).toMatchTypeOf<(step: number) => number>();
+    expectTypeOf(component.decrement).toMatchTypeOf<
       (this: CounterComponent, step: number) => number
     >();
+  });
+
+  it('should expose craftMethod dependencies through ExtractDeps', () => {
+    const { CounterWorkerToYield } = craftService(
+      { name: 'CounterWorker', scope: 'function' },
+      () => ({
+        increment: (value: number, step: number) => value + step,
+      }),
+    );
+
+    class CounterComponent {
+      readonly counter = signal(0);
+
+      readonly increment = craftMethod(this, function* (step: number = 1) {
+        const worker = yield* CounterWorkerToYield();
+        this.counter.set(worker.increment(this.counter(), step));
+        return this.counter();
+      });
+    }
+
+    type ExpectedDeps = {
+      CounterWorker: GetToYieldServiceDependencies<typeof CounterWorkerToYield>;
+    };
+    type _Deps = Expect<
+      Equal<ExtractDeps<CounterComponent['increment']>, ExpectedDeps>
+    >;
   });
 });
