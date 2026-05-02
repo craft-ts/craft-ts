@@ -447,7 +447,8 @@ export const injectLocalStorageService: BrowserBoundaryService<
 export const LocalStorageServiceToYield: BrowserBoundaryService<
   'LocalStorageService',
   StorageServiceApi
->['LocalStorageServiceToYield'] = localStorageService.LocalStorageServiceToYield;
+>['LocalStorageServiceToYield'] =
+  localStorageService.LocalStorageServiceToYield;
 export const LOCAL_STORAGE_SERVICE_META_DATA: BrowserBoundaryService<
   'LocalStorageService',
   StorageServiceApi
@@ -502,8 +503,7 @@ const cookiesService: BrowserBoundaryService<
     getAll: () => buildCookieMap(),
     set: (name, value, options) => writeCookie(name, value, options),
     remove: (name, options) => removeCookie(name, options),
-    has: (name) =>
-      Object.prototype.hasOwnProperty.call(buildCookieMap(), name),
+    has: (name) => Object.prototype.hasOwnProperty.call(buildCookieMap(), name),
   }),
 );
 export const injectCookiesService: BrowserBoundaryService<
@@ -778,11 +778,13 @@ const browserWindowService: BrowserBoundaryService<
 export const injectBrowserWindowService: BrowserBoundaryService<
   'BrowserWindowService',
   BrowserWindowServiceApi
->['injectBrowserWindowService'] = browserWindowService.injectBrowserWindowService;
+>['injectBrowserWindowService'] =
+  browserWindowService.injectBrowserWindowService;
 export const BrowserWindowServiceToYield: BrowserBoundaryService<
   'BrowserWindowService',
   BrowserWindowServiceApi
->['BrowserWindowServiceToYield'] = browserWindowService.BrowserWindowServiceToYield;
+>['BrowserWindowServiceToYield'] =
+  browserWindowService.BrowserWindowServiceToYield;
 export const BROWSER_WINDOW_SERVICE_META_DATA: BrowserBoundaryService<
   'BrowserWindowService',
   BrowserWindowServiceApi
@@ -947,11 +949,7 @@ export const BrowserCrypto: BrowserBoundaryDsl<
   randomUUID: callBrowserCrypto('randomUUID'),
   getRandomValues: function* <TypedArray extends ArrayBufferView>(
     typedArray: TypedArray,
-  ): Generator<
-    BrowserCryptoYield,
-    TypedArray,
-    unknown
-  > {
+  ): Generator<BrowserCryptoYield, TypedArray, unknown> {
     const cryptoService = yield* BrowserCryptoServiceToYield();
 
     return cryptoService.getRandomValues(typedArray);

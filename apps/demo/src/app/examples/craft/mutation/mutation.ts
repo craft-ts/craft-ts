@@ -1,25 +1,24 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
+  craftMethod,
   craftService,
   insertLocalStoragePersister,
   insertReactOnMutation,
   mutation,
   query,
   toValue,
-  type DerivedService,
   type GetDeps,
   type GetInjectedServiceDependencies,
   type GetPublicComponentProperties,
-  type GetServiceOutput,
   type MaybeSignal,
 } from '@craft-ng/core';
+import { CraftRouterToYield } from '../../../shared/router.service';
 import {
   StatusComponent,
   type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
-import { injectCraftRouter } from '../../../shared/router.service';
 
 const { injectUserMutation, provideUserMutation } = craftService(
   { name: 'UserMutation', scope: 'toProvide' },
@@ -94,10 +93,6 @@ const { injectUserMutation, provideUserMutation } = craftService(
 export default class MutationCraft {
   public readonly userId = input<string>();
 
-  private readonly router = injectCraftRouter(undefined, ({ navigate }) => ({
-    navigate,
-  }));
-
   protected readonly store = injectUserMutation({
     userId: this.userId,
   });
@@ -110,42 +105,29 @@ export default class MutationCraft {
     this.store.updateUserName.mutate({ userName: newName, user });
   }
 
-  protected nextPage() {
-    this.router.navigate([
-      'craft',
-      'mutation',
-      parseInt(this.userId() ?? '0') + 1,
-    ]);
-  }
+  protected nextPage = craftMethod(this, function* () {
+    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+      navigate,
+    }));
+    router.navigate(['craft', 'mutation', parseInt(this.userId() ?? '0') + 1]);
+  });
 
-  protected previousPage() {
-    this.router.navigate([
-      'craft',
-      'mutation',
-      parseInt(this.userId() ?? '10') - 1,
-    ]);
-  }
+  protected previousPage = craftMethod(this, function* () {
+    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+      navigate,
+    }));
+    router.navigate(['craft', 'mutation', parseInt(this.userId() ?? '10') - 1]);
+  });
 }
 
 export type GenDeps_MutationCraft = GetDeps<{
   deps: {
     CommonModule: CommonModule;
     GenDeps_StatusComponent: GenDeps_StatusComponent;
-    CraftRouter: DerivedService<
-      GetInjectedServiceDependencies<typeof injectCraftRouter>,
-      {
-        derivedPropertiesUsed: {
-          navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
-        };
-        derivedPropertiesExposed: {
-          navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
-        };
-      }
-    >;
     UserMutation: GetInjectedServiceDependencies<typeof injectUserMutation>;
   };
   provided: {
-    UserMutation: ReturnType<typeof injectUserMutation>;
+    UserMutation: ReturnType<typeof provideUserMutation>;
   };
   publicProperties: GetPublicComponentProperties<MutationCraft>;
 }>;
