@@ -56,6 +56,119 @@ describe('brand-angular-deps-match', () => {
     expect(messages).toEqual([]);
   });
 
+  it('ignores prettier-only formatting changes inside helper generic types', async () => {
+    const { messages } = await lintFixture({
+      'src/app/team-id.ts': `
+        export class TeamId {}
+
+        export function injectTeamId() {
+          return {} as TeamId;
+        }
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import {
+          type GetDeps,
+          type GetPublicComponentProperties,
+        } from '@craft-ng/core';
+        import { injectTeamId } from './team-id';
+
+        @Component({
+          standalone: true,
+          template: '',
+        })
+        export class DemoComponent {
+          readonly teamId = injectTeamId();
+        }
+
+        export type GenDeps_DemoComponent = GetDeps<{
+          deps: {
+            TeamId: ReturnType<
+              typeof injectTeamId
+            >;
+          };
+          provided: {};
+          publicProperties: GetPublicComponentProperties<DemoComponent>;
+          missingProvider: {
+            TeamId: ReturnType<
+              typeof injectTeamId
+            >;
+          };
+        }>;
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
+  it('ignores prettier-only quote changes in indexed access helper tracking', async () => {
+    const { messages } = await lintFixture({
+      'src/craft-ng-core.d.ts': `
+        declare module '@craft-ng/core' {
+          export declare function craftService(...args: any[]): any;
+          export type DerivedService<T, U> = T & U;
+          export type GetDeps<T> = T;
+          export type GetInjectedServiceDependencies<T> = T;
+          export type GetPublicComponentProperties<T> = T;
+          export type GetServiceOutput<T> = T;
+        }
+      `,
+      'src/app/router.ts': `
+        import { craftService } from '@craft-ng/core';
+
+        export const { injectRouter } = craftService(
+          { name: 'Router', scope: 'global' },
+          () => ({
+            navigate(commands: unknown[]) {
+              return commands;
+            },
+          }),
+        );
+      `,
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import {
+          type DerivedService,
+          type GetDeps,
+          type GetInjectedServiceDependencies,
+          type GetPublicComponentProperties,
+          type GetServiceOutput,
+        } from '@craft-ng/core';
+        import { injectRouter } from './router';
+
+        @Component({
+          standalone: true,
+          template: '',
+        })
+        export class DemoComponent {
+          readonly router = injectRouter(undefined, ({ navigate }) => ({
+            navigate,
+          }));
+        }
+
+        export type GenDeps_DemoComponent = GetDeps<{
+          deps: {
+            Router: DerivedService<
+              GetInjectedServiceDependencies<typeof injectRouter>,
+              {
+                derivedPropertiesUsed: {
+                  navigate: GetServiceOutput<typeof injectRouter>['navigate'];
+                };
+                derivedPropertiesExposed: {
+                  navigate: GetServiceOutput<typeof injectRouter>['navigate'];
+                };
+              }
+            >;
+          };
+          provided: {};
+          publicProperties: GetPublicComponentProperties<DemoComponent>;
+        }>;
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
   it('reports stale deps, provided, and missingProvider sections and autofixes the file', async () => {
     const staleFixture = {
       'src/app/api.service.ts': `

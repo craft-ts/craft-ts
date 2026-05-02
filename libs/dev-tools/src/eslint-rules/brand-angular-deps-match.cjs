@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const ts = require('typescript');
 
 process.env.TS_NODE_PROJECT ??= path.resolve(
   __dirname,
@@ -19,6 +20,7 @@ const {
 } = require('../scripts/angular-brand-codemod.ts');
 
 const projectCache = new Map();
+const typePrinter = ts.createPrinter({ removeComments: true });
 
 module.exports = {
   meta: {
@@ -254,5 +256,48 @@ function formatSectionList(sectionNames) {
 }
 
 function normalizeText(text) {
-  return text.replace(/\s+/g, ' ').trim();
+  const collapsedText = text.replace(/\s+/g, ' ').trim();
+  if (collapsedText === '') {
+    return '';
+  }
+
+  try {
+    const sourceFile = ts.createSourceFile(
+      '__brand_angular_deps_match__.ts',
+      `type __BrandAngularDepsMatch = ${text};`,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    );
+    const [statement] = sourceFile.statements;
+
+    if (!statement || !ts.isTypeAliasDeclaration(statement)) {
+      return collapsedText;
+    }
+
+    const transformedType = ts.transform(statement.type, [
+      (transformationContext) => (rootNode) =>
+        ts.visitNode(rootNode, function visit(node) {
+          if (ts.isStringLiteral(node)) {
+            return ts.factory.createStringLiteral(node.text);
+          }
+
+          return ts.visitEachChild(node, visit, transformationContext);
+        }),
+    ]);
+
+    const [canonicalTypeNode] = transformedType.transformed;
+    const normalizedText = typePrinter
+      .printNode(
+        ts.EmitHint.Unspecified,
+        canonicalTypeNode ?? statement.type,
+        sourceFile,
+      )
+      .replace(/\s+/g, ' ')
+      .trim();
+    transformedType.dispose();
+    return normalizedText;
+  } catch {
+    return collapsedText;
+  }
 }
