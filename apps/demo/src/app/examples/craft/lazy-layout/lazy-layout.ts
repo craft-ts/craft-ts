@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterOutlet, type Router } from '@angular/router';
 import {
   type GetDeps,
   type GetPublicComponentProperties,
@@ -179,7 +179,11 @@ export default class LazyLayoutComponent {
 export type GenDeps_LazyLayoutComponent = GetDeps<{
   deps: {
     RouterOutlet: RouterOutlet;
+    Router: Router;
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<LazyLayoutComponent>;
+  missingProvider: {
+    Router: Router;
+  };
 }>;
