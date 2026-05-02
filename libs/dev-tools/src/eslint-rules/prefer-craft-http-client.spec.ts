@@ -135,9 +135,7 @@ async function lintFixture(files: Record<string, string>): Promise<string[]> {
   return messages.map((message) => message.message);
 }
 
-async function lintFixtureMessages(
-  files: Record<string, string>,
-): Promise<
+async function lintFixtureMessages(files: Record<string, string>): Promise<
   Array<{
     message: string;
     suggestions?: Array<{ desc?: string; fix?: { text?: string } }>;

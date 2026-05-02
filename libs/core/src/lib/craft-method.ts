@@ -4,9 +4,9 @@ import {
   Injector,
   runInInjectionContext,
 } from '@angular/core';
-import {
+import type {
   SERVICE_HELPER_DEPENDENCIES,
-  type ServiceDependencyMapFromYielded,
+  ServiceDependencyMapFromYielded,
 } from './craft-service';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 

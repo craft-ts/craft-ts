@@ -1,6 +1,8 @@
 import type { InputSignalWithTransform } from '@angular/core';
-import { SERVICE_HELPER_DEPENDENCIES } from '../craft-service';
-import type { ExtractServiceHelperDependencies } from '../craft-service';
+import type {
+  ExtractServiceHelperDependencyMap,
+  SERVICE_HELPER_DEPENDENCIES,
+} from '../craft-service';
 import type {
   MergeObjectUnion,
   RequirementScope,
@@ -112,7 +114,7 @@ type ExtractHelperMetadata<Value> = Value extends {
   : never;
 
 type NormalizeExtractedDeps<Value> = [
-  ExtractServiceHelperDependencies<Value>,
+  ExtractServiceHelperDependencyMap<Value>,
 ] extends [never]
   ? Value extends object
     ? [ExtractHelperMetadata<Value>] extends [never]
@@ -125,7 +127,7 @@ type NormalizeExtractedDeps<Value> = [
         ? ExtractHelperMetadata<Value>
         : {}
     : {}
-  : ExtractServiceHelperDependencies<Value>;
+  : ExtractServiceHelperDependencyMap<Value>;
 
 export type ExtractDeps<Value> = Simplify<NormalizeExtractedDeps<Value>>;
 

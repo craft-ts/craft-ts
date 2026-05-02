@@ -820,6 +820,28 @@ type ResolveServiceTrackingMetadata<Metadata> =
       >
     : never;
 
+export type ExtractServiceHelperDependencies<ServiceHelper> =
+  ResolveServiceTrackingMetadata<ExtractTrackedMetadata<ServiceHelper>>;
+
+export type ExtractServiceHelperDependencyMap<ServiceHelper> =
+  ExtractTrackedMetadata<ServiceHelper> extends ServiceTrackingMetadata<
+    infer Name extends string,
+    ConcreteServiceScope,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    boolean
+  >
+    ? {
+        [Key in Name]: ExtractServiceHelperDependencies<ServiceHelper>;
+      }
+    : never;
+
+export type ServiceDependencyMapFromYielded<Yielded> = BuildDependencyMap<
+  DependencyRequests<Yielded>
+>;
+
 type DependencyDefinition<Request> = ResolveServiceTrackingMetadata<
   DependencyMetadata<Request>
 >;

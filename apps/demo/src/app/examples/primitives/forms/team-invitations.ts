@@ -489,7 +489,7 @@ export default class TeamInvitationsComponent {
 export type GenDeps_TeamInvitationsComponent = GetDeps<{
       deps: {
         CommonModule: CommonModule;
-        FormField: FormField;
+        FormField: FormField<any>;
       };
       propertiesDeps: {
         nextInvitationId: ExtractDeps<TeamInvitationsComponent["nextInvitationId"]>;

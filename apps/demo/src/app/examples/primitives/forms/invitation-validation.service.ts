@@ -21,12 +21,19 @@ export type InvitationValidationResult =
       message: string;
     };
 
+export type InvitationValidationService = {
+  validateInvitation: (
+    request: InvitationValidationRequest,
+    abortSignal: AbortSignal,
+  ) => Promise<InvitationValidationResult>;
+};
+
 export const {
   InvitationValidationServiceToYield,
   injectInvitationValidationService,
 } = craftService(
   { name: 'InvitationValidationService', scope: 'global' },
-  () => {
+  (): InvitationValidationService => {
     const currentMembers = new Set([
       'sarah@acme.io',
       'ops@acme.io',

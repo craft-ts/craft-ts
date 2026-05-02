@@ -1,18 +1,18 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-    insertLocalStoragePersister,
-    query,
-    type DerivedService,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties,
-    type GetServiceOutput
+  insertLocalStoragePersister,
+  query,
+  type DerivedService,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
+  type GetServiceOutput,
 } from '@craft-ng/core';
 import { injectCraftRouter } from '../../../shared/router.service';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { injectApiService } from './api.service';
 
@@ -71,27 +71,30 @@ export default class GlobalQuery {
 }
 
 export type GenDeps_GlobalQuery = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        userId: ExtractDeps<GlobalQuery["userId"]>;
-        apiService: {
-            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    userId: ExtractDeps<GlobalQuery['userId']>;
+    apiService: {
+      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
+    };
+    router: {
+      CraftRouter: DerivedService<
+        ExtractDeps<typeof injectCraftRouter>['CraftRouter'],
+        {
+          derivedPropertiesUsed: {
+            navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
           };
-        router: {
-            CraftRouter: DerivedService<ExtractDeps<typeof injectCraftRouter>["CraftRouter"], {
-              derivedPropertiesUsed: {
-                navigate: GetServiceOutput<typeof injectCraftRouter>["navigate"];
-              };
-              derivedPropertiesExposed: {
-                navigate: GetServiceOutput<typeof injectCraftRouter>["navigate"];
-              };
-            }>;
+          derivedPropertiesExposed: {
+            navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
           };
-        userQuery: ExtractDeps<GlobalQuery["userQuery"]>;
-      };
-      provided: {};
-      publicProperties: GetPublicComponentProperties<GlobalQuery>;
-    }>;
+        }
+      >;
+    };
+    userQuery: ExtractDeps<GlobalQuery['userQuery']>;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<GlobalQuery>;
+}>;
