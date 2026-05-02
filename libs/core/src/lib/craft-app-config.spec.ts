@@ -12,7 +12,7 @@ import { craftAppConfig, toApplicationConfig } from './craft-app-config';
 import {
   appStartCalls,
   injectAppStartCounter,
-  requiredAppStart,
+  requiredAppStartFlag,
 } from './craft-app-config.app-start.fixture';
 import { craftRoutes } from './craft-routes';
 import {
@@ -64,7 +64,7 @@ describe('craftAppConfig', () => {
     craftAppConfig({ routingDeps: appRoutes.META_DATA });
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
     });
 
@@ -108,7 +108,7 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
       providers: [provideCounter()],
     });
@@ -140,7 +140,7 @@ describe('craftAppConfig', () => {
     }>;
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
+      appStart: requiredAppStartFlag,
       routingDeps: [] as const,
       providers: [provideCounter()] as const,
     });
@@ -182,7 +182,7 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
       providers: [provideCounter()],
     });
@@ -226,7 +226,7 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
     });
 
@@ -250,7 +250,7 @@ describe('craftAppConfig', () => {
   it('should convert to ApplicationConfig', () => {
     const marker = new InjectionToken<string>('marker');
     const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
+      appStart: requiredAppStartFlag,
       routingDeps: [] as const,
       providers: [
         {
@@ -288,7 +288,7 @@ describe('craftAppConfig appStart', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
+      appStart: requiredAppStartFlag,
       routingDeps: appRoutes.META_DATA,
     });
 
@@ -311,7 +311,7 @@ describe('craftAppConfig appStart', () => {
     TestBed.configureTestingModule({
       providers: [
         ...craftAppConfig({
-          appStart: requiredAppStart,
+          appStart: requiredAppStartFlag,
           routingDeps: [] as const,
         }).providers,
       ],
@@ -349,7 +349,7 @@ describe('craftAppConfig appStart', () => {
     TestBed.configureTestingModule({
       providers: [
         ...craftAppConfig({
-          appStart: requiredAppStart,
+          appStart: requiredAppStartFlag,
           routingDeps: [] as const,
         }).providers,
       ],

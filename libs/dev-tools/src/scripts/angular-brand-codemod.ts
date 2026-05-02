@@ -33,6 +33,7 @@ export type AngularBrandMetadataContext = 'imports' | 'hostDirectives';
 export type AngularBrandConfigEntry = {
   key: string;
   symbol: string;
+  typeText?: string;
   module?: string;
 };
 
@@ -271,6 +272,21 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
         },
       ],
     },
+    {
+      match: {
+        module: '@angular/forms/signals',
+        symbols: ['FormField'],
+        metadata: ['imports'],
+      },
+      deps: [
+        {
+          key: 'FormField',
+          symbol: 'FormField',
+          typeText: 'FormField<any>',
+          module: '@angular/forms/signals',
+        },
+      ],
+    },
   ],
 });
 const angularBrandConfigCache = new Map<string, AngularBrandConfig>();
@@ -412,8 +428,10 @@ export function loadAngularBrandConfigFromFile(
     );
 
     const exportedConfig =
-      module.exports.default ??
-      (module.exports.__esModule ? module.exports.default : module.exports);
+      module.exports['default'] ??
+      (module.exports['__esModule']
+        ? module.exports['default']
+        : module.exports);
     const validatedConfig = validateAngularBrandConfig(
       exportedConfig,
       resolvedConfigFilePath,
@@ -495,7 +513,7 @@ function validateAngularBrandConfig(
   }
 
   const importAugmentations = readOptionalArray(
-    value.importAugmentations,
+    value['importAugmentations'],
     'importAugmentations',
     configFilePath,
   )?.map((entry, index) =>
@@ -520,23 +538,25 @@ function validateAngularBrandImportAugmentationRule(
     throw new Error(`${pathLabel} must be an object.`);
   }
 
-  if (!isPlainObject(value.match)) {
+  if (!isPlainObject(value['match'])) {
     throw new Error(`${pathLabel}.match must be an object.`);
   }
 
+  const match = value['match'];
+
   const moduleSpecifier = readRequiredString(
-    value.match.module,
+    match['module'],
     `${pathLabel}.match.module`,
     configFilePath,
   );
   const symbols = readOptionalStringArray(
-    value.match.symbols,
+    match['symbols'],
     `${pathLabel}.match.symbols`,
     configFilePath,
   );
   const metadata =
     readOptionalStringArray(
-      value.match.metadata,
+      match['metadata'],
       `${pathLabel}.match.metadata`,
       configFilePath,
     )?.map((context) =>
@@ -550,17 +570,20 @@ function validateAngularBrandImportAugmentationRule(
       metadata,
     },
     deps:
-      readOptionalArray(value.deps, `${pathLabel}.deps`, configFilePath)?.map(
-        (entry, index) =>
-          validateAngularBrandConfigEntry(
-            entry,
-            `${pathLabel}.deps[${index}]`,
-            configFilePath,
-          ),
+      readOptionalArray(
+        value['deps'],
+        `${pathLabel}.deps`,
+        configFilePath,
+      )?.map((entry, index) =>
+        validateAngularBrandConfigEntry(
+          entry,
+          `${pathLabel}.deps[${index}]`,
+          configFilePath,
+        ),
       ) ?? [],
     missingProvider:
       readOptionalArray(
-        value.missingProvider,
+        value['missingProvider'],
         `${pathLabel}.missingProvider`,
         configFilePath,
       )?.map((entry, index) =>
@@ -582,14 +605,23 @@ function validateAngularBrandConfigEntry(
     throw new Error(`${pathLabel} must be an object.`);
   }
 
-  const key = readRequiredString(value.key, `${pathLabel}.key`, configFilePath);
+  const key = readRequiredString(
+    value['key'],
+    `${pathLabel}.key`,
+    configFilePath,
+  );
   const symbol = readRequiredString(
-    value.symbol,
+    value['symbol'],
     `${pathLabel}.symbol`,
     configFilePath,
   );
+  const typeText = readOptionalString(
+    value['typeText'],
+    `${pathLabel}.typeText`,
+    configFilePath,
+  );
   const moduleSpecifier = readOptionalString(
-    value.module,
+    value['module'],
     `${pathLabel}.module`,
     configFilePath,
   );
@@ -597,6 +629,7 @@ function validateAngularBrandConfigEntry(
   return {
     key,
     symbol,
+    typeText,
     module: moduleSpecifier,
   };
 }
@@ -1328,6 +1361,7 @@ function createConfiguredGeneratedDependencyDescriptor(
       'inject',
       entry.module ?? defaultModuleSpecifier,
       entry.key,
+      entry.typeText,
     ),
   };
 }
@@ -1339,9 +1373,7 @@ function mergeGeneratedDependencyEntries(
 
   for (const group of groups) {
     for (const entry of group) {
-      if (!entries.has(entry.key)) {
-        entries.set(entry.key, entry);
-      }
+      entries.set(entry.key, entry);
     }
   }
 
@@ -1387,10 +1419,13 @@ function createSyntheticGeneratedDependencyEntry(
   context: 'import' | 'inject',
   moduleSpecifier: string,
   key = createGeneratedDependencyKey(dependencyText),
+  typeText?: string,
 ): GeneratedDependencyEntry {
   return {
     ...createGeneratedDependencyEntry(sourceFile, dependencyText, context),
     key,
+    typeText:
+      typeText ?? createGeneratedDependencyTypeText(sourceFile, dependencyText),
     typeImport: {
       moduleSpecifier,
       name: dependencyText,

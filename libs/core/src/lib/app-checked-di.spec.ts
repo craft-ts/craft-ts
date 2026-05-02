@@ -3,7 +3,7 @@ import { craftService, GetInjectedServiceDependencies } from './craft-service';
 import { GetDeps } from './branded-component/branded-component';
 import type { AppCheckedDI, CanRun } from './app-checked-di';
 import { craftAppConfig } from './craft-app-config';
-import { requiredAppStart } from './craft-app-config.app-start.fixture';
+import { requiredAppStartFlag } from './craft-app-config.app-start.fixture';
 
 describe('AppCheckedDI', () => {
   it('should return true if all missingProvider and routing inputs are provided', () => {
@@ -256,7 +256,7 @@ describe('AppCheckedDI', () => {
     }>;
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStart,
+      appStart: requiredAppStartFlag,
       routingDeps: [] as const,
       providers: [provideCounter()] as const,
     });

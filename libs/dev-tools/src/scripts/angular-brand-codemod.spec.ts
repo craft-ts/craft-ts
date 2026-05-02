@@ -408,6 +408,51 @@ describe('angular-brand-codemod', () => {
     expect(output).not.toMatch(/missingProvider: \{[\s\S]*Router: Router;/);
   });
 
+  it('emits FormField<any> when FormField is imported in metadata imports', async () => {
+    const project = await createSignalFormsMetadataProjectFixture({
+      'src/app/status.component.ts': `
+        import { Component } from '@angular/core';
+
+        @Component({
+          standalone: true,
+          template: '',
+        })
+        export class StatusComponent {}
+      `,
+      'src/app/demo.ts': `
+        import { CommonModule } from '@angular/common';
+        import { Component } from '@angular/core';
+        import { FormField } from '@angular/forms/signals';
+        import { StatusComponent } from './status.component';
+
+        @Component({
+          standalone: true,
+          imports: [CommonModule, StatusComponent, FormField],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    transformSourceFile(
+      getFixtureSourceFile(project, 'src/app/status.component.ts'),
+    );
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+    const depsSection = extractGeneratedSection(output, 'deps');
+
+    expect(depsSection).toContain('CommonModule: CommonModule;');
+    expect(depsSection).toContain(
+      'GenDeps_StatusComponent: GenDeps_StatusComponent;',
+    );
+    expect(depsSection).toContain('FormField: FormField<any>;');
+    expect(depsSection).toMatch(
+      /CommonModule: CommonModule;[\s\S]*GenDeps_StatusComponent: GenDeps_StatusComponent;[\s\S]*FormField: FormField<any>;/,
+    );
+    expect(output).not.toContain('type FormField');
+  });
+
   it('applies inline project config rules for metadata imports', async () => {
     const project = await createTranslateProjectFixture({
       'src/app/demo.ts': `
@@ -915,6 +960,29 @@ async function createTranslateProjectFixture(
         export declare class TranslateDirective {}
         export declare class TranslateService {}
         export declare class WrongService {}
+      }
+    `,
+    ...files,
+  });
+}
+
+async function createSignalFormsMetadataProjectFixture(
+  files: Record<string, string>,
+): Promise<Project> {
+  return createProjectFixture({
+    'src/angular-common.d.ts': `
+      declare module '@angular/common' {
+        export declare class CommonModule {}
+      }
+    `,
+    'src/angular-core.d.ts': `
+      declare module '@angular/core' {
+        export declare function Component(metadata: unknown): ClassDecorator;
+      }
+    `,
+    'src/angular-forms.d.ts': `
+      declare module '@angular/forms/signals' {
+        export declare class FormField<T> {}
       }
     `,
     ...files,

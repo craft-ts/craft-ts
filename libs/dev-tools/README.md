@@ -83,6 +83,8 @@ export default [
       'craft-ng/brand-angular-gen-deps-required': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
+      'craft-ng/prefer-craft-service': 'error',
+      'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
     }
   }
@@ -128,6 +130,8 @@ module.exports = defineConfig([
       // `brand-angular-deps-match` refreshes existing GenDeps aliases with ESLint autofix
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
+      'craft-ng/prefer-craft-service': 'error',
+      'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
     },
   },
@@ -159,3 +163,7 @@ Notes:
 
 - the ESLint Quick Fix can generate a missing alias or refresh an existing one, but only for the current file
 - the same flow works well for AI agents: file-local updates via `eslint --fix`, bulk updates via `craft-brand --root`
+- `craft-ng/no-angular-inject` now targets raw Angular `inject()` only
+- `craft-ng/prefer-craft-service` forbids authored Angular `@Injectable()` / `@Service()` classes in favor of `craftService(...)`
+- `craft-ng/prefer-craft-http-client` forbids Angular `HttpClient` in favor of `CraftHttpClient`
+- `craft-ng/prefer-craft-service` and `craft-ng/prefer-craft-http-client` also expose a VS Code Quick Fix suggestion that inserts a temporary local disable comment annotated with the intended migration target

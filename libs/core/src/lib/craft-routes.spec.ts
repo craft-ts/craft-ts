@@ -28,12 +28,7 @@ import {
   type RouterStateSnapshot,
   type UrlSegment,
 } from '@angular/router';
-import {
-  BehaviorSubject,
-  combineLatest,
-  firstValueFrom,
-  map,
-} from 'rxjs';
+import { BehaviorSubject, combineLatest, firstValueFrom, map } from 'rxjs';
 import {
   beforeAll,
   beforeEach,
@@ -97,7 +92,9 @@ function createNestedActivatedRouteStub(config: {
     config.parentParams ?? {},
   );
   const parentDataSubject = new BehaviorSubject<Data>(config.parentData ?? {});
-  const childParamsSubject = new BehaviorSubject<Params>(config.childParams ?? {});
+  const childParamsSubject = new BehaviorSubject<Params>(
+    config.childParams ?? {},
+  );
   const childDataSubject = new BehaviorSubject<Data>(config.childData ?? {});
 
   const childRoute = {
@@ -406,7 +403,7 @@ describe('craftRoutes', () => {
         path: 'observable-guard',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
-        canActivate: function* () {
+        canActivate: () => {
           return new BehaviorSubject<GuardResult | undefined>(
             undefined,
           ).asObservable();
@@ -416,7 +413,7 @@ describe('craftRoutes', () => {
         path: 'match-guard',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
-        canMatch: function* () {
+        canMatch: () => {
           return true;
         },
       },

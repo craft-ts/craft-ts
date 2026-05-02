@@ -331,6 +331,78 @@ describe('brand-angular-deps-match', () => {
     );
   });
 
+  it('autofixes FormField<any> for signal forms imports', async () => {
+    const staleFixture = {
+      'src/angular-forms-signals.d.ts': `
+        declare module '@angular/forms/signals' {
+          export declare class FormField<T> {}
+        }
+      `,
+      'src/app/status.component.ts': `
+        import { Component } from '@angular/core';
+        import {
+          type GetDeps,
+          type GetPublicComponentProperties,
+        } from '@craft-ng/core';
+
+        @Component({
+          standalone: true,
+          template: '',
+        })
+        export class StatusComponent {}
+
+        export type GenDeps_StatusComponent = GetDeps<{
+          deps: {};
+          propertiesDeps: {};
+          provided: {};
+          publicProperties: GetPublicComponentProperties<StatusComponent>;
+        }>;
+      `,
+      'src/app/demo.ts': `
+        import { CommonModule } from '@angular/common';
+        import { Component } from '@angular/core';
+        import { FormField } from '@angular/forms/signals';
+        import {
+          type GetDeps,
+          type GetPublicComponentProperties,
+        } from '@craft-ng/core';
+        import { StatusComponent, type GenDeps_StatusComponent } from './status.component';
+
+        @Component({
+          standalone: true,
+          imports: [CommonModule, StatusComponent, FormField],
+          template: '',
+        })
+        export class DemoComponent {}
+
+        export type GenDeps_DemoComponent = GetDeps<{
+          deps: {
+            CommonModule: CommonModule;
+            GenDeps_StatusComponent: GenDeps_StatusComponent;
+            FormField: FormField;
+          };
+          propertiesDeps: {};
+          provided: {};
+          publicProperties: GetPublicComponentProperties<DemoComponent>;
+        }>;
+      `,
+    } satisfies Record<string, string>;
+
+    const { messages } = await lintFixture(staleFixture);
+
+    expect(messages).toEqual([
+      'GenDeps_DemoComponent is out of date for deps. Run ESLint --fix on this file or craft-brand --root <source-root> to refresh it.',
+    ]);
+
+    const { output } = await lintFixture(staleFixture, { fix: true });
+
+    expect(output).toMatch(
+      /CommonModule: CommonModule;[\s\S]*GenDeps_StatusComponent: GenDeps_StatusComponent;[\s\S]*FormField: FormField<any>;/,
+    );
+    expect(output).toContain('FormField: FormField<any>;');
+    expect(output).not.toContain('type FormField');
+  });
+
   it('ignores files without an existing GenDeps alias', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `

@@ -155,6 +155,8 @@ export default [
       'craft-ng/brand-angular-gen-deps-required': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
+      'craft-ng/prefer-craft-service': 'error',
+      'craft-ng/prefer-craft-http-client': 'error',
     },
   },
 ];
@@ -164,7 +166,11 @@ What each rule does:
 
 - `craft-ng/brand-angular-gen-deps-required`: generates a missing `GenDeps_*` alias for Angular components, directives, and pipes through the ESLint Quick Fix
 - `craft-ng/brand-angular-deps-match`: keeps existing `GenDeps_*` aliases in sync through the same ESLint Quick Fix flow
-- `craft-ng/no-angular-inject`: forbids raw Angular `inject()` / `@Injectable` usage so dependencies go through `craftService(...)` or `toCraftService(...)`
+- `craft-ng/no-angular-inject`: forbids raw Angular `inject()` usage so dependencies go through `craftService(...)` or `toCraftService(...)`
+- `craft-ng/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
+- `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
+
+The two migration rules also expose a VS Code ESLint Quick Fix suggestion that inserts a temporary local disable comment with the intended migration note when you need to unblock a file before doing the full refactor.
 
 If your project is adopting this progressively, enable both `craft-ng/brand-angular-gen-deps-required` and `craft-ng/brand-angular-deps-match` so the same Quick Fix can generate missing aliases and refresh existing ones. `craft-ng/no-angular-inject` is an architecture-enforcement rule and may require a broader migration.
 

@@ -14,9 +14,9 @@ const tempDirectories: string[] = [];
 describe('brand-angular-deps/no-angular-inject', () => {
   afterEach(async () => {
     await Promise.all(
-      tempDirectories.splice(0).map((directory) =>
-        rm(directory, { force: true, recursive: true }),
-      ),
+      tempDirectories
+        .splice(0)
+        .map((directory) => rm(directory, { force: true, recursive: true })),
     );
   });
 
@@ -86,96 +86,12 @@ describe('brand-angular-deps/no-angular-inject', () => {
 
     expect(messages).toEqual([]);
   });
-
-  it('reports Angular @Injectable decorator usage', async () => {
-    const messages = await lintFixture({
-      'src/app/demo.ts': `
-        import { Injectable } from '@angular/core';
-
-        @Injectable()
-        class DemoService {}
-      `,
-    });
-
-    expect(messages).toEqual([
-      'Angular @Injectable is forbidden. Expose the dependency through craftService or toCraftService instead.',
-    ]);
-  });
-
-  it('reports namespaced Angular @Injectable decorator usage', async () => {
-    const messages = await lintFixture({
-      'src/app/demo.ts': `
-        import * as ngCore from '@angular/core';
-
-        @ngCore.Injectable()
-        class DemoService {}
-      `,
-    });
-
-    expect(messages).toEqual([
-      'Angular @Injectable is forbidden. Expose the dependency through craftService or toCraftService instead.',
-    ]);
-  });
-
-  it('allows non-Angular Injectable decorators', async () => {
-    const messages = await lintFixture({
-      'src/app/demo.ts': `
-        import { Injectable } from 'custom-di';
-
-        @Injectable()
-        class DemoService {}
-      `,
-    });
-
-    expect(messages).toEqual([]);
-  });
-
-  it('reports Angular @Service decorator usage', async () => {
-    const messages = await lintFixture({
-      'src/app/demo.ts': `
-        import { Service } from '@angular/core';
-
-        @Service()
-        class DemoService {}
-      `,
-    });
-
-    expect(messages).toEqual([
-      'Angular @Service is forbidden. Expose the dependency through craftService or toCraftService instead.',
-    ]);
-  });
-
-  it('reports namespaced Angular @Service decorator usage', async () => {
-    const messages = await lintFixture({
-      'src/app/demo.ts': `
-        import * as ngCore from '@angular/core';
-
-        @ngCore.Service()
-        class DemoService {}
-      `,
-    });
-
-    expect(messages).toEqual([
-      'Angular @Service is forbidden. Expose the dependency through craftService or toCraftService instead.',
-    ]);
-  });
-
-  it('allows non-Angular Service decorators', async () => {
-    const messages = await lintFixture({
-      'src/app/demo.ts': `
-        import { Service } from 'custom-di';
-
-        @Service()
-        class DemoService {}
-      `,
-    });
-
-    expect(messages).toEqual([]);
-  });
 });
 
 async function lintFixture(files: Record<string, string>): Promise<string[]> {
-  const tempDirectory = await mkdtemp(join(tmpdir(), 'no-angular-inject-rule-'));
+  const tempDirectory = await mkdtemp(
+    join(tmpdir(), 'no-angular-inject-rule-'),
+  );
   tempDirectories.push(tempDirectory);
 
   await writeFixtureFiles(tempDirectory, {
@@ -223,7 +139,9 @@ async function lintFixture(files: Record<string, string>): Promise<string[]> {
   });
 
   const results = await eslint.lintFiles(['src/**/*.ts']);
-  return results.flatMap((result) => result.messages.map((message) => message.message));
+  return results.flatMap((result) =>
+    result.messages.map((message) => message.message),
+  );
 }
 
 async function writeFixtureFiles(

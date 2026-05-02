@@ -70,7 +70,7 @@ type CraftAppStartRegistryKeys = Extract<keyof CraftAppStartRegistry, string>;
 type RequireCraftAppStartConfig = [CraftAppStartRegistryKeys] extends [never]
   ? {}
   : {
-      appStart: CraftAppStartRegistry;
+      appStart: true;
     };
 
 type InvalidCraftAppStartRegistryEntries = Extract<

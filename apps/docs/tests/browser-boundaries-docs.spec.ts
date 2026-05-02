@@ -164,6 +164,8 @@ describe('Type-safe DI/Routes setup doc page', () => {
     );
     expect(content).toContain("'craft-ng/brand-angular-deps-match': 'error'");
     expect(content).toContain("'craft-ng/no-angular-inject': 'error'");
+    expect(content).toContain("'craft-ng/prefer-craft-service': 'error'");
+    expect(content).toContain("'craft-ng/prefer-craft-http-client': 'error'");
     expect(content).toContain(
       'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`',
     );

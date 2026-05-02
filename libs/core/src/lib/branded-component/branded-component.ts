@@ -1,6 +1,6 @@
 import type { InputSignalWithTransform } from '@angular/core';
 import { SERVICE_HELPER_DEPENDENCIES } from '../craft-service';
-import type { ExtractServiceHelperDependencyMap } from '../craft-service';
+import type { ExtractServiceHelperDependencies } from '../craft-service';
 import type {
   MergeObjectUnion,
   RequirementScope,
@@ -14,19 +14,19 @@ export type AngularBrandDeps = {
 };
 
 type ExtractPublicInstance<Component> = Component extends abstract new (
-  ...args: any[]
+  ...args: unknown[]
 ) => infer Instance
   ? Instance
   : Component;
 
 type ToPublicSignalType<T> =
-  T extends InputSignalWithTransform<infer ReadT, any> ? () => ReadT : T;
+  T extends InputSignalWithTransform<infer ReadT, unknown> ? () => ReadT : T;
 
 type InputSignalPropertyKeys<Instance> = Extract<
   {
     [K in keyof Instance]: Instance[K] extends InputSignalWithTransform<
-      any,
-      any
+      unknown,
+      unknown
     >
       ? K
       : never;
@@ -112,7 +112,7 @@ type ExtractHelperMetadata<Value> = Value extends {
   : never;
 
 type NormalizeExtractedDeps<Value> = [
-  ExtractServiceHelperDependencyMap<Value>,
+  ExtractServiceHelperDependencies<Value>,
 ] extends [never]
   ? Value extends object
     ? [ExtractHelperMetadata<Value>] extends [never]
@@ -125,7 +125,7 @@ type NormalizeExtractedDeps<Value> = [
         ? ExtractHelperMetadata<Value>
         : {}
     : {}
-  : ExtractServiceHelperDependencyMap<Value>;
+  : ExtractServiceHelperDependencies<Value>;
 
 export type ExtractDeps<Value> = Simplify<NormalizeExtractedDeps<Value>>;
 
