@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
   craftMethod,
@@ -59,7 +59,7 @@ const { injectUserMutation, provideUserMutation } = craftService(
 
 @Component({
   selector: 'app-mutation',
-  imports: [CommonModule, StatusComponent],
+  imports: [JsonPipe, StatusComponent],
   providers: [provideUserMutation()],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['mutation.css'],
@@ -122,7 +122,7 @@ export default class MutationCraft {
 
 export type GenDeps_MutationCraft = GetDeps<{
   deps: {
-    CommonModule: CommonModule;
+    JsonPipe: JsonPipe;
     GenDeps_StatusComponent: GenDeps_StatusComponent;
     UserMutation: GetInjectedServiceDependencies<typeof injectUserMutation>;
   };
