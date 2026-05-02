@@ -13,13 +13,7 @@ import {
   type RouterStateSnapshot,
   type UrlSegment,
 } from '@angular/router';
-import {
-  Observable,
-  filter,
-  isObservable,
-  take,
-  throwIfEmpty,
-} from 'rxjs';
+import { Observable, filter, isObservable, take, throwIfEmpty } from 'rxjs';
 import {
   craftService,
   type BrandedServiceProvider,
@@ -308,12 +302,14 @@ type CraftRouteCanMatchGuard = (
   currentSnapshot?: PartialMatchRouteSnapshot,
 ) => GuardResult | Generator<unknown, GuardResult, unknown>;
 
-type GuardOf<RouteDefinition, GuardName extends 'canActivate' | 'canMatch'> =
-  RouteDefinition extends {
-    [Key in GuardName]?: infer Guard;
-  }
-    ? Guard
-    : never;
+type GuardOf<
+  RouteDefinition,
+  GuardName extends 'canActivate' | 'canMatch',
+> = RouteDefinition extends {
+  [Key in GuardName]?: infer Guard;
+}
+  ? Guard
+  : never;
 
 type GuardReturn<Guard> = Guard extends (...args: any[]) => infer Result
   ? Result
@@ -331,26 +327,25 @@ type HasGeneratorGuard<RouteDefinition> = true extends
   ? true
   : false;
 
-type GuardServiceDependencies<Output, Yielded> =
-  GetInjectedServiceDependencies<
-    CraftServiceApi<
-      'craftRouteGuard',
-      'function',
-      {},
-      Output,
-      ServiceTrackingMetadata<'craftRouteGuard', 'function', Output, Yielded>
-    >['injectCraftRouteGuard']
-  >;
+type GuardServiceDependencies<Output, Yielded> = GetInjectedServiceDependencies<
+  CraftServiceApi<
+    'craftRouteGuard',
+    'function',
+    {},
+    Output,
+    ServiceTrackingMetadata<'craftRouteGuard', 'function', Output, Yielded>
+  >['injectCraftRouteGuard']
+>;
 
 type GuardDependenciesFromReturn<Result> = [Result] extends [never]
   ? {}
   : [Result] extends [Generator<infer Yielded, infer Output, any>]
-  ? GuardServiceDependencies<Output, Yielded> extends {
-      dependencies: infer Dependencies extends object;
-    }
-    ? Dependencies
-    : {}
-  : {};
+    ? GuardServiceDependencies<Output, Yielded> extends {
+        dependencies: infer Dependencies extends object;
+      }
+      ? Dependencies
+      : {}
+    : {};
 
 type RouteGuardDepsMap<RouteDefinition> = Simplify<
   MergeObjectUnion<
@@ -365,7 +360,8 @@ type RouteGuardDepsMap<RouteDefinition> = Simplify<
 
 type RouteDepsMap<RouteDefinition> = Simplify<
   MergeObjectUnion<
-    DepsMap<ComponentDepsMap<RouteDefinition>> | RouteGuardDepsMap<RouteDefinition>
+    | DepsMap<ComponentDepsMap<RouteDefinition>>
+    | RouteGuardDepsMap<RouteDefinition>
   >
 >;
 
@@ -591,10 +587,7 @@ type FlattenLoadChildrenRouteMetaData<
       LoadChildrenRoutes<RouteDefinition>,
       ParentPath,
       RouteInheritedServiceNames<RouteDefinition, InheritedServiceNames>,
-      RouteInheritedPublicProperties<
-        RouteDefinition,
-        InheritedPublicProperties
-      >
+      RouteInheritedPublicProperties<RouteDefinition, InheritedPublicProperties>
     >;
 
 type FlattenCraftRouteMetaDataEntry<
@@ -614,7 +607,7 @@ type FlattenCraftRouteMetaDataEntry<
     JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
     InheritedServiceNames,
     InheritedPublicProperties
-  >
+  >,
 ];
 
 type CraftRoutesMetaDataWithContext<
@@ -783,7 +776,9 @@ function findActivatedRouteByPath(
   return null;
 }
 
-function injectRouteParamsSignal(routePath: string): Signal<Record<string, string>> {
+function injectRouteParamsSignal(
+  routePath: string,
+): Signal<Record<string, string>> {
   const activatedRoute = inject(ActivatedRoute);
   const resolvedRoute =
     findActivatedRouteByPath(activatedRoute, routePath) ?? activatedRoute;
@@ -908,10 +903,11 @@ function createPendingGuardResult(
   return source.pipe(
     filter((value): value is GuardResult => value !== undefined),
     take(1),
-    throwIfEmpty(() =>
-      new Error(
-        `Route "${routePath}" canActivate guard completed before emitting a defined result.`,
-      ),
+    throwIfEmpty(
+      () =>
+        new Error(
+          `Route "${routePath}" canActivate guard completed before emitting a defined result.`,
+        ),
     ),
   );
 }
@@ -956,7 +952,10 @@ function normalizeCanActivateResult(
   return assertCanActivateResult(result as GuardResult | undefined, routePath);
 }
 
-function normalizeCanMatchResult(result: unknown, routePath: string): GuardResult {
+function normalizeCanMatchResult(
+  result: unknown,
+  routePath: string,
+): GuardResult {
   if (
     result === undefined ||
     isSignal(result) ||
@@ -991,10 +990,8 @@ function createCanActivateGuard(
 ): CanActivateFn {
   const executeGuard = createGuardExecutor(
     toGuardServiceName(routeIndex, 'CanActivateGuard'),
-    (inputs: {
-      route: ActivatedRouteSnapshot;
-      state: RouterStateSnapshot;
-    }) => guard(inputs.route, inputs.state),
+    (inputs: { route: ActivatedRouteSnapshot; state: RouterStateSnapshot }) =>
+      guard(inputs.route, inputs.state),
   );
 
   return (route, state) =>
