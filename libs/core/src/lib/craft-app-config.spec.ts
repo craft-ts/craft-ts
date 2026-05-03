@@ -52,7 +52,7 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const { testRoutes: appRoutes } = craftRoutes('test', [
+    const { appRoutes } = craftRoutes([
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -99,7 +99,7 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const { testRoutes: appRoutes } = craftRoutes('test', [
+    const { appRoutes } = craftRoutes([
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -167,17 +167,17 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const childRoutes = craftRoutes('child', [
+    const childRoutes = craftRoutes([
       {
         path: 'child',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {} as ChildRouteDeps,
       },
     ]);
-    const { parentRoutes: appRoutes } = craftRoutes('parent', [
+    const { appRoutes } = craftRoutes([
       {
         path: 'lazy-parent',
-        loadChildren: () => childRoutes.childRoutes,
+        loadChildren: () => childRoutes.appRoutes,
       },
     ]);
 
@@ -213,7 +213,7 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const { testRoutes: appRoutes } = craftRoutes('test', [
+    const { appRoutes } = craftRoutes([
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -279,7 +279,7 @@ describe('craftAppConfig appStart', () => {
       publicProperties: {};
     }>;
 
-    const { testRoutes: appRoutes } = craftRoutes('test', [
+    const { appRoutes } = craftRoutes([
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -336,7 +336,7 @@ describe('craftAppConfig appStart', () => {
         appStart: true,
       },
       function* () {
-        yield* onAppStart(function* () {
+        yield* onAppStart(() => {
           generatorAppStartCalls.push('generator-started');
           return waitForAppStart;
         });

@@ -20,42 +20,43 @@ import {
 } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
-const { injectUserMutation, provideUserMutation } = craftService(
-  { name: 'UserMutation', scope: 'toProvide' },
-  function* (inputs: { userId: MaybeSignal<string | undefined> }) {
-    const { getItemById, updateItem } = yield* ApiServiceToYield(
-      {},
-      ({ getItemById, updateItem }) => ({ getItemById, updateItem }),
-    );
+const { injectUserMutation, provideUserMutation, UserMutationToYield } =
+  craftService(
+    { name: 'UserMutation', scope: 'toProvide' },
+    function* (inputs: { userId: MaybeSignal<string | undefined> }) {
+      const { getItemById, updateItem } = yield* ApiServiceToYield(
+        {},
+        ({ getItemById, updateItem }) => ({ getItemById, updateItem }),
+      );
 
-    const updateUserName = mutation({
-      method: (payload: { userName: string; user: User }) => ({
-        ...payload.user,
-        name: payload.userName,
-      }),
-      loader: ({ params: user }) => updateItem(user),
-    });
+      const updateUserName = mutation({
+        method: (payload: { userName: string; user: User }) => ({
+          ...payload.user,
+          name: payload.userName,
+        }),
+        loader: ({ params: user }) => updateItem(user),
+      });
 
-    const user = query(
-      {
-        params: () => toValue(inputs.userId),
-        loader: ({ params: userId }) => getItemById(userId),
-        preservePreviousValue: () => true,
-      },
-      insertLocalStoragePersister({
-        storeName: 'demo-app-craft',
-        key: 'mutation',
-      }),
-      insertReactOnMutation(updateUserName, {
-        optimisticPatch: {
-          name: ({ mutationParams: { name } }) => name,
+      const user = query(
+        {
+          params: () => toValue(inputs.userId),
+          loader: ({ params: userId }) => getItemById(userId),
+          preservePreviousValue: () => true,
         },
-      }),
-    );
+        insertLocalStoragePersister({
+          storeName: 'demo-app-craft',
+          key: 'mutation',
+        }),
+        insertReactOnMutation(updateUserName, {
+          optimisticPatch: {
+            name: ({ mutationParams: { name } }) => name,
+          },
+        }),
+      );
 
-    return { user, updateUserName };
-  },
-);
+      return { user, updateUserName };
+    },
+  );
 
 @Component({
   selector: 'app-mutation',
@@ -97,13 +98,17 @@ export default class MutationCraft {
     userId: this.userId,
   });
 
-  protected updateUserNameFn(newName: string) {
-    const user = this.store.user.hasValue() ? this.store.user.value() : null;
-    if (!user) {
+  protected updateUserNameFn = craftMethod(function* (newName: string) {
+    const { user, updateUserName } = yield* UserMutationToYield(
+      undefined,
+      ({ user, updateUserName }) => ({ user, updateUserName }),
+    );
+    const userValue = user.hasValue() ? user.value() : null;
+    if (!userValue) {
       return;
     }
-    this.store.updateUserName.mutate({ userName: newName, user });
-  }
+    updateUserName.mutate({ userName: newName, user: userValue });
+  });
 
   protected nextPage = craftMethod(this, function* () {
     const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
@@ -130,6 +135,7 @@ export type GenDeps_MutationCraft = GetDeps<{
     store: {
       UserMutation: ExtractDeps<typeof injectUserMutation>['UserMutation'];
     };
+    updateUserNameFn: ExtractDeps<MutationCraft['updateUserNameFn']>;
     nextPage: ExtractDeps<MutationCraft['nextPage']>;
     previousPage: ExtractDeps<MutationCraft['previousPage']>;
   };

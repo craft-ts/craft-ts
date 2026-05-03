@@ -44,10 +44,25 @@ import {
   type CraftServiceApi,
 } from './craft-service';
 import {
+  CraftRouteInjectHelper,
   craftRoutes,
   type ResolveCraftRouteComponentDeps,
 } from './craft-routes';
 import { GetDeps } from './branded-component/branded-component';
+
+function _injectDemoUserIdParams(): Signal<string> {
+  throw new Error('Type-only helper');
+}
+
+function _injectDemoTeamIdParams(): Signal<string> {
+  throw new Error('Type-only helper');
+}
+
+function _injectDemoCraftLazyLayoutTeamIdData(): Signal<{
+  readonly someParentRouteData: 'foo';
+}> {
+  throw new Error('Type-only helper');
+}
 
 function createActivatedRouteStub(
   initial: {
@@ -242,16 +257,7 @@ describe('craftRoutes', () => {
     expectTypeOf(routes.playerRoutes.name).toEqualTypeOf<'player'>();
 
     expectTypeOf(routes.injectPlayerUserIdParams).toEqualTypeOf<
-      CraftServiceApi<
-        'UserId',
-        'toProvide',
-        {
-          $provided: {
-            resolve: () => Signal<string>;
-          };
-        },
-        Signal<string>
-      >['injectUserId']
+      CraftRouteInjectHelper<'PlayerUserIdParams', Signal<string>>
     >();
   });
 
@@ -467,9 +473,558 @@ describe('craftRoutes', () => {
     ]);
 
     expect(childRoutes.injectChildTeamIdParams).toBeTypeOf('function');
-    // @ts-expect-error lazy child helpers should stay scoped to the lazy routes module
     type LazyHelperShouldStayLocal =
+      // @ts-expect-error lazy child helpers should stay scoped to the lazy routes module
       typeof parentRoutes.injectParentTeamIdParams;
+  });
+
+  it('should keep parent route helper scoping inside lazy child metadata', () => {
+    const parentRoutes = craftRoutes('parent', [
+      {
+        path: 'layout/:teamId',
+        data: {
+          title: 'Layout',
+        },
+        loadChildren: () => childRoutes.childRoutes,
+      },
+      {
+        path: 'other/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {};
+      propertiesDeps: {
+        parentTeamId: {
+          ParentTeamIdParams: ReturnType<
+            typeof parentRoutes.injectParentTeamIdParams
+          >;
+        };
+        parentData: {
+          ParentLayoutTeamIdData: ReturnType<
+            typeof parentRoutes.injectParentLayoutTeamIdData
+          >;
+        };
+        invalidUserId: {
+          ParentUserIdParams: ReturnType<
+            typeof parentRoutes.injectParentUserIdParams
+          >;
+        };
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const childRoutes = craftRoutes('child', [
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+
+    expectTypeOf(parentRoutes.parentRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'layout/:teamId';
+        },
+        {
+          path: 'layout/:teamId/users/:userId';
+          provided: {};
+          deps: {};
+          publicProperties: {};
+        },
+        {
+          path: 'other/:userId';
+        },
+      ]
+    >();
+  });
+
+  it('should keep parent route helper scoping inside async lazy child metadata', () => {
+    const parentRoutes = craftRoutes('parent', [
+      {
+        path: 'layout/:teamId',
+        data: {
+          title: 'Layout',
+        },
+        loadChildren: async () => childRoutes.childRoutes,
+      },
+      {
+        path: 'other/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {};
+      propertiesDeps: {
+        parentTeamId: {
+          ParentTeamIdParams: ReturnType<
+            typeof parentRoutes.injectParentTeamIdParams
+          >;
+        };
+        parentData: {
+          ParentLayoutTeamIdData: ReturnType<
+            typeof parentRoutes.injectParentLayoutTeamIdData
+          >;
+        };
+        invalidUserId: {
+          ParentUserIdParams: ReturnType<
+            typeof parentRoutes.injectParentUserIdParams
+          >;
+        };
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const childRoutes = craftRoutes('child', [
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+
+    expectTypeOf(parentRoutes.parentRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'layout/:teamId';
+        },
+        {
+          path: 'layout/:teamId/users/:userId';
+          provided: {};
+          deps: {};
+          publicProperties: {};
+        },
+        {
+          path: 'other/:userId';
+        },
+      ]
+    >();
+  });
+
+  it('should keep parent route helper scoping with destructured lazy route apps', () => {
+    const parentRoutes = craftRoutes('parent', [
+      {
+        path: 'layout/:teamId',
+        data: {
+          title: 'Layout',
+        },
+        loadChildren: async () => lazyRoutes,
+      },
+      {
+        path: 'other/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {};
+      propertiesDeps: {
+        parentTeamId: {
+          ParentTeamIdParams: ReturnType<
+            typeof parentRoutes.injectParentTeamIdParams
+          >;
+        };
+        parentData: {
+          ParentLayoutTeamIdData: ReturnType<
+            typeof parentRoutes.injectParentLayoutTeamIdData
+          >;
+        };
+        invalidUserId: {
+          ParentUserIdParams: ReturnType<
+            typeof parentRoutes.injectParentUserIdParams
+          >;
+        };
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { childRoutes: lazyRoutes } = craftRoutes('child', [
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+
+    expectTypeOf(parentRoutes.parentRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'layout/:teamId';
+        },
+        {
+          path: 'layout/:teamId/users/:userId';
+          provided: {};
+          deps: {};
+          publicProperties: {};
+        },
+        {
+          path: 'other/:userId';
+        },
+      ]
+    >();
+  });
+
+  it('should preserve demo lazy child missing providers in flattened metadata', () => {
+    type DemoLazyLayoutChildDeps = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+      };
+    }>;
+
+    const { lazyLayoutRoutes } = craftRoutes('lazyLayout', [
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as DemoLazyLayoutChildDeps,
+      },
+    ]);
+
+    const { demoRoutes: _demoRoutes } = craftRoutes('demo', [
+      {
+        path: 'craft/lazy-layout/:teamId',
+        loadChildren: async () => lazyLayoutRoutes,
+      },
+    ]);
+
+    type DemoLazyLayoutChildMeta = Extract<
+      (typeof _demoRoutes.META_DATA)[number],
+      {
+        path: 'craft/lazy-layout/:teamId/users/:userId';
+      }
+    >;
+
+    expectTypeOf<DemoLazyLayoutChildMeta>().toEqualTypeOf<{
+      path: 'craft/lazy-layout/:teamId/users/:userId';
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+      };
+    }>();
+  });
+
+  it('should remove lazy child missing providers satisfied by the direct parent route providers', () => {
+    const { provideCounter, injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        Counter: ReturnType<typeof injectCounter>;
+      };
+    }>;
+
+    const { childRoutes } = craftRoutes('child', [
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+
+    const { parentRoutes } = craftRoutes('parent', [
+      {
+        path: 'layout/:teamId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        providers: [provideCounter()],
+        loadChildren: async () => childRoutes,
+      },
+    ]);
+
+    type LazyChildMeta = Extract<
+      (typeof parentRoutes.META_DATA)[number],
+      {
+        path: 'layout/:teamId/users/:userId';
+      }
+    >;
+
+    expectTypeOf<LazyChildMeta>().toEqualTypeOf<{
+      path: 'layout/:teamId/users/:userId';
+      deps: {};
+      provided: {};
+      publicProperties: {};
+    }>();
+  });
+
+  it('should not treat sibling route providers as covering lazy child missing providers', () => {
+    const { provideCounter, injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        Counter: ReturnType<typeof injectCounter>;
+      };
+    }>;
+
+    const { childRoutes } = craftRoutes('child', [
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+
+    const { parentRoutes } = craftRoutes('parent', [
+      {
+        path: 'other',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        providers: [provideCounter()],
+      },
+      {
+        path: 'layout/:teamId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        loadChildren: async () => childRoutes,
+      },
+    ]);
+
+    type LazyChildMeta = Extract<
+      (typeof parentRoutes.META_DATA)[number],
+      {
+        path: 'layout/:teamId/users/:userId';
+      }
+    >;
+
+    expectTypeOf<LazyChildMeta>().toEqualTypeOf<{
+      path: 'layout/:teamId/users/:userId';
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        Counter: ReturnType<typeof injectCounter>;
+      };
+    }>();
+  });
+
+  it('should merge parent loadComponent missing providers with lazy child missing providers', () => {
+    const { injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+    const { injectPermissions } = craftService(
+      { name: 'Permissions', scope: 'toProvide' },
+      () => ({
+        allow: true,
+      }),
+    );
+
+    type ParentRouteDeps = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+      };
+    }>;
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        Permissions: GetInjectedServiceDependencies<typeof injectPermissions>;
+      };
+    }>;
+
+    const { childRoutes } = craftRoutes('child', [
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+
+    const { parentRoutes } = craftRoutes('parent', [
+      {
+        path: 'layout/:teamId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ParentRouteDeps,
+        loadChildren: async () => childRoutes,
+      },
+    ]);
+
+    expectTypeOf(parentRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'layout/:teamId';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+          missingProvider: {
+            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+          };
+        },
+        {
+          path: 'layout/:teamId/users/:userId';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+          missingProvider: {
+            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+            Permissions: GetInjectedServiceDependencies<
+              typeof injectPermissions
+            >;
+          };
+        },
+      ]
+    >();
+  });
+
+  it('should place flattened lazy child metadata after the parent entry in mixed route tuples', () => {
+    const { injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+    const { injectPermissions } = craftService(
+      { name: 'Permissions', scope: 'toProvide' },
+      () => ({
+        allow: true,
+      }),
+    );
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Permissions: GetInjectedServiceDependencies<typeof injectPermissions>;
+      };
+    }>;
+
+    const { childRoutes } = craftRoutes('child', [
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+
+    const { demoRoutes } = craftRoutes('demo', [
+      {
+        path: 'query/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+      {
+        path: 'craft/lazy-layout/:teamId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        loadChildren: async () => childRoutes,
+      },
+    ]);
+
+    type LazyLayoutMetaAtIndexOne = (typeof demoRoutes.META_DATA)[1];
+    type LazyLayoutChildMetaAtIndexTwo = (typeof demoRoutes.META_DATA)[2];
+
+    expectTypeOf<LazyLayoutMetaAtIndexOne>().toEqualTypeOf<{
+      path: 'craft/lazy-layout/:teamId';
+    }>();
+
+    expectTypeOf<LazyLayoutChildMetaAtIndexTwo>().toEqualTypeOf<{
+      path: 'craft/lazy-layout/:teamId/users/:userId';
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Permissions: GetInjectedServiceDependencies<typeof injectPermissions>;
+      };
+    }>();
+  });
+
+  it('should reproduce demo lazy child missing providers on the flattened child entry, not on index one', () => {
+    type DemoLazyLayoutChildDeps = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        DemoCraftLazyLayoutTeamIdData: ReturnType<
+          typeof _injectDemoCraftLazyLayoutTeamIdData
+        >;
+        DemoTeamIdParams: ReturnType<typeof _injectDemoTeamIdParams>;
+        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+      };
+    }>;
+
+    const { lazyLayoutRoutes } = craftRoutes('lazyLayout', [
+      {
+        path: 'users/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as DemoLazyLayoutChildDeps,
+      },
+    ]);
+
+    const { demoRoutes } = craftRoutes('demo', [
+      {
+        path: 'query/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+      {
+        path: 'craft/lazy-layout/:teamId',
+        data: {
+          someParentRouteData: 'foo' as const,
+        },
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        loadChildren: async () => lazyLayoutRoutes,
+      },
+    ]);
+
+    type LazyLayoutParentMetaAtIndexOne = (typeof demoRoutes.META_DATA)[1];
+    type FlattenedLazyLayoutChildMeta = Extract<
+      (typeof demoRoutes.META_DATA)[number],
+      {
+        path: 'craft/lazy-layout/:teamId/users/:userId';
+      }
+    >;
+
+    // @ts-expect-error index 1 is the parent lazy-layout route entry, so it does not expose child missingProvider entries
+    expectTypeOf<LazyLayoutParentMetaAtIndexOne>().toEqualTypeOf<{
+      path: 'craft/lazy-layout/:teamId';
+      missingProvider: {
+        DemoCraftLazyLayoutTeamIdData: ReturnType<
+          typeof _injectDemoCraftLazyLayoutTeamIdData
+        >;
+        DemoTeamIdParams: ReturnType<typeof _injectDemoTeamIdParams>;
+        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+      };
+    }>();
+
+    expectTypeOf<FlattenedLazyLayoutChildMeta>().toEqualTypeOf<{
+      path: 'craft/lazy-layout/:teamId/users/:userId';
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+      };
+    }>();
   });
 
   it('should remove route params and data keys from component publicProperties', () => {
@@ -534,9 +1089,7 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    type RouteErrors = (typeof routes)['errors'];
-
-    expectTypeOf<RouteErrors>().toEqualTypeOf<{
+    expectTypeOf(routes).toEqualTypeOf<{
       'query/:userId': {
         teamId: 'The input teamId is not matching any route param or data property';
       };
@@ -903,7 +1456,7 @@ describe('craftRoutes', () => {
 });
 
 describe('AppRoutes.META_DATA', () => {
-  it('should remove matching params / inputs from publicProperties deps', () => {
+  it('should throw is an input is not directly provided', () => {
     @Component({
       selector: 'lib-user',
       standalone: true,
@@ -921,7 +1474,7 @@ describe('AppRoutes.META_DATA', () => {
       };
     }>;
 
-    const { testRoutes: appRoutes } = craftRoutes('test', [
+    const routes = craftRoutes('test', [
       {
         path: '',
         component: UserComponent,
@@ -933,27 +1486,12 @@ describe('AppRoutes.META_DATA', () => {
         componentDeps: {} as GenDeps_UserComponent,
       },
     ]);
-    const META_DATA = appRoutes.META_DATA;
 
-    expectTypeOf(META_DATA).toEqualTypeOf<
-      readonly [
-        {
-          path: '';
-          deps: {};
-          provided: {};
-          publicProperties: {
-            // no userId here since it's not a route param in this route, so let's persist the original public property type from the componentDeps
-            userId: () => string;
-          };
-        },
-        {
-          path: 'query/:userId';
-          deps: {};
-          provided: {};
-          publicProperties: {}; // userId is auto-provided from the route param, so it should not be required as a public property
-        },
-      ]
-    >();
+    expectTypeOf(routes).toEqualTypeOf<{
+      '': {
+        userId: 'The input userId is not matching any route param or data property';
+      };
+    }>();
   });
 
   it('should not remove matching inputs from publicProperties deps if type does not match', () => {
@@ -974,7 +1512,7 @@ describe('AppRoutes.META_DATA', () => {
       };
     }>;
 
-    const { testRoutes: appRoutes } = craftRoutes('test', [
+    const routes = craftRoutes('test', [
       {
         path: '',
         component: UserComponent,
@@ -986,30 +1524,15 @@ describe('AppRoutes.META_DATA', () => {
         componentDeps: {} as GenDeps_UserComponent,
       },
     ]);
-    const META_DATA = appRoutes.META_DATA;
 
-    expectTypeOf(META_DATA).toEqualTypeOf<
-      readonly [
-        {
-          path: '';
-          deps: {};
-          provided: {};
-          publicProperties: {
-            // no userId here since it's not a route param in this route, so let's persist the original public property type from the componentDeps
-            userId: () => number;
-          };
-        },
-        {
-          path: 'query/:userId';
-          deps: {};
-          provided: {};
-          publicProperties: {
-            // no userId here since the route param is a string but the component input expects a number, so we should not consider the route param as satisfying the componentDeps requirement and thus not remove it from publicProperties
-            userId: () => number;
-          };
-        },
-      ]
-    >();
+    expectTypeOf(routes).toEqualTypeOf<{
+      '': {
+        userId: 'The input userId is not matching any route param or data property';
+      };
+      'query/:userId': {
+        userId: 'The input userId is not matching any route param or data property';
+      };
+    }>();
   });
 
   it('should remove matching params / inputs from publicProperties deps', () => {
@@ -1040,11 +1563,6 @@ describe('AppRoutes.META_DATA', () => {
 
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
-        path: '',
-        component: UserComponent,
-        componentDeps: {} as GenDeps_UserComponent,
-      },
-      {
         path: 'query/:userId',
         component: UserComponent,
         componentDeps: {} as GenDeps_UserComponent,
@@ -1056,19 +1574,69 @@ describe('AppRoutes.META_DATA', () => {
     expectTypeOf(META_DATA).toEqualTypeOf<
       readonly [
         {
-          path: '';
-          deps: {
-            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
-          };
+          path: 'query/:userId';
           provided: {};
-          publicProperties: {
-            userId: () => string;
-          };
+          deps: {};
+          publicProperties: {};
         },
+      ]
+    >();
+  });
+
+  it('should not throw an error if a provider is missing,', () => {
+    const { injectCounter, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+    @Component({
+      selector: 'lib-user',
+      standalone: true,
+      template: ` Test `,
+    })
+    class UserComponent {
+      userId = input.required<string>();
+
+      counter = injectCounter();
+    }
+
+    type GenDeps_UserComponent = GetDeps<{
+      deps: {
+        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+      };
+      provided: {};
+      publicProperties: {
+        userId: () => string;
+      };
+    }>;
+
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      {
+        path: 'query/:userId',
+        component: UserComponent,
+        componentDeps: {} as GenDeps_UserComponent,
+      },
+    ]);
+    const META_DATA = appRoutes.META_DATA;
+
+    expectTypeOf(META_DATA).toEqualTypeOf<
+      readonly [
         {
           path: 'query/:userId';
-          deps: {}; // no more Counter dependency since it's provided in this route, so it should be removed from deps
           provided: {};
+          deps: {
+            Counter: {
+              scope: 'toProvide';
+              browserBoundary: false;
+              dependencies: {};
+            };
+          };
+          missingProvider: {
+            Counter: {
+              scope: 'toProvide';
+              browserBoundary: false;
+              dependencies: {};
+            };
+          };
           publicProperties: {};
         },
       ]
@@ -1204,7 +1772,7 @@ describe('AppRoutes.META_DATA', () => {
         data: {
           sectionTitle: 'Users',
         },
-        loadChildren: () => childRoutes.childRoutes,
+        loadChildren: () => childRoutes.details,
         providers: [provideCounter()],
       },
     ]);
@@ -1213,67 +1781,6 @@ describe('AppRoutes.META_DATA', () => {
       readonly [
         {
           path: 'users/:userId';
-        },
-        {
-          path: 'users/:userId/details';
-          deps: {};
-          provided: {};
-          publicProperties: {};
-        },
-      ]
-    >();
-  });
-
-  it('should flatten metadata for layout routes with loadChildren', () => {
-    type LayoutRouteDeps = GetDeps<{
-      provided: {};
-      publicProperties: {
-        userId: () => string;
-        sectionTitle: () => string;
-      };
-    }>;
-
-    type ChildRouteDeps = GetDeps<{
-      deps: {};
-      provided: {};
-      publicProperties: {
-        sectionTitle: () => string;
-        teamId: () => string;
-        userId: () => string;
-      };
-    }>;
-
-    const childRoutes = craftRoutes('child', [
-      {
-        path: 'details/:teamId',
-        loadComponent: async () => null as unknown as Type<unknown>,
-        componentDeps: {} as ChildRouteDeps,
-      },
-    ]);
-    const { parentRoutes: appRoutes } = craftRoutes('parent', [
-      {
-        path: 'users/:userId',
-        data: {
-          sectionTitle: 'Users',
-        },
-        loadComponent: async () => null as unknown as Type<unknown>,
-        componentDeps: {} as LayoutRouteDeps,
-        loadChildren: () => childRoutes.childRoutes,
-      },
-    ]);
-
-    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
-      readonly [
-        {
-          path: 'users/:userId';
-          provided: {};
-          publicProperties: {};
-        },
-        {
-          path: 'users/:userId/details/:teamId';
-          deps: {};
-          provided: {};
-          publicProperties: {};
         },
       ]
     >();

@@ -5,6 +5,10 @@ import type { AppCheckedDI, CanRun } from './app-checked-di';
 import { craftAppConfig } from './craft-app-config';
 import { requiredAppStartFlag } from './craft-app-config.app-start.fixture';
 
+function _injectDemoUserIdParams(): string {
+  throw new Error('Type-only helper');
+}
+
 describe('AppCheckedDI', () => {
   it('should return true if all missingProvider and routing inputs are provided', () => {
     @Component({
@@ -267,6 +271,91 @@ describe('AppCheckedDI', () => {
     >;
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<true>();
+  });
+
+  it('should report route missing providers from APP_CONFIG_META_DATA branded tuples', () => {
+    type GenDeps_AppComponent = GetDeps<{
+      deps: {};
+      provided: {};
+      missingProvider: {};
+      publicProperties: {};
+    }>;
+
+    const { injectCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type APP_ROUTES = readonly [
+      {
+        path: 'lazy-parent';
+      },
+      {
+        path: 'lazy-parent/child';
+        deps: {};
+        provided: {};
+        missingProvider: {
+          Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        };
+        publicProperties: {};
+      },
+    ];
+
+    const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
+      routingDeps: [] as unknown as APP_ROUTES,
+    });
+
+    type APP_CHECKED_DI = AppCheckedDI<
+      GenDeps_AppComponent,
+      typeof appConfig.APP_CONFIG_META_DATA
+    >;
+
+    expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
+      [
+        'Injected Counter is not provided in path: "lazy-parent/child" (or you may scope this properties as protected/private)',
+      ]
+    >();
+  });
+
+  it('should report demo lazy child route provider errors through AppCheckedDI', () => {
+    type GenDeps_AppComponent = GetDeps<{
+      deps: {};
+      provided: {};
+      missingProvider: {};
+      publicProperties: {};
+    }>;
+
+    type DemoRoutingDeps = readonly [
+      {
+        path: 'craft/lazy-layout/:teamId';
+      },
+      {
+        path: 'craft/lazy-layout/:teamId/users/:userId';
+        deps: {};
+        provided: {};
+        publicProperties: {};
+        missingProvider: {
+          DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
+        };
+      },
+    ];
+
+    const _appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
+      routingDeps: [] as unknown as DemoRoutingDeps,
+    });
+
+    type DEMO_APP_CHECKED_DI = AppCheckedDI<
+      GenDeps_AppComponent,
+      typeof _appConfig.APP_CONFIG_META_DATA
+    >;
+
+    expectTypeOf<DEMO_APP_CHECKED_DI>().toEqualTypeOf<
+      [
+        'Injected DemoUserIdParams is not provided in path: "craft/lazy-layout/:teamId/users/:userId" (or you may scope this properties as protected/private)',
+      ]
+    >();
   });
 });
 

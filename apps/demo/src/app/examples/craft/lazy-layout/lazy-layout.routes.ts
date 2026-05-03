@@ -8,3 +8,5 @@ export const { lazyLayoutRoutes } = craftRoutes('lazyLayout', [
       {} as import('./lazy-layout-child').GenDeps_LazyLayoutChildComponent,
   },
 ]);
+
+export type LazyLayoutRoutesAppDeps = typeof lazyLayoutRoutes.META_DATA;
