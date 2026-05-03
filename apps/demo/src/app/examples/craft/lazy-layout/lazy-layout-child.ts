@@ -3,6 +3,7 @@ import { GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 import {
   injectCraftLazyLayoutTeamIdData,
   injectTeamId,
+  injectUserId,
 } from '../../../app.routes';
 
 @Component({
@@ -120,6 +121,7 @@ export default class LazyLayoutChildComponent {
   readonly injectedTeamId = injectTeamId();
   // readonly someParentRouteData = input.required<string>(); // ! not accessible
   // readonly teamId = input.required<string>(); // ! not accessible
+  readonly userId = injectUserId(); // ! ne devrait pas marcher ! TODO
 }
 
 export type GenDeps_LazyLayoutChildComponent = GetDeps<{
@@ -133,6 +135,9 @@ export type GenDeps_LazyLayoutChildComponent = GetDeps<{
     injectedTeamId: {
       TeamId: ReturnType<typeof injectTeamId>;
     };
+    userId: {
+      UserId: ReturnType<typeof injectUserId>;
+    };
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<LazyLayoutChildComponent>;
@@ -141,5 +146,6 @@ export type GenDeps_LazyLayoutChildComponent = GetDeps<{
       typeof injectCraftLazyLayoutTeamIdData
     >;
     TeamId: ReturnType<typeof injectTeamId>;
+    UserId: ReturnType<typeof injectUserId>;
   };
 }>;

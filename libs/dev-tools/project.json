@@ -53,6 +53,13 @@
       "options": {
         "packageRoot": "dist/{projectRoot}"
       }
+    },
+    "nx-release-publish-beta": {
+      "executor": "@nx/js:release-publish",
+      "options": {
+        "packageRoot": "dist/{projectRoot}",
+        "tag": "beta"
+      }
     }
   }
 }

@@ -282,7 +282,7 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
         {
           key: 'FormField',
           symbol: 'FormField',
-          typeText: 'FormField<any>',
+          typeText: 'FormField<unknown>',
           module: '@angular/forms/signals',
         },
       ],
