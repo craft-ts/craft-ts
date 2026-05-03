@@ -52,7 +52,7 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -99,7 +99,7 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -167,17 +167,17 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const childRoutes = craftRoutes([
+    const childRoutes = craftRoutes('child', [
       {
         path: 'child',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {} as ChildRouteDeps,
       },
     ]);
-    const { appRoutes } = craftRoutes([
+    const { parentRoutes: appRoutes } = craftRoutes('parent', [
       {
         path: 'lazy-parent',
-        loadChildren: () => childRoutes.appRoutes,
+        loadChildren: () => childRoutes.childRoutes,
       },
     ]);
 
@@ -213,7 +213,7 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -279,7 +279,7 @@ describe('craftAppConfig appStart', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,

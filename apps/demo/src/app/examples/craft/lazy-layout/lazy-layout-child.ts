@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 import {
-  injectCraftLazyLayoutTeamIdData,
-  injectTeamId,
-  injectUserId,
+  injectDemoCraftLazyLayoutTeamIdData,
+  injectDemoTeamIdParams,
+  injectDemoUserIdParams,
 } from '../../../app.routes';
 
 @Component({
@@ -117,35 +117,35 @@ import {
   `,
 })
 export default class LazyLayoutChildComponent {
-  readonly injectedParentRouteData = injectCraftLazyLayoutTeamIdData();
-  readonly injectedTeamId = injectTeamId();
+  readonly injectedParentRouteData = injectDemoCraftLazyLayoutTeamIdData();
+  readonly injectedTeamId = injectDemoTeamIdParams();
   // readonly someParentRouteData = input.required<string>(); // ! not accessible
   // readonly teamId = input.required<string>(); // ! not accessible
-  readonly userId = injectUserId(); // ! ne devrait pas marcher ! TODO
+  readonly userId = injectDemoUserIdParams(); // ! ne devrait pas marcher ! TODO
 }
 
 export type GenDeps_LazyLayoutChildComponent = GetDeps<{
   deps: {};
   propertiesDeps: {
     injectedParentRouteData: {
-      CraftLazyLayoutTeamIdData: ReturnType<
-        typeof injectCraftLazyLayoutTeamIdData
+      DemoCraftLazyLayoutTeamIdData: ReturnType<
+        typeof injectDemoCraftLazyLayoutTeamIdData
       >;
     };
     injectedTeamId: {
-      TeamId: ReturnType<typeof injectTeamId>;
+      DemoTeamIdParams: ReturnType<typeof injectDemoTeamIdParams>;
     };
     userId: {
-      UserId: ReturnType<typeof injectUserId>;
+      DemoUserIdParams: ReturnType<typeof injectDemoUserIdParams>;
     };
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<LazyLayoutChildComponent>;
   missingProvider: {
-    CraftLazyLayoutTeamIdData: ReturnType<
-      typeof injectCraftLazyLayoutTeamIdData
+    DemoCraftLazyLayoutTeamIdData: ReturnType<
+      typeof injectDemoCraftLazyLayoutTeamIdData
     >;
-    TeamId: ReturnType<typeof injectTeamId>;
-    UserId: ReturnType<typeof injectUserId>;
+    DemoTeamIdParams: ReturnType<typeof injectDemoTeamIdParams>;
+    DemoUserIdParams: ReturnType<typeof injectDemoUserIdParams>;
   };
 }>;

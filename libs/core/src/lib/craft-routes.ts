@@ -110,6 +110,20 @@ type RouteBaseServiceName<Path extends string> =
   PathServiceName<Path> extends '' ? 'Root' : PathServiceName<Path>;
 
 type ParamServiceName<ParamName extends string> = PascalCaseToken<ParamName>;
+type RouteCollectionServiceName<Name extends string> = PascalCaseToken<Name>;
+type RouteCollectionExportName<Name extends string> = Uncapitalize<
+  RouteCollectionServiceName<Name>
+>;
+type RoutesExportKey<Name extends string> =
+  `${RouteCollectionExportName<Name>}Routes`;
+type RouteParamInjectHelperName<
+  Name extends string,
+  ParamName extends string,
+> = `inject${RouteCollectionServiceName<Name>}${ParamServiceName<ParamName>}Params`;
+type RouteDataInjectHelperName<
+  Name extends string,
+  Path extends string,
+> = `inject${RouteCollectionServiceName<Name>}${RouteDataServiceName<Path>}`;
 
 type InjectHelperName<Name extends string> = `inject${Capitalize<Name>}`;
 type ProvideHelperName<Name extends string> = `provide${Capitalize<Name>}`;
@@ -683,43 +697,55 @@ type CraftRouteValueServiceApi<Name extends string, Output> = CraftServiceApi<
   Output
 >;
 
-type ParamInjectHelpers<Routes extends readonly AnyCraftRouteDefinition[]> =
-  Simplify<
-    MergeObjectUnion<
-      PathParamNames<Routes[number]['path']> extends infer ParamName extends
-        string
-        ? Pick<
-            CraftRouteValueServiceApi<
-              ParamServiceName<ParamName>,
-              ParamOutputForRoutes<Routes, ParamName>
-            >,
-            InjectHelperName<ParamServiceName<ParamName>>
-          >
-        : never
-    >
-  >;
+type ParamInjectHelpers<
+  Name extends string,
+  Routes extends readonly AnyCraftRouteDefinition[],
+> = Simplify<
+  MergeObjectUnion<
+    PathParamNames<Routes[number]['path']> extends infer ParamName extends
+      string
+      ? {
+          [Key in RouteParamInjectHelperName<
+            Name,
+            ParamName
+          >]: CraftRouteValueServiceApi<
+            ParamServiceName<ParamName>,
+            ParamOutputForRoutes<Routes, ParamName>
+          >[InjectHelperName<ParamServiceName<ParamName>>];
+        }
+      : never
+  >
+>;
 
-type DataInjectHelpers<Routes extends readonly AnyCraftRouteDefinition[]> =
-  Simplify<
-    MergeObjectUnion<
-      Routes[number] extends infer RouteDefinition
-        ? RouteDefinition extends { data: Data }
-          ? Pick<
-              CraftRouteValueServiceApi<
-                RouteDataServiceName<RoutePath<RouteDefinition>>,
-                RouteDataOutput<RouteDefinition>
-              >,
-              InjectHelperName<RouteDataServiceName<RoutePath<RouteDefinition>>>
-            >
-          : never
+type DataInjectHelpers<
+  Name extends string,
+  Routes extends readonly AnyCraftRouteDefinition[],
+> = Simplify<
+  MergeObjectUnion<
+    Routes[number] extends infer RouteDefinition
+      ? RouteDefinition extends { data: Data }
+        ? {
+            [Key in RouteDataInjectHelperName<
+              Name,
+              RoutePath<RouteDefinition>
+            >]: CraftRouteValueServiceApi<
+              RouteDataServiceName<RoutePath<RouteDefinition>>,
+              RouteDataOutput<RouteDefinition>
+            >[InjectHelperName<
+              RouteDataServiceName<RoutePath<RouteDefinition>>
+            >];
+          }
         : never
-    >
-  >;
+      : never
+  >
+>;
 
 export type CraftRoutesApp<
   Routes extends
     readonly AnyCraftRouteDefinition[] = readonly AnyCraftRouteDefinition[],
+  Name extends string = string,
 > = {
+  readonly name: Name;
   toRoutes(): Route[];
   META_DATA: CraftRoutesMetaData<Routes>;
 };
@@ -738,13 +764,14 @@ export type CraftRoutesPublicPropertiesErrors<
 
 export type CraftRoutesResult<
   Routes extends readonly AnyCraftRouteDefinition[],
+  Name extends string = string,
   Errors = CraftRoutesPublicPropertiesErrors<Routes>,
 > = keyof Errors extends never
   ? Simplify<
       {
-        appRoutes: CraftRoutesApp<Routes>;
-      } & ParamInjectHelpers<Routes> &
-        DataInjectHelpers<Routes>
+        [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name>;
+      } & ParamInjectHelpers<Name, Routes> &
+        DataInjectHelpers<Name, Routes>
     >
   : Errors;
 
@@ -780,6 +807,10 @@ function capitalize(value: string): string {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
+function uncapitalize(value: string): string {
+  return value ? value.charAt(0).toLowerCase() + value.slice(1) : value;
+}
+
 function toParamServiceName(paramName: string): string {
   return toPascalCase(paramName);
 }
@@ -798,8 +829,36 @@ function toRouteDataServiceName(path: string): string {
   return `${toRouteBaseServiceName(path)}Data`;
 }
 
-function toGuardServiceName(routeIndex: number, guardKind: string): string {
-  return `craftRoute${routeIndex}${guardKind}`;
+function toRouteCollectionExportName(name: string): string {
+  return `${uncapitalize(toRouteCollectionServiceName(name))}Routes`;
+}
+
+function toParamInjectHelperName(
+  routeCollectionName: string,
+  paramName: string,
+): string {
+  return `inject${toRouteCollectionServiceName(routeCollectionName)}${toParamServiceName(paramName)}Params`;
+}
+
+function toDataInjectHelperName(
+  routeCollectionName: string,
+  routePath: string,
+): string {
+  return `inject${toRouteCollectionServiceName(routeCollectionName)}${toRouteDataServiceName(routePath)}`;
+}
+
+function toRouteCollectionServiceName(name: string): string {
+  const normalizedName = toPascalCase(name);
+
+  return normalizedName || 'Routes';
+}
+
+function toGuardServiceName(
+  routeCollectionName: string,
+  routeIndex: number,
+  guardKind: string,
+): string {
+  return `craftRoutes${toRouteCollectionServiceName(routeCollectionName)}${routeIndex}${guardKind}`;
 }
 
 function findActivatedRouteByPath(
@@ -915,7 +974,7 @@ function createLoadChildren(
     Promise.resolve(loadChildren()).then((childRoutes) => {
       if (!isCraftRoutesApp(childRoutes)) {
         throw new Error(
-          `Route "${routePath}" loadChildren must return a craftRoutes appRoutes object.`,
+          `Route "${routePath}" loadChildren must return a craftRoutes routes object.`,
         );
       }
 
@@ -1029,12 +1088,13 @@ function isPromiseLike(
 }
 
 function createCanActivateGuard(
+  routeCollectionName: string,
   routePath: string,
   routeIndex: number,
   guard: CraftRouteCanActivateGuard,
 ): CanActivateFn {
   const executeGuard = createGuardExecutor(
-    toGuardServiceName(routeIndex, 'CanActivateGuard'),
+    toGuardServiceName(routeCollectionName, routeIndex, 'CanActivateGuard'),
     (inputs: { route: ActivatedRouteSnapshot; state: RouterStateSnapshot }) =>
       guard(inputs.route, inputs.state),
   );
@@ -1044,12 +1104,13 @@ function createCanActivateGuard(
 }
 
 function createCanMatchGuard(
+  routeCollectionName: string,
   routePath: string,
   routeIndex: number,
   guard: CraftRouteCanMatchGuard,
 ): CanMatchFn {
   const executeGuard = createGuardExecutor(
-    toGuardServiceName(routeIndex, 'CanMatchGuard'),
+    toGuardServiceName(routeCollectionName, routeIndex, 'CanMatchGuard'),
     (inputs: {
       route: Route;
       segments: UrlSegment[];
@@ -1065,21 +1126,32 @@ function createCanMatchGuard(
 }
 
 export function craftRoutes<
+  const Name extends string,
   const Routes extends readonly AnyCraftRouteDefinition[],
->(routes: {
-  [Index in keyof Routes]: Routes[Index];
-}): CraftRoutesResult<Routes> {
+>(
+  routeCollectionName: Name,
+  routes: {
+    [Index in keyof Routes]: Routes[Index];
+  },
+): CraftRoutesResult<Routes, Name> {
   const routeValueServices = new Map<string, AnyRouteValueServiceApi>();
   const helpers: Record<string, unknown> = {};
+  const routesExportKey = toRouteCollectionExportName(routeCollectionName);
 
   for (const route of routes) {
     for (const paramName of extractRouteParamNames(route.path)) {
       const serviceName = toParamServiceName(paramName);
-      registerRouteValueService(serviceName);
+      registerRouteValueService(
+        serviceName,
+        toParamInjectHelperName(routeCollectionName, paramName),
+      );
     }
 
     if (route.data !== undefined) {
-      registerRouteValueService(toRouteDataServiceName(route.path));
+      registerRouteValueService(
+        toRouteDataServiceName(route.path),
+        toDataInjectHelperName(routeCollectionName, route.path),
+      );
     }
   }
 
@@ -1103,17 +1175,21 @@ export function craftRoutes<
     };
   }) as unknown as CraftRoutesMetaData<Routes>;
 
-  const appRoutes: CraftRoutesApp<Routes> = {
+  const craftedRoutes: CraftRoutesApp<Routes, Name> = {
+    name: routeCollectionName,
     toRoutes: () => routes.map((route, index) => toAngularRoute(route, index)),
     META_DATA,
   };
 
   return {
-    appRoutes,
+    [routesExportKey]: craftedRoutes,
     ...helpers,
-  } as CraftRoutesResult<Routes>;
+  } as CraftRoutesResult<Routes, Name>;
 
-  function registerRouteValueService(serviceName: string): void {
+  function registerRouteValueService(
+    serviceName: string,
+    helperName: string,
+  ): void {
     if (routeValueServices.has(serviceName)) {
       return;
     }
@@ -1122,7 +1198,7 @@ export function craftRoutes<
     routeValueServices.set(serviceName, serviceApi);
 
     const injectKey = `inject${serviceName}`;
-    helpers[injectKey] = serviceApi[injectKey as InjectHelperName<string>];
+    helpers[helperName] = serviceApi[injectKey as InjectHelperName<string>];
   }
 
   function toAngularRoute(
@@ -1176,14 +1252,24 @@ export function craftRoutes<
       canMatch,
       componentDeps: _componentDeps,
       loadChildren,
-      paramsProvider,
+      paramsProvider: _paramsProvider,
       ...angularRoute
     } = route;
     const wrappedCanActivate = canActivate
-      ? createCanActivateGuard(route.path, routeIndex, canActivate)
+      ? createCanActivateGuard(
+          routeCollectionName,
+          route.path,
+          routeIndex,
+          canActivate,
+        )
       : undefined;
     const wrappedCanMatch = canMatch
-      ? createCanMatchGuard(route.path, routeIndex, canMatch)
+      ? createCanMatchGuard(
+          routeCollectionName,
+          route.path,
+          routeIndex,
+          canMatch,
+        )
       : undefined;
     const wrappedLoadChildren =
       loadChildren && hasRouteLoadChildren(route)

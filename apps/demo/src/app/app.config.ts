@@ -1,7 +1,7 @@
 import { provideBrowserGlobalErrorListeners } from '@angular/core';
 import { withComponentInputBinding } from '@angular/router';
 import { craftAppConfig } from '@craft-ng/core';
-import { appRoutes } from './app.routes';
+import { demoRoutes } from './app.routes';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
 import { provideCraftRouter } from './shared/router.service';
 
@@ -9,9 +9,9 @@ export const appConfig = craftAppConfig({
   appStart: {
     AppStartLog: injectAppStartLog,
   },
-  routingDeps: appRoutes.META_DATA,
+  routingDeps: demoRoutes.META_DATA,
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideCraftRouter(appRoutes.toRoutes(), withComponentInputBinding()),
+    provideCraftRouter(demoRoutes.toRoutes(), withComponentInputBinding()),
   ],
 });

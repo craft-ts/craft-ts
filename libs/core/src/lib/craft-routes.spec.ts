@@ -227,7 +227,7 @@ beforeEach(() => {
 
 describe('craftRoutes', () => {
   it('should expose typed inject helpers for params and route data', () => {
-    const routes = craftRoutes([
+    const routes = craftRoutes('player', [
       {
         path: 'mutation/:userId',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -238,7 +238,10 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    expectTypeOf(routes.injectUserId).toEqualTypeOf<
+    expect(routes.playerRoutes.name).toBe('player');
+    expectTypeOf(routes.playerRoutes.name).toEqualTypeOf<'player'>();
+
+    expectTypeOf(routes.injectPlayerUserIdParams).toEqualTypeOf<
       CraftServiceApi<
         'UserId',
         'toProvide',
@@ -253,19 +256,20 @@ describe('craftRoutes', () => {
   });
 
   it('should allow paramsProvider to transform the injected param type', () => {
-    const { appRoutes, injectUserId } = craftRoutes([
-      {
-        path: 'query/:userId',
-        loadComponent: async () => null as unknown as Type<unknown>,
-        componentDeps: {
-          deps: {},
-          provided: {},
+    const { testRoutes: appRoutes, injectTestUserIdParams: injectUserId } =
+      craftRoutes('test', [
+        {
+          path: 'query/:userId',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {
+            deps: {},
+            provided: {},
+          },
+          paramsProvider: (params) => ({
+            userId: computed(() => Number(params().userId)),
+          }),
         },
-        paramsProvider: (params) => ({
-          userId: computed(() => Number(params().userId)),
-        }),
-      },
-    ]);
+      ]);
 
     const routeConfig = appRoutes.toRoutes()[0];
     const activatedRoute = createActivatedRouteStub({
@@ -285,19 +289,19 @@ describe('craftRoutes', () => {
 
   it('should accept craft-aware loadChildren without componentDeps and defer lazy route conversion', async () => {
     let loaded = false;
-    const childRoutes = craftRoutes([
+    const childRoutes = craftRoutes('child', [
       {
         path: 'details/:teamId',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
       },
     ]);
-    const { appRoutes } = craftRoutes([
+    const { parentRoutes: appRoutes } = craftRoutes('parent', [
       {
         path: 'users/:userId',
         loadChildren: () => {
           loaded = true;
-          return childRoutes.appRoutes;
+          return childRoutes.childRoutes;
         },
       },
     ]);
@@ -318,24 +322,25 @@ describe('craftRoutes', () => {
 
   it('should accept component routes that also lazy-load children', async () => {
     let loaded = false;
-    const childRoutes = craftRoutes([
+    const childRoutes = craftRoutes('child', [
       {
         path: 'details/:teamId',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
       },
     ]);
-    const { appRoutes, injectUserId } = craftRoutes([
-      {
-        path: 'users/:userId',
-        loadComponent: async () => null as unknown as Type<unknown>,
-        componentDeps: {},
-        loadChildren: () => {
-          loaded = true;
-          return childRoutes.appRoutes;
+    const { parentRoutes: appRoutes, injectParentUserIdParams: injectUserId } =
+      craftRoutes('parent', [
+        {
+          path: 'users/:userId',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {},
+          loadChildren: () => {
+            loaded = true;
+            return childRoutes.childRoutes;
+          },
         },
-      },
-    ]);
+      ]);
 
     const routeConfig = appRoutes.toRoutes()[0];
 
@@ -354,7 +359,11 @@ describe('craftRoutes', () => {
   });
 
   it('should resolve params from the matching child ActivatedRoute in lazy contexts', () => {
-    const { appRoutes, injectUserId, injectUsersUserIdData } = craftRoutes([
+    const {
+      testRoutes: appRoutes,
+      injectTestUserIdParams: injectUserId,
+      injectTestUsersUserIdData: injectUsersUserIdData,
+    } = craftRoutes('test', [
       {
         path: 'users/:userId',
         data: {
@@ -392,7 +401,7 @@ describe('craftRoutes', () => {
   it('should accept craft canActivate/canMatch guard contracts', () => {
     const pending = signal<GuardResult | undefined>(undefined);
 
-    craftRoutes([
+    craftRoutes('test', [
       {
         path: 'signal-guard',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -429,7 +438,7 @@ describe('craftRoutes', () => {
 
   it('should throw when componentDeps is missing', () => {
     const createRoutes = () =>
-      craftRoutes([
+      craftRoutes('test', [
         // @ts-expect-error componentDeps is required on route definitions
         {
           path: 'query/:userId',
@@ -443,23 +452,24 @@ describe('craftRoutes', () => {
   });
 
   it('should keep lazy child inject helpers scoped to the lazy module result', () => {
-    const childRoutes = craftRoutes([
+    const childRoutes = craftRoutes('child', [
       {
         path: 'details/:teamId',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
       },
     ]);
-    const parentRoutes = craftRoutes([
+    const parentRoutes = craftRoutes('parent', [
       {
         path: 'users',
-        loadChildren: () => childRoutes.appRoutes,
+        loadChildren: () => childRoutes.childRoutes,
       },
     ]);
 
-    expect(childRoutes.injectTeamId).toBeTypeOf('function');
+    expect(childRoutes.injectChildTeamIdParams).toBeTypeOf('function');
     // @ts-expect-error lazy child helpers should stay scoped to the lazy routes module
-    type LazyHelperShouldStayLocal = typeof parentRoutes.injectTeamId;
+    type LazyHelperShouldStayLocal =
+      typeof parentRoutes.injectParentTeamIdParams;
   });
 
   it('should remove route params and data keys from component publicProperties', () => {
@@ -507,7 +517,7 @@ describe('craftRoutes', () => {
   });
 
   it('should map unmatched publicProperties to route input errors', () => {
-    const routes = craftRoutes([
+    const routes = craftRoutes('test', [
       {
         path: 'query/:userId',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -534,26 +544,27 @@ describe('craftRoutes', () => {
   });
 
   it('should auto provide route params and keep them reactive', () => {
-    const { appRoutes, injectUserId } = craftRoutes([
-      {
-        path: 'query/:userId',
-        loadComponent: async () => null as unknown as Type<unknown>,
-        componentDeps: {} as {
-          publicProperties: {
-            userId: string;
-          };
+    const { testRoutes: appRoutes, injectTestUserIdParams: injectUserId } =
+      craftRoutes('test', [
+        {
+          path: 'query/:userId',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {} as {
+            publicProperties: {
+              userId: string;
+            };
+          },
         },
-      },
-      {
-        path: 'mutation/:userId',
-        loadComponent: async () => null as unknown as Type<unknown>,
-        componentDeps: {} as {
-          publicProperties: {
-            userId: string;
-          };
+        {
+          path: 'mutation/:userId',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {} as {
+            publicProperties: {
+              userId: string;
+            };
+          },
         },
-      },
-    ]);
+      ]);
 
     const routeConfig = appRoutes.toRoutes()[0];
     const activatedRoute = createActivatedRouteStub({
@@ -579,7 +590,10 @@ describe('craftRoutes', () => {
 
   it('should auto provide route data and preserve explicit providers', () => {
     const marker = new InjectionToken<string>('marker');
-    const { appRoutes, injectMutationUserIdData } = craftRoutes([
+    const {
+      testRoutes: appRoutes,
+      injectTestMutationUserIdData: injectMutationUserIdData,
+    } = craftRoutes('test', [
       {
         path: 'mutation/:userId',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -628,7 +642,7 @@ describe('craftRoutes', () => {
   });
 
   it('should treat auto-provided params and data as valid componentDeps coverage', () => {
-    craftRoutes([
+    craftRoutes('test', [
       {
         path: 'mutation/:userId',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -651,7 +665,7 @@ describe('craftRoutes', () => {
       () => 1,
     );
 
-    craftRoutes([
+    craftRoutes('test', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -666,7 +680,7 @@ describe('craftRoutes', () => {
   });
 
   it('should wrap craft guards into Angular guard arrays', () => {
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -684,7 +698,7 @@ describe('craftRoutes', () => {
 
   it('should wait for a defined signal result in canActivate and then accept', async () => {
     const guardResult = signal<GuardResult | undefined>(undefined);
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -717,7 +731,7 @@ describe('craftRoutes', () => {
 
   it('should wait for a defined signal result in canActivate and then reject', async () => {
     const guardResult = signal<GuardResult | undefined>(undefined);
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -763,7 +777,7 @@ describe('craftRoutes', () => {
         isOperational$: entityOperational$.asObservable(),
       }),
     );
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -801,7 +815,7 @@ describe('craftRoutes', () => {
         allow: true,
       }),
     );
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -831,7 +845,7 @@ describe('craftRoutes', () => {
   });
 
   it('should throw when canMatch returns an observable', () => {
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -861,7 +875,7 @@ describe('craftRoutes', () => {
   });
 
   it('should throw when canActivate synchronously returns undefined', () => {
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -907,7 +921,7 @@ describe('AppRoutes.META_DATA', () => {
       };
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: '',
         component: UserComponent,
@@ -960,7 +974,7 @@ describe('AppRoutes.META_DATA', () => {
       };
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: '',
         component: UserComponent,
@@ -1024,7 +1038,7 @@ describe('AppRoutes.META_DATA', () => {
       };
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: '',
         component: UserComponent,
@@ -1072,7 +1086,7 @@ describe('AppRoutes.META_DATA', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -1109,7 +1123,7 @@ describe('AppRoutes.META_DATA', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -1140,7 +1154,7 @@ describe('AppRoutes.META_DATA', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -1177,20 +1191,20 @@ describe('AppRoutes.META_DATA', () => {
       };
     }>;
 
-    const childRoutes = craftRoutes([
+    const childRoutes = craftRoutes('child', [
       {
         path: 'details',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {} as ChildRouteDeps,
       },
     ]);
-    const { appRoutes } = craftRoutes([
+    const { parentRoutes: appRoutes } = craftRoutes('parent', [
       {
         path: 'users/:userId',
         data: {
           sectionTitle: 'Users',
         },
-        loadChildren: () => childRoutes.appRoutes,
+        loadChildren: () => childRoutes.childRoutes,
         providers: [provideCounter()],
       },
     ]);
@@ -1229,14 +1243,14 @@ describe('AppRoutes.META_DATA', () => {
       };
     }>;
 
-    const childRoutes = craftRoutes([
+    const childRoutes = craftRoutes('child', [
       {
         path: 'details/:teamId',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {} as ChildRouteDeps,
       },
     ]);
-    const { appRoutes } = craftRoutes([
+    const { parentRoutes: appRoutes } = craftRoutes('parent', [
       {
         path: 'users/:userId',
         data: {
@@ -1244,7 +1258,7 @@ describe('AppRoutes.META_DATA', () => {
         },
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {} as LayoutRouteDeps,
-        loadChildren: () => childRoutes.appRoutes,
+        loadChildren: () => childRoutes.childRoutes,
       },
     ]);
 

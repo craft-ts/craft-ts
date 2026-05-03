@@ -52,7 +52,7 @@ Do not export a plain Angular `Routes` array directly. Wrap it in `craftRoutes(.
 ```ts
 import { craftRoutes } from '@craft-ng/core';
 
-export const { appRoutes } = craftRoutes([
+export const { appRoutes } = craftRoutes('app', [
   {
     path: '',
     loadComponent: () => import('./test'),
@@ -86,7 +86,7 @@ Notes:
 
 - `appRoutes.toRoutes()` gives Angular the real runtime routes.
 - `appRoutes.META_DATA` gives `craftAppConfig(...)` the compile-time route dependency graph.
-- For lazy routes, `loadChildren` should return another crafted route tree: `childRoutes.appRoutes`.
+- For lazy routes, `loadChildren` should return the named route tree exported by the child collection, for example `childRoutes.childRoutes`.
 
 ## 3. Run the Angular brand codemod through the published script
 

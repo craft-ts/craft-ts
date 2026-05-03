@@ -1,6 +1,6 @@
 import { craftRoutes } from '@craft-ng/core';
 
-export const { appRoutes: lazyLayoutAppRoutes } = craftRoutes([
+export const { lazyLayoutRoutes } = craftRoutes('lazyLayout', [
   {
     path: 'users/:userId',
     loadComponent: () => import('./lazy-layout-child'),
