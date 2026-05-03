@@ -20,6 +20,7 @@ import {
   GetInjectedServiceDependencies,
   onAppStart,
   runServiceAppStart,
+  toCraftService,
 } from './craft-service';
 
 beforeAll(() => {
@@ -194,6 +195,60 @@ describe('craftAppConfig', () => {
         },
         {
           path: 'lazy-parent/child';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should remove route missing providers satisfied by manuallyProvidedAtRoot output values', () => {
+    class RouterLike {
+      navigateByUrl(_url: string) {
+        return Promise.resolve(true);
+      }
+    }
+
+    const { injectCraftRouter, provideCraftRouter } = toCraftService({
+      name: 'CraftRouter',
+      scope: 'manuallyProvidedAtRoot',
+      token: RouterLike,
+      provide: () => [
+        {
+          provide: RouterLike,
+          useClass: RouterLike,
+        },
+      ],
+    });
+
+    type RouterRouteDeps = GetDeps<{
+      deps: {};
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        Router: ReturnType<typeof injectCraftRouter>;
+      };
+    }>;
+
+    const { appRoutes } = craftRoutes([
+      {
+        path: 'router',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as RouterRouteDeps,
+      },
+    ]);
+
+    const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
+      routingDeps: appRoutes.META_DATA,
+      providers: [provideCraftRouter()],
+    });
+
+    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toMatchTypeOf<
+      readonly [
+        {
+          path: 'router';
           deps: {};
           provided: {};
           publicProperties: {};

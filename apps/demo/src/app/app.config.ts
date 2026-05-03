@@ -15,34 +15,3 @@ export const appConfig = craftAppConfig({
     provideCraftRouter(demoRoutes.toRoutes(), withComponentInputBinding()),
   ],
 });
-
-type _LazyLayoutChildPath = 'craft/lazy-layout/:teamId/users/:userId';
-
-type _LazyLayoutChildBeforeAppConfig = Extract<
-  (typeof demoRoutes.META_DATA)[number],
-  { path: _LazyLayoutChildPath }
->;
-
-type _LazyLayoutChildAfterAppConfig = Extract<
-  (typeof appConfig.APP_CONFIG_META_DATA)[number],
-  { path: _LazyLayoutChildPath }
->;
-
-type _MissingProviderProbe<RouteMeta> = RouteMeta extends {
-  missingProvider: infer MissingProvider extends object;
-}
-  ? MissingProvider
-  : {
-      __missingProvider_not_exposed__: true;
-    };
-
-type _LazyLayoutChildMissingProviderProbe = {
-  beforeAppConfig: _MissingProviderProbe<_LazyLayoutChildBeforeAppConfig>;
-  afterAppConfig: _MissingProviderProbe<_LazyLayoutChildAfterAppConfig>;
-  beforeHasDemoUserIdParams: 'DemoUserIdParams' extends keyof _MissingProviderProbe<_LazyLayoutChildBeforeAppConfig>
-    ? true
-    : false;
-  afterHasDemoUserIdParams: 'DemoUserIdParams' extends keyof _MissingProviderProbe<_LazyLayoutChildAfterAppConfig>
-    ? true
-    : false;
-};

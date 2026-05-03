@@ -125,10 +125,20 @@ type RouteErrorMessages<RouteDefinition> = [
   ...InjectedErrorMessages<RouteDefinition, RouteContext<RouteDefinition>>,
 ];
 
+type RoutesErrorMessagesByIndex<
+  Routes extends readonly unknown[],
+  Traversed extends readonly unknown[] = readonly [],
+> = number extends Routes['length']
+  ? UnionToTuple<RouteErrorMessages<Routes[number]>[number]>
+  : Traversed['length'] extends Routes['length']
+    ? []
+    : [
+        ...RouteErrorMessages<Routes[Traversed['length']]>,
+        ...RoutesErrorMessagesByIndex<Routes, [...Traversed, unknown]>,
+      ];
+
 type RoutesErrorMessages<Routes extends readonly unknown[]> =
-  Routes extends readonly [infer Head, ...infer Tail]
-    ? [...RouteErrorMessages<Head>, ...RoutesErrorMessages<Tail>]
-    : [];
+  RoutesErrorMessagesByIndex<Routes>;
 
 type AppErrorMessages<
   AppComponentDeps,

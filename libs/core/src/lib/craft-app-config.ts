@@ -65,6 +65,13 @@ type AppProvidedDependencyValues<Providers> =
     ? AppProvidedDependencyValuesFromEntry<Providers[number]>
     : never;
 
+type AppProvidedValueKeys<MissingProviders extends object, ProvidedValues> = {
+  [Name in Extract<
+    keyof MissingProviders,
+    string
+  >]: MissingProviders[Name] extends ProvidedValues ? Name : never;
+}[Extract<keyof MissingProviders, string>];
+
 type CraftAppStartRegistryKeys = Extract<keyof CraftAppStartRegistry, string>;
 
 type RequireCraftAppStartConfig = [CraftAppStartRegistryKeys] extends [never]
@@ -140,15 +147,23 @@ type ResolvedRouteDepsMap<RouteMetaData, Providers> = StripProvidedDepsMap<
   ConfigProvidedServiceNames<Providers>
 >;
 
+type RouteMissingProvidersBeforeAppProviders<RouteMetaData, Providers> =
+  Simplify<
+    MissingProvidersFromDepsMap<
+      ResolvedRouteDepsMap<RouteMetaData, Providers>
+    > &
+      ExplicitMissingProviderMap<RouteMetaData>
+  >;
+
 type ResolvedRouteMissingProviders<RouteMetaData, Providers> = Simplify<
   Omit<
-    Simplify<
-      MissingProvidersFromDepsMap<
-        ResolvedRouteDepsMap<RouteMetaData, Providers>
-      > &
-        ExplicitMissingProviderMap<RouteMetaData>
-    >,
-    keyof ProvidedMap<RouteMetaData> | ConfigProvidedServiceNames<Providers>
+    RouteMissingProvidersBeforeAppProviders<RouteMetaData, Providers>,
+    | keyof ProvidedMap<RouteMetaData>
+    | ConfigProvidedServiceNames<Providers>
+    | AppProvidedValueKeys<
+        RouteMissingProvidersBeforeAppProviders<RouteMetaData, Providers>,
+        AppProvidedDependencyValues<Providers>
+      >
   >
 >;
 

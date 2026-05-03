@@ -12,4 +12,5 @@ type CheckAppDI = AppCheckedDI<
   GenDeps_App,
   typeof appConfig.APP_CONFIG_META_DATA
 >;
+
 type _CanRun = CanRun<CheckAppDI>;
