@@ -1,6 +1,6 @@
 {
   "name": "@craft-ng/core",
-  "version": "0.4.0-beta.1",
+  "version": "0.4.0-beta.2",
   "description": "Reactive State Management for Angular - Type-safe, signal-based utilities for composable and reusable state management",
   "author": "Romain Geffrault",
   "license": "MIT",

@@ -4,6 +4,7 @@ import {
   injectDemoCraftLazyLayoutTeamIdData,
   injectDemoTeamIdParams,
 } from '../../../app.routes';
+import { OtherComponent, type GenDeps_OtherComponent } from './other';
 
 @Component({
   selector: 'app-lazy-layout-child',
@@ -33,6 +34,8 @@ import {
         </div>
       </dl>
     </article>
+
+    <app-other />
   `,
   styles: `
     .child-card {
@@ -114,6 +117,7 @@ import {
       font-size: 0.92em;
     }
   `,
+  imports: [OtherComponent],
 })
 export default class LazyLayoutChildComponent {
   readonly injectedParentRouteData = injectDemoCraftLazyLayoutTeamIdData();
@@ -124,7 +128,9 @@ export default class LazyLayoutChildComponent {
 }
 
 export type GenDeps_LazyLayoutChildComponent = GetDeps<{
-  deps: {};
+  deps: {
+    GenDeps_OtherComponent: GenDeps_OtherComponent;
+  };
   propertiesDeps: {
     injectedParentRouteData: {
       DemoCraftLazyLayoutTeamIdData: ReturnType<
