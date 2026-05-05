@@ -1,5 +1,9 @@
 import '@angular/compiler';
-import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
+import {
+  HttpErrorResponse,
+  HttpHeaders,
+  provideHttpClient,
+} from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -12,8 +16,12 @@ import {
 import { vi } from 'vitest';
 import {
   CraftHttpClient,
+  type CraftHttpClientBodyExceptionDependency,
   type CraftHttpClientError,
+  type ExtractCraftHttpClientExceptionBodyType,
+  type ExtractCraftHttpClientExceptionDependencies,
   type CraftHttpRequest,
+  getCraftHttpRequestExceptionDependencies,
 } from './craft-http-client';
 import { craftException, isCraftException } from './craft-exception';
 import {
@@ -141,8 +149,15 @@ describe('CraftHttpClient', () => {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
           success: response<User[]>(),
-          exceptions: (error) =>
-            error.status === 404 ? usersNotFound() : undefined,
+          exceptions: [
+            function* ({ status }) {
+              if (!(yield* status(404))) {
+                return;
+              }
+
+              return usersNotFound();
+            },
+          ],
         }));
 
         return {
@@ -153,10 +168,22 @@ describe('CraftHttpClient', () => {
 
     type UsersApi = GetServiceOutput<typeof injectUsersApiOnCustomError>;
     type GetUsersResult = Awaited<ReturnType<UsersApi['getUsers']>>;
+    type UsersNotFoundFromHttpResult = Extract<
+      GetUsersResult,
+      { code: 'USERS_NOT_FOUND' }
+    >;
 
-    expectTypeOf<GetUsersResult>().toEqualTypeOf<
-      User[] | UsersNotFound | CraftHttpClientError
-    >();
+    expectTypeOf<
+      Exclude<GetUsersResult, UsersNotFoundFromHttpResult>
+    >().toEqualTypeOf<User[] | CraftHttpClientError>();
+    expectTypeOf<UsersNotFoundFromHttpResult>().toMatchTypeOf<UsersNotFound>();
+    expectTypeOf<
+      ExtractCraftHttpClientExceptionDependencies<UsersNotFoundFromHttpResult>
+    >().toEqualTypeOf<{
+      source: 'status';
+      mode: 'match';
+      expected: 404;
+    }>();
 
     const httpTesting = TestBed.inject(HttpTestingController);
 
@@ -191,7 +218,12 @@ describe('CraftHttpClient', () => {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
           url: '/api/users',
           success: response<User[]>(),
-          exceptions: () => undefined,
+          exceptions: [
+            function* ({ status }) {
+              yield* status(404);
+              return;
+            },
+          ],
         }));
 
         return {
@@ -236,6 +268,321 @@ describe('CraftHttpClient', () => {
       expect(httpError.payload.error).toBeInstanceOf(HttpErrorResponse);
       expect(httpError.payload.error.status).toBe(500);
       expect(httpError.payload.error.statusText).toBe('Server Error');
+    });
+
+    httpTesting.verify();
+  });
+
+  it('should support composed status, code and content matchers', async () => {
+    type LoginResult = { token: string };
+    const passwordRequired = () =>
+      craftException(
+        {
+          code: 'PASSWORD_REQUIRED',
+          scope: 'AuthApi',
+        },
+        {
+          field: 'password',
+        },
+      );
+    type PasswordRequired = ReturnType<typeof passwordRequired>;
+
+    const { injectAuthApi } = craftService(
+      { name: 'AuthApi', scope: 'global' },
+      function* () {
+        const login = yield* CraftHttpClient.post(({ response }) => ({
+          url: '/api/login',
+          payload: {
+            email: 'john@doe.com',
+          },
+          success: response<LoginResult>(),
+          exceptions: [
+            function* ({ status, code, content }) {
+              if (!(yield* status(400))) {
+                return;
+              }
+
+              if (!(yield* code('PASSWORD_REQUIRED'))) {
+                return;
+              }
+
+              if (!(yield* content('Password is required'))) {
+                return;
+              }
+
+              return passwordRequired();
+            },
+          ],
+        }));
+
+        return {
+          login,
+        };
+      },
+    );
+
+    type AuthApi = GetServiceOutput<typeof injectAuthApi>;
+    type LoginResultUnion = Awaited<ReturnType<AuthApi['login']>>;
+    type PasswordRequiredFromHttpResult = Extract<
+      LoginResultUnion,
+      { code: 'PASSWORD_REQUIRED' }
+    >;
+
+    expectTypeOf<
+      Exclude<LoginResultUnion, PasswordRequiredFromHttpResult>
+    >().toEqualTypeOf<LoginResult | CraftHttpClientError>();
+    expectTypeOf<PasswordRequiredFromHttpResult>().toMatchTypeOf<PasswordRequired>();
+    expectTypeOf<
+      ExtractCraftHttpClientExceptionDependencies<PasswordRequiredFromHttpResult>
+    >().toEqualTypeOf<
+      | {
+          source: 'status';
+          mode: 'match';
+          expected: 400;
+        }
+      | {
+          source: 'code';
+          mode: 'match';
+          expected: 'PASSWORD_REQUIRED';
+        }
+      | {
+          source: 'content';
+          mode: 'match';
+          expected: 'Password is required';
+        }
+    >();
+
+    const httpTesting = TestBed.inject(HttpTestingController);
+
+    await TestBed.runInInjectionContext(async () => {
+      const authApi = injectAuthApi();
+      const resultPromise = authApi.login();
+
+      const request = httpTesting.expectOne('/api/login');
+      expect(request.request.method).toBe('POST');
+      request.flush(
+        {
+          code: 'PASSWORD_REQUIRED',
+          message: 'Password is required',
+        },
+        {
+          status: 400,
+          statusText: 'Bad Request',
+        },
+      );
+
+      await expect(resultPromise).resolves.toEqual(passwordRequired());
+    });
+
+    httpTesting.verify();
+  });
+
+  it('should support body-based exception rules for non standard payloads', async () => {
+    type LoginResult = { token: string };
+    const invalidPasswordPayload = () =>
+      craftException(
+        {
+          code: 'INVALID_PASSWORD_PAYLOAD',
+          scope: 'AuthApi',
+        },
+        {
+          field: 'password',
+        },
+      );
+
+    const { injectAuthApiOnBodyRule } = craftService(
+      { name: 'AuthApiOnBodyRule', scope: 'global' },
+      function* () {
+        const login = yield* CraftHttpClient.post(({ response }) => ({
+          url: '/api/login',
+          payload: {
+            email: 'john@doe.com',
+          },
+          success: response<LoginResult>(),
+          exceptions: [
+            function* ({ body }) {
+              const payload = yield* body<{
+                errors?: Array<{ field: string; message: string }>;
+              }>();
+
+              if (
+                !payload.errors?.some((error) => error.field === 'password')
+              ) {
+                return;
+              }
+
+              return invalidPasswordPayload();
+            },
+          ],
+        }));
+
+        return {
+          login,
+        };
+      },
+    );
+
+    const httpTesting = TestBed.inject(HttpTestingController);
+
+    await TestBed.runInInjectionContext(async () => {
+      const authApi = injectAuthApiOnBodyRule();
+      const resultPromise = authApi.login();
+
+      const request = httpTesting.expectOne('/api/login');
+      request.flush(
+        {
+          errors: [
+            {
+              field: 'password',
+              message: 'required',
+            },
+          ],
+        },
+        {
+          status: 422,
+          statusText: 'Unprocessable Entity',
+        },
+      );
+
+      await expect(resultPromise).resolves.toEqual(invalidPasswordPayload());
+    });
+
+    httpTesting.verify();
+  });
+
+  it('should support header-based exception rules', async () => {
+    type LoginResult = { token: string };
+    const rateLimited = () =>
+      craftException({
+        code: 'RATE_LIMITED',
+        scope: 'AuthApi',
+      });
+
+    const { injectAuthApiOnHeaderRule } = craftService(
+      { name: 'AuthApiOnHeaderRule', scope: 'global' },
+      function* () {
+        const login = yield* CraftHttpClient.post(({ response }) => ({
+          url: '/api/login',
+          payload: {
+            email: 'john@doe.com',
+          },
+          success: response<LoginResult>(),
+          exceptions: [
+            function* ({ status, header }) {
+              if (!(yield* status(429))) {
+                return;
+              }
+
+              if (!(yield* header('x-error-kind', 'rate-limit'))) {
+                return;
+              }
+
+              return rateLimited();
+            },
+          ],
+        }));
+
+        return {
+          login,
+        };
+      },
+    );
+
+    const httpTesting = TestBed.inject(HttpTestingController);
+
+    await TestBed.runInInjectionContext(async () => {
+      const authApi = injectAuthApiOnHeaderRule();
+      const resultPromise = authApi.login();
+
+      const request = httpTesting.expectOne('/api/login');
+      request.flush(
+        {
+          message: 'Too many requests',
+        },
+        {
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: new HttpHeaders({
+            'x-error-kind': 'rate-limit',
+          }),
+        },
+      );
+
+      await expect(resultPromise).resolves.toEqual(rateLimited());
+    });
+
+    httpTesting.verify();
+  });
+
+  it('should return the first matching exception rule', async () => {
+    type LoginResult = { token: string };
+    const genericBadRequest = () =>
+      craftException({
+        code: 'GENERIC_BAD_REQUEST',
+        scope: 'AuthApi',
+      });
+    const passwordRequired = () =>
+      craftException({
+        code: 'PASSWORD_REQUIRED',
+        scope: 'AuthApi',
+      });
+
+    const { injectAuthApiOnRulePriority } = craftService(
+      { name: 'AuthApiOnRulePriority', scope: 'global' },
+      function* () {
+        const login = yield* CraftHttpClient.post(({ response }) => ({
+          url: '/api/login',
+          payload: {
+            email: 'john@doe.com',
+          },
+          success: response<LoginResult>(),
+          exceptions: [
+            function* ({ status }) {
+              if (!(yield* status(400))) {
+                return;
+              }
+
+              return genericBadRequest();
+            },
+            function* ({ status, code }) {
+              if (!(yield* status(400))) {
+                return;
+              }
+
+              if (!(yield* code('PASSWORD_REQUIRED'))) {
+                return;
+              }
+
+              return passwordRequired();
+            },
+          ],
+        }));
+
+        return {
+          login,
+        };
+      },
+    );
+
+    const httpTesting = TestBed.inject(HttpTestingController);
+
+    await TestBed.runInInjectionContext(async () => {
+      const authApi = injectAuthApiOnRulePriority();
+      const resultPromise = authApi.login();
+
+      const request = httpTesting.expectOne('/api/login');
+      request.flush(
+        {
+          code: 'PASSWORD_REQUIRED',
+          message: 'Password is required',
+        },
+        {
+          status: 400,
+          statusText: 'Bad Request',
+        },
+      );
+
+      await expect(resultPromise).resolves.toEqual(genericBadRequest());
     });
 
     httpTesting.verify();
@@ -309,8 +656,15 @@ describe('CraftHttpClient', () => {
             url: '/api/users',
             params: fixedParams,
             success: response<User[]>(),
-            exceptions: (error) =>
-              error.status === 404 ? usersNotFound() : undefined,
+            exceptions: [
+              function* ({ status }) {
+                if (!(yield* status(404))) {
+                  return;
+                }
+
+                return usersNotFound();
+              },
+            ],
           }));
 
           return {
@@ -325,20 +679,15 @@ describe('CraftHttpClient', () => {
       type HttpDependency =
         UsersFeatureDependencies['dependencies']['CraftHttpClient'];
       type TrackedRequest = HttpDependency['derivedPropertiesUsed']['$self'];
+      type TrackedRequestResult = Awaited<ReturnType<TrackedRequest>>;
+      type TrackedUsersNotFound = Extract<
+        TrackedRequestResult,
+        { code: 'USERS_NOT_FOUND' }
+      >;
 
       expectTypeOf<HttpDependency['scope']>().toEqualTypeOf<'global'>();
       expectTypeOf<HttpDependency['browserBoundary']>().toEqualTypeOf<false>();
       expectTypeOf<HttpDependency['dependencies']>().toEqualTypeOf<{}>();
-      expectTypeOf<TrackedRequest>().toEqualTypeOf<
-        CraftHttpRequest<
-          'GET',
-          '/api/users',
-          User[],
-          typeof fixedParams,
-          undefined,
-          UsersNotFound
-        >
-      >();
       expectTypeOf<TrackedRequest['method']>().toEqualTypeOf<'GET'>();
       expectTypeOf<TrackedRequest['url']>().toEqualTypeOf<'/api/users'>();
       expectTypeOf<TrackedRequest['params']>().toEqualTypeOf<
@@ -346,8 +695,16 @@ describe('CraftHttpClient', () => {
       >();
       expectTypeOf<TrackedRequest['payload']>().toEqualTypeOf<undefined>();
       expectTypeOf<
-        Awaited<ReturnType<TrackedRequest>>
-      >().toEqualTypeOf<User[] | UsersNotFound | CraftHttpClientError>();
+        Exclude<TrackedRequestResult, TrackedUsersNotFound>
+      >().toEqualTypeOf<User[] | CraftHttpClientError>();
+      expectTypeOf<TrackedUsersNotFound>().toMatchTypeOf<UsersNotFound>();
+      expectTypeOf<
+        ExtractCraftHttpClientExceptionDependencies<TrackedUsersNotFound>
+      >().toEqualTypeOf<{
+        source: 'status';
+        mode: 'match';
+        expected: 404;
+      }>();
       expectTypeOf<
         HttpDependency['derivedPropertiesExposed']['$self']
       >().toEqualTypeOf<TrackedRequest>();
@@ -397,5 +754,138 @@ describe('CraftHttpClient', () => {
     expectTypeOf<
       Awaited<ReturnType<typeof mocks.CraftHttpClient>>
     >().toEqualTypeOf<User[] | CraftHttpClientError>();
+  });
+
+  it('should expose exception dependencies metadata for each rule', () => {
+    type User = { id: string; email: string };
+
+    const { injectUsersFeatureForDependencies } = craftService(
+      { name: 'UsersFeatureForDependencies', scope: 'global' },
+      function* () {
+        const getUsers = yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/users',
+          success: response<User[]>(),
+          exceptions: [
+            function* ({ status, code, content }) {
+              if (!(yield* status(400))) {
+                return;
+              }
+
+              if (!(yield* code('PASSWORD_REQUIRED'))) {
+                return;
+              }
+
+              if (!(yield* content('Password is required'))) {
+                return;
+              }
+
+              return craftException({
+                code: 'PASSWORD_REQUIRED',
+                scope: 'UsersFeatureForDependencies',
+              });
+            },
+            function* ({ body, header }) {
+              const payload = yield* body<{
+                errors?: Array<{ field: 'password' }>;
+              }>();
+
+              if (
+                !payload.errors?.some((error) => error.field === 'password')
+              ) {
+                return;
+              }
+
+              if (!(yield* header('x-error-kind', 'validation'))) {
+                return;
+              }
+
+              return craftException({
+                code: 'VALIDATION_HEADER_ERROR',
+                scope: 'UsersFeatureForDependencies',
+              });
+            },
+          ],
+        }));
+
+        return {
+          getUsers,
+        };
+      },
+    );
+
+    type UsersFeatureForDependencies = GetServiceOutput<
+      typeof injectUsersFeatureForDependencies
+    >;
+    type GetUsersDependenciesResult = Awaited<
+      ReturnType<UsersFeatureForDependencies['getUsers']>
+    >;
+    type ValidationHeaderException = Extract<
+      GetUsersDependenciesResult,
+      { code: 'VALIDATION_HEADER_ERROR' }
+    >;
+
+    expectTypeOf<
+      ExtractCraftHttpClientExceptionBodyType<ValidationHeaderException>
+    >().toEqualTypeOf<{
+      errors?: Array<{ field: 'password' }>;
+    }>();
+
+    expectTypeOf<
+      ExtractCraftHttpClientExceptionDependencies<ValidationHeaderException>
+    >().toEqualTypeOf<
+      | CraftHttpClientBodyExceptionDependency<{
+          errors?: Array<{ field: 'password' }>;
+        }>
+      | {
+          source: 'header';
+          mode: 'match';
+          name: 'x-error-kind';
+          expected: 'validation';
+        }
+    >();
+
+    TestBed.runInInjectionContext(() => {
+      const usersFeature = injectUsersFeatureForDependencies();
+
+      expect(
+        getCraftHttpRequestExceptionDependencies(usersFeature.getUsers),
+      ).toEqual([
+        {
+          ruleIndex: 0,
+          dependencies: [
+            {
+              source: 'status',
+              mode: 'match',
+              expected: 400,
+            },
+            {
+              source: 'code',
+              mode: 'match',
+              expected: 'PASSWORD_REQUIRED',
+            },
+            {
+              source: 'content',
+              mode: 'match',
+              expected: 'Password is required',
+            },
+          ],
+        },
+        {
+          ruleIndex: 1,
+          dependencies: [
+            {
+              source: 'body',
+              mode: 'read',
+            },
+            {
+              source: 'header',
+              mode: 'match',
+              name: 'x-error-kind',
+              expected: 'validation',
+            },
+          ],
+        },
+      ]);
+    });
   });
 });

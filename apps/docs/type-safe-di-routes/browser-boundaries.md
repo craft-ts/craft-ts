@@ -348,6 +348,7 @@ Its contract is intentionally different:
 
 - it is not treated as `browserBoundary: true`
 - it requires `success: response<T>()` inside a declarative builder
+- it can declare ordered `exceptions: [function* (...) { ... }]` rules
 - it returns a promise of `Success | craftException({ code: 'HttpError' })`
 
 Usage looks like this:
@@ -365,8 +366,24 @@ const createUser = yield* CraftHttpClient.post(({ response }) => ({
   success: response<User>(),
 }));
 
+const login = yield* CraftHttpClient.post(({ response }) => ({
+  url: '/api/login',
+  payload,
+  success: response<{ token: string }>(),
+  exceptions: [
+    function* ({ status, code, content }) {
+      if (!(yield* status(400))) return;
+      if (!(yield* code('PASSWORD_REQUIRED'))) return;
+      if (!(yield* content('Password is required'))) return;
+
+      return craftException({ code: 'PASSWORD_REQUIRED' });
+    },
+  ],
+}));
+
 const users = await getUsers();
 const createdUser = await createUser();
+const loginResult = await login();
 ```
 
 ## Design Constraints

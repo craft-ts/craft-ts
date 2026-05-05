@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import {
+  craftException,
   CraftHttpClient,
   craftService,
   type ExtractDeps,
@@ -15,6 +16,31 @@ const { injectUsersApiOnError } = craftService(
     const users = yield* CraftHttpClient.get(({ response }) => ({
       url: 'users',
       success: response<User[]>(),
+      exceptions: [
+        function* ({ status, code, content }) {
+          if (!(yield* status(400))) {
+            return;
+          }
+
+          if (!(yield* code('PASSWORD_REQUIRED'))) {
+            return;
+          }
+
+          if (!(yield* content('Password is required'))) {
+            return;
+          }
+
+          return craftException(
+            {
+              code: 'PASSWORD_REQUIRED',
+              scope: 'AuthApi',
+            },
+            {
+              field: 'password',
+            },
+          );
+        },
+      ],
     }));
 
     return {

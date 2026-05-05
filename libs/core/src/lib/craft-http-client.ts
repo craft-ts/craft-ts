@@ -20,6 +20,15 @@ import {
 
 declare const CRAFT_HTTP_CLIENT_SUCCESS_MARKER: unique symbol;
 declare const CRAFT_HTTP_CLIENT_EXCEPTIONS_MARKER: unique symbol;
+declare const CRAFT_HTTP_CLIENT_EXCEPTION_TYPE_DEPENDENCIES_MARKER: unique symbol;
+declare const CRAFT_HTTP_CLIENT_EXCEPTION_BODY_TYPE_MARKER: unique symbol;
+const CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCIES_MARKER = Symbol(
+  'craft-http-client-exception-dependencies-marker',
+);
+
+const CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCY_REQUEST_MARKER = Symbol(
+  'craft-http-client-exception-dependency-request-marker',
+);
 
 export type CraftHttpClientParams =
   | HttpParams
@@ -73,19 +82,241 @@ export type CraftHttpClientError = CraftExceptionResult<
   CraftHttpClientErrorPayload
 >;
 
+type CraftHttpClientExceptionDependencyMode = 'read' | 'match';
+
+export type CraftHttpClientBodyExceptionDependency<Body = unknown> = {
+  source: 'body';
+  mode: 'read';
+  readonly [CRAFT_HTTP_CLIENT_EXCEPTION_BODY_TYPE_MARKER]?: Body;
+};
+
+export type CraftHttpClientExceptionDependency =
+  | {
+      source: 'status';
+      mode: CraftHttpClientExceptionDependencyMode;
+      expected?: number;
+    }
+  | {
+      source: 'code';
+      mode: CraftHttpClientExceptionDependencyMode;
+      expected?: unknown;
+    }
+  | {
+      source: 'content';
+      mode: CraftHttpClientExceptionDependencyMode;
+      expected?: string;
+    }
+  | CraftHttpClientBodyExceptionDependency
+  | {
+      source: 'header';
+      mode: CraftHttpClientExceptionDependencyMode;
+      name: string;
+      expected?: string;
+    };
+
+export type CraftHttpClientExceptionRuleDependencies = {
+  ruleIndex: number;
+  dependencies: readonly CraftHttpClientExceptionDependency[];
+};
+
+type CraftHttpClientExceptionDependencies = readonly CraftHttpClientExceptionRuleDependencies[];
+type CraftHttpClientExceptionDependenciesMetadata = {
+  value?: CraftHttpClientExceptionDependencies;
+  resolve: () => CraftHttpClientExceptionDependencies;
+};
+
+type CraftHttpClientExceptionDependencyRequest<
+  Dependency extends CraftHttpClientExceptionDependency = CraftHttpClientExceptionDependency,
+  Result = unknown,
+> = Readonly<{
+  [CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCY_REQUEST_MARKER]: true;
+  dependency: Dependency;
+  evaluate: (error: HttpErrorResponse) => Result;
+  preview: () => Result;
+}>;
+
+type CraftHttpClientStatusExceptionHelper = {
+  (): Generator<
+    CraftHttpClientExceptionDependencyRequest<
+      {
+        source: 'status';
+        mode: 'read';
+      },
+      number
+    >,
+    number,
+    unknown
+  >;
+  <const Expected extends number>(
+    expected: Expected,
+  ): Generator<
+    CraftHttpClientExceptionDependencyRequest<
+      {
+        source: 'status';
+        mode: 'match';
+        expected: Expected;
+      },
+      Expected | undefined
+    >,
+    Expected | undefined,
+    unknown
+  >;
+};
+
+type CraftHttpClientCodeExceptionHelper = {
+  (): Generator<
+    CraftHttpClientExceptionDependencyRequest<
+      {
+        source: 'code';
+        mode: 'read';
+      },
+      unknown
+    >,
+    unknown,
+    unknown
+  >;
+  <const Expected>(
+    expected: Expected,
+  ): Generator<
+    CraftHttpClientExceptionDependencyRequest<
+      {
+        source: 'code';
+        mode: 'match';
+        expected: Expected;
+      },
+      Expected | undefined
+    >,
+    Expected | undefined,
+    unknown
+  >;
+};
+
+type CraftHttpClientContentExceptionHelper = {
+  (): Generator<
+    CraftHttpClientExceptionDependencyRequest<
+      {
+        source: 'content';
+        mode: 'read';
+      },
+      string | undefined
+    >,
+    string | undefined,
+    unknown
+  >;
+  <const Expected extends string>(
+    expected: Expected,
+  ): Generator<
+    CraftHttpClientExceptionDependencyRequest<
+      {
+        source: 'content';
+        mode: 'match';
+        expected: Expected;
+      },
+      Expected | undefined
+    >,
+    Expected | undefined,
+    unknown
+  >;
+};
+
+type CraftHttpClientHeaderExceptionHelper = {
+  <const HeaderName extends string>(
+    name: HeaderName,
+  ): Generator<
+    CraftHttpClientExceptionDependencyRequest<
+      {
+        source: 'header';
+        mode: 'read';
+        name: HeaderName;
+      },
+      string | undefined
+    >,
+    string | undefined,
+    unknown
+  >;
+  <const HeaderName extends string, const Expected extends string>(
+    name: HeaderName,
+    expected: Expected,
+  ): Generator<
+    CraftHttpClientExceptionDependencyRequest<
+      {
+        source: 'header';
+        mode: 'match';
+        name: HeaderName;
+        expected: Expected;
+      },
+      Expected | undefined
+    >,
+    Expected | undefined,
+    unknown
+  >;
+};
+
+type CraftHttpClientExceptionRuleHelpers = Readonly<{
+  status: CraftHttpClientStatusExceptionHelper;
+  code: CraftHttpClientCodeExceptionHelper;
+  content: CraftHttpClientContentExceptionHelper;
+  body: <Body = unknown>() => Generator<
+    CraftHttpClientExceptionDependencyRequest<
+      CraftHttpClientBodyExceptionDependency<Body>,
+      Body
+    >,
+    Body,
+    unknown
+  >;
+  header: CraftHttpClientHeaderExceptionHelper;
+}>;
+
+export type CraftHttpClientExceptionRule<
+  CustomException extends AnyCraftException = AnyCraftException,
+> = (
+  helpers: CraftHttpClientExceptionRuleHelpers,
+) => Generator<
+  CraftHttpClientExceptionDependencyRequest<any, unknown>,
+  CustomException | undefined | void,
+  unknown
+>;
+
+type AttachCraftHttpClientExceptionDependencies<
+  Exception,
+  Dependencies,
+> = Exception extends AnyCraftException
+  ? Exception & {
+      readonly [CRAFT_HTTP_CLIENT_EXCEPTION_TYPE_DEPENDENCIES_MARKER]?: Dependencies;
+    }
+  : never;
+
+export type ExtractCraftHttpClientExceptionDependencies<Exception> =
+  Exception extends {
+    readonly [CRAFT_HTTP_CLIENT_EXCEPTION_TYPE_DEPENDENCIES_MARKER]?: infer Dependencies;
+  }
+    ? Dependencies
+    : never;
+
+export type ExtractCraftHttpClientExceptionBodyTypeFromDependency<Dependency> =
+  Dependency extends {
+    readonly [CRAFT_HTTP_CLIENT_EXCEPTION_BODY_TYPE_MARKER]?: infer Body;
+  }
+    ? Body
+    : never;
+
+export type ExtractCraftHttpClientExceptionBodyType<Exception> =
+  ExtractCraftHttpClientExceptionBodyTypeFromDependency<
+    Extract<
+      ExtractCraftHttpClientExceptionDependencies<Exception>,
+      { source: 'body' }
+    >
+  >;
+
 type CraftHttpClientSuccessToken<Success> = {
   readonly [CRAFT_HTTP_CLIENT_SUCCESS_MARKER]?: Success;
 };
-
-type CraftHttpClientExceptionMapper<
-  CustomException extends AnyCraftException = AnyCraftException,
-> = (error: HttpErrorResponse) => CustomException | undefined;
 
 type CraftHttpClientBaseConfig = Omit<CraftHttpClientJsonOptions, 'params'> & {
   url: string;
   params?: CraftHttpClientParams;
   success: CraftHttpClientSuccessToken<unknown>;
-  exceptions?: CraftHttpClientExceptionMapper;
+  exceptions?: readonly CraftHttpClientExceptionRule[];
 };
 
 type CraftHttpClientBodyConfig = CraftHttpClientBaseConfig & {
@@ -127,10 +358,24 @@ type ExtractCraftHttpClientPayload<Config> = Config extends {
   ? Payload
   : undefined;
 
+type ExtractCraftHttpClientExceptionDependenciesFromYielded<Yielded> =
+  Yielded extends CraftHttpClientExceptionDependencyRequest<infer Dependency, any>
+    ? Dependency
+    : never;
+
+type ExtractCraftHttpClientExceptionFromRule<Rule> = Rule extends (
+  ...args: any[]
+) => Generator<infer Yielded, infer CustomException, unknown>
+  ? AttachCraftHttpClientExceptionDependencies<
+      Extract<Exclude<CustomException, undefined | void>, AnyCraftException>,
+      ExtractCraftHttpClientExceptionDependenciesFromYielded<Yielded>
+    >
+  : never;
+
 type ExtractCraftHttpClientExceptions<Config> = Config extends {
-  exceptions: (...args: any[]) => infer CustomException;
+  exceptions: ReadonlyArray<infer Rule>;
 }
-  ? Extract<Exclude<CustomException, undefined>, AnyCraftException>
+  ? ExtractCraftHttpClientExceptionFromRule<Rule>
   : never;
 
 export type CraftHttpClientResolved<
@@ -157,6 +402,7 @@ export type CraftHttpRequest<
   readonly payload: Payload;
   readonly [CRAFT_HTTP_CLIENT_SUCCESS_MARKER]?: Success;
   readonly [CRAFT_HTTP_CLIENT_EXCEPTIONS_MARKER]?: CustomException;
+  readonly [CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCIES_MARKER]?: CraftHttpClientExceptionDependenciesMetadata;
 };
 
 type AnyCraftHttpRequest = CraftHttpRequest<
@@ -335,6 +581,22 @@ export function response<Success>(): CraftHttpClientSuccessToken<Success> {
   return undefined as unknown as CraftHttpClientSuccessToken<Success>;
 }
 
+export function getCraftHttpRequestExceptionDependencies(
+  request: AnyCraftHttpRequest,
+): CraftHttpClientExceptionDependencies {
+  const metadata = request[CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCIES_MARKER];
+
+  if (!metadata) {
+    return [];
+  }
+
+  if (metadata.value === undefined) {
+    metadata.value = metadata.resolve();
+  }
+
+  return metadata.value;
+}
+
 function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(
   factory: (http: HttpClient) => Request,
 ): CraftHttpTrackedRequest<Request> {
@@ -372,6 +634,9 @@ function createCraftHttpRequest<
   config: Config,
 ): CraftHttpRequestFromConfig<Uppercase<Method>, Config> {
   const normalizedMethod = normalizeMethod(method) as Uppercase<Method>;
+  const exceptionDependencies = createCraftHttpClientExceptionDependenciesMetadata(
+    config.exceptions,
+  );
   const request = async (): CraftHttpClientResult<
     ExtractCraftHttpClientSuccess<Config>,
     ExtractCraftHttpClientExceptions<Config>
@@ -386,12 +651,14 @@ function createCraftHttpRequest<
       )) as ExtractCraftHttpClientSuccess<Config>;
     } catch (error) {
       const normalizedError = normalizeHttpClientError(config.url, error);
-      const customException = config.exceptions?.(
+      const customException = resolveCraftHttpClientException(
+        config.exceptions,
         normalizedError,
       ) as ExtractCraftHttpClientExceptions<Config> | undefined;
 
       return (
-        customException ?? toCraftHttpClientError(normalizedMethod, config.url, normalizedError)
+        customException ??
+        toCraftHttpClientError(normalizedMethod, config.url, normalizedError)
       );
     }
   };
@@ -414,6 +681,11 @@ function createCraftHttpRequest<
     },
     payload: {
       value: getConfigPayload(config) as ExtractCraftHttpClientPayload<Config>,
+      enumerable: false,
+      configurable: false,
+    },
+    [CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCIES_MARKER]: {
+      value: exceptionDependencies,
       enumerable: false,
       configurable: false,
     },
@@ -448,6 +720,289 @@ function getConfigPayload(config: CraftHttpClientBaseConfig): unknown {
 
 function normalizeMethod(method: string): string {
   return method.toUpperCase();
+}
+
+function collectCraftHttpClientExceptionDependencies(
+  rules: readonly CraftHttpClientExceptionRule[] | undefined,
+): CraftHttpClientExceptionDependencies {
+  if (!rules?.length) {
+    return [];
+  }
+
+  return rules.map((rule, ruleIndex) => ({
+    ruleIndex,
+    dependencies: collectCraftHttpClientExceptionRuleDependencies(rule),
+  }));
+}
+
+function createCraftHttpClientExceptionDependenciesMetadata(
+  rules: readonly CraftHttpClientExceptionRule[] | undefined,
+): CraftHttpClientExceptionDependenciesMetadata {
+  return {
+    resolve: () => collectCraftHttpClientExceptionDependencies(rules),
+  };
+}
+
+function collectCraftHttpClientExceptionRuleDependencies(
+  rule: CraftHttpClientExceptionRule,
+): readonly CraftHttpClientExceptionDependency[] {
+  const dependencies: CraftHttpClientExceptionDependency[] = [];
+
+  executeCraftHttpClientExceptionRule(rule, {
+    resolveRequest: (request) => request.preview(),
+    onDependency: (dependency) => {
+      dependencies.push(dependency);
+    },
+  });
+
+  return dependencies;
+}
+
+function resolveCraftHttpClientException(
+  rules: readonly CraftHttpClientExceptionRule[] | undefined,
+  error: HttpErrorResponse,
+): AnyCraftException | undefined {
+  if (!rules?.length) {
+    return undefined;
+  }
+
+  for (const rule of rules) {
+    const customException = executeCraftHttpClientExceptionRule(rule, {
+      resolveRequest: (request) => request.evaluate(error),
+    });
+
+    if (customException) {
+      return customException;
+    }
+  }
+
+  return undefined;
+}
+
+function executeCraftHttpClientExceptionRule(
+  rule: CraftHttpClientExceptionRule,
+  options: {
+    resolveRequest: (
+      request: CraftHttpClientExceptionDependencyRequest<any, unknown>,
+    ) => unknown;
+    onDependency?: (dependency: CraftHttpClientExceptionDependency) => void;
+  },
+): AnyCraftException | undefined {
+  const iterator = rule(craftHttpClientExceptionRuleHelpers);
+  let current = iterator.next();
+
+  while (!current.done) {
+    const yielded = current.value;
+
+    if (isCraftHttpClientExceptionDependencyRequest(yielded)) {
+      options.onDependency?.(yielded.dependency);
+      current = iterator.next(options.resolveRequest(yielded));
+      continue;
+    }
+
+    throw new Error(
+      'CraftHttpClient exception rules must only yield status, code, content, body or header helpers.',
+    );
+  }
+
+  return current.value ?? undefined;
+}
+
+const craftHttpClientExceptionRuleHelpers: CraftHttpClientExceptionRuleHelpers = {
+  status: ((expected?: number) =>
+    createCraftHttpClientExceptionToken({
+      dependency:
+        expected === undefined
+          ? {
+              source: 'status',
+              mode: 'read',
+            }
+          : {
+              source: 'status',
+              mode: 'match',
+              expected,
+            },
+      evaluate: (error) =>
+        expected === undefined
+          ? error.status
+          : matchHttpClientExceptionValue(error.status, expected),
+      preview: () => (expected === undefined ? 400 : expected),
+    })) as CraftHttpClientStatusExceptionHelper,
+  code: ((expected?: unknown) =>
+    createCraftHttpClientExceptionToken({
+      dependency:
+        expected === undefined
+          ? {
+              source: 'code',
+              mode: 'read',
+            }
+          : {
+              source: 'code',
+              mode: 'match',
+              expected,
+            },
+      evaluate: (error) => {
+        const code = readCraftHttpClientErrorCode(error);
+        return expected === undefined
+          ? code
+          : matchHttpClientExceptionValue(code, expected);
+      },
+      preview: () => (expected === undefined ? 'preview-code' : expected),
+    })) as CraftHttpClientCodeExceptionHelper,
+  content: ((expected?: string) =>
+    createCraftHttpClientExceptionToken({
+      dependency:
+        expected === undefined
+          ? {
+              source: 'content',
+              mode: 'read',
+            }
+          : {
+              source: 'content',
+              mode: 'match',
+              expected,
+            },
+      evaluate: (error) => {
+        const content = readCraftHttpClientErrorContent(error);
+        return expected === undefined
+          ? content
+          : matchHttpClientExceptionValue(content, expected);
+      },
+      preview: () =>
+        (expected === undefined ? 'preview-content' : expected) as
+          | string
+          | undefined,
+    })) as CraftHttpClientContentExceptionHelper,
+  body: <Body = unknown>() =>
+    createCraftHttpClientExceptionToken({
+      dependency: {
+        source: 'body',
+        mode: 'read',
+      },
+      evaluate: (error) => error.error as Body,
+      preview: () => craftHttpClientExceptionPreviewValue as Body,
+    }),
+  header: ((name: string, expected?: string) =>
+    createCraftHttpClientExceptionToken({
+      dependency:
+        expected === undefined
+          ? {
+              source: 'header',
+              mode: 'read',
+              name,
+            }
+          : {
+              source: 'header',
+              mode: 'match',
+              name,
+              expected,
+            },
+      evaluate: (error) => {
+        const headerValue = normalizeCraftHttpClientHeaderValue(
+          error.headers.get(name),
+        );
+        return expected === undefined
+          ? headerValue
+          : matchHttpClientExceptionValue(headerValue, expected);
+      },
+      preview: () =>
+        (expected === undefined ? 'preview-header' : expected) as
+          | string
+          | undefined,
+    })) as CraftHttpClientHeaderExceptionHelper,
+};
+
+let craftHttpClientExceptionPreviewValue: unknown;
+craftHttpClientExceptionPreviewValue = new Proxy(
+  () => craftHttpClientExceptionPreviewValue,
+  {
+    apply: () => craftHttpClientExceptionPreviewValue,
+    get: () => craftHttpClientExceptionPreviewValue,
+  },
+);
+
+function createCraftHttpClientExceptionToken<Result>(
+  request: Omit<
+    CraftHttpClientExceptionDependencyRequest<any, Result>,
+    typeof CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCY_REQUEST_MARKER
+  >,
+): Generator<
+  CraftHttpClientExceptionDependencyRequest<any, Result>,
+  Result,
+  unknown
+> {
+  const dependencyRequest = createCraftHttpClientExceptionDependencyRequest(
+    request,
+  );
+
+  return (function* () {
+    return (yield dependencyRequest) as Result;
+  })();
+}
+
+function createCraftHttpClientExceptionDependencyRequest<
+  Dependency extends CraftHttpClientExceptionDependency,
+  Result,
+>(
+  request: Omit<
+    CraftHttpClientExceptionDependencyRequest<Dependency, Result>,
+    typeof CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCY_REQUEST_MARKER
+  >,
+): CraftHttpClientExceptionDependencyRequest<Dependency, Result> {
+  return {
+    [CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCY_REQUEST_MARKER]: true,
+    ...request,
+  };
+}
+
+function isCraftHttpClientExceptionDependencyRequest(
+  value: unknown,
+): value is CraftHttpClientExceptionDependencyRequest<any, unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCY_REQUEST_MARKER in value
+  );
+}
+
+function matchHttpClientExceptionValue<Value, Expected>(
+  value: Value,
+  expected: Expected,
+): Expected | undefined {
+  return Object.is(value, expected) ? expected : undefined;
+}
+
+function readCraftHttpClientErrorCode(error: HttpErrorResponse): unknown {
+  const payload = error.error;
+
+  return payload && typeof payload === 'object' && 'code' in payload
+    ? payload.code
+    : undefined;
+}
+
+function readCraftHttpClientErrorContent(
+  error: HttpErrorResponse,
+): string | undefined {
+  if (typeof error.error === 'string') {
+    return error.error;
+  }
+
+  if (
+    error.error &&
+    typeof error.error === 'object' &&
+    'message' in error.error &&
+    typeof error.error.message === 'string'
+  ) {
+    return error.error.message;
+  }
+
+  return undefined;
+}
+
+function normalizeCraftHttpClientHeaderValue(
+  value: string | null,
+): string | undefined {
+  return value ?? undefined;
 }
 
 function normalizeHttpClientError(

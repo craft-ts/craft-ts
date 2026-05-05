@@ -226,10 +226,17 @@ describe('Browser Boundaries doc page', () => {
       'it requires `success: response<T>()` inside a declarative builder',
     );
     expect(content).toContain(
+      'it can declare ordered `exceptions: [function* (...) { ... }]` rules',
+    );
+    expect(content).toContain(
       "it returns a promise of `Success | craftException({ code: 'HttpError' })`",
     );
     expect(content).toContain(
       'const getUsers = yield* CraftHttpClient.get(({ response }) => ({',
+    );
+    expect(content).toContain('exceptions: [');
+    expect(content).toContain(
+      "if (!(yield* code('PASSWORD_REQUIRED'))) return;",
     );
   });
 
