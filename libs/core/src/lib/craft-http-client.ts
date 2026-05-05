@@ -130,7 +130,7 @@ type ExtractCraftHttpClientPayload<Config> = Config extends {
 type ExtractCraftHttpClientExceptions<Config> = Config extends {
   exceptions: (...args: any[]) => infer CustomException;
 }
-  ? Exclude<CustomException, undefined>
+  ? Extract<Exclude<CustomException, undefined>, AnyCraftException>
   : never;
 
 export type CraftHttpClientResolved<
@@ -322,13 +322,17 @@ export const CraftHttpClient: CraftHttpClientDsl = {
     const config = build(craftHttpClientBuilderHelpers);
 
     return (yield createCraftHttpClientYieldRequest((http) =>
-      createCraftHttpRequest(http, config.method, config),
+      createCraftHttpRequest(
+        http,
+        config.method,
+        config,
+      ) as CraftHttpRequestFromRequestConfig<Config>,
     )) as CraftHttpRequestFromRequestConfig<Config>;
   },
 };
 
 export function response<Success>(): CraftHttpClientSuccessToken<Success> {
-  return undefined as CraftHttpClientSuccessToken<Success>;
+  return undefined as unknown as CraftHttpClientSuccessToken<Success>;
 }
 
 function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(

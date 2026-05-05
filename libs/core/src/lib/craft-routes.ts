@@ -240,47 +240,53 @@ type HttpRequestKey<Request> = Request extends {
   ? `${Method} ${Url}`
   : never;
 
-type HttpRequestsFromObjectValues<ObjectValue> = ObjectValue extends object
+type HttpRequestsFromDerivedProperties<Properties> = Properties extends object
   ? {
-      [Key in Extract<keyof ObjectValue, string>]: HttpRequestsFromValue<
-        ObjectValue[Key]
-      >;
-    }[Extract<keyof ObjectValue, string>]
+      [Key in Extract<keyof Properties, string>]: Properties[Key] extends AnyTrackedCraftHttpRequest
+        ? Properties[Key]
+        : never;
+    }[Extract<keyof Properties, string>]
   : never;
 
-type RequestDerivedPropertyValues<Dependency> =
-  | (Dependency extends {
-      derivedPropertiesUsed: infer Used extends object;
-    }
-      ? Used[Extract<keyof Used, string>]
-      : never)
-  | (Dependency extends {
-      derivedPropertiesExposed: infer Exposed extends object;
-    }
-      ? Exposed[Extract<keyof Exposed, string>]
-      : never);
+type HttpRequestsFromDependencyValue<Value> = Value extends {
+  scope: unknown;
+  dependencies: infer Dependencies extends object;
+}
+  ? | HttpRequestsFromDerivedProperties<
+        Value extends {
+          derivedPropertiesUsed: infer Used extends object;
+        }
+          ? Used
+          : {}
+      >
+    | HttpRequestsFromDerivedProperties<
+        Value extends {
+          derivedPropertiesExposed: infer Exposed extends object;
+        }
+          ? Exposed
+          : {}
+      >
+    | HttpRequestsFromDepsMap<Dependencies>
+  : Value extends { deps: object } | { propertiesDeps: object }
+    ? HttpRequestsFromComponentDeps<Value>
+    : never;
 
-type HttpRequestsFromTrackedDependency<Dependency> =
-  | HttpRequestsFromValue<RequestDerivedPropertyValues<Dependency>>
-  | HttpRequestsFromObjectValues<
-      Dependency extends { dependencies: infer Dependencies extends object }
-        ? Dependencies
-        : {}
-    >;
+type HttpRequestsFromDepsMap<Deps extends object> = {
+  [Key in Extract<keyof Deps, string>]: HttpRequestsFromDependencyValue<
+    Deps[Key]
+  >;
+}[Extract<keyof Deps, string>];
+
+type HttpRequestsFromPropertiesDepsMap<PropertiesDeps extends object> = {
+  [Key in Extract<keyof PropertiesDeps, string>]: PropertiesDeps[Key] extends
+    object
+    ? HttpRequestsFromDepsMap<PropertiesDeps[Key]>
+    : never;
+}[Extract<keyof PropertiesDeps, string>];
 
 type HttpRequestsFromComponentDeps<ComponentDeps> =
-  | HttpRequestsFromObjectValues<DepsMap<ComponentDeps>>
-  | HttpRequestsFromObjectValues<PropertiesDepsMap<ComponentDeps>>;
-
-type HttpRequestsFromValue<Value> = Value extends AnyTrackedCraftHttpRequest
-  ? Value
-  : Value extends { dependencies: object }
-    ? HttpRequestsFromTrackedDependency<Value>
-    : Value extends { deps: object } | { propertiesDeps: object }
-      ? HttpRequestsFromComponentDeps<Value>
-      : Value extends object
-        ? HttpRequestsFromObjectValues<Value>
-        : never;
+  | HttpRequestsFromDepsMap<DepsMap<ComponentDeps>>
+  | HttpRequestsFromPropertiesDepsMap<PropertiesDepsMap<ComponentDeps>>;
 
 type HttpDepsMapFromRequests<Requests> = [Requests] extends [never]
   ? {}
@@ -549,11 +555,8 @@ type RouteResolvedMissingProviderMap<
 >;
 
 type RouteHttpDepsMap<RouteDefinition> = HttpDepsMapFromRequests<
-  | HttpRequestsFromObjectValues<DepsMap<ComponentDepsMap<RouteDefinition>>>
-  | HttpRequestsFromObjectValues<
-      PropertiesDepsMap<ComponentDepsMap<RouteDefinition>>
-    >
-  | HttpRequestsFromObjectValues<RouteGuardDepsMap<RouteDefinition>>
+  | HttpRequestsFromComponentDeps<ComponentDepsMap<RouteDefinition>>
+  | HttpRequestsFromDepsMap<RouteGuardDepsMap<RouteDefinition>>
 >;
 
 type ShouldExposeRouteDeps<RouteDefinition> =
