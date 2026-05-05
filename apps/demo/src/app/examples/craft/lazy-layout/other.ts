@@ -8,6 +8,7 @@ import {
 } from '@craft-ng/core';
 import { User } from '../query/api.service';
 import { injectOtherService, provideOtherService } from './to-provide.service';
+
 const { injectUsersApiOnError } = craftService(
   { name: 'UsersApiOnError', scope: 'global' },
   function* () {

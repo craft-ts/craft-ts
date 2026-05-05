@@ -9,6 +9,7 @@ import { beforeAll, describe, expect, expectTypeOf, it } from 'vitest';
 import type { AppCheckedDI } from './app-checked-di';
 import { GetDeps } from './branded-component/branded-component';
 import { craftAppConfig, toApplicationConfig } from './craft-app-config';
+import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
 import {
   appStartCalls,
   injectAppStartCounter,
@@ -296,6 +297,68 @@ describe('craftAppConfig', () => {
           publicProperties: {};
           missingProvider: {
             Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+          };
+        },
+      ]
+    >();
+  });
+
+  it('should preserve route httpDeps in APP_CONFIG_META_DATA', () => {
+    type User = { id: string };
+
+    const { injectUsersApi } = craftService(
+      { name: 'UsersApi', scope: 'global' },
+      function* () {
+        const getUsers = yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/users',
+          success: response<User[]>(),
+        }));
+
+        return {
+          getUsers,
+        };
+      },
+    );
+
+    type UsersRouteDeps = GetDeps<{
+      deps: {};
+      propertiesDeps: {
+        usersApi: {
+          UsersApi: GetInjectedServiceDependencies<typeof injectUsersApi>;
+        };
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { appRoutes } = craftRoutes('app', [
+      {
+        path: 'users',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as UsersRouteDeps,
+      },
+    ]);
+
+    const appConfig = craftAppConfig({
+      appStart: requiredAppStartFlag,
+      routingDeps: appRoutes.META_DATA,
+    });
+
+    expectTypeOf(appConfig.APP_CONFIG_META_DATA).toMatchTypeOf<
+      readonly [
+        {
+          path: 'users';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+          httpDeps: {
+            'GET /api/users': CraftHttpRequest<
+              'GET',
+              '/api/users',
+              User[],
+              undefined,
+              undefined
+            >;
           };
         },
       ]

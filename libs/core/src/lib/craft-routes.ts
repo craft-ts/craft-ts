@@ -14,6 +14,7 @@ import {
   type UrlSegment,
 } from '@angular/router';
 import { Observable, filter, isObservable, take, throwIfEmpty } from 'rxjs';
+import type { CraftHttpRequest } from './craft-http-client';
 import { craftService } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -48,6 +49,11 @@ type DepsMap<ComponentDeps> = ComponentDeps extends {
   deps: infer Deps extends object;
 }
   ? Deps
+  : {};
+type PropertiesDepsMap<ComponentDeps> = ComponentDeps extends {
+  propertiesDeps: infer PropertiesDeps extends object;
+}
+  ? PropertiesDeps
   : {};
 type ProvidedMap<ComponentDeps> = ComponentDeps extends {
   provided: infer Provided extends object;
@@ -210,6 +216,83 @@ type MergeRouteMissingProviderValues<
   Omit<ParentMissingProviders, keyof CurrentMissingProviders> &
     CurrentMissingProviders
 >;
+
+type MergeRouteHttpDepValues<
+  ParentHttpDeps extends object,
+  CurrentHttpDeps extends object,
+> = Simplify<
+  Omit<ParentHttpDeps, keyof CurrentHttpDeps> & CurrentHttpDeps
+>;
+
+type AnyTrackedCraftHttpRequest = CraftHttpRequest<
+  string,
+  string,
+  unknown,
+  unknown,
+  unknown,
+  any
+>;
+
+type HttpRequestKey<Request> = Request extends {
+  method: infer Method extends string;
+  url: infer Url extends string;
+}
+  ? `${Method} ${Url}`
+  : never;
+
+type HttpRequestsFromObjectValues<ObjectValue> = ObjectValue extends object
+  ? {
+      [Key in Extract<keyof ObjectValue, string>]: HttpRequestsFromValue<
+        ObjectValue[Key]
+      >;
+    }[Extract<keyof ObjectValue, string>]
+  : never;
+
+type RequestDerivedPropertyValues<Dependency> =
+  | (Dependency extends {
+      derivedPropertiesUsed: infer Used extends object;
+    }
+      ? Used[Extract<keyof Used, string>]
+      : never)
+  | (Dependency extends {
+      derivedPropertiesExposed: infer Exposed extends object;
+    }
+      ? Exposed[Extract<keyof Exposed, string>]
+      : never);
+
+type HttpRequestsFromTrackedDependency<Dependency> =
+  | HttpRequestsFromValue<RequestDerivedPropertyValues<Dependency>>
+  | HttpRequestsFromObjectValues<
+      Dependency extends { dependencies: infer Dependencies extends object }
+        ? Dependencies
+        : {}
+    >;
+
+type HttpRequestsFromComponentDeps<ComponentDeps> =
+  | HttpRequestsFromObjectValues<DepsMap<ComponentDeps>>
+  | HttpRequestsFromObjectValues<PropertiesDepsMap<ComponentDeps>>;
+
+type HttpRequestsFromValue<Value> = Value extends AnyTrackedCraftHttpRequest
+  ? Value
+  : Value extends { dependencies: object }
+    ? HttpRequestsFromTrackedDependency<Value>
+    : Value extends { deps: object } | { propertiesDeps: object }
+      ? HttpRequestsFromComponentDeps<Value>
+      : Value extends object
+        ? HttpRequestsFromObjectValues<Value>
+        : never;
+
+type HttpDepsMapFromRequests<Requests> = [Requests] extends [never]
+  ? {}
+  : Simplify<
+      MergeObjectUnion<
+        Requests extends AnyTrackedCraftHttpRequest
+          ? {
+              [Key in HttpRequestKey<Requests>]: Requests;
+            }
+          : never
+      >
+    >;
 
 type RouteProvidedPublicPropertyValues<RouteDefinition> = Simplify<
   RouteParamPublicPropertyValues<RoutePath<RouteDefinition>> &
@@ -465,6 +548,14 @@ type RouteResolvedMissingProviderMap<
   >
 >;
 
+type RouteHttpDepsMap<RouteDefinition> = HttpDepsMapFromRequests<
+  | HttpRequestsFromObjectValues<DepsMap<ComponentDepsMap<RouteDefinition>>>
+  | HttpRequestsFromObjectValues<
+      PropertiesDepsMap<ComponentDepsMap<RouteDefinition>>
+    >
+  | HttpRequestsFromObjectValues<RouteGuardDepsMap<RouteDefinition>>
+>;
+
 type ShouldExposeRouteDeps<RouteDefinition> =
   ComponentDepsMap<RouteDefinition> extends { deps: object }
     ? true
@@ -480,6 +571,11 @@ export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
           deps: RouteResolvedDepsMap<RouteDefinition, string>;
         }
       : {}) &
+    ([keyof RouteHttpDepsMap<RouteDefinition>] extends [never]
+      ? {}
+      : {
+          httpDeps: RouteHttpDepsMap<RouteDefinition>;
+        }) &
     ([keyof RemainingRoutePublicProperties<RouteDefinition>] extends [never]
       ? {}
       : {
@@ -493,6 +589,7 @@ type ResolveCraftRouteMetaDataComponentDeps<
   InheritedServiceNames extends string = never,
   InheritedPublicProperties extends object = {},
   InheritedMissingProviders extends object = {},
+  InheritedHttpDeps extends object = {},
 > = Simplify<
   Omit<
     ComponentDepsMap<RouteDefinition>,
@@ -528,6 +625,19 @@ type ResolveCraftRouteMetaDataComponentDeps<
             >
           >;
         }) &
+    ([
+      keyof MergeRouteHttpDepValues<
+        InheritedHttpDeps,
+        RouteHttpDepsMap<RouteDefinition>
+      >,
+    ] extends [never]
+      ? {}
+      : {
+          httpDeps: MergeRouteHttpDepValues<
+            InheritedHttpDeps,
+            RouteHttpDepsMap<RouteDefinition>
+          >;
+        }) &
     (ComponentDepsMap<RouteDefinition> extends { publicProperties: object }
       ? {
           publicProperties: RemainingRoutePublicProperties<
@@ -545,6 +655,7 @@ type CraftRouteMetaDataEntry<
   InheritedServiceNames extends string = never,
   InheritedPublicProperties extends object = {},
   InheritedMissingProviders extends object = {},
+  InheritedHttpDeps extends object = {},
 > = Simplify<
   {
     path: ResolvedPath;
@@ -553,7 +664,8 @@ type CraftRouteMetaDataEntry<
     RouteCollectionName,
     InheritedServiceNames,
     InheritedPublicProperties,
-    InheritedMissingProviders
+    InheritedMissingProviders,
+    InheritedHttpDeps
   >
 >;
 
@@ -718,6 +830,14 @@ type RouteInheritedMissingProviders<
   >
 >;
 
+type RouteInheritedHttpDeps<
+  RouteDefinition,
+  InheritedHttpDeps extends object,
+> = MergeRouteHttpDepValues<
+  InheritedHttpDeps,
+  RouteHttpDepsMap<RouteDefinition>
+>;
+
 type FlattenLoadChildrenRouteMetaData<
   RouteDefinition extends AnyCraftRouteDefinition,
   ParentPath extends string,
@@ -725,6 +845,7 @@ type FlattenLoadChildrenRouteMetaData<
   InheritedServiceNames extends string,
   InheritedPublicProperties extends object,
   InheritedMissingProviders extends object,
+  InheritedHttpDeps extends object,
 > = [LoadChildrenRoutes<RouteDefinition>] extends [never]
   ? readonly []
   : CraftRoutesMetaDataWithContext<
@@ -745,7 +866,8 @@ type FlattenLoadChildrenRouteMetaData<
         RouteCollectionName,
         InheritedServiceNames,
         InheritedMissingProviders
-      >
+      >,
+      RouteInheritedHttpDeps<RouteDefinition, InheritedHttpDeps>
     >;
 
 type FlattenCraftRouteMetaDataEntry<
@@ -755,6 +877,7 @@ type FlattenCraftRouteMetaDataEntry<
   InheritedServiceNames extends string = never,
   InheritedPublicProperties extends object = {},
   InheritedMissingProviders extends object = {},
+  InheritedHttpDeps extends object = {},
 > = readonly [
   CraftRouteMetaDataEntry<
     RouteDefinition,
@@ -762,7 +885,8 @@ type FlattenCraftRouteMetaDataEntry<
     JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>,
     InheritedServiceNames,
     InheritedPublicProperties,
-    InheritedMissingProviders
+    InheritedMissingProviders,
+    InheritedHttpDeps
   >,
   ...FlattenLoadChildrenRouteMetaData<
     RouteDefinition,
@@ -770,7 +894,8 @@ type FlattenCraftRouteMetaDataEntry<
     RouteCollectionName,
     InheritedServiceNames,
     InheritedPublicProperties,
-    InheritedMissingProviders
+    InheritedMissingProviders,
+    InheritedHttpDeps
   >,
 ];
 
@@ -781,6 +906,7 @@ type CraftRoutesMetaDataWithContext<
   InheritedServiceNames extends string,
   InheritedPublicProperties extends object,
   InheritedMissingProviders extends object,
+  InheritedHttpDeps extends object,
 > = number extends Routes['length']
   ? readonly CraftRouteMetaDataEntry<
       Routes[number],
@@ -788,7 +914,8 @@ type CraftRoutesMetaDataWithContext<
       string,
       InheritedServiceNames,
       InheritedPublicProperties,
-      InheritedMissingProviders
+      InheritedMissingProviders,
+      InheritedHttpDeps
     >[]
   : Routes extends readonly [
         infer Head extends AnyCraftRouteDefinition,
@@ -801,7 +928,8 @@ type CraftRoutesMetaDataWithContext<
           ParentPath,
           InheritedServiceNames,
           InheritedPublicProperties,
-          InheritedMissingProviders
+          InheritedMissingProviders,
+          InheritedHttpDeps
         >,
         ...CraftRoutesMetaDataWithContext<
           Tail,
@@ -809,7 +937,8 @@ type CraftRoutesMetaDataWithContext<
           ParentPath,
           InheritedServiceNames,
           InheritedPublicProperties,
-          InheritedMissingProviders
+          InheritedMissingProviders,
+          InheritedHttpDeps
         >,
       ]
     : readonly [];
@@ -817,7 +946,7 @@ type CraftRoutesMetaDataWithContext<
 export type CraftRoutesMetaData<
   Routes extends readonly AnyCraftRouteDefinition[],
   Name extends string = string,
-> = CraftRoutesMetaDataWithContext<Routes, Name, '', never, {}, {}>;
+> = CraftRoutesMetaDataWithContext<Routes, Name, '', never, {}, {}, {}>;
 
 export type CraftRouteInjectHelper<Name extends string, Output> = {
   (): Output;

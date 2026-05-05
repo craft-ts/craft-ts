@@ -43,6 +43,7 @@ import {
   SERVICE_RUNTIME_OVERRIDES,
   type CraftServiceApi,
 } from './craft-service';
+import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
 import {
   CraftRouteInjectHelper,
   craftRoutes,
@@ -1025,6 +1026,179 @@ describe('craftRoutes', () => {
         DemoUserIdParams: ReturnType<typeof _injectDemoUserIdParams>;
       };
     }>();
+  });
+
+  it('should expose httpDeps from component propertiesDeps', () => {
+    type User = { id: string };
+
+    const { injectUsersApi } = craftService(
+      { name: 'UsersApi', scope: 'global' },
+      function* () {
+        const getUsers = yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/users',
+          success: response<User[]>(),
+        }));
+
+        return {
+          getUsers,
+        };
+      },
+    );
+
+    type HttpRouteDeps = GetDeps<{
+      deps: {};
+      propertiesDeps: {
+        usersApi: {
+          UsersApi: GetInjectedServiceDependencies<typeof injectUsersApi>;
+        };
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { appRoutes } = craftRoutes('app', [
+      {
+        path: 'users',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as HttpRouteDeps,
+      },
+    ]);
+
+    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'users';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+          httpDeps: {
+            'GET /api/users': CraftHttpRequest<
+              'GET',
+              '/api/users',
+              User[],
+              undefined,
+              undefined
+            >;
+          };
+        },
+      ]
+    >();
+  });
+
+  it('should merge parent and lazy child httpDeps in flattened metadata', () => {
+    type ParentResponse = { teamId: string };
+    type ChildResponse = { id: string };
+    type ChildPayload = { id: string };
+
+    const { injectLayoutApi } = craftService(
+      { name: 'LayoutApi', scope: 'global' },
+      function* () {
+        const getLayout = yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/layout',
+          success: response<ParentResponse>(),
+        }));
+
+        return {
+          getLayout,
+        };
+      },
+    );
+
+    const { injectChildApi } = craftService(
+      { name: 'ChildApi', scope: 'global' },
+      function* () {
+        const createUser = yield* CraftHttpClient.post(({ response }) => ({
+          url: '/api/layout/users',
+          payload: { id: '' } as ChildPayload,
+          success: response<ChildResponse>(),
+        }));
+
+        return {
+          createUser,
+        };
+      },
+    );
+
+    type ParentRouteDeps = GetDeps<{
+      deps: {};
+      propertiesDeps: {
+        layoutApi: {
+          LayoutApi: GetInjectedServiceDependencies<typeof injectLayoutApi>;
+        };
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    type ChildRouteDeps = GetDeps<{
+      deps: {};
+      propertiesDeps: {
+        childApi: {
+          ChildApi: GetInjectedServiceDependencies<typeof injectChildApi>;
+        };
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { childRoutes } = craftRoutes('child', [
+      {
+        path: 'details',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+
+    const { parentRoutes } = craftRoutes('parent', [
+      {
+        path: 'layout',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ParentRouteDeps,
+        loadChildren: async () => childRoutes,
+      },
+    ]);
+
+    expectTypeOf(parentRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'layout';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+          httpDeps: {
+            'GET /api/layout': CraftHttpRequest<
+              'GET',
+              '/api/layout',
+              ParentResponse,
+              undefined,
+              undefined
+            >;
+          };
+        },
+        {
+          path: 'layout/details';
+          deps: {};
+          provided: {};
+          publicProperties: {};
+          httpDeps: {
+            'GET /api/layout': CraftHttpRequest<
+              'GET',
+              '/api/layout',
+              ParentResponse,
+              undefined,
+              undefined
+            >;
+            'POST /api/layout/users': CraftHttpRequest<
+              'POST',
+              '/api/layout/users',
+              ChildResponse,
+              undefined,
+              ChildPayload
+            >;
+          };
+        },
+      ]
+    >();
   });
 
   it('should remove route params and data keys from component publicProperties', () => {
