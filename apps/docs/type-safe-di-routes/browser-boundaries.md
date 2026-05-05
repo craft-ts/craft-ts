@@ -347,17 +347,26 @@ Unlike `Console`, `LocalStorage`, or `BrowserLocation`, Angular's `HttpClient` i
 Its contract is intentionally different:
 
 - it is not treated as `browserBoundary: true`
-- it requires an explicit success type
+- it requires `success: response<T>()` inside a declarative builder
 - it returns a promise of `Success | craftException({ code: 'HttpError' })`
 
 Usage looks like this:
 
 ```typescript
-const getUsers = yield* CraftHttpClient.get<User[]>();
-const createUser = yield* CraftHttpClient.post<User>();
+const getUsers = yield* CraftHttpClient.get(({ response }) => ({
+  url: '/api/users',
+  params: { page: 1 },
+  success: response<User[]>(),
+}));
 
-const users = await getUsers('/api/users');
-const createdUser = await createUser('/api/users', payload);
+const createUser = yield* CraftHttpClient.post(({ response }) => ({
+  url: '/api/users',
+  payload,
+  success: response<User>(),
+}));
+
+const users = await getUsers();
+const createdUser = await createUser();
 ```
 
 ## Design Constraints

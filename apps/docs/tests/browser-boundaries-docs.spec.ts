@@ -222,12 +222,14 @@ describe('Browser Boundaries doc page', () => {
       '`CraftHttpClient` is implemented, but it is not a browser boundary.',
     );
     expect(content).toContain('it is not treated as `browserBoundary: true`');
-    expect(content).toContain('it requires an explicit success type');
+    expect(content).toContain(
+      'it requires `success: response<T>()` inside a declarative builder',
+    );
     expect(content).toContain(
       "it returns a promise of `Success | craftException({ code: 'HttpError' })`",
     );
     expect(content).toContain(
-      'const getUsers = yield* CraftHttpClient.get<User[]>();',
+      'const getUsers = yield* CraftHttpClient.get(({ response }) => ({',
     );
   });
 
