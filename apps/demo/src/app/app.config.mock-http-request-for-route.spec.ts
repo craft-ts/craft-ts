@@ -11,12 +11,15 @@ describe('demo route http deps registry', () => {
       'craft/lazy-layout/:teamId/users/:userId',
       {
         'GET users': {
-          kind: 'exception',
-          code: 'PASSWORD_REQUIRED',
-          status: 400,
-          body: {
+          kind: 'mock',
+          response: {
+            kind: 'exception',
             code: 'PASSWORD_REQUIRED',
-            message: 'Password is required',
+            status: 400,
+            body: {
+              code: 'PASSWORD_REQUIRED',
+              message: 'Password is required',
+            },
           },
         },
       },
@@ -25,11 +28,12 @@ describe('demo route http deps registry', () => {
     expect(mockedRoute).toEqual({
       app: 'DemoApp',
       route: 'craft/lazy-layout/:teamId/users/:userId',
-      handlers: [
+      endpoints: [
         {
           endpoint: 'GET users',
           method: 'GET',
           url: 'users',
+          mode: 'mock',
           response: {
             kind: 'exception',
             code: 'PASSWORD_REQUIRED',
@@ -53,15 +57,9 @@ if (false) {
   // @ts-expect-error unknown demo routes should be rejected
   mockHttpRequestForRoute('DemoApp', 'unknown', {});
 
-  mockHttpRequestForRoute(
-    'DemoApp',
-    'craft/lazy-layout/:teamId/users/:userId',
-    {
-      // @ts-expect-error endpoints must come from the selected demo route
-      'POST users': {
-        kind: 'error',
-        status: 500,
-      },
-    },
-  );
+  // @ts-expect-error endpoints must come from the selected demo route
+  mockHttpRequestForRoute('DemoApp', 'craft/lazy-layout/:teamId/users/:userId', {
+    'GET users': 'ignore',
+    'POST users': 'ignore',
+  });
 }

@@ -17,12 +17,6 @@ type AnyTrackedCraftHttpRequest = CraftHttpRequest<
 
 type HttpMockHeaders = Record<string, string | undefined>;
 
-type RouteMetaDataPath<RouteMetaData> = RouteMetaData extends {
-  path: infer Path extends string;
-}
-  ? Path
-  : never;
-
 type RouteMetaDataHttpDeps<RouteMetaData> = RouteMetaData extends {
   httpDeps: infer HttpDeps extends object;
 }
@@ -66,13 +60,17 @@ type RegisteredRouteHttpRequest<
       : never
     : never;
 
-type EndpointMethod<Endpoint extends string> = Endpoint extends `${infer Method} ${string}`
-  ? Method
-  : never;
+type EndpointMethod<Endpoint extends string> = string extends Endpoint
+  ? string
+  : Endpoint extends `${infer Method} ${string}`
+    ? Method
+    : never;
 
-type EndpointUrl<Endpoint extends string> = Endpoint extends `${string} ${infer Url}`
-  ? Url
-  : never;
+type EndpointUrl<Endpoint extends string> = string extends Endpoint
+  ? string
+  : Endpoint extends `${string} ${infer Url}`
+    ? Url
+    : never;
 
 type ExceptionDependencies<Exception extends AnyCraftException> =
   ExtractCraftHttpClientExceptionDependencies<Exception>;
@@ -246,14 +244,31 @@ export type MockHttpRequestResponse<Request extends AnyTrackedCraftHttpRequest> 
         : never
       : never);
 
+export type MockHttpRequestForRouteMockInput<
+  Request extends AnyTrackedCraftHttpRequest,
+> = {
+  kind: 'mock';
+  response: MockHttpRequestResponse<Request>;
+};
+
+export type MockHttpRequestForRouteEndpointInput<
+  Request extends AnyTrackedCraftHttpRequest,
+> =
+  | 'ignore'
+  | 'unusedOrThrow'
+  | MockHttpRequestForRouteMockInput<Request>;
+
 export type MockHttpRequestForRouteInput<
   AppKey extends CraftRouteHttpDepsRegistryKey,
   RoutePath extends RegisteredRoutePath<AppKey>,
-> = Partial<{
-  [Endpoint in RegisteredRouteEndpointKey<AppKey, RoutePath>]: MockHttpRequestResponse<
+> = {
+  [Endpoint in RegisteredRouteEndpointKey<
+    AppKey,
+    RoutePath
+  >]: MockHttpRequestForRouteEndpointInput<
     RegisteredRouteHttpRequest<AppKey, RoutePath, Endpoint>
   >;
-}>;
+};
 
 export type MockHttpRequestNormalizedResponse<
   Request extends AnyTrackedCraftHttpRequest,
@@ -266,15 +281,63 @@ export type MockHttpRequestNormalizedResponse<
         : never
       : never);
 
-export type MockHttpRequestForRouteHandler<
-  Endpoint extends string,
-  Request extends AnyTrackedCraftHttpRequest,
+export type MockHttpRequestForRouteIgnoreEndpoint<
+  Endpoint extends string = string,
 > = {
   endpoint: Endpoint;
   method: EndpointMethod<Endpoint>;
   url: EndpointUrl<Endpoint>;
-  response: MockHttpRequestNormalizedResponse<Request>;
+  mode: 'ignore';
 };
+
+export type MockHttpRequestForRouteUnusedEndpoint<
+  Endpoint extends string = string,
+> = {
+  endpoint: Endpoint;
+  method: EndpointMethod<Endpoint>;
+  url: EndpointUrl<Endpoint>;
+  mode: 'unusedOrThrow';
+  message: string;
+};
+
+export type MockHttpRequestForRouteMockEndpoint<
+  Endpoint extends string = string,
+  Response = MockHttpRequestNormalizedResponse<AnyTrackedCraftHttpRequest>,
+> = {
+  endpoint: Endpoint;
+  method: EndpointMethod<Endpoint>;
+  url: EndpointUrl<Endpoint>;
+  mode: 'mock';
+  response: Response;
+};
+
+export type MockHttpRequestForRouteEndpoint<
+  Endpoint extends string = string,
+  Response = MockHttpRequestNormalizedResponse<AnyTrackedCraftHttpRequest>,
+> =
+  | MockHttpRequestForRouteIgnoreEndpoint<Endpoint>
+  | MockHttpRequestForRouteUnusedEndpoint<Endpoint>
+  | MockHttpRequestForRouteMockEndpoint<Endpoint, Response>;
+
+type MockHttpRequestForRouteNormalizedEndpoint<
+  Endpoint extends string,
+  Request extends AnyTrackedCraftHttpRequest,
+  Input extends MockHttpRequestForRouteEndpointInput<Request>,
+> = Input extends 'ignore'
+  ? MockHttpRequestForRouteIgnoreEndpoint<Endpoint>
+  : Input extends 'unusedOrThrow'
+    ? MockHttpRequestForRouteUnusedEndpoint<Endpoint>
+    : Input extends MockHttpRequestForRouteMockInput<Request>
+      ? MockHttpRequestForRouteMockEndpoint<
+          Endpoint,
+          MockHttpRequestNormalizedResponse<Request>
+        >
+      : never;
+
+type RejectExtraKeys<
+  Value extends object,
+  AllowedKeys extends PropertyKey,
+> = Exclude<keyof Value, AllowedKeys> extends never ? Value : never;
 
 export type MockHttpRequestForRouteResult<
   AppKey extends CraftRouteHttpDepsRegistryKey,
@@ -283,23 +346,52 @@ export type MockHttpRequestForRouteResult<
 > = {
   app: AppKey;
   route: RoutePath;
-  handlers: Array<
+  endpoints: Array<
     {
-      [Endpoint in Extract<
-        Extract<keyof Mocks, string>,
-        RegisteredRouteEndpointKey<AppKey, RoutePath>
-      >]: MockHttpRequestForRouteHandler<
+      [Endpoint in RegisteredRouteEndpointKey<
+        AppKey,
+        RoutePath
+      >]: MockHttpRequestForRouteNormalizedEndpoint<
         Endpoint,
-        RegisteredRouteHttpRequest<AppKey, RoutePath, Endpoint>
+        RegisteredRouteHttpRequest<AppKey, RoutePath, Endpoint>,
+        Mocks[Endpoint]
       >;
-    }[
-      Extract<
-        Extract<keyof Mocks, string>,
-        RegisteredRouteEndpointKey<AppKey, RoutePath>
-      >
-    ]
+    }[RegisteredRouteEndpointKey<AppKey, RoutePath>]
   >;
 };
+
+export type MatchMockHttpRequestForRouteRequest = {
+  method: string;
+  url: string;
+};
+
+export type MatchMockHttpRequestForRouteOptions = {
+  ignoreUnregisteredRequests?: boolean;
+};
+
+export type MatchMockHttpRequestForRouteDecision<Response = never> =
+  | {
+      kind: 'ignore';
+    }
+  | {
+      kind: 'unusedOrThrow';
+      message: string;
+    }
+  | {
+      kind: 'mock';
+      response: Response;
+    };
+
+export type MatchMockHttpRequestForRouteSource<Response = unknown> = {
+  app: string;
+  route: string;
+  endpoints: ReadonlyArray<MockHttpRequestForRouteEndpoint<string, Response>>;
+};
+
+type MatchMockHttpRequestForRouteResponse<RouteMock> =
+  RouteMock extends MatchMockHttpRequestForRouteSource<infer Response>
+    ? Response
+    : never;
 
 export function mockHttpRequestForRoute<
   const AppKey extends CraftRouteHttpDepsRegistryKey,
@@ -308,26 +400,85 @@ export function mockHttpRequestForRoute<
 >(
   app: AppKey,
   route: RoutePath,
-  mocks: Mocks,
+  mocks: RejectExtraKeys<
+    Mocks,
+    RegisteredRouteEndpointKey<AppKey, RoutePath>
+  >,
 ): MockHttpRequestForRouteResult<AppKey, RoutePath, Mocks> {
-  const handlers = (
-    Object.entries(mocks) as Array<[string, Mocks[keyof Mocks]]>
-  ).map(([endpoint, response]) => {
-    const { method, url } = parseEndpointKey(endpoint);
-
-    return {
-      endpoint,
-      method,
-      url,
-      response: normalizeMockHttpRequestResponse(response),
-    };
-  });
+  const endpoints = (
+    Object.entries(mocks) as Array<
+      [
+        RegisteredRouteEndpointKey<AppKey, RoutePath>,
+        Mocks[RegisteredRouteEndpointKey<AppKey, RoutePath>],
+      ]
+    >
+  ).map(([endpoint, input]) =>
+    normalizeMockHttpRequestForRouteEndpoint(app, route, endpoint, input),
+  );
 
   return {
     app,
     route,
-    handlers,
-  } as MockHttpRequestForRouteResult<AppKey, RoutePath, Mocks>;
+    endpoints,
+  } as unknown as MockHttpRequestForRouteResult<AppKey, RoutePath, Mocks>;
+}
+
+/**
+ * Resolve a route-level HTTP mock decision from a request shape that can come
+ * from Playwright (`page.route`) or any other test runtime.
+ */
+export function matchMockHttpRequestForRoute<
+  const RouteMock extends MatchMockHttpRequestForRouteSource,
+>(
+  mockedRoute: RouteMock,
+  request: MatchMockHttpRequestForRouteRequest,
+  options: MatchMockHttpRequestForRouteOptions = {},
+): MatchMockHttpRequestForRouteDecision<
+  MatchMockHttpRequestForRouteResponse<RouteMock>
+> {
+  const normalizedRequest = normalizeMatchedRouteHttpRequest(request);
+
+  const matchedEndpoint = mockedRoute.endpoints.find((endpoint) =>
+    isMatchedRouteHttpRequestEndpoint(endpoint, normalizedRequest),
+  );
+
+  if (!matchedEndpoint) {
+    return options.ignoreUnregisteredRequests
+      ? {
+          kind: 'ignore',
+        }
+      : {
+          kind: 'unusedOrThrow',
+          message: createUnregisteredRouteHttpRequestMessage(
+            mockedRoute,
+            request,
+            normalizedRequest.method,
+          ),
+        };
+  }
+
+  switch (matchedEndpoint.mode) {
+    case 'ignore':
+      return {
+        kind: 'ignore',
+      };
+    case 'unusedOrThrow':
+      return {
+        kind: 'unusedOrThrow',
+        message: createMatchedUnusedRouteHttpRequestMessage(
+          mockedRoute,
+          matchedEndpoint,
+          request,
+          normalizedRequest.method,
+        ),
+      };
+    case 'mock':
+      return {
+        kind: 'mock',
+        response:
+          matchedEndpoint.response as MatchMockHttpRequestForRouteResponse<RouteMock>,
+      };
+  }
 }
 
 function parseEndpointKey(endpoint: string): { method: string; url: string } {
@@ -345,6 +496,48 @@ function parseEndpointKey(endpoint: string): { method: string; url: string } {
   };
 }
 
+function normalizeMockHttpRequestForRouteEndpoint<
+  AppKey extends string,
+  RoutePath extends string,
+  Endpoint extends string,
+  Request extends AnyTrackedCraftHttpRequest,
+  Input extends MockHttpRequestForRouteEndpointInput<Request>,
+>(
+  app: AppKey,
+  route: RoutePath,
+  endpoint: Endpoint,
+  input: Input,
+): MockHttpRequestForRouteNormalizedEndpoint<Endpoint, Request, Input> {
+  const { method, url } = parseEndpointKey(endpoint);
+
+  if (input === 'ignore') {
+    return {
+      endpoint,
+      method: method as EndpointMethod<Endpoint>,
+      url: url as EndpointUrl<Endpoint>,
+      mode: 'ignore',
+    } as MockHttpRequestForRouteNormalizedEndpoint<Endpoint, Request, Input>;
+  }
+
+  if (input === 'unusedOrThrow') {
+    return {
+      endpoint,
+      method: method as EndpointMethod<Endpoint>,
+      url: url as EndpointUrl<Endpoint>,
+      mode: 'unusedOrThrow',
+      message: createUnusedRouteHttpEndpointMessage(app, route, endpoint),
+    } as MockHttpRequestForRouteNormalizedEndpoint<Endpoint, Request, Input>;
+  }
+
+  return {
+    endpoint,
+    method: method as EndpointMethod<Endpoint>,
+    url: url as EndpointUrl<Endpoint>,
+    mode: 'mock',
+    response: normalizeMockHttpRequestResponse(input.response),
+  } as MockHttpRequestForRouteNormalizedEndpoint<Endpoint, Request, Input>;
+}
+
 function normalizeMockHttpRequestResponse(
   response: unknown,
 ):
@@ -359,6 +552,72 @@ function normalizeMockHttpRequestResponse(
     kind: 'success',
     body: response,
   };
+}
+
+function normalizeMatchedRouteHttpRequest(
+  request: MatchMockHttpRequestForRouteRequest,
+): {
+  method: string;
+  pathname: string;
+  pathnameWithSearch: string;
+} {
+  const normalizedUrl = normalizeComparableRouteHttpUrl(request.url);
+
+  return {
+    method: request.method.toUpperCase(),
+    pathname: normalizedUrl.pathname,
+    pathnameWithSearch: `${normalizedUrl.pathname}${normalizedUrl.search}`,
+  };
+}
+
+function isMatchedRouteHttpRequestEndpoint(
+  endpoint: MockHttpRequestForRouteEndpoint<string, unknown>,
+  request: {
+    method: string;
+    pathname: string;
+    pathnameWithSearch: string;
+  },
+): boolean {
+  if (endpoint.method.toUpperCase() !== request.method) {
+    return false;
+  }
+
+  const normalizedEndpointUrl = normalizeComparableRouteHttpUrl(endpoint.url);
+  const endpointPathname = normalizedEndpointUrl.pathname;
+  const endpointPathnameWithSearch = `${endpointPathname}${normalizedEndpointUrl.search}`;
+
+  return normalizedEndpointUrl.search
+    ? request.pathnameWithSearch === endpointPathnameWithSearch
+    : request.pathname === endpointPathname;
+}
+
+function normalizeComparableRouteHttpUrl(url: string): URL {
+  return new URL(url, 'http://craft-ng.local');
+}
+
+function createUnusedRouteHttpEndpointMessage(
+  app: string,
+  route: string,
+  endpoint: string,
+): string {
+  return `Route HTTP endpoint "${endpoint}" for app "${app}" route "${route}" is marked as unusedOrThrow.`;
+}
+
+function createMatchedUnusedRouteHttpRequestMessage(
+  mockedRoute: Pick<MatchMockHttpRequestForRouteSource, 'app' | 'route'>,
+  endpoint: Pick<MockHttpRequestForRouteUnusedEndpoint<string>, 'endpoint'>,
+  request: MatchMockHttpRequestForRouteRequest,
+  method: string,
+): string {
+  return `Route HTTP request "${method} ${request.url}" matched endpoint "${endpoint.endpoint}" for app "${mockedRoute.app}" route "${mockedRoute.route}", but that endpoint is marked as unusedOrThrow.`;
+}
+
+function createUnregisteredRouteHttpRequestMessage(
+  mockedRoute: Pick<MatchMockHttpRequestForRouteSource, 'app' | 'route'>,
+  request: MatchMockHttpRequestForRouteRequest,
+  method: string,
+): string {
+  return `Received unregistered route HTTP request "${method} ${request.url}" for app "${mockedRoute.app}" route "${mockedRoute.route}".`;
 }
 
 function isExplicitMockHttpRequestResponse(
