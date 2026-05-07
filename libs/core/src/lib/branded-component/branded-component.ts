@@ -179,7 +179,7 @@ type MissingProviderRecordFromDependency<
   | DirectMissingProviderRecord<Name, Dependency>
   | ComponentMissingProviderRecord<Dependency>
   | NestedMissingProviderRecord<Dependency>
-  | (IsRequirementScopedServiceDependency<Dependency> extends true
+  | (IsTrackedDependencyNode<Dependency> extends true
       ? MissingProvidersFromDepsMap<DependencyChildren<Dependency>>
       : {})
 >;

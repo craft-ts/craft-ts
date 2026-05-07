@@ -283,6 +283,41 @@ describe('GetDeps', () => {
         : false
     >;
   });
+
+  it('keeps transitive missing providers from function-scoped property deps', () => {
+    const { BToYield, injectB } = craftService(
+      { name: 'B', scope: 'toProvide' },
+      () => ({
+        read: () => 'service-b',
+      }),
+    );
+
+    const { injectCounter } = craftService(
+      { name: 'Counter', scope: 'function' },
+      function* () {
+        const b = yield* BToYield();
+
+        return {
+          read: () => b.read(),
+        };
+      },
+    );
+
+    type BDependency = GetInjectedServiceDependencies<typeof injectB>;
+    type ComponentDeps = GetDeps<{
+      deps: {
+        CommonModule: CommonModule;
+      };
+      propertiesDeps: {
+        counter: ExtractDeps<typeof injectCounter>;
+      };
+      provided: {};
+    }>;
+
+    expectTypeOf<ComponentDeps['missingProvider']>().toEqualTypeOf<{
+      B: BDependency;
+    }>();
+  });
 });
 
 describe('GetPublicComponentProperties', () => {
