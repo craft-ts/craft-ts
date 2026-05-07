@@ -1,10 +1,26 @@
-import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
-import { craftService, MaybeSignal, state, toValue, type ExtractDeps, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import {
+  craftService,
+  MaybeSignal,
+  state,
+  toValue,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
+} from '@craft-ng/core';
+
+const { BToYield } = craftService({ name: 'B', scope: 'toProvide' }, () => {
+  return {
+    getValue: () => 'test service value',
+  };
+});
 
 const { injectCounter } = craftService(
   { name: 'Counter', scope: 'function' },
-  (inputs: { initialValue: MaybeSignal<number> }) => {
+  function* (inputs: { initialValue: MaybeSignal<number> }) {
+    const b = yield* BToYield();
+    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    console.log('Value from service B:', b.getValue());
     return state(toValue(inputs.initialValue), ({ update }) => ({
       increment: () => update((c) => c + 1),
     }));
@@ -13,8 +29,6 @@ const { injectCounter } = craftService(
 
 @Component({
   selector: 'app-test',
-  standalone: true,
-  imports: [CommonModule],
   template: `
     <div>
       Counter 1: {{ counter1() }}
@@ -33,17 +47,15 @@ export default class TestComponent {
 }
 
 export type GenDeps_TestComponent = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-      };
-      propertiesDeps: {
-        counter1: {
-            Counter: ExtractDeps<typeof injectCounter>["Counter"];
-          };
-        counter2: {
-            Counter: ExtractDeps<typeof injectCounter>["Counter"];
-          };
-      };
-      provided: {};
-      publicProperties: GetPublicComponentProperties<TestComponent>;
-    }>;
+  deps: {};
+  propertiesDeps: {
+    counter1: {
+      Counter: ExtractDeps<typeof injectCounter>['Counter'];
+    };
+    counter2: {
+      Counter: ExtractDeps<typeof injectCounter>['Counter'];
+    };
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<TestComponent>;
+}>;
