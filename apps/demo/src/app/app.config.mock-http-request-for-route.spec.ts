@@ -3,15 +3,6 @@ import {
   mockHttpRequestForRoute,
   type RouteHttpDepsByPath,
 } from '@craft-ng/core';
-import type { DemoRouteHttpDeps } from './app.config';
-
-type DemoAppMetaData = typeof import('./app.config').appConfig.APP_CONFIG_META_DATA;
-
-declare module '@craft-ng/core' {
-  interface CraftRouteHttpDepsRegistry {
-    DemoApp: DemoRouteHttpDeps;
-  }
-}
 
 describe('demo route http deps registry', () => {
   it('should expose the app config alias through the public route mock registry', () => {
@@ -62,11 +53,15 @@ if (false) {
   // @ts-expect-error unknown demo routes should be rejected
   mockHttpRequestForRoute('DemoApp', 'unknown', {});
 
-  mockHttpRequestForRoute('DemoApp', 'craft/lazy-layout/:teamId/users/:userId', {
-    // @ts-expect-error endpoints must come from the selected demo route
-    'POST users': {
-      kind: 'error',
-      status: 500,
+  mockHttpRequestForRoute(
+    'DemoApp',
+    'craft/lazy-layout/:teamId/users/:userId',
+    {
+      // @ts-expect-error endpoints must come from the selected demo route
+      'POST users': {
+        kind: 'error',
+        status: 500,
+      },
     },
-  });
+  );
 }

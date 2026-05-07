@@ -14,12 +14,3 @@ type CheckAppDI = AppCheckedDI<
 >;
 
 type _CanRun = CanRun<CheckAppDI>;
-
-type RoutesWithHttpDeps = Extract<
-  (typeof appConfig.APP_CONFIG_META_DATA)[number],
-  { httpDeps: object }
->;
-
-type _HttpDepsByPath = {
-  [R in RoutesWithHttpDeps as R['path']]: R['httpDeps'];
-};
