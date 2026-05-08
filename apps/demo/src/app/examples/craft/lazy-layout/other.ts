@@ -3,6 +3,7 @@ import {
   craftException,
   CraftHttpClient,
   craftService,
+  query,
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
@@ -45,6 +46,10 @@ const { injectUsersApiOnError } = craftService(
 
     return {
       users,
+      query: query({
+        params: () => true,
+        loader: () => users(),
+      }),
     };
   },
 );
@@ -67,7 +72,8 @@ const { injectTest2 } = craftService(
 @Component({
   selector: 'app-other',
   providers: [provideOtherService()],
-  template: ` {{ _injectOtherService.getValue() }} `,
+  template: ` {{ _injectOtherService.getValue() }}
+    query status: {{ _injectUsersApiOnError.query.status() }}`,
 })
 export class OtherComponent {
   _injectOtherService = injectOtherService();

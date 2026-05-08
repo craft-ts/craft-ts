@@ -9,7 +9,7 @@ import {
   type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
-const { BToYield } = craftService({ name: 'B', scope: 'toProvide' }, () => {
+const { BToYield } = craftService({ name: 'B', scope: 'function' }, () => {
   return {
     getValue: () => 'test service value',
   };
