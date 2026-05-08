@@ -10,6 +10,7 @@ import { afterRecomputation } from './after-recomputation';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
 import type { ExtractDeps } from './branded-component/branded-component';
+import type { GetToYieldServiceDependencies } from './craft-service';
 
 beforeAll(() => {
   try {
@@ -221,6 +222,55 @@ describe('queryParams', () => {
           dependencies: {};
           browserBoundary: false;
         };
+      }>();
+    });
+  });
+
+  it('typing: tracks dependencies used by generator insertions', () => {
+    const { PaginationRulesDepsToYield } = craftService(
+      { name: 'PaginationRulesDeps', scope: 'global' },
+      () => ({
+        maxPage: () => 3,
+      }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const queryParams = queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: number) => String(value),
+            },
+          },
+        },
+        function* ({ patch, state }) {
+          const rules = yield* PaginationRulesDepsToYield();
+
+          return {
+            nextPage: () => {
+              if (state().page >= rules.maxPage()) {
+                return;
+              }
+
+              patch(({ page }) => ({
+                page: page + 1,
+              }));
+            },
+          };
+        },
+      );
+
+      expectTypeOf<ExtractDeps<typeof queryParams>>().toEqualTypeOf<{
+        Router: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+        };
+        PaginationRulesDeps: GetToYieldServiceDependencies<
+          typeof PaginationRulesDepsToYield
+        >;
       }>();
     });
   });
