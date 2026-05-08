@@ -33,7 +33,7 @@ export const {
   injectInvitationValidationService,
 } = craftService(
   { name: 'InvitationValidationService', scope: 'global' },
-  (): InvitationValidationService => {
+  () => {
     const currentMembers = new Set([
       'sarah@acme.io',
       'ops@acme.io',

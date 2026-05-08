@@ -23,24 +23,31 @@ import { ApiServiceToYield, type User } from './api.service';
 const { injectUserMutation, provideUserMutation, UserMutationToYield } =
   craftService(
     { name: 'UserMutation', scope: 'toProvide' },
-    function* (inputs: { userId: MaybeSignal<string | undefined> }) {
-      const { getItemById, updateItem } = yield* ApiServiceToYield(
-        {},
-        ({ getItemById, updateItem }) => ({ getItemById, updateItem }),
-      );
-
+    (inputs: { userId: MaybeSignal<string | undefined> }) => {
       const updateUserName = mutation({
         method: (payload: { userName: string; user: User }) => ({
           ...payload.user,
           name: payload.userName,
         }),
-        loader: ({ params: user }) => updateItem(user),
+        loader: function* ({ params: user }) {
+          const { updateItem } = yield* ApiServiceToYield(
+            {},
+            ({ updateItem }) => ({ updateItem }),
+          );
+          return updateItem(user);
+        },
       });
 
       const user = query(
         {
           params: () => toValue(inputs.userId),
-          loader: ({ params: userId }) => getItemById(userId),
+          loader: function* ({ params: userId }) {
+            const { getItemById } = yield* ApiServiceToYield(
+              {},
+              ({ getItemById }) => ({ getItemById }),
+            );
+            return getItemById(userId);
+          },
           preservePreviousValue: () => true,
         },
         insertLocalStoragePersister({

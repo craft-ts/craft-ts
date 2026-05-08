@@ -259,7 +259,7 @@ export default class LoginFormComponent {
 export type GenDeps_LoginFormComponent = GetDeps<{
   deps: {
     CommonModule: CommonModule;
-    FormField: FormField<any>;
+    FormField: FormField<unknown>;
   };
   propertiesDeps: {
     loginMutation: ExtractDeps<LoginFormComponent['loginMutation']>;

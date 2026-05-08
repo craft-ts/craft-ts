@@ -1,35 +1,37 @@
 import { CommonModule } from '@angular/common';
 import {
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    resource,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  resource,
 } from '@angular/core';
 import {
-    FormField,
-    SchemaPathRules,
-    validateAsync,
-    type SchemaPath,
-    type ValidationError,
+  FormField,
+  SchemaPathRules,
+  validateAsync,
+  type SchemaPath,
+  type ValidationError,
 } from '@angular/forms/signals';
 import {
-    cEmail,
-    cRequired,
-    insertForm,
-    insertFormAttributes,
-    insertNoopTypingAnchor,
-    insertSelectFormTree,
-    state,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  cEmail,
+  cRequired,
+  insertForm,
+  insertFormAttributes,
+  insertNoopTypingAnchor,
+  insertSelectFormTree,
+  state,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 import {
-    injectInvitationValidationService,
-    InvitationRole,
-    InvitationValidationRequest,
-    InvitationValidationResult,
+  injectInvitationValidationService,
+  InvitationRole,
+  InvitationValidationRequest,
+  InvitationValidationResult,
 } from './invitation-validation.service';
+
+// todo remove this example
 
 type WorkspaceInvitation = {
   id: number;
@@ -487,20 +489,22 @@ export default class TeamInvitationsComponent {
 }
 
 export type GenDeps_TeamInvitationsComponent = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        FormField: FormField<any>;
-      };
-      propertiesDeps: {
-        nextInvitationId: ExtractDeps<TeamInvitationsComponent["nextInvitationId"]>;
-        invitationValidationService: {
-            InvitationValidationService: ExtractDeps<typeof injectInvitationValidationService>["InvitationValidationService"];
-          };
-        roleOptions: ExtractDeps<TeamInvitationsComponent["roleOptions"]>;
-        invitations: ExtractDeps<TeamInvitationsComponent["invitations"]>;
-        summary: ExtractDeps<TeamInvitationsComponent["summary"]>;
-        readyInvitations: ExtractDeps<TeamInvitationsComponent["readyInvitations"]>;
-      };
-      provided: {};
-      publicProperties: GetPublicComponentProperties<TeamInvitationsComponent>;
-    }>;
+  deps: {
+    CommonModule: CommonModule;
+    FormField: FormField<unknown>;
+  };
+  propertiesDeps: {
+    nextInvitationId: ExtractDeps<TeamInvitationsComponent['nextInvitationId']>;
+    invitationValidationService: {
+      InvitationValidationService: ExtractDeps<
+        typeof injectInvitationValidationService
+      >['InvitationValidationService'];
+    };
+    roleOptions: ExtractDeps<TeamInvitationsComponent['roleOptions']>;
+    invitations: ExtractDeps<TeamInvitationsComponent['invitations']>;
+    summary: ExtractDeps<TeamInvitationsComponent['summary']>;
+    readyInvitations: ExtractDeps<TeamInvitationsComponent['readyInvitations']>;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<TeamInvitationsComponent>;
+}>;

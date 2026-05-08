@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-    craftService,
-    insertReactOnMutation,
-    mutation,
-    query,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftMethod,
+  craftService,
+  insertReactOnMutation,
+  mutation,
+  query,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
 // -- Types --
@@ -63,30 +64,50 @@ const { ApiServiceToYield } = craftService(
 
 // -- Playground service: composes query + mutation --
 
-const { injectPlayground } = craftService(
+const { injectPlayground, PlaygroundToYield } = craftService(
   { name: 'Playground', scope: 'function' },
-  function* () {
-    const api = yield* ApiServiceToYield();
-
+  () => {
     const addTodo = mutation({
       method: (title: string) => title,
-      loader: ({ params: title }) => api.addTodo(title),
+      loader: function* ({ params: title }) {
+        const { addTodo } = yield* ApiServiceToYield({}, ({ addTodo }) => ({
+          addTodo,
+        }));
+        return addTodo(title);
+      },
     });
 
     const toggleTodo = mutation({
       method: (id: number) => id,
-      loader: ({ params: id }) => api.toggleTodo(id),
+      loader: function* ({ params: id }) {
+        const { toggleTodo } = yield* ApiServiceToYield(
+          {},
+          ({ toggleTodo }) => ({ toggleTodo }),
+        );
+        return toggleTodo(id);
+      },
     });
 
     const deleteTodo = mutation({
       method: (id: number) => id,
-      loader: ({ params: id }) => api.deleteTodo(id),
+      loader: function* ({ params: id }) {
+        const { deleteTodo } = yield* ApiServiceToYield(
+          {},
+          ({ deleteTodo }) => ({ deleteTodo }),
+        );
+        return deleteTodo(id);
+      },
     });
 
     const todos = query(
       {
         params: () => 'all' as const,
-        loader: () => api.getTodos(),
+        loader: function* () {
+          const { getTodos } = yield* ApiServiceToYield({}, ({ getTodos }) => ({
+            getTodos,
+          }));
+          return getTodos();
+        },
       },
       insertReactOnMutation(addTodo, {
         reload: { onMutationResolved: true },
@@ -238,21 +259,24 @@ const { injectPlayground } = craftService(
 export default class PlaygroundComponent {
   protected readonly pg = injectPlayground();
 
-  add(input: HTMLInputElement) {
+  add = craftMethod(function* (input: HTMLInputElement) {
     const title = input.value.trim();
     if (!title) return;
-    this.pg.addTodo.mutate(title);
+    const pg = yield* PlaygroundToYield();
+    pg.addTodo.mutate(title);
     input.value = '';
-  }
+    return {};
+  });
 }
 
 export type GenDeps_PlaygroundComponent = GetDeps<{
-      deps: {};
-      propertiesDeps: {
-        pg: {
-            Playground: ExtractDeps<typeof injectPlayground>["Playground"];
-          };
-      };
-      provided: {};
-      publicProperties: GetPublicComponentProperties<PlaygroundComponent>;
-    }>;
+  deps: {};
+  propertiesDeps: {
+    pg: {
+      Playground: ExtractDeps<typeof injectPlayground>['Playground'];
+    };
+    add: ExtractDeps<PlaygroundComponent['add']>;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<PlaygroundComponent>;
+}>;

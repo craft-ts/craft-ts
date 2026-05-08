@@ -1,19 +1,23 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-    craftService,
-    insertLocalStoragePersister,
-    insertPaginationPlaceholderData,
-    query,
-    queryParam,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftMethod,
+  craftService,
+  insertLocalStoragePersister,
+  insertPaginationPlaceholderData,
+  query,
+  queryParam,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import { StatusComponent, type GenDeps_StatusComponent } from '../../../ui/status.component';
+import {
+  StatusComponent,
+  type GenDeps_StatusComponent,
+} from '../../../ui/status.component';
 import { ApiServiceToYield } from './api.service';
 
-const { injectUserList, provideUserList } = craftService(
+const { injectUserList, provideUserList, UserListToYield } = craftService(
   { name: 'UserList', scope: 'toProvide' },
   function* () {
     const { getDataList } = yield* ApiServiceToYield({}, ({ getDataList }) => ({
@@ -151,24 +155,27 @@ const { injectUserList, provideUserList } = craftService(
 export default class ListWithPaginationCraft {
   protected readonly store = injectUserList();
 
-  protected updatePageSize(event: Event) {
+  protected updatePageSize = craftMethod(function* (event: Event) {
     const value = Number((event.target as HTMLSelectElement).value);
-    this.store.pagination.updatePageSize(value);
-  }
+    const store = yield* UserListToYield();
+    store.pagination.updatePageSize(value);
+    return;
+  });
 }
 
 export type GenDeps_ListWithPaginationCraft = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        store: {
-            UserList: ExtractDeps<typeof injectUserList>["UserList"];
-          };
-      };
-      provided: {
-        UserList: ReturnType<typeof provideUserList>;
-      };
-      publicProperties: GetPublicComponentProperties<ListWithPaginationCraft>;
-    }>;
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    store: {
+      UserList: ExtractDeps<typeof injectUserList>['UserList'];
+    };
+    updatePageSize: ExtractDeps<ListWithPaginationCraft['updatePageSize']>;
+  };
+  provided: {
+    UserList: ReturnType<typeof provideUserList>;
+  };
+  publicProperties: GetPublicComponentProperties<ListWithPaginationCraft>;
+}>;

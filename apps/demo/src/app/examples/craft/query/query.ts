@@ -20,15 +20,17 @@ import { ApiServiceToYield } from './api.service';
 
 const { injectUserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
-  function* (inputs: { userId: MaybeSignal<string | undefined> }) {
-    const { getItemById } = yield* ApiServiceToYield({}, ({ getItemById }) => ({
-      getItemById,
-    }));
-
+  (inputs: { userId: MaybeSignal<string | undefined> }) => {
     return query(
       {
         params: () => toValue(inputs.userId),
-        loader: ({ params: userId }) => getItemById(userId),
+        loader: function* ({ params: userId }) {
+          const { getItemById } = yield* ApiServiceToYield(
+            {},
+            ({ getItemById }) => ({ getItemById }),
+          );
+          return getItemById(userId);
+        },
       },
       insertLocalStoragePersister({
         storeName: 'demo-app-craft',
