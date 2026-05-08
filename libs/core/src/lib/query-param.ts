@@ -2,7 +2,9 @@ import {
   assertInInjectionContext,
   computed,
   inject,
+  Injector,
   linkedSignal,
+  runInInjectionContext,
   Signal,
   WritableSignal,
 } from '@angular/core';
@@ -14,6 +16,7 @@ import { MergeObjects } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { Prettify } from './util/util.type';
 import { ActivatedRoute, Router } from '@angular/router';
+import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import {
   AnyCraftException,
   ExtractCraftException,
@@ -21,6 +24,12 @@ import {
   StripCraftException,
   isCraftException,
 } from './craft-exception';
+import type {
+  SERVICE_HELPER_DEPENDENCIES,
+  ServiceDependencyMapFromYielded,
+  ServiceTrackingMetadata,
+  ServiceYieldRequest,
+} from './craft-service';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -29,19 +38,63 @@ export interface QueryParamNavigationOptions {
   skipLocationChange?: boolean;
 }
 
+type ResolveGeneratorResult<Result> = Result extends Generator<
+  any,
+  infer Output,
+  unknown
+>
+  ? Output
+  : Result;
+
+type ResolveFactoryResult<Factory> = Factory extends (...args: any[]) => infer Result
+  ? ResolveGeneratorResult<Result>
+  : never;
+
+type ExtractFactoryYielded<Factory> = Factory extends (
+  ...args: any[]
+) => Generator<infer Yielded, any, unknown>
+  ? Yielded
+  : never;
+
+type QueryParamConfigYielded<Config> = Config extends {
+  parse: infer Parse;
+  serialize: infer Serialize;
+}
+  ? ExtractFactoryYielded<Parse> | ExtractFactoryYielded<Serialize>
+  : never;
+
+type QueryParamsConfigYielded<QueryParamsType> = {
+  [K in keyof QueryParamsType]: QueryParamConfigYielded<QueryParamsType[K]>;
+}[keyof QueryParamsType];
+
+type RouterQueryParamYield = ServiceYieldRequest<
+  'global',
+  Router,
+  ServiceTrackingMetadata<'Router', 'global', Router, never, undefined, never, false>
+>;
+
+type QueryParamTrackedDependencies<
+  QueryParamsType,
+  InsertionsYielded = never,
+> = ServiceDependencyMapFromYielded<
+  RouterQueryParamYield | QueryParamsConfigYielded<QueryParamsType> | InsertionsYielded
+>;
+
+type AnyQueryParamConfig = QueryParamConfig<any>;
+
 export type QueryParamsToState<QueryParamConfigs> = {
   [K in keyof QueryParamConfigs]: 'parse' extends keyof QueryParamConfigs[K]
-    ? QueryParamConfigs[K]['parse'] extends (value: string) => infer U
-      ? StripCraftException<U>
+    ? QueryParamConfigs[K]['parse'] extends (...args: any[]) => unknown
+      ? StripCraftException<ResolveFactoryResult<QueryParamConfigs[K]['parse']>>
       : 'Error1: QueryParamsToState'
     : 'Error2: QueryParamsToState';
 };
 
 type QueryParamParseExceptionsByKey<QueryParamsType> =
-  QueryParamsType extends Record<string, QueryParamConfig<unknown>>
+  QueryParamsType extends Record<string, AnyQueryParamConfig>
     ? {
         [K in keyof QueryParamsType]: InsertMetaInCraftExceptionIfExists<
-          ExtractCraftException<ReturnType<QueryParamsType[K]['parse']>>,
+          ExtractCraftException<ResolveFactoryResult<QueryParamsType[K]['parse']>>,
           'parse',
           K & string
         >;
@@ -56,7 +109,12 @@ export type QueryParamExceptions<QueryParamsType> = {
   parse: Partial<QueryParamParseExceptionsByKey<QueryParamsType>>;
 };
 
-export type QueryParamOutput<QueryParamsType, Insertions, QueryParamsState> =
+export type QueryParamOutput<
+  QueryParamsType,
+  Insertions,
+  QueryParamsState,
+  Dependencies = QueryParamTrackedDependencies<QueryParamsType>,
+> =
   Signal<QueryParamsState> &
     MergeObjects<
       [
@@ -70,6 +128,7 @@ export type QueryParamOutput<QueryParamsType, Insertions, QueryParamsState> =
         },
         {
           _config: QueryParamsType;
+          readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
         },
       ]
     >;
@@ -86,10 +145,51 @@ function enrichQueryParamParseException(
   };
 }
 
-export interface QueryParamConfig<T = unknown> {
-  parse: (value: string) => T;
+const QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE =
+  'queryParam generators can only yield craftService dependencies or exposed dependency helpers.';
+const QUERY_PARAM_APP_START_ERROR_MESSAGE =
+  'queryParam generators do not support onAppStart(...).';
+
+function executeQueryParamFactory<This, Args extends unknown[], Result>(
+  injector: Injector,
+  factory: (this: This, ...args: Args) => Result,
+  thisArg: This,
+  ...args: Args
+): ResolveGeneratorResult<Result> {
+  return runInInjectionContext(injector, () => {
+    const result = factory.apply(thisArg, args);
+
+    if (!isGenerator(result)) {
+      return result as ResolveGeneratorResult<Result>;
+    }
+
+    return runCraftGenerator({
+      iterator: result,
+      injector,
+      hostScope: 'function',
+      invalidYieldErrorMessage: QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE,
+      multipleAppStartErrorMessage: QUERY_PARAM_APP_START_ERROR_MESSAGE,
+      onAppStartNotSupportedErrorMessage: QUERY_PARAM_APP_START_ERROR_MESSAGE,
+    }).value as ResolveGeneratorResult<Result>;
+  });
+}
+
+export type QueryParamParser<T = unknown> = (
+  value: string,
+) => T | Generator<unknown, T, unknown>;
+
+export type QueryParamSerializer<T = unknown> = (
+  value: NoInfer<T>,
+) => string | Generator<unknown, string, unknown>;
+
+export interface QueryParamConfig<
+  T = unknown,
+  Parse extends QueryParamParser<T> = QueryParamParser<T>,
+  Serialize extends QueryParamSerializer<T> = QueryParamSerializer<T>,
+> {
+  parse: Parse;
   fallbackValue: NoInfer<T>;
-  serialize: (value: NoInfer<T>) => string;
+  serialize: Serialize;
 }
 
 /**
@@ -197,72 +297,104 @@ export interface QueryParamConfig<T = unknown> {
  * ```
  */
 export function queryParam<
-  QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
+  QueryParamsType extends Record<string, AnyQueryParamConfig>,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
 ): QueryParamOutput<QueryParamsType, {}, QueryParamsState>;
 export function queryParam<
-  QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
+  QueryParamsType extends Record<string, AnyQueryParamConfig>,
   Insertion1,
+  Insertion1Yielded = never,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
   insertion1: InsertionsQueryParamsFactory<
     NoInfer<QueryParamsType>,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
-): QueryParamOutput<QueryParamsType, Insertion1, QueryParamsState>;
+): QueryParamOutput<
+  QueryParamsType,
+  Insertion1,
+  QueryParamsState,
+  QueryParamTrackedDependencies<QueryParamsType, Insertion1Yielded>
+>;
 export function queryParam<
-  QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
+  QueryParamsType extends Record<string, AnyQueryParamConfig>,
   Insertion1,
   Insertion2,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
   insertion1: InsertionsQueryParamsFactory<
     NoInfer<QueryParamsType>,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsQueryParamsFactory<
     NoInfer<QueryParamsType>,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
-): QueryParamOutput<QueryParamsType, Insertion1 & Insertion2, QueryParamsState>;
+): QueryParamOutput<
+  QueryParamsType,
+  Insertion1 & Insertion2,
+  QueryParamsState,
+  QueryParamTrackedDependencies<
+    QueryParamsType,
+    Insertion1Yielded | Insertion2Yielded
+  >
+>;
 export function queryParam<
-  QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
+  QueryParamsType extends Record<string, AnyQueryParamConfig>,
   Insertion1,
   Insertion2,
   Insertion3,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
   insertion1: InsertionsQueryParamsFactory<
     NoInfer<QueryParamsType>,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsQueryParamsFactory<
     NoInfer<QueryParamsType>,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsQueryParamsFactory<
     NoInfer<QueryParamsType>,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
 ): QueryParamOutput<
   QueryParamsType,
   Insertion1 & Insertion2 & Insertion3,
-  QueryParamsState
+  QueryParamsState,
+  QueryParamTrackedDependencies<
+    QueryParamsType,
+    Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
+  >
 >;
 /**
  *
  * If it is not called in an injection context, it returns the config under _config.
  */
 export function queryParam<
-  QueryParamsType extends Record<string, QueryParamConfig<unknown>>,
+  QueryParamsType extends Record<string, AnyQueryParamConfig>,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
@@ -276,6 +408,7 @@ export function queryParam<
     } as any;
   }
 
+  const injector = inject(Injector);
   const router = inject(Router);
   const activatedRoute = inject(ActivatedRoute);
 
@@ -299,7 +432,12 @@ export function queryParam<
           return acc;
         }
         try {
-          const parsedValue = config.parse(rawValue);
+          const parsedValue = executeQueryParamFactory(
+            injector,
+            config.parse,
+            config,
+            rawValue,
+          );
           if (isCraftException(parsedValue)) {
             acc[key] = config.fallbackValue;
             return acc;
@@ -324,7 +462,12 @@ export function queryParam<
         }
 
         try {
-          const parsedValue = config.parse(rawValue);
+          const parsedValue = executeQueryParamFactory(
+            injector,
+            config.parse,
+            config,
+            rawValue,
+          );
           if (isCraftException(parsedValue)) {
             acc[key] = enrichQueryParamParseException(parsedValue, key);
           }
@@ -379,7 +522,12 @@ export function queryParam<
         const currentValue = newState[key];
         // Skip if value equals fallback value
         if (currentValue !== config.fallbackValue) {
-          acc[key] = config.serialize(currentValue);
+          acc[key] = executeQueryParamFactory(
+            injector,
+            config.serialize,
+            config,
+            currentValue,
+          );
         }
         return acc;
       },
@@ -453,14 +601,19 @@ export function queryParam<
   const insertionResults =
     (insertions as InsertionsQueryParamsFactory<QueryParamsType, {}>[])?.reduce(
       (acc, insert) => {
-        const newInsertions = insert({
-          state: queryParamsState.asReadonly(),
-          config: queryParamsConfig,
-          hasException,
-          exceptions,
-          ...methods,
-          insertions: acc as {},
-        } as InsertionQueryParamsFactoryContext<QueryParamsType, {}>);
+        const newInsertions = executeQueryParamFactory(
+          injector,
+          insert,
+          undefined,
+          {
+            state: queryParamsState.asReadonly(),
+            config: queryParamsConfig,
+            hasException,
+            exceptions,
+            ...methods,
+            insertions: acc as {},
+          } as InsertionQueryParamsFactoryContext<QueryParamsType, {}>,
+        );
         return {
           ...acc,
           ...newInsertions,

@@ -792,12 +792,13 @@ export type InsertionsQueryParamsFactory<
   QueryParamsType,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
+  Yielded = never,
 > = (
   context: InsertionQueryParamsFactoryContext<
     QueryParamsType,
     PreviousInsertionsOutputs
   >,
-) => InsertionsOutputs;
+) => InsertionsOutputs | Generator<Yielded, InsertionsOutputs, unknown>;
 
 export type DefaultInsertionByIdParams = InsertionByIdParams<
   string,

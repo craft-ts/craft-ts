@@ -1,9 +1,30 @@
 import { TestBed } from '@angular/core/testing';
 import { queryParam } from './query-param';
 import { provideRouter, Router } from '@angular/router';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
 import { craftException, CraftExceptionResult } from './craft-exception';
+import { craftService } from './craft-service';
+import type { ExtractDeps } from './branded-component/branded-component';
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
 
 describe('queryParams', () => {
   beforeEach(() => {
@@ -86,6 +107,121 @@ describe('queryParams', () => {
         pageSize: 50,
       });
       expect(myQueryParams.pageSize()).toBe(50);
+    });
+  });
+
+  it('typing: tracks generator dependencies from parse, serialize and insertions', () => {
+    const { ParsePageToYield } = craftService(
+      { name: 'ParsePage', scope: 'global' },
+      () => ({
+        parsePage: (value: string) => parseInt(value, 10),
+      }),
+    );
+    const { SerializePageToYield } = craftService(
+      { name: 'SerializePage', scope: 'global' },
+      () => ({
+        serializePage: (value: number) => String(value),
+      }),
+    );
+    const { PaginationRulesToYield } = craftService(
+      { name: 'PaginationRules', scope: 'global' },
+      () => ({
+        maxPage: () => 3,
+      }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const queryParams = queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: function* (value: string) {
+                const parser = yield* ParsePageToYield(
+                  undefined,
+                  ({ parsePage }) => ({
+                    parsePage,
+                  }),
+                );
+
+                return parser.parsePage(value);
+              },
+              serialize: function* (value: number) {
+                const serializer = yield* SerializePageToYield(
+                  undefined,
+                  ({ serializePage }) => ({
+                    serializePage,
+                  }),
+                );
+
+                return serializer.serializePage(value);
+              },
+            },
+          },
+        },
+        function* ({ patch, state }) {
+          const rules = yield* PaginationRulesToYield(
+            undefined,
+            ({ maxPage }) => ({
+              maxPage,
+            }),
+          );
+
+          return {
+            nextPage: () => {
+              if (state().page >= rules.maxPage()) {
+                return;
+              }
+
+              patch(({ page }) => ({
+                page: page + 1,
+              }));
+            },
+          };
+        },
+      );
+
+      expectTypeOf(queryParams.page()).toEqualTypeOf<number>();
+      expectTypeOf<ExtractDeps<typeof queryParams>>().toEqualTypeOf<{
+        ParsePage: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+          derivedPropertiesUsed: {
+            parsePage: (value: string) => number;
+          };
+          derivedPropertiesExposed: {
+            parsePage: (value: string) => number;
+          };
+        };
+        SerializePage: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+          derivedPropertiesUsed: {
+            serializePage: (value: number) => string;
+          };
+          derivedPropertiesExposed: {
+            serializePage: (value: number) => string;
+          };
+        };
+        PaginationRules: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+          derivedPropertiesUsed: {
+            maxPage: () => 3;
+          };
+          derivedPropertiesExposed: {
+            maxPage: () => 3;
+          };
+        };
+        Router: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+        };
+      }>();
     });
   });
 
@@ -305,6 +441,106 @@ describe('queryParams', () => {
       );
       //@ts-expect-error _setPage is bind to a source, so it should not be exposed
       expectTypeOf(myQueryParams._setPage).toEqualTypeOf<never>();
+    });
+  });
+
+  it('should support generator parse, serialize and insertions', async () => {
+    const parseCalls: string[] = [];
+    const serializeCalls: number[] = [];
+
+    const { ParsePageRuntimeToYield } = craftService(
+      { name: 'ParsePageRuntime', scope: 'global' },
+      () => ({
+        parsePage: (value: string) => {
+          parseCalls.push(value);
+          return parseInt(value, 10);
+        },
+      }),
+    );
+    const { SerializePageRuntimeToYield } = craftService(
+      { name: 'SerializePageRuntime', scope: 'global' },
+      () => ({
+        serializePage: (value: number) => {
+          serializeCalls.push(value);
+          return String(value);
+        },
+      }),
+    );
+    const { PaginationRulesRuntimeToYield } = craftService(
+      { name: 'PaginationRulesRuntime', scope: 'global' },
+      () => ({
+        maxPage: () => 3,
+      }),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const router = TestBed.inject(Router);
+
+      const queryParams = queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: function* (value: string) {
+                const parser = yield* ParsePageRuntimeToYield(
+                  undefined,
+                  ({ parsePage }) => ({
+                    parsePage,
+                  }),
+                );
+
+                return parser.parsePage(value);
+              },
+              serialize: function* (value: number) {
+                const serializer = yield* SerializePageRuntimeToYield(
+                  undefined,
+                  ({ serializePage }) => ({
+                    serializePage,
+                  }),
+                );
+
+                return serializer.serializePage(value);
+              },
+            },
+          },
+        },
+        function* ({ patch, state }) {
+          const rules = yield* PaginationRulesRuntimeToYield(
+            undefined,
+            ({ maxPage }) => ({
+              maxPage,
+            }),
+          );
+
+          return {
+            nextPage: () => {
+              if (state().page >= rules.maxPage()) {
+                return;
+              }
+
+              patch(({ page }) => ({
+                page: page + 1,
+              }));
+            },
+          };
+        },
+      );
+
+      await router.navigate([], { queryParams: { page: '2' } });
+      await vi.runAllTimersAsync();
+
+      expect(queryParams.page()).toBe(2);
+      expect(parseCalls).toContain('2');
+
+      queryParams.nextPage();
+      await vi.runAllTimersAsync();
+
+      expect(queryParams.page()).toBe(3);
+      expect(router.url).toContain('page=3');
+      expect(serializeCalls).toContain(3);
+
+      queryParams.nextPage();
+      expect(queryParams.page()).toBe(3);
     });
   });
 
