@@ -1,10 +1,11 @@
-import { craftRoutes } from '@craft-ng/core';
+import { craftRoutes, queryParam } from '@craft-ng/core';
 
 export const {
   demoRoutes,
   injectDemoTeamIdParams,
   injectDemoCraftLazyLayoutTeamIdData,
   injectDemoUserIdParams,
+  injectDemoQueryParamQueryParams,
 } = craftRoutes('demo', [
   {
     path: '',
@@ -145,5 +146,35 @@ export const {
     componentDeps:
       {} as import('./examples/playground/playground').GenDeps_PlaygroundComponent,
     loadComponent: () => import('./examples/playground/playground'),
+  },
+  {
+    path: 'query-param',
+    componentDeps:
+      {} as import('./examples/routes/list-with-pagination/qp-list-with-pagination').GenDeps_QpListWithPagination,
+    loadComponent: () =>
+      import('./examples/routes/list-with-pagination/qp-list-with-pagination'),
+    queryParams: () =>
+      queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value) => parseInt(value, 10),
+              serialize: (value) => String(value),
+            },
+            pageSize: {
+              fallbackValue: 4,
+              parse: (value) => parseInt(value, 10),
+              serialize: (value) => String(value),
+            },
+          },
+        },
+        ({ patch, state }) => ({
+          nextPage: () => patch({ page: state().page + 1 }),
+          previousPage: () => patch({ page: state().page - 1 }),
+          updatePageSize: (newPageSize: number) =>
+            patch({ pageSize: newPageSize, page: 1 }),
+        }),
+      ),
   },
 ]);

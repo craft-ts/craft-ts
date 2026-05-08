@@ -193,7 +193,7 @@ type ParamOutputForRoute<RouteDefinition, ParamName extends string> =
     : never;
 
 type ParamOutputForRoutes<
-  Routes extends readonly AnyCraftRouteDefinition[],
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
   ParamName extends string,
 > = Routes[number] extends infer RouteDefinition
   ? ParamOutputForRoute<RouteDefinition, ParamName>
@@ -775,6 +775,47 @@ type AnyCraftRouteSharedFields = Simplify<
   }
 >;
 
+type AnyCraftRouteHelperDefinition = {
+  path: string;
+  data?: Data;
+  paramsProvider?: (...args: any[]) => Record<string, unknown>;
+  queryParams?: RouteQueryParamsFactory;
+};
+
+type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
+  path: infer Path extends string;
+}
+  ? Simplify<
+      {
+        path: Path;
+      } & (RouteDefinition extends {
+        paramsProvider: infer ParamsProvider extends (
+          ...args: any[]
+        ) => Record<string, unknown>;
+      }
+        ? {
+            paramsProvider: ParamsProvider;
+          }
+        : {}) &
+        (RouteDefinition extends { data: infer RouteData extends Data }
+          ? {
+              data: RouteData;
+            }
+          : {}) &
+        (RouteDefinition extends {
+          queryParams: infer QueryParams extends RouteQueryParamsFactory;
+        }
+          ? {
+              queryParams: QueryParams;
+            }
+          : {})
+    >
+  : never;
+
+type RoutesHelperShape<Routes extends readonly AnyCraftRouteDefinition[]> = {
+  [Index in keyof Routes]: RouteHelperShape<Routes[Index]>;
+};
+
 type CraftRouteComponentTarget =
   | {
       component: AngularRouteComponent;
@@ -1024,15 +1065,24 @@ export type CraftRoutesMetaData<
   Name extends string = string,
 > = CraftRoutesMetaDataWithContext<Routes, Name, '', never, {}, {}, {}>;
 
+type StripHelperDependencies<Output> = Output extends {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: unknown;
+}
+  ? Output extends (...args: infer Args) => infer Result
+    ? ((...args: Args) => Result) &
+        Omit<Output, typeof SERVICE_HELPER_DEPENDENCIES>
+    : Omit<Output, typeof SERVICE_HELPER_DEPENDENCIES>
+  : Output;
+
 export type CraftRouteInjectHelper<Name extends string, Output> = {
-  (): Output;
+  (): StripHelperDependencies<Output>;
   readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceTrackingMetadata<
     Name,
     'toProvide',
-    Output,
+    StripHelperDependencies<Output>,
     never,
     undefined,
-    { resolve: () => Output },
+    { resolve: () => StripHelperDependencies<Output> },
     false
   >;
 };
@@ -1049,7 +1099,7 @@ type CraftRouteValueServiceApi<Name extends string, Output> = {
 
 type ParamInjectHelpers<
   Name extends string,
-  Routes extends readonly AnyCraftRouteDefinition[],
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
 > = Simplify<
   MergeObjectUnion<
     PathParamNames<Routes[number]['path']> extends infer ParamName extends
@@ -1069,7 +1119,7 @@ type ParamInjectHelpers<
 
 type DataInjectHelpers<
   Name extends string,
-  Routes extends readonly AnyCraftRouteDefinition[],
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
 > = Simplify<
   MergeObjectUnion<
     Routes[number] extends infer RouteDefinition
@@ -1090,7 +1140,7 @@ type DataInjectHelpers<
 
 type QueryParamsInjectHelpers<
   Name extends string,
-  Routes extends readonly AnyCraftRouteDefinition[],
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
 > = Simplify<
   MergeObjectUnion<
     Routes[number] extends infer RouteDefinition
@@ -1139,19 +1189,21 @@ export type CraftRoutesPublicPropertiesErrors<
   >
 >;
 
+type CraftRoutesSuccessResult<
+  Routes extends readonly AnyCraftRouteDefinition[],
+  Name extends string = string,
+> = Simplify<
+  {
+    [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name>;
+  } & ParamInjectHelpers<Name, RoutesHelperShape<Routes>> &
+    DataInjectHelpers<Name, RoutesHelperShape<Routes>> &
+    QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>>
+>;
+
 export type CraftRoutesResult<
   Routes extends readonly AnyCraftRouteDefinition[],
   Name extends string = string,
-  Errors = CraftRoutesPublicPropertiesErrors<Routes>,
-> = keyof Errors extends never
-  ? Simplify<
-      {
-        [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name>;
-      } & ParamInjectHelpers<Name, Routes> &
-        DataInjectHelpers<Name, Routes> &
-        QueryParamsInjectHelpers<Name, Routes>
-    >
-  : Errors;
+> = CraftRoutesSuccessResult<Routes, Name>;
 
 type AnyRouteValueServiceApi = CraftRouteValueServiceApi<string, unknown>;
 
