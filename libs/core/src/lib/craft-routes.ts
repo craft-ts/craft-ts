@@ -163,13 +163,8 @@ type RouteQueryParamsInjectHelperName<
 type InjectHelperName<Name extends string> = `inject${Capitalize<Name>}`;
 type ProvideHelperName<Name extends string> = `provide${Capitalize<Name>}`;
 
-type ResolveGeneratorResult<Result> = Result extends Generator<
-  any,
-  infer Output,
-  unknown
->
-  ? Output
-  : Result;
+type ResolveGeneratorResult<Result> =
+  Result extends Generator<any, infer Output, unknown> ? Output : Result;
 
 type RouteQueryParamsFactory<Output = unknown, Yielded = never> = () =>
   | Output
@@ -213,6 +208,34 @@ type RouteQueryParamsOutput<RouteDefinition> = RouteDefinition extends {
 }
   ? ResolveGeneratorResult<Result>
   : never;
+
+type RouteQueryParamsStateConfig<RouteDefinition> =
+  RouteQueryParamsOutput<RouteDefinition> extends {
+    _config: {
+      state: infer QueryParamsStateConfig extends object;
+    };
+  }
+    ? QueryParamsStateConfig
+    : RouteQueryParamsOutput<RouteDefinition> extends {
+          _config: infer QueryParamsStateConfig extends object;
+        }
+      ? QueryParamsStateConfig
+      : {};
+
+type RouteQueryParamsMetaData<RouteDefinition> = Simplify<{
+  [Key in Extract<
+    keyof RouteQueryParamsStateConfig<RouteDefinition>,
+    string
+  >]: string;
+}>;
+
+type RouteQueryParamsMetaDataField<RouteDefinition> = RouteDefinition extends {
+  queryParams: RouteQueryParamsFactory;
+}
+  ? {
+      queryParams: RouteQueryParamsMetaData<RouteDefinition>;
+    }
+  : {};
 
 type RouteDataPublicPropertyNames<RouteDefinition> = RouteDefinition extends {
   data: infer RouteData extends Data;
@@ -258,9 +281,7 @@ type MergeRouteMissingProviderValues<
 type MergeRouteHttpDepValues<
   ParentHttpDeps extends object,
   CurrentHttpDeps extends object,
-> = Simplify<
-  Omit<ParentHttpDeps, keyof CurrentHttpDeps> & CurrentHttpDeps
->;
+> = Simplify<Omit<ParentHttpDeps, keyof CurrentHttpDeps> & CurrentHttpDeps>;
 
 type AnyTrackedCraftHttpRequest = CraftHttpRequest<
   string,
@@ -280,7 +301,10 @@ type HttpRequestKey<Request> = Request extends {
 
 type HttpRequestsFromDerivedProperties<Properties> = Properties extends object
   ? {
-      [Key in Extract<keyof Properties, string>]: Properties[Key] extends AnyTrackedCraftHttpRequest
+      [Key in Extract<
+        keyof Properties,
+        string
+      >]: Properties[Key] extends AnyTrackedCraftHttpRequest
         ? Properties[Key]
         : never;
     }[Extract<keyof Properties, string>]
@@ -290,21 +314,22 @@ type HttpRequestsFromDependencyValue<Value> = Value extends {
   scope: unknown;
   dependencies: infer Dependencies extends object;
 }
-  ? | HttpRequestsFromDerivedProperties<
-        Value extends {
-          derivedPropertiesUsed: infer Used extends object;
-        }
-          ? Used
-          : {}
-      >
-    | HttpRequestsFromDerivedProperties<
-        Value extends {
-          derivedPropertiesExposed: infer Exposed extends object;
-        }
-          ? Exposed
-          : {}
-      >
-    | HttpRequestsFromDepsMap<Dependencies>
+  ?
+      | HttpRequestsFromDerivedProperties<
+          Value extends {
+            derivedPropertiesUsed: infer Used extends object;
+          }
+            ? Used
+            : {}
+        >
+      | HttpRequestsFromDerivedProperties<
+          Value extends {
+            derivedPropertiesExposed: infer Exposed extends object;
+          }
+            ? Exposed
+            : {}
+        >
+      | HttpRequestsFromDepsMap<Dependencies>
   : Value extends { deps: object } | { propertiesDeps: object }
     ? HttpRequestsFromComponentDeps<Value>
     : never;
@@ -316,8 +341,10 @@ type HttpRequestsFromDepsMap<Deps extends object> = {
 }[Extract<keyof Deps, string>];
 
 type HttpRequestsFromPropertiesDepsMap<PropertiesDeps extends object> = {
-  [Key in Extract<keyof PropertiesDeps, string>]: PropertiesDeps[Key] extends
-    object
+  [Key in Extract<
+    keyof PropertiesDeps,
+    string
+  >]: PropertiesDeps[Key] extends object
     ? HttpRequestsFromDepsMap<PropertiesDeps[Key]>
     : never;
 }[Extract<keyof PropertiesDeps, string>];
@@ -733,14 +760,15 @@ type CraftRouteMetaDataEntry<
 > = Simplify<
   {
     path: ResolvedPath;
-  } & ResolveCraftRouteMetaDataComponentDeps<
-    RouteDefinition,
-    RouteCollectionName,
-    InheritedServiceNames,
-    InheritedPublicProperties,
-    InheritedMissingProviders,
-    InheritedHttpDeps
-  >
+  } & RouteQueryParamsMetaDataField<RouteDefinition> &
+    ResolveCraftRouteMetaDataComponentDeps<
+      RouteDefinition,
+      RouteCollectionName,
+      InheritedServiceNames,
+      InheritedPublicProperties,
+      InheritedMissingProviders,
+      InheritedHttpDeps
+    >
 >;
 
 type CraftRouteSharedFields<
@@ -1155,12 +1183,10 @@ type QueryParamsInjectHelpers<
                 RoutePath<RouteDefinition>
               >,
               RouteQueryParamsOutput<RouteDefinition>
-            >[
-              RouteQueryParamsInjectHelperName<
-                Name,
-                RoutePath<RouteDefinition>
-              >
-            ];
+            >[RouteQueryParamsInjectHelperName<
+              Name,
+              RoutePath<RouteDefinition>
+            >];
           }
         : never
       : never
@@ -1413,8 +1439,7 @@ function executeRouteQueryParamsFactory<Output>(
       iterator: result,
       injector: routeScopedInjector,
       hostScope: 'function',
-      invalidYieldErrorMessage:
-        ROUTE_QUERY_PARAMS_INVALID_YIELD_ERROR_MESSAGE,
+      invalidYieldErrorMessage: ROUTE_QUERY_PARAMS_INVALID_YIELD_ERROR_MESSAGE,
       multipleAppStartErrorMessage: ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE,
       onAppStartNotSupportedErrorMessage:
         ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE,

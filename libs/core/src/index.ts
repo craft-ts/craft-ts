@@ -43,5 +43,6 @@ export * from './lib/insert-entities';
 export * from './lib/setup-craft-service-testing-by-register';
 export * from './lib/branded-component/branded-component';
 export * from './lib/craft-app-config';
+export * from './lib/craft-router';
 export * from './lib/craft-routes';
 export * from './lib/mock-http-request-for-route';

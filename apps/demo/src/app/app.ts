@@ -1,73 +1,130 @@
 import { Component } from '@angular/core';
 import { RouterModule, type Router } from '@angular/router';
 import {
-    BrowserLocation,
-    BrowserWindow,
-    craftMethod,
-    GlobalPersisterHandlerServiceToYield,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  BrowserLocation,
+  BrowserWindow,
+  craftMethod,
+  CraftRouterLink,
+  GlobalPersisterHandlerServiceToYield,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
 @Component({
-  imports: [RouterModule],
+  imports: [RouterModule, CraftRouterLink],
   selector: 'app-root',
   template: `
     <div class="app-container">
       <nav class="tabs">
         <a
-          routerLink="/"
+          [craftRouterLink]="{ to: '' }"
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: true }"
           >Test</a
         >
-        <a routerLink="/query/1" routerLinkActive="active">Query</a>
-        <a routerLink="/mutation/1" routerLinkActive="active">Mutation</a>
-        <a routerLink="/list-with-pagination" routerLinkActive="active"
+        <a
+          [craftRouterLink]="{ to: 'query/:userId', params: { userId: '1' } }"
+          routerLinkActive="active"
+          >Query</a
+        >
+        <a
+          [craftRouterLink]="{
+            to: 'mutation/:userId',
+            params: { userId: '1' },
+          }"
+          routerLinkActive="active"
+          >Mutation</a
+        >
+        <a
+          [craftRouterLink]="{ to: 'list-with-pagination' }"
+          routerLinkActive="active"
           >List with Pagination</a
         >
-        <a routerLink="/granular-mutation" routerLinkActive="active"
+        <a
+          [craftRouterLink]="{ to: 'granular-mutation' }"
+          routerLinkActive="active"
           >Granular Mutation</a
         >
-        <a routerLink="/full-demo" routerLinkActive="active">Full Demo</a>
-        <a routerLink="/pixel-art" routerLinkActive="active">Pixel Art</a>
-        <a routerLink="/pixel-art-matrix" routerLinkActive="active"
+        <a [craftRouterLink]="{ to: 'full-demo' }" routerLinkActive="active"
+          >Full Demo</a
+        >
+        <a [craftRouterLink]="{ to: 'pixel-art' }" routerLinkActive="active"
+          >Pixel Art</a
+        >
+        <a
+          [craftRouterLink]="{ to: 'pixel-art-matrix' }"
+          routerLinkActive="active"
           >Pixel Art Matrix</a
         >
-        <a routerLink="/exceptions" routerLinkActive="active">Exceptions</a>
-        <a routerLink="/login-form" routerLinkActive="active">Login Form</a>
-        <a routerLink="/team-invitations" routerLinkActive="active"
+        <a [craftRouterLink]="{ to: 'exceptions' }" routerLinkActive="active"
+          >Exceptions</a
+        >
+        <a [craftRouterLink]="{ to: 'login-form' }" routerLinkActive="active"
+          >Login Form</a
+        >
+        <a
+          [craftRouterLink]="{ to: 'team-invitations' }"
+          routerLinkActive="active"
           >Team Invitations</a
         >
-        <a routerLink="/exception-query-param" routerLinkActive="active"
+        <a
+          [craftRouterLink]="{ to: 'exception-query-param' }"
+          routerLinkActive="active"
           >Exception QueryParam</a
         >
-        <a routerLink="/craft/query/1" routerLinkActive="active">Craft Query</a>
-        <a routerLink="/craft/mutation/1" routerLinkActive="active"
+        <a
+          [craftRouterLink]="{
+            to: 'craft/query/:userId',
+            params: { userId: '1' },
+          }"
+          routerLinkActive="active"
+          >Craft Query</a
+        >
+        <a
+          [craftRouterLink]="{
+            to: 'craft/mutation/:userId',
+            params: { userId: '1' },
+          }"
+          routerLinkActive="active"
           >Craft Mutation</a
         >
-        <a routerLink="/craft/list-with-pagination" routerLinkActive="active"
+        <a
+          [craftRouterLink]="{ to: 'craft/list-with-pagination' }"
+          routerLinkActive="active"
           >Craft List Pagination</a
         >
-        <a routerLink="/craft/granular-mutation" routerLinkActive="active"
+        <a
+          [craftRouterLink]="{ to: 'craft/granular-mutation' }"
+          routerLinkActive="active"
           >Craft Granular Mutation</a
         >
-        <a routerLink="/craft/full-demo" routerLinkActive="active"
+        <a
+          [craftRouterLink]="{ to: 'craft/full-demo' }"
+          routerLinkActive="active"
           >Craft Full Demo</a
         >
         <a
-          routerLink="/craft/lazy-layout/100/users/42"
+          [craftRouterLink]="{
+            to: 'craft/lazy-layout/:teamId/users/:userId',
+            params: { teamId: '100', userId: '42' },
+          }"
           routerLinkActive="active"
           >Craft Lazy Layout</a
         >
-        <a routerLink="/craft-service/counter" routerLinkActive="active"
+        <a
+          [craftRouterLink]="{ to: 'craft-service/counter' }"
+          routerLinkActive="active"
           >craftService Counter</a
         >
-        <a routerLink="/craft-service/user-detail" routerLinkActive="active"
+        <a
+          [craftRouterLink]="{ to: 'craft-service/user-detail' }"
+          routerLinkActive="active"
           >craftService User Detail</a
         >
-        <a routerLink="/playground" routerLinkActive="active">Playground</a>
+        <a [craftRouterLink]="{ to: 'playground' }" routerLinkActive="active"
+          >Playground</a
+        >
       </nav>
       <main class="content">
         <router-outlet></router-outlet>
@@ -262,16 +319,17 @@ export class App {
 }
 
 export type GenDeps_App = GetDeps<{
-      deps: {
-        RouterModule: RouterModule;
-        Router: Router;
-      };
-      propertiesDeps: {
-        clearCache: ExtractDeps<App["clearCache"]>;
-      };
-      provided: {};
-      publicProperties: GetPublicComponentProperties<App>;
-      missingProvider: {
-        Router: Router;
-      };
-    }>;
+  deps: {
+    RouterModule: RouterModule;
+    CraftRouterLink: CraftRouterLink;
+    Router: Router;
+  };
+  propertiesDeps: {
+    clearCache: ExtractDeps<App['clearCache']>;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<App>;
+  missingProvider: {
+    Router: Router;
+  };
+}>;

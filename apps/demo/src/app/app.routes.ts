@@ -178,3 +178,9 @@ export const {
       ),
   },
 ]);
+
+declare module '@craft-ng/core' {
+  interface CraftRouterRoutesRegistry {
+    Demo: typeof demoRoutes.META_DATA;
+  }
+}

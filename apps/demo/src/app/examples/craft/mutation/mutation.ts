@@ -1,6 +1,7 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
+  CraftRouterToYield,
   craftMethod,
   craftService,
   insertLocalStoragePersister,
@@ -13,7 +14,6 @@ import {
   type GetPublicComponentProperties,
   type MaybeSignal,
 } from '@craft-ng/core';
-import { CraftRouterToYield } from '../../../shared/router.service';
 import {
   StatusComponent,
   type GenDeps_StatusComponent,
@@ -114,14 +114,24 @@ export default class MutationCraft {
     const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
       navigate,
     }));
-    router.navigate(['craft', 'mutation', parseInt(this.userId() ?? '0') + 1]);
+    void router.navigate({
+      to: 'craft/mutation/:userId',
+      params: {
+        userId: String(parseInt(this.userId() ?? '0', 10) + 1),
+      },
+    });
   });
 
   protected previousPage = craftMethod(this, function* () {
     const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
       navigate,
     }));
-    router.navigate(['craft', 'mutation', parseInt(this.userId() ?? '10') - 1]);
+    void router.navigate({
+      to: 'craft/mutation/:userId',
+      params: {
+        userId: String(parseInt(this.userId() ?? '10', 10) - 1),
+      },
+    });
   });
 }
 
