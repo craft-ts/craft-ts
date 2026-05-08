@@ -17,6 +17,7 @@ import {
 } from '@angular/platform-browser/testing';
 import {
   ActivatedRoute,
+  provideRouter,
   type ActivatedRouteSnapshot,
   type CanActivateFn,
   type CanMatchFn,
@@ -25,6 +26,7 @@ import {
   type Params,
   type PartialMatchRouteSnapshot,
   type Route,
+  Router,
   type RouterStateSnapshot,
   type UrlSegment,
 } from '@angular/router';
@@ -36,7 +38,9 @@ import {
   expect,
   expectTypeOf,
   it,
+  vi,
 } from 'vitest';
+import { Console, injectConsoleService } from './browser-boundaries';
 import {
   craftService,
   GetInjectedServiceDependencies,
@@ -44,6 +48,7 @@ import {
   type CraftServiceApi,
 } from './craft-service';
 import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
+import { queryParam } from './query-param';
 import {
   CraftRouteInjectHelper,
   craftRoutes,
@@ -69,21 +74,28 @@ function createActivatedRouteStub(
   initial: {
     params?: Params;
     data?: Data;
+    queryParams?: Params;
   } = {},
 ) {
   const paramsSubject = new BehaviorSubject<Params>(initial.params ?? {});
   const dataSubject = new BehaviorSubject<Data>(initial.data ?? {});
+  const queryParamsSubject = new BehaviorSubject<Params>(
+    initial.queryParams ?? {},
+  );
 
   const snapshot = {
     params: paramsSubject.value,
     data: dataSubject.value,
+    queryParams: queryParamsSubject.value,
   };
 
   return {
     route: {
       params: paramsSubject.asObservable(),
       data: dataSubject.asObservable(),
+      queryParams: queryParamsSubject.asObservable(),
       snapshot,
+      parent: null,
     } as ActivatedRoute,
     setParams(params: Params) {
       snapshot.params = params;
@@ -93,6 +105,10 @@ function createActivatedRouteStub(
       snapshot.data = data;
       dataSubject.next(data);
     },
+    setQueryParams(queryParams: Params) {
+      snapshot.queryParams = queryParams;
+      queryParamsSubject.next(queryParams);
+    },
   };
 }
 
@@ -101,17 +117,25 @@ function createNestedActivatedRouteStub(config: {
   childPath: string;
   parentParams?: Params;
   parentData?: Data;
+  parentQueryParams?: Params;
   childParams?: Params;
   childData?: Data;
+  childQueryParams?: Params;
 }) {
   const parentParamsSubject = new BehaviorSubject<Params>(
     config.parentParams ?? {},
   );
   const parentDataSubject = new BehaviorSubject<Data>(config.parentData ?? {});
+  const parentQueryParamsSubject = new BehaviorSubject<Params>(
+    config.parentQueryParams ?? {},
+  );
   const childParamsSubject = new BehaviorSubject<Params>(
     config.childParams ?? {},
   );
   const childDataSubject = new BehaviorSubject<Data>(config.childData ?? {});
+  const childQueryParamsSubject = new BehaviorSubject<Params>(
+    config.childQueryParams ?? {},
+  );
 
   const childRoute = {
     routeConfig: {
@@ -119,9 +143,11 @@ function createNestedActivatedRouteStub(config: {
     },
     params: childParamsSubject.asObservable(),
     data: childDataSubject.asObservable(),
+    queryParams: childQueryParamsSubject.asObservable(),
     snapshot: {
       params: childParamsSubject.value,
       data: childDataSubject.value,
+      queryParams: childQueryParamsSubject.value,
     },
     children: [],
   } as unknown as ActivatedRoute;
@@ -132,12 +158,18 @@ function createNestedActivatedRouteStub(config: {
     },
     params: parentParamsSubject.asObservable(),
     data: parentDataSubject.asObservable(),
+    queryParams: parentQueryParamsSubject.asObservable(),
     snapshot: {
       params: parentParamsSubject.value,
       data: parentDataSubject.value,
+      queryParams: parentQueryParamsSubject.value,
     },
     children: [childRoute],
+    parent: null,
   } as unknown as ActivatedRoute;
+
+  (childRoute as ActivatedRoute & { parent?: ActivatedRoute }).parent =
+    parentRoute;
 
   return {
     route: parentRoute,
@@ -162,8 +194,10 @@ function flattenProviders(
 function createRouteInjector(
   providers: NonNullable<Route['providers']> | undefined,
   activatedRoute: ActivatedRoute,
+  parent?: Injector,
 ): Injector {
   return Injector.create({
+    parent,
     providers: [
       {
         provide: ActivatedRoute,
@@ -260,6 +294,235 @@ describe('craftRoutes', () => {
     expectTypeOf(routes.injectPlayerUserIdParams).toEqualTypeOf<
       CraftRouteInjectHelper<'PlayerUserIdParams', Signal<string>>
     >();
+  });
+
+  it('should expose typed inject helpers for route queryParams', () => {
+    const listQueryParams = () =>
+      queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: number) => String(value),
+            },
+            pageSize: {
+              fallbackValue: 10,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: number) => String(value),
+            },
+          },
+        },
+        ({ set, update, patch, reset }) => ({
+          set,
+          update,
+          patch,
+          reset,
+        }),
+      );
+
+    const routes = craftRoutes('player', [
+      {
+        path: 'list',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        queryParams: listQueryParams,
+      },
+    ]);
+
+    expectTypeOf(routes.injectPlayerListQueryParams).toEqualTypeOf<
+      CraftRouteInjectHelper<
+        'PlayerListQueryParams',
+        ReturnType<typeof listQueryParams>
+      >
+    >();
+  });
+
+  it('should inject route queryParams and keep them reactive with router updates', async () => {
+    vi.useFakeTimers();
+
+    try {
+      const { playerRoutes: appRoutes, injectPlayerListQueryParams } =
+        craftRoutes('player', [
+          {
+            path: 'list',
+            loadComponent: async () => null as unknown as Type<unknown>,
+            componentDeps: {},
+            queryParams: () =>
+              queryParam(
+                {
+                  state: {
+                    page: {
+                      fallbackValue: 1,
+                      parse: (value: string) => parseInt(value, 10),
+                      serialize: (value: number) => String(value),
+                    },
+                    pageSize: {
+                      fallbackValue: 10,
+                      parse: (value: string) => parseInt(value, 10),
+                      serialize: (value: number) => String(value),
+                    },
+                  },
+                },
+                ({ set, update, patch, reset }) => ({
+                  set,
+                  update,
+                  patch,
+                  reset,
+                }),
+              ),
+          },
+        ]);
+      const angularRoutes = appRoutes.toRoutes();
+
+      await TestBed.configureTestingModule({
+        providers: [provideRouter(angularRoutes)],
+      }).compileComponents();
+
+      const router = TestBed.inject(Router);
+      const routeConfig = angularRoutes[0];
+
+      await router.navigateByUrl('/list?page=2');
+      await vi.runAllTimersAsync();
+
+      const activatedRoute = router.routerState.root.firstChild;
+
+      if (!activatedRoute) {
+        throw new Error('Expected an activated route for /list');
+      }
+
+      const injector = createRouteInjector(
+        routeConfig.providers,
+        activatedRoute,
+        TestBed.inject(Injector),
+      );
+      const routeQueryParams = runInInjectionContext(injector, () =>
+        injectPlayerListQueryParams(),
+      );
+
+      expect(routeQueryParams.page()).toBe(2);
+      expect(routeQueryParams.pageSize()).toBe(10);
+
+      routeQueryParams.set({
+        page: 5,
+        pageSize: 50,
+      });
+      await vi.runAllTimersAsync();
+      expect(routeQueryParams.page()).toBe(5);
+      expect(routeQueryParams.pageSize()).toBe(50);
+      expect(router.url).toContain('page=5');
+      expect(router.url).toContain('pageSize=50');
+
+      routeQueryParams.update((current) => ({
+        ...current,
+        page: current.page + 1,
+      }));
+      await vi.runAllTimersAsync();
+      expect(routeQueryParams.page()).toBe(6);
+      expect(router.url).toContain('page=6');
+
+      routeQueryParams.patch({
+        pageSize: 25,
+      });
+      await vi.runAllTimersAsync();
+      expect(routeQueryParams.pageSize()).toBe(25);
+      expect(router.url).toContain('pageSize=25');
+
+      await router.navigateByUrl('/list?page=3&pageSize=20');
+      await vi.runAllTimersAsync();
+      expect(routeQueryParams.page()).toBe(3);
+      expect(routeQueryParams.pageSize()).toBe(20);
+
+      routeQueryParams.reset();
+      await vi.runAllTimersAsync();
+      expect(routeQueryParams.page()).toBe(1);
+      expect(routeQueryParams.pageSize()).toBe(10);
+      expect(router.url).toBe('/list');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('should resolve parent route queryParams from a deeper lazy child context', async () => {
+    vi.useFakeTimers();
+
+    try {
+      const childRoutes = craftRoutes('child', [
+        {
+          path: 'details',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {},
+        },
+      ]);
+      const { parentRoutes, injectParentLayoutQueryParams } = craftRoutes(
+        'parent',
+        [
+          {
+            path: 'layout',
+            queryParams: () =>
+              queryParam(
+                {
+                  state: {
+                    page: {
+                      fallbackValue: 1,
+                      parse: (value: string) => parseInt(value, 10),
+                      serialize: (value: number) => String(value),
+                    },
+                  },
+                },
+                ({ patch }) => ({
+                  patch,
+                }),
+              ),
+            loadChildren: () => childRoutes.childRoutes,
+          },
+        ],
+      );
+      const parentAngularRoutes = parentRoutes.toRoutes();
+
+      await TestBed.configureTestingModule({
+        providers: [provideRouter(parentAngularRoutes)],
+      }).compileComponents();
+
+      const router = TestBed.inject(Router);
+
+      await router.navigateByUrl('/layout/details?page=4');
+      await vi.runAllTimersAsync();
+
+      const parentRoute = router.routerState.root.firstChild;
+      const childRoute = parentRoute?.firstChild;
+
+      if (!parentRoute || !childRoute) {
+        throw new Error('Expected parent and child activated routes');
+      }
+
+      const parentInjector = createRouteInjector(
+        parentAngularRoutes[0]?.providers,
+        parentRoute,
+        TestBed.inject(Injector),
+      );
+      const childRouteConfig = childRoutes.childRoutes.toRoutes()[0];
+      const childInjector = createRouteInjector(
+        childRouteConfig.providers,
+        childRoute,
+        parentInjector,
+      );
+      const routeQueryParams = runInInjectionContext(childInjector, () =>
+        injectParentLayoutQueryParams(),
+      );
+
+      expect(routeQueryParams.page()).toBe(4);
+
+      routeQueryParams.patch({
+        page: 5,
+      });
+      await vi.runAllTimersAsync();
+
+      expect(routeQueryParams.page()).toBe(5);
+      expect(router.url).toContain('page=5');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('should allow paramsProvider to transform the injected param type', () => {
@@ -1386,6 +1649,30 @@ describe('craftRoutes', () => {
     ]);
   });
 
+  it('should treat auto-provided queryParams as valid componentDeps coverage', () => {
+    craftRoutes('test', [
+      {
+        path: 'list',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as {
+          missingProvider: {
+            TestListQueryParams: unknown;
+          };
+        },
+        queryParams: () =>
+          queryParam({
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: number) => String(value),
+              },
+            },
+          }),
+      },
+    ]);
+  });
+
   it('should accept branded route providers as componentDeps coverage', () => {
     const { provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
@@ -1811,6 +2098,251 @@ describe('AppRoutes.META_DATA', () => {
               dependencies: {};
             };
           };
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should include queryParams deps in META_DATA, including outer generator yields', () => {
+    const { ParsePageToYield } = craftService(
+      { name: 'ParsePage', scope: 'global' },
+      () => ({
+        parsePage: (value: string) => parseInt(value, 10),
+      }),
+    );
+    const { SerializePageToYield } = craftService(
+      { name: 'SerializePage', scope: 'global' },
+      () => ({
+        serializePage: (value: number) => String(value),
+      }),
+    );
+    const { PaginationRulesToYield } = craftService(
+      { name: 'PaginationRules', scope: 'global' },
+      () => ({
+        maxPage: () => 3,
+      }),
+    );
+
+    type QueryParamsRouteDeps = GetDeps<{
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      {
+        path: 'list',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as QueryParamsRouteDeps,
+        queryParams: function* () {
+          yield* Console.log('init list queryParam');
+
+          return queryParam(
+            {
+              state: {
+                page: {
+                  fallbackValue: 1,
+                  parse: function* (value: string) {
+                    const parser = yield* ParsePageToYield(
+                      undefined,
+                      ({ parsePage }) => ({
+                        parsePage,
+                      }),
+                    );
+
+                    return parser.parsePage(value);
+                  },
+                  serialize: function* (value: number) {
+                    const serializer = yield* SerializePageToYield(
+                      undefined,
+                      ({ serializePage }) => ({
+                        serializePage,
+                      }),
+                    );
+
+                    return serializer.serializePage(value);
+                  },
+                },
+              },
+            },
+            function* ({ patch, state }) {
+              const rules = yield* PaginationRulesToYield(
+                undefined,
+                ({ maxPage }) => ({
+                  maxPage,
+                }),
+              );
+
+              return {
+                nextPage: () => {
+                  if (state().page >= rules.maxPage()) {
+                    return;
+                  }
+
+                  patch(({ page }) => ({
+                    page: page + 1,
+                  }));
+                },
+              };
+            },
+          );
+        },
+      },
+    ]);
+
+    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'list';
+          deps: {
+            Router: {
+              scope: 'global';
+              dependencies: {};
+              browserBoundary: false;
+            };
+            ConsoleService: GetInjectedServiceDependencies<
+              typeof injectConsoleService
+            >;
+            ParsePage: {
+              scope: 'global';
+              dependencies: {};
+              browserBoundary: false;
+              derivedPropertiesUsed: {
+                parsePage: (value: string) => number;
+              };
+              derivedPropertiesExposed: {
+                parsePage: (value: string) => number;
+              };
+            };
+            SerializePage: {
+              scope: 'global';
+              dependencies: {};
+              browserBoundary: false;
+              derivedPropertiesUsed: {
+                serializePage: (value: number) => string;
+              };
+              derivedPropertiesExposed: {
+                serializePage: (value: number) => string;
+              };
+            };
+            PaginationRules: {
+              scope: 'global';
+              dependencies: {};
+              browserBoundary: false;
+              derivedPropertiesUsed: {
+                maxPage: () => 3;
+              };
+              derivedPropertiesExposed: {
+                maxPage: () => 3;
+              };
+            };
+          };
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should remove queryParams deps when satisfied by route providers', () => {
+    const { CounterToYield, provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type QueryParamsRouteDeps = GetDeps<{
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      {
+        path: 'counter',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as QueryParamsRouteDeps,
+        providers: [provideCounter()],
+        queryParams: function* () {
+          yield* CounterToYield();
+
+          return queryParam({
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: number) => String(value),
+              },
+            },
+          });
+        },
+      },
+    ]);
+
+    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'counter';
+          deps: {
+            Router: {
+              scope: 'global';
+              dependencies: {};
+              browserBoundary: false;
+            };
+          };
+          provided: {};
+          publicProperties: {};
+        },
+      ]
+    >();
+  });
+
+  it('should keep parent route queryParams coverage inherited in lazy child metadata', () => {
+    type ChildRouteDeps = GetDeps<{
+      provided: {};
+      publicProperties: {};
+      missingProvider: {
+        ParentLayoutQueryParams: unknown;
+      };
+    }>;
+
+    const childRoutes = craftRoutes('child', [
+      {
+        path: 'details',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {} as ChildRouteDeps,
+      },
+    ]);
+    const { parentRoutes } = craftRoutes('parent', [
+      {
+        path: 'layout',
+        queryParams: () =>
+          queryParam({
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: number) => String(value),
+              },
+            },
+          }),
+        loadChildren: () => childRoutes.childRoutes,
+      },
+    ]);
+
+    expectTypeOf(parentRoutes.META_DATA).toEqualTypeOf<
+      readonly [
+        {
+          path: 'layout';
+          deps: {
+            Router: {
+              scope: 'global';
+              dependencies: {};
+              browserBoundary: false;
+            };
+          };
+        },
+        {
+          path: 'layout/details';
+          provided: {};
           publicProperties: {};
         },
       ]

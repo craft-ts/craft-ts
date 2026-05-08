@@ -1,4 +1,11 @@
-import { computed, inject, isSignal, type Signal } from '@angular/core';
+import {
+  computed,
+  inject,
+  Injector,
+  isSignal,
+  runInInjectionContext,
+  type Signal,
+} from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import {
   ActivatedRoute,
@@ -14,6 +21,8 @@ import {
   type UrlSegment,
 } from '@angular/router';
 import { Observable, filter, isObservable, take, throwIfEmpty } from 'rxjs';
+import type { ExtractDeps } from './branded-component/branded-component';
+import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
 import { craftService } from './craft-service';
 import type {
@@ -21,6 +30,7 @@ import type {
   BrandedServiceProvider,
   CraftServiceApi,
   GetInjectedServiceDependencies,
+  ServiceDependencyMapFromYielded,
   ServiceTrackingMetadata,
 } from './craft-service';
 import type { MergeObjectUnion, Simplify } from './craft-service.shared';
@@ -126,6 +136,12 @@ type RouteCollectionDataServiceName<
   Name extends string,
   Path extends string,
 > = `${RouteCollectionServiceName<Name>}${RouteDataServiceName<Path>}`;
+type RouteQueryParamsServiceName<Path extends string> =
+  `${RouteBaseServiceName<Path>}QueryParams`;
+type RouteCollectionQueryParamsServiceName<
+  Name extends string,
+  Path extends string,
+> = `${RouteCollectionServiceName<Name>}${RouteQueryParamsServiceName<Path>}`;
 type RouteCollectionExportName<Name extends string> = Uncapitalize<
   RouteCollectionServiceName<Name>
 >;
@@ -139,9 +155,25 @@ type RouteDataInjectHelperName<
   Name extends string,
   Path extends string,
 > = InjectHelperName<RouteCollectionDataServiceName<Name, Path>>;
+type RouteQueryParamsInjectHelperName<
+  Name extends string,
+  Path extends string,
+> = InjectHelperName<RouteCollectionQueryParamsServiceName<Name, Path>>;
 
 type InjectHelperName<Name extends string> = `inject${Capitalize<Name>}`;
 type ProvideHelperName<Name extends string> = `provide${Capitalize<Name>}`;
+
+type ResolveGeneratorResult<Result> = Result extends Generator<
+  any,
+  infer Output,
+  unknown
+>
+  ? Output
+  : Result;
+
+type RouteQueryParamsFactory<Output = unknown, Yielded = never> = () =>
+  | Output
+  | Generator<Yielded, Output, unknown>;
 
 type RouteParamsProvider<Path extends string> = (
   params: Signal<RouteParamMap<Path>>,
@@ -174,6 +206,12 @@ type RouteDataOutput<RouteDefinition> = RouteDefinition extends {
   data: infer RouteData extends Data;
 }
   ? Signal<RouteData>
+  : never;
+
+type RouteQueryParamsOutput<RouteDefinition> = RouteDefinition extends {
+  queryParams: (...args: any[]) => infer Result;
+}
+  ? ResolveGeneratorResult<Result>
   : never;
 
 type RouteDataPublicPropertyNames<RouteDefinition> = RouteDefinition extends {
@@ -409,6 +447,12 @@ type RouteAutoProvidedServiceNames<
           RouteCollectionName,
           RoutePath<RouteDefinition>
         >
+      : never)
+  | (RouteDefinition extends { queryParams: RouteQueryParamsFactory }
+      ? RouteCollectionQueryParamsServiceName<
+          RouteCollectionName,
+          RoutePath<RouteDefinition>
+        >
       : never);
 
 type StripRouteProvidedDependency<
@@ -514,10 +558,32 @@ type RouteGuardDepsMap<RouteDefinition> = Simplify<
   >
 >;
 
+type QueryParamsDependenciesFromOutput<Output> = Output extends object
+  ? ExtractDeps<Output>
+  : {};
+
+type QueryParamsDependenciesFromReturn<Result> = [Result] extends [never]
+  ? {}
+  : Simplify<
+      MergeObjectUnion<
+        | QueryParamsDependenciesFromOutput<ResolveGeneratorResult<Result>>
+        | (Result extends Generator<infer Yielded, any, unknown>
+            ? ServiceDependencyMapFromYielded<Yielded>
+            : {})
+      >
+    >;
+
+type RouteQueryParamsDepsMap<RouteDefinition> = RouteDefinition extends {
+  queryParams: (...args: any[]) => infer Result;
+}
+  ? QueryParamsDependenciesFromReturn<Result>
+  : {};
+
 type RouteDepsMap<RouteDefinition> = Simplify<
   MergeObjectUnion<
     | DepsMap<ComponentDepsMap<RouteDefinition>>
     | RouteGuardDepsMap<RouteDefinition>
+    | RouteQueryParamsDepsMap<RouteDefinition>
   >
 >;
 
@@ -557,12 +623,17 @@ type RouteResolvedMissingProviderMap<
 type RouteHttpDepsMap<RouteDefinition> = HttpDepsMapFromRequests<
   | HttpRequestsFromComponentDeps<ComponentDepsMap<RouteDefinition>>
   | HttpRequestsFromDepsMap<RouteGuardDepsMap<RouteDefinition>>
+  | HttpRequestsFromDepsMap<RouteQueryParamsDepsMap<RouteDefinition>>
 >;
 
 type ShouldExposeRouteDeps<RouteDefinition> =
   ComponentDepsMap<RouteDefinition> extends { deps: object }
     ? true
-    : HasGeneratorGuard<RouteDefinition>;
+    : HasGeneratorGuard<RouteDefinition> extends true
+      ? true
+      : RouteDefinition extends { queryParams: RouteQueryParamsFactory }
+        ? true
+        : false;
 
 export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
   Omit<
@@ -683,6 +754,7 @@ type CraftRouteSharedFields<
     path: Path;
     providers?: Providers;
     data?: RouteData;
+    queryParams?: RouteQueryParamsFactory;
     paramsProvider?: [PathParamNames<Path>] extends [never]
       ? never
       : RouteParamsProvider<Path>;
@@ -696,6 +768,7 @@ type AnyCraftRouteSharedFields = Simplify<
     path: string;
     providers?: AngularRouteProviders;
     data?: Data;
+    queryParams?: RouteQueryParamsFactory;
     paramsProvider?: (
       params: Signal<Record<string, string>>,
     ) => Record<string, unknown>;
@@ -1015,6 +1088,35 @@ type DataInjectHelpers<
   >
 >;
 
+type QueryParamsInjectHelpers<
+  Name extends string,
+  Routes extends readonly AnyCraftRouteDefinition[],
+> = Simplify<
+  MergeObjectUnion<
+    Routes[number] extends infer RouteDefinition
+      ? RouteDefinition extends { queryParams: RouteQueryParamsFactory }
+        ? {
+            [Key in RouteQueryParamsInjectHelperName<
+              Name,
+              RoutePath<RouteDefinition>
+            >]: CraftRouteValueServiceApi<
+              RouteCollectionQueryParamsServiceName<
+                Name,
+                RoutePath<RouteDefinition>
+              >,
+              RouteQueryParamsOutput<RouteDefinition>
+            >[
+              RouteQueryParamsInjectHelperName<
+                Name,
+                RoutePath<RouteDefinition>
+              >
+            ];
+          }
+        : never
+      : never
+  >
+>;
+
 export type CraftRoutesApp<
   Routes extends
     readonly AnyCraftRouteDefinition[] = readonly AnyCraftRouteDefinition[],
@@ -1046,7 +1148,8 @@ export type CraftRoutesResult<
       {
         [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name>;
       } & ParamInjectHelpers<Name, Routes> &
-        DataInjectHelpers<Name, Routes>
+        DataInjectHelpers<Name, Routes> &
+        QueryParamsInjectHelpers<Name, Routes>
     >
   : Errors;
 
@@ -1111,11 +1214,22 @@ function toRouteDataServiceName(path: string): string {
   return `${toRouteBaseServiceName(path)}Data`;
 }
 
+function toRouteQueryParamsServiceName(path: string): string {
+  return `${toRouteBaseServiceName(path)}QueryParams`;
+}
+
 function toRouteCollectionDataServiceName(
   routeCollectionName: string,
   routePath: string,
 ): string {
   return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteDataServiceName(routePath)}`;
+}
+
+function toRouteCollectionQueryParamsServiceName(
+  routeCollectionName: string,
+  routePath: string,
+): string {
+  return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteQueryParamsServiceName(routePath)}`;
 }
 
 function toRouteCollectionExportName(name: string): string {
@@ -1134,6 +1248,13 @@ function toDataInjectHelperName(
   routePath: string,
 ): string {
   return `inject${toRouteCollectionDataServiceName(routeCollectionName, routePath)}`;
+}
+
+function toQueryParamsInjectHelperName(
+  routeCollectionName: string,
+  routePath: string,
+): string {
+  return `inject${toRouteCollectionQueryParamsServiceName(routeCollectionName, routePath)}`;
 }
 
 function toRouteCollectionServiceName(name: string): string {
@@ -1169,12 +1290,29 @@ function findActivatedRouteByPath(
   return null;
 }
 
+function getRootActivatedRoute(route: ActivatedRoute): ActivatedRoute {
+  let currentRoute = route;
+
+  while (currentRoute.parent) {
+    currentRoute = currentRoute.parent;
+  }
+
+  return currentRoute;
+}
+
+function resolveActivatedRouteByPath(routePath: string): ActivatedRoute {
+  const activatedRoute = inject(ActivatedRoute);
+  const rootActivatedRoute = getRootActivatedRoute(activatedRoute);
+
+  return (
+    findActivatedRouteByPath(rootActivatedRoute, routePath) ?? activatedRoute
+  );
+}
+
 function injectRouteParamsSignal(
   routePath: string,
 ): Signal<Record<string, string>> {
-  const activatedRoute = inject(ActivatedRoute);
-  const resolvedRoute =
-    findActivatedRouteByPath(activatedRoute, routePath) ?? activatedRoute;
+  const resolvedRoute = resolveActivatedRouteByPath(routePath);
 
   return toSignal(resolvedRoute.params, {
     initialValue: resolvedRoute.snapshot.params,
@@ -1184,13 +1322,52 @@ function injectRouteParamsSignal(
 function injectRouteDataSignal<RouteData extends Data>(
   routePath: string,
 ): Signal<RouteData> {
-  const activatedRoute = inject(ActivatedRoute);
-  const resolvedRoute =
-    findActivatedRouteByPath(activatedRoute, routePath) ?? activatedRoute;
+  const resolvedRoute = resolveActivatedRouteByPath(routePath);
 
   return toSignal(resolvedRoute.data, {
     initialValue: resolvedRoute.snapshot.data,
   }) as Signal<RouteData>;
+}
+
+const ROUTE_QUERY_PARAMS_INVALID_YIELD_ERROR_MESSAGE =
+  'route queryParams generators can only yield craftService dependencies or exposed dependency helpers.';
+const ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE =
+  'route queryParams generators do not support onAppStart(...).';
+
+function executeRouteQueryParamsFactory<Output>(
+  routePath: string,
+  factory: RouteQueryParamsFactory<Output>,
+): Output {
+  const parentInjector = inject(Injector);
+  const resolvedRoute = resolveActivatedRouteByPath(routePath);
+  const routeScopedInjector = Injector.create({
+    parent: parentInjector,
+    providers: [
+      {
+        provide: ActivatedRoute,
+        useValue: resolvedRoute,
+      },
+    ],
+  });
+
+  return runInInjectionContext(routeScopedInjector, () => {
+    const result = factory();
+
+    if (!isGenerator(result)) {
+      return result as Output;
+    }
+
+    return runCraftGenerator({
+      iterator: result,
+      injector: routeScopedInjector,
+      hostScope: 'function',
+      invalidYieldErrorMessage:
+        ROUTE_QUERY_PARAMS_INVALID_YIELD_ERROR_MESSAGE,
+      multipleAppStartErrorMessage: ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE,
+      onAppStartNotSupportedErrorMessage:
+        ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE,
+    }).value as Output;
+  });
 }
 
 function provideRouteValueService(
@@ -1445,6 +1622,16 @@ export function craftRoutes<
         toDataInjectHelperName(routeCollectionName, route.path),
       );
     }
+
+    if (route.queryParams !== undefined) {
+      registerRouteValueService(
+        toRouteCollectionQueryParamsServiceName(
+          routeCollectionName,
+          route.path,
+        ),
+        toQueryParamsInjectHelperName(routeCollectionName, route.path),
+      );
+    }
   }
 
   const META_DATA = routes.map((route) => {
@@ -1545,12 +1732,30 @@ export function craftRoutes<
       }
     }
 
+    if (route.queryParams !== undefined) {
+      const queryParamsFactory = route.queryParams;
+      const serviceName = toRouteCollectionQueryParamsServiceName(
+        routeCollectionName,
+        route.path,
+      );
+      const routeService = routeValueServices.get(serviceName);
+
+      if (routeService) {
+        autoProviders.push(
+          provideRouteValueService(serviceName, routeService, () =>
+            executeRouteQueryParamsFactory(route.path, queryParamsFactory),
+          ),
+        );
+      }
+    }
+
     const {
       canActivate,
       canMatch,
       componentDeps: _componentDeps,
       loadChildren,
       paramsProvider: _paramsProvider,
+      queryParams: _queryParams,
       ...angularRoute
     } = route;
     const wrappedCanActivate = canActivate
