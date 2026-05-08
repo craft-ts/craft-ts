@@ -1,5 +1,8 @@
 import {
+  assertInInjectionContext,
   computed,
+  inject,
+  Injector,
   isSignal,
   ResourceLoaderParams,
   ResourceOptions,
@@ -14,6 +17,11 @@ import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
 } from './query.core';
+import {
+  executeGeneratorCompatibleFactory,
+  GeneratorCompatibleFactory,
+  isGeneratorFunction,
+} from './craft-generator-runtime';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
@@ -30,6 +38,37 @@ import {
   createResourceExceptionsRuntime,
   enrichResourceException,
 } from './resource-exception';
+import type {
+  SERVICE_HELPER_DEPENDENCIES,
+  ServiceDependencyMapFromYielded,
+} from './craft-service';
+
+type MutationTrackedDependencies<
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  InsertionsYielded = never,
+> = ServiceDependencyMapFromYielded<
+  | ParamsYielded
+  | MethodYielded
+  | LoaderYielded
+  | StreamYielded
+  | InsertionsYielded
+>;
+
+type MutationDependenciesMetadata<Dependencies> = [keyof Dependencies] extends [
+  never,
+]
+  ? {}
+  : {
+      readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
+    };
+
+const MUTATION_INVALID_YIELD_ERROR_MESSAGE =
+  'mutation generators can only yield craftService dependencies or exposed dependency helpers.';
+const MUTATION_APP_START_ERROR_MESSAGE =
+  'mutation generators do not support onAppStart(...).';
 
 type MutationConfig<
   ResourceState,
@@ -40,6 +79,10 @@ type MutationConfig<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
 > = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
   (
     | {
@@ -52,7 +95,9 @@ type MutationConfig<
          *
          * It also accepts a ReadonlySource<SourceParams> to connect the mutation params to an external signal source.
          */
-        method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
+        method:
+          | GeneratorCompatibleFactory<(args: ParamsArgs) => Params, MethodYielded>
+          | ReadonlySource<SourceParams>;
         fromResourceById?: never;
         /**
          * A unique identifier for the resource, derived from the params.
@@ -61,15 +106,18 @@ type MutationConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: (
-          param: ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<StripCraftException<SourceParams>>
-                : NoInfer<StripCraftException<Params>>
-            >
-          >,
-        ) => Promise<ResourceState>;
+        loader: GeneratorCompatibleFactory<
+          (
+            param: ResourceLoaderParams<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<StripCraftException<SourceParams>>
+                  : NoInfer<StripCraftException<Params>>
+              >
+            >,
+          ) => Promise<ResourceState>,
+          LoaderYielded
+        >;
         stream?: never;
       }
     | {
@@ -82,7 +130,9 @@ type MutationConfig<
          *
          * It also accepts a ReadonlySource<SourceParams> to connect the mutation params to an external signal source.
          */
-        method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
+        method:
+          | GeneratorCompatibleFactory<(args: ParamsArgs) => Params, MethodYielded>
+          | ReadonlySource<SourceParams>;
         loader?: never;
         fromResourceById?: never;
         identifier?: (
@@ -92,15 +142,18 @@ type MutationConfig<
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
          */
-        stream: ResourceStreamingLoader<
-          ResourceState,
-          ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<StripCraftException<SourceParams>>
-                : NoInfer<StripCraftException<Params>>
+        stream: GeneratorCompatibleFactory<
+          ResourceStreamingLoader<
+            ResourceState,
+            ResourceLoaderParams<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<StripCraftException<SourceParams>>
+                  : NoInfer<StripCraftException<Params>>
+              >
             >
-          >
+          >,
+          StreamYielded
         >;
       }
     | {
@@ -119,7 +172,10 @@ type MutationConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
+        params: GeneratorCompatibleFactory<
+          (entity: ResourceRef<NoInfer<FromObjectState>>) => Params,
+          ParamsYielded
+        >;
         loader?: never;
         method?: never;
         identifier?: (
@@ -129,15 +185,18 @@ type MutationConfig<
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
          */
-        stream: ResourceStreamingLoader<
-          ResourceState,
-          ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<StripCraftException<SourceParams>>
-                : NoInfer<StripCraftException<Params>>
+        stream: GeneratorCompatibleFactory<
+          ResourceStreamingLoader<
+            ResourceState,
+            ResourceLoaderParams<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<StripCraftException<SourceParams>>
+                  : NoInfer<StripCraftException<Params>>
+              >
             >
-          >
+          >,
+          StreamYielded
         >;
       }
     | {
@@ -156,12 +215,15 @@ type MutationConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: (
-          entity: CraftResourceRef<
-            NoInfer<FromObjectState>,
-            NoInfer<FromObjectResourceParams>
-          >,
-        ) => Params;
+        params: GeneratorCompatibleFactory<
+          (
+            entity: CraftResourceRef<
+              NoInfer<FromObjectState>,
+              NoInfer<FromObjectResourceParams>
+            >,
+          ) => Params,
+          ParamsYielded
+        >;
         /**
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
@@ -169,15 +231,18 @@ type MutationConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: (
-          param: ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<StripCraftException<SourceParams>>
-                : NoInfer<StripCraftException<Params>>
-            >
-          >,
-        ) => Promise<ResourceState>;
+        loader: GeneratorCompatibleFactory<
+          (
+            param: ResourceLoaderParams<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<StripCraftException<SourceParams>>
+                  : NoInfer<StripCraftException<Params>>
+              >
+            >,
+          ) => Promise<ResourceState>,
+          LoaderYielded
+        >;
         stream?: never;
       }
     | {
@@ -188,7 +253,10 @@ type MutationConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
+        params: GeneratorCompatibleFactory<
+          (entity: ResourceRef<NoInfer<FromObjectState>>) => Params,
+          ParamsYielded
+        >;
         loader?: never;
         method?: never;
         identifier?: (
@@ -198,15 +266,18 @@ type MutationConfig<
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
          */
-        stream: ResourceStreamingLoader<
-          ResourceState,
-          ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<StripCraftException<SourceParams>>
-                : NoInfer<StripCraftException<Params>>
+        stream: GeneratorCompatibleFactory<
+          ResourceStreamingLoader<
+            ResourceState,
+            ResourceLoaderParams<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<StripCraftException<SourceParams>>
+                  : NoInfer<StripCraftException<Params>>
+              >
             >
-          >
+          >,
+          StreamYielded
         >;
       }
     | {
@@ -221,7 +292,7 @@ type MutationConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: () => Params;
+        params: GeneratorCompatibleFactory<() => Params, ParamsYielded>;
         /**
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
@@ -229,15 +300,18 @@ type MutationConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: (
-          param: ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<StripCraftException<SourceParams>>
-                : NoInfer<StripCraftException<Params>>
-            >
-          >,
-        ) => Promise<ResourceState>;
+        loader: GeneratorCompatibleFactory<
+          (
+            param: ResourceLoaderParams<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<StripCraftException<SourceParams>>
+                  : NoInfer<StripCraftException<Params>>
+              >
+            >,
+          ) => Promise<ResourceState>,
+          LoaderYielded
+        >;
         stream?: never;
       }
   );
@@ -328,6 +402,7 @@ export type ResourceLikeMutationRef<
   SourceParams,
   Insertions,
   MutationException extends ResourceExceptionConstraints,
+  Dependencies = {},
 > = {
   type: 'resourceLike';
   kind: 'mutation';
@@ -356,6 +431,7 @@ export type ResourceLikeMutationRef<
     {
       [key in `~InternalType`]: 'Used to avoid TS type erasure';
     },
+    MutationDependenciesMetadata<Dependencies>,
   ]
 >;
 
@@ -368,6 +444,7 @@ export type ResourceByIdLikeMutationRef<
   Insertions,
   GroupIdentifier,
   MutationException extends ResourceExceptionConstraints,
+  Dependencies = {},
 > = { type: 'resourceByGroupLike'; kind: 'mutation' } & {
   readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
 } & {
@@ -403,6 +480,7 @@ export type ResourceByIdLikeMutationRef<
       [GroupIdentifier] extends [string]
         ? ResourceByIdLikeMutationExceptions<MutationException, GroupIdentifier>
         : {},
+      MutationDependenciesMetadata<Dependencies>,
     ]
   >;
 
@@ -416,6 +494,7 @@ export type MutationRef<
   GroupIdentifier,
   MutationExceptions extends
     ResourceExceptionConstraints = ResourceExceptionConstraints,
+  Dependencies = {},
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeMutationRef<
       Value,
@@ -424,7 +503,8 @@ export type MutationRef<
       ArgParams,
       SourceParams,
       Insertions,
-      MutationExceptions
+      MutationExceptions,
+      Dependencies
     >
   : ResourceByIdLikeMutationRef<
       Value,
@@ -434,7 +514,8 @@ export type MutationRef<
       SourceParams,
       Insertions,
       GroupIdentifier,
-      MutationExceptions
+      MutationExceptions,
+      Dependencies
     >;
 //     & {
 //   // ! Otherwise TS erases the types
@@ -449,6 +530,7 @@ export type MutationOutput<
   GroupIdentifier,
   Insertions,
   MutationExceptions extends ResourceExceptionConstraints,
+  Dependencies = {},
 > = MutationRef<
   StripCraftException<State>,
   StripCraftException<Params>,
@@ -457,7 +539,8 @@ export type MutationOutput<
   [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
   GroupIdentifier,
-  MutationExceptions
+  MutationExceptions,
+  Dependencies
 >;
 
 export function mutation<
@@ -469,6 +552,10 @@ export function mutation<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -482,7 +569,11 @@ export function mutation<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
 ): MutationOutput<
   StripCraftException<MutationState>,
@@ -491,7 +582,13 @@ export function mutation<
   StripCraftException<MutationParams>,
   GroupIdentifier,
   {},
-  Exceptions
+  Exceptions,
+  MutationTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
+  >
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -503,6 +600,11 @@ export function mutation<
   FromObjectState,
   FromObjectResourceParams,
   Insertion1,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -516,7 +618,11 @@ export function mutation<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -524,7 +630,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion1,
-    {}
+    {},
+    Insertion1Yielded
   >,
 ): MutationOutput<
   StripCraftException<MutationState>,
@@ -533,7 +640,14 @@ export function mutation<
   StripCraftException<MutationParams>,
   GroupIdentifier,
   Insertion1,
-  Exceptions
+  Exceptions,
+  MutationTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    Insertion1Yielded
+  >
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -546,6 +660,12 @@ export function mutation<
   FromObjectResourceParams,
   Insertion1,
   Insertion2,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -559,14 +679,20 @@ export function mutation<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -574,7 +700,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
 ): MutationOutput<
   StripCraftException<MutationState>,
@@ -583,7 +710,14 @@ export function mutation<
   StripCraftException<MutationParams>,
   GroupIdentifier,
   Insertion1 & Insertion2,
-  Exceptions
+  Exceptions,
+  MutationTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    Insertion1Yielded | Insertion2Yielded
+  >
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -597,6 +731,13 @@ export function mutation<
   Insertion1,
   Insertion2,
   Insertion3,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -610,14 +751,20 @@ export function mutation<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -625,7 +772,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -633,7 +781,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
 ): MutationOutput<
   StripCraftException<MutationState>,
@@ -642,7 +791,14 @@ export function mutation<
   StripCraftException<MutationParams>,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3,
-  Exceptions
+  Exceptions,
+  MutationTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
+  >
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -657,6 +813,14 @@ export function mutation<
   Insertion2,
   Insertion3,
   Insertion4,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -670,14 +834,20 @@ export function mutation<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -685,7 +855,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -693,7 +864,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -701,7 +873,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
 ): MutationOutput<
   StripCraftException<MutationState>,
@@ -710,7 +883,17 @@ export function mutation<
   StripCraftException<MutationParams>,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4,
-  Exceptions
+  Exceptions,
+  MutationTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+  >
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -726,6 +909,15 @@ export function mutation<
   Insertion3,
   Insertion4,
   Insertion5,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -739,14 +931,20 @@ export function mutation<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -754,7 +952,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -762,7 +961,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -770,7 +970,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -778,7 +979,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
 ): MutationOutput<
   StripCraftException<MutationState>,
@@ -787,7 +989,18 @@ export function mutation<
   StripCraftException<MutationParams>,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
-  Exceptions
+  Exceptions,
+  MutationTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+  >
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -804,6 +1017,16 @@ export function mutation<
   Insertion4,
   Insertion5,
   Insertion6,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -817,14 +1040,20 @@ export function mutation<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -832,7 +1061,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -840,7 +1070,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -848,7 +1079,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -856,7 +1088,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -864,7 +1097,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion6,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
   >,
 ): MutationOutput<
   StripCraftException<MutationState>,
@@ -873,7 +1107,19 @@ export function mutation<
   StripCraftException<MutationParams>,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
-  Exceptions
+  Exceptions,
+  MutationTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+    | Insertion6Yielded
+  >
 >;
 export function mutation<
   MutationState extends object | undefined,
@@ -891,6 +1137,17 @@ export function mutation<
   Insertion5,
   Insertion6,
   Insertion7,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
+  Insertion7Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -904,14 +1161,20 @@ export function mutation<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -919,7 +1182,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -927,7 +1191,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -935,7 +1200,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -943,7 +1209,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -951,7 +1218,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion6,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
   >,
   insertion7: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -959,7 +1227,8 @@ export function mutation<
     NoInfer<StripCraftException<MutationParams>>,
     Exceptions,
     Insertion7,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
+    Insertion7Yielded
   >,
 ): MutationOutput<
   StripCraftException<MutationState>,
@@ -974,7 +1243,20 @@ export function mutation<
     Insertion5 &
     Insertion6 &
     Insertion7,
-  Exceptions
+  Exceptions,
+  MutationTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+    | Insertion6Yielded
+    | Insertion7Yielded
+  >
 >;
 
 /**
@@ -1190,6 +1472,10 @@ export function mutation<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -1203,7 +1489,11 @@ export function mutation<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   ...insertions: any[]
 ): MutationOutput<
@@ -1215,6 +1505,29 @@ export function mutation<
   {},
   Exceptions
 > {
+  let injector: Injector | undefined;
+  if (
+    [
+      'params' in mutationConfig ? mutationConfig.params : undefined,
+      'method' in mutationConfig ? mutationConfig.method : undefined,
+      'loader' in mutationConfig ? mutationConfig.loader : undefined,
+      'stream' in mutationConfig ? mutationConfig.stream : undefined,
+      ...insertions,
+    ].some((value) => isGeneratorFunction(value))
+  ) {
+    assertInInjectionContext(mutation);
+    injector = inject(Injector);
+  }
+
+  const getInjector = () => {
+    if (!injector) {
+      assertInInjectionContext(mutation);
+      injector = inject(Injector);
+    }
+
+    return injector;
+  };
+
   const mutationResourceParamsFnSignal =
     //@ts-expect-error if no params, it will create a signal
     mutationConfig.params ?? signal<MutationParams | undefined>(undefined);
@@ -1275,7 +1588,15 @@ export function mutation<
       'params' in mutationConfig &&
       !('fromResourceById' in mutationConfig && mutationConfig.fromResourceById)
     ) {
-      const paramsValue = (mutationConfig.params as () => MutationParams)();
+      const paramsValue = executeGeneratorCompatibleFactory({
+        factory: mutationConfig.params as () => MutationParams,
+        thisArg: undefined,
+        getInjector,
+        args: [],
+        invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+        multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+        onAppStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+      });
       return isCraftException(paramsValue)
         ? enrichResourceException(paramsValue, { scope: 'params' })
         : undefined;
@@ -1303,9 +1624,16 @@ export function mutation<
     'params' in mutationConfig
       ? (((...args: unknown[]) =>
           sanitizeParamsResult(
-            (mutationConfig.params as (...args: unknown[]) => MutationParams)(
-              ...args,
-            ),
+            executeGeneratorCompatibleFactory({
+              factory: mutationConfig.params as (...args: unknown[]) => MutationParams,
+              thisArg: undefined,
+              getInjector,
+              args,
+              invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                MUTATION_APP_START_ERROR_MESSAGE,
+            }) as MutationParams,
           )) as typeof mutationConfig.params)
       : undefined;
 
@@ -1324,11 +1652,18 @@ export function mutation<
   const wrappedLoader =
     'loader' in mutationConfig && mutationConfig.loader
       ? ((async (param: ResourceLoaderParams<any>) => {
-          const result = await (
-            mutationConfig.loader as (
+          const result = await executeGeneratorCompatibleFactory({
+            factory: mutationConfig.loader as (
               param: ResourceLoaderParams<any>,
-            ) => Promise<any>
-          )(param);
+            ) => Promise<any>,
+            thisArg: undefined,
+            getInjector,
+            args: [param],
+            invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              MUTATION_APP_START_ERROR_MESSAGE,
+          });
 
           if (isCraftException(result)) {
             const exceptionId = getIdentifierFromParams(param.params);
@@ -1348,6 +1683,21 @@ export function mutation<
         }) as typeof mutationConfig.loader)
       : undefined;
 
+  const wrappedStream =
+    'stream' in mutationConfig && mutationConfig.stream
+      ? (((...args: unknown[]) =>
+          executeGeneratorCompatibleFactory({
+            factory: mutationConfig.stream as (...args: unknown[]) => unknown,
+            thisArg: undefined,
+            getInjector,
+            args,
+            invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              MUTATION_APP_START_ERROR_MESSAGE,
+          })) as typeof mutationConfig.stream)
+      : undefined;
+
   const resourceParamsSrc = isConnectedToSource
     ? (wrappedSourceParams as typeof mutationConfig.method)
     : (wrappedParamsFn ?? mutationResourceParamsFnSignal);
@@ -1364,12 +1714,14 @@ export function mutation<
         ...mutationConfig,
         params: resourceParamsSrc,
         loader: wrappedLoader,
+        stream: wrappedStream,
         identifier: mutationConfig.identifier,
       } as any)
     : craftResource<MutationState, MutationParams>({
         ...mutationConfig,
         params: resourceParamsSrc,
         loader: wrappedLoader,
+        stream: wrappedStream,
       } as ResourceOptions<any, any>);
 
   if (!isUsingIdentifier) {
@@ -1439,7 +1791,20 @@ export function mutation<
           : (arg: MutationArgsParams) => {
               const result =
                 'method' in mutationConfig
-                  ? mutationConfig.method?.(arg)
+                  ? executeGeneratorCompatibleFactory({
+                      factory: mutationConfig.method as (
+                        args: MutationArgsParams,
+                      ) => MutationParams,
+                      thisArg: undefined,
+                      getInjector,
+                      args: [arg],
+                      invalidYieldErrorMessage:
+                        MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+                      multipleAppStartErrorMessage:
+                        MUTATION_APP_START_ERROR_MESSAGE,
+                      onAppStartNotSupportedErrorMessage:
+                        MUTATION_APP_START_ERROR_MESSAGE,
+                    })
                   : undefined;
 
               if (isCraftException(result)) {
@@ -1480,28 +1845,39 @@ export function mutation<
       (acc, insert) => {
         return {
           ...acc,
-          ...insert({
-            ...(isUsingIdentifier
-              ? {
-                  resourceById: resourceTarget,
-                  identifier: mutationConfig.identifier,
-                }
-              : { resource: resourceTarget }),
-            resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<MutationParams>
-            >,
-            hasException,
-            exceptions,
-            insertions: acc as {},
-            state: resourceTarget.state,
-            set: resourceTarget.set,
-            update: resourceTarget.update,
-            patch: (patchFn: (currentState: any) => Partial<any>) =>
-              resourceTarget.update((current: any) => ({
-                ...current,
-                ...patchFn(current),
-              })),
-          } as any),
+          ...executeGeneratorCompatibleFactory({
+            factory: insert as (context: unknown) => Record<string, unknown>,
+            thisArg: undefined,
+            getInjector,
+            args: [
+              {
+                ...(isUsingIdentifier
+                  ? {
+                      resourceById: resourceTarget,
+                      identifier: mutationConfig.identifier,
+                    }
+                  : { resource: resourceTarget }),
+                resourceParamsSrc: resourceParamsSrc as WritableSignal<
+                  NoInfer<MutationParams>
+                >,
+                hasException,
+                exceptions,
+                insertions: acc as {},
+                state: resourceTarget.state,
+                set: resourceTarget.set,
+                update: resourceTarget.update,
+                patch: (patchFn: (currentState: any) => Partial<any>) =>
+                  resourceTarget.update((current: any) => ({
+                    ...current,
+                    ...patchFn(current),
+                  })),
+              } as any,
+            ],
+            invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              MUTATION_APP_START_ERROR_MESSAGE,
+          }),
         };
       },
       {} as Record<string, unknown>,

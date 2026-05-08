@@ -1,5 +1,8 @@
 import {
+  assertInInjectionContext,
   computed,
+  inject,
+  Injector,
   isSignal,
   ResourceLoaderParams,
   ResourceOptions,
@@ -14,6 +17,11 @@ import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
 } from './query.core';
+import {
+  executeGeneratorCompatibleFactory,
+  GeneratorCompatibleFactory,
+  isGeneratorFunction,
+} from './craft-generator-runtime';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import { MergeObjects } from './util/util.type';
@@ -30,6 +38,37 @@ import {
   createResourceExceptionsRuntime,
   enrichResourceException,
 } from './resource-exception';
+import type {
+  SERVICE_HELPER_DEPENDENCIES,
+  ServiceDependencyMapFromYielded,
+} from './craft-service';
+
+type QueryTrackedDependencies<
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  InsertionsYielded = never,
+> = ServiceDependencyMapFromYielded<
+  | ParamsYielded
+  | MethodYielded
+  | LoaderYielded
+  | StreamYielded
+  | InsertionsYielded
+>;
+
+type QueryDependenciesMetadata<Dependencies> = [keyof Dependencies] extends [
+  never,
+]
+  ? {}
+  : {
+      readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
+    };
+
+const QUERY_INVALID_YIELD_ERROR_MESSAGE =
+  'query generators can only yield craftService dependencies or exposed dependency helpers.';
+const QUERY_APP_START_ERROR_MESSAGE =
+  'query generators do not support onAppStart(...).';
 
 type QueryConfig<
   ResourceState,
@@ -40,6 +79,10 @@ type QueryConfig<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
 > = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
   (
     | {
@@ -49,10 +92,13 @@ type QueryConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: () => Params;
-        loader: (
-          param: NoInfer<ResourceLoaderParams<StripCraftException<Params>>>,
-        ) => Promise<ResourceState>;
+        params: GeneratorCompatibleFactory<() => Params, ParamsYielded>;
+        loader: GeneratorCompatibleFactory<
+          (
+            param: NoInfer<ResourceLoaderParams<StripCraftException<Params>>>,
+          ) => Promise<ResourceState>,
+          LoaderYielded
+        >;
         method?: never;
         fromResourceById?: never;
         stream?: never;
@@ -71,16 +117,21 @@ type QueryConfig<
          *
          * It also accepts a ReadonlySource<SourceParams> to connect the query params to an external signal source.
          */
-        method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
-        loader: (
-          param: ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<StripCraftException<SourceParams>>
-                : NoInfer<StripCraftException<Params>>
-            >
-          >,
-        ) => Promise<ResourceState>;
+        method:
+          | GeneratorCompatibleFactory<(args: ParamsArgs) => Params, MethodYielded>
+          | ReadonlySource<SourceParams>;
+        loader: GeneratorCompatibleFactory<
+          (
+            param: ResourceLoaderParams<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<StripCraftException<SourceParams>>
+                  : NoInfer<StripCraftException<Params>>
+              >
+            >,
+          ) => Promise<ResourceState>,
+          LoaderYielded
+        >;
         params?: never;
         fromResourceById?: never;
         stream?: never;
@@ -89,13 +140,16 @@ type QueryConfig<
     | {
         method?: never;
         loader?: never;
-        params?: () => Params;
+        params?: GeneratorCompatibleFactory<() => Params, ParamsYielded>;
         fromResourceById?: never;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
          */
-        stream: ResourceStreamingLoader<ResourceState, Params>;
+        stream: GeneratorCompatibleFactory<
+          ResourceStreamingLoader<ResourceState, Params>,
+          StreamYielded
+        >;
         preservePreviousValue?: () => boolean;
       }
     | {
@@ -126,10 +180,14 @@ type QueryConfig<
          *
          * If a request function isn't provided, the loader won't rerun unless the resource is reloaded.
          */
-        params: (entity: ResourceRef<NoInfer<FromObjectState>>) => Params;
-        loader: (
-          param: NoInfer<ResourceLoaderParams<Params>>,
-        ) => Promise<ResourceState>;
+        params: GeneratorCompatibleFactory<
+          (entity: ResourceRef<NoInfer<FromObjectState>>) => Params,
+          ParamsYielded
+        >;
+        loader: GeneratorCompatibleFactory<
+          (param: NoInfer<ResourceLoaderParams<Params>>) => Promise<ResourceState>,
+          LoaderYielded
+        >;
         method?: never;
         stream?: never;
         /**
@@ -142,13 +200,16 @@ type QueryConfig<
     | {
         method?: never;
         loader?: never;
-        params?: () => Params;
+        params?: GeneratorCompatibleFactory<() => Params, ParamsYielded>;
         fromResourceById?: never;
         /**
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
          */
-        stream: ResourceStreamingLoader<ResourceState, Params>;
+        stream: GeneratorCompatibleFactory<
+          ResourceStreamingLoader<ResourceState, Params>,
+          StreamYielded
+        >;
         preservePreviousValue?: () => boolean;
       }
   ) & {
@@ -264,6 +325,7 @@ export type ResourceLikeQueryRef<
   SourceParams,
   Insertions,
   QueryException extends ResourceExceptionConstraints,
+  Dependencies = {},
 > = {
   type: 'resourceLike';
   kind: 'query';
@@ -295,6 +357,7 @@ export type ResourceLikeQueryRef<
     {
       [key in `~InternalType`]: 'Used to avoid TS type erasure';
     },
+    QueryDependenciesMetadata<Dependencies>,
   ]
 >;
 
@@ -307,6 +370,7 @@ export type ResourceByIdLikeQueryRef<
   Insertions,
   GroupIdentifier,
   QueryException extends ResourceExceptionConstraints,
+  Dependencies = {},
 > = { type: 'resourceByGroupLike'; kind: 'query' } & {
   readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
 } & {
@@ -345,6 +409,7 @@ export type ResourceByIdLikeQueryRef<
       [GroupIdentifier] extends [string]
         ? ResourceByIdLikeExceptions<QueryException, GroupIdentifier>
         : {},
+      QueryDependenciesMetadata<Dependencies>,
     ]
   >;
 
@@ -357,6 +422,7 @@ export type QueryRef<
   SourceParams,
   GroupIdentifier,
   QueryExceptions extends ResourceExceptionConstraints,
+  Dependencies = {},
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeQueryRef<
       Value,
@@ -365,7 +431,8 @@ export type QueryRef<
       ArgParams,
       SourceParams,
       Insertions,
-      QueryExceptions
+      QueryExceptions,
+      Dependencies
     >
   : ResourceByIdLikeQueryRef<
       Value,
@@ -375,7 +442,8 @@ export type QueryRef<
       SourceParams,
       Insertions,
       GroupIdentifier,
-      QueryExceptions
+      QueryExceptions,
+      Dependencies
     >;
 
 export type QueryOutput<
@@ -386,6 +454,7 @@ export type QueryOutput<
   GroupIdentifier,
   Insertions,
   QueryExceptions extends ResourceExceptionConstraints,
+  Dependencies = {},
 > = QueryRef<
   State,
   Params,
@@ -394,7 +463,8 @@ export type QueryOutput<
   [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
   GroupIdentifier,
-  QueryExceptions
+  QueryExceptions,
+  Dependencies
 >;
 
 export function query<
@@ -406,6 +476,10 @@ export function query<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -419,7 +493,11 @@ export function query<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -428,7 +506,13 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   {},
-  Exceptions
+  Exceptions,
+  QueryTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
+  >
 >;
 export function query<
   QueryState extends object | undefined,
@@ -440,6 +524,11 @@ export function query<
   FromObjectState,
   FromObjectResourceParams,
   Insertion1,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -453,7 +542,11 @@ export function query<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -461,7 +554,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion1,
-    {}
+    {},
+    Insertion1Yielded
   >,
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -470,7 +564,14 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   Insertion1,
-  Exceptions
+  Exceptions,
+  QueryTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    Insertion1Yielded
+  >
 >;
 export function query<
   QueryState extends object | undefined,
@@ -483,6 +584,12 @@ export function query<
   FromObjectResourceParams,
   Insertion1,
   Insertion2,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -496,14 +603,20 @@ export function query<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -511,7 +624,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -520,7 +634,14 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   Insertion1 & Insertion2,
-  Exceptions
+  Exceptions,
+  QueryTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    Insertion1Yielded | Insertion2Yielded
+  >
 >;
 export function query<
   QueryState extends object | undefined,
@@ -534,6 +655,13 @@ export function query<
   Insertion1,
   Insertion2,
   Insertion3,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -547,14 +675,20 @@ export function query<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -562,7 +696,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -570,7 +705,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -579,7 +715,14 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3,
-  Exceptions
+  Exceptions,
+  QueryTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
+  >
 >;
 export function query<
   QueryState extends object | undefined,
@@ -594,6 +737,14 @@ export function query<
   Insertion2,
   Insertion3,
   Insertion4,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -607,14 +758,20 @@ export function query<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -622,7 +779,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -630,7 +788,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -638,7 +797,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -647,7 +807,17 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4,
-  Exceptions
+  Exceptions,
+  QueryTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+  >
 >;
 export function query<
   QueryState extends object | undefined,
@@ -663,6 +833,15 @@ export function query<
   Insertion3,
   Insertion4,
   Insertion5,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -676,14 +855,20 @@ export function query<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -691,7 +876,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -699,7 +885,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -707,7 +894,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -715,7 +903,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -724,7 +913,18 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
-  Exceptions
+  Exceptions,
+  QueryTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+  >
 >;
 export function query<
   QueryState extends object | undefined,
@@ -741,6 +941,16 @@ export function query<
   Insertion4,
   Insertion5,
   Insertion6,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -754,14 +964,20 @@ export function query<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -769,7 +985,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -777,7 +994,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -785,7 +1003,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -793,7 +1012,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -801,7 +1021,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion6,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
   >,
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -810,7 +1031,19 @@ export function query<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
-  Exceptions
+  Exceptions,
+  QueryTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+    | Insertion6Yielded
+  >
 >;
 export function query<
   QueryState extends object | undefined,
@@ -828,6 +1061,17 @@ export function query<
   Insertion5,
   Insertion6,
   Insertion7,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
+  Insertion7Yielded = never,
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -841,14 +1085,20 @@ export function query<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -856,7 +1106,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -864,7 +1115,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -872,7 +1124,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -880,7 +1133,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -888,7 +1142,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion6,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
   >,
   insertion7: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -896,7 +1151,8 @@ export function query<
     NoInfer<StripCraftException<QueryParams>>,
     Exceptions,
     Insertion7,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
+    Insertion7Yielded
   >,
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -911,7 +1167,20 @@ export function query<
     Insertion5 &
     Insertion6 &
     Insertion7,
-  Exceptions
+  Exceptions,
+  QueryTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+    | Insertion6Yielded
+    | Insertion7Yielded
+  >
 >;
 /**
  * Creates a reactive query manager that handles data fetching with automatic state tracking.
@@ -1142,6 +1411,10 @@ export function query<
   FromObjectGroupIdentifier extends string,
   FromObjectState,
   FromObjectResourceParams,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
 >(
   queryConfig: QueryConfig<
     QueryState,
@@ -1151,7 +1424,11 @@ export function query<
     GroupIdentifier,
     FromObjectGroupIdentifier,
     FromObjectState,
-    FromObjectResourceParams
+    FromObjectResourceParams,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   ...insertions: any[]
 ): QueryOutput<
@@ -1163,6 +1440,29 @@ export function query<
   {},
   ResourceExceptionConstraints
 > {
+  let injector: Injector | undefined;
+  if (
+    [
+      queryConfig.params,
+      queryConfig.method,
+      queryConfig.loader,
+      queryConfig.stream,
+      ...insertions,
+    ].some((value) => isGeneratorFunction(value))
+  ) {
+    assertInInjectionContext(query);
+    injector = inject(Injector);
+  }
+
+  const getInjector = () => {
+    if (!injector) {
+      assertInInjectionContext(query);
+      injector = inject(Injector);
+    }
+
+    return injector;
+  };
+
   const hasMethodFn =
     typeof queryConfig.method === 'function' && !isSignal(queryConfig.method);
   const queryResourceParamsFnSignal =
@@ -1218,7 +1518,15 @@ export function query<
       queryConfig.params &&
       !('fromResourceById' in queryConfig && queryConfig.fromResourceById)
     ) {
-      const paramsValue = (queryConfig.params as () => QueryParams)();
+      const paramsValue = executeGeneratorCompatibleFactory({
+        factory: queryConfig.params as () => QueryParams,
+        thisArg: undefined,
+        getInjector,
+        args: [],
+        invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+        multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+        onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+      });
       return isCraftException(paramsValue)
         ? enrichResourceException(paramsValue, { scope: 'params' })
         : undefined;
@@ -1246,9 +1554,15 @@ export function query<
     'params' in queryConfig && queryConfig.params
       ? (((...args: unknown[]) =>
           sanitizeParamsResult(
-            (queryConfig.params as (...args: unknown[]) => QueryParams)(
-              ...args,
-            ),
+            executeGeneratorCompatibleFactory({
+              factory: queryConfig.params as (...args: unknown[]) => QueryParams,
+              thisArg: undefined,
+              getInjector,
+              args,
+              invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+            }) as QueryParams,
           )) as typeof queryConfig.params)
       : undefined;
 
@@ -1265,11 +1579,17 @@ export function query<
   const wrappedLoader =
     'loader' in queryConfig && queryConfig.loader
       ? ((async (param: ResourceLoaderParams<QueryParams>) => {
-          const result = await (
-            queryConfig.loader as (
+          const result = await executeGeneratorCompatibleFactory({
+            factory: queryConfig.loader as (
               param: ResourceLoaderParams<QueryParams>,
-            ) => Promise<QueryState>
-          )(param);
+            ) => Promise<QueryState>,
+            thisArg: undefined,
+            getInjector,
+            args: [param],
+            invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+          });
 
           if (isCraftException(result)) {
             const exceptionId = getIdentifierFromParams(param.params);
@@ -1289,6 +1609,20 @@ export function query<
         }) as typeof queryConfig.loader)
       : undefined;
 
+  const wrappedStream =
+    'stream' in queryConfig && queryConfig.stream
+      ? (((...args: unknown[]) =>
+          executeGeneratorCompatibleFactory({
+            factory: queryConfig.stream as (...args: unknown[]) => unknown,
+            thisArg: undefined,
+            getInjector,
+            args,
+            invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+          })) as typeof queryConfig.stream)
+      : undefined;
+
   const resourceParamsSrc = isConnectedToSource
     ? (wrappedSourceParams as typeof queryConfig.method)
     : (wrappedParamsFn ?? queryResourceParamsFnSignal);
@@ -1305,6 +1639,7 @@ export function query<
         ...queryConfig,
         params: resourceParamsSrc,
         loader: wrappedLoader,
+        stream: wrappedStream,
         identifier: queryConfig.identifier,
         equalParams: queryConfig.equalParams ?? 'useIdentifier',
       } as any)
@@ -1313,11 +1648,13 @@ export function query<
           ...queryConfig,
           params: resourceParamsSrc,
           loader: wrappedLoader,
+          stream: wrappedStream,
         } as ResourceOptions<any, any>)
       : craftResource<QueryState, QueryParams>({
           ...queryConfig,
           params: resourceParamsSrc,
           loader: wrappedLoader,
+          stream: wrappedStream,
         } as ResourceOptions<any, any>);
 
   const queryOutputWithoutInsertions = Object.assign(
@@ -1372,11 +1709,17 @@ export function query<
       call: !hasMethodFn
         ? undefined
         : (arg: QueryArgsParams) => {
-            const result = (
-              queryConfig.method as unknown as (
+            const result = executeGeneratorCompatibleFactory({
+              factory: queryConfig.method as unknown as (
                 args: QueryArgsParams,
-              ) => QueryParams
-            )(arg);
+              ) => QueryParams,
+              thisArg: undefined,
+              getInjector,
+              args: [arg],
+              invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+            });
 
             if (isCraftException(result)) {
               methodParamsException.set(
@@ -1421,28 +1764,38 @@ export function query<
       (acc, insert) => {
         return {
           ...acc,
-          ...insert({
-            ...(isUsingIdentifier
-              ? {
-                  resourceById: resourceTarget,
-                  identifier: queryConfig.identifier,
-                }
-              : { resource: resourceTarget }),
-            resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<QueryParams>
-            >,
-            hasException,
-            exceptions,
-            insertions: acc as {},
-            state: resourceTarget.state,
-            set: resourceTarget.set,
-            update: resourceTarget.update,
-            patch: (patchFn: (currentState: any) => Partial<any>) =>
-              resourceTarget.update((current: any) => ({
-                ...current,
-                ...patchFn(current),
-              })),
-          } as any), // try to improve the type here
+          ...executeGeneratorCompatibleFactory({
+            factory: insert as (context: unknown) => Record<string, unknown>,
+            thisArg: undefined,
+            getInjector,
+            args: [
+              {
+                ...(isUsingIdentifier
+                  ? {
+                      resourceById: resourceTarget,
+                      identifier: queryConfig.identifier,
+                    }
+                  : { resource: resourceTarget }),
+                resourceParamsSrc: resourceParamsSrc as WritableSignal<
+                  NoInfer<QueryParams>
+                >,
+                hasException,
+                exceptions,
+                insertions: acc as {},
+                state: resourceTarget.state,
+                set: resourceTarget.set,
+                update: resourceTarget.update,
+                patch: (patchFn: (currentState: any) => Partial<any>) =>
+                  resourceTarget.update((current: any) => ({
+                    ...current,
+                    ...patchFn(current),
+                  })),
+              } as any,
+            ],
+            invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+          }),
         };
       },
       {} as Record<string, unknown>,

@@ -1,5 +1,8 @@
 import {
+  assertInInjectionContext,
   computed,
+  inject,
+  Injector,
   isSignal,
   ResourceLoaderParams,
   ResourceOptions,
@@ -10,6 +13,11 @@ import {
   WritableSignal,
 } from '@angular/core';
 import { InsertionsResourcesFactory } from './query.core';
+import {
+  executeGeneratorCompatibleFactory,
+  GeneratorCompatibleFactory,
+  isGeneratorFunction,
+} from './craft-generator-runtime';
 import { ReadonlySource } from './util/source.type';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { isSource } from './util/util';
@@ -26,6 +34,37 @@ import {
   createResourceExceptionsRuntime,
   enrichResourceException,
 } from './resource-exception';
+import type {
+  SERVICE_HELPER_DEPENDENCIES,
+  ServiceDependencyMapFromYielded,
+} from './craft-service';
+
+type AsyncProcessTrackedDependencies<
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  InsertionsYielded = never,
+> = ServiceDependencyMapFromYielded<
+  | ParamsYielded
+  | MethodYielded
+  | LoaderYielded
+  | StreamYielded
+  | InsertionsYielded
+>;
+
+type AsyncProcessDependenciesMetadata<Dependencies> = [
+  keyof Dependencies,
+] extends [never]
+  ? {}
+  : {
+      readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
+    };
+
+const ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE =
+  'asyncProcess generators can only yield craftService dependencies or exposed dependency helpers.';
+const ASYNC_PROCESS_APP_START_ERROR_MESSAGE =
+  'asyncProcess generators do not support onAppStart(...).';
 
 // ! It looks like TS does not handle to expose the ResourceByIdHandler without erasing the () => ... part
 export type AsyncProcessRef<
@@ -38,6 +77,7 @@ export type AsyncProcessRef<
   GroupIdentifier,
   AsyncProcessExceptions extends
     AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
+  Dependencies = {},
 > = MergeObjects<
   [
     [unknown] extends [GroupIdentifier]
@@ -96,6 +136,7 @@ export type AsyncProcessRef<
                 GroupIdentifier
               >
             : {}),
+    AsyncProcessDependenciesMetadata<Dependencies>,
   ]
 >;
 
@@ -105,6 +146,10 @@ type AsyncProcessConfig<
   ParamsArgs,
   SourceParams,
   GroupIdentifier,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
 > = Omit<ResourceOptions<NoInfer<ResourceState>, Params>, 'params' | 'loader'> &
   (
     | {
@@ -113,7 +158,9 @@ type AsyncProcessConfig<
          *
          * Only support one parameter which can be an object to pass multiple parameters.
          */
-        method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
+        method:
+          | GeneratorCompatibleFactory<(args: ParamsArgs) => Params, MethodYielded>
+          | ReadonlySource<SourceParams>;
         /**
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
@@ -121,21 +168,26 @@ type AsyncProcessConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: (
-          param: ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<StripCraftException<SourceParams>>
-                : NoInfer<StripCraftException<Params>>
-            >
-          >,
-        ) => Promise<ResourceState>;
+        loader: GeneratorCompatibleFactory<
+          (
+            param: ResourceLoaderParams<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<StripCraftException<SourceParams>>
+                  : NoInfer<StripCraftException<Params>>
+              >
+            >,
+          ) => Promise<ResourceState>,
+          LoaderYielded
+        >;
         params?: never;
         stream?: never;
         preservePreviousValue?: () => boolean;
       }
     | {
-        method: ((args: ParamsArgs) => Params) | ReadonlySource<SourceParams>;
+        method:
+          | GeneratorCompatibleFactory<(args: ParamsArgs) => Params, MethodYielded>
+          | ReadonlySource<SourceParams>;
         loader?: never;
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
@@ -144,15 +196,18 @@ type AsyncProcessConfig<
          * Loading function which returns a `Promise` of a signal of the resource's value for a given
          * request, which can change over time as new values are received from a stream.
          */
-        stream: ResourceStreamingLoader<
-          ResourceState,
-          ResourceLoaderParams<
-            NonNullable<
-              [unknown] extends [Params]
-                ? NoInfer<StripCraftException<SourceParams>>
-                : NoInfer<StripCraftException<Params>>
+        stream: GeneratorCompatibleFactory<
+          ResourceStreamingLoader<
+            ResourceState,
+            ResourceLoaderParams<
+              NonNullable<
+                [unknown] extends [Params]
+                  ? NoInfer<StripCraftException<SourceParams>>
+                  : NoInfer<StripCraftException<Params>>
+              >
             >
-          >
+          >,
+          StreamYielded
         >;
         params?: never;
         preservePreviousValue?: () => boolean;
@@ -162,7 +217,7 @@ type AsyncProcessConfig<
          * A reactive function which determines the request to be made. Whenever the request changes, the
          * loader will be triggered to fetch a new value for the resource.
          */
-        params: () => Params;
+        params: GeneratorCompatibleFactory<() => Params, ParamsYielded>;
         /**
          * A unique identifier for the resource, derived from the params.
          * It should be a string that uniquely identifies the resource based on the params.
@@ -170,11 +225,14 @@ type AsyncProcessConfig<
         identifier?: (
           params: NoInfer<NonNullable<StripCraftException<Params>>>,
         ) => GroupIdentifier;
-        loader: (
-          param: ResourceLoaderParams<
-            NonNullable<NoInfer<StripCraftException<Params>>>
-          >,
-        ) => Promise<ResourceState>;
+        loader: GeneratorCompatibleFactory<
+          (
+            param: ResourceLoaderParams<
+              NonNullable<NoInfer<StripCraftException<Params>>>
+            >,
+          ) => Promise<ResourceState>,
+          LoaderYielded
+        >;
         method?: never;
         stream?: never;
         preservePreviousValue?: () => boolean;
@@ -263,6 +321,7 @@ export type AsyncProcessOutput<
   GroupIdentifier,
   Insertions,
   AsyncProcessExceptions extends AsyncProcessExceptionConstraints,
+  Dependencies = {},
 > = AsyncProcessRef<
   StripCraftException<State>,
   ArgParams,
@@ -275,7 +334,8 @@ export type AsyncProcessOutput<
     : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
   GroupIdentifier,
-  AsyncProcessExceptions
+  AsyncProcessExceptions,
+  Dependencies
 >;
 
 /**
@@ -460,6 +520,10 @@ export function asyncProcess<
   AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -470,7 +534,11 @@ export function asyncProcess<
     AsyncProcessParams,
     AsyncProcessArgsParams,
     SourceParams,
-    GroupIdentifier
+    GroupIdentifier,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
 ): AsyncProcessOutput<
   StripCraftException<AsyncProcesstate>,
@@ -479,7 +547,13 @@ export function asyncProcess<
   SourceParams,
   GroupIdentifier,
   {},
-  Exceptions
+  Exceptions,
+  AsyncProcessTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
+  >
 >;
 export function asyncProcess<
   AsyncProcesstate extends object | undefined,
@@ -488,6 +562,11 @@ export function asyncProcess<
   SourceParams,
   GroupIdentifier,
   Insertion1,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -498,7 +577,11 @@ export function asyncProcess<
     AsyncProcessParams,
     AsyncProcessArgsParams,
     SourceParams,
-    GroupIdentifier
+    GroupIdentifier,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -506,7 +589,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion1,
-    {}
+    {},
+    Insertion1Yielded
   >,
 ): AsyncProcessOutput<
   StripCraftException<AsyncProcesstate>,
@@ -515,7 +599,14 @@ export function asyncProcess<
   SourceParams,
   GroupIdentifier,
   Insertion1,
-  Exceptions
+  Exceptions,
+  AsyncProcessTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    Insertion1Yielded
+  >
 >;
 export function asyncProcess<
   AsyncProcesstate extends object | undefined,
@@ -525,6 +616,12 @@ export function asyncProcess<
   GroupIdentifier,
   Insertion1,
   Insertion2,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -535,14 +632,20 @@ export function asyncProcess<
     AsyncProcessParams,
     AsyncProcessArgsParams,
     SourceParams,
-    GroupIdentifier
+    GroupIdentifier,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -550,7 +653,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
 ): AsyncProcessOutput<
   StripCraftException<AsyncProcesstate>,
@@ -559,7 +663,14 @@ export function asyncProcess<
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2,
-  Exceptions
+  Exceptions,
+  AsyncProcessTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    Insertion1Yielded | Insertion2Yielded
+  >
 >;
 export function asyncProcess<
   AsyncProcesstate extends object | undefined,
@@ -570,6 +681,13 @@ export function asyncProcess<
   Insertion1,
   Insertion2,
   Insertion3,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -580,14 +698,20 @@ export function asyncProcess<
     AsyncProcessParams,
     AsyncProcessArgsParams,
     SourceParams,
-    GroupIdentifier
+    GroupIdentifier,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -595,7 +719,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -603,7 +728,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
 ): AsyncProcessOutput<
   StripCraftException<AsyncProcesstate>,
@@ -612,7 +738,14 @@ export function asyncProcess<
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3,
-  Exceptions
+  Exceptions,
+  AsyncProcessTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
+  >
 >;
 export function asyncProcess<
   AsyncProcesstate extends object | undefined,
@@ -624,6 +757,14 @@ export function asyncProcess<
   Insertion2,
   Insertion3,
   Insertion4,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -634,14 +775,20 @@ export function asyncProcess<
     AsyncProcessParams,
     AsyncProcessArgsParams,
     SourceParams,
-    GroupIdentifier
+    GroupIdentifier,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -649,7 +796,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -657,7 +805,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -665,7 +814,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
 ): AsyncProcessOutput<
   StripCraftException<AsyncProcesstate>,
@@ -674,7 +824,17 @@ export function asyncProcess<
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4,
-  Exceptions
+  Exceptions,
+  AsyncProcessTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+  >
 >;
 export function asyncProcess<
   AsyncProcesstate extends object | undefined,
@@ -687,6 +847,15 @@ export function asyncProcess<
   Insertion3,
   Insertion4,
   Insertion5,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -697,14 +866,20 @@ export function asyncProcess<
     AsyncProcessParams,
     AsyncProcessArgsParams,
     SourceParams,
-    GroupIdentifier
+    GroupIdentifier,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -712,7 +887,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -720,7 +896,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -728,7 +905,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -736,7 +914,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
 ): AsyncProcessOutput<
   StripCraftException<AsyncProcesstate>,
@@ -745,7 +924,18 @@ export function asyncProcess<
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
-  Exceptions
+  Exceptions,
+  AsyncProcessTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+  >
 >;
 export function asyncProcess<
   AsyncProcesstate extends object | undefined,
@@ -759,6 +949,16 @@ export function asyncProcess<
   Insertion4,
   Insertion5,
   Insertion6,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -769,14 +969,20 @@ export function asyncProcess<
     AsyncProcessParams,
     AsyncProcessArgsParams,
     SourceParams,
-    GroupIdentifier
+    GroupIdentifier,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -784,7 +990,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -792,7 +999,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -800,7 +1008,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -808,7 +1017,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -816,7 +1026,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion6,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
   >,
 ): AsyncProcessOutput<
   StripCraftException<AsyncProcesstate>,
@@ -825,7 +1036,19 @@ export function asyncProcess<
   SourceParams,
   GroupIdentifier,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
-  Exceptions
+  Exceptions,
+  AsyncProcessTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+    | Insertion6Yielded
+  >
 >;
 export function asyncProcess<
   AsyncProcesstate extends object | undefined,
@@ -840,6 +1063,17 @@ export function asyncProcess<
   Insertion5,
   Insertion6,
   Insertion7,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
+  Insertion7Yielded = never,
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -850,14 +1084,20 @@ export function asyncProcess<
     AsyncProcessParams,
     AsyncProcessArgsParams,
     SourceParams,
-    GroupIdentifier
+    GroupIdentifier,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
-    Insertion1
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
   insertion2: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -865,7 +1105,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -873,7 +1114,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -881,7 +1123,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -889,7 +1132,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -897,7 +1141,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion6,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
   >,
   insertion7: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
@@ -905,7 +1150,8 @@ export function asyncProcess<
     NoInfer<StripCraftException<AsyncProcessParams>>,
     Exceptions,
     Insertion7,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
+    Insertion7Yielded
   >,
 ): AsyncProcessOutput<
   StripCraftException<AsyncProcesstate>,
@@ -920,7 +1166,20 @@ export function asyncProcess<
     Insertion5 &
     Insertion6 &
     Insertion7,
-  Exceptions
+  Exceptions,
+  AsyncProcessTrackedDependencies<
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+    | Insertion6Yielded
+    | Insertion7Yielded
+  >
 >;
 export function asyncProcess<
   AsyncProcesstate extends object | undefined,
@@ -928,6 +1187,10 @@ export function asyncProcess<
   AsyncProcessArgsParams,
   SourceParams,
   GroupIdentifier,
+  ParamsYielded = never,
+  MethodYielded = never,
+  LoaderYielded = never,
+  StreamYielded = never,
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -938,7 +1201,11 @@ export function asyncProcess<
     AsyncProcessParams,
     AsyncProcessArgsParams,
     SourceParams,
-    GroupIdentifier
+    GroupIdentifier,
+    ParamsYielded,
+    MethodYielded,
+    LoaderYielded,
+    StreamYielded
   >,
   ...insertions: any[]
 ): AsyncProcessOutput<
@@ -950,6 +1217,29 @@ export function asyncProcess<
   {},
   Exceptions
 > {
+  let injector: Injector | undefined;
+  if (
+    [
+      'params' in AsyncProcessConfig ? AsyncProcessConfig.params : undefined,
+      'method' in AsyncProcessConfig ? AsyncProcessConfig.method : undefined,
+      'loader' in AsyncProcessConfig ? AsyncProcessConfig.loader : undefined,
+      'stream' in AsyncProcessConfig ? AsyncProcessConfig.stream : undefined,
+      ...insertions,
+    ].some((value) => isGeneratorFunction(value))
+  ) {
+    assertInInjectionContext(asyncProcess);
+    injector = inject(Injector);
+  }
+
+  const getInjector = () => {
+    if (!injector) {
+      assertInInjectionContext(asyncProcess);
+      injector = inject(Injector);
+    }
+
+    return injector;
+  };
+
   const AsyncProcessResourceParamsFnSignal = signal<
     AsyncProcessParams | undefined
   >(undefined);
@@ -996,9 +1286,17 @@ export function asyncProcess<
     }
 
     if (hasParamsFn) {
-      const paramsValue = (
-        AsyncProcessConfig as { params: () => AsyncProcessParams }
-      ).params();
+      const paramsValue = executeGeneratorCompatibleFactory({
+        factory: (AsyncProcessConfig as { params: () => AsyncProcessParams })
+          .params,
+        thisArg: undefined,
+        getInjector,
+        args: [],
+        invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+        multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+        onAppStartNotSupportedErrorMessage:
+          ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+      });
       return isCraftException(paramsValue)
         ? enrichResourceException(paramsValue, { scope: 'params' })
         : undefined;
@@ -1047,18 +1345,38 @@ export function asyncProcess<
   const wrappedParamsFn = hasParamsFn
     ? ((() =>
         sanitizeParamsResult(
-          (AsyncProcessConfig as { params: () => AsyncProcessParams }).params(),
+          executeGeneratorCompatibleFactory({
+            factory: (AsyncProcessConfig as {
+              params: () => AsyncProcessParams;
+            }).params,
+            thisArg: undefined,
+            getInjector,
+            args: [],
+            invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage:
+              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+          }) as AsyncProcessParams,
         )) as () => AsyncProcessParams | undefined)
     : undefined;
 
   const wrappedLoader =
     'loader' in AsyncProcessConfig && AsyncProcessConfig.loader
       ? ((async (param: ResourceLoaderParams<any>) => {
-          const result = await (
-            AsyncProcessConfig.loader as (
+          const result = await executeGeneratorCompatibleFactory({
+            factory: AsyncProcessConfig.loader as (
               param: ResourceLoaderParams<any>,
-            ) => Promise<any>
-          )(param);
+            ) => Promise<any>,
+            thisArg: undefined,
+            getInjector,
+            args: [param],
+            invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage:
+              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+          });
 
           if (isCraftException(result)) {
             const exceptionId = getIdentifierFromParams(param.params);
@@ -1076,6 +1394,22 @@ export function asyncProcess<
           setLoaderException(undefined, successId);
           return result;
         }) as typeof AsyncProcessConfig.loader)
+      : undefined;
+
+  const wrappedStream =
+    'stream' in AsyncProcessConfig && AsyncProcessConfig.stream
+      ? (((...args: unknown[]) =>
+          executeGeneratorCompatibleFactory({
+            factory: AsyncProcessConfig.stream as (...args: unknown[]) => unknown,
+            thisArg: undefined,
+            getInjector,
+            args,
+            invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage:
+              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+          })) as typeof AsyncProcessConfig.stream)
       : undefined;
 
   const resourceParamsSrc = isConnectedToSource
@@ -1096,12 +1430,14 @@ export function asyncProcess<
         ...AsyncProcessConfig,
         params: resourceParamsSrc,
         loader: wrappedLoader,
+        stream: wrappedStream,
         identifier: AsyncProcessConfig.identifier,
       } as any)
     : craftResource<AsyncProcesstate, AsyncProcessParams>({
         ...AsyncProcessConfig,
         params: resourceParamsSrc,
         loader: wrappedLoader,
+        stream: wrappedStream,
       } as ResourceOptions<any, any>);
 
   return Object.assign(
@@ -1156,13 +1492,22 @@ export function asyncProcess<
             method: isSignal(AsyncProcessConfig.method)
               ? undefined
               : (arg: AsyncProcessArgsParams) => {
-                  const result = (
-                    AsyncProcessConfig as {
+                  const result = executeGeneratorCompatibleFactory({
+                    factory: (AsyncProcessConfig as {
                       method: (
                         args: AsyncProcessArgsParams,
                       ) => AsyncProcessParams;
-                    }
-                  ).method(arg);
+                    }).method,
+                    thisArg: undefined,
+                    getInjector,
+                    args: [arg],
+                    invalidYieldErrorMessage:
+                      ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage:
+                      ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage:
+                      ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+                  });
                   if (isCraftException(result)) {
                     methodParamsException.set(
                       enrichResourceException(result, { scope: 'params' }),
@@ -1204,20 +1549,33 @@ export function asyncProcess<
       (acc, insert) => {
         return {
           ...acc,
-          ...insert({
-            ...(isUsingIdentifier
-              ? { resourceById: resourceTarget }
-              : { resource: resourceTarget }),
-            resourceParamsSrc: resourceParamsSrc as WritableSignal<
-              NoInfer<AsyncProcessParams>
-            >,
-            hasException,
-            exceptions,
-            insertions: acc as {},
-            state: resourceTarget.state,
-            set: resourceTarget.set,
-            update: resourceTarget.update,
-          } as any),
+          ...executeGeneratorCompatibleFactory({
+            factory: insert as (context: unknown) => Record<string, unknown>,
+            thisArg: undefined,
+            getInjector,
+            args: [
+              {
+                ...(isUsingIdentifier
+                  ? { resourceById: resourceTarget }
+                  : { resource: resourceTarget }),
+                resourceParamsSrc: resourceParamsSrc as WritableSignal<
+                  NoInfer<AsyncProcessParams>
+                >,
+                hasException,
+                exceptions,
+                insertions: acc as {},
+                state: resourceTarget.state,
+                set: resourceTarget.set,
+                update: resourceTarget.update,
+              } as any,
+            ],
+            invalidYieldErrorMessage:
+              ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage:
+              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+          }),
         };
       },
       {} as Record<string, unknown>,

@@ -6,9 +6,30 @@ import { TestBed } from '@angular/core/testing';
 import { Source$, source$ } from './source$';
 import { on$ } from './on$';
 import { InsertionsStateFactory } from './query.core';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import { craftService } from './craft-service';
+import type { ExtractDeps } from './branded-component/branded-component';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
 
 describe('state', () => {
   beforeEach(() => {
@@ -71,6 +92,104 @@ describe('state', () => {
       myState.reset();
       expect(myState()).toBe(0);
       expect(myState.isOdd()).toBe(false);
+    });
+  });
+
+  it('typing: tracks generator dependencies from state config and insertions', () => {
+    const { CounterReaderToYield } = craftService(
+      { name: 'CounterReader', scope: 'global' },
+      () => ({
+        read: (): number => 2,
+      }),
+    );
+    const { CounterStepToYield } = craftService(
+      { name: 'CounterStep', scope: 'global' },
+      () => ({
+        step: (): number => 3,
+      }),
+    );
+
+    runInInjectionContext(() => {
+      const myState = state(
+        function* () {
+          const counter = yield* CounterReaderToYield(
+            undefined,
+            ({ read }) => ({
+              read,
+            }),
+          );
+
+          return counter.read();
+        },
+        function* ({ update }) {
+          const counterStep = yield* CounterStepToYield();
+
+          return {
+            increment: () => update((current) => current + counterStep.step()),
+          };
+        },
+      );
+
+      expectTypeOf(myState()).toEqualTypeOf<number>();
+      expectTypeOf<ExtractDeps<typeof myState>>().toEqualTypeOf<{
+        CounterReader: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+          derivedPropertiesUsed: {
+            read: () => number;
+          };
+          derivedPropertiesExposed: {
+            read: () => number;
+          };
+        };
+        CounterStep: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+        };
+      }>();
+    });
+  });
+
+  it('should resolve generator state config and generator insertions', () => {
+    const { CounterReaderRuntimeToYield } = craftService(
+      { name: 'CounterReaderRuntime', scope: 'global' },
+      () => ({
+        read: (): number => 2,
+      }),
+    );
+    const { CounterStepRuntimeToYield } = craftService(
+      { name: 'CounterStepRuntime', scope: 'global' },
+      () => ({
+        step: (): number => 3,
+      }),
+    );
+
+    runInInjectionContext(() => {
+      const myState = state(
+        function* () {
+          const counter = yield* CounterReaderRuntimeToYield(
+            undefined,
+            ({ read }) => ({
+              read,
+            }),
+          );
+
+          return counter.read();
+        },
+        function* ({ update }) {
+          const counterStep = yield* CounterStepRuntimeToYield();
+
+          return {
+            increment: () => update((current) => current + counterStep.step()),
+          };
+        },
+      );
+
+      expect(myState()).toBe(2);
+      myState.increment();
+      expect(myState()).toBe(5);
     });
   });
 

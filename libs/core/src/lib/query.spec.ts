@@ -5,12 +5,33 @@ import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { computed, signal } from '@angular/core';
 import { craftException, CraftExceptionResult } from './craft-exception';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import type { ExtractDeps } from './branded-component/branded-component';
+import type { GetToYieldServiceDependencies } from './craft-service';
 
 type User = {
   id: string;
   name: string;
   email: string;
 };
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
 
 describe('query', () => {
   beforeEach(() => {
@@ -59,6 +80,137 @@ describe('query', () => {
 
       // safeValue should return undefined without throwing
       expect(queryRef.safeValue()).toBeUndefined();
+    });
+  });
+
+  it('typing: tracks generator dependencies from params, loader and insertions', () => {
+    const { UserIdServiceToYield } = craftService(
+      { name: 'UserIdService', scope: 'global' },
+      () => ({
+        read: (): string => 'user-1',
+      }),
+    );
+    const { UserApiServiceToYield } = craftService(
+      { name: 'UserApiService', scope: 'global' },
+      () => ({
+        get: (userId: string): Promise<User> =>
+          Promise.resolve({
+            id: userId,
+            name: 'John Doe',
+            email: 'john@doe.com',
+          }),
+      }),
+    );
+    const { QueryToolsToYield } = craftService(
+      { name: 'QueryTools', scope: 'global' },
+      () => ({
+        prefix: (): string => 'user',
+      }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const queryRef = query(
+        {
+          params: function* () {
+            const userIdService = yield* UserIdServiceToYield();
+            return userIdService.read();
+          },
+          loader: function* ({ params }) {
+            const userApi = yield* UserApiServiceToYield();
+            return userApi.get(params);
+          },
+        },
+        function* () {
+          const queryTools = yield* QueryToolsToYield();
+
+          return {
+            queryKey: `${queryTools.prefix()}:details`,
+          };
+        },
+      );
+
+      expectTypeOf<ExtractDeps<typeof queryRef>>().toEqualTypeOf<{
+        UserIdService: GetToYieldServiceDependencies<
+          typeof UserIdServiceToYield
+        >;
+        UserApiService: GetToYieldServiceDependencies<
+          typeof UserApiServiceToYield
+        >;
+        QueryTools: GetToYieldServiceDependencies<typeof QueryToolsToYield>;
+      }>();
+    });
+  });
+
+  it('should resolve generator params, method, loader and insertions', async () => {
+    const logs: string[] = [];
+    const { UserIdRuntimeToYield } = craftService(
+      { name: 'UserIdRuntime', scope: 'global' },
+      () => ({
+        read: (): string => 'user-2',
+      }),
+    );
+    const { QueryLoggerRuntimeToYield } = craftService(
+      { name: 'QueryLoggerRuntime', scope: 'global' },
+      () => ({
+        log: (message: string) => {
+          logs.push(message);
+        },
+      }),
+    );
+    const { UserApiRuntimeToYield } = craftService(
+      { name: 'UserApiRuntime', scope: 'global' },
+      () => ({
+        get: async (userId: string): Promise<User> => ({
+          id: userId,
+          name: 'Jane Doe',
+          email: 'jane@doe.com',
+        }),
+      }),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const autoQuery = query(
+        {
+          params: function* () {
+            const userId = yield* UserIdRuntimeToYield();
+            return userId.read();
+          },
+          loader: function* ({ params }) {
+            const userApi = yield* UserApiRuntimeToYield();
+            return userApi.get(params);
+          },
+        },
+        function* () {
+          const logger = yield* QueryLoggerRuntimeToYield();
+          logger.log('auto:init');
+
+          return {
+            initialized: true,
+          };
+        },
+      );
+
+      const manualQuery = query({
+        method: function* (userId: string) {
+          const logger = yield* QueryLoggerRuntimeToYield();
+          logger.log(`manual:${userId}`);
+          return userId;
+        },
+        loader: function* ({ params }) {
+          const userApi = yield* UserApiRuntimeToYield();
+          return userApi.get(params);
+        },
+      });
+
+      await vi.runAllTimersAsync();
+      expect(autoQuery.initialized).toBe(true);
+      expect(autoQuery.value()?.id).toBe('user-2');
+
+      manualQuery.call('user-3');
+      await vi.runAllTimersAsync();
+
+      expect(manualQuery.value()?.id).toBe('user-3');
+      expect(logs).toEqual(['auto:init', 'manual:user-3']);
     });
   });
 });

@@ -611,6 +611,7 @@ export type InsertionsFactory<
   InsertsOutputs,
   Exceptions extends ResourceExceptionConstraints,
   PreviousInsertionsOutputs = {},
+  Yielded = never,
 > = (
   context: InsertionParams<
     ResourceState,
@@ -618,7 +619,7 @@ export type InsertionsFactory<
     Exceptions,
     PreviousInsertionsOutputs
   >,
-) => InsertsOutputs;
+) => InsertsOutputs | Generator<Yielded, InsertsOutputs, unknown>;
 
 export type InsertionByIdParams<
   GroupIdentifier extends string,
@@ -733,6 +734,7 @@ export type InsertionsByIdFactory<
   Exceptions extends ResourceExceptionConstraints,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
+  Yielded = never,
 > = (
   context: InsertionByIdParams<
     GroupIdentifier,
@@ -741,7 +743,7 @@ export type InsertionsByIdFactory<
     Exceptions,
     PreviousInsertionsOutputs
   >,
-) => InsertionsOutputs;
+) => InsertionsOutputs | Generator<Yielded, InsertionsOutputs, unknown>;
 
 export type InsertionResourceFactoryContext<
   GroupIdentifier,
@@ -770,6 +772,7 @@ export type InsertionsResourcesFactory<
   Exceptions extends ResourceExceptionConstraints,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
+  Yielded = never,
 > = (
   context: InsertionResourceFactoryContext<
     GroupIdentifier,
@@ -778,15 +781,16 @@ export type InsertionsResourcesFactory<
     Exceptions,
     PreviousInsertionsOutputs
   >,
-) => InsertionsOutputs;
+) => InsertionsOutputs | Generator<Yielded, InsertionsOutputs, unknown>;
 
 export type InsertionsStateFactory<
   State,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
+  Yielded = never,
 > = (
   context: InsertionStateFactoryContext<State, PreviousInsertionsOutputs>,
-) => InsertionsOutputs;
+) => InsertionsOutputs | Generator<Yielded, InsertionsOutputs, unknown>;
 
 export type InsertionsQueryParamsFactory<
   QueryParamsType,

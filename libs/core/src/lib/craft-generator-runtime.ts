@@ -1,4 +1,4 @@
-import type { Injector } from '@angular/core';
+import { Injector, runInInjectionContext } from '@angular/core';
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
 
@@ -13,6 +13,31 @@ export const SERVICE_APP_START_REQUEST_MARKER = Symbol(
 );
 
 type AppStartResult = Observable<unknown> | Promise<unknown> | void;
+
+type AnyGeneratorFunction = (...args: never[]) => Generator<
+  unknown,
+  unknown,
+  unknown
+>;
+
+export type ResolveGeneratorResult<Result> = Result extends Generator<
+  any,
+  infer Output,
+  unknown
+>
+  ? Output
+  : Result;
+
+export type ExtractFactoryYielded<Factory> = Factory extends (
+  ...args: any[]
+) => Generator<infer Yielded, any, unknown>
+  ? Yielded
+  : never;
+
+export type GeneratorCompatibleFactory<Factory, Yielded = never> =
+  Factory extends (...args: infer Args) => infer Result
+    ? (...args: Args) => Result | Generator<Yielded, Result, unknown>
+    : never;
 
 type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
@@ -105,6 +130,55 @@ export function isGenerator(
     'next' in value &&
     typeof value.next === 'function'
   );
+}
+
+export function isGeneratorFunction(value: unknown): value is AnyGeneratorFunction {
+  return (
+    typeof value === 'function' &&
+    (value.constructor?.name === 'GeneratorFunction' ||
+      Object.prototype.toString.call(value) === '[object GeneratorFunction]')
+  );
+}
+
+export function executeGeneratorCompatibleFactory<
+  This,
+  Args extends unknown[],
+  Result,
+>({
+  factory,
+  thisArg,
+  getInjector,
+  args,
+  invalidYieldErrorMessage,
+  multipleAppStartErrorMessage,
+  onAppStartNotSupportedErrorMessage,
+}: {
+  factory: (this: This, ...args: Args) => Result;
+  thisArg: This;
+  getInjector: () => Injector;
+  args: Args;
+  invalidYieldErrorMessage: string;
+  multipleAppStartErrorMessage: string;
+  onAppStartNotSupportedErrorMessage?: string;
+}): ResolveGeneratorResult<Result> {
+  const result = factory.apply(thisArg, args);
+
+  if (!isGenerator(result)) {
+    return result as ResolveGeneratorResult<Result>;
+  }
+
+  const injector = getInjector();
+
+  return runInInjectionContext(injector, () => {
+    return runCraftGenerator({
+      iterator: result,
+      injector,
+      hostScope: 'function',
+      invalidYieldErrorMessage,
+      multipleAppStartErrorMessage,
+      onAppStartNotSupportedErrorMessage,
+    }).value as ResolveGeneratorResult<Result>;
+  });
 }
 
 function isServiceYieldRequest(

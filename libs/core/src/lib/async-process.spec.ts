@@ -7,6 +7,12 @@ import { TestBed } from '@angular/core/testing';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
 import { Equal, Expect } from 'test-type';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import type { ExtractDeps } from './branded-component/branded-component';
+import type { GetToYieldServiceDependencies } from './craft-service';
 
 type EmptyAsyncProcessExceptions = {
   hasException: Signal<boolean>;
@@ -21,6 +27,21 @@ function removeMethod<T extends object>(resource: T): Omit<T, 'method'> {
   const { method: _method, ...rest } = resource as T & { method?: unknown };
   return rest as Omit<T, 'method'>;
 }
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
 
 describe('AsyncProcess', () => {
   beforeEach(() => {
@@ -126,6 +147,105 @@ describe('AsyncProcess', () => {
 
       // safeValue should return undefined without throwing
       expect(myAsyncProcess.safeValue()).toBeUndefined();
+    });
+  });
+
+  it('typing: tracks generator dependencies from method, loader and insertions', () => {
+    const { AsyncParamsToYield } = craftService(
+      { name: 'AsyncParams', scope: 'global' },
+      () => ({
+        normalize: (userId: string): string => userId.trim(),
+      }),
+    );
+    const { AsyncApiToYield } = craftService(
+      { name: 'AsyncApi', scope: 'global' },
+      () => ({
+        load: (userId: string): Promise<{ userId: string }> =>
+          Promise.resolve({ userId }),
+      }),
+    );
+    const { AsyncToolsToYield } = craftService(
+      { name: 'AsyncTools', scope: 'global' },
+      () => ({
+        key: (): string => 'async-user',
+      }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const asyncRef = asyncProcess(
+        {
+          method: function* (userId: string) {
+            const params = yield* AsyncParamsToYield();
+            return params.normalize(userId);
+          },
+          loader: function* ({ params }) {
+            const api = yield* AsyncApiToYield();
+            return api.load(params);
+          },
+        },
+        function* () {
+          const tools = yield* AsyncToolsToYield();
+          return {
+            processKey: tools.key(),
+          };
+        },
+      );
+
+      expectTypeOf<ExtractDeps<typeof asyncRef>>().toEqualTypeOf<{
+        AsyncParams: GetToYieldServiceDependencies<typeof AsyncParamsToYield>;
+        AsyncApi: GetToYieldServiceDependencies<typeof AsyncApiToYield>;
+        AsyncTools: GetToYieldServiceDependencies<typeof AsyncToolsToYield>;
+      }>();
+    });
+  });
+
+  it('should resolve generator method, loader and insertions', async () => {
+    const logs: string[] = [];
+    const { AsyncLoggerRuntimeToYield } = craftService(
+      { name: 'AsyncLoggerRuntime', scope: 'global' },
+      () => ({
+        log: (message: string) => {
+          logs.push(message);
+        },
+      }),
+    );
+    const { AsyncApiRuntimeToYield } = craftService(
+      { name: 'AsyncApiRuntime', scope: 'global' },
+      () => ({
+        load: async (userId: string): Promise<{ userId: string }> => ({
+          userId,
+        }),
+      }),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const asyncRef = asyncProcess(
+        {
+          method: function* (userId: string) {
+            const logger = yield* AsyncLoggerRuntimeToYield();
+            logger.log(`async:${userId}`);
+            return userId;
+          },
+          loader: function* ({ params }) {
+            const api = yield* AsyncApiRuntimeToYield();
+            return api.load(params);
+          },
+        },
+        function* () {
+          const logger = yield* AsyncLoggerRuntimeToYield();
+          logger.log('insert:init');
+          return {
+            initialized: true,
+          };
+        },
+      );
+
+      asyncRef.method('user-4');
+      await vi.runAllTimersAsync();
+
+      expect(asyncRef.initialized).toBe(true);
+      expect(asyncRef.value()).toEqual({ userId: 'user-4' });
+      expect(logs).toEqual(['insert:init', 'async:user-4']);
     });
   });
 });

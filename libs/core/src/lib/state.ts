@@ -1,7 +1,11 @@
 import {
+  assertInInjectionContext,
+  inject,
+  Injector,
   isSignal,
   isWritableSignal,
   linkedSignal,
+  runInInjectionContext,
   Signal,
   signal,
   WritableSignal,
@@ -10,14 +14,33 @@ import {
   InsertionsStateFactory,
   InsertionStateFactoryContext,
 } from './query.core';
+import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import type {
+  SERVICE_HELPER_DEPENDENCIES,
+  ServiceDependencyMapFromYielded,
+} from './craft-service';
 import { Source$ as SourceDollarType } from './source$';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 
+type ResolveGeneratorResult<Result> = Result extends Generator<
+  any,
+  infer Output,
+  unknown
+>
+  ? Output
+  : Result;
+
 type Source$Method<SourceType> = [SourceType] extends [void]
   ? () => void
   : (value: SourceType) => void;
+
+type AnyGeneratorFunction = (...args: never[]) => Generator<
+  unknown,
+  unknown,
+  unknown
+>;
 
 export type ExposedStateInsertions<Insertions> = MergeObject<
   IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
@@ -32,12 +55,41 @@ export type ExposedStateInsertions<Insertions> = MergeObject<
   }
 >;
 
-export type StateOutput<StateType, Insertions> = MergeObject<
+export type StateOutput<StateType, Insertions, Dependencies = {}> = MergeObject<
   Signal<StateType>,
-  ExposedStateInsertions<Insertions>
+  MergeObject<
+    ExposedStateInsertions<Insertions>,
+    {
+      readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
+    }
+  >
 >;
 
 type StateConfig<State> = State | Signal<State>;
+type StateGeneratorFactory<State, Yielded = never> = () => Generator<
+  Yielded,
+  StateConfig<State>,
+  unknown
+>;
+type ResolvedStateType<StateInput> = StateInput extends Signal<infer State>
+  ? State
+  : StateInput extends (...args: any[]) => Generator<any, infer Output, unknown>
+    ? ResolvedStateType<Output>
+    : StateInput;
+type StateConfigYielded<StateInput> = StateInput extends (
+  ...args: any[]
+) => Generator<infer Yielded, any, unknown>
+  ? Yielded
+  : never;
+type StateTrackedDependencies<
+  StateYielded = never,
+  InsertionsYielded = never,
+> = ServiceDependencyMapFromYielded<StateYielded | InsertionsYielded>;
+
+const STATE_INVALID_YIELD_ERROR_MESSAGE =
+  'state generators can only yield craftService dependencies or exposed dependency helpers.';
+const STATE_APP_START_ERROR_MESSAGE =
+  'state generators do not support onAppStart(...).';
 
 function isSource$(value: unknown): value is SourceDollarType<unknown> {
   return (
@@ -48,6 +100,40 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
     'subscribe' in value &&
     typeof (value as SourceDollarType<unknown>).subscribe === 'function'
   );
+}
+
+function isGeneratorFunction(value: unknown): value is AnyGeneratorFunction {
+  return (
+    typeof value === 'function' &&
+    (value.constructor?.name === 'GeneratorFunction' ||
+      Object.prototype.toString.call(value) === '[object GeneratorFunction]')
+  );
+}
+
+function executeStateFactory<This, Args extends unknown[], Result>(
+  factory: (this: This, ...args: Args) => Result,
+  thisArg: This,
+  getInjector: () => Injector,
+  ...args: Args
+): ResolveGeneratorResult<Result> {
+  const result = factory.apply(thisArg, args);
+
+  if (!isGenerator(result)) {
+    return result as ResolveGeneratorResult<Result>;
+  }
+
+  const injector = getInjector();
+
+  return runInInjectionContext(injector, () => {
+    return runCraftGenerator({
+      iterator: result,
+      injector,
+      hostScope: 'function',
+      invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
+      multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+      onAppStartNotSupportedErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+    }).value as ResolveGeneratorResult<Result>;
+  });
 }
 
 /**
@@ -126,137 +212,264 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
  * reset.emit();
  * console.log(myState()); // 0
  */
-export function state<StateType>(
-  stateConfig: StateConfig<StateType>,
-): StateOutput<StateType, {}>;
-export function state<StateType, Insertion1>(
-  stateConfig: StateConfig<StateType>,
-  insertion1: InsertionsStateFactory<NoInfer<StateType>, Insertion1>,
-): StateOutput<StateType, Insertion1>;
-export function state<StateType, Insertion1, Insertion2>(
-  stateConfig: StateConfig<StateType>,
-  insertion1: InsertionsStateFactory<NoInfer<StateType>, Insertion1>,
-  insertion2: InsertionsStateFactory<
-    NoInfer<StateType>,
-    Insertion2,
-    Insertion1
+export function state<StateInput>(
+  stateConfig: StateInput,
+): StateOutput<
+  ResolvedStateType<StateInput>,
+  {},
+  StateTrackedDependencies<StateConfigYielded<StateInput>>
+>;
+export function state<
+  StateInput,
+  Insertion1,
+  Insertion1Yielded = never,
+>(
+  stateConfig: StateInput,
+  insertion1: InsertionsStateFactory<
+    NoInfer<ResolvedStateType<StateInput>>,
+    Insertion1,
+    {},
+    Insertion1Yielded
   >,
-): StateOutput<StateType, Insertion1 & Insertion2>;
-export function state<StateType, Insertion1, Insertion2, Insertion3>(
-  stateConfig: StateConfig<StateType>,
-  insertion1: InsertionsStateFactory<NoInfer<StateType>, Insertion1>,
+): StateOutput<
+  ResolvedStateType<StateInput>,
+  Insertion1,
+  StateTrackedDependencies<StateConfigYielded<StateInput>, Insertion1Yielded>
+>;
+export function state<
+  StateInput,
+  Insertion1,
+  Insertion2,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+>(
+  stateConfig: StateInput,
+  insertion1: InsertionsStateFactory<
+    NoInfer<ResolvedStateType<StateInput>>,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
   insertion2: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
+  >,
+): StateOutput<
+  ResolvedStateType<StateInput>,
+  Insertion1 & Insertion2,
+  StateTrackedDependencies<
+    StateConfigYielded<StateInput>,
+    Insertion1Yielded | Insertion2Yielded
+  >
+>;
+export function state<
+  StateInput,
+  Insertion1,
+  Insertion2,
+  Insertion3,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+>(
+  stateConfig: StateInput,
+  insertion1: InsertionsStateFactory<
+    NoInfer<ResolvedStateType<StateInput>>,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
+  insertion2: InsertionsStateFactory<
+    NoInfer<ResolvedStateType<StateInput>>,
+    Insertion2,
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
-): StateOutput<StateType, Insertion1 & Insertion2 & Insertion3>;
+): StateOutput<
+  ResolvedStateType<StateInput>,
+  Insertion1 & Insertion2 & Insertion3,
+  StateTrackedDependencies<
+    StateConfigYielded<StateInput>,
+    Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
+  >
+>;
 export function state<
-  StateType,
+  StateInput,
   Insertion1,
   Insertion2,
   Insertion3,
   Insertion4,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
 >(
-  stateConfig: StateConfig<StateType>,
-  insertion1: InsertionsStateFactory<NoInfer<StateType>, Insertion1>,
+  stateConfig: StateInput,
+  insertion1: InsertionsStateFactory<
+    NoInfer<ResolvedStateType<StateInput>>,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
   insertion2: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
-): StateOutput<StateType, Insertion1 & Insertion2 & Insertion3 & Insertion4>;
+): StateOutput<
+  ResolvedStateType<StateInput>,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4,
+  StateTrackedDependencies<
+    StateConfigYielded<StateInput>,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+  >
+>;
 export function state<
-  StateType,
+  StateInput,
   Insertion1,
   Insertion2,
   Insertion3,
   Insertion4,
   Insertion5,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
 >(
-  stateConfig: StateConfig<StateType>,
-  insertion1: InsertionsStateFactory<NoInfer<StateType>, Insertion1>,
+  stateConfig: StateInput,
+  insertion1: InsertionsStateFactory<
+    NoInfer<ResolvedStateType<StateInput>>,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
   insertion2: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
 ): StateOutput<
-  StateType,
-  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+  ResolvedStateType<StateInput>,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+  StateTrackedDependencies<
+    StateConfigYielded<StateInput>,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+  >
 >;
 export function state<
-  StateType,
+  StateInput,
   Insertion1,
   Insertion2,
   Insertion3,
   Insertion4,
   Insertion5,
   Insertion6,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
 >(
-  stateConfig: StateConfig<StateType>,
-  insertion1: InsertionsStateFactory<NoInfer<StateType>, Insertion1>,
+  stateConfig: StateInput,
+  insertion1: InsertionsStateFactory<
+    NoInfer<ResolvedStateType<StateInput>>,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
   insertion2: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion6,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
   >,
 ): StateOutput<
-  StateType,
-  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
+  ResolvedStateType<StateInput>,
+  Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
+  StateTrackedDependencies<
+    StateConfigYielded<StateInput>,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+    | Insertion6Yielded
+  >
 >;
 export function state<
-  StateType,
+  StateInput,
   Insertion1,
   Insertion2,
   Insertion3,
@@ -264,57 +477,94 @@ export function state<
   Insertion5,
   Insertion6,
   Insertion7,
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
+  Insertion7Yielded = never,
 >(
-  stateConfig: StateConfig<StateType>,
-  insertion1: InsertionsStateFactory<NoInfer<StateType>, Insertion1>,
+  stateConfig: StateInput,
+  insertion1: InsertionsStateFactory<
+    NoInfer<ResolvedStateType<StateInput>>,
+    Insertion1,
+    {},
+    Insertion1Yielded
+  >,
   insertion2: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion2,
-    Insertion1
+    Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion3,
-    Insertion1 & Insertion2
+    Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion4,
-    Insertion1 & Insertion2 & Insertion3
+    Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion5,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4
+    Insertion1 & Insertion2 & Insertion3 & Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion6,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
+    Insertion6Yielded
   >,
   insertion7: InsertionsStateFactory<
-    NoInfer<StateType>,
+    NoInfer<ResolvedStateType<StateInput>>,
     Insertion7,
-    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6
+    Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
+    Insertion7Yielded
   >,
 ): StateOutput<
-  StateType,
+  ResolvedStateType<StateInput>,
   Insertion1 &
     Insertion2 &
     Insertion3 &
     Insertion4 &
     Insertion5 &
     Insertion6 &
-    Insertion7
+    Insertion7,
+  StateTrackedDependencies<
+    StateConfigYielded<StateInput>,
+    | Insertion1Yielded
+    | Insertion2Yielded
+    | Insertion3Yielded
+    | Insertion4Yielded
+    | Insertion5Yielded
+    | Insertion6Yielded
+    | Insertion7Yielded
+  >
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
-  const isSignalState = isSignal(stateConfig);
+  let injector: Injector | undefined;
+  const getInjector = () => {
+    assertInInjectionContext(state);
+    injector ??= inject(Injector);
+    return injector;
+  };
+  const resolvedStateConfig = isGeneratorFunction(stateConfig)
+    ? executeStateFactory(stateConfig, undefined, getInjector)
+    : stateConfig;
+  const isSignalState = isSignal(resolvedStateConfig);
   const stateSignal = isSignalState
-    ? isWritableSignal(stateConfig)
-      ? (stateConfig as WritableSignal<StateType>)
-      : linkedSignal(() => (stateConfig as Signal<StateType>)())
-    : signal(stateConfig as StateType);
+    ? isWritableSignal(resolvedStateConfig)
+      ? (resolvedStateConfig as WritableSignal<StateType>)
+      : linkedSignal(() => (resolvedStateConfig as Signal<StateType>)())
+    : signal(resolvedStateConfig as StateType);
   const readonlyStateSignal =
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
@@ -325,21 +575,23 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
     insertions as InsertionsStateFactory<StateType, {}>[]
   ).reduce(
     (acc, insert) => {
-      const nextRawInsertions = insert({
-        state: readonlyStateSignal,
-        set: (newState: StateType) => originalSet(newState),
-        update: (updateFn: (currentState: StateType) => StateType) =>
-          originalUpdate(updateFn),
-        patch: (patchFn: (currentState: StateType) => Partial<StateType>) =>
-          originalUpdate((current) => ({
-            ...current,
-            ...patchFn(current),
-          })),
-        insertions: acc.rawInsertionsOutput as {},
-      } as InsertionStateFactoryContext<StateType, {}>) as Record<
-        string,
-        unknown
-      >;
+      const nextRawInsertions = executeStateFactory(
+        insert,
+        undefined,
+        getInjector,
+        {
+          state: readonlyStateSignal,
+          set: (newState: StateType) => originalSet(newState),
+          update: (updateFn: (currentState: StateType) => StateType) =>
+            originalUpdate(updateFn),
+          patch: (patchFn: (currentState: StateType) => Partial<StateType>) =>
+            originalUpdate((current) => ({
+              ...current,
+              ...patchFn(current),
+            })),
+          insertions: acc.rawInsertionsOutput as {},
+        } as InsertionStateFactoryContext<StateType, {}>,
+      ) as Record<string, unknown>;
 
       const nextExposedInsertions = Object.entries(nextRawInsertions).reduce(
         (exposedAcc, [key, value]) => {

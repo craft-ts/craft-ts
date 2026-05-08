@@ -7,6 +7,12 @@ import { Equal, Expect } from 'test-type';
 import { mutation, MutationOutput } from './mutation';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import type { ExtractDeps } from './branded-component/branded-component';
+import type { GetToYieldServiceDependencies } from './craft-service';
 
 type EmptyMutationExceptions = {
   hasException: Signal<boolean>;
@@ -21,6 +27,21 @@ function removeMutate<T extends object>(resource: T): Omit<T, 'mutate'> {
   const { mutate: _mutate, ...rest } = resource as T & { mutate?: unknown };
   return rest as Omit<T, 'mutate'>;
 }
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
 
 describe('mutation', () => {
   beforeEach(() => {
@@ -128,6 +149,105 @@ describe('mutation', () => {
 
       // safeValue should return undefined without throwing
       expect(mutationInstance.safeValue()).toBeUndefined();
+    });
+  });
+
+  it('typing: tracks generator dependencies from method, loader and insertions', () => {
+    const { MutationParamsToYield } = craftService(
+      { name: 'MutationParams', scope: 'global' },
+      () => ({
+        mapUserId: (userId: string): string => userId.trim(),
+      }),
+    );
+    const { MutationApiToYield } = craftService(
+      { name: 'MutationApi', scope: 'global' },
+      () => ({
+        save: (userId: string): Promise<{ userId: string }> =>
+          Promise.resolve({ userId }),
+      }),
+    );
+    const { MutationToolsToYield } = craftService(
+      { name: 'MutationTools', scope: 'global' },
+      () => ({
+        label: (): string => 'save-user',
+      }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const mutationRef = mutation(
+        {
+          method: function* (userId: string) {
+            const paramsMapper = yield* MutationParamsToYield();
+            return paramsMapper.mapUserId(userId);
+          },
+          loader: function* ({ params }) {
+            const api = yield* MutationApiToYield();
+            return api.save(params);
+          },
+        },
+        function* () {
+          const tools = yield* MutationToolsToYield();
+          return {
+            mutationLabel: tools.label(),
+          };
+        },
+      );
+
+      expectTypeOf<ExtractDeps<typeof mutationRef>>().toEqualTypeOf<{
+        MutationParams: GetToYieldServiceDependencies<typeof MutationParamsToYield>;
+        MutationApi: GetToYieldServiceDependencies<typeof MutationApiToYield>;
+        MutationTools: GetToYieldServiceDependencies<typeof MutationToolsToYield>;
+      }>();
+    });
+  });
+
+  it('should resolve generator method, loader and insertions', async () => {
+    const logs: string[] = [];
+    const { MutationLoggerRuntimeToYield } = craftService(
+      { name: 'MutationLoggerRuntime', scope: 'global' },
+      () => ({
+        log: (message: string) => {
+          logs.push(message);
+        },
+      }),
+    );
+    const { MutationApiRuntimeToYield } = craftService(
+      { name: 'MutationApiRuntime', scope: 'global' },
+      () => ({
+        save: async (userId: string): Promise<{ userId: string }> => ({
+          userId,
+        }),
+      }),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const mutationRef = mutation(
+        {
+          method: function* (userId: string) {
+            const logger = yield* MutationLoggerRuntimeToYield();
+            logger.log(`mutate:${userId}`);
+            return userId;
+          },
+          loader: function* ({ params }) {
+            const api = yield* MutationApiRuntimeToYield();
+            return api.save(params);
+          },
+        },
+        function* () {
+          const logger = yield* MutationLoggerRuntimeToYield();
+          logger.log('insert:init');
+          return {
+            initialized: true,
+          };
+        },
+      );
+
+      mutationRef.mutate('user-1');
+      await vi.runAllTimersAsync();
+
+      expect(mutationRef.initialized).toBe(true);
+      expect(mutationRef.value()).toEqual({ userId: 'user-1' });
+      expect(logs).toEqual(['insert:init', 'mutate:user-1']);
     });
   });
 });
