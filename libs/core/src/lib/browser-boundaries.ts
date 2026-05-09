@@ -251,11 +251,10 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
     const consoleService = yield* ConsoleServiceToYield();
     const from = yield* HostTagToYield();
 
-    const metadata: { from: readonly string[]; trace?: string } = { from };
-
-    if (key === 'error') {
-      metadata.trace = parseConsoleStackTrace(new Error().stack);
-    }
+    const metadata: { from: readonly string[]; trace: string } = {
+      from,
+      trace: parseConsoleStackTrace(new Error().stack),
+    };
 
     return (consoleService[key] as AnyBrowserBoundaryMethod)(
       ...args,

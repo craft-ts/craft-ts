@@ -1,5 +1,6 @@
 import { inject, Injector, linkedSignal, Signal } from '@angular/core';
 import { FieldTree, ReadonlyArrayLike } from '@angular/forms/signals';
+import { ɵcreateHostTaggedInjector } from '../craft-service';
 import {
   decorateFormTreeWithInsertions,
   getArrayItemSchemaPath,
@@ -118,7 +119,7 @@ function createInsertSelectFormTreeItemRuntime(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: InsertionFormFactoryContext<any, any, any>,
   ) => {
-    const injector = inject(Injector);
+    const injector = ɵcreateHostTaggedInjector(inject(Injector), entityName);
     const selectItemMethodName = `select${entityName.charAt(0).toUpperCase()}${entityName.slice(1)}`;
     const decoratedForms = new WeakSet<FieldTree<unknown, string | number>>();
     const inheritedInsertions =
@@ -174,6 +175,7 @@ function createInsertSelectFormTreeItemRuntime(
       }
 
       if (!decoratedForms.has(itemForm)) {
+        const itemInjector = ɵcreateHostTaggedInjector(injector, String(id));
         const itemState = linkedSignal(() => selectItemState(id));
         const itemValidatorModelRef = linkedSignal(() => {
           const currentValidatorModel = context.validatorModelRef();
@@ -203,7 +205,7 @@ function createInsertSelectFormTreeItemRuntime(
             })),
           setSubmitting: context.setSubmitting,
           inheritedInsertions,
-          injector,
+          injector: itemInjector,
           formIdentifier: context.formIdentifier,
         });
         decoratedForms.add(itemForm);
@@ -246,7 +248,7 @@ function createInsertSelectFormTreePropertyRuntime(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: InsertionFormFactoryContext<any, any, any>,
   ) => {
-    const injector = inject(Injector);
+    const injector = ɵcreateHostTaggedInjector(inject(Injector), propertyKey);
     const selectPropertyMethodName = `select${propertyKey.charAt(0).toUpperCase()}${propertyKey.slice(1)}`;
     const inheritedInsertions =
       (context.insertions as Record<string, unknown> | undefined) ?? {};

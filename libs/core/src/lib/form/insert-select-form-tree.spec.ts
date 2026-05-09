@@ -1,6 +1,12 @@
-import { computed } from '@angular/core';
+import '@angular/compiler';
+import { computed, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
 import { required } from '@angular/forms/signals';
+import { HOST_TAG_LIST } from '../host-tag';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertSelectFormTree } from './insert-select-form-tree';
@@ -24,6 +30,21 @@ type Address = {
 type AddressBookFormValue = {
   addresses: Address[];
 };
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
 
 describe('insertSelectFormTree', () => {
   it('should select a nested object form tree and add insertions', () => {
@@ -76,6 +97,29 @@ describe('insertSelectFormTree', () => {
 
       expect(profileForm().credentials.password).toBe('');
       expect(credentialsForm.password().value()).toBe('');
+    });
+  });
+
+  it('should tag object form tree select insertions with the select name', () => {
+    TestBed.runInInjectionContext(() => {
+      const profileForm = state(
+        {
+          credentials: {
+            name: 'romain',
+            password: 'secret',
+          },
+          status: 'draft',
+        } satisfies ProfileFormValue,
+        insertForm(
+          insertSelectFormTree('credentials', () => ({
+            hostTags: inject(HOST_TAG_LIST),
+          })),
+        ),
+      );
+
+      expect(profileForm.form().selectCredentials()().hostTags).toEqual([
+        'credentials',
+      ]);
     });
   });
 
@@ -134,6 +178,33 @@ describe('insertSelectFormTree', () => {
 
       expect(addressBookForm().addresses[0].city).toBe('Lyon');
       expect(addressesForm().items()[0]().cityLabel()).toBe('Lyon (75000)');
+    });
+  });
+
+  it('should tag array form tree select insertions with the select name and selected identifier', () => {
+    TestBed.runInInjectionContext(() => {
+      const addressBookForm = state(
+        {
+          addresses: [
+            { city: 'Paris', zip: '75000' },
+            { city: 'Lyon', zip: '69000' },
+          ],
+        } satisfies AddressBookFormValue,
+        insertForm(
+          insertSelectFormTree(
+            'addresses',
+            insertNoopTypingAnchor,
+            insertSelectFormTree('address', () => ({
+              hostTags: inject(HOST_TAG_LIST),
+            })),
+          ),
+        ),
+      );
+
+      expect(
+        addressBookForm.form().selectAddresses()().selectAddress(1)?.()
+          .hostTags,
+      ).toEqual(['addresses', 'address', '1']);
     });
   });
 

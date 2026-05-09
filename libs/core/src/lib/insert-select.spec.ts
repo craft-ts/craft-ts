@@ -1,5 +1,11 @@
-import { computed } from '@angular/core';
+import '@angular/compiler';
+import { computed, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import { HOST_TAG_LIST } from './host-tag';
 import { insertSelect } from './insert-select';
 import { on$ } from './on$';
 import { Source$, source$ } from './source$';
@@ -8,6 +14,21 @@ import { insertNoopTypingAnchor } from './insert-noop-typing-anchor';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
 
 describe('insertSelect', () => {
   it('should reproduce payload inference issue on nested matrix emitters', () => {
@@ -103,6 +124,24 @@ describe('insertSelect', () => {
     });
   });
 
+  it('should tag object select insertions with the select name', () => {
+    runInInjectionContext(() => {
+      const board = state(
+        {
+          cell: {
+            index: 0,
+            color: 'white',
+          },
+        },
+        insertSelect('cell', () => ({
+          hostTags: inject(HOST_TAG_LIST),
+        })),
+      );
+
+      expect(board.selectCell().hostTags).toEqual(['cell']);
+    });
+  });
+
   it('should work on array states', () => {
     runInInjectionContext(() => {
       const cells = state(
@@ -129,6 +168,22 @@ describe('insertSelect', () => {
       expect(cells.selectCell(0)?.color).toBe('black');
       expect(cells.selectCell(0)?.paintCount).toBe(1);
       expect(cells.selectCell(0)?.paintCountStr()).toBe('Painted 1 times');
+    });
+  });
+
+  it('should tag array select insertions with the select name and selected identifier', () => {
+    runInInjectionContext(() => {
+      const cells = state(
+        [
+          { index: 0, color: 'white' },
+          { index: 1, color: 'black' },
+        ],
+        insertSelect('cell', () => ({
+          hostTags: inject(HOST_TAG_LIST),
+        })),
+      );
+
+      expect(cells.selectCell(1)?.hostTags).toEqual(['cell', '1']);
     });
   });
 

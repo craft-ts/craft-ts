@@ -5,6 +5,7 @@ import {
   runInInjectionContext,
 } from '@angular/core';
 import { InsertionsStateFactory } from './query.core';
+import { ɵcreateHostTaggedInjector } from './craft-service';
 import { Source$ as SourceDollarType, source$ } from './source$';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
@@ -161,7 +162,7 @@ function createInsertSelectItemRuntime(
     context: any,
   ) => {
     const { state, update, insertions: previousInsertions } = context;
-    const injector = inject(Injector);
+    const injector = ɵcreateHostTaggedInjector(inject(Injector), entityName);
     const selectItemMethodName = `select${capitalize(entityName)}`;
     const selectedStateById = new Map<number, unknown>();
     const inheritedInsertions =
@@ -187,11 +188,12 @@ function createInsertSelectItemRuntime(
       }
 
       const selectedStateSignal = linkedSignal(() => select(id));
+      const itemInjector = ɵcreateHostTaggedInjector(injector, String(id));
 
       const { rawInsertionsOutput, exposedInsertionsOutput } =
         itemInsertions.reduce(
           (acc, insertion) => {
-            const nextRawInsertions = runInInjectionContext(injector, () =>
+            const nextRawInsertions = runInInjectionContext(itemInjector, () =>
               insertion({
                 state: selectedStateSignal,
                 set: (newState: unknown) => {
@@ -375,6 +377,7 @@ function createInsertSelectPropertyRuntime(
     context: any,
   ) => {
     const { state, update, insertions: previousInsertions } = context;
+    const injector = ɵcreateHostTaggedInjector(inject(Injector), propertyKey);
     let selectedPropertyProxy: unknown;
     const crossLayerSourcesByKey = new Map<string, SourceDollarType<unknown>>();
     const selectPropertyMethodName = `select${capitalize(propertyKey)}`;
@@ -431,21 +434,25 @@ function createInsertSelectPropertyRuntime(
       const { rawInsertionsOutput, exposedInsertionsOutput } =
         propertyInsertions.reduce(
           (acc, insertion) => {
-            const nextRawInsertions = insertion({
-              state: selectedPropertySignal,
-              set: setProperty,
-              update: updateProperty,
-              patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
-                return updateProperty((current) => ({
-                  ...(current as object),
-                  ...patchFn(current),
-                }));
-              },
-              insertions: {
-                ...inheritedInsertions,
-                ...acc.rawInsertionsOutput,
-              } as never,
-            }) as Record<string, unknown>;
+            const nextRawInsertions = runInInjectionContext(injector, () =>
+              insertion({
+                state: selectedPropertySignal,
+                set: setProperty,
+                update: updateProperty,
+                patch: (
+                  patchFn: (currentState: unknown) => Partial<unknown>,
+                ) => {
+                  return updateProperty((current) => ({
+                    ...(current as object),
+                    ...patchFn(current),
+                  }));
+                },
+                insertions: {
+                  ...inheritedInsertions,
+                  ...acc.rawInsertionsOutput,
+                } as never,
+              }),
+            ) as Record<string, unknown>;
 
             const nextExposedInsertions = Object.entries(
               nextRawInsertions,
