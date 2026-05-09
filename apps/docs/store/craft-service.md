@@ -29,6 +29,7 @@ For a service named `Counter`, `craftService` can generate:
 
 - `injectCounter(...)` to resolve the service in components/directives
 - `CounterToYield(...)` to compose it inside another `craftService`
+- `CounterToYield.someProperty(...)` to derive one public property directly
 - `provideCounter(...)` for provider-capable scopes
 - `COUNTER_META_DATA` for metadata-driven tooling
 - `CounterRequirement` for `abstract` services
@@ -143,6 +144,51 @@ const { injectCounterFacade } = craftService(
   },
 );
 ```
+
+## Single Property Shortcut
+
+When only one public property is needed, `XToYield.property()` is a shortcut for
+a one-property derivation.
+
+```typescript
+const { UsersApiToYield } = craftService(
+  { name: 'UsersApi', scope: 'global' },
+  () => ({
+    updateUser: (user: { id: string; name: string }) =>
+      Promise.resolve(user),
+    getUsers: () => Promise.resolve([]),
+  }),
+);
+
+const { injectUserUpdater } = craftService(
+  { name: 'UserUpdater', scope: 'global' },
+  function* () {
+    const updateUser = yield* UsersApiToYield.updateUser();
+
+    return {
+      rename: (user: { id: string; name: string }, name: string) =>
+        updateUser({ ...user, name }),
+    };
+  },
+);
+```
+
+For method properties on services without public inputs, the shortcut can call
+the method directly:
+
+```typescript
+return yield* UsersApiToYield.updateUser({ id: '1', name: 'Romain' });
+```
+
+The shortcut accepts the same bindings as `XToYield(...)`:
+
+```typescript
+const increment = yield* CounterToYield.increment({ initialValue: 0 });
+```
+
+Use the full `XToYield(bindings, expose)` form when deriving several
+properties, creating aliases, exposing `$self`, using symbol keys, or when a
+service property collides with a native function property such as `name`.
 
 ## Partial Exposure
 

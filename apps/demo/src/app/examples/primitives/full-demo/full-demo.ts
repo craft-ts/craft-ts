@@ -29,15 +29,17 @@ import {
   state,
   updateOne,
   ValidatedFormValue,
+  type DerivedService,
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
+  type GetServiceOutput,
 } from '@craft-ng/core';
 import {
   StatusComponent,
   type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
-import { injectApiService, User } from './api.service';
+import { ApiServiceToYield, injectApiService, User } from './api.service';
 
 @Component({
   selector: 'app-granular-mutation',
@@ -337,6 +339,11 @@ import { injectApiService, User } from './api.service';
 export default class FullDemo {
   protected readonly reset$ = source$<void>();
 
+  protected readonly apiService = injectApiService(
+    undefined,
+    ({ throwError, toggleUpdateError }) => ({ throwError, toggleUpdateError }),
+  );
+
   protected readonly pagination = queryParam(
     {
       state: {
@@ -360,13 +367,11 @@ export default class FullDemo {
       reset: on$(this.reset$, () => reset()),
     }),
   );
-  protected readonly apiService = injectApiService();
 
   protected readonly bulkDelete = mutation({
     method: (ids: string[]) => ids,
-    loader: async ({ params: ids }) => {
-      await this.apiService.bulkDelete(ids);
-      return ids;
+    loader: function* ({ params: ids }) {
+      return yield* ApiServiceToYield.bulkDelete(ids);
     },
   });
 
@@ -394,21 +399,26 @@ export default class FullDemo {
         : undefined;
     },
     identifier: ({ id }) => id,
-    loader: ({ params: user }) => this.apiService.updateItem(user),
+    loader: function* ({ params: user }) {
+      return yield* ApiServiceToYield.updateItem(user);
+    },
   });
 
   private readonly updateUserName = mutation({
     method: (payload: NonNullable<ValidatedFormValue<User>>) => payload,
     identifier: ({ id }) => id,
-    loader: async ({ params: user }) => this.apiService.updateItem(user),
+    loader: function* ({ params: user }) {
+      return yield* ApiServiceToYield.updateItem(user);
+    },
   });
 
   private readonly usersQuery = query(
     {
       params: this.pagination,
       identifier: (params) => `${params.page}-${params.pageSize}`,
-      loader: ({ params: pagination }) =>
-        this.apiService.getDataList(pagination),
+      loader: function* ({ params: pagination }) {
+        return yield* ApiServiceToYield.getDataList(pagination);
+      },
     },
     insertLocalStoragePersister({
       storeName: 'demo-app-full-demo',
@@ -598,14 +608,30 @@ export type GenDeps_FullDemo = GetDeps<{
   deps: {
     CommonModule: CommonModule;
     GenDeps_StatusComponent: GenDeps_StatusComponent;
-    FormField: FormField<any>;
+    FormField: FormField<unknown>;
   };
   propertiesDeps: {
     reset$: ExtractDeps<FullDemo['reset$']>;
-    pagination: ExtractDeps<FullDemo['pagination']>;
     apiService: {
-      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
+      ApiService: DerivedService<
+        ExtractDeps<typeof injectApiService>['ApiService'],
+        {
+          derivedPropertiesUsed: {
+            throwError: GetServiceOutput<typeof injectApiService>['throwError'];
+            toggleUpdateError: GetServiceOutput<
+              typeof injectApiService
+            >['toggleUpdateError'];
+          };
+          derivedPropertiesExposed: {
+            throwError: GetServiceOutput<typeof injectApiService>['throwError'];
+            toggleUpdateError: GetServiceOutput<
+              typeof injectApiService
+            >['toggleUpdateError'];
+          };
+        }
+      >;
     };
+    pagination: ExtractDeps<FullDemo['pagination']>;
     bulkDelete: ExtractDeps<FullDemo['bulkDelete']>;
     delayUserDeletion: ExtractDeps<FullDemo['delayUserDeletion']>;
     deleteUser: ExtractDeps<FullDemo['deleteUser']>;

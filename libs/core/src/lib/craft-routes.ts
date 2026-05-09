@@ -1532,7 +1532,7 @@ function createGuardExecutor<Inputs extends object, Output>(
   const serviceApi = craftService(
     { name: serviceName, scope: 'function' },
     factory as never,
-  ) as CraftServiceApi<string, 'function', Inputs, Output>;
+  ) as unknown as CraftServiceApi<string, 'function', Inputs, Output>;
   const injectKey = `inject${capitalize(serviceName)}`;
   const injectGuard = (serviceApi as Record<string, unknown>)[injectKey];
 

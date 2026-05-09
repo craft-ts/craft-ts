@@ -54,14 +54,7 @@ const {
     }),
     identifier: ({ id }) => id,
     loader: function* ({ params: user }) {
-      const { updateItem } = yield* ApiServiceToYield(
-        {},
-        ({ getDataList, updateItem }) => ({
-          getDataList,
-          updateItem,
-        }),
-      );
-      return updateItem(user);
+      return yield* ApiServiceToYield.updateItem(user);
     },
   });
 
@@ -70,11 +63,7 @@ const {
       params: pagination,
       identifier: (params) => `${params.page}-${params.pageSize}`,
       loader: function* ({ params: pagination }) {
-        const { getDataList } = yield* ApiServiceToYield(
-          {},
-          ({ getDataList }) => ({ getDataList }),
-        );
-        return getDataList(pagination);
+        return yield* ApiServiceToYield.getDataList(pagination);
       },
     },
     insertLocalStoragePersister({

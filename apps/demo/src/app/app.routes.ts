@@ -122,12 +122,6 @@ export const {
     loadComponent: () => import('./examples/primitives/forms/login-form'),
   },
   {
-    path: 'team-invitations',
-    componentDeps:
-      {} as import('./examples/primitives/forms/team-invitations').GenDeps_TeamInvitationsComponent,
-    loadComponent: () => import('./examples/primitives/forms/team-invitations'),
-  },
-  {
     path: 'craft-service/counter',
     componentDeps:
       {} as import('./examples/craft-service/craft-service-counter').GenDeps_CraftServiceCounterComponent,

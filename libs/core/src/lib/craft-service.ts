@@ -1175,6 +1175,143 @@ type InjectHelper<
   >;
 };
 
+type SinglePropertyDerivedProperties<
+  Output extends object,
+  Key extends OutputDependencyKeys<Output>,
+> = DerivedPropertiesTracking<
+  {
+    [Property in Key]: Output[Property];
+  },
+  {
+    [Property in Key]: Output[Property];
+  }
+>;
+
+type WithSinglePropertyDerivedProperties<
+  Metadata extends AnyServiceTrackingMetadata,
+  Output extends object,
+  Key extends OutputDependencyKeys<Output>,
+> =
+  Metadata extends ServiceTrackingMetadata<
+    infer Name extends string,
+    infer Scope extends ConcreteServiceScope,
+    infer ServiceOutput,
+    infer ChildYielded,
+    any,
+    infer ProvidedInput,
+    infer BrowserBoundary extends boolean
+  >
+    ? ServiceTrackingMetadata<
+        Name,
+        Scope,
+        ServiceOutput,
+        ChildYielded,
+        SinglePropertyDerivedProperties<Output, Key>,
+        ProvidedInput,
+        BrowserBoundary
+      >
+    : never;
+
+type SinglePropertyShortcutResult<
+  Inputs extends object,
+  Config,
+  Output extends object,
+  Key extends OutputDependencyKeys<Output>,
+> = MaybeErrorOutput<
+  PublicServiceInputs<Inputs>,
+  Config,
+  Output
+> extends infer Result
+  ? Result extends object
+    ? Key extends keyof Result
+      ? Result[Key]
+      : never
+    : Result
+  : never;
+
+type SinglePropertyShortcutGenerator<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Config,
+  Key extends OutputDependencyKeys<Output>,
+> = Generator<
+  ServiceYieldRequest<
+    Scope,
+    MaybeErrorOutput<PublicServiceInputs<Inputs>, Config, Output>,
+    WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+  >,
+  SinglePropertyShortcutResult<Inputs, Config, Output, Key>,
+  unknown
+>;
+
+type YieldPropertyShortcut<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Key extends OutputDependencyKeys<Output>,
+> = {
+  (): SinglePropertyShortcutGenerator<
+    Scope,
+    Inputs,
+    Output,
+    Metadata,
+    undefined,
+    Key
+  >;
+  <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
+    bindings: StrictBindings<
+      Partial<PublicInputBindings<Inputs, Scope>>,
+      Config
+    >,
+  ): SinglePropertyShortcutGenerator<
+    Scope,
+    Inputs,
+    Output,
+    Metadata,
+    Config,
+    Key
+  >;
+} & (keyof PublicServiceInputs<Inputs> extends never
+  ? Output[Key] extends (...args: infer Args) => infer Result
+    ? Args extends []
+      ? {}
+      : (
+          ...args: Args
+        ) => Generator<
+          ServiceYieldRequest<
+            Scope,
+            MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>,
+            WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+          >,
+          Result,
+          unknown
+        >
+    : {}
+  : {});
+
+type YieldPropertyShortcuts<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output,
+  Metadata extends AnyServiceTrackingMetadata,
+> = Output extends object
+  ? {
+      [Key in Exclude<
+        OutputDependencyKeys<Output>,
+        keyof Function | 'then'
+      >]: YieldPropertyShortcut<
+        Scope,
+        Inputs,
+        Output,
+        Metadata,
+        Key
+      >;
+    }
+  : {};
+
 type YieldHelper<
   Name extends string,
   Scope extends ConcreteServiceScope,
@@ -1269,7 +1406,7 @@ type YieldHelper<
           >,
           unknown
         >;
-      },
+      } & YieldPropertyShortcuts<Scope, Inputs, Output, Metadata>,
       ServiceRuntimeMetaDefinition<
         Name,
         Scope,
@@ -1564,6 +1701,7 @@ type ConcreteRuntimeDefinition = {
   token?: InjectionToken<unknown>;
   requirement?: ServiceRequirement<unknown>;
   initialBindings?: Record<string, unknown>;
+  hasPublicInput: boolean;
   hasProvidedInput: boolean;
   externalProviders?: (...args: unknown[]) => CraftServiceProvider;
   appStartHooks: Map<unknown, () => AppStartResult>;
@@ -2141,6 +2279,7 @@ export function toCraftService(
   const runtimeDefinition = internalMetaData[SERVICE_RUNTIME_DEFINITION];
 
   if (adaptFactory) {
+    runtimeDefinition.hasPublicInput = adaptFactory.length > 1;
     runtimeDefinition.hasProvidedInput = factoryUsesProvidedInput(adaptFactory);
   }
 
@@ -2449,6 +2588,7 @@ export function craftService(
     browserBoundary: options.browserBoundary ?? false,
     appStart: options.appStart ?? false,
     requirement: options.requirement,
+    hasPublicInput: factoryUsesPublicInput(concreteFactory),
     hasProvidedInput: factoryUsesProvidedInput(concreteFactory),
     appStartHooks: new Map(),
     startedAppStartServices: new Set(),
@@ -2471,6 +2611,8 @@ export function craftService(
 
   runtimeDefinition.token = token;
 
+  let serviceMetaData: InternalServiceMetaData;
+
   const api: Record<string, unknown> = {
     [injectName]: (
       bindings?: Record<string, unknown>,
@@ -2492,21 +2634,10 @@ export function craftService(
           )
         : serviceValue;
     },
-    [toYieldName]: function* (
-      bindings?: Record<string, unknown>,
-      expose?: RuntimeExposureSelector,
-    ) {
-      const serviceValue = (yield createYieldRequest(
-        runtimeDefinition,
-        bindings,
-      )) as unknown;
-
-      if (!expose) {
-        return serviceValue;
-      }
-
-      return (yield* exposeServiceValue(serviceValue, expose)) as unknown;
-    },
+    [toYieldName]: createToYieldHelper(
+      runtimeDefinition,
+      () => serviceMetaData,
+    ),
   };
 
   if (
@@ -2521,7 +2652,7 @@ export function craftService(
     api[toProvideName] = token;
   }
 
-  const serviceMetaData = createServiceMetaData({
+  serviceMetaData = createServiceMetaData({
     name: options.name,
     scope: options.scope,
     inject: api[injectName] as (...args: any[]) => unknown,
@@ -2554,6 +2685,73 @@ export function craftService(
 
   function abstractInject() {}
   function concreteInject() {}
+}
+
+function createToYieldHelper(
+  definition: ConcreteRuntimeDefinition,
+  getMetaData: () => InternalServiceMetaData | undefined,
+) {
+  const propertyHelpers = new Map<string, unknown>();
+
+  const toYieldHelper = function* (
+    bindings?: Record<string, unknown>,
+    expose?: RuntimeExposureSelector,
+  ) {
+    const serviceValue = (yield createYieldRequest(
+      definition,
+      bindings,
+    )) as unknown;
+
+    if (!expose) {
+      return serviceValue;
+    }
+
+    return (yield* exposeServiceValue(serviceValue, expose)) as unknown;
+  };
+
+  return new Proxy(toYieldHelper, {
+    get(target, property, receiver) {
+      if (typeof property !== 'string') {
+        return Reflect.get(target, property, receiver);
+      }
+
+      if (property === 'then' || property in target) {
+        return Reflect.get(target, property, receiver);
+      }
+
+      if (!propertyHelpers.has(property)) {
+        const propertyHelper = function* (...args: unknown[]) {
+          const isDirectCall =
+            args.length > 0 && !definition.hasPublicInput;
+          const serviceValue = (yield createYieldRequest(
+            definition,
+            isDirectCall ? undefined : (args[0] as Record<string, unknown>),
+          )) as unknown;
+          const propertyValue = Reflect.get(Object(serviceValue), property);
+
+          if (!isDirectCall) {
+            return propertyValue;
+          }
+
+          return Reflect.apply(
+            propertyValue as (...args: unknown[]) => unknown,
+            Object(serviceValue),
+            args,
+          );
+        };
+
+        const metaData = getMetaData();
+
+        if (metaData) {
+          attachServiceRuntimeMeta(propertyHelper, metaData);
+        }
+
+        propertyHelpers.set(property, propertyHelper);
+      }
+
+      return propertyHelpers.get(property);
+    },
+  });
 }
 
 function createServiceRequirement<Contract, Name extends string>(
@@ -3265,6 +3463,10 @@ function assertDependencyScope(
 
 function factoryUsesProvidedInput(factory: AnyFactory): boolean {
   return factory.toString().includes(SERVICE_PROVIDED_INPUT_KEY);
+}
+
+function factoryUsesPublicInput(factory: AnyFactory): boolean {
+  return factory.length > 0;
 }
 
 function provideFactoryUsesProvidedInput(

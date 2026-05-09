@@ -70,32 +70,21 @@ const { injectPlayground, PlaygroundToYield } = craftService(
     const addTodo = mutation({
       method: (title: string) => title,
       loader: function* ({ params: title }) {
-        const { addTodo } = yield* ApiServiceToYield({}, ({ addTodo }) => ({
-          addTodo,
-        }));
-        return addTodo(title);
+        return yield* ApiServiceToYield.addTodo(title);
       },
     });
 
     const toggleTodo = mutation({
       method: (id: number) => id,
       loader: function* ({ params: id }) {
-        const { toggleTodo } = yield* ApiServiceToYield(
-          {},
-          ({ toggleTodo }) => ({ toggleTodo }),
-        );
-        return toggleTodo(id);
+        return yield* ApiServiceToYield.toggleTodo(id);
       },
     });
 
     const deleteTodo = mutation({
       method: (id: number) => id,
       loader: function* ({ params: id }) {
-        const { deleteTodo } = yield* ApiServiceToYield(
-          {},
-          ({ deleteTodo }) => ({ deleteTodo }),
-        );
-        return deleteTodo(id);
+        return yield* ApiServiceToYield.deleteTodo(id);
       },
     });
 
@@ -103,9 +92,7 @@ const { injectPlayground, PlaygroundToYield } = craftService(
       {
         params: () => 'all' as const,
         loader: function* () {
-          const { getTodos } = yield* ApiServiceToYield({}, ({ getTodos }) => ({
-            getTodos,
-          }));
+          const getTodos = yield* ApiServiceToYield.getTodos();
           return getTodos();
         },
       },

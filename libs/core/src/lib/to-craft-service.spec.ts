@@ -99,6 +99,102 @@ describe('toCraftService', () => {
     });
   });
 
+  it('should expose single-property shortcuts from toCraftService yield helpers', async () => {
+    @Injectable({
+      providedIn: 'root',
+    })
+    class RouterLikeShortcut {
+      readonly currentUrl = signal('/');
+
+      navigateByUrl(url: string) {
+        this.currentUrl.set(url);
+        return Promise.resolve(true);
+      }
+    }
+
+    const { RouterLikeShortcutToYield } = toCraftService({
+      name: 'RouterLikeShortcut',
+      scope: 'global',
+      token: RouterLikeShortcut,
+    });
+
+    const { injectShortcutNavigation } = craftService(
+      { name: 'ShortcutNavigation', scope: 'global' },
+      function* () {
+        const navigateByUrl =
+          yield* RouterLikeShortcutToYield.navigateByUrl();
+
+        expectTypeOf(navigateByUrl).toEqualTypeOf<
+          GetServiceOutput<
+            typeof RouterLikeShortcutToYield
+          >['navigateByUrl']
+        >();
+
+        return {
+          goToCheckout: () => navigateByUrl('/checkout'),
+        };
+      },
+    );
+
+    expect(
+      getServiceMetaData(RouterLikeShortcutToYield.navigateByUrl).name,
+    ).toBe('RouterLikeShortcut');
+
+    await TestBed.runInInjectionContext(async () => {
+      const navigation = injectShortcutNavigation();
+      const routerLike = inject(RouterLikeShortcut);
+
+      await navigation.goToCheckout();
+
+      expect(routerLike.currentUrl()).toBe('/checkout');
+    });
+  });
+
+  it('should call toCraftService method shortcuts directly when there are no public inputs', async () => {
+    @Injectable({
+      providedIn: 'root',
+    })
+    class RouterLikeDirectShortcut {
+      readonly currentUrl = signal('/');
+
+      navigateByUrl(url: string) {
+        this.currentUrl.set(url);
+        return Promise.resolve(true);
+      }
+    }
+
+    const { RouterLikeDirectShortcutToYield } = toCraftService({
+      name: 'RouterLikeDirectShortcut',
+      scope: 'global',
+      token: RouterLikeDirectShortcut,
+    });
+
+    const { injectDirectShortcutNavigation } = craftService(
+      { name: 'DirectShortcutNavigation', scope: 'global' },
+      function* () {
+        const result =
+          yield* RouterLikeDirectShortcutToYield.navigateByUrl('/checkout');
+
+        expectTypeOf(result).toEqualTypeOf<
+          ReturnType<
+            GetServiceOutput<
+              typeof RouterLikeDirectShortcutToYield
+            >['navigateByUrl']
+          >
+        >();
+
+        return result;
+      },
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const routerLike = inject(RouterLikeDirectShortcut);
+
+      await expect(injectDirectShortcutNavigation()).resolves.toBe(true);
+      expect(routerLike.currentUrl()).toBe('/checkout');
+    });
+  });
+
   it('should support the callback form in global scope', () => {
     const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
 

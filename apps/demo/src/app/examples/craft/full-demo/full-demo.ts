@@ -62,13 +62,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
     const bulkDelete = mutation({
       method: (ids: string[]) => ids,
       loader: function* ({ params: ids }) {
-        const { bulkDelete } = yield* ApiServiceToYield(
-          {},
-          ({ bulkDelete }) => ({
-            bulkDelete,
-          }),
-        );
-        return bulkDelete(ids);
+        return yield* ApiServiceToYield.bulkDelete(ids);
       },
     });
 
@@ -97,11 +91,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
       },
       identifier: ({ id }) => id,
       loader: function* ({ params: user }) {
-        const { updateItem } = yield* ApiServiceToYield(
-          {},
-          ({ updateItem }) => ({ updateItem }),
-        );
-        return updateItem(user);
+        return yield* ApiServiceToYield.updateItem(user);
       },
     });
 
@@ -110,11 +100,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
         params: pagination,
         identifier: (params) => `${params.page}-${params.pageSize}`,
         loader: function* ({ params: pagination }) {
-          const { getDataList } = yield* ApiServiceToYield(
-            {},
-            ({ getDataList }) => ({ getDataList }),
-          );
-          return getDataList(pagination);
+          return yield* ApiServiceToYield.getDataList(pagination);
         },
       },
       insertLocalStoragePersister({
@@ -414,10 +400,8 @@ export default class FullDemoCraft {
 
   protected updatePageSize = craftMethod(function* (event: Event) {
     const value = Number((event.target as HTMLSelectElement).value);
-    const store = yield* FullDemoToYield(undefined, ({ pagination }) => ({
-      pagination,
-    }));
-    store.pagination.updatePageSize(value);
+    const pagination = yield* FullDemoToYield.pagination();
+    pagination.updatePageSize(value);
   });
 }
 

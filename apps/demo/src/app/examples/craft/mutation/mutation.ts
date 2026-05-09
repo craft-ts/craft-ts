@@ -30,11 +30,7 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
           name: payload.userName,
         }),
         loader: function* ({ params: user }) {
-          const { updateItem } = yield* ApiServiceToYield(
-            {},
-            ({ updateItem }) => ({ updateItem }),
-          );
-          return updateItem(user);
+          return yield* ApiServiceToYield.updateItem(user);
         },
       });
 
@@ -42,11 +38,7 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
         {
           params: () => toValue(inputs.userId),
           loader: function* ({ params: userId }) {
-            const { getItemById } = yield* ApiServiceToYield(
-              {},
-              ({ getItemById }) => ({ getItemById }),
-            );
-            return getItemById(userId);
+            return yield* ApiServiceToYield.getItemById(userId);
           },
           preservePreviousValue: () => true,
         },

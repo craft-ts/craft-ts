@@ -1279,6 +1279,198 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
+  it('should enable ToYield single-property shortcuts to return a derived property', async () => {
+    type User = {
+      id: string;
+      name: string;
+    };
+
+    const users = signal<User[]>([{ id: '1', name: 'Romain' }]);
+
+    const { SinglePropertyShortcutApiToYield } = craftService(
+      { name: 'SinglePropertyShortcutApi', scope: 'global' },
+      () => ({
+        users,
+        updateItem: async (updatedUser: User) => {
+          users.set(
+            users().map((user) =>
+              user.id === updatedUser.id ? updatedUser : user,
+            ),
+          );
+          return updatedUser;
+        },
+      }),
+    );
+
+    const { injectSinglePropertyShortcutConsumer } = craftService(
+      { name: 'SinglePropertyShortcutConsumer', scope: 'global' },
+      function* () {
+        const updateItem =
+          yield* SinglePropertyShortcutApiToYield.updateItem();
+
+        expectTypeOf(updateItem).toEqualTypeOf<
+          GetServiceOutput<
+            typeof SinglePropertyShortcutApiToYield
+          >['updateItem']
+        >();
+
+        return {
+          updateItem,
+        };
+      },
+    );
+
+    expect(
+      getServiceMetaData(SinglePropertyShortcutApiToYield.updateItem).name,
+    ).toBe('SinglePropertyShortcutApi');
+
+    type ConsumerDependencies = GetInjectedServiceDependencies<
+      typeof injectSinglePropertyShortcutConsumer
+    >;
+
+    expectTypeOf<ConsumerDependencies>().toEqualTypeOf<{
+      scope: 'global';
+      browserBoundary: false;
+      dependencies: {
+        SinglePropertyShortcutApi: {
+          scope: 'global';
+          browserBoundary: false;
+          dependencies: {};
+          derivedPropertiesUsed: {
+            updateItem: GetServiceOutput<
+              typeof SinglePropertyShortcutApiToYield
+            >['updateItem'];
+          };
+          derivedPropertiesExposed: {
+            updateItem: GetServiceOutput<
+              typeof SinglePropertyShortcutApiToYield
+            >['updateItem'];
+          };
+        };
+      };
+    }>();
+
+    await TestBed.runInInjectionContext(async () => {
+      const consumer = injectSinglePropertyShortcutConsumer();
+
+      await expect(
+        consumer.updateItem({ id: '1', name: 'Geffrault' }),
+      ).resolves.toEqual({ id: '1', name: 'Geffrault' });
+      expect(users()).toEqual([{ id: '1', name: 'Geffrault' }]);
+    });
+  });
+
+  it('should enable ToYield method shortcuts to call a derived method directly when the service has no public inputs', async () => {
+    type User = {
+      id: string;
+      name: string;
+    };
+
+    const users = signal<User[]>([{ id: '1', name: 'Romain' }]);
+
+    const { DirectMethodShortcutApiToYield } = craftService(
+      { name: 'DirectMethodShortcutApi', scope: 'global' },
+      () => ({
+        updateItem: async (updatedUser: User) => {
+          users.set(
+            users().map((user) =>
+              user.id === updatedUser.id ? updatedUser : user,
+            ),
+          );
+          return updatedUser;
+        },
+      }),
+    );
+
+    const { injectDirectMethodShortcutConsumer } = craftService(
+      { name: 'DirectMethodShortcutConsumer', scope: 'global' },
+      function* () {
+        const result = yield* DirectMethodShortcutApiToYield.updateItem({
+          id: '1',
+          name: 'Geffrault',
+        });
+
+        expectTypeOf(result).toEqualTypeOf<
+          ReturnType<
+            GetServiceOutput<typeof DirectMethodShortcutApiToYield>['updateItem']
+          >
+        >();
+
+        return result;
+      },
+    );
+
+    type ConsumerDependencies = GetInjectedServiceDependencies<
+      typeof injectDirectMethodShortcutConsumer
+    >;
+
+    expectTypeOf<ConsumerDependencies>().toEqualTypeOf<{
+      scope: 'global';
+      browserBoundary: false;
+      dependencies: {
+        DirectMethodShortcutApi: {
+          scope: 'global';
+          browserBoundary: false;
+          dependencies: {};
+          derivedPropertiesUsed: {
+            updateItem: GetServiceOutput<
+              typeof DirectMethodShortcutApiToYield
+            >['updateItem'];
+          };
+          derivedPropertiesExposed: {
+            updateItem: GetServiceOutput<
+              typeof DirectMethodShortcutApiToYield
+            >['updateItem'];
+          };
+        };
+      };
+    }>();
+
+    await TestBed.runInInjectionContext(async () => {
+      await expect(injectDirectMethodShortcutConsumer()).resolves.toEqual({
+        id: '1',
+        name: 'Geffrault',
+      });
+      expect(users()).toEqual([{ id: '1', name: 'Geffrault' }]);
+    });
+  });
+
+  it('should pass bindings to ToYield single-property shortcuts', () => {
+    const calls: number[] = [];
+
+    const { InputShortcutCounterToYield } = craftService(
+      { name: 'InputShortcutCounter', scope: 'function' },
+      (inputs: { initialValue: MaybeSignal<number> }) => ({
+        increment: () => calls.push(toValue(inputs.initialValue) + 1),
+      }),
+    );
+
+    const { injectInputShortcutCounterConsumer } = craftService(
+      { name: 'InputShortcutCounterConsumer', scope: 'global' },
+      function* () {
+        const increment = yield* InputShortcutCounterToYield.increment({
+          initialValue: signal(10),
+        });
+
+        expectTypeOf(increment).toEqualTypeOf<
+          GetServiceOutput<typeof InputShortcutCounterToYield>['increment']
+        >();
+
+        return {
+          increment,
+        };
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const consumer = injectInputShortcutCounterConsumer();
+
+      consumer.increment();
+
+      expect(calls).toEqual([11]);
+    });
+  });
+
   it('should not keep the root callable implicitly when using CounterToYield without $self', () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'function' },

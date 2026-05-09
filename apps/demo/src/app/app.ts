@@ -64,11 +64,6 @@ import {
           >Login Form</a
         >
         <a
-          [craftRouterLink]="{ to: 'team-invitations' }"
-          routerLinkActive="active"
-          >Team Invitations</a
-        >
-        <a
           [craftRouterLink]="{ to: 'exception-query-param' }"
           routerLinkActive="active"
           >Exception QueryParam</a

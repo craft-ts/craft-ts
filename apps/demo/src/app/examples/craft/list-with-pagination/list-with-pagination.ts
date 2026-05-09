@@ -19,11 +19,7 @@ import { ApiServiceToYield } from './api.service';
 
 const { injectUserList, provideUserList, UserListToYield } = craftService(
   { name: 'UserList', scope: 'toProvide' },
-  function* () {
-    const { getDataList } = yield* ApiServiceToYield({}, ({ getDataList }) => ({
-      getDataList,
-    }));
-
+  () => {
     const pagination = queryParam(
       {
         state: {
@@ -51,7 +47,9 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
       {
         params: pagination,
         identifier: (params) => `${params.page}-${params.pageSize}`,
-        loader: ({ params: pagination }) => getDataList(pagination),
+        loader: function* ({ params: pagination }) {
+          return yield* ApiServiceToYield.getDataList(pagination);
+        },
       },
       insertLocalStoragePersister({
         storeName: 'demo-app-craft',

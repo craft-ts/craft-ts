@@ -116,8 +116,7 @@ describe('query', () => {
             return userIdService.read();
           },
           loader: function* ({ params }) {
-            const userApi = yield* UserApiServiceToYield();
-            return userApi.get(params);
+            return yield* UserApiServiceToYield.get(params);
           },
         },
         function* () {
@@ -129,14 +128,29 @@ describe('query', () => {
         },
       );
 
+      type t = ExtractDeps<typeof queryRef>;
       expectTypeOf<ExtractDeps<typeof queryRef>>().toEqualTypeOf<{
-        UserIdService: GetToYieldServiceDependencies<
-          typeof UserIdServiceToYield
-        >;
-        UserApiService: GetToYieldServiceDependencies<
-          typeof UserApiServiceToYield
-        >;
-        QueryTools: GetToYieldServiceDependencies<typeof QueryToolsToYield>;
+        UserIdService: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+        };
+        UserApiService: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+          derivedPropertiesUsed: {
+            get: (userId: string) => Promise<User>;
+          };
+          derivedPropertiesExposed: {
+            get: (userId: string) => Promise<User>;
+          };
+        };
+        QueryTools: {
+          scope: 'global';
+          dependencies: {};
+          browserBoundary: false;
+        };
       }>();
     });
   });

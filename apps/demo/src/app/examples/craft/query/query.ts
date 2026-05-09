@@ -25,11 +25,7 @@ const { injectUserQuery } = craftService(
       {
         params: () => toValue(inputs.userId),
         loader: function* ({ params: userId }) {
-          const { getItemById } = yield* ApiServiceToYield(
-            {},
-            ({ getItemById }) => ({ getItemById }),
-          );
-          return getItemById(userId);
+          return yield* ApiServiceToYield.getItemById(userId);
         },
       },
       insertLocalStoragePersister({
