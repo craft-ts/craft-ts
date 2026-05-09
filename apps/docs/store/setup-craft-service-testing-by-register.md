@@ -27,7 +27,7 @@ The intended workflow is:
 
 1. start from the full dependency graph of the SUT
 2. fill each key with a real provider, `'real'`, a mock object, or `'notReached'`
-3. pass the register to `setupCraftServiceTestingByRegister(...)`
+3. pass the register to `await setupCraftServiceTestingByRegister(...)`
 
 ## Basic Example
 
@@ -59,7 +59,7 @@ const { injectCounterConsumer, provideCounterConsumer } = craftService(
   },
 );
 
-const { sut, mocks } = setupCraftServiceTestingByRegister(
+const { sut, mocks } = await setupCraftServiceTestingByRegister(
   injectCounterConsumer,
   {
     CounterConsumer: provideCounterConsumer(),
@@ -82,7 +82,7 @@ expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
 Use `'real'` for reachable non-provider scopes such as `global` or `function`.
 
 ```typescript
-setupCraftServiceTestingByRegister(injectCounterConsumer, {
+await setupCraftServiceTestingByRegister(injectCounterConsumer, {
   CounterConsumer: provideCounterConsumer(),
   Counter: 'real',
 });
@@ -93,7 +93,7 @@ setupCraftServiceTestingByRegister(injectCounterConsumer, {
 Use the provider returned by `provideX(...)` for `toProvide` or `manuallyProvidedAtRoot` services.
 
 ```typescript
-setupCraftServiceTestingByRegister(injectRootCounter, {
+await setupCraftServiceTestingByRegister(injectRootCounter, {
   RootCounter: provideRootCounter(),
   ParentCounter: provideParentCounter(),
   ChildCounter: provideChildCounter(),
@@ -105,7 +105,7 @@ setupCraftServiceTestingByRegister(injectRootCounter, {
 Use a plain object when you want to override the public service shape.
 
 ```typescript
-setupCraftServiceTestingByRegister(injectCounterConsumer, {
+await setupCraftServiceTestingByRegister(injectCounterConsumer, {
   CounterConsumer: provideCounterConsumer(),
   Counter: {
     $self: vi.fn(() => 12),
@@ -119,7 +119,7 @@ setupCraftServiceTestingByRegister(injectCounterConsumer, {
 Use `'notReached'` only when the service is on a branch fully pruned by an ancestor mock.
 
 ```typescript
-setupCraftServiceTestingByRegister(injectRootCounter, {
+await setupCraftServiceTestingByRegister(injectRootCounter, {
   RootCounter: provideRootCounter(),
   ParentCounter: {
     incrementParent: vi.fn(),
@@ -130,21 +130,48 @@ setupCraftServiceTestingByRegister(injectRootCounter, {
 
 ## Return Value
 
-The function returns:
+The function resolves to:
 
 - `sut`: the resolved service under test
 - `mocks`: only the services that were actually mocked in the register
 
 Entries marked as `'real'`, `'notReached'`, or provided through raw providers are not exposed in `mocks`.
 
+## App Start Hooks
+
+Reachable real services declared with `appStart: true` must be acknowledged explicitly.
+
+```typescript
+const { sut } = await setupCraftServiceTestingByRegister(
+  injectDashboard,
+  {
+    Dashboard: provideDashboard(),
+    AuthSession: 'real',
+    Analytics: 'real',
+  },
+  {
+    appStart: {
+      AuthSession: 'run',
+      Analytics: 'ignore',
+    },
+  },
+);
+```
+
+`'run'` injects the real service and awaits its `onAppStart(...)` hook. `'ignore'` documents that the test intentionally skips it. Mocked services and `'notReached'` branches do not require `appStart` entries.
+
 ## Extra Angular Providers
 
 When the graph depends on real Angular infrastructure, append providers through the third argument.
 
 ```typescript
-const { sut } = setupCraftServiceTestingByRegister(injectNavigation, register, {
-  providers: [provideRouter([])],
-});
+const { sut } = await setupCraftServiceTestingByRegister(
+  injectNavigation,
+  register,
+  {
+    providers: [provideRouter([])],
+  },
+);
 ```
 
 ## Alias

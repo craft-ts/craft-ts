@@ -98,6 +98,7 @@ export type GetServiceOutput<ServiceHelper> =
     any,
     any,
     any,
+    any,
     any
   >
     ? Output
@@ -108,6 +109,7 @@ export type GetServiceYields<ServiceHelper> =
     any,
     infer Scope extends ConcreteServiceScope,
     infer Output,
+    any,
     any,
     any,
     any,
@@ -667,6 +669,7 @@ export type ServiceTrackingMetadata<
   Derived = undefined,
   ProvidedInput = never,
   BrowserBoundary extends boolean = false,
+  AppStart extends boolean = false,
 > = {
   name: Name;
   scope: Scope;
@@ -675,6 +678,7 @@ export type ServiceTrackingMetadata<
   derived: Derived;
   providedInput: ProvidedInput;
   browserBoundary: BrowserBoundary;
+  appStart: AppStart;
 };
 
 type AnyServiceTrackingMetadata = ServiceTrackingMetadata<
@@ -684,12 +688,18 @@ type AnyServiceTrackingMetadata = ServiceTrackingMetadata<
   unknown,
   any,
   any,
+  boolean,
   boolean
 >;
 
-type WithBrowserBoundary<Derived, BrowserBoundary extends boolean> = Simplify<
+type WithServiceNodeFlags<
+  Derived,
+  BrowserBoundary extends boolean,
+  AppStart extends boolean,
+> = Simplify<
   {
     browserBoundary: BrowserBoundary;
+    appStart: AppStart;
   } & ([Derived] extends [undefined] ? {} : Derived)
 >;
 
@@ -701,7 +711,8 @@ type TrackingBrowserBoundary<Metadata> =
     any,
     any,
     any,
-    infer BrowserBoundary extends boolean
+    infer BrowserBoundary extends boolean,
+    any
   >
     ? BrowserBoundary
     : false;
@@ -710,6 +721,18 @@ type DependencyBrowserBoundary<Node> = Node extends {
   browserBoundary: infer BrowserBoundary extends boolean;
 }
   ? BrowserBoundary
+  : false;
+
+type DependencyAppStart<Node> = Node extends {
+  appStart: infer AppStart extends boolean;
+}
+  ? AppStart
+  : false;
+
+type OrBoolean<Left extends boolean, Right extends boolean> = true extends
+  | Left
+  | Right
+  ? true
   : false;
 
 type WholeServiceUsageTracking = {
@@ -741,6 +764,7 @@ type DependencyMetadata<Request> =
 type DependencyName<Request> =
   DependencyMetadata<Request> extends ServiceTrackingMetadata<
     infer Name,
+    any,
     any,
     any,
     any,
@@ -797,12 +821,13 @@ type MergeDependencyNodeMaps<
 type MergeDependencyNodes<Left, Right> = ServiceDependencies<
   DependencyScope<Left> & DependencyScope<Right>,
   MergeDependencyNodeMaps<DependencyChildren<Left>, DependencyChildren<Right>>,
-  WithBrowserBoundary<
+  WithServiceNodeFlags<
     MergeDerivedProperties<
       NodeDerivedProperties<Left>,
       NodeDerivedProperties<Right>
     >,
-    DependencyBrowserBoundary<Left> & DependencyBrowserBoundary<Right>
+    DependencyBrowserBoundary<Left> & DependencyBrowserBoundary<Right>,
+    OrBoolean<DependencyAppStart<Left>, DependencyAppStart<Right>>
   >
 >;
 
@@ -814,12 +839,13 @@ type ResolveServiceTrackingMetadata<Metadata> =
     infer Yielded,
     infer Derived,
     any,
-    infer BrowserBoundary extends boolean
+    infer BrowserBoundary extends boolean,
+    infer AppStart extends boolean
   >
     ? ServiceDependencies<
         Scope,
         BuildDependencyMap<DependencyRequests<Yielded>>,
-        WithBrowserBoundary<Derived, BrowserBoundary>
+        WithServiceNodeFlags<Derived, BrowserBoundary, AppStart>
       >
     : never;
 
@@ -834,6 +860,7 @@ export type ExtractServiceHelperDependencyMap<ServiceHelper> =
     unknown,
     unknown,
     unknown,
+    boolean,
     boolean
   >
     ? {
@@ -852,6 +879,7 @@ type DependencyDefinition<Request> = ResolveServiceTrackingMetadata<
 type DependencyRecord<Request> =
   DependencyMetadata<Request> extends ServiceTrackingMetadata<
     infer Name extends string,
+    any,
     any,
     any,
     any,
@@ -905,12 +933,13 @@ type MergeTrackedDependencyNodes<Left, Right> = Simplify<
       DependencyChildren<Left>,
       DependencyChildren<Right>
     >;
-  } & WithBrowserBoundary<
+  } & WithServiceNodeFlags<
     MergeTrackedDependencyUsage<
       TrackedNodeUsage<Left>,
       TrackedNodeUsage<Right>
     >,
-    DependencyBrowserBoundary<Left> & DependencyBrowserBoundary<Right>
+    DependencyBrowserBoundary<Left> & DependencyBrowserBoundary<Right>,
+    OrBoolean<DependencyAppStart<Left>, DependencyAppStart<Right>>
   >
 >;
 
@@ -935,15 +964,17 @@ type ResolveTrackedDependencyMetadata<Metadata> =
     infer Yielded,
     infer Derived,
     any,
-    infer BrowserBoundary extends boolean
+    infer BrowserBoundary extends boolean,
+    infer AppStart extends boolean
   >
     ? Simplify<
         {
           scope: Scope;
           dependencies: BuildTrackedDependencyMap<DependencyRequests<Yielded>>;
-        } & WithBrowserBoundary<
+        } & WithServiceNodeFlags<
           NormalizeWholeServiceUsage<Derived>,
-          BrowserBoundary
+          BrowserBoundary,
+          AppStart
         >
       >
     : never;
@@ -951,6 +982,7 @@ type ResolveTrackedDependencyMetadata<Metadata> =
 type TrackedDependencyRecord<Request> =
   DependencyMetadata<Request> extends ServiceTrackingMetadata<
     infer Name extends string,
+    any,
     any,
     any,
     any,
@@ -986,6 +1018,7 @@ type FlattenTrackedDependencyNodeMapFromTracking<Tracking> =
     infer Yielded,
     any,
     any,
+    any,
     any
   >
     ? BuildFlattenedTrackedDependencyNodeMap<DependencyRequests<Yielded>>
@@ -1012,6 +1045,7 @@ type ServiceHelperMetadata<
   Scope extends ConcreteServiceScope,
   Factory extends AnyFactory,
   BrowserBoundary extends boolean = false,
+  AppStart extends boolean = false,
 > = ServiceTrackingMetadata<
   Name,
   Scope,
@@ -1019,7 +1053,8 @@ type ServiceHelperMetadata<
   FactoryYields<Factory>,
   undefined,
   ServiceProvidedInput<FactoryInputs<Factory>>,
-  BrowserBoundary
+  BrowserBoundary,
+  AppStart
 >;
 
 type WithDerivedProperties<
@@ -1034,7 +1069,8 @@ type WithDerivedProperties<
     infer ChildYielded,
     any,
     infer ProvidedInput,
-    infer BrowserBoundary extends boolean
+    infer BrowserBoundary extends boolean,
+    infer AppStart extends boolean
   >
     ? ServiceTrackingMetadata<
         Name,
@@ -1043,7 +1079,8 @@ type WithDerivedProperties<
         ChildYielded,
         DerivedPropertiesForExposure<Exposed, Yielded>,
         ProvidedInput,
-        BrowserBoundary
+        BrowserBoundary,
+        AppStart
       >
     : never;
 
@@ -1202,7 +1239,8 @@ type WithSinglePropertyDerivedProperties<
     infer ChildYielded,
     any,
     infer ProvidedInput,
-    infer BrowserBoundary extends boolean
+    infer BrowserBoundary extends boolean,
+    infer AppStart extends boolean
   >
     ? ServiceTrackingMetadata<
         Name,
@@ -1211,7 +1249,8 @@ type WithSinglePropertyDerivedProperties<
         ChildYielded,
         SinglePropertyDerivedProperties<Output, Key>,
         ProvidedInput,
-        BrowserBoundary
+        BrowserBoundary,
+        AppStart
       >
     : never;
 
@@ -1220,17 +1259,18 @@ type SinglePropertyShortcutResult<
   Config,
   Output extends object,
   Key extends OutputDependencyKeys<Output>,
-> = MaybeErrorOutput<
-  PublicServiceInputs<Inputs>,
-  Config,
-  Output
-> extends infer Result
-  ? Result extends object
-    ? Key extends keyof Result
-      ? Result[Key]
-      : never
-    : Result
-  : never;
+> =
+  MaybeErrorOutput<
+    PublicServiceInputs<Inputs>,
+    Config,
+    Output
+  > extends infer Result
+    ? Result extends object
+      ? Key extends keyof Result
+        ? Result[Key]
+        : never
+      : Result
+    : never;
 
 type SinglePropertyShortcutGenerator<
   Scope extends ConcreteServiceScope,
@@ -1305,13 +1345,7 @@ type YieldPropertyShortcuts<
       [Key in Exclude<
         OutputDependencyKeys<Output>,
         keyof Function | 'then'
-      >]: YieldPropertyShortcut<
-        Scope,
-        Inputs,
-        Output,
-        Metadata,
-        Key
-      >;
+      >]: YieldPropertyShortcut<Scope, Inputs, Output, Metadata, Key>;
     }
   : {};
 
@@ -1728,6 +1762,7 @@ export type ServiceReference<
       any,
       any,
       any,
+      boolean,
       boolean
     >
   | {
@@ -2475,7 +2510,7 @@ export function craftService<
   Scope,
   FactoryInputs<Factory>,
   FactoryOutput<Factory>,
-  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>,
+  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary, true>,
   true
 >;
 export function craftService<
@@ -2525,7 +2560,7 @@ export function craftService<
   Scope,
   FactoryInputs<Factory>,
   FactoryOutput<Factory>,
-  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary>,
+  ServiceHelperMetadata<Name, Scope, Factory, BrowserBoundary, true>,
   true
 >;
 export function craftService<
@@ -2724,8 +2759,7 @@ function createToYieldHelper(
 
       if (!propertyHelpers.has(property)) {
         const propertyHelper = function* (...args: unknown[]) {
-          const isDirectCall =
-            args.length > 0 && !definition.hasPublicInput;
+          const isDirectCall = args.length > 0 && !definition.hasPublicInput;
           const serviceValue = (yield createYieldRequest(
             definition,
             isDirectCall ? undefined : (args[0] as Record<string, unknown>),

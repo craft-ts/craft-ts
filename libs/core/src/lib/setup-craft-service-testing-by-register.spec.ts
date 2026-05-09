@@ -1,11 +1,23 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { beforeAll, describe, expect, expectTypeOf, it, vi } from 'vitest';
-import { craftService } from './craft-service';
-import { setupCraftServiceTestingByRegister } from './setup-craft-service-testing-by-register';
+import {
+  craftService,
+  onAppStart,
+  type GetInjectedServiceDependencies,
+} from './craft-service';
+import {
+  setupCraftComponentTestingByRegister,
+  setupCraftServiceTestingByRegister,
+} from './setup-craft-service-testing-by-register';
+import type {
+  GetDeps,
+  GetPublicComponentProperties,
+} from './branded-component/branded-component';
 import { state } from './state';
 
 beforeAll(() => {
@@ -24,7 +36,7 @@ beforeAll(() => {
 });
 
 describe('setupCraftServiceTestingByRegister', () => {
-  it('should return the real sut, keep only explicit mocks and allow notReached descendants', () => {
+  it('should return the real sut, keep only explicit mocks and allow notReached descendants', async () => {
     const { ChildCounterToYield } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       () =>
@@ -57,7 +69,7 @@ describe('setupCraftServiceTestingByRegister', () => {
 
     const incrementParent = vi.fn();
 
-    const { sut, mocks } = setupCraftServiceTestingByRegister(
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
       injectRootCounter,
       {
         RootCounter: provideRootCounter(),
@@ -82,7 +94,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     }
   });
 
-  it('should use the real implementation for a global dependency marked as real', () => {
+  it('should use the real implementation for a global dependency marked as real', async () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
@@ -103,7 +115,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       },
     );
 
-    const { sut, mocks } = setupCraftServiceTestingByRegister(
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
       injectCounterConsumer,
       {
         CounterConsumer: provideCounterConsumer(),
@@ -117,7 +129,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     expect(Object.keys(mocks)).toEqual([]);
   });
 
-  it('should allow mocking a global dependency with a raw object', () => {
+  it('should allow mocking a global dependency with a raw object', async () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
@@ -141,7 +153,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const rootCallable = vi.fn(() => 41);
     const increment = vi.fn();
 
-    const { sut, mocks } = setupCraftServiceTestingByRegister(
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
       injectCounterConsumer,
       {
         CounterConsumer: provideCounterConsumer(),
@@ -158,7 +170,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
   });
 
-  it('should allow a minimal mock when a dependency is only used through derivations', () => {
+  it('should allow a minimal mock when a dependency is only used through derivations', async () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
@@ -181,7 +193,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const rootCallable = vi.fn(() => 41);
     const increment = vi.fn();
 
-    const { sut, mocks } = setupCraftServiceTestingByRegister(
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
       injectCounterFeature,
       {
         CounterFeature: provideCounterFeature(),
@@ -203,7 +215,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     }
   });
 
-  it('should keep a full-service mock public shape without exposing $self', () => {
+  it('should keep a full-service mock public shape without exposing $self', async () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
@@ -236,7 +248,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const increment = vi.fn();
     const decrement = vi.fn();
 
-    const { sut, mocks } = setupCraftServiceTestingByRegister(
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
       injectCounterConsumer,
       {
         CounterConsumer: provideCounterConsumer(),
@@ -261,7 +273,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     }
   });
 
-  it('should require a provider for manuallyProvidedAtRoot dependencies', () => {
+  it('should require a provider for manuallyProvidedAtRoot dependencies', async () => {
     const { CounterToYield, provideCounter } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       () =>
@@ -282,7 +294,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       },
     );
 
-    const { sut } = setupCraftServiceTestingByRegister(
+    const { sut } = await setupCraftServiceTestingByRegister(
       injectCounterConsumer,
       {
         CounterConsumer: provideCounterConsumer(),
@@ -295,7 +307,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     expect(sut.read()).toBe(8);
   });
 
-  it('should keep a shared descendant reachable through a real sibling branch when another branch is mocked', () => {
+  it('should keep a shared descendant reachable through a real sibling branch when another branch is mocked', async () => {
     const { SharedCounterToYield, provideSharedCounter } = craftService(
       { name: 'SharedCounter', scope: 'toProvide' },
       () =>
@@ -345,7 +357,7 @@ describe('setupCraftServiceTestingByRegister', () => {
 
     const incrementLeft = vi.fn();
 
-    const { sut, mocks } = setupCraftServiceTestingByRegister(
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
       injectRootCounter,
       {
         RootCounter: provideRootCounter(),
@@ -364,7 +376,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     expect('SharedCounter' in mocks).toBe(false);
   });
 
-  it('should allow pruning a deep sub-branch while keeping the same descendant real through another path', () => {
+  it('should allow pruning a deep sub-branch while keeping the same descendant real through another path', async () => {
     const { ChildCounterToYield, provideChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       () =>
@@ -413,7 +425,7 @@ describe('setupCraftServiceTestingByRegister', () => {
 
     const incrementParent = vi.fn();
 
-    const { sut, mocks } = setupCraftServiceTestingByRegister(
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
       injectRootCounter,
       {
         RootCounter: provideRootCounter(),
@@ -432,7 +444,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     expect('MidCounter' in mocks).toBe(false);
   });
 
-  it('should allow notReached once an entire branch is fully pruned', () => {
+  it('should allow notReached once an entire branch is fully pruned', async () => {
     const { SharedCounterToYield } = craftService(
       { name: 'SharedCounter', scope: 'toProvide' },
       () =>
@@ -478,7 +490,7 @@ describe('setupCraftServiceTestingByRegister', () => {
 
     const incrementLeft = vi.fn();
 
-    const { sut, mocks } = setupCraftServiceTestingByRegister(
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
       injectRootCounter,
       {
         RootCounter: provideRootCounter(),
@@ -495,6 +507,242 @@ describe('setupCraftServiceTestingByRegister', () => {
     expect(mocks.LeftCounter.incrementLeft).toHaveBeenCalledTimes(1);
     expect(sut.readRight()).toBe(1);
     expect('SharedCounter' in mocks).toBe(false);
+  });
+
+  it('should require an explicit appStart decision for reachable real services', async () => {
+    const calls: string[] = [];
+    const { AppStartRequiredToYield } = craftService(
+      {
+        name: 'AppStartRequired',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          calls.push('started');
+          return undefined;
+        });
+
+        return 1;
+      },
+    );
+
+    const { injectAppStartRequiredHost, provideAppStartRequiredHost } =
+      craftService(
+        { name: 'AppStartRequiredHost', scope: 'toProvide' },
+        function* () {
+          const startup = yield* AppStartRequiredToYield();
+
+          return {
+            read: () => startup,
+          };
+        },
+      );
+
+    if (false) {
+      //@ts-expect-error reachable real appStart services must be declared as run or ignore
+      setupCraftServiceTestingByRegister(injectAppStartRequiredHost, {
+        AppStartRequiredHost: provideAppStartRequiredHost(),
+        AppStartRequired: 'real',
+      });
+    }
+
+    await expect(
+      (
+        setupCraftServiceTestingByRegister as unknown as (
+          target: unknown,
+          register: unknown,
+        ) => Promise<unknown>
+      )(injectAppStartRequiredHost, {
+        AppStartRequiredHost: provideAppStartRequiredHost(),
+        AppStartRequired: 'real',
+      }),
+    ).rejects.toThrow(
+      'setupCraftServiceTestingByRegister requires options.appStart decisions for: AppStartRequired.',
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it('should await async appStart hooks before returning', async () => {
+    const calls: string[] = [];
+    const { AsyncRegisterStartupToYield } = craftService(
+      {
+        name: 'AsyncRegisterStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(
+          () =>
+            new Promise<void>((resolve) => {
+              queueMicrotask(() => {
+                calls.push('started');
+                resolve();
+              });
+            }),
+        );
+
+        return 1;
+      },
+    );
+
+    const { injectAsyncRegisterHost, provideAsyncRegisterHost } = craftService(
+      { name: 'AsyncRegisterHost', scope: 'toProvide' },
+      function* () {
+        return yield* AsyncRegisterStartupToYield();
+      },
+    );
+
+    await setupCraftServiceTestingByRegister(
+      injectAsyncRegisterHost,
+      {
+        AsyncRegisterHost: provideAsyncRegisterHost(),
+        AsyncRegisterStartup: 'real',
+      },
+      {
+        appStart: {
+          AsyncRegisterStartup: 'run',
+        },
+      },
+    );
+
+    expect(calls).toEqual(['started']);
+  });
+
+  it('should accept appStart ignore without running the hook', async () => {
+    const calls: string[] = [];
+    const { IgnoredRegisterStartupToYield } = craftService(
+      {
+        name: 'IgnoredRegisterStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          calls.push('started');
+          return undefined;
+        });
+
+        return 1;
+      },
+    );
+
+    const { injectIgnoredRegisterHost, provideIgnoredRegisterHost } =
+      craftService(
+        { name: 'IgnoredRegisterHost', scope: 'toProvide' },
+        function* () {
+          return yield* IgnoredRegisterStartupToYield();
+        },
+      );
+
+    await setupCraftServiceTestingByRegister(
+      injectIgnoredRegisterHost,
+      {
+        IgnoredRegisterHost: provideIgnoredRegisterHost(),
+        IgnoredRegisterStartup: 'real',
+      },
+      {
+        appStart: {
+          IgnoredRegisterStartup: 'ignore',
+        },
+      },
+    );
+
+    expect(calls).toEqual([]);
+  });
+
+  it('should not require appStart when the service is mocked', async () => {
+    const calls: string[] = [];
+    const { MockedRegisterStartupToYield } = craftService(
+      {
+        name: 'MockedRegisterStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          calls.push('started');
+          return undefined;
+        });
+
+        return {
+          read: () => 1 as number,
+        };
+      },
+    );
+
+    const { injectMockedRegisterHost, provideMockedRegisterHost } =
+      craftService(
+        { name: 'MockedRegisterHost', scope: 'toProvide' },
+        function* () {
+          const startup = yield* MockedRegisterStartupToYield();
+
+          return {
+            read: startup.read,
+          };
+        },
+      );
+
+    const { sut } = await setupCraftServiceTestingByRegister(
+      injectMockedRegisterHost,
+      {
+        MockedRegisterHost: provideMockedRegisterHost(),
+        MockedRegisterStartup: {
+          read: () => 41,
+        },
+      },
+    );
+
+    expect(sut.read()).toBe(41);
+    expect(calls).toEqual([]);
+  });
+
+  it('should not require appStart when the service is notReached', async () => {
+    const calls: string[] = [];
+    const { NotReachedRegisterStartupToYield } = craftService(
+      {
+        name: 'NotReachedRegisterStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          calls.push('started');
+          return undefined;
+        });
+
+        return 1;
+      },
+    );
+
+    const { NotReachedRegisterParentToYield } = craftService(
+      { name: 'NotReachedRegisterParent', scope: 'global' },
+      function* () {
+        const startup = yield* NotReachedRegisterStartupToYield();
+
+        return {
+          read: () => startup,
+        };
+      },
+    );
+
+    const { injectNotReachedRegisterHost, provideNotReachedRegisterHost } =
+      craftService(
+        { name: 'NotReachedRegisterHost', scope: 'toProvide' },
+        function* () {
+          return yield* NotReachedRegisterParentToYield();
+        },
+      );
+
+    await setupCraftServiceTestingByRegister(injectNotReachedRegisterHost, {
+      NotReachedRegisterHost: provideNotReachedRegisterHost(),
+      NotReachedRegisterParent: {
+        read: () => 41,
+      },
+      NotReachedRegisterStartup: 'notReached',
+    });
+
+    expect(calls).toEqual([]);
   });
 
   it('should reject invalid register combinations at typing time', () => {
@@ -571,16 +819,19 @@ describe('setupCraftServiceTestingByRegister', () => {
     );
 
     if (false) {
-      const _mockedRoot = setupCraftServiceTestingByRegister(injectRootCounter, {
-        RootCounter: {
-          //@ts-expect-error the root cannot be mocked
-          incrementRoot: vi.fn(),
+      const _mockedRoot = setupCraftServiceTestingByRegister(
+        injectRootCounter,
+        {
+          RootCounter: {
+            //@ts-expect-error the root cannot be mocked
+            incrementRoot: vi.fn(),
+          },
+          ParentCounter: {
+            incrementParent: vi.fn(),
+          },
+          ChildCounter: 'notReached',
         },
-        ParentCounter: {
-          incrementParent: vi.fn(),
-        },
-        ChildCounter: 'notReached',
-      });
+      );
 
       const _realRoot = setupCraftServiceTestingByRegister(injectRootCounter, {
         //@ts-expect-error the root cannot be marked as real for a toProvide sut
@@ -603,14 +854,17 @@ describe('setupCraftServiceTestingByRegister', () => {
         },
       );
 
-      //@ts-expect-error a reachable shared child cannot be marked as notReached
-      const _sharedChild = setupCraftServiceTestingByRegister(injectRootCounter, {
-        RootCounter: provideRootCounter(),
-        ParentCounter: {
-          incrementParent: vi.fn(),
+      const _sharedChild = setupCraftServiceTestingByRegister(
+        injectRootCounter,
+        //@ts-expect-error a reachable shared child cannot be marked as notReached
+        {
+          RootCounter: provideRootCounter(),
+          ParentCounter: {
+            incrementParent: vi.fn(),
+          },
+          ChildCounter: 'notReached',
         },
-        ChildCounter: 'notReached',
-      });
+      );
 
       const _realManual = setupCraftServiceTestingByRegister(
         injectCounterConsumer,
@@ -649,5 +903,240 @@ describe('setupCraftServiceTestingByRegister', () => {
       expect(provideChildCounter).toBeDefined();
       expect(provideCounter).toBeDefined();
     }
+  });
+});
+
+describe('setupCraftComponentTestingByRegister', () => {
+  it('should require appStart decisions and run them before detectChanges', async () => {
+    const order: string[] = [];
+    const { injectComponentRunStartup } = craftService(
+      {
+        name: 'ComponentRunStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          order.push('appStart');
+          return undefined;
+        });
+
+        return 1;
+      },
+    );
+
+    @Component({
+      standalone: true,
+      template: '',
+    })
+    class ComponentRunStartupHost {
+      startup = injectComponentRunStartup();
+
+      ngDoCheck() {
+        order.push('detectChanges');
+      }
+    }
+
+    type GenDeps_ComponentRunStartupHost = GetDeps<{
+      deps: {
+        ComponentRunStartup: GetInjectedServiceDependencies<
+          typeof injectComponentRunStartup
+        >;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<ComponentRunStartupHost>;
+    }>;
+
+    if (false) {
+      //@ts-expect-error reachable real appStart services must be declared as run or ignore
+      setupCraftComponentTestingByRegister(
+        ComponentRunStartupHost,
+        {} as GenDeps_ComponentRunStartupHost,
+        {
+          ComponentRunStartup: 'real',
+        },
+      );
+    }
+
+    await setupCraftComponentTestingByRegister(
+      ComponentRunStartupHost,
+      {} as GenDeps_ComponentRunStartupHost,
+      {
+        ComponentRunStartup: 'real',
+      },
+      {
+        appStart: {
+          ComponentRunStartup: 'run',
+        },
+        detectChanges: true,
+      },
+    );
+
+    expect(order).toEqual(['appStart', 'detectChanges']);
+  });
+
+  it('should accept appStart ignore without running the component dependency hook', async () => {
+    const calls: string[] = [];
+    const { injectComponentIgnoredStartup } = craftService(
+      {
+        name: 'ComponentIgnoredStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          calls.push('started');
+          return undefined;
+        });
+
+        return 1;
+      },
+    );
+
+    @Component({
+      standalone: true,
+      template: '',
+    })
+    class ComponentIgnoredStartupHost {
+      startup = injectComponentIgnoredStartup();
+    }
+
+    type GenDeps_ComponentIgnoredStartupHost = GetDeps<{
+      deps: {
+        ComponentIgnoredStartup: GetInjectedServiceDependencies<
+          typeof injectComponentIgnoredStartup
+        >;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<ComponentIgnoredStartupHost>;
+    }>;
+
+    await setupCraftComponentTestingByRegister(
+      ComponentIgnoredStartupHost,
+      {} as GenDeps_ComponentIgnoredStartupHost,
+      {
+        ComponentIgnoredStartup: 'real',
+      },
+      {
+        appStart: {
+          ComponentIgnoredStartup: 'ignore',
+        },
+      },
+    );
+
+    expect(calls).toEqual([]);
+  });
+
+  it('should not require appStart when the component dependency is mocked', async () => {
+    const calls: string[] = [];
+    const { injectComponentMockedStartup } = craftService(
+      {
+        name: 'ComponentMockedStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          calls.push('started');
+          return undefined;
+        });
+
+        return {
+          read: () => 1,
+        };
+      },
+    );
+
+    @Component({
+      standalone: true,
+      template: '',
+    })
+    class ComponentMockedStartupHost {
+      startup = injectComponentMockedStartup();
+    }
+
+    type GenDeps_ComponentMockedStartupHost = GetDeps<{
+      deps: {
+        ComponentMockedStartup: GetInjectedServiceDependencies<
+          typeof injectComponentMockedStartup
+        >;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<ComponentMockedStartupHost>;
+    }>;
+
+    const { mocks } = await setupCraftComponentTestingByRegister(
+      ComponentMockedStartupHost,
+      {} as GenDeps_ComponentMockedStartupHost,
+      {
+        ComponentMockedStartup: {
+          read: () => 41,
+        },
+      },
+    );
+
+    expect(mocks.ComponentMockedStartup.read()).toBe(41);
+    expect(calls).toEqual([]);
+  });
+
+  it('should not require appStart when the component dependency is notReached', async () => {
+    const calls: string[] = [];
+    const { ComponentNotReachedStartupToYield } = craftService(
+      {
+        name: 'ComponentNotReachedStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          calls.push('started');
+          return undefined;
+        });
+
+        return 1;
+      },
+    );
+
+    const { injectComponentNotReachedParent } = craftService(
+      { name: 'ComponentNotReachedParent', scope: 'global' },
+      function* () {
+        const startup = yield* ComponentNotReachedStartupToYield();
+
+        return {
+          read: () => startup,
+        };
+      },
+    );
+
+    @Component({
+      standalone: true,
+      template: '',
+    })
+    class ComponentNotReachedStartupHost {
+      parent = injectComponentNotReachedParent();
+    }
+
+    type GenDeps_ComponentNotReachedStartupHost = GetDeps<{
+      deps: {
+        ComponentNotReachedParent: GetInjectedServiceDependencies<
+          typeof injectComponentNotReachedParent
+        >;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<ComponentNotReachedStartupHost>;
+    }>;
+
+    await setupCraftComponentTestingByRegister(
+      ComponentNotReachedStartupHost,
+      {} as GenDeps_ComponentNotReachedStartupHost,
+      {
+        ComponentNotReachedParent: {
+          read: () => 41,
+        },
+        ComponentNotReachedStartup: 'notReached',
+      },
+    );
+
+    expect(calls).toEqual([]);
   });
 });

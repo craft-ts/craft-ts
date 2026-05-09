@@ -130,6 +130,12 @@ describe('craftService', () => {
     expectTypeOf<
       GetServiceReferenceMeta<typeof injectAppStartCounter>['appStart']
     >().toEqualTypeOf<true>();
+    expectTypeOf<
+      GetServiceTrackingMetadata<typeof injectAppStartCounter>['appStart']
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      GetInjectedServiceDependencies<typeof injectAppStartCounter>['appStart']
+    >().toEqualTypeOf<true>();
 
     await TestBed.runInInjectionContext(async () => {
       const service = injectAppStartCounter();
@@ -226,10 +232,12 @@ describe('craftService', () => {
       expectTypeOf<
         AppStartLogDependencies['browserBoundary']
       >().toEqualTypeOf<false>();
+      expectTypeOf<AppStartLogDependencies['appStart']>().toEqualTypeOf<true>();
       expectTypeOf<ConsoleDependency['scope']>().toEqualTypeOf<'global'>();
       expectTypeOf<
         ConsoleDependency['browserBoundary']
       >().toEqualTypeOf<true>();
+      expectTypeOf<ConsoleDependency['appStart']>().toEqualTypeOf<false>();
       expectTypeOf<ConsoleDependency['dependencies']>().toEqualTypeOf<{}>();
     }
   });
@@ -1309,8 +1317,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     const { injectSinglePropertyShortcutConsumer } = craftService(
       { name: 'SinglePropertyShortcutConsumer', scope: 'global' },
       function* () {
-        const updateItem =
-          yield* SinglePropertyShortcutApiToYield.updateItem();
+        const updateItem = yield* SinglePropertyShortcutApiToYield.updateItem();
 
         expectTypeOf(updateItem).toEqualTypeOf<
           GetServiceOutput<
@@ -1396,7 +1403,9 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 
         expectTypeOf(result).toEqualTypeOf<
           ReturnType<
-            GetServiceOutput<typeof DirectMethodShortcutApiToYield>['updateItem']
+            GetServiceOutput<
+              typeof DirectMethodShortcutApiToYield
+            >['updateItem']
           >
         >();
 

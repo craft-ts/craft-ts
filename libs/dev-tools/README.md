@@ -55,6 +55,7 @@ Discovery behavior:
 - `--config <path>` overrides auto-discovery for the CLI
 - `brand-angular-gen-deps-required` can generate a missing `GenDeps_*` alias in the current file
 - `brand-angular-deps-match` can autofix an existing `GenDeps_*` alias in the current file
+- `component-test-gen-deps-match` verifies component test helpers use the matching `GenDeps_*` alias
 
 Current scope:
 
@@ -82,6 +83,7 @@ export default [
       // Adds a Quick Fix in VS Code through the ESLint extension
       'craft-ng/brand-angular-gen-deps-required': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
+      'craft-ng/component-test-gen-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
@@ -129,6 +131,7 @@ module.exports = defineConfig([
       'craft-ng/brand-angular-gen-deps-required': 'error',
       // `brand-angular-deps-match` refreshes existing GenDeps aliases with ESLint autofix
       'craft-ng/brand-angular-deps-match': 'error',
+      'craft-ng/component-test-gen-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',

@@ -1,7 +1,14 @@
-import { TestBed } from '@angular/core/testing';
+import {
+  type InputSignal,
+  type InputSignalWithTransform,
+  type Type,
+} from '@angular/core';
+import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import {
   createExposedServiceValue,
+  getRegisteredAppStartServices,
   getServiceMetaData,
+  runServiceAppStart,
   SERVICE_RUNTIME_OVERRIDES,
 } from './craft-service';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
@@ -25,6 +32,7 @@ import type {
   ConcreteServiceScope,
   DependencyNodeScope,
   DependencyTreeChildren,
+  FlattenDependencyTree,
   MergeObjectUnion,
   RequirementScope,
   RootExposureKey,
@@ -33,6 +41,7 @@ import type {
 
 type RegisterRealEntry = 'real';
 type RegisterNotReachedEntry = 'notReached';
+type AppStartDecision = 'run' | 'ignore';
 
 type TrackingYielded<Tracking> =
   Tracking extends ServiceTrackingMetadata<
@@ -40,6 +49,7 @@ type TrackingYielded<Tracking> =
     any,
     any,
     infer Yielded,
+    any,
     any,
     any,
     any
@@ -70,6 +80,7 @@ type DependencyOutputRecordFromTracking<Tracking> =
     any,
     any,
     any,
+    any,
     any
   >
     ? {
@@ -84,6 +95,7 @@ type GetServiceDependenciesTree<Target extends ServiceReference> =
     any,
     any,
     infer Dependencies,
+    any,
     any,
     any,
     any,
@@ -278,6 +290,48 @@ type RegisterNames<Target extends ServiceReference> = Extract<
   string
 >;
 
+type DependencyNodeAppStart<Node> = Node extends {
+  appStart: infer AppStart extends boolean;
+}
+  ? true extends AppStart
+    ? true
+    : false
+  : false;
+
+type RealReachableAppStartNames<
+  ReachableNames extends string,
+  NodeMap extends object,
+  Register extends object,
+> = Extract<
+  {
+    [Name in ReachableNames]: Name extends keyof NodeMap
+      ? DependencyNodeAppStart<NodeMap[Name]> extends true
+        ? Name extends keyof Register
+          ? Name extends MockedRegisterKeys<Register>
+            ? never
+            : RegisterEntryKind<Register[Name]> extends 'notReached'
+              ? never
+              : Name
+          : never
+        : never
+      : never;
+  }[ReachableNames],
+  string
+>;
+
+type RealReachableServiceAppStartNames<
+  Target extends ServiceReference,
+  Register extends object,
+> = RealReachableAppStartNames<
+  Extract<ReachableRegisterNames<Target, Register>, string>,
+  RegisterNodeMap<Target>,
+  Register
+>;
+
+type AppStartDecisionRecord<Names extends string> = Simplify<{
+  [Name in Names]-?: AppStartDecision;
+}>;
+
 type ReachableNotReachedNames<
   Target extends ServiceReference,
   Register extends object,
@@ -366,6 +420,239 @@ type AssertValidRegister<
 type SetupTestingRegister<Target extends ServiceReference> =
   RegisterShapeForTarget<Target>;
 
+type ComponentDepsMap<Input> = Input extends { deps: infer Deps extends object }
+  ? Deps
+  : {};
+
+type ComponentPropertiesDepsMap<Input> = Input extends {
+  propertiesDeps: infer PropertiesDeps extends object;
+}
+  ? PropertiesDeps
+  : {};
+
+type ComponentPublicPropertiesMap<Input> = Input extends {
+  publicProperties: infer PublicProperties extends object;
+}
+  ? PublicProperties
+  : {};
+
+type ComponentInputValue<Value> =
+  Value extends InputSignalWithTransform<any, infer WriteT>
+    ? WriteT
+    : Value extends InputSignal<infer ReadT>
+      ? ReadT
+      : Value;
+
+type ComponentTestingInputs<ComponentDeps extends object> = Partial<{
+  [Name in Extract<
+    keyof ComponentPublicPropertiesMap<ComponentDeps>,
+    string
+  >]: ComponentInputValue<ComponentPublicPropertiesMap<ComponentDeps>[Name]>;
+}>;
+
+type IsComponentGenDepsDependency<Dependency> = Dependency extends {
+  deps: infer _Deps extends object;
+  provided: infer _Provided extends object;
+}
+  ? true
+  : false;
+
+type IsTrackedDependencyNode<Dependency> = Dependency extends {
+  scope: infer _Scope;
+  dependencies: infer _Dependencies extends object;
+}
+  ? true
+  : false;
+
+type DependencyMapValue<Dependency> = Dependency extends object
+  ? Dependency[Extract<keyof Dependency, string>]
+  : never;
+
+type ContainsNestedTestingDependencyEntries<Dependency> = [
+  Extract<
+    DependencyMapValue<Dependency>,
+    | {
+        scope: unknown;
+        dependencies: object;
+      }
+    | {
+        deps: object;
+        provided: object;
+      }
+  >,
+] extends [never]
+  ? false
+  : true;
+
+type ComponentTestingDependencyTreeFromEntry<Name extends string, Dependency> =
+  IsTrackedDependencyNode<Dependency> extends true
+    ? { [Key in Name]: Dependency }
+    : IsComponentGenDepsDependency<Dependency> extends true
+      ? ComponentTestingDependencyTree<Extract<Dependency, object>>
+      : Dependency extends object
+        ? ContainsNestedTestingDependencyEntries<Dependency> extends true
+          ? ComponentTestingDependencyTreeFromDepsMap<Dependency>
+          : {}
+        : {};
+
+type ComponentTestingDependencyTreeFromDepsMap<Deps extends object> = Simplify<
+  MergeObjectUnion<
+    {
+      [Name in Extract<
+        keyof Deps,
+        string
+      >]: ComponentTestingDependencyTreeFromEntry<Name, Deps[Name]>;
+    }[Extract<keyof Deps, string>]
+  >
+>;
+
+type ComponentTestingDependencyTreeFromPropertiesDeps<
+  ComponentDeps extends object,
+> = Simplify<
+  MergeObjectUnion<
+    {
+      [PropertyName in Extract<
+        keyof ComponentPropertiesDepsMap<ComponentDeps>,
+        string
+      >]: ComponentPropertiesDepsMap<ComponentDeps>[PropertyName] extends object
+        ? ComponentTestingDependencyTreeFromDepsMap<
+            ComponentPropertiesDepsMap<ComponentDeps>[PropertyName]
+          >
+        : {};
+    }[Extract<keyof ComponentPropertiesDepsMap<ComponentDeps>, string>]
+  >
+>;
+
+type ComponentTestingDependencyTree<ComponentDeps extends object> = Simplify<
+  ComponentTestingDependencyTreeFromDepsMap<ComponentDepsMap<ComponentDeps>> &
+    ComponentTestingDependencyTreeFromPropertiesDeps<ComponentDeps>
+>;
+
+type ComponentRegisterNodeMap<ComponentDeps extends object> =
+  FlattenDependencyTree<ComponentTestingDependencyTree<ComponentDeps>>;
+
+type ComponentMockImplementationForNode<Node> = Simplify<
+  [keyof DependencyNodeDerivedPropertiesUsed<Node>] extends [never]
+    ? Record<string, unknown>
+    : MockImplementation<unknown> &
+        RequiredUsedMockImplementation<
+          DependencyNodeDerivedPropertiesUsed<Node>
+        >
+>;
+
+type ComponentRegisterEntryForNode<Name extends string, Node> =
+  | OpenRegisterEntryForNode<Name, Node>
+  | ComponentMockImplementationForNode<Node>
+  | RegisterNotReachedEntry;
+
+type ComponentRegisterShape<ComponentDeps extends object> = Simplify<{
+  [Name in Extract<
+    keyof ComponentRegisterNodeMap<ComponentDeps>,
+    string
+  >]: ComponentRegisterEntryForNode<
+    Name,
+    ComponentRegisterNodeMap<ComponentDeps>[Name]
+  >;
+}>;
+
+type ComponentRegisterNames<ComponentDeps extends object> = Extract<
+  keyof ComponentRegisterShape<ComponentDeps>,
+  string
+>;
+
+type ReachableComponentRegisterNames<
+  ComponentDeps extends object,
+  Register extends object,
+> = ReachableNamesForTree<
+  ComponentTestingDependencyTree<ComponentDeps>,
+  Register
+>;
+
+type RealReachableComponentAppStartNames<
+  ComponentDeps extends object,
+  Register extends object,
+> = RealReachableAppStartNames<
+  Extract<ReachableComponentRegisterNames<ComponentDeps, Register>, string>,
+  ComponentRegisterNodeMap<ComponentDeps>,
+  Register
+>;
+
+type ReachableComponentNotReachedNames<
+  ComponentDeps extends object,
+  Register extends object,
+> = Extract<
+  {
+    [Name in Extract<
+      ReachableComponentRegisterNames<ComponentDeps, Register>,
+      string
+    >]: Name extends keyof Register
+      ? RegisterEntryKind<Register[Name]> extends 'notReached'
+        ? Name
+        : never
+      : Name;
+  }[Extract<ReachableComponentRegisterNames<ComponentDeps, Register>, string>],
+  string
+>;
+
+type UnreachableComponentNonNotReachedNames<
+  ComponentDeps extends object,
+  Register extends object,
+> = Extract<
+  {
+    [Name in Exclude<
+      ComponentRegisterNames<ComponentDeps>,
+      Extract<ReachableComponentRegisterNames<ComponentDeps, Register>, string>
+    >]: Name extends keyof Register
+      ? RegisterEntryKind<Register[Name]> extends 'notReached'
+        ? never
+        : Name
+      : never;
+  }[Exclude<
+    ComponentRegisterNames<ComponentDeps>,
+    Extract<ReachableComponentRegisterNames<ComponentDeps, Register>, string>
+  >],
+  string
+>;
+
+type ExtraComponentRegisterKeys<
+  ComponentDeps extends object,
+  Register extends object,
+> = Exclude<
+  Extract<keyof Register, string>,
+  ComponentRegisterNames<ComponentDeps>
+>;
+
+type AssertValidComponentRegister<
+  ComponentDeps extends object,
+  Register extends object,
+> = [ExtraComponentRegisterKeys<ComponentDeps, Register>] extends [never]
+  ? [ReachableComponentNotReachedNames<ComponentDeps, Register>] extends [never]
+    ? [
+        UnreachableComponentNonNotReachedNames<ComponentDeps, Register>,
+      ] extends [never]
+      ? {}
+      : {
+          ERROR_register_entries_must_be_notReached: UnreachableComponentNonNotReachedNames<
+            ComponentDeps,
+            Register
+          >;
+        }
+    : {
+        ERROR_register_entries_cannot_be_notReached: ReachableComponentNotReachedNames<
+          ComponentDeps,
+          Register
+        >;
+      }
+  : {
+      ERROR_invalid_register_keys: ExtraComponentRegisterKeys<
+        ComponentDeps,
+        Register
+      >;
+    };
+
+type SetupComponentTestingRegister<ComponentDeps extends object> =
+  ComponentRegisterShape<ComponentDeps>;
+
 type PublicMockShape<Implementation> = Implementation extends object
   ? Omit<Implementation, RootExposureKey>
   : {};
@@ -403,6 +690,51 @@ type CreateRegisterMocks<Register extends object> = Simplify<{
     Register[Name]
   >;
 }>;
+
+type BaseServiceTestingByRegisterOptions<
+  Bindings extends ServiceBindings<any> | undefined,
+> = {
+  bindings?: Bindings;
+  providers?: CraftServiceProvider[];
+  appStart?: Record<string, AppStartDecision>;
+};
+
+type ServiceTestingByRegisterOptionsParameter<
+  Target extends ServiceReference,
+  Register extends object,
+  Bindings extends ServiceBindings<Target> | undefined,
+> = [RealReachableServiceAppStartNames<Target, Register>] extends [never]
+  ? [options?: BaseServiceTestingByRegisterOptions<Bindings>]
+  : [
+      options: BaseServiceTestingByRegisterOptions<Bindings> & {
+        appStart: AppStartDecisionRecord<
+          RealReachableServiceAppStartNames<Target, Register>
+        >;
+      },
+    ];
+
+type BaseComponentTestingByRegisterOptions<ComponentDeps extends object> = {
+  providers?: CraftServiceProvider[];
+  imports?: unknown[];
+  inputs?: ComponentTestingInputs<ComponentDeps>;
+  detectChanges?: boolean;
+  appStart?: Record<string, AppStartDecision>;
+};
+
+type ComponentTestingByRegisterOptionsParameter<
+  ComponentDeps extends object,
+  Register extends object,
+> = [RealReachableComponentAppStartNames<ComponentDeps, Register>] extends [
+  never,
+]
+  ? [options?: BaseComponentTestingByRegisterOptions<ComponentDeps>]
+  : [
+      options: BaseComponentTestingByRegisterOptions<ComponentDeps> & {
+        appStart: AppStartDecisionRecord<
+          RealReachableComponentAppStartNames<ComponentDeps, Register>
+        >;
+      },
+    ];
 
 type RuntimeRegisterEntry =
   | BrandedServiceProvider<string, RequirementScope>
@@ -455,7 +787,7 @@ function assertProviderOverrideName(name: string, provider: unknown) {
 function assertRootRuntimeEntry(
   rootName: string,
   rootScope: string,
-  entry: RuntimeRegisterEntry,
+  entry: RuntimeRegisterEntry | undefined,
 ) {
   if (rootScope === 'toProvide' || rootScope === 'manuallyProvidedAtRoot') {
     if (!isProviderOverride(entry)) {
@@ -475,73 +807,40 @@ function assertRootRuntimeEntry(
   }
 }
 
-/**
- * Sets up a crafted service from an explicit flat register derived from its full
- * dependency graph.
- *
- * Each dependency must be present in the register and resolved as one of:
- * - a real provider for `toProvide` / `manuallyProvidedAtRoot`
- * - the literal `"real"` for non-provider scopes
- * - a raw mock object
- * - the literal `"notReached"` when the node is fully pruned by mocked ancestors
- *
- * The returned `sut` is the resolved root service. The returned `mocks` object
- * only contains entries for dependencies that were actually mocked with raw
- * objects.
- *
- * @example
- * ```ts
- * const { sut, mocks } = setupCraftServiceTestingByRegister(
- *   injectCounterConsumer,
- *   {
- *     CounterConsumer: provideCounterConsumer(),
- *     Counter: {
- *       $self: vi.fn(() => 41),
- *       increment: vi.fn(),
- *     },
- *   },
- * );
- *
- * expect(sut.read()).toBe(41);
- * expect(mocks.Counter.increment).toBeDefined();
- * ```
- */
-export function setupCraftServiceTestingByRegister<
-  Target extends ServiceReference,
-  const Register extends SetupTestingRegister<Target>,
-  Bindings extends ServiceBindings<Target> | undefined = undefined,
->(
-  target: Target,
-  register: Register & AssertValidRegister<Target, Register>,
-  options?: {
-    bindings?: Bindings;
-    providers?: CraftServiceProvider[];
-  },
-): {
-  sut: ResolvedServiceOutput<Target, Bindings>;
-  mocks: CreateRegisterMocks<Register>;
-} {
-  const internalMetaData = getServiceMetaData(target);
-  const providers = [...(options?.providers ?? [])];
+function isRealRuntimeRegisterEntry(entry: RuntimeRegisterEntry | undefined) {
+  return entry === 'real' || isProviderOverride(entry);
+}
+
+function isPrunedOrMockedRuntimeRegisterEntry(
+  entry: RuntimeRegisterEntry | undefined,
+) {
+  return (
+    entry === undefined ||
+    entry === 'notReached' ||
+    (entry !== 'real' && !isProviderOverride(entry))
+  );
+}
+
+function createRegisterTestingContext(
+  register: Record<string, RuntimeRegisterEntry>,
+  optionsProviders: CraftServiceProvider[] | undefined,
+  root?: { name: string; scope: string },
+) {
+  const providers = [...(optionsProviders ?? [])];
   const runtimeOverrides = new Map<
     string,
     { kind: 'useValue'; value: unknown }
   >();
   const mocks: Record<string, unknown> = {};
-  const rootEntry = register[
-    internalMetaData.name as keyof Register
-  ] as RuntimeRegisterEntry;
 
-  assertRootRuntimeEntry(
-    internalMetaData.name,
-    internalMetaData.scope,
-    rootEntry,
-  );
+  if (root) {
+    const rootEntry = register[root.name];
 
-  for (const [name, entry] of Object.entries(register) as Array<
-    [string, RuntimeRegisterEntry]
-  >) {
-    if (name === internalMetaData.name) {
+    assertRootRuntimeEntry(root.name, root.scope, rootEntry);
+  }
+
+  for (const [name, entry] of Object.entries(register)) {
+    if (root && name === root.name) {
       if (isProviderOverride(entry)) {
         providers.push(entry);
       }
@@ -573,12 +872,188 @@ export function setupCraftServiceTestingByRegister<
     useValue: runtimeOverrides,
   });
 
+  return {
+    providers,
+    mocks,
+  };
+}
+
+async function runConfiguredAppStartHooks(
+  register: Record<string, RuntimeRegisterEntry>,
+  appStart: Record<string, AppStartDecision> | undefined,
+  helperName: string,
+) {
+  const appStartReferences = new Map(
+    getRegisteredAppStartServices().map((reference) => {
+      const metaData = getServiceMetaData(reference);
+      return [metaData.name, reference] as const;
+    }),
+  );
+  const missingDecisions = Array.from(appStartReferences)
+    .filter(([name]) => isRealRuntimeRegisterEntry(register[name]))
+    .filter(([name]) => appStart?.[name] === undefined)
+    .map(([name]) => name);
+
+  if (missingDecisions.length > 0) {
+    throw new Error(
+      `${helperName} requires options.appStart decisions for: ${missingDecisions.join(
+        ', ',
+      )}.`,
+    );
+  }
+
+  if (!appStart) {
+    return;
+  }
+
+  await TestBed.runInInjectionContext(async () => {
+    for (const [name, decision] of Object.entries(appStart)) {
+      if (decision !== 'run' && decision !== 'ignore') {
+        throw new Error(
+          `Invalid appStart decision for "${name}". Expected "run" or "ignore".`,
+        );
+      }
+
+      const registerEntry = register[name];
+
+      if (isPrunedOrMockedRuntimeRegisterEntry(registerEntry)) {
+        continue;
+      }
+
+      const reference = appStartReferences.get(name);
+
+      if (!reference) {
+        throw new Error(
+          `Register entry "${name}" is not a craftService configured with appStart: true.`,
+        );
+      }
+
+      if (decision === 'ignore') {
+        continue;
+      }
+
+      const metaData = getServiceMetaData(reference);
+      const instance = metaData.inject();
+      await waitForAppStartResult(runServiceAppStart(reference, instance));
+    }
+  });
+}
+
+async function waitForAppStartResult(result: unknown): Promise<void> {
+  if (isPromiseLike(result)) {
+    await result;
+    return;
+  }
+
+  if (isObservableLike(result)) {
+    await new Promise<void>((resolve, reject) => {
+      let subscription: unknown;
+      const complete = () => {
+        if (subscription && typeof subscription === 'object') {
+          const unsubscribe = Reflect.get(subscription, 'unsubscribe');
+          if (typeof unsubscribe === 'function') {
+            Reflect.apply(unsubscribe, subscription, []);
+          }
+        }
+
+        resolve();
+      };
+
+      subscription = result.subscribe({
+        error: reject,
+        complete,
+      });
+    });
+  }
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'then' in value &&
+    typeof value.then === 'function'
+  );
+}
+
+function isObservableLike(value: unknown): value is {
+  subscribe: (observer: {
+    error: (error: unknown) => void;
+    complete: () => void;
+  }) => unknown;
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'subscribe' in value &&
+    typeof value.subscribe === 'function'
+  );
+}
+
+/**
+ * Sets up a crafted service from an explicit flat register derived from its full
+ * dependency graph.
+ *
+ * Each dependency must be present in the register and resolved as one of:
+ * - a real provider for `toProvide` / `manuallyProvidedAtRoot`
+ * - the literal `"real"` for non-provider scopes
+ * - a raw mock object
+ * - the literal `"notReached"` when the node is fully pruned by mocked ancestors
+ *
+ * The returned `sut` is the resolved root service. The returned `mocks` object
+ * only contains entries for dependencies that were actually mocked with raw
+ * objects.
+ *
+ * @example
+ * ```ts
+ * const { sut, mocks } = await setupCraftServiceTestingByRegister(
+ *   injectCounterConsumer,
+ *   {
+ *     CounterConsumer: provideCounterConsumer(),
+ *     Counter: {
+ *       $self: vi.fn(() => 41),
+ *       increment: vi.fn(),
+ *     },
+ *   },
+ * );
+ *
+ * expect(sut.read()).toBe(41);
+ * expect(mocks.Counter.increment).toBeDefined();
+ * ```
+ */
+export async function setupCraftServiceTestingByRegister<
+  Target extends ServiceReference,
+  const Register extends SetupTestingRegister<Target>,
+  Bindings extends ServiceBindings<Target> | undefined = undefined,
+>(
+  target: Target,
+  register: Register & AssertValidRegister<Target, Register>,
+  ...[options]: ServiceTestingByRegisterOptionsParameter<
+    Target,
+    Register,
+    Bindings
+  >
+): Promise<{
+  sut: ResolvedServiceOutput<Target, Bindings>;
+  mocks: CreateRegisterMocks<Register>;
+}> {
+  const internalMetaData = getServiceMetaData(target);
+  const runtimeRegister = register as Record<string, RuntimeRegisterEntry>;
+  const { providers, mocks } = createRegisterTestingContext(
+    runtimeRegister,
+    options?.providers,
+    {
+      name: internalMetaData.name,
+      scope: internalMetaData.scope,
+    },
+  );
+
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers,
   });
 
-  return TestBed.runInInjectionContext(() => ({
+  const result = TestBed.runInInjectionContext(() => ({
     sut:
       options?.bindings === undefined
         ? internalMetaData.inject()
@@ -587,6 +1062,68 @@ export function setupCraftServiceTestingByRegister<
   })) as {
     sut: ResolvedServiceOutput<Target, Bindings>;
     mocks: CreateRegisterMocks<Register>;
+  };
+
+  await runConfiguredAppStartHooks(
+    runtimeRegister,
+    options?.appStart,
+    'setupCraftServiceTestingByRegister',
+  );
+
+  return result;
+}
+
+export async function setupCraftComponentTestingByRegister<
+  ComponentInstance,
+  ComponentDeps extends object,
+  const Register extends SetupComponentTestingRegister<ComponentDeps>,
+>(
+  componentType: Type<ComponentInstance>,
+  _componentDeps: ComponentDeps,
+  register: Register & AssertValidComponentRegister<ComponentDeps, Register>,
+  ...[options]: ComponentTestingByRegisterOptionsParameter<
+    ComponentDeps,
+    Register
+  >
+): Promise<{
+  fixture: ComponentFixture<ComponentInstance>;
+  component: ComponentInstance;
+  nativeElement: HTMLElement;
+  mocks: CreateRegisterMocks<Register>;
+}> {
+  const runtimeRegister = register as Record<string, RuntimeRegisterEntry>;
+  const { providers, mocks } = createRegisterTestingContext(
+    runtimeRegister,
+    options?.providers,
+  );
+
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    imports: [componentType, ...(options?.imports ?? [])],
+    providers,
+  });
+
+  await runConfiguredAppStartHooks(
+    runtimeRegister,
+    options?.appStart,
+    'setupCraftComponentTestingByRegister',
+  );
+
+  const fixture = TestBed.createComponent(componentType);
+
+  for (const [name, value] of Object.entries(options?.inputs ?? {})) {
+    fixture.componentRef.setInput(name, value);
+  }
+
+  if (options?.detectChanges ?? true) {
+    fixture.detectChanges();
+  }
+
+  return {
+    fixture,
+    component: fixture.componentInstance,
+    nativeElement: fixture.nativeElement as HTMLElement,
+    mocks: mocks as CreateRegisterMocks<Register>,
   };
 }
 

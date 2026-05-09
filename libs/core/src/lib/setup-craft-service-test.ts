@@ -37,6 +37,7 @@ type GetServiceDependenciesTree<Target extends ServiceReference> =
     any,
     any,
     any,
+    any,
     boolean
   >
     ? Dependencies
