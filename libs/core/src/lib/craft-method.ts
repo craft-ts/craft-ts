@@ -8,6 +8,7 @@ import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
+import { ɵcreateHostTaggedInjector } from './craft-service';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 
 type CraftMethodGenerator<This, Args extends unknown[], Yielded, Result> = (
@@ -47,9 +48,18 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   if (maybeFactory) {
     const self = selfOrFactory as This;
     const factory = maybeFactory;
+    const methodInjector = ɵcreateHostTaggedInjector(
+      injector,
+      getCraftMethodHostName(factory),
+    );
 
     return ((...args: Args) =>
-      executeCraftMethod(factory, injector, self, args)) as TrackedCraftMethod<
+      executeCraftMethod(
+        factory,
+        methodInjector,
+        self,
+        args,
+      )) as TrackedCraftMethod<
       CraftMethodWithoutReceiver<Args, Result>,
       Yielded
     >;
@@ -61,10 +71,18 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
     Yielded,
     Result
   >;
+  const methodInjector = ɵcreateHostTaggedInjector(
+    injector,
+    getCraftMethodHostName(factory),
+  );
 
   return function (this: This, ...args: Args) {
-    return executeCraftMethod(factory, injector, this, args);
+    return executeCraftMethod(factory, methodInjector, this, args);
   } as TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded>;
+}
+
+function getCraftMethodHostName(factory: Function): string {
+  return factory.name || 'craftMethod';
 }
 
 function executeCraftMethod<This, Args extends unknown[], Yielded, Result>(

@@ -42,6 +42,7 @@ import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
+import { ɵcreateHostTaggedInjector } from './craft-service';
 
 type QueryTrackedDependencies<
   ParamsYielded = never,
@@ -1451,13 +1452,13 @@ export function query<
     ].some((value) => isGeneratorFunction(value))
   ) {
     assertInInjectionContext(query);
-    injector = inject(Injector);
+    injector = ɵcreateHostTaggedInjector(inject(Injector), 'query');
   }
 
   const getInjector = () => {
     if (!injector) {
       assertInInjectionContext(query);
-      injector = inject(Injector);
+      injector = ɵcreateHostTaggedInjector(inject(Injector), 'query');
     }
 
     return injector;

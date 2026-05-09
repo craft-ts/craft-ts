@@ -1,11 +1,14 @@
 import {
   assertInInjectionContext,
+  createEnvironmentInjector,
+  EnvironmentInjector,
   EnvironmentProviders,
   inject,
   InjectionToken,
   Injector,
   isSignal,
   Provider,
+  runInInjectionContext,
   Signal,
   Type,
   untracked,
@@ -3018,40 +3021,44 @@ function createConcreteServiceInstance(
   bindingsOverride?: Record<string, unknown>,
   providedConfig?: unknown,
 ): unknown {
-  const bindings = bindingsOverride ?? definition.initialBindings ?? {};
-  const inputs = createInputProxy(bindings, providedConfig);
-  const result =
-    definition.factory.length > 0
-      ? definition.factory(inputs)
-      : definition.factory();
+  const scopedInjector = ɵcreateHostTaggedInjector(injector, definition.name);
 
-  if (!isGenerator(result)) {
-    return result;
-  }
+  return runInInjectionContext(scopedInjector, () => {
+    const bindings = bindingsOverride ?? definition.initialBindings ?? {};
+    const inputs = createInputProxy(bindings, providedConfig);
+    const result =
+      definition.factory.length > 0
+        ? definition.factory(inputs)
+        : definition.factory();
 
-  const resolved = runCraftGenerator({
-    iterator: result,
-    injector,
-    hostScope: definition.scope,
-    invalidYieldErrorMessage:
-      'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
-    multipleAppStartErrorMessage:
-      'craftService generators can only declare onAppStart(...) once.',
-    createAppStartHook: (run) => () =>
-      runAppStartCallback(run, injector, definition.scope),
-  });
-
-  if (resolved.appStartHook) {
-    if (!definition.appStart) {
-      throw new Error(
-        `craftService("${definition.name}") used onAppStart(...) without enabling appStart: true.`,
-      );
+    if (!isGenerator(result)) {
+      return result;
     }
 
-    definition.appStartHooks.set(resolved.value, resolved.appStartHook);
-  }
+    const resolved = runCraftGenerator({
+      iterator: result,
+      injector: scopedInjector,
+      hostScope: definition.scope,
+      invalidYieldErrorMessage:
+        'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
+      multipleAppStartErrorMessage:
+        'craftService generators can only declare onAppStart(...) once.',
+      createAppStartHook: (run) => () =>
+        runAppStartCallback(run, scopedInjector, definition.scope),
+    });
 
-  return resolved.value;
+    if (resolved.appStartHook) {
+      if (!definition.appStart) {
+        throw new Error(
+          `craftService("${definition.name}") used onAppStart(...) without enabling appStart: true.`,
+        );
+      }
+
+      definition.appStartHooks.set(resolved.value, resolved.appStartHook);
+    }
+
+    return resolved.value;
+  });
 }
 
 function runAppStartCallback(
@@ -3484,4 +3491,80 @@ function toMetaDataPropertyName(value: string): string {
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
     .replace(/[\s-]+/g, '_')
     .toUpperCase()}_META_DATA`;
+}
+
+const HOST_TAG_INTERNAL_SERVICE_NAMES = new Set(['HostName']);
+
+export const ɵHOST_TAG_LIST = new InjectionToken<readonly string[]>(
+  'HostTagList',
+  {
+    providedIn: 'root',
+    factory: () => [],
+  },
+);
+
+const hostNameApi = craftService(
+  { name: 'HostName', scope: 'manuallyProvidedAtRoot' },
+  (inputs: { $provided: string }) => inputs.$provided,
+);
+
+export const ɵinjectHostName = hostNameApi.injectHostName;
+export const ɵHostNameToYield = hostNameApi.HostNameToYield;
+export const ɵHostNameToProvide = hostNameApi.HostNameToProvide;
+export const ɵHOST_NAME_META_DATA = hostNameApi.HOST_NAME_META_DATA;
+
+const ɵprovideHostNameProvider = hostNameApi.provideHostName;
+
+export function ɵprovideHostName(name: string): CraftServiceProvider {
+  return [
+    ɵprovideHostNameProvider(name),
+    {
+      provide: ɵHOST_TAG_LIST,
+      useFactory: () => {
+        const parentTags =
+          inject(ɵHOST_TAG_LIST, {
+            optional: true,
+            skipSelf: true,
+          }) ?? [];
+
+        return [...parentTags, name] as readonly string[];
+      },
+    },
+  ];
+}
+
+export type ɵHostTagYield = Readonly<{
+  [SERVICE_YIELD_REQUEST_MARKER]: true;
+  scope: 'function';
+  resolve: (
+    injector: Injector,
+    hostScope: ConcreteServiceScope,
+  ) => readonly string[];
+}>;
+
+export function* ɵHostTagToYield(): Generator<
+  ɵHostTagYield,
+  readonly string[],
+  unknown
+> {
+  return (yield {
+    [SERVICE_YIELD_REQUEST_MARKER]: true,
+    scope: 'function',
+    resolve: (injector) => injector.get(ɵHOST_TAG_LIST),
+  }) as readonly string[];
+}
+
+export function ɵcreateHostTaggedInjector(
+  injector: Injector,
+  hostName: string,
+): Injector {
+  if (HOST_TAG_INTERNAL_SERVICE_NAMES.has(hostName)) {
+    return injector;
+  }
+
+  return createEnvironmentInjector(
+    [ɵprovideHostName(hostName)],
+    injector as EnvironmentInjector,
+    `HostTag(${hostName})`,
+  );
 }

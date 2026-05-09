@@ -100,7 +100,15 @@ describe('browser boundaries', () => {
       bootLogger.track('runtime');
     });
 
-    expect(consoleLogSpy).toHaveBeenNthCalledWith(1, 'boot', { ready: true });
+    expect(consoleLogSpy).toHaveBeenNthCalledWith(
+      1,
+      'boot',
+      { ready: true },
+      expect.objectContaining({
+        from: ['BootLogger'],
+        trace: expect.any(String),
+      }),
+    );
     expect(consoleLogSpy).toHaveBeenNthCalledWith(2, 'runtime');
   });
 

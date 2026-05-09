@@ -31,6 +31,7 @@ export * from './lib/util/entities-util';
 export * from './lib/reactive-writable-signal';
 export * from './lib/craft-method';
 export * from './lib/craft-service';
+export * from './lib/host-tag';
 export * from './lib/source$';
 export * from './lib/from-event-to-source$';
 export * from './lib/on$';

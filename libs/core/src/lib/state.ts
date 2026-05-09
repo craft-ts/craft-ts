@@ -15,6 +15,7 @@ import {
   InsertionStateFactoryContext,
 } from './query.core';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import { ɵcreateHostTaggedInjector } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -553,7 +554,7 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
   let injector: Injector | undefined;
   const getInjector = () => {
     assertInInjectionContext(state);
-    injector ??= inject(Injector);
+    injector ??= ɵcreateHostTaggedInjector(inject(Injector), 'state');
     return injector;
   };
   const resolvedStateConfig = isGeneratorFunction(stateConfig)

@@ -55,6 +55,7 @@ import {
   type ResolveCraftRouteComponentDeps,
 } from './craft-routes';
 import { GetDeps } from './branded-component/branded-component';
+import { HOST_TAG_LIST, injectHostName } from './host-tag';
 
 function _injectDemoUserIdParams(): Signal<string> {
   throw new Error('Type-only helper');
@@ -1610,12 +1611,17 @@ describe('craftRoutes', () => {
       },
     });
 
-    expect(routeConfig.providers).toHaveLength(3);
+    expect(routeConfig.providers).toHaveLength(4);
 
     const injector = createRouteInjector(
       routeConfig.providers,
       activatedRoute.route,
     );
+
+    expect(runInInjectionContext(injector, () => injectHostName())).toBe(
+      'mutation/:userId',
+    );
+    expect(injector.get(HOST_TAG_LIST)).toEqual(['mutation/:userId']);
 
     const routeData = runInInjectionContext(injector, () =>
       injectMutationUserIdData(),

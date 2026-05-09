@@ -34,6 +34,7 @@ import type {
   ServiceTrackingMetadata,
 } from './craft-service';
 import type { MergeObjectUnion, Simplify } from './craft-service.shared';
+import { provideHostName } from './host-tag';
 
 type AngularRouteBase = Omit<
   Route,
@@ -1761,7 +1762,7 @@ export function craftRoutes<
     route: AnyCraftRouteDefinition,
     routeIndex: number,
   ): Route {
-    const autoProviders: AngularRouteProviders = [];
+    const autoProviders: AngularRouteProviders = [provideHostName(route.path)];
 
     for (const paramName of extractRouteParamNames(route.path)) {
       const serviceName = toRouteParamServiceName(

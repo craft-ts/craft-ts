@@ -38,6 +38,7 @@ import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
+import { ɵcreateHostTaggedInjector } from './craft-service';
 
 type AsyncProcessTrackedDependencies<
   ParamsYielded = never,
@@ -1228,13 +1229,13 @@ export function asyncProcess<
     ].some((value) => isGeneratorFunction(value))
   ) {
     assertInInjectionContext(asyncProcess);
-    injector = inject(Injector);
+    injector = ɵcreateHostTaggedInjector(inject(Injector), 'asyncProcess');
   }
 
   const getInjector = () => {
     if (!injector) {
       assertInInjectionContext(asyncProcess);
-      injector = inject(Injector);
+      injector = ɵcreateHostTaggedInjector(inject(Injector), 'asyncProcess');
     }
 
     return injector;

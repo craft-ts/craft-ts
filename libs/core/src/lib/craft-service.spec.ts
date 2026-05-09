@@ -174,6 +174,10 @@ describe('craftService', () => {
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
         'This is a log from the appStart callback',
+        expect.objectContaining({
+          from: ['AppStartLog'],
+          trace: expect.any(String),
+        }),
       );
 
       resolveAppStart();

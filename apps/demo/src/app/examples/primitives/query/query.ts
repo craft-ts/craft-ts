@@ -4,11 +4,9 @@ import {
   injectCraftRouter,
   insertLocalStoragePersister,
   query,
-  type DerivedService,
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
-  type GetServiceOutput,
 } from '@craft-ng/core';
 import {
   StatusComponent,
@@ -91,20 +89,13 @@ export type GenDeps_GlobalQuery = GetDeps<{
       ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
     };
     router: {
-      CraftRouter: DerivedService<
-        ExtractDeps<typeof injectCraftRouter>['CraftRouter'],
-        {
-          derivedPropertiesUsed: {
-            navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
-          };
-          derivedPropertiesExposed: {
-            navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
-          };
-        }
-      >;
+      CraftRouter: ReturnType<typeof injectCraftRouter>;
     };
     userQuery: ExtractDeps<GlobalQuery['userQuery']>;
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<GlobalQuery>;
+  missingProvider: {
+    CraftRouter: ReturnType<typeof injectCraftRouter>;
+  };
 }>;

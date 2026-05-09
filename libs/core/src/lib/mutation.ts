@@ -42,6 +42,7 @@ import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
+import { ɵcreateHostTaggedInjector } from './craft-service';
 
 type MutationTrackedDependencies<
   ParamsYielded = never,
@@ -1516,13 +1517,13 @@ export function mutation<
     ].some((value) => isGeneratorFunction(value))
   ) {
     assertInInjectionContext(mutation);
-    injector = inject(Injector);
+    injector = ɵcreateHostTaggedInjector(inject(Injector), 'mutation');
   }
 
   const getInjector = () => {
     if (!injector) {
       assertInInjectionContext(mutation);
-      injector = inject(Injector);
+      injector = ɵcreateHostTaggedInjector(inject(Injector), 'mutation');
     }
 
     return injector;

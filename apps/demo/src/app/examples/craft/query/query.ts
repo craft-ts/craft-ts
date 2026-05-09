@@ -1,6 +1,7 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
+  Console,
   CraftRouterToYield,
   craftMethod,
   craftService,
@@ -25,6 +26,7 @@ const { injectUserQuery } = craftService(
       {
         params: () => toValue(inputs.userId),
         loader: function* ({ params: userId }) {
+          yield* Console.log('Loading user with id:', userId);
           return yield* ApiServiceToYield.getItemById(userId);
         },
       },
@@ -70,6 +72,7 @@ export default class GlobalQuery {
   });
 
   protected nextPage = craftMethod(this, function* () {
+    yield* Console.log('Navigating to next user');
     const { navigate } = yield* CraftRouterToYield(
       undefined,
       ({ navigate }) => ({ navigate }),

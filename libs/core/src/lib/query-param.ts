@@ -24,6 +24,7 @@ import {
   StripCraftException,
   isCraftException,
 } from './craft-exception';
+import { ɵcreateHostTaggedInjector } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -408,7 +409,7 @@ export function queryParam<
     } as any;
   }
 
-  const injector = inject(Injector);
+  const injector = ɵcreateHostTaggedInjector(inject(Injector), 'queryParam');
   const router = inject(Router);
   const activatedRoute = inject(ActivatedRoute);
 

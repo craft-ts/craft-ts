@@ -4,8 +4,10 @@ import {
   type GetServiceYields,
   type ServiceTrackingMetadata,
 } from './craft-service';
+import { HostTagToYield } from './host-tag';
 
 type AnyBrowserBoundaryMethod = (...args: any[]) => any;
+type ConsoleMetadataMethod = 'debug' | 'info' | 'log' | 'warn' | 'error';
 
 type MethodArgs<Method> = Method extends (...args: infer Args) => any
   ? Args
@@ -13,6 +15,12 @@ type MethodArgs<Method> = Method extends (...args: infer Args) => any
 
 type MethodResult<Method> = Method extends (...args: any[]) => infer Result
   ? Result
+  : never;
+
+type GeneratorYield<Helper> = Helper extends (
+  ...args: any[]
+) => Generator<infer Yielded, any, any>
+  ? Yielded
   : never;
 
 type BrowserBoundaryDsl<Service extends object, Yielded = unknown> = {
@@ -35,6 +43,15 @@ type BrowserBoundaryService<Name extends string, Output> = CraftServiceApi<
   Output,
   ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
 >;
+
+type ConsoleBoundaryYield =
+  | GetServiceYields<
+      BrowserBoundaryService<
+        'ConsoleService',
+        ConsoleServiceApi
+      >['ConsoleServiceToYield']
+    >
+  | GeneratorYield<typeof HostTagToYield>;
 
 type BrowserCryptoYield = GetServiceYields<
   BrowserBoundaryService<
@@ -190,6 +207,60 @@ function createBoundaryCall<
         ...args,
       ) as MethodResult<Service[Key]>;
     };
+  };
+}
+
+const CONSOLE_INTERNAL_FRAME_PATTERNS = [
+  'runCraftGenerator',
+  'executeGeneratorCompatibleFactory',
+  'runInInjectionContext',
+  'createConsoleCall',
+  'Object.log',
+  'Object.info',
+  'Object.debug',
+  'Object.warn',
+  'Object.error',
+  'Object.trace',
+];
+
+function parseConsoleStackTrace(stack: string | undefined): string {
+  if (!stack) return '';
+
+  const lines = stack.split('\n');
+
+  const filtered = lines
+    .slice(1) // remove the "Error" header line
+    .filter(
+      (line) =>
+        !CONSOLE_INTERNAL_FRAME_PATTERNS.some((pattern) =>
+          line.includes(pattern),
+        ),
+    );
+
+  return filtered.join('\n');
+}
+
+function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
+  return function* (
+    ...args: MethodArgs<ConsoleServiceApi[Key]>
+  ): Generator<
+    ConsoleBoundaryYield,
+    MethodResult<ConsoleServiceApi[Key]>,
+    unknown
+  > {
+    const consoleService = yield* ConsoleServiceToYield();
+    const from = yield* HostTagToYield();
+
+    const metadata: { from: readonly string[]; trace?: string } = { from };
+
+    if (key === 'error') {
+      metadata.trace = parseConsoleStackTrace(new Error().stack);
+    }
+
+    return (consoleService[key] as AnyBrowserBoundaryMethod)(
+      ...args,
+      metadata,
+    ) as MethodResult<ConsoleServiceApi[Key]>;
   };
 }
 
@@ -791,7 +862,7 @@ export const BROWSER_WINDOW_SERVICE_META_DATA: BrowserBoundaryService<
 >['BROWSER_WINDOW_SERVICE_META_DATA'] =
   browserWindowService.BROWSER_WINDOW_SERVICE_META_DATA;
 
-const callConsole = createBoundaryCall<
+const callRawConsole = createBoundaryCall<
   ConsoleServiceApi,
   typeof ConsoleServiceToYield
 >(ConsoleServiceToYield);
@@ -838,19 +909,19 @@ const callBrowserWindow = createBoundaryCall<
 
 export const Console: BrowserBoundaryDsl<
   ConsoleServiceApi,
-  GetServiceYields<typeof ConsoleServiceToYield>
+  ConsoleBoundaryYield
 > = {
-  debug: callConsole('debug'),
-  info: callConsole('info'),
-  log: callConsole('log'),
-  warn: callConsole('warn'),
-  error: callConsole('error'),
-  trace: callConsole('trace'),
-  group: callConsole('group'),
-  groupCollapsed: callConsole('groupCollapsed'),
-  groupEnd: callConsole('groupEnd'),
-  time: callConsole('time'),
-  timeEnd: callConsole('timeEnd'),
+  debug: createConsoleCall('debug'),
+  info: createConsoleCall('info'),
+  log: createConsoleCall('log'),
+  warn: createConsoleCall('warn'),
+  error: createConsoleCall('error'),
+  trace: callRawConsole('trace'),
+  group: callRawConsole('group'),
+  groupCollapsed: callRawConsole('groupCollapsed'),
+  groupEnd: callRawConsole('groupEnd'),
+  time: callRawConsole('time'),
+  timeEnd: callRawConsole('timeEnd'),
 };
 
 export const LocalStorage: BrowserBoundaryDsl<

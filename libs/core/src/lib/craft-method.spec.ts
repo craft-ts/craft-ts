@@ -76,7 +76,13 @@ describe('craftMethod', () => {
     expect(increment(2)).toBe(2);
     expect(component.counter()).toBe(2);
     expect(consoleLogSpy).toHaveBeenCalledOnce();
-    expect(consoleLogSpy).toHaveBeenCalledWith('increment');
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      'increment',
+      expect.objectContaining({
+        from: ['craftMethod'],
+        trace: expect.any(String),
+      }),
+    );
   });
 
   it('should support the receiver-based overload when called as an instance method', () => {
