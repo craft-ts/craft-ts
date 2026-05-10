@@ -906,6 +906,331 @@ describe('setupCraftServiceTestingByRegister', () => {
   });
 });
 
+describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
+  it('should allow mocking reachable browser boundaries while keeping application services real', async () => {
+    const { BoundaryOnlyStorageToYield } = craftService(
+      {
+        name: 'BoundaryOnlyStorage',
+        scope: 'global',
+        browserBoundary: true,
+      },
+      () => ({
+        read: (): string => 'real-storage',
+      }),
+    );
+
+    const { BoundaryOnlyDomainToYield } = craftService(
+      { name: 'BoundaryOnlyDomain', scope: 'global' },
+      function* () {
+        const storage = yield* BoundaryOnlyStorageToYield();
+
+        return {
+          read: () => `domain:${storage.read()}`,
+        };
+      },
+    );
+
+    const { injectBoundaryOnlyRoot, provideBoundaryOnlyRoot } = craftService(
+      { name: 'BoundaryOnlyRoot', scope: 'toProvide' },
+      function* () {
+        const domain = yield* BoundaryOnlyDomainToYield();
+
+        return {
+          read: domain.read,
+        };
+      },
+    );
+
+    const { sut, mocks } =
+      await setupCraftServiceTestingByRegister.boundaryOnly(
+        injectBoundaryOnlyRoot,
+        {
+          toProvideRegister: {
+            BoundaryOnlyRoot: provideBoundaryOnlyRoot(),
+          },
+          boundaryRegister: {
+            BoundaryOnlyStorage: {
+              read: () => 'mock-storage',
+            },
+          },
+        },
+      );
+
+    expect(sut.read()).toBe('domain:mock-storage');
+    expect(mocks.BoundaryOnlyStorage.read()).toBe('mock-storage');
+
+    if (false) {
+      //@ts-expect-error non-boundary services are never exposed as boundaryOnly mocks
+      expect(mocks.BoundaryOnlyDomain).toBeDefined();
+    }
+  });
+
+  it('should allow real browser boundaries and omit toProvideRegister when no provider is needed', async () => {
+    const { BoundaryOnlyRealStorageToYield } = craftService(
+      {
+        name: 'BoundaryOnlyRealStorage',
+        scope: 'global',
+        browserBoundary: true,
+      },
+      () => ({
+        read: (): string => 'real-storage',
+      }),
+    );
+
+    const { injectBoundaryOnlyRealHost } = craftService(
+      { name: 'BoundaryOnlyRealHost', scope: 'global' },
+      function* () {
+        const storage = yield* BoundaryOnlyRealStorageToYield();
+
+        return {
+          read: storage.read,
+        };
+      },
+    );
+
+    const { sut, mocks } =
+      await setupCraftServiceTestingByRegister.boundaryOnly(
+        injectBoundaryOnlyRealHost,
+        {
+          boundaryRegister: {
+            BoundaryOnlyRealStorage: 'real',
+          },
+        },
+      );
+
+    expect(sut.read()).toBe('real-storage');
+    expect(Object.keys(mocks)).toEqual([]);
+  });
+
+  it('should require providers for reachable provider-scoped real services', async () => {
+    const { BoundaryOnlyConfigToYield, provideBoundaryOnlyConfig } =
+      craftService({ name: 'BoundaryOnlyConfig', scope: 'toProvide' }, () => ({
+        read: (): string => 'provided-config',
+      }));
+
+    const { injectBoundaryOnlyConfigHost, provideBoundaryOnlyConfigHost } =
+      craftService(
+        { name: 'BoundaryOnlyConfigHost', scope: 'toProvide' },
+        function* () {
+          const config = yield* BoundaryOnlyConfigToYield();
+
+          return {
+            read: config.read,
+          };
+        },
+      );
+
+    if (false) {
+      setupCraftServiceTestingByRegister.boundaryOnly(
+        injectBoundaryOnlyConfigHost,
+        //@ts-expect-error provider-scoped real dependencies must be listed in toProvideRegister
+        {},
+      );
+    }
+
+    const { sut } = await setupCraftServiceTestingByRegister.boundaryOnly(
+      injectBoundaryOnlyConfigHost,
+      {
+        toProvideRegister: {
+          BoundaryOnlyConfigHost: provideBoundaryOnlyConfigHost(),
+          BoundaryOnlyConfig: provideBoundaryOnlyConfig(),
+        },
+      },
+    );
+
+    expect(sut.read()).toBe('provided-config');
+  });
+
+  it('should require an explicit decision for each reachable browser boundary', () => {
+    const { BoundaryOnlyRequiredBoundaryToYield } = craftService(
+      {
+        name: 'BoundaryOnlyRequiredBoundary',
+        scope: 'global',
+        browserBoundary: true,
+      },
+      () => ({
+        read: (): string => 'real-boundary',
+      }),
+    );
+
+    const { injectBoundaryOnlyRequiredHost } = craftService(
+      { name: 'BoundaryOnlyRequiredHost', scope: 'global' },
+      function* () {
+        const boundary = yield* BoundaryOnlyRequiredBoundaryToYield();
+
+        return {
+          read: boundary.read,
+        };
+      },
+    );
+
+    if (false) {
+      setupCraftServiceTestingByRegister.boundaryOnly(
+        injectBoundaryOnlyRequiredHost,
+        //@ts-expect-error reachable browser boundaries must be listed in boundaryRegister
+        {},
+      );
+    }
+
+    expect(injectBoundaryOnlyRequiredHost).toBeDefined();
+  });
+
+  it('should not require descendants of a mocked browser boundary', async () => {
+    const { BoundaryOnlyChildBoundaryToYield } = craftService(
+      {
+        name: 'BoundaryOnlyChildBoundary',
+        scope: 'global',
+        browserBoundary: true,
+      },
+      () => ({
+        read: (): string => 'child',
+      }),
+    );
+
+    const { BoundaryOnlyParentBoundaryToYield } = craftService(
+      {
+        name: 'BoundaryOnlyParentBoundary',
+        scope: 'global',
+        browserBoundary: true,
+      },
+      function* () {
+        const child = yield* BoundaryOnlyChildBoundaryToYield();
+
+        return {
+          read: () => `parent:${child.read()}`,
+        };
+      },
+    );
+
+    const { injectBoundaryOnlyParentHost } = craftService(
+      { name: 'BoundaryOnlyParentHost', scope: 'global' },
+      function* () {
+        const parent = yield* BoundaryOnlyParentBoundaryToYield();
+
+        return {
+          read: parent.read,
+        };
+      },
+    );
+
+    const { sut } = await setupCraftServiceTestingByRegister.boundaryOnly(
+      injectBoundaryOnlyParentHost,
+      {
+        boundaryRegister: {
+          BoundaryOnlyParentBoundary: {
+            read: () => 'mock-parent',
+          },
+        },
+      },
+    );
+
+    expect(sut.read()).toBe('mock-parent');
+  });
+
+  it('should keep appStart decisions for reachable real services', async () => {
+    const calls: string[] = [];
+    const { BoundaryOnlyStartupToYield } = craftService(
+      {
+        name: 'BoundaryOnlyStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          calls.push('started');
+          return undefined;
+        });
+
+        return {
+          read: () => 1,
+        };
+      },
+    );
+
+    const { injectBoundaryOnlyStartupHost } = craftService(
+      { name: 'BoundaryOnlyStartupHost', scope: 'global' },
+      function* () {
+        const startup = yield* BoundaryOnlyStartupToYield();
+
+        return {
+          read: startup.read,
+        };
+      },
+    );
+
+    if (false) {
+      setupCraftServiceTestingByRegister.boundaryOnly(
+        injectBoundaryOnlyStartupHost,
+        //@ts-expect-error reachable real appStart services must be declared as run or ignore
+        {},
+      );
+    }
+
+    const { sut } = await setupCraftServiceTestingByRegister.boundaryOnly(
+      injectBoundaryOnlyStartupHost,
+      {
+        appStart: {
+          BoundaryOnlyStartup: 'run',
+        },
+      },
+    );
+
+    expect(sut.read()).toBe(1);
+    expect(calls).toEqual(['started']);
+  });
+
+  it('should reject non-boundary mocks at type level and runtime', async () => {
+    const { BoundaryOnlyRuntimeDomainToYield } = craftService(
+      { name: 'BoundaryOnlyRuntimeDomain', scope: 'global' },
+      () => ({
+        read: (): string => 'real-domain',
+      }),
+    );
+
+    const { injectBoundaryOnlyRuntimeHost } = craftService(
+      { name: 'BoundaryOnlyRuntimeHost', scope: 'global' },
+      function* () {
+        const domain = yield* BoundaryOnlyRuntimeDomainToYield();
+
+        return {
+          read: domain.read,
+        };
+      },
+    );
+
+    if (false) {
+      setupCraftServiceTestingByRegister.boundaryOnly(
+        injectBoundaryOnlyRuntimeHost,
+        {
+          //@ts-expect-error non-boundary services cannot be listed in boundaryRegister
+          boundaryRegister: {
+            BoundaryOnlyRuntimeDomain: {
+              read: () => 'mock-domain',
+            },
+          },
+        },
+      );
+    }
+
+    await expect(
+      (
+        setupCraftServiceTestingByRegister.boundaryOnly as unknown as (
+          target: unknown,
+          config: unknown,
+        ) => Promise<unknown>
+      )(injectBoundaryOnlyRuntimeHost, {
+        boundaryRegister: {
+          BoundaryOnlyRuntimeDomain: {
+            read: () => 'mock-domain',
+          },
+        },
+      }),
+    ).rejects.toThrow(
+      'boundaryOnly boundaryRegister entry "BoundaryOnlyRuntimeDomain" is not a craftService configured with browserBoundary: true.',
+    );
+  });
+});
+
 describe('setupCraftComponentTestingByRegister', () => {
   it('should require appStart decisions and run them before detectChanges', async () => {
     const order: string[] = [];
@@ -1138,5 +1463,201 @@ describe('setupCraftComponentTestingByRegister', () => {
     );
 
     expect(calls).toEqual([]);
+  });
+});
+
+describe('setupCraftComponentTestingByRegister.boundaryOnly', () => {
+  it('should allow component tests to mock only reachable browser boundaries', async () => {
+    const { ComponentBoundaryOnlyStorageToYield } = craftService(
+      {
+        name: 'ComponentBoundaryOnlyStorage',
+        scope: 'global',
+        browserBoundary: true,
+      },
+      () => ({
+        read: (): string => 'real-storage',
+      }),
+    );
+
+    const { injectComponentBoundaryOnlyDomain } = craftService(
+      { name: 'ComponentBoundaryOnlyDomain', scope: 'global' },
+      function* () {
+        const storage = yield* ComponentBoundaryOnlyStorageToYield();
+
+        return {
+          read: () => `component:${storage.read()}`,
+        };
+      },
+    );
+
+    @Component({
+      standalone: true,
+      template: '{{ domain.read() }}',
+    })
+    class ComponentBoundaryOnlyHost {
+      domain = injectComponentBoundaryOnlyDomain();
+    }
+
+    type GenDeps_ComponentBoundaryOnlyHost = GetDeps<{
+      deps: {
+        ComponentBoundaryOnlyDomain: GetInjectedServiceDependencies<
+          typeof injectComponentBoundaryOnlyDomain
+        >;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<ComponentBoundaryOnlyHost>;
+    }>;
+
+    if (false) {
+      setupCraftComponentTestingByRegister.boundaryOnly(
+        ComponentBoundaryOnlyHost,
+        {} as GenDeps_ComponentBoundaryOnlyHost,
+        {
+          //@ts-expect-error non-boundary component dependencies cannot be boundary mocks
+          boundaryRegister: {
+            ComponentBoundaryOnlyDomain: {
+              read: () => 'mock-domain',
+            },
+          },
+        },
+      );
+    }
+
+    const { nativeElement, mocks } =
+      await setupCraftComponentTestingByRegister.boundaryOnly(
+        ComponentBoundaryOnlyHost,
+        {} as GenDeps_ComponentBoundaryOnlyHost,
+        {
+          boundaryRegister: {
+            ComponentBoundaryOnlyStorage: {
+              read: () => 'mock-storage',
+            },
+          },
+        },
+      );
+
+    expect(nativeElement.textContent?.trim()).toBe('component:mock-storage');
+    expect(mocks.ComponentBoundaryOnlyStorage.read()).toBe('mock-storage');
+  });
+
+  it('should require providers for component dependencies that stay real', async () => {
+    const {
+      injectComponentBoundaryOnlyConfig,
+      ComponentBoundaryOnlyConfigToYield,
+      provideComponentBoundaryOnlyConfig,
+    } = craftService(
+      { name: 'ComponentBoundaryOnlyConfig', scope: 'toProvide' },
+      () => ({
+        read: (): string => 'provided-config',
+      }),
+    );
+
+    @Component({
+      standalone: true,
+      template: '{{ domain.read() }}',
+    })
+    class ComponentBoundaryOnlyConfigHost {
+      domain = injectComponentBoundaryOnlyConfig();
+    }
+
+    type GenDeps_ComponentBoundaryOnlyConfigHost = GetDeps<{
+      deps: {
+        ComponentBoundaryOnlyConfig: GetInjectedServiceDependencies<
+          typeof injectComponentBoundaryOnlyConfig
+        >;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<ComponentBoundaryOnlyConfigHost>;
+    }>;
+
+    if (false) {
+      setupCraftComponentTestingByRegister.boundaryOnly(
+        ComponentBoundaryOnlyConfigHost,
+        {} as GenDeps_ComponentBoundaryOnlyConfigHost,
+        //@ts-expect-error provider-scoped component dependencies must be listed in toProvideRegister
+        {},
+      );
+    }
+
+    const { nativeElement } =
+      await setupCraftComponentTestingByRegister.boundaryOnly(
+        ComponentBoundaryOnlyConfigHost,
+        {} as GenDeps_ComponentBoundaryOnlyConfigHost,
+        {
+          toProvideRegister: {
+            ComponentBoundaryOnlyConfig: provideComponentBoundaryOnlyConfig(),
+          },
+        },
+      );
+
+    expect(nativeElement.textContent?.trim()).toBe('provided-config');
+    expect(ComponentBoundaryOnlyConfigToYield).toBeDefined();
+  });
+
+  it('should run component appStart hooks before detectChanges', async () => {
+    const order: string[] = [];
+    const { injectComponentBoundaryOnlyStartup } = craftService(
+      {
+        name: 'ComponentBoundaryOnlyStartup',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        yield* onAppStart(() => {
+          order.push('appStart');
+          return undefined;
+        });
+
+        return {
+          read: () => 'started',
+        };
+      },
+    );
+
+    @Component({
+      standalone: true,
+      template: '{{ startup.read() }}',
+    })
+    class ComponentBoundaryOnlyStartupHost {
+      startup = injectComponentBoundaryOnlyStartup();
+
+      ngDoCheck() {
+        order.push('detectChanges');
+      }
+    }
+
+    type GenDeps_ComponentBoundaryOnlyStartupHost = GetDeps<{
+      deps: {
+        ComponentBoundaryOnlyStartup: GetInjectedServiceDependencies<
+          typeof injectComponentBoundaryOnlyStartup
+        >;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<ComponentBoundaryOnlyStartupHost>;
+    }>;
+
+    if (false) {
+      setupCraftComponentTestingByRegister.boundaryOnly(
+        ComponentBoundaryOnlyStartupHost,
+        {} as GenDeps_ComponentBoundaryOnlyStartupHost,
+        //@ts-expect-error reachable real appStart component dependencies must be declared
+        {},
+      );
+    }
+
+    const { nativeElement } =
+      await setupCraftComponentTestingByRegister.boundaryOnly(
+        ComponentBoundaryOnlyStartupHost,
+        {} as GenDeps_ComponentBoundaryOnlyStartupHost,
+        {
+          appStart: {
+            ComponentBoundaryOnlyStartup: 'run',
+          },
+          detectChanges: true,
+        },
+      );
+
+    expect(nativeElement.textContent?.trim()).toBe('started');
+    expect(order).toEqual(['appStart', 'detectChanges']);
   });
 });

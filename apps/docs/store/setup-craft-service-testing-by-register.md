@@ -5,7 +5,10 @@ Sets up a `craftService` or `toCraftService` from an explicit flat register deri
 ## Import
 
 ```typescript
-import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
+import {
+  setupCraftComponentTestingByRegister,
+  setupCraftServiceTestingByRegister,
+} from '@craft-ng/core';
 ```
 
 ## Introduction
@@ -20,6 +23,10 @@ Instead of providing only the overrides you care about, you provide a full typed
 - or pruned with `'notReached'`
 
 This is useful when you want explicit control over every node in the service graph.
+
+For tests that should stay close to reality, use `boundaryOnly`. It keeps the
+application graph real by default and only lets you decide the services marked
+with `browserBoundary: true`.
 
 ## Register Workflow
 
@@ -159,6 +166,62 @@ const { sut } = await setupCraftServiceTestingByRegister(
 ```
 
 `'run'` injects the real service and awaits its `onAppStart(...)` hook. `'ignore'` documents that the test intentionally skips it. Mocked services and `'notReached'` branches do not require `appStart` entries.
+
+## Boundary-Only Mode
+
+`setupCraftServiceTestingByRegister.boundaryOnly(...)` is the recommended mode
+when the test should mock only browser or platform edges.
+
+```typescript
+const { sut, mocks } = await setupCraftServiceTestingByRegister.boundaryOnly(
+  injectDashboard,
+  {
+    toProvideRegister: {
+      Dashboard: provideDashboard(),
+      FeatureConfig: provideFeatureConfig({ env: 'test' }),
+    },
+    boundaryRegister: {
+      LocalStorageService: {
+        getItem: vi.fn(() => 'cached'),
+      },
+      ConsoleService: 'real',
+    },
+    appStart: {
+      AuthSession: 'run',
+    },
+  },
+);
+```
+
+- `toProvideRegister` contains real providers required by reachable services.
+- `boundaryRegister` contains the explicit decision for each reachable browser boundary.
+- non-boundary services cannot be mocked in this mode.
+- descendants of a mocked boundary are pruned and do not need entries.
+
+The component helper exposes the same mode:
+
+```typescript
+const { fixture, component, mocks } =
+  await setupCraftComponentTestingByRegister.boundaryOnly(
+    DashboardPage,
+    {} as GenDeps_DashboardPage,
+    {
+      boundaryRegister: {
+        BrowserWindowService: 'real',
+        LocalStorageService: {
+          getItem: vi.fn(() => 'cached'),
+        },
+      },
+      inputs: {
+        userId: '42',
+      },
+    },
+  );
+```
+
+The helper never decides automatically from `jsdom` or another test
+environment. Use `'real'` when the real boundary is appropriate, and provide a
+mock when the test needs deterministic platform behavior.
 
 ## Extra Angular Providers
 

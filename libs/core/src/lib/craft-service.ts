@@ -53,6 +53,7 @@ export const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol(
 );
 export const SERVICE_RUNTIME_META = Symbol('service-runtime-meta');
 const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
+const REGISTERED_SERVICES = new Map<string, ServiceReference>();
 const REGISTERED_APP_START_SERVICES = new Map<string, ServiceReference>();
 
 type DerivedPropertiesTracking<
@@ -2712,6 +2713,11 @@ export function craftService(
   attachServiceRuntimeMeta(api[injectName], serviceMetaData);
   attachServiceRuntimeMeta(api[toYieldName], serviceMetaData);
 
+  REGISTERED_SERVICES.set(
+    runtimeDefinition.name,
+    api[injectName] as ServiceReference,
+  );
+
   if (runtimeDefinition.appStart) {
     REGISTERED_APP_START_SERVICES.set(
       runtimeDefinition.name,
@@ -3305,6 +3311,10 @@ export function runServiceAppStart(
 
 export function getRegisteredAppStartServices(): readonly ServiceReference[] {
   return Array.from(REGISTERED_APP_START_SERVICES.values());
+}
+
+export function getRegisteredServices(): readonly ServiceReference[] {
+  return Array.from(REGISTERED_SERVICES.values());
 }
 
 type RuntimeCallable = (...args: any[]) => unknown;

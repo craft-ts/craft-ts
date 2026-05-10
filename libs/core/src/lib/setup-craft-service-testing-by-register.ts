@@ -7,6 +7,7 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import {
   createExposedServiceValue,
   getRegisteredAppStartServices,
+  getRegisteredServices,
   getServiceMetaData,
   runServiceAppStart,
   SERVICE_RUNTIME_OVERRIDES,
@@ -297,6 +298,17 @@ type DependencyNodeAppStart<Node> = Node extends {
     ? true
     : false
   : false;
+
+type DependencyNodeBrowserBoundary<Node> = Node extends {
+  browserBoundary: infer BrowserBoundary extends boolean;
+}
+  ? true extends BrowserBoundary
+    ? true
+    : false
+  : false;
+
+type DependencyNodeRequiresProvider<Node> =
+  DependencyNodeScope<Node> extends RequirementScope ? true : false;
 
 type RealReachableAppStartNames<
   ReachableNames extends string,
@@ -653,6 +665,437 @@ type AssertValidComponentRegister<
 type SetupComponentTestingRegister<ComponentDeps extends object> =
   ComponentRegisterShape<ComponentDeps>;
 
+type BoundaryOnlyToProvideRegisterShape<NodeMap extends object> = Simplify<
+  Partial<{
+    [Name in Extract<keyof NodeMap, string> as DependencyNodeRequiresProvider<
+      NodeMap[Name]
+    > extends true
+      ? Name
+      : never]: ProviderOverrideForNode<Name, NodeMap[Name]>;
+  }>
+>;
+
+type ServiceBoundaryOnlyToProvideRegisterShape<
+  Target extends ServiceReference,
+> = BoundaryOnlyToProvideRegisterShape<RegisterNodeMap<Target>>;
+
+type ComponentBoundaryOnlyToProvideRegisterShape<ComponentDeps extends object> =
+  BoundaryOnlyToProvideRegisterShape<ComponentRegisterNodeMap<ComponentDeps>>;
+
+type ServiceBoundaryOnlyBoundaryRegisterShape<Target extends ServiceReference> =
+  Simplify<
+    Partial<{
+      [Name in Extract<
+        keyof RegisterNodeMap<Target>,
+        string
+      > as DependencyNodeBrowserBoundary<
+        RegisterNodeMap<Target>[Name]
+      > extends true
+        ? Name extends RootServiceName<Target>
+          ? never
+          : Name
+        : never]:
+        | RegisterRealEntry
+        | MockImplementationForNode<Target, Name, RegisterNodeMap<Target>[Name]>
+        | RegisterNotReachedEntry;
+    }>
+  >;
+
+type ComponentBoundaryOnlyBoundaryRegisterShape<ComponentDeps extends object> =
+  Simplify<
+    Partial<{
+      [Name in Extract<
+        keyof ComponentRegisterNodeMap<ComponentDeps>,
+        string
+      > as DependencyNodeBrowserBoundary<
+        ComponentRegisterNodeMap<ComponentDeps>[Name]
+      > extends true
+        ? Name
+        : never]:
+        | RegisterRealEntry
+        | ComponentMockImplementationForNode<
+            ComponentRegisterNodeMap<ComponentDeps>[Name]
+          >
+        | RegisterNotReachedEntry;
+    }>
+  >;
+
+type BoundaryOnlyRegisterKeys<Register extends object> = Extract<
+  keyof Register,
+  string
+>;
+
+type BoundaryOnlyEntryOpensBranch<
+  Name extends string,
+  Node,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+  ForcedRealNames extends string,
+> = Name extends ForcedRealNames
+  ? DependencyNodeRequiresProvider<Node> extends true
+    ? Name extends keyof ToProvideRegister
+      ? true
+      : false
+    : true
+  : DependencyNodeBrowserBoundary<Node> extends true
+    ? Name extends keyof BoundaryRegister
+      ? RegisterEntryKind<BoundaryRegister[Name]> extends 'real'
+        ? true
+        : false
+      : false
+    : DependencyNodeRequiresProvider<Node> extends true
+      ? Name extends keyof ToProvideRegister
+        ? true
+        : false
+      : true;
+
+type BoundaryOnlyReachableNamesForTree<
+  Tree extends object,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+  ForcedRealNames extends string,
+> = {
+  [Name in Extract<keyof Tree, string>]: BoundaryOnlyReachableNamesForNode<
+    Name,
+    Tree[Name],
+    BoundaryRegister,
+    ToProvideRegister,
+    ForcedRealNames
+  >;
+}[Extract<keyof Tree, string>];
+
+type BoundaryOnlyReachableNamesForNode<
+  Name extends string,
+  Node,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+  ForcedRealNames extends string,
+> =
+  | Name
+  | (BoundaryOnlyEntryOpensBranch<
+      Name,
+      Node,
+      BoundaryRegister,
+      ToProvideRegister,
+      ForcedRealNames
+    > extends true
+      ? BoundaryOnlyReachableNamesForTree<
+          DependencyTreeChildren<Node>,
+          BoundaryRegister,
+          ToProvideRegister,
+          ForcedRealNames
+        >
+      : never);
+
+type ServiceBoundaryOnlyReachableNames<
+  Target extends ServiceReference,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+> = BoundaryOnlyReachableNamesForNode<
+  RootServiceName<Target>,
+  GetServiceDependenciesTree<Target>,
+  BoundaryRegister,
+  ToProvideRegister,
+  RootServiceName<Target>
+>;
+
+type ComponentBoundaryOnlyReachableNames<
+  ComponentDeps extends object,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+> = BoundaryOnlyReachableNamesForTree<
+  ComponentTestingDependencyTree<ComponentDeps>,
+  BoundaryRegister,
+  ToProvideRegister,
+  never
+>;
+
+type BoundaryOnlyReachableBoundaryNames<
+  ReachableNames extends string,
+  NodeMap extends object,
+  ForcedRealNames extends string,
+> = Extract<
+  {
+    [Name in ReachableNames]: Name extends keyof NodeMap
+      ? Name extends ForcedRealNames
+        ? never
+        : DependencyNodeBrowserBoundary<NodeMap[Name]> extends true
+          ? Name
+          : never
+      : never;
+  }[ReachableNames],
+  string
+>;
+
+type ServiceBoundaryOnlyReachableBoundaryNames<
+  Target extends ServiceReference,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+> = BoundaryOnlyReachableBoundaryNames<
+  Extract<
+    ServiceBoundaryOnlyReachableNames<
+      Target,
+      BoundaryRegister,
+      ToProvideRegister
+    >,
+    string
+  >,
+  RegisterNodeMap<Target>,
+  RootServiceName<Target>
+>;
+
+type ComponentBoundaryOnlyReachableBoundaryNames<
+  ComponentDeps extends object,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+> = BoundaryOnlyReachableBoundaryNames<
+  Extract<
+    ComponentBoundaryOnlyReachableNames<
+      ComponentDeps,
+      BoundaryRegister,
+      ToProvideRegister
+    >,
+    string
+  >,
+  ComponentRegisterNodeMap<ComponentDeps>,
+  never
+>;
+
+type BoundaryOnlyProviderNameNeedsProvider<
+  Name extends string,
+  Node,
+  BoundaryRegister extends object,
+  ForcedRealNames extends string,
+> =
+  DependencyNodeRequiresProvider<Node> extends true
+    ? Name extends ForcedRealNames
+      ? Name
+      : DependencyNodeBrowserBoundary<Node> extends true
+        ? Name extends keyof BoundaryRegister
+          ? RegisterEntryKind<BoundaryRegister[Name]> extends 'real'
+            ? Name
+            : never
+          : never
+        : Name
+    : never;
+
+type BoundaryOnlyRequiredProviderNames<
+  ReachableNames extends string,
+  NodeMap extends object,
+  BoundaryRegister extends object,
+  ForcedRealNames extends string,
+> = Extract<
+  {
+    [Name in ReachableNames]: Name extends keyof NodeMap
+      ? BoundaryOnlyProviderNameNeedsProvider<
+          Name,
+          NodeMap[Name],
+          BoundaryRegister,
+          ForcedRealNames
+        >
+      : never;
+  }[ReachableNames],
+  string
+>;
+
+type ServiceBoundaryOnlyRequiredProviderNames<
+  Target extends ServiceReference,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+> = BoundaryOnlyRequiredProviderNames<
+  Extract<
+    ServiceBoundaryOnlyReachableNames<
+      Target,
+      BoundaryRegister,
+      ToProvideRegister
+    >,
+    string
+  >,
+  RegisterNodeMap<Target>,
+  BoundaryRegister,
+  RootServiceName<Target>
+>;
+
+type ComponentBoundaryOnlyRequiredProviderNames<
+  ComponentDeps extends object,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+> = BoundaryOnlyRequiredProviderNames<
+  Extract<
+    ComponentBoundaryOnlyReachableNames<
+      ComponentDeps,
+      BoundaryRegister,
+      ToProvideRegister
+    >,
+    string
+  >,
+  ComponentRegisterNodeMap<ComponentDeps>,
+  BoundaryRegister,
+  never
+>;
+
+type BoundaryOnlyRealReachableAppStartNames<
+  ReachableNames extends string,
+  NodeMap extends object,
+  BoundaryRegister extends object,
+  ForcedRealNames extends string,
+> = Extract<
+  {
+    [Name in ReachableNames]: Name extends keyof NodeMap
+      ? DependencyNodeAppStart<NodeMap[Name]> extends true
+        ? Name extends ForcedRealNames
+          ? Name
+          : DependencyNodeBrowserBoundary<NodeMap[Name]> extends true
+            ? Name extends keyof BoundaryRegister
+              ? RegisterEntryKind<BoundaryRegister[Name]> extends 'real'
+                ? Name
+                : never
+              : never
+            : Name
+        : never
+      : never;
+  }[ReachableNames],
+  string
+>;
+
+type ServiceBoundaryOnlyRealReachableAppStartNames<
+  Target extends ServiceReference,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+> = BoundaryOnlyRealReachableAppStartNames<
+  Extract<
+    ServiceBoundaryOnlyReachableNames<
+      Target,
+      BoundaryRegister,
+      ToProvideRegister
+    >,
+    string
+  >,
+  RegisterNodeMap<Target>,
+  BoundaryRegister,
+  RootServiceName<Target>
+>;
+
+type ComponentBoundaryOnlyRealReachableAppStartNames<
+  ComponentDeps extends object,
+  BoundaryRegister extends object,
+  ToProvideRegister extends object,
+> = BoundaryOnlyRealReachableAppStartNames<
+  Extract<
+    ComponentBoundaryOnlyReachableNames<
+      ComponentDeps,
+      BoundaryRegister,
+      ToProvideRegister
+    >,
+    string
+  >,
+  ComponentRegisterNodeMap<ComponentDeps>,
+  BoundaryRegister,
+  never
+>;
+
+type BoundaryOnlyReachableNotReachedBoundaryNames<
+  ReachableBoundaryNames extends string,
+  BoundaryRegister extends object,
+> = Extract<
+  {
+    [Name in ReachableBoundaryNames]: Name extends keyof BoundaryRegister
+      ? RegisterEntryKind<BoundaryRegister[Name]> extends 'notReached'
+        ? Name
+        : never
+      : never;
+  }[ReachableBoundaryNames],
+  string
+>;
+
+type BoundaryOnlyUnreachableNonNotReachedBoundaryNames<
+  BoundaryNames extends string,
+  ReachableBoundaryNames extends string,
+  BoundaryRegister extends object,
+> = Extract<
+  {
+    [Name in Exclude<
+      Extract<keyof BoundaryRegister, string>,
+      ReachableBoundaryNames
+    >]: Name extends BoundaryNames
+      ? RegisterEntryKind<BoundaryRegister[Name]> extends 'notReached'
+        ? never
+        : Name
+      : never;
+  }[Exclude<Extract<keyof BoundaryRegister, string>, ReachableBoundaryNames>],
+  string
+>;
+
+type BoundaryOnlyExtraRegisterKeys<
+  Register extends object,
+  Shape extends object,
+> = Exclude<
+  BoundaryOnlyRegisterKeys<Register>,
+  BoundaryOnlyRegisterKeys<Shape>
+>;
+
+type BoundaryOnlyRequiredRecord<
+  Names extends string,
+  Shape extends object,
+> = Simplify<{
+  [Name in Names]-?: Name extends keyof Shape ? Shape[Name] : never;
+}>;
+
+type AssertValidBoundaryOnlyToProvideRegister<
+  ToProvideRegister extends object,
+  ToProvideShape extends object,
+> = [BoundaryOnlyExtraRegisterKeys<ToProvideRegister, ToProvideShape>] extends [
+  never,
+]
+  ? {}
+  : {
+      ERROR_invalid_toProvideRegister_keys: BoundaryOnlyExtraRegisterKeys<
+        ToProvideRegister,
+        ToProvideShape
+      >;
+    };
+
+type AssertValidBoundaryOnlyBoundaryRegister<
+  BoundaryRegister extends object,
+  BoundaryShape extends object,
+  ReachableBoundaryNames extends string,
+> = [BoundaryOnlyExtraRegisterKeys<BoundaryRegister, BoundaryShape>] extends [
+  never,
+]
+  ? [
+      BoundaryOnlyReachableNotReachedBoundaryNames<
+        ReachableBoundaryNames,
+        BoundaryRegister
+      >,
+    ] extends [never]
+    ? [
+        BoundaryOnlyUnreachableNonNotReachedBoundaryNames<
+          BoundaryOnlyRegisterKeys<BoundaryShape>,
+          ReachableBoundaryNames,
+          BoundaryRegister
+        >,
+      ] extends [never]
+      ? {}
+      : {
+          ERROR_boundary_entries_must_be_notReached: BoundaryOnlyUnreachableNonNotReachedBoundaryNames<
+            BoundaryOnlyRegisterKeys<BoundaryShape>,
+            ReachableBoundaryNames,
+            BoundaryRegister
+          >;
+        }
+    : {
+        ERROR_boundary_entries_cannot_be_notReached: BoundaryOnlyReachableNotReachedBoundaryNames<
+          ReachableBoundaryNames,
+          BoundaryRegister
+        >;
+      }
+  : {
+      ERROR_invalid_boundaryRegister_keys: BoundaryOnlyExtraRegisterKeys<
+        BoundaryRegister,
+        BoundaryShape
+      >;
+    };
+
 type PublicMockShape<Implementation> = Implementation extends object
   ? Omit<Implementation, RootExposureKey>
   : {};
@@ -735,6 +1178,141 @@ type ComponentTestingByRegisterOptionsParameter<
         >;
       },
     ];
+
+type BoundaryOnlyToProvideConfig<
+  ToProvideRegister extends object,
+  ToProvideShape extends object,
+  RequiredProviderNames extends string,
+> = [RequiredProviderNames] extends [never]
+  ? {
+      toProvideRegister?: ToProvideRegister &
+        AssertValidBoundaryOnlyToProvideRegister<
+          ToProvideRegister,
+          ToProvideShape
+        >;
+    }
+  : {
+      toProvideRegister: ToProvideRegister &
+        BoundaryOnlyRequiredRecord<RequiredProviderNames, ToProvideShape> &
+        AssertValidBoundaryOnlyToProvideRegister<
+          ToProvideRegister,
+          ToProvideShape
+        >;
+    };
+
+type BoundaryOnlyBoundaryConfig<
+  BoundaryRegister extends object,
+  BoundaryShape extends object,
+  ReachableBoundaryNames extends string,
+> = [ReachableBoundaryNames] extends [never]
+  ? {
+      boundaryRegister?: BoundaryRegister &
+        AssertValidBoundaryOnlyBoundaryRegister<
+          BoundaryRegister,
+          BoundaryShape,
+          ReachableBoundaryNames
+        >;
+    }
+  : {
+      boundaryRegister: BoundaryRegister &
+        BoundaryOnlyRequiredRecord<ReachableBoundaryNames, BoundaryShape> &
+        AssertValidBoundaryOnlyBoundaryRegister<
+          BoundaryRegister,
+          BoundaryShape,
+          ReachableBoundaryNames
+        >;
+    };
+
+type BoundaryOnlyAppStartConfig<AppStartNames extends string> = [
+  AppStartNames,
+] extends [never]
+  ? {
+      appStart?: Record<string, AppStartDecision>;
+    }
+  : {
+      appStart: AppStartDecisionRecord<AppStartNames>;
+    };
+
+type BaseServiceBoundaryOnlyTestingOptions<
+  Bindings extends ServiceBindings<any> | undefined,
+> = {
+  bindings?: Bindings;
+  providers?: CraftServiceProvider[];
+};
+
+type ServiceBoundaryOnlyTestingConfig<
+  Target extends ServiceReference,
+  ToProvideRegister extends object,
+  BoundaryRegister extends object,
+  Bindings extends ServiceBindings<Target> | undefined,
+> = Simplify<
+  BaseServiceBoundaryOnlyTestingOptions<Bindings> &
+    BoundaryOnlyToProvideConfig<
+      ToProvideRegister,
+      ServiceBoundaryOnlyToProvideRegisterShape<Target>,
+      ServiceBoundaryOnlyRequiredProviderNames<
+        Target,
+        BoundaryRegister,
+        ToProvideRegister
+      >
+    > &
+    BoundaryOnlyBoundaryConfig<
+      BoundaryRegister,
+      ServiceBoundaryOnlyBoundaryRegisterShape<Target>,
+      ServiceBoundaryOnlyReachableBoundaryNames<
+        Target,
+        BoundaryRegister,
+        ToProvideRegister
+      >
+    > &
+    BoundaryOnlyAppStartConfig<
+      ServiceBoundaryOnlyRealReachableAppStartNames<
+        Target,
+        BoundaryRegister,
+        ToProvideRegister
+      >
+    >
+>;
+
+type BaseComponentBoundaryOnlyTestingOptions<ComponentDeps extends object> = {
+  providers?: CraftServiceProvider[];
+  imports?: unknown[];
+  inputs?: ComponentTestingInputs<ComponentDeps>;
+  detectChanges?: boolean;
+};
+
+type ComponentBoundaryOnlyTestingConfig<
+  ComponentDeps extends object,
+  ToProvideRegister extends object,
+  BoundaryRegister extends object,
+> = Simplify<
+  BaseComponentBoundaryOnlyTestingOptions<ComponentDeps> &
+    BoundaryOnlyToProvideConfig<
+      ToProvideRegister,
+      ComponentBoundaryOnlyToProvideRegisterShape<ComponentDeps>,
+      ComponentBoundaryOnlyRequiredProviderNames<
+        ComponentDeps,
+        BoundaryRegister,
+        ToProvideRegister
+      >
+    > &
+    BoundaryOnlyBoundaryConfig<
+      BoundaryRegister,
+      ComponentBoundaryOnlyBoundaryRegisterShape<ComponentDeps>,
+      ComponentBoundaryOnlyReachableBoundaryNames<
+        ComponentDeps,
+        BoundaryRegister,
+        ToProvideRegister
+      >
+    > &
+    BoundaryOnlyAppStartConfig<
+      ComponentBoundaryOnlyRealReachableAppStartNames<
+        ComponentDeps,
+        BoundaryRegister,
+        ToProvideRegister
+      >
+    >
+>;
 
 type RuntimeRegisterEntry =
   | BrandedServiceProvider<string, RequirementScope>
@@ -819,6 +1397,105 @@ function isPrunedOrMockedRuntimeRegisterEntry(
     entry === 'notReached' ||
     (entry !== 'real' && !isProviderOverride(entry))
   );
+}
+
+type BoundaryOnlyRuntimeConfig = {
+  toProvideRegister?: Record<string, RuntimeRegisterEntry>;
+  boundaryRegister?: Record<string, RuntimeRegisterEntry>;
+  appStart?: Record<string, AppStartDecision>;
+};
+
+function createBoundaryOnlyRuntimeRegister(
+  config: BoundaryOnlyRuntimeConfig,
+  root?: { name: string; scope: string },
+) {
+  const toProvideRegister = config.toProvideRegister ?? {};
+  const boundaryRegister = config.boundaryRegister ?? {};
+  const register: Record<string, RuntimeRegisterEntry> = {
+    ...toProvideRegister,
+  };
+
+  assertBoundaryOnlyToProvideEntries(toProvideRegister);
+
+  if (root) {
+    if (root.scope === 'toProvide' || root.scope === 'manuallyProvidedAtRoot') {
+      if (toProvideRegister[root.name]) {
+        register[root.name] = toProvideRegister[root.name];
+      }
+    } else {
+      register[root.name] = 'real';
+    }
+  }
+
+  assertBoundaryOnlyRegisterEntries(boundaryRegister, toProvideRegister);
+
+  for (const [name, entry] of Object.entries(boundaryRegister)) {
+    if (entry === 'real' && toProvideRegister[name]) {
+      register[name] = toProvideRegister[name];
+      continue;
+    }
+
+    register[name] = entry;
+  }
+
+  for (const name of Object.keys(config.appStart ?? {})) {
+    register[name] ??= 'real';
+  }
+
+  return register;
+}
+
+function assertBoundaryOnlyToProvideEntries(
+  toProvideRegister: Record<string, RuntimeRegisterEntry>,
+) {
+  for (const [name, entry] of Object.entries(toProvideRegister)) {
+    if (!isProviderOverride(entry)) {
+      throw new Error(
+        `boundaryOnly toProvideRegister entry "${name}" must be a provider returned by provide${name}(...).`,
+      );
+    }
+
+    assertProviderOverrideName(name, entry);
+  }
+}
+
+function assertBoundaryOnlyRegisterEntries(
+  boundaryRegister: Record<string, RuntimeRegisterEntry>,
+  toProvideRegister: Record<string, RuntimeRegisterEntry>,
+) {
+  const registeredServices = new Map(
+    getRegisteredServices().map((reference) => {
+      const metaData = getServiceMetaData(reference);
+      return [metaData.name, metaData] as const;
+    }),
+  );
+
+  for (const [name, entry] of Object.entries(boundaryRegister)) {
+    const metaData = registeredServices.get(name);
+
+    if (!metaData?.browserBoundary) {
+      throw new Error(
+        `boundaryOnly boundaryRegister entry "${name}" is not a craftService configured with browserBoundary: true.`,
+      );
+    }
+
+    if (isProviderOverride(entry)) {
+      throw new Error(
+        `boundaryOnly boundaryRegister entry "${name}" cannot be a provider. Use boundaryRegister.${name}: "real" with toProvideRegister.${name}.`,
+      );
+    }
+
+    if (
+      entry === 'real' &&
+      (metaData.scope === 'toProvide' ||
+        metaData.scope === 'manuallyProvidedAtRoot') &&
+      !toProvideRegister[name]
+    ) {
+      throw new Error(
+        `boundaryOnly requires toProvideRegister.${name} when boundaryRegister.${name} is "real".`,
+      );
+    }
+  }
 }
 
 function createRegisterTestingContext(
@@ -1021,7 +1698,7 @@ function isObservableLike(value: unknown): value is {
  * expect(mocks.Counter.increment).toBeDefined();
  * ```
  */
-export async function setupCraftServiceTestingByRegister<
+async function setupCraftServiceTestingByRegisterImpl<
   Target extends ServiceReference,
   const Register extends SetupTestingRegister<Target>,
   Bindings extends ServiceBindings<Target> | undefined = undefined,
@@ -1073,7 +1750,77 @@ export async function setupCraftServiceTestingByRegister<
   return result;
 }
 
-export async function setupCraftComponentTestingByRegister<
+async function setupCraftServiceTestingByRegisterBoundaryOnly<
+  Target extends ServiceReference,
+  const ToProvideRegister extends object = {},
+  const BoundaryRegister extends object = {},
+  Bindings extends ServiceBindings<Target> | undefined = undefined,
+>(
+  target: Target,
+  config: ServiceBoundaryOnlyTestingConfig<
+    Target,
+    ToProvideRegister,
+    BoundaryRegister,
+    Bindings
+  > & {
+    toProvideRegister?: ToProvideRegister;
+    boundaryRegister?: BoundaryRegister;
+  },
+): Promise<{
+  sut: ResolvedServiceOutput<Target, Bindings>;
+  mocks: CreateRegisterMocks<BoundaryRegister>;
+}> {
+  const internalMetaData = getServiceMetaData(target);
+  const runtimeRegister = createBoundaryOnlyRuntimeRegister(
+    {
+      toProvideRegister: config.toProvideRegister as
+        | Record<string, RuntimeRegisterEntry>
+        | undefined,
+      boundaryRegister: config.boundaryRegister as
+        | Record<string, RuntimeRegisterEntry>
+        | undefined,
+      appStart: config.appStart,
+    },
+    {
+      name: internalMetaData.name,
+      scope: internalMetaData.scope,
+    },
+  );
+  const { providers, mocks } = createRegisterTestingContext(
+    runtimeRegister,
+    config.providers,
+    {
+      name: internalMetaData.name,
+      scope: internalMetaData.scope,
+    },
+  );
+
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    providers,
+  });
+
+  const result = TestBed.runInInjectionContext(() => ({
+    sut:
+      config.bindings === undefined
+        ? internalMetaData.inject()
+        : internalMetaData.inject(config.bindings),
+    mocks,
+  })) as {
+    sut: ResolvedServiceOutput<Target, Bindings>;
+    mocks: CreateRegisterMocks<BoundaryRegister>;
+  };
+
+  await runConfiguredAppStartHooks(
+    runtimeRegister,
+    config.appStart,
+    'setupCraftServiceTestingByRegister.boundaryOnly',
+  );
+
+  return result;
+}
+
+async function setupCraftComponentTestingByRegisterImpl<
   ComponentInstance,
   ComponentDeps extends object,
   const Register extends SetupComponentTestingRegister<ComponentDeps>,
@@ -1126,6 +1873,86 @@ export async function setupCraftComponentTestingByRegister<
     mocks: mocks as CreateRegisterMocks<Register>,
   };
 }
+
+async function setupCraftComponentTestingByRegisterBoundaryOnly<
+  ComponentInstance,
+  ComponentDeps extends object,
+  const ToProvideRegister extends object = {},
+  const BoundaryRegister extends object = {},
+>(
+  componentType: Type<ComponentInstance>,
+  _componentDeps: ComponentDeps,
+  config: ComponentBoundaryOnlyTestingConfig<
+    ComponentDeps,
+    ToProvideRegister,
+    BoundaryRegister
+  > & {
+    toProvideRegister?: ToProvideRegister;
+    boundaryRegister?: BoundaryRegister;
+  },
+): Promise<{
+  fixture: ComponentFixture<ComponentInstance>;
+  component: ComponentInstance;
+  nativeElement: HTMLElement;
+  mocks: CreateRegisterMocks<BoundaryRegister>;
+}> {
+  const runtimeRegister = createBoundaryOnlyRuntimeRegister({
+    toProvideRegister: config.toProvideRegister as
+      | Record<string, RuntimeRegisterEntry>
+      | undefined,
+    boundaryRegister: config.boundaryRegister as
+      | Record<string, RuntimeRegisterEntry>
+      | undefined,
+    appStart: config.appStart,
+  });
+  const { providers, mocks } = createRegisterTestingContext(
+    runtimeRegister,
+    config.providers,
+  );
+
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    imports: [componentType, ...(config.imports ?? [])],
+    providers,
+  });
+
+  await runConfiguredAppStartHooks(
+    runtimeRegister,
+    config.appStart,
+    'setupCraftComponentTestingByRegister.boundaryOnly',
+  );
+
+  const fixture = TestBed.createComponent(componentType);
+
+  for (const [name, value] of Object.entries(config.inputs ?? {})) {
+    fixture.componentRef.setInput(name, value);
+  }
+
+  if (config.detectChanges ?? true) {
+    fixture.detectChanges();
+  }
+
+  return {
+    fixture,
+    component: fixture.componentInstance,
+    nativeElement: fixture.nativeElement as HTMLElement,
+    mocks: mocks as CreateRegisterMocks<BoundaryRegister>,
+  };
+}
+
+export const setupCraftServiceTestingByRegister = Object.assign(
+  setupCraftServiceTestingByRegisterImpl,
+  {
+    boundaryOnly: setupCraftServiceTestingByRegisterBoundaryOnly,
+  },
+);
+
+export const setupCraftComponentTestingByRegister = Object.assign(
+  setupCraftComponentTestingByRegisterImpl,
+  {
+    boundaryOnly: setupCraftComponentTestingByRegisterBoundaryOnly,
+  },
+);
 
 /** Backward-compatible alias for `setupCraftServiceTestingByRegister`. */
 export const setupTestingService = setupCraftServiceTestingByRegister;
