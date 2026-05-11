@@ -1,9 +1,8 @@
-import { inject, Injector, linkedSignal, Signal } from '@angular/core';
-import { FieldTree, ReadonlyArrayLike } from '@angular/forms/signals';
+import { inject, Injector, linkedSignal } from '@angular/core';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
+import { CraftFieldTree } from './craft-field';
 import {
-  decorateFormTreeWithInsertions,
-  getArrayItemSchemaPath,
+  buildSubForm,
   type FormWithInsertions,
   type InsertionFormFactoryContext,
   type InsertionsFormFactory,
@@ -34,8 +33,8 @@ type IsArray<T> = T extends any[] ? true : false;
 type MaybeFormWithInsertions<Model, Insertions> = [Model] extends [never]
   ? never
   : undefined extends Model
-    ? FormWithInsertions<Extract<Model, object>, Insertions> | undefined
-    : FormWithInsertions<Extract<Model, object>, Insertions>;
+    ? FormWithInsertions<NonNullable<Model>, Insertions> | undefined
+    : FormWithInsertions<Model, Insertions>;
 
 type SelectFormTreeMethodName<Name extends string> =
   `select${Capitalize<Name>}`;
@@ -49,14 +48,14 @@ type ArrayInsertSelectFormTreeOutput<
     id: number,
   ) =>
     | FormWithInsertions<
-        Extract<ExtractItemType<StateType>, object>,
+        ExtractItemType<StateType>,
         MergeInsertions<Insertions>
       >
     | undefined;
 } & {
   items: () => Array<
     FormWithInsertions<
-      Extract<ExtractItemType<StateType>, object>,
+      ExtractItemType<StateType>,
       MergeInsertions<Insertions>
     >
   >;
@@ -92,25 +91,60 @@ type InsertSelectFormTreeReturn<
   PreviousInsertionsOutputs
 >;
 
-function isFieldTree(
-  value: unknown,
-): value is FieldTree<unknown, string | number> {
-  return typeof value === 'function';
+function createObjectRuntime(
+  propertyKey: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...insertions: InsertionsFormFactory<any, any, any, any>[]
+) {
+  return (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    context: InsertionFormFactoryContext<any, any, any>,
+  ) => {
+    const injector = ɵcreateHostTaggedInjector(inject(Injector), propertyKey);
+    const methodName = `select${propertyKey.charAt(0).toUpperCase()}${propertyKey.slice(1)}`;
+
+    let cachedForm: FormWithInsertions<unknown, Record<string, unknown>> | undefined;
+    let cachedSubFieldKey: object | undefined;
+
+    const buildIfNeeded = () => {
+      const subField = (context.field as unknown as Record<string, unknown>)[
+        propertyKey
+      ] as CraftFieldTree<unknown> | undefined;
+      if (!subField) return undefined;
+      if (cachedSubFieldKey === (subField as unknown as object)) return cachedForm;
+
+      const subState = () => {
+        const curr = context.state();
+        return curr && typeof curr === 'object'
+          ? (curr as Record<string, unknown>)[propertyKey]
+          : undefined;
+      };
+      const setSub = (next: unknown) => {
+        context.update((curr: unknown) => {
+          if (!curr || typeof curr !== 'object') return curr;
+          return { ...(curr as Record<string, unknown>), [propertyKey]: next };
+        });
+      };
+
+      cachedForm = buildSubForm({
+        parentContext: context,
+        subField,
+        subState,
+        setSub,
+        insertions,
+        injector,
+      });
+      cachedSubFieldKey = subField as unknown as object;
+      return cachedForm;
+    };
+
+    return {
+      [methodName]: () => buildIfNeeded(),
+    };
+  };
 }
 
-function getHasAttemptedSubmitSignal(
-  formRef: FieldTree<unknown, string | number>,
-): Signal<boolean> | undefined {
-  const hasAttemptedSubmit = (formRef() as unknown as Record<string, unknown>)[
-    'hasAttemptedSubmit'
-  ];
-
-  return typeof hasAttemptedSubmit === 'function'
-    ? (hasAttemptedSubmit as Signal<boolean>)
-    : undefined;
-}
-
-function createInsertSelectFormTreeItemRuntime(
+function createArrayItemRuntime(
   entityName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...itemInsertions: InsertionsFormFactory<any, any, any, any>[]
@@ -120,217 +154,65 @@ function createInsertSelectFormTreeItemRuntime(
     context: InsertionFormFactoryContext<any, any, any>,
   ) => {
     const injector = ɵcreateHostTaggedInjector(inject(Injector), entityName);
-    const selectItemMethodName = `select${entityName.charAt(0).toUpperCase()}${entityName.slice(1)}`;
-    const decoratedForms = new WeakSet<FieldTree<unknown, string | number>>();
-    const inheritedInsertions =
-      (context.insertions as Record<string, unknown> | undefined) ?? {};
+    const methodName = `select${entityName.charAt(0).toUpperCase()}${entityName.slice(1)}`;
+    const cache = new Map<number, FormWithInsertions<unknown, Record<string, unknown>>>();
 
-    const selectItemState = (id: number) => {
-      const currentState = context.state();
-      if (!Array.isArray(currentState)) {
-        return undefined;
-      }
+    const buildItemForm = (id: number) => {
+      const tree = context.field as unknown as {
+        item?: (index: number) => CraftFieldTree<unknown> | undefined;
+      };
+      const subField = tree.item ? tree.item(id) : undefined;
+      if (!subField) return undefined;
 
-      return currentState[id];
-    };
+      const cached = cache.get(id);
+      if (cached) return cached;
 
-    const setItemState = (id: number, nextItem: unknown) => {
-      context.update((currentState: unknown) => {
-        if (!Array.isArray(currentState)) {
-          return currentState;
-        }
+      const itemInjector = ɵcreateHostTaggedInjector(injector, String(id));
+      const subState = () => {
+        const curr = context.state();
+        if (!Array.isArray(curr)) return undefined;
+        return curr[id];
+      };
+      const setSub = (next: unknown) => {
+        context.update((curr: unknown) => {
+          if (!Array.isArray(curr)) return curr;
+          if (id < 0 || id >= curr.length || !Number.isInteger(id)) return curr;
+          const nextArr = [...curr];
+          nextArr[id] = next;
+          return nextArr;
+        });
+      };
 
-        if (id < 0 || id >= currentState.length || !Number.isInteger(id)) {
-          return currentState;
-        }
-
-        const nextState = [...currentState];
-        nextState[id] = nextItem;
-        return nextState;
+      const form = buildSubForm({
+        parentContext: context,
+        subField,
+        subState,
+        setSub,
+        insertions: itemInsertions,
+        injector: itemInjector,
       });
-
-      return nextItem;
-    };
-
-    const updateItemState = (
-      id: number,
-      updateFn: (currentItem: unknown) => unknown,
-    ) => {
-      const currentItem = selectItemState(id);
-      if (currentItem === undefined) {
-        return undefined;
-      }
-
-      const nextItem = updateFn(currentItem);
-      setItemState(id, nextItem);
-      return nextItem;
-    };
-
-    const selectItemForm = (id: number) => {
-      const itemForm = (context.form as unknown as ReadonlyArrayLike<unknown>)[
-        id
-      ];
-      if (!isFieldTree(itemForm)) {
-        return undefined;
-      }
-
-      if (!decoratedForms.has(itemForm)) {
-        const itemInjector = ɵcreateHostTaggedInjector(injector, String(id));
-        const itemState = linkedSignal(() => selectItemState(id));
-        const itemValidatorModelRef = linkedSignal(() => {
-          const currentValidatorModel = context.validatorModelRef();
-          if (!Array.isArray(currentValidatorModel)) {
-            return undefined;
-          }
-
-          return currentValidatorModel[id];
-        });
-        decorateFormTreeWithInsertions({
-          formRef: itemForm as FieldTree<unknown, string | number>,
-          schemaPath:
-            getArrayItemSchemaPath(context.schemaPath as never) ??
-            (context.schemaPath as never),
-          formInsertions: itemInsertions,
-          state: itemState,
-          validatorModelRef: itemValidatorModelRef,
-          hasAttemptedSubmit: getHasAttemptedSubmitSignal(context.form),
-          setAttemptedSubmit: context.setAttemptedSubmit,
-          set: (newState: unknown) => setItemState(id, newState),
-          update: (updateFn: (currentState: unknown) => unknown) =>
-            updateItemState(id, updateFn),
-          patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
-            updateItemState(id, (current) => ({
-              ...(current as object),
-              ...patchFn(current),
-            })),
-          setSubmitting: context.setSubmitting,
-          inheritedInsertions,
-          injector: itemInjector,
-          formIdentifier: context.formIdentifier,
-        });
-        decoratedForms.add(itemForm);
-      }
-
-      return itemForm;
+      cache.set(id, form);
+      return form;
     };
 
     const items = () => {
-      const currentState = context.state();
-      if (!Array.isArray(currentState)) {
-        return [];
-      }
-
-      return currentState.reduce<FieldTree<unknown, string | number>[]>(
-        (acc, _unused, index) => {
-          const itemForm = selectItemForm(index);
-          if (itemForm) {
-            acc.push(itemForm);
-          }
-          return acc;
-        },
-        [],
-      );
+      const curr = context.state();
+      if (!Array.isArray(curr)) return [];
+      return curr
+        .map((_unused, index) => buildItemForm(index))
+        .filter((f): f is FormWithInsertions<unknown, Record<string, unknown>> => !!f);
     };
 
     return {
-      [selectItemMethodName]: selectItemForm,
+      [methodName]: buildItemForm,
       items,
     };
   };
 }
 
-function createInsertSelectFormTreePropertyRuntime(
-  propertyKey: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...propertyInsertions: InsertionsFormFactory<any, any, any, any>[]
-) {
-  return (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    context: InsertionFormFactoryContext<any, any, any>,
-  ) => {
-    const injector = ɵcreateHostTaggedInjector(inject(Injector), propertyKey);
-    const selectPropertyMethodName = `select${propertyKey.charAt(0).toUpperCase()}${propertyKey.slice(1)}`;
-    const inheritedInsertions =
-      (context.insertions as Record<string, unknown> | undefined) ?? {};
-
-    const selectPropertyState = () => {
-      const currentState = context.state();
-      if (!currentState || typeof currentState !== 'object') {
-        return undefined;
-      }
-
-      return (currentState as Record<string, unknown>)[propertyKey];
-    };
-
-    const setPropertyState = (nextProperty: unknown) => {
-      context.update((currentState: unknown) => {
-        if (!currentState || typeof currentState !== 'object') {
-          return currentState;
-        }
-
-        return {
-          ...(currentState as Record<string, unknown>),
-          [propertyKey]: nextProperty,
-        };
-      });
-
-      return nextProperty;
-    };
-
-    const updatePropertyState = (
-      updateFn: (currentProperty: unknown) => unknown,
-    ) => {
-      const nextProperty = updateFn(selectPropertyState());
-      setPropertyState(nextProperty);
-      return nextProperty;
-    };
-
-    const propertyForm = (context.form as Record<string, unknown>)[propertyKey];
-    if (!isFieldTree(propertyForm)) {
-      return {
-        [selectPropertyMethodName]: () => undefined,
-      };
-    }
-
-    const propertyState = linkedSignal(() => selectPropertyState());
-    const propertyValidatorModelRef = linkedSignal(() => {
-      const currentValidatorModel = context.validatorModelRef();
-      if (!currentValidatorModel || typeof currentValidatorModel !== 'object') {
-        return undefined;
-      }
-
-      return (currentValidatorModel as Record<string, unknown>)[propertyKey];
-    });
-    decorateFormTreeWithInsertions({
-      formRef: propertyForm as FieldTree<unknown, string | number>,
-      schemaPath:
-        ((context.schemaPath as Record<string, unknown>)[
-          propertyKey
-        ] as never) ?? (context.schemaPath as never),
-      formInsertions: propertyInsertions,
-      state: propertyState,
-      validatorModelRef: propertyValidatorModelRef,
-      hasAttemptedSubmit: getHasAttemptedSubmitSignal(context.form),
-      setAttemptedSubmit: context.setAttemptedSubmit,
-      set: (newState: unknown) => setPropertyState(newState),
-      update: (updateFn: (currentState: unknown) => unknown) =>
-        updatePropertyState(updateFn),
-      patch: (patchFn: (currentState: unknown) => Partial<unknown>) =>
-        updatePropertyState((current) => ({
-          ...(current as object),
-          ...patchFn(current),
-        })),
-      setSubmitting: context.setSubmitting,
-      inheritedInsertions,
-      injector,
-      formIdentifier: context.formIdentifier,
-    });
-
-    return {
-      [selectPropertyMethodName]: () => propertyForm,
-    };
-  };
-}
+// =====================================================================
+//  Public API — overload signatures
+// =====================================================================
 
 export function insertSelectFormTree<
   StateType,
@@ -352,8 +234,7 @@ export function insertSelectFormTree<
 ): InsertSelectFormTreeReturn<
   [Name] extends [keyof StateType]
     ? IsArray<StateType[Name]> extends true
-      ? `craft-ng error, typing limitation: insertSelectFormTree does not currently support selecting items from an array property in first insertion position (e.g. insertSelectFormTree('addresses', insertSelectFormTree('address', ...))). Consider using insertNoopTypingAnchor:
-    insertSelectFormTree('${Name}', insertNoopTypingAnchor, insertSelectFormTree(...)) `
+      ? `craft-ng error, typing limitation: insertSelectFormTree does not currently support selecting items from an array property in first insertion position. Use insertNoopTypingAnchor in the first slot.`
       : StateType
     : StateType,
   Name,
@@ -475,62 +356,11 @@ export function insertSelectFormTree<
   [Insertion1, Insertion2, Insertion3, Insertion4],
   PreviousInsertionsOutputs
 >;
-export function insertSelectFormTree<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  Insertion3 = {},
-  Insertion4 = {},
-  Insertion5 = {},
-  PreviousInsertionsOutputs = {},
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  name: Name,
-  insertion1: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs
-  >,
-  insertion2: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1
-  >,
-  insertion3: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
-  >,
-  insertion4: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
-  >,
-  insertion5: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion5,
-    PreviousInsertionsOutputs &
-      Insertion1 &
-      Insertion2 &
-      Insertion3 &
-      Insertion4
-  >,
-): InsertSelectFormTreeReturn<
-  StateType,
-  Name,
-  FormIdentifier,
-  [Insertion1, Insertion2, Insertion3, Insertion4, Insertion5],
-  PreviousInsertionsOutputs
->;
+
+// =====================================================================
+//  Implementation
+// =====================================================================
+
 export function insertSelectFormTree(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -541,17 +371,12 @@ export function insertSelectFormTree(
     context: InsertionFormFactoryContext<any, any, any>,
   ) => {
     const currentState = context.state();
-
     if (Array.isArray(currentState)) {
-      return createInsertSelectFormTreeItemRuntime(
-        name,
-        ...insertions,
-      )(context);
+      return createArrayItemRuntime(name, ...insertions)(context);
     }
-
-    return createInsertSelectFormTreePropertyRuntime(
-      name,
-      ...insertions,
-    )(context);
+    return createObjectRuntime(name, ...insertions)(context);
   };
 }
+
+// Reference linkedSignal so eslint doesn't complain about unused imports across overloads.
+void linkedSignal;

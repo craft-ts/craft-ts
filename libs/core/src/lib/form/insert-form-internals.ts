@@ -1,4 +1,3 @@
-import { AbstractControl } from '@angular/forms';
 import {
   computed,
   Injector,
@@ -6,21 +5,12 @@ import {
   signal,
   Signal,
 } from '@angular/core';
-import {
-  applyEach,
-  CompatFieldState,
-  FieldState,
-  FieldTree,
-  MaybeFieldTree,
-  ReadonlyArrayLike,
-  Subfields,
-} from '@angular/forms/signals';
-import type { SchemaPathTree } from '@angular/forms/signals';
 import type { InsertionStateFactoryContext } from '../query.core';
 import { Source$ as SourceDollarType } from '../source$';
 import { MergeObject } from '../util/types/util.type';
 import { FilterSource, IsEmptyObject } from '../util/util.type';
 import { isSource } from '../util/util';
+import { CraftField, CraftFieldTree } from './craft-field';
 
 type Source$Method<SourceType> = [SourceType] extends [void]
   ? () => void
@@ -83,40 +73,28 @@ type FormExceptionsInsertion<Insertions> =
         exceptions: Signal<FormExceptionMap<Insertions>>;
       };
 
-type CraftFieldTree<
-  TModel,
-  Insertions,
-  TKey extends string | number = string | number,
-> = (() => [TModel] extends [AbstractControl]
-  ? CompatFieldState<TModel, TKey> & Insertions
-  : FieldState<TModel, TKey> & Insertions) &
-  ([TModel] extends [AbstractControl]
-    ? object
-    : [TModel] extends [ReadonlyArray<infer U>]
-      ? ReadonlyArrayLike<MaybeFieldTree<U, number>>
-      : TModel extends Record<string, any>
-        ? Subfields<TModel>
-        : object);
-
-export type FormWithInsertions<Model, Insertions> = CraftFieldTree<
-  Model,
+/**
+ * The full type of a craft form, exposed by `insertForm`.
+ *
+ * It is a `CraftFieldTree<Model>` (with sub-field navigation) merged with all the
+ * insertion outputs (e.g. submit, exceptions, validators) and aggregated exception signals.
+ */
+export type FormWithInsertions<Model, Insertions> = CraftFieldTree<Model> &
   ExposedFormInsertions<Insertions> & {
     hasAttemptedSubmit: Signal<boolean>;
+    submitting: Signal<boolean>;
     validatedFormValue: Signal<ValidatedFormValue<Model>>;
-  } & FormExceptionsInsertion<Insertions>,
-  string | number
->;
+  } & FormExceptionsInsertion<Insertions>;
 
 export type InsertionFormFactoryContext<
   StateType,
   PreviousInsertionsOutputs,
   FormIdentifier extends string | number | unknown,
 > = InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> & {
-  form: FieldTree<StateType, string | number>;
-  schemaPath: SchemaPathTree<StateType>;
+  field: CraftFieldTree<StateType>;
+  hasAttemptedSubmit: Signal<boolean>;
+  submitting: Signal<boolean>;
   validatedFormValue: Signal<ValidatedFormValue<StateType>>;
-  validatorModelRef: Signal<StateType>;
-  setValidatorModelRef: (nextModel: Signal<StateType>) => void;
   setAttemptedSubmit: () => void;
   setSubmitting: (submitting: boolean) => void;
   formIdentifier: FormIdentifier;
@@ -142,58 +120,6 @@ export type ValidatedFormValue<FormValue> =
     })
   | undefined;
 
-const arrayItemSchemaPathRegistry = new WeakMap<object, unknown>();
-
-function isObjectLike(value: unknown): value is object {
-  return (typeof value === 'object' || typeof value === 'function') && value !== null;
-}
-
-export function registerArrayItemSchemaPaths(
-  model: unknown,
-  schemaPath: unknown,
-) {
-  if (!isObjectLike(schemaPath)) {
-    return;
-  }
-
-  if (Array.isArray(model)) {
-    applyEach(schemaPath as never, (itemSchemaPath) => {
-      if (isObjectLike(itemSchemaPath)) {
-        arrayItemSchemaPathRegistry.set(schemaPath, itemSchemaPath);
-      }
-
-      const firstItem = model[0];
-      if (firstItem !== undefined) {
-        registerArrayItemSchemaPaths(firstItem, itemSchemaPath);
-      }
-    });
-    return;
-  }
-
-  if (!model || typeof model !== 'object') {
-    return;
-  }
-
-  for (const key of Object.keys(model)) {
-    registerArrayItemSchemaPaths(
-      (model as Record<string, unknown>)[key],
-      (schemaPath as Record<string, unknown>)[key],
-    );
-  }
-}
-
-export function getArrayItemSchemaPath<Item>(
-  schemaPath: SchemaPathTree<readonly Item[]>,
-) {
-  if (!isObjectLike(schemaPath)) {
-    return undefined;
-  }
-
-  return arrayItemSchemaPathRegistry.get(schemaPath) as
-    | SchemaPathTree<Item>
-    | undefined;
-}
-
 function isSource$(value: unknown): value is SourceDollarType<unknown> {
   return (
     typeof value === 'object' &&
@@ -210,10 +136,7 @@ function createExposedInsertions(
 ): Record<string, unknown> {
   return Object.entries(rawInsertionsOutput).reduce(
     (acc, [key, value]) => {
-      if (isSource(value)) {
-        return acc;
-      }
-
+      if (isSource(value)) return acc;
       if (isSource$(value)) {
         const localSource = value;
         acc[key] = (payload: unknown) => {
@@ -221,7 +144,6 @@ function createExposedInsertions(
         };
         return acc;
       }
-
       acc[key] = value;
       return acc;
     },
@@ -255,20 +177,16 @@ export function createFormExceptions(
   const directExceptions = isSignal(exposedInsertionsOutput['exceptions'])
     ? (exposedInsertionsOutput['exceptions'] as Signal<unknown>)
     : undefined;
+
   const exceptionInsertions = Object.entries(exposedInsertionsOutput).flatMap(
     ([key, value]) => {
       const match = /^has(.+)Exceptions$/.exec(key);
-      if (!match || typeof value !== 'function') {
-        return [];
-      }
+      if (!match || typeof value !== 'function') return [];
 
       const insertionName = toExceptionInsertionName(match[1]);
       const exceptionsKey = `${insertionName}Exceptions`;
       const exceptionSignal = exposedInsertionsOutput[exceptionsKey];
-
-      if (typeof exceptionSignal !== 'function') {
-        return [];
-      }
+      if (typeof exceptionSignal !== 'function') return [];
 
       return [
         {
@@ -307,8 +225,154 @@ export function createFormExceptions(
         },
       ),
     ),
-    i: rawInsertionsOutput,
   };
+}
+
+export type SubmissionController = {
+  hasAttemptedSubmit: Signal<boolean>;
+  submitting: Signal<boolean>;
+  setAttemptedSubmit: () => void;
+  setSubmitting: (submitting: boolean) => void;
+  reset: () => void;
+};
+
+export function createSubmissionController(): SubmissionController {
+  const attempted = signal(false);
+  const submitting = signal(false);
+  return {
+    hasAttemptedSubmit: attempted.asReadonly(),
+    submitting: submitting.asReadonly(),
+    setAttemptedSubmit: () => attempted.set(true),
+    setSubmitting: (next: boolean) => {
+      if (next) attempted.set(true);
+      submitting.set(next);
+    },
+    reset: () => {
+      attempted.set(false);
+      submitting.set(false);
+    },
+  };
+}
+
+/**
+ * Wrap a CraftFieldTree with extra properties (insertion outputs, exception
+ * aggregates, submission state) so the merged object behaves like a
+ * `FormWithInsertions`. Used by sub-form builders.
+ */
+export function wrapSubFieldWithExtras<T>(
+  subField: CraftFieldTree<T>,
+  extras: Record<string, unknown>,
+): CraftFieldTree<T> {
+  return new Proxy(subField as unknown as object, {
+    get(_target, prop, receiver) {
+      if (typeof prop === 'string' && prop in extras) return extras[prop];
+      return Reflect.get(subField as object, prop, receiver);
+    },
+    has(_target, prop) {
+      if (typeof prop === 'string' && prop in extras) return true;
+      return prop in (subField as object);
+    },
+    ownKeys() {
+      return [
+        ...new Set([
+          ...Reflect.ownKeys(subField as object),
+          ...Object.keys(extras),
+        ]),
+      ];
+    },
+    getOwnPropertyDescriptor(_target, prop) {
+      if (typeof prop === 'string' && prop in extras) {
+        return {
+          enumerable: true,
+          configurable: true,
+          value: extras[prop],
+          writable: false,
+        };
+      }
+      return Object.getOwnPropertyDescriptor(subField, prop);
+    },
+  }) as unknown as CraftFieldTree<T>;
+}
+
+/**
+ * Build a fully-decorated sub-form (field tree + insertion outputs + exception
+ * aggregates) from a sub-field plus a state read/write pair. Used by both
+ * `insertSelectFormTree` (structural sub-fields) and `insertSubFormField`
+ * (derived sub-fields).
+ */
+export function buildSubForm<Sub>(options: {
+  parentContext: InsertionFormFactoryContext<unknown, unknown, unknown>;
+  subField: CraftFieldTree<Sub>;
+  subState: () => Sub;
+  setSub: (next: Sub) => void;
+  insertions: InsertionsFormFactory<
+    Sub,
+    unknown,
+    Record<string, unknown>,
+    Record<string, unknown>
+  >[];
+  injector: Injector;
+}): FormWithInsertions<Sub, Record<string, unknown>> {
+  const stateSignal = computed(() => options.subState() as Sub);
+
+  const subContext = {
+    state: stateSignal,
+    set: (next: Sub) => {
+      options.setSub(next);
+      return next;
+    },
+    update: (fn: (curr: Sub) => Sub) => {
+      const next = fn(options.subState());
+      options.setSub(next);
+      return next;
+    },
+    patch: (fn: (curr: Sub) => Partial<Sub>) => {
+      const curr = options.subState();
+      const partial = fn(curr);
+      const next =
+        curr && typeof curr === 'object' && !Array.isArray(curr)
+          ? ({ ...(curr as object), ...partial } as Sub)
+          : (partial as Sub);
+      options.setSub(next);
+      return next;
+    },
+    insertions: (options.parentContext.insertions ?? {}) as never,
+  };
+
+  const { rawInsertionsOutput, exposedInsertionsOutput } = executeFormInsertions(
+    options.insertions,
+    {
+      field: options.subField,
+      state: stateSignal,
+      submission: {
+        hasAttemptedSubmit: options.parentContext.hasAttemptedSubmit,
+        submitting: options.parentContext.submitting,
+        setAttemptedSubmit: options.parentContext.setAttemptedSubmit,
+        setSubmitting: options.parentContext.setSubmitting,
+        reset: () => {
+          /* parent owns reset */
+        },
+      },
+      set: subContext.set,
+      update: subContext.update,
+      patch: subContext.patch,
+      inheritedInsertions: subContext.insertions as Record<string, unknown>,
+      injector: options.injector,
+      formIdentifier: options.parentContext.formIdentifier,
+    },
+  );
+
+  const formExceptions = createFormExceptions(
+    rawInsertionsOutput,
+    exposedInsertionsOutput,
+  );
+
+  return wrapSubFieldWithExtras(options.subField, {
+    ...exposedInsertionsOutput,
+    ...formExceptions,
+    hasAttemptedSubmit: options.parentContext.hasAttemptedSubmit,
+    submitting: options.parentContext.submitting,
+  }) as unknown as FormWithInsertions<Sub, Record<string, unknown>>;
 }
 
 export function executeFormInsertions<Model>(
@@ -319,21 +383,28 @@ export function executeFormInsertions<Model>(
     Record<string, unknown>
   >[],
   options: {
-    formRef: FieldTree<Model, string | number>;
-    schemaPath: SchemaPathTree<Model>;
+    field: CraftFieldTree<Model>;
     state: Signal<Model>;
-    validatorModelRef: Signal<Model>;
-    setAttemptedSubmit: () => void;
+    submission: SubmissionController;
     set: (newState: Model) => Model;
     update: (updateFn: (currentState: Model) => Model) => Model;
     patch: (patchFn: (currentState: Model) => Partial<Model>) => Model;
-    setSubmitting: (submitting: boolean) => void;
     inheritedInsertions: Record<string, unknown>;
     injector: Injector;
-    formIdentifier?: string | number | unknown;
+    formIdentifier: string | number | unknown;
   },
 ) {
-  const validatorModelRef = signal(options.validatorModelRef);
+  const validatedFormValue = computed<ValidatedFormValue<Model>>(() => {
+    const fieldRoot = options.field as unknown as CraftField<Model>;
+    if (!fieldRoot.valid()) return undefined;
+    const value = fieldRoot.value();
+    if (value && typeof value === 'object') {
+      return Object.assign(value as object, {
+        [validatedFormValueSymbol]: true,
+      }) as ValidatedFormValue<Model>;
+    }
+    return value as ValidatedFormValue<Model>;
+  });
 
   return formInsertions.reduce(
     (acc, insertion) => {
@@ -343,20 +414,12 @@ export function executeFormInsertions<Model>(
           set: options.set,
           update: options.update,
           patch: options.patch,
-          form: options.formRef,
-          schemaPath: options.schemaPath,
-          validatedFormValue: computed(() =>
-            options.formRef().valid()
-              ? (Object.assign(options.formRef().value() as object, {
-                  [validatedFormValueSymbol]: true,
-                }) as ValidatedFormValue<Model>)
-              : undefined,
-          ),
-          validatorModelRef: validatorModelRef(),
-          setValidatorModelRef: (nextModel: Signal<Model>) =>
-            validatorModelRef.set(nextModel),
-          setAttemptedSubmit: options.setAttemptedSubmit,
-          setSubmitting: options.setSubmitting,
+          field: options.field,
+          hasAttemptedSubmit: options.submission.hasAttemptedSubmit,
+          submitting: options.submission.submitting,
+          validatedFormValue,
+          setAttemptedSubmit: options.submission.setAttemptedSubmit,
+          setSubmitting: options.submission.setSubmitting,
           formIdentifier: options.formIdentifier!,
           insertions: {
             ...options.inheritedInsertions,
@@ -382,83 +445,4 @@ export function executeFormInsertions<Model>(
       exposedInsertionsOutput: {} as Record<string, unknown>,
     },
   );
-}
-
-export function decorateFormTreeWithInsertions<Model>({
-  formRef,
-  schemaPath,
-  formInsertions,
-  state,
-  validatorModelRef,
-  hasAttemptedSubmit,
-  setAttemptedSubmit,
-  set,
-  update,
-  patch,
-  setSubmitting,
-  inheritedInsertions,
-  injector,
-  formIdentifier,
-}: {
-  formRef: FieldTree<Model, string | number>;
-  schemaPath: SchemaPathTree<Model>;
-  formInsertions: InsertionsFormFactory<
-    Model,
-    unknown,
-    Record<string, unknown>,
-    Record<string, unknown>
-  >[];
-  state: Signal<Model>;
-  validatorModelRef: Signal<Model>;
-  hasAttemptedSubmit?: Signal<boolean>;
-  setAttemptedSubmit: () => void;
-  set: (newState: Model) => Model;
-  update: (updateFn: (currentState: Model) => Model) => Model;
-  patch: (patchFn: (currentState: Model) => Partial<Model>) => Model;
-  setSubmitting: (submitting: boolean) => void;
-  inheritedInsertions: Record<string, unknown>;
-  injector: Injector;
-  formIdentifier: string | number | unknown;
-}) {
-  if (hasAttemptedSubmit) {
-    //@ts-expect-error add hasAttemptedSubmit to selected formRef inner value, it is hard to do otherwise without loosing some fields
-    formRef()['hasAttemptedSubmit'] = hasAttemptedSubmit;
-  }
-
-  //@ts-expect-error add validatedFormValue to selected formRef inner value, it is hard to do otherwise without loosing some fields
-  formRef()['validatedFormValue'] = computed(() =>
-    formRef().valid()
-      ? (Object.assign(formRef().value() as object, {
-          [validatedFormValueSymbol]: true,
-        }) as ValidatedFormValue<Model>)
-      : undefined,
-  );
-
-  const { rawInsertionsOutput, exposedInsertionsOutput } =
-    executeFormInsertions(formInsertions, {
-      formRef,
-      schemaPath,
-      state,
-      validatorModelRef,
-      setAttemptedSubmit,
-      set,
-      update,
-      patch,
-      setSubmitting,
-      inheritedInsertions,
-      injector,
-      formIdentifier,
-    });
-
-  const extraFields = {
-    ...exposedInsertionsOutput,
-    ...createFormExceptions(rawInsertionsOutput, exposedInsertionsOutput),
-  };
-
-  for (const key in extraFields) {
-    //@ts-expect-error add extra fields to formRef inner value, it is hard to do otherwise without loosing some fields
-    formRef()[key] = extraFields[key];
-  }
-
-  return formRef;
 }

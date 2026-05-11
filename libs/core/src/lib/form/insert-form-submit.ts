@@ -1,4 +1,4 @@
-import { computed, effect, Signal } from '@angular/core';
+import { computed, effect, Signal, untracked } from '@angular/core';
 import {
   AnyCraftException,
   ExcludeByCode,
@@ -15,7 +15,7 @@ import {
   FormWithInsertions,
   InsertionsFormFactory,
   ValidatedFormValue,
-} from './insert-form';
+} from './insert-form-internals';
 
 type SubmitExceptionUnion<SubmitCraftResource> = SubmitCraftResource extends {
   exceptions: Signal<{ list: (infer ExceptionList)[] }>;
@@ -83,6 +83,7 @@ type HasReturnValidExceptions<
         error: IsValidExceptions<ErrorExceptions>;
         exceptions: IsValidExceptions<ExceptionExceptions>;
       };
+
 type ValidationDetails = {
   success: boolean;
   error: boolean;
@@ -114,10 +115,6 @@ type InsertFormSubmitConfig<
 > = MergeObjects<
   [
     {
-      // todo filter for parallel
-      /**
-       * Add more exceptions on success, for example to handle specific cases where the resource returns a successful response but you want to display an exception
-       */
       success?: (
         context: SubmitContext<
           FormValue,
@@ -129,9 +126,6 @@ type InsertFormSubmitConfig<
           MutationExceptions
         >,
       ) => SuccessExceptions;
-      /**
-       * Add more exceptions on error, for example to handle specific cases where the resource returns an error response but you want to display a different exception
-       */
       error?: (
         context: SubmitContext<
           FormValue,
@@ -143,9 +137,6 @@ type InsertFormSubmitConfig<
           MutationExceptions
         >,
       ) => ErrorExceptions;
-      /**
-       * Override and add more exceptions on exception, for example to handle specific cases where the resource throws an exception but you want to display a different exception
-       */
       exception?: (
         context: SubmitContext<
           FormValue,
@@ -200,21 +191,10 @@ function isCraftExceptionLike(value: unknown): value is AnyCraftException {
   );
 }
 
-function normalizeExceptionList(
-  value: unknown,
-): AnyCraftException[] | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (Array.isArray(value)) {
-    return value.filter(isCraftExceptionLike);
-  }
-
-  if (isCraftExceptionLike(value)) {
-    return [value];
-  }
-
+function normalizeExceptionList(value: unknown): AnyCraftException[] | undefined {
+  if (value === undefined) return undefined;
+  if (Array.isArray(value)) return value.filter(isCraftExceptionLike);
+  if (isCraftExceptionLike(value)) return [value];
   return undefined;
 }
 
@@ -232,11 +212,9 @@ function triggerSubmitResource<FormValue>(
 ) {
   if ('mutate' in submitCraftResource && submitCraftResource.mutate) {
     submitCraftResource.mutate(validatedFormValue);
-    return;
   }
 }
 
-// todo handle GroupIdentifier
 type ToSubmitExceptions<
   SubmitExceptions extends AnyCraftException | undefined | unknown,
   SuccessExceptions,
@@ -402,11 +380,24 @@ export function insertFormSubmit<
     >;
   }
 >;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function insertFormSubmit(submitCraftResource: any, config?: any): any {
-  //@ts-expect-error todo improve type
-  return ({ form, setAttemptedSubmit, setSubmitting, formIdentifier }) => {
+  return ({
+    field,
+    setAttemptedSubmit,
+    setSubmitting,
+    formIdentifier,
+    validatedFormValue: validatedFormValueSignal,
+  }: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    field: any;
+    setAttemptedSubmit: () => void;
+    setSubmitting: (submitting: boolean) => void;
+    formIdentifier: unknown;
+    validatedFormValue: Signal<ValidatedFormValue<unknown>>;
+  }) => {
     const submitCraftResourceTarget = computed(() =>
-      formIdentifier
+      formIdentifier !== undefined
         ? (
             submitCraftResource as ResourceByIdLikeMutationRef<
               unknown,
@@ -418,7 +409,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
               unknown,
               ResourceExceptionConstraints
             >
-          ).select(formIdentifier)
+          ).select(formIdentifier as never)
         : (submitCraftResource as ResourceLikeMutationRef<
             unknown,
             unknown,
@@ -430,122 +421,99 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
           >),
     );
 
-    const _submittingSync = effect(() => {
-      setSubmitting(submitCraftResourceTarget()?.isLoading() ?? false);
+    effect(() => {
+      const target = submitCraftResourceTarget();
+      const isLoading = target?.isLoading?.() ?? false;
+      untracked(() => setSubmitting(isLoading));
     });
 
-    const _resetFormOnResolved = effect(() => {
-      if (submitCraftResourceTarget()?.status() === 'resolved') {
-        form().reset();
+    effect(() => {
+      const target = submitCraftResourceTarget();
+      if (target?.status?.() === 'resolved') {
+        untracked(() => field.reset?.());
       }
     });
 
     const hasSubmitExceptions = computed(() => {
-      const _submitCraftResourceTarget = submitCraftResourceTarget();
-      return _submitCraftResourceTarget &&
-        'hasException' in _submitCraftResourceTarget &&
-        typeof _submitCraftResourceTarget.hasException === 'function'
-        ? (_submitCraftResourceTarget.hasException?.() ?? false)
+      const target = submitCraftResourceTarget();
+      return target &&
+        'hasException' in target &&
+        typeof target.hasException === 'function'
+        ? !!target.hasException()
         : false;
     }) as Signal<boolean>;
 
     const submitExceptions = computed(() => {
-      const _submitCraftResourceTarget = submitCraftResourceTarget();
-      const resourceExceptions = (
-        _submitCraftResourceTarget &&
-        'exceptions' in _submitCraftResourceTarget &&
-        typeof _submitCraftResourceTarget.exceptions === 'function'
-          ? (_submitCraftResourceTarget.exceptions()?.list ?? [])
-          : []
-      ) as SubmitExceptionUnion<any>;
+      const target = submitCraftResourceTarget();
+      const resourceExceptions =
+        target &&
+        'exceptions' in target &&
+        typeof target.exceptions === 'function'
+          ? ((target.exceptions() as { list?: AnyCraftException[] })?.list ?? [])
+          : [];
 
-      const omitExceptions = (codes: string[]) =>
-        (resourceExceptions as AnyCraftException[]).filter(
-          (exception) => !codes.includes(exception.code),
-        ) as SubmitExceptionUnion<any>;
+      const omitExceptions = (codes: readonly string[]) =>
+        resourceExceptions.filter(
+          (e: AnyCraftException) => !codes.includes(e.code as string),
+        );
 
-      const context = {
-        submitCraftResource: submitCraftResourceTarget(),
-        form,
+      const ctx = {
+        submitCraftResource: target,
+        form: field,
         exceptions: resourceExceptions,
         omitExceptions,
-      } as unknown as SubmitContext<
-        unknown,
-        unknown,
-        unknown,
-        unknown,
-        unknown,
-        unknown,
-        ResourceExceptionConstraints
-      >;
+      };
 
-      let mergedExceptions = resourceExceptions as AnyCraftException[];
+      const status = target?.status?.();
+      const hasResourceException =
+        target &&
+        'hasException' in target &&
+        typeof target.hasException === 'function' &&
+        target.hasException();
 
-      if (
-        typeof config?.exception === 'function' &&
-        //@ts-expect-error todo improve type
-        submitCraftResourceTarget()?.hasException()
-      ) {
-        const nextExceptions = normalizeExceptionList(
-          //@ts-ignore
-          config.exception(context),
-        );
-        if (nextExceptions) {
-          mergedExceptions = nextExceptions;
-        }
+      let merged: AnyCraftException[] = resourceExceptions;
+
+      // `exception` overrides the mutation's own exceptions when present.
+      if (hasResourceException && typeof config?.exception === 'function') {
+        const next = normalizeExceptionList(config.exception(ctx));
+        if (next) merged = next;
       }
 
+      // `success` only fires when the mutation resolved without exception.
       if (
-        submitCraftResourceTarget()?.status() === 'resolved' &&
+        status === 'resolved' &&
+        !hasResourceException &&
         typeof config?.success === 'function'
       ) {
-        const nextExceptions = normalizeExceptionList(
-          config.success({
-            ...context,
-            //@ts-ignore
-            exceptions: mergedExceptions as SubmitExceptionUnion<any>,
-          }),
+        const next = normalizeExceptionList(
+          config.success({ ...ctx, exceptions: merged }),
         );
-        if (nextExceptions?.length) {
-          mergedExceptions = [...mergedExceptions, ...nextExceptions];
-        }
+        if (next?.length) merged = [...merged, ...next];
       }
 
-      if (
-        submitCraftResourceTarget()?.status() === 'error' &&
-        typeof config?.error === 'function'
-      ) {
-        const nextExceptions = normalizeExceptionList(
-          config.error({
-            ...context,
-            //@ts-ignore
-            exceptions: mergedExceptions as SubmitExceptionUnion<any>,
-          }),
+      // `error` only fires on network/runtime errors (not on craft-exception responses).
+      if (status === 'error' && typeof config?.error === 'function') {
+        const next = normalizeExceptionList(
+          config.error({ ...ctx, exceptions: merged }),
         );
-        if (nextExceptions?.length) {
-          mergedExceptions = [...mergedExceptions, ...nextExceptions];
-        }
+        if (next?.length) merged = [...merged, ...next];
       }
-      return mergedExceptions as SubmitExceptionUnion<any>;
+
+      return merged;
     });
 
-    const submitForm = async () => {
+    const submitForm = () => {
       setAttemptedSubmit();
-      const validatedFormValue = form().validatedFormValue();
-
-      if (!validatedFormValue) {
-        return;
-      }
+      const validatedFormValue = validatedFormValueSignal();
+      if (!validatedFormValue) return;
       if (!submitCraftResource) {
+        // eslint-disable-next-line no-console
         console.warn(
           'No submit resource found for form submission. Please check that the resource is correctly passed to insertFormSubmit and that the formIdentifier (if used) is correct.',
         );
         return;
       }
-      //@ts-ignore todo improve type
       triggerSubmitResource(submitCraftResource, validatedFormValue);
-
-      return;
     };
 
     return {

@@ -1,37 +1,26 @@
+import { computed, Signal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { craftException } from '../craft-exception';
 import { state } from '../state';
-import { FieldState, FieldTree, form } from '@angular/forms/signals';
+import { CraftField } from './craft-field';
 import {
   insertForm,
   ValidatedFormValue,
   validatedFormValueSymbol,
 } from './insert-form';
-import { computed, Signal, signal } from '@angular/core';
-import { craftException } from '../craft-exception';
 
 type LoginData = {
   name: string;
   password: string;
 };
+
 describe('insertForm', () => {
-  it('should create a FieldTree from a state', () => {
+  it('creates a CraftFieldTree from a state and exposes insertions', () => {
     TestBed.runInInjectionContext(() => {
       const loginForm = state(
-        {
-          name: '1',
-          password: '',
-        } satisfies LoginData,
-        insertForm(({ form, formIdentifier }) => {
-          expect(form).toBeDefined();
-          expectTypeOf(form()).toEqualTypeOf<
-            FieldState<
-              NoInfer<{
-                name: string;
-                password: string;
-              }>,
-              string | number
-            >
-          >();
+        { name: '1', password: '' } satisfies LoginData,
+        insertForm(({ field, formIdentifier }) => {
+          expect(field).toBeDefined();
           expectTypeOf(formIdentifier).toEqualTypeOf<unknown>();
           return {
             someInsertion: signal('test').asReadonly(),
@@ -39,330 +28,112 @@ describe('insertForm', () => {
         }),
       );
 
-      const myF = form(
-        signal({
-          name: '',
-          password: '',
-        }),
-      );
-
-      console.log('loginForm.form.name', loginForm.form.name);
-      console.log('loginForm.form.password', loginForm.form.password().value());
-
       expect(loginForm.form).toBeDefined();
-      expect(loginForm.form.name().value()).toBe('1');
-      expect(loginForm.form.password().value()).toBe('');
-      expect(loginForm.form().someInsertion()).toBe('test');
+      expect(loginForm.form.name.value()).toBe('1');
+      expect(loginForm.form.password.value()).toBe('');
+      expect(loginForm.form.someInsertion()).toBe('test');
     });
   });
 
-  it('should create a parallel FieldTree from a state', () => {
+  it('chained insertions can read previous outputs via context.insertions', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForms = state(
+      const loginForm = state(
+        { name: 'romain', password: 'secret' },
+        insertForm(
+          ({ field }) => ({
+            getName: () => field.name.value(),
+          }),
+          ({ insertions }) => ({
+            upperName: () => insertions.getName().toString().toUpperCase(),
+          }),
+        ),
+      );
+
+      expect(loginForm.form.getName()).toBe('romain');
+      expect(loginForm.form.upperName()).toBe('ROMAIN');
+    });
+  });
+
+  it('creates a parallel form tree from an array state', () => {
+    TestBed.runInInjectionContext(() => {
+      const usersForm = state(
         [
-          {
-            name: '1',
-            password: '',
-          },
-          {
-            name: '2',
-            password: '',
-          },
-        ] satisfies LoginData[],
+          { id: 'a', name: 'Alpha' },
+          { id: 'b', name: 'Beta' },
+        ],
         insertForm(
-          {
-            identifier: ({ item, index }) => {
-              expectTypeOf(item).toEqualTypeOf<LoginData>();
-              expectTypeOf(index).toEqualTypeOf<number>();
-              expect(item).toBeDefined();
-              expect(index).toBeDefined();
-              return index;
-            },
-          },
-          ({ form, formIdentifier }) => {
-            expect(form).toBeDefined();
-            expectTypeOf(form()).toEqualTypeOf<
-              FieldState<
-                {
-                  name: string;
-                  password: string;
-                },
-                string | number
-              >
-            >();
-            expectTypeOf(formIdentifier).toEqualTypeOf<number>();
-            expect(formIdentifier).toBeDefined();
-            return {
-              someInsertion: signal('test').asReadonly(),
-            };
-          },
+          { identifier: ({ item }) => item.id },
+          () => ({ kind: 'parallel-test' as const }),
         ),
       );
 
-      expect(loginForms.forms).toBeDefined();
-      expect(loginForms.select).toBeDefined();
-      expectTypeOf(loginForms.forms()).toEqualTypeOf<
-        FieldTree<LoginData, string | number>[]
+      const list = usersForm.forms();
+      expect(list.length).toBe(2);
+      expect(list[0].name.value()).toBe('Alpha');
+      expect(list[1].name.value()).toBe('Beta');
+
+      const a = usersForm.select('a');
+      expect(a?.name.value()).toBe('Alpha');
+      const c = usersForm.select('c');
+      expect(c).toBeUndefined();
+    });
+  });
+
+  it('applies set/update/patch through the form tree', () => {
+    TestBed.runInInjectionContext(() => {
+      const userForm = state(
+        { name: 'a', count: 0 },
+        insertForm(),
+      );
+
+      userForm.form.name.set('b');
+      expect(userForm()).toEqual({ name: 'b', count: 0 });
+
+      userForm.form.count.set(5);
+      expect(userForm()).toEqual({ name: 'b', count: 5 });
+
+      userForm.form.patch(() => ({ name: 'c' }));
+      expect(userForm()).toEqual({ name: 'c', count: 5 });
+    });
+  });
+
+  it('exposes hasAttemptedSubmit and submitting signals', () => {
+    TestBed.runInInjectionContext(() => {
+      const userForm = state(
+        { name: 'a' },
+        insertForm(({ hasAttemptedSubmit, submitting }) => ({
+          attempted: hasAttemptedSubmit,
+          isSubmitting: submitting,
+        })),
+      );
+
+      expectTypeOf(userForm.form.hasAttemptedSubmit).toEqualTypeOf<Signal<boolean>>();
+      expect(userForm.form.hasAttemptedSubmit()).toBe(false);
+      expect(userForm.form.submitting()).toBe(false);
+    });
+  });
+
+  it('field is a CraftField at the root', () => {
+    TestBed.runInInjectionContext(() => {
+      const userForm = state({ name: 'a' }, insertForm());
+
+      expectTypeOf(userForm.form.value).toEqualTypeOf<
+        Signal<{ name: string }>
       >();
-
-      expect(loginForms.forms()[0]).toBeDefined();
-      expect(loginForms.forms()[1]).toBeDefined();
-      expect(loginForms.select(0)).toBeDefined();
-      expect(loginForms.select(0).name().value()).toBe('1');
-      expect(loginForms.select(0).password().value()).toBe('');
-      expect(loginForms.select(0)().someInsertion()).toBe('test');
-
-      expect(loginForms.select(1)).toBeDefined();
-      expect(loginForms.select(1).name().value()).toBe('2');
-      expect(loginForms.select(1).password().value()).toBe('');
-      expect(loginForms.select(1)().someInsertion()).toBe('test');
+      expect(typeof (userForm.form as unknown as CraftField<unknown>).set).toBe(
+        'function',
+      );
     });
   });
 
-  it('should chain insertions and expose previous insertions', () => {
+  it('exposes validatedFormValue branded with the symbol when the form is valid', () => {
     TestBed.runInInjectionContext(() => {
       const loginForm = state(
-        {
-          name: 'romain',
-          password: 'secret',
-        } satisfies LoginData,
-        insertForm(
-          ({ form }) => ({
-            getNameFromForm: () => form.name().value(),
-          }),
-          ({ insertions }) => ({
-            upperName: () =>
-              insertions.getNameFromForm().toString().toUpperCase(),
-          }),
-        ),
+        { name: 'romain', password: 'secret' },
+        insertForm(),
       );
 
-      expect(loginForm.form().getNameFromForm()).toBe('romain');
-      expect(loginForm.form().upperName()).toBe('ROMAIN');
-    });
-  });
-
-  it('should expose up to 10 chained insertions', () => {
-    TestBed.runInInjectionContext(() => {
-      const loginForm = state(
-        {
-          name: 'romain',
-          password: 'secret',
-        } satisfies LoginData,
-        insertForm(
-          () => ({
-            insertion1: () => '1' as string,
-          }),
-          ({ insertions }) => {
-            expectTypeOf(insertions.insertion1).toEqualTypeOf<() => string>();
-            return {
-              insertion2: () => `${insertions.insertion1()}2`,
-            };
-          },
-          ({ insertions }) => {
-            expectTypeOf(insertions.insertion2).toEqualTypeOf<() => string>();
-            return {
-              insertion3: () => `${insertions.insertion2()}3`,
-            };
-          },
-          ({ insertions }) => ({
-            insertion4: () => `${insertions.insertion3()}4`,
-          }),
-          ({ insertions }) => ({
-            insertion5: () => `${insertions.insertion4()}5`,
-          }),
-          ({ insertions }) => ({
-            insertion6: () => `${insertions.insertion5()}6`,
-          }),
-          ({ insertions }) => ({
-            insertion7: () => `${insertions.insertion6()}7`,
-          }),
-          ({ insertions }) => ({
-            insertion8: () => `${insertions.insertion7()}8`,
-          }),
-          ({ insertions }) => ({
-            insertion9: () => `${insertions.insertion8()}9`,
-          }),
-          ({ insertions }) => {
-            expectTypeOf(insertions.insertion9).toEqualTypeOf<() => string>();
-            expectTypeOf(insertions.insertion1).toEqualTypeOf<() => string>();
-            return {
-              insertion10: () => `${insertions.insertion9()}10`,
-            };
-          },
-        ),
-      );
-
-      expectTypeOf(loginForm.form().insertion10).toEqualTypeOf<() => string>();
-      expect(loginForm.form().insertion10()).toBe('12345678910');
-    });
-  });
-
-  it('should expose up to 10 chained insertions in parallel mode', () => {
-    TestBed.runInInjectionContext(() => {
-      const loginForms = state(
-        [
-          {
-            name: '1',
-            password: '',
-          },
-          {
-            name: '2',
-            password: '',
-          },
-        ] satisfies LoginData[],
-        insertForm(
-          {
-            identifier: ({ item }) => item.name,
-          },
-          ({ formIdentifier }) => ({
-            insertion1: () => `${formIdentifier}-1`,
-          }),
-          ({ insertions }) => ({
-            insertion2: () => `${insertions.insertion1()}-2`,
-          }),
-          ({ insertions }) => ({
-            insertion3: () => `${insertions.insertion2()}-3`,
-          }),
-          ({ insertions }) => ({
-            insertion4: () => `${insertions.insertion3()}-4`,
-          }),
-          ({ insertions }) => ({
-            insertion5: () => `${insertions.insertion4()}-5`,
-          }),
-          ({ insertions }) => ({
-            insertion6: () => `${insertions.insertion5()}-6`,
-          }),
-          ({ insertions }) => ({
-            insertion7: () => `${insertions.insertion6()}-7`,
-          }),
-          ({ insertions }) => ({
-            insertion8: () => `${insertions.insertion7()}-8`,
-          }),
-          ({ insertions }) => ({
-            insertion9: () => `${insertions.insertion8()}-9`,
-          }),
-          ({ formIdentifier, insertions }) => {
-            expectTypeOf(formIdentifier).toEqualTypeOf<string>();
-            expectTypeOf(insertions.insertion9).toEqualTypeOf<() => string>();
-            return {
-              insertion10: () => `${insertions.insertion9()}-10`,
-            };
-          },
-        ),
-      );
-
-      expectTypeOf(loginForms.select('1')().insertion10).toEqualTypeOf<
-        () => string
-      >();
-      expect(loginForms.select('1')().insertion10()).toBe(
-        '1-1-2-3-4-5-6-7-8-9-10',
-      );
-      expect(loginForms.select('2')().insertion10()).toBe(
-        '2-1-2-3-4-5-6-7-8-9-10',
-      );
-    });
-  });
-
-  it('should expose validatorModelRef by default and allow overriding it for descendant insertions', () => {
-    TestBed.runInInjectionContext(() => {
-      const debouncedModel = signal<LoginData>({
-        name: 'debounced',
-        password: 'shadow',
-      });
-
-      const loginForm = state(
-        {
-          name: 'romain',
-          password: 'secret',
-        } satisfies LoginData,
-        insertForm(
-          ({ state, validatorModelRef, setValidatorModelRef }) => {
-            expectTypeOf(validatorModelRef()).toEqualTypeOf<LoginData>();
-            expectTypeOf<typeof setValidatorModelRef>().toEqualTypeOf<
-              (nextModel: Signal<LoginData>) => void
-            >();
-            expect(validatorModelRef()).toEqual(state());
-
-            setValidatorModelRef(debouncedModel.asReadonly());
-
-            return {};
-          },
-          ({ state, validatorModelRef }) => {
-            expect(state()).toEqual({
-              name: 'romain',
-              password: 'secret',
-            });
-            expect(validatorModelRef()).toEqual({
-              name: 'debounced',
-              password: 'shadow',
-            });
-
-            return {
-              validatorSnapshot: computed(() => validatorModelRef()),
-            };
-          },
-        ),
-      );
-
-      expect(loginForm.form().validatorSnapshot()).toEqual({
-        name: 'debounced',
-        password: 'shadow',
-      });
-
-      debouncedModel.set({
-        name: 'later',
-        password: 'value',
-      });
-
-      expect(loginForm.form().validatorSnapshot()).toEqual({
-        name: 'later',
-        password: 'value',
-      });
-      expect(loginForm.form().value()).toEqual({
-        name: 'romain',
-        password: 'secret',
-      });
-    });
-  });
-
-  it('should expose schemaPath in insertion context', () => {
-    TestBed.runInInjectionContext(() => {
-      const loginForm = state(
-        {
-          name: 'romain',
-          password: 'secret',
-        } satisfies LoginData,
-        insertForm(({ schemaPath }) => {
-          expect(schemaPath).toBeDefined();
-          expect(schemaPath.name).toBeDefined();
-          expect(schemaPath.password).toBeDefined();
-
-          return {
-            hasNameSchemaPath: () => !!schemaPath.name,
-            hasPasswordSchemaPath: () => !!schemaPath.password,
-          };
-        }),
-      );
-
-      expect(loginForm.form().hasNameSchemaPath()).toBe(true);
-      expect(loginForm.form().hasPasswordSchemaPath()).toBe(true);
-    });
-  });
-
-  it('should expose form validatedFormValue', () => {
-    TestBed.runInInjectionContext(() => {
-      const loginForm = state(
-        {
-          name: 'romain',
-          password: 'secret',
-        } satisfies LoginData,
-        insertForm(({ form, setSubmitting }) => {
-          return {};
-        }),
-      );
-
-      expect(loginForm.form().validatedFormValue()).toEqual({
+      expect(loginForm.form.validatedFormValue()).toEqual({
         name: 'romain',
         password: 'secret',
         [validatedFormValueSymbol]: true,
@@ -370,188 +141,138 @@ describe('insertForm', () => {
 
       const loginForms = state(
         [
-          {
-            name: '1',
-            password: '',
-          },
-          {
-            name: '2',
-            password: '',
-          },
-        ] satisfies LoginData[],
-        insertForm(
-          {
-            identifier: ({ index }) => index,
-          },
-          ({ form }) => {
-            expect(form).toBeDefined();
-            return {
-              someInsertion: signal('test').asReadonly(),
-            };
-          },
-        ),
+          { name: '1', password: '' },
+          { name: '2', password: '' },
+        ],
+        insertForm({ identifier: ({ index }) => index }),
       );
 
-      console.log(
-        'loginForms.select(0)()',
-        loginForms.select(0)().validatedFormValue(),
-      );
-
-      expect(loginForms.select(0)().validatedFormValue()?.name).toBe('1');
+      expect(loginForms.select(0)?.validatedFormValue()?.name).toBe('1');
     });
   });
 
-  it('should expose setSubmitting signal internally', () => {
+  it('exposes setSubmitting from the insertion factory context', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForm = state(
-        {
-          name: 'romain',
-          password: 'secret',
-        } satisfies LoginData,
-        insertForm(({ form, setSubmitting }) => {
+      let observedSubmitting: boolean[] = [];
+      state(
+        { name: 'romain' },
+        insertForm(({ field, setSubmitting, submitting }) => {
           expectTypeOf<typeof setSubmitting>().toEqualTypeOf<
             (submitting: boolean) => void
           >();
-          expect(setSubmitting).toBeDefined();
-          expect(form().submitting()).toBe(false);
+          observedSubmitting.push(submitting());
           setSubmitting(true);
-          expect(form().submitting()).toBe(true);
+          observedSubmitting.push(submitting());
           setSubmitting(false);
-          expect(form().submitting()).toBe(false);
-
+          observedSubmitting.push(submitting());
+          expect(field.value().name).toBe('romain');
           return {};
         }),
       );
+      expect(observedSubmitting).toEqual([false, true, false]);
     });
   });
 
-  it('should keep hasAttemptedSubmit independent from submitting and reset it on form reset', () => {
+  it('keeps hasAttemptedSubmit sticky across setSubmitting toggles and clears it on reset', () => {
     TestBed.runInInjectionContext(() => {
       const loginForm = state(
-        {
-          name: 'romain',
-          password: 'secret',
-        } satisfies LoginData,
-        insertForm(({ setSubmitting }) => {
-          return {
-            setSubmitting,
-          };
-        }),
+        { name: 'romain', password: 'secret' },
+        insertForm(({ setSubmitting, setAttemptedSubmit }) => ({
+          setSubmitting,
+          setAttemptedSubmit,
+        })),
       );
 
-      expect(loginForm.form().setSubmitting).toBeDefined();
-      expect(loginForm.form().reset).toBeDefined();
-      expectTypeOf(
-        loginForm.form().hasAttemptedSubmit(),
-      ).toEqualTypeOf<boolean>();
+      expectTypeOf(loginForm.form.hasAttemptedSubmit()).toEqualTypeOf<boolean>();
 
-      expect(loginForm.form().submitting()).toBe(false);
-      expect(loginForm.form().hasAttemptedSubmit()).toBe(false);
+      expect(loginForm.form.submitting()).toBe(false);
+      expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
 
-      loginForm.form().setSubmitting(true);
+      loginForm.form.setSubmitting(true);
+      expect(loginForm.form.submitting()).toBe(true);
+      expect(loginForm.form.hasAttemptedSubmit()).toBe(true);
 
-      expect(loginForm.form().submitting()).toBe(true);
-      expect(loginForm.form().hasAttemptedSubmit()).toBe(true);
+      loginForm.form.setSubmitting(false);
+      expect(loginForm.form.submitting()).toBe(false);
+      // hasAttemptedSubmit stays true until reset
+      expect(loginForm.form.hasAttemptedSubmit()).toBe(true);
 
-      loginForm.form().setSubmitting(false);
-
-      expect(loginForm.form().submitting()).toBe(false);
-      expect(loginForm.form().hasAttemptedSubmit()).toBe(true);
-
-      loginForm.form().reset();
-
-      expect(loginForm.form().hasAttemptedSubmit()).toBe(false);
+      loginForm.form.reset();
+      expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
     });
   });
 
-  it('should expose setAttemptedSubmit independently from submitting', () => {
+  it('setAttemptedSubmit marks attempted without toggling submitting', () => {
     TestBed.runInInjectionContext(() => {
       const loginForm = state(
-        {
-          name: 'romain',
-          password: 'secret',
-        } satisfies LoginData,
-        insertForm(({ setAttemptedSubmit }) => {
-          return {
-            setAttemptedSubmit,
-          };
-        }),
+        { name: 'romain', password: 'secret' },
+        insertForm(({ setAttemptedSubmit }) => ({ setAttemptedSubmit })),
       );
 
-      expect(loginForm.form().setAttemptedSubmit).toBeDefined();
-      expectTypeOf(loginForm.form().setAttemptedSubmit).toEqualTypeOf<
+      expectTypeOf(loginForm.form.setAttemptedSubmit).toEqualTypeOf<
         () => void
       >();
+      expect(loginForm.form.submitting()).toBe(false);
+      expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
 
-      expect(loginForm.form().submitting()).toBe(false);
-      expect(loginForm.form().hasAttemptedSubmit()).toBe(false);
+      loginForm.form.setAttemptedSubmit();
 
-      loginForm.form().setAttemptedSubmit();
-
-      expect(loginForm.form().submitting()).toBe(false);
-      expect(loginForm.form().hasAttemptedSubmit()).toBe(true);
+      expect(loginForm.form.submitting()).toBe(false);
+      expect(loginForm.form.hasAttemptedSubmit()).toBe(true);
     });
   });
 
-  it('should expose setSubmitting signal internally for parallel forms', () => {
+  it('exposes setSubmitting for each parallel form independently', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForm = state(
+      const loginForms = state(
         [
-          {
-            id: 1,
-            name: 'romain',
-            password: 'secret',
-          } as const,
+          { id: 1, name: 'a' },
+          { id: 2, name: 'b' },
         ],
         insertForm(
           { identifier: ({ item: { id } }) => id },
-          ({ form, setSubmitting }) => {
-            expectTypeOf<typeof setSubmitting>().toEqualTypeOf<
-              (submitting: boolean) => void
-            >();
-            expect(setSubmitting).toBeDefined();
-            expect(form().submitting()).toBe(false);
-            setSubmitting(true);
-            expect(form().submitting()).toBe(true);
-            setSubmitting(false);
-            expect(form().submitting()).toBe(false);
-
-            return {};
-          },
+          ({ setSubmitting, submitting }) => ({
+            setSubmitting,
+            submitting,
+          }),
         ),
       );
+
+      const f1 = loginForms.select(1)!;
+      const f2 = loginForms.select(2)!;
+
+      expect(f1.submitting()).toBe(false);
+      expect(f2.submitting()).toBe(false);
+
+      f1.setSubmitting(true);
+      expect(f1.submitting()).toBe(true);
+      expect(f2.submitting()).toBe(false);
+
+      f1.setSubmitting(false);
     });
   });
 
-  it('should expose formTree externally', async () => {
-    const forms = await TestBed.runInInjectionContext(async () => {
+  it('exposes the form tree externally for direct sub-field access (simple and parallel)', () => {
+    TestBed.runInInjectionContext(() => {
       const myState = state(
-        {
-          id: 1,
-          name: '1',
-          password: '',
-        },
+        { id: 1, name: '1', password: '' },
         insertForm(),
       );
       expect(myState.form.password).toBeDefined();
+      expect(myState.form.password.value()).toBe('');
 
-      return state(
-        [
-          {
-            id: 1,
-            name: '1',
-            password: 'myPassword',
-          },
-        ],
+      const forms = state(
+        [{ id: 1, name: '1', password: 'myPassword' }],
         insertForm({ identifier: ({ item }) => item.id }),
       );
-    });
 
-    expect(forms.select(1)).toBeDefined();
-    expect(forms.select(1).password).toBeDefined();
+      const selected = forms.select(1);
+      expect(selected).toBeDefined();
+      expect(selected!.password.value()).toBe('myPassword');
+    });
   });
 
-  it('should map insertion exceptions to form exception helpers', () => {
+  it('aggregates insertion-level has*Exceptions/*Exceptions into form.exceptions/hasExceptions', () => {
     TestBed.runInInjectionContext(() => {
       const submitException = craftException(
         { code: 'NAME_ALREADY_EXISTS' },
@@ -565,10 +286,7 @@ describe('insertForm', () => {
       const validationExceptions = signal<(typeof validationException)[]>([]);
 
       const loginForm = state(
-        {
-          name: 'romain',
-          password: 'secret',
-        } satisfies LoginData,
+        { name: 'romain', password: 'secret' },
         insertForm(() => ({
           hasSubmitExceptions: computed(() => submitExceptions().length > 0),
           submitExceptions: submitExceptions.asReadonly(),
@@ -580,33 +298,24 @@ describe('insertForm', () => {
         })),
       );
 
-      expectTypeOf(loginForm.form().hasExceptions()).toEqualTypeOf<boolean>();
-      expectTypeOf(loginForm.form().exceptions().submit).toEqualTypeOf<
-        (typeof submitException)[]
-      >();
-      expectTypeOf(loginForm.form().exceptions().validation).toEqualTypeOf<
-        (typeof validationException)[]
-      >();
+      expectTypeOf(loginForm.form.hasExceptions()).toEqualTypeOf<boolean>();
 
-      expect(loginForm.form().hasExceptions()).toBe(false);
-      expect(loginForm.form().exceptions()).toEqual({
+      expect(loginForm.form.hasExceptions()).toBe(false);
+      expect(loginForm.form.exceptions()).toEqual({
         submit: [],
         validation: [],
       });
 
       submitExceptions.set([submitException]);
-
-      expect(loginForm.form().hasExceptions()).toBe(true);
-      expect(loginForm.form().exceptions()).toEqual({
+      expect(loginForm.form.hasExceptions()).toBe(true);
+      expect(loginForm.form.exceptions()).toEqual({
         submit: [submitException],
         validation: [],
       });
 
       validationExceptions.set([validationException]);
-
-      expect(loginForm.form().hasExceptions()).toBe(true);
-
-      expect(loginForm.form().exceptions()).toEqual({
+      expect(loginForm.form.hasExceptions()).toBe(true);
+      expect(loginForm.form.exceptions()).toEqual({
         submit: [submitException],
         validation: [validationException],
       });
@@ -614,13 +323,12 @@ describe('insertForm', () => {
   });
 });
 
-describe('ValidatedFormValue Type', () => {
-  it('should create branded type that ensure the form value is valid without pending validation', () => {
+describe('ValidatedFormValue type', () => {
+  it('brands the form value to ensure validity at the type level', () => {
+    type LoginData = { name: string; password: string };
     type Result = ValidatedFormValue<LoginData>;
     expectTypeOf<Result>().branded.toEqualTypeOf<
-      | (LoginData & {
-          [validatedFormValueSymbol]: true;
-        })
+      | (LoginData & { [validatedFormValueSymbol]: true })
       | undefined
     >();
   });

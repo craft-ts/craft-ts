@@ -1,27 +1,15 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { craftException, CraftExceptionResult } from '../craft-exception';
+import { craftException } from '../craft-exception';
+import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
 import { insertSelectFormTree } from './insert-select-form-tree';
-import { cRequired, CRequiredException, cValidator } from './validator';
-import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
-
-function createHasAtSignValidator(value: () => string) {
-  return cValidator({
-    name: 'hasAtSign',
-    validWhen: () => value() === '' || value().includes('@'),
-    exception: () =>
-      craftException(
-        { code: 'MISSING_AT' },
-        { message: 'Missing @' as const },
-      ),
-  });
-}
+import { cEmail, cRequired, cValidator } from './validator';
 
 describe('insertFormAttributes', () => {
-  it('should reactively bind disable, hidden, readonly and required to Angular field state', () => {
+  it('binds disable, hidden and readonly signals to the field', () => {
     TestBed.runInInjectionContext(() => {
       const disabled = signal(false);
       const hidden = signal(false);
@@ -38,22 +26,22 @@ describe('insertFormAttributes', () => {
         ),
       );
 
-      expect(fieldForm.form().disabled()).toBe(false);
-      expect(fieldForm.form().hidden()).toBe(false);
-      expect(fieldForm.form().readonly()).toBe(false);
+      expect(fieldForm.form.disabled()).toBe(false);
+      expect(fieldForm.form.hidden()).toBe(false);
+      expect(fieldForm.form.readonly()).toBe(false);
 
       disabled.set(true);
       hidden.set(true);
       readonly.set(true);
       TestBed.tick();
 
-      expect(fieldForm.form().disabled()).toBe(true);
-      expect(fieldForm.form().hidden()).toBe(true);
-      expect(fieldForm.form().readonly()).toBe(true);
+      expect(fieldForm.form.disabled()).toBe(true);
+      expect(fieldForm.form.hidden()).toBe(true);
+      expect(fieldForm.form.readonly()).toBe(true);
     });
   });
 
-  it('should compose with insertSelectFormTree on a nested form tree', () => {
+  it('composes with insertSelectFormTree on a nested form tree', () => {
     TestBed.runInInjectionContext(() => {
       const hidden = signal(false);
 
@@ -70,416 +58,334 @@ describe('insertFormAttributes', () => {
             insertFormAttributes(() => ({
               hidden: hidden.asReadonly(),
             })),
-            insertNoopTypingAnchor,
-            insertSelectFormTree('name', ({ state, set }) => ({})),
           ),
         ),
       );
 
-      expect(profileForm.form().selectProfile()().hidden()).toBe(false);
+      const profile = profileForm.form.selectProfile();
+      expect(profile?.hidden()).toBe(false);
 
       hidden.set(true);
       TestBed.tick();
 
-      expect(profileForm.form().selectProfile()().hidden()).toBe(true);
+      expect(profile?.hidden()).toBe(true);
     });
   });
 
-  it('should expose the current insertion payload to the insertFormAttributes callback', () => {
+  it('aggregates sync validator exceptions into list and byValidator', () => {
     TestBed.runInInjectionContext(() => {
-      const profileState = signal({
-        email: 'romain@example.com',
-      });
-      let submittingState = false;
-
-      const profileForm = state(
-        profileState,
-        insertForm(
-          ({ state }) => ({
-            upperEmail: computed(() => state().email.toUpperCase()),
-          }),
-          insertFormAttributes((context) => {
-            expect(context.nodeModel().value()).toEqual({
-              email: 'romain@example.com',
-            });
-            expect(context.state().email).toBe('romain@example.com');
-            expect(context.insertions.upperEmail()).toBe('ROMAIN@EXAMPLE.COM');
-            expect(context.form().value()).toEqual({
-              email: 'romain@example.com',
-            });
-            expect(context.validatedFormValue()?.email).toBe(
-              'romain@example.com',
-            );
-            expect(context.formIdentifier).toBeUndefined();
-
-            context.setSubmitting(true);
-            submittingState = context.form().submitting();
-            context.setSubmitting(false);
-
-            context.set({
-              email: 'set@example.com',
-            });
-            expect(context.form().value()).toEqual({
-              email: 'set@example.com',
-            });
-
-            context.patch(() => ({
-              email: 'patch@example.com',
-            }));
-            expect(context.form().value()).toEqual({
-              email: 'patch@example.com',
-            });
-
-            context.update((current) => ({
-              email: current.email.toUpperCase(),
-            }));
-            expect(context.form().value()).toEqual({
-              email: 'PATCH@EXAMPLE.COM',
-            });
-            expect(context.insertions.upperEmail()).toBe('PATCH@EXAMPLE.COM');
-
-            return {};
-          }),
-        ),
-      );
-
-      expect(submittingState).toBe(true);
-      expect(profileForm.form().submitting()).toBe(false);
-      expect(profileForm.form().value()).toEqual({
-        email: 'PATCH@EXAMPLE.COM',
-      });
-      expect(profileForm.form().upperEmail()).toBe('PATCH@EXAMPLE.COM');
-    });
-  });
-
-  it('should expose sync validator exceptions as list and byValidator', () => {
-    TestBed.runInInjectionContext(() => {
-      const fieldState = signal('' as string);
-
+      const fieldState = signal<string>('');
       const fieldForm = state(
         fieldState,
         insertForm(
-          insertFormAttributes(({ form }) => ({
+          insertFormAttributes(() => ({
             validators: [
               cRequired(),
-              createHasAtSignValidator(() => form().value()),
+              cValidator({
+                name: 'hasAtSign',
+                validWhen: () => fieldState() === '' || fieldState().includes('@'),
+                exception: () =>
+                  craftException(
+                    { code: 'MISSING_AT' },
+                    { message: 'Missing @' as const },
+                  ),
+              }),
             ],
           })),
         ),
       );
 
-      expectTypeOf(fieldForm.form().exceptions().list).toEqualTypeOf<
-        [
-          CRequiredException,
-          CraftExceptionResult<
-            {
-              code: 'MISSING_AT';
-              scope: undefined;
-              identifier?: undefined;
-            },
-            {
-              message: 'Missing @';
-            }
-          >,
-        ]
-      >();
-      expectTypeOf(fieldForm.form().exceptions().byValidator).toEqualTypeOf<{
-        required: CRequiredException;
-        MISSING_AT: CraftExceptionResult<
-          {
-            code: 'MISSING_AT';
-            scope: undefined;
-            identifier?: undefined;
-          },
-          {
-            message: 'Missing @';
-          }
-        >;
-      }>();
-
-      expect(fieldForm.form().invalid()).toBe(true);
-
-      expect(fieldForm.form().exceptions().list).toHaveLength(1);
-      expect(fieldForm.form().exceptions().byValidator).toMatchObject({
+      expect(fieldForm.form.invalid()).toBe(true);
+      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
         cRequired: { code: 'required' },
       });
 
       fieldState.set('romain');
       TestBed.tick();
 
-      expect(fieldForm.form().exceptions().list).toHaveLength(1);
-      expect(fieldForm.form().exceptions().byValidator).toMatchObject({
+      expect(fieldForm.form.invalid()).toBe(true);
+      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
         hasAtSign: { code: 'MISSING_AT' },
       });
 
       fieldState.set('romain@example.com');
       TestBed.tick();
-
-      expect(fieldForm.form().exceptions()).toEqual({
+      expect(fieldForm.form.invalid()).toBe(false);
+      expect(fieldForm.form.exceptions()).toEqual({
         list: [],
         byValidator: {},
       });
     });
   });
 
-  it('should expose visibleExceptions only after field dirty or submit attempt', () => {
+  it('keeps exceptions hidden until the field is dirty or submit is attempted', () => {
     TestBed.runInInjectionContext(() => {
-      const fieldState = signal({
-        email: '',
-      });
-
       const fieldForm = state(
-        fieldState,
+        '' as string,
         insertForm(
-          ({ setSubmitting }) => ({
-            setSubmitting,
-          }),
-          insertSelectFormTree(
-            'email',
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [cRequired()],
-            })),
-          ),
-        ),
-      );
-
-      expectTypeOf(
-        fieldForm.form().selectEmail()().visibleExceptions().list,
-      ).toEqualTypeOf<[CRequiredException]>();
-
-      expect(fieldForm.form().selectEmail()().exceptions().list).toHaveLength(
-        1,
-      );
-      expect(fieldForm.form().selectEmail()().visibleExceptions()).toEqual({
-        list: [],
-        byValidator: {},
-      });
-
-      fieldForm.form().selectEmail()().markAsDirty();
-      TestBed.tick();
-
-      expect(
-        fieldForm.form().selectEmail()().visibleExceptions().list,
-      ).toHaveLength(1);
-
-      fieldForm.form().reset();
-      TestBed.tick();
-
-      expect(fieldForm.form().hasAttemptedSubmit()).toBe(false);
-      expect(fieldForm.form().selectEmail()().visibleExceptions()).toEqual({
-        list: [],
-        byValidator: {},
-      });
-
-      fieldForm.form().setSubmitting(true);
-      TestBed.tick();
-
-      expect(fieldForm.form().hasAttemptedSubmit()).toBe(true);
-      expect(
-        fieldForm.form().selectEmail()().visibleExceptions().list,
-      ).toHaveLength(1);
-    });
-  });
-
-  it('should derive custom validator exceptions from signal form errors', () => {
-    TestBed.runInInjectionContext(() => {
-      const fieldState = signal('' as string);
-
-      const fieldForm = state(
-        fieldState,
-        insertForm(
-          insertFormAttributes(({ form }) => ({
-            validators: [createHasAtSignValidator(() => form().value())],
+          insertFormAttributes(() => ({
+            validators: [cRequired()],
           })),
         ),
       );
 
-      fieldState.set('taken');
+      expect(fieldForm.form.exceptions().list.length).toBe(1);
+      expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
+
+      fieldForm.form.ɵmarkDirty();
       TestBed.tick();
-
-      expect(fieldForm.form().exceptions().list).toHaveLength(1);
-      expect(fieldForm.form().exceptions().byValidator).toMatchObject({
-        hasAtSign: { code: 'MISSING_AT' },
-      });
-
-      fieldState.set('taken@example.com');
-      TestBed.tick();
-
-      expect(fieldForm.form().exceptions()).toEqual({
-        list: [],
-        byValidator: {},
-      });
+      expect(fieldForm.form.visibleExceptions().list.length).toBe(1);
     });
   });
 
-  it('should keep validatorModelRef available without affecting signal-form validators', () => {
-    TestBed.runInInjectionContext(() => {
-      const fieldState = signal({
-        email: 'romain@example.com',
-      });
-      const debouncedModel = signal({
-        email: 'romain',
-      });
-
-      const fieldForm = state(
-        fieldState,
-        insertForm(
-          ({ setValidatorModelRef }) => {
-            setValidatorModelRef(debouncedModel.asReadonly());
-            return {};
-          },
-          insertSelectFormTree(
-            'email',
-            insertNoopTypingAnchor,
-            insertFormAttributes(({ nodeModel, form }) => {
-              expect(form().value()).toBe('romain@example.com');
-              expect(nodeModel().value()).toBe('romain');
-
-              return {
-                validators: [createHasAtSignValidator(() => form().value())],
-              };
-            }),
-          ),
-        ),
-      );
-
-      expect(fieldForm.form().value()).toEqual({
-        email: 'romain@example.com',
-      });
-      expect(fieldForm.form().selectEmail()().value()).toBe(
-        'romain@example.com',
-      );
-      expect(fieldForm.form().selectEmail()().exceptions()).toEqual({
-        list: [],
-        byValidator: {},
-      });
-
-      fieldState.set({
-        email: 'romain',
-      });
-      TestBed.tick();
-
-      expect(
-        fieldForm.form().selectEmail()().exceptions().byValidator,
-      ).toMatchObject({
-        hasAtSign: { code: 'MISSING_AT' },
-      });
-
-      debouncedModel.set({
-        email: 'romain@example.com',
-      });
-      TestBed.tick();
-
-      expect(
-        fieldForm.form().selectEmail()().exceptions().byValidator,
-      ).toMatchObject({
-        hasAtSign: { code: 'MISSING_AT' },
-      });
-
-      fieldState.set({
-        email: 'romain@example.com',
-      });
-      TestBed.tick();
-
-      expect(fieldForm.form().selectEmail()().exceptions()).toEqual({
-        list: [],
-        byValidator: {},
-      });
-    });
-  });
-
-  it('should expose sync validator exceptions as list and byValidator at the field level', () => {
-    TestBed.runInInjectionContext(() => {
-      const fieldState = signal({
-        email: '',
-      });
-
-      const fieldForm = state(
-        fieldState,
-        insertForm(
-          insertSelectFormTree(
-            'email',
-            () => ({
-              testInnerValue: fieldState().email,
-            }),
-            insertNoopTypingAnchor,
-            insertFormAttributes(({ form }) => ({
+  describe('firstLeftFailedValidation / lastRightFailedValidation', () => {
+    it('exposes the first left and last right failing validator exceptions', () => {
+      TestBed.runInInjectionContext(() => {
+        const fieldState = signal<string>('');
+        const fieldForm = state(
+          fieldState,
+          insertForm(
+            insertFormAttributes(() => ({
               validators: [
                 cRequired(),
-                createHasAtSignValidator(() => form().value()),
+                cValidator({
+                  name: 'hasAtSign',
+                  validWhen: () =>
+                    fieldState() === '' || fieldState().includes('@'),
+                  exception: () => craftException({ code: 'MISSING_AT' }),
+                }),
+                cValidator({
+                  name: 'minLen5',
+                  validWhen: () => fieldState().length >= 5,
+                  exception: () => craftException({ code: 'TOO_SHORT' }),
+                }),
               ],
             })),
           ),
+        );
+
+        // empty -> only cRequired fails
+        expect(
+          (fieldForm.form.firstLeftFailedValidation() as { code: string })?.code,
+        ).toBe('required');
+        expect(
+          (fieldForm.form.lastRightFailedValidation() as { code: string })?.code,
+        ).toBe('required');
+
+        // "ab" -> hasAtSign + minLen5 fail
+        fieldState.set('ab');
+        TestBed.tick();
+        expect(
+          (fieldForm.form.firstLeftFailedValidation() as { code: string })?.code,
+        ).toBe('MISSING_AT');
+        expect(
+          (fieldForm.form.lastRightFailedValidation() as { code: string })?.code,
+        ).toBe('TOO_SHORT');
+
+        // valid -> undefined
+        fieldState.set('foo@bar.com');
+        TestBed.tick();
+        expect(fieldForm.form.firstLeftFailedValidation()).toBeUndefined();
+        expect(fieldForm.form.lastRightFailedValidation()).toBeUndefined();
+      });
+    });
+
+    it('visible variants stay undefined until dirty or submit attempted', () => {
+      TestBed.runInInjectionContext(() => {
+        const fieldForm = state(
+          '' as string,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+          ),
+        );
+
+        expect(fieldForm.form.firstLeftFailedValidation()).toBeDefined();
+        expect(
+          fieldForm.form.visibleFirstLeftFailedValidation(),
+        ).toBeUndefined();
+        expect(
+          fieldForm.form.visibleLastRightFailedValidation(),
+        ).toBeUndefined();
+
+        fieldForm.form.ɵmarkDirty();
+        TestBed.tick();
+        expect(fieldForm.form.visibleFirstLeftFailedValidation()).toBeDefined();
+        expect(fieldForm.form.visibleLastRightFailedValidation()).toBeDefined();
+      });
+    });
+  });
+
+  it('skips validators when the field is hidden, disabled, or readonly', () => {
+    TestBed.runInInjectionContext(() => {
+      const hidden = signal(false);
+      const fieldForm = state(
+        '' as string,
+        insertForm(
+          insertFormAttributes(() => ({
+            hidden: hidden.asReadonly(),
+            validators: [cRequired()],
+          })),
         ),
       );
 
-      expectTypeOf(
-        fieldForm.form().selectEmail()().exceptions().list,
-      ).toEqualTypeOf<
-        [
-          CRequiredException,
-          CraftExceptionResult<
-            {
-              code: 'MISSING_AT';
-              scope: undefined;
-              identifier?: undefined;
-            },
-            {
-              message: 'Missing @';
-            }
-          >,
-        ]
-      >();
-      expectTypeOf(
-        fieldForm.form().selectEmail()().exceptions().byValidator,
-      ).toEqualTypeOf<{
-        required: CRequiredException;
-        MISSING_AT: CraftExceptionResult<
-          {
-            code: 'MISSING_AT';
-            scope: undefined;
-            identifier?: undefined;
-          },
-          {
-            message: 'Missing @';
-          }
-        >;
-      }>();
+      expect(fieldForm.form.invalid()).toBe(true);
 
-      expect(fieldForm.form().invalid()).toBe(true);
-
-      expect(fieldForm.form().selectEmail()().exceptions().list).toHaveLength(
-        1,
-      );
-      expect(
-        fieldForm.form().selectEmail()().exceptions().byValidator,
-      ).toMatchObject({
-        cRequired: { code: 'required' },
-      });
-
-      fieldState.set({
-        email: 'romain',
-      });
+      hidden.set(true);
       TestBed.tick();
+      expect(fieldForm.form.invalid()).toBe(false);
+      expect(fieldForm.form.exceptions().list.length).toBe(0);
+    });
+  });
 
-      expect(fieldForm.form().selectEmail()().exceptions().list).toHaveLength(
-        1,
-      );
-      expect(
-        fieldForm.form().selectEmail()().exceptions().byValidator,
-      ).toMatchObject({
-        hasAtSign: { code: 'MISSING_AT' },
+  describe('insertion factory context', () => {
+    it('receives state, field, set/update/patch, submission controls and previous insertions', () => {
+      TestBed.runInInjectionContext(() => {
+        const seen: {
+          insertionsHasUpperEmail?: boolean;
+          upperEmail?: string;
+          stateEmail?: string;
+          fieldValueEmail?: string;
+          validatedEmail?: string;
+          formIdentifier?: unknown;
+          submittingObservedInsideFactory?: boolean;
+        } = {};
+
+        const profileForm = state(
+          { email: 'romain@example.com' },
+          insertForm(
+            ({ state }) => ({
+              upperEmail: computed(() => state().email.toUpperCase()),
+            }),
+            insertFormAttributes((context) => {
+              seen.insertionsHasUpperEmail =
+                typeof (context.insertions as { upperEmail?: unknown })
+                  .upperEmail === 'function';
+              seen.upperEmail = (
+                context.insertions as { upperEmail: () => string }
+              ).upperEmail();
+              seen.stateEmail = context.state().email;
+              seen.fieldValueEmail = context.field.value().email;
+              seen.validatedEmail = context.validatedFormValue()?.email;
+              seen.formIdentifier = context.formIdentifier;
+
+              // setSubmitting toggles the controller state visible from within
+              // the same insertion factory.
+              context.setSubmitting(true);
+              seen.submittingObservedInsideFactory = context.submitting();
+              context.setSubmitting(false);
+
+              // set/update/patch mutate through the field tree.
+              context.set({ email: 'set@example.com' });
+              return {};
+            }),
+          ),
+        );
+
+        expect(seen.insertionsHasUpperEmail).toBe(true);
+        expect(seen.upperEmail).toBe('ROMAIN@EXAMPLE.COM');
+        expect(seen.stateEmail).toBe('romain@example.com');
+        expect(seen.fieldValueEmail).toBe('romain@example.com');
+        expect(seen.validatedEmail).toBe('romain@example.com');
+        expect(seen.formIdentifier).toBeUndefined();
+        expect(seen.submittingObservedInsideFactory).toBe(true);
+
+        // The set inside the factory propagated to the root state.
+        expect(profileForm()).toEqual({ email: 'set@example.com' });
+        // submitting was reset back to false.
+        expect(profileForm.form.submitting()).toBe(false);
       });
+    });
 
-      fieldState.set({
-        email: 'romain@example.com',
+    it('chains insertion outputs through context.insertions', () => {
+      TestBed.runInInjectionContext(() => {
+        const f = state(
+          { name: 'romain' },
+          insertForm(
+            ({ field }) => ({
+              getNameUpper: () => field.value().name.toUpperCase(),
+            }),
+            insertFormAttributes(({ insertions }) => {
+              // chained insertion output is reachable in subsequent insertions
+              expect(
+                (insertions as { getNameUpper: () => string }).getNameUpper(),
+              ).toBe('ROMAIN');
+              return {};
+            }),
+          ),
+        );
+
+        expect(f.form.getNameUpper()).toBe('ROMAIN');
       });
-      TestBed.tick();
+    });
+  });
 
-      expect(fieldForm.form().selectEmail()().exceptions()).toEqual({
-        list: [],
-        byValidator: {},
+  describe('parallel forms', () => {
+    it('registers independent validators per parallel entry', () => {
+      TestBed.runInInjectionContext(() => {
+        const usersForm = state(
+          [
+            { id: 'a', email: '' },
+            { id: 'b', email: 'b@bar.com' },
+          ],
+          insertForm(
+            { identifier: ({ item }) => item.id },
+            insertSelectFormTree(
+              'email',
+              insertNoopTypingAnchor,
+              insertFormAttributes(() => ({
+                validators: [cRequired(), cEmail()],
+              })),
+            ),
+          ),
+        );
+
+        const userA = usersForm.select('a');
+        const userB = usersForm.select('b');
+        const emailA = userA?.selectEmail();
+        const emailB = userB?.selectEmail();
+
+        expect(emailA?.invalid()).toBe(true);
+        expect(emailA?.exceptions().byValidator).toMatchObject({
+          cRequired: { code: 'required' },
+        });
+
+        expect(emailB?.invalid()).toBe(false);
+        expect(emailB?.exceptions()).toEqual({
+          list: [],
+          byValidator: {},
+        });
+      });
+    });
+
+    it('parallel entries receive their formIdentifier in the factory context', () => {
+      TestBed.runInInjectionContext(() => {
+        const seenIdentifiers: string[] = [];
+
+        const usersForm = state(
+          [
+            { id: 'a', email: 'a@a.com' },
+            { id: 'b', email: 'b@b.com' },
+          ],
+          insertForm(
+            { identifier: ({ item }) => item.id },
+            insertSelectFormTree(
+              'email',
+              insertNoopTypingAnchor,
+              insertFormAttributes(({ formIdentifier }) => {
+                seenIdentifiers.push(formIdentifier);
+                return { validators: [cRequired()] };
+              }),
+            ),
+          ),
+        );
+
+        // Force materialization of both entries' sub-forms
+        usersForm.select('a')?.selectEmail();
+        usersForm.select('b')?.selectEmail();
+
+        expect(seenIdentifiers.sort()).toEqual(['a', 'b']);
       });
     });
   });

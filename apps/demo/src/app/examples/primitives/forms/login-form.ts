@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { FormField, required } from '@angular/forms/signals';
 import {
   ValidatedFormValue,
   cEmail,
   cMinLength,
   cRequired,
   craftException,
+  CraftFieldDirective,
   insertForm,
   insertFormAttributes,
   insertFormSubmit,
@@ -26,16 +26,16 @@ type LoginData = {
 
 @Component({
   selector: 'app-login-form',
-  imports: [CommonModule, FormField],
+  imports: [CommonModule, CraftFieldDirective],
   template: `
     <div class="login-container">
       <div class="login-card">
         <h2>Login</h2>
 
-        @if (loginForm.form().hasSubmitExceptions()) {
+        @if (loginForm.form.hasSubmitExceptions()) {
           <div class="submit-errors">
             @for (
-              exception of loginForm.form().submitExceptions();
+              exception of loginForm.form.submitExceptions();
               track exception.code
             ) {
               @switch (exception.code) {
@@ -50,19 +50,19 @@ type LoginData = {
           </div>
         }
 
-        <form (submit)="$event.preventDefault(); loginForm.form().submit()">
+        <form (submit)="$event.preventDefault(); loginForm.form.submit()">
           <div class="form-group">
             <label for="email">Email</label>
-            @let emailField = loginForm.form().selectEmail();
+            @let emailField = loginForm.form.selectEmail();
             <input
               id="email"
               type="email"
               placeholder="Enter your email"
-              [formField]="loginForm.form.email"
+              [craftField]="loginForm.form.email"
             />
             <div class="field-errors">
               @for (
-                error of emailField().visibleExceptions().list;
+                error of emailField?.visibleExceptions()?.list ?? [];
                 track error.code
               ) {
                 @switch (error.code) {
@@ -79,16 +79,16 @@ type LoginData = {
 
           <div class="form-group">
             <label for="password">Password</label>
-            @let passwordField = loginForm.form().selectPassword();
+            @let passwordField = loginForm.form.selectPassword();
             <input
               id="password"
               type="password"
               placeholder="Enter your password"
-              [formField]="loginForm.form.password"
+              [craftField]="loginForm.form.password"
             />
             <div class="field-errors">
               @for (
-                error of passwordField().visibleExceptions().list;
+                error of passwordField?.visibleExceptions()?.list ?? [];
                 track error.code
               ) {
                 @switch (error.code) {
@@ -101,15 +101,15 @@ type LoginData = {
           </div>
 
           <button type="submit" class="submit-btn">
-            {{ loginForm.form().submitting() ? 'Logging in...' : 'Log in' }}
+            {{ loginForm.form.submitting() ? 'Logging in...' : 'Log in' }}
           </button>
         </form>
       </div>
     </div>
     errors:
-    {{ loginForm.form().selectEmail()().errors() | json }} hasAttemptedSubmit:{{
-      loginForm.form().hasAttemptedSubmit()
-    }}/exceptions {{ loginForm.form().selectEmail()().exceptions() | json }}
+    {{ loginForm.form.email.errors() | json }} hasAttemptedSubmit:{{
+      loginForm.form.hasAttemptedSubmit()
+    }}
   `,
   styles: [
     `
@@ -234,10 +234,6 @@ export default class LoginFormComponent {
     { email: '', password: '' } satisfies LoginData,
     insertForm(
       insertFormSubmit(this.loginMutation),
-      ({ schemaPath }) => {
-        required(schemaPath.email);
-        return {};
-      },
       insertSelectFormTree(
         'email',
         insertNoopTypingAnchor,
@@ -259,7 +255,7 @@ export default class LoginFormComponent {
 export type GenDeps_LoginFormComponent = GetDeps<{
   deps: {
     CommonModule: CommonModule;
-    FormField: FormField<unknown>;
+    CraftFieldDirective: typeof CraftFieldDirective;
   };
   propertiesDeps: {
     loginMutation: ExtractDeps<LoginFormComponent['loginMutation']>;

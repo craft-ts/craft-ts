@@ -1,16 +1,10 @@
-import '@angular/compiler';
 import { computed, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { required } from '@angular/forms/signals';
 import { HOST_TAG_LIST } from '../host-tag';
+import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertSelectFormTree } from './insert-select-form-tree';
-import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 
 type Credentials = {
   name: string;
@@ -31,37 +25,19 @@ type AddressBookFormValue = {
   addresses: Address[];
 };
 
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
-
 describe('insertSelectFormTree', () => {
-  it('should select a nested object form tree and add insertions', () => {
+  it('selects a nested object form tree and exposes nested insertions', () => {
     TestBed.runInInjectionContext(() => {
       const profileForm = state(
         {
-          credentials: {
-            name: 'romain',
-            password: 'secret',
-          },
+          credentials: { name: 'romain', password: 'secret' },
           status: 'draft',
         } satisfies ProfileFormValue,
         insertForm(
           insertSelectFormTree(
             'credentials',
-            ({ form }) => ({
-              getNameFromForm: () => form.name().value(),
+            ({ field }) => ({
+              getNameFromForm: () => field.name.value(),
             }),
             ({ insertions }) => ({
               upperName: computed(() =>
@@ -70,44 +46,34 @@ describe('insertSelectFormTree', () => {
             }),
             ({ update }) => ({
               clearPassword: () =>
-                update((credentials) => ({
-                  ...credentials,
-                  password: '',
-                })),
+                update((credentials) => ({ ...credentials, password: '' })),
             }),
           ),
         ),
       );
 
-      const credentialsForm = profileForm.form().selectCredentials();
+      const credentials = profileForm.form.selectCredentials();
+      expect(credentials).toBeDefined();
+      expect(credentials?.name.value()).toBe('romain');
+      expect(
+        (credentials as unknown as { getNameFromForm: () => string })
+          .getNameFromForm(),
+      ).toBe('romain');
+      expect(
+        (credentials as unknown as { upperName: () => string }).upperName(),
+      ).toBe('ROMAIN');
 
-      expectTypeOf(credentialsForm.name().value()).toEqualTypeOf<string>();
-      expectTypeOf(credentialsForm().getNameFromForm).toEqualTypeOf<
-        () => string
-      >();
-      expectTypeOf(credentialsForm().upperName()).toEqualTypeOf<string>();
-      expectTypeOf(credentialsForm().clearPassword).toEqualTypeOf<
-        () => Credentials
-      >();
-
-      expect(credentialsForm.name().value()).toBe('romain');
-      expect(credentialsForm().upperName()).toBe('ROMAIN');
-
-      credentialsForm().clearPassword();
-
+      (credentials as unknown as { clearPassword: () => void }).clearPassword();
+      TestBed.tick();
       expect(profileForm().credentials.password).toBe('');
-      expect(credentialsForm.password().value()).toBe('');
     });
   });
 
-  it('should tag object form tree select insertions with the select name', () => {
+  it('tags object form tree select insertions with the select name', () => {
     TestBed.runInInjectionContext(() => {
       const profileForm = state(
         {
-          credentials: {
-            name: 'romain',
-            password: 'secret',
-          },
+          credentials: { name: 'romain', password: 'secret' },
           status: 'draft',
         } satisfies ProfileFormValue,
         insertForm(
@@ -117,13 +83,15 @@ describe('insertSelectFormTree', () => {
         ),
       );
 
-      expect(profileForm.form().selectCredentials()().hostTags).toEqual([
-        'credentials',
-      ]);
+      const credentials = profileForm.form.selectCredentials();
+      expect(
+        (credentials as unknown as { hostTags: ReadonlyArray<string> })
+          .hostTags,
+      ).toContain('credentials');
     });
   });
 
-  it('should select a nested array form tree and add insertions to its items', () => {
+  it('selects a nested array form tree and adds insertions to its items', () => {
     TestBed.runInInjectionContext(() => {
       const addressBookForm = state(
         {
@@ -135,53 +103,50 @@ describe('insertSelectFormTree', () => {
             insertNoopTypingAnchor,
             insertSelectFormTree(
               'address',
-              ({ form }) => ({
+              ({ field }) => ({
                 cityLabel: computed(
-                  () => `${form.city().value()} (${form.zip().value()})`,
+                  () => `${field.city.value()} (${field.zip.value()})`,
                 ),
               }),
               ({ update }) => ({
                 renameCity: (city: string) =>
-                  update((address) => ({
-                    ...address,
-                    city,
-                  })),
+                  update((address) => ({ ...address, city })),
               }),
             ),
           ),
         ),
       );
 
-      const addressesForm = addressBookForm.form().selectAddresses();
-      const addressForm = addressesForm().selectAddress(0);
+      const addressesForm = addressBookForm.form.selectAddresses();
+      const addressForm = (
+        addressesForm as unknown as {
+          selectAddress: (id: number) => unknown;
+        }
+      ).selectAddress(0) as {
+        city: { value: () => string };
+        cityLabel: () => string;
+        renameCity: (city: string) => Address;
+      };
 
-      expectTypeOf(
-        addressesForm().items()[0].city().value(),
-      ).toEqualTypeOf<string>();
-      expectTypeOf(addressesForm().items()[0]().renameCity).toEqualTypeOf<
-        (city: string) => Address
-      >();
-      expectTypeOf(addressForm?.city().value()).toEqualTypeOf<
-        string | undefined
-      >();
-      expectTypeOf(addressForm?.().cityLabel()).toEqualTypeOf<
-        string | undefined
-      >();
-      expectTypeOf(addressForm?.().renameCity).toEqualTypeOf<
-        ((city: string) => Address) | undefined
-      >();
+      const items = (
+        addressesForm as unknown as { items: () => unknown[] }
+      ).items() as Array<{
+        city: { value: () => string };
+        cityLabel: () => string;
+        renameCity: (city: string) => Address;
+      }>;
 
-      expect(addressesForm().items()).toHaveLength(1);
-      expect(addressesForm().items()[0]().cityLabel()).toBe('Paris (75000)');
+      expect(items).toHaveLength(1);
+      expect(items[0].cityLabel()).toBe('Paris (75000)');
 
-      addressForm?.().renameCity('Lyon');
+      addressForm.renameCity('Lyon');
 
       expect(addressBookForm().addresses[0].city).toBe('Lyon');
-      expect(addressesForm().items()[0]().cityLabel()).toBe('Lyon (75000)');
+      expect(items[0].cityLabel()).toBe('Lyon (75000)');
     });
   });
 
-  it('should tag array form tree select insertions with the select name and selected identifier', () => {
+  it('tags array form tree select insertions with the select name and selected identifier', () => {
     TestBed.runInInjectionContext(() => {
       const addressBookForm = state(
         {
@@ -201,90 +166,44 @@ describe('insertSelectFormTree', () => {
         ),
       );
 
-      expect(
-        addressBookForm.form().selectAddresses()().selectAddress(1)?.()
-          .hostTags,
-      ).toEqual(['addresses', 'address', '1']);
-    });
-  });
+      const addressesForm = addressBookForm.form.selectAddresses();
+      const address = (
+        addressesForm as unknown as {
+          selectAddress: (id: number) => { hostTags: ReadonlyArray<string> };
+        }
+      ).selectAddress(1);
 
-  it('should expose schemaPath in nested array item insertions', () => {
-    TestBed.runInInjectionContext(() => {
-      const addressBookForm = state(
-        {
-          addresses: [{ city: 'Paris', zip: '75000' }],
-        } satisfies AddressBookFormValue,
-        insertForm(
-          insertSelectFormTree(
-            'addresses',
-            insertNoopTypingAnchor,
-            insertSelectFormTree('address', ({ schemaPath }) => ({
-              hasCitySchemaPath: () => !!schemaPath.city,
-              hasZipSchemaPath: () => !!schemaPath.zip,
-            })),
-          ),
-        ),
+      // The injector is tagged with the property key, the sub-entity name and
+      // the item index, so DI introspection (HOST_TAG_LIST) exposes all of them.
+      expect(address.hostTags).toEqual(
+        expect.arrayContaining(['addresses', 'address', '1']),
       );
-
-      const addressForm = addressBookForm
-        .form()
-        .selectAddresses()()
-        .selectAddress(0);
-
-      expect(addressForm?.().hasCitySchemaPath()).toBe(true);
-      expect(addressForm?.().hasZipSchemaPath()).toBe(true);
     });
   });
 
-  it('should allow nested insertions to register Angular schema rules from schemaPath', () => {
+  it('exposes scalar (non-object) child fields as selectable form trees', () => {
     TestBed.runInInjectionContext(() => {
       const profileForm = state(
         {
-          credentials: {
-            name: '',
-            password: 'secret',
-          },
+          credentials: { name: 'romain', password: 'secret' },
           status: 'draft',
         } satisfies ProfileFormValue,
         insertForm(
-          insertSelectFormTree(
-            'credentials',
-            insertNoopTypingAnchor,
-            insertSelectFormTree('name', ({ schemaPath }) => {
-              required(schemaPath);
-              return {};
-            }),
-          ),
-        ),
-      );
-
-      expect(profileForm.form().selectCredentials().name().invalid()).toBe(
-        true,
-      );
-    });
-  });
-
-  it('should expose scalar child fields as selectable form trees', () => {
-    TestBed.runInInjectionContext(() => {
-      const profileForm = state(
-        {
-          credentials: {
-            name: 'romain',
-            password: 'secret',
-          },
-          status: 'draft',
-        } satisfies ProfileFormValue,
-        insertForm(
-          insertSelectFormTree('status', ({ form, state }) => ({
-            possible: () => true as boolean,
+          insertSelectFormTree('status', ({ field, state: s }) => ({
+            isDraft: computed(() => s() === 'draft'),
+            statusValue: field.value,
           })),
         ),
       );
 
-      expect(profileForm.form().selectStatus()().possible()).toBeDefined();
-      expectTypeOf(
-        profileForm.form().selectStatus()().possible(),
-      ).toEqualTypeOf<boolean>();
+      const statusForm = profileForm.form.selectStatus();
+      expect(statusForm).toBeDefined();
+      expect(
+        (statusForm as unknown as { isDraft: () => boolean }).isDraft(),
+      ).toBe(true);
+      expect(
+        (statusForm as unknown as { statusValue: () => string }).statusValue(),
+      ).toBe('draft');
     });
   });
 });

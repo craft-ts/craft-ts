@@ -5,10 +5,10 @@ import {
   computed,
   signal,
 } from '@angular/core';
-import { FormField } from '@angular/forms/signals';
 import {
   asyncProcess,
   cMinLength,
+  CraftFieldDirective,
   cRequired,
   insertForm,
   insertFormAttributes,
@@ -43,7 +43,7 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
 
 @Component({
   selector: 'app-granular-mutation',
-  imports: [CommonModule, StatusComponent, FormField],
+  imports: [CommonModule, StatusComponent, CraftFieldDirective],
   template: `
     <div class="container">
       <main class="content">
@@ -114,29 +114,28 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
                         <td>{{ user.id }}</td>
 
                         <td>
-                          @let nameField = userForm().selectName();
-                          <!-- todo remove editingUserId -->
-                          <!-- todo le form().submit() ne déclenche pas l'appel ? -->
-                          <!-- todo afficher status de chargement du save -->
-                          <!-- todo si form pas save et dif, afficher une état pour signaler que ce n'est pas save -->
-                          @if (userForm().isEditing()) {
+                          @let nameField = userForm?.selectName();
+                          @if (userForm?.isEditing()) {
                             <form
                               (submit)="
-                                $event.preventDefault(); userForm().submit()
+                                $event.preventDefault();
+                                userForm?.submit()
                               "
                               novalidate
                             >
                               <div class="inline-edit">
-                                <input
-                                  type="text"
-                                  class="inline-edit-input"
-                                  [formField]="nameField"
-                                />
+                                @if (nameField; as nf) {
+                                  <input
+                                    type="text"
+                                    class="inline-edit-input"
+                                    [craftField]="nf"
+                                  />
+                                }
                                 <button
                                   class="inline-edit-btn save-btn"
                                   title="Save"
                                   type="submit"
-                                  (click)="userForm().toggleEditing()"
+                                  (click)="userForm?.toggleEditing()"
                                 >
                                   ✓
                                 </button>
@@ -144,20 +143,19 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
                                   class="inline-edit-btn cancel-btn"
                                   type="button"
                                   title="Cancel"
-                                  (click)="
-                                    userForm().toggleEditing()
-                                  "
+                                  (click)="userForm?.toggleEditing()"
                                 >
                                   ✕
                                 </button>
                               </div>
                             </form>
                             @if (
-                              nameField().visibleExceptions().list.length > 0
+                              (nameField?.visibleExceptions()?.list?.length ??
+                                0) > 0
                             ) {
                               <div class="field-errors">
                                 @for (
-                                  error of nameField().exceptions().list;
+                                  error of nameField?.exceptions()?.list ?? [];
                                   track error.code
                                 ) {
                                   @let code = error.code;
@@ -168,8 +166,7 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
                                     @case ('minLength') {
                                       <span>
                                         Name must be at least
-                                        {{ error.payload }} characters
-                                        long.
+                                        {{ error.payload }} characters long.
                                       </span>
                                     }
                                     @default never;
@@ -179,14 +176,19 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
                             }
                           } @else {
                             <div class="inline-display">
-                              <span [class.unsaved]="userForm().dirty() && !userForm().submitting()">{{ user.name }}</span>
-                              @if (userForm().submitting()) {
+                              <span
+                                [class.unsaved]="
+                                  userForm?.dirty() && !userForm?.submitting()
+                                "
+                                >{{ user.name }}</span
+                              >
+                              @if (userForm?.submitting()) {
                                 <span class="spinner"></span>
                               } @else {
                                 <button
                                   class="inline-edit-icon"
                                   title="Edit name"
-                                  (click)="userForm().toggleEditing()"
+                                  (click)="userForm?.toggleEditing()"
                                 >
                                   ✎
                                 </button>
@@ -194,18 +196,20 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
                             </div>
                           }
 
-                          @if(userForm().hasExceptions()) {
-                            @for(exception of  userForm().exceptions().submit; track exception.code) {
+                          @if (userForm?.hasSubmitExceptions()) {
+                            @for (
+                              exception of userForm?.submitExceptions() ?? [];
+                              track exception.code
+                            ) {
                               @let code = exception.code;
                               @switch (code) {
-                                @case('HttpError') {
+                                @case ('HttpError') {
                                   <div class="field-errors">
                                     An error occurred while updating the user.
                                   </div>
                                 }
                                 @default never;
                               }
-
                             }
                           }
                         </td>
@@ -315,17 +319,17 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
                 <option [value]="8">8</option>
                 <option [value]="16">16</option>
               </select>
-              <button [disabled]="usersByPage.disablePaginationWhileEditing()" class="btn" (click)="pagination.previousPage()">
+              <button  class="btn" (click)="pagination.previousPage()">
                 Previous
               </button>
               <span class="current-page">
                 {{ pagination().page }}
               </span>
-              <button [disabled]="usersByPage.disablePaginationWhileEditing()" class="btn" (click)="pagination.nextPage()">Next</button>
+              <button  class="btn" (click)="pagination.nextPage()">Next</button>
             </div>
             @if(usersByPage.disablePaginationWhileEditing()) {
               <div style="margin-top: 16px; color: red;">
-                Pagination is disabled while editing, due to a current limitation/error from the Angular formField directive
+                Pagination is disabled while editing
               </div>
             }
           </div>
@@ -528,9 +532,8 @@ export default class FullDemo {
       },
     ),
     ({ state, insertions: { select } }) => ({
-      // due to a formField directive error, we need to disable pagination while editing
       disablePaginationWhileEditing: computed(() =>
-        state().some(({ id }) => select(id)()?.isEditing()),
+        state().some(({ id }) => !!select(id)?.isEditing?.()),
       ),
     }),
   );
@@ -608,7 +611,7 @@ export type GenDeps_FullDemo = GetDeps<{
   deps: {
     CommonModule: CommonModule;
     GenDeps_StatusComponent: GenDeps_StatusComponent;
-    FormField: FormField<unknown>;
+    CraftFieldDirective: CraftFieldDirective<any>;
   };
   propertiesDeps: {
     reset$: ExtractDeps<FullDemo['reset$']>;
