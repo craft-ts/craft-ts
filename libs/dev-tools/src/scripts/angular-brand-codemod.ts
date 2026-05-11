@@ -287,6 +287,21 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
         },
       ],
     },
+    {
+      match: {
+        module: '@craft-ng/core',
+        symbols: ['CraftField'],
+        metadata: ['imports'],
+      },
+      deps: [
+        {
+          key: 'CraftField',
+          symbol: 'CraftField',
+          typeText: 'CraftField<unknown>',
+          module: '@craft-ng/core',
+        },
+      ],
+    },
   ],
 });
 const angularBrandConfigCache = new Map<string, AngularBrandConfig>();
