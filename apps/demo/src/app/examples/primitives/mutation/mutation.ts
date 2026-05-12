@@ -1,21 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-  injectCraftRouter,
-  insertLocalStoragePersister,
-  insertReactOnMutation,
-  mutation,
-  query,
-  type DerivedService,
-  type ExtractDeps,
-  type GetDeps,
-  type GetInjectedServiceDependencies,
-  type GetPublicComponentProperties,
-  type GetServiceOutput,
+    injectCraftRouter,
+    insertLocalStoragePersister,
+    insertReactOnMutation,
+    mutation,
+    query,
+    type DerivedService,
+    type ExtractDeps,
+    type GetDeps,
+    type GetInjectedServiceDependencies,
+    type GetPublicComponentProperties,
+    type GetServiceOutput,
 } from '@craft-ng/core';
 import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
+    StatusComponent,
+    type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { injectApiService, User } from './api.service';
 
@@ -132,31 +132,24 @@ export type GenDeps_GlobalQuery = GetDeps<{
   publicProperties: GetPublicComponentProperties<MutationDemoComponent>;
 }>;
 export type GenDeps_MutationDemoComponent = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    userId: ExtractDeps<MutationDemoComponent['userId']>;
-    apiService: {
-      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
-    };
-    updateUserName: ExtractDeps<MutationDemoComponent['updateUserName']>;
-    userQuery: ExtractDeps<MutationDemoComponent['userQuery']>;
-    router: {
-      CraftRouter: DerivedService<
-        ExtractDeps<typeof injectCraftRouter>['CraftRouter'],
-        {
-          derivedPropertiesUsed: {
-            navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
+      deps: {
+        CommonModule: CommonModule;
+        GenDeps_StatusComponent: GenDeps_StatusComponent;
+      };
+      propertiesDeps: {
+        userId: ExtractDeps<MutationDemoComponent["userId"]>;
+        apiService: {
+            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
           };
-          derivedPropertiesExposed: {
-            navigate: GetServiceOutput<typeof injectCraftRouter>['navigate'];
+        updateUserName: ExtractDeps<MutationDemoComponent["updateUserName"]>;
+        userQuery: ExtractDeps<MutationDemoComponent["userQuery"]>;
+        router: {
+            CraftRouter: ReturnType<typeof injectCraftRouter>;
           };
-        }
-      >;
-    };
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<MutationDemoComponent>;
-}>;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<MutationDemoComponent>;
+      missingProvider: {
+        CraftRouter: ReturnType<typeof injectCraftRouter>;
+      };
+    }>;

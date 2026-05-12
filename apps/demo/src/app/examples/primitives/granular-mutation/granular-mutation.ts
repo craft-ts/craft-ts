@@ -1,17 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-    insertLocalStoragePersister,
-    insertPaginationPlaceholderData,
-    insertReactOnMutation,
-    mutation,
-    query,
-    queryParam,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  insertLocalStoragePersister,
+  insertPaginationPlaceholderData,
+  insertReactOnMutation,
+  mutation,
+  query,
+  queryParam,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import { StatusComponent, type GenDeps_StatusComponent } from '../../../ui/status.component';
+import {
+  StatusComponent,
+  type GenDeps_StatusComponent,
+} from '../../../ui/status.component';
 import { injectApiService, User } from './api.service';
 
 @Component({
@@ -192,18 +195,18 @@ export default class GranularMutation {
 }
 
 export type GenDeps_GranularMutation = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        pagination: ExtractDeps<GranularMutation["pagination"]>;
-        apiService: {
-            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
-          };
-        updateUserName: ExtractDeps<GranularMutation["updateUserName"]>;
-        usersQuery: ExtractDeps<GranularMutation["usersQuery"]>;
-      };
-      provided: {};
-      publicProperties: GetPublicComponentProperties<GranularMutation>;
-    }>;
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    pagination: ExtractDeps<GranularMutation['pagination']>;
+    apiService: {
+      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
+    };
+    updateUserName: ExtractDeps<GranularMutation['updateUserName']>;
+    usersQuery: ExtractDeps<GranularMutation['usersQuery']>;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<GranularMutation>;
+}>;

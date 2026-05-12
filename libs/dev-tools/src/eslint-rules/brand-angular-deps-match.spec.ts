@@ -403,6 +403,66 @@ describe('brand-angular-deps-match', () => {
     expect(output).not.toContain('type FormField');
   });
 
+  it('detects a desync introduced between two lint passes sharing the same project cache (ESLint server scenario)', async () => {
+    const childSource = `
+import { Directive } from '@angular/core';
+
+@Directive({
+  selector: '[childDirective]',
+  standalone: true,
+})
+export class ChildDirective {}
+`.trimStart();
+
+    const syncedSource = `
+import { Component } from '@angular/core';
+import {
+  type GetDeps,
+  type GetPublicComponentProperties,
+} from '@craft-ng/core';
+import { ChildDirective } from './child-directive';
+
+@Component({
+  standalone: true,
+  imports: [ChildDirective],
+  template: '',
+})
+export class DemoComponent {}
+
+export type GenDeps_DemoComponent = GetDeps<{
+  deps: {
+    GenDeps_ChildDirective: GenDeps_ChildDirective;
+  };
+  propertiesDeps: {};
+  provided: {};
+  publicProperties: GetPublicComponentProperties<DemoComponent>;
+}>;
+`.trimStart();
+
+    const tempDirectory = await setupFixtureDirectory({
+      'src/app/child-directive.ts': childSource,
+      'src/app/demo.ts': syncedSource,
+    });
+
+    const firstPass = await runLintInDirectory(tempDirectory);
+    expect(firstPass.messages).toEqual([]);
+
+    const desyncedSource = syncedSource.replace(
+      'imports: [ChildDirective],',
+      'imports: [],',
+    );
+    await writeFile(
+      join(tempDirectory, 'src/app/demo.ts'),
+      desyncedSource,
+      'utf8',
+    );
+
+    const secondPass = await runLintInDirectory(tempDirectory);
+    expect(secondPass.messages).toEqual([
+      'GenDeps_DemoComponent is out of date for deps. Run ESLint --fix on this file or craft-brand --root <source-root> to refresh it.',
+    ]);
+  });
+
   it('ignores files without an existing GenDeps alias', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
@@ -529,6 +589,74 @@ function baseFixtureFiles(): Record<string, string> {
         export type GetServiceOutput<T> = T;
       }
     `,
+  };
+}
+
+async function setupFixtureDirectory(
+  files: Record<string, string>,
+): Promise<string> {
+  const tempDirectory = await mkdtemp(
+    join(tmpdir(), 'brand-angular-deps-rule-'),
+  );
+  tempDirectories.push(tempDirectory);
+
+  await writeFixtureFiles(tempDirectory, {
+    'tsconfig.json': JSON.stringify(
+      {
+        compilerOptions: {
+          experimentalDecorators: true,
+          module: 'preserve',
+          strict: true,
+          target: 'ES2022',
+        },
+        include: ['src/**/*.ts', 'src/**/*.d.ts'],
+      },
+      null,
+      2,
+    ),
+    ...baseFixtureFiles(),
+    ...files,
+  });
+
+  return tempDirectory;
+}
+
+async function runLintInDirectory(
+  tempDirectory: string,
+): Promise<{ messages: string[] }> {
+  const eslint = new ESLint({
+    cwd: tempDirectory,
+    overrideConfigFile: true,
+    overrideConfig: [
+      {
+        files: ['**/*.ts'],
+        languageOptions: {
+          parser: tsParser as unknown as Linter.Parser,
+          parserOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
+          },
+        },
+        plugins: {
+          local: {
+            rules: {
+              'match-component-deps': brandAngularDepsMatchRule as never,
+            },
+          },
+        },
+        rules: {
+          'local/match-component-deps': 'error',
+        },
+      },
+    ],
+  });
+
+  const results = await eslint.lintFiles(['src/**/*.ts']);
+
+  return {
+    messages: results.flatMap((result) =>
+      result.messages.map((message) => message.message),
+    ),
   };
 }
 

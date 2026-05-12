@@ -4,9 +4,12 @@ import { craftException } from '../craft-exception';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { state } from '../state';
 import { insertForm } from './insert-form';
-import { insertFormAttributes } from './insert-form-attributes';
-import { insertSelectFormTree } from './insert-select-form-tree';
-import { cEmail, cRequired, cValidator } from './validator';
+import { formAttributes, insertFormAttributes } from './insert-form-attributes';
+import {
+  insertSelectFormTree,
+  selectFormTree,
+} from './insert-select-form-tree';
+import { cEmail, cMinLength, cRequired, cValidator } from './validator';
 
 describe('insertFormAttributes', () => {
   it('binds disable, hidden and readonly signals to the field', () => {
@@ -387,6 +390,219 @@ describe('insertFormAttributes', () => {
 
         expect(seenIdentifiers.sort()).toEqual(['a', 'b']);
       });
+    });
+  });
+});
+
+describe('formAttributes', () => {
+  it('binds disable, hidden and readonly signals to the field', () => {
+    TestBed.runInInjectionContext(() => {
+      const disabled = signal(false);
+      const hidden = signal(false);
+      const readonly = signal(false);
+
+      const fieldForm = state(
+        '' as string,
+        insertForm((context) =>
+          formAttributes(context, {
+            disable: disabled.asReadonly(),
+            hidden: hidden.asReadonly(),
+            readonly: readonly.asReadonly(),
+          }),
+        ),
+      );
+
+      expect(fieldForm.form.disabled()).toBe(false);
+      expect(fieldForm.form.hidden()).toBe(false);
+      expect(fieldForm.form.readonly()).toBe(false);
+
+      disabled.set(true);
+      hidden.set(true);
+      readonly.set(true);
+      TestBed.tick();
+
+      expect(fieldForm.form.disabled()).toBe(true);
+      expect(fieldForm.form.hidden()).toBe(true);
+      expect(fieldForm.form.readonly()).toBe(true);
+    });
+  });
+
+  it('aggregates sync validator exceptions into list and byValidator', () => {
+    TestBed.runInInjectionContext(() => {
+      const fieldState = signal<string>('');
+      const fieldForm = state(
+        fieldState,
+        insertForm((context) =>
+          formAttributes(context, {
+            validators: [
+              cRequired(),
+              cValidator({
+                name: 'hasAtSign',
+                validWhen: () =>
+                  fieldState() === '' || fieldState().includes('@'),
+                exception: () =>
+                  craftException(
+                    { code: 'MISSING_AT' },
+                    { message: 'Missing @' as const },
+                  ),
+              }),
+            ],
+          }),
+        ),
+      );
+
+      expect(fieldForm.form.invalid()).toBe(true);
+      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+        cRequired: { code: 'required' },
+      });
+
+      fieldState.set('romain');
+      TestBed.tick();
+      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+        hasAtSign: { code: 'MISSING_AT' },
+      });
+
+      fieldState.set('romain@example.com');
+      TestBed.tick();
+      expect(fieldForm.form.invalid()).toBe(false);
+    });
+  });
+
+  it('composes with selectFormTree to validate sibling properties of a flat form', () => {
+    TestBed.runInInjectionContext(() => {
+      type LoginData = { email: string; password: string };
+
+      const loginForm = state(
+        { email: '', password: '' } satisfies LoginData,
+        insertForm(
+          (context) =>
+            selectFormTree(context, 'email', (sub) =>
+              formAttributes(sub, {
+                validators: [
+                  cRequired(),
+                  cEmail(),
+                  cMinLength({ minLength: 5 }),
+                ],
+              }),
+            ),
+          (context) =>
+            selectFormTree(context, 'password', (sub) =>
+              formAttributes(sub, { validators: [cRequired()] }),
+            ),
+        ),
+      );
+
+      const email = (
+        loginForm.form as unknown as {
+          selectEmail: () =>
+            | { invalid: () => boolean; exceptions: () => { byValidator: Record<string, unknown> } }
+            | undefined;
+        }
+      ).selectEmail();
+      const password = (
+        loginForm.form as unknown as {
+          selectPassword: () => { invalid: () => boolean } | undefined;
+        }
+      ).selectPassword();
+
+      expect(email?.invalid()).toBe(true);
+      expect(password?.invalid()).toBe(true);
+      expect(email?.exceptions().byValidator).toMatchObject({
+        cRequired: { code: 'required' },
+      });
+
+      loginForm.form.email.set('not-an-email');
+      TestBed.tick();
+      expect(email?.invalid()).toBe(true);
+
+      loginForm.form.email.set('hello@world.com');
+      loginForm.form.password.set('secret');
+      TestBed.tick();
+      expect(email?.invalid()).toBe(false);
+      expect(password?.invalid()).toBe(false);
+    });
+  });
+
+  it('keeps exceptions hidden until the field is dirty or submit is attempted', () => {
+    TestBed.runInInjectionContext(() => {
+      const fieldForm = state(
+        '' as string,
+        insertForm((context) =>
+          formAttributes(context, { validators: [cRequired()] }),
+        ),
+      );
+
+      expect(fieldForm.form.exceptions().list.length).toBe(1);
+      expect(fieldForm.form.visibleExceptions().list.length).toBe(0);
+
+      fieldForm.form.ɵmarkDirty();
+      TestBed.tick();
+      expect(fieldForm.form.visibleExceptions().list.length).toBe(1);
+    });
+  });
+
+  it('receives the parallel formIdentifier in its context', () => {
+    TestBed.runInInjectionContext(() => {
+      const seenIdentifiers: string[] = [];
+
+      const usersForm = state(
+        [
+          { id: 'a', email: 'a@a.com' },
+          { id: 'b', email: 'b@b.com' },
+        ],
+        insertForm(
+          { identifier: ({ item }) => item.id },
+          (context) =>
+            selectFormTree(context, 'email', (sub) => {
+              seenIdentifiers.push(sub.formIdentifier);
+              return formAttributes(sub, { validators: [cRequired()] });
+            }),
+        ),
+      );
+
+      usersForm.select('a')?.selectEmail();
+      usersForm.select('b')?.selectEmail();
+
+      expect(seenIdentifiers.sort()).toEqual(['a', 'b']);
+    });
+  });
+
+  it('exposes firstLeftFailedValidation and lastRightFailedValidation', () => {
+    TestBed.runInInjectionContext(() => {
+      const fieldState = signal<string>('');
+      const fieldForm = state(
+        fieldState,
+        insertForm((context) =>
+          formAttributes(context, {
+            validators: [
+              cValidator({
+                name: 'hasAtSign',
+                validWhen: () => fieldState().includes('@'),
+                exception: () => craftException({ code: 'MISSING_AT' }),
+              }),
+              cValidator({
+                name: 'hasDot',
+                validWhen: () => fieldState().includes('.'),
+                exception: () => craftException({ code: 'MISSING_DOT' }),
+              }),
+            ],
+          }),
+        ),
+      );
+
+      expect(
+        (fieldForm.form.firstLeftFailedValidation() as { code: string })?.code,
+      ).toBe('MISSING_AT');
+      expect(
+        (fieldForm.form.lastRightFailedValidation() as { code: string })?.code,
+      ).toBe('MISSING_DOT');
+
+      fieldState.set('foo@bar.com');
+      TestBed.tick();
+      expect(fieldForm.form.firstLeftFailedValidation()).toBeUndefined();
+      expect(fieldForm.form.lastRightFailedValidation()).toBeUndefined();
+
+      void computed(() => fieldForm.form.firstLeftFailedValidation());
     });
   });
 });

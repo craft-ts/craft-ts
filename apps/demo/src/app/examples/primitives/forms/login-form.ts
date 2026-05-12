@@ -1,12 +1,12 @@
-import { CommonModule } from '@angular/common';
+import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
+  CraftFieldDirective,
   ValidatedFormValue,
   cEmail,
   cMinLength,
   cRequired,
   craftException,
-  CraftFieldDirective,
   insertForm,
   insertFormAttributes,
   insertFormSubmit,
@@ -26,7 +26,7 @@ type LoginData = {
 
 @Component({
   selector: 'app-login-form',
-  imports: [CommonModule, CraftFieldDirective],
+  imports: [CraftFieldDirective, JsonPipe],
   template: `
     <div class="login-container">
       <div class="login-card">
@@ -254,8 +254,8 @@ export default class LoginFormComponent {
 
 export type GenDeps_LoginFormComponent = GetDeps<{
   deps: {
-    CommonModule: CommonModule;
-    CraftFieldDirective: typeof CraftFieldDirective;
+    JsonPipe: JsonPipe;
+    CraftFieldDirective: CraftFieldDirective<unknown>;
   };
   propertiesDeps: {
     loginMutation: ExtractDeps<LoginFormComponent['loginMutation']>;

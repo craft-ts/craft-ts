@@ -20,6 +20,8 @@ export default [
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
+      'craft-ng/app-start-registry-match': 'error',
+      'craft-ng/brand-angular-deps-match': 'error',
       '@angular-eslint/directive-selector': [
         'error',
         {
@@ -37,8 +39,6 @@ export default [
         },
       ],
       '@typescript-eslint/no-empty-object-type': 'off',
-      'craft-ng/app-start-registry-match': 'error',
-      'craft-ng/brand-angular-deps-match': 'error',
     },
   },
   {

@@ -108,6 +108,148 @@ type ExceptionUnion<Validators> = ExtractValidatorMetadata<
   NonNullable<Validators>
 >;
 
+type FormAttributesOutputs<Validators> = {
+  exceptions: Signal<{
+    list: ExceptionsList<Validators>;
+    byValidator: ExceptionsByValidator<NonNullable<Validators>>;
+  }>;
+  /**
+   * Exceptions that should be visible to the user. By default, all exceptions are
+   * hidden until the field is dirty or the form has been attempted to be submitted at least once.
+   */
+  visibleExceptions: Signal<{
+    list: ExceptionsList<Validators>;
+    byValidator: ExceptionsByValidator<NonNullable<Validators>>;
+  }>;
+  hasExceptions: Signal<boolean>;
+  /**
+   * The first failing validator's exception, scanning the `validators` array
+   * left-to-right. Useful in templates to display a single error without a `@for` loop.
+   * Returns `undefined` when the field is valid.
+   */
+  firstLeftFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
+  /**
+   * The last failing validator's exception, scanning the `validators` array
+   * right-to-left. Useful when the rightmost validator is the most specific.
+   * Returns `undefined` when the field is valid.
+   */
+  lastRightFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
+  /**
+   * Same as `firstLeftFailedValidation` but only emits once the field is dirty
+   * or the form has been submitted at least once.
+   */
+  visibleFirstLeftFailedValidation: Signal<
+    ExceptionUnion<Validators> | undefined
+  >;
+  /**
+   * Same as `lastRightFailedValidation` but only emits once the field is dirty
+   * or the form has been submitted at least once.
+   */
+  visibleLastRightFailedValidation: Signal<
+    ExceptionUnion<Validators> | undefined
+  >;
+};
+
+function applyFormAttributes<
+  StateType,
+  Validators extends AnyValidatorOutput,
+  FormIdentifier extends string | number | unknown,
+  PreviousInsertionsOutputs,
+>(
+  context: InsertFormAttributesContext<
+    StateType,
+    PreviousInsertionsOutputs,
+    FormIdentifier
+  >,
+  config: InsertFormAttributesConfig<StateType, Validators>,
+): FormAttributesOutputs<Validators> {
+  const field = context.field as unknown as CraftField<StateType>;
+
+  // Register hidden / disabled / readonly state bindings on the field.
+  const hiddenSignal = attributeInputToSignal(config.hidden);
+  if (hiddenSignal) field.ɵregisterStateBinding('hidden', hiddenSignal);
+  const disabledSignal = attributeInputToSignal(config.disable);
+  if (disabledSignal) field.ɵregisterStateBinding('disabled', disabledSignal);
+  const readonlySignal = attributeInputToSignal(config.readonly);
+  if (readonlySignal) field.ɵregisterStateBinding('readonly', readonlySignal);
+
+  // Register validators on the field. Each validator's brand is used to group exceptions.
+  const validatorBrands: string[] = [];
+  for (const validatorInput of config.validators ?? []) {
+    const brand = getValidatorBrand(validatorInput);
+    if (brand) validatorBrands.push(brand);
+    field.ɵregisterValidator(
+      validatorInput as unknown as CraftValidator<StateType>,
+      context.formIdentifier,
+    );
+  }
+
+  const shouldSkip = computed(
+    () => field.hidden() || field.disabled() || field.readonly(),
+  );
+
+  const exceptions = computed<FormNodeExceptions>(() => {
+    if (shouldSkip()) return EMPTY_EXCEPTIONS;
+    const list: unknown[] = [];
+    const byValidator: Record<string, unknown> = {};
+    for (const error of field.errors()) {
+      if (!validatorBrands.length || matchesBrand(error, validatorBrands)) {
+        list.push(error);
+        const brand = (error as { __brand?: string }).__brand;
+        if (typeof brand === 'string') {
+          byValidator[brand] = error;
+        }
+      }
+    }
+    return { list, byValidator };
+  });
+
+  const visibleExceptions = computed<FormNodeExceptions>(() => {
+    if (!field.dirty() && !context.hasAttemptedSubmit()) {
+      return EMPTY_EXCEPTIONS;
+    }
+    return exceptions();
+  });
+
+  const firstLeftFailedValidation = computed<unknown>(() => {
+    const byBrand = exceptions().byValidator;
+    for (const brand of validatorBrands) {
+      const error = byBrand[brand];
+      if (error !== undefined) return error;
+    }
+    return undefined;
+  });
+
+  const lastRightFailedValidation = computed<unknown>(() => {
+    const byBrand = exceptions().byValidator;
+    for (let i = validatorBrands.length - 1; i >= 0; i--) {
+      const error = byBrand[validatorBrands[i]];
+      if (error !== undefined) return error;
+    }
+    return undefined;
+  });
+
+  const visibleFirstLeftFailedValidation = computed<unknown>(() => {
+    if (!field.dirty() && !context.hasAttemptedSubmit()) return undefined;
+    return firstLeftFailedValidation();
+  });
+
+  const visibleLastRightFailedValidation = computed<unknown>(() => {
+    if (!field.dirty() && !context.hasAttemptedSubmit()) return undefined;
+    return lastRightFailedValidation();
+  });
+
+  return {
+    exceptions,
+    visibleExceptions,
+    hasExceptions: computed(() => exceptions().list.length > 0),
+    firstLeftFailedValidation,
+    lastRightFailedValidation,
+    visibleFirstLeftFailedValidation,
+    visibleLastRightFailedValidation,
+  } as unknown as FormAttributesOutputs<Validators>;
+}
+
 export function insertFormAttributes<
   StateType,
   Validators extends AnyValidatorOutput = never,
@@ -124,155 +266,26 @@ export function insertFormAttributes<
 ): InsertionsFormFactory<
   StateType,
   FormIdentifier,
-  {
-    exceptions: Signal<{
-      list: ExceptionsList<Validators>;
-      byValidator: ExceptionsByValidator<NonNullable<Validators>>;
-    }>;
-    /**
-     * Exceptions that should be visible to the user. By default, all exceptions are
-     * hidden until the field is dirty or the form has been attempted to be submitted at least once.
-     */
-    visibleExceptions: Signal<{
-      list: ExceptionsList<Validators>;
-      byValidator: ExceptionsByValidator<NonNullable<Validators>>;
-    }>;
-    hasExceptions: Signal<boolean>;
-    /**
-     * The first failing validator's exception, scanning the `validators` array
-     * left-to-right. Useful in templates to display a single error without a `@for` loop.
-     * Returns `undefined` when the field is valid.
-     */
-    firstLeftFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
-    /**
-     * The last failing validator's exception, scanning the `validators` array
-     * right-to-left. Useful when the rightmost validator is the most specific.
-     * Returns `undefined` when the field is valid.
-     */
-    lastRightFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
-    /**
-     * Same as `firstLeftFailedValidation` but only emits once the field is dirty
-     * or the form has been submitted at least once.
-     */
-    visibleFirstLeftFailedValidation: Signal<
-      ExceptionUnion<Validators> | undefined
-    >;
-    /**
-     * Same as `lastRightFailedValidation` but only emits once the field is dirty
-     * or the form has been submitted at least once.
-     */
-    visibleLastRightFailedValidation: Signal<
-      ExceptionUnion<Validators> | undefined
-    >;
-  },
+  FormAttributesOutputs<Validators>,
   PreviousInsertionsOutputs
 > {
-  return (context) => {
-    const config = _factory(context);
-    const field = context.field as unknown as CraftField<StateType>;
+  return (context) => applyFormAttributes(context, _factory(context));
+}
 
-    // Register hidden / disabled / readonly state bindings on the field.
-    const hiddenSignal = attributeInputToSignal(config.hidden);
-    if (hiddenSignal) field.ɵregisterStateBinding('hidden', hiddenSignal);
-    const disabledSignal = attributeInputToSignal(config.disable);
-    if (disabledSignal) field.ɵregisterStateBinding('disabled', disabledSignal);
-    const readonlySignal = attributeInputToSignal(config.readonly);
-    if (readonlySignal) field.ɵregisterStateBinding('readonly', readonlySignal);
-
-    // Register validators on the field. Each validator's brand is used to group exceptions.
-    const validatorBrands: string[] = [];
-    for (const validatorInput of config.validators ?? []) {
-      const brand = getValidatorBrand(validatorInput);
-      if (brand) validatorBrands.push(brand);
-      field.ɵregisterValidator(
-        validatorInput as unknown as CraftValidator<StateType>,
-        context.formIdentifier,
-      );
-    }
-
-    const shouldSkip = computed(
-      () => field.hidden() || field.disabled() || field.readonly(),
-    );
-
-    const exceptions = computed<FormNodeExceptions>(() => {
-      if (shouldSkip()) return EMPTY_EXCEPTIONS;
-      const list: unknown[] = [];
-      const byValidator: Record<string, unknown> = {};
-      for (const error of field.errors()) {
-        if (!validatorBrands.length || matchesBrand(error, validatorBrands)) {
-          list.push(error);
-          const brand = (error as { __brand?: string }).__brand;
-          if (typeof brand === 'string') {
-            byValidator[brand] = error;
-          }
-        }
-      }
-      return { list, byValidator };
-    });
-
-    const visibleExceptions = computed<FormNodeExceptions>(() => {
-      if (!field.dirty() && !context.hasAttemptedSubmit()) {
-        return EMPTY_EXCEPTIONS;
-      }
-      return exceptions();
-    });
-
-    const firstLeftFailedValidation = computed<unknown>(() => {
-      const byBrand = exceptions().byValidator;
-      for (const brand of validatorBrands) {
-        const error = byBrand[brand];
-        if (error !== undefined) return error;
-      }
-      return undefined;
-    });
-
-    const lastRightFailedValidation = computed<unknown>(() => {
-      const byBrand = exceptions().byValidator;
-      for (let i = validatorBrands.length - 1; i >= 0; i--) {
-        const error = byBrand[validatorBrands[i]];
-        if (error !== undefined) return error;
-      }
-      return undefined;
-    });
-
-    const visibleFirstLeftFailedValidation = computed<unknown>(() => {
-      if (!field.dirty() && !context.hasAttemptedSubmit()) return undefined;
-      return firstLeftFailedValidation();
-    });
-
-    const visibleLastRightFailedValidation = computed<unknown>(() => {
-      if (!field.dirty() && !context.hasAttemptedSubmit()) return undefined;
-      return lastRightFailedValidation();
-    });
-
-    return {
-      exceptions,
-      visibleExceptions,
-      hasExceptions: computed(() => exceptions().list.length > 0),
-      firstLeftFailedValidation,
-      lastRightFailedValidation,
-      visibleFirstLeftFailedValidation,
-      visibleLastRightFailedValidation,
-    } as unknown as {
-      exceptions: Signal<{
-        list: ExceptionsList<Validators>;
-        byValidator: ExceptionsByValidator<NonNullable<Validators>>;
-      }>;
-      visibleExceptions: Signal<{
-        list: ExceptionsList<Validators>;
-        byValidator: ExceptionsByValidator<NonNullable<Validators>>;
-      }>;
-      hasExceptions: Signal<boolean>;
-      firstLeftFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
-      lastRightFailedValidation: Signal<ExceptionUnion<Validators> | undefined>;
-      visibleFirstLeftFailedValidation: Signal<
-        ExceptionUnion<Validators> | undefined
-      >;
-      visibleLastRightFailedValidation: Signal<
-        ExceptionUnion<Validators> | undefined
-      >;
-    };
-  };
+export function formAttributes<
+  StateType,
+  Validators extends AnyValidatorOutput = never,
+  FormIdentifier extends string | number | unknown = unknown,
+  PreviousInsertionsOutputs = {},
+>(
+  context: InsertFormAttributesContext<
+    StateType,
+    PreviousInsertionsOutputs,
+    FormIdentifier
+  >,
+  config: InsertFormAttributesConfig<StateType, Validators>,
+): FormAttributesOutputs<Validators> {
+  return applyFormAttributes(context, config);
 }
 
 function matchesBrand(

@@ -111,6 +111,7 @@ type GeneratedDependencyGroupAugmentation = {
   deps: GeneratedDependencyDescriptor[];
   missingProvider: GeneratedDependencyDescriptor[];
   legacyInjectedDependencies: GeneratedDependencyDescriptor[];
+  suppressedImportDependencyTexts: Set<string>;
 };
 
 export type DependencyAnalysisResult = Omit<TransformResult, 'changed'> & {
@@ -290,15 +291,36 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
     {
       match: {
         module: '@craft-ng/core',
-        symbols: ['CraftField'],
+        symbols: ['CraftFieldDirective'],
         metadata: ['imports'],
       },
       deps: [
         {
-          key: 'CraftField',
-          symbol: 'CraftField',
-          typeText: 'CraftField<unknown>',
+          key: 'CraftFieldDirective',
+          symbol: 'CraftFieldDirective',
+          typeText: 'CraftFieldDirective<unknown>',
           module: '@craft-ng/core',
+        },
+      ],
+    },
+    {
+      match: {
+        module: '@craft-ng/core',
+        symbols: ['CraftRouterLink'],
+        metadata: ['imports'],
+      },
+      deps: [
+        {
+          key: 'CraftRouterLink',
+          symbol: 'CraftRouterLink',
+          module: '@craft-ng/core',
+        },
+      ],
+      missingProvider: [
+        {
+          key: 'Router',
+          symbol: 'Router',
+          module: '@angular/router',
         },
       ],
     },
@@ -1244,6 +1266,7 @@ function emptyGeneratedDependencyGroupAugmentation(): GeneratedDependencyGroupAu
     deps: [],
     missingProvider: [],
     legacyInjectedDependencies: [],
+    suppressedImportDependencyTexts: new Set(),
   };
 }
 
@@ -1264,9 +1287,14 @@ function createGeneratedDependencyGroups(
     createGeneratedDependencyEntry(sourceFile, dependency, 'inject'),
   );
   const deps = mergeGeneratedDependencyEntries(
-    importDependencies.map((dependency) =>
-      createGeneratedDependencyEntry(sourceFile, dependency, 'import'),
-    ),
+    importDependencies
+      .filter(
+        (dependency) =>
+          !augmentation.suppressedImportDependencyTexts.has(dependency),
+      )
+      .map((dependency) =>
+        createGeneratedDependencyEntry(sourceFile, dependency, 'import'),
+      ),
     constructorEntries,
     augmentation.deps.map((dependency) => dependency.entry),
   );
@@ -1309,13 +1337,13 @@ function createGeneratedDependencyGroupAugmentation(
   const deps: GeneratedDependencyDescriptor[] = [];
   const missingProvider: GeneratedDependencyDescriptor[] = [];
   const legacyInjectedDependencies: GeneratedDependencyDescriptor[] = [];
+  const suppressedImportDependencyTexts = new Set<string>();
 
   for (const rule of config.importAugmentations) {
-    if (
-      !metadataOccurrences.some((occurrence) =>
-        ruleMatchesMetadataOccurrence(rule, occurrence),
-      )
-    ) {
+    const matchingOccurrences = metadataOccurrences.filter((occurrence) =>
+      ruleMatchesMetadataOccurrence(rule, occurrence),
+    );
+    if (matchingOccurrences.length === 0) {
       continue;
     }
 
@@ -1337,12 +1365,23 @@ function createGeneratedDependencyGroupAugmentation(
     deps.push(...generatedDeps);
     missingProvider.push(...generatedMissingProviders);
     legacyInjectedDependencies.push(...generatedMissingProviders);
+
+    const ruleEntryKeys = new Set(rule.deps.map((entry) => entry.key));
+    for (const occurrence of matchingOccurrences) {
+      if (
+        occurrence.metadataContext === 'imports' &&
+        ruleEntryKeys.has(occurrence.symbolName)
+      ) {
+        suppressedImportDependencyTexts.add(occurrence.dependencyText);
+      }
+    }
   }
 
   return {
     deps,
     missingProvider,
     legacyInjectedDependencies,
+    suppressedImportDependencyTexts,
   };
 }
 

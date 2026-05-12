@@ -85,11 +85,17 @@ type InsertSelectFormTreeReturn<
 > = InsertionsFormFactory<
   StateType,
   FormIdentifier,
-  StateType extends readonly unknown[]
-    ? ArrayInsertSelectFormTreeOutput<StateType, Name, Insertions>
-    : ObjectInsertSelectFormTreeOutput<StateType, Name, Insertions>,
+  SelectFormTreeOutput<StateType, Name, Insertions>,
   PreviousInsertionsOutputs
 >;
+
+type SelectFormTreeOutput<
+  StateType,
+  Name extends string,
+  Insertions extends readonly unknown[],
+> = StateType extends readonly unknown[]
+  ? ArrayInsertSelectFormTreeOutput<StateType, Name, Insertions>
+  : ObjectInsertSelectFormTreeOutput<StateType, Name, Insertions>;
 
 function createObjectRuntime(
   propertyKey: string,
@@ -376,6 +382,180 @@ export function insertSelectFormTree(
     }
     return createObjectRuntime(name, ...insertions)(context);
   };
+}
+
+// =====================================================================
+//  Public API — `selectFormTree` (context-first variant)
+// =====================================================================
+
+export function selectFormTree<
+  StateType,
+  const Name extends AutoCompleteName & string,
+  FormIdentifier extends string | number | unknown = unknown,
+  Insertion1 = {},
+  PreviousInsertionsOutputs = {},
+  AutoCompleteName = NoInfer<StateType> extends readonly object[]
+    ? string
+    : keyof NoInfer<StateType>,
+>(
+  context: InsertionFormFactoryContext<
+    StateType,
+    PreviousInsertionsOutputs,
+    FormIdentifier
+  >,
+  name: Name,
+  insertion1: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+): SelectFormTreeOutput<
+  [Name] extends [keyof StateType]
+    ? IsArray<StateType[Name]> extends true
+      ? `craft-ng error, typing limitation: selectFormTree does not currently support selecting items from an array property in first insertion position. Use insertNoopTypingAnchor in the first slot.`
+      : StateType
+    : StateType,
+  Name,
+  [Insertion1]
+>;
+export function selectFormTree<
+  StateType,
+  const Name extends AutoCompleteName & string,
+  FormIdentifier extends string | number | unknown = unknown,
+  Insertion1 = {},
+  Insertion2 = {},
+  PreviousInsertionsOutputs = {},
+  AutoCompleteName = StateType extends readonly object[]
+    ? string
+    : keyof StateType,
+>(
+  context: InsertionFormFactoryContext<
+    StateType,
+    PreviousInsertionsOutputs,
+    FormIdentifier
+  >,
+  name: Name,
+  insertion1: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+): SelectFormTreeOutput<StateType, Name, [Insertion1, Insertion2]>;
+export function selectFormTree<
+  StateType,
+  const Name extends AutoCompleteName & string,
+  FormIdentifier extends string | number | unknown = unknown,
+  Insertion1 = {},
+  Insertion2 = {},
+  Insertion3 = {},
+  PreviousInsertionsOutputs = {},
+  AutoCompleteName = StateType extends readonly object[]
+    ? string
+    : keyof StateType,
+>(
+  context: InsertionFormFactoryContext<
+    StateType,
+    PreviousInsertionsOutputs,
+    FormIdentifier
+  >,
+  name: Name,
+  insertion1: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+): SelectFormTreeOutput<
+  StateType,
+  Name,
+  [Insertion1, Insertion2, Insertion3]
+>;
+export function selectFormTree<
+  StateType,
+  const Name extends AutoCompleteName & string,
+  FormIdentifier extends string | number | unknown = unknown,
+  Insertion1 = {},
+  Insertion2 = {},
+  Insertion3 = {},
+  Insertion4 = {},
+  PreviousInsertionsOutputs = {},
+  AutoCompleteName = StateType extends readonly object[]
+    ? string
+    : keyof StateType,
+>(
+  context: InsertionFormFactoryContext<
+    StateType,
+    PreviousInsertionsOutputs,
+    FormIdentifier
+  >,
+  name: Name,
+  insertion1: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion1,
+    PreviousInsertionsOutputs
+  >,
+  insertion2: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion2,
+    PreviousInsertionsOutputs & Insertion1
+  >,
+  insertion3: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion3,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2
+  >,
+  insertion4: InsertionsFormFactory<
+    SelectedFormTreeTarget<StateType, Name>,
+    FormIdentifier,
+    Insertion4,
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+  >,
+): SelectFormTreeOutput<
+  StateType,
+  Name,
+  [Insertion1, Insertion2, Insertion3, Insertion4]
+>;
+
+// =====================================================================
+//  Implementation
+// =====================================================================
+
+export function selectFormTree(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: InsertionFormFactoryContext<any, any, any>,
+  name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...insertions: InsertionsFormFactory<any, any, any, any>[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  const currentState = context.state();
+  if (Array.isArray(currentState)) {
+    return createArrayItemRuntime(name, ...insertions)(context);
+  }
+  return createObjectRuntime(name, ...insertions)(context);
 }
 
 // Reference linkedSignal so eslint doesn't complain about unused imports across overloads.

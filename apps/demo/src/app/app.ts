@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { RouterModule, type Router } from '@angular/router';
+import { RouterLinkActive, RouterOutlet, type Router } from '@angular/router';
 import {
   BrowserLocation,
   BrowserWindow,
@@ -12,7 +12,7 @@ import {
 } from '@craft-ng/core';
 
 @Component({
-  imports: [RouterModule, CraftRouterLink],
+  imports: [CraftRouterLink, RouterOutlet, RouterLinkActive],
   selector: 'app-root',
   template: `
     <div class="app-container">
@@ -315,9 +315,10 @@ export class App {
 
 export type GenDeps_App = GetDeps<{
   deps: {
-    RouterModule: RouterModule;
-    CraftRouterLink: CraftRouterLink;
+    RouterOutlet: RouterOutlet;
+    RouterLinkActive: RouterLinkActive;
     Router: Router;
+    CraftRouterLink: CraftRouterLink;
   };
   propertiesDeps: {
     clearCache: ExtractDeps<App['clearCache']>;

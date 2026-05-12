@@ -453,6 +453,33 @@ describe('angular-brand-codemod', () => {
     expect(output).not.toContain('type FormField');
   });
 
+  it('emits CraftFieldDirective<unknown> and suppresses GenDeps_CraftFieldDirective when CraftFieldDirective is imported in metadata imports', async () => {
+    const project = await createCraftFieldDirectiveMetadataProjectFixture({
+      'src/app/demo.ts': `
+        import { Component } from '@angular/core';
+        import { CraftFieldDirective } from '@craft-ng/core';
+
+        @Component({
+          standalone: true,
+          imports: [CraftFieldDirective],
+          template: '',
+        })
+        export class DemoComponent {}
+      `,
+    });
+
+    const sourceFile = getFixtureSourceFile(project, 'src/app/demo.ts');
+    transformSourceFile(sourceFile);
+    const output = sourceFile.getFullText();
+    const depsSection = extractGeneratedSection(output, 'deps');
+
+    expect(depsSection).toContain(
+      'CraftFieldDirective: CraftFieldDirective<unknown>;',
+    );
+    expect(depsSection).not.toContain('GenDeps_CraftFieldDirective');
+    expect(output).not.toContain('type CraftFieldDirective');
+  });
+
   it('applies inline project config rules for metadata imports', async () => {
     const project = await createTranslateProjectFixture({
       'src/app/demo.ts': `
@@ -986,6 +1013,55 @@ async function createSignalFormsMetadataProjectFixture(
       }
     `,
     ...files,
+  });
+}
+
+async function createCraftFieldDirectiveMetadataProjectFixture(
+  files: Record<string, string>,
+): Promise<Project> {
+  const tempDirectory = await mkdtemp(join(tmpdir(), 'angular-brand-codemod-'));
+  tempDirectories.push(tempDirectory);
+
+  await writeFixtureFiles(tempDirectory, {
+    'tsconfig.json': JSON.stringify(
+      {
+        compilerOptions: {
+          experimentalDecorators: true,
+          module: 'preserve',
+          moduleResolution: 'bundler',
+          strict: true,
+          target: 'ES2022',
+          baseUrl: '.',
+          paths: {
+            '@craft-ng/core': ['src/craft-ng-core/index.ts'],
+          },
+        },
+        include: ['src/**/*.ts', 'src/**/*.d.ts'],
+      },
+      null,
+      2,
+    ),
+    'src/angular-core.d.ts': `
+      declare module '@angular/core' {
+        export declare function Component(metadata: unknown): ClassDecorator;
+        export declare function Directive(metadata?: unknown): ClassDecorator;
+      }
+    `,
+    'src/craft-ng-core/index.ts': `
+      import { Directive } from '@angular/core';
+
+      @Directive({
+        selector: '[craftField]',
+        standalone: true,
+      })
+      export class CraftFieldDirective<T> {}
+    `,
+    ...files,
+  });
+
+  return new Project({
+    skipAddingFilesFromTsConfig: false,
+    tsConfigFilePath: join(tempDirectory, 'tsconfig.json'),
   });
 }
 

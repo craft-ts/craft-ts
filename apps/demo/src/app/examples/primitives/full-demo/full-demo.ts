@@ -611,7 +611,7 @@ export type GenDeps_FullDemo = GetDeps<{
   deps: {
     CommonModule: CommonModule;
     GenDeps_StatusComponent: GenDeps_StatusComponent;
-    CraftFieldDirective: CraftFieldDirective<any>;
+    CraftFieldDirective: CraftFieldDirective<unknown>;
   };
   propertiesDeps: {
     reset$: ExtractDeps<FullDemo['reset$']>;

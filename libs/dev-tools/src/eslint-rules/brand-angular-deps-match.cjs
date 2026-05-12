@@ -85,9 +85,20 @@ module.exports = {
           path.dirname(filePath),
           getCwd(context),
         );
+        if (process.env.DEBUG_CRAFT_RULE) {
+          console.log('[DEBUG] file text snippet:', text.substring(0, 300));
+          console.log('[DEBUG] sf text snippet:', sourceFile.getFullText().substring(0, 300));
+        }
         const analysis = analyzeSourceFileDependencies(sourceFile, {
           configFilePath,
         });
+        if (process.env.DEBUG_CRAFT_RULE) {
+          console.log('[DEBUG] analysis deps:', analysis.dependencyGroups);
+          console.log('[DEBUG] generated deps:', analysis.generatedDependencyGroups);
+          console.log('[DEBUG] className:', analysis.className, 'kind:', analysis.angularKind);
+          console.log('[DEBUG] sf has class?', !!sourceFile.getClass('DemoComponent'));
+          console.log('[DEBUG] full sf text:', sourceFile.getFullText());
+        }
         if (
           !analysis.classDeclaration ||
           analysis.skipped ||
