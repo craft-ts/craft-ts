@@ -40,6 +40,7 @@ export * from './lib/form/craft-field.directive';
 export * from './lib/form/insert-form';
 export * from './lib/form/insert-form-attributes';
 export * from './lib/form/insert-select-form-tree';
+export * from './lib/form/target-form-field';
 export * from './lib/form/insert-sub-form-field';
 export * from './lib/form/field-lens';
 export * from './lib/form/insert-form-submit';
