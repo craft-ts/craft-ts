@@ -3,6 +3,7 @@ const brandAngularDepsMatch = require('./brand-angular-deps-match.cjs');
 const appStartRegistryMatch = require('./app-start-registry-match.cjs');
 const componentTestGenDepsMatch = require('./component-test-gen-deps-match.cjs');
 const noAngularInject = require('./no-angular-inject.cjs');
+const noAngularSignalForms = require('./no-angular-signal-forms.cjs');
 const preferCraftHttpClient = require('./prefer-craft-http-client.cjs');
 const preferCraftService = require('./prefer-craft-service.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
@@ -14,6 +15,7 @@ module.exports = {
     'brand-angular-deps-match': brandAngularDepsMatch,
     'component-test-gen-deps-match': componentTestGenDepsMatch,
     'no-angular-inject': noAngularInject,
+    'no-angular-signal-forms': noAngularSignalForms,
     'prefer-craft-http-client': preferCraftHttpClient,
     'prefer-craft-service': preferCraftService,
     'prefer-browser-boundaries': preferBrowserBoundaries,
