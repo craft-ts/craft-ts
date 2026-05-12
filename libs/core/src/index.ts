@@ -42,6 +42,7 @@ export * from './lib/form/insert-form-attributes';
 export * from './lib/form/insert-select-form-tree';
 export * from './lib/form/target-form-field';
 export * from './lib/form/insert-sub-form-field';
+export * from './lib/form/make-form-tree-insert';
 export * from './lib/form/field-lens';
 export * from './lib/form/insert-form-submit';
 export * from './lib/form/validator';
