@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterOutlet, type Router } from '@angular/router';
 import {
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    provideHostName,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 @Component({
@@ -171,6 +172,7 @@ import {
     }
   `,
   imports: [RouterOutlet],
+  providers: [provideHostName('LazyLayoutComponent')]
 })
 export default class LazyLayoutComponent {
   public readonly teamId = input.required<string>();
@@ -178,19 +180,19 @@ export default class LazyLayoutComponent {
 }
 
 export type GenDeps_LazyLayoutComponent = GetDeps<{
-  deps: {
-    RouterOutlet: RouterOutlet;
-    Router: Router;
-  };
-  propertiesDeps: {
-    teamId: ExtractDeps<LazyLayoutComponent['teamId']>;
-    someParentRouteData: ExtractDeps<
-      LazyLayoutComponent['someParentRouteData']
-    >;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<LazyLayoutComponent>;
-  missingProvider: {
-    Router: Router;
-  };
-}>;
+      deps: {
+        RouterOutlet: RouterOutlet;
+        Router: Router;
+      };
+      propertiesDeps: {
+        teamId: ExtractDeps<LazyLayoutComponent["teamId"]>;
+        someParentRouteData: ExtractDeps<LazyLayoutComponent["someParentRouteData"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<LazyLayoutComponent>;
+      missingProvider: {
+        Router: Router;
+      };
+    }>;

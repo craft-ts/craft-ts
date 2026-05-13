@@ -1,23 +1,24 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-  craftService,
-  insertLocalStoragePersister,
-  insertPaginationPlaceholderData,
-  insertReactOnMutation,
-  mutation,
-  query,
-  queryParam,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    craftMethod,
+    craftService,
+    insertLocalStoragePersister,
+    insertPaginationPlaceholderData,
+    insertReactOnMutation,
+    mutation,
+    provideHostName,
+    query,
+    queryParam,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
+    StatusComponent,
+    type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
-import { craftMethod } from '@craft-ng/core';
 
 const {
   injectGranularMutation,
@@ -203,7 +204,7 @@ const {
   `,
   styleUrls: ['./granular-mutation.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideGranularMutation()],
+  providers: [provideGranularMutation(), provideHostName('GranularMutationCraft')],
 })
 export default class GranularMutationCraft {
   protected readonly store = injectGranularMutation();
@@ -217,20 +218,19 @@ export default class GranularMutationCraft {
 }
 
 export type GenDeps_GranularMutationCraft = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    store: {
-      GranularMutation: ExtractDeps<
-        typeof injectGranularMutation
-      >['GranularMutation'];
-    };
-    updatePageSize: ExtractDeps<GranularMutationCraft['updatePageSize']>;
-  };
-  provided: {
-    GranularMutation: ReturnType<typeof provideGranularMutation>;
-  };
-  publicProperties: GetPublicComponentProperties<GranularMutationCraft>;
-}>;
+      deps: {
+        CommonModule: CommonModule;
+        GenDeps_StatusComponent: GenDeps_StatusComponent;
+      };
+      propertiesDeps: {
+        store: {
+            GranularMutation: ExtractDeps<typeof injectGranularMutation>["GranularMutation"];
+          };
+        updatePageSize: ExtractDeps<GranularMutationCraft["updatePageSize"]>;
+      };
+      provided: {
+        GranularMutation: ReturnType<typeof provideGranularMutation>;
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<GranularMutationCraft>;
+    }>;

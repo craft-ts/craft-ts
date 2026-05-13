@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import { GetDeps, provideHostName, type GetPublicComponentProperties } from '@craft-ng/core';
 import {
-  injectDemoCraftLazyLayoutTeamIdData,
-  injectDemoTeamIdParams,
+    injectDemoCraftLazyLayoutTeamIdData,
+    injectDemoTeamIdParams,
 } from '../../../app.routes';
 import { OtherComponent, type GenDeps_OtherComponent } from './other';
 
@@ -118,6 +118,7 @@ import { OtherComponent, type GenDeps_OtherComponent } from './other';
     }
   `,
   imports: [OtherComponent],
+  providers: [provideHostName('LazyLayoutChildComponent')]
 })
 export default class LazyLayoutChildComponent {
   readonly injectedParentRouteData = injectDemoCraftLazyLayoutTeamIdData();
@@ -128,25 +129,23 @@ export default class LazyLayoutChildComponent {
 }
 
 export type GenDeps_LazyLayoutChildComponent = GetDeps<{
-  deps: {
-    GenDeps_OtherComponent: GenDeps_OtherComponent;
-  };
-  propertiesDeps: {
-    injectedParentRouteData: {
-      DemoCraftLazyLayoutTeamIdData: ReturnType<
-        typeof injectDemoCraftLazyLayoutTeamIdData
-      >;
-    };
-    injectedTeamId: {
-      DemoTeamIdParams: ReturnType<typeof injectDemoTeamIdParams>;
-    };
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<LazyLayoutChildComponent>;
-  missingProvider: {
-    DemoCraftLazyLayoutTeamIdData: ReturnType<
-      typeof injectDemoCraftLazyLayoutTeamIdData
-    >;
-    DemoTeamIdParams: ReturnType<typeof injectDemoTeamIdParams>;
-  };
-}>;
+      deps: {
+        GenDeps_OtherComponent: GenDeps_OtherComponent;
+      };
+      propertiesDeps: {
+        injectedParentRouteData: {
+            DemoCraftLazyLayoutTeamIdData: ReturnType<typeof injectDemoCraftLazyLayoutTeamIdData>;
+          };
+        injectedTeamId: {
+            DemoTeamIdParams: ReturnType<typeof injectDemoTeamIdParams>;
+          };
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<LazyLayoutChildComponent>;
+      missingProvider: {
+        DemoCraftLazyLayoutTeamIdData: ReturnType<typeof injectDemoCraftLazyLayoutTeamIdData>;
+        DemoTeamIdParams: ReturnType<typeof injectDemoTeamIdParams>;
+      };
+    }>;

@@ -1,9 +1,10 @@
 import { Directive, EventEmitter, HostListener, Input, Output } from '@angular/core';
-import { type GetDeps } from '@craft-ng/core';
+import { provideHostName, type GetDeps } from '@craft-ng/core';
 
 @Directive({
   selector: '[appLongPress]',
   standalone: true,
+  providers: [provideHostName('LongPressDirective')]
 })
 export class LongPressDirective {
   @Input('appLongPress') duration = 450;
@@ -56,5 +57,7 @@ export class LongPressDirective {
 
 export type GenDeps_LongPressDirective = GetDeps<{
       deps: {};
-      provided: {};
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
     }>;

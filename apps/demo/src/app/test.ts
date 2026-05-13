@@ -1,12 +1,13 @@
 import { Component } from '@angular/core';
 import {
-  craftService,
-  MaybeSignal,
-  state,
-  toValue,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    craftService,
+    MaybeSignal,
+    provideHostName,
+    state,
+    toValue,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 const { BToYield } = craftService({ name: 'B', scope: 'function' }, () => {
@@ -40,6 +41,7 @@ const { injectCounter } = craftService(
       <button (click)="counter2.increment()">Increment Counter 2</button>
     </div>
   `,
+  providers: [provideHostName('TestComponent')]
 })
 export default class TestComponent {
   counter1 = injectCounter({ initialValue: 0 });
@@ -47,15 +49,17 @@ export default class TestComponent {
 }
 
 export type GenDeps_TestComponent = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    counter1: {
-      Counter: ExtractDeps<typeof injectCounter>['Counter'];
-    };
-    counter2: {
-      Counter: ExtractDeps<typeof injectCounter>['Counter'];
-    };
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<TestComponent>;
-}>;
+      deps: {};
+      propertiesDeps: {
+        counter1: {
+            Counter: ExtractDeps<typeof injectCounter>["Counter"];
+          };
+        counter2: {
+            Counter: ExtractDeps<typeof injectCounter>["Counter"];
+          };
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<TestComponent>;
+    }>;

@@ -9,6 +9,7 @@ import {
     insertLocalStoragePersister,
     insertSelect,
     on$,
+    provideHostName,
     source$,
     state,
     type ExtractDeps,
@@ -175,6 +176,7 @@ const createInitialGrid = (): PixelCellState[][] =>
   `,
   styleUrls: ['./pixel-art-matrix.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [provideHostName('PixelArtMatrix')]
 })
 export default class PixelArtMatrix {
   protected readonly emptyColor = EMPTY_COLOR;
@@ -318,6 +320,8 @@ export type GenDeps_PixelArtMatrix = GetDeps<{
         colorPalette: ExtractDeps<PixelArtMatrix["colorPalette"]>;
         matrix: ExtractDeps<PixelArtMatrix["matrix"]>;
       };
-      provided: {};
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
       publicProperties: GetPublicComponentProperties<PixelArtMatrix>;
     }>;

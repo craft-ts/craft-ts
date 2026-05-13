@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { craftService, state, type ExtractDeps, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import { craftService, provideHostName, state, type ExtractDeps, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 
 const { injectCounter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
@@ -14,7 +14,7 @@ const { injectCounter, provideCounter } = craftService(
 @Component({
   selector: 'app-craft-service-counter',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideCounter()],
+  providers: [provideCounter(), provideHostName('CraftServiceCounterComponent')],
   template: `
     <div class="counter-demo">
       <h2>craftService Counter (toProvide scope)</h2>
@@ -70,6 +70,7 @@ export type GenDeps_CraftServiceCounterComponent = GetDeps<{
       };
       provided: {
         Counter: ReturnType<typeof provideCounter>;
+        HostName: ReturnType<typeof provideHostName>;
       };
       publicProperties: GetPublicComponentProperties<CraftServiceCounterComponent>;
     }>;

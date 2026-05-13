@@ -1,6 +1,12 @@
-import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
-import { craftException, query, type ExtractDeps, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import {
+  craftException,
+  provideHostName,
+  query,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
+} from '@craft-ng/core';
 
 type User = {
   id: string;
@@ -12,7 +18,6 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 
 @Component({
   selector: 'app-exceptions',
-  imports: [CommonModule],
   styles: [
     `
       .actions {
@@ -94,6 +99,7 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
       </div>
     }
   `,
+  providers: [provideHostName('ExceptionsComponent')],
 })
 export default class ExceptionsComponent {
   private readonly scenario = signal<Scenario>('success');
@@ -141,13 +147,13 @@ export default class ExceptionsComponent {
 }
 
 export type GenDeps_ExceptionsComponent = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-      };
-      propertiesDeps: {
-        scenario: ExtractDeps<ExceptionsComponent["scenario"]>;
-        userQuery: ExtractDeps<ExceptionsComponent["userQuery"]>;
-      };
-      provided: {};
-      publicProperties: GetPublicComponentProperties<ExceptionsComponent>;
-    }>;
+  deps: {};
+  propertiesDeps: {
+    scenario: ExtractDeps<ExceptionsComponent['scenario']>;
+    userQuery: ExtractDeps<ExceptionsComponent['userQuery']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<ExceptionsComponent>;
+}>;

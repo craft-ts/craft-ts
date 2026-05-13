@@ -1,11 +1,14 @@
-import { CommonModule } from '@angular/common';
 import { Component, input, ResourceStatus } from '@angular/core';
-import { type ExtractDeps, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import {
+    provideHostName,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
+} from '@craft-ng/core';
 
 @Component({
   selector: 'app-status',
   standalone: true,
-  imports: [CommonModule],
   styles: [
     `
       .badge-container {
@@ -133,18 +136,19 @@ import { type ExtractDeps, type GetDeps, type GetPublicComponentProperties } fro
       @default never;
     }
   `,
+  providers: [provideHostName('StatusComponent')],
 })
 export class StatusComponent {
   readonly status = input.required<ResourceStatus | 'exception'>();
 }
 
 export type GenDeps_StatusComponent = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-      };
+      deps: {};
       propertiesDeps: {
         status: ExtractDeps<StatusComponent["status"]>;
       };
-      provided: {};
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
       publicProperties: GetPublicComponentProperties<StatusComponent>;
     }>;

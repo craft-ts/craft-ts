@@ -1,16 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-  injectCraftRouter,
-  insertLocalStoragePersister,
-  query,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    injectCraftRouter,
+    insertLocalStoragePersister,
+    provideHostName,
+    query,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
+    StatusComponent,
+    type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { injectApiService } from './api.service';
 
@@ -39,6 +40,7 @@ import { injectApiService } from './api.service';
     <button (click)="previousPage()">Previous user</button>
     <button (click)="nextPage()">Next user</button>
   `,
+  providers: [provideHostName('GlobalQuery')]
 })
 export default class GlobalQuery {
   public readonly userId = input<string>();
@@ -79,23 +81,25 @@ export default class GlobalQuery {
 }
 
 export type GenDeps_GlobalQuery = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    userId: ExtractDeps<GlobalQuery['userId']>;
-    apiService: {
-      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
-    };
-    router: {
-      CraftRouter: ReturnType<typeof injectCraftRouter>;
-    };
-    userQuery: ExtractDeps<GlobalQuery['userQuery']>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<GlobalQuery>;
-  missingProvider: {
-    CraftRouter: ReturnType<typeof injectCraftRouter>;
-  };
-}>;
+      deps: {
+        CommonModule: CommonModule;
+        GenDeps_StatusComponent: GenDeps_StatusComponent;
+      };
+      propertiesDeps: {
+        userId: ExtractDeps<GlobalQuery["userId"]>;
+        apiService: {
+            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
+          };
+        router: {
+            CraftRouter: ReturnType<typeof injectCraftRouter>;
+          };
+        userQuery: ExtractDeps<GlobalQuery["userQuery"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<GlobalQuery>;
+      missingProvider: {
+        CraftRouter: ReturnType<typeof injectCraftRouter>;
+      };
+    }>;

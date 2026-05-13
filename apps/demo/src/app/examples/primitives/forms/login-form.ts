@@ -1,22 +1,23 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-  CraftFieldDirective,
-  ValidatedFormValue,
-  cEmail,
-  cMinLength,
-  cRequired,
-  craftException,
-  insertForm,
-  insertFormAttributes,
-  insertFormSubmit,
-  insertNoopTypingAnchor,
-  insertSelectFormTree,
-  mutation,
-  state,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    CraftFieldDirective,
+    ValidatedFormValue,
+    cEmail,
+    cMinLength,
+    cRequired,
+    craftException,
+    insertForm,
+    insertFormAttributes,
+    insertFormSubmit,
+    insertNoopTypingAnchor,
+    insertSelectFormTree,
+    mutation,
+    provideHostName,
+    state,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 type LoginData = {
@@ -212,6 +213,7 @@ type LoginData = {
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [provideHostName('LoginFormComponent')]
 })
 export default class LoginFormComponent {
   private readonly loginMutation = mutation({
@@ -253,14 +255,16 @@ export default class LoginFormComponent {
 }
 
 export type GenDeps_LoginFormComponent = GetDeps<{
-  deps: {
-    JsonPipe: JsonPipe;
-    CraftFieldDirective: CraftFieldDirective<unknown>;
-  };
-  propertiesDeps: {
-    loginMutation: ExtractDeps<LoginFormComponent['loginMutation']>;
-    loginForm: ExtractDeps<LoginFormComponent['loginForm']>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<LoginFormComponent>;
-}>;
+      deps: {
+        JsonPipe: JsonPipe;
+        CraftFieldDirective: CraftFieldDirective<unknown>;
+      };
+      propertiesDeps: {
+        loginMutation: ExtractDeps<LoginFormComponent["loginMutation"]>;
+        loginForm: ExtractDeps<LoginFormComponent["loginForm"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<LoginFormComponent>;
+    }>;

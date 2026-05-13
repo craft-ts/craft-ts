@@ -1,16 +1,17 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-  insertLocalStoragePersister,
-  insertPaginationPlaceholderData,
-  query,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    insertLocalStoragePersister,
+    insertPaginationPlaceholderData,
+    provideHostName,
+    query,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 import { injectDemoQueryParamQueryParams } from '../../../app.routes';
 import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
+    StatusComponent,
+    type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { injectApiService } from './api.service';
 
@@ -95,6 +96,7 @@ import { injectApiService } from './api.service';
   `,
   styleUrls: ['./list-with-pagination.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [provideHostName('QpListWithPagination')]
 })
 export default class QpListWithPagination {
   protected readonly pagination = injectDemoQueryParamQueryParams();
@@ -121,25 +123,23 @@ export default class QpListWithPagination {
 }
 
 export type GenDeps_QpListWithPagination = GetDeps<{
-  deps: {
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    pagination: {
-      DemoQueryParamQueryParams: ReturnType<
-        typeof injectDemoQueryParamQueryParams
-      >;
-    };
-    apiService: {
-      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
-    };
-    usersQuery: ExtractDeps<QpListWithPagination['usersQuery']>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<QpListWithPagination>;
-  missingProvider: {
-    DemoQueryParamQueryParams: ReturnType<
-      typeof injectDemoQueryParamQueryParams
-    >;
-  };
-}>;
+      deps: {
+        GenDeps_StatusComponent: GenDeps_StatusComponent;
+      };
+      propertiesDeps: {
+        pagination: {
+            DemoQueryParamQueryParams: ReturnType<typeof injectDemoQueryParamQueryParams>;
+          };
+        apiService: {
+            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
+          };
+        usersQuery: ExtractDeps<QpListWithPagination["usersQuery"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<QpListWithPagination>;
+      missingProvider: {
+        DemoQueryParamQueryParams: ReturnType<typeof injectDemoQueryParamQueryParams>;
+      };
+    }>;

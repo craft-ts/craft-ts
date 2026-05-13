@@ -1,12 +1,13 @@
 import { Component } from '@angular/core';
 import {
-  craftException,
-  CraftHttpClient,
-  craftService,
-  query,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    craftException,
+    CraftHttpClient,
+    craftService,
+    provideHostName,
+    query,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 import { User } from '../query/api.service';
 import { injectOtherService, provideOtherService } from './to-provide.service';
@@ -71,7 +72,7 @@ const { injectTest2 } = craftService(
 
 @Component({
   selector: 'app-other',
-  providers: [provideOtherService()],
+  providers: [provideOtherService(), provideHostName('OtherComponent')],
   template: ` {{ _injectOtherService.getValue() }}
     query status: {{ _injectUsersApiOnError.query.status() }}`,
 })
@@ -82,22 +83,21 @@ export class OtherComponent {
 }
 
 export type GenDeps_OtherComponent = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    _injectOtherService: {
-      OtherService: ExtractDeps<typeof injectOtherService>['OtherService'];
-    };
-    _injectUsersApiOnError: {
-      UsersApiOnError: ExtractDeps<
-        typeof injectUsersApiOnError
-      >['UsersApiOnError'];
-    };
-    _injectTest2: {
-      test2: ExtractDeps<typeof injectTest2>['test2'];
-    };
-  };
-  provided: {
-    OtherService: ReturnType<typeof provideOtherService>;
-  };
-  publicProperties: GetPublicComponentProperties<OtherComponent>;
-}>;
+      deps: {};
+      propertiesDeps: {
+        _injectOtherService: {
+            OtherService: ExtractDeps<typeof injectOtherService>["OtherService"];
+          };
+        _injectUsersApiOnError: {
+            UsersApiOnError: ExtractDeps<typeof injectUsersApiOnError>["UsersApiOnError"];
+          };
+        _injectTest2: {
+            test2: ExtractDeps<typeof injectTest2>["test2"];
+          };
+      };
+      provided: {
+        OtherService: ReturnType<typeof provideOtherService>;
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<OtherComponent>;
+    }>;

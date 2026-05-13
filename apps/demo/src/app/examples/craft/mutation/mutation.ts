@@ -1,22 +1,23 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-  CraftRouterToYield,
-  craftMethod,
-  craftService,
-  insertLocalStoragePersister,
-  insertReactOnMutation,
-  mutation,
-  query,
-  toValue,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
-  type MaybeSignal,
+    CraftRouterToYield,
+    craftMethod,
+    craftService,
+    insertLocalStoragePersister,
+    insertReactOnMutation,
+    mutation,
+    provideHostName,
+    query,
+    toValue,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties,
+    type MaybeSignal
 } from '@craft-ng/core';
 import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
+    StatusComponent,
+    type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
@@ -60,7 +61,7 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
 @Component({
   selector: 'app-mutation',
   imports: [JsonPipe, StatusComponent],
-  providers: [provideUserMutation()],
+  providers: [provideUserMutation(), provideHostName('MutationCraft')],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['mutation.css'],
   template: `
@@ -135,21 +136,22 @@ export default class MutationCraft {
 }
 
 export type GenDeps_MutationCraft = GetDeps<{
-  deps: {
-    JsonPipe: JsonPipe;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    userId: ExtractDeps<MutationCraft['userId']>;
-    store: {
-      UserMutation: ExtractDeps<typeof injectUserMutation>['UserMutation'];
-    };
-    updateUserNameFn: ExtractDeps<MutationCraft['updateUserNameFn']>;
-    nextPage: ExtractDeps<MutationCraft['nextPage']>;
-    previousPage: ExtractDeps<MutationCraft['previousPage']>;
-  };
-  provided: {
-    UserMutation: ReturnType<typeof provideUserMutation>;
-  };
-  publicProperties: GetPublicComponentProperties<MutationCraft>;
-}>;
+      deps: {
+        JsonPipe: JsonPipe;
+        GenDeps_StatusComponent: GenDeps_StatusComponent;
+      };
+      propertiesDeps: {
+        userId: ExtractDeps<MutationCraft["userId"]>;
+        store: {
+            UserMutation: ExtractDeps<typeof injectUserMutation>["UserMutation"];
+          };
+        updateUserNameFn: ExtractDeps<MutationCraft["updateUserNameFn"]>;
+        nextPage: ExtractDeps<MutationCraft["nextPage"]>;
+        previousPage: ExtractDeps<MutationCraft["previousPage"]>;
+      };
+      provided: {
+        UserMutation: ReturnType<typeof provideUserMutation>;
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<MutationCraft>;
+    }>;

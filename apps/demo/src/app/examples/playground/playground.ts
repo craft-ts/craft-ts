@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-  craftMethod,
-  craftService,
-  insertReactOnMutation,
-  mutation,
-  query,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    craftMethod,
+    craftService,
+    insertReactOnMutation,
+    mutation,
+    provideHostName,
+    query,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 // -- Types --
@@ -242,6 +243,7 @@ const { injectPlayground, PlaygroundToYield } = craftService(
       font-style: italic;
     }
   `,
+  providers: [provideHostName('PlaygroundComponent')]
 })
 export default class PlaygroundComponent {
   protected readonly pg = injectPlayground();
@@ -257,13 +259,15 @@ export default class PlaygroundComponent {
 }
 
 export type GenDeps_PlaygroundComponent = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    pg: {
-      Playground: ExtractDeps<typeof injectPlayground>['Playground'];
-    };
-    add: ExtractDeps<PlaygroundComponent['add']>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<PlaygroundComponent>;
-}>;
+      deps: {};
+      propertiesDeps: {
+        pg: {
+            Playground: ExtractDeps<typeof injectPlayground>["Playground"];
+          };
+        add: ExtractDeps<PlaygroundComponent["add"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<PlaygroundComponent>;
+    }>;

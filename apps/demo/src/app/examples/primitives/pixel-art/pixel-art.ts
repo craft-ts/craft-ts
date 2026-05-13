@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
     insertLocalStoragePersister,
     insertSelect,
+    provideHostName,
     state,
     type ExtractDeps,
     type GetDeps,
@@ -77,6 +78,7 @@ const CELL_INDEXES = Array.from(
   `,
   styleUrls: ['./pixel-art.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [provideHostName('PixelArt')]
 })
 export default class PixelArt {
   protected readonly totalCells = TOTAL_CELLS;
@@ -155,6 +157,8 @@ export type GenDeps_PixelArt = GetDeps<{
         ui: ExtractDeps<PixelArt["ui"]>;
         cells: ExtractDeps<PixelArt["cells"]>;
       };
-      provided: {};
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
       publicProperties: GetPublicComponentProperties<PixelArt>;
     }>;

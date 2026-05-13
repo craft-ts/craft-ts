@@ -1,49 +1,49 @@
-import { CommonModule } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  signal,
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    signal,
 } from '@angular/core';
 import {
-  asyncProcess,
-  cMinLength,
-  CraftFieldDirective,
-  cRequired,
-  insertForm,
-  insertFormAttributes,
-  insertFormSubmit,
-  insertLocalStoragePersister,
-  insertNoopTypingAnchor,
-  insertPaginationPlaceholderData,
-  insertReactOnMutation,
-  insertSelectFormTree,
-  mutation,
-  on$,
-  query,
-  queryParam,
-  reactiveWritableSignal,
-  removeMany,
-  removeOne,
-  source$,
-  state,
-  updateOne,
-  ValidatedFormValue,
-  type DerivedService,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
-  type GetServiceOutput,
+    asyncProcess,
+    cMinLength,
+    CraftFieldDirective,
+    cRequired,
+    insertForm,
+    insertFormAttributes,
+    insertFormSubmit,
+    insertLocalStoragePersister,
+    insertNoopTypingAnchor,
+    insertPaginationPlaceholderData,
+    insertReactOnMutation,
+    insertSelectFormTree,
+    mutation,
+    on$,
+    provideHostName,
+    query,
+    queryParam,
+    reactiveWritableSignal,
+    removeMany,
+    removeOne,
+    source$,
+    state,
+    updateOne,
+    ValidatedFormValue,
+    type DerivedService,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties,
+    type GetServiceOutput,
 } from '@craft-ng/core';
 import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
+    StatusComponent,
+    type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield, injectApiService, User } from './api.service';
 
 @Component({
   selector: 'app-granular-mutation',
-  imports: [CommonModule, StatusComponent, CraftFieldDirective],
+  imports: [StatusComponent, CraftFieldDirective],
   template: `
     <div class="container">
       <main class="content">
@@ -339,6 +339,7 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
   `,
   styleUrls: ['./full-demo.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [provideHostName('FullDemo')],
 })
 export default class FullDemo {
   protected readonly reset$ = source$<void>();
@@ -608,42 +609,36 @@ function wait(ms: number) {
 }
 
 export type GenDeps_FullDemo = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-    CraftFieldDirective: CraftFieldDirective<unknown>;
-  };
-  propertiesDeps: {
-    reset$: ExtractDeps<FullDemo['reset$']>;
-    apiService: {
-      ApiService: DerivedService<
-        ExtractDeps<typeof injectApiService>['ApiService'],
-        {
-          derivedPropertiesUsed: {
-            throwError: GetServiceOutput<typeof injectApiService>['throwError'];
-            toggleUpdateError: GetServiceOutput<
-              typeof injectApiService
-            >['toggleUpdateError'];
+      deps: {
+        GenDeps_StatusComponent: GenDeps_StatusComponent;
+        CraftFieldDirective: CraftFieldDirective<unknown>;
+      };
+      propertiesDeps: {
+        reset$: ExtractDeps<FullDemo["reset$"]>;
+        apiService: {
+            ApiService: DerivedService<ExtractDeps<typeof injectApiService>["ApiService"], {
+              derivedPropertiesUsed: {
+                throwError: GetServiceOutput<typeof injectApiService>["throwError"];
+                toggleUpdateError: GetServiceOutput<typeof injectApiService>["toggleUpdateError"];
+              };
+              derivedPropertiesExposed: {
+                throwError: GetServiceOutput<typeof injectApiService>["throwError"];
+                toggleUpdateError: GetServiceOutput<typeof injectApiService>["toggleUpdateError"];
+              };
+            }>;
           };
-          derivedPropertiesExposed: {
-            throwError: GetServiceOutput<typeof injectApiService>['throwError'];
-            toggleUpdateError: GetServiceOutput<
-              typeof injectApiService
-            >['toggleUpdateError'];
-          };
-        }
-      >;
-    };
-    pagination: ExtractDeps<FullDemo['pagination']>;
-    bulkDelete: ExtractDeps<FullDemo['bulkDelete']>;
-    delayUserDeletion: ExtractDeps<FullDemo['delayUserDeletion']>;
-    deleteUser: ExtractDeps<FullDemo['deleteUser']>;
-    updateUserName: ExtractDeps<FullDemo['updateUserName']>;
-    usersQuery: ExtractDeps<FullDemo['usersQuery']>;
-    currentUsersPageResource: ExtractDeps<FullDemo['currentUsersPageResource']>;
-    usersByPage: ExtractDeps<FullDemo['usersByPage']>;
-    selectedRows: ExtractDeps<FullDemo['selectedRows']>;
-  };
-  provided: {};
-  publicProperties: GetPublicComponentProperties<FullDemo>;
-}>;
+        pagination: ExtractDeps<FullDemo["pagination"]>;
+        bulkDelete: ExtractDeps<FullDemo["bulkDelete"]>;
+        delayUserDeletion: ExtractDeps<FullDemo["delayUserDeletion"]>;
+        deleteUser: ExtractDeps<FullDemo["deleteUser"]>;
+        updateUserName: ExtractDeps<FullDemo["updateUserName"]>;
+        usersQuery: ExtractDeps<FullDemo["usersQuery"]>;
+        currentUsersPageResource: ExtractDeps<FullDemo["currentUsersPageResource"]>;
+        usersByPage: ExtractDeps<FullDemo["usersByPage"]>;
+        selectedRows: ExtractDeps<FullDemo["selectedRows"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<FullDemo>;
+    }>;

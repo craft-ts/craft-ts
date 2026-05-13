@@ -5,13 +5,14 @@ import {
     insertLocalStoragePersister,
     insertReactOnMutation,
     mutation,
+    provideHostName,
     query,
     type DerivedService,
     type ExtractDeps,
     type GetDeps,
     type GetInjectedServiceDependencies,
     type GetPublicComponentProperties,
-    type GetServiceOutput,
+    type GetServiceOutput
 } from '@craft-ng/core';
 import {
     StatusComponent,
@@ -50,6 +51,7 @@ import { injectApiService, User } from './api.service';
       Update name (<app-status [status]="updateUserName.status()" />)
     </button>
   `,
+  providers: [provideHostName('MutationDemoComponent')]
 })
 export default class MutationDemoComponent {
   public readonly userId = input<string>();
@@ -147,7 +149,9 @@ export type GenDeps_MutationDemoComponent = GetDeps<{
             CraftRouter: ReturnType<typeof injectCraftRouter>;
           };
       };
-      provided: {};
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
       publicProperties: GetPublicComponentProperties<MutationDemoComponent>;
       missingProvider: {
         CraftRouter: ReturnType<typeof injectCraftRouter>;

@@ -1,19 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-  craftMethod,
-  craftService,
-  insertLocalStoragePersister,
-  insertPaginationPlaceholderData,
-  query,
-  queryParam,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    craftMethod,
+    craftService,
+    insertLocalStoragePersister,
+    insertPaginationPlaceholderData,
+    provideHostName,
+    query,
+    queryParam,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
+    StatusComponent,
+    type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield } from './api.service';
 
@@ -148,7 +149,7 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
   `,
   styleUrls: ['./list-with-pagination.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideUserList()],
+  providers: [provideUserList(), provideHostName('ListWithPaginationCraft')],
 })
 export default class ListWithPaginationCraft {
   protected readonly store = injectUserList();
@@ -162,18 +163,19 @@ export default class ListWithPaginationCraft {
 }
 
 export type GenDeps_ListWithPaginationCraft = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    store: {
-      UserList: ExtractDeps<typeof injectUserList>['UserList'];
-    };
-    updatePageSize: ExtractDeps<ListWithPaginationCraft['updatePageSize']>;
-  };
-  provided: {
-    UserList: ReturnType<typeof provideUserList>;
-  };
-  publicProperties: GetPublicComponentProperties<ListWithPaginationCraft>;
-}>;
+      deps: {
+        CommonModule: CommonModule;
+        GenDeps_StatusComponent: GenDeps_StatusComponent;
+      };
+      propertiesDeps: {
+        store: {
+            UserList: ExtractDeps<typeof injectUserList>["UserList"];
+          };
+        updatePageSize: ExtractDeps<ListWithPaginationCraft["updatePageSize"]>;
+      };
+      provided: {
+        UserList: ReturnType<typeof provideUserList>;
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<ListWithPaginationCraft>;
+    }>;

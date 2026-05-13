@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
     insertLocalStoragePersister,
     insertPaginationPlaceholderData,
+    provideHostName,
     query,
     queryParam,
     type ExtractDeps,
@@ -93,6 +94,7 @@ import { injectApiService } from './api.service';
   `,
   styleUrls: ['./list-with-pagination.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [provideHostName('ListWithPagination')]
 })
 export default class ListWithPagination {
   protected readonly pagination = queryParam(
@@ -151,6 +153,8 @@ export type GenDeps_ListWithPagination = GetDeps<{
           };
         usersQuery: ExtractDeps<ListWithPagination["usersQuery"]>;
       };
-      provided: {};
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
       publicProperties: GetPublicComponentProperties<ListWithPagination>;
     }>;

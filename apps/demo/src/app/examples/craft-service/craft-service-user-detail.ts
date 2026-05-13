@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import {
-  craftService,
-  query,
-  state,
-  toValue,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
-  type MaybeSignal,
+    craftService,
+    provideHostName,
+    query,
+    state,
+    toValue,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties,
+    type MaybeSignal
 } from '@craft-ng/core';
 
 // -- Types --
@@ -77,7 +78,7 @@ const { injectUser, provideUser } = craftService(
 @Component({
   selector: 'app-craft-service-user-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideUser()],
+  providers: [provideUser(), provideHostName('CraftServiceUserDetailComponent')],
   template: `
     <div class="user-detail">
       <h2>craftService User Detail (query)</h2>
@@ -179,15 +180,16 @@ export default class CraftServiceUserDetailComponent {
 }
 
 export type GenDeps_CraftServiceUserDetailComponent = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    userId: ExtractDeps<CraftServiceUserDetailComponent['userId']>;
-    user: {
-      User: ExtractDeps<typeof injectUser>['User'];
-    };
-  };
-  provided: {
-    User: ReturnType<typeof provideUser>;
-  };
-  publicProperties: GetPublicComponentProperties<CraftServiceUserDetailComponent>;
-}>;
+      deps: {};
+      propertiesDeps: {
+        userId: ExtractDeps<CraftServiceUserDetailComponent["userId"]>;
+        user: {
+            User: ExtractDeps<typeof injectUser>["User"];
+          };
+      };
+      provided: {
+        User: ReturnType<typeof provideUser>;
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<CraftServiceUserDetailComponent>;
+    }>;
