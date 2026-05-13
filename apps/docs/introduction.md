@@ -1,16 +1,35 @@
 # Introduction
 
-## What is @craft-ng/core?
+## What is @craft-ng ?
 
-**@craft-ng/core** is a reactive state management tool designed specifically for Angular applications. It focuses on URL, Client, and Server state management, allowing you to concentrate on business value and user experience.
+**@craft-ng** is a fully declarative and type-safe solution with explicit dependency tracking. Powered by a type-safe Dependency Injection system, it enables you to represent state and UX behavior in a composable, logic-driven manner. Ideal for improving readability, maintainability, testability, and AI generation.
 
 ## Core Philosophy
 
+### Type-Safe system
+
+By tracking component and service dependencies at the type level, @craft-ng provides a fully type-safe system that eliminates a whole class of runtime errors and enhances developer confidence.
+
+- Promotes declaring state and logic as close as possible to where they are used.
+- Type-safe routing.
+- Better testability (service isolation testing is easy, and browser-boundary isolation follows the same approach).
+
+### Granular dependency tracking
+
+When injecting or yielding a service, you can derive only the part you need. This makes code more explicit and simplifies tests, since you only provide the required slice of the service.
+
 ### Focus on What Matters
 
-Stop wasting precious time on common application logic. @craft-ng/core provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
+Stop wasting precious time on common application logic. @craft-ng provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
 
-`state`, `asyncState`, `queryParam`, `query`, `mutation` and `asyncProcess` are reactive primitive that will make your developer experience a lot better.
+`state`, `asyncState`, `queryParam`, `query`, `mutation`, and `asyncProcess` are reactive primitives that significantly improve the developer experience.
+
+### Type-safe routing
+
+- Navigation is type-safe
+- Passing route inputs (params or data) is type-safe
+- Query parameters can live directly in the route
+- Injecting route params, data or query params is type-safe
 
 ### Powered by Signals
 
@@ -38,7 +57,7 @@ myState.reset();
 myState(); // 0
 ```
 
-### Use existing Insertions 💎 - For Composition & Reusability
+### Use existing insertions 💎 for composition and reusability
 
 Designed for logic composition and reuse:
 
@@ -48,7 +67,7 @@ Designed for logic composition and reuse:
 - **And much more...**
 
 ```typescript
-import { state, insertLocalStorage } from '@craft-ng/core';
+import { state, query, insertLocalStoragePersister } from '@craft-ng/core';
 
 // Compose state with localStorage sync
 const myState = state(
@@ -115,7 +134,7 @@ const page = state(1, ({ set, update }) => ({
 }));
 ```
 
-When `resetSource.emit()` is called, `search` will be reset to `''` and `page`to `1`.
+When `resetSource.emit()` is called, `search` resets to `''` and `page` resets to `1`.
 
 [on$](/utils/on$) - For more info.
 
@@ -128,44 +147,46 @@ Compose named services that package primitives and Angular dependencies behind a
 - **Explicit scopes** for app-wide, provider-mounted, or factory-style lifecycles
 
 ```typescript
-import {
-  craftService,
-  insertReactOnMutation,
-  mutation,
-  query,
-  state,
-} from '@craft-ng/core';
-
 type User = { id: string; email: string };
 
 const { UserApiToYield } = craftService(
-  { name: 'UserApi', scope: 'global' },
-  () => ({
-    getUser: (id: string): Promise<User> => fetch(`/api/users/${id}`),
-
-    updateEmail: (payload: { id: string; email: string }): Promise<User> =>
-      fetch(`/api/users/${payload.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      }),
-  }),
+  { name: 'UserApi', scope: 'function' },
+  function* () {
+    const http = yield* CraftHttpClient;
+    return {
+      getUser: (id: string) =>
+        http.get(({ response }) => ({
+          url: `users/${id}`,
+          success: response<User>(),
+        })),
+      updateEmail: (payload: { id: string; email: string }) =>
+        http.patch(({ response }) => ({
+          url: `users/${payload.id}`,
+          body: JSON.stringify(payload),
+          success: response<User>(),
+        })),
+    };
+  },
 );
 
 const { injectUserProfile } = craftService(
   { name: 'UserProfile', scope: 'global' },
   function* () {
-    const api = yield* UserApiToYield();
     const userId = state('5', ({ set }) => ({ set }));
 
     const updateEmail = mutation({
       method: (payload: { id: string; email: string }) => payload,
-      loader: ({ params }) => api.updateEmail(params),
+      loader: function* ({ params }) {
+        return yield* api.updateEmail(params);
+      },
     });
 
     const user = query(
       {
-        params: () => userId(),
-        loader: ({ params }) => api.getUser(params),
+        params: userId,
+        loader: function* ({ params }) {
+          return yield* api.getUser(params);
+        },
       },
       insertReactOnMutation(updateEmail, {
         optimisticPatch: {

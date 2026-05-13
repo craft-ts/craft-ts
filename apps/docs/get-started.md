@@ -5,7 +5,7 @@
 ### Using npm
 
 ```shell
-npm i @craft-ng/core@latest
+npm i @craft-ng/core@latest @craft-ng/dev-tools@latest
 ```
 
 :::warning
@@ -13,6 +13,10 @@ The current documentation is also experimental. It takes a lot of time to create
 :::
 
 ## Quick Start
+
+::: info
+Optional: Check [Setup type-safe DI, routing and testing](./setup.md) for more details.
+:::
 
 ### Creating a state
 
@@ -56,6 +60,7 @@ You can add methods and computed properties to your state using a second inserti
       <p>Count: {{ counter() }}</p>
       <p>Is Even: {{ counter.isEven() }}</p>
       <p>Double: {{ counter.double() }}</p>
+      <p>Is Positive: {{ counter.isPositive() }}</p>
       <button (click)="counter.increment()">Increment</button>
       <button (click)="counter.decrement()">Decrement</button>
     </div>
@@ -64,15 +69,17 @@ You can add methods and computed properties to your state using a second inserti
 export class CounterComponent {
   counter = state(
     0,
-    // methods
-    ({ update }) => ({
+    ({ update, state }) => ({
+      // methods
       increment: () => update((current) => current + 1),
       decrement: () => update((current) => current - 1),
-    }),
-    // computed properties
-    ({ state }) => ({
+      // computed properties
       isEven: computed(() => state() % 2 === 0),
       double: computed(() => state() * 2),
+    }),
+    // accepts multiple insertions, so you can organize your logic as you want
+    ({ state }) => ({
+      isPositive: computed(() => state() > 0),
     }),
   );
 }
@@ -83,17 +90,14 @@ export class CounterComponent {
 For logic that should live outside a single component, wrap your primitives in a named service with `craftService`:
 
 ```typescript
-import { Component, computed } from '@angular/core';
-import { craftService, state } from '@craft-ng/core';
-
 interface Todo {
   id: string;
   title: string;
   completed: boolean;
 }
 
-const { injectTodos } = craftService({ name: 'Todos', scope: 'global' }, () => {
-  const items = state([] as Todo[], ({ state, set }) => ({
+const { injectTodos } = craftService({ name: 'Todos', scope: 'global' }, () =>
+  state([] as Todo[], ({ state, set }) => ({
     add: (title: string) => {
       const trimmedTitle = title.trim();
       if (!trimmedTitle) {
@@ -117,17 +121,10 @@ const { injectTodos } = craftService({ name: 'Todos', scope: 'global' }, () => {
       );
     },
     remove: (id: string) => set(state().filter((todo) => todo.id !== id)),
-  }));
-
-  return {
-    items,
-    total: computed(() => items().length),
-    remaining: computed(() => items().filter((todo) => !todo.completed).length),
-    addTodo: items.add,
-    toggleTodo: items.toggle,
-    removeTodo: items.remove,
-  };
-});
+    total: computed(() => state().length),
+    remaining: computed(() => state().filter((todo) => !todo.completed).length),
+  })),
+);
 
 @Component({
   selector: 'app-todos',
@@ -138,29 +135,55 @@ const { injectTodos } = craftService({ name: 'Todos', scope: 'global' }, () => {
       <input
         #input
         type="text"
-        (keyup.enter)="store.addTodo(input.value); input.value = ''"
+        (keyup.enter)="todos.add(input.value); input.value = ''"
       />
 
       <ul>
-        @for (todo of store.items(); track todo.id) {
+        @for (todo of todos.items(); track todo.id) {
           <li>
             <input
               type="checkbox"
               [checked]="todo.completed"
-              (change)="store.toggleTodo(todo.id)"
+              (change)="todos.toggle(todo.id)"
             />
             {{ todo.title }}
-            <button (click)="store.removeTodo(todo.id)">Delete</button>
+            <button (click)="todos.remove(todo.id)">Delete</button>
           </li>
         }
       </ul>
 
-      <p>Remaining: {{ store.remaining() }}</p>
+      <p>Remaining: {{ todos.remaining() }}</p>
     </div>
   `,
 })
 export class TodosComponent {
-  readonly store = injectTodos();
+  readonly todos = injectTodos();
+}
+```
+
+## Yield to inject dependencies
+
+If your service depends on other services, use `yield` to inject them:
+
+```typescript
+const { UserApiToYield } = craftService(
+  { name: 'UserApi', scope: 'function' },
+  function* (userId: string) {
+    return yield* CraftHttpClient.get(({ response }) => ({
+      url: `users/${userId}`,
+      success: response<User>(),
+    }));
+  },
+);
+
+class UsersComponent {
+  public readonly userId = input.required<string>();
+  protected readonly users = query({
+    params: this.userId,
+    loader: function* () {
+      return yield* UserApiToYield(this.userId());
+    },
+  });
 }
 ```
 
