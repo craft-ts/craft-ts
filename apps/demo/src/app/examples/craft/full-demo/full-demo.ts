@@ -9,6 +9,7 @@ import {
   insertReactOnMutation,
   mutation,
   on$,
+  provideHostName,
   query,
   queryParam,
   reactiveWritableSignal,
@@ -393,7 +394,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
   `,
   styleUrls: ['./full-demo.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideFullDemo()],
+  providers: [provideFullDemo(), provideHostName('FullDemoCraft')],
 })
 export default class FullDemoCraft {
   protected readonly store = injectFullDemo();
@@ -418,6 +419,7 @@ export type GenDeps_FullDemoCraft = GetDeps<{
   };
   provided: {
     FullDemo: ReturnType<typeof provideFullDemo>;
+    HostName: ReturnType<typeof provideHostName>;
   };
   publicProperties: GetPublicComponentProperties<FullDemoCraft>;
 }>;

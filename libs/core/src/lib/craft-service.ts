@@ -3559,9 +3559,9 @@ export const ɵHOST_NAME_META_DATA = hostNameApi.HOST_NAME_META_DATA;
 
 const ɵprovideHostNameProvider = hostNameApi.provideHostName;
 
-export function ɵprovideHostName(name: string): CraftServiceProvider {
+export function ɵprovideHostName(name: string): Provider[] {
   return [
-    ɵprovideHostNameProvider(name),
+    ɵprovideHostNameProvider(name) as Provider,
     {
       provide: ɵHOST_TAG_LIST,
       useFactory: () => {

@@ -17,6 +17,7 @@ export default [
       'craft-ng/brand-angular-gen-deps-required': 'error',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/no-angular-signal-forms': 'error',
+      'craft-ng/provide-host-name-match-component': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
