@@ -708,7 +708,6 @@ function createMinLengthValidator<TValue extends ValueWithLengthOrSize>({
       if (m === undefined) return undefined;
       const len = lengthOf(value());
       if (len === undefined) return undefined;
-      if (len === 0) return undefined; // empty values handled by required
       return len < m
         ? (brandException('cMinLength', SYNC_VALIDATOR_TYPE, 'minLength', m) as CraftFieldError)
         : undefined;

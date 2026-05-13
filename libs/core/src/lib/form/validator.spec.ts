@@ -151,6 +151,32 @@ describe('validator', () => {
     });
   });
 
+  it('reports cMinLength on an empty array', () => {
+    TestBed.runInInjectionContext(() => {
+      const model = signal<string[]>([]);
+      const fieldForm = state(
+        model,
+        insertForm(
+          insertFormAttributes(() => ({
+            validators: [cMinLength({ minLength: 1 })],
+          })),
+        ),
+      );
+
+      expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+        cMinLength: expectedException('cMinLength', 'minLength', 1),
+      });
+
+      model.set(['first']);
+      TestBed.tick();
+
+      expect(fieldForm.form.exceptions()).toEqual({
+        list: [],
+        byValidator: {},
+      });
+    });
+  });
+
   it('reports cMinLength, cMaxLength and cPattern errors', () => {
     TestBed.runInInjectionContext(() => {
       const minLenForm = state(
