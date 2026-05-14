@@ -5,7 +5,7 @@ layout: home
 hero:
   name: '@craft-ng'
   text: 'Type-Safe Reactive State Management for Angular'
-  tagline: Craft. Yield. Compile — no surprises.
+  tagline: Declare. Yield. Derive. Compile — no surprises.
 
   image:
     src: /assets/ng-craft-logo.png
