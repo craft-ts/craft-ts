@@ -4,7 +4,7 @@ import {
   type GetServiceYields,
   type ServiceTrackingMetadata,
 } from './craft-service';
-import { HostTagToYield } from './host-tag';
+import { HostTagToYield, TrackTagsToYield, type TrackTag } from './host-tag';
 
 type AnyBrowserBoundaryMethod = (...args: any[]) => any;
 type ConsoleMetadataMethod = 'debug' | 'info' | 'log' | 'warn' | 'error';
@@ -51,7 +51,8 @@ type ConsoleBoundaryYield =
         ConsoleServiceApi
       >['ConsoleServiceToYield']
     >
-  | GeneratorYield<typeof HostTagToYield>;
+  | GeneratorYield<typeof HostTagToYield>
+  | GeneratorYield<typeof TrackTagsToYield>;
 
 type BrowserCryptoYield = GetServiceYields<
   BrowserBoundaryService<
@@ -250,9 +251,15 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
   > {
     const consoleService = yield* ConsoleServiceToYield();
     const from = yield* HostTagToYield();
+    const tags = yield* TrackTagsToYield();
 
-    const metadata: { from: readonly string[]; trace: string } = {
+    const metadata: {
+      from: readonly string[];
+      tags: readonly TrackTag[];
+      trace: string;
+    } = {
       from,
+      tags,
       trace: parseConsoleStackTrace(new Error().stack),
     };
 

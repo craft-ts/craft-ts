@@ -3539,11 +3539,27 @@ function toMetaDataPropertyName(value: string): string {
 
 const HOST_TAG_INTERNAL_SERVICE_NAMES = new Set(['HostName']);
 
+export interface CraftTrackTags {}
+
+export type TrackTag = CraftTrackTags extends {
+  Tags: readonly (infer Tag)[];
+}
+  ? Tag & string
+  : never;
+
 export const ɵHOST_TAG_LIST = new InjectionToken<readonly string[]>(
   'HostTagList',
   {
     providedIn: 'root',
     factory: () => [],
+  },
+);
+
+export const ɵTRACK_TAGS_LIST = new InjectionToken<readonly TrackTag[]>(
+  'TrackTagsList',
+  {
+    providedIn: 'root',
+    factory: () => [] as const,
   },
 );
 
@@ -3577,6 +3593,27 @@ export function ɵprovideHostName(name: string): Provider[] {
   ];
 }
 
+export function ɵprovideTrackTags(tags: readonly TrackTag[]): Provider[] {
+  return [
+    {
+      provide: ɵTRACK_TAGS_LIST,
+      useFactory: () => {
+        const parentTags =
+          inject(ɵTRACK_TAGS_LIST, {
+            optional: true,
+            skipSelf: true,
+          }) ?? [];
+
+        return [...parentTags, ...tags] as readonly TrackTag[];
+      },
+    },
+  ];
+}
+
+export function ɵinjectTrackTags(): readonly TrackTag[] {
+  return inject(ɵTRACK_TAGS_LIST);
+}
+
 export type ɵHostTagYield = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
   scope: 'function';
@@ -3596,6 +3633,27 @@ export function* ɵHostTagToYield(): Generator<
     scope: 'function',
     resolve: (injector) => injector.get(ɵHOST_TAG_LIST),
   }) as readonly string[];
+}
+
+export type ɵTrackTagsYield = Readonly<{
+  [SERVICE_YIELD_REQUEST_MARKER]: true;
+  scope: 'function';
+  resolve: (
+    injector: Injector,
+    hostScope: ConcreteServiceScope,
+  ) => readonly TrackTag[];
+}>;
+
+export function* ɵTrackTagsToYield(): Generator<
+  ɵTrackTagsYield,
+  readonly TrackTag[],
+  unknown
+> {
+  return (yield {
+    [SERVICE_YIELD_REQUEST_MARKER]: true,
+    scope: 'function',
+    resolve: (injector) => injector.get(ɵTRACK_TAGS_LIST),
+  }) as readonly TrackTag[];
 }
 
 export function ɵcreateHostTaggedInjector(
