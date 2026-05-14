@@ -196,6 +196,30 @@ const {
   (router): Router => createCraftRouter(router),
 );
 
+type CraftRouterYieldRequest = GeneratorYield<
+  ReturnType<typeof CraftRouterToYieldInternal>
+>;
+
+type CraftRouterPropertyShortcut<Key extends keyof CraftRouter> =
+  CraftRouter[Key] extends (...args: infer Args) => infer Result
+    ? {
+        (): Generator<CraftRouterYieldRequest, CraftRouter[Key], unknown>;
+      } & (Args extends []
+        ? {}
+        : (
+            ...args: Args
+          ) => Generator<CraftRouterYieldRequest, Result, unknown>)
+    : {
+        (): Generator<CraftRouterYieldRequest, CraftRouter[Key], unknown>;
+      };
+
+type CraftRouterPropertyShortcuts = {
+  [Key in Exclude<
+    keyof CraftRouter,
+    keyof Function | 'then'
+  >]: CraftRouterPropertyShortcut<Key>;
+};
+
 export type CraftRouterInjectHelper = WithInternalHelperDependencies<
   typeof injectCraftRouterInternal
 > & {
@@ -208,21 +232,14 @@ export type CraftRouterInjectHelper = WithInternalHelperDependencies<
 
 export type CraftRouterToYieldHelper = WithInternalHelperDependencies<
   typeof CraftRouterToYieldInternal
-> & {
-  (): Generator<
-    GeneratorYield<ReturnType<typeof CraftRouterToYieldInternal>>,
-    CraftRouter,
-    unknown
-  >;
-  <Exposed extends object>(
-    bindings: undefined,
-    expose: (router: CraftRouter) => Exposed,
-  ): Generator<
-    GeneratorYield<ReturnType<typeof CraftRouterToYieldInternal>>,
-    Exposed,
-    unknown
-  >;
-};
+> &
+  CraftRouterPropertyShortcuts & {
+    (): Generator<CraftRouterYieldRequest, CraftRouter, unknown>;
+    <Exposed extends object>(
+      bindings: undefined,
+      expose: (router: CraftRouter) => Exposed,
+    ): Generator<CraftRouterYieldRequest, Exposed, unknown>;
+  };
 
 export { provideCraftRouter };
 export const injectCraftRouter =
