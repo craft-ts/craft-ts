@@ -1,22 +1,30 @@
 import { JsonPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-    Console,
-    CraftRouterToYield,
-    craftMethod,
-    craftService,
-    insertLocalStoragePersister,
-    provideHostName,
-    query,
-    toValue,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties,
-    type MaybeSignal
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+} from '@angular/core';
+import { type Router } from '@angular/router';
+import {
+  Console,
+  CraftRouterLink,
+  CraftRouterToYield,
+  craftMethod,
+  craftService,
+  insertLocalStoragePersister,
+  provideHostName,
+  query,
+  toValue,
+  ɵHOST_TAG_LIST,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
+  type MaybeSignal,
 } from '@craft-ng/core';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield } from './api.service';
 
@@ -41,7 +49,7 @@ const { injectUserQuery } = craftService(
 
 @Component({
   selector: 'app-query',
-  imports: [JsonPipe, StatusComponent],
+  imports: [JsonPipe, StatusComponent, CraftRouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['query.css'],
   template: `
@@ -63,8 +71,12 @@ const { injectUserQuery } = craftService(
 
     <button (click)="previousPage()">Previous user</button>
     <button (click)="nextPage()">Next user</button>
+
+    <a [craftRouterLink]="{ to: 'login-form' }" routerLinkActive="active"
+      >Login Form</a
+    >
   `,
-  providers: [provideHostName('GlobalQuery')]
+  providers: [provideHostName('GlobalQuery')],
 })
 export default class GlobalQuery {
   public readonly userId = input<string>();
@@ -79,6 +91,8 @@ export default class GlobalQuery {
       undefined,
       ({ navigate }) => ({ navigate }),
     );
+    const name = inject(ɵHOST_TAG_LIST);
+    debugger;
     void navigate({
       to: 'craft/query/:userId',
       params: {
@@ -102,20 +116,23 @@ export default class GlobalQuery {
 }
 
 export type GenDeps_GlobalQuery = GetDeps<{
-      deps: {
-        JsonPipe: JsonPipe;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        userId: ExtractDeps<GlobalQuery["userId"]>;
-        user: {
-            UserQuery: ExtractDeps<typeof injectUserQuery>["UserQuery"];
-          };
-        nextPage: ExtractDeps<GlobalQuery["nextPage"]>;
-        previousPage: ExtractDeps<GlobalQuery["previousPage"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<GlobalQuery>;
-    }>;
+  deps: {
+    JsonPipe: JsonPipe;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    userId: ExtractDeps<GlobalQuery['userId']>;
+    user: {
+      UserQuery: ExtractDeps<typeof injectUserQuery>['UserQuery'];
+    };
+    nextPage: ExtractDeps<GlobalQuery['nextPage']>;
+    previousPage: ExtractDeps<GlobalQuery['previousPage']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<GlobalQuery>;
+  missingProvider: {
+    Router: Router;
+  };
+}>;

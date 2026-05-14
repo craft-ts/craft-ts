@@ -1,8 +1,13 @@
 import {
   Directive,
+  EnvironmentInjector,
+  HOST_TAG_NAME,
+  Injector,
   Input,
   OnChanges,
+  createEnvironmentInjector,
   inject,
+  runInInjectionContext,
   type SimpleChanges,
 } from '@angular/core';
 import {
@@ -24,7 +29,9 @@ import {
   type SERVICE_YIELD_METADATA,
   type SERVICE_YIELD_REQUEST_MARKER,
   toCraftService,
+  ɵHOST_TAG_LIST,
 } from './craft-service';
+import { provideTrackTags, type TrackTag } from './host-tag';
 import type { Simplify } from './craft-service.shared';
 
 export interface CraftRouterRoutesRegistry {}
@@ -182,6 +189,8 @@ type CraftRouterInputWithOptionalQueryParams = {
 type CraftRouterInputExtras = CraftRouterInputWithOptionalQueryParams &
   NavigationExtras;
 
+const NAVIGATE_TO_TRACK_TAG = 'navigateTo' as unknown as TrackTag;
+
 const {
   injectCraftRouter: injectCraftRouterInternal,
   provideCraftRouter,
@@ -193,7 +202,7 @@ const {
     token: Router,
     provide: provideRouter,
   },
-  (router): Router => createCraftRouter(router),
+  (router): Router => createCraftRouter(router, inject(Injector)),
 );
 
 export type CraftRouterInjectHelper = WithInternalHelperDependencies<
@@ -233,6 +242,18 @@ export const CraftRouterToYield =
 @Directive({
   selector: '[craftRouterLink]',
   standalone: true,
+  providers: [
+    {
+      provide: Router,
+      useFactory: () =>
+        createCraftRouter(
+          inject(Router, {
+            skipSelf: true,
+          }),
+          inject(Injector),
+        ),
+    },
+  ],
   hostDirectives: [
     {
       directive: RouterLink,
@@ -277,22 +298,61 @@ export class CraftRouterLink implements OnChanges {
   }
 }
 
-function createCraftRouter(router: Router): Router {
-  const createUrlTree = (input: CraftRouterUrlTreeInput) =>
-    router.createUrlTree(
+function createCraftRouter(router: Router, injector: Injector): Router {
+  const createUrlTree = (...args: unknown[]) => {
+    const [input, options] = args;
+
+    if (!isCraftRouterInput(input)) {
+      return router.createUrlTree(
+        input as Parameters<Router['createUrlTree']>[0],
+        options as Parameters<Router['createUrlTree']>[1],
+      );
+    }
+
+    return router.createUrlTree(
       createCraftRouterCommands(input),
       getUrlCreationOptions(input),
     );
-  const navigate = (input: CraftRouterNavigationInput) =>
-    router.navigate(
-      createCraftRouterCommands(input),
-      getNavigationOptions(input),
-    );
-  const navigateByUrl = (input: CraftRouterNavigationInput) =>
-    router.navigateByUrl(
-      createUrlTree(input),
-      getNavigationBehaviorOptions(input),
-    );
+  };
+  const navigate = (...args: unknown[]) => {
+    const [input, extras] = args;
+    const injectorBis = inject(Injector);
+    return runWithTrackTags(injectorBis, [NAVIGATE_TO_TRACK_TAG], () => {
+      const name = inject(ɵHOST_TAG_LIST);
+      console.log('name', name);
+
+      if (!isCraftRouterInput(input)) {
+        return router.navigate(
+          input as Parameters<Router['navigate']>[0],
+          extras as Parameters<Router['navigate']>[1],
+        );
+      }
+
+      return router.navigate(
+        createCraftRouterCommands(input),
+        getNavigationOptions(input),
+      );
+    });
+  };
+  const navigateByUrl = (...args: unknown[]) => {
+    const [input, extras] = args;
+    const injectorBis = inject(Injector);
+    return runWithTrackTags(injectorBis, [NAVIGATE_TO_TRACK_TAG], () => {
+      const name = inject(ɵHOST_TAG_LIST);
+      console.log('name', name);
+      if (!isCraftRouterInput(input)) {
+        return router.navigateByUrl(
+          input as Parameters<Router['navigateByUrl']>[0],
+          extras as Parameters<Router['navigateByUrl']>[1],
+        );
+      }
+
+      return router.navigateByUrl(
+        createUrlTree(input),
+        getNavigationBehaviorOptions(input),
+      );
+    });
+  };
 
   return new Proxy(router, {
     get(target, property, receiver) {
@@ -308,6 +368,24 @@ function createCraftRouter(router: Router): Router {
       }
     },
   }) as unknown as Router;
+}
+
+function runWithTrackTags<Value>(
+  parentInjector: Injector,
+  tags: readonly TrackTag[],
+  run: () => Value,
+): Value {
+  const scopedInjector = createEnvironmentInjector(
+    [provideTrackTags(tags)],
+    parentInjector as EnvironmentInjector,
+    `TrackTags(${tags.join(',')})`,
+  );
+
+  try {
+    return runInInjectionContext(scopedInjector, run);
+  } finally {
+    scopedInjector.destroy();
+  }
 }
 
 function createCraftRouterCommands(
@@ -330,6 +408,15 @@ function createCraftRouterCommands(
 
     return index === 0 ? `/${value}` : value;
   });
+}
+
+function isCraftRouterInput(input: unknown): input is CraftRouterInputExtras {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'to' in input &&
+    typeof (input as { to: unknown }).to === 'string'
+  );
 }
 
 function resolveRouteParamValue(

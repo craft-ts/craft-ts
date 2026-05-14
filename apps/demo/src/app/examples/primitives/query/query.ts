@@ -1,17 +1,25 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-    injectCraftRouter,
-    insertLocalStoragePersister,
-    provideHostName,
-    query,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+} from '@angular/core';
+import {
+  craftMethod,
+  CraftRouterToYield,
+  injectCraftRouter,
+  insertLocalStoragePersister,
+  provideHostName,
+  query,
+  ɵHOST_TAG_LIST,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { injectApiService } from './api.service';
 
@@ -40,7 +48,7 @@ import { injectApiService } from './api.service';
     <button (click)="previousPage()">Previous user</button>
     <button (click)="nextPage()">Next user</button>
   `,
-  providers: [provideHostName('GlobalQuery')]
+  providers: [provideHostName('GlobalQuery')],
 })
 export default class GlobalQuery {
   public readonly userId = input<string>();
@@ -61,45 +69,51 @@ export default class GlobalQuery {
     }),
   );
 
-  protected nextPage() {
-    void this.router.navigate({
+  protected nextPage = craftMethod(this, function* () {
+    const name = inject(ɵHOST_TAG_LIST);
+    console.log('nextPage name', name);
+    const { navigate } = yield* CraftRouterToYield();
+    navigate({
       to: 'query/:userId',
       params: {
         userId: String(parseInt(this.userId() ?? '0', 10) + 1),
       },
     });
-  }
+  });
 
-  protected previousPage() {
-    void this.router.navigate({
+  protected previousPage = craftMethod(this, function* () {
+    const name = inject(ɵHOST_TAG_LIST);
+    console.log('nextPage name', name);
+    const { navigate } = yield* CraftRouterToYield();
+    navigate({
       to: 'query/:userId',
       params: {
         userId: String(parseInt(this.userId() ?? '10', 10) - 1),
       },
     });
-  }
+  });
 }
 
 export type GenDeps_GlobalQuery = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        userId: ExtractDeps<GlobalQuery["userId"]>;
-        apiService: {
-            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
-          };
-        router: {
-            CraftRouter: ReturnType<typeof injectCraftRouter>;
-          };
-        userQuery: ExtractDeps<GlobalQuery["userQuery"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<GlobalQuery>;
-      missingProvider: {
-        CraftRouter: ReturnType<typeof injectCraftRouter>;
-      };
-    }>;
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    userId: ExtractDeps<GlobalQuery['userId']>;
+    apiService: {
+      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
+    };
+    router: {
+      CraftRouter: ReturnType<typeof injectCraftRouter>;
+    };
+    userQuery: ExtractDeps<GlobalQuery['userQuery']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<GlobalQuery>;
+  missingProvider: {
+    CraftRouter: ReturnType<typeof injectCraftRouter>;
+  };
+}>;

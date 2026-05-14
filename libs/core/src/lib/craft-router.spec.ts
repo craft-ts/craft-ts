@@ -8,12 +8,13 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { Router, RouterLinkActive } from '@angular/router';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CraftRouterLink,
   injectCraftRouter,
   provideCraftRouter,
 } from './craft-router';
+import { injectTrackTags } from './host-tag';
 import { craftRoutes } from './craft-routes';
 import { queryParam } from './query-param';
 
@@ -265,5 +266,57 @@ describe('CraftRouter', () => {
     fixture.detectChanges();
 
     expect(TestBed.inject(Router).url).toBe('/users/42');
+  });
+
+  it('should tag CraftRouter navigate calls with navigateTo', async () => {
+    await TestBed.configureTestingModule({
+      providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],
+    }).compileComponents();
+
+    const router = TestBed.runInInjectionContext(() => injectCraftRouter());
+    const angularRouter = TestBed.inject(Router);
+    let capturedTags: readonly string[] = [];
+
+    vi.spyOn(angularRouter, 'navigate').mockImplementation(async () => {
+      capturedTags = injectTrackTags() as readonly string[];
+      return true;
+    });
+
+    await router.navigate({
+      to: 'users/:userId',
+      params: { userId: '42' },
+    });
+
+    expect(capturedTags).toContain('navigateTo');
+  });
+
+  it('should tag CraftRouterLink click navigation with navigateTo', async () => {
+    await TestBed.configureTestingModule({
+      imports: [CraftRouterLinkHostComponent],
+      providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],
+    }).compileComponents();
+
+    const angularRouter = TestBed.inject(Router);
+    let capturedTags: readonly string[] = [];
+
+    vi.spyOn(angularRouter, 'navigateByUrl').mockImplementation(async () => {
+      capturedTags = injectTrackTags() as readonly string[];
+      return true;
+    });
+
+    const fixture = TestBed.createComponent(CraftRouterLinkHostComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    fixture.debugElement.query(By.css('a')).triggerEventHandler('click', {
+      button: 0,
+      ctrlKey: false,
+      shiftKey: false,
+      altKey: false,
+      metaKey: false,
+    });
+    await fixture.whenStable();
+
+    expect(capturedTags).toContain('navigateTo');
   });
 });
