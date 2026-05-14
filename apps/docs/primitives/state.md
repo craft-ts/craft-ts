@@ -90,6 +90,31 @@ reset.emit();
 console.log(myState()); // 0
 ```
 
+### State and dependency injection
+
+```typescript
+state(
+  0,
+  ({ update }, { logger = inject(Logger) }) => ({
+    increment: () => {
+      logger.log('Incrementing state');
+      update((v) => v + 1);
+    },
+  }),
+  // log each time the state value changes
+  function* ({ state }) {
+    const log = yield* Console.log;
+
+    effect(() => {
+      log(`State value changed: ${state()}`);
+    });
+    return {};
+  },
+);
+```
+
+Instead of using `inject`, craft-ng provides Services to yield. This allows you to track dependencies in primitives.
+
 ## Best Practices
 
 ✅ **Use TypeScript inference** - Let TypeScript infer types when possible
