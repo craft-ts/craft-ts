@@ -1194,6 +1194,34 @@ type QueryParamsInjectHelpers<
   >
 >;
 
+type CraftRoutePathRegistryEntry<RouteDefinition> = Simplify<
+  { path: RoutePath<RouteDefinition> } &
+    RouteQueryParamsMetaDataField<RouteDefinition>
+>;
+
+/**
+ * Slim view over a routes collection: only `path` (and `queryParams` when
+ * declared). Excludes `componentDeps`-derived fields on purpose — that's what
+ * `META_DATA` is for.
+ *
+ * Use this in the `CraftRouterRoutesRegistry` augmentation. The registry only
+ * needs paths and queryParams to validate `navigate({to: ...})`. Including
+ * `componentDeps` would create a self-referencing cycle whenever a registered
+ * component's body calls back into the router (its `GenDeps_*` would feed
+ * back into the type that resolves `NavigableRoutePath`).
+ *
+ * `META_DATA` stays available on the same `craftRoutes` result for use cases
+ * that genuinely need the resolved component dependencies — e.g. e2e tests
+ * that mock every endpoint declared on a route.
+ */
+export type CraftRoutesPathRegistry<
+  Routes extends readonly AnyCraftRouteDefinition[],
+> = {
+  readonly [Index in keyof Routes]: Routes[Index] extends AnyCraftRouteDefinition
+    ? CraftRoutePathRegistryEntry<Routes[Index]>
+    : Routes[Index];
+};
+
 export type CraftRoutesApp<
   Routes extends
     readonly AnyCraftRouteDefinition[] = readonly AnyCraftRouteDefinition[],
@@ -1201,7 +1229,25 @@ export type CraftRoutesApp<
 > = {
   readonly name: Name;
   toRoutes(): Route[];
+  /**
+   * Full per-route metadata — includes `path`, `queryParams`, and the
+   * `componentDeps`-derived shape (`deps`, `missingProvider`, `httpDeps`,
+   * `publicProperties`). Use it for tooling that needs the full picture, e.g.
+   * an e2e test runner that wants to mock every endpoint reachable from a
+   * route.
+   *
+   * **Do not register `typeof X.META_DATA` directly in
+   * `CraftRouterRoutesRegistry`** — that creates a cycle in any tracked
+   * component whose `GenDeps_*` references methods that call the router. Use
+   * `META_PATHS` for the registry instead.
+   */
   META_DATA: CraftRoutesMetaData<Routes, Name>;
+  /**
+   * Slim per-route view (path + queryParams only) intended for the
+   * `CraftRouterRoutesRegistry` augmentation. Same array as `META_DATA` at
+   * runtime — only the type view differs.
+   */
+  META_PATHS: CraftRoutesPathRegistry<Routes>;
 };
 
 export type CraftRoutesPublicPropertiesErrors<
@@ -1736,6 +1782,7 @@ export function craftRoutes<
     name: routeCollectionName,
     toRoutes: () => routes.map((route, index) => toAngularRoute(route, index)),
     META_DATA,
+    META_PATHS: META_DATA as unknown as CraftRoutesPathRegistry<Routes>,
   };
 
   return {

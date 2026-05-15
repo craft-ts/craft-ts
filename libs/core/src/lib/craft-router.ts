@@ -1,10 +1,4 @@
-import {
-  Directive,
-  Input,
-  OnChanges,
-  inject,
-  type SimpleChanges,
-} from '@angular/core';
+import { Directive, effect, inject, input } from '@angular/core';
 import {
   Router,
   RouterLink,
@@ -33,6 +27,7 @@ type CraftRouterRoutesRegistryKey = Extract<
   keyof CraftRouterRoutesRegistry,
   string
 >;
+
 
 type RegisteredRouteMetaData =
   CraftRouterRoutesRegistry[CraftRouterRoutesRegistryKey] extends infer Routes
@@ -200,24 +195,80 @@ type CraftRouterYieldRequest = GeneratorYield<
   ReturnType<typeof CraftRouterToYieldInternal>
 >;
 
-type CraftRouterPropertyShortcut<Key extends keyof CraftRouter> =
-  CraftRouter[Key] extends (...args: infer Args) => infer Result
-    ? {
-        (): Generator<CraftRouterYieldRequest, CraftRouter[Key], unknown>;
-      } & (Args extends []
-        ? {}
-        : (
-            ...args: Args
-          ) => Generator<CraftRouterYieldRequest, Result, unknown>)
-    : {
-        (): Generator<CraftRouterYieldRequest, CraftRouter[Key], unknown>;
-      };
+type StructuralRouteParamsField<Path extends string> = [
+  PathParamNames<Path>,
+] extends [never]
+  ? { params?: never }
+  : { params: Simplify<{ [Key in PathParamNames<Path>]: string }> };
 
-type CraftRouterPropertyShortcuts = {
+type DerivedNavigationInput<Path extends string> = Simplify<
+  { to: Path } & StructuralRouteParamsField<Path> &
+    Omit<NavigationExtras, 'relativeTo' | 'queryParams'> & {
+      queryParams?: Params | null;
+    }
+>;
+
+type DerivedUrlTreeInput<Path extends string> = Simplify<
+  { to: Path } & StructuralRouteParamsField<Path> &
+    Omit<UrlCreationOptions, 'relativeTo' | 'queryParams'> & {
+      queryParams?: Params | null;
+    }
+>;
+
+/**
+ * Derived shortcuts for `createUrlTree`, `navigate`, `navigateByUrl`.
+ *
+ * `to` is constrained to `NavigableRoutePath`, so typos in the path produce a
+ * "Did you mean…" error pointing at every registered route. `params` and
+ * `queryParams` are validated against that route's definition.
+ *
+ * This works because the registry is augmented with the slim
+ * `CraftRoutesPathRegistry` view (`typeof routes.META_PATHS`) rather than the
+ * full `CraftRoutesMetaData`. The slim view excludes `componentDeps`-derived
+ * fields, which would otherwise create a self-referencing cycle when the
+ * shortcut is called from a component whose own `GenDeps_*` is registered:
+ *
+ *     navigate(...) signature
+ *       → NavigableRoutePath
+ *         → CraftRouterRoutesRegistry
+ *           → componentDeps (GenDeps_X)            // ← excluded by META_PATHS
+ *             → propertiesDeps.method = ExtractDeps<X['method']>
+ *               → X['method'] inferred from body
+ *                 → body calls navigate(...) ↺ back to the top
+ *
+ * If a registry augmentation uses `typeof X.META_DATA` instead of
+ * `typeof X.META_PATHS`, the cycle returns and TypeScript falls back to
+ * `nextPage: any` with TS7022.
+ */
+type CraftRouterCraftMethodShortcuts = {
+  createUrlTree: <Input extends { to: NavigableRoutePath }>(
+    input: Input & CraftRouterUrlTreeInput<Input['to']>,
+  ) => Generator<CraftRouterYieldRequest, UrlTree, unknown>;
+  navigate: <Input extends { to: NavigableRoutePath }>(
+    input: Input & CraftRouterNavigationInput<Input['to']>,
+  ) => Generator<CraftRouterYieldRequest, Promise<boolean>, unknown>;
+  navigateByUrl: <Input extends { to: NavigableRoutePath }>(
+    input: Input & CraftRouterNavigationInput<Input['to']>,
+  ) => Generator<CraftRouterYieldRequest, Promise<boolean>, unknown>;
+};
+
+
+type RouterPropertyShortcut<Value> = Value extends (
+  ...args: infer Args
+) => infer Result
+  ? Args extends []
+    ? { (): Generator<CraftRouterYieldRequest, Value, unknown> }
+    : {
+        (): Generator<CraftRouterYieldRequest, Value, unknown>;
+        (...args: Args): Generator<CraftRouterYieldRequest, Result, unknown>;
+      }
+  : { (): Generator<CraftRouterYieldRequest, Value, unknown> };
+
+type CraftRouterPropertyShortcuts = CraftRouterCraftMethodShortcuts & {
   [Key in Exclude<
-    keyof CraftRouter,
-    keyof Function | 'then'
-  >]: CraftRouterPropertyShortcut<Key>;
+    keyof Router,
+    keyof Function | 'then' | 'createUrlTree' | 'navigate' | 'navigateByUrl'
+  >]: RouterPropertyShortcut<Router[Key]>;
 };
 
 export type CraftRouterInjectHelper = WithInternalHelperDependencies<
@@ -244,6 +295,51 @@ export type CraftRouterToYieldHelper = WithInternalHelperDependencies<
 export { provideCraftRouter };
 export const injectCraftRouter =
   injectCraftRouterInternal as unknown as CraftRouterInjectHelper;
+
+/**
+ * Yields the `CraftRouter` inside a generator. Two equivalent forms.
+ *
+ * # Derived shortcut — recommended
+ *
+ * ```ts
+ * yield* CraftRouterToYield.navigate({
+ *   to: 'query/:userId',          // validated against the registry
+ *   params: { userId: '1' },      // validated against the path's :params
+ * });
+ * ```
+ *
+ * `to` must match a path in `CraftRouterRoutesRegistry`; typos produce a
+ * "Did you mean…" error. `params` and `queryParams` are validated against
+ * that route's declaration.
+ *
+ * # Full router access
+ *
+ * ```ts
+ * const router = yield* CraftRouterToYield();
+ * router.events.subscribe(...);
+ * ```
+ *
+ * Use this when you need a router property the shortcut doesn't expose
+ * (e.g. `events`, `routerState`, `url`).
+ *
+ * # Registry setup
+ *
+ * For the path validation to work without creating a self-referencing cycle,
+ * the registry augmentation must use the slim `META_PATHS` view, not
+ * `META_DATA`:
+ *
+ * ```ts
+ * declare module '@craft-ng/core' {
+ *   interface CraftRouterRoutesRegistry {
+ *     Demo: typeof demoRoutes.META_PATHS;
+ *   }
+ * }
+ * ```
+ *
+ * `META_DATA` stays available on the same `craftRoutes` result for tooling
+ * that needs the full per-route component dependencies (e.g. an e2e test
+ * runner that mocks every endpoint a route can reach).
+ */
 export const CraftRouterToYield =
   CraftRouterToYieldInternal as unknown as CraftRouterToYieldHelper;
 
@@ -257,40 +353,44 @@ export const CraftRouterToYield =
     },
   ],
 })
-export class CraftRouterLink implements OnChanges {
+export class CraftRouterLink {
   private readonly routerLink = inject(RouterLink, { self: true });
 
-  @Input({ alias: 'craftRouterLink' })
-  craftRouterLink: CraftRouterLinkInput | null | undefined;
+  readonly craftRouterLink = input<CraftRouterLinkInput | null | undefined>(
+    undefined,
+    { alias: 'craftRouterLink' },
+  );
 
-  ngOnChanges(_changes: SimpleChanges): void {
-    const input = this.craftRouterLink;
+  constructor() {
+    effect(() => {
+      const input = this.craftRouterLink();
 
-    if (!input) {
-      this.routerLink.routerLink = null;
-      this.routerLink.queryParams = undefined;
-      this.routerLink.fragment = undefined;
-      this.routerLink.queryParamsHandling = undefined;
-      this.routerLink.preserveFragment = false;
-      this.routerLink.skipLocationChange = false;
-      this.routerLink.replaceUrl = false;
-      this.routerLink.state = undefined;
-      this.routerLink.info = undefined;
+      if (!input) {
+        this.routerLink.routerLink = null;
+        this.routerLink.queryParams = undefined;
+        this.routerLink.fragment = undefined;
+        this.routerLink.queryParamsHandling = undefined;
+        this.routerLink.preserveFragment = false;
+        this.routerLink.skipLocationChange = false;
+        this.routerLink.replaceUrl = false;
+        this.routerLink.state = undefined;
+        this.routerLink.info = undefined;
+        this.routerLink.ngOnChanges();
+        return;
+      }
+
+      this.routerLink.routerLink = createCraftRouterCommands(input);
+      this.routerLink.queryParams = input.queryParams;
+      this.routerLink.fragment = input.fragment;
+      this.routerLink.queryParamsHandling = input.queryParamsHandling;
+      this.routerLink.preserveFragment = input.preserveFragment ?? false;
+      this.routerLink.skipLocationChange = input.skipLocationChange ?? false;
+      this.routerLink.replaceUrl = input.replaceUrl ?? false;
+      this.routerLink.state = input.state;
+      this.routerLink.info = input.info;
+      this.routerLink.relativeTo = null;
       this.routerLink.ngOnChanges();
-      return;
-    }
-
-    this.routerLink.routerLink = createCraftRouterCommands(input);
-    this.routerLink.queryParams = input.queryParams;
-    this.routerLink.fragment = input.fragment;
-    this.routerLink.queryParamsHandling = input.queryParamsHandling;
-    this.routerLink.preserveFragment = input.preserveFragment ?? false;
-    this.routerLink.skipLocationChange = input.skipLocationChange ?? false;
-    this.routerLink.replaceUrl = input.replaceUrl ?? false;
-    this.routerLink.state = input.state;
-    this.routerLink.info = input.info;
-    this.routerLink.relativeTo = null;
-    this.routerLink.ngOnChanges();
+    });
   }
 }
 

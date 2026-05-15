@@ -3,7 +3,6 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
   craftMethod,
   CraftRouterToYield,
-  injectCraftRouter,
   insertLocalStoragePersister,
   provideHostName,
   query,
@@ -61,21 +60,21 @@ export default class GlobalQuery {
   );
 
   protected nextPage = craftMethod(this, function* () {
-    yield* CraftRouterToYield.navigate({
+    void (yield* CraftRouterToYield.navigate({
       to: 'query/:userId',
       params: {
         userId: String(parseInt(this.userId() ?? '0', 10) + 1),
       },
-    });
+    }));
   });
 
   protected previousPage = craftMethod(this, function* () {
-    yield* CraftRouterToYield.navigate({
+    void (yield* CraftRouterToYield.navigate({
       to: 'query/:userId',
       params: {
         userId: String(parseInt(this.userId() ?? '10', 10) - 1),
       },
-    });
+    }));
   });
 }
 
@@ -89,16 +88,12 @@ export type GenDeps_GlobalQuery = GetDeps<{
     apiService: {
       ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
     };
-    router: {
-      CraftRouter: ReturnType<typeof injectCraftRouter>;
-    };
     userQuery: ExtractDeps<GlobalQuery['userQuery']>;
+    nextPage: ExtractDeps<GlobalQuery['nextPage']>;
+    previousPage: ExtractDeps<GlobalQuery['previousPage']>;
   };
   provided: {
     HostName: ReturnType<typeof provideHostName>;
   };
   publicProperties: GetPublicComponentProperties<GlobalQuery>;
-  missingProvider: {
-    CraftRouter: ReturnType<typeof injectCraftRouter>;
-  };
 }>;
