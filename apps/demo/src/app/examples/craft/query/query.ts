@@ -73,7 +73,7 @@ export default class GlobalQuery {
     userId: this.userId,
   });
 
-  protected nextPage = craftMethod(this, function* () {
+  protected nextPage = craftMethod('nextPage', this, function* () {
     yield* Console.log('Navigating to next user');
     const { navigate } = yield* CraftRouterToYield(
       undefined,
@@ -87,7 +87,7 @@ export default class GlobalQuery {
     });
   });
 
-  protected previousPage = craftMethod(this, function* () {
+  protected previousPage = craftMethod('previousPage', this, function* () {
     const { navigate } = yield* CraftRouterToYield(
       undefined,
       ({ navigate }) => ({ navigate }),
@@ -100,6 +100,7 @@ export default class GlobalQuery {
     });
   });
 }
+
 
 export type GenDeps_GlobalQuery = GetDeps<{
       deps: {

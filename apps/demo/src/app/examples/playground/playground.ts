@@ -248,7 +248,7 @@ const { injectPlayground, PlaygroundToYield } = craftService(
 export default class PlaygroundComponent {
   protected readonly pg = injectPlayground();
 
-  add = craftMethod(function* (input: HTMLInputElement) {
+  add = craftMethod('add', function* (input: HTMLInputElement) {
     const title = input.value.trim();
     if (!title) return;
     const pg = yield* PlaygroundToYield();

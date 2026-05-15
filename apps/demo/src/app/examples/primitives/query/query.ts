@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
+  Console,
   craftMethod,
   CraftRouterToYield,
   insertLocalStoragePersister,
@@ -59,22 +60,24 @@ export default class GlobalQuery {
     }),
   );
 
-  protected nextPage = craftMethod(this, function* () {
-    void (yield* CraftRouterToYield.navigate({
+  protected nextPage = craftMethod('nextPage', this, function* () {
+    const router = yield* CraftRouterToYield();
+    return router.navigate({
       to: 'query/:userId',
       params: {
         userId: String(parseInt(this.userId() ?? '0', 10) + 1),
       },
-    }));
+    });
   });
 
-  protected previousPage = craftMethod(this, function* () {
-    void (yield* CraftRouterToYield.navigate({
+  protected previousPage = craftMethod('previousPage', this, function* () {
+    yield* Console.log('test');
+    return yield* CraftRouterToYield.navigate({
       to: 'query/:userId',
       params: {
         userId: String(parseInt(this.userId() ?? '10', 10) - 1),
       },
-    }));
+    });
   });
 }
 

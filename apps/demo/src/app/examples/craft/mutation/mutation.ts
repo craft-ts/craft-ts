@@ -98,7 +98,7 @@ export default class MutationCraft {
     userId: this.userId,
   });
 
-  protected updateUserNameFn = craftMethod(function* (newName: string) {
+  protected updateUserNameFn = craftMethod('updateUserNameFn', function* (newName: string) {
     const { user, updateUserName } = yield* UserMutationToYield(
       undefined,
       ({ user, updateUserName }) => ({ user, updateUserName }),
@@ -110,7 +110,7 @@ export default class MutationCraft {
     updateUserName.mutate({ userName: newName, user: userValue });
   });
 
-  protected nextPage = craftMethod(this, function* () {
+  protected nextPage = craftMethod('nextPage', this, function* () {
     const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
       navigate,
     }));
@@ -122,7 +122,7 @@ export default class MutationCraft {
     });
   });
 
-  protected previousPage = craftMethod(this, function* () {
+  protected previousPage = craftMethod('previousPage', this, function* () {
     const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
       navigate,
     }));

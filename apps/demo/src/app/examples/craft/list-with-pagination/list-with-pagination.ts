@@ -154,7 +154,7 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
 export default class ListWithPaginationCraft {
   protected readonly store = injectUserList();
 
-  protected updatePageSize = craftMethod(function* (event: Event) {
+  protected updatePageSize = craftMethod('updatePageSize', function* (event: Event) {
     const value = Number((event.target as HTMLSelectElement).value);
     const store = yield* UserListToYield();
     store.pagination.updatePageSize(value);

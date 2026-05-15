@@ -15,6 +15,7 @@ export default [
     },
     rules: {
       'craft-ng/brand-angular-gen-deps-required': 'error',
+      'craft-ng/craft-method-name-match': 'error',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/no-angular-signal-forms': 'error',
       'craft-ng/provide-host-name-match-component': 'error',

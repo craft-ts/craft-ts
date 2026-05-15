@@ -47,7 +47,7 @@ describe('craftMethod', () => {
 
   it('should require an injection context when creating the method', () => {
     class OutsideInjectionContextComponent {
-      readonly increment = craftMethod(this, function* () {
+      readonly increment = craftMethod('increment', this, function* () {
         return 1;
       });
     }
@@ -61,7 +61,7 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod(this, function* (step: number = 1) {
+      readonly increment = craftMethod('increment', this, function* (step: number = 1) {
         yield* Console.log('increment');
         this.counter.update((value) => value + step);
         return this.counter();
@@ -79,7 +79,7 @@ describe('craftMethod', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith(
       'increment',
       expect.objectContaining({
-        from: ['craftMethod'],
+        from: ['increment'],
         trace: expect.any(String),
       }),
     );
@@ -89,7 +89,7 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod(function* (
+      readonly increment = craftMethod('increment', function* (
         this: CounterComponent,
         step: number = 1,
       ) {
@@ -110,7 +110,7 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod(this, function* (step: number = 1) {
+      readonly increment = craftMethod('increment', this, function* (step: number = 1) {
         this.counter.update((value) => value + step);
         return this.counter();
       });
@@ -136,7 +136,7 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod(this, function* (step: number = 1) {
+      readonly increment = craftMethod('increment', this, function* (step: number = 1) {
         const worker = yield* CounterWorkerToYield();
         this.counter.set(worker.increment(this.counter(), step));
         return this.counter();
@@ -153,7 +153,7 @@ describe('craftMethod', () => {
 
   it('should reject onAppStart(...) inside craftMethod generators', () => {
     class InvalidComponent {
-      readonly increment = craftMethod(this, function* () {
+      readonly increment = craftMethod('increment', this, function* () {
         yield* onAppStart(() => undefined);
       });
     }
@@ -171,12 +171,12 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod(this, function* (step: number) {
+      readonly increment = craftMethod('increment', this, function* (step: number) {
         this.counter.update((value) => value + step);
         return this.counter();
       });
 
-      readonly decrement = craftMethod(function* (
+      readonly decrement = craftMethod('decrement', function* (
         this: CounterComponent,
         step: number,
       ) {
@@ -206,7 +206,7 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod(this, function* (step: number = 1) {
+      readonly increment = craftMethod('increment', this, function* (step: number = 1) {
         const worker = yield* CounterWorkerToYield();
         this.counter.set(worker.increment(this.counter(), step));
         return this.counter();

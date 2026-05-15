@@ -258,20 +258,23 @@ describe('craftMethod doc page', () => {
       'The method runs inside the injection context captured when `craftMethod(...)` is created.',
     );
     expect(content).toContain(
-      'function craftMethod<This, Args extends unknown[], Result>(',
+      'function craftMethod<Name extends string, This, Args extends unknown[], Result>(',
     );
     expect(content).toContain(
       'factory: (this: This, ...args: Args) => Generator<unknown, Result, unknown>,',
     );
+    expect(content).toContain('name: Name,');
     expect(content).toContain('self: This,');
   });
 
   it('documents Browser Boundaries and crafted service composition examples', () => {
     expect(content).toContain(
-      'readonly increment = craftMethod(this, function* (step = 1) {',
+      "readonly increment = craftMethod('increment', this, function* (step = 1) {",
     );
     expect(content).toContain("yield* Console.log('increment is called');");
-    expect(content).toContain('readonly increment = craftMethod(function* (');
+    expect(content).toContain(
+      "readonly increment = craftMethod('increment', function* (",
+    );
     expect(content).toContain('this: CounterComponent,');
     expect(content).toContain('const worker = yield* CounterWorkerToYield();');
     expect(content).toContain('[`craftService`](/store/craft-service)');
@@ -279,10 +282,10 @@ describe('craftMethod doc page', () => {
 
   it('documents the receiver caveat and onAppStart restriction', () => {
     expect(content).toContain(
-      '`craftMethod(fn)` depends on the receiver used at call time.',
+      '`craftMethod(name, fn)` depends on the receiver used at call time.',
     );
     expect(content).toContain(
-      '`craftMethod(this, fn)` is the recommended form whenever the generator reads or writes `this`.',
+      '`craftMethod(name, this, fn)` is the recommended form whenever the generator reads or writes `this`.',
     );
     expect(content).toContain(
       '`onAppStart(...)` is not supported inside `craftMethod`.',

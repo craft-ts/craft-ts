@@ -29,14 +29,29 @@ type TrackedCraftMethod<Callable, Yielded> = Callable & {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
 };
 
-export function craftMethod<This, Args extends unknown[], Yielded, Result>(
+export function craftMethod<
+  Name extends string,
+  This,
+  Args extends unknown[],
+  Yielded,
+  Result,
+>(
+  name: Name,
   factory: CraftMethodGenerator<This, Args, Yielded, Result>,
 ): TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded>;
-export function craftMethod<This, Args extends unknown[], Yielded, Result>(
+export function craftMethod<
+  Name extends string,
+  This,
+  Args extends unknown[],
+  Yielded,
+  Result,
+>(
+  name: Name,
   self: This,
   factory: CraftMethodGenerator<This, Args, Yielded, Result>,
 ): TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded>;
 export function craftMethod<This, Args extends unknown[], Yielded, Result>(
+  name: string,
   selfOrFactory: This | CraftMethodGenerator<This, Args, Yielded, Result>,
   maybeFactory?: CraftMethodGenerator<This, Args, Yielded, Result>,
 ):
@@ -48,10 +63,7 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   if (maybeFactory) {
     const self = selfOrFactory as This;
     const factory = maybeFactory;
-    const methodInjector = ɵcreateHostTaggedInjector(
-      injector,
-      getCraftMethodHostName(factory),
-    );
+    const methodInjector = ɵcreateHostTaggedInjector(injector, name);
 
     return ((...args: Args) =>
       executeCraftMethod(
@@ -71,18 +83,11 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
     Yielded,
     Result
   >;
-  const methodInjector = ɵcreateHostTaggedInjector(
-    injector,
-    getCraftMethodHostName(factory),
-  );
+  const methodInjector = ɵcreateHostTaggedInjector(injector, name);
 
   return function (this: This, ...args: Args) {
     return executeCraftMethod(factory, methodInjector, this, args);
   } as TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded>;
-}
-
-function getCraftMethodHostName(factory: Function): string {
-  return factory.name || 'craftMethod';
 }
 
 function executeCraftMethod<This, Args extends unknown[], Yielded, Result>(

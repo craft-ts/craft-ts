@@ -209,7 +209,7 @@ const {
 export default class GranularMutationCraft {
   protected readonly store = injectGranularMutation();
 
-  protected updatePageSize = craftMethod(function* (event: Event) {
+  protected updatePageSize = craftMethod('updatePageSize', function* (event: Event) {
     const value = Number((event.target as HTMLSelectElement).value);
     const store = yield* GranularMutationToYield();
     store.pagination.updatePageSize(value);

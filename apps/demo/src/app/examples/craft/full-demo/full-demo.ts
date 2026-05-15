@@ -399,7 +399,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
 export default class FullDemoCraft {
   protected readonly store = injectFullDemo();
 
-  protected updatePageSize = craftMethod(function* (event: Event) {
+  protected updatePageSize = craftMethod('updatePageSize', function* (event: Event) {
     const value = Number((event.target as HTMLSelectElement).value);
     const pagination = yield* FullDemoToYield.pagination();
     pagination.updatePageSize(value);
