@@ -1,13 +1,14 @@
 import { Component } from '@angular/core';
 import {
-    craftService,
-    MaybeSignal,
-    provideHostName,
-    state,
-    toValue,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftMethod,
+  craftService,
+  MaybeSignal,
+  provideHostName,
+  state,
+  toValue,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
 const { BToYield } = craftService({ name: 'B', scope: 'function' }, () => {
@@ -30,36 +31,27 @@ const { injectCounter } = craftService(
 
 @Component({
   selector: 'app-test',
-  template: `
-    <div>
-      Counter 1: {{ counter1() }}
-      <button (click)="counter1.increment()">Increment Counter 1</button>
-    </div>
-
-    <div>
-      Counter 2: {{ counter2() }}
-      <button (click)="counter2.increment()">Increment Counter 2</button>
-    </div>
-  `,
-  providers: [provideHostName('TestComponent')]
+  template: ` <button (click)="shouldFailed()">Should fail</button> `,
+  providers: [provideHostName('TestComponent')],
 })
 export default class TestComponent {
-  counter1 = injectCounter({ initialValue: 0 });
-  counter2 = injectCounter({ initialValue: 200 });
+  shouldFailed = craftMethod('shouldFailed', this, function* () {
+    throw new Error('This method should not be called');
+  });
 }
 
 export type GenDeps_TestComponent = GetDeps<{
-      deps: {};
-      propertiesDeps: {
-        counter1: {
-            Counter: ExtractDeps<typeof injectCounter>["Counter"];
-          };
-        counter2: {
-            Counter: ExtractDeps<typeof injectCounter>["Counter"];
-          };
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<TestComponent>;
-    }>;
+  deps: {};
+  propertiesDeps: {
+    counter1: {
+      Counter: ExtractDeps<typeof injectCounter>['Counter'];
+    };
+    counter2: {
+      Counter: ExtractDeps<typeof injectCounter>['Counter'];
+    };
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<TestComponent>;
+}>;

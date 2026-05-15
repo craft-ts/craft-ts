@@ -1194,15 +1194,60 @@ type QueryParamsInjectHelpers<
   >
 >;
 
-type CraftRoutePathRegistryEntry<RouteDefinition> = Simplify<
-  { path: RoutePath<RouteDefinition> } &
-    RouteQueryParamsMetaDataField<RouteDefinition>
+type CraftRoutePathRegistryEntry<
+  RouteDefinition,
+  ResolvedPath extends string,
+> = Simplify<
+  { path: ResolvedPath } & RouteQueryParamsMetaDataField<RouteDefinition>
 >;
+
+type FlattenLoadChildrenPathRegistry<
+  RouteDefinition,
+  ParentPath extends string,
+> = [LoadChildrenRoutes<RouteDefinition>] extends [never]
+  ? readonly []
+  : CraftRoutesPathRegistryWithContext<
+      LoadChildrenRoutes<RouteDefinition>,
+      ParentPath
+    >;
+
+type FlattenCraftRoutePathRegistryEntry<
+  RouteDefinition extends AnyCraftRouteDefinition,
+  ParentPath extends string = '',
+> = readonly [
+  CraftRoutePathRegistryEntry<
+    RouteDefinition,
+    JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>
+  >,
+  ...FlattenLoadChildrenPathRegistry<
+    RouteDefinition,
+    JoinRoutePaths<ParentPath, RoutePath<RouteDefinition>>
+  >,
+];
+
+type CraftRoutesPathRegistryWithContext<
+  Routes extends readonly AnyCraftRouteDefinition[],
+  ParentPath extends string,
+> = number extends Routes['length']
+  ? readonly CraftRoutePathRegistryEntry<Routes[number], string>[]
+  : Routes extends readonly [
+        infer Head extends AnyCraftRouteDefinition,
+        ...infer Tail extends readonly AnyCraftRouteDefinition[],
+      ]
+    ? readonly [
+        ...FlattenCraftRoutePathRegistryEntry<Head, ParentPath>,
+        ...CraftRoutesPathRegistryWithContext<Tail, ParentPath>,
+      ]
+    : readonly [];
 
 /**
  * Slim view over a routes collection: only `path` (and `queryParams` when
  * declared). Excludes `componentDeps`-derived fields on purpose — that's what
  * `META_DATA` is for.
+ *
+ * Nested children loaded via `loadChildren` are flattened with their joined
+ * parent path (e.g. `'craft/lazy-layout/:teamId/users/:userId'`), mirroring
+ * how `CraftRoutesMetaData` resolves paths.
  *
  * Use this in the `CraftRouterRoutesRegistry` augmentation. The registry only
  * needs paths and queryParams to validate `navigate({to: ...})`. Including
@@ -1216,11 +1261,7 @@ type CraftRoutePathRegistryEntry<RouteDefinition> = Simplify<
  */
 export type CraftRoutesPathRegistry<
   Routes extends readonly AnyCraftRouteDefinition[],
-> = {
-  readonly [Index in keyof Routes]: Routes[Index] extends AnyCraftRouteDefinition
-    ? CraftRoutePathRegistryEntry<Routes[Index]>
-    : Routes[Index];
-};
+> = CraftRoutesPathRegistryWithContext<Routes, ''>;
 
 export type CraftRoutesApp<
   Routes extends

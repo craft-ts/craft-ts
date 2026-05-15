@@ -74,9 +74,28 @@ const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
 
 type CraftRouterTestRoutesMetaData = typeof craftRouterTestRoutes.META_DATA;
 
+const { craftRouterNestedTestRoutes } = craftRoutes('craftRouterNestedTest', [
+  {
+    path: 'parent/:teamId',
+    component: BlankComponent,
+    componentDeps: {},
+    loadChildren: () =>
+      Promise.resolve(
+        craftRoutes('craftRouterNestedTestChildren', [
+          {
+            path: 'child/:userId',
+            component: BlankComponent,
+            componentDeps: {},
+          },
+        ]).craftRouterNestedTestChildrenRoutes,
+      ),
+  },
+]);
+
 declare module './craft-router' {
   interface CraftRouterRoutesRegistry {
     CraftRouterTest: CraftRouterTestRoutesMetaData;
+    CraftRouterNestedTest: typeof craftRouterNestedTestRoutes.META_PATHS;
   }
 }
 
@@ -291,6 +310,49 @@ describe('CraftRouter', () => {
       CraftRouter: GetToYieldServiceDependencies<typeof CraftRouterToYield>;
     };
     type _Check = Expect<Equal<ExtractDeps<GoToHome['navigate']>, ExpectedDeps>>;
+  });
+
+  it('should accept nested paths joined from loadChildren in craftRouterLink and navigate', () => {
+    // Regression test: `META_PATHS` initially mapped only over the top-level
+    // routes, so children loaded via `loadChildren` were missing from
+    // `NavigableRoutePath`. Templates and shortcut calls using a joined path
+    // such as `'parent/:teamId/child/:userId'` errored as "not assignable to
+    // NavigableRoutePath" even though the route was registered.
+    @Component({
+      standalone: true,
+      imports: [CraftRouterLink],
+      template: `
+        <a
+          [craftRouterLink]="{
+            to: 'parent/:teamId/child/:userId',
+            params: { teamId: '1', userId: '42' },
+          }"
+        ></a>
+      `,
+    })
+    class NestedHost {}
+
+    expect(NestedHost).toBeDefined();
+
+    if (false) {
+      TestBed.runInInjectionContext(() => {
+        const router = injectCraftRouter();
+        // Joined path resolves at the type level
+        router.navigate({
+          to: 'parent/:teamId/child/:userId',
+          params: { teamId: '1', userId: '42' },
+        });
+        // @ts-expect-error params required for the joined path
+        router.navigate({ to: 'parent/:teamId/child/:userId' });
+        // @ts-expect-error params missing userId
+        router.navigate({
+          to: 'parent/:teamId/child/:userId',
+          params: { teamId: '1' },
+        });
+        // @ts-expect-error typo in joined path
+        router.navigate({ to: 'parent/:teamId/childz/:userId' });
+      });
+    }
   });
 
   it('should keep per-service deps when a craftMethod yields multiple services alongside raw injector helpers', () => {

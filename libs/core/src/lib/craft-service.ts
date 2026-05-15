@@ -31,6 +31,7 @@ import {
   SERVICE_PROVIDED_INPUT_KEY,
   SERVICE_ROOT_EXPOSURE_KEY,
 } from './craft-service.shared';
+import { injectFnWrapper } from './fn-wrapper';
 import type {
   CallableShell,
   ConcreteServiceScope,
@@ -3073,10 +3074,11 @@ function createConcreteServiceInstance(
   return runInInjectionContext(scopedInjector, () => {
     const bindings = bindingsOverride ?? definition.initialBindings ?? {};
     const inputs = createInputProxy(bindings, providedConfig);
+    const wrappedFactory = injectFnWrapper()(definition.factory);
     const result =
       definition.factory.length > 0
-        ? definition.factory(inputs)
-        : definition.factory();
+        ? wrappedFactory(inputs)
+        : wrappedFactory();
 
     if (!isGenerator(result)) {
       return result;

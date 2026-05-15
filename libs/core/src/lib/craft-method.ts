@@ -10,6 +10,7 @@ import type {
 } from './craft-service';
 import { ɵcreateHostTaggedInjector } from './craft-service';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import { injectFnWrapper } from './fn-wrapper';
 
 type CraftMethodGenerator<This, Args extends unknown[], Yielded, Result> = (
   this: This,
@@ -59,10 +60,11 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   | TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded> {
   assertInInjectionContext(craftMethod);
   const injector = inject(Injector);
+  const wrapFn = injectFnWrapper();
 
   if (maybeFactory) {
     const self = selfOrFactory as This;
-    const factory = maybeFactory;
+    const factory = wrapFn(maybeFactory);
     const methodInjector = ɵcreateHostTaggedInjector(injector, name);
 
     return ((...args: Args) =>
@@ -77,12 +79,9 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
     >;
   }
 
-  const factory = selfOrFactory as CraftMethodGenerator<
-    This,
-    Args,
-    Yielded,
-    Result
-  >;
+  const factory = wrapFn(
+    selfOrFactory as CraftMethodGenerator<This, Args, Yielded, Result>,
+  );
   const methodInjector = ɵcreateHostTaggedInjector(injector, name);
 
   return function (this: This, ...args: Args) {

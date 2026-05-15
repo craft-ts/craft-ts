@@ -15,6 +15,7 @@ import {
   InsertionStateFactoryContext,
 } from './query.core';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import { injectFnWrapper } from './fn-wrapper';
 import { ɵcreateHostTaggedInjector } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -117,13 +118,15 @@ function executeStateFactory<This, Args extends unknown[], Result>(
   getInjector: () => Injector,
   ...args: Args
 ): ResolveGeneratorResult<Result> {
-  const result = factory.apply(thisArg, args);
+  const injector = getInjector();
+  const wrappedFactory = runInInjectionContext(injector, () =>
+    injectFnWrapper()(factory),
+  );
+  const result = wrappedFactory.apply(thisArg, args);
 
   if (!isGenerator(result)) {
     return result as ResolveGeneratorResult<Result>;
   }
-
-  const injector = getInjector();
 
   return runInInjectionContext(injector, () => {
     return runCraftGenerator({

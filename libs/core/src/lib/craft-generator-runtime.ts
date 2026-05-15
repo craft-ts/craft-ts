@@ -1,6 +1,7 @@
 import { Injector, runInInjectionContext } from '@angular/core';
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
+import { injectFnWrapper } from './fn-wrapper';
 
 export const SERVICE_YIELD_REQUEST_MARKER = Symbol(
   'service-yield-request-marker',
@@ -161,13 +162,15 @@ export function executeGeneratorCompatibleFactory<
   multipleAppStartErrorMessage: string;
   onAppStartNotSupportedErrorMessage?: string;
 }): ResolveGeneratorResult<Result> {
-  const result = factory.apply(thisArg, args);
+  const injector = getInjector();
+  const wrappedFactory = runInInjectionContext(injector, () =>
+    injectFnWrapper()(factory),
+  );
+  const result = wrappedFactory.apply(thisArg, args);
 
   if (!isGenerator(result)) {
     return result as ResolveGeneratorResult<Result>;
   }
-
-  const injector = getInjector();
 
   return runInInjectionContext(injector, () => {
     return runCraftGenerator({
