@@ -10,6 +10,7 @@ import {
   type UrlTree,
 } from '@angular/router';
 import {
+  type GetServiceYields,
   type SERVICE_DEPENDENCY_ACCESS_MARKER,
   type SERVICE_EXPOSURE_TOKEN_MARKER,
   type SERVICE_HELPER_DEPENDENCIES,
@@ -191,9 +192,12 @@ const {
   (router): Router => createCraftRouter(router),
 );
 
-type CraftRouterYieldRequest = GeneratorYield<
-  ReturnType<typeof CraftRouterToYieldInternal>
->;
+// We can't reach the request type via `ReturnType<typeof CraftRouterToYieldInternal>`
+// because it picks the LAST overload (`<Exposed, Yielded>(...)`), whose
+// generator's yield collapses to `unknown` when the generics are unbound.
+// `GetServiceYields` extracts the proper `ServiceYieldRequest<...>` (and
+// `ExposureYield<...>`) union from the helper's tracked metadata directly.
+type CraftRouterYieldRequest = GetServiceYields<typeof CraftRouterToYieldInternal>;
 
 type StructuralRouteParamsField<Path extends string> = [
   PathParamNames<Path>,

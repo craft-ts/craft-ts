@@ -61,8 +61,7 @@ export default class GlobalQuery {
   );
 
   protected nextPage = craftMethod('nextPage', this, function* () {
-    const router = yield* CraftRouterToYield();
-    return router.navigate({
+    return yield* CraftRouterToYield.navigate({
       to: 'query/:userId',
       params: {
         userId: String(parseInt(this.userId() ?? '0', 10) + 1),
@@ -71,7 +70,6 @@ export default class GlobalQuery {
   });
 
   protected previousPage = craftMethod('previousPage', this, function* () {
-    yield* Console.log('test');
     return yield* CraftRouterToYield.navigate({
       to: 'query/:userId',
       params: {

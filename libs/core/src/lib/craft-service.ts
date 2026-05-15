@@ -888,7 +888,14 @@ type DependencyRecord<Request> =
     any,
     any
   >
-    ? { [Key in Name]: DependencyDefinition<Request> }
+    ? // Some yield requests (e.g. raw injector helpers like `HostTagToYield`)
+      // are structurally compatible with `ServiceYieldRequest<any, any, any>`
+      // but carry no explicit metadata, so `Name` widens to `string`. Without
+      // this guard, `[Key in string]` would emit an index signature that
+      // corrupts the merged deps map for every other entry.
+      string extends Name
+      ? {}
+      : { [Key in Name]: DependencyDefinition<Request> }
     : {};
 
 type BuildDependencyMap<

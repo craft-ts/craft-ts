@@ -9,12 +9,18 @@ import {
 } from '@angular/platform-browser/testing';
 import { Router, RouterLinkActive } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { Equal, Expect } from 'test-type';
+import type { ExtractDeps } from './branded-component/branded-component';
+import { Console } from './browser-boundaries';
+import { craftMethod } from './craft-method';
 import {
   CraftRouterLink,
+  CraftRouterToYield,
   injectCraftRouter,
   provideCraftRouter,
 } from './craft-router';
 import { craftRoutes } from './craft-routes';
+import type { GetToYieldServiceDependencies } from './craft-service';
 import { queryParam } from './query-param';
 
 @Component({
@@ -265,5 +271,52 @@ describe('CraftRouter', () => {
     fixture.detectChanges();
 
     expect(TestBed.inject(Router).url).toBe('/users/42');
+  });
+
+  it('should expose CraftRouter dependency through ExtractDeps when a craftMethod yields CraftRouterToYield', () => {
+    // Regression test for a bug where `CraftRouterYieldRequest` was extracted
+    // via `ReturnType<typeof CraftRouterToYieldInternal>` — `ReturnType` picks
+    // the *last* overload, whose generator's yield collapsed to `unknown` once
+    // the generic params were unbound. The result was that any craftMethod
+    // delegating to `CraftRouterToYield` had `Yielded = unknown`, so
+    // `ExtractDeps<...>` returned `{}` instead of `{ CraftRouter: ... }`.
+    class GoToHome {
+      readonly navigate = craftMethod('navigate', this, function* () {
+        const router = yield* CraftRouterToYield();
+        return router.navigate({ to: '' });
+      });
+    }
+
+    type ExpectedDeps = {
+      CraftRouter: GetToYieldServiceDependencies<typeof CraftRouterToYield>;
+    };
+    type _Check = Expect<Equal<ExtractDeps<GoToHome['navigate']>, ExpectedDeps>>;
+  });
+
+  it('should keep per-service deps when a craftMethod yields multiple services alongside raw injector helpers', () => {
+    // Regression test for a bug in `DependencyRecord` where raw yield helpers
+    // (e.g. the ones inside `Console.*` boundary methods that use
+    // `HostTagToYield` / `TrackTagsToYield`) structurally matched
+    // `ServiceYieldRequest<any, any, any>` despite carrying no explicit
+    // metadata — so `Name` widened to `string` and `[Key in Name]` collapsed
+    // the merged deps map to a `{ [x: string]: ... }` index signature instead
+    // of preserving each service's literal name.
+    class MultiYield {
+      readonly run = craftMethod('run', this, function* () {
+        yield* Console.log('navigating');
+        yield* CraftRouterToYield();
+      });
+    }
+
+    type ExpectedDeps = {
+      ConsoleService: {
+        scope: 'global';
+        dependencies: {};
+        browserBoundary: true;
+        appStart: false;
+      };
+      CraftRouter: GetToYieldServiceDependencies<typeof CraftRouterToYield>;
+    };
+    type _Check = Expect<Equal<ExtractDeps<MultiYield['run']>, ExpectedDeps>>;
   });
 });
