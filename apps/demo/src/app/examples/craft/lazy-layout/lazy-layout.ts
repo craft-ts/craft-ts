@@ -172,7 +172,7 @@ import {
     }
   `,
   imports: [RouterOutlet],
-  providers: [provideHostName('LazyLayoutComponent')]
+  providers: [provideHostName('component:LazyLayoutComponent')]
 })
 export default class LazyLayoutComponent {
   public readonly teamId = input.required<string>();

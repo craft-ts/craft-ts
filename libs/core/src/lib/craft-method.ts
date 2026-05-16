@@ -65,7 +65,7 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   if (maybeFactory) {
     const self = selfOrFactory as This;
     const factory = wrapFn(maybeFactory);
-    const methodInjector = ɵcreateHostTaggedInjector(injector, name);
+    const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${name}`);
 
     return ((...args: Args) =>
       executeCraftMethod(
@@ -82,7 +82,7 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   const factory = wrapFn(
     selfOrFactory as CraftMethodGenerator<This, Args, Yielded, Result>,
   );
-  const methodInjector = ɵcreateHostTaggedInjector(injector, name);
+  const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${name}`);
 
   return function (this: This, ...args: Args) {
     return executeCraftMethod(factory, methodInjector, this, args);

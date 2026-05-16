@@ -1,14 +1,14 @@
 import { Component } from '@angular/core';
 import {
-  craftMethod,
-  craftService,
-  MaybeSignal,
-  provideHostName,
-  state,
-  toValue,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    craftMethod,
+    craftService,
+    MaybeSignal,
+    provideHostName,
+    state,
+    toValue,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 const { BToYield } = craftService({ name: 'B', scope: 'function' }, () => {
@@ -32,7 +32,7 @@ const { injectCounter } = craftService(
 @Component({
   selector: 'app-test',
   template: ` <button (click)="shouldFailed()">Should fail</button> `,
-  providers: [provideHostName('TestComponent')],
+  providers: [provideHostName('component:TestComponent')],
 })
 export default class TestComponent {
   shouldFailed = craftMethod('shouldFailed', this, function* () {
@@ -41,17 +41,12 @@ export default class TestComponent {
 }
 
 export type GenDeps_TestComponent = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    counter1: {
-      Counter: ExtractDeps<typeof injectCounter>['Counter'];
-    };
-    counter2: {
-      Counter: ExtractDeps<typeof injectCounter>['Counter'];
-    };
-  };
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: GetPublicComponentProperties<TestComponent>;
-}>;
+      deps: {};
+      propertiesDeps: {
+        shouldFailed: ExtractDeps<TestComponent["shouldFailed"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<TestComponent>;
+    }>;

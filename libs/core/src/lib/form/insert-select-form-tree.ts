@@ -106,7 +106,10 @@ function createObjectRuntime(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: InsertionFormFactoryContext<any, any, any>,
   ) => {
-    const injector = ɵcreateHostTaggedInjector(inject(Injector), propertyKey);
+    const injector = ɵcreateHostTaggedInjector(
+      inject(Injector),
+      `selectProperty:${propertyKey}`,
+    );
     const methodName = `select${propertyKey.charAt(0).toUpperCase()}${propertyKey.slice(1)}`;
 
     let cachedForm: FormWithInsertions<unknown, Record<string, unknown>> | undefined;
@@ -159,7 +162,10 @@ function createArrayItemRuntime(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: InsertionFormFactoryContext<any, any, any>,
   ) => {
-    const injector = ɵcreateHostTaggedInjector(inject(Injector), entityName);
+    const injector = ɵcreateHostTaggedInjector(
+      inject(Injector),
+      `selectEntity:${entityName}`,
+    );
     const methodName = `select${entityName.charAt(0).toUpperCase()}${entityName.slice(1)}`;
     const cache = new Map<number, FormWithInsertions<unknown, Record<string, unknown>>>();
 
@@ -173,7 +179,10 @@ function createArrayItemRuntime(
       const cached = cache.get(id);
       if (cached) return cached;
 
-      const itemInjector = ɵcreateHostTaggedInjector(injector, String(id));
+      const itemInjector = ɵcreateHostTaggedInjector(
+        injector,
+        `selectItem:${id}`,
+      );
       const subState = () => {
         const curr = context.state();
         if (!Array.isArray(curr)) return undefined;

@@ -14,7 +14,7 @@ const { injectCounter, provideCounter } = craftService(
 @Component({
   selector: 'app-craft-service-counter',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideCounter(), provideHostName('CraftServiceCounterComponent')],
+  providers: [provideCounter(), provideHostName('component:CraftServiceCounterComponent')],
   template: `
     <div class="counter-demo">
       <h2>craftService Counter (toProvide scope)</h2>

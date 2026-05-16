@@ -118,7 +118,7 @@ import { OtherComponent, type GenDeps_OtherComponent } from './other';
     }
   `,
   imports: [OtherComponent],
-  providers: [provideHostName('LazyLayoutChildComponent')]
+  providers: [provideHostName('component:LazyLayoutChildComponent')]
 })
 export default class LazyLayoutChildComponent {
   readonly injectedParentRouteData = injectDemoCraftLazyLayoutTeamIdData();

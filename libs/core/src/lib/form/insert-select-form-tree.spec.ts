@@ -92,7 +92,7 @@ describe('insertSelectFormTree', () => {
       expect(
         (credentials as unknown as { hostTags: ReadonlyArray<string> })
           .hostTags,
-      ).toContain('credentials');
+      ).toContain('selectProperty:credentials');
     });
   });
 
@@ -181,7 +181,11 @@ describe('insertSelectFormTree', () => {
       // The injector is tagged with the property key, the sub-entity name and
       // the item index, so DI introspection (HOST_TAG_LIST) exposes all of them.
       expect(address.hostTags).toEqual(
-        expect.arrayContaining(['addresses', 'address', '1']),
+        expect.arrayContaining([
+          'selectProperty:addresses',
+          'selectEntity:address',
+          'selectItem:1',
+        ]),
       );
     });
   });
@@ -387,7 +391,7 @@ describe('selectFormTree', () => {
         }
       ).selectCredentials();
 
-      expect(credentials.hostTags).toContain('credentials');
+      expect(credentials.hostTags).toContain('selectProperty:credentials');
     });
   });
 

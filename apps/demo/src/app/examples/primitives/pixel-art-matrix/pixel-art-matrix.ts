@@ -176,7 +176,7 @@ const createInitialGrid = (): PixelCellState[][] =>
   `,
   styleUrls: ['./pixel-art-matrix.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('PixelArtMatrix')]
+  providers: [provideHostName('component:PixelArtMatrix')]
 })
 export default class PixelArtMatrix {
   protected readonly emptyColor = EMPTY_COLOR;

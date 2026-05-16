@@ -94,7 +94,7 @@ import { injectApiService } from './api.service';
   `,
   styleUrls: ['./list-with-pagination.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('ListWithPagination')]
+  providers: [provideHostName('component:ListWithPagination')]
 })
 export default class ListWithPagination {
   protected readonly pagination = queryParam(

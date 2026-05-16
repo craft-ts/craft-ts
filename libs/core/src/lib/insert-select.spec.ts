@@ -138,7 +138,7 @@ describe('insertSelect', () => {
         })),
       );
 
-      expect(board.selectCell().hostTags).toEqual(['cell']);
+      expect(board.selectCell().hostTags).toEqual(['selectProperty:cell']);
     });
   });
 
@@ -183,7 +183,10 @@ describe('insertSelect', () => {
         })),
       );
 
-      expect(cells.selectCell(1)?.hostTags).toEqual(['cell', '1']);
+      expect(cells.selectCell(1)?.hostTags).toEqual([
+        'selectEntity:cell',
+        'selectItem:1',
+      ]);
     });
   });
 

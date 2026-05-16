@@ -96,7 +96,7 @@ import { injectApiService } from './api.service';
   `,
   styleUrls: ['./list-with-pagination.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('QpListWithPagination')]
+  providers: [provideHostName('component:QpListWithPagination')]
 })
 export default class QpListWithPagination {
   protected readonly pagination = injectDemoQueryParamQueryParams();

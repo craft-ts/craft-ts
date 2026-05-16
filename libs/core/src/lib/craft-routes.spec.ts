@@ -1619,9 +1619,9 @@ describe('craftRoutes', () => {
     );
 
     expect(runInInjectionContext(injector, () => injectHostName())).toBe(
-      'mutation/:userId',
+      'route:mutation/:userId',
     );
-    expect(injector.get(HOST_TAG_LIST)).toEqual(['mutation/:userId']);
+    expect(injector.get(HOST_TAG_LIST)).toEqual(['route:mutation/:userId']);
 
     const routeData = runInInjectionContext(injector, () =>
       injectMutationUserIdData(),

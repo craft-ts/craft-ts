@@ -3069,7 +3069,10 @@ function createConcreteServiceInstance(
   bindingsOverride?: Record<string, unknown>,
   providedConfig?: unknown,
 ): unknown {
-  const scopedInjector = ɵcreateHostTaggedInjector(injector, definition.name);
+  const scopedInjector = ɵcreateHostTaggedInjector(
+    injector,
+    `service:${definition.name}`,
+  );
 
   return runInInjectionContext(scopedInjector, () => {
     const bindings = bindingsOverride ?? definition.initialBindings ?? {};
@@ -3546,7 +3549,7 @@ function toMetaDataPropertyName(value: string): string {
     .toUpperCase()}_META_DATA`;
 }
 
-const HOST_TAG_INTERNAL_SERVICE_NAMES = new Set(['HostName']);
+const HOST_TAG_INTERNAL_SERVICE_NAMES = new Set(['service:HostName']);
 
 export interface CraftTrackTags {}
 

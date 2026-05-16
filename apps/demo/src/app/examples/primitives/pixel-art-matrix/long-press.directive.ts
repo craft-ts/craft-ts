@@ -4,7 +4,7 @@ import { provideHostName, type GetDeps } from '@craft-ng/core';
 @Directive({
   selector: '[appLongPress]',
   standalone: true,
-  providers: [provideHostName('LongPressDirective')]
+  providers: [provideHostName('directive:LongPressDirective')]
 })
 export class LongPressDirective {
   @Input('appLongPress') duration = 450;

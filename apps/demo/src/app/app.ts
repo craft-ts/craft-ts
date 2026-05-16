@@ -301,7 +301,7 @@ import {
       }
     }
   `,
-  providers: [provideHostName('App')],
+  providers: [provideHostName('component:App')],
 })
 export class App {
   clearCache = craftMethod('clearCache', function* () {

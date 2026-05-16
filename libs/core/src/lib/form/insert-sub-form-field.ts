@@ -222,7 +222,10 @@ export function insertSubFormField(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: InsertionFormFactoryContext<any, any, any>,
   ) => {
-    const injector = ɵcreateHostTaggedInjector(inject(Injector), name);
+    const injector = ɵcreateHostTaggedInjector(
+      inject(Injector),
+      `subForm:${name}`,
+    );
     const methodName = `select${name.charAt(0).toUpperCase()}${name.slice(1)}`;
 
     let cachedForm:

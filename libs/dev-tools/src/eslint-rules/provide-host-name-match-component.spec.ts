@@ -28,7 +28,7 @@ describe('provide-host-name-match-component', () => {
 
         @Component({
           standalone: true,
-          providers: [provideHostName('DemoComponent')],
+          providers: [provideHostName('component:DemoComponent')],
           template: '',
         })
         export class DemoComponent {}
@@ -36,7 +36,7 @@ describe('provide-host-name-match-component', () => {
         @Directive({
           selector: '[demoDirective]',
           standalone: true,
-          providers: [provideHostName('DemoDirective')],
+          providers: [provideHostName('directive:DemoDirective')],
         })
         export class DemoDirective {}
       `,
@@ -60,14 +60,16 @@ describe('provide-host-name-match-component', () => {
 
     const { messages } = await lintFixture(fixture);
     expect(messages).toEqual([
-      "DemoComponent must include provideHostName('DemoComponent') in providers.",
+      "DemoComponent must include provideHostName('component:DemoComponent') in providers.",
     ]);
 
     const { output } = await lintFixture(fixture, { fix: true });
     expect(output).toContain(
       "import { provideHostName } from '@craft-ng/core';",
     );
-    expect(output).toContain("providers: [provideHostName('DemoComponent')]");
+    expect(output).toContain(
+      "providers: [provideHostName('component:DemoComponent')]",
+    );
   });
 
   it('reports and autofixes mismatched host name', async () => {
@@ -87,11 +89,13 @@ describe('provide-host-name-match-component', () => {
 
     const { messages } = await lintFixture(fixture);
     expect(messages).toEqual([
-      "DemoComponent must include provideHostName('DemoComponent') in providers.",
+      "DemoComponent must include provideHostName('component:DemoComponent') in providers.",
     ]);
 
     const { output } = await lintFixture(fixture, { fix: true });
-    expect(output).toContain("providers: [provideHostName('DemoComponent')],");
+    expect(output).toContain(
+      "providers: [provideHostName('component:DemoComponent')],",
+    );
     expect(output).not.toContain("provideHostName('WrongName')");
   });
 
@@ -112,7 +116,7 @@ describe('provide-host-name-match-component', () => {
       filePath: 'src/app/demo.directive.ts',
     });
     expect(messages).toEqual([
-      "DemoDirective must include provideHostName('DemoDirective') in providers.",
+      "DemoDirective must include provideHostName('directive:DemoDirective') in providers.",
     ]);
 
     const { output } = await lintFixture(fixture, {
@@ -122,7 +126,9 @@ describe('provide-host-name-match-component', () => {
     expect(output).toContain(
       "import { provideHostName } from '@craft-ng/core';",
     );
-    expect(output).toContain("providers: [provideHostName('DemoDirective')]");
+    expect(output).toContain(
+      "providers: [provideHostName('directive:DemoDirective')]",
+    );
   });
 
   it('appends provideHostName when providers already exist', async () => {
@@ -145,7 +151,7 @@ describe('provide-host-name-match-component', () => {
       "import { provideApi, provideHostName } from '@craft-ng/core';",
     );
     expect(output).toContain(
-      "providers: [provideApi(), provideHostName('DemoComponent')],",
+      "providers: [provideApi(), provideHostName('component:DemoComponent')],",
     );
   });
 });

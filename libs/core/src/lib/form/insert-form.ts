@@ -816,7 +816,7 @@ export function insertForm(...args: any[]): any {
       // `form/<identifier>`, mirroring the pattern in `insertSelect`.
       const itemInjector = ɵcreateHostTaggedInjector(
         formInjector,
-        String(formIdentifier),
+        `formItem:${formIdentifier}`,
       );
 
       // `buildSimpleForm` may create effects (e.g. via insertFormSubmit). When

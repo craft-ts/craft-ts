@@ -149,7 +149,7 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
   `,
   styleUrls: ['./list-with-pagination.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideUserList(), provideHostName('ListWithPaginationCraft')],
+  providers: [provideUserList(), provideHostName('component:ListWithPaginationCraft')],
 })
 export default class ListWithPaginationCraft {
   protected readonly store = injectUserList();

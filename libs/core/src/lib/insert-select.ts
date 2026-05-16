@@ -162,7 +162,10 @@ function createInsertSelectItemRuntime(
     context: any,
   ) => {
     const { state, update, insertions: previousInsertions } = context;
-    const injector = ɵcreateHostTaggedInjector(inject(Injector), entityName);
+    const injector = ɵcreateHostTaggedInjector(
+      inject(Injector),
+      `selectEntity:${entityName}`,
+    );
     const selectItemMethodName = `select${capitalize(entityName)}`;
     const selectedStateById = new Map<number, unknown>();
     const inheritedInsertions =
@@ -188,7 +191,10 @@ function createInsertSelectItemRuntime(
       }
 
       const selectedStateSignal = linkedSignal(() => select(id));
-      const itemInjector = ɵcreateHostTaggedInjector(injector, String(id));
+      const itemInjector = ɵcreateHostTaggedInjector(
+        injector,
+        `selectItem:${id}`,
+      );
 
       const { rawInsertionsOutput, exposedInsertionsOutput } =
         itemInsertions.reduce(
@@ -377,7 +383,10 @@ function createInsertSelectPropertyRuntime(
     context: any,
   ) => {
     const { state, update, insertions: previousInsertions } = context;
-    const injector = ɵcreateHostTaggedInjector(inject(Injector), propertyKey);
+    const injector = ɵcreateHostTaggedInjector(
+      inject(Injector),
+      `selectProperty:${propertyKey}`,
+    );
     let selectedPropertyProxy: unknown;
     const crossLayerSourcesByKey = new Map<string, SourceDollarType<unknown>>();
     const selectPropertyMethodName = `select${capitalize(propertyKey)}`;

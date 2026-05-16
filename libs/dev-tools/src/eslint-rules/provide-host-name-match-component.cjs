@@ -168,6 +168,7 @@ function collectHostNameIssues(sourceFile) {
     if (!providersProperty) {
       issues.push({
         kind: 'missing-providers',
+        decoratorKind: decoratorMatch.kind,
         className,
         metadata,
         reportNode: classDeclaration,
@@ -184,6 +185,7 @@ function collectHostNameIssues(sourceFile) {
     if (hostNameCalls.length === 0) {
       issues.push({
         kind: 'missing-call',
+        decoratorKind: decoratorMatch.kind,
         className,
         providersArray,
         reportNode: classDeclaration,
@@ -191,8 +193,9 @@ function collectHostNameIssues(sourceFile) {
       continue;
     }
 
+    const expectedHostName = `${getHostNamePrefix(decoratorMatch.kind)}${className}`;
     const matchingCall = hostNameCalls.find((callExpression) =>
-      isMatchingHostNameCall(callExpression, className),
+      isMatchingHostNameCall(callExpression, expectedHostName),
     );
     if (matchingCall) {
       continue;
@@ -200,6 +203,7 @@ function collectHostNameIssues(sourceFile) {
 
     issues.push({
       kind: 'mismatched-call',
+      decoratorKind: decoratorMatch.kind,
       className,
       callExpression: hostNameCalls[0],
       reportNode: classDeclaration,
@@ -254,13 +258,11 @@ function findAngularDecorator(classDeclaration, angularDecorators) {
     const callee = expression.getExpression();
     if (Node.isIdentifier(callee)) {
       const decoratorName = callee.getText();
-      if (
-        angularDecorators.componentNames.has(decoratorName) ||
-        angularDecorators.directiveNames.has(decoratorName)
-      ) {
-        return {
-          decorator,
-        };
+      if (angularDecorators.componentNames.has(decoratorName)) {
+        return { decorator, kind: 'component' };
+      }
+      if (angularDecorators.directiveNames.has(decoratorName)) {
+        return { decorator, kind: 'directive' };
       }
       continue;
     }
@@ -273,16 +275,22 @@ function findAngularDecorator(classDeclaration, angularDecorators) {
     const propertyName = callee.getName();
     if (
       Node.isIdentifier(objectExpression) &&
-      angularDecorators.namespaceNames.has(objectExpression.getText()) &&
-      (propertyName === 'Component' || propertyName === 'Directive')
+      angularDecorators.namespaceNames.has(objectExpression.getText())
     ) {
-      return {
-        decorator,
-      };
+      if (propertyName === 'Component') {
+        return { decorator, kind: 'component' };
+      }
+      if (propertyName === 'Directive') {
+        return { decorator, kind: 'directive' };
+      }
     }
   }
 
   return undefined;
+}
+
+function getHostNamePrefix(kind) {
+  return kind === 'directive' ? 'directive:' : 'component:';
 }
 
 function getDecoratorMetadata(decorator) {
@@ -339,7 +347,7 @@ function isProvideHostNameCall(callExpression) {
   return false;
 }
 
-function isMatchingHostNameCall(callExpression, expectedClassName) {
+function isMatchingHostNameCall(callExpression, expectedHostName) {
   const [nameArgument] = callExpression.getArguments();
   if (
     !nameArgument ||
@@ -349,11 +357,12 @@ function isMatchingHostNameCall(callExpression, expectedClassName) {
     return false;
   }
 
-  return nameArgument.getLiteralText() === expectedClassName;
+  return nameArgument.getLiteralText() === expectedHostName;
 }
 
 function applyIssueFix(issue) {
-  const expectedCall = `provideHostName('${issue.className}')`;
+  const expectedHostName = `${getHostNamePrefix(issue.decoratorKind)}${issue.className}`;
+  const expectedCall = `provideHostName('${expectedHostName}')`;
 
   if (issue.kind === 'missing-providers') {
     issue.metadata.addPropertyAssignment({
@@ -434,12 +443,13 @@ function ensureProvideHostNameImport(sourceFile) {
 
 function formatIssueMessage(issues) {
   if (issues.length === 1) {
-    const className = issues[0].className;
-    return `${className} must include provideHostName('${className}') in providers.`;
+    const issue = issues[0];
+    const expectedHostName = `${getHostNamePrefix(issue.decoratorKind)}${issue.className}`;
+    return `${issue.className} must include provideHostName('${expectedHostName}') in providers.`;
   }
 
   const classNames = [...new Set(issues.map((issue) => issue.className))].join(
     ', ',
   );
-  return `Classes must include provideHostName('<ClassName>') in providers: ${classNames}.`;
+  return `Classes must include provideHostName('<kind>:<ClassName>') in providers: ${classNames}.`;
 }

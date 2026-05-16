@@ -61,7 +61,7 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
 @Component({
   selector: 'app-mutation',
   imports: [JsonPipe, StatusComponent],
-  providers: [provideUserMutation(), provideHostName('MutationCraft')],
+  providers: [provideUserMutation(), provideHostName('component:MutationCraft')],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['mutation.css'],
   template: `

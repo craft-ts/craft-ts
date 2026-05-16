@@ -376,7 +376,7 @@ export function makeFormTreeInsert(
     ) => {
       const taggedInjector = ɵcreateHostTaggedInjector(
         inject(Injector),
-        hostName,
+        `formTree:${hostName}`,
       );
 
       let acc: Record<string, unknown> = {};

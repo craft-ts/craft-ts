@@ -72,7 +72,7 @@ const { injectTest2 } = craftService(
 
 @Component({
   selector: 'app-other',
-  providers: [provideOtherService(), provideHostName('OtherComponent')],
+  providers: [provideOtherService(), provideHostName('component:OtherComponent')],
   template: ` {{ _injectOtherService.getValue() }}
     query status: {{ _injectUsersApiOnError.query.status() }}`,
 })

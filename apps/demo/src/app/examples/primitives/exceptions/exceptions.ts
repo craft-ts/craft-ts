@@ -99,7 +99,7 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
       </div>
     }
   `,
-  providers: [provideHostName('ExceptionsComponent')],
+  providers: [provideHostName('component:ExceptionsComponent')],
 })
 export default class ExceptionsComponent {
   private readonly scenario = signal<Scenario>('success');

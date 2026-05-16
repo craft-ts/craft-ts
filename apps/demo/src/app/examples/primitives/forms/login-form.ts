@@ -213,7 +213,7 @@ type LoginData = {
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('LoginFormComponent')]
+  providers: [provideHostName('component:LoginFormComponent')]
 })
 export default class LoginFormComponent {
   private readonly loginMutation = mutation({

@@ -64,7 +64,7 @@ const { injectUserQuery } = craftService(
     <button (click)="previousPage()">Previous user</button>
     <button (click)="nextPage()">Next user</button>
   `,
-  providers: [provideHostName('GlobalQuery')]
+  providers: [provideHostName('component:GlobalQuery')]
 })
 export default class GlobalQuery {
   public readonly userId = input<string>();

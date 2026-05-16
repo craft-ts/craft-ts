@@ -243,7 +243,7 @@ const { injectPlayground, PlaygroundToYield } = craftService(
       font-style: italic;
     }
   `,
-  providers: [provideHostName('PlaygroundComponent')]
+  providers: [provideHostName('component:PlaygroundComponent')]
 })
 export default class PlaygroundComponent {
   protected readonly pg = injectPlayground();

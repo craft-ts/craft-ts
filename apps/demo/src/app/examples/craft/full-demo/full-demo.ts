@@ -394,7 +394,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
   `,
   styleUrls: ['./full-demo.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideFullDemo(), provideHostName('FullDemoCraft')],
+  providers: [provideFullDemo(), provideHostName('component:FullDemoCraft')],
 })
 export default class FullDemoCraft {
   protected readonly store = injectFullDemo();

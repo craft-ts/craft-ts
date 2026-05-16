@@ -62,7 +62,7 @@ describe('makeFormTreeInsert', () => {
 
       const tags = (parent.form as unknown as { hostTags: readonly string[] })
         .hostTags;
-      expect(tags).toContain('UserForm');
+      expect(tags).toContain('formTree:UserForm');
       // The form-level injector is also tagged with 'form'.
       expect(tags).toContain('form');
     });

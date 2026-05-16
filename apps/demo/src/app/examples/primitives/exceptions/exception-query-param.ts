@@ -93,7 +93,7 @@ const { injectRouter } = toCraftService({
       }
     </section>
   `,
-  providers: [provideHostName('ExceptionQueryParamComponent')]
+  providers: [provideHostName('component:ExceptionQueryParamComponent')]
 })
 export default class ExceptionQueryParamComponent {
   private readonly router = injectRouter(undefined, ({ navigate }) => ({

@@ -124,7 +124,7 @@ import { injectApiService, User } from './api.service';
   `,
   styleUrls: ['./granular-mutation.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('GranularMutation')]
+  providers: [provideHostName('component:GranularMutation')]
 })
 export default class GranularMutation {
   protected readonly pagination = queryParam(

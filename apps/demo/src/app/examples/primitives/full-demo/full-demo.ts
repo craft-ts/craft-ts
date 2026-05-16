@@ -339,7 +339,7 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
   `,
   styleUrls: ['./full-demo.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('FullDemo')],
+  providers: [provideHostName('component:FullDemo')],
 })
 export default class FullDemo {
   protected readonly reset$ = source$<void>();

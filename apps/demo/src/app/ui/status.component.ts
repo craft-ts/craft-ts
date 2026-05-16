@@ -136,7 +136,7 @@ import {
       @default never;
     }
   `,
-  providers: [provideHostName('StatusComponent')],
+  providers: [provideHostName('component:StatusComponent')],
 })
 export class StatusComponent {
   readonly status = input.required<ResourceStatus | 'exception'>();

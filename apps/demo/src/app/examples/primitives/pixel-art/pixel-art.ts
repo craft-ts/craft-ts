@@ -78,7 +78,7 @@ const CELL_INDEXES = Array.from(
   `,
   styleUrls: ['./pixel-art.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('PixelArt')]
+  providers: [provideHostName('component:PixelArt')]
 })
 export default class PixelArt {
   protected readonly totalCells = TOTAL_CELLS;

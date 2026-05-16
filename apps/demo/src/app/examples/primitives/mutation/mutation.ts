@@ -51,7 +51,7 @@ import { injectApiService, User } from './api.service';
       Update name (<app-status [status]="updateUserName.status()" />)
     </button>
   `,
-  providers: [provideHostName('MutationDemoComponent')]
+  providers: [provideHostName('component:MutationDemoComponent')]
 })
 export default class MutationDemoComponent {
   public readonly userId = input<string>();

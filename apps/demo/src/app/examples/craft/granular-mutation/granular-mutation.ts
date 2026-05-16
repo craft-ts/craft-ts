@@ -204,7 +204,7 @@ const {
   `,
   styleUrls: ['./granular-mutation.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideGranularMutation(), provideHostName('GranularMutationCraft')],
+  providers: [provideGranularMutation(), provideHostName('component:GranularMutationCraft')],
 })
 export default class GranularMutationCraft {
   protected readonly store = injectGranularMutation();

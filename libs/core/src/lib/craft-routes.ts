@@ -1850,7 +1850,9 @@ export function craftRoutes<
     route: AnyCraftRouteDefinition,
     routeIndex: number,
   ): Route {
-    const autoProviders: AngularRouteProviders = [provideHostName(route.path)];
+    const autoProviders: AngularRouteProviders = [
+      provideHostName('route:' + route.path),
+    ];
 
     for (const paramName of extractRouteParamNames(route.path)) {
       const serviceName = toRouteParamServiceName(

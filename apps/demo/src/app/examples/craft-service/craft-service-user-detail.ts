@@ -78,7 +78,7 @@ const { injectUser, provideUser } = craftService(
 @Component({
   selector: 'app-craft-service-user-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideUser(), provideHostName('CraftServiceUserDetailComponent')],
+  providers: [provideUser(), provideHostName('component:CraftServiceUserDetailComponent')],
   template: `
     <div class="user-detail">
       <h2>craftService User Detail (query)</h2>
