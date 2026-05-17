@@ -16,11 +16,12 @@ import {
 } from './query.core';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
-import { ɵcreateHostTaggedInjector } from './craft-service';
+import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
+import { APP_SNAPSHOT_REGISTRY, readInsertionsSnapshot } from './take-app-snapshot';
 import { Source$ as SourceDollarType } from './source$';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
@@ -634,8 +635,48 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
     },
   );
 
-  return Object.assign(
+  const stateOutput = Object.assign(
     stateSignal,
     insertionsOutput.exposedInsertionsOutput,
   ) as unknown as StateOutput<StateType, {}>;
+
+  const snapshotRegistry = injector
+    ? injector.get(APP_SNAPSHOT_REGISTRY, null)
+    : (() => {
+        try {
+          return inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+        } catch {
+          return null;
+        }
+      })();
+
+  const hostTagList: readonly string[] = injector
+    ? (injector.get(ɵHOST_TAG_LIST, null) ?? [])
+    : (() => {
+        try {
+          return inject(ɵHOST_TAG_LIST, { optional: true }) ?? [];
+        } catch {
+          return [];
+        }
+      })();
+
+  if (snapshotRegistry) {
+    snapshotRegistry.push(() => {
+      let state: unknown;
+      try {
+        const insertionSnapshot = readInsertionsSnapshot(
+          insertionsOutput.exposedInsertionsOutput,
+        );
+        state = {
+          value: stateSignal(),
+          ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
+        };
+      } catch (error) {
+        state = { error: error instanceof Error ? error.message : String(error) };
+      }
+      return { source: 'state', from: hostTagList, state };
+    });
+  }
+
+  return stateOutput;
 }

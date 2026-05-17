@@ -5,6 +5,11 @@ import {
   type ServiceTrackingMetadata,
 } from './craft-service';
 import { HostTagToYield, TrackTagsToYield, type TrackTag } from './host-tag';
+import {
+  CorrelationIdToYield,
+  type CorrelationIdMetadata,
+  type CorrelationIdYield,
+} from './correlation-id';
 
 type AnyBrowserBoundaryMethod = (...args: any[]) => any;
 type ConsoleMetadataMethod = 'debug' | 'info' | 'log' | 'warn' | 'error';
@@ -52,7 +57,8 @@ type ConsoleBoundaryYield =
       >['ConsoleServiceToYield']
     >
   | GeneratorYield<typeof HostTagToYield>
-  | GeneratorYield<typeof TrackTagsToYield>;
+  | GeneratorYield<typeof TrackTagsToYield>
+  | CorrelationIdYield;
 
 type BrowserCryptoYield = GetServiceYields<
   BrowserBoundaryService<
@@ -241,6 +247,28 @@ function parseConsoleStackTrace(stack: string | undefined): string {
   return filtered.join('\n');
 }
 
+type ConsoleBrowserInfo = {
+  userAgent: string;
+  language: string;
+  languages: readonly string[];
+  onLine: boolean;
+  platform: string | undefined;
+};
+
+function getConsoleBrowserInfo(): ConsoleBrowserInfo | undefined {
+  const nav = globalThis.navigator;
+  if (!nav) return undefined;
+
+  return {
+    userAgent: nav.userAgent,
+    language: nav.language,
+    languages: nav.languages,
+    onLine: nav.onLine,
+    platform:
+      'platform' in nav ? (nav as { platform?: string }).platform : undefined,
+  };
+}
+
 function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
   return function* (
     ...args: MethodArgs<ConsoleServiceApi[Key]>
@@ -252,16 +280,28 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
     const consoleService = yield* ConsoleServiceToYield();
     const from = yield* HostTagToYield();
     const tags = yield* TrackTagsToYield();
+    const correlationMeta = yield* CorrelationIdToYield();
 
     const metadata: {
       from: readonly string[];
       tags: readonly TrackTag[];
       trace: string;
+      correlationId: CorrelationIdMetadata;
+      timestamp: string;
+      route: string;
+      browser?: ConsoleBrowserInfo;
     } = {
       from,
       tags,
       trace: parseConsoleStackTrace(new Error().stack),
+      correlationId: correlationMeta,
+      timestamp: new Date().toUTCString(),
+      route: globalThis.window?.location?.href ?? '',
     };
+
+    if (key === 'error') {
+      metadata.browser = getConsoleBrowserInfo();
+    }
 
     return (consoleService[key] as AnyBrowserBoundaryMethod)(
       ...args,

@@ -38,11 +38,13 @@ import {
   createResourceExceptionsRuntime,
   enrichResourceException,
 } from './resource-exception';
+import { CORRELATION_ID_SERVICE } from './correlation-id';
+import { APP_SNAPSHOT_REGISTRY, readInsertionsSnapshot, TAKE_APP_SNAPSHOT } from './take-app-snapshot';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
-import { ɵcreateHostTaggedInjector } from './craft-service';
+import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 
 type MutationTrackedDependencies<
   ParamsYielded = never,
@@ -1653,34 +1655,48 @@ export function mutation<
   const wrappedLoader =
     'loader' in mutationConfig && mutationConfig.loader
       ? ((async (param: ResourceLoaderParams<any>) => {
-          const result = await executeGeneratorCompatibleFactory({
-            factory: mutationConfig.loader as (
-              param: ResourceLoaderParams<any>,
-            ) => Promise<any>,
-            thisArg: undefined,
-            getInjector,
-            args: [param],
-            invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-            onAppStartNotSupportedErrorMessage:
-              MUTATION_APP_START_ERROR_MESSAGE,
-          });
+          const injector = getInjector();
+          const correlationSvc = injector.get(CORRELATION_ID_SERVICE, null);
+          const operationId = correlationSvc?.lastCorrelationId() ?? null;
+          if (operationId) correlationSvc?.startOperation(operationId);
 
-          if (isCraftException(result)) {
-            const exceptionId = getIdentifierFromParams(param.params);
-            setLoaderException(
-              enrichResourceException(result, {
-                scope: 'loader',
-                identifier: exceptionId,
-              }),
-              exceptionId,
-            );
-            return undefined;
+          try {
+            const result = await executeGeneratorCompatibleFactory({
+              factory: mutationConfig.loader as (
+                param: ResourceLoaderParams<any>,
+              ) => Promise<any>,
+              thisArg: undefined,
+              getInjector,
+              args: [param],
+              invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                MUTATION_APP_START_ERROR_MESSAGE,
+            });
+
+            if (isCraftException(result)) {
+              const exceptionId = getIdentifierFromParams(param.params);
+              setLoaderException(
+                enrichResourceException(result, {
+                  scope: 'loader',
+                  identifier: exceptionId,
+                }),
+                exceptionId,
+              );
+              return undefined;
+            }
+
+            const successId = getIdentifierFromParams(param.params);
+            setLoaderException(undefined, successId);
+            return result;
+          } catch (error) {
+            if (!isCraftException(error)) {
+              injector.get(TAKE_APP_SNAPSHOT, null)?.();
+            }
+            throw error;
+          } finally {
+            if (operationId) correlationSvc?.endOperation(operationId);
           }
-
-          const successId = getIdentifierFromParams(param.params);
-          setLoaderException(undefined, successId);
-          return result;
         }) as typeof mutationConfig.loader)
       : undefined;
 
@@ -1734,7 +1750,7 @@ export function mutation<
     });
   }
 
-  return Object.assign(
+  const output = Object.assign(
     resourceTarget,
     // byId is used to helps TS to correctly infer the resourceByGroup
     isUsingIdentifier
@@ -1833,56 +1849,6 @@ export function mutation<
               return result;
             },
     },
-    (
-      insertions as InsertionsResourcesFactory<
-        NoInfer<GroupIdentifier>,
-        NoInfer<StripCraftException<MutationState>>,
-        NoInfer<StripCraftException<MutationParams>>,
-        ResourceExceptionConstraints,
-        {},
-        {}
-      >[]
-    )?.reduce(
-      (acc, insert) => {
-        return {
-          ...acc,
-          ...executeGeneratorCompatibleFactory({
-            factory: insert as (context: unknown) => Record<string, unknown>,
-            thisArg: undefined,
-            getInjector,
-            args: [
-              {
-                ...(isUsingIdentifier
-                  ? {
-                      resourceById: resourceTarget,
-                      identifier: mutationConfig.identifier,
-                    }
-                  : { resource: resourceTarget }),
-                resourceParamsSrc: resourceParamsSrc as WritableSignal<
-                  NoInfer<MutationParams>
-                >,
-                hasException,
-                exceptions,
-                insertions: acc as {},
-                state: resourceTarget.state,
-                set: resourceTarget.set,
-                update: resourceTarget.update,
-                patch: (patchFn: (currentState: any) => Partial<any>) =>
-                  resourceTarget.update((current: any) => ({
-                    ...current,
-                    ...patchFn(current),
-                  })),
-              } as any,
-            ],
-            invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-            onAppStartNotSupportedErrorMessage:
-              MUTATION_APP_START_ERROR_MESSAGE,
-          }),
-        };
-      },
-      {} as Record<string, unknown>,
-    ),
   ) as unknown as MutationOutput<
     MutationState,
     MutationParams,
@@ -1892,4 +1858,111 @@ export function mutation<
     {},
     Exceptions
   >;
+
+  const insertionsResult = (
+    insertions as InsertionsResourcesFactory<
+      NoInfer<GroupIdentifier>,
+      NoInfer<StripCraftException<MutationState>>,
+      NoInfer<StripCraftException<MutationParams>>,
+      ResourceExceptionConstraints,
+      {},
+      {}
+    >[]
+  )?.reduce(
+    (acc, insert) => {
+      return {
+        ...acc,
+        ...executeGeneratorCompatibleFactory({
+          factory: insert as (context: unknown) => Record<string, unknown>,
+          thisArg: undefined,
+          getInjector,
+          args: [
+            {
+              ...(isUsingIdentifier
+                ? {
+                    resourceById: resourceTarget,
+                    identifier: mutationConfig.identifier,
+                  }
+                : { resource: resourceTarget }),
+              resourceParamsSrc: resourceParamsSrc as WritableSignal<
+                NoInfer<MutationParams>
+              >,
+              hasException,
+              exceptions,
+              insertions: acc as {},
+              state: resourceTarget.state,
+              set: resourceTarget.set,
+              update: resourceTarget.update,
+              patch: (patchFn: (currentState: any) => Partial<any>) =>
+                resourceTarget.update((current: any) => ({
+                  ...current,
+                  ...patchFn(current),
+                })),
+            } as any,
+          ],
+          invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+        }),
+      };
+    },
+    {} as Record<string, unknown>,
+  );
+
+  Object.assign(output, insertionsResult);
+
+  const snapshotRegistry = injector
+    ? injector.get(APP_SNAPSHOT_REGISTRY, null)
+    : (() => {
+        try {
+          return inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+        } catch {
+          return null;
+        }
+      })();
+
+  const hostTagList: readonly string[] = injector
+    ? (injector.get(ɵHOST_TAG_LIST, null) ?? [])
+    : (() => {
+        try {
+          return inject(ɵHOST_TAG_LIST, { optional: true }) ?? [];
+        } catch {
+          return [];
+        }
+      })();
+
+  if (snapshotRegistry) {
+    snapshotRegistry.push(() => {
+      let state: unknown;
+      try {
+        const insertionSnapshot = readInsertionsSnapshot(insertionsResult);
+        if (isUsingIdentifier) {
+          const byId = (resourceTarget as any)();
+          state = {
+            params: resourceParamsSrc(),
+            resources: Object.entries(byId ?? {}).reduce(
+              (acc, [id, res]: [string, any]) => {
+                acc[id] = res?.state?.();
+                return acc;
+              },
+              {} as Record<string, unknown>,
+            ),
+            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
+          };
+        } else {
+          const resourceState = (resourceTarget as any).state();
+          state = {
+            params: resourceParamsSrc(),
+            ...resourceState,
+            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
+          };
+        }
+      } catch (error) {
+        state = { error: error instanceof Error ? error.message : String(error) };
+      }
+      return { source: 'mutation', from: hostTagList, state };
+    });
+  }
+
+  return output;
 }

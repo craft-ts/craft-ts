@@ -38,11 +38,13 @@ import {
   createResourceExceptionsRuntime,
   enrichResourceException,
 } from './resource-exception';
+import { CORRELATION_ID_SERVICE } from './correlation-id';
+import { APP_SNAPSHOT_REGISTRY, readInsertionsSnapshot, TAKE_APP_SNAPSHOT } from './take-app-snapshot';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
-import { ɵcreateHostTaggedInjector } from './craft-service';
+import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 
 type QueryTrackedDependencies<
   ParamsYielded = never,
@@ -1580,33 +1582,47 @@ export function query<
   const wrappedLoader =
     'loader' in queryConfig && queryConfig.loader
       ? ((async (param: ResourceLoaderParams<QueryParams>) => {
-          const result = await executeGeneratorCompatibleFactory({
-            factory: queryConfig.loader as (
-              param: ResourceLoaderParams<QueryParams>,
-            ) => Promise<QueryState>,
-            thisArg: undefined,
-            getInjector,
-            args: [param],
-            invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-            onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-          });
+          const injector = getInjector();
+          const correlationSvc = injector.get(CORRELATION_ID_SERVICE, null);
+          const operationId = correlationSvc?.lastCorrelationId() ?? null;
+          if (operationId) correlationSvc?.startOperation(operationId);
 
-          if (isCraftException(result)) {
-            const exceptionId = getIdentifierFromParams(param.params);
-            setLoaderException(
-              enrichResourceException(result, {
-                scope: 'loader',
-                identifier: exceptionId,
-              }),
-              exceptionId,
-            );
-            return undefined as QueryState;
+          try {
+            const result = await executeGeneratorCompatibleFactory({
+              factory: queryConfig.loader as (
+                param: ResourceLoaderParams<QueryParams>,
+              ) => Promise<QueryState>,
+              thisArg: undefined,
+              getInjector,
+              args: [param],
+              invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+            });
+
+            if (isCraftException(result)) {
+              const exceptionId = getIdentifierFromParams(param.params);
+              setLoaderException(
+                enrichResourceException(result, {
+                  scope: 'loader',
+                  identifier: exceptionId,
+                }),
+                exceptionId,
+              );
+              return undefined as QueryState;
+            }
+
+            const successId = getIdentifierFromParams(param.params);
+            setLoaderException(undefined, successId);
+            return result;
+          } catch (error) {
+            if (!isCraftException(error)) {
+              injector.get(TAKE_APP_SNAPSHOT, null)?.();
+            }
+            throw error;
+          } finally {
+            if (operationId) correlationSvc?.endOperation(operationId);
           }
-
-          const successId = getIdentifierFromParams(param.params);
-          setLoaderException(undefined, successId);
-          return result;
         }) as typeof queryConfig.loader)
       : undefined;
 
@@ -1750,57 +1766,112 @@ export function query<
     },
   );
 
+  const insertionsResult = (
+    insertions as InsertionsResourcesFactory<
+      NoInfer<GroupIdentifier>,
+      NoInfer<StripCraftException<QueryState>>,
+      NoInfer<StripCraftException<QueryParams>>,
+      ResourceExceptionConstraints,
+      {},
+      {}
+    >[]
+  )?.reduce(
+    (acc, insert) => {
+      return {
+        ...acc,
+        ...executeGeneratorCompatibleFactory({
+          factory: insert as (context: unknown) => Record<string, unknown>,
+          thisArg: undefined,
+          getInjector,
+          args: [
+            {
+              ...(isUsingIdentifier
+                ? {
+                    resourceById: resourceTarget,
+                    identifier: queryConfig.identifier,
+                  }
+                : { resource: resourceTarget }),
+              resourceParamsSrc: resourceParamsSrc as WritableSignal<
+                NoInfer<QueryParams>
+              >,
+              hasException,
+              exceptions,
+              insertions: acc as {},
+              state: resourceTarget.state,
+              set: resourceTarget.set,
+              update: resourceTarget.update,
+              patch: (patchFn: (currentState: any) => Partial<any>) =>
+                resourceTarget.update((current: any) => ({
+                  ...current,
+                  ...patchFn(current),
+                })),
+            } as any,
+          ],
+          invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+        }),
+      };
+    },
+    {} as Record<string, unknown>,
+  );
+
+  const snapshotRegistry = injector
+    ? injector.get(APP_SNAPSHOT_REGISTRY, null)
+    : (() => {
+        try {
+          return inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+        } catch {
+          return null;
+        }
+      })();
+
+  const hostTagList: readonly string[] = injector
+    ? (injector.get(ɵHOST_TAG_LIST, null) ?? [])
+    : (() => {
+        try {
+          return inject(ɵHOST_TAG_LIST, { optional: true }) ?? [];
+        } catch {
+          return [];
+        }
+      })();
+
+  if (snapshotRegistry) {
+    snapshotRegistry.push(() => {
+      let state: unknown;
+      try {
+        const insertionSnapshot = readInsertionsSnapshot(insertionsResult);
+        if (isUsingIdentifier) {
+          const byId = (resourceTarget as any)();
+          state = {
+            params: (resourceParamsSrc as any)?.(),
+            resources: Object.entries(byId ?? {}).reduce(
+              (acc, [id, res]: [string, any]) => {
+                acc[id] = res?.state?.();
+                return acc;
+              },
+              {} as Record<string, unknown>,
+            ),
+            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
+          };
+        } else {
+          const resourceState = (resourceTarget as any).state();
+          state = {
+            params: (resourceParamsSrc as any)?.(),
+            ...resourceState,
+            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
+          };
+        }
+      } catch (error) {
+        state = { error: error instanceof Error ? error.message : String(error) };
+      }
+      return { source: 'query', from: hostTagList, state };
+    });
+  }
+
   return Object.assign(
     queryOutputWithoutInsertions,
-    (
-      insertions as InsertionsResourcesFactory<
-        NoInfer<GroupIdentifier>,
-        NoInfer<StripCraftException<QueryState>>,
-        NoInfer<StripCraftException<QueryParams>>,
-        ResourceExceptionConstraints,
-        {},
-        {}
-      >[]
-    )?.reduce(
-      (acc, insert) => {
-        return {
-          ...acc,
-          ...executeGeneratorCompatibleFactory({
-            factory: insert as (context: unknown) => Record<string, unknown>,
-            thisArg: undefined,
-            getInjector,
-            args: [
-              {
-                ...(isUsingIdentifier
-                  ? {
-                      resourceById: resourceTarget,
-                      identifier: queryConfig.identifier,
-                    }
-                  : { resource: resourceTarget }),
-                resourceParamsSrc: resourceParamsSrc as WritableSignal<
-                  NoInfer<QueryParams>
-                >,
-                hasException,
-                exceptions,
-                insertions: acc as {},
-                state: resourceTarget.state,
-                set: resourceTarget.set,
-                update: resourceTarget.update,
-                patch: (patchFn: (currentState: any) => Partial<any>) =>
-                  resourceTarget.update((current: any) => ({
-                    ...current,
-                    ...patchFn(current),
-                  })),
-              } as any,
-            ],
-            invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-            onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-          }),
-        };
-      },
-      {} as Record<string, unknown>,
-    ),
+    insertionsResult,
   ) as unknown as QueryOutput<
     StripCraftException<QueryState>,
     StripCraftException<QueryParams>,

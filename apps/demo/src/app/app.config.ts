@@ -1,10 +1,16 @@
-import { provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  afterEveryRender,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { withComponentInputBinding } from '@angular/router';
 import {
   Console,
   craftAppConfig,
+  HostNameToYield,
   injectConsoleService,
   isGeneratorFunction,
+  provideComponentMonitoring,
+  provideCorrelationIdTracking,
   provideCraftRouter,
   provideFnWrapper,
 } from '@craft-ng/core';
@@ -28,13 +34,21 @@ export const appConfig = craftAppConfig({
       }
     }),
     // Timing
-    provideFnWrapper(function* (factory, thisArg, args) {
-      const start = performance.now();
-      try {
-        return yield* factory.apply(thisArg, args);
-      } finally {
-        console.log(`took ${performance.now() - start}ms`);
-      }
-    }),
+    // provideFnWrapper(function* (factory, thisArg, args) {
+    //   const start = performance.now();
+    //   try {
+    //     return yield* factory.apply(thisArg, args);
+    //   } finally {
+    //     console.log(`took ${performance.now() - start}ms`);
+    //   }
+    // }),
+    // provideCorrelationIdTracking(),
+    // provideComponentMonitoring(function* () {
+    //   yield* Console.log('Component initialized'); // inclut automatiquement from/tags
+    //   const log = Console.log;
+    //   afterEveryRender(() => {
+    //     log('Component Re-Rendered'); // inclut automatiquement from/tags
+    //   });
+    // }),
   ],
 });

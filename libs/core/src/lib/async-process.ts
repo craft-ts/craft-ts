@@ -30,6 +30,8 @@ import {
   StripCraftException,
   isCraftException,
 } from './craft-exception';
+import { CORRELATION_ID_SERVICE } from './correlation-id';
+import { APP_SNAPSHOT_REGISTRY, readInsertionsSnapshot, TAKE_APP_SNAPSHOT } from './take-app-snapshot';
 import {
   createResourceExceptionsRuntime,
   enrichResourceException,
@@ -38,7 +40,7 @@ import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
-import { ɵcreateHostTaggedInjector } from './craft-service';
+import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 
 type AsyncProcessTrackedDependencies<
   ParamsYielded = never,
@@ -1365,35 +1367,49 @@ export function asyncProcess<
   const wrappedLoader =
     'loader' in AsyncProcessConfig && AsyncProcessConfig.loader
       ? ((async (param: ResourceLoaderParams<any>) => {
-          const result = await executeGeneratorCompatibleFactory({
-            factory: AsyncProcessConfig.loader as (
-              param: ResourceLoaderParams<any>,
-            ) => Promise<any>,
-            thisArg: undefined,
-            getInjector,
-            args: [param],
-            invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage:
-              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-            onAppStartNotSupportedErrorMessage:
-              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-          });
+          const injector = getInjector();
+          const correlationSvc = injector.get(CORRELATION_ID_SERVICE, null);
+          const operationId = correlationSvc?.lastCorrelationId() ?? null;
+          if (operationId) correlationSvc?.startOperation(operationId);
 
-          if (isCraftException(result)) {
-            const exceptionId = getIdentifierFromParams(param.params);
-            setLoaderException(
-              enrichResourceException(result, {
-                scope: 'loader',
-                identifier: exceptionId,
-              }),
-              exceptionId,
-            );
-            return undefined;
+          try {
+            const result = await executeGeneratorCompatibleFactory({
+              factory: AsyncProcessConfig.loader as (
+                param: ResourceLoaderParams<any>,
+              ) => Promise<any>,
+              thisArg: undefined,
+              getInjector,
+              args: [param],
+              invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage:
+                ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+            });
+
+            if (isCraftException(result)) {
+              const exceptionId = getIdentifierFromParams(param.params);
+              setLoaderException(
+                enrichResourceException(result, {
+                  scope: 'loader',
+                  identifier: exceptionId,
+                }),
+                exceptionId,
+              );
+              return undefined;
+            }
+
+            const successId = getIdentifierFromParams(param.params);
+            setLoaderException(undefined, successId);
+            return result;
+          } catch (error) {
+            if (!isCraftException(error)) {
+              injector.get(TAKE_APP_SNAPSHOT, null)?.();
+            }
+            throw error;
+          } finally {
+            if (operationId) correlationSvc?.endOperation(operationId);
           }
-
-          const successId = getIdentifierFromParams(param.params);
-          setLoaderException(undefined, successId);
-          return result;
         }) as typeof AsyncProcessConfig.loader)
       : undefined;
 
@@ -1441,7 +1457,7 @@ export function asyncProcess<
         stream: wrappedStream,
       } as ResourceOptions<any, any>);
 
-  return Object.assign(
+  const asyncOutput = Object.assign(
     resourceTarget,
     // byId is used to helps TS to correctly infer the resourceByGroup
     isUsingIdentifier
@@ -1537,50 +1553,6 @@ export function asyncProcess<
                 },
           }),
     },
-    (
-      insertions as InsertionsResourcesFactory<
-        NoInfer<GroupIdentifier>,
-        NoInfer<StripCraftException<AsyncProcesstate>>,
-        NoInfer<StripCraftException<AsyncProcessParams>>,
-        AsyncProcessExceptionConstraints,
-        {},
-        {}
-      >[]
-    )?.reduce(
-      (acc, insert) => {
-        return {
-          ...acc,
-          ...executeGeneratorCompatibleFactory({
-            factory: insert as (context: unknown) => Record<string, unknown>,
-            thisArg: undefined,
-            getInjector,
-            args: [
-              {
-                ...(isUsingIdentifier
-                  ? { resourceById: resourceTarget }
-                  : { resource: resourceTarget }),
-                resourceParamsSrc: resourceParamsSrc as WritableSignal<
-                  NoInfer<AsyncProcessParams>
-                >,
-                hasException,
-                exceptions,
-                insertions: acc as {},
-                state: resourceTarget.state,
-                set: resourceTarget.set,
-                update: resourceTarget.update,
-              } as any,
-            ],
-            invalidYieldErrorMessage:
-              ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage:
-              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-            onAppStartNotSupportedErrorMessage:
-              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-          }),
-        };
-      },
-      {} as Record<string, unknown>,
-    ),
   ) as unknown as AsyncProcessOutput<
     AsyncProcesstate,
     AsyncProcessParams,
@@ -1590,4 +1562,103 @@ export function asyncProcess<
     {},
     Exceptions
   >;
+
+  const insertionsResult = (
+    insertions as InsertionsResourcesFactory<
+      NoInfer<GroupIdentifier>,
+      NoInfer<StripCraftException<AsyncProcesstate>>,
+      NoInfer<StripCraftException<AsyncProcessParams>>,
+      AsyncProcessExceptionConstraints,
+      {},
+      {}
+    >[]
+  )?.reduce(
+    (acc, insert) => {
+      return {
+        ...acc,
+        ...executeGeneratorCompatibleFactory({
+          factory: insert as (context: unknown) => Record<string, unknown>,
+          thisArg: undefined,
+          getInjector,
+          args: [
+            {
+              ...(isUsingIdentifier
+                ? { resourceById: resourceTarget }
+                : { resource: resourceTarget }),
+              resourceParamsSrc: resourceParamsSrc as WritableSignal<
+                NoInfer<AsyncProcessParams>
+              >,
+              hasException,
+              exceptions,
+              insertions: acc as {},
+              state: resourceTarget.state,
+              set: resourceTarget.set,
+              update: resourceTarget.update,
+            } as any,
+          ],
+          invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+        }),
+      };
+    },
+    {} as Record<string, unknown>,
+  );
+
+  Object.assign(asyncOutput, insertionsResult);
+
+  const snapshotRegistry = injector
+    ? injector.get(APP_SNAPSHOT_REGISTRY, null)
+    : (() => {
+        try {
+          return inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+        } catch {
+          return null;
+        }
+      })();
+
+  const hostTagList: readonly string[] = injector
+    ? (injector.get(ɵHOST_TAG_LIST, null) ?? [])
+    : (() => {
+        try {
+          return inject(ɵHOST_TAG_LIST, { optional: true }) ?? [];
+        } catch {
+          return [];
+        }
+      })();
+
+  if (snapshotRegistry) {
+    snapshotRegistry.push(() => {
+      let state: unknown;
+      try {
+        const insertionSnapshot = readInsertionsSnapshot(insertionsResult);
+        if (isUsingIdentifier) {
+          const byId = (resourceTarget as any)();
+          state = {
+            params: AsyncProcessResourceParamsFnSignal(),
+            resources: Object.entries(byId ?? {}).reduce(
+              (acc, [id, res]: [string, any]) => {
+                acc[id] = res?.state?.();
+                return acc;
+              },
+              {} as Record<string, unknown>,
+            ),
+            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
+          };
+        } else {
+          const resourceState = (asyncOutput as any).state();
+          state = {
+            params: AsyncProcessResourceParamsFnSignal(),
+            ...resourceState,
+            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
+          };
+        }
+      } catch (error) {
+        state = { error: error instanceof Error ? error.message : String(error) };
+      }
+      return { source: 'asyncProcess', from: hostTagList, state };
+    });
+  }
+
+  return asyncOutput;
 }

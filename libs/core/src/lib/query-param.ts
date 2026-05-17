@@ -24,13 +24,14 @@ import {
   StripCraftException,
   isCraftException,
 } from './craft-exception';
-import { ɵcreateHostTaggedInjector } from './craft-service';
+import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
   ServiceTrackingMetadata,
   ServiceYieldRequest,
 } from './craft-service';
+import { APP_SNAPSHOT_REGISTRY, readInsertionsSnapshot } from './take-app-snapshot';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -623,9 +624,32 @@ export function queryParam<
       {} as Record<string, unknown>,
     ) || {};
 
-  return Object.assign(queryParamsState.asReadonly(), props, insertionResults, {
-    hasException,
-    exceptions,
-    _config: config,
-  }) as unknown as QueryParamOutput<QueryParamsType, {}, QueryParamsState>;
+  const queryParamOutput = Object.assign(
+    queryParamsState.asReadonly(),
+    props,
+    insertionResults,
+    { hasException, exceptions, _config: config },
+  ) as unknown as QueryParamOutput<QueryParamsType, {}, QueryParamsState>;
+
+  const snapshotRegistry = injector.get(APP_SNAPSHOT_REGISTRY, null);
+  const hostTagList: readonly string[] =
+    injector.get(ɵHOST_TAG_LIST, null) ?? [];
+
+  if (snapshotRegistry) {
+    snapshotRegistry.push(() => {
+      let state: unknown;
+      try {
+        const insertionSnapshot = readInsertionsSnapshot(insertionResults);
+        state = {
+          value: queryParamsState(),
+          ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
+        };
+      } catch (error) {
+        state = { error: error instanceof Error ? error.message : String(error) };
+      }
+      return { source: 'queryParam', from: hostTagList, state };
+    });
+  }
+
+  return queryParamOutput;
 }
