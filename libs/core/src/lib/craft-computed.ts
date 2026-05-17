@@ -1,12 +1,14 @@
 import {
   assertInInjectionContext,
   computed,
+  DestroyRef,
   inject,
   Injector,
   runInInjectionContext,
   type CreateComputedOptions,
   type Signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -78,15 +80,18 @@ export function craftComputed<T>(
   if (registry) {
     const sig = result;
     const from = computedInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    registry.push(() => {
-      let state: unknown;
-      try {
-        state = sig();
-      } catch (error) {
-        state = { error: error instanceof Error ? error.message : String(error) };
-      }
-      return { source: name, from, state };
-    });
+    const destroyRef = computedInjector.get(DestroyRef, null);
+    if (destroyRef) {
+      registry.triggerSnapshot$.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
+        let stateSnapshot: unknown;
+        try {
+          stateSnapshot = sig();
+        } catch (error) {
+          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+        }
+        registry.allSnapShot$.next({ source: name, from, state: stateSnapshot });
+      });
+    }
   }
 
   return result;

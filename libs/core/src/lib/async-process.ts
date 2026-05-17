@@ -1,6 +1,7 @@
 import {
   assertInInjectionContext,
   computed,
+  DestroyRef,
   inject,
   Injector,
   isSignal,
@@ -31,7 +32,14 @@ import {
   isCraftException,
 } from './craft-exception';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
-import { APP_SNAPSHOT_REGISTRY, readInsertionsSnapshot, TAKE_APP_SNAPSHOT } from './take-app-snapshot';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  APP_SNAPSHOT_REGISTRY,
+  INSERTION_SNAPSHOT_REGISTRY,
+  InsertionSnapshotRegistry,
+  TAKE_APP_SNAPSHOT,
+  triggerAndCollectInsertions,
+} from './take-app-snapshot';
 import {
   createResourceExceptionsRuntime,
   enrichResourceException,
@@ -1220,6 +1228,10 @@ export function asyncProcess<
   {},
   Exceptions
 > {
+  const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
+  const asyncExtraProviders = [
+    { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
+  ];
   let injector: Injector | undefined;
   if (
     [
@@ -1231,13 +1243,13 @@ export function asyncProcess<
     ].some((value) => isGeneratorFunction(value))
   ) {
     assertInInjectionContext(asyncProcess);
-    injector = ɵcreateHostTaggedInjector(inject(Injector), 'asyncProcess');
+    injector = ɵcreateHostTaggedInjector(inject(Injector), 'asyncProcess', asyncExtraProviders);
   }
 
   const getInjector = () => {
     if (!injector) {
       assertInInjectionContext(asyncProcess);
-      injector = ɵcreateHostTaggedInjector(inject(Injector), 'asyncProcess');
+      injector = ɵcreateHostTaggedInjector(inject(Injector), 'asyncProcess', asyncExtraProviders);
     }
 
     return injector;
@@ -1627,37 +1639,53 @@ export function asyncProcess<
         }
       })();
 
-  if (snapshotRegistry) {
-    snapshotRegistry.push(() => {
-      let state: unknown;
-      try {
-        const insertionSnapshot = readInsertionsSnapshot(insertionsResult);
-        if (isUsingIdentifier) {
-          const byId = (resourceTarget as any)();
-          state = {
-            params: AsyncProcessResourceParamsFnSignal(),
-            resources: Object.entries(byId ?? {}).reduce(
-              (acc, [id, res]: [string, any]) => {
-                acc[id] = res?.state?.();
-                return acc;
-              },
-              {} as Record<string, unknown>,
-            ),
-            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
-          };
-        } else {
-          const resourceState = (asyncOutput as any).state();
-          state = {
-            params: AsyncProcessResourceParamsFnSignal(),
-            ...resourceState,
-            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
-          };
+  const destroyRefAsync = injector
+    ? injector.get(DestroyRef, null)
+    : (() => {
+        try {
+          return inject(DestroyRef, { optional: true });
+        } catch {
+          return null;
         }
-      } catch (error) {
-        state = { error: error instanceof Error ? error.message : String(error) };
-      }
-      return { source: 'asyncProcess', from: hostTagList, state };
-    });
+      })();
+
+  if (snapshotRegistry && destroyRefAsync) {
+    snapshotRegistry.triggerSnapshot$
+      .pipe(takeUntilDestroyed(destroyRefAsync))
+      .subscribe(() => {
+        const insertionSnapshots = triggerAndCollectInsertions(insertionSnapshotRegistry);
+        let stateSnapshot: unknown;
+        try {
+          if (isUsingIdentifier) {
+            const byId = (resourceTarget as any)();
+            stateSnapshot = {
+              params: AsyncProcessResourceParamsFnSignal(),
+              resources: Object.entries(byId ?? {}).reduce(
+                (acc, [id, res]: [string, any]) => {
+                  acc[id] = res?.state?.();
+                  return acc;
+                },
+                {} as Record<string, unknown>,
+              ),
+              ...(insertionSnapshots ? { insertions: insertionSnapshots } : {}),
+            };
+          } else {
+            const resourceState = (asyncOutput as any).state();
+            stateSnapshot = {
+              params: AsyncProcessResourceParamsFnSignal(),
+              ...resourceState,
+              ...(insertionSnapshots ? { insertions: insertionSnapshots } : {}),
+            };
+          }
+        } catch (error) {
+          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+        }
+        snapshotRegistry.allSnapShot$.next({
+          source: 'asyncProcess',
+          from: hostTagList,
+          state: stateSnapshot,
+        });
+      });
   }
 
   return asyncOutput;

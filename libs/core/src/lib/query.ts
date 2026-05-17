@@ -1,6 +1,7 @@
 import {
   assertInInjectionContext,
   computed,
+  DestroyRef,
   inject,
   Injector,
   isSignal,
@@ -13,6 +14,7 @@ import {
   signal,
   WritableSignal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
@@ -39,7 +41,13 @@ import {
   enrichResourceException,
 } from './resource-exception';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
-import { APP_SNAPSHOT_REGISTRY, readInsertionsSnapshot, TAKE_APP_SNAPSHOT } from './take-app-snapshot';
+import {
+  APP_SNAPSHOT_REGISTRY,
+  INSERTION_SNAPSHOT_REGISTRY,
+  InsertionSnapshotRegistry,
+  TAKE_APP_SNAPSHOT,
+  triggerAndCollectInsertions,
+} from './take-app-snapshot';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -1443,6 +1451,10 @@ export function query<
   {},
   ResourceExceptionConstraints
 > {
+  const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
+  const queryExtraProviders = [
+    { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
+  ];
   let injector: Injector | undefined;
   if (
     [
@@ -1454,13 +1466,13 @@ export function query<
     ].some((value) => isGeneratorFunction(value))
   ) {
     assertInInjectionContext(query);
-    injector = ɵcreateHostTaggedInjector(inject(Injector), 'query');
+    injector = ɵcreateHostTaggedInjector(inject(Injector), 'query', queryExtraProviders);
   }
 
   const getInjector = () => {
     if (!injector) {
       assertInInjectionContext(query);
-      injector = ɵcreateHostTaggedInjector(inject(Injector), 'query');
+      injector = ɵcreateHostTaggedInjector(inject(Injector), 'query', queryExtraProviders);
     }
 
     return injector;
@@ -1836,37 +1848,53 @@ export function query<
         }
       })();
 
-  if (snapshotRegistry) {
-    snapshotRegistry.push(() => {
-      let state: unknown;
-      try {
-        const insertionSnapshot = readInsertionsSnapshot(insertionsResult);
-        if (isUsingIdentifier) {
-          const byId = (resourceTarget as any)();
-          state = {
-            params: (resourceParamsSrc as any)?.(),
-            resources: Object.entries(byId ?? {}).reduce(
-              (acc, [id, res]: [string, any]) => {
-                acc[id] = res?.state?.();
-                return acc;
-              },
-              {} as Record<string, unknown>,
-            ),
-            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
-          };
-        } else {
-          const resourceState = (resourceTarget as any).state();
-          state = {
-            params: (resourceParamsSrc as any)?.(),
-            ...resourceState,
-            ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
-          };
+  const destroyRefQuery = injector
+    ? injector.get(DestroyRef, null)
+    : (() => {
+        try {
+          return inject(DestroyRef, { optional: true });
+        } catch {
+          return null;
         }
-      } catch (error) {
-        state = { error: error instanceof Error ? error.message : String(error) };
-      }
-      return { source: 'query', from: hostTagList, state };
-    });
+      })();
+
+  if (snapshotRegistry && destroyRefQuery) {
+    snapshotRegistry.triggerSnapshot$
+      .pipe(takeUntilDestroyed(destroyRefQuery))
+      .subscribe(() => {
+        const insertionSnapshots = triggerAndCollectInsertions(insertionSnapshotRegistry);
+        let stateSnapshot: unknown;
+        try {
+          if (isUsingIdentifier) {
+            const byId = (resourceTarget as any)();
+            stateSnapshot = {
+              params: (resourceParamsSrc as any)?.(),
+              resources: Object.entries(byId ?? {}).reduce(
+                (acc, [id, res]: [string, any]) => {
+                  acc[id] = res?.state?.();
+                  return acc;
+                },
+                {} as Record<string, unknown>,
+              ),
+              ...(insertionSnapshots ? { insertions: insertionSnapshots } : {}),
+            };
+          } else {
+            const resourceState = (resourceTarget as any).state();
+            stateSnapshot = {
+              params: (resourceParamsSrc as any)?.(),
+              ...resourceState,
+              ...(insertionSnapshots ? { insertions: insertionSnapshots } : {}),
+            };
+          }
+        } catch (error) {
+          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+        }
+        snapshotRegistry.allSnapShot$.next({
+          source: 'query',
+          from: hostTagList,
+          state: stateSnapshot,
+        });
+      });
   }
 
   return Object.assign(

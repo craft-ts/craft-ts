@@ -1,5 +1,6 @@
 import {
   assertInInjectionContext,
+  DestroyRef,
   inject,
   Injector,
   isSignal,
@@ -10,6 +11,7 @@ import {
   signal,
   WritableSignal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   InsertionsStateFactory,
   InsertionStateFactoryContext,
@@ -21,7 +23,12 @@ import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
-import { APP_SNAPSHOT_REGISTRY, readInsertionsSnapshot } from './take-app-snapshot';
+import {
+  APP_SNAPSHOT_REGISTRY,
+  INSERTION_SNAPSHOT_REGISTRY,
+  InsertionSnapshotRegistry,
+  triggerAndCollectInsertions,
+} from './take-app-snapshot';
 import { Source$ as SourceDollarType } from './source$';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
@@ -555,10 +562,13 @@ export function state<
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
+  const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   let injector: Injector | undefined;
   const getInjector = () => {
     assertInInjectionContext(state);
-    injector ??= ɵcreateHostTaggedInjector(inject(Injector), 'state');
+    injector ??= ɵcreateHostTaggedInjector(inject(Injector), 'state', [
+      { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
+    ]);
     return injector;
   };
   const resolvedStateConfig = isGeneratorFunction(stateConfig)
@@ -660,22 +670,36 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
         }
       })();
 
-  if (snapshotRegistry) {
-    snapshotRegistry.push(() => {
-      let state: unknown;
-      try {
-        const insertionSnapshot = readInsertionsSnapshot(
-          insertionsOutput.exposedInsertionsOutput,
-        );
-        state = {
-          value: stateSignal(),
-          ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
-        };
-      } catch (error) {
-        state = { error: error instanceof Error ? error.message : String(error) };
-      }
-      return { source: 'state', from: hostTagList, state };
-    });
+  const destroyRef = injector
+    ? injector.get(DestroyRef, null)
+    : (() => {
+        try {
+          return inject(DestroyRef, { optional: true });
+        } catch {
+          return null;
+        }
+      })();
+
+  if (snapshotRegistry && destroyRef) {
+    snapshotRegistry.triggerSnapshot$
+      .pipe(takeUntilDestroyed(destroyRef))
+      .subscribe(() => {
+        const insertionSnapshots = triggerAndCollectInsertions(insertionSnapshotRegistry);
+        let stateSnapshot: unknown;
+        try {
+          stateSnapshot = {
+            value: stateSignal(),
+            ...(insertionSnapshots ? { insertions: insertionSnapshots } : {}),
+          };
+        } catch (error) {
+          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+        }
+        snapshotRegistry.allSnapShot$.next({
+          source: 'state',
+          from: hostTagList,
+          state: stateSnapshot,
+        });
+      });
   }
 
   return stateOutput;

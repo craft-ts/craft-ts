@@ -1,4 +1,5 @@
 import { inject, InjectionToken, isSignal, type Provider } from '@angular/core';
+import { debounceTime, Subject, tap } from 'rxjs';
 
 export interface SnapshotReport {
   source: string;
@@ -6,32 +7,38 @@ export interface SnapshotReport {
   state: unknown;
 }
 
-export type SnapshotReporter = () => SnapshotReport;
-
-export function readInsertionsSnapshot(
-  insertions: Record<string, unknown>,
-): Record<string, unknown> | undefined {
-  const result: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(insertions)) {
-    if (isSignal(val as any)) {
-      try {
-        result[key] = (val as any)();
-      } catch {
-        result[key] = undefined;
-      }
-    }
-  }
-  return Object.keys(result).length > 0 ? result : undefined;
+export class AppSnapshotRegistry {
+  readonly triggerSnapshot$ = new Subject<void>();
+  readonly allSnapShot$ = new Subject<SnapshotReport>();
 }
 
-export const APP_SNAPSHOT_REGISTRY = new InjectionToken<SnapshotReporter[]>(
+export interface InsertionSnapshotReport {
+  key: string;
+  value: unknown;
+}
+
+export class InsertionSnapshotRegistry {
+  readonly trigger$ = new Subject<void>();
+  readonly allInsertionSnapshot$ = new Subject<InsertionSnapshotReport>();
+}
+
+export const APP_SNAPSHOT_REGISTRY = new InjectionToken<AppSnapshotRegistry>(
   'APP_SNAPSHOT_REGISTRY',
-  { providedIn: 'root', factory: () => [] },
+  { providedIn: 'root', factory: () => new AppSnapshotRegistry() },
 );
+
+export const INSERTION_SNAPSHOT_REGISTRY =
+  new InjectionToken<InsertionSnapshotRegistry>('INSERTION_SNAPSHOT_REGISTRY');
 
 export const TAKE_APP_SNAPSHOT = new InjectionToken<() => void>(
   'TAKE_APP_SNAPSHOT',
-  { providedIn: 'root', factory: () => () => {} },
+  {
+    providedIn: 'root',
+    factory: () => {
+      const registry = inject(APP_SNAPSHOT_REGISTRY);
+      return () => registry.triggerSnapshot$.next();
+    },
+  },
 );
 
 export function provideTakeAppSnapshot(
@@ -42,15 +49,57 @@ export function provideTakeAppSnapshot(
       provide: TAKE_APP_SNAPSHOT,
       useFactory: () => {
         const registry = inject(APP_SNAPSHOT_REGISTRY);
-        return () => fn(registry.map((reporter) => reporter()));
+        const pending: SnapshotReport[] = [];
+        registry.allSnapShot$
+          .pipe(
+            tap((s) => pending.push(s)),
+            debounceTime(500),
+          )
+          .subscribe(() => {
+            const toProcess = [...pending];
+            pending.length = 0;
+            fn(toProcess);
+          });
+        return () => registry.triggerSnapshot$.next();
       },
     },
   ];
 }
 
-export function registerSnapshotReporter(reporter: SnapshotReporter): void {
-  const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
-  if (registry) {
-    registry.push(reporter);
+export function triggerAndCollectInsertions(
+  registry: InsertionSnapshotRegistry | null | undefined,
+): Record<string, unknown> | undefined {
+  if (!registry) return undefined;
+  const snapshots: Record<string, unknown> = {};
+  const sub = registry.allInsertionSnapshot$.subscribe(({ key, value }) => {
+    snapshots[key] = value;
+  });
+  registry.trigger$.next();
+  sub.unsubscribe();
+  return Object.keys(snapshots).length > 0 ? snapshots : undefined;
+}
+
+export function snapshotSelectProxy(proxy: unknown, rawState?: unknown): unknown {
+  const result: Record<string, unknown> = {};
+
+  if (rawState !== undefined && rawState !== null && typeof rawState === 'object') {
+    Object.assign(result, rawState);
   }
+
+  if (!proxy || typeof proxy !== 'object') return result;
+
+  for (const [key, val] of Object.entries(proxy as Record<string, unknown>)) {
+    if (isSignal(val)) {
+      try {
+        result[key] = (val as () => unknown)();
+      } catch {
+        result[key] = undefined;
+      }
+    } else if (key === 'items' && typeof val === 'function') {
+      const nestedProxies: unknown[] = (val as () => unknown[])();
+      result['items'] = nestedProxies.map((n) => snapshotSelectProxy(n));
+    }
+  }
+
+  return result;
 }

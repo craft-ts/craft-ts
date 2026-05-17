@@ -1,15 +1,21 @@
 import {
+  DestroyRef,
   Injector,
   inject,
   linkedSignal,
   runInInjectionContext,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { InsertionsStateFactory } from './query.core';
 import { ɵcreateHostTaggedInjector } from './craft-service';
 import { Source$ as SourceDollarType, source$ } from './source$';
 import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { capitalize, isSource } from './util/util';
+import {
+  INSERTION_SNAPSHOT_REGISTRY,
+  snapshotSelectProxy,
+} from './take-app-snapshot';
 
 type SelectedTarget<
   StateType,
@@ -162,9 +168,11 @@ function createInsertSelectItemRuntime(
     context: any,
   ) => {
     const { state, update, insertions: previousInsertions } = context;
+    const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, { optional: true });
     const injector = ɵcreateHostTaggedInjector(
       inject(Injector),
       `selectEntity:${entityName}`,
+      [{ provide: INSERTION_SNAPSHOT_REGISTRY, useValue: null }],
     );
     const selectItemMethodName = `select${capitalize(entityName)}`;
     const selectedStateById = new Map<number, unknown>();
@@ -366,6 +374,24 @@ function createInsertSelectItemRuntime(
       selectItem(0);
     }
 
+    if (insertionSnapshotRegistry) {
+      const destroyRef = inject(DestroyRef);
+      insertionSnapshotRegistry.trigger$
+        .pipe(takeUntilDestroyed(destroyRef))
+        .subscribe(() => {
+          const rawState = state();
+          if (!Array.isArray(rawState)) return;
+          const snapshot = rawState.map((rawItem, i) => {
+            const proxy = selectItem(i);
+            return snapshotSelectProxy(proxy, rawItem);
+          });
+          insertionSnapshotRegistry.allInsertionSnapshot$.next({
+            key: selectItemMethodName,
+            value: snapshot,
+          });
+        });
+    }
+
     return {
       [selectItemMethodName]: selectItem,
       items,
@@ -383,9 +409,11 @@ function createInsertSelectPropertyRuntime(
     context: any,
   ) => {
     const { state, update, insertions: previousInsertions } = context;
+    const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, { optional: true });
     const injector = ɵcreateHostTaggedInjector(
       inject(Injector),
       `selectProperty:${propertyKey}`,
+      [{ provide: INSERTION_SNAPSHOT_REGISTRY, useValue: null }],
     );
     let selectedPropertyProxy: unknown;
     const crossLayerSourcesByKey = new Map<string, SourceDollarType<unknown>>();
@@ -545,6 +573,26 @@ function createInsertSelectPropertyRuntime(
 
     // Ensure cross-layer sources are available for subsequent state insertions.
     selectPropertyItem();
+
+    if (insertionSnapshotRegistry) {
+      const destroyRef = inject(DestroyRef);
+      insertionSnapshotRegistry.trigger$
+        .pipe(takeUntilDestroyed(destroyRef))
+        .subscribe(() => {
+          const proxy = selectPropertyItem();
+          const rawPropertyValue = state() as Record<string, unknown>;
+          const rawPropValue =
+            rawPropertyValue &&
+            typeof rawPropertyValue === 'object' &&
+            propertyKey in rawPropertyValue
+              ? rawPropertyValue[propertyKey]
+              : undefined;
+          insertionSnapshotRegistry.allInsertionSnapshot$.next({
+            key: selectPropertyMethodName,
+            value: snapshotSelectProxy(proxy, rawPropValue),
+          });
+        });
+    }
 
     return {
       [selectPropertyMethodName]: selectPropertyItem,

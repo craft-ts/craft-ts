@@ -1,6 +1,7 @@
 import {
   assertInInjectionContext,
   computed,
+  DestroyRef,
   inject,
   Injector,
   linkedSignal,
@@ -8,6 +9,7 @@ import {
   Signal,
   WritableSignal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   InsertionsQueryParamsFactory,
   InsertionQueryParamsFactoryContext,
@@ -31,7 +33,12 @@ import type {
   ServiceTrackingMetadata,
   ServiceYieldRequest,
 } from './craft-service';
-import { APP_SNAPSHOT_REGISTRY, readInsertionsSnapshot } from './take-app-snapshot';
+import {
+  APP_SNAPSHOT_REGISTRY,
+  INSERTION_SNAPSHOT_REGISTRY,
+  InsertionSnapshotRegistry,
+  triggerAndCollectInsertions,
+} from './take-app-snapshot';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -410,7 +417,10 @@ export function queryParam<
     } as any;
   }
 
-  const injector = ɵcreateHostTaggedInjector(inject(Injector), 'queryParam');
+  const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
+  const injector = ɵcreateHostTaggedInjector(inject(Injector), 'queryParam', [
+    { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
+  ]);
   const router = inject(Router);
   const activatedRoute = inject(ActivatedRoute);
 
@@ -635,20 +645,28 @@ export function queryParam<
   const hostTagList: readonly string[] =
     injector.get(ɵHOST_TAG_LIST, null) ?? [];
 
-  if (snapshotRegistry) {
-    snapshotRegistry.push(() => {
-      let state: unknown;
-      try {
-        const insertionSnapshot = readInsertionsSnapshot(insertionResults);
-        state = {
-          value: queryParamsState(),
-          ...(insertionSnapshot ? { insertions: insertionSnapshot } : {}),
-        };
-      } catch (error) {
-        state = { error: error instanceof Error ? error.message : String(error) };
-      }
-      return { source: 'queryParam', from: hostTagList, state };
-    });
+  const destroyRefParam = injector.get(DestroyRef, null);
+
+  if (snapshotRegistry && destroyRefParam) {
+    snapshotRegistry.triggerSnapshot$
+      .pipe(takeUntilDestroyed(destroyRefParam))
+      .subscribe(() => {
+        const insertionSnapshots = triggerAndCollectInsertions(insertionSnapshotRegistry);
+        let stateSnapshot: unknown;
+        try {
+          stateSnapshot = {
+            value: queryParamsState(),
+            ...(insertionSnapshots ? { insertions: insertionSnapshots } : {}),
+          };
+        } catch (error) {
+          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+        }
+        snapshotRegistry.allSnapShot$.next({
+          source: 'queryParam',
+          from: hostTagList,
+          state: stateSnapshot,
+        });
+      });
   }
 
   return queryParamOutput;

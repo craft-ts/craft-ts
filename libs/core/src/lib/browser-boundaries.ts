@@ -3,13 +3,17 @@ import {
   type CraftServiceApi,
   type GetServiceYields,
   type ServiceTrackingMetadata,
+  ɵHOST_TAG_LIST,
+  ɵTRACK_TAGS_LIST,
 } from './craft-service';
-import { HostTagToYield, TrackTagsToYield, type TrackTag } from './host-tag';
+import { type TrackTag } from './host-tag';
 import {
-  CorrelationIdToYield,
+  CORRELATION_ID_SERVICE,
+  getCurrentStartCorrelationId,
   type CorrelationIdMetadata,
-  type CorrelationIdYield,
 } from './correlation-id';
+import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
+import type { Injector } from '@angular/core';
 
 type AnyBrowserBoundaryMethod = (...args: any[]) => any;
 type ConsoleMetadataMethod = 'debug' | 'info' | 'log' | 'warn' | 'error';
@@ -20,12 +24,6 @@ type MethodArgs<Method> = Method extends (...args: infer Args) => any
 
 type MethodResult<Method> = Method extends (...args: any[]) => infer Result
   ? Result
-  : never;
-
-type GeneratorYield<Helper> = Helper extends (
-  ...args: any[]
-) => Generator<infer Yielded, any, any>
-  ? Yielded
   : never;
 
 type BrowserBoundaryDsl<Service extends object, Yielded = unknown> = {
@@ -49,6 +47,18 @@ type BrowserBoundaryService<Name extends string, Output> = CraftServiceApi<
   ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
 >;
 
+type ConsoleMetaContext = {
+  from: readonly string[];
+  tags: readonly TrackTag[];
+  correlation: CorrelationIdMetadata;
+};
+
+type ConsoleMetaYield = Readonly<{
+  [SERVICE_YIELD_REQUEST_MARKER]: true;
+  scope: 'function';
+  resolve: (injector: Injector) => ConsoleMetaContext;
+}>;
+
 type ConsoleBoundaryYield =
   | GetServiceYields<
       BrowserBoundaryService<
@@ -56,9 +66,7 @@ type ConsoleBoundaryYield =
         ConsoleServiceApi
       >['ConsoleServiceToYield']
     >
-  | GeneratorYield<typeof HostTagToYield>
-  | GeneratorYield<typeof TrackTagsToYield>
-  | CorrelationIdYield;
+  | ConsoleMetaYield;
 
 type BrowserCryptoYield = GetServiceYields<
   BrowserBoundaryService<
@@ -278,9 +286,19 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
     unknown
   > {
     const consoleService = yield* ConsoleServiceToYield();
-    const from = yield* HostTagToYield();
-    const tags = yield* TrackTagsToYield();
-    const correlationMeta = yield* CorrelationIdToYield();
+    const { from, tags, correlation: correlationMeta } = (yield {
+      [SERVICE_YIELD_REQUEST_MARKER]: true,
+      scope: 'function' as const,
+      resolve: (injector: Injector): ConsoleMetaContext => ({
+        from: injector.get(ɵHOST_TAG_LIST),
+        tags: injector.get(ɵTRACK_TAGS_LIST),
+        correlation: {
+          lastCorrelationId: injector.get(CORRELATION_ID_SERVICE, null)?.lastCorrelationId() ?? null,
+          mayCorrelatedIds: injector.get(CORRELATION_ID_SERVICE, null)?.mayCorrelatedIds() ?? [],
+          startCorrelationId: getCurrentStartCorrelationId(),
+        },
+      }),
+    } satisfies ConsoleMetaYield) as unknown as ConsoleMetaContext;
 
     const metadata: {
       from: readonly string[];

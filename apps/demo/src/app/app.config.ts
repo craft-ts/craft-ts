@@ -6,9 +6,6 @@ import { withComponentInputBinding } from '@angular/router';
 import {
   Console,
   craftAppConfig,
-  HostNameToYield,
-  injectConsoleService,
-  isGeneratorFunction,
   provideComponentMonitoring,
   provideCorrelationIdTracking,
   provideCraftRouter,
@@ -34,21 +31,23 @@ export const appConfig = craftAppConfig({
       }
     }),
     // Timing
-    // provideFnWrapper(function* (factory, thisArg, args) {
-    //   const start = performance.now();
-    //   try {
-    //     return yield* factory.apply(thisArg, args);
-    //   } finally {
-    //     console.log(`took ${performance.now() - start}ms`);
-    //   }
-    // }),
-    // provideCorrelationIdTracking(),
-    // provideComponentMonitoring(function* () {
-    //   yield* Console.log('Component initialized'); // inclut automatiquement from/tags
-    //   const log = Console.log;
-    //   afterEveryRender(() => {
-    //     log('Component Re-Rendered'); // inclut automatiquement from/tags
-    //   });
-    // }),
+    provideFnWrapper(function* (factory, thisArg, args) {
+      // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+      const start = performance.now();
+      try {
+        return yield* factory.apply(thisArg, args);
+      } finally {
+        // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+        console.log(`took ${performance.now() - start}ms`);
+      }
+    }),
+    provideCorrelationIdTracking(),
+    provideComponentMonitoring(function* () {
+      yield* Console.log('Component initialized'); // inclut automatiquement from/tags
+      const log = Console.log;
+      afterEveryRender(() => {
+        log('Component Re-Rendered'); // inclut automatiquement from/tags
+      });
+    }),
   ],
 });

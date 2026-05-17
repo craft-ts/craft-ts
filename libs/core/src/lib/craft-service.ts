@@ -3671,13 +3671,14 @@ export function* ɵTrackTagsToYield(): Generator<
 export function ɵcreateHostTaggedInjector(
   injector: Injector,
   hostName: string,
+  extraProviders: Provider[] = [],
 ): Injector {
   if (HOST_TAG_INTERNAL_SERVICE_NAMES.has(hostName)) {
     return injector;
   }
 
   return createEnvironmentInjector(
-    [ɵprovideHostName(hostName)],
+    [ɵprovideHostName(hostName), ...extraProviders],
     injector as EnvironmentInjector,
     `HostTag(${hostName})`,
   );
