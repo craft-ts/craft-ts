@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
+    componentMonitoring,
     craftMethod,
     craftService,
     insertLocalStoragePersister,
@@ -207,6 +208,7 @@ const {
   providers: [provideGranularMutation(), provideHostName('component:GranularMutationCraft')],
 })
 export default class GranularMutationCraft {
+  private readonly _monitoring = componentMonitoring();
   protected readonly store = injectGranularMutation();
 
   protected updatePageSize = craftMethod('updatePageSize', function* (event: Event) {
@@ -223,6 +225,7 @@ export type GenDeps_GranularMutationCraft = GetDeps<{
         GenDeps_StatusComponent: GenDeps_StatusComponent;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<GranularMutationCraft["_monitoring"]>;
         store: {
             GranularMutation: ExtractDeps<typeof injectGranularMutation>["GranularMutation"];
           };

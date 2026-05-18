@@ -7,6 +7,7 @@ import {
 import {
     asyncProcess,
     cMinLength,
+    componentMonitoring,
     CraftFieldDirective,
     cRequired,
     insertForm,
@@ -33,7 +34,7 @@ import {
     type ExtractDeps,
     type GetDeps,
     type GetPublicComponentProperties,
-    type GetServiceOutput,
+    type GetServiceOutput
 } from '@craft-ng/core';
 import {
     StatusComponent,
@@ -342,6 +343,7 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
   providers: [provideHostName('component:FullDemo')],
 })
 export default class FullDemo {
+  private readonly _monitoring = componentMonitoring();
   protected readonly reset$ = source$<void>();
 
   protected readonly apiService = injectApiService(
@@ -614,6 +616,7 @@ export type GenDeps_FullDemo = GetDeps<{
         CraftFieldDirective: CraftFieldDirective<unknown>;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<FullDemo["_monitoring"]>;
         reset$: ExtractDeps<FullDemo["reset$"]>;
         apiService: {
             ApiService: DerivedService<ExtractDeps<typeof injectApiService>["ApiService"], {

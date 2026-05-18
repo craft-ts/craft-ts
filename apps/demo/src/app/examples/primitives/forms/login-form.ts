@@ -6,6 +6,7 @@ import {
     cEmail,
     cMinLength,
     cRequired,
+    componentMonitoring,
     craftException,
     insertForm,
     insertFormAttributes,
@@ -216,6 +217,7 @@ type LoginData = {
   providers: [provideHostName('component:LoginFormComponent')]
 })
 export default class LoginFormComponent {
+  private readonly _monitoring = componentMonitoring();
   private readonly loginMutation = mutation({
     method: (payload: NonNullable<ValidatedFormValue<LoginData>>) => payload,
     loader: async ({ params: credentials }) => {
@@ -260,6 +262,7 @@ export type GenDeps_LoginFormComponent = GetDeps<{
         CraftFieldDirective: CraftFieldDirective<unknown>;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<LoginFormComponent["_monitoring"]>;
         loginMutation: ExtractDeps<LoginFormComponent["loginMutation"]>;
         loginForm: ExtractDeps<LoginFormComponent["loginForm"]>;
       };

@@ -6,6 +6,7 @@ import {
 } from '@angular/core';
 import {
     addOne,
+    componentMonitoring,
     insertLocalStoragePersister,
     insertSelect,
     on$,
@@ -179,6 +180,7 @@ const createInitialGrid = (): PixelCellState[][] =>
   providers: [provideHostName('component:PixelArtMatrix')]
 })
 export default class PixelArtMatrix {
+  private readonly _monitoring = componentMonitoring();
   protected readonly emptyColor = EMPTY_COLOR;
   protected readonly colorPalette = COLOR_PALETTE;
 
@@ -316,6 +318,7 @@ export type GenDeps_PixelArtMatrix = GetDeps<{
         GenDeps_LongPressDirective: GenDeps_LongPressDirective;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<PixelArtMatrix["_monitoring"]>;
         emptyColor: ExtractDeps<PixelArtMatrix["emptyColor"]>;
         colorPalette: ExtractDeps<PixelArtMatrix["colorPalette"]>;
         matrix: ExtractDeps<PixelArtMatrix["matrix"]>;

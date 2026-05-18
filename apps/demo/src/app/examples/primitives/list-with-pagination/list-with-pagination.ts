@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
+    componentMonitoring,
     insertLocalStoragePersister,
     insertPaginationPlaceholderData,
     provideHostName,
@@ -97,6 +98,7 @@ import { injectApiService } from './api.service';
   providers: [provideHostName('component:ListWithPagination')]
 })
 export default class ListWithPagination {
+  private readonly _monitoring = componentMonitoring();
   protected readonly pagination = queryParam(
     {
       state: {
@@ -147,6 +149,7 @@ export type GenDeps_ListWithPagination = GetDeps<{
         GenDeps_StatusComponent: GenDeps_StatusComponent;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<ListWithPagination["_monitoring"]>;
         pagination: ExtractDeps<ListWithPagination["pagination"]>;
         apiService: {
             ApiService: ExtractDeps<typeof injectApiService>["ApiService"];

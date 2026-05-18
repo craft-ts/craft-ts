@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
     Console,
     CraftRouterToYield,
+    componentMonitoring,
     craftMethod,
     craftService,
     insertLocalStoragePersister,
@@ -67,6 +68,7 @@ const { injectUserQuery } = craftService(
   providers: [provideHostName('component:GlobalQuery')]
 })
 export default class GlobalQuery {
+  private readonly _monitoring = componentMonitoring();
   public readonly userId = input<string>();
 
   protected readonly user = injectUserQuery({
@@ -108,6 +110,7 @@ export type GenDeps_GlobalQuery = GetDeps<{
         GenDeps_StatusComponent: GenDeps_StatusComponent;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<GlobalQuery["_monitoring"]>;
         userId: ExtractDeps<GlobalQuery["userId"]>;
         user: {
             UserQuery: ExtractDeps<typeof injectUserQuery>["UserQuery"];

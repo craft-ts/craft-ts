@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
+    componentMonitoring,
     insertLocalStoragePersister,
     insertPaginationPlaceholderData,
     provideHostName,
@@ -99,6 +100,7 @@ import { injectApiService } from './api.service';
   providers: [provideHostName('component:QpListWithPagination')]
 })
 export default class QpListWithPagination {
+  private readonly _monitoring = componentMonitoring();
   protected readonly pagination = injectDemoQueryParamQueryParams();
   private readonly apiService = injectApiService();
 
@@ -127,6 +129,7 @@ export type GenDeps_QpListWithPagination = GetDeps<{
         GenDeps_StatusComponent: GenDeps_StatusComponent;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<QpListWithPagination["_monitoring"]>;
         pagination: {
             DemoQueryParamQueryParams: ReturnType<typeof injectDemoQueryParamQueryParams>;
           };

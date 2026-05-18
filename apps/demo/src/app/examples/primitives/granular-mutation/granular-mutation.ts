@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
+    componentMonitoring,
     insertLocalStoragePersister,
     insertPaginationPlaceholderData,
     insertReactOnMutation,
@@ -127,6 +128,7 @@ import { injectApiService, User } from './api.service';
   providers: [provideHostName('component:GranularMutation')]
 })
 export default class GranularMutation {
+  private readonly _monitoring = componentMonitoring();
   protected readonly pagination = queryParam(
     {
       state: {
@@ -202,6 +204,7 @@ export type GenDeps_GranularMutation = GetDeps<{
         GenDeps_StatusComponent: GenDeps_StatusComponent;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<GranularMutation["_monitoring"]>;
         pagination: ExtractDeps<GranularMutation["pagination"]>;
         apiService: {
             ApiService: ExtractDeps<typeof injectApiService>["ApiService"];

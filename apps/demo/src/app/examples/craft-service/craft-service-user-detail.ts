@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import {
+    componentMonitoring,
     craftService,
     provideHostName,
     query,
@@ -169,6 +170,7 @@ const { injectUser, provideUser } = craftService(
   `,
 })
 export default class CraftServiceUserDetailComponent {
+  private readonly _monitoring = componentMonitoring();
   protected readonly userId = state(signal('1'), ({ set }) => ({
     setUserId: (event: Event | null) => {
       if (event) {
@@ -182,6 +184,7 @@ export default class CraftServiceUserDetailComponent {
 export type GenDeps_CraftServiceUserDetailComponent = GetDeps<{
       deps: {};
       propertiesDeps: {
+        _monitoring: ExtractDeps<CraftServiceUserDetailComponent["_monitoring"]>;
         userId: ExtractDeps<CraftServiceUserDetailComponent["userId"]>;
         user: {
             User: ExtractDeps<typeof injectUser>["User"];

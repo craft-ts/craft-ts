@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
+    componentMonitoring,
     insertLocalStoragePersister,
     insertSelect,
     provideHostName,
@@ -81,6 +82,7 @@ const CELL_INDEXES = Array.from(
   providers: [provideHostName('component:PixelArt')]
 })
 export default class PixelArt {
+  private readonly _monitoring = componentMonitoring();
   protected readonly totalCells = TOTAL_CELLS;
   protected readonly emptyColor = EMPTY_COLOR;
   protected readonly colorPalette = COLOR_PALETTE;
@@ -150,6 +152,7 @@ function initializePixelCells() {
 export type GenDeps_PixelArt = GetDeps<{
       deps: {};
       propertiesDeps: {
+        _monitoring: ExtractDeps<PixelArt["_monitoring"]>;
         totalCells: ExtractDeps<PixelArt["totalCells"]>;
         emptyColor: ExtractDeps<PixelArt["emptyColor"]>;
         colorPalette: ExtractDeps<PixelArt["colorPalette"]>;

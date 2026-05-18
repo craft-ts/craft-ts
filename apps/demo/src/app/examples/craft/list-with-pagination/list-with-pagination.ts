@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
+    componentMonitoring,
     craftMethod,
     craftService,
     insertLocalStoragePersister,
@@ -152,6 +153,7 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
   providers: [provideUserList(), provideHostName('component:ListWithPaginationCraft')],
 })
 export default class ListWithPaginationCraft {
+  private readonly _monitoring = componentMonitoring();
   protected readonly store = injectUserList();
 
   protected updatePageSize = craftMethod('updatePageSize', function* (event: Event) {
@@ -168,6 +170,7 @@ export type GenDeps_ListWithPaginationCraft = GetDeps<{
         GenDeps_StatusComponent: GenDeps_StatusComponent;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<ListWithPaginationCraft["_monitoring"]>;
         store: {
             UserList: ExtractDeps<typeof injectUserList>["UserList"];
           };

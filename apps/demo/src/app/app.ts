@@ -1,15 +1,16 @@
 import { Component } from '@angular/core';
 import { RouterLinkActive, RouterOutlet, type Router } from '@angular/router';
 import {
-  BrowserLocation,
-  BrowserWindow,
-  craftMethod,
-  CraftRouterLink,
-  GlobalPersisterHandlerServiceToYield,
-  provideHostName,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    BrowserLocation,
+    BrowserWindow,
+    componentMonitoring,
+    craftMethod,
+    CraftRouterLink,
+    GlobalPersisterHandlerServiceToYield,
+    provideHostName,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 @Component({
@@ -304,6 +305,7 @@ import {
   providers: [provideHostName('component:App')],
 })
 export class App {
+  private readonly _monitoring = componentMonitoring();
   clearCache = craftMethod('clearCache', function* () {
     const persister = yield* GlobalPersisterHandlerServiceToYield(
       undefined,
@@ -316,20 +318,21 @@ export class App {
 }
 
 export type GenDeps_App = GetDeps<{
-  deps: {
-    RouterOutlet: RouterOutlet;
-    RouterLinkActive: RouterLinkActive;
-    Router: Router;
-    CraftRouterLink: CraftRouterLink;
-  };
-  propertiesDeps: {
-    clearCache: ExtractDeps<App['clearCache']>;
-  };
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: GetPublicComponentProperties<App>;
-  missingProvider: {
-    Router: Router;
-  };
-}>;
+      deps: {
+        RouterOutlet: RouterOutlet;
+        RouterLinkActive: RouterLinkActive;
+        Router: Router;
+        CraftRouterLink: CraftRouterLink;
+      };
+      propertiesDeps: {
+        _monitoring: ExtractDeps<App["_monitoring"]>;
+        clearCache: ExtractDeps<App["clearCache"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<App>;
+      missingProvider: {
+        Router: Router;
+      };
+    }>;

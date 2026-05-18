@@ -1,5 +1,6 @@
 import {
   afterEveryRender,
+  inject,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { withComponentInputBinding } from '@angular/router';
@@ -12,6 +13,7 @@ import {
   provideCraftRouter,
   provideFnWrapper,
   provideTakeAppSnapshot,
+  ɵHOST_TAG_LIST,
 } from '@craft-ng/core';
 import { demoRoutes } from './app.routes';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
@@ -45,11 +47,11 @@ export const appConfig = craftAppConfig({
       }
     }),
     provideCorrelationIdTracking(),
-    provideComponentMonitoring(function* () {
-      yield* Console.log('Component initialized'); // inclut automatiquement from/tags
-      const log = Console.log;
+    provideComponentMonitoring(() => {
+      //ts-ignore
+      const name = inject(ɵHOST_TAG_LIST) as any;
       afterEveryRender(() => {
-        log('Component Re-Rendered'); // inclut automatiquement from/tags
+        console.log('render from app config', name);
       });
     }),
     // App snapshot

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { GetDeps, provideHostName, type GetPublicComponentProperties } from '@craft-ng/core';
+import { componentMonitoring, GetDeps, provideHostName, type ExtractDeps, type GetPublicComponentProperties } from '@craft-ng/core';
 import {
     injectDemoCraftLazyLayoutTeamIdData,
     injectDemoTeamIdParams,
@@ -121,6 +121,7 @@ import { OtherComponent, type GenDeps_OtherComponent } from './other';
   providers: [provideHostName('component:LazyLayoutChildComponent')]
 })
 export default class LazyLayoutChildComponent {
+  private readonly _monitoring = componentMonitoring();
   readonly injectedParentRouteData = injectDemoCraftLazyLayoutTeamIdData();
   readonly injectedTeamId = injectDemoTeamIdParams();
   // readonly someParentRouteData = input.required<string>(); // ! not accessible
@@ -133,6 +134,7 @@ export type GenDeps_LazyLayoutChildComponent = GetDeps<{
         GenDeps_OtherComponent: GenDeps_OtherComponent;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<LazyLayoutChildComponent["_monitoring"]>;
         injectedParentRouteData: {
             DemoCraftLazyLayoutTeamIdData: ReturnType<typeof injectDemoCraftLazyLayoutTeamIdData>;
           };

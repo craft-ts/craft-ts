@@ -2,6 +2,7 @@ import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
     CraftRouterToYield,
+    componentMonitoring,
     craftMethod,
     craftService,
     insertLocalStoragePersister,
@@ -92,6 +93,7 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
   `,
 })
 export default class MutationCraft {
+  private readonly _monitoring = componentMonitoring();
   public readonly userId = input<string>();
 
   protected readonly store = injectUserMutation({
@@ -141,6 +143,7 @@ export type GenDeps_MutationCraft = GetDeps<{
         GenDeps_StatusComponent: GenDeps_StatusComponent;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<MutationCraft["_monitoring"]>;
         userId: ExtractDeps<MutationCraft["userId"]>;
         store: {
             UserMutation: ExtractDeps<typeof injectUserMutation>["UserMutation"];

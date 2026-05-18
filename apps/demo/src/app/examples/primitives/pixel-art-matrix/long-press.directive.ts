@@ -1,5 +1,5 @@
 import { Directive, EventEmitter, HostListener, Input, Output } from '@angular/core';
-import { provideHostName, type GetDeps } from '@craft-ng/core';
+import { provideHostName, type GetDeps, componentMonitoring } from '@craft-ng/core';
 
 @Directive({
   selector: '[appLongPress]',
@@ -7,6 +7,7 @@ import { provideHostName, type GetDeps } from '@craft-ng/core';
   providers: [provideHostName('directive:LongPressDirective')]
 })
 export class LongPressDirective {
+  private readonly _monitoring = componentMonitoring();
   @Input('appLongPress') duration = 450;
   @Output() longPress = new EventEmitter<PointerEvent>();
 

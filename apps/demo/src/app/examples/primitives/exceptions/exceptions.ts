@@ -1,11 +1,12 @@
 import { Component, signal } from '@angular/core';
 import {
-  craftException,
-  provideHostName,
-  query,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
+    componentMonitoring,
+    craftException,
+    provideHostName,
+    query,
+    type ExtractDeps,
+    type GetDeps,
+    type GetPublicComponentProperties
 } from '@craft-ng/core';
 
 type User = {
@@ -102,6 +103,7 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
   providers: [provideHostName('component:ExceptionsComponent')],
 })
 export default class ExceptionsComponent {
+  private readonly _monitoring = componentMonitoring();
   private readonly scenario = signal<Scenario>('success');
 
   protected readonly userQuery = query({
@@ -147,13 +149,14 @@ export default class ExceptionsComponent {
 }
 
 export type GenDeps_ExceptionsComponent = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    scenario: ExtractDeps<ExceptionsComponent['scenario']>;
-    userQuery: ExtractDeps<ExceptionsComponent['userQuery']>;
-  };
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: GetPublicComponentProperties<ExceptionsComponent>;
-}>;
+      deps: {};
+      propertiesDeps: {
+        _monitoring: ExtractDeps<ExceptionsComponent["_monitoring"]>;
+        scenario: ExtractDeps<ExceptionsComponent["scenario"]>;
+        userQuery: ExtractDeps<ExceptionsComponent["userQuery"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<ExceptionsComponent>;
+    }>;

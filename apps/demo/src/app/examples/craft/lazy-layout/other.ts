@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import {
+  componentMonitoring,
   craftException,
   CraftHttpClient,
   craftService,
@@ -80,14 +81,21 @@ const { injectTest2 } = craftService(
     query status: {{ _injectUsersApiOnError.query.status() }}`,
 })
 export class OtherComponent {
+  private readonly _monitoring = componentMonitoring();
   _injectOtherService = injectOtherService();
   _injectUsersApiOnError = injectUsersApiOnError();
   _injectTest2 = injectTest2();
 }
 
+type _UsersApiOnErrorDeps = ExtractDeps<
+  typeof injectUsersApiOnError
+>['UsersApiOnError'];
+type _Test2Deps = ExtractDeps<typeof injectTest2>['test2'];
+
 export type GenDeps_OtherComponent = GetDeps<{
   deps: {};
   propertiesDeps: {
+    _monitoring: ExtractDeps<OtherComponent['_monitoring']>;
     _injectOtherService: {
       OtherService: ExtractDeps<typeof injectOtherService>['OtherService'];
     };

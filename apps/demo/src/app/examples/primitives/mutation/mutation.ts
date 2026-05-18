@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
+    componentMonitoring,
     injectCraftRouter,
     insertLocalStoragePersister,
     insertReactOnMutation,
@@ -54,6 +55,7 @@ import { injectApiService, User } from './api.service';
   providers: [provideHostName('component:MutationDemoComponent')]
 })
 export default class MutationDemoComponent {
+  private readonly _monitoring = componentMonitoring();
   public readonly userId = input<string>();
   private readonly apiService = injectApiService();
 
@@ -139,6 +141,7 @@ export type GenDeps_MutationDemoComponent = GetDeps<{
         GenDeps_StatusComponent: GenDeps_StatusComponent;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<MutationDemoComponent["_monitoring"]>;
         userId: ExtractDeps<MutationDemoComponent["userId"]>;
         apiService: {
             ApiService: ExtractDeps<typeof injectApiService>["ApiService"];

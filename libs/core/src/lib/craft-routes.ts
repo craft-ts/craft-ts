@@ -932,7 +932,7 @@ type AnyCraftRouteDefinition =
 type LoadChildrenRoutes<RouteDefinition> = RouteDefinition extends {
   loadChildren: (...args: any[]) => infer Output;
 }
-  ? Awaited<Output> extends CraftRoutesApp<infer Routes>
+  ? Awaited<Output> extends { readonly _routes: infer Routes extends readonly AnyCraftRouteDefinition[] }
     ? Routes
     : never
   : never;
@@ -941,7 +941,7 @@ type LoadChildrenRouteCollectionName<RouteDefinition> =
   RouteDefinition extends {
     loadChildren: (...args: any[]) => infer Output;
   }
-    ? Awaited<Output> extends CraftRoutesApp<any, infer Name extends string>
+    ? Awaited<Output> extends { readonly name: infer Name extends string }
       ? Name
       : never
     : never;
@@ -1228,17 +1228,22 @@ type FlattenCraftRoutePathRegistryEntry<
 type CraftRoutesPathRegistryWithContext<
   Routes extends readonly AnyCraftRouteDefinition[],
   ParentPath extends string,
+  Acc extends readonly unknown[] = readonly [],
 > = number extends Routes['length']
-  ? readonly CraftRoutePathRegistryEntry<Routes[number], string>[]
+  ? readonly [...Acc, ...CraftRoutePathRegistryEntry<Routes[number], string>[]]
   : Routes extends readonly [
         infer Head extends AnyCraftRouteDefinition,
         ...infer Tail extends readonly AnyCraftRouteDefinition[],
       ]
-    ? readonly [
-        ...FlattenCraftRoutePathRegistryEntry<Head, ParentPath>,
-        ...CraftRoutesPathRegistryWithContext<Tail, ParentPath>,
-      ]
-    : readonly [];
+    ? CraftRoutesPathRegistryWithContext<
+        Tail,
+        ParentPath,
+        readonly [
+          ...Acc,
+          ...FlattenCraftRoutePathRegistryEntry<Head, ParentPath>,
+        ]
+      >
+    : Acc;
 
 /**
  * Slim view over a routes collection: only `path` (and `queryParams` when
@@ -1269,6 +1274,8 @@ export type CraftRoutesApp<
   Name extends string = string,
 > = {
   readonly name: Name;
+  /** @internal phantom property for fast type inference — do not use at runtime */
+  readonly _routes: Routes;
   toRoutes(): Route[];
   /**
    * Full per-route metadata — includes `path`, `queryParams`, and the
@@ -1282,13 +1289,13 @@ export type CraftRoutesApp<
    * component whose `GenDeps_*` references methods that call the router. Use
    * `META_PATHS` for the registry instead.
    */
-  META_DATA: CraftRoutesMetaData<Routes, Name>;
+  readonly META_DATA: CraftRoutesMetaData<Routes, Name>;
   /**
    * Slim per-route view (path + queryParams only) intended for the
    * `CraftRouterRoutesRegistry` augmentation. Same array as `META_DATA` at
    * runtime — only the type view differs.
    */
-  META_PATHS: CraftRoutesPathRegistry<Routes>;
+  readonly META_PATHS: CraftRoutesPathRegistry<Routes>;
 };
 
 export type CraftRoutesPublicPropertiesErrors<
@@ -1821,6 +1828,7 @@ export function craftRoutes<
 
   const craftedRoutes: CraftRoutesApp<Routes, Name> = {
     name: routeCollectionName,
+    _routes: [] as unknown as Routes,
     toRoutes: () => routes.map((route, index) => toAngularRoute(route, index)),
     META_DATA,
     META_PATHS: META_DATA as unknown as CraftRoutesPathRegistry<Routes>,

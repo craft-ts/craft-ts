@@ -1,5 +1,6 @@
 import { Component, input, ResourceStatus } from '@angular/core';
 import {
+    componentMonitoring,
     provideHostName,
     type ExtractDeps,
     type GetDeps,
@@ -139,12 +140,14 @@ import {
   providers: [provideHostName('component:StatusComponent')],
 })
 export class StatusComponent {
+  private readonly _monitoring = componentMonitoring();
   readonly status = input.required<ResourceStatus | 'exception'>();
 }
 
 export type GenDeps_StatusComponent = GetDeps<{
       deps: {};
       propertiesDeps: {
+        _monitoring: ExtractDeps<StatusComponent["_monitoring"]>;
         status: ExtractDeps<StatusComponent["status"]>;
       };
       provided: {

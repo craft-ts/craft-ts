@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
+    componentMonitoring,
     craftMethod,
     craftService,
     insertReactOnMutation,
@@ -246,6 +247,7 @@ const { injectPlayground, PlaygroundToYield } = craftService(
   providers: [provideHostName('component:PlaygroundComponent')]
 })
 export default class PlaygroundComponent {
+  private readonly _monitoring = componentMonitoring();
   protected readonly pg = injectPlayground();
 
   add = craftMethod('add', function* (input: HTMLInputElement) {
@@ -261,6 +263,7 @@ export default class PlaygroundComponent {
 export type GenDeps_PlaygroundComponent = GetDeps<{
       deps: {};
       propertiesDeps: {
+        _monitoring: ExtractDeps<PlaygroundComponent["_monitoring"]>;
         pg: {
             Playground: ExtractDeps<typeof injectPlayground>["Playground"];
           };

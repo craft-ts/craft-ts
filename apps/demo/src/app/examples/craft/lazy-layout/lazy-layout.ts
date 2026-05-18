@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterOutlet, type Router } from '@angular/router';
 import {
+    componentMonitoring,
     provideHostName,
     type ExtractDeps,
     type GetDeps,
@@ -175,6 +176,7 @@ import {
   providers: [provideHostName('component:LazyLayoutComponent')]
 })
 export default class LazyLayoutComponent {
+  private readonly _monitoring = componentMonitoring();
   public readonly teamId = input.required<string>();
   public readonly someParentRouteData = input.required<string>();
 }
@@ -185,6 +187,7 @@ export type GenDeps_LazyLayoutComponent = GetDeps<{
         Router: Router;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<LazyLayoutComponent["_monitoring"]>;
         teamId: ExtractDeps<LazyLayoutComponent["teamId"]>;
         someParentRouteData: ExtractDeps<LazyLayoutComponent["someParentRouteData"]>;
       };

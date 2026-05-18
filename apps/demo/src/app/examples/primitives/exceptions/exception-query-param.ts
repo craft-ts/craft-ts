@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
+    componentMonitoring,
     craftException,
     provideHostName,
     queryParam,
@@ -96,6 +97,7 @@ const { injectRouter } = toCraftService({
   providers: [provideHostName('component:ExceptionQueryParamComponent')]
 })
 export default class ExceptionQueryParamComponent {
+  private readonly _monitoring = componentMonitoring();
   private readonly router = injectRouter(undefined, ({ navigate }) => ({
     navigate,
   }));
@@ -139,6 +141,7 @@ export type GenDeps_ExceptionQueryParamComponent = GetDeps<{
         CommonModule: CommonModule;
       };
       propertiesDeps: {
+        _monitoring: ExtractDeps<ExceptionQueryParamComponent["_monitoring"]>;
         router: {
             Router: DerivedService<ExtractDeps<typeof injectRouter>["Router"], {
               derivedPropertiesUsed: {
