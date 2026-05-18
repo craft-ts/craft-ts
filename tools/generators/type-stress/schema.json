@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "title": "Type Stress Generator",
+  "description": "Generates a type-stress app to benchmark craft-ng TypeScript type-checking performance",
+  "type": "object",
+  "properties": {
+    "features": {
+      "type": "number",
+      "description": "Number of lazy feature modules",
+      "default": 10,
+      "x-prompt": "How many lazy feature modules?"
+    },
+    "componentsPerFeature": {
+      "type": "number",
+      "description": "Number of components per feature",
+      "default": 10,
+      "x-prompt": "How many components per feature?"
+    },
+    "globalServices": {
+      "type": "number",
+      "description": "Number of shared global services",
+      "default": 10
+    },
+    "localServices": {
+      "type": "number",
+      "description": "Number of services local to each feature",
+      "default": 5
+    },
+    "servicesPerComponent": {
+      "type": "number",
+      "description": "Number of services injected per component",
+      "default": 3
+    },
+    "httpExceptions": {
+      "type": "number",
+      "description": "Number of exception handlers per HTTP call",
+      "default": 1
+    },
+    "serviceDepth": {
+      "type": "number",
+      "description": "Depth of service A→B→C dependency chains",
+      "default": 2
+    }
+  },
+  "required": []
+}

@@ -338,7 +338,7 @@ export type GenDeps_RootComponent = GetDeps<{
 }
 
 // ---------------------------------------------------------------------------
-// tsconfig
+// tsconfig & project.json
 // ---------------------------------------------------------------------------
 
 function genTsconfig(root: string): string {
@@ -361,6 +361,54 @@ function genTsconfig(root: string): string {
       angularCompilerOptions: {
         strictInjectionParameters: true,
         strictTemplates: true,
+      },
+    },
+    null,
+    2,
+  );
+}
+
+function genProjectJson(): string {
+  return JSON.stringify(
+    {
+      name: 'type-stress',
+      $schema: '../../node_modules/nx/schemas/project-schema.json',
+      projectType: 'application',
+      sourceRoot: 'apps/type-stress/src',
+      tags: ['type-stress'],
+      targets: {
+        typecheck: {
+          executor: 'nx:run-commands',
+          options: {
+            command: 'npx tsc --noEmit -p apps/type-stress/tsconfig.stress.json',
+            cwd: '{workspaceRoot}',
+          },
+        },
+        benchmark: {
+          executor: 'nx:run-commands',
+          options: {
+            command: 'time npx tsc --noEmit -p apps/type-stress/tsconfig.stress.json',
+            cwd: '{workspaceRoot}',
+          },
+        },
+        trace: {
+          executor: 'nx:run-commands',
+          options: {
+            commands: [
+              'npx tsc --noEmit -p apps/type-stress/tsconfig.stress.json --generateTrace /tmp/tsc-trace-stress',
+              'npx @typescript/analyze-trace /tmp/tsc-trace-stress 2>&1 | head -50',
+            ],
+            parallel: false,
+            cwd: '{workspaceRoot}',
+          },
+        },
+        generate: {
+          executor: 'nx:run-commands',
+          options: {
+            command: 'npx tsx tools/generate-type-stress.mts',
+            cwd: '{workspaceRoot}',
+          },
+        },
       },
     },
     null,
@@ -473,13 +521,12 @@ for (let f = 0; f < CFG.features; f++) {
 write(join(OUT, 'app.routes.ts'), genAppRoutes(CFG.features));
 write(join(OUT, 'root.component.ts'), genRootComponent());
 
-// --- tsconfig --------------------------------------------------------------
+// --- tsconfig & project.json -----------------------------------------------
 
-const relativeRoot = '../../..'; // apps/type-stress → root
-write(
-  join(APP_OUT, '..', 'tsconfig.stress.json'),
-  genTsconfig(relativeRoot),
-);
+const APP_ROOT = join(APP_OUT, '..');
+const relativeRoot = '../..'; // apps/type-stress → root
+write(join(APP_ROOT, 'tsconfig.stress.json'), genTsconfig(relativeRoot));
+write(join(APP_ROOT, 'project.json'), genProjectJson());
 
 // ---------------------------------------------------------------------------
 // Summary
@@ -492,11 +539,11 @@ const totalFiles =
 
 console.log(`Done — ${totalFiles} files generated.`);
 console.log(`
-Run benchmark:
-  time npx tsc --noEmit -p apps/type-stress/tsconfig.stress.json
+Via Nx:
+  nx run type-stress:typecheck    # tsc --noEmit
+  nx run type-stress:benchmark    # avec time
+  nx run type-stress:trace        # génère + analyse la trace
 
-With trace:
-  npx tsc --noEmit -p apps/type-stress/tsconfig.stress.json \\
-    --generateTrace /tmp/tsc-trace-stress
-  npx @typescript/analyze-trace /tmp/tsc-trace-stress 2>&1 | head -40
+Ou directement:
+  time npx tsc --noEmit -p apps/type-stress/tsconfig.stress.json
 `);

@@ -53,7 +53,8 @@
   },
   "workspaces": [
     "packages/*",
-    "libs/test-type"
+    "libs/test-type",
+    "tools/generators"
   ],
   "dependencies": {
     "@angular/common": "21.2.0",

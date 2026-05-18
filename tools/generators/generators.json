@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nrwl/nx/master/packages/nx/schemas/collection-schema.json",
+  "generators": {
+    "type-stress": {
+      "factory": "./type-stress/index",
+      "schema": "./type-stress/schema.json",
+      "description": "Generate a type-stress test app to benchmark craft-ng TypeScript performance"
+    }
+  }
+}
