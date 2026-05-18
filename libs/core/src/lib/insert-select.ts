@@ -68,10 +68,12 @@ type ArraySelectedOutput<StateType, Insertions> = MergeObject<
 type ObjectSelectedOutput<StateType, Name extends string, Insertions> =
   StateType extends Record<string, unknown>
     ? Name extends keyof StateType & string
-      ? MergeObject<
-          Extract<StateType[Name], object>,
-          ExposedInsertions<Insertions>
-        >
+      ? [Extract<StateType[Name], object>] extends [never]
+        ? ExposedInsertions<Insertions>
+        : MergeObject<
+            Extract<StateType[Name], object>,
+            ExposedInsertions<Insertions>
+          >
       : never
     : never;
 

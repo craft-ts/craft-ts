@@ -1,5 +1,6 @@
 import { inject, InjectionToken, isSignal, type Provider } from '@angular/core';
 import { debounceTime, Subject, tap } from 'rxjs';
+import { provideFnWrapper } from './fn-wrapper';
 
 export interface SnapshotReport {
   source: string;
@@ -63,6 +64,14 @@ export function provideTakeAppSnapshot(
         return () => registry.triggerSnapshot$.next();
       },
     },
+    provideFnWrapper(function* (factory, thisArg, args) {
+      try {
+        return yield* factory.apply(thisArg, args);
+      } catch (error) {
+        inject(TAKE_APP_SNAPSHOT)();
+        throw error;
+      }
+    }),
   ];
 }
 

@@ -1,14 +1,15 @@
-import { Component } from '@angular/core';
+import { Component, computed } from '@angular/core';
 import {
-    craftMethod,
-    craftService,
-    MaybeSignal,
-    provideHostName,
-    state,
-    toValue,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftMethod,
+  craftService,
+  insertSelect,
+  MaybeSignal,
+  provideHostName,
+  state,
+  toValue,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
 const { BToYield } = craftService({ name: 'B', scope: 'function' }, () => {
@@ -31,22 +32,38 @@ const { injectCounter } = craftService(
 
 @Component({
   selector: 'app-test',
-  template: ` <button (click)="shouldFailed()">Should fail</button> `,
+  template: `Counter {{ counter() }} / isOdd:
+    <button (click)="shouldFailed()">Should fail</button> `,
   providers: [provideHostName('component:TestComponent')],
 })
 export default class TestComponent {
-  shouldFailed = craftMethod('shouldFailed', this, function* () {
+  counter = state(
+    {
+      value: 0,
+      nestedValue: 'hello',
+    },
+    insertSelect('value', ({ state }) => ({
+      isOdd: computed(() => state() % 2 === 1),
+    })),
+    insertSelect('nestedValue', ({ state }) => ({
+      value: computed(() => state()),
+      totalLength: computed(() => state().length),
+    })),
+  );
+
+  shouldFailed = craftMethod('shouldFailed', this, () => {
     throw new Error('This method should not be called');
   });
 }
 
 export type GenDeps_TestComponent = GetDeps<{
-      deps: {};
-      propertiesDeps: {
-        shouldFailed: ExtractDeps<TestComponent["shouldFailed"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<TestComponent>;
-    }>;
+  deps: {};
+  propertiesDeps: {
+    counter: ExtractDeps<TestComponent['counter']>;
+    shouldFailed: ExtractDeps<TestComponent['shouldFailed']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<TestComponent>;
+}>;

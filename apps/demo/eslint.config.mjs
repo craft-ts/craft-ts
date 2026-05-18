@@ -24,6 +24,7 @@ export default [
       'craft-ng/prefer-browser-boundaries': 'error',
       'craft-ng/app-start-registry-match': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
+      'craft-ng/require-component-monitoring': 'error',
       '@angular-eslint/directive-selector': [
         'error',
         {

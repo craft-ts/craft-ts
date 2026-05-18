@@ -34,23 +34,16 @@ import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 
-type ResolveGeneratorResult<Result> = Result extends Generator<
-  any,
-  infer Output,
-  unknown
->
-  ? Output
-  : Result;
+type ResolveGeneratorResult<Result> =
+  Result extends Generator<any, infer Output, unknown> ? Output : Result;
 
 type Source$Method<SourceType> = [SourceType] extends [void]
   ? () => void
   : (value: SourceType) => void;
 
-type AnyGeneratorFunction = (...args: never[]) => Generator<
-  unknown,
-  unknown,
-  unknown
->;
+type AnyGeneratorFunction = (
+  ...args: never[]
+) => Generator<unknown, unknown, unknown>;
 
 export type ExposedStateInsertions<Insertions> = MergeObject<
   IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
@@ -81,11 +74,14 @@ type StateGeneratorFactory<State, Yielded = never> = () => Generator<
   StateConfig<State>,
   unknown
 >;
-type ResolvedStateType<StateInput> = StateInput extends Signal<infer State>
-  ? State
-  : StateInput extends (...args: any[]) => Generator<any, infer Output, unknown>
-    ? ResolvedStateType<Output>
-    : StateInput;
+type ResolvedStateType<StateInput> =
+  StateInput extends Signal<infer State>
+    ? State
+    : StateInput extends (
+          ...args: any[]
+        ) => Generator<any, infer Output, unknown>
+      ? ResolvedStateType<Output>
+      : StateInput;
 type StateConfigYielded<StateInput> = StateInput extends (
   ...args: any[]
 ) => Generator<infer Yielded, any, unknown>
@@ -231,11 +227,7 @@ export function state<StateInput>(
   {},
   StateTrackedDependencies<StateConfigYielded<StateInput>>
 >;
-export function state<
-  StateInput,
-  Insertion1,
-  Insertion1Yielded = never,
->(
+export function state<StateInput, Insertion1, Insertion1Yielded = never>(
   stateConfig: StateInput,
   insertion1: InsertionsStateFactory<
     NoInfer<ResolvedStateType<StateInput>>,
@@ -567,7 +559,10 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
   const getInjector = () => {
     assertInInjectionContext(state);
     injector ??= ɵcreateHostTaggedInjector(inject(Injector), 'state', [
-      { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
+      {
+        provide: INSERTION_SNAPSHOT_REGISTRY,
+        useValue: insertionSnapshotRegistry,
+      },
     ]);
     return injector;
   };
@@ -680,11 +675,18 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
         }
       })();
 
+  console.log('destroyRef', destroyRef);
+  destroyRef?.onDestroy(() => {
+    console.log('State destroyed, cleaning up snapshot subscription');
+  });
+
   if (snapshotRegistry && destroyRef) {
     snapshotRegistry.triggerSnapshot$
       .pipe(takeUntilDestroyed(destroyRef))
       .subscribe(() => {
-        const insertionSnapshots = triggerAndCollectInsertions(insertionSnapshotRegistry);
+        const insertionSnapshots = triggerAndCollectInsertions(
+          insertionSnapshotRegistry,
+        );
         let stateSnapshot: unknown;
         try {
           stateSnapshot = {
@@ -692,7 +694,9 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
             ...(insertionSnapshots ? { insertions: insertionSnapshots } : {}),
           };
         } catch (error) {
-          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+          stateSnapshot = {
+            error: error instanceof Error ? error.message : String(error),
+          };
         }
         snapshotRegistry.allSnapShot$.next({
           source: 'state',

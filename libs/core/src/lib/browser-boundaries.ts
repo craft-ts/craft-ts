@@ -261,11 +261,14 @@ type ConsoleBrowserInfo = {
   languages: readonly string[];
   onLine: boolean;
   platform: string | undefined;
+  screen: { width: number; height: number } | undefined;
 };
 
 function getConsoleBrowserInfo(): ConsoleBrowserInfo | undefined {
   const nav = globalThis.navigator;
   if (!nav) return undefined;
+
+  const scr = globalThis.screen;
 
   return {
     userAgent: nav.userAgent,
@@ -274,6 +277,7 @@ function getConsoleBrowserInfo(): ConsoleBrowserInfo | undefined {
     onLine: nav.onLine,
     platform:
       'platform' in nav ? (nav as { platform?: string }).platform : undefined,
+    screen: scr ? { width: scr.width, height: scr.height } : undefined,
   };
 }
 

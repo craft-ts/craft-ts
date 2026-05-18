@@ -1,6 +1,7 @@
 import {
   assertInInjectionContext,
   createEnvironmentInjector,
+  DestroyRef,
   EnvironmentInjector,
   EnvironmentProviders,
   inject,
@@ -3079,9 +3080,7 @@ function createConcreteServiceInstance(
     const inputs = createInputProxy(bindings, providedConfig);
     const wrappedFactory = injectFnWrapper()(definition.factory);
     const result =
-      definition.factory.length > 0
-        ? wrappedFactory(inputs)
-        : wrappedFactory();
+      definition.factory.length > 0 ? wrappedFactory(inputs) : wrappedFactory();
 
     if (!isGenerator(result)) {
       return result;
@@ -3677,9 +3676,20 @@ export function ɵcreateHostTaggedInjector(
     return injector;
   }
 
-  return createEnvironmentInjector(
+  let parentDestroyRef: DestroyRef | null = null;
+  try {
+    parentDestroyRef = inject(DestroyRef, { optional: true });
+  } catch {
+    // not in an injection context
+  }
+
+  const envInjector = createEnvironmentInjector(
     [ɵprovideHostName(hostName), ...extraProviders],
     injector as EnvironmentInjector,
     `HostTag(${hostName})`,
   );
+
+  parentDestroyRef?.onDestroy(() => envInjector.destroy());
+
+  return envInjector;
 }

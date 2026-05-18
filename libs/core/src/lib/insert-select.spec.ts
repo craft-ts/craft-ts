@@ -389,3 +389,16 @@ describe('insertSelect', () => {
     });
   });
 });
+
+describe('previous regressions on insertSelect typings', () => {
+  it('counter with derived values from insertSelect', () => {
+    const counter = state(
+      { value: 0 },
+      insertSelect('value', ({ state }) => ({
+        isOdd: computed(() => state() % 2 === 1),
+      })),
+    );
+    const isOdd = counter.selectValue().isOdd();
+    expectTypeOf(isOdd).toEqualTypeOf<boolean>();
+  });
+});

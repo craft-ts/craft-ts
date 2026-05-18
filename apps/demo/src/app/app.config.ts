@@ -6,10 +6,12 @@ import { withComponentInputBinding } from '@angular/router';
 import {
   Console,
   craftAppConfig,
+  HostTagToYield,
   provideComponentMonitoring,
   provideCorrelationIdTracking,
   provideCraftRouter,
   provideFnWrapper,
+  provideTakeAppSnapshot,
 } from '@craft-ng/core';
 import { demoRoutes } from './app.routes';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
@@ -37,8 +39,9 @@ export const appConfig = craftAppConfig({
       try {
         return yield* factory.apply(thisArg, args);
       } finally {
+        const name = yield* HostTagToYield();
         // eslint-disable-next-line craft-ng/prefer-browser-boundaries
-        console.log(`took ${performance.now() - start}ms`);
+        console.log(`$${name} took ${performance.now() - start}ms`);
       }
     }),
     provideCorrelationIdTracking(),
@@ -49,5 +52,9 @@ export const appConfig = craftAppConfig({
         log('Component Re-Rendered'); // inclut automatiquement from/tags
       });
     }),
+    // App snapshot
+    // TODO RENAME
+    // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+    provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
   ],
 });
