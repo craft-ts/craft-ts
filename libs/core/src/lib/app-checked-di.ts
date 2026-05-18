@@ -125,6 +125,8 @@ type RouteErrorMessages<RouteDefinition> = [
   ...InjectedErrorMessages<RouteDefinition, RouteContext<RouteDefinition>>,
 ];
 
+// Uses index-based access (works with mapped types like APP_CONFIG_META_DATA) and
+// processes 4 routes per step to keep recursion depth ~N/4 for large route tables.
 type RoutesErrorMessagesByIndex<
   Routes extends readonly unknown[],
   Traversed extends readonly unknown[] = readonly [],
@@ -132,10 +134,26 @@ type RoutesErrorMessagesByIndex<
   ? UnionToTuple<RouteErrorMessages<Routes[number]>[number]>
   : Traversed['length'] extends Routes['length']
     ? []
-    : [
-        ...RouteErrorMessages<Routes[Traversed['length']]>,
-        ...RoutesErrorMessagesByIndex<Routes, [...Traversed, unknown]>,
-      ];
+    : [...Traversed, unknown]['length'] extends Routes['length']
+      ? [...RouteErrorMessages<Routes[Traversed['length']]>]
+      : [...Traversed, unknown, unknown]['length'] extends Routes['length']
+        ? [
+            ...RouteErrorMessages<Routes[Traversed['length']]>,
+            ...RouteErrorMessages<Routes[[...Traversed, unknown]['length']]>,
+          ]
+        : [...Traversed, unknown, unknown, unknown]['length'] extends Routes['length']
+          ? [
+              ...RouteErrorMessages<Routes[Traversed['length']]>,
+              ...RouteErrorMessages<Routes[[...Traversed, unknown]['length']]>,
+              ...RouteErrorMessages<Routes[[...Traversed, unknown, unknown]['length']]>,
+            ]
+          : [
+              ...RouteErrorMessages<Routes[Traversed['length']]>,
+              ...RouteErrorMessages<Routes[[...Traversed, unknown]['length']]>,
+              ...RouteErrorMessages<Routes[[...Traversed, unknown, unknown]['length']]>,
+              ...RouteErrorMessages<Routes[[...Traversed, unknown, unknown, unknown]['length']]>,
+              ...RoutesErrorMessagesByIndex<Routes, [...Traversed, unknown, unknown, unknown, unknown]>,
+            ];
 
 type RoutesErrorMessages<Routes extends readonly unknown[]> =
   RoutesErrorMessagesByIndex<Routes>;
