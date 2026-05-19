@@ -60,7 +60,10 @@ async function whatCanBeDerived() {
   type _IsNameRomain = IsRomain<typeof _name>;
   //.  ^?
 
-  type Square = object;
+  type Square = {
+    word: string;
+    checked: boolean;
+  };
   const _firstSquare: Square = { word: 'Signals', checked: true };
   //    ^?
   type _IsSquareMarked = IsSquareMarked<typeof _firstSquare>;
@@ -93,11 +96,14 @@ function f3() {
   type _IsNameRomain = IsRomain<typeof _name>;
   //.  ^?
 
-  type Square = object;
+  type Square = {
+    word: string;
+    checked: boolean;
+  };
   const _firstSquare = {
     word: 'Signals',
     checked: true,
-  } as const satisfies Square;
+  } satisfies Square;
   type _IsSquareMarked = IsSquareMarked<typeof _firstSquare>;
   //.  ^?
 }
@@ -122,12 +128,13 @@ function f5() {
     checked: boolean;
   };
 
-  function createSquare<T extends Square>(square: T): T {
+  function createSquare<const T extends Square>(square: T): T {
     // do some stuff
     return square;
   }
 
   const _firstSquare = createSquare({ word: 'Signals', checked: true });
+
   type _IsSquareMarked = IsSquareMarked<typeof _firstSquare>;
   //.  ^?
 }
