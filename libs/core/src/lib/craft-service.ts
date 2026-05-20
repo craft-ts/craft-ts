@@ -3683,8 +3683,42 @@ export function ɵcreateHostTaggedInjector(
     // not in an injection context
   }
 
+  // Collect tags from the node injector chain
+  const nodeTags = injector.get(ɵHOST_TAG_LIST, []);
+
+  // Collect tags exclusive to the env injector chain (e.g. route-level providers
+  // that are shadowed by a parent component's node injector providing the same token)
+  let envOnlyTags: readonly string[] = [];
+  try {
+    const associatedEnvInjector = runInInjectionContext(injector, () =>
+      inject(EnvironmentInjector, { optional: true }),
+    );
+    if (associatedEnvInjector) {
+      const envTags = associatedEnvInjector.get(ɵHOST_TAG_LIST, null) ?? [];
+      envOnlyTags = envTags.filter((t) => !nodeTags.includes(t));
+    }
+  } catch {
+    // not in an injection context or no env injector
+  }
+
+  // Insert env-only tags before the last element of nodeTags (the current component's tag)
+  // to preserve semantic order: parent components → route → current component → method
+  const mergedTags: readonly string[] =
+    nodeTags.length > 0
+      ? [
+          ...nodeTags.slice(0, -1),
+          ...envOnlyTags,
+          nodeTags[nodeTags.length - 1],
+          hostName,
+        ]
+      : [...envOnlyTags, hostName];
+
   const envInjector = createEnvironmentInjector(
-    [ɵprovideHostName(hostName), ...extraProviders],
+    [
+      ɵprovideHostName(hostName),
+      { provide: ɵHOST_TAG_LIST, useValue: mergedTags },
+      ...extraProviders,
+    ],
     injector as EnvironmentInjector,
     `HostTag(${hostName})`,
   );
