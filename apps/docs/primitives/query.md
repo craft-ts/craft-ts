@@ -16,9 +16,11 @@ import { query } from '@craft-ng/core';
 const id = signal(1);
 const myQuery = query({
   params: () => ({ id: id() }),
-  loader: async ({ params }) => {
-    const response = await fetch(`/api/users/${params.id}`);
-    return response.json();
+  loader: function* () {
+    return yield* CraftHttpClient.get(({ response }) => ({
+      url: '/api/users',
+      success: response<User[]>(),
+    }));
   },
 });
 
@@ -29,6 +31,22 @@ console.log(myQuery.isLoading()); // true/false
 console.log(myQuery.error()); // Error or undefined
 ```
 
+### Method-based query
+
+```typescript
+const searchQuery = query({
+  method: (term: string) => term,
+  loader: function* ({ params: term }) {
+    return yield* CraftHttpClient.get(({ response }) => ({
+      url: `/api/search?q=${term}`,
+      success: response<SearchResult[]>(),
+    }));
+  },
+});
+// Trigger the query by calling it with a search term
+searchQuery.call('angular');
+```
+
 ### Identifier-based queries (for parallel queries)
 
 ```typescript
@@ -36,9 +54,11 @@ const userId = signal<number | undefined>(undefined);
 const query = query({
   params: userId,
   identifier: (id) => id,
-  loader: async ({ params: userId }) => {
-    const response = await fetch(`/api/users/${userId}`);
-    return response.json();
+  loader: function* ({ params: userId }) {
+    return yield* CraftHttpClient.get(({ response }) => ({
+      url: `/api/users/${userId}`,
+      success: response<User>(),
+    }));
   },
 });
 
@@ -51,6 +71,28 @@ console.log(query.select('1').value()); // User 1 data
 console.log(query.select('2').value()); // User 2 data
 ```
 
+### Dependency-based query
+
+```typescript
+const query = query(
+  {
+    params: function* () {
+      return yield* UserServiceToYield.userId();
+    },
+    loader: function* ({ params: userId }) {
+      return yield* UserApiServiceToYield.get(userId);
+    },
+  },
+  //insertions can also be generator functions to yield dependencies
+  function* () {
+    const queryTools = yield* QueryToolsToYield();
+    return {
+      queryKey: `${queryTools.prefix()}:details`,
+    };
+  },
+);
+```
+
 ### React to mutation with insertReactOnMutation and persist in local storage
 
 ```typescript
@@ -58,22 +100,23 @@ import { insertReactOnMutation } from '@craft-ng/core';
 
 const updateUserMutation = mutation({
   method: (data: { id: string; name: string; email: string }) => data,
-  loader: async ({ params }) => {
-    const response = await fetch(`/api/users/${params.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    return response.json();
+  loader: function* ({ params }) {
+    return yield* CraftHttpClient.post(({ response }) => ({
+      url: `/api/users/${params.id}`,
+      body: { name: params.name, email: params.email },
+      success: response<User>(),
+    }));
   },
 });
 
 const userQuery = query(
   {
     params: () => ({ userId: currentUserId() }),
-    loader: async ({ params }) => {
-      const response = await fetch(`/api/users/${params.userId}`);
-      return response.json();
+    loader: function* ({ params }) {
+      return yield* CraftHttpClient.get(({ response }) => ({
+        url: `/api/users/${params.userId}`,
+        success: response<User>(),
+      }));
     },
   },
   insertReactOnMutation(updateUserMutation, {
@@ -127,6 +170,58 @@ console.log(userQuery.exceptions().params?.SEARCH_TERM_TOO_SHORT);
 
 userQuery.call('forbidden');
 console.log(userQuery.exceptions().loader?.USER_ACCESS_FORBIDDEN);
+```
+
+### Query with http exceptions
+
+```typescript
+const userQuery = query({
+  params: () => ({ userId: currentUserId() }),
+  loader: function* ({ params: userId }) {
+    return yield* CraftHttpClient.get(({ response }) => ({
+      url: `/api/users/${userId}`,
+      success: response<User>(),
+      exceptions: [
+        function* ({ status, code, content }) {
+          if (!(yield* status(400))) {
+            return;
+          }
+
+          if (!(yield* code('PASSWORD_REQUIRED'))) {
+            return;
+          }
+
+          if (!(yield* content('Password is required'))) {
+            return;
+          }
+
+          return craftException({
+            code: 'PASSWORD_REQUIRED',
+            scope: 'UsersFeatureForDependencies',
+          });
+        },
+        function* ({ body, header }) {
+          const payload = yield* body<{
+            errors?: Array<{ field: 'password' }>;
+          }>();
+
+          if (!payload.errors?.some((error) => error.field === 'password')) {
+            return;
+          }
+
+          if (!(yield* header('x-error-kind', 'validation'))) {
+            return;
+          }
+
+          return craftException({
+            code: 'VALIDATION_HEADER_ERROR',
+            scope: 'UsersFeatureForDependencies',
+          });
+        },
+      ],
+    }));
+  },
+});
 ```
 
 Demo source:

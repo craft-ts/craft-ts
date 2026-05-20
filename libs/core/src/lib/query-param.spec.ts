@@ -138,42 +138,21 @@ describe('queryParams', () => {
             page: {
               fallbackValue: 1,
               parse: function* (value: string) {
-                const parser = yield* ParsePageToYield(
-                  undefined,
-                  ({ parsePage }) => ({
-                    parsePage,
-                  }),
-                );
-
-                return parser.parsePage(value);
+                return yield* ParsePageToYield.parsePage(value);
               },
               serialize: function* (value: number) {
-                const serializer = yield* SerializePageToYield(
-                  undefined,
-                  ({ serializePage }) => ({
-                    serializePage,
-                  }),
-                );
-
-                return serializer.serializePage(value);
+                return yield* SerializePageToYield.serializePage(value);
               },
             },
           },
         },
         function* ({ patch, state }) {
-          const rules = yield* PaginationRulesToYield(
-            undefined,
-            ({ maxPage }) => ({
-              maxPage,
-            }),
-          );
-
+          const maxPage = yield* PaginationRulesToYield.maxPage();
           return {
             nextPage: () => {
-              if (state().page >= rules.maxPage()) {
+              if (state().page >= maxPage()) {
                 return;
               }
-
               patch(({ page }) => ({
                 page: page + 1,
               }));
@@ -188,6 +167,7 @@ describe('queryParams', () => {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
           derivedPropertiesUsed: {
             parsePage: (value: string) => number;
           };
@@ -199,6 +179,7 @@ describe('queryParams', () => {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
           derivedPropertiesUsed: {
             serializePage: (value: number) => string;
           };
@@ -210,6 +191,7 @@ describe('queryParams', () => {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
           derivedPropertiesUsed: {
             maxPage: () => 3;
           };
@@ -221,6 +203,7 @@ describe('queryParams', () => {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
         };
       }>();
     });

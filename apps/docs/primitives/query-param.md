@@ -86,6 +86,83 @@ if (mode.hasException()) {
 }
 ```
 
+## With dependency injection
+
+```typescript
+queryParam(
+  {
+    state: {
+      page: {
+        fallbackValue: 1,
+        parse: function* (value: string) {
+          return yield* ParsePageToYield.parsePage(value);
+        },
+        serialize: function* (value: number) {
+          return yield* SerializePageToYield.serializePage(value);
+        },
+      },
+    },
+  },
+  function* ({ patch, state }) {
+    const maxPage = yield* PaginationRulesToYield.maxPage();
+    return {
+      nextPage: () => {
+        if (state().page >= maxPage()) {
+          return;
+        }
+        patch(({ page }) => ({
+          page: page + 1,
+        }));
+      },
+    };
+  },
+);
+```
+
+## Used with `craftRoutes`
+
+For a full declarative route, queryParams can live inside `craftRoutes`:
+
+```typescript
+export const { demoRoutes, injectDemoQueryParamQueryParams } = craftRoutes(
+  'demo',
+  [
+    {
+      path: 'query-param',
+      componentDeps:
+        {} as import('./examples/routes/list-with-pagination/qp-list-with-pagination').GenDeps_QpListWithPagination,
+      loadComponent: () =>
+        import(
+          './examples/routes/list-with-pagination/qp-list-with-pagination'
+        ),
+      queryParams: () =>
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value) => parseInt(value, 10),
+                serialize: (value) => String(value),
+              },
+              pageSize: {
+                fallbackValue: 4,
+                parse: (value) => parseInt(value, 10),
+                serialize: (value) => String(value),
+              },
+            },
+          },
+          ({ patch, state }) => ({
+            nextPage: () => patch({ page: state().page + 1 }),
+            previousPage: () => patch({ page: state().page - 1 }),
+            updatePageSize: (newPageSize: number) =>
+              patch({ pageSize: newPageSize, page: 1 }),
+          }),
+        ),
+    },
+  ],
+);
+```
+
 Demo source:
 
 - [exception-query-param.ts](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-param.ts)
