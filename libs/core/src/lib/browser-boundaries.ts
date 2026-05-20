@@ -159,6 +159,7 @@ export interface BrowserNavigatorServiceApi {
   onLine(): boolean;
   cookieEnabled(): boolean;
   sendBeacon(url: string | URL, data?: BodyInit | null): boolean;
+  share(data?: ShareData): Promise<void>;
 }
 
 export interface BrowserPerformanceServiceApi {
@@ -751,6 +752,7 @@ const browserNavigatorService: BrowserBoundaryService<
     onLine: () => getBrowserNavigator().onLine,
     cookieEnabled: () => getBrowserNavigator().cookieEnabled,
     sendBeacon: (url, data) => getBrowserNavigator().sendBeacon(url, data),
+    share: (data) => getBrowserNavigator().share(data),
   }),
 );
 export const injectBrowserNavigatorService: BrowserBoundaryService<
@@ -1068,6 +1070,7 @@ export const BrowserNavigator: BrowserBoundaryDsl<
   onLine: callBrowserNavigator('onLine'),
   cookieEnabled: callBrowserNavigator('cookieEnabled'),
   sendBeacon: callBrowserNavigator('sendBeacon'),
+  share: callBrowserNavigator('share'),
 };
 
 export const BrowserPerformance: BrowserBoundaryDsl<

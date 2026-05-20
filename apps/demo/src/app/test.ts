@@ -1,5 +1,7 @@
 import { afterEveryRender, Component, computed } from '@angular/core';
 import {
+  asyncProcess,
+  BrowserNavigator,
   componentMonitoring,
   craftMethod,
   insertSelect,
@@ -41,6 +43,18 @@ export default class TestComponent {
     })),
   );
 
+  a = asyncProcess(
+    {
+      method: (payload: { title: string; url: string }) => payload,
+      loader: function* ({ params }) {
+        return (yield* BrowserNavigator.share(params)) as Promise<undefined>;
+      },
+    },
+    ({ resource }) => ({
+      isMenuOpen: computed(() => resource.status() === 'loading'),
+    }),
+  );
+
   shouldFailed = craftMethod('shouldFailed', this, () => {
     throw new Error('This method should not be called');
   });
@@ -50,7 +64,9 @@ export type GenDeps_TestComponent = GetDeps<{
   deps: {};
   propertiesDeps: {
     _monitoring: ExtractDeps<TestComponent['_monitoring']>;
+    _: ExtractDeps<TestComponent['_']>;
     counter: ExtractDeps<TestComponent['counter']>;
+    a: ExtractDeps<TestComponent['a']>;
     shouldFailed: ExtractDeps<TestComponent['shouldFailed']>;
   };
   provided: {

@@ -6,7 +6,6 @@ import { ReadonlySource } from './util/source.type';
 import { TestBed } from '@angular/core/testing';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
-import { Equal, Expect } from 'test-type';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -64,8 +63,8 @@ describe('AsyncProcess', () => {
           searchChange,
         }),
         loader: async ({ params: { timeToWait, searchChange } }) => {
-          type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-          type ExpectSearchChange = Expect<Equal<typeof searchChange, string>>;
+          expectTypeOf(searchChange).toEqualTypeOf<string>();
+          expectTypeOf(timeToWait).toEqualTypeOf<number>();
           await new Promise((resolve) => setTimeout(resolve, timeToWait));
           return { searchChange };
         },
@@ -97,8 +96,8 @@ describe('AsyncProcess', () => {
           (searchConfig) => searchConfig,
         ),
         loader: async ({ params: { timeToWait, searchChange } }) => {
-          type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-          type ExpectSearchChange = Expect<Equal<typeof searchChange, string>>;
+          expectTypeOf(timeToWait).toEqualTypeOf<number>();
+          expectTypeOf(searchChange).toEqualTypeOf<string>();
           await new Promise((resolve) => setTimeout(resolve, timeToWait));
           return { searchChange };
         },
@@ -268,10 +267,8 @@ describe('AsyncProcess types without identifier', () => {
               searchChange,
             }),
             loader: async ({ params: { timeToWait, searchChange } }) => {
-              type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-              type ExpectSearchChange = Expect<
-                Equal<typeof searchChange, string>
-              >;
+              expectTypeOf(timeToWait).toEqualTypeOf<number>();
+              expectTypeOf(searchChange).toEqualTypeOf<string>();
               await new Promise((resolve) => setTimeout(resolve, timeToWait));
               return { searchChange };
             },
@@ -399,9 +396,7 @@ describe('AsyncProcess types without identifier', () => {
               return searchChange;
             }),
             loader: async ({ params: { searchChangeText } }) => {
-              type ExpectSearchChangeText = Expect<
-                Equal<typeof searchChangeText, string>
-              >;
+              expectTypeOf(searchChangeText).toEqualTypeOf<string>();
               await new Promise((resolve) => setTimeout(resolve, 1000));
               return { searchChangeText };
             },
@@ -607,10 +602,8 @@ describe('AsyncProcess types with identifier', () => {
             }),
             identifier: (params) => params.searchChange,
             loader: async ({ params: { timeToWait, searchChange } }) => {
-              type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-              type ExpectSearchChange = Expect<
-                Equal<typeof searchChange, string>
-              >;
+              expectTypeOf(timeToWait).toEqualTypeOf<number>();
+              expectTypeOf(searchChange).toEqualTypeOf<string>();
               await new Promise((resolve) => setTimeout(resolve, timeToWait));
               return { searchChange };
             },
@@ -742,9 +735,7 @@ describe('AsyncProcess types with identifier', () => {
             }),
             identifier: (params) => params.searchChangeText,
             loader: async ({ params: { searchChangeText } }) => {
-              type ExpectSearchChangeText = Expect<
-                Equal<typeof searchChangeText, string>
-              >;
+              expectTypeOf(searchChangeText).toEqualTypeOf<string>();
               await new Promise((resolve) => setTimeout(resolve, 1000));
               return { searchChangeText };
             },

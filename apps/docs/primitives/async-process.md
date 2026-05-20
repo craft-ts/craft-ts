@@ -109,10 +109,7 @@ const loadUser = asyncProcess({
       : value,
   loader: async ({ params }) =>
     params === 'blocked'
-      ? craftException(
-          { code: 'USER_ACCESS_FORBIDDEN' },
-          { id: params },
-        )
+      ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
       : { id: params, name: 'John Doe' },
 });
 
@@ -130,8 +127,8 @@ console.log(loadUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
 const shareContent = asyncProcess(
   {
     method: (payload: { title: string; url: string }) => payload,
-    stream: async ({ params }) => {
-      return navigator.share(params);
+    loader: function* ({ params }) {
+      return (yield* BrowserNavigator.share(params)) as Promise<undefined>;
     },
   },
   ({ resource }) => ({
