@@ -41,6 +41,12 @@
       "type": "number",
       "description": "Depth of service A→B→C dependency chains",
       "default": 2
+    },
+    "diMode": {
+      "type": "string",
+      "enum": ["central", "cascade", "both"],
+      "description": "DI validation mode: 'central' (AppCheckedDI in main.ts), 'cascade' (RouteCheckedDI per component), or 'both'",
+      "default": "central"
     }
   },
   "required": []

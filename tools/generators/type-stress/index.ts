@@ -7,6 +7,8 @@ import {
   logger,
 } from '@nx/devkit';
 
+type DiMode = 'central' | 'cascade' | 'both';
+
 interface Schema {
   features: number;
   componentsPerFeature: number;
@@ -15,6 +17,7 @@ interface Schema {
   servicesPerComponent: number;
   httpExceptions: number;
   serviceDepth: number;
+  diMode: DiMode;
 }
 
 interface ServiceMeta {
@@ -118,12 +121,29 @@ function genComponent(
   services: ServiceMeta[],
   importPaths: string[],
   localService: ServiceMeta | null = null,
+  routeInjectedService: ServiceMeta | null = null,
 ): string {
-  const allServices = localService ? [...services, localService] : services;
-  const allImportPaths = localService ? [...importPaths, `./${localService.name}`] : importPaths;
+  // `localService` is provided AT the component level (in @Component.providers).
+  // `routeInjectedService` is INJECTED by the component but provided at the
+  // ROUTE level (its `providers: [...]` array). This makes the cascade DI
+  // check meaningful: if the user removes the route-level provider, the
+  // injection in the component will fail validation.
+  const allServices = [
+    ...services,
+    ...(localService ? [localService] : []),
+    ...(routeInjectedService ? [routeInjectedService] : []),
+  ];
+  const allImportPaths = [
+    ...importPaths,
+    ...(localService ? [`./${localService.name}`] : []),
+    ...(routeInjectedService ? [`./${routeInjectedService.name}`] : []),
+  ];
 
   const imports = allServices
     .map((s, i) => {
+      // Only the localService needs its `provide*` import (the component
+      // provides it). The routeInjectedService is provided BY THE ROUTE, so
+      // the component only imports its `inject*`.
       const extra = s === localService ? `, provide${s.name}` : '';
       return `import { ${s.injectable}${extra} } from '${allImportPaths[i]}';`;
     })
@@ -139,6 +159,8 @@ function genComponent(
     ),
   ].join('\n');
 
+  // Only the local service goes in `provided`. The route-injected service
+  // does NOT — it must be resolved via the cascade (route's `providers`).
   const localProvided = localService
     ? `\n    ${localService.name}: ReturnType<typeof provide${localService.name}>;`
     : '';
@@ -176,7 +198,12 @@ ${propDeps}
 `;
 }
 
-function genFeatureRoutes(featureIdx: number, components: string[], routeService: ServiceMeta | null = null): string {
+function genFeatureRoutes(
+  featureIdx: number,
+  components: string[],
+  routeService: ServiceMeta | null = null,
+  diMode: DiMode = 'central',
+): string {
   const compImports = components
     .map((c) => `import type { GenDeps_${c} } from './${c}';`)
     .join('\n');
@@ -193,6 +220,32 @@ function genFeatureRoutes(featureIdx: number, components: string[], routeService
   },`,
     )
     .join('\n');
+
+  // Cascade mode emits a SINGLE type alias per file that aggregates the
+  // RouteCheckedDI check across every route in this file. Zero per-component
+  // boilerplate, and the type-alias form is lazy enough to avoid the circular
+  // resolution that a runtime-call helper would trigger
+  // (app.config ↔ app.routes via loadChildren).
+  if (diMode === 'cascade' || diMode === 'both') {
+    return `import { craftRoutes } from '@craft-ng/core';
+import type { CanRun, ValidateCascadeRoutesFile } from '@craft-ng/core';
+${compImports}${serviceImport}
+import type { AppProvidedNames, AppProvidedValues } from '../../../app.config';
+
+export const { feature${featureIdx}Routes } = craftRoutes('feature${featureIdx}', [
+${componentRoutes}
+]);
+
+// --- Cascade DI check (one alias for the whole file) -----------------------
+
+type _CheckFeature${featureIdx}DI = ValidateCascadeRoutesFile<
+  AppProvidedNames,
+  AppProvidedValues,
+  typeof feature${featureIdx}Routes
+>;
+type _CanRunFeature${featureIdx} = CanRun<_CheckFeature${featureIdx}DI>;
+`;
+  }
 
   return `import { craftRoutes } from '@craft-ng/core';
 ${compImports}${serviceImport}
@@ -348,7 +401,12 @@ export type GenDeps_AppComponent = GetDeps<{
 }
 
 function genAppConfig(): string {
-  return `import { craftAppConfig, provideCraftRouter } from '@craft-ng/core';
+  return `import {
+  craftAppConfig,
+  provideCraftRouter,
+  type AppProvidedServiceNamesOf,
+  type AppProvidedDependencyValuesOf,
+} from '@craft-ng/core';
 import { withComponentInputBinding } from '@angular/router';
 import { provideBrowserGlobalErrorListeners } from '@angular/core';
 import { stressRoutes } from './generated/app.routes';
@@ -362,20 +420,42 @@ export const appConfig = craftAppConfig({
     provideStressAppService(),
   ],
 });
+
+// Cascade DI helpers — exported unconditionally (cheap, used only when
+// downstream files opt-in via the cascade mode).
+export type AppProvidedNames = AppProvidedServiceNamesOf<typeof appConfig>;
+export type AppProvidedValues = AppProvidedDependencyValuesOf<typeof appConfig>;
 `;
 }
 
-function genMainTs(): string {
-  return `import { bootstrapApplication } from '@angular/platform-browser';
-import { toApplicationConfig, AppCheckedDI, CanRun } from '@craft-ng/core';
-import { appConfig } from './app.config';
-import { AppComponent, type GenDeps_AppComponent } from './app.component';
+function genMainTs(diMode: DiMode = 'central'): string {
+  // In 'cascade' mode the central check is omitted — each generated component
+  // performs its own RouteCheckedDI / CanRun. In 'central' and 'both' it is
+  // emitted as today.
+  const emitCentral = diMode === 'central' || diMode === 'both';
 
-bootstrapApplication(AppComponent, toApplicationConfig(appConfig)).catch(console.error);
+  const imports = emitCentral
+    ? `import { toApplicationConfig, AppCheckedDI, CanRun } from '@craft-ng/core';`
+    : `import { toApplicationConfig } from '@craft-ng/core';`;
 
+  const centralBlock = emitCentral
+    ? `
 type CheckAppDI = AppCheckedDI<GenDeps_AppComponent, typeof appConfig.APP_CONFIG_META_DATA>;
 type _CanRun = CanRun<CheckAppDI>;
-`;
+`
+    : '';
+
+  const appComponentImport = emitCentral
+    ? `import { AppComponent, type GenDeps_AppComponent } from './app.component';`
+    : `import { AppComponent } from './app.component';`;
+
+  return `import { bootstrapApplication } from '@angular/platform-browser';
+${imports}
+import { appConfig } from './app.config';
+${appComponentImport}
+
+bootstrapApplication(AppComponent, toApplicationConfig(appConfig)).catch(console.error);
+${centralBlock}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -391,6 +471,7 @@ export default async function typeStressGenerator(tree: Tree, options: Schema) {
     servicesPerComponent: options.servicesPerComponent ?? 3,
     httpExceptions: options.httpExceptions ?? 1,
     serviceDepth: options.serviceDepth ?? 2,
+    diMode: options.diMode ?? 'central',
   };
 
   const total = cfg.features * cfg.componentsPerFeature;
@@ -470,13 +551,13 @@ export default async function typeStressGenerator(tree: Tree, options: Schema) {
 
       tree.write(
         `${root}/features/feature-${f}/${componentName}.ts`,
-        genComponent(componentName, `app-stress-f${f}-c${c}`, picked, importPaths, compServiceMeta),
+        genComponent(componentName, `app-stress-f${f}-c${c}`, picked, importPaths, compServiceMeta, routeServiceMeta),
       );
     }
 
     tree.write(
       `${root}/features/feature-${f}/feature-${f}.routes.ts`,
-      genFeatureRoutes(f, componentNames, routeServiceMeta),
+      genFeatureRoutes(f, componentNames, routeServiceMeta, cfg.diMode),
     );
   }
 
@@ -487,7 +568,7 @@ export default async function typeStressGenerator(tree: Tree, options: Schema) {
   // --- Static app shell (written once, stable across re-generations) --------
 
   tree.write('apps/type-stress/src/index.html', genIndexHtml());
-  tree.write('apps/type-stress/src/main.ts', genMainTs());
+  tree.write('apps/type-stress/src/main.ts', genMainTs(cfg.diMode));
   tree.write('apps/type-stress/src/app.config.ts', genAppConfig());
   tree.write('apps/type-stress/src/app.component.ts', genAppComponent());
   tree.write('apps/type-stress/src/styles.css', '');

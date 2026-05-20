@@ -925,7 +925,7 @@ type AnyCraftLazyRouteDefinition = Simplify<
   }
 >;
 
-type AnyCraftRouteDefinition =
+export type AnyCraftRouteDefinition =
   | AnyCraftComponentRouteDefinition
   | AnyCraftLazyRouteDefinition;
 

@@ -1,5 +1,6 @@
 export * from './lib/after-recomputation';
 export * from './lib/app-checked-di';
+export * from './lib/route-checked-di';
 export * from './lib/async-process';
 export * from './lib/browser-boundaries';
 export * from './lib/computed-source';
