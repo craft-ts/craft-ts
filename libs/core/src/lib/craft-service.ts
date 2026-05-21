@@ -3689,16 +3689,10 @@ export function ɵcreateHostTaggedInjector(
   // Collect tags exclusive to the env injector chain (e.g. route-level providers
   // that are shadowed by a parent component's node injector providing the same token)
   let envOnlyTags: readonly string[] = [];
-  try {
-    const associatedEnvInjector = runInInjectionContext(injector, () =>
-      inject(EnvironmentInjector, { optional: true }),
-    );
-    if (associatedEnvInjector) {
-      const envTags = associatedEnvInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-      envOnlyTags = envTags.filter((t) => !nodeTags.includes(t));
-    }
-  } catch {
-    // not in an injection context or no env injector
+  const associatedEnvInjector = injector.get(EnvironmentInjector, null);
+  if (associatedEnvInjector) {
+    const envTags = associatedEnvInjector.get(ɵHOST_TAG_LIST, null) ?? [];
+    envOnlyTags = envTags.filter((t) => !nodeTags.includes(t));
   }
 
   // Insert env-only tags before the last element of nodeTags (the current component's tag)

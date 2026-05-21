@@ -15,13 +15,12 @@ import { mutation } from '@craft-ng/core';
 ```typescript
 const createUser = mutation({
   method: (payload: { name: string; email: string }) => payload,
-  loader: async ({ params }) => {
-    const response = await fetch('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    return response.json();
+  loader: function* ({ params: user }) {
+    return yield* CraftHttpClient.post(({ response }) => ({
+      url: '/api/users',
+      body: user,
+      success: response<User>(),
+    }));
   },
 });
 
@@ -41,13 +40,12 @@ console.log(createUser.safeValue()); // Created user data (never throws)
 const deleteUserSource = source$<{ name: string; email: string; id: string }>();
 const deleteUser = mutation({
   method: on$(deleteUserSource, (payload) => payload),
-  loader: async ({ params }) => {
-    const response = await fetch('/api/users', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-    return response.json();
+  loader: function* ({ params: user }) {
+    return yield* CraftHttpClient.delete(({ response }) => ({
+      url: '/api/users',
+      body: user,
+      success: response<User>(),
+    }));
   },
 });
 
@@ -66,12 +64,12 @@ console.log(deleteUser.value()); // Created user data
 const deleteUser = mutation({
   method: (payload: { name: string; email: string; id: string }) => payload,
   identifier: ({ id }) => id,
-  loader: async ({ params }) => {
-    const response = await fetch('/api/users', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
+  loader: function* ({ params: user }) {
+    return yield* CraftHttpClient.delete(({ response }) => ({
+      url: '/api/users',
+      body: user,
+      success: response<User>(),
+    }));
     return response.json();
   },
 });
@@ -88,28 +86,66 @@ console.log(deleteUser.select('5')?.value()); // Created user data
 ### Mutation exceptions (`hasException` / `exceptions()`)
 
 ```typescript
-import { craftException, mutation } from '@craft-ng/core';
-
-const updateUser = mutation({
-  method: (value: string) =>
-    value.length < 3
+const deleteUser = mutation({
+  method: (payload: { userId: string }) =>
+    payload.userId.length < 18
       ? craftException(
-          { code: 'SEARCH_TERM_TOO_SHORT' },
-          { min: 3, received: value.length },
+          { code: 'INVALID_ID' },
+          { min: 18, received: payload.userId.length },
         )
-      : value,
-  loader: async ({ params }) =>
-    params === 'blocked'
-      ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
-      : { id: params, updated: true },
+      : payload.userId,
+
+  loader: function* ({ params }) {
+    return yield* CraftHttpClient.delete(({ response }) => ({
+      url: '/api/user',
+      body: params,
+      success: response<User>(),
+      exceptions: [
+        function* ({ status }) {
+          if (!(yield* status(403))) {
+            return;
+          }
+
+          return craftException(
+            { code: 'USER_ACCESS_FORBIDDEN' },
+            { payload: params },
+          );
+        },
+      ],
+    }));
+  },
 });
 
-updateUser.mutate('ab');
-console.log(updateUser.hasException()); // true
-console.log(updateUser.exceptions().params?.SEARCH_TERM_TOO_SHORT);
+deleteUser.mutate({ userId: 'ab' });
+console.log(deleteUser.hasException()); // true
+console.log(deleteUser.exceptions().params?.INVALID_ID);
 
-updateUser.mutate('blocked');
-console.log(updateUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
+deleteUser.mutate({ userId: '12345-12344_27365453-2625434357282827' });
+console.log(deleteUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
+```
+
+### Dependency-based mutation
+
+```typescript
+const mutationRef = mutation(
+  {
+    method: function* (userId: string) {
+      const logger = yield* MutationLoggerRuntimeToYield.log(
+        `mutate:${userId}`,
+      );
+      return userId;
+    },
+    loader: function* ({ params }) {
+      return yield* MutationApiRuntimeToYield.save(params);
+    },
+  },
+  function* () {
+    const logger = yield* MutationLoggerRuntimeToYield.log('insert:init');
+    return {
+      initialized: true,
+    };
+  },
+);
 ```
 
 ## Safe Value Access

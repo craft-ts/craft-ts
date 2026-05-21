@@ -2,6 +2,8 @@ import '@angular/compiler';
 import {
   Component,
   computed,
+  EnvironmentInjector,
+  inject,
   InjectionToken,
   Injector,
   input,
@@ -41,10 +43,12 @@ import {
   vi,
 } from 'vitest';
 import { Console, injectConsoleService } from './browser-boundaries';
+import { craftMethod } from './craft-method';
 import {
   craftService,
   GetInjectedServiceDependencies,
   SERVICE_RUNTIME_OVERRIDES,
+  ɵcreateHostTaggedInjector,
   type CraftServiceApi,
 } from './craft-service';
 import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
@@ -55,7 +59,7 @@ import {
   type ResolveCraftRouteComponentDeps,
 } from './craft-routes';
 import { GetDeps } from './branded-component/branded-component';
-import { HOST_TAG_LIST, injectHostName } from './host-tag';
+import { HOST_TAG_LIST, injectHostName, provideHostName } from './host-tag';
 
 function _injectDemoUserIdParams(): Signal<string> {
   throw new Error('Type-only helper');
@@ -1635,6 +1639,93 @@ describe('craftRoutes', () => {
     });
 
     expect(routeData().myCustomData).toBe('updated');
+  });
+
+  it('should include route host name in craftMethod from chain', () => {
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const { testRouteHostNameRoutes } = craftRoutes('testRouteHostName', [
+      {
+        path: 'user-list',
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+      },
+    ]);
+
+    const routeConfig = testRouteHostNameRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub();
+
+    TestBed.runInInjectionContext(() => {
+      const injector = createRouteInjector(
+        routeConfig.providers,
+        activatedRoute.route,
+        inject(Injector),
+      );
+
+      class PageComponent {
+        readonly load = runInInjectionContext(injector, () =>
+          craftMethod('load', this, function* () {
+            yield* Console.log('loading');
+          }),
+        );
+      }
+
+      new PageComponent().load();
+    });
+
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      'loading',
+      expect.objectContaining({ from: ['route:user-list', 'method:load'] }),
+    );
+  });
+
+  it('should include route host name in craftMethod from chain even when a parent component provides a HostName', () => {
+    const { testRouteHostNameWithParentRoutes } = craftRoutes(
+      'testRouteHostNameWithParent',
+      [
+        {
+          path: 'page',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {},
+        },
+      ],
+    );
+
+    const routeConfig = testRouteHostNameWithParentRoutes.toRoutes()[0];
+
+    // Route environment injector: HOST_TAG_LIST = ['route:page']
+    const routeTagInjector = Injector.create({
+      providers: flattenProviders(routeConfig.providers) as never[],
+    });
+
+    // App component node injector: HOST_TAG_LIST = ['component:App']
+    // Its node injector chain shadows the route injector for HOST_TAG_LIST lookups
+    const appComponentInjector = Injector.create({
+      providers: [...flattenProviders(provideHostName('component:App'))] as never[],
+    });
+
+    // Routed component injector:
+    //   - node injector parent = appComponentInjector (HOST_TAG_LIST chain sees App first)
+    //   - EnvironmentInjector explicitly set to routeTagInjector so
+    //     ɵcreateHostTaggedInjector can recover the route tags shadowed by App
+    const routedComponentInjector = Injector.create({
+      parent: appComponentInjector,
+      providers: [
+        ...flattenProviders(provideHostName('component:Page')),
+        { provide: EnvironmentInjector, useValue: routeTagInjector },
+      ] as never[],
+    });
+
+    // ɵcreateHostTaggedInjector is what craftMethod uses internally; calling it directly
+    // lets us assert the merged HOST_TAG_LIST without needing TestBed or browser services.
+    const methodInjector = ɵcreateHostTaggedInjector(routedComponentInjector, 'method:load');
+
+    expect(methodInjector.get(HOST_TAG_LIST)).toEqual([
+      'component:App',
+      'route:page',
+      'component:Page',
+      'method:load',
+    ]);
   });
 
   it('should treat auto-provided params and data as valid componentDeps coverage', () => {
