@@ -153,6 +153,63 @@ describe('craft-method-name-match', () => {
 
     expect(messages).toEqual([]);
   });
+
+  it('accepts an object config whose name property matches the declared name', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftMethod } from '@craft-ng/core';
+
+        export class DemoComponent {
+          readonly increment = craftMethod({ name: 'increment', providers: [] }, function* () {
+            return 1;
+          });
+        }
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
+  it('reports and autofixes a mismatched name in object config form', async () => {
+    const fixture = {
+      'src/app/demo.ts': `
+        import { craftMethod } from '@craft-ng/core';
+
+        export class DemoComponent {
+          readonly increment = craftMethod({ name: 'wrong', providers: [] }, function* () {
+            return 1;
+          });
+        }
+      `,
+    };
+
+    const { messages } = await lintFixture(fixture);
+    expect(messages).toEqual([
+      "craftMethod first argument 'wrong' must match the declared name 'increment'.",
+    ]);
+
+    const { output } = await lintFixture(fixture, { fix: true });
+    expect(output).toContain("{ name: 'increment', providers: [] }");
+    expect(output).not.toContain("'wrong'");
+  });
+
+  it('reports when object config is missing the name property', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftMethod } from '@craft-ng/core';
+
+        export class DemoComponent {
+          readonly increment = craftMethod({ providers: [] }, function* () {
+            return 1;
+          });
+        }
+      `,
+    });
+
+    expect(messages).toEqual([
+      "craftMethod must be called with a string literal name matching 'increment' as the first argument.",
+    ]);
+  });
 });
 
 async function lintFixture(

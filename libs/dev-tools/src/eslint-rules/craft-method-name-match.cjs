@@ -3,7 +3,7 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        "Ensure craftMethod(name, ...) is called with a string literal first argument that matches the declared variable or class property name.",
+        "Ensure craftMethod(name, ...) is called with a string literal first argument (or { name } object) that matches the declared variable or class property name.",
     },
     fixable: 'code',
     schema: [],
@@ -47,6 +47,47 @@ module.exports = {
               return fixer.insertTextAfter(openParen, `'${declaredName}'`);
             },
           });
+          return;
+        }
+
+        // Handle object config form: { name: 'methodName', providers: [...] }
+        if (firstArg.type === 'ObjectExpression') {
+          const nameProp = firstArg.properties.find(
+            (p) =>
+              p.type === 'Property' &&
+              !p.computed &&
+              p.key.type === 'Identifier' &&
+              p.key.name === 'name',
+          );
+          if (!nameProp) {
+            context.report({
+              node: firstArg,
+              messageId: 'missingName',
+              data: { declaredName },
+            });
+            return;
+          }
+          const nameValue = nameProp.value;
+          if (isStringLiteral(nameValue)) {
+            const actual = getStringLiteralValue(nameValue);
+            if (actual === declaredName) {
+              return;
+            }
+            context.report({
+              node: nameValue,
+              messageId: 'mismatchedName',
+              data: { declaredName, actual },
+              fix(fixer) {
+                return fixer.replaceText(nameValue, `'${declaredName}'`);
+              },
+            });
+          } else {
+            context.report({
+              node: nameValue,
+              messageId: 'mismatchedName',
+              data: { declaredName, actual: sourceCode.getText(nameValue) },
+            });
+          }
           return;
         }
 

@@ -1,4 +1,6 @@
-import { computed, type Signal, untracked } from '@angular/core';
+import { computed, inject, Injector, runInInjectionContext, type Signal, untracked } from '@angular/core';
+import { ɵcreateHostTaggedInjector } from '../craft-service';
+import { injectFnWrapper } from '../fn-wrapper';
 import { CraftExceptionResult } from '../craft-exception';
 import type { MergeObject, Prettify, UnionToTuple } from '../util/util.type';
 import { CraftField, CraftValidator } from './craft-field';
@@ -178,8 +180,22 @@ function applyFormAttributes<
   for (const validatorInput of config.validators ?? []) {
     const brand = getValidatorBrand(validatorInput);
     if (brand) validatorBrands.push(brand);
+
+    const fieldInjector = inject(Injector);
+    const validatorInjector = ɵcreateHostTaggedInjector(
+      fieldInjector,
+      `validator:${brand ?? 'unknown'}`,
+    );
+    const wrappedValidator = runInInjectionContext(validatorInjector, () =>
+      injectFnWrapper()(validatorInput as (...args: unknown[]) => unknown),
+    );
+    const finalValidator = (...args: unknown[]) =>
+      runInInjectionContext(validatorInjector, () =>
+        (wrappedValidator as (...a: unknown[]) => unknown)(...args),
+      );
+
     field.ɵregisterValidator(
-      validatorInput as unknown as CraftValidator<StateType>,
+      finalValidator as unknown as CraftValidator<StateType>,
       context.formIdentifier,
     );
   }

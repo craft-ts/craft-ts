@@ -12,6 +12,7 @@ import {
 } from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetToYieldServiceDependencies } from './craft-service';
+import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
 type EmptyAsyncProcessExceptions = {
   hasException: Signal<boolean>;
@@ -1452,6 +1453,102 @@ describe('AsyncProcess types with params config', () => {
           } & EmptyAsyncProcessExceptions)
         | undefined
       >();
+    });
+  });
+});
+
+describe('asyncProcess — providers', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('providers are applied to asyncProcess method generator', async () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('method');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    await TestBed.runInInjectionContext(async () => {
+      const processRef = asyncProcess({
+        providers: [provideFnWrapper(trackingWrapper)],
+        method: function* (id: string) {
+          return id;
+        },
+        loader: async ({ params }) => ({ id: params }),
+      });
+
+      expect(callLog).toEqual([]);
+      processRef.method('user-1');
+      await vi.runAllTimersAsync();
+      expect(callLog).toContain('method');
+    });
+  });
+
+  it('providers scoped to one asyncProcess do not affect a sibling', async () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('called');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    await TestBed.runInInjectionContext(async () => {
+      const withProvider = asyncProcess({
+        providers: [provideFnWrapper(trackingWrapper)],
+        method: function* (id: string) {
+          return id;
+        },
+        loader: async ({ params }) => ({ id: params }),
+      });
+      const withoutProvider = asyncProcess({
+        method: function* (id: string) {
+          return id;
+        },
+        loader: async ({ params }) => ({ id: params }),
+      });
+
+      withoutProvider.method('x');
+      await vi.runAllTimersAsync();
+      expect(callLog).toEqual([]);
+
+      withProvider.method('x');
+      await vi.runAllTimersAsync();
+      expect(callLog).toContain('called');
+    });
+  });
+
+  it('typing: asyncProcess accepts BrandedServiceProvider in providers without type errors', () => {
+    const { AsyncServiceToYield, provideAsyncService } = craftService(
+      { name: 'AsyncService', scope: 'toProvide' },
+      () => ({ getValue: () => 42 }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const withoutProviders = asyncProcess({
+        method: (id: string) => id,
+        loader: function* ({ params }) {
+          yield* AsyncServiceToYield();
+          return Promise.resolve({ id: params });
+        },
+      });
+      type WithoutDeps = ExtractDeps<typeof withoutProviders>;
+      expectTypeOf<'AsyncService' extends keyof WithoutDeps ? true : false>().toEqualTypeOf<true>();
+
+      const withProviders = asyncProcess({
+        providers: [provideAsyncService()],
+        method: (id: string) => id,
+        loader: async ({ params }) => ({ id: params }),
+      });
+      expectTypeOf(withProviders.method).toBeFunction();
     });
   });
 });

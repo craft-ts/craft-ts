@@ -1,12 +1,14 @@
 import {
   computed,
   Injector,
+  isSignal,
   runInInjectionContext,
   signal,
   Signal,
 } from '@angular/core';
 import { isGenerator, runCraftGenerator } from '../craft-generator-runtime';
 import { injectFnWrapper } from '../fn-wrapper';
+import { ɵcreateHostTaggedInjector } from '../craft-service';
 import type { InsertionStateFactoryContext } from '../query.core';
 import { Source$ as SourceDollarType } from '../source$';
 import { MergeObject } from '../util/types/util.type';
@@ -134,8 +136,14 @@ function isSource$(value: unknown): value is SourceDollarType<unknown> {
   );
 }
 
+const FORM_INSERTION_METHOD_INVALID_YIELD_ERROR_MESSAGE =
+  'form insertion method generators can only yield craftService dependencies or exposed dependency helpers.';
+const FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE =
+  'form insertion method generators do not support onAppStart(...).';
+
 function createExposedInsertions(
   rawInsertionsOutput: Record<string, unknown>,
+  injector: Injector,
 ): Record<string, unknown> {
   return Object.entries(rawInsertionsOutput).reduce(
     (acc, [key, value]) => {
@@ -145,6 +153,28 @@ function createExposedInsertions(
         acc[key] = (payload: unknown) => {
           localSource.emit(payload as never);
         };
+        return acc;
+      }
+      if (typeof value === 'function' && !isSignal(value)) {
+        const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${key}`);
+        const wrappedFn = runInInjectionContext(injector, () =>
+          injectFnWrapper()(value as (...args: unknown[]) => unknown),
+        );
+        acc[key] = (...args: unknown[]) =>
+          runInInjectionContext(methodInjector, () => {
+            const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
+            if (isGenerator(result)) {
+              return runCraftGenerator({
+                iterator: result,
+                injector: methodInjector,
+                hostScope: 'function',
+                invalidYieldErrorMessage: FORM_INSERTION_METHOD_INVALID_YIELD_ERROR_MESSAGE,
+                multipleAppStartErrorMessage: FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
+                onAppStartNotSupportedErrorMessage: FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
+              }).value;
+            }
+            return result;
+          });
         return acc;
       }
       acc[key] = value;
@@ -158,9 +188,6 @@ function toExceptionInsertionName(name: string) {
   return `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
 }
 
-function isSignal<T>(value: unknown): value is Signal<T> {
-  return typeof value === 'function';
-}
 
 function toExceptionRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -172,7 +199,7 @@ export function createFormExceptions(
   rawInsertionsOutput: Record<string, unknown>,
   exposedInsertionsOutput: Record<string, unknown>,
 ) {
-  const directHasExceptions = isSignal<boolean>(
+  const directHasExceptions = isSignal(
     exposedInsertionsOutput['hasExceptions'],
   )
     ? (exposedInsertionsOutput['hasExceptions'] as Signal<boolean>)
@@ -419,23 +446,25 @@ const FORM_INSERTION_APP_START_ERROR_MESSAGE =
       const wrappedInsertion = runInInjectionContext(options.injector, () =>
         injectFnWrapper()(insertion),
       );
-      const insertionCallResult = wrappedInsertion({
-        state: options.state,
-        set: options.set,
-        update: options.update,
-        patch: options.patch,
-        field: options.field,
-        hasAttemptedSubmit: options.submission.hasAttemptedSubmit,
-        submitting: options.submission.submitting,
-        validatedFormValue,
-        setAttemptedSubmit: options.submission.setAttemptedSubmit,
-        setSubmitting: options.submission.setSubmitting,
-        formIdentifier: options.formIdentifier!,
-        insertions: {
-          ...options.inheritedInsertions,
-          ...acc.rawInsertionsOutput,
-        },
-      });
+      const insertionCallResult = runInInjectionContext(options.injector, () =>
+        wrappedInsertion({
+          state: options.state,
+          set: options.set,
+          update: options.update,
+          patch: options.patch,
+          field: options.field,
+          hasAttemptedSubmit: options.submission.hasAttemptedSubmit,
+          submitting: options.submission.submitting,
+          validatedFormValue,
+          setAttemptedSubmit: options.submission.setAttemptedSubmit,
+          setSubmitting: options.submission.setSubmitting,
+          formIdentifier: options.formIdentifier!,
+          insertions: {
+            ...options.inheritedInsertions,
+            ...acc.rawInsertionsOutput,
+          },
+        }),
+      );
       const nextRawInsertions = (
         isGenerator(insertionCallResult)
           ? runInInjectionContext(options.injector, () =>
@@ -450,7 +479,7 @@ const FORM_INSERTION_APP_START_ERROR_MESSAGE =
             )
           : insertionCallResult
       ) as Record<string, unknown>;
-      const nextExposedInsertions = createExposedInsertions(nextRawInsertions);
+      const nextExposedInsertions = createExposedInsertions(nextRawInsertions, options.injector);
 
       return {
         rawInsertionsOutput: {

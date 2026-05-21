@@ -13,6 +13,7 @@ import {
 } from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetToYieldServiceDependencies } from './craft-service';
+import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
 type EmptyMutationExceptions = {
   hasException: Signal<boolean>;
@@ -1316,6 +1317,103 @@ describe('mutation exceptions', () => {
 
       expect(mutationRef.exceptions().params?.payload).toEqual({ params: 'A' });
       expect(mutationRef.exceptions().loader).toEqual({});
+    });
+  });
+});
+
+describe('mutation — providers', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('providers are applied to mutation method generator', async () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('method');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    await TestBed.runInInjectionContext(async () => {
+      const mutationRef = mutation({
+        providers: [provideFnWrapper(trackingWrapper)],
+        method: function* (id: string) {
+          return id;
+        },
+        loader: async ({ params }) => ({ id: params }),
+      });
+
+      expect(callLog).toEqual([]);
+      mutationRef.mutate('user-1');
+      await vi.runAllTimersAsync();
+      expect(callLog).toContain('method');
+    });
+  });
+
+  it('providers scoped to one mutation do not affect a sibling mutation', async () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('called');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    await TestBed.runInInjectionContext(async () => {
+      const withProvider = mutation({
+        providers: [provideFnWrapper(trackingWrapper)],
+        method: function* (id: string) {
+          return id;
+        },
+        loader: async ({ params }) => ({ id: params }),
+      });
+      const withoutProvider = mutation({
+        method: function* (id: string) {
+          return id;
+        },
+        loader: async ({ params }) => ({ id: params }),
+      });
+
+      withoutProvider.mutate('x');
+      await vi.runAllTimersAsync();
+      expect(callLog).toEqual([]);
+
+      withProvider.mutate('x');
+      await vi.runAllTimersAsync();
+      expect(callLog).toContain('called');
+    });
+  });
+
+  it('typing: mutation accepts BrandedServiceProvider in providers without type errors', () => {
+    const { MethodServiceToYield, provideMethodService } = craftService(
+      { name: 'MethodService', scope: 'toProvide' },
+      () => ({ getValue: () => 42 }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const withoutProviders = mutation({
+        params: function* () {
+          yield* MethodServiceToYield();
+          return 'user-1';
+        },
+        loader: async ({ params }) => ({ id: params }),
+      });
+      type WithoutDeps = ExtractDeps<typeof withoutProviders>;
+      expectTypeOf<'MethodService' extends keyof WithoutDeps ? true : false>().toEqualTypeOf<true>();
+
+      // Verify mutation accepts providers without type errors
+      const withProviders = mutation({
+        providers: [provideMethodService()],
+        params: () => 'user-1',
+        loader: async ({ params }) => ({ id: params }),
+      });
+      expectTypeOf(withProviders.hasValue).toBeFunction();
     });
   });
 });

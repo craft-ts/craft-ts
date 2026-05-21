@@ -11,6 +11,7 @@ import {
 } from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetToYieldServiceDependencies } from './craft-service';
+import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
 type User = {
   id: string;
@@ -134,11 +135,13 @@ describe('query', () => {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
         };
         UserApiService: {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
           derivedPropertiesUsed: {
             get: (userId: string) => Promise<User>;
           };
@@ -150,6 +153,7 @@ describe('query', () => {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
         };
       }>();
     });
@@ -1107,4 +1111,92 @@ describe('query exceptions', () => {
       });
     },
   );
+});
+
+describe('query — providers', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('providers are applied to query loader generator', async () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('loader');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    await TestBed.runInInjectionContext(async () => {
+      query({
+        providers: [provideFnWrapper(trackingWrapper)],
+        params: () => 'user-1',
+        loader: async ({ params }) => ({ id: params }),
+      });
+
+      expect(callLog).toEqual([]);
+      await vi.runAllTimersAsync();
+      expect(callLog).toContain('loader');
+    });
+  });
+
+  it('providers scoped to one query do not affect a sibling query', async () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('called');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    await TestBed.runInInjectionContext(async () => {
+      // Create withoutProvider first — its load should NOT call trackingWrapper
+      query({
+        params: () => 'user-1',
+        loader: async ({ params }) => ({ id: params }),
+      });
+      await vi.runAllTimersAsync();
+      expect(callLog).toEqual([]);
+
+      // Now create withProvider — its load SHOULD call trackingWrapper
+      query({
+        providers: [provideFnWrapper(trackingWrapper)],
+        params: () => 'user-1',
+        loader: async ({ params }) => ({ id: params }),
+      });
+      await vi.runAllTimersAsync();
+      expect(callLog.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('typing: query accepts BrandedServiceProvider in providers without type errors', () => {
+    const { QueryServiceToYield, provideQueryService } = craftService(
+      { name: 'QueryService', scope: 'toProvide' },
+      () => ({ getValue: () => 42 }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const withoutProviders = query({
+        params: () => 'user-1',
+        loader: function* ({ params }) {
+          yield* QueryServiceToYield();
+          return Promise.resolve({ id: params });
+        },
+      });
+      type WithoutDeps = ExtractDeps<typeof withoutProviders>;
+      expectTypeOf<'QueryService' extends keyof WithoutDeps ? true : false>().toEqualTypeOf<true>();
+
+      const withProviders = query({
+        providers: [provideQueryService()],
+        params: () => 'user-1',
+        loader: async ({ params }) => ({ id: params }),
+      });
+      expectTypeOf(withProviders.hasValue).toBeFunction();
+    });
+  });
 });

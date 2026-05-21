@@ -1745,6 +1745,7 @@ type ConcreteRuntimeDefinition = {
   scope: ConcreteServiceScope;
   browserBoundary: boolean;
   appStart: boolean;
+  providers?: readonly Provider[];
   token?: InjectionToken<unknown>;
   requirement?: ServiceRequirement<unknown>;
   initialBindings?: Record<string, unknown>;
@@ -2509,6 +2510,7 @@ export function craftService<
     requirement: Requirement;
     browserBoundary?: BrowserBoundary;
     appStart: true;
+    providers?: readonly Provider[];
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -2536,6 +2538,7 @@ export function craftService<
     requirement: Requirement;
     browserBoundary?: BrowserBoundary;
     appStart?: false;
+    providers?: readonly Provider[];
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -2560,6 +2563,7 @@ export function craftService<
     scope: Scope;
     browserBoundary?: BrowserBoundary;
     appStart: true;
+    providers?: readonly Provider[];
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -2584,6 +2588,7 @@ export function craftService<
     scope: Scope;
     browserBoundary?: BrowserBoundary;
     appStart?: false;
+    providers?: readonly Provider[];
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -2603,6 +2608,7 @@ export function craftService(
     requirement?: ServiceRequirement<unknown>;
     browserBoundary?: boolean;
     appStart?: boolean;
+    providers?: readonly Provider[];
   },
   factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
 ): unknown {
@@ -2635,6 +2641,7 @@ export function craftService(
     scope: options.scope,
     browserBoundary: options.browserBoundary ?? false,
     appStart: options.appStart ?? false,
+    providers: options.providers,
     requirement: options.requirement,
     hasPublicInput: factoryUsesPublicInput(concreteFactory),
     hasProvidedInput: factoryUsesProvidedInput(concreteFactory),
@@ -3073,6 +3080,7 @@ function createConcreteServiceInstance(
   const scopedInjector = ɵcreateHostTaggedInjector(
     injector,
     `service:${definition.name}`,
+    definition.providers ?? [],
   );
 
   return runInInjectionContext(scopedInjector, () => {
@@ -3670,7 +3678,7 @@ export function* ɵTrackTagsToYield(): Generator<
 export function ɵcreateHostTaggedInjector(
   injector: Injector,
   hostName: string,
-  extraProviders: Provider[] = [],
+  extraProviders: readonly Provider[] = [],
 ): Injector {
   if (HOST_TAG_INTERNAL_SERVICE_NAMES.has(hostName)) {
     return injector;

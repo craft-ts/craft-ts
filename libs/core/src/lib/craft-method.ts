@@ -2,9 +2,11 @@ import {
   assertInInjectionContext,
   inject,
   Injector,
+  Provider,
   runInInjectionContext,
 } from '@angular/core';
 import type {
+  BrandedServiceProvider,
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
@@ -26,9 +28,45 @@ type CraftMethodWithoutReceiver<Args extends unknown[], Result> = (
   ...args: Args
 ) => Result;
 
-type TrackedCraftMethod<Callable, Yielded> = Callable & {
-  readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
+type CraftMethodNameConfig<Name extends string> =
+  | Name
+  | { name: Name; providers?: readonly Provider[] };
+
+type CraftMethodConfigProviderNames<Config> =
+  Config extends { providers: readonly (infer P)[] }
+    ? P extends BrandedServiceProvider<infer N, any, any>
+      ? N
+      : never
+    : never;
+
+type SatisfyDependencies<Deps, SatisfiedNames extends string> = {
+  [K in keyof Deps as K extends SatisfiedNames ? never : K]: Deps[K];
 };
+
+type TrackedCraftMethod<Callable, Yielded, Config = never> = Callable & {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: [
+    CraftMethodConfigProviderNames<Config>,
+  ] extends [never]
+    ? ServiceDependencyMapFromYielded<Yielded>
+    : SatisfyDependencies<
+        ServiceDependencyMapFromYielded<Yielded>,
+        CraftMethodConfigProviderNames<Config>
+      >;
+};
+
+function resolveCraftMethodName<Name extends string>(
+  nameOrConfig: CraftMethodNameConfig<Name>,
+): Name {
+  return typeof nameOrConfig === 'string' ? nameOrConfig : nameOrConfig.name;
+}
+
+function resolveCraftMethodProviders(
+  nameOrConfig: CraftMethodNameConfig<string>,
+): readonly Provider[] {
+  return typeof nameOrConfig === 'string'
+    ? []
+    : (nameOrConfig.providers ?? []);
+}
 
 export function craftMethod<
   Name extends string,
@@ -36,23 +74,25 @@ export function craftMethod<
   Args extends unknown[],
   Yielded,
   Result,
+  Config extends CraftMethodNameConfig<Name> = Name,
 >(
-  name: Name,
+  name: Config,
   factory: CraftMethodGenerator<This, Args, Yielded, Result>,
-): TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded>;
+): TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded, Config>;
 export function craftMethod<
   Name extends string,
   This,
   Args extends unknown[],
   Yielded,
   Result,
+  Config extends CraftMethodNameConfig<Name> = Name,
 >(
-  name: Name,
+  name: Config,
   self: This,
   factory: CraftMethodGenerator<This, Args, Yielded, Result>,
-): TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded>;
+): TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded, Config>;
 export function craftMethod<This, Args extends unknown[], Yielded, Result>(
-  name: string,
+  nameOrConfig: CraftMethodNameConfig<string>,
   selfOrFactory: This | CraftMethodGenerator<This, Args, Yielded, Result>,
   maybeFactory?: CraftMethodGenerator<This, Args, Yielded, Result>,
 ):
@@ -61,11 +101,13 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   assertInInjectionContext(craftMethod);
   const injector = inject(Injector);
   const wrapFn = injectFnWrapper();
+  const resolvedName = resolveCraftMethodName(nameOrConfig);
+  const extraProviders = resolveCraftMethodProviders(nameOrConfig);
 
   if (maybeFactory) {
     const self = selfOrFactory as This;
     const factory = wrapFn(maybeFactory);
-    const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${name}`);
+    const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${resolvedName}`, extraProviders);
 
     return ((...args: Args) =>
       executeCraftMethod(
@@ -82,7 +124,7 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   const factory = wrapFn(
     selfOrFactory as CraftMethodGenerator<This, Args, Yielded, Result>,
   );
-  const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${name}`);
+  const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${resolvedName}`, extraProviders);
 
   return function (this: This, ...args: Args) {
     return executeCraftMethod(factory, methodInjector, this, args);

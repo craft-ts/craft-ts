@@ -20,6 +20,7 @@ import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import type {
+  BrandedServiceProvider,
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
@@ -75,22 +76,39 @@ type StateGeneratorFactory<State, Yielded = never> = () => Generator<
   unknown
 >;
 type ResolvedStateType<StateInput> =
-  StateInput extends Signal<infer State>
-    ? State
-    : StateInput extends (
-          ...args: any[]
-        ) => Generator<any, infer Output, unknown>
-      ? ResolvedStateType<Output>
-      : StateInput;
-type StateConfigYielded<StateInput> = StateInput extends (
-  ...args: any[]
-) => Generator<infer Yielded, any, unknown>
-  ? Yielded
-  : never;
+  StateInput extends { readonly $self: infer V }
+    ? ResolvedStateType<V>
+    : StateInput extends Signal<infer State>
+      ? State
+      : StateInput extends (
+            ...args: any[]
+          ) => Generator<any, infer Output, unknown>
+        ? ResolvedStateType<Output>
+        : StateInput;
+type StateConfigYielded<StateInput> =
+  StateInput extends { readonly $self: infer V }
+    ? StateConfigYielded<V>
+    : StateInput extends (...args: any[]) => Generator<infer Yielded, any, unknown>
+      ? Yielded
+      : never;
+type StateInputProviderNames<StateInput> =
+  StateInput extends { readonly $self: any; readonly providers: readonly (infer P)[] }
+    ? P extends BrandedServiceProvider<infer Name, any, any>
+      ? Name
+      : never
+    : never;
+type SatisfyDependencies<Deps, SatisfiedNames extends string> = {
+  [K in keyof Deps as K extends SatisfiedNames ? never : K]: Deps[K];
+};
 type StateTrackedDependencies<
-  StateYielded = never,
+  StateInput = never,
   InsertionsYielded = never,
-> = ServiceDependencyMapFromYielded<StateYielded | InsertionsYielded>;
+> = [StateInputProviderNames<StateInput>] extends [never]
+  ? ServiceDependencyMapFromYielded<StateConfigYielded<StateInput> | InsertionsYielded>
+  : SatisfyDependencies<
+      ServiceDependencyMapFromYielded<StateConfigYielded<StateInput> | InsertionsYielded>,
+      StateInputProviderNames<StateInput>
+    >;
 
 const STATE_INVALID_YIELD_ERROR_MESSAGE =
   'state generators can only yield craftService dependencies or exposed dependency helpers.';
@@ -225,7 +243,7 @@ export function state<StateInput>(
 ): StateOutput<
   ResolvedStateType<StateInput>,
   {},
-  StateTrackedDependencies<StateConfigYielded<StateInput>>
+  StateTrackedDependencies<StateInput>
 >;
 export function state<StateInput, Insertion1, Insertion1Yielded = never>(
   stateConfig: StateInput,
@@ -238,7 +256,7 @@ export function state<StateInput, Insertion1, Insertion1Yielded = never>(
 ): StateOutput<
   ResolvedStateType<StateInput>,
   Insertion1,
-  StateTrackedDependencies<StateConfigYielded<StateInput>, Insertion1Yielded>
+  StateTrackedDependencies<StateInput, Insertion1Yielded>
 >;
 export function state<
   StateInput,
@@ -264,7 +282,7 @@ export function state<
   ResolvedStateType<StateInput>,
   Insertion1 & Insertion2,
   StateTrackedDependencies<
-    StateConfigYielded<StateInput>,
+    StateInput,
     Insertion1Yielded | Insertion2Yielded
   >
 >;
@@ -300,7 +318,7 @@ export function state<
   ResolvedStateType<StateInput>,
   Insertion1 & Insertion2 & Insertion3,
   StateTrackedDependencies<
-    StateConfigYielded<StateInput>,
+    StateInput,
     Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
   >
 >;
@@ -344,7 +362,7 @@ export function state<
   ResolvedStateType<StateInput>,
   Insertion1 & Insertion2 & Insertion3 & Insertion4,
   StateTrackedDependencies<
-    StateConfigYielded<StateInput>,
+    StateInput,
     | Insertion1Yielded
     | Insertion2Yielded
     | Insertion3Yielded
@@ -399,7 +417,7 @@ export function state<
   ResolvedStateType<StateInput>,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
   StateTrackedDependencies<
-    StateConfigYielded<StateInput>,
+    StateInput,
     | Insertion1Yielded
     | Insertion2Yielded
     | Insertion3Yielded
@@ -463,7 +481,7 @@ export function state<
   ResolvedStateType<StateInput>,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
   StateTrackedDependencies<
-    StateConfigYielded<StateInput>,
+    StateInput,
     | Insertion1Yielded
     | Insertion2Yielded
     | Insertion3Yielded
@@ -542,7 +560,7 @@ export function state<
     Insertion6 &
     Insertion7,
   StateTrackedDependencies<
-    StateConfigYielded<StateInput>,
+    StateInput,
     | Insertion1Yielded
     | Insertion2Yielded
     | Insertion3Yielded
@@ -555,6 +573,10 @@ export function state<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
+  const hasSelfConfig =
+    typeof stateConfig === 'object' && stateConfig !== null && '$self' in stateConfig;
+  const extraProviders = hasSelfConfig ? (stateConfig.providers ?? []) : [];
+  const rawConfig = hasSelfConfig ? stateConfig.$self : stateConfig;
   let injector: Injector | undefined;
   const getInjector = () => {
     assertInInjectionContext(state);
@@ -563,12 +585,13 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
         provide: INSERTION_SNAPSHOT_REGISTRY,
         useValue: insertionSnapshotRegistry,
       },
+      ...extraProviders,
     ]);
     return injector;
   };
-  const resolvedStateConfig = isGeneratorFunction(stateConfig)
-    ? executeStateFactory(stateConfig, undefined, getInjector)
-    : stateConfig;
+  const resolvedStateConfig = isGeneratorFunction(rawConfig)
+    ? executeStateFactory(rawConfig, undefined, getInjector)
+    : rawConfig;
   const isSignalState = isSignal(resolvedStateConfig);
   const stateSignal = isSignalState
     ? isWritableSignal(resolvedStateConfig)
@@ -617,7 +640,29 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
             return exposedAcc;
           }
 
-          exposedAcc[key] = value;
+          if (typeof value === 'function' && !isSignal(value)) {
+            const methodInjector = ɵcreateHostTaggedInjector(getInjector(), `method:${key}`);
+            const wrappedFn = runInInjectionContext(getInjector(), () =>
+              injectFnWrapper()(value as (...args: unknown[]) => unknown),
+            );
+            exposedAcc[key] = (...args: unknown[]) =>
+              runInInjectionContext(methodInjector, () => {
+                const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
+                if (isGenerator(result)) {
+                  return runCraftGenerator({
+                    iterator: result,
+                    injector: methodInjector,
+                    hostScope: 'function',
+                    invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+                  }).value;
+                }
+                return result;
+              });
+          } else {
+            exposedAcc[key] = value;
+          }
           return exposedAcc;
         },
         {} as Record<string, unknown>,

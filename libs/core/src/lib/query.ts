@@ -5,11 +5,13 @@ import {
   inject,
   Injector,
   isSignal,
+  Provider,
   ResourceLoaderParams,
   ResourceOptions,
   ResourceRef,
   ResourceStatus,
   ResourceStreamingLoader,
+  runInInjectionContext,
   Signal,
   signal,
   WritableSignal,
@@ -22,7 +24,9 @@ import {
 import {
   executeGeneratorCompatibleFactory,
   GeneratorCompatibleFactory,
+  isGenerator,
   isGeneratorFunction,
+  runCraftGenerator,
 } from './craft-generator-runtime';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
@@ -49,10 +53,23 @@ import {
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
 import type {
+  BrandedServiceProvider,
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
+import { injectFnWrapper } from './fn-wrapper';
+
+type QueryConfigProviderNames<Providers> =
+  Providers extends readonly (infer P)[]
+    ? P extends BrandedServiceProvider<infer Name, any, any>
+      ? Name
+      : never
+    : never;
+
+type SatisfyDependencies<Deps, SatisfiedNames extends string> = {
+  [K in keyof Deps as K extends SatisfiedNames ? never : K]: Deps[K];
+};
 
 type QueryTrackedDependencies<
   ParamsYielded = never,
@@ -60,13 +77,25 @@ type QueryTrackedDependencies<
   LoaderYielded = never,
   StreamYielded = never,
   InsertionsYielded = never,
-> = ServiceDependencyMapFromYielded<
-  | ParamsYielded
-  | MethodYielded
-  | LoaderYielded
-  | StreamYielded
-  | InsertionsYielded
->;
+  Providers = never,
+> = [QueryConfigProviderNames<Providers>] extends [never]
+  ? ServiceDependencyMapFromYielded<
+      | ParamsYielded
+      | MethodYielded
+      | LoaderYielded
+      | StreamYielded
+      | InsertionsYielded
+    >
+  : SatisfyDependencies<
+      ServiceDependencyMapFromYielded<
+        | ParamsYielded
+        | MethodYielded
+        | LoaderYielded
+        | StreamYielded
+        | InsertionsYielded
+      >,
+      QueryConfigProviderNames<Providers>
+    >;
 
 type QueryDependenciesMetadata<Dependencies> = [keyof Dependencies] extends [
   never,
@@ -491,6 +520,8 @@ export function query<
   MethodYielded = never,
   LoaderYielded = never,
   StreamYielded = never,
+  Config = {},
+  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -509,7 +540,7 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  >,
+  > & Config,
 ): QueryOutput<
   StripCraftException<QueryState>,
   StripCraftException<QueryParams>,
@@ -522,7 +553,9 @@ export function query<
     ParamsYielded,
     MethodYielded,
     LoaderYielded,
-    StreamYielded
+    StreamYielded,
+    never,
+    Providers
   >
 >;
 export function query<
@@ -540,6 +573,8 @@ export function query<
   LoaderYielded = never,
   StreamYielded = never,
   Insertion1Yielded = never,
+  Config = {},
+  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -558,7 +593,7 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  >,
+  > & Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
@@ -581,7 +616,8 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded,
-    Insertion1Yielded
+    Insertion1Yielded,
+    Providers
   >
 >;
 export function query<
@@ -601,6 +637,8 @@ export function query<
   StreamYielded = never,
   Insertion1Yielded = never,
   Insertion2Yielded = never,
+  Config = {},
+  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -619,7 +657,7 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  >,
+  > & Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
@@ -651,7 +689,8 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded,
-    Insertion1Yielded | Insertion2Yielded
+    Insertion1Yielded | Insertion2Yielded,
+    Providers
   >
 >;
 export function query<
@@ -673,6 +712,8 @@ export function query<
   Insertion1Yielded = never,
   Insertion2Yielded = never,
   Insertion3Yielded = never,
+  Config = {},
+  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -691,7 +732,7 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  >,
+  > & Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
@@ -732,7 +773,8 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded,
-    Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
+    Insertion1Yielded | Insertion2Yielded | Insertion3Yielded,
+    Providers
   >
 >;
 export function query<
@@ -756,6 +798,8 @@ export function query<
   Insertion2Yielded = never,
   Insertion3Yielded = never,
   Insertion4Yielded = never,
+  Config = {},
+  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -774,7 +818,7 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  >,
+  > & Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
@@ -827,7 +871,8 @@ export function query<
     | Insertion1Yielded
     | Insertion2Yielded
     | Insertion3Yielded
-    | Insertion4Yielded
+    | Insertion4Yielded,
+    Providers
   >
 >;
 export function query<
@@ -853,6 +898,8 @@ export function query<
   Insertion3Yielded = never,
   Insertion4Yielded = never,
   Insertion5Yielded = never,
+  Config = {},
+  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -871,7 +918,7 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  >,
+  > & Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
@@ -934,7 +981,8 @@ export function query<
     | Insertion2Yielded
     | Insertion3Yielded
     | Insertion4Yielded
-    | Insertion5Yielded
+    | Insertion5Yielded,
+    Providers
   >
 >;
 export function query<
@@ -962,6 +1010,8 @@ export function query<
   Insertion4Yielded = never,
   Insertion5Yielded = never,
   Insertion6Yielded = never,
+  Config = {},
+  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -980,7 +1030,7 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  >,
+  > & Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
@@ -1053,7 +1103,8 @@ export function query<
     | Insertion3Yielded
     | Insertion4Yielded
     | Insertion5Yielded
-    | Insertion6Yielded
+    | Insertion6Yielded,
+    Providers
   >
 >;
 export function query<
@@ -1083,6 +1134,8 @@ export function query<
   Insertion5Yielded = never,
   Insertion6Yielded = never,
   Insertion7Yielded = never,
+  Config = {},
+  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
     loader: ExtractCraftException<QueryState>;
@@ -1101,7 +1154,7 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  >,
+  > & Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<QueryState>>,
@@ -1190,7 +1243,8 @@ export function query<
     | Insertion4Yielded
     | Insertion5Yielded
     | Insertion6Yielded
-    | Insertion7Yielded
+    | Insertion7Yielded,
+    Providers
   >
 >;
 /**
@@ -1440,7 +1494,7 @@ export function query<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  >,
+  > & { providers?: readonly Provider[] },
   ...insertions: any[]
 ): QueryOutput<
   StripCraftException<QueryState>,
@@ -1454,6 +1508,7 @@ export function query<
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const queryExtraProviders = [
     { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
+    ...(queryConfig.providers ?? []),
   ];
   let injector: Injector | undefined;
   if (
@@ -1789,41 +1844,69 @@ export function query<
     >[]
   )?.reduce(
     (acc, insert) => {
-      return {
-        ...acc,
-        ...executeGeneratorCompatibleFactory({
-          factory: insert as (context: unknown) => Record<string, unknown>,
-          thisArg: undefined,
-          getInjector,
-          args: [
-            {
-              ...(isUsingIdentifier
-                ? {
-                    resourceById: resourceTarget,
-                    identifier: queryConfig.identifier,
-                  }
-                : { resource: resourceTarget }),
-              resourceParamsSrc: resourceParamsSrc as WritableSignal<
-                NoInfer<QueryParams>
-              >,
-              hasException,
-              exceptions,
-              insertions: acc as {},
-              state: resourceTarget.state,
-              set: resourceTarget.set,
-              update: resourceTarget.update,
-              patch: (patchFn: (currentState: any) => Partial<any>) =>
-                resourceTarget.update((current: any) => ({
-                  ...current,
-                  ...patchFn(current),
-                })),
-            } as any,
-          ],
-          invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-          multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-          onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-        }),
-      };
+      const rawResult = executeGeneratorCompatibleFactory({
+        factory: insert as (context: unknown) => Record<string, unknown>,
+        thisArg: undefined,
+        getInjector,
+        args: [
+          {
+            ...(isUsingIdentifier
+              ? {
+                  resourceById: resourceTarget,
+                  identifier: queryConfig.identifier,
+                }
+              : { resource: resourceTarget }),
+            resourceParamsSrc: resourceParamsSrc as WritableSignal<
+              NoInfer<QueryParams>
+            >,
+            hasException,
+            exceptions,
+            insertions: acc as {},
+            state: resourceTarget.state,
+            set: resourceTarget.set,
+            update: resourceTarget.update,
+            patch: (patchFn: (currentState: any) => Partial<any>) =>
+              resourceTarget.update((current: any) => ({
+                ...current,
+                ...patchFn(current),
+              })),
+          } as any,
+        ],
+        invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+        multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+        onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+      });
+      const wrappedResult = Object.entries(rawResult).reduce(
+        (wrappedAcc, [key, value]) => {
+          if (typeof value === 'function' && !isSignal(value)) {
+            const injector = getInjector();
+            const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${key}`);
+            const wrappedFn = runInInjectionContext(injector, () =>
+              injectFnWrapper()(value as (...args: unknown[]) => unknown),
+            );
+            wrappedAcc[key] = (...args: unknown[]) =>
+              runInInjectionContext(methodInjector, () => {
+                const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
+                if (isGenerator(result)) {
+                  return runCraftGenerator({
+                    iterator: result,
+                    injector: methodInjector,
+                    hostScope: 'function',
+                    invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+                  }).value;
+                }
+                return result;
+              });
+          } else {
+            wrappedAcc[key] = value;
+          }
+          return wrappedAcc;
+        },
+        {} as Record<string, unknown>,
+      );
+      return { ...acc, ...wrappedResult };
     },
     {} as Record<string, unknown>,
   );

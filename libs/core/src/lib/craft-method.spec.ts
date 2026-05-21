@@ -23,6 +23,7 @@ import {
   type GetToYieldServiceDependencies,
   onAppStart,
 } from './craft-service';
+import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
 beforeAll(() => {
   try {
@@ -61,11 +62,15 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod('increment', this, function* (step: number = 1) {
-        yield* Console.log('increment');
-        this.counter.update((value) => value + step);
-        return this.counter();
-      });
+      readonly increment = craftMethod(
+        'increment',
+        this,
+        function* (step: number = 1) {
+          yield* Console.log('increment');
+          this.counter.update((value) => value + step);
+          return this.counter();
+        },
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -89,13 +94,13 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod('increment', function* (
-        this: CounterComponent,
-        step: number = 1,
-      ) {
-        this.counter.update((value) => value + step);
-        return this.counter();
-      });
+      readonly increment = craftMethod(
+        'increment',
+        function* (this: CounterComponent, step: number = 1) {
+          this.counter.update((value) => value + step);
+          return this.counter();
+        },
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -110,10 +115,14 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod('increment', this, function* (step: number = 1) {
-        this.counter.update((value) => value + step);
-        return this.counter();
-      });
+      readonly increment = craftMethod(
+        'increment',
+        this,
+        function* (step: number = 1) {
+          this.counter.update((value) => value + step);
+          return this.counter();
+        },
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -136,11 +145,15 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod('increment', this, function* (step: number = 1) {
-        const worker = yield* CounterWorkerToYield();
-        this.counter.set(worker.increment(this.counter(), step));
-        return this.counter();
-      });
+      readonly increment = craftMethod(
+        'increment',
+        this,
+        function* (step: number = 1) {
+          const worker = yield* CounterWorkerToYield();
+          this.counter.set(worker.increment(this.counter(), step));
+          return this.counter();
+        },
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -171,18 +184,22 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod('increment', this, function* (step: number) {
-        this.counter.update((value) => value + step);
-        return this.counter();
-      });
+      readonly increment = craftMethod(
+        'increment',
+        this,
+        function* (step: number) {
+          this.counter.update((value) => value + step);
+          return this.counter();
+        },
+      );
 
-      readonly decrement = craftMethod('decrement', function* (
-        this: CounterComponent,
-        step: number,
-      ) {
-        this.counter.update((value) => value - step);
-        return this.counter();
-      });
+      readonly decrement = craftMethod(
+        'decrement',
+        function* (this: CounterComponent, step: number) {
+          this.counter.update((value) => value - step);
+          return this.counter();
+        },
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -206,11 +223,15 @@ describe('craftMethod', () => {
     class CounterComponent {
       readonly counter = signal(0);
 
-      readonly increment = craftMethod('increment', this, function* (step: number = 1) {
-        const worker = yield* CounterWorkerToYield();
-        this.counter.set(worker.increment(this.counter(), step));
-        return this.counter();
-      });
+      readonly increment = craftMethod(
+        'increment',
+        this,
+        function* (step: number = 1) {
+          const worker = yield* CounterWorkerToYield();
+          this.counter.set(worker.increment(this.counter(), step));
+          return this.counter();
+        },
+      );
     }
 
     type ExpectedDeps = {
@@ -219,5 +240,96 @@ describe('craftMethod', () => {
     type _Deps = Expect<
       Equal<ExtractDeps<CounterComponent['increment']>, ExpectedDeps>
     >;
+  });
+});
+
+describe('craftMethod — object config with providers', () => {
+  it('providers are applied when using object config form', () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('method-call');
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
+    };
+
+    TestBed.runInInjectionContext(() => {
+      const increment = craftMethod(
+        { name: 'increment', providers: [provideFnWrapper(trackingWrapper)] },
+        function* (step: number) {
+          return step + 1;
+        },
+      );
+
+      expect(callLog).toEqual([]);
+      increment(1);
+      expect(callLog).toEqual(['method-call']);
+      increment(2);
+      expect(callLog).toEqual(['method-call', 'method-call']);
+    });
+  });
+
+  it('providers scoped to one craftMethod do not affect sibling methods', () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('called');
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
+    };
+
+    TestBed.runInInjectionContext(() => {
+      const withProvider = craftMethod(
+        {
+          name: 'withProvider',
+          providers: [provideFnWrapper(trackingWrapper)],
+        },
+        function* (x: number) {
+          return x;
+        },
+      );
+      const withoutProvider = craftMethod(
+        'withoutProvider',
+        function* (x: number) {
+          return x;
+        },
+      );
+
+      withoutProvider(1);
+      expect(callLog).toEqual([]);
+
+      withProvider(1);
+      expect(callLog).toEqual(['called']);
+    });
+  });
+
+  it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', () => {
+    const { MethodWorkerToYield, provideMethodWorker } = craftService(
+      { name: 'MethodWorker', scope: 'toProvide' },
+      () => ({ compute: (x: number) => x * 2 }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const withoutProviders = craftMethod('compute', function* (x: number) {
+        const worker = yield* MethodWorkerToYield();
+        return worker.compute(x);
+      });
+      type WithoutDeps = ExtractDeps<typeof withoutProviders>;
+      expectTypeOf<
+        'MethodWorker' extends keyof WithoutDeps ? true : false
+      >().toEqualTypeOf<true>();
+
+      const withProviders = craftMethod(
+        { name: 'compute', providers: [provideMethodWorker()] },
+        function* (x: number) {
+          const worker = yield* MethodWorkerToYield();
+          return worker.compute(x);
+        },
+      );
+      type WithDeps = ExtractDeps<typeof withProviders>;
+      expectTypeOf<
+        'MethodWorker' extends keyof WithDeps ? true : false
+      >().toEqualTypeOf<false>();
+    });
   });
 });

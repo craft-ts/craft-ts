@@ -12,6 +12,7 @@ import {
 } from '@angular/platform-browser/testing';
 import { craftService } from './craft-service';
 import type { ExtractDeps } from './branded-component/branded-component';
+import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -136,6 +137,7 @@ describe('state', () => {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
           derivedPropertiesUsed: {
             read: () => number;
           };
@@ -147,6 +149,7 @@ describe('state', () => {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
         };
       }>();
     });
@@ -296,6 +299,172 @@ describe('state', () => {
 
       const s = state(linkedSignal(() => myRefSigal()).asReadonly(), insertion);
       expect(s()).toEqual([0]);
+    });
+  });
+});
+
+describe('state — $self config with providers', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should resolve $self plain value identically to the direct form', () => {
+    runInInjectionContext(() => {
+      const myState = state({ $self: 42 });
+
+      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
+      expect(myState()).toBe(42);
+    });
+  });
+
+  it('should resolve $self signal value', () => {
+    runInInjectionContext(() => {
+      const src = signal(7);
+      const myState = state({ $self: src });
+
+      expectTypeOf(myState()).toEqualTypeOf<number>();
+      expect(myState()).toBe(7);
+    });
+  });
+
+  it('should resolve $self generator factory', () => {
+    runInInjectionContext(() => {
+      const myState = state({
+        $self: function* () {
+          return 99;
+        },
+      });
+
+      expectTypeOf(myState()).toEqualTypeOf<number>();
+      expect(myState()).toBe(99);
+    });
+  });
+
+  it('should work with insertions alongside $self', () => {
+    runInInjectionContext(() => {
+      const myState = state(
+        { $self: 0 },
+        ({ update }) => ({ increment: () => update((v) => v + 1) }),
+      );
+
+      expectTypeOf(myState()).toEqualTypeOf<number>();
+      myState.increment();
+      expect(myState()).toBe(1);
+    });
+  });
+
+  it('providers are applied to the state factory (generator $self)', () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('state-factory');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    runInInjectionContext(() => {
+      state({
+        $self: function* () {
+          return 0;
+        },
+        providers: [provideFnWrapper(trackingWrapper)],
+      });
+
+      expect(callLog).toEqual(['state-factory']);
+    });
+  });
+
+  it('providers are applied to insertion methods', () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('insertion-method');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    runInInjectionContext(() => {
+      const myState = state(
+        { $self: 0, providers: [provideFnWrapper(trackingWrapper)] },
+        ({ update }) => ({ increment: () => update((v) => v + 1) }),
+      );
+
+      expect(callLog).toEqual([]);
+      myState.increment();
+      expect(callLog).toEqual(['insertion-method']);
+      myState.increment();
+      expect(callLog).toEqual(['insertion-method', 'insertion-method']);
+    });
+  });
+
+  it('providers scoped to one state do not affect a sibling state', () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('called');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    runInInjectionContext(() => {
+      const withProvider = state(
+        { $self: 0, providers: [provideFnWrapper(trackingWrapper)] },
+        ({ update }) => ({ increment: () => update((v) => v + 1) }),
+      );
+      const withoutProvider = state(
+        0,
+        ({ update }) => ({ increment: () => update((v) => v + 1) }),
+      );
+
+      withoutProvider.increment();
+      expect(callLog).toEqual([]);
+
+      withProvider.increment();
+      expect(callLog).toEqual(['called']);
+    });
+  });
+
+  it('typing: $self unwraps to the correct state type', () => {
+    runInInjectionContext(() => {
+      const plain = state({ $self: 'hello' });
+      expectTypeOf(plain()).toEqualTypeOf<string>();
+
+      const withSignal = state({ $self: signal(0) });
+      expectTypeOf(withSignal()).toEqualTypeOf<number>();
+    });
+  });
+
+  it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', () => {
+    const { LocalCounterToYield, provideLocalCounter } = craftService(
+      { name: 'LocalCounter', scope: 'toProvide' },
+      () => ({ value: () => 1 }),
+    );
+
+    runInInjectionContext(() => {
+      const withoutProviders = state(
+        function* () {
+          const counter = yield* LocalCounterToYield();
+          return counter.value();
+        },
+      );
+      type WithoutDeps = ExtractDeps<typeof withoutProviders>;
+      expectTypeOf<'LocalCounter' extends keyof WithoutDeps ? true : false>().toEqualTypeOf<true>();
+
+      const withProviders = state({
+        $self: function* () {
+          const counter = yield* LocalCounterToYield();
+          return counter.value();
+        },
+        providers: [provideLocalCounter()],
+      });
+      type WithDeps = ExtractDeps<typeof withProviders>;
+      expectTypeOf<'LocalCounter' extends keyof WithDeps ? true : false>().toEqualTypeOf<false>();
     });
   });
 });

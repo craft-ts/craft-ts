@@ -2,6 +2,7 @@ import {
   DestroyRef,
   Injector,
   inject,
+  isSignal,
   linkedSignal,
   runInInjectionContext,
 } from '@angular/core';
@@ -336,7 +337,29 @@ function createInsertSelectItemRuntime(
                   return exposedAcc;
                 }
 
-                exposedAcc[key] = value;
+                if (typeof value === 'function' && !isSignal(value)) {
+                  const methodInjector = ɵcreateHostTaggedInjector(itemInjector, `method:${key}`);
+                  const wrappedFn = runInInjectionContext(itemInjector, () =>
+                    injectFnWrapper()(value as (...args: unknown[]) => unknown),
+                  );
+                  exposedAcc[key] = (...args: unknown[]) =>
+                    runInInjectionContext(methodInjector, () => {
+                      const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
+                      if (isGenerator(result)) {
+                        return runCraftGenerator({
+                          iterator: result,
+                          injector: methodInjector,
+                          hostScope: 'function',
+                          invalidYieldErrorMessage: INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                          multipleAppStartErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                          onAppStartNotSupportedErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                        }).value;
+                      }
+                      return result;
+                    });
+                } else {
+                  exposedAcc[key] = value;
+                }
                 return exposedAcc;
               },
               {} as Record<string, unknown>,
@@ -569,7 +592,29 @@ function createInsertSelectPropertyRuntime(
                   return exposedAcc;
                 }
 
-                exposedAcc[key] = value;
+                if (typeof value === 'function' && !isSignal(value)) {
+                  const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${key}`);
+                  const wrappedFn = runInInjectionContext(injector, () =>
+                    injectFnWrapper()(value as (...args: unknown[]) => unknown),
+                  );
+                  exposedAcc[key] = (...args: unknown[]) =>
+                    runInInjectionContext(methodInjector, () => {
+                      const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
+                      if (isGenerator(result)) {
+                        return runCraftGenerator({
+                          iterator: result,
+                          injector: methodInjector,
+                          hostScope: 'function',
+                          invalidYieldErrorMessage: INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                          multipleAppStartErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                          onAppStartNotSupportedErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                        }).value;
+                      }
+                      return result;
+                    });
+                } else {
+                  exposedAcc[key] = value;
+                }
                 return exposedAcc;
               },
               {} as Record<string, unknown>,

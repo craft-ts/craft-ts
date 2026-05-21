@@ -2185,6 +2185,7 @@ describe('AppRoutes.META_DATA', () => {
             Counter: {
               scope: 'toProvide';
               browserBoundary: false;
+              appStart: false;
               dependencies: {};
             };
           };
@@ -2192,6 +2193,7 @@ describe('AppRoutes.META_DATA', () => {
             Counter: {
               scope: 'toProvide';
               browserBoundary: false;
+              appStart: false;
               dependencies: {};
             };
           };
@@ -2291,11 +2293,13 @@ describe('AppRoutes.META_DATA', () => {
       readonly [
         {
           path: 'list';
+          queryParams: { page: string };
           deps: {
             Router: {
               scope: 'global';
               dependencies: {};
               browserBoundary: false;
+              appStart: false;
             };
             ConsoleService: GetInjectedServiceDependencies<
               typeof injectConsoleService
@@ -2304,6 +2308,7 @@ describe('AppRoutes.META_DATA', () => {
               scope: 'global';
               dependencies: {};
               browserBoundary: false;
+              appStart: false;
               derivedPropertiesUsed: {
                 parsePage: (value: string) => number;
               };
@@ -2315,6 +2320,7 @@ describe('AppRoutes.META_DATA', () => {
               scope: 'global';
               dependencies: {};
               browserBoundary: false;
+              appStart: false;
               derivedPropertiesUsed: {
                 serializePage: (value: number) => string;
               };
@@ -2326,6 +2332,7 @@ describe('AppRoutes.META_DATA', () => {
               scope: 'global';
               dependencies: {};
               browserBoundary: false;
+              appStart: false;
               derivedPropertiesUsed: {
                 maxPage: () => 3;
               };
@@ -2378,11 +2385,13 @@ describe('AppRoutes.META_DATA', () => {
       readonly [
         {
           path: 'counter';
+          queryParams: { page: string };
           deps: {
             Router: {
               scope: 'global';
               dependencies: {};
               browserBoundary: false;
+              appStart: false;
             };
           };
           provided: {};
@@ -2429,11 +2438,13 @@ describe('AppRoutes.META_DATA', () => {
       readonly [
         {
           path: 'layout';
+          queryParams: { page: string };
           deps: {
             Router: {
               scope: 'global';
               dependencies: {};
               browserBoundary: false;
+              appStart: false;
             };
           };
         },

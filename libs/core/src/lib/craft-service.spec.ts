@@ -25,6 +25,8 @@ import type {
   GetToYieldServiceDependencies,
   MaybeSignal,
 } from './craft-service';
+import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
+import type { ExtractDeps } from './branded-component/branded-component';
 
 // todo later ne pas passer d'input et passer une dérivation inject...
 
@@ -1342,10 +1344,12 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     expectTypeOf<ConsumerDependencies>().toEqualTypeOf<{
       scope: 'global';
       browserBoundary: false;
+      appStart: false;
       dependencies: {
         SinglePropertyShortcutApi: {
           scope: 'global';
           browserBoundary: false;
+          appStart: false;
           dependencies: {};
           derivedPropertiesUsed: {
             updateItem: GetServiceOutput<
@@ -1420,10 +1424,12 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     expectTypeOf<ConsumerDependencies>().toEqualTypeOf<{
       scope: 'global';
       browserBoundary: false;
+      appStart: false;
       dependencies: {
         DirectMethodShortcutApi: {
           scope: 'global';
           browserBoundary: false;
+          appStart: false;
           dependencies: {};
           derivedPropertiesUsed: {
             updateItem: GetServiceOutput<
@@ -1631,6 +1637,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'global';
       browserBoundary: false;
+      appStart: false;
       dependencies: {};
     }>();
   });
@@ -1652,6 +1659,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
       browserBoundary: false;
+      appStart: false;
       dependencies: {};
     }>();
   });
@@ -1686,10 +1694,12 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<StorageConsumerDependencies>().toEqualTypeOf<{
       scope: 'global';
       browserBoundary: false;
+      appStart: false;
       dependencies: {
         BrowserStorage: {
           scope: 'global';
           browserBoundary: true;
+          appStart: false;
           dependencies: {};
         };
       };
@@ -1724,10 +1734,12 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
       browserBoundary: false;
+      appStart: false;
       dependencies: {
         Counter: {
           scope: 'toProvide';
           browserBoundary: false;
+          appStart: false;
           dependencies: {};
         };
       };
@@ -1750,6 +1762,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<ManuallyProvidedAtRoot1ToYieldDependencies>().toEqualTypeOf<{
       scope: 'manuallyProvidedAtRoot';
       browserBoundary: false;
+      appStart: false;
       dependencies: {};
     }>();
   });
@@ -1806,20 +1819,24 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     expectTypeOf<CounterExtendedDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
       browserBoundary: false;
+      appStart: false;
       dependencies: {
         ManuallyProvidedAtRoot1: {
           scope: 'manuallyProvidedAtRoot';
           browserBoundary: false;
+          appStart: false;
           dependencies: {};
         };
         ManuallyProvidedAtRoot2: {
           scope: 'manuallyProvidedAtRoot';
           browserBoundary: false;
+          appStart: false;
           dependencies: {};
         };
         Counter: {
           scope: 'toProvide';
           browserBoundary: false;
+          appStart: false;
           dependencies: {};
         };
       };
@@ -1846,6 +1863,7 @@ describe('typing can track all derived dependencies (only the properties that ar
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'global';
       browserBoundary: false;
+      appStart: false;
       dependencies: {};
     }>();
   });
@@ -1884,10 +1902,12 @@ describe('typing can track all derived dependencies (only the properties that ar
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
       browserBoundary: false;
+      appStart: false;
       dependencies: {
         Counter: {
           scope: 'toProvide';
           browserBoundary: false;
+          appStart: false;
           dependencies: {};
           derivedPropertiesUsed: {
             $self: GetServiceOutput<typeof CounterToYield>;
@@ -1949,10 +1969,12 @@ describe('typing can track all derived dependencies (only the properties that ar
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
       browserBoundary: false;
+      appStart: false;
       dependencies: {
         Counter: {
           scope: 'toProvide';
           browserBoundary: false;
+          appStart: false;
           dependencies: {};
           derivedPropertiesUsed: {
             $self: GetServiceOutput<typeof CounterToYield>;
@@ -1968,6 +1990,63 @@ describe('typing can track all derived dependencies (only the properties that ar
         };
       };
     }>();
+  });
+});
+
+describe('craftService — providers', () => {
+  it('providers are applied to the service factory generator', () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('service-factory');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    const { injectTrackedService } = craftService(
+      { name: 'TrackedService', scope: 'global', providers: [provideFnWrapper(trackingWrapper)] },
+      function* () {
+        return { value: () => 1 };
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      injectTrackedService();
+      expect(callLog).toEqual(['service-factory']);
+    });
+  });
+
+  it('providers scoped to one craftService do not affect a sibling service', () => {
+    const callLog: string[] = [];
+    const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
+      callLog.push('called');
+      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
+        thisArg as object,
+        args,
+      );
+    };
+
+    const { injectSiblingA } = craftService(
+      { name: 'SiblingA', scope: 'global', providers: [provideFnWrapper(trackingWrapper)] },
+      function* () {
+        return { value: () => 1 };
+      },
+    );
+    const { injectSiblingB } = craftService(
+      { name: 'SiblingB', scope: 'global' },
+      function* () {
+        return { value: () => 2 };
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      injectSiblingB();
+      expect(callLog).toEqual([]);
+
+      injectSiblingA();
+      expect(callLog).toEqual(['called']);
+    });
   });
 });
 
