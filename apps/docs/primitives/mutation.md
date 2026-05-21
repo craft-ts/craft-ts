@@ -148,6 +148,46 @@ const mutationRef = mutation(
 );
 ```
 
+### Add providers to mutation
+
+```typescript
+const saveUser = mutation({
+  providers: [provideMutationLogger(), provideUserApiService()],
+  method: function* (user: { id: string; name: string }) {
+    yield* MutationLoggerToYield.log(`mutate:${user.id}`);
+    return user;
+  },
+  loader: function* ({ params }) {
+    return yield* UserApiServiceToYield.save(params);
+  },
+});
+```
+
+### Add providers to a mutation inside `craftMutations`
+
+`providers` stays on each `mutation(...)` config, not on the `craftMutations(...)` wrapper:
+
+```typescript
+const userFeature = craft(
+  {
+    name: 'userFeature',
+    providedIn: 'root',
+  },
+  craftMutations(() => ({
+    saveUser: mutation({
+      providers: [provideMutationLogger(), provideUserApiService()],
+      method: function* (user: { id: string; name: string }) {
+        yield* MutationLoggerToYield.log(`mutate:${user.id}`);
+        return user;
+      },
+      loader: function* ({ params }) {
+        return yield* UserApiServiceToYield.save(params);
+      },
+    }),
+  })),
+);
+```
+
 ## Safe Value Access
 
 Use `safeValue()` instead of `value()` when you want to access the mutation value without throwing an error:

@@ -115,6 +115,27 @@ state(
 
 Instead of using `inject`, craft-ng provides Services to yield. This allows you to track dependencies in primitives.
 
+## Add providers to state
+
+Use the object form with `$self` when you want to scope providers to a single state:
+
+```typescript
+const counter = state(
+  {
+    $self: function* () {
+      return yield* CounterPreferencesToYield.initialValue();
+    },
+    providers: [provideCounterPreferences(), provideCounterAnalytics()],
+  },
+  ({ update }) => ({
+    increment: function* () {
+      yield* CounterAnalyticsToYield.track('increment');
+      update((value) => value + 1);
+    },
+  }),
+);
+```
+
 ## Best Practices
 
 ✅ **Use TypeScript inference** - Let TypeScript infer types when possible

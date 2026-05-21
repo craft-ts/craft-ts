@@ -93,6 +93,22 @@ const query = query(
 );
 ```
 
+### Add providers to query
+
+````typescript
+const query = query(
+  {
+    providers: [provideUserService(), provideUserApiService()],
+    params: function* () {
+      return yield* UserServiceToYield.userId();
+    },
+    loader: function* ({ params: userId }) {
+      return yield* UserApiServiceToYield.get(userId);
+    },
+  },
+);
+```
+
 ### React to mutation with insertReactOnMutation and persist in local storage
 
 ```typescript
@@ -143,7 +159,7 @@ updateUserMutation.mutate({
 // userQuery.value() is updated optimistically
 
 // When mutation completes, patch confirms the change
-```
+````
 
 ### Query exceptions (`hasException` / `exceptions()`)
 

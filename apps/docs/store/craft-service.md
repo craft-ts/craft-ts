@@ -121,6 +121,33 @@ counter.increment();
 console.log(counter());
 ```
 
+## Add providers to craftService
+
+Use `providers` in the service config when the service factory itself needs locally-scoped dependencies:
+
+```typescript
+const { injectUserFacade } = craftService(
+  {
+    name: 'UserFacade',
+    scope: 'global',
+    providers: [provideUserApi(), provideUserLogger()],
+  },
+  function* () {
+    const api = yield* UserApiToYield();
+    const logger = yield* UserLoggerToYield();
+
+    return {
+      rename: (user: { id: string; name: string }, name: string) => {
+        logger.log(`rename:${user.id}`);
+        return api.updateUser({ ...user, name });
+      },
+    };
+  },
+);
+```
+
+This is separate from `provideUserFacade()`, which is only generated for provider-capable scopes like `toProvide`.
+
 ## Composition With `yield*`
 
 ```typescript
@@ -154,8 +181,7 @@ a one-property derivation.
 const { UsersApiToYield } = craftService(
   { name: 'UsersApi', scope: 'global' },
   () => ({
-    updateUser: (user: { id: string; name: string }) =>
-      Promise.resolve(user),
+    updateUser: (user: { id: string; name: string }) => Promise.resolve(user),
     getUsers: () => Promise.resolve([]),
   }),
 );
@@ -177,13 +203,13 @@ For method properties on services without public inputs, the shortcut can call
 the method directly:
 
 ```typescript
-return yield* UsersApiToYield.updateUser({ id: '1', name: 'Romain' });
+return yield * UsersApiToYield.updateUser({ id: '1', name: 'Romain' });
 ```
 
 The shortcut accepts the same bindings as `XToYield(...)`:
 
 ```typescript
-const increment = yield* CounterToYield.increment({ initialValue: 0 });
+const increment = yield * CounterToYield.increment({ initialValue: 0 });
 ```
 
 Use the full `XToYield(bindings, expose)` form when deriving several

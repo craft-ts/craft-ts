@@ -94,6 +94,21 @@ console.log(debouncedById2?.status()); // 'loading' or 'resolved'
 console.log(debouncedById2?.value()); // data2 once resolved
 ```
 
+### Add providers to asyncProcess
+
+```typescript
+const loadProfile = asyncProcess({
+  providers: [provideAsyncLogger(), provideProfileGateway()],
+  method: function* (userId: string) {
+    yield* AsyncLoggerToYield.log(`load:${userId}`);
+    return userId;
+  },
+  loader: function* ({ params }) {
+    return yield* ProfileGatewayToYield.load(params);
+  },
+});
+```
+
 ### AsyncProcess exceptions (`hasException` / `exceptions()`)
 
 ```typescript
