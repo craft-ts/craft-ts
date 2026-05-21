@@ -235,6 +235,7 @@ export function insertSelectFormTree<
   FormIdentifier extends string | number | unknown = unknown,
   Insertion1 = {},
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
   AutoCompleteName = NoInfer<StateType> extends readonly object[]
     ? string
     : keyof NoInfer<StateType>,
@@ -244,7 +245,8 @@ export function insertSelectFormTree<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
 ): InsertSelectFormTreeReturn<
   [Name] extends [keyof StateType]
@@ -264,6 +266,8 @@ export function insertSelectFormTree<
   Insertion1 = {},
   Insertion2 = {},
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
   AutoCompleteName = StateType extends readonly object[]
     ? string
     : keyof StateType,
@@ -273,13 +277,15 @@ export function insertSelectFormTree<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
 ): InsertSelectFormTreeReturn<
   StateType,
@@ -296,6 +302,9 @@ export function insertSelectFormTree<
   Insertion2 = {},
   Insertion3 = {},
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
   AutoCompleteName = StateType extends readonly object[]
     ? string
     : keyof StateType,
@@ -305,19 +314,22 @@ export function insertSelectFormTree<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
 ): InsertSelectFormTreeReturn<
   StateType,
@@ -335,6 +347,10 @@ export function insertSelectFormTree<
   Insertion3 = {},
   Insertion4 = {},
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
   AutoCompleteName = StateType extends readonly object[]
     ? string
     : keyof StateType,
@@ -344,25 +360,29 @@ export function insertSelectFormTree<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsFormFactory<
     SelectedFormTreeTarget<StateType, Name>,
     FormIdentifier,
     Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
 ): InsertSelectFormTreeReturn<
   StateType,

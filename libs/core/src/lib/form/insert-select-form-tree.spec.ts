@@ -2,6 +2,7 @@ import { computed, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HOST_TAG_LIST } from '../host-tag';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
+import { craftService, onAppStart } from '../craft-service';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
@@ -421,6 +422,126 @@ describe('selectFormTree', () => {
 
       expect(statusForm.isDraft()).toBe(true);
       expect(statusForm.statusValue()).toBe('draft');
+    });
+  });
+});
+
+describe('insertSelectFormTree with generator insertions', () => {
+  it('should resolve generator insertion on object form tree', () => {
+    const { ObjFormLoggerToYield } = craftService(
+      { name: 'ObjFormLogger', scope: 'global' },
+      () => {
+        const calls: string[] = [];
+        return { log: (msg: string) => calls.push(msg), calls };
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const profileForm = state(
+        { credentials: { name: 'romain', password: 'secret' }, status: 'draft' } satisfies ProfileFormValue,
+        insertForm(
+          insertSelectFormTree(
+            'credentials',
+            function* ({ update }) {
+              const logger = yield* ObjFormLoggerToYield();
+              return {
+                clearPassword: () => {
+                  logger.log('clearPassword');
+                  return update((creds) => ({ ...creds, password: '' }));
+                },
+              };
+            },
+          ),
+        ),
+      );
+
+      TestBed.tick();
+      const credentials = profileForm.form.selectCredentials();
+      (credentials as unknown as { clearPassword: () => void }).clearPassword();
+
+      expect(profileForm().credentials.password).toBe('');
+    });
+  });
+
+  it('should resolve generator insertion on array form tree items', () => {
+    const { ArrFormLoggerToYield } = craftService(
+      { name: 'ArrFormLogger', scope: 'global' },
+      () => {
+        const calls: string[] = [];
+        return { log: (msg: string) => calls.push(msg), calls };
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const addressBookForm = state(
+        { addresses: [{ city: 'Paris', zip: '75000' }] } satisfies AddressBookFormValue,
+        insertForm(
+          insertSelectFormTree(
+            'addresses',
+            insertNoopTypingAnchor,
+            insertSelectFormTree(
+              'item',
+              function* ({ update }) {
+                const logger = yield* ArrFormLoggerToYield();
+                return {
+                  updateCity: (city: string) => {
+                    logger.log(`updateCity:${city}`);
+                    return update((addr) => ({ ...addr, city }));
+                  },
+                };
+              },
+            ),
+          ),
+        ),
+      );
+
+      TestBed.tick();
+      const addresses = addressBookForm.form.selectAddresses();
+      (addresses?.selectItem(0) as unknown as { updateCity: (city: string) => void })?.updateCity('Lyon');
+
+      expect(addressBookForm().addresses[0].city).toBe('Lyon');
+    });
+  });
+
+  it('should throw on onAppStart inside generator insertion on object form tree', () => {
+    TestBed.runInInjectionContext(() => {
+      expect(() => {
+        state(
+          { credentials: { name: 'romain', password: 'secret' }, status: 'draft' } satisfies ProfileFormValue,
+          insertForm(
+            insertSelectFormTree(
+              'credentials',
+              function* () {
+                yield* onAppStart(() => {});
+                return {};
+              },
+            ),
+          ),
+        );
+      }).toThrow('insertSelectFormTree generators do not support onAppStart');
+    });
+  });
+
+  it('should throw on onAppStart inside generator insertion on array form tree items', () => {
+    TestBed.runInInjectionContext(() => {
+      expect(() => {
+        state(
+          { addresses: [{ city: 'Paris', zip: '75000' }] } satisfies AddressBookFormValue,
+          insertForm(
+            insertSelectFormTree(
+              'addresses',
+              insertNoopTypingAnchor,
+              insertSelectFormTree(
+                'item',
+                function* () {
+                  yield* onAppStart(() => {});
+                  return {};
+                },
+              ),
+            ),
+          ),
+        );
+      }).toThrow('insertSelectFormTree generators do not support onAppStart');
     });
   });
 });

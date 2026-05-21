@@ -16,6 +16,8 @@ import {
   INSERTION_SNAPSHOT_REGISTRY,
   snapshotSelectProxy,
 } from './take-app-snapshot';
+import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import { injectFnWrapper } from './fn-wrapper';
 
 type SelectedTarget<
   StateType,
@@ -160,6 +162,11 @@ function isFlatCrossLayerEvent(
   );
 }
 
+const INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE =
+  'insertSelect generators can only yield craftService dependencies or exposed dependency helpers.';
+const INSERT_SELECT_APP_START_ERROR_MESSAGE =
+  'insertSelect generators do not support onAppStart(...).';
+
 function createInsertSelectItemRuntime(
   entityName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -209,8 +216,10 @@ function createInsertSelectItemRuntime(
       const { rawInsertionsOutput, exposedInsertionsOutput } =
         itemInsertions.reduce(
           (acc, insertion) => {
-            const nextRawInsertions = runInInjectionContext(itemInjector, () =>
-              insertion({
+            const wrappedInsertion = runInInjectionContext(itemInjector, () =>
+              injectFnWrapper()(insertion),
+            );
+            const insertionCallResult = wrappedInsertion({
                 state: selectedStateSignal,
                 set: (newState: unknown) => {
                   update((currentState: unknown) => {
@@ -295,7 +304,20 @@ function createInsertSelectItemRuntime(
                   ...inheritedInsertions,
                   ...acc.rawInsertionsOutput,
                 } as never,
-              }),
+              });
+            const nextRawInsertions = (
+              isGenerator(insertionCallResult)
+                ? runInInjectionContext(itemInjector, () =>
+                    runCraftGenerator({
+                      iterator: insertionCallResult,
+                      injector: itemInjector,
+                      hostScope: 'function',
+                      invalidYieldErrorMessage: INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                      multipleAppStartErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                      onAppStartNotSupportedErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                    }).value
+                  )
+                : insertionCallResult
             ) as Record<string, unknown>;
 
             const nextExposedInsertions = Object.entries(
@@ -473,8 +495,10 @@ function createInsertSelectPropertyRuntime(
       const { rawInsertionsOutput, exposedInsertionsOutput } =
         propertyInsertions.reduce(
           (acc, insertion) => {
-            const nextRawInsertions = runInInjectionContext(injector, () =>
-              insertion({
+            const wrappedInsertion = runInInjectionContext(injector, () =>
+              injectFnWrapper()(insertion),
+            );
+            const insertionCallResult = wrappedInsertion({
                 state: selectedPropertySignal,
                 set: setProperty,
                 update: updateProperty,
@@ -490,7 +514,20 @@ function createInsertSelectPropertyRuntime(
                   ...inheritedInsertions,
                   ...acc.rawInsertionsOutput,
                 } as never,
-              }),
+              });
+            const nextRawInsertions = (
+              isGenerator(insertionCallResult)
+                ? runInInjectionContext(injector, () =>
+                    runCraftGenerator({
+                      iterator: insertionCallResult,
+                      injector,
+                      hostScope: 'function',
+                      invalidYieldErrorMessage: INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                      multipleAppStartErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                      onAppStartNotSupportedErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                    }).value
+                  )
+                : insertionCallResult
             ) as Record<string, unknown>;
 
             const nextExposedInsertions = Object.entries(
@@ -676,6 +713,7 @@ export function insertSelect<
   const Name extends AutoCompleteName & string,
   Insertions1 = {},
   PreviousInsertionsOutputs = {},
+  Insertions1Yielded = never,
   AutoCompleteName = NoInfer<StateType> extends readonly object[]
     ? string
     : keyof NoInfer<StateType>,
@@ -684,7 +722,8 @@ export function insertSelect<
   insertion1: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertions1Yielded
   >,
 ): InsertSelectReturn<
   [Name] extends [keyof StateType]
@@ -703,6 +742,8 @@ export function insertSelect<
   Insertions1 = {},
   Insertions2 = {},
   PreviousInsertionsOutputs = {},
+  Insertions1Yielded = never,
+  Insertions2Yielded = never,
   AutoCompleteName = StateType extends readonly object[]
     ? string
     : keyof StateType,
@@ -711,12 +752,14 @@ export function insertSelect<
   insertion1: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertions1Yielded
   >,
   insertion2: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions2,
-    PreviousInsertionsOutputs & Insertions1
+    PreviousInsertionsOutputs & Insertions1,
+    Insertions2Yielded
   >,
 ): InsertSelectReturn<
   StateType,
@@ -731,6 +774,9 @@ export function insertSelect<
   Insertions2 = {},
   Insertions3 = {},
   PreviousInsertionsOutputs = {},
+  Insertions1Yielded = never,
+  Insertions2Yielded = never,
+  Insertions3Yielded = never,
   AutoCompleteName = StateType extends readonly object[]
     ? string
     : keyof StateType,
@@ -739,17 +785,20 @@ export function insertSelect<
   insertion1: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertions1Yielded
   >,
   insertion2: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions2,
-    PreviousInsertionsOutputs & Insertions1
+    PreviousInsertionsOutputs & Insertions1,
+    Insertions2Yielded
   >,
   insertion3: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions3,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2
+    PreviousInsertionsOutputs & Insertions1 & Insertions2,
+    Insertions3Yielded
   >,
 ): InsertSelectReturn<
   StateType,
@@ -765,6 +814,10 @@ export function insertSelect<
   Insertions3 = {},
   Insertions4 = {},
   PreviousInsertionsOutputs = {},
+  Insertions1Yielded = never,
+  Insertions2Yielded = never,
+  Insertions3Yielded = never,
+  Insertions4Yielded = never,
   AutoCompleteName = StateType extends readonly object[]
     ? string
     : keyof StateType,
@@ -773,22 +826,26 @@ export function insertSelect<
   insertion1: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertions1Yielded
   >,
   insertion2: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions2,
-    PreviousInsertionsOutputs & Insertions1
+    PreviousInsertionsOutputs & Insertions1,
+    Insertions2Yielded
   >,
   insertion3: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions3,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2
+    PreviousInsertionsOutputs & Insertions1 & Insertions2,
+    Insertions3Yielded
   >,
   insertion4: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions4,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2 & Insertions3
+    PreviousInsertionsOutputs & Insertions1 & Insertions2 & Insertions3,
+    Insertions4Yielded
   >,
 ): InsertSelectReturn<
   StateType,
@@ -805,6 +862,11 @@ export function insertSelect<
   Insertions4 = {},
   Insertions5 = {},
   PreviousInsertionsOutputs = {},
+  Insertions1Yielded = never,
+  Insertions2Yielded = never,
+  Insertions3Yielded = never,
+  Insertions4Yielded = never,
+  Insertions5Yielded = never,
   AutoCompleteName = StateType extends readonly object[]
     ? string
     : keyof StateType,
@@ -813,22 +875,26 @@ export function insertSelect<
   insertion1: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertions1Yielded
   >,
   insertion2: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions2,
-    PreviousInsertionsOutputs & Insertions1
+    PreviousInsertionsOutputs & Insertions1,
+    Insertions2Yielded
   >,
   insertion3: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions3,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2
+    PreviousInsertionsOutputs & Insertions1 & Insertions2,
+    Insertions3Yielded
   >,
   insertion4: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
     Insertions4,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2 & Insertions3
+    PreviousInsertionsOutputs & Insertions1 & Insertions2 & Insertions3,
+    Insertions4Yielded
   >,
   insertion5: InsertionsStateFactory<
     SelectedTarget<StateType, Name>,
@@ -837,7 +903,8 @@ export function insertSelect<
       Insertions1 &
       Insertions2 &
       Insertions3 &
-      Insertions4
+      Insertions4,
+    Insertions5Yielded
   >,
 ): InsertSelectReturn<
   StateType,

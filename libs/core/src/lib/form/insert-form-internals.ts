@@ -5,6 +5,8 @@ import {
   signal,
   Signal,
 } from '@angular/core';
+import { isGenerator, runCraftGenerator } from '../craft-generator-runtime';
+import { injectFnWrapper } from '../fn-wrapper';
 import type { InsertionStateFactoryContext } from '../query.core';
 import { Source$ as SourceDollarType } from '../source$';
 import { MergeObject } from '../util/types/util.type';
@@ -105,13 +107,14 @@ export type InsertionsFormFactory<
   FormIdentifier extends string | number | unknown,
   InsertionsOutputs,
   PreviousInsertionsOutputs = {},
+  Yielded = never,
 > = (
   context: InsertionFormFactoryContext<
     State,
     PreviousInsertionsOutputs,
     FormIdentifier
   >,
-) => InsertionsOutputs;
+) => InsertionsOutputs | Generator<Yielded, InsertionsOutputs, unknown>;
 
 export const validatedFormValueSymbol = Symbol('validatedFormValue');
 export type ValidatedFormValue<FormValue> =
@@ -406,26 +409,46 @@ export function executeFormInsertions<Model>(
     return value as ValidatedFormValue<Model>;
   });
 
+const FORM_INSERTION_INVALID_YIELD_ERROR_MESSAGE =
+  'insertSelectFormTree generators can only yield craftService dependencies or exposed dependency helpers.';
+const FORM_INSERTION_APP_START_ERROR_MESSAGE =
+  'insertSelectFormTree generators do not support onAppStart(...).';
+
   return formInsertions.reduce(
     (acc, insertion) => {
-      const nextRawInsertions = runInInjectionContext(options.injector, () =>
-        insertion({
-          state: options.state,
-          set: options.set,
-          update: options.update,
-          patch: options.patch,
-          field: options.field,
-          hasAttemptedSubmit: options.submission.hasAttemptedSubmit,
-          submitting: options.submission.submitting,
-          validatedFormValue,
-          setAttemptedSubmit: options.submission.setAttemptedSubmit,
-          setSubmitting: options.submission.setSubmitting,
-          formIdentifier: options.formIdentifier!,
-          insertions: {
-            ...options.inheritedInsertions,
-            ...acc.rawInsertionsOutput,
-          },
-        }),
+      const wrappedInsertion = runInInjectionContext(options.injector, () =>
+        injectFnWrapper()(insertion),
+      );
+      const insertionCallResult = wrappedInsertion({
+        state: options.state,
+        set: options.set,
+        update: options.update,
+        patch: options.patch,
+        field: options.field,
+        hasAttemptedSubmit: options.submission.hasAttemptedSubmit,
+        submitting: options.submission.submitting,
+        validatedFormValue,
+        setAttemptedSubmit: options.submission.setAttemptedSubmit,
+        setSubmitting: options.submission.setSubmitting,
+        formIdentifier: options.formIdentifier!,
+        insertions: {
+          ...options.inheritedInsertions,
+          ...acc.rawInsertionsOutput,
+        },
+      });
+      const nextRawInsertions = (
+        isGenerator(insertionCallResult)
+          ? runInInjectionContext(options.injector, () =>
+              runCraftGenerator({
+                iterator: insertionCallResult,
+                injector: options.injector,
+                hostScope: 'function',
+                invalidYieldErrorMessage: FORM_INSERTION_INVALID_YIELD_ERROR_MESSAGE,
+                multipleAppStartErrorMessage: FORM_INSERTION_APP_START_ERROR_MESSAGE,
+                onAppStartNotSupportedErrorMessage: FORM_INSERTION_APP_START_ERROR_MESSAGE,
+              }).value,
+            )
+          : insertionCallResult
       ) as Record<string, unknown>;
       const nextExposedInsertions = createExposedInsertions(nextRawInsertions);
 

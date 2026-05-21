@@ -5,6 +5,7 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
+import { craftService, onAppStart } from './craft-service';
 import { HOST_TAG_LIST } from './host-tag';
 import { insertSelect } from './insert-select';
 import { on$ } from './on$';
@@ -386,6 +387,126 @@ describe('insertSelect', () => {
       cells.selectData().selectCell(0)?.paintCell$('red');
       expect(cells.selectData().selectCell(0)?.color).toBe('red');
       expect(cells.selectData().selectCell(0)?.paintCount).toBe(1);
+    });
+  });
+});
+
+describe('insertSelect with generator insertions', () => {
+  it('should resolve generator insertion on object states', () => {
+    const { ObjLoggerToYield } = craftService(
+      { name: 'ObjLogger', scope: 'global' },
+      () => {
+        const calls: string[] = [];
+        return {
+          log: (msg: string) => calls.push(msg),
+          calls,
+        };
+      },
+    );
+
+    runInInjectionContext(() => {
+      const board = state(
+        { cell: { color: 'white', paintCount: 0 } },
+        insertSelect(
+          'cell',
+          function* ({ update }) {
+            const logger = yield* ObjLoggerToYield();
+            return {
+              paint: () => {
+                logger.log('paint');
+                return update((cell) => ({
+                  ...cell,
+                  color: 'black',
+                  paintCount: cell.paintCount + 1,
+                }));
+              },
+            };
+          },
+        ),
+      );
+
+      TestBed.tick();
+      board.selectCell().paint();
+      board.selectCell().paint();
+
+      expect(board().cell.color).toBe('black');
+      expect(board().cell.paintCount).toBe(2);
+    });
+  });
+
+  it('should resolve generator insertion on array states', () => {
+    const { ArrLoggerToYield } = craftService(
+      { name: 'ArrLogger', scope: 'global' },
+      () => {
+        const calls: string[] = [];
+        return {
+          log: (msg: string) => calls.push(msg),
+          calls,
+        };
+      },
+    );
+
+    runInInjectionContext(() => {
+      const cells = state(
+        [{ color: 'white', paintCount: 0 }],
+        insertSelect(
+          'cell',
+          function* ({ update }) {
+            const logger = yield* ArrLoggerToYield();
+            return {
+              paint: (color: string) => {
+                logger.log(`paint:${color}`);
+                return update((cell) => ({
+                  ...cell,
+                  color,
+                  paintCount: cell.paintCount + 1,
+                }));
+              },
+            };
+          },
+        ),
+      );
+
+      TestBed.tick();
+      cells.selectCell(0)?.paint('red');
+      cells.selectCell(0)?.paint('blue');
+
+      expect(cells()[0].color).toBe('blue');
+      expect(cells()[0].paintCount).toBe(2);
+    });
+  });
+
+  it('should throw on onAppStart inside generator insertion on object states', () => {
+    runInInjectionContext(() => {
+      expect(() => {
+        state(
+          { cell: { color: 'white' } },
+          insertSelect(
+            'cell',
+            function* () {
+              yield* onAppStart(() => {});
+              return {};
+            },
+          ),
+        );
+      }).toThrow('insertSelect generators do not support onAppStart');
+    });
+  });
+
+  it('should throw on onAppStart inside generator insertion on array states', () => {
+    runInInjectionContext(() => {
+      expect(() => {
+        state(
+          [{ color: 'white' }],
+          insertSelect(
+            'cell',
+            function* () {
+              yield* onAppStart(() => {});
+              return {};
+            },
+          ),
+        );
+      }).toThrow('insertSelect generators do not support onAppStart');
     });
   });
 });
