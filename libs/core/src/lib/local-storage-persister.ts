@@ -87,7 +87,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
         const waitForParamsSrcToBeEqualToPreviousValueEffect = nestedEffect(
           _injector,
           () => {
-            const { queryResourceParamsSrc, storageKey, queryResource } = data;
+            const { queryResourceParamsSrc, storageKey, queryResource, staleTime, validate } = data;
             const params = queryResourceParamsSrc();
             if (params === undefined) {
               return;
@@ -100,6 +100,12 @@ export function localStoragePersister(prefix: string): QueriesPersister {
             try {
               const { queryValue, queryParams, timestamp } =
                 JSON.parse(storedValue);
+
+              if (validate && !validate(queryValue)) {
+                localStorage.removeItem(storageKey);
+                waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
+                return;
+              }
 
               // Check if cache is expired
               if (
@@ -120,6 +126,9 @@ export function localStoragePersister(prefix: string): QueriesPersister {
               }
               if (isEqualParams) {
                 queryResource.set(queryValue);
+                if (staleTime !== undefined && timestamp && isValueExpired(timestamp, staleTime)) {
+                  queryResource.reload();
+                }
               }
               waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
             } catch (e) {
@@ -247,6 +256,8 @@ export function localStoragePersister(prefix: string): QueriesPersister {
         queryResourceParamsSrc,
         waitForParamsSrcToBeEqualToPreviousValue,
         cacheTime,
+        staleTime,
+        validate,
       } = data;
 
       const storageKey = getStorageKey(prefix, key, 'resource');
@@ -254,7 +265,9 @@ export function localStoragePersister(prefix: string): QueriesPersister {
       if (storedValue && !waitForParamsSrcToBeEqualToPreviousValue) {
         try {
           const { queryValue, timestamp } = JSON.parse(storedValue);
-          if (
+          if (validate && !validate(queryValue)) {
+            localStorage.removeItem(storageKey);
+          } else if (
             timestamp &&
             cacheTime > 0 &&
             isValueExpired(timestamp, cacheTime)
@@ -262,6 +275,9 @@ export function localStoragePersister(prefix: string): QueriesPersister {
             localStorage.removeItem(storageKey);
           } else {
             queryResource.set(queryValue);
+            if (staleTime !== undefined && timestamp && isValueExpired(timestamp, staleTime)) {
+              queryResource.reload();
+            }
           }
         } catch (e) {
           console.error('Error parsing stored value from localStorage', e);
@@ -275,6 +291,8 @@ export function localStoragePersister(prefix: string): QueriesPersister {
           storageKey,
           waitForParamsSrcToBeEqualToPreviousValue,
           cacheTime,
+          staleTime,
+          validate,
           key,
         });
         return map;
@@ -282,7 +300,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
     },
 
     addQueryByIdToPersist(data: PersistedQueryById): void {
-      const { key, queryByIdResource, queryResourceParamsSrc, cacheTime } =
+      const { key, queryByIdResource, queryResourceParamsSrc, cacheTime, staleTime, validate } =
         data;
 
       const storageKey = getStorageKey(prefix, key, 'resourceById');
@@ -306,12 +324,14 @@ export function localStoragePersister(prefix: string): QueriesPersister {
         if (queryByIdValue && typeof queryByIdValue === 'object') {
           Object.entries(queryByIdValue).forEach(
             ([resourceKey, resourceValue]) => {
+              const isValueValid = !validate || resourceValue.value === undefined || validate(resourceValue.value);
               const resourceRef = queryByIdResource.addById(resourceKey, {
                 defaultParam: resourceValue.params,
-                defaultValue: resourceValue.value,
+                defaultValue: isValueValid ? resourceValue.value : undefined,
               });
+              const isStale = staleTime !== undefined && resourceValue.timestamp && isValueExpired(resourceValue.timestamp, staleTime);
               // The reload strategy can be improved to prioritize the current displayed resource
-              if (resourceValue.reloadOnMount) {
+              if (resourceValue.reloadOnMount || (isValueValid && isStale)) {
                 resourceRef.reload();
               }
             }
@@ -324,6 +344,8 @@ export function localStoragePersister(prefix: string): QueriesPersister {
           queryResourceParamsSrc,
           storageKey,
           cacheTime,
+          staleTime,
+          validate,
           key,
         });
         return map;

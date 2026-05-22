@@ -10,9 +10,7 @@ The main benefits of @craft-ng form system are built on three pillars:
 2. **Type-safe errors** - Synchronous and asynchronous validation (soon) with type-safe exceptions (inferred from validators and submit handler)
 3. **Parallel Forms** - Support for multiple forms in the same state with automatic scoping
 
-::: warning
-The form system is currently in early development and is not yet stable. The API may change without deprecation, and some features are not fully implemented yet (e.g. asynchronous validation). I'm encountering many limitations with signal-based forms, and I'm considering creating my own directives to achieve a more appropriate and complete developer experience. This is also the reason why there is no JSDoc for these utilities.
-:::
+All of this is possible because the logic is entirely derived from the state.
 
 ## Form Insertions
 
@@ -38,14 +36,14 @@ const userFormState = state(
   insertForm(
     insertSelectFormTree(
       'name',
-      insertNoopTypingAnchor,
+      insertNoopTypingAnchor, // TS limitation
       insertFormAttributes(() => ({
         validators: [cRequired()],
       })),
     ),
     insertSelectFormTree(
       'email',
-      insertNoopTypingAnchor,
+      insertNoopTypingAnchor, // TS limitation
       insertFormAttributes(() => ({
         validators: [cRequired(), cEmail()],
       })),
@@ -161,6 +159,47 @@ const productFormState = state(
 const form = productFormState.form();
 const variant0 = form.selectVariant(0);
 const allVariants = form.items();
+```
+
+### insertSubFormField
+
+Exposes a derived sub-form from a parent value through a lens. This is useful when the form field is not stored as a nested object in the state, but can still be read and written from the parent value.
+
+```ts
+import { state } from '@craft-ng/core';
+import {
+  insertForm,
+  insertFormAttributes,
+  insertSubFormField,
+  splitLens,
+  cRequired,
+} from '@craft-ng/core';
+
+const appointmentFormState = state(
+  '2026-05-10 12:00',
+  insertForm(
+    insertSubFormField(
+      'date',
+      splitLens(' ', 0),
+      insertFormAttributes(() => ({
+        validators: [cRequired()],
+      })),
+    ),
+    insertSubFormField('time', splitLens(' ', 1)),
+  ),
+);
+
+const form = appointmentFormState.form();
+const dateField = form.selectDate();
+const timeField = form.selectTime();
+
+console.log(dateField.value()); // '2026-05-10'
+console.log(timeField.value()); // '12:00'
+
+dateField.set('2026-05-11');
+timeField.set('09:30');
+
+console.log(appointmentFormState()); // '2026-05-11 09:30'
 ```
 
 ## Validators

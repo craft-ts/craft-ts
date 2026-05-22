@@ -11,10 +11,16 @@ import { insertReactOnMutation } from '@craft-ng/core';
 ## Basic Usage
 
 ```typescript
-// simple query
-const mutationRef = mutation({
-  method: (payload: { name: string }) => payload,
-  loader: async ({ params }) => params,
+const updateUser = mutation({
+  method: (user: User) => user,
+  loader: function* ({ params: user }) {
+    return yield* CraftHttpClient.patch(({ response }) => ({
+      url: `/api/users/${user.id}`,
+      body: user,
+      success: response<User>(),
+    }));
+    return response.json();
+  },
 });
 
 const queryRef = query(
@@ -25,33 +31,44 @@ const queryRef = query(
       name: 'John',
     }),
   },
-  insertReactOnMutation(mutationRef, {
+  insertReactOnMutation(updateUser, {
     patch: {
-      name: ({ mutationParams }) => mutationParams.name,
+      name: ({ mutationParams: { name } }) => name,
     },
   }),
 );
--------
-// parallel query
-const mutationRef = mutation({
-  method: (payload: { name: string; id: string }) => payload,
-  loader: async ({ params }) => params,
+```
+
+```typescript
+const updateUser = mutation({
+  method: (user: User) => user,
+  loader: function* ({ params: user }) {
+    return yield* CraftHttpClient.patch(({ response }) => ({
+      url: `/api/users/${user.id}`,
+      body: user,
+      success: response<User>(),
+    }));
+    return response.json();
+  },
 });
 
+// parallel query
 const queryRef = query(
   {
-    params: () => '5',
-    identifier: (params) => params,
-    loader: async ({ params }) => ({
-      id: params,
-      name: 'John',
-    }),
+    params: userId,
+    identifier: (userId) => userId,
+    loader: function* ({ params }) {
+      return yield* CraftHttpClient.get(({ response }) => ({
+        url: `/api/users/${params}`,
+        success: response<User>(),
+      }));
+    },
   },
-  insertReactOnMutation(mutationRef, {
+  insertReactOnMutation(updateUser, {
     filter: ({ queryIdentifier, mutationParams }) =>
       mutationParams.id === queryIdentifier,
     patch: {
-      name: ({ mutationParams }) => mutationParams.name,
+      name: ({ mutationParams: { name } }) => name,
     },
   }),
 );

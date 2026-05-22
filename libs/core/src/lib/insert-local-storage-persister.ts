@@ -242,6 +242,19 @@ export function insertLocalStoragePersister<
    * If not specified, the default is 5 minutes (300000 ms).
    */
   cacheTime?: CacheTime;
+  /**
+   * Time in milliseconds after which cached data is considered stale.
+   * When stale, the cached value is still restored immediately (to avoid a blank state), but a background reload is triggered automatically (SWR pattern).
+   * Must be less than `cacheTime`. If not specified, no background reload is triggered.
+   */
+  staleTime?: number;
+  /**
+   * Validation function called on the deserialized value before restoring it from cache.
+   * If it returns false, the cached entry is discarded and the resource loads fresh.
+   * Useful when the data model has changed or the user has tampered with localStorage.
+   * Compatible with Zod: `validate: (v): v is MyState => schema.safeParse(v).success`
+   */
+  validate?: (value: unknown) => value is ResourceState;
 }) {
   return (_context: unknown) => {
     type ResourceByIdContext = InsertionByIdParams<
@@ -304,6 +317,8 @@ export function insertLocalStoragePersister<
           unknown
         >,
         queryResourceParamsSrc: resourceParamsSrc as any,
+        staleTime: config.staleTime,
+        validate: config.validate,
       });
     } else {
       persister.addQueryToPersist({
@@ -314,6 +329,8 @@ export function insertLocalStoragePersister<
         waitForParamsSrcToBeEqualToPreviousValue: hasState
           ? false
           : (config.waitForParamsSrcToBeEqualToPreviousValue ?? true),
+        staleTime: config.staleTime,
+        validate: config.validate,
       });
     }
 

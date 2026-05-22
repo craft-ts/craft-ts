@@ -61,6 +61,22 @@ cells.selectCell(0)?.paint();
 console.log(cells.selectCell(0)?.paintCount); // 1
 ```
 
+## insertSelect with Dependency injection
+
+```typescript
+insertSelect('cell', function* ({ patch }) {
+  const color = yield* ColorServiceToYield();
+  return {
+    paint: () =>
+      patch(() => ({
+        color,
+      })),
+  };
+});
+```
+
+The dependencies are tracked at the primitive level.
+
 ## Why use it
 
 - A single API for selections on both object and array states
@@ -69,9 +85,9 @@ console.log(cells.selectCell(0)?.paintCount); // 1
 
 ## Current limitation
 
-`insertSelect` (on object states) does not yet support targeting a property that is not an `object` (for example: `string`, `number`, `boolean`).
+1. `insertSelect` (on object states) does not yet support targeting a property that is not an `object` (for example: `string`, `number`, `boolean`).
 
-This currently breaks type inference. An improvement is planned.
+2. This currently breaks type inference. An improvement is planned.
 
 ::: warning TypeScript inference limitation (workaround)
 In some nested cases, TypeScript can lose contextual typing (for example when selecting an array property and chaining another `insertSelect` immediately).

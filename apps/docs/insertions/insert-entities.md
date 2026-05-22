@@ -32,6 +32,10 @@ import {
 - **Parallel queries** - Enables entity manipulation in query instances with `select` parameter
 - **Type inference** - Full TypeScript support with automatic method name generation
 
+::: warning
+This API currently promotes state imperative change. I am planning to improve this in the future, in order to keep state as much as I can declarative.
+:::
+
 ## Entity Utilities
 
 The following entity utility functions can be used with `insertEntities`:

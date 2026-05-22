@@ -486,6 +486,430 @@ describe('localStoragePersister', () => {
       );
     });
   });
+
+  // --- staleTime tests ---
+
+  it('11 Should restore cached value without reload when staleTime is not exceeded', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const freshTimestamp = Date.now() - 2000; // 2 seconds ago
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: freshTimestamp,
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Fresh' };
+        },
+      });
+      const reloadSpy = vi.spyOn(queryResource, 'reload');
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: false,
+        cacheTime: 60000,
+        staleTime: 5000, // 5s — data is only 2s old, not stale
+      });
+
+      expect(queryResource.status()).toBe('local');
+      expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
+      expect(reloadSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  it('12 Should restore cached value AND trigger reload when staleTime is exceeded (SWR)', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const staleTimestamp = Date.now() - 6000; // 6 seconds ago
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: staleTimestamp,
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Fresh' };
+        },
+      });
+      const reloadSpy = vi.spyOn(queryResource, 'reload');
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: false,
+        cacheTime: 60000,
+        staleTime: 5000, // 5s — data is 6s old, stale
+      });
+
+      expect(reloadSpy).toHaveBeenCalledOnce();
+      // reload() clears value in plain resource — status should be loading
+      expect(queryResource.status()).toBe('loading');
+    });
+  });
+
+  it('13 Should not restore when cacheTime is exceeded even if staleTime would apply', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const expiredTimestamp = Date.now() - 6000; // 6 seconds ago
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: expiredTimestamp,
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Fresh' };
+        },
+      });
+      const reloadSpy = vi.spyOn(queryResource, 'reload');
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: false,
+        cacheTime: 5000,   // 5s — expired
+        staleTime: 10000,  // 10s — would not be stale, but cacheTime wins
+      });
+
+      expect(queryResource.status()).toBe('idle');
+      expect(queryResource.value()).toBeUndefined();
+      expect(reloadSpy).not.toHaveBeenCalled();
+      expect(localStorage.removeItem).toHaveBeenCalledWith('ng-craft-query-resource-user');
+    });
+  });
+
+  it('14 Should restore cached value without reload when staleTime not exceeded (waitForParams=true)', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const freshTimestamp = Date.now() - 2000;
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: freshTimestamp,
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Fresh' };
+        },
+      });
+      const reloadSpy = vi.spyOn(queryResource, 'reload');
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: true,
+        cacheTime: 60000,
+        staleTime: 5000,
+      });
+
+      queryParamsFnSignal.set({ id: 1 });
+      TestBed.tick();
+
+      expect(queryResource.status()).toBe('local');
+      expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
+      expect(reloadSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  it('15 Should restore AND trigger reload when staleTime exceeded (waitForParams=true)', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const staleTimestamp = Date.now() - 6000;
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: staleTimestamp,
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Fresh' };
+        },
+      });
+      const reloadSpy = vi.spyOn(queryResource, 'reload');
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: true,
+        cacheTime: 60000,
+        staleTime: 5000,
+      });
+
+      queryParamsFnSignal.set({ id: 1 });
+      TestBed.tick();
+
+      expect(reloadSpy).toHaveBeenCalledOnce();
+      expect(queryResource.status()).toBe('loading');
+    });
+  });
+
+  // --- validate tests ---
+
+  it('16 Should not restore cached value when validate returns false', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: Date.now(),
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Romain' };
+        },
+      });
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: false,
+        cacheTime: 60000,
+        validate: () => false,
+      });
+
+      expect(queryResource.status()).toBe('idle');
+      expect(queryResource.value()).toBeUndefined();
+      expect(localStorage.removeItem).toHaveBeenCalledWith('ng-craft-query-resource-user');
+    });
+  });
+
+  it('17 Should restore cached value when validate returns true', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: Date.now(),
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Romain' };
+        },
+      });
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: false,
+        cacheTime: 60000,
+        validate: (v): boolean => typeof (v as any)?.name === 'string',
+      });
+
+      expect(queryResource.status()).toBe('local');
+      expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
+      expect(localStorage.removeItem).not.toHaveBeenCalledWith('ng-craft-query-resource-user');
+    });
+  });
+
+  it('18 Should not restore and remove cache when validate returns false (waitForParams=true)', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: Date.now(),
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Romain' };
+        },
+      });
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: true,
+        cacheTime: 60000,
+        validate: () => false,
+      });
+
+      queryParamsFnSignal.set({ id: 1 });
+      TestBed.tick();
+
+      expect(queryResource.status()).toBe('loading');
+      expect(queryResource.value()).toBeUndefined();
+      expect(localStorage.removeItem).toHaveBeenCalledWith('ng-craft-query-resource-user');
+    });
+  });
+
+  it('19 Should restore cached value when validate returns true (waitForParams=true)', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: Date.now(),
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Romain' };
+        },
+      });
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: true,
+        cacheTime: 60000,
+        validate: (v): boolean => typeof (v as any)?.name === 'string',
+      });
+
+      queryParamsFnSignal.set({ id: 1 });
+      TestBed.tick();
+
+      expect(queryResource.status()).toBe('local');
+      expect(queryResource.value()).toEqual({ id: 1, name: 'Romain' });
+    });
+  });
+
+  it('20 Should not restore when validate fails even if staleTime would trigger reload', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: Date.now() - 6000,
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Romain' };
+        },
+      });
+      const reloadSpy = vi.spyOn(queryResource, 'reload');
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: false,
+        cacheTime: 60000,
+        staleTime: 5000,
+        validate: () => false,
+      });
+
+      expect(queryResource.status()).toBe('idle');
+      expect(reloadSpy).not.toHaveBeenCalled();
+      expect(localStorage.removeItem).toHaveBeenCalledWith('ng-craft-query-resource-user');
+    });
+  });
+
+  it('21 Should restore AND reload when validate passes and staleTime is exceeded', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      localStorage.setItem(
+        'ng-craft-query-resource-user',
+        JSON.stringify({
+          queryParams: { id: 1 },
+          queryValue: { id: 1, name: 'Romain' },
+          timestamp: Date.now() - 6000,
+        }),
+      );
+
+      const queryParamsFnSignal = signal<{ id: number } | undefined>(undefined);
+      const queryResource = resource({
+        params: queryParamsFnSignal,
+        loader: async ({ params }) => {
+          await wait(10000);
+          return { id: params?.id, name: 'Fresh' };
+        },
+      });
+      const reloadSpy = vi.spyOn(queryResource, 'reload');
+
+      const persister = localStoragePersister('query');
+      persister.addQueryToPersist({
+        key: 'user',
+        queryResource,
+        queryResourceParamsSrc: queryParamsFnSignal,
+        waitForParamsSrcToBeEqualToPreviousValue: false,
+        cacheTime: 60000,
+        staleTime: 5000,
+        validate: (v): boolean => typeof (v as any)?.name === 'string',
+      });
+
+      expect(reloadSpy).toHaveBeenCalledOnce();
+      expect(queryResource.status()).toBe('loading');
+    });
+  });
 });
 
 function wait(ms: number) {

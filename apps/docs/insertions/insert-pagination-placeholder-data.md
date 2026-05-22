@@ -18,8 +18,12 @@ const userQuery = query(
   {
     params: pagination,
     identifier: (params) => '' + params,
-    loader: async ({ params: page }) => {
-      return fetchUsers(page);
+    loader: function* ({ params }) {
+      const response = yield* CraftHttpClient.get(({ response }) => ({
+        url: `/api/users?page=${params}`,
+        success: response<User[]>(),
+      }));
+      return response.json();
     },
   },
   insertPaginationPlaceholderData,

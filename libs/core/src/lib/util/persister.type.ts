@@ -7,6 +7,10 @@ export interface PersistedQuery {
   queryResourceParamsSrc: Signal<unknown>;
   waitForParamsSrcToBeEqualToPreviousValue: boolean;
   cacheTime: number;
+  /** Time in ms after which cached data is restored but a reload() is triggered in background (SWR pattern). Must be less than cacheTime. */
+  staleTime?: number;
+  /** Called on the deserialized value before restoring it. Return false to discard and reload fresh. */
+  validate?: (value: unknown) => boolean;
 }
 
 export interface PersistedQueryById {
@@ -14,6 +18,10 @@ export interface PersistedQueryById {
   queryByIdResource: ResourceByIdRef<string, unknown, unknown>;
   queryResourceParamsSrc: Signal<unknown>;
   cacheTime: number;
+  /** Time in ms after which cached data is restored but a reload() is triggered in background (SWR pattern). Must be less than cacheTime. */
+  staleTime?: number;
+  /** Called on the deserialized value before restoring it. Return false to discard and reload fresh. */
+  validate?: (value: unknown) => boolean;
 }
 
 export interface QueriesPersister {

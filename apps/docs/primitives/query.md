@@ -15,11 +15,11 @@ import { query } from '@craft-ng/core';
 ```typescript
 const id = signal(1);
 const myQuery = query({
-  params: () => ({ id: id() }),
-  loader: function* () {
+  params: id,
+  loader: function* ({ params: userId }) {
     return yield* CraftHttpClient.get(({ response }) => ({
-      url: '/api/users',
-      success: response<User[]>(),
+      url: `/api/users/${userId}`,
+      success: response<User>(),
     }));
   },
 });
@@ -29,6 +29,7 @@ console.log(myQuery.value()); // User data (throws if status is 'error')
 console.log(myQuery.safeValue()); // User data (never throws, returns undefined on error)
 console.log(myQuery.isLoading()); // true/false
 console.log(myQuery.error()); // Error or undefined
+console.log(myQuery.status()); // 'idle' | 'loading' | 'success' | 'error'
 ```
 
 ### Method-based query
