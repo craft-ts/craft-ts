@@ -1209,7 +1209,7 @@ type InjectHelper<
           SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
           MaterializeExposureResult<ValidateRootExposure<Exposed>>
         >;
-      },
+      } & InjectPropertyShortcuts<Scope, Inputs, Output, Metadata>,
       ServiceRuntimeMetaDefinition<
         Name,
         Scope,
@@ -1299,6 +1299,31 @@ type SinglePropertyShortcutGenerator<
   unknown
 >;
 
+type InjectPropertyShortcut<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Key extends OutputDependencyKeys<Output>,
+> = WithTrackedDependencies<
+  {
+    (): SinglePropertyShortcutResult<Inputs, undefined, Output, Key>;
+    <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
+      bindings: StrictBindings<
+        Partial<PublicInputBindings<Inputs, Scope>>,
+        Config
+      >,
+    ): SinglePropertyShortcutResult<Inputs, Config, Output, Key>;
+  } & (keyof PublicServiceInputs<Inputs> extends never
+    ? Output[Key] extends (...args: infer Args) => infer Result
+      ? Args extends []
+        ? {}
+        : (...args: Args) => Result
+      : {}
+    : {}),
+  WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+>;
+
 type YieldPropertyShortcut<
   Scope extends ConcreteServiceScope,
   Inputs extends object,
@@ -1356,6 +1381,20 @@ type YieldPropertyShortcuts<
         OutputDependencyKeys<Output>,
         keyof Function | 'then'
       >]: YieldPropertyShortcut<Scope, Inputs, Output, Metadata, Key>;
+    }
+  : {};
+
+type InjectPropertyShortcuts<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output,
+  Metadata extends AnyServiceTrackingMetadata,
+> = Output extends object
+  ? {
+      [Key in Exclude<
+        OutputDependencyKeys<Output>,
+        keyof Function | 'then'
+      >]: InjectPropertyShortcut<Scope, Inputs, Output, Metadata, Key>;
     }
   : {};
 
@@ -2669,26 +2708,11 @@ export function craftService(
   let serviceMetaData: InternalServiceMetaData;
 
   const api: Record<string, unknown> = {
-    [injectName]: (
-      bindings?: Record<string, unknown>,
-      expose?: RuntimeExposureSelector,
-    ) => {
-      assertInInjectionContext(concreteInject);
-      const injector = inject(Injector);
-      const serviceValue = resolveConcreteService(
-        runtimeDefinition,
-        injector,
-        bindings,
-      );
-      return expose
-        ? resolveExposedService(
-            serviceValue,
-            expose,
-            injector,
-            runtimeDefinition.scope,
-          )
-        : serviceValue;
-    },
+    [injectName]: createInjectHelper(
+      runtimeDefinition,
+      () => serviceMetaData,
+      concreteInject,
+    ),
     [toYieldName]: createToYieldHelper(
       runtimeDefinition,
       () => serviceMetaData,
@@ -2745,6 +2769,72 @@ export function craftService(
 
   function abstractInject() {}
   function concreteInject() {}
+}
+
+function createInjectHelper(
+  definition: ConcreteRuntimeDefinition,
+  getMetaData: () => InternalServiceMetaData | undefined,
+  injectMarker: () => void,
+) {
+  const propertyHelpers = new Map<string, unknown>();
+
+  const injectHelper = (
+    bindings?: Record<string, unknown>,
+    expose?: RuntimeExposureSelector,
+  ) => {
+    assertInInjectionContext(injectMarker);
+    const injector = inject(Injector);
+    const serviceValue = resolveConcreteService(definition, injector, bindings);
+    return expose
+      ? resolveExposedService(serviceValue, expose, injector, definition.scope)
+      : serviceValue;
+  };
+
+  return new Proxy(injectHelper, {
+    get(target, property, receiver) {
+      if (typeof property !== 'string') {
+        return Reflect.get(target, property, receiver);
+      }
+
+      if (property === 'then' || property in target) {
+        return Reflect.get(target, property, receiver);
+      }
+
+      if (!propertyHelpers.has(property)) {
+        const propertyHelper = (...args: unknown[]) => {
+          assertInInjectionContext(injectMarker);
+          const isDirectCall = args.length > 0 && !definition.hasPublicInput;
+          const injector = inject(Injector);
+          const serviceValue = resolveConcreteService(
+            definition,
+            injector,
+            isDirectCall ? undefined : (args[0] as Record<string, unknown>),
+          );
+          const propertyValue = Reflect.get(Object(serviceValue), property);
+
+          if (!isDirectCall) {
+            return propertyValue;
+          }
+
+          return Reflect.apply(
+            propertyValue as (...args: unknown[]) => unknown,
+            Object(serviceValue),
+            args,
+          );
+        };
+
+        const metaData = getMetaData();
+
+        if (metaData) {
+          attachServiceRuntimeMeta(propertyHelper, metaData);
+        }
+
+        propertyHelpers.set(property, propertyHelper);
+      }
+
+      return propertyHelpers.get(property);
+    },
+  });
 }
 
 function createToYieldHelper(

@@ -1520,6 +1520,153 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
+  it('should enable inject single-property shortcuts to return a derived property', async () => {
+    type User = {
+      id: string;
+      name: string;
+    };
+
+    const users = signal<User[]>([{ id: '1', name: 'Romain' }]);
+
+    const { injectSinglePropertyShortcutInjectApi } = craftService(
+      { name: 'SinglePropertyShortcutInjectApi', scope: 'global' },
+      () => ({
+        users,
+        updateItem: async (updatedUser: User) => {
+          users.set(
+            users().map((user) =>
+              user.id === updatedUser.id ? updatedUser : user,
+            ),
+          );
+          return updatedUser;
+        },
+      }),
+    );
+
+    expect(
+      getServiceMetaData(injectSinglePropertyShortcutInjectApi.updateItem).name,
+    ).toBe('SinglePropertyShortcutInjectApi');
+
+    type ShortcutDependencies = GetInjectedServiceDependencies<
+      typeof injectSinglePropertyShortcutInjectApi.updateItem
+    >;
+
+    expectTypeOf<ShortcutDependencies>().toEqualTypeOf<{
+      scope: 'global';
+      browserBoundary: false;
+      appStart: false;
+      dependencies: {};
+      derivedPropertiesUsed: {
+        updateItem: GetServiceOutput<
+          typeof injectSinglePropertyShortcutInjectApi
+        >['updateItem'];
+      };
+      derivedPropertiesExposed: {
+        updateItem: GetServiceOutput<
+          typeof injectSinglePropertyShortcutInjectApi
+        >['updateItem'];
+      };
+    }>();
+
+    await TestBed.runInInjectionContext(async () => {
+      const updateItem = injectSinglePropertyShortcutInjectApi.updateItem();
+
+      expectTypeOf(updateItem).toEqualTypeOf<
+        GetServiceOutput<typeof injectSinglePropertyShortcutInjectApi>['updateItem']
+      >();
+
+      await expect(
+        updateItem({ id: '1', name: 'Geffrault' }),
+      ).resolves.toEqual({ id: '1', name: 'Geffrault' });
+      expect(users()).toEqual([{ id: '1', name: 'Geffrault' }]);
+    });
+  });
+
+  it('should enable inject method shortcuts to call a derived method directly when the service has no public inputs', async () => {
+    type User = {
+      id: string;
+      name: string;
+    };
+
+    const users = signal<User[]>([{ id: '1', name: 'Romain' }]);
+
+    const { injectDirectMethodShortcutInjectApi } = craftService(
+      { name: 'DirectMethodShortcutInjectApi', scope: 'global' },
+      () => ({
+        updateItem: async (updatedUser: User) => {
+          users.set(
+            users().map((user) =>
+              user.id === updatedUser.id ? updatedUser : user,
+            ),
+          );
+          return updatedUser;
+        },
+      }),
+    );
+
+    type ShortcutDependencies = GetInjectedServiceDependencies<
+      typeof injectDirectMethodShortcutInjectApi.updateItem
+    >;
+
+    expectTypeOf<ShortcutDependencies>().toEqualTypeOf<{
+      scope: 'global';
+      browserBoundary: false;
+      appStart: false;
+      dependencies: {};
+      derivedPropertiesUsed: {
+        updateItem: GetServiceOutput<
+          typeof injectDirectMethodShortcutInjectApi
+        >['updateItem'];
+      };
+      derivedPropertiesExposed: {
+        updateItem: GetServiceOutput<
+          typeof injectDirectMethodShortcutInjectApi
+        >['updateItem'];
+      };
+    }>();
+
+    await TestBed.runInInjectionContext(async () => {
+      const result = injectDirectMethodShortcutInjectApi.updateItem({
+        id: '1',
+        name: 'Geffrault',
+      });
+
+      expectTypeOf(result).toEqualTypeOf<
+        ReturnType<
+          GetServiceOutput<typeof injectDirectMethodShortcutInjectApi>['updateItem']
+        >
+      >();
+
+      await expect(result).resolves.toEqual({ id: '1', name: 'Geffrault' });
+      expect(users()).toEqual([{ id: '1', name: 'Geffrault' }]);
+    });
+  });
+
+  it('should pass bindings to inject single-property shortcuts', () => {
+    const calls: number[] = [];
+
+    const { injectInputShortcutCounterInject } = craftService(
+      { name: 'InputShortcutCounterInject', scope: 'function' },
+      (inputs: { initialValue: MaybeSignal<number> }) => ({
+        increment: () => calls.push(toValue(inputs.initialValue) + 1),
+      }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const increment = injectInputShortcutCounterInject.increment({
+        initialValue: signal(10),
+      });
+
+      expectTypeOf(increment).toEqualTypeOf<
+        GetServiceOutput<typeof injectInputShortcutCounterInject>['increment']
+      >();
+
+      increment();
+
+      expect(calls).toEqual([11]);
+    });
+  });
+
   it('should not keep the root callable implicitly when using CounterToYield without $self', () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'function' },
