@@ -27,6 +27,8 @@ import type {
 } from './craft-service';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 import type { ExtractDeps } from './branded-component/branded-component';
+import { query } from './query';
+import { CraftHttpClient } from './craft-http-client';
 
 // todo later ne pas passer d'input et passer une dérivation inject...
 
@@ -191,6 +193,34 @@ describe('craftService', () => {
       resolveAppStart();
       await pendingStart;
     });
+  });
+
+  it('feedback-1: it should be allow', () => {
+    type User = {
+      id: string;
+      name: string;
+    };
+    craftService(
+      {
+        name: 'ApiService',
+        scope: 'global',
+        appStart: true,
+      },
+      function* () {
+        const userQuery = query({
+          method: (emptyPayload: string) => emptyPayload,
+          loader: function* () {
+            return yield* CraftHttpClient.get(({ response }) => ({
+              url: '/api/auth/me',
+              success: response<User | undefined>(),
+              exceptions: [],
+            }));
+          },
+        });
+        yield* onAppStart(() => void userQuery.call('go'));
+        return userQuery;
+      },
+    );
   });
 
   it('should track dependencies yielded only inside onAppStart generator callbacks', () => {
@@ -1998,14 +2028,17 @@ describe('craftService — providers', () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('service-factory');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     const { injectTrackedService } = craftService(
-      { name: 'TrackedService', scope: 'global', providers: [provideFnWrapper(trackingWrapper)] },
+      {
+        name: 'TrackedService',
+        scope: 'global',
+        providers: [provideFnWrapper(trackingWrapper)],
+      },
       function* () {
         return { value: () => 1 };
       },
@@ -2021,14 +2054,17 @@ describe('craftService — providers', () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('called');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     const { injectSiblingA } = craftService(
-      { name: 'SiblingA', scope: 'global', providers: [provideFnWrapper(trackingWrapper)] },
+      {
+        name: 'SiblingA',
+        scope: 'global',
+        providers: [provideFnWrapper(trackingWrapper)],
+      },
       function* () {
         return { value: () => 1 };
       },

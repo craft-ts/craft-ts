@@ -1439,4 +1439,24 @@ describe('mutation — providers', () => {
       });
     });
   });
+
+  it('typing: loader generator can return null or primitive sync values', () => {
+    TestBed.runInInjectionContext(() => {
+      const withNull = mutation({
+        method: (id: string) => id,
+        loader: function* () {
+          return null;
+        },
+      });
+      expectTypeOf(withNull.value).toEqualTypeOf<Signal<null | undefined>>();
+
+      const withString = mutation({
+        method: (id: string) => id,
+        loader: function* () {
+          return 'result';
+        },
+      });
+      expectTypeOf(withString.value).toEqualTypeOf<Signal<string | undefined>>();
+    });
+  });
 });

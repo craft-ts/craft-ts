@@ -155,7 +155,7 @@ type MutationConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState>,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         stream?: never;
@@ -280,7 +280,7 @@ type MutationConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState>,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         stream?: never;
@@ -349,7 +349,7 @@ type MutationConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-          ) => Promise<ResourceState>,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         stream?: never;
