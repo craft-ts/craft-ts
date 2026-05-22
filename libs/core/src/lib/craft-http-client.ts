@@ -395,15 +395,16 @@ export type CraftHttpRequest<
   Params = undefined,
   Payload = undefined,
   CustomException extends AnyCraftException = never,
-> = (() => CraftHttpClientResult<Success, CustomException>) & {
-  readonly method: Method;
-  readonly url: Url;
-  readonly params: Params;
-  readonly payload: Payload;
-  readonly [CRAFT_HTTP_CLIENT_SUCCESS_MARKER]?: Success;
-  readonly [CRAFT_HTTP_CLIENT_EXCEPTIONS_MARKER]?: CustomException;
-  readonly [CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCIES_MARKER]?: CraftHttpClientExceptionDependenciesMetadata;
-};
+> = (() => CraftHttpClientResult<Success, CustomException>) &
+  Promise<CraftHttpClientResolved<Success, CustomException>> & {
+    readonly method: Method;
+    readonly url: Url;
+    readonly params: Params;
+    readonly payload: Payload;
+    readonly [CRAFT_HTTP_CLIENT_SUCCESS_MARKER]?: Success;
+    readonly [CRAFT_HTTP_CLIENT_EXCEPTIONS_MARKER]?: CustomException;
+    readonly [CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCIES_MARKER]?: CraftHttpClientExceptionDependenciesMetadata;
+  };
 
 type AnyCraftHttpRequest = CraftHttpRequest<
   string,
@@ -686,6 +687,32 @@ function createCraftHttpRequest<
     },
     [CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCIES_MARKER]: {
       value: exceptionDependencies,
+      enumerable: false,
+      configurable: false,
+    },
+    then: {
+      value: function (onfulfilled: Parameters<Promise<unknown>['then']>[0], onrejected: Parameters<Promise<unknown>['then']>[1]) {
+        return request().then(onfulfilled, onrejected);
+      },
+      enumerable: false,
+      configurable: false,
+    },
+    catch: {
+      value: function (onrejected: Parameters<Promise<unknown>['catch']>[0]) {
+        return request().catch(onrejected);
+      },
+      enumerable: false,
+      configurable: false,
+    },
+    finally: {
+      value: function (onfinally: Parameters<Promise<unknown>['finally']>[0]) {
+        return request().finally(onfinally);
+      },
+      enumerable: false,
+      configurable: false,
+    },
+    [Symbol.toStringTag]: {
+      value: 'Promise',
       enumerable: false,
       configurable: false,
     },

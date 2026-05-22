@@ -14,6 +14,7 @@ import {
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetToYieldServiceDependencies } from './craft-service';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
+import { CraftHttpClient } from './craft-http-client';
 
 type EmptyMutationExceptions = {
   hasException: Signal<boolean>;
@@ -195,9 +196,13 @@ describe('mutation', () => {
       );
 
       expectTypeOf<ExtractDeps<typeof mutationRef>>().toEqualTypeOf<{
-        MutationParams: GetToYieldServiceDependencies<typeof MutationParamsToYield>;
+        MutationParams: GetToYieldServiceDependencies<
+          typeof MutationParamsToYield
+        >;
         MutationApi: GetToYieldServiceDependencies<typeof MutationApiToYield>;
-        MutationTools: GetToYieldServiceDependencies<typeof MutationToolsToYield>;
+        MutationTools: GetToYieldServiceDependencies<
+          typeof MutationToolsToYield
+        >;
       }>();
     });
   });
@@ -1333,10 +1338,9 @@ describe('mutation — providers', () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('method');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     await TestBed.runInInjectionContext(async () => {
@@ -1359,10 +1363,9 @@ describe('mutation — providers', () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('called');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     await TestBed.runInInjectionContext(async () => {
@@ -1405,7 +1408,9 @@ describe('mutation — providers', () => {
         loader: async ({ params }) => ({ id: params }),
       });
       type WithoutDeps = ExtractDeps<typeof withoutProviders>;
-      expectTypeOf<'MethodService' extends keyof WithoutDeps ? true : false>().toEqualTypeOf<true>();
+      expectTypeOf<
+        'MethodService' extends keyof WithoutDeps ? true : false
+      >().toEqualTypeOf<true>();
 
       // Verify mutation accepts providers without type errors
       const withProviders = mutation({
@@ -1414,6 +1419,24 @@ describe('mutation — providers', () => {
         loader: async ({ params }) => ({ id: params }),
       });
       expectTypeOf(withProviders.hasValue).toBeFunction();
+    });
+  });
+
+  it('should accepts this', () => {
+    TestBed.runInInjectionContext(() => {
+      const registerPizzeriaOwner = mutation({
+        method: ({ email, password }: { email: string; password: string }) => ({
+          email,
+          password,
+        }),
+        loader: function* ({ params }) {
+          return yield* CraftHttpClient.post(({ response }) => ({
+            url: '/api/pizzeria-owners',
+            payload: params,
+            success: response<{ id: string }>(),
+          }));
+        },
+      });
     });
   });
 });
