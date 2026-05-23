@@ -1667,6 +1667,160 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
+  it('should enable inject nested-property shortcuts', () => {
+    const isLoading = signal(false);
+
+    const { injectNestedPropShortcutService } = craftService(
+      { name: 'NestedPropShortcutService', scope: 'global' },
+      () => ({
+        userQuery: { isLoading, data: signal<string | null>(null) },
+      }),
+    );
+
+    type ShortcutDependencies = GetInjectedServiceDependencies<
+      typeof injectNestedPropShortcutService.userQuery.isLoading
+    >;
+
+    expectTypeOf<ShortcutDependencies>().toEqualTypeOf<{
+      scope: 'global';
+      browserBoundary: false;
+      appStart: false;
+      dependencies: {};
+      derivedPropertiesUsed: {
+        userQuery: { isLoading: typeof isLoading };
+      };
+      derivedPropertiesExposed: {
+        userQuery: { isLoading: typeof isLoading };
+      };
+    }>();
+
+    TestBed.runInInjectionContext(() => {
+      const result = injectNestedPropShortcutService.userQuery.isLoading();
+      expectTypeOf(result).toMatchTypeOf<typeof isLoading>();
+      expectTypeOf<GetInjectedServiceDependencies<typeof result>>().toEqualTypeOf<ShortcutDependencies>();
+      expect(result).toBe(isLoading);
+    });
+  });
+
+  it('should enable ToYield nested-property shortcuts', () => {
+    const isLoading = signal(false);
+
+    const { NestedPropApiToYield } = craftService(
+      { name: 'NestedPropApi', scope: 'global' },
+      () => ({
+        userQuery: { isLoading, data: signal<string | null>(null) },
+      }),
+    );
+
+    const { injectNestedPropConsumer } = craftService(
+      { name: 'NestedPropConsumer', scope: 'global' },
+      function* () {
+        const loadingSignal = yield* NestedPropApiToYield.userQuery.isLoading();
+        expectTypeOf(loadingSignal).toEqualTypeOf<typeof isLoading>();
+        return { isLoading: loadingSignal };
+      },
+    );
+
+    type ConsumerDependencies = GetInjectedServiceDependencies<
+      typeof injectNestedPropConsumer
+    >;
+
+    expectTypeOf<ConsumerDependencies>().toEqualTypeOf<{
+      scope: 'global';
+      browserBoundary: false;
+      appStart: false;
+      dependencies: {
+        NestedPropApi: {
+          scope: 'global';
+          browserBoundary: false;
+          appStart: false;
+          dependencies: {};
+          derivedPropertiesUsed: {
+            userQuery: { isLoading: typeof isLoading };
+          };
+          derivedPropertiesExposed: {
+            userQuery: { isLoading: typeof isLoading };
+          };
+        };
+      };
+    }>();
+
+    TestBed.runInInjectionContext(() => {
+      const consumer = injectNestedPropConsumer();
+      expect(consumer.isLoading).toBe(isLoading);
+    });
+  });
+
+  it('should require OmitInputs for no-arg property shortcuts when service has public inputs', () => {
+    const { injectOmitInputsInjectCounter } = craftService(
+      { name: 'OmitInputsInjectCounter', scope: 'function' },
+      (inputs: { initialValue?: MaybeSignal<number> }) => ({
+        count: toValue(inputs.initialValue) ?? 0,
+      }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const count = injectOmitInputsInjectCounter.OmitInputs.count();
+      expectTypeOf(count).toEqualTypeOf<number>();
+      expect(count).toBe(0);
+
+      const countWithBindings = injectOmitInputsInjectCounter.count({
+        initialValue: signal(5),
+      });
+      expectTypeOf(countWithBindings).toEqualTypeOf<number>();
+      expect(countWithBindings).toBe(5);
+
+      // @ts-expect-error: no-arg without OmitInputs is a type error
+      injectOmitInputsInjectCounter.count();
+    });
+  });
+
+  it('should require OmitInputs for no-arg property shortcuts when ToYield service has public inputs', () => {
+    const { OmitInputsYieldCounterToYield } = craftService(
+      { name: 'OmitInputsYieldCounter', scope: 'function' },
+      (inputs: { initialValue?: MaybeSignal<number> }) => ({
+        count: toValue(inputs.initialValue) ?? 0,
+      }),
+    );
+
+    const { injectOmitInputsYieldConsumer } = craftService(
+      { name: 'OmitInputsYieldConsumer', scope: 'global' },
+      function* () {
+        const count = yield* OmitInputsYieldCounterToYield.OmitInputs.count();
+        expectTypeOf(count).toEqualTypeOf<number>();
+        return { count };
+      },
+    );
+
+    // @ts-expect-error: no-arg without OmitInputs is a type error
+    OmitInputsYieldCounterToYield.count();
+
+    TestBed.runInInjectionContext(() => {
+      const consumer = injectOmitInputsYieldConsumer();
+      expect(consumer.count).toBe(0);
+    });
+  });
+
+  it('should enable combined OmitInputs and nested shortcuts', () => {
+    const isLoading = signal(true);
+
+    const { injectOmitInputsNestedService } = craftService(
+      { name: 'OmitInputsNestedService', scope: 'function' },
+      (inputs: { userId?: string }) => ({
+        userQuery: {
+          isLoading,
+          userId: inputs.userId ?? 'default',
+        },
+      }),
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const result = injectOmitInputsNestedService.OmitInputs.userQuery.isLoading();
+      expectTypeOf(result).toMatchTypeOf<typeof isLoading>();
+      expect(result).toBe(isLoading);
+    });
+  });
+
   it('should not keep the root callable implicitly when using CounterToYield without $self', () => {
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'function' },

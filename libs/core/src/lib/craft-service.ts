@@ -1209,7 +1209,10 @@ type InjectHelper<
           SelectableOutput<PublicServiceInputs<Inputs>, Config, Output>,
           MaterializeExposureResult<ValidateRootExposure<Exposed>>
         >;
-      } & InjectPropertyShortcuts<Scope, Inputs, Output, Metadata>,
+      } & InjectPropertyShortcuts<Scope, Inputs, Output, Metadata> &
+        (keyof PublicServiceInputs<Inputs> extends never
+          ? {}
+          : { OmitInputs: OmitInputsInjectShortcuts<Scope, Inputs, Output, Metadata> }),
       ServiceRuntimeMetaDefinition<
         Name,
         Scope,
@@ -1264,6 +1267,60 @@ type WithSinglePropertyDerivedProperties<
       >
     : never;
 
+type NestedPropertyValue<V, NestedKey> = V extends object
+  ? NestedKey extends keyof V
+    ? V[NestedKey]
+    : never
+  : never;
+
+type NestedPropertyDerivedProperties<
+  Output extends object,
+  Key extends OutputDependencyKeys<Output>,
+  NestedKey extends keyof (Output[Key] extends object ? Output[Key] : never),
+> = DerivedPropertiesTracking<
+  {
+    [K in Key]: Output[K] extends infer V
+      ? V extends object
+        ? { [NK in NestedKey & keyof V]: V[NK] }
+        : never
+      : never;
+  },
+  {
+    [K in Key]: Output[K] extends infer V
+      ? V extends object
+        ? { [NK in NestedKey & keyof V]: V[NK] }
+        : never
+      : never;
+  }
+>;
+
+type WithNestedPropertyDerivedProperties<
+  Metadata extends AnyServiceTrackingMetadata,
+  Output extends object,
+  Key extends OutputDependencyKeys<Output>,
+  NestedKey extends keyof (Output[Key] extends object ? Output[Key] : never),
+> = Metadata extends ServiceTrackingMetadata<
+  infer Name extends string,
+  infer Scope extends ConcreteServiceScope,
+  infer ServiceOutput,
+  infer ChildYielded,
+  any,
+  infer ProvidedInput,
+  infer BrowserBoundary extends boolean,
+  infer AppStart extends boolean
+>
+  ? ServiceTrackingMetadata<
+      Name,
+      Scope,
+      ServiceOutput,
+      ChildYielded,
+      NestedPropertyDerivedProperties<Output, Key, NestedKey>,
+      ProvidedInput,
+      BrowserBoundary,
+      AppStart
+    >
+  : never;
+
 type SinglePropertyShortcutResult<
   Inputs extends object,
   Config,
@@ -1306,8 +1363,9 @@ type InjectPropertyShortcut<
   Metadata extends AnyServiceTrackingMetadata,
   Key extends OutputDependencyKeys<Output>,
 > = WithTrackedDependencies<
-  {
-    (): SinglePropertyShortcutResult<Inputs, undefined, Output, Key>;
+  (keyof PublicServiceInputs<Inputs> extends never
+    ? { (): SinglePropertyShortcutResult<Inputs, undefined, Output, Key> }
+    : {}) & {
     <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
       bindings: StrictBindings<
         Partial<PublicInputBindings<Inputs, Scope>>,
@@ -1320,9 +1378,51 @@ type InjectPropertyShortcut<
         ? {}
         : (...args: Args) => Result
       : {}
-    : {}),
+    : {}) &
+    NestedInjectPropertyShortcuts<Scope, Inputs, Output, Metadata, Key>,
   WithSinglePropertyDerivedProperties<Metadata, Output, Key>
 >;
+
+type NestedInjectPropertyShortcut<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Key extends OutputDependencyKeys<Output>,
+  NestedKey extends keyof (Output[Key] extends object ? Output[Key] : never),
+> = WithTrackedDependencies<
+  {
+    (): WithTrackedDependencies<
+      NestedPropertyValue<Output[Key], NestedKey>,
+      WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>
+    >;
+    <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
+      bindings: StrictBindings<
+        Partial<PublicInputBindings<Inputs, Scope>>,
+        Config
+      >,
+    ): WithTrackedDependencies<
+      NestedPropertyValue<Output[Key], NestedKey>,
+      WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>
+    >;
+  },
+  WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>
+>;
+
+type NestedInjectPropertyShortcuts<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Key extends OutputDependencyKeys<Output>,
+> = Output[Key] extends object
+  ? {
+      [NestedKey in Exclude<
+        keyof Output[Key],
+        keyof Function | 'then'
+      >]: NestedInjectPropertyShortcut<Scope, Inputs, Output, Metadata, Key, NestedKey>;
+    }
+  : {};
 
 type YieldPropertyShortcut<
   Scope extends ConcreteServiceScope,
@@ -1330,28 +1430,17 @@ type YieldPropertyShortcut<
   Output extends object,
   Metadata extends AnyServiceTrackingMetadata,
   Key extends OutputDependencyKeys<Output>,
-> = {
-  (): SinglePropertyShortcutGenerator<
-    Scope,
-    Inputs,
-    Output,
-    Metadata,
-    undefined,
-    Key
-  >;
+> = (keyof PublicServiceInputs<Inputs> extends never
+  ? {
+      (): SinglePropertyShortcutGenerator<Scope, Inputs, Output, Metadata, undefined, Key>;
+    }
+  : {}) & {
   <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
     bindings: StrictBindings<
       Partial<PublicInputBindings<Inputs, Scope>>,
       Config
     >,
-  ): SinglePropertyShortcutGenerator<
-    Scope,
-    Inputs,
-    Output,
-    Metadata,
-    Config,
-    Key
-  >;
+  ): SinglePropertyShortcutGenerator<Scope, Inputs, Output, Metadata, Config, Key>;
 } & (keyof PublicServiceInputs<Inputs> extends never
   ? Output[Key] extends (...args: infer Args) => infer Result
     ? Args extends []
@@ -1368,7 +1457,59 @@ type YieldPropertyShortcut<
           unknown
         >
     : {}
-  : {});
+  : {}) &
+  NestedYieldPropertyShortcuts<Scope, Inputs, Output, Metadata, Key>;
+
+type NestedYieldPropertyShortcut<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Key extends OutputDependencyKeys<Output>,
+  NestedKey extends keyof (Output[Key] extends object ? Output[Key] : never),
+> = WithTrackedDependencies<
+  {
+    (): Generator<
+      ServiceYieldRequest<
+        Scope,
+        NestedPropertyValue<Output[Key], NestedKey>,
+        WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>
+      >,
+      NestedPropertyValue<Output[Key], NestedKey>,
+      unknown
+    >;
+    <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
+      bindings: StrictBindings<
+        Partial<PublicInputBindings<Inputs, Scope>>,
+        Config
+      >,
+    ): Generator<
+      ServiceYieldRequest<
+        Scope,
+        NestedPropertyValue<Output[Key], NestedKey>,
+        WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>
+      >,
+      NestedPropertyValue<Output[Key], NestedKey>,
+      unknown
+    >;
+  },
+  WithNestedPropertyDerivedProperties<Metadata, Output, Key, NestedKey>
+>;
+
+type NestedYieldPropertyShortcuts<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Key extends OutputDependencyKeys<Output>,
+> = Output[Key] extends object
+  ? {
+      [NestedKey in Exclude<
+        keyof Output[Key],
+        keyof Function | 'then'
+      >]: NestedYieldPropertyShortcut<Scope, Inputs, Output, Metadata, Key, NestedKey>;
+    }
+  : {};
 
 type YieldPropertyShortcuts<
   Scope extends ConcreteServiceScope,
@@ -1395,6 +1536,60 @@ type InjectPropertyShortcuts<
         OutputDependencyKeys<Output>,
         keyof Function | 'then'
       >]: InjectPropertyShortcut<Scope, Inputs, Output, Metadata, Key>;
+    }
+  : {};
+
+type OmitInputsInjectPropertyShortcut<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Key extends OutputDependencyKeys<Output>,
+> = WithTrackedDependencies<
+  {
+    (): SinglePropertyShortcutResult<Inputs, undefined, Output, Key>;
+  } & NestedInjectPropertyShortcuts<Scope, Inputs, Output, Metadata, Key>,
+  WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+>;
+
+type OmitInputsInjectShortcuts<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output,
+  Metadata extends AnyServiceTrackingMetadata,
+> = Output extends object
+  ? {
+      [Key in Exclude<
+        OutputDependencyKeys<Output>,
+        keyof Function | 'then'
+      >]: OmitInputsInjectPropertyShortcut<Scope, Inputs, Output, Metadata, Key>;
+    }
+  : {};
+
+type OmitInputsYieldPropertyShortcut<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output extends object,
+  Metadata extends AnyServiceTrackingMetadata,
+  Key extends OutputDependencyKeys<Output>,
+> = WithTrackedDependencies<
+  {
+    (): SinglePropertyShortcutGenerator<Scope, Inputs, Output, Metadata, undefined, Key>;
+  } & NestedYieldPropertyShortcuts<Scope, Inputs, Output, Metadata, Key>,
+  WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+>;
+
+type OmitInputsYieldShortcuts<
+  Scope extends ConcreteServiceScope,
+  Inputs extends object,
+  Output,
+  Metadata extends AnyServiceTrackingMetadata,
+> = Output extends object
+  ? {
+      [Key in Exclude<
+        OutputDependencyKeys<Output>,
+        keyof Function | 'then'
+      >]: OmitInputsYieldPropertyShortcut<Scope, Inputs, Output, Metadata, Key>;
     }
   : {};
 
@@ -1492,7 +1687,10 @@ type YieldHelper<
           >,
           unknown
         >;
-      } & YieldPropertyShortcuts<Scope, Inputs, Output, Metadata>,
+      } & YieldPropertyShortcuts<Scope, Inputs, Output, Metadata> &
+        (keyof PublicServiceInputs<Inputs> extends never
+          ? {}
+          : { OmitInputs: OmitInputsYieldShortcuts<Scope, Inputs, Output, Metadata> }),
       ServiceRuntimeMetaDefinition<
         Name,
         Scope,
@@ -2777,6 +2975,7 @@ function createInjectHelper(
   injectMarker: () => void,
 ) {
   const propertyHelpers = new Map<string, unknown>();
+  let omitInputsProxy: object | null = null;
 
   const injectHelper = (
     bindings?: Record<string, unknown>,
@@ -2790,7 +2989,7 @@ function createInjectHelper(
       : serviceValue;
   };
 
-  return new Proxy(injectHelper, {
+  const outerProxy = new Proxy(injectHelper, {
     get(target, property, receiver) {
       if (typeof property !== 'string') {
         return Reflect.get(target, property, receiver);
@@ -2800,8 +2999,21 @@ function createInjectHelper(
         return Reflect.get(target, property, receiver);
       }
 
+      if (property === 'OmitInputs') {
+        if (!omitInputsProxy) {
+          omitInputsProxy = new Proxy({} as object, {
+            get(_, subProp, subReceiver) {
+              return Reflect.get(outerProxy, subProp, subReceiver);
+            },
+          });
+        }
+        return omitInputsProxy;
+      }
+
       if (!propertyHelpers.has(property)) {
-        const propertyHelper = (...args: unknown[]) => {
+        const nestedPropertyHelpers = new Map<string, unknown>();
+
+        const propertyHelperFn = (...args: unknown[]) => {
           assertInInjectionContext(injectMarker);
           const isDirectCall = args.length > 0 && !definition.hasPublicInput;
           const injector = inject(Injector);
@@ -2823,6 +3035,31 @@ function createInjectHelper(
           );
         };
 
+        const propertyHelper = new Proxy(propertyHelperFn, {
+          get(fnTarget, nestedProperty, fnReceiver) {
+            if (typeof nestedProperty !== 'string') {
+              return Reflect.get(fnTarget, nestedProperty, fnReceiver);
+            }
+            if (nestedProperty === 'then' || nestedProperty in fnTarget) {
+              return Reflect.get(fnTarget, nestedProperty, fnReceiver);
+            }
+            if (!nestedPropertyHelpers.has(nestedProperty)) {
+              nestedPropertyHelpers.set(nestedProperty, (...nestedArgs: unknown[]) => {
+                assertInInjectionContext(injectMarker);
+                const injector = inject(Injector);
+                const serviceValue = resolveConcreteService(
+                  definition,
+                  injector,
+                  nestedArgs[0] as Record<string, unknown>,
+                );
+                const propValue = Reflect.get(Object(serviceValue), property);
+                return Reflect.get(Object(propValue), nestedProperty);
+              });
+            }
+            return nestedPropertyHelpers.get(nestedProperty);
+          },
+        });
+
         const metaData = getMetaData();
 
         if (metaData) {
@@ -2835,6 +3072,8 @@ function createInjectHelper(
       return propertyHelpers.get(property);
     },
   });
+
+  return outerProxy;
 }
 
 function createToYieldHelper(
@@ -2842,6 +3081,7 @@ function createToYieldHelper(
   getMetaData: () => InternalServiceMetaData | undefined,
 ) {
   const propertyHelpers = new Map<string, unknown>();
+  let omitInputsProxy: object | null = null;
 
   const toYieldHelper = function* (
     bindings?: Record<string, unknown>,
@@ -2859,7 +3099,7 @@ function createToYieldHelper(
     return (yield* exposeServiceValue(serviceValue, expose)) as unknown;
   };
 
-  return new Proxy(toYieldHelper, {
+  const outerProxy = new Proxy(toYieldHelper, {
     get(target, property, receiver) {
       if (typeof property !== 'string') {
         return Reflect.get(target, property, receiver);
@@ -2869,8 +3109,21 @@ function createToYieldHelper(
         return Reflect.get(target, property, receiver);
       }
 
+      if (property === 'OmitInputs') {
+        if (!omitInputsProxy) {
+          omitInputsProxy = new Proxy({} as object, {
+            get(_, subProp, subReceiver) {
+              return Reflect.get(outerProxy, subProp, subReceiver);
+            },
+          });
+        }
+        return omitInputsProxy;
+      }
+
       if (!propertyHelpers.has(property)) {
-        const propertyHelper = function* (...args: unknown[]) {
+        const nestedPropertyHelpers = new Map<string, unknown>();
+
+        const propertyHelperFn = function* (...args: unknown[]) {
           const isDirectCall = args.length > 0 && !definition.hasPublicInput;
           const serviceValue = (yield createYieldRequest(
             definition,
@@ -2889,6 +3142,31 @@ function createToYieldHelper(
           );
         };
 
+        const propertyHelper = new Proxy(propertyHelperFn, {
+          get(fnTarget, nestedProperty, fnReceiver) {
+            if (typeof nestedProperty !== 'string') {
+              return Reflect.get(fnTarget, nestedProperty, fnReceiver);
+            }
+            if (nestedProperty === 'then' || nestedProperty in fnTarget) {
+              return Reflect.get(fnTarget, nestedProperty, fnReceiver);
+            }
+            if (!nestedPropertyHelpers.has(nestedProperty)) {
+              nestedPropertyHelpers.set(
+                nestedProperty,
+                function* (...nestedArgs: unknown[]) {
+                  const serviceValue = (yield createYieldRequest(
+                    definition,
+                    nestedArgs[0] as Record<string, unknown>,
+                  )) as unknown;
+                  const propValue = Reflect.get(Object(serviceValue), property);
+                  return Reflect.get(Object(propValue), nestedProperty);
+                },
+              );
+            }
+            return nestedPropertyHelpers.get(nestedProperty);
+          },
+        });
+
         const metaData = getMetaData();
 
         if (metaData) {
@@ -2901,6 +3179,8 @@ function createToYieldHelper(
       return propertyHelpers.get(property);
     },
   });
+
+  return outerProxy;
 }
 
 function createServiceRequirement<Contract, Name extends string>(

@@ -153,7 +153,9 @@ type RequiredUsedMockImplementation<UsedProperties extends object> = Simplify<{
     ? UsedProperties[Key] extends (...args: any[]) => any
       ? CallableShell<UsedProperties[Key]>
       : never
-    : UsedProperties[Key];
+    : UsedProperties[Key] extends (...args: any[]) => any
+      ? UsedProperties[Key]
+      : Simplify<UsedProperties[Key]>;
 }>;
 
 type MockImplementation<Output> = Simplify<
@@ -184,6 +186,17 @@ type DependencyNodeUsesWholeService<Node> = Node extends {
   ? true
   : false;
 
+type PartialMockOutputWithUsedOverrides<
+  Output,
+  Used extends object,
+> = Output extends object
+  ? Partial<{
+      [Key in Extract<keyof Output, string>]: Key extends keyof Used
+        ? Used[Key]
+        : Output[Key];
+    }>
+  : {};
+
 type MockImplementationForNode<
   Target extends ServiceReference,
   Name extends string,
@@ -192,7 +205,13 @@ type MockImplementationForNode<
   DependencyNodeUsesWholeService<Node> extends true
     ? CompleteMockImplementation<DependencyOutputForName<Target, Name>>
     : Simplify<
-        MockImplementation<DependencyOutputForName<Target, Name>> &
+        PartialMockOutputWithUsedOverrides<
+          DependencyOutputForName<Target, Name>,
+          DependencyNodeDerivedPropertiesUsed<Node>
+        > &
+          (DependencyOutputForName<Target, Name> extends (...args: any[]) => any
+            ? { $self?: CallableShell<DependencyOutputForName<Target, Name>> }
+            : {}) &
           RequiredUsedMockImplementation<
             DependencyNodeDerivedPropertiesUsed<Node>
           >

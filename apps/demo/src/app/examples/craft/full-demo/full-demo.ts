@@ -1,30 +1,30 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
-    asyncProcess,
-    componentMonitoring,
-    craftMethod,
-    craftService,
-    insertLocalStoragePersister,
-    insertPaginationPlaceholderData,
-    insertReactOnMutation,
-    mutation,
-    on$,
-    provideHostName,
-    query,
-    queryParam,
-    reactiveWritableSignal,
-    removeMany,
-    removeOne,
-    source$,
-    state,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  asyncProcess,
+  componentMonitoring,
+  craftMethod,
+  craftService,
+  insertLocalStoragePersister,
+  insertPaginationPlaceholderData,
+  insertReactOnMutation,
+  mutation,
+  on$,
+  provideHostName,
+  query,
+  queryParam,
+  reactiveWritableSignal,
+  removeMany,
+  removeOne,
+  source$,
+  state,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
@@ -401,28 +401,34 @@ export default class FullDemoCraft {
   private readonly _monitoring = componentMonitoring();
   protected readonly store = injectFullDemo();
 
-  protected updatePageSize = craftMethod('updatePageSize', function* (event: Event) {
-    const value = Number((event.target as HTMLSelectElement).value);
-    const pagination = yield* FullDemoToYield.pagination();
-    pagination.updatePageSize(value);
-  });
+  protected updatePageSize = craftMethod(
+    'updatePageSize',
+    function* (event: Event) {
+      const value = Number((event.target as HTMLSelectElement).value);
+      const pagination = yield* FullDemoToYield.pagination();
+      pagination.updatePageSize(value);
+    },
+  );
+
+  test = injectFullDemo.users.currentPageData();
 }
 
 export type GenDeps_FullDemoCraft = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<FullDemoCraft["_monitoring"]>;
-        store: {
-            FullDemo: ExtractDeps<typeof injectFullDemo>["FullDemo"];
-          };
-        updatePageSize: ExtractDeps<FullDemoCraft["updatePageSize"]>;
-      };
-      provided: {
-        FullDemo: ReturnType<typeof provideFullDemo>;
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<FullDemoCraft>;
-    }>;
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<FullDemoCraft['_monitoring']>;
+    store: {
+      FullDemo: ExtractDeps<typeof injectFullDemo>['FullDemo'];
+    };
+    updatePageSize: ExtractDeps<FullDemoCraft['updatePageSize']>;
+    test: ExtractDeps<FullDemoCraft['test']>;
+  };
+  provided: {
+    FullDemo: ReturnType<typeof provideFullDemo>;
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<FullDemoCraft>;
+}>;

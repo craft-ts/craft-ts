@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -212,6 +212,95 @@ describe('setupCraftServiceTestingByRegister', () => {
     if (false) {
       //@ts-expect-error minimal derived mocks should not expose unused full-service members
       expect(mocks.Counter.decrement).toBeDefined();
+    }
+  });
+
+  it('should allow a minimal mock when a dependency is only used through a nested property shortcut', async () => {
+    const { QueryApiToYield } = craftService(
+      { name: 'QueryApi', scope: 'global' },
+      () => ({
+        userQuery: {
+          isLoading: signal(false),
+          data: signal<string | null>(null),
+        },
+      }),
+    );
+
+    const { injectQueryConsumer, provideQueryConsumer } = craftService(
+      { name: 'QueryConsumer', scope: 'toProvide' },
+      function* () {
+        const isLoading = yield* QueryApiToYield.userQuery.isLoading();
+        return { isLoading };
+      },
+    );
+
+    const mockLoading = signal(true);
+
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
+      injectQueryConsumer,
+      {
+        QueryConsumer: provideQueryConsumer(),
+        QueryApi: {
+          userQuery: { isLoading: mockLoading },
+        },
+      },
+    );
+
+    expect(sut.isLoading).toBe(mockLoading);
+    expect(sut.isLoading()).toBe(true);
+    expect(mocks.QueryApi.userQuery.isLoading).toBe(mockLoading);
+
+    if (false) {
+      //@ts-expect-error data was not used so it is not required or exposed in the mock
+      expect(mocks.QueryApi.userQuery.data).toBeDefined();
+    }
+  });
+
+  it('should require all nested properties that are used in the mock', async () => {
+    const { QueryApiMultiToYield } = craftService(
+      { name: 'QueryApiMulti', scope: 'global' },
+      () => ({
+        userQuery: {
+          isLoading: signal(false),
+          data: signal<string | null>(null),
+        },
+      }),
+    );
+
+    const { injectQueryMultiConsumer, provideQueryMultiConsumer } =
+      craftService(
+        { name: 'QueryMultiConsumer', scope: 'toProvide' },
+        function* () {
+          const isLoading = yield* QueryApiMultiToYield.userQuery.isLoading();
+          const data = yield* QueryApiMultiToYield.userQuery.data();
+          return { isLoading, data };
+        },
+      );
+
+    const mockLoading = signal(true);
+    const mockData = signal<string | null>('hello');
+
+    const { sut, mocks } = await setupCraftServiceTestingByRegister(
+      injectQueryMultiConsumer,
+      {
+        QueryMultiConsumer: provideQueryMultiConsumer(),
+        QueryApiMulti: {
+          userQuery: { isLoading: mockLoading, data: mockData },
+        },
+      },
+    );
+
+    expect(sut.isLoading).toBe(mockLoading);
+    expect(sut.data).toBe(mockData);
+    expect(mocks.QueryApiMulti.userQuery.isLoading).toBe(mockLoading);
+    expect(mocks.QueryApiMulti.userQuery.data).toBe(mockData);
+
+    if (false) {
+      setupCraftServiceTestingByRegister(injectQueryMultiConsumer, {
+        QueryMultiConsumer: provideQueryMultiConsumer(),
+        // @ts-expect-error both isLoading and data are used so both are required in the mock
+        QueryApiMulti: { userQuery: { isLoading: mockLoading } },
+      });
     }
   });
 
@@ -1402,6 +1491,51 @@ describe('setupCraftComponentTestingByRegister', () => {
 
     expect(mocks.ComponentMockedStartup.read()).toBe(41);
     expect(calls).toEqual([]);
+  });
+
+  it('should allow a minimal mock for a component dependency used through a nested inject shortcut', async () => {
+    const mockLoading = signal(true);
+
+    const { injectNestedShortcutQueryApi } = craftService(
+      { name: 'NestedShortcutQueryApi', scope: 'global' },
+      () => ({
+        userQuery: {
+          isLoading: signal(false),
+          data: signal<string | null>(null),
+        },
+      }),
+    );
+
+    @Component({
+      standalone: true,
+      template: '',
+    })
+    class NestedShortcutQueryComponent {
+      readonly isLoading = injectNestedShortcutQueryApi.userQuery.isLoading();
+    }
+
+    type GenDeps_NestedShortcutQueryComponent = GetDeps<{
+      deps: {
+        NestedShortcutQueryApi: GetInjectedServiceDependencies<
+          typeof injectNestedShortcutQueryApi.userQuery.isLoading
+        >;
+      };
+      provided: {};
+      publicProperties: GetPublicComponentProperties<NestedShortcutQueryComponent>;
+    }>;
+
+    const { fixture } = await setupCraftComponentTestingByRegister(
+      NestedShortcutQueryComponent,
+      {} as GenDeps_NestedShortcutQueryComponent,
+      {
+        NestedShortcutQueryApi: {
+          userQuery: { isLoading: mockLoading },
+        },
+      },
+    );
+
+    expect(fixture.componentInstance.isLoading).toBe(mockLoading);
+    expect(fixture.componentInstance.isLoading()).toBe(true);
   });
 
   it('should not require appStart when the component dependency is notReached', async () => {

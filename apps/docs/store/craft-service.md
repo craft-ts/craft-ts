@@ -216,6 +216,116 @@ Use the full `XToYield(bindings, expose)` form when deriving several
 properties, creating aliases, exposing `$self`, using symbol keys, or when a
 service property collides with a native function property such as `name`.
 
+## Inject Single Property Shortcut
+
+The same shortcut notation is available on the `injectX` helper in components
+and directives. Instead of selecting a single property through a selector
+function, use `injectX.property()`:
+
+```typescript
+const { injectUsersApi } = craftService(
+  { name: 'UsersApi', scope: 'global' },
+  () => ({
+    updateUser: (user: { id: string; name: string }) => {},
+    currentUser: signal<{ id: string } | null>(null),
+  }),
+);
+
+@Component({ ... })
+class UserComponent {
+  // equivalent to injectUsersApi(undefined, ({ currentUser }) => ({ currentUser })).currentUser
+  readonly currentUser = injectUsersApi.currentUser();
+}
+```
+
+The result carries the same dependency tracking as any other inject shortcut,
+so testing utilities see exactly which property was accessed.
+
+For method properties on services without public inputs, the shortcut calls the
+method directly:
+
+```typescript
+protected readonly update = injectUsersApi.updateUser({ id: '1', name: 'New' });
+```
+
+## Nested Property Shortcuts
+
+When only a sub-property of a service output is needed, add a second `.property`
+before calling, for both `injectX` and `XToYield`:
+
+```typescript
+const { injectSearchApi, SearchApiToYield } = craftService(
+  { name: 'SearchApi', scope: 'global' },
+  () => ({
+    usersQuery: {
+      isLoading: signal(false),
+      data: signal<string[]>([]),
+    },
+  }),
+);
+
+// In a component
+@Component({ ... })
+class SearchComponent {
+  readonly isLoading = injectSearchApi.usersQuery.isLoading();
+}
+
+// In a service
+const { injectSearchFacade } = craftService(
+  { name: 'SearchFacade', scope: 'global' },
+  function* () {
+    const isLoading = yield* SearchApiToYield.usersQuery.isLoading();
+    return { isLoading };
+  },
+);
+```
+
+The dependency graph records only the accessed nested property
+(`derivedPropertiesUsed: { usersQuery: { isLoading: ... } }`), not the full
+`usersQuery` object. Testing utilities therefore only require the used
+sub-property in mock objects.
+
+The result of `injectX.parent.child()` carries `WithTrackedDependencies` just
+like any other inject helper result, so `ExtractDeps` on a component field built
+from it will correctly surface the service dependency.
+
+## OmitInputs
+
+When a service has public inputs, the no-arg form of a property shortcut is
+intentionally disabled at the type level, because calling without bindings would
+silently use default values and mask a missing dependency:
+
+```typescript
+const { injectCounter, CounterToYield } = craftService(
+  { name: 'Counter', scope: 'function' },
+  (inputs: { initialValue?: MaybeSignal<number> }) => ({
+    count: toValue(inputs.initialValue) ?? 0,
+  }),
+);
+
+// Fine — bindings are explicit
+const count = injectCounter.count({ initialValue: signal(5) });
+
+// Type error — no-arg call is forbidden when inputs exist
+// injectCounter.count();
+```
+
+Use `injectX.OmitInputs.property()` or `XToYield.OmitInputs.property()` to
+explicitly opt out of input bindings and use the defaults:
+
+```typescript
+const count = injectCounter.OmitInputs.count();
+const count2 = yield * CounterToYield.OmitInputs.count();
+```
+
+`OmitInputs` is purely a type-level gate — at runtime it is transparent.
+
+`OmitInputs` composes with nested shortcuts:
+
+```typescript
+const isLoading = injectCounter.OmitInputs.userQuery.isLoading();
+```
+
 ## Partial Exposure
 
 `yield* XToYield()` can expose only the part of a dependency that should remain public.
