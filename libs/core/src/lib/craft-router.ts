@@ -29,7 +29,6 @@ type CraftRouterRoutesRegistryKey = Extract<
   string
 >;
 
-
 type RegisteredRouteMetaData =
   CraftRouterRoutesRegistry[CraftRouterRoutesRegistryKey] extends infer Routes
     ? Routes extends readonly unknown[]
@@ -178,11 +177,13 @@ type CraftRouterInputWithOptionalQueryParams = {
 type CraftRouterInputExtras = CraftRouterInputWithOptionalQueryParams &
   NavigationExtras;
 
-const {
-  injectCraftRouter: injectCraftRouterInternal,
-  provideCraftRouter,
-  CraftRouterToYield: CraftRouterToYieldInternal,
-} = toCraftService(
+// The `toCraftService` return type references internal Angular symbols
+// (`SIGNAL`, `[iterator]`, `[unscopables]`) that ng-packagr cannot serialize to
+// `.d.ts` (TS4023/TS4118). Cast through `unknown` and re-shape the destructured
+// locals as opaque `Function` so declaration emit only sees a serializable
+// shape. The exported `injectCraftRouter`/`CraftRouterToYield` below re-cast
+// through `as unknown as ...`, so the lost typing here doesn't reach consumers.
+const _routerService = toCraftService(
   {
     name: 'CraftRouter',
     scope: 'manuallyProvidedAtRoot',
@@ -190,14 +191,24 @@ const {
     provide: provideRouter,
   },
   (router): Router => createCraftRouter(router),
-);
+) as unknown as {
+  injectCraftRouter: Function;
+  provideCraftRouter: Function;
+  CraftRouterToYield: Function;
+};
+
+const injectCraftRouterInternal = _routerService.injectCraftRouter;
+const provideCraftRouter = _routerService.provideCraftRouter;
+const CraftRouterToYieldInternal = _routerService.CraftRouterToYield;
 
 // We can't reach the request type via `ReturnType<typeof CraftRouterToYieldInternal>`
 // because it picks the LAST overload (`<Exposed, Yielded>(...)`), whose
 // generator's yield collapses to `unknown` when the generics are unbound.
 // `GetServiceYields` extracts the proper `ServiceYieldRequest<...>` (and
 // `ExposureYield<...>`) union from the helper's tracked metadata directly.
-type CraftRouterYieldRequest = GetServiceYields<typeof CraftRouterToYieldInternal>;
+type CraftRouterYieldRequest = GetServiceYields<
+  typeof CraftRouterToYieldInternal
+>;
 
 type StructuralRouteParamsField<Path extends string> = [
   PathParamNames<Path>,
@@ -255,7 +266,6 @@ type CraftRouterCraftMethodShortcuts = {
     input: Input & CraftRouterNavigationInput<Input['to']>,
   ) => Generator<CraftRouterYieldRequest, Promise<boolean>, unknown>;
 };
-
 
 type RouterPropertyShortcut<Value> = Value extends (
   ...args: infer Args

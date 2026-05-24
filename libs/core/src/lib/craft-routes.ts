@@ -4,11 +4,15 @@ import {
   Injector,
   isSignal,
   runInInjectionContext,
+  signal,
   type Signal,
+  type WritableSignal,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import {
   ActivatedRoute,
+  RedirectCommand,
+  UrlTree,
   type ActivatedRouteSnapshot,
   type CanActivateFn,
   type CanMatchFn,
@@ -20,7 +24,7 @@ import {
   type RouterStateSnapshot,
   type UrlSegment,
 } from '@angular/router';
-import { Observable, filter, isObservable, take, throwIfEmpty } from 'rxjs';
+import { Observable, filter, isObservable, map, take, throwIfEmpty } from 'rxjs';
 import type { ExtractDeps } from './branded-component/branded-component';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
@@ -143,6 +147,16 @@ type RouteCollectionQueryParamsServiceName<
   Name extends string,
   Path extends string,
 > = `${RouteCollectionServiceName<Name>}${RouteQueryParamsServiceName<Path>}`;
+type RouteGuardedDataServiceName<Path extends string> =
+  `${RouteBaseServiceName<Path>}GuardedData`;
+type RouteCollectionGuardedDataServiceName<
+  Name extends string,
+  Path extends string,
+> = `${RouteCollectionServiceName<Name>}${RouteGuardedDataServiceName<Path>}`;
+type RouteGuardedDataInjectHelperName<
+  Name extends string,
+  Path extends string,
+> = InjectHelperName<RouteCollectionGuardedDataServiceName<Name, Path>>;
 type RouteCollectionExportName<Name extends string> = Uncapitalize<
   RouteCollectionServiceName<Name>
 >;
@@ -209,6 +223,34 @@ type RouteQueryParamsOutput<RouteDefinition> = RouteDefinition extends {
 }
   ? ResolveGeneratorResult<Result>
   : never;
+
+type UnwrapCanActivateReturn<T> = T extends Generator<any, infer Output, any>
+  ? UnwrapCanActivateReturn<Output>
+  : T extends Promise<infer Inner>
+    ? UnwrapCanActivateReturn<Inner>
+    : T extends Observable<infer Inner>
+      ? UnwrapCanActivateReturn<Inner>
+      : T extends Signal<infer Inner>
+        ? UnwrapCanActivateReturn<Inner>
+        : T;
+
+type ExtractCanActivateGuardData<Guard> = Guard extends (
+  ...args: any[]
+) => infer Result
+  ? Exclude<
+      UnwrapCanActivateReturn<Result>,
+      boolean | UrlTree | RedirectCommand | undefined | null
+    >
+  : never;
+
+type RouteGuardedDataOutput<RouteDefinition> =
+  RouteDefinition extends { canActivate?: infer Guard }
+    ? [Guard] extends [undefined]
+      ? never
+      : [ExtractCanActivateGuardData<Guard>] extends [never]
+        ? never
+        : Signal<ExtractCanActivateGuardData<Guard>>
+    : never;
 
 type RouteQueryParamsStateConfig<RouteDefinition> =
   RouteQueryParamsOutput<RouteDefinition> extends {
@@ -481,7 +523,13 @@ type RouteAutoProvidedServiceNames<
           RouteCollectionName,
           RoutePath<RouteDefinition>
         >
-      : never);
+      : never)
+  | ([RouteGuardedDataOutput<RouteDefinition>] extends [never]
+      ? never
+      : RouteCollectionGuardedDataServiceName<
+          RouteCollectionName,
+          RoutePath<RouteDefinition>
+        >);
 
 type StripRouteProvidedDependency<
   Dependency,
@@ -513,9 +561,10 @@ type StripRouteProvidedDepsMap<
 
 type CraftRouteCanActivateResult =
   | GuardResult
-  | Promise<GuardResult>
-  | Observable<GuardResult | undefined>
-  | Signal<GuardResult | undefined>;
+  | object
+  | Promise<GuardResult | object>
+  | Observable<GuardResult | object | undefined>
+  | Signal<GuardResult | object | undefined>;
 
 type CraftRouteCanActivateGuard = (
   route: ActivatedRouteSnapshot,
@@ -809,6 +858,7 @@ type AnyCraftRouteHelperDefinition = {
   data?: Data;
   paramsProvider?: (...args: any[]) => Record<string, unknown>;
   queryParams?: RouteQueryParamsFactory;
+  canActivate?: CraftRouteCanActivateGuard;
 };
 
 type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
@@ -837,6 +887,11 @@ type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
           ? {
               queryParams: QueryParams;
             }
+          : {}) &
+        (RouteDefinition extends {
+          canActivate: infer Guard extends CraftRouteCanActivateGuard;
+        }
+          ? { canActivate: Guard }
           : {})
     >
   : never;
@@ -1194,6 +1249,35 @@ type QueryParamsInjectHelpers<
   >
 >;
 
+type GuardedDataInjectHelpers<
+  Name extends string,
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
+> = Simplify<
+  MergeObjectUnion<
+    Routes[number] extends infer RouteDefinition
+      ? RouteDefinition extends { canActivate: CraftRouteCanActivateGuard }
+        ? [RouteGuardedDataOutput<RouteDefinition>] extends [never]
+          ? never
+          : {
+              [Key in RouteGuardedDataInjectHelperName<
+                Name,
+                RoutePath<RouteDefinition>
+              >]: CraftRouteValueServiceApi<
+                RouteCollectionGuardedDataServiceName<
+                  Name,
+                  RoutePath<RouteDefinition>
+                >,
+                RouteGuardedDataOutput<RouteDefinition>
+              >[RouteGuardedDataInjectHelperName<
+                Name,
+                RoutePath<RouteDefinition>
+              >];
+            }
+        : never
+      : never
+  >
+>;
+
 type CraftRoutePathRegistryEntry<
   RouteDefinition,
   ResolvedPath extends string,
@@ -1318,7 +1402,8 @@ type CraftRoutesSuccessResult<
     [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name>;
   } & ParamInjectHelpers<Name, RoutesHelperShape<Routes>> &
     DataInjectHelpers<Name, RoutesHelperShape<Routes>> &
-    QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>>
+    QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>> &
+    GuardedDataInjectHelpers<Name, RoutesHelperShape<Routes>>
 >;
 
 export type CraftRoutesResult<
@@ -1442,6 +1527,24 @@ function toGuardServiceName(
   guardKind: string,
 ): string {
   return `craftRoutes${toRouteCollectionServiceName(routeCollectionName)}${routeIndex}${guardKind}`;
+}
+
+function toRouteGuardedDataServiceName(path: string): string {
+  return `${toRouteBaseServiceName(path)}GuardedData`;
+}
+
+function toRouteCollectionGuardedDataServiceName(
+  routeCollectionName: string,
+  routePath: string,
+): string {
+  return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteGuardedDataServiceName(routePath)}`;
+}
+
+function toGuardedDataInjectHelperName(
+  routeCollectionName: string,
+  routePath: string,
+): string {
+  return `inject${toRouteCollectionGuardedDataServiceName(routeCollectionName, routePath)}`;
 }
 
 function findActivatedRouteByPath(
@@ -1638,11 +1741,25 @@ function createGuardExecutor<Inputs extends object, Output>(
   return injectGuard as (inputs: Inputs) => Output;
 }
 
+function resolveGuardData(
+  value: unknown,
+  dataHolder: WritableSignal<unknown> | null,
+): GuardResult | undefined {
+  if (typeof value === 'boolean') return value;
+  if (value === null || value === undefined) return undefined;
+  if (value instanceof UrlTree) return value;
+  if (value instanceof RedirectCommand) return value;
+  dataHolder?.set(value);
+  return true;
+}
+
 function createPendingGuardResult(
-  source: Observable<GuardResult | undefined>,
+  source: Observable<unknown>,
   routePath: string,
+  dataHolder: WritableSignal<unknown> | null,
 ): Observable<GuardResult> {
   return source.pipe(
+    map((value) => resolveGuardData(value, dataHolder)),
     filter((value): value is GuardResult => value !== undefined),
     take(1),
     throwIfEmpty(
@@ -1670,28 +1787,31 @@ function assertCanActivateResult(
 function normalizeCanActivateResult(
   result: unknown,
   routePath: string,
+  dataHolder: WritableSignal<unknown> | null,
 ): MaybeAsync<GuardResult> {
   if (isSignal(result)) {
     return createPendingGuardResult(
-      toObservable(result as Signal<GuardResult | undefined>),
+      toObservable(result as Signal<unknown>),
       routePath,
+      dataHolder,
     );
   }
 
   if (isObservable(result)) {
     return createPendingGuardResult(
-      result as Observable<GuardResult | undefined>,
+      result as Observable<unknown>,
       routePath,
+      dataHolder,
     );
   }
 
   if (isPromiseLike(result)) {
     return Promise.resolve(result).then((value) =>
-      assertCanActivateResult(value as GuardResult | undefined, routePath),
+      assertCanActivateResult(resolveGuardData(value, dataHolder), routePath),
     );
   }
 
-  return assertCanActivateResult(result as GuardResult | undefined, routePath);
+  return assertCanActivateResult(resolveGuardData(result, dataHolder), routePath);
 }
 
 function normalizeCanMatchResult(
@@ -1730,6 +1850,7 @@ function createCanActivateGuard(
   routePath: string,
   routeIndex: number,
   guard: CraftRouteCanActivateGuard,
+  guardDataSignal: WritableSignal<unknown> | null,
 ): CanActivateFn {
   const executeGuard = createGuardExecutor(
     toGuardServiceName(routeCollectionName, routeIndex, 'CanActivateGuard'),
@@ -1738,7 +1859,11 @@ function createCanActivateGuard(
   );
 
   return (route, state) =>
-    normalizeCanActivateResult(executeGuard({ route, state }), routePath);
+    normalizeCanActivateResult(
+      executeGuard({ route, state }),
+      routePath,
+      guardDataSignal,
+    );
 }
 
 function createCanMatchGuard(
@@ -1802,6 +1927,16 @@ export function craftRoutes<
           route.path,
         ),
         toQueryParamsInjectHelperName(routeCollectionName, route.path),
+      );
+    }
+
+    if (route.canActivate !== undefined) {
+      registerRouteValueService(
+        toRouteCollectionGuardedDataServiceName(
+          routeCollectionName,
+          route.path,
+        ),
+        toGuardedDataInjectHelperName(routeCollectionName, route.path),
       );
     }
   }
@@ -1925,6 +2060,29 @@ export function craftRoutes<
       }
     }
 
+    let guardDataSignal: WritableSignal<unknown> | null = null;
+
+    if (route.canActivate !== undefined) {
+      const guardDataServiceName = toRouteCollectionGuardedDataServiceName(
+        routeCollectionName,
+        route.path,
+      );
+      const routeService = routeValueServices.get(guardDataServiceName);
+
+      if (routeService) {
+        guardDataSignal = signal<unknown>(undefined);
+        const capturedSignal = guardDataSignal;
+
+        autoProviders.push(
+          provideRouteValueService(
+            guardDataServiceName,
+            routeService,
+            () => capturedSignal,
+          ),
+        );
+      }
+    }
+
     const {
       canActivate,
       canMatch,
@@ -1940,6 +2098,7 @@ export function craftRoutes<
           route.path,
           routeIndex,
           canActivate,
+          guardDataSignal,
         )
       : undefined;
     const wrappedCanMatch = canMatch

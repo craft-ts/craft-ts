@@ -32,7 +32,13 @@ import {
   type RouterStateSnapshot,
   type UrlSegment,
 } from '@angular/router';
-import { BehaviorSubject, combineLatest, firstValueFrom, map } from 'rxjs';
+import {
+  BehaviorSubject,
+  combineLatest,
+  firstValueFrom,
+  map,
+  type Observable,
+} from 'rxjs';
 import {
   beforeAll,
   beforeEach,
@@ -43,6 +49,7 @@ import {
   vi,
 } from 'vitest';
 import { Console, injectConsoleService } from './browser-boundaries';
+import { FN_WRAPPER } from './fn-wrapper';
 import { craftMethod } from './craft-method';
 import {
   craftService,
@@ -211,6 +218,10 @@ function createRouteInjector(
       {
         provide: SERVICE_RUNTIME_OVERRIDES,
         useValue: new Map(),
+      },
+      {
+        provide: FN_WRAPPER,
+        useValue: [],
       },
       ...flattenProviders(providers),
     ] as never[],
@@ -1701,7 +1712,9 @@ describe('craftRoutes', () => {
     // App component node injector: HOST_TAG_LIST = ['component:App']
     // Its node injector chain shadows the route injector for HOST_TAG_LIST lookups
     const appComponentInjector = Injector.create({
-      providers: [...flattenProviders(provideHostName('component:App'))] as never[],
+      providers: [
+        ...flattenProviders(provideHostName('component:App')),
+      ] as never[],
     });
 
     // Routed component injector:
@@ -1718,7 +1731,10 @@ describe('craftRoutes', () => {
 
     // ɵcreateHostTaggedInjector is what craftMethod uses internally; calling it directly
     // lets us assert the merged HOST_TAG_LIST without needing TestBed or browser services.
-    const methodInjector = ɵcreateHostTaggedInjector(routedComponentInjector, 'method:load');
+    const methodInjector = ɵcreateHostTaggedInjector(
+      routedComponentInjector,
+      'method:load',
+    );
 
     expect(methodInjector.get(HOST_TAG_LIST)).toEqual([
       'component:App',
@@ -2010,6 +2026,177 @@ describe('craftRoutes', () => {
     ).toThrow(
       'Route "guard" canActivate guard must not synchronously return undefined.',
     );
+  });
+
+  describe('guardedData', () => {
+    type User = { id: number; name: string };
+
+    it('should expose typed inject helper when guard returns User | false', () => {
+      const { appRoutes: _appRoutes, injectAppDashboardGuardedData } =
+        craftRoutes('app', [
+          {
+            path: 'dashboard',
+            loadComponent: async () => null as unknown as Type<unknown>,
+            componentDeps: {},
+            canActivate: (): User | false => ({ id: 1, name: 'Alice' }),
+          },
+        ]);
+
+      expectTypeOf(injectAppDashboardGuardedData).toEqualTypeOf<
+        CraftRouteInjectHelper<'AppDashboardGuardedData', Signal<User>>
+      >();
+    });
+
+    it('should not expose inject helper when guard returns only boolean', () => {
+      const routes = craftRoutes('app', [
+        {
+          path: 'dashboard',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {},
+          canActivate: (): boolean => true,
+        },
+      ]);
+
+      // @ts-expect-error no guarded data inject helper when guard returns only boolean
+      routes.injectAppDashboardGuardedData;
+    });
+
+    it('should set guard data signal when sync guard returns an object', () => {
+      const { appRoutes, injectAppDashboardGuardedData } = craftRoutes('app', [
+        {
+          path: 'dashboard',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {},
+          canActivate: (): User | false => ({ id: 42, name: 'Alice' }),
+        },
+      ]);
+
+      const routeConfig = appRoutes.toRoutes()[0];
+      const activatedRoute = createActivatedRouteStub();
+      const injector = createRouteInjector(
+        routeConfig.providers,
+        activatedRoute.route,
+      );
+      const canActivate = getCanActivateGuard(routeConfig);
+
+      const guardResult = runInInjectionContext(injector, () =>
+        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+      );
+
+      expect(guardResult).toBe(true);
+
+      const guardData = runInInjectionContext(injector, () =>
+        injectAppDashboardGuardedData(),
+      );
+
+      expectTypeOf(guardData).toEqualTypeOf<Signal<User>>();
+      expect(guardData()).toEqual({ id: 42, name: 'Alice' });
+    });
+
+    it('should set guard data signal when generator guard yields services and returns an object', () => {
+      const { AuthToYield, provideAuth } = craftService(
+        { name: 'Auth', scope: 'toProvide' },
+        () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
+      );
+
+      const { appRoutes, injectAppDashboardGuardedData } = craftRoutes('app', [
+        {
+          path: 'dashboard',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {},
+          providers: [provideAuth()],
+          canActivate: function* () {
+            const auth = yield* AuthToYield();
+            return auth.currentUser;
+          },
+        },
+      ]);
+
+      const routeConfig = appRoutes.toRoutes()[0];
+      const activatedRoute = createActivatedRouteStub();
+      const injector = createRouteInjector(
+        routeConfig.providers,
+        activatedRoute.route,
+      );
+      const canActivate = getCanActivateGuard(routeConfig);
+
+      const guardResult = runInInjectionContext(injector, () =>
+        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+      );
+
+      expect(guardResult).toBe(true);
+
+      const guardData = runInInjectionContext(injector, () =>
+        injectAppDashboardGuardedData(),
+      );
+
+      expect(guardData()).toEqual({ id: 7, name: 'Bob' });
+    });
+
+    it('should set guard data signal when Observable guard emits an object', async () => {
+      const subject = new BehaviorSubject<User | false | undefined>(undefined);
+
+      const { appRoutes, injectAppDashboardGuardedData } = craftRoutes('app', [
+        {
+          path: 'dashboard',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {},
+          canActivate: () => subject.asObservable(),
+        },
+      ]);
+
+      const routeConfig = appRoutes.toRoutes()[0];
+      const activatedRoute = createActivatedRouteStub();
+      const injector = createRouteInjector(
+        routeConfig.providers,
+        activatedRoute.route,
+      );
+      const canActivate = getCanActivateGuard(routeConfig);
+
+      const result = runInInjectionContext(injector, () =>
+        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+      );
+
+      const guardPromise = firstValueFrom(result as any);
+
+      subject.next({ id: 99, name: 'Carol' });
+
+      expect(await guardPromise).toBe(true);
+
+      const guardData = runInInjectionContext(injector, () =>
+        injectAppDashboardGuardedData(),
+      );
+
+      expect(guardData()).toEqual({ id: 99, name: 'Carol' });
+    });
+
+    it('should block navigation when guard returns false and not crash', () => {
+      const { appRoutes, injectAppDashboardGuardedData: _inject } = craftRoutes(
+        'app',
+        [
+          {
+            path: 'dashboard',
+            loadComponent: async () => null as unknown as Type<unknown>,
+            componentDeps: {},
+            canActivate: (): User | false => false,
+          },
+        ],
+      );
+
+      const routeConfig = appRoutes.toRoutes()[0];
+      const activatedRoute = createActivatedRouteStub();
+      const injector = createRouteInjector(
+        routeConfig.providers,
+        activatedRoute.route,
+      );
+      const canActivate = getCanActivateGuard(routeConfig);
+
+      const guardResult = runInInjectionContext(injector, () =>
+        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+      );
+
+      expect(guardResult).toBe(false);
+    });
   });
 });
 
@@ -2573,7 +2760,7 @@ describe('AppRoutes.META_DATA', () => {
       };
     }>;
 
-    const childRoutes = craftRoutes('child', [
+    const { childRoutes: loadableChildRoutes } = craftRoutes('child', [
       {
         path: 'details',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -2586,7 +2773,7 @@ describe('AppRoutes.META_DATA', () => {
         data: {
           sectionTitle: 'Users',
         },
-        loadChildren: () => childRoutes.details,
+        loadChildren: () => loadableChildRoutes,
         providers: [provideCounter()],
       },
     ]);
@@ -2595,6 +2782,12 @@ describe('AppRoutes.META_DATA', () => {
       readonly [
         {
           path: 'users/:userId';
+        },
+        {
+          path: 'users/:userId/details';
+          deps: {};
+          provided: {};
+          publicProperties: {};
         },
       ]
     >();
