@@ -1,4 +1,4 @@
-import { craftRoutes, queryParam } from '@craft-ng/core';
+import { craftRoutes, craftService, query, queryParam } from '@craft-ng/core';
 
 export const {
   demoRoutes,
@@ -17,6 +17,13 @@ export const {
     componentDeps:
       {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
     loadComponent: () => import('./examples/primitives/query/query'),
+    canActivate: function* () {
+      const user = yield* AuthToYield();
+      if (!user) {
+        return false;
+      }
+      return user;
+    },
   },
   {
     path: 'mutation/:userId',
@@ -178,3 +185,14 @@ declare module '@craft-ng/core' {
     Demo: typeof demoRoutes.META_PATHS;
   }
 }
+
+type User = {
+  name: string;
+};
+
+const { AuthToYield } = craftService({ name: 'Auth', scope: 'global' }, () => {
+  return query({
+    params: () => true,
+    loader: async () => ({}) as User,
+  });
+});

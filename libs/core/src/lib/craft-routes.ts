@@ -913,7 +913,11 @@ type CraftRouteComponentTarget =
 type CraftRouteLoadChildrenCallback<
   Routes extends readonly AnyCraftRouteDefinition[],
   Name extends string = string,
-> = () => CraftRoutesApp<Routes, Name> | Promise<CraftRoutesApp<Routes, Name>>;
+> = () =>
+  | CraftRoutesApp<Routes, Name>
+  | Promise<CraftRoutesApp<Routes, Name>>
+  | Route[]
+  | Promise<Route[]>;
 
 type CraftRouteOptionalLoadChildrenTarget<
   ChildRoutes extends
@@ -1713,13 +1717,17 @@ function createLoadChildren(
 ): NonNullable<Route['loadChildren']> {
   return () =>
     Promise.resolve(loadChildren()).then((childRoutes) => {
-      if (!isCraftRoutesApp(childRoutes)) {
-        throw new Error(
-          `Route "${routePath}" loadChildren must return a craftRoutes routes object.`,
-        );
+      if (isCraftRoutesApp(childRoutes)) {
+        return childRoutes.toRoutes();
       }
 
-      return childRoutes.toRoutes();
+      if (Array.isArray(childRoutes)) {
+        return childRoutes as Route[];
+      }
+
+      throw new Error(
+        `Route "${routePath}" loadChildren must return a craftRoutes routes object or an Angular Route array.`,
+      );
     });
 }
 

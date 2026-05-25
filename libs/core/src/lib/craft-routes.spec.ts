@@ -644,6 +644,78 @@ describe('craftRoutes', () => {
     expect(lazyRoutes?.[0]?.path).toBe('details/:teamId');
   });
 
+  it('should accept plain Angular Route[] from loadChildren and defer execution', async () => {
+    let loaded = false;
+    const plainRoutes: Route[] = [{ path: 'child', children: [] }];
+    const { parentRoutes: appRoutes } = craftRoutes('parent', [
+      {
+        path: 'profile',
+        loadChildren: () => {
+          loaded = true;
+          return plainRoutes;
+        },
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+
+    expect(loaded).toBe(false);
+    expect(routeConfig.loadChildren).toBeTypeOf('function');
+
+    const result = await routeConfig.loadChildren?.();
+
+    expect(loaded).toBe(true);
+    expect(result).toEqual(plainRoutes);
+  });
+
+  it('should accept plain Angular Route[] wrapped in a Promise from loadChildren', async () => {
+    const plainRoutes: Route[] = [{ path: 'async-child', children: [] }];
+    const { parentRoutes: appRoutes } = craftRoutes('parent', [
+      {
+        path: 'profile',
+        loadChildren: () => Promise.resolve(plainRoutes),
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+    const result = await routeConfig.loadChildren?.();
+
+    expect(result).toEqual(plainRoutes);
+  });
+
+  it('should support canActivate generator alongside plain Angular loadChildren', () => {
+    const { AuthToYield, provideAuth } = craftService(
+      { name: 'Auth', scope: 'toProvide' },
+      () => ({ currentUser: { id: 1 } }),
+    );
+    const plainRoutes: Route[] = [{ path: 'child', children: [] }];
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      {
+        path: 'profile',
+        providers: [provideAuth()],
+        loadChildren: () => plainRoutes,
+        canActivate: function* () {
+          const auth = yield* AuthToYield();
+          return !!auth.currentUser;
+        },
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub();
+    const injector = createRouteInjector(
+      routeConfig.providers,
+      activatedRoute.route,
+    );
+    const canActivate = getCanActivateGuard(routeConfig);
+
+    const result = runInInjectionContext(injector, () =>
+      canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+    );
+
+    expect(result).toBe(true);
+  });
+
   it('should resolve params from the matching child ActivatedRoute in lazy contexts', () => {
     const {
       testRoutes: appRoutes,
