@@ -1,0 +1,18 @@
+{
+  "name": "@craft-ng/runtime-dev-tools",
+  "version": "0.0.1",
+  "description": "Runtime DevTools panel for craft-ng — timeline, state tree, query inspector, error log",
+  "author": "Romain Geffrault",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ng-angular-stack/ng-craft.git"
+  },
+  "keywords": ["angular", "devtools", "craft-ng", "signals"],
+  "peerDependencies": {
+    "@angular/core": "^21.0.0",
+    "@craft-ng/core": "*",
+    "rxjs": "^7.0.0"
+  },
+  "sideEffects": false
+}

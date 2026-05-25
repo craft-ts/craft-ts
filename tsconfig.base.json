@@ -17,7 +17,8 @@
     "paths": {
       "@craft-ng/core": ["libs/core/src/index.ts"],
       "test-type": ["libs/test-type/src/index.ts"],
-      "@craft-ng/dev-tools": ["libs/dev-tools/src/index.ts"]
+      "@craft-ng/dev-tools": ["libs/dev-tools/src/index.ts"],
+      "@craft-ng/runtime-dev-tools": ["libs/runtime-dev-tools/src/index.ts"]
     }
   }
 }

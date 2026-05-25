@@ -15,6 +15,7 @@ import {
   provideTakeAppSnapshot,
   ɵHOST_TAG_LIST,
 } from '@craft-ng/core';
+import { provideCraftDevTools } from '@craft-ng/runtime-dev-tools';
 import { demoRoutes } from './app.routes';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
 
@@ -58,5 +59,6 @@ export const appConfig = craftAppConfig({
     // TODO RENAME
     // eslint-disable-next-line craft-ng/prefer-browser-boundaries
     provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
+    provideCraftDevTools(),
   ],
 });
