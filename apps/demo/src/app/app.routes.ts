@@ -1,4 +1,12 @@
-import { craftRoutes, craftService, query, queryParam } from '@craft-ng/core';
+import {
+  craftRoutes,
+  craftService,
+  query,
+  queryParam,
+  type CanRun,
+  type ValidateCascadeRoutesFile,
+} from '@craft-ng/core';
+import type { Router } from '@angular/router';
 
 export const {
   demoRoutes,
@@ -185,6 +193,22 @@ declare module '@craft-ng/core' {
     Demo: typeof demoRoutes.META_PATHS;
   }
 }
+
+// Cascade DI check — one alias for the whole route file (no per-component boilerplate).
+// Route-level providers are already stripped from META_DATA[N].missingProvider
+// by craftRoutes; only the app-level context needs to be passed here.
+// Cascade DI check — one alias for the whole route file (no per-component boilerplate).
+// AppProvidedNames: none (all global services use scope:'global', no explicit named providers).
+// AppProvidedValues: Router (provided by value via provideCraftRouter).
+// Note: AppProvidedServiceNamesOf<typeof appConfig> hits TS2589 for this app because
+// the demo providers (fn wrappers, monitoring, etc.) are too complex for TypeScript
+// to evaluate in a generic constraint. Listing the value types explicitly is the workaround.
+type _CheckDemoDI = ValidateCascadeRoutesFile<
+  never,
+  Router,
+  typeof demoRoutes
+>;
+type _CanRunDemo = CanRun<_CheckDemoDI>;
 
 type User = {
   name: string;

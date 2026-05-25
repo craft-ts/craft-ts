@@ -207,6 +207,10 @@ export type CraftAppConfigResult<
 > = {
   readonly providers: readonly AngularApplicationProvider[];
   readonly APP_CONFIG_META_DATA: CraftAppConfigMetaData<RoutingDeps, Providers>;
+  /** @internal phantom — lets `AppProvidedServiceNamesOf` skip `APP_CONFIG_META_DATA` */
+  readonly __craftAppProvidedServiceNames__?: ConfigProvidedServiceNames<Providers>;
+  /** @internal phantom — lets `AppProvidedDependencyValuesOf` skip `APP_CONFIG_META_DATA` */
+  readonly __craftAppProvidedDependencyValues__?: AppProvidedDependencyValues<Providers>;
 };
 
 export function craftAppConfig<const RoutingDeps extends readonly unknown[]>(

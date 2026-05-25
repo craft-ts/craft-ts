@@ -1,24 +1,24 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-    CraftRouterToYield,
-    componentMonitoring,
-    craftMethod,
-    craftService,
-    insertLocalStoragePersister,
-    insertReactOnMutation,
-    mutation,
-    provideHostName,
-    query,
-    toValue,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties,
-    type MaybeSignal
+  CraftRouterToYield,
+  componentMonitoring,
+  craftMethod,
+  craftService,
+  insertLocalStoragePersister,
+  insertReactOnMutation,
+  mutation,
+  provideHostName,
+  query,
+  toValue,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
+  type MaybeSignal,
 } from '@craft-ng/core';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
@@ -62,7 +62,10 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
 @Component({
   selector: 'app-mutation',
   imports: [JsonPipe, StatusComponent],
-  providers: [provideUserMutation(), provideHostName('component:MutationCraft')],
+  providers: [
+    provideUserMutation(),
+    provideHostName('component:MutationCraft'),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['mutation.css'],
   template: `
@@ -100,17 +103,20 @@ export default class MutationCraft {
     userId: this.userId,
   });
 
-  protected updateUserNameFn = craftMethod('updateUserNameFn', function* (newName: string) {
-    const { user, updateUserName } = yield* UserMutationToYield(
-      undefined,
-      ({ user, updateUserName }) => ({ user, updateUserName }),
-    );
-    const userValue = user.hasValue() ? user.value() : null;
-    if (!userValue) {
-      return;
-    }
-    updateUserName.mutate({ userName: newName, user: userValue });
-  });
+  protected updateUserNameFn = craftMethod(
+    'updateUserNameFn',
+    function* (newName: string) {
+      const { user, updateUserName } = yield* UserMutationToYield(
+        undefined,
+        ({ user, updateUserName }) => ({ user, updateUserName }),
+      );
+      const userValue = user.hasValue() ? user.value() : null;
+      if (!userValue) {
+        return;
+      }
+      updateUserName.mutate({ userName: newName, user: userValue });
+    },
+  );
 
   protected nextPage = craftMethod('nextPage', this, function* () {
     const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
@@ -138,23 +144,23 @@ export default class MutationCraft {
 }
 
 export type GenDeps_MutationCraft = GetDeps<{
-      deps: {
-        JsonPipe: JsonPipe;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<MutationCraft["_monitoring"]>;
-        userId: ExtractDeps<MutationCraft["userId"]>;
-        store: {
-            UserMutation: ExtractDeps<typeof injectUserMutation>["UserMutation"];
-          };
-        updateUserNameFn: ExtractDeps<MutationCraft["updateUserNameFn"]>;
-        nextPage: ExtractDeps<MutationCraft["nextPage"]>;
-        previousPage: ExtractDeps<MutationCraft["previousPage"]>;
-      };
-      provided: {
-        UserMutation: ReturnType<typeof provideUserMutation>;
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<MutationCraft>;
-    }>;
+  deps: {
+    JsonPipe: JsonPipe;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<MutationCraft['_monitoring']>;
+    userId: ExtractDeps<MutationCraft['userId']>;
+    store: {
+      UserMutation: ExtractDeps<typeof injectUserMutation>['UserMutation'];
+    };
+    updateUserNameFn: ExtractDeps<MutationCraft['updateUserNameFn']>;
+    nextPage: ExtractDeps<MutationCraft['nextPage']>;
+    previousPage: ExtractDeps<MutationCraft['previousPage']>;
+  };
+  provided: {
+    UserMutation: ReturnType<typeof provideUserMutation>;
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<MutationCraft>;
+}>;

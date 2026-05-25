@@ -62,3 +62,4 @@ export const appConfig = craftAppConfig({
     provideCraftDevTools(),
   ],
 });
+
