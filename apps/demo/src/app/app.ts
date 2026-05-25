@@ -1,16 +1,16 @@
 import { Component } from '@angular/core';
 import { RouterLinkActive, RouterOutlet, type Router } from '@angular/router';
 import {
-    BrowserLocation,
-    BrowserWindow,
-    componentMonitoring,
-    craftMethod,
-    CraftRouterLink,
-    GlobalPersisterHandlerServiceToYield,
-    provideHostName,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  BrowserLocation,
+  BrowserWindow,
+  componentMonitoring,
+  craftMethod,
+  CraftRouterLink,
+  GlobalPersisterHandlerServiceToYield,
+  provideHostName,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
 @Component({
@@ -318,21 +318,21 @@ export class App {
 }
 
 export type GenDeps_App = GetDeps<{
-      deps: {
-        RouterOutlet: RouterOutlet;
-        RouterLinkActive: RouterLinkActive;
-        Router: Router;
-        CraftRouterLink: CraftRouterLink;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<App["_monitoring"]>;
-        clearCache: ExtractDeps<App["clearCache"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<App>;
-      missingProvider: {
-        Router: Router;
-      };
-    }>;
+  deps: {
+    RouterOutlet: RouterOutlet;
+    RouterLinkActive: RouterLinkActive;
+    Router: Router;
+    CraftRouterLink: CraftRouterLink;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<App['_monitoring']>;
+    clearCache: ExtractDeps<App['clearCache']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<App>;
+  missingProvider: {
+    Router: Router;
+  };
+}>;

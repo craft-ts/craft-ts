@@ -239,14 +239,9 @@ export type RouteCheckedDI<
  */
 export type AppProvidedServiceNamesOf<AppConfigResult> =
   AppConfigResult extends {
-    APP_CONFIG_META_DATA: infer Meta;
+    readonly [Key in AppConfigProvidedServiceNamesKey]?: infer Names extends string;
   }
-    ? Meta extends {
-        readonly [Key in AppConfigProvidedServiceNamesKey]?: infer Names extends
-          string;
-      }
-      ? Names
-      : never
+    ? Names
     : never;
 
 /**
@@ -258,13 +253,9 @@ export type AppProvidedServiceNamesOf<AppConfigResult> =
  */
 export type AppProvidedDependencyValuesOf<AppConfigResult> =
   AppConfigResult extends {
-    APP_CONFIG_META_DATA: infer Meta;
+    readonly [Key in AppConfigProvidedDependencyValuesKey]?: infer Values;
   }
-    ? Meta extends {
-        readonly [Key in AppConfigProvidedDependencyValuesKey]?: infer Values;
-      }
-      ? Values
-      : never
+    ? Values
     : never;
 
 /**

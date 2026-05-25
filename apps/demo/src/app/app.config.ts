@@ -60,3 +60,4 @@ export const appConfig = craftAppConfig({
     provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
   ],
 });
+
