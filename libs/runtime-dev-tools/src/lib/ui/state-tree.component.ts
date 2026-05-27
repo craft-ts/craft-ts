@@ -6,14 +6,22 @@ import {
   signal,
 } from '@angular/core';
 import { APP_SNAPSHOT_REGISTRY, type SnapshotReport } from '@craft-ng/core';
+import { DEV_TOOLS_BUFFER } from '../buffer/ring-buffer';
 import { collectSnapshot } from '../buffer/snapshot-collector';
-import { formatJson } from './format';
+import { formatJson, formatTime } from './format';
 
 interface TreeNode {
   readonly hostTagChain: string;
   readonly reports: readonly SnapshotReport[];
 }
 
+/**
+ * The wrapper attaches a fresh `stateSnapshot` to every `call:end` /
+ * `call:error` event. We derive the live tree from the most recent event that
+ * carries one — so any tracked method/mutation/query causes the tree to
+ * refresh automatically. A manual Refresh button stays available for cases
+ * where state was changed outside any tracked call (direct signal writes).
+ */
 @Component({
   selector: 'lib-craft-devtools-state-tree',
   standalone: true,
@@ -22,6 +30,11 @@ interface TreeNode {
     <div class="header">
       <button type="button" (click)="refresh()">Refresh snapshot</button>
       <span class="count">{{ tree().length }} node(s)</span>
+      <span class="source">
+        @if (sourceLabel(); as label) {
+          source: {{ label }}
+        }
+      </span>
     </div>
     <div class="tree">
       @for (node of tree(); track node.hostTagChain) {
@@ -35,7 +48,7 @@ interface TreeNode {
           }
         </details>
       } @empty {
-        <div class="empty">No state captured. Click Refresh.</div>
+        <div class="empty">No state captured yet.</div>
       }
     </div>
   `,
@@ -69,6 +82,11 @@ interface TreeNode {
       .count {
         color: #a0aec0;
       }
+      .source {
+        color: #4a5568;
+        font-size: 10px;
+        margin-left: auto;
+      }
       .tree {
         flex: 1;
         overflow-y: auto;
@@ -88,9 +106,11 @@ interface TreeNode {
       .report {
         margin: 4px 0 4px 16px;
       }
-      .source {
+      .report .source {
         color: #4299e1;
         margin-bottom: 2px;
+        margin-left: 0;
+        font-size: inherit;
       }
       pre {
         background: #1a202c;
@@ -112,10 +132,36 @@ interface TreeNode {
 })
 export class CraftDevToolsStateTreeComponent {
   private readonly registry = inject(APP_SNAPSHOT_REGISTRY);
-  private readonly _reports = signal<readonly SnapshotReport[]>([]);
+  private readonly buffer = inject(DEV_TOOLS_BUFFER);
+  private readonly _manualSnapshot = signal<readonly SnapshotReport[]>([]);
+  private readonly _manualPulledAt = signal<number | null>(null);
+
+  /**
+   * Latest snapshot captured automatically by the FnWrapper at the end of a
+   * tracked call. Tracks `buffer.events` so the tree refreshes whenever a
+   * method/mutation/query completes.
+   */
+  private readonly _autoSnapshot = computed<{
+    reports: readonly SnapshotReport[];
+    at: number;
+    source: string;
+  } | null>(() => {
+    const events = this.buffer.events();
+    for (let i = events.length - 1; i >= 0; i--) {
+      const ev = events[i];
+      if (ev.kind === 'call:end' || ev.kind === 'call:error') {
+        return {
+          reports: ev.stateSnapshot,
+          at: ev.endedAt,
+          source: `${ev.primitiveKind}:${ev.name}`,
+        };
+      }
+    }
+    return null;
+  });
 
   protected readonly tree = computed<readonly TreeNode[]>(() => {
-    const reports = this._reports();
+    const reports = this._autoSnapshot()?.reports ?? this._manualSnapshot();
     const grouped = new Map<string, SnapshotReport[]>();
     for (const r of reports) {
       const key = r.from.length > 0 ? r.from.join(' › ') : '(root)';
@@ -128,12 +174,22 @@ export class CraftDevToolsStateTreeComponent {
       .map(([hostTagChain, reports]) => ({ hostTagChain, reports }));
   });
 
+  protected readonly sourceLabel = computed<string | null>(() => {
+    const auto = this._autoSnapshot();
+    if (auto) return `${auto.source} @ ${formatTime(auto.at)}`;
+    const pulledAt = this._manualPulledAt();
+    if (pulledAt !== null) return `manual @ ${formatTime(pulledAt)}`;
+    return null;
+  });
+
   constructor() {
+    // Seed with a manual pull so the tree shows something before any events.
     this.refresh();
   }
 
   protected refresh(): void {
-    this._reports.set(collectSnapshot(this.registry));
+    this._manualSnapshot.set(collectSnapshot(this.registry));
+    this._manualPulledAt.set(performance.now());
   }
 
   protected jsonOf(value: unknown): string {

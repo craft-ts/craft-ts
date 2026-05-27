@@ -11,6 +11,7 @@
   "keywords": ["angular", "devtools", "craft-ng", "signals"],
   "peerDependencies": {
     "@angular/core": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0",
     "@craft-ng/core": "*",
     "rxjs": "^7.0.0"
   },

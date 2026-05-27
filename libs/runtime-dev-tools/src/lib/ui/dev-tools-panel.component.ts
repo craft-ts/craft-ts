@@ -8,10 +8,11 @@ import {
 import { DEV_TOOLS_BUFFER } from '../buffer/ring-buffer';
 import { CraftDevToolsErrorPanelComponent } from './error-panel.component';
 import { CraftDevToolsQueryInspectorComponent } from './query-inspector.component';
+import { CraftDevToolsSpansComponent } from './spans.component';
 import { CraftDevToolsStateTreeComponent } from './state-tree.component';
 import { CraftDevToolsTimelineComponent } from './timeline.component';
 
-type Tab = 'timeline' | 'state' | 'queries' | 'errors';
+type Tab = 'timeline' | 'spans' | 'state' | 'queries' | 'errors';
 
 @Component({
   selector: 'lib-craft-devtools-panel',
@@ -19,6 +20,7 @@ type Tab = 'timeline' | 'state' | 'queries' | 'errors';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CraftDevToolsTimelineComponent,
+    CraftDevToolsSpansComponent,
     CraftDevToolsStateTreeComponent,
     CraftDevToolsQueryInspectorComponent,
     CraftDevToolsErrorPanelComponent,
@@ -48,6 +50,9 @@ type Tab = 'timeline' | 'state' | 'queries' | 'errors';
           @switch (activeTab()) {
             @case ('timeline') {
               <lib-craft-devtools-timeline />
+            }
+            @case ('spans') {
+              <lib-craft-devtools-spans />
             }
             @case ('state') {
               <lib-craft-devtools-state-tree />
@@ -226,6 +231,7 @@ export class CraftDevToolsPanelComponent {
 
   protected readonly allTabs: readonly { id: Tab; label: string }[] = [
     { id: 'timeline', label: 'Timeline' },
+    { id: 'spans', label: 'Spans' },
     { id: 'state', label: 'State' },
     { id: 'queries', label: 'Queries' },
     { id: 'errors', label: 'Errors' },

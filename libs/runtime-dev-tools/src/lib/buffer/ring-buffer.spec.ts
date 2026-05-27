@@ -20,6 +20,7 @@ describe('DevToolsRingBuffer', () => {
     const buffer = new DevToolsRingBuffer();
     buffer.push(makeEvent('a'));
     buffer.push(makeEvent('b'));
+    buffer.ɵflushForTests();
     expect(buffer.events().map((e) => e.id)).toEqual(['a', 'b']);
   });
 
@@ -29,6 +30,7 @@ describe('DevToolsRingBuffer', () => {
     buffer.push(makeEvent('a'));
     buffer.push(makeEvent('b'));
     buffer.push(makeEvent('c'));
+    buffer.ɵflushForTests();
     expect(buffer.events().map((e) => e.id)).toEqual(['b', 'c']);
   });
 
@@ -36,6 +38,7 @@ describe('DevToolsRingBuffer', () => {
     const buffer = new DevToolsRingBuffer();
     buffer.push(makeEvent('a'));
     buffer.clear();
+    buffer.ɵflushForTests();
     expect(buffer.events()).toEqual([]);
   });
 
@@ -45,6 +48,7 @@ describe('DevToolsRingBuffer', () => {
     buffer.push(makeEvent('b'));
     buffer.push(makeEvent('c'));
     buffer.setCapacity(2);
+    buffer.ɵflushForTests();
     expect(buffer.events().map((e) => e.id)).toEqual(['b', 'c']);
   });
 });

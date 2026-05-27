@@ -3,25 +3,31 @@ import {
   Component,
   computed,
   inject,
-  input,
-  output,
   signal,
 } from '@angular/core';
 import { DEV_TOOLS_BUFFER } from '../buffer/ring-buffer';
 import {
-  type DevToolsEvent,
+  type CallEndEvent,
+  type CallErrorEvent,
+  type CallStartEvent,
   type PrimitiveKind,
 } from '../event-types';
 import { formatDuration, formatJson, formatTime } from './format';
 
-interface TimelineRow {
-  readonly event: DevToolsEvent;
-  readonly kindLabel: 'start' | 'end' | 'error';
+type CallStatus = 'running' | 'success' | 'error';
+
+interface CallRow {
+  readonly id: string;
   readonly primitiveKind: PrimitiveKind;
   readonly name: string;
-  readonly time: string;
+  readonly hostTag: readonly string[];
+  readonly startedAt: number;
+  readonly endedAt: number | null;
   readonly durationMs: number | null;
+  readonly status: CallStatus;
   readonly correlationId: string | null;
+  readonly startEvent: CallStartEvent;
+  readonly endEvent: CallEndEvent | CallErrorEvent | null;
 }
 
 @Component({
@@ -51,21 +57,23 @@ interface TimelineRow {
       <button type="button" class="clear" (click)="clearBuffer()">Clear</button>
     </div>
     <div class="rows">
-      @for (row of rows(); track row.event.id + '-' + row.kindLabel) {
+      @for (row of rows(); track row.id) {
         <button
           type="button"
           class="row"
-          [class.is-error]="row.kindLabel === 'error'"
-          [class.is-end]="row.kindLabel === 'end'"
-          [class.is-selected]="selectedId() === row.event.id"
-          (click)="selectEvent(row.event)"
+          [class.is-error]="row.status === 'error'"
+          [class.is-running]="row.status === 'running'"
+          [class.is-selected]="selectedId() === row.id"
+          (click)="select(row)"
         >
-          <span class="time">{{ row.time }}</span>
+          <span class="time">{{ formatTime(row.startedAt) }}</span>
           <span class="badge badge-{{ row.primitiveKind }}">{{ row.primitiveKind }}</span>
           <span class="name">{{ row.name }}</span>
-          <span class="kind-label">{{ row.kindLabel }}</span>
+          <span class="status status-{{ row.status }}">{{ row.status }}</span>
           @if (row.durationMs !== null) {
             <span class="duration">{{ formatDuration(row.durationMs) }}</span>
+          } @else {
+            <span class="duration">—</span>
           }
           @if (row.correlationId) {
             <span class="correlation" [title]="row.correlationId">⛓</span>
@@ -75,34 +83,39 @@ interface TimelineRow {
         <div class="empty">No calls recorded yet — interact with the app.</div>
       }
     </div>
-    @if (selectedEvent(); as ev) {
+    @if (selectedRow(); as row) {
       <div class="detail">
-        <h4>{{ ev.primitiveKind }}:{{ ev.name }} — {{ ev.kind }}</h4>
+        <h4>{{ row.primitiveKind }}:{{ row.name }} — {{ row.status }}</h4>
         <div class="meta">
-          <span>HostTag: {{ ev.hostTag.join(' › ') }}</span>
-          @if (ev.correlation?.startCorrelationId; as cid) {
-            <span>Correlation: {{ cid }}</span>
+          <span>HostTag: {{ row.hostTag.join(' › ') }}</span>
+          @if (row.correlationId) {
+            <span>Correlation: {{ row.correlationId }}</span>
+          }
+          @if (row.durationMs !== null) {
+            <span>Duration: {{ formatDuration(row.durationMs) }}</span>
           }
         </div>
-        @if (ev.kind === 'call:start') {
-          <h5>Args</h5>
-          <pre>{{ jsonOf(ev.args) }}</pre>
-        }
-        @if (ev.kind === 'call:end') {
-          <h5>Result</h5>
-          <pre>{{ jsonOf(ev.result) }}</pre>
-          <h5>State snapshot</h5>
-          <pre>{{ jsonOf(ev.stateSnapshot) }}</pre>
-          @if (ev.insertions) {
-            <h5>Insertions</h5>
-            <pre>{{ jsonOf(ev.insertions) }}</pre>
+        <h5>Args</h5>
+        <pre>{{ jsonOf(row.startEvent.args) }}</pre>
+        @if (row.endEvent; as ev) {
+          @if (ev.kind === 'call:end') {
+            <h5>Result</h5>
+            <pre>{{ jsonOf(ev.result) }}</pre>
+            <h5>State snapshot</h5>
+            <pre>{{ jsonOf(ev.stateSnapshot) }}</pre>
+            @if (ev.insertions) {
+              <h5>Insertions</h5>
+              <pre>{{ jsonOf(ev.insertions) }}</pre>
+            }
           }
-        }
-        @if (ev.kind === 'call:error') {
-          <h5>Error</h5>
-          <pre class="error-pre">{{ jsonOf(ev.error) }}</pre>
-          <h5>State snapshot</h5>
-          <pre>{{ jsonOf(ev.stateSnapshot) }}</pre>
+          @if (ev.kind === 'call:error') {
+            <h5>Error</h5>
+            <pre class="error-pre">{{ jsonOf(ev.error) }}</pre>
+            <h5>State snapshot</h5>
+            <pre>{{ jsonOf(ev.stateSnapshot) }}</pre>
+          }
+        } @else {
+          <h5>Still running…</h5>
         }
       </div>
     }
@@ -186,8 +199,8 @@ interface TimelineRow {
         background: #742a2a;
         color: #fed7d7;
       }
-      .row.is-end {
-        color: #a0aec0;
+      .row.is-running {
+        color: #f6e05e;
       }
       .time {
         color: #718096;
@@ -201,47 +214,26 @@ interface TimelineRow {
         text-align: center;
         text-transform: uppercase;
       }
-      .badge-method {
-        background: #4299e1;
-        color: white;
-      }
-      .badge-mutation {
-        background: #ed8936;
-        color: white;
-      }
-      .badge-query {
-        background: #38b2ac;
-        color: white;
-      }
-      .badge-asyncProcess {
-        background: #9f7aea;
-        color: white;
-      }
-      .badge-computed {
-        background: #d69e2e;
-        color: white;
-      }
-      .badge-service {
-        background: #718096;
-        color: white;
-      }
-      .badge-component {
-        background: #48bb78;
-        color: white;
-      }
-      .badge-unknown {
-        background: #2d3748;
-        color: #a0aec0;
-      }
+      .badge-method { background: #4299e1; color: white; }
+      .badge-mutation { background: #ed8936; color: white; }
+      .badge-query { background: #38b2ac; color: white; }
+      .badge-asyncProcess { background: #9f7aea; color: white; }
+      .badge-computed { background: #d69e2e; color: white; }
+      .badge-service { background: #718096; color: white; }
+      .badge-component { background: #48bb78; color: white; }
+      .badge-unknown { background: #2d3748; color: #a0aec0; }
       .name {
         flex: 1;
         color: #e2e8f0;
       }
-      .kind-label {
-        color: #a0aec0;
+      .status {
         font-size: 10px;
         text-transform: uppercase;
+        min-width: 60px;
       }
+      .status-success { color: #68d391; }
+      .status-error { color: #fc8181; }
+      .status-running { color: #f6e05e; }
       .duration {
         color: #f6ad55;
         min-width: 60px;
@@ -299,9 +291,6 @@ interface TimelineRow {
   ],
 })
 export class CraftDevToolsTimelineComponent {
-  readonly initialKindFilter = input<readonly PrimitiveKind[] | null>(null);
-  readonly eventSelected = output<DevToolsEvent>();
-
   private readonly buffer = inject(DEV_TOOLS_BUFFER);
   protected readonly nameFilter = signal('');
   protected readonly allKinds: readonly PrimitiveKind[] = [
@@ -318,40 +307,53 @@ export class CraftDevToolsTimelineComponent {
   );
   protected readonly selectedId = signal<string | null>(null);
 
-  protected readonly selectedEvent = computed<DevToolsEvent | null>(() => {
-    const id = this.selectedId();
-    if (!id) return null;
-    // Prefer the end/error event (has more info); fall back to start.
-    const all = this.buffer.events();
-    return (
-      all.find((e) => e.id === id && e.kind !== 'call:start') ??
-      all.find((e) => e.id === id) ??
-      null
-    );
-  });
-
-  protected readonly rows = computed<TimelineRow[]>(() => {
+  protected readonly rows = computed<readonly CallRow[]>(() => {
     const filter = this.nameFilter().toLowerCase();
     const kinds = this.activeKinds();
-    return this.buffer
-      .events()
-      .filter((ev) => kinds.has(ev.primitiveKind))
-      .filter((ev) => !filter || ev.name.toLowerCase().includes(filter))
-      .map((ev): TimelineRow => ({
-        event: ev,
-        kindLabel:
-          ev.kind === 'call:start'
-            ? 'start'
-            : ev.kind === 'call:end'
-              ? 'end'
-              : 'error',
-        primitiveKind: ev.primitiveKind,
-        name: ev.name,
-        time: formatTime(ev.startedAt),
-        durationMs: ev.kind === 'call:start' ? null : ev.durationMs,
-        correlationId: ev.correlation?.startCorrelationId ?? null,
-      }))
-      .reverse();
+    const byId = new Map<string, MutableRow>();
+
+    for (const ev of this.buffer.events()) {
+      if (!kinds.has(ev.primitiveKind)) continue;
+      if (filter && !ev.name.toLowerCase().includes(filter)) continue;
+      let row = byId.get(ev.id);
+      if (!row) {
+        if (ev.kind !== 'call:start') continue; // ignore orphan end without start
+        row = {
+          id: ev.id,
+          primitiveKind: ev.primitiveKind,
+          name: ev.name,
+          hostTag: ev.hostTag,
+          startedAt: ev.startedAt,
+          endedAt: null,
+          durationMs: null,
+          status: 'running',
+          correlationId: ev.correlation?.startCorrelationId ?? null,
+          startEvent: ev,
+          endEvent: null,
+        };
+        byId.set(ev.id, row);
+        continue;
+      }
+      if (ev.kind === 'call:end') {
+        row.endedAt = ev.endedAt;
+        row.durationMs = ev.durationMs;
+        row.status = 'success';
+        row.endEvent = ev;
+      } else if (ev.kind === 'call:error') {
+        row.endedAt = ev.endedAt;
+        row.durationMs = ev.durationMs;
+        row.status = 'error';
+        row.endEvent = ev;
+      }
+    }
+
+    return [...byId.values()].sort((a, b) => b.startedAt - a.startedAt);
+  });
+
+  protected readonly selectedRow = computed<CallRow | null>(() => {
+    const id = this.selectedId();
+    if (!id) return null;
+    return this.rows().find((r) => r.id === id) ?? null;
   });
 
   protected onNameFilter(event: Event): void {
@@ -361,18 +363,14 @@ export class CraftDevToolsTimelineComponent {
   protected toggleKind(kind: PrimitiveKind): void {
     this.activeKinds.update((current) => {
       const next = new Set(current);
-      if (next.has(kind)) {
-        next.delete(kind);
-      } else {
-        next.add(kind);
-      }
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
       return next;
     });
   }
 
-  protected selectEvent(event: DevToolsEvent): void {
-    this.selectedId.set(event.id);
-    this.eventSelected.emit(event);
+  protected select(row: CallRow): void {
+    this.selectedId.set(row.id);
   }
 
   protected clearBuffer(): void {
@@ -384,7 +382,25 @@ export class CraftDevToolsTimelineComponent {
     return formatDuration(ms);
   }
 
+  protected formatTime(t: number): string {
+    return formatTime(t);
+  }
+
   protected jsonOf(value: unknown): string {
     return formatJson(value);
   }
+}
+
+interface MutableRow {
+  id: string;
+  primitiveKind: PrimitiveKind;
+  name: string;
+  hostTag: readonly string[];
+  startedAt: number;
+  endedAt: number | null;
+  durationMs: number | null;
+  status: CallStatus;
+  correlationId: string | null;
+  startEvent: CallStartEvent;
+  endEvent: CallEndEvent | CallErrorEvent | null;
 }

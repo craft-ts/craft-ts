@@ -8,7 +8,6 @@ import {
   provideFnWrapper,
   triggerAndCollectInsertions,
 } from '@craft-ng/core';
-import { DEV_TOOLS_BUFFER } from '../buffer/ring-buffer';
 import { collectSnapshot } from '../buffer/snapshot-collector';
 import { DEV_TOOLS_EVENT_BUS } from '../event-bus';
 import {
@@ -51,7 +50,6 @@ export function provideFnWrapperCollector(
     { provide: INSERTION_SNAPSHOT_REGISTRY, useClass: InsertionSnapshotRegistry },
     provideFnWrapper(function* (factory, thisArg, args) {
       const bus = inject(DEV_TOOLS_EVENT_BUS);
-      const buffer = inject(DEV_TOOLS_BUFFER);
       const snapshotRegistry = inject(APP_SNAPSHOT_REGISTRY);
       const insertionRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, {
         optional: true,
@@ -79,7 +77,6 @@ export function provideFnWrapperCollector(
         startedAt,
       };
       bus.emit(startEvent);
-      buffer.push(startEvent);
 
       try {
         const result = yield* factory.apply(thisArg, args);
@@ -101,7 +98,6 @@ export function provideFnWrapperCollector(
           insertions,
         };
         bus.emit(endEvent);
-        buffer.push(endEvent);
         return result;
       } catch (error) {
         const endedAt = performance.now();
@@ -120,7 +116,6 @@ export function provideFnWrapperCollector(
           stateSnapshot,
         };
         bus.emit(errorEvent);
-        buffer.push(errorEvent);
         throw error;
       }
     }),
