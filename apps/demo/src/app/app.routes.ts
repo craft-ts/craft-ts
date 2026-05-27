@@ -203,11 +203,7 @@ declare module '@craft-ng/core' {
 // Note: AppProvidedServiceNamesOf<typeof appConfig> hits TS2589 for this app because
 // the demo providers (fn wrappers, monitoring, etc.) are too complex for TypeScript
 // to evaluate in a generic constraint. Listing the value types explicitly is the workaround.
-type _CheckDemoDI = ValidateCascadeRoutesFile<
-  never,
-  Router,
-  typeof demoRoutes
->;
+type _CheckDemoDI = ValidateCascadeRoutesFile<never, Router, typeof demoRoutes>;
 type _CanRunDemo = CanRun<_CheckDemoDI>;
 
 type User = {

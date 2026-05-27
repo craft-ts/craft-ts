@@ -8,9 +8,15 @@ export interface SnapshotReport {
   state: unknown;
 }
 
+export interface ActiveEffectReport {
+  source: string;
+  from: readonly string[];
+}
+
 export class AppSnapshotRegistry {
   readonly triggerSnapshot$ = new Subject<void>();
   readonly allSnapShot$ = new Subject<SnapshotReport>();
+  readonly allActiveEffects$ = new Subject<ActiveEffectReport>();
 }
 
 export interface InsertionSnapshotReport {

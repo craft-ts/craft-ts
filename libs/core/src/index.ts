@@ -32,6 +32,7 @@ export * from './lib/util/entities-util';
 export * from './lib/reactive-writable-signal';
 export * from './lib/craft-method';
 export * from './lib/craft-computed';
+export * from './lib/craft-effect';
 export * from './lib/craft-service';
 export * from './lib/correlation-id';
 export * from './lib/correlation-id-plugin';
