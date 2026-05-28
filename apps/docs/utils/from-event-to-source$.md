@@ -3,7 +3,7 @@
 Converts DOM events to a readonly source stream with automatic cleanup and signal-based value tracking.
 
 ::: warning
-I will try to align this api with other (make it yieldable in order to track source$ as a dependency)
+I will try to align this API with others (make it yieldable in order to track source$ as a dependency).
 :::
 
 ## Overview

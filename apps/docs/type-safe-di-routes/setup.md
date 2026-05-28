@@ -14,7 +14,7 @@ npm install -D @craft-ng/dev-tools
 ## 1. Add the app-level type check in `src/main.ts`
 
 ::: warning
-The current approach is "central-based" and has some limitations due to typescript typing context limitation.
+The current approach is "central-based" and has some limitations due to TypeScript typing context limitations.
 I will change this setup in favor of a cascading approach.
 :::
 

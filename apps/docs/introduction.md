@@ -8,7 +8,7 @@
 
 ## The deriving principle
 
-All the helpers are designing to be used declarativetly. The lib tries to derived as much as possible the logic. I enforce to preserve data and reused without explicite type.
+All helpers are designed to be used declaratively. The library derives as much logic as possible. This helps preserve and reuse data without explicit types.
 
 ### Type-Safe system
 

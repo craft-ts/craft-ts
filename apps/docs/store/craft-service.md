@@ -3,7 +3,7 @@
 Creates a named Angular-friendly service boundary with generated inject, yield, provider, and metadata helpers.
 
 ::: warning
-I will try to align this api with other (make it yieldable in order to track source$ as a dependency)
+I will try to align this API with others (make it yieldable in order to track source$ as a dependency).
 :::
 
 ## Import
@@ -104,7 +104,7 @@ const { injectAppStartLog } = craftService(
 );
 
 // register the current service to the AppStartRegistry
-// it is auto generated when used with craft-ng eslint plugin
+// it is auto-generated when used with the craft-ng ESLint plugin
 declare module '@craft-ng/core' {
   interface CraftAppStartRegistry {
     AppStartLog: typeof injectAppStartLog;
@@ -114,7 +114,7 @@ declare module '@craft-ng/core' {
 // inside craftAppConfig
 export const appConfig = craftAppConfig({
   appStart: {
-    AppStartLog: injectAppStartLog, // an error is throw if AppStartLog is not injected here
+    AppStartLog: injectAppStartLog, // an error is thrown if AppStartLog is not injected here
   },
 });
 ```

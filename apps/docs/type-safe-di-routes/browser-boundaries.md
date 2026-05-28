@@ -5,7 +5,7 @@ Browser boundaries keep direct browser access out of your `craftService` impleme
 Every boundary on this page is backed by a global crafted service marked with `browserBoundary: true`.
 
 ::: warning
-Some API are not registered in this doc yet.
+Some APIs are not documented here yet.
 :::
 
 ## Import

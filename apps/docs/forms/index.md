@@ -1,11 +1,11 @@
 # Forms with @craft-ng
 
 @craft-ng provides a complete form management system, enabling the creation of reactive, type-safe, and composable forms with @craft-ng primitives.
-Unlike all other forms libs, a form is derived from a state, and all the form logic's and validator are also derived for a fully declartive form.
+Unlike most form libraries, a form is derived from state, and all form logic and validators are also derived for a fully declarative form.
 
 ## Overview
 
-The main benefits of @craft-ng form system are built on three pillars:
+The main benefits of the @craft-ng form system are built on three pillars:
 
 1. **Form Insertions** - Modular composition to tackle logic complexity
 2. **Type-safe errors** - Synchronous and asynchronous validation with type-safe exceptions (inferred from validators and submit handler)
