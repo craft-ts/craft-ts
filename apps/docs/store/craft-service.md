@@ -2,6 +2,10 @@
 
 Creates a named Angular-friendly service boundary with generated inject, yield, provider, and metadata helpers.
 
+::: warning
+I will try to align this api with other (make it yieldable in order to track source$ as a dependency)
+:::
+
 ## Import
 
 ```typescript
@@ -98,6 +102,21 @@ const { injectAppStartLog } = craftService(
     return true;
   },
 );
+
+// register the current service to the AppStartRegistry
+// it is auto generated when used with craft-ng eslint plugin
+declare module '@craft-ng/core' {
+  interface CraftAppStartRegistry {
+    AppStartLog: typeof injectAppStartLog;
+  }
+}
+
+// inside craftAppConfig
+export const appConfig = craftAppConfig({
+  appStart: {
+    AppStartLog: injectAppStartLog, // an error is throw if AppStartLog is not injected here
+  },
+});
 ```
 
 Dependencies used only inside that callback are still tracked on the parent service.

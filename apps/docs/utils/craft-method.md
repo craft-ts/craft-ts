@@ -96,14 +96,14 @@ import { Console, craftMethod } from '@craft-ng/core';
 export class CounterComponent {
   readonly counter = signal(0);
 
-  readonly increment = craftMethod('increment', function* (
-    this: CounterComponent,
-    step = 1,
-  ) {
-    yield* Console.log('increment is called');
-    this.counter.update((value) => value + step);
-    return this.counter();
-  });
+  readonly increment = craftMethod(
+    'increment',
+    function* (this: CounterComponent, step = 1) {
+      yield* Console.log('increment is called');
+      this.counter.update((value) => value + step);
+      return this.counter();
+    },
+  );
 }
 ```
 
@@ -112,16 +112,6 @@ export class CounterComponent {
 `craftMethod` is not limited to Browser Boundaries. It can consume the same crafted service graph as `craftService`.
 
 ```typescript
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { craftMethod, craftService } from '@craft-ng/core';
-
-const { CounterWorkerToYield } = craftService(
-  { name: 'CounterWorker', scope: 'function' },
-  () => ({
-    increment: (value: number, step: number) => value + step,
-  }),
-);
-
 @Component({
   selector: 'app-counter',
   standalone: true,
@@ -129,12 +119,13 @@ const { CounterWorkerToYield } = craftService(
   template: `<button (click)="increment()">Increment</button>`,
 })
 export class CounterComponent {
-  readonly counter = signal(0);
-
-  readonly increment = craftMethod('increment', this, function* (step = 1) {
-    const worker = yield* CounterWorkerToYield();
-    this.counter.set(worker.increment(this.counter(), step));
-  });
+  readonly increment = craftMethod(
+    'increment',
+    this,
+    function* (value: number) {
+      return yield* CounterWorkerToYield.set(value);
+    },
+  );
 }
 ```
 

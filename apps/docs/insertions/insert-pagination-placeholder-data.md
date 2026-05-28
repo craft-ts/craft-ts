@@ -1,4 +1,3 @@
-````markdown
 # insertPaginationPlaceholderData
 
 The `insertPaginationPlaceholderData` insertion provides placeholder data during pagination transitions, showing the previous page's data while the new page is loading. This creates a smoother user experience by avoiding empty states during page navigation.
@@ -110,4 +109,3 @@ export class UsersListComponent {
 - [query](/primitives/query) - Base primitive for queries
 - [insertReactOnMutation](/insertions/insert-react-on-mutation) - React to mutations
 - [craftService](/store/craft-service) - Compose paginated queries inside reusable services
-````

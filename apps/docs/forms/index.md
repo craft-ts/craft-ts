@@ -1,13 +1,14 @@
 # Forms with @craft-ng
 
-@craft-ng provides a complete form management system based on Angular Signal-Forms, enabling the creation of reactive, type-safe, and composable forms with @craft-ng primitives.
+@craft-ng provides a complete form management system, enabling the creation of reactive, type-safe, and composable forms with @craft-ng primitives.
+Unlike all other forms libs, a form is derived from a state, and all the form logic's and validator are also derived for a fully declartive form.
 
 ## Overview
 
 The main benefits of @craft-ng form system are built on three pillars:
 
 1. **Form Insertions** - Modular composition to tackle logic complexity
-2. **Type-safe errors** - Synchronous and asynchronous validation (soon) with type-safe exceptions (inferred from validators and submit handler)
+2. **Type-safe errors** - Synchronous and asynchronous validation with type-safe exceptions (inferred from validators and submit handler)
 3. **Parallel Forms** - Support for multiple forms in the same state with automatic scoping
 
 All of this is possible because the logic is entirely derived from the state.
@@ -94,12 +95,12 @@ Connects form submission to a mutation.
 ```ts
 const updateUserMutation = mutation({
   method: (data: ValidatedFormValue<UserForm>) => data,
-  loader: async ({ params }) => {
-    const response = await fetch('/api/users', {
-      method: 'PATCH',
-      body: JSON.stringify(params),
-    });
-    return response.json();
+  loader: function* ({ params: user }) {
+    return yield* CraftHttpClient.patch(({ response }) => ({
+      url: '/api/users',
+      body: user,
+      success: response<User>(),
+    }));
   },
 });
 
@@ -338,6 +339,10 @@ const form = userFormState.form();
 // All exceptions
 const allErrors = form.exceptions().list;
 
+// get first or last validation exception according to the order of validators
+const first = fieldForm.form.firstLeftFailedValidation();
+const last = fieldForm.form.lastRightFailedValidation();
+
 // Exception by validator
 const requiredError = form().selectEmail()().exceptions()?.byValidator[
   'cRequired'
@@ -370,12 +375,12 @@ interface User {
 
 const createUserMutation = mutation({
   method: (data: ValidatedFormValue<User>) => data,
-  loader: async ({ params }) => {
-    const response = await fetch('/api/users', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-    return response.json();
+  loader: function* ({ params: user }) {
+    return yield* CraftHttpClient.update(({ response }) => ({
+      url: '/api/users',
+      body: user,
+      success: response<User>(),
+    }));
   },
 });
 

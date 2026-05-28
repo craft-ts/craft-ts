@@ -5,7 +5,7 @@ Creates a writable signal that reacts to changes in other signals (sources).
 ## Import
 
 ```typescript
-import { reactiveWritableSignal } from '@anthropic-stack/craft';
+import { reactiveWritableSignal } from '@craft-ng/core';
 ```
 
 ## Overview

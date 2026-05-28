@@ -4,6 +4,10 @@ Browser boundaries keep direct browser access out of your `craftService` impleme
 
 Every boundary on this page is backed by a global crafted service marked with `browserBoundary: true`.
 
+::: warning
+Some API are not registered in this doc yet.
+:::
+
 ## Import
 
 The main DSL exports are:
@@ -115,86 +119,86 @@ That second form is what preserves derivability while still tracking the browser
 ### Console
 
 ```typescript
-yield* Console.log('my service run');
-yield* Console.error('unexpected failure', error);
+yield * Console.log('my service run');
+yield * Console.error('unexpected failure', error);
 ```
 
 ### Local Storage
 
 ```typescript
-yield* LocalStorage.setItem('token', token);
+yield * LocalStorage.setItem('token', token);
 
-const persistedToken = yield* LocalStorage.getItem('token');
-const entryCount = yield* LocalStorage.length();
+const persistedToken = yield * LocalStorage.getItem('token');
+const entryCount = yield * LocalStorage.length();
 ```
 
 ### Session Storage
 
 ```typescript
-yield* SessionStorage.setItem('active-tab', 'settings');
+yield * SessionStorage.setItem('active-tab', 'settings');
 
-const tab = yield* SessionStorage.getItem('active-tab');
+const tab = yield * SessionStorage.getItem('active-tab');
 ```
 
 ### Cookies
 
 ```typescript
-yield* Cookies.set('session', sessionId, {
-  path: '/',
-  sameSite: 'strict',
-});
+yield *
+  Cookies.set('session', sessionId, {
+    path: '/',
+    sameSite: 'strict',
+  });
 
-const session = yield* Cookies.get('session');
-const hasSession = yield* Cookies.has('session');
+const session = yield * Cookies.get('session');
+const hasSession = yield * Cookies.has('session');
 ```
 
 ### Location
 
 ```typescript
-const href = yield* BrowserLocation.href();
-const pathname = yield* BrowserLocation.pathname();
+const href = yield * BrowserLocation.href();
+const pathname = yield * BrowserLocation.pathname();
 
-yield* BrowserLocation.reload();
+yield * BrowserLocation.reload();
 ```
 
 ### History
 
 ```typescript
-yield* BrowserHistory.replaceState({ step: 2 }, '', '/checkout?step=2');
+yield * BrowserHistory.replaceState({ step: 2 }, '', '/checkout?step=2');
 
-const state = yield* BrowserHistory.state();
+const state = yield * BrowserHistory.state();
 ```
 
 ### Document
 
 ```typescript
-yield* BrowserDocument.setTitle('Checkout');
+yield * BrowserDocument.setTitle('Checkout');
 
-const title = yield* BrowserDocument.title();
+const title = yield * BrowserDocument.title();
 ```
 
 ### Window
 
 ```typescript
-const width = yield* BrowserWindow.innerWidth();
+const width = yield * BrowserWindow.innerWidth();
 
-yield* BrowserWindow.scrollTo(0, 0);
-yield* BrowserWindow.alert('Cache cleared! The page will reload.');
+yield * BrowserWindow.scrollTo(0, 0);
+yield * BrowserWindow.alert('Cache cleared! The page will reload.');
 
-const confirmed = yield* BrowserWindow.confirm(
-  'Cache cleared! The page will reload.',
-);
+const confirmed =
+  yield * BrowserWindow.confirm('Cache cleared! The page will reload.');
 
 if (confirmed) {
-  yield* BrowserLocation.reload();
+  yield * BrowserLocation.reload();
 }
 ```
 
 ### Performance And Crypto
 
 ```typescript
-const now = yield* BrowserPerformance.now();
-const uuid = yield* BrowserCrypto.randomUUID();
+const now = yield * BrowserPerformance.now();
+const uuid = yield * BrowserCrypto.randomUUID();
 ```
 
 ## API Reference
@@ -354,32 +358,38 @@ Its contract is intentionally different:
 Usage looks like this:
 
 ```typescript
-const getUsers = yield* CraftHttpClient.get(({ response }) => ({
-  url: '/api/users',
-  params: { page: 1 },
-  success: response<User[]>(),
-}));
+const getUsers =
+  yield *
+  CraftHttpClient.get(({ response }) => ({
+    url: '/api/users',
+    params: { page: 1 },
+    success: response<User[]>(),
+  }));
 
-const createUser = yield* CraftHttpClient.post(({ response }) => ({
-  url: '/api/users',
-  payload,
-  success: response<User>(),
-}));
+const createUser =
+  yield *
+  CraftHttpClient.post(({ response }) => ({
+    url: '/api/users',
+    payload,
+    success: response<User>(),
+  }));
 
-const login = yield* CraftHttpClient.post(({ response }) => ({
-  url: '/api/login',
-  payload,
-  success: response<{ token: string }>(),
-  exceptions: [
-    function* ({ status, code, content }) {
-      if (!(yield* status(400))) return;
-      if (!(yield* code('PASSWORD_REQUIRED'))) return;
-      if (!(yield* content('Password is required'))) return;
+const login =
+  yield *
+  CraftHttpClient.post(({ response }) => ({
+    url: '/api/login',
+    payload,
+    success: response<{ token: string }>(),
+    exceptions: [
+      function* ({ status, code, content }) {
+        if (!(yield* status(400))) return;
+        if (!(yield* code('PASSWORD_REQUIRED'))) return;
+        if (!(yield* content('Password is required'))) return;
 
-      return craftException({ code: 'PASSWORD_REQUIRED' });
-    },
-  ],
-}));
+        return craftException({ code: 'PASSWORD_REQUIRED' });
+      },
+    ],
+  }));
 
 const users = await getUsers();
 const createdUser = await createUser();

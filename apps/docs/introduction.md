@@ -6,6 +6,10 @@
 
 ## Core Philosophy
 
+## The deriving principle
+
+All the helpers are designing to be used declarativetly. The lib tries to derived as much as possible the logic. I enforce to preserve data and reused without explicite type.
+
 ### Type-Safe system
 
 By tracking component and service dependencies at the type level, @craft-ng provides a fully type-safe system that eliminates a whole class of runtime errors and enhances developer confidence.

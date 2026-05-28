@@ -2,6 +2,10 @@
 
 Converts DOM events to a readonly source stream with automatic cleanup and signal-based value tracking.
 
+::: warning
+I will try to align this api with other (make it yieldable in order to track source$ as a dependency)
+:::
+
 ## Overview
 
 `fromEventToSource$` bridges DOM events with craft-ng's reactive system by combining:
