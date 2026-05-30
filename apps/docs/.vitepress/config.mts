@@ -95,10 +95,11 @@ export default defineConfig({
       {
         text: 'Utils',
         items: [
+          { text: 'craftMethod', link: '/utils/craft-method' },
+          { text: 'craftEffect', link: '/utils/craft-effect' },
           { text: 'source$', link: '/utils/source$' },
           { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },
           { text: 'on$', link: '/utils/on$' },
-          { text: 'craftMethod', link: '/utils/craft-method' },
           { text: 'onAppStart', link: '/utils/on-app-start' },
           {
             text: 'reactiveWritableSignal',
@@ -125,6 +126,10 @@ export default defineConfig({
           {
             text: 'Angular Brand Config',
             link: '/type-safe-di-routes/angular-brand-config',
+          },
+          {
+            text: 'Observability',
+            link: '/type-safe-di-routes/observability',
           },
         ],
       },

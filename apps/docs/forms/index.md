@@ -301,9 +301,9 @@ insertFormAttributes(() => ({
 
 Creates an asynchronous validator based on a resource (query or mutation).
 
-```warn
-It is not working yet, we are still working on it. The API is not final and may change.
-```
+::: warning
+It is not working yet. We are still working on it. The API is not final and may change.
+:::
 
 ```ts
 const checkEmailQuery = query({

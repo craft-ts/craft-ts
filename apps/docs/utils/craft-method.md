@@ -40,8 +40,8 @@ function craftMethod<Name extends string, This, Args extends unknown[], Result>(
 The first argument is the **host name**: it is required and must match the
 property (or variable) the method is assigned to. It is the value used to tag
 the injector context — same role as `provideHostName(...)`. The
-[`craft-ng/craft-method-name-match`](/eslint/craft-method-name-match) ESLint
-rule enforces the match and offers a quick fix.
+[`craft-ng/craft-method-name-match`](/type-safe-di-routes/setup) ESLint rule
+enforces the match and offers a quick fix.
 
 ## Recommended Form: Capture `this`
 

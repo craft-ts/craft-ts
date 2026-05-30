@@ -15,7 +15,7 @@ The current documentation is also experimental. It takes a lot of time to create
 ## Quick Start
 
 ::: info
-Optional: Check [Setup type-safe DI, routing and testing](./setup.md) for more details.
+Optional: Check [Setup type-safe DI, routing and testing](./type-safe-di-routes/setup.md) for more details.
 :::
 
 ### Creating a state
