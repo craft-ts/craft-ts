@@ -48,6 +48,7 @@
     "serve": {
       "continuous": true,
       "executor": "@angular/build:dev-server",
+      "options": {},
       "configurations": {
         "production": {
           "buildTarget": "demo:build:production"

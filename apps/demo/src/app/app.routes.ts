@@ -151,11 +151,18 @@ export const {
       import('./examples/craft-service/craft-service-user-detail'),
   },
   {
-    path: 'playground',
+    path: 'demo-send-context',
     componentDeps:
-      {} as import('./examples/playground/playground').GenDeps_PlaygroundComponent,
-    loadComponent: () => import('./examples/playground/playground'),
+      {} as import('./examples/ia/demo-send-context/demo-send-context').GenDeps_DemoSendContextComponent,
+    loadComponent: () =>
+      import('./examples/ia/demo-send-context/demo-send-context'),
   },
+  // {
+  //   path: 'playground',
+  //   componentDeps:
+  //     {} as import('./examples/playground/playground').GenDeps_PlaygroundComponent,
+  //   loadComponent: () => import('./examples/playground/playground'),
+  // },
   {
     path: 'query-param',
     componentDeps:

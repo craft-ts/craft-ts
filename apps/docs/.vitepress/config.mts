@@ -96,6 +96,7 @@ export default defineConfig({
         text: 'Utils',
         items: [
           { text: 'craftMethod', link: '/utils/craft-method' },
+          { text: 'craftComputed', link: '/utils/craft-computed' },
           { text: 'craftEffect', link: '/utils/craft-effect' },
           { text: 'source$', link: '/utils/source$' },
           { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },

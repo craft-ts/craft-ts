@@ -119,8 +119,13 @@ import {
           routerLinkActive="active"
           >craftService User Detail</a
         >
-        <a [craftRouterLink]="{ to: 'playground' }" routerLinkActive="active"
+        <!-- <a [craftRouterLink]="{ to: 'playground' }" routerLinkActive="active"
           >Playground</a
+        > -->
+        <a
+          [craftRouterLink]="{ to: 'demo-send-context' }"
+          routerLinkActive="active"
+          >Demo Send Context</a
         >
       </nav>
       <main class="content">

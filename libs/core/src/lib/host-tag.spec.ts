@@ -40,7 +40,7 @@ describe('host tags', () => {
 
     TestBed.runInInjectionContext(() => {
       expect(injectHostName()).toBe('A');
-      expect(inject(HOST_TAG_LIST)).toEqual(['A']);
+      expect(inject(HOST_TAG_LIST)).toEqual(['A#1']);
     });
   });
 
@@ -58,7 +58,7 @@ describe('host tags', () => {
 
       runInInjectionContext(childInjector, () => {
         expect(injectHostName()).toBe('B');
-        expect(inject(HOST_TAG_LIST)).toEqual(['A', 'B']);
+        expect(inject(HOST_TAG_LIST)).toEqual(['A#1', 'B#2']);
       });
     });
   });

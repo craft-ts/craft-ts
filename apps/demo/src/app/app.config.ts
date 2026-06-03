@@ -1,19 +1,14 @@
-import {
-  afterEveryRender,
-  inject,
-  provideBrowserGlobalErrorListeners,
-} from '@angular/core';
+import { provideBrowserGlobalErrorListeners } from '@angular/core';
 import { withComponentInputBinding } from '@angular/router';
 import {
   Console,
   craftAppConfig,
   HostTagToYield,
-  provideComponentMonitoring,
   provideCorrelationIdTracking,
   provideCraftRouter,
   provideFnWrapper,
+  provideSendContextToAi,
   provideTakeAppSnapshot,
-  ɵHOST_TAG_LIST,
 } from '@craft-ng/core';
 import { demoRoutes } from './app.routes';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
@@ -47,17 +42,10 @@ export const appConfig = craftAppConfig({
       }
     }),
     provideCorrelationIdTracking(),
-    provideComponentMonitoring(() => {
-      //ts-ignore
-      const name = inject(ɵHOST_TAG_LIST) as any;
-      afterEveryRender(() => {
-        console.log('render from app config', name);
-      });
-    }),
+    provideSendContextToAi(),
     // App snapshot
     // TODO RENAME
     // eslint-disable-next-line craft-ng/prefer-browser-boundaries
     provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
   ],
 });
-

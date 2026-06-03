@@ -43,6 +43,10 @@ describe('docs sidebar', () => {
           text: 'Angular Brand Config',
           link: '/type-safe-di-routes/angular-brand-config',
         },
+        {
+          text: 'Observability',
+          link: '/type-safe-di-routes/observability',
+        },
       ],
     });
   });
@@ -68,7 +72,7 @@ describe('docs sidebar', () => {
     });
   });
 
-  it('adds craftMethod right after on$ in the Utils section', () => {
+  it('adds craftMethod, craftComputed and craftEffect at the top of Utils', () => {
     const sidebar = docsConfig.themeConfig?.sidebar;
 
     expect(sidebar).toBeDefined();
@@ -83,10 +87,12 @@ describe('docs sidebar', () => {
     const utilsSection = sidebarItems.find((item) => item.text === 'Utils');
 
     expect(utilsSection?.items).toEqual([
+      { text: 'craftMethod', link: '/utils/craft-method' },
+      { text: 'craftComputed', link: '/utils/craft-computed' },
+      { text: 'craftEffect', link: '/utils/craft-effect' },
       { text: 'source$', link: '/utils/source$' },
       { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },
       { text: 'on$', link: '/utils/on$' },
-      { text: 'craftMethod', link: '/utils/craft-method' },
       { text: 'onAppStart', link: '/utils/on-app-start' },
       {
         text: 'reactiveWritableSignal',
@@ -197,21 +203,20 @@ describe('Browser Boundaries doc page', () => {
   });
 
   it('documents the yield-based browser DSL examples', () => {
-    expect(content).toContain("yield* Console.log('my service run');");
-    expect(content).toContain("yield* LocalStorage.setItem('token', token);");
+    expect(content).toContain("yield * Console.log('my service run');");
+    expect(content).toContain("yield * LocalStorage.setItem('token', token);");
     expect(content).toContain(
-      "const persistedToken = yield* LocalStorage.getItem('token');",
+      "const persistedToken = yield * LocalStorage.getItem('token');",
     );
-    expect(content).toContain('const href = yield* BrowserLocation.href();');
+    expect(content).toContain('const href = yield * BrowserLocation.href();');
     expect(content).toContain(
-      "yield* BrowserHistory.replaceState({ step: 2 }, '', '/checkout?step=2');",
-    );
-    expect(content).toContain(
-      "yield* BrowserWindow.alert('Cache cleared! The page will reload.');",
+      "yield * BrowserHistory.replaceState({ step: 2 }, '', '/checkout?step=2');",
     );
     expect(content).toContain(
-      'const confirmed = yield* BrowserWindow.confirm(',
+      "yield * BrowserWindow.alert('Cache cleared! The page will reload.');",
     );
+    expect(content).toContain('const confirmed =');
+    expect(content).toContain('yield * BrowserWindow.confirm(');
     expect(content).toContain('if (confirmed) {');
     expect(content).toContain('- `confirm`');
   });
@@ -231,9 +236,8 @@ describe('Browser Boundaries doc page', () => {
     expect(content).toContain(
       "it returns a promise of `Success | craftException({ code: 'HttpError' })`",
     );
-    expect(content).toContain(
-      'const getUsers = yield* CraftHttpClient.get(({ response }) => ({',
-    );
+    expect(content).toContain('const getUsers =');
+    expect(content).toContain('CraftHttpClient.get(({ response }) => ({');
     expect(content).toContain('exceptions: [');
     expect(content).toContain(
       "if (!(yield* code('PASSWORD_REQUIRED'))) return;",
@@ -272,11 +276,9 @@ describe('craftMethod doc page', () => {
       "readonly increment = craftMethod('increment', this, function* (step = 1) {",
     );
     expect(content).toContain("yield* Console.log('increment is called');");
-    expect(content).toContain(
-      "readonly increment = craftMethod('increment', function* (",
-    );
+    expect(content).toContain('function* (this: CounterComponent, step = 1) {');
     expect(content).toContain('this: CounterComponent,');
-    expect(content).toContain('const worker = yield* CounterWorkerToYield();');
+    expect(content).toContain('return yield* CounterWorkerToYield.set(value);');
     expect(content).toContain('[`craftService`](/store/craft-service)');
   });
 
@@ -293,6 +295,41 @@ describe('craftMethod doc page', () => {
     expect(content).toContain(
       '[`Browser Boundaries`](/type-safe-di-routes/browser-boundaries)',
     );
+  });
+});
+
+describe('craftComputed doc page', () => {
+  const content = readFileSync(
+    new URL('../utils/craft-computed.md', import.meta.url),
+    'utf8',
+  );
+
+  it('documents plain and generator-based computed forms', () => {
+    expect(content).toContain('# craftComputed');
+    expect(content).toContain(
+      "import { craftComputed } from '@craft-ng/core';",
+    );
+    expect(content).toContain(
+      'plain computation: `craftComputed(name, () => value)`',
+    );
+    expect(content).toContain(
+      'generator factory: `craftComputed(name, function* () { ...; return () => value; })`',
+    );
+    expect(content).toContain(
+      'function craftComputed<Name extends string, T>(',
+    );
+    expect(content).toContain('options?: CreateComputedOptions<T>,');
+  });
+
+  it('documents yield usage, dependency tracking and onAppStart restriction', () => {
+    expect(content).toContain('const multiplier = yield* MultiplierToYield();');
+    expect(content).toContain(
+      '`onAppStart(...)` is not supported inside `craftComputed(...)`.',
+    );
+    expect(content).toContain(
+      'yielded dependencies are tracked and can be extracted with `ExtractDeps<...>`.',
+    );
+    expect(content).toContain('[`craftService`](/store/craft-service)');
   });
 });
 

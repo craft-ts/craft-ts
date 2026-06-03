@@ -1708,7 +1708,9 @@ describe('craftRoutes', () => {
     expect(runInInjectionContext(injector, () => injectHostName())).toBe(
       'route:mutation/:userId',
     );
-    expect(injector.get(HOST_TAG_LIST)).toEqual(['route:mutation/:userId']);
+    expect(injector.get(HOST_TAG_LIST)).toEqual([
+      expect.stringMatching(/^route:mutation\/:userId#\d+$/),
+    ]);
 
     const routeData = runInInjectionContext(injector, () =>
       injectMutationUserIdData(),
@@ -1758,7 +1760,9 @@ describe('craftRoutes', () => {
 
     expect(consoleLogSpy).toHaveBeenCalledWith(
       'loading',
-      expect.objectContaining({ from: ['route:user-list', 'method:load'] }),
+      expect.objectContaining({
+        from: [expect.stringMatching(/^route:user-list#\d+$/), 'method:load'],
+      }),
     );
   });
 
