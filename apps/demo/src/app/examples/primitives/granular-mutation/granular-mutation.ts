@@ -174,7 +174,7 @@ export default class GranularMutation {
       storeName: 'demo-app',
       key: 'granular',
     }),
-    insertPaginationPlaceholderData,
+    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
     insertReactOnMutation(this.updateUserName, {
       filter: ({ mutationIdentifier, queryResource }) =>
         queryResource

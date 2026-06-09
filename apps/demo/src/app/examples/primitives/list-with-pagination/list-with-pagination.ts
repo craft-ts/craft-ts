@@ -12,7 +12,7 @@ import {
     type GetPublicComponentProperties
 } from '@craft-ng/core';
 import { StatusComponent, type GenDeps_StatusComponent } from '../../../ui/status.component';
-import { injectApiService } from './api.service';
+import { injectApiService, type User } from './api.service';
 
 @Component({
   selector: 'app-list-with-pagination',
@@ -134,7 +134,7 @@ export default class ListWithPagination {
       storeName: 'demo-app',
       key: 'list-with-pagination',
     }),
-    insertPaginationPlaceholderData,
+    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
   );
 
   protected updatePageSize(event: Event) {

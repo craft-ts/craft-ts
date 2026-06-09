@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
     componentMonitoring,
     craftMethod,
@@ -17,7 +17,7 @@ import {
     StatusComponent,
     type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
-import { ApiServiceToYield } from './api.service';
+import { ApiServiceToYield, type User } from './api.service';
 
 const { injectUserList, provideUserList, UserListToYield } = craftService(
   { name: 'UserList', scope: 'toProvide' },
@@ -57,7 +57,12 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
         storeName: 'demo-app-craft',
         key: 'list-with-pagination',
       }),
-      insertPaginationPlaceholderData,
+      insertPaginationPlaceholderData(
+        { initialValue: [] as User[] },
+        ({ state }) => ({
+          total: computed(() => state().length),
+        }),
+      ),
     );
 
     return { pagination, users };
@@ -75,6 +80,7 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
             <h2 class="card-title">
               User Management:
               <app-status [status]="store.users.currentPageStatus()" />
+              <span class="current-page">{{ store.users.total() }} on page</span>
             </h2>
 
             <div class="table-container">

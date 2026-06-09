@@ -431,7 +431,7 @@ export default class FullDemo {
       storeName: 'demo-app-full-demo',
       key: 'granular',
     }),
-    insertPaginationPlaceholderData,
+    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
     insertReactOnMutation(this.deleteUser, {
       filter: ({ mutationIdentifier, queryResource }) =>
         !!queryResource

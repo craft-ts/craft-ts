@@ -10,6 +10,11 @@ import { insertPaginationPlaceholderData } from '@craft-ng/core';
 
 ## Basic Usage
 
+`insertPaginationPlaceholderData` is a **higher-order insertion**: call it with a
+`config` object and pass the result to `query`. The `config.initialValue` is both the
+default value and the page type — thanks to it, `currentPageData` is `Signal<T>` and is
+**never `undefined`**.
+
 ```typescript
 const pagination = signal(1);
 
@@ -25,7 +30,7 @@ const userQuery = query(
       return response.json();
     },
   },
-  insertPaginationPlaceholderData,
+  insertPaginationPlaceholderData({ initialValue: [] as User[] }),
 );
 
 // Access the current page data (or placeholder data during loading)
@@ -43,12 +48,58 @@ const identifier = userQuery.currentIdentifier();
 
 ## Returned Properties
 
-| Property            | Type                     | Description                                                                              |
-| ------------------- | ------------------------ | ---------------------------------------------------------------------------------------- |
-| `currentPageData`   | `Signal<T \| undefined>` | The data for the current page, or placeholder data from the previous page during loading |
-| `currentPageStatus` | `Signal<ResourceStatus>` | The loading status of the current page (`'idle'`, `'loading'`, `'resolved'`, `'error'`)  |
-| `isPlaceHolderData` | `Signal<boolean>`        | `true` when showing previous page data as a placeholder                                  |
-| `currentIdentifier` | `Signal<string>`         | The identifier of the current page                                                       |
+| Property            | Type                     | Description                                                                                            |
+| ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `currentPageData`   | `Signal<T>`              | The data for the current page, or placeholder data from the previous page during loading. Falls back to `initialValue` (never `undefined`). |
+| `currentPageStatus` | `Signal<ResourceStatus>` | The loading status of the current page (`'idle'`, `'loading'`, `'resolved'`, `'error'`)               |
+| `isPlaceHolderData` | `Signal<boolean>`        | `true` when showing previous page data as a placeholder                                               |
+| `currentIdentifier` | `Signal<string>`         | The identifier of the current page                                                                    |
+
+## Custom Outputs (`build` callback)
+
+Pass an optional second argument to attach your own computed values or methods next to
+the pagination outputs. Its helpers (`state`, `set`, `update`, `patch`) are scoped to the
+**current page** (the displayed data), so mutations only affect the page the user is
+looking at — other cached pages are left untouched.
+
+```typescript
+const usersQuery = query(
+  {
+    params: this.pagination,
+    identifier: (params) => `${params.page}-${params.pageSize}`,
+    loader: function* ({ params }) {
+      return yield* ApiServiceToYield.getDataList(params);
+    },
+  },
+  insertPaginationPlaceholderData(
+    { initialValue: [] as Data[] },
+    ({ state, set }) => ({
+      // a computed derived from the current page
+      totalOfUnCompletedData: computed(
+        () => state().filter((d) => !d.completed).length,
+      ),
+      // a method that mutates only the current page
+      markAsCompleted: (id: string) =>
+        set(state().map((d) => (d.id === id ? { ...d, completed: true } : d))),
+    }),
+  ),
+);
+
+usersQuery.totalOfUnCompletedData(); // Signal<number>
+usersQuery.markAsCompleted('42');
+```
+
+The `build` context exposes:
+
+| Helper   | Type                                                  | Description                                            |
+| -------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| `state`  | `Signal<T>`                                           | The current page data (or `initialValue`)              |
+| `set`    | `(value: T) => T`                                     | Replace the current page data (no-op if not loaded)    |
+| `update` | `(fn: (current: T) => T) => T`                        | Update the current page data from its previous value   |
+| `patch`  | `(fn: (current: T) => Partial<T>) => T`               | Patch the current page data with a partial value       |
+
+The pagination outputs (`currentPageData`, `currentPageStatus`, `isPlaceHolderData`,
+`currentIdentifier`) are also available in the `build` context.
 
 ## Example with Pagination
 
@@ -81,10 +132,10 @@ export class UsersListComponent {
       identifier: (page) => `page-${page}`,
       loader: async ({ params: page }) => {
         const response = await fetch(`/api/users?page=${page}`);
-        return response.json();
+        return response.json() as Promise<User[]>;
       },
     },
-    insertPaginationPlaceholderData,
+    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
   );
 
   nextPage() {

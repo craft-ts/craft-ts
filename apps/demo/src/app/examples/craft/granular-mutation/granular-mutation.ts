@@ -72,7 +72,7 @@ const {
       storeName: 'demo-app-craft',
       key: 'granular',
     }),
-    insertPaginationPlaceholderData,
+    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
     insertReactOnMutation(updateUserName, {
       filter: ({ mutationIdentifier, queryResource }) =>
         queryResource

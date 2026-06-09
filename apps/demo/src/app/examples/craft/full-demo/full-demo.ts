@@ -109,7 +109,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
         storeName: 'demo-app-craft',
         key: 'full-demo',
       }),
-      insertPaginationPlaceholderData,
+      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
       insertReactOnMutation(deleteUser, {
         filter: ({ mutationIdentifier, queryResource }) =>
           !!queryResource
