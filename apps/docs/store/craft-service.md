@@ -37,6 +37,7 @@ For a service named `Counter`, `craftService` can generate:
 - `provideCounter(...)` for provider-capable scopes
 - `COUNTER_META_DATA` for metadata-driven tooling
 - `CounterRequirement` for `abstract` services
+- `provideCounter(factory)` on `abstract` services to implement the contract inline
 
 The exact helpers depend on the chosen scope.
 
@@ -391,6 +392,51 @@ const { CounterRequirement } = craftService(
 ```
 
 Concrete services can then depend on `CounterRequirement`.
+
+## Abstract Providers
+
+An `abstract` service also exposes a `provideX(factory)` helper. It takes a **factory** — a plain
+function or a generator — produces a value matching the contract, and binds it to the requirement
+token. This lets you implement the contract **inline at the providing site** (a route, a component,
+a feature config) instead of declaring a separate concrete `craftService`.
+
+```typescript
+import { abstract, craftService } from '@craft-ng/core';
+
+type User = { name: string };
+
+const { injectUser, provideUser } = craftService(
+  { name: 'User', scope: 'abstract' },
+  abstract<User>(),
+);
+
+// Implement the contract inline:
+const providers = [provideUser(() => ({ name: 'Ada' }))];
+
+// Anywhere downstream:
+const user = injectUser(); // User
+```
+
+The factory can be a **generator** that yields other services. Everything it yields is tracked, so
+the resulting provider participates in the cascade DI check just like a regular service:
+
+```typescript
+const { GreetingToYield } = craftService(
+  { name: 'Greeting', scope: 'global' },
+  () => ({ prefix: 'Hello' }),
+);
+
+const providers = [
+  provideUser(function* () {
+    const greeting = yield* GreetingToYield();
+    return { name: `${greeting.prefix} Ada` };
+  }),
+];
+```
+
+This is the foundation of route-scoped providers: a route can implement an abstract contract from
+its own guarded data / params. See
+[Type-safe DI/Routes → Route Providers](/type-safe-di-routes/route-providers).
 
 ## Testing
 

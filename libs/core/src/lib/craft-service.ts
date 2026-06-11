@@ -1917,10 +1917,23 @@ type AbstractProvideHelper<Name extends string, Contract> = {
   >;
 };
 
+type AbstractToYieldHelper<Name extends string, Contract> = {
+  [Key in `${Capitalize<Name>}ToYield`]: () => Generator<
+    ServiceYieldRequest<
+      'toProvide',
+      Contract,
+      ServiceTrackingMetadata<Name, 'toProvide', Contract, never>
+    >,
+    Contract,
+    unknown
+  >;
+};
+
 type AbstractServiceApi<Name extends string, Contract> = {
   [Key in `inject${Capitalize<Name>}`]: () => Contract;
 } & RequirementHelper<Name, Contract> &
-  AbstractProvideHelper<Name, Contract>;
+  AbstractProvideHelper<Name, Contract> &
+  AbstractToYieldHelper<Name, Contract>;
 
 type DependencySourceToken<Output> = Type<Output> | InjectionToken<Output>;
 type DependencySourceOutput<Token> =
@@ -2983,11 +2996,38 @@ export function craftService(
     const token = new InjectionToken(`${capitalizedName}AbstractServiceToken`);
     const requirement = createServiceRequirement(options.name, token);
 
-    return {
-      [injectName]: () => {
-        assertInInjectionContext(abstractInject);
-        return inject(token);
-      },
+    // A minimal definition so `XToYield()` resolves the requirement token (the
+    // concrete implementation bound through `provideX`) via the injector. The
+    // factory is never invoked: scope is not `function`, so resolution goes
+    // straight to `injector.get(token)` (or a registered test override by name).
+    const abstractYieldDefinition: ConcreteRuntimeDefinition = {
+      factory: () => undefined,
+      name: options.name,
+      scope: 'toProvide',
+      browserBoundary: false,
+      appStart: false,
+      token,
+      requirement,
+      hasPublicInput: false,
+      hasProvidedInput: false,
+      appStartHooks: new Map(),
+      startedAppStartServices: new Set(),
+    };
+
+    let abstractMetaData: InternalServiceMetaData;
+
+    const abstractInjectHelper = () => {
+      assertInInjectionContext(abstractInject);
+      return inject(token);
+    };
+    const abstractToYieldHelper = createToYieldHelper(
+      abstractYieldDefinition,
+      () => abstractMetaData,
+    );
+
+    const abstractApi: Record<string, unknown> = {
+      [injectName]: abstractInjectHelper,
+      [toYieldName]: abstractToYieldHelper,
       [requirementName]: requirement,
       [provideName]: (factory: AnyFactory) => {
         const abstractRuntimeDefinition: ConcreteRuntimeDefinition = {
@@ -3006,6 +3046,24 @@ export function craftService(
         return createProviders(abstractRuntimeDefinition);
       },
     };
+
+    abstractMetaData = createServiceMetaData({
+      name: options.name,
+      scope: 'toProvide',
+      inject: abstractInjectHelper,
+      runtimeDefinition: abstractYieldDefinition,
+    });
+    abstractApi[metaDataName] = abstractMetaData;
+
+    attachServiceRuntimeMeta(abstractInjectHelper, abstractMetaData);
+    attachServiceRuntimeMeta(abstractToYieldHelper, abstractMetaData);
+
+    REGISTERED_SERVICES.set(
+      options.name,
+      abstractInjectHelper as unknown as ServiceReference,
+    );
+
+    return abstractApi;
   }
 
   const concreteFactory = factoryOrMarker as AnyFactory;

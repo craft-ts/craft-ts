@@ -1,0 +1,167 @@
+# Route Providers
+
+Build route-level Angular providers from a route's **own auto-provisioned tokens** — path params,
+`data`, `queryParams`, and `canActivate` guarded data — with full, type-safe dependency tracking.
+
+## The problem
+
+A `craftRoutes` route auto-provisions route-scoped services. For a route `query/:userId` in the
+`demo` collection, `craftRoutes` generates inject helpers such as `injectDemoUserIdParams` and
+`injectDemoQueryUserIdGuardedData`.
+
+Those helpers are great **inside a component**, but they cannot be reached while building the
+route's own `providers`. So you cannot, for example, take the value resolved by `canActivate` and
+feed it into a provider that the routed component injects.
+
+## The solution: `route(...).withProviders(...)`
+
+`route(path, definition)` authors a single route and returns a builder with a `.withProviders(...)`
+method. The callback receives **route-scoped `ToYield` generators**, one per auto-provisioned token
+that exists on the route, and returns a normal Angular providers array.
+
+```ts
+import {
+  abstract,
+  craftRoutes,
+  craftService,
+  query,
+  route,
+} from '@craft-ng/core';
+
+type User = { name: string };
+
+// 1. An abstract contract — implemented per route.
+const { UserRequirement, provideUser } = craftService(
+  { name: 'User', scope: 'abstract' },
+  abstract<User>(),
+);
+
+// 2. A guard that resolves the user.
+const { AuthToYield } = craftService({ name: 'Auth', scope: 'global' }, () =>
+  query({
+    params: () => true,
+    loader: async () => ({}) as User,
+  }),
+);
+
+export const { demoRoutes } = craftRoutes('demo', [
+  route('query/:userId', {
+    componentDeps: {} as import('./query').GenDeps_GlobalQuery,
+    loadComponent: () => import('./query'),
+    canActivate: function* () {
+      const user = yield* AuthToYield();
+      const safeUser = user.safeValue();
+      if (!safeUser) {
+        return false;
+      }
+      return safeUser; // becomes the route's guarded data
+    },
+  }).withProviders(({ GuardedDataToYield }) => [
+    provideUser(function* () {
+      const guarded = yield* GuardedDataToYield(); // Signal<User>
+      return guarded();
+    }),
+  ]),
+]);
+```
+
+The routed component can now `injectUser()` and receive the value that the guard resolved — without
+ever touching the fully-qualified `injectDemoQueryUserIdGuardedData` helper.
+
+## The helpers object
+
+The `.withProviders(...)` callback receives an object with **route-local short names** for every
+auto-provisioned token present on the route:
+
+| Helper                       | Present when…                | Yields                                  |
+| ---------------------------- | ---------------------------- | --------------------------------------- |
+| `GuardedDataToYield`         | the route has `canActivate`  | `Signal<GuardData>`                     |
+| `<Param>ParamsToYield`       | per path param               | `Signal<string>` (e.g. `UserIdParamsToYield`) |
+| `QueryParamsToYield`         | the route has `queryParams`  | the query-params state                  |
+| `DataToYield`                | the route has `data`         | `Signal<RouteData>`                     |
+
+Names are **scoped to the single route**, so the collection prefix and route path are dropped:
+`GuardedDataToYield`, not `DemoQueryUserIdGuardedDataToYield`. The path-param name is kept to keep
+multiple params distinct (`UserIdParamsToYield`, `TeamIdParamsToYield`, …).
+
+Each helper is a generator you consume with `yield*`, exactly like a service's `XToYield()`:
+
+```ts
+.withProviders(({ UserIdParamsToYield, QueryParamsToYield }) => [
+  provideSomething(function* () {
+    const userId = yield* UserIdParamsToYield();   // Signal<string>
+    const qp = yield* QueryParamsToYield();        // query-params state
+    return { userId, qp };
+  }),
+])
+```
+
+## Pairing with an abstract service
+
+`route(...).withProviders(...)` shines with `scope: 'abstract'` services. The abstract service
+declares a contract; each route provides a concrete implementation derived from that route's data.
+
+Abstract services now expose a `provideX(factory)` helper that takes a **generator factory**, tracks
+everything it yields, and binds the result to the requirement token. See
+[craftService → Abstract Providers](/store/craft-service#abstract-providers).
+
+```ts
+const { injectUser, provideUser } = craftService(
+  { name: 'User', scope: 'abstract' },
+  abstract<User>(),
+);
+
+// In a route:
+.withProviders(({ GuardedDataToYield }) => [
+  provideUser(function* () {
+    return (yield* GuardedDataToYield())();
+  }),
+])
+
+// In the routed component:
+const user = injectUser(); // User
+```
+
+## Dependency tracking & cascade DI
+
+Everything yielded inside a `withProviders` factory is tracked at the type level and folded into the
+route's dependency graph used by [`ValidateCascadeRoutesFile`](/type-safe-di-routes/setup):
+
+- The route's **auto-provisioned** tokens (guarded data, params, query params, data) are recognized
+  as provided by the route itself — yielding them is always valid.
+- Any **other** service yielded inside the factory that is not provided by the route or the app
+  surfaces as a missing-provider error, e.g.:
+
+  ```
+  Injected SomeService is not provided in path: "query/:userId"
+  ```
+
+- The provider's own name (`User` above) is registered as **self-provided**, so a component on that
+  route can depend on it without a separate provider declaration.
+
+This means the pattern is safe by construction: you cannot wire a route provider against data the
+route does not actually expose.
+
+## Plain providers still work
+
+`.withProviders(...)` is additive. A route can still declare a plain Angular `providers` array, and
+both are merged (auto-provisioned services first, then `providers`, then the `withProviders`
+factory output):
+
+```ts
+route('admin', {
+  componentDeps: {} as import('./admin').GenDeps_Admin,
+  loadComponent: () => import('./admin'),
+  providers: [SomeAngularProvider], // plain array, untyped helpers
+}).withProviders(({ DataToYield }) => [
+  /* factory-built providers with tracking */
+]);
+```
+
+Under the hood the builder stores the factory on a dedicated `providersFn` field, kept separate from
+Angular's `providers` array.
+
+## See Also
+
+- [Setup](/type-safe-di-routes/setup) — the app-wide cascade DI check
+- [craftService](/store/craft-service) — `abstract` scope, `provideX`, requirements

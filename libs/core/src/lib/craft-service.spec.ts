@@ -580,6 +580,29 @@ describe('scope', () => {
     });
   });
 
+  it('should expose XToYield on an abstract craftService so its contract can be composed into another craftService', () => {
+    const { provideUser, UserToYield } = craftService(
+      { name: 'User', scope: 'abstract' },
+      abstract<{ name: string }>(),
+    );
+
+    const { injectGreeting, provideGreeting } = craftService(
+      { name: 'Greeting', scope: 'toProvide' },
+      function* () {
+        const user = yield* UserToYield();
+        return { hello: `Hi ${user.name}` };
+      },
+    );
+
+    TestBed.configureTestingModule({
+      providers: [provideUser(() => ({ name: 'Ada' })), provideGreeting()],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      expect(injectGreeting()).toEqual({ hello: 'Hi Ada' });
+    });
+  });
+
   it('should enable to create a craftService from an abstract craftService through requirement (It should provide the implementation craftService and abstract craftService)', () => {
     const { injectCounter, CounterRequirement } = craftService(
       { name: 'Counter', scope: 'abstract' },
