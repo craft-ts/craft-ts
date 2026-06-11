@@ -1,12 +1,22 @@
 import {
+  abstract,
   craftRoutes,
   craftService,
   query,
   queryParam,
+  route,
   type CanRun,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
+
+const { UserRequirement, provideUser } = craftService(
+  {
+    name: 'User',
+    scope: 'abstract',
+  },
+  abstract<User>(),
+);
 
 export const {
   demoRoutes,
@@ -15,23 +25,28 @@ export const {
   injectDemoUserIdParams,
   injectDemoQueryParamQueryParams,
 } = craftRoutes('demo', [
-  {
-    path: '',
-    loadComponent: () => import('./test'),
-    componentDeps: {} as import('./test').GenDeps_TestComponent,
-  },
-  {
-    path: 'query/:userId',
+  route('query/:userId', {
     componentDeps:
       {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
     loadComponent: () => import('./examples/primitives/query/query'),
     canActivate: function* () {
       const user = yield* AuthToYield();
-      if (!user) {
+      const userSafeValue = user.safeValue();
+      if (!userSafeValue) {
         return false;
       }
-      return user;
+      return userSafeValue;
     },
+  }).withProviders(({ GuardedDataToYield }) => [
+    provideUser(function* () {
+      const guardedUser = yield* GuardedDataToYield();
+      return guardedUser();
+    }),
+  ]),
+  {
+    path: '',
+    loadComponent: () => import('./test'),
+    componentDeps: {} as import('./test').GenDeps_TestComponent,
   },
   {
     path: 'mutation/:userId',

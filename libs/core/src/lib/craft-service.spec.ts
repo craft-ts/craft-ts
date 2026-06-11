@@ -532,9 +532,52 @@ describe('scope', () => {
     expectTypeOf(injectCounter).toEqualTypeOf<() => Counter>();
     expect(injectCounter).toBeDefined();
 
-    //@ts-expect-error provideCounter should not be defined because it's an abstract craftService, an implementation craftService should provide through requirement CounterRequirement
+    // An abstract craftService exposes provideCounter so its contract can be
+    // implemented inline from a (possibly generator) factory.
     const { provideCounter } = counterService;
-    expect(provideCounter).toBeUndefined();
+    expect(provideCounter).toBeDefined();
+  });
+
+  it('should let an abstract craftService provide its contract inline via provideX', () => {
+    interface Counter {
+      value: number;
+    }
+    const { injectCounter, provideCounter } = craftService(
+      { name: 'Counter', scope: 'abstract' },
+      abstract<Counter>(),
+    );
+
+    TestBed.configureTestingModule({
+      providers: [provideCounter(() => ({ value: 42 }))],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      expect(injectCounter()).toEqual({ value: 42 });
+    });
+  });
+
+  it('should resolve services yielded inside an abstract provideX generator factory', () => {
+    const { SeedToYield } = craftService(
+      { name: 'Seed', scope: 'global' },
+      () => ({ base: 10 }),
+    );
+    const { injectScore, provideScore } = craftService(
+      { name: 'Score', scope: 'abstract' },
+      abstract<{ total: number }>(),
+    );
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideScore(function* () {
+          const seed = yield* SeedToYield();
+          return { total: seed.base + 5 };
+        }),
+      ],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      expect(injectScore()).toEqual({ total: 15 });
+    });
   });
 
   it('should enable to create a craftService from an abstract craftService through requirement (It should provide the implementation craftService and abstract craftService)', () => {

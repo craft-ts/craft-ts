@@ -52,6 +52,7 @@ import { Console, injectConsoleService } from './browser-boundaries';
 import { FN_WRAPPER } from './fn-wrapper';
 import { craftMethod } from './craft-method';
 import {
+  abstract,
   craftService,
   GetInjectedServiceDependencies,
   SERVICE_RUNTIME_OVERRIDES,
@@ -63,6 +64,7 @@ import { queryParam } from './query-param';
 import {
   CraftRouteInjectHelper,
   craftRoutes,
+  route,
   type ResolveCraftRouteComponentDeps,
 } from './craft-routes';
 import { GetDeps } from './branded-component/branded-component';
@@ -2102,6 +2104,80 @@ describe('craftRoutes', () => {
     ).toThrow(
       'Route "guard" canActivate guard must not synchronously return undefined.',
     );
+  });
+
+  describe('route().withProviders()', () => {
+    type User = { id: number; name: string };
+
+    it('should build a route-level provider from typed route-scoped ToYield helpers', () => {
+      const { injectUser, provideUser } = craftService(
+        { name: 'User', scope: 'abstract' },
+        abstract<User>(),
+      );
+
+      const { wpRoutes } = craftRoutes('wp', [
+        route('dashboard/:userId', {
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {},
+          canActivate: (): User | false => ({ id: 9, name: 'Carol' }),
+        }).withProviders(({ GuardedDataToYield }) => [
+          provideUser(function* () {
+            const guarded = yield* GuardedDataToYield();
+            return guarded();
+          }),
+        ]),
+      ]);
+
+      const routeConfig = wpRoutes.toRoutes()[0];
+      const activatedRoute = createActivatedRouteStub({
+        params: { userId: '9' },
+      });
+      const injector = createRouteInjector(
+        routeConfig.providers,
+        activatedRoute.route,
+      );
+      const canActivate = getCanActivateGuard(routeConfig);
+
+      // Guard must run first so the guarded-data signal is populated.
+      const guardResult = runInInjectionContext(injector, () =>
+        canActivate(activatedRouteSnapshotStub, routerStateSnapshotStub),
+      );
+      expect(guardResult).toBe(true);
+
+      const user = runInInjectionContext(injector, () => injectUser());
+      expect(user).toEqual({ id: 9, name: 'Carol' });
+    });
+
+    it('should type the route-scoped helpers (guarded data + path param)', () => {
+      const builder = route('dashboard/:userId', {
+        loadComponent: async () => null as unknown as Type<unknown>,
+        componentDeps: {},
+        canActivate: (): User | false => ({ id: 1, name: 'Alice' }),
+      });
+
+      builder.withProviders((helpers) => {
+        type GuardedReturn =
+          ReturnType<typeof helpers.GuardedDataToYield> extends Generator<
+            any,
+            infer R,
+            any
+          >
+            ? R
+            : never;
+        expectTypeOf<GuardedReturn>().toEqualTypeOf<Signal<User>>();
+
+        type ParamReturn =
+          ReturnType<typeof helpers.UserIdParamsToYield> extends Generator<
+            any,
+            infer R,
+            any
+          >
+            ? R
+            : never;
+        expectTypeOf<ParamReturn>().toEqualTypeOf<Signal<string>>();
+        return [];
+      });
+    });
   });
 
   describe('guardedData', () => {

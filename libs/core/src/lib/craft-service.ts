@@ -233,11 +233,13 @@ export type BrandedServiceProvider<
   Name extends string = string,
   Scope extends RequirementScope = RequirementScope,
   Output = unknown,
+  Yielded = never,
 > = Provider & {
   readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: {
     name: Name;
     scope: Scope;
     output: Output;
+    yielded: Yielded;
   };
 };
 
@@ -1898,9 +1900,27 @@ export type CraftServiceApi<
   AppStart extends boolean = false,
 > = ConcreteServiceApi<Name, Scope, Inputs, Output, Metadata, AppStart>;
 
+type AbstractProvideFactory<Contract> =
+  | (() => Contract)
+  | (() => Generator<any, Contract, any>);
+
+type AbstractProvideHelper<Name extends string, Contract> = {
+  [Key in `provide${Capitalize<Name>}`]: <
+    Factory extends AbstractProvideFactory<Contract>,
+  >(
+    factory: Factory,
+  ) => BrandedServiceProvider<
+    Name,
+    'toProvide',
+    Contract,
+    FactoryYields<Factory>
+  >;
+};
+
 type AbstractServiceApi<Name extends string, Contract> = {
   [Key in `inject${Capitalize<Name>}`]: () => Contract;
-} & RequirementHelper<Name, Contract>;
+} & RequirementHelper<Name, Contract> &
+  AbstractProvideHelper<Name, Contract>;
 
 type DependencySourceToken<Output> = Type<Output> | InjectionToken<Output>;
 type DependencySourceOutput<Token> =
@@ -2969,6 +2989,22 @@ export function craftService(
         return inject(token);
       },
       [requirementName]: requirement,
+      [provideName]: (factory: AnyFactory) => {
+        const abstractRuntimeDefinition: ConcreteRuntimeDefinition = {
+          factory,
+          name: options.name,
+          scope: 'toProvide',
+          browserBoundary: false,
+          appStart: false,
+          token: new InjectionToken(`${capitalizedName}ServiceToken`),
+          requirement,
+          hasPublicInput: factoryUsesPublicInput(factory),
+          hasProvidedInput: factoryUsesProvidedInput(factory),
+          appStartHooks: new Map(),
+          startedAppStartServices: new Set(),
+        };
+        return createProviders(abstractRuntimeDefinition);
+      },
     };
   }
 
@@ -3435,6 +3471,7 @@ function createProviders(
       name: definition.name,
       scope: definition.scope,
       output: undefined,
+      yielded: undefined,
     },
     enumerable: false,
     configurable: false,

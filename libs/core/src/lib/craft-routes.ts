@@ -36,6 +36,7 @@ import type {
   GetInjectedServiceDependencies,
   ServiceDependencyMapFromYielded,
   ServiceTrackingMetadata,
+  ServiceYieldRequest,
 } from './craft-service';
 import type { MergeObjectUnion, Simplify } from './craft-service.shared';
 import { provideHostName } from './host-tag';
@@ -492,15 +493,41 @@ type MapRoutePublicPropertiesToErrors<
     };
 
 type RouteProvidedServiceNamesFromEntry<Entry> =
-  Entry extends BrandedServiceProvider<infer Name, any>
+  Entry extends BrandedServiceProvider<infer Name, any, any, any>
     ? Name
     : Entry extends readonly unknown[]
       ? RouteProvidedServiceNames<Entry>
       : never;
 
-type RouteProvidedServiceNames<Providers> = Providers extends readonly unknown[]
-  ? RouteProvidedServiceNamesFromEntry<Providers[number]>
-  : never;
+// Resolves the providers array for both the plain-array form and the callback
+// form `(helpers) => Providers[]`.
+type RouteProvidersArray<Providers> = Providers extends readonly unknown[]
+  ? Providers
+  : Providers extends (...args: any[]) => infer Result
+    ? Result
+    : never;
+
+type RouteProvidedServiceNames<Providers> =
+  RouteProvidersArray<Providers> extends infer Resolved
+    ? Resolved extends readonly unknown[]
+      ? RouteProvidedServiceNamesFromEntry<Resolved[number]>
+      : never
+    : never;
+
+// The services yielded inside callback-form providers (read off each branded
+// provider's tracked `Yielded`), surfaced as a dependency map for the cascade.
+type RouteProvidersYielded<Providers> =
+  RouteProvidersArray<Providers> extends readonly (infer Entry)[]
+    ? Entry extends BrandedServiceProvider<any, any, any, infer Yielded>
+      ? Yielded
+      : never
+    : never;
+
+type RouteProvidersDepsMap<RouteDefinition> = RouteDefinition extends {
+  providersFn: infer Providers;
+}
+  ? ServiceDependencyMapFromYielded<RouteProvidersYielded<Providers>>
+  : {};
 
 type RouteParamServiceNames<Name extends string, Path extends string> =
   PathParamNames<Path> extends infer ParamName extends string
@@ -661,6 +688,7 @@ type RouteDepsMap<RouteDefinition> = Simplify<
     | DepsMap<ComponentDepsMap<RouteDefinition>>
     | RouteGuardDepsMap<RouteDefinition>
     | RouteQueryParamsDepsMap<RouteDefinition>
+    | RouteProvidersDepsMap<RouteDefinition>
   >
 >;
 
@@ -669,8 +697,14 @@ type RouteSelfProvidedServiceNames<
   RouteCollectionName extends string,
 > =
   | RouteAutoProvidedServiceNames<RouteDefinition, RouteCollectionName>
+  | RouteSelfProvidedBaseNames<RouteDefinition>
   | RouteProvidedServiceNames<
       RouteDefinition extends { providers: infer Providers } ? Providers : never
+    >
+  | RouteProvidedServiceNames<
+      RouteDefinition extends { providersFn: infer Providers }
+        ? Providers
+        : never
     >;
 
 type RouteResolvedDepsMap<
@@ -831,6 +865,7 @@ type CraftRouteSharedFields<
     canMatch?: CraftRouteCanMatchGuard;
     path: Path;
     providers?: Providers;
+    providersFn?: (helpers: any) => Providers;
     data?: RouteData;
     queryParams?: RouteQueryParamsFactory;
     paramsProvider?: [PathParamNames<Path>] extends [never]
@@ -845,6 +880,7 @@ type AnyCraftRouteSharedFields = Simplify<
     canMatch?: CraftRouteCanMatchGuard;
     path: string;
     providers?: AngularRouteProviders;
+    providersFn?: (helpers: any) => AngularRouteProviders;
     data?: Data;
     queryParams?: RouteQueryParamsFactory;
     paramsProvider?: (
@@ -1281,6 +1317,108 @@ type GuardedDataInjectHelpers<
       : never
   >
 >;
+
+// A route-scoped `ToYield` generator handed to the `withProviders` callback. It
+// yields the route value service identified by `Name`, the route-BASE service name
+// (collection-less, e.g. `QueryUserIdGuardedData`), so the enclosing provider
+// factory tracks it as a dependency. The cascade strips that base name per route
+// via `RouteSelfProvidedBaseNames`; any non-route yield (e.g. a global service)
+// keeps its own name and surfaces as a missing provider.
+type CraftRouteToYieldHelper<Name extends string, Output> = () => Generator<
+  ServiceYieldRequest<
+    'toProvide',
+    Output,
+    ServiceTrackingMetadata<Name, 'toProvide', Output, never>
+  >,
+  Output,
+  unknown
+>;
+
+// Route-base (collection-less) param service name, e.g. `UserIdParams`.
+type RouteParamBaseServiceName<ParamName extends string> =
+  `${ParamServiceName<ParamName>}Params`;
+
+type RouteParamProviderHelpers<RouteDefinition> = {
+  [ParamName in PathParamNames<
+    RoutePath<RouteDefinition>
+  > as `${ParamServiceName<ParamName>}ParamsToYield`]: CraftRouteToYieldHelper<
+    RouteParamBaseServiceName<ParamName>,
+    ParamOutputForRoute<RouteDefinition, ParamName>
+  >;
+};
+
+type RouteGuardedDataProviderHelper<RouteDefinition> = [
+  RouteGuardedDataOutput<RouteDefinition>,
+] extends [never]
+  ? {}
+  : {
+      GuardedDataToYield: CraftRouteToYieldHelper<
+        RouteGuardedDataServiceName<RoutePath<RouteDefinition>>,
+        RouteGuardedDataOutput<RouteDefinition>
+      >;
+    };
+
+type RouteDataProviderHelper<RouteDefinition> = RouteDefinition extends {
+  data: Data;
+}
+  ? {
+      DataToYield: CraftRouteToYieldHelper<
+        RouteDataServiceName<RoutePath<RouteDefinition>>,
+        RouteDataOutput<RouteDefinition>
+      >;
+    }
+  : {};
+
+type RouteQueryParamsProviderHelper<RouteDefinition> = RouteDefinition extends {
+  queryParams: RouteQueryParamsFactory;
+}
+  ? {
+      QueryParamsToYield: CraftRouteToYieldHelper<
+        RouteQueryParamsServiceName<RoutePath<RouteDefinition>>,
+        RouteQueryParamsOutput<RouteDefinition>
+      >;
+    }
+  : {};
+
+// The object handed to a route's `withProviders` callback: route-local short-named
+// `ToYield` helpers for every auto-provisioned token that exists on the route.
+type RouteProviderHelpers<RouteDefinition> = Simplify<
+  RouteParamProviderHelpers<RouteDefinition> &
+    RouteGuardedDataProviderHelper<RouteDefinition> &
+    RouteDataProviderHelper<RouteDefinition> &
+    RouteQueryParamsProviderHelper<RouteDefinition>
+>;
+
+// The route-base service names a route auto-provides (collection-less). Added to
+// the cascade strip set so base-named provider yields are recognised as satisfied.
+type RouteSelfProvidedBaseNames<RouteDefinition> =
+  | (PathParamNames<RoutePath<RouteDefinition>> extends infer ParamName extends
+      string
+      ? RouteParamBaseServiceName<ParamName>
+      : never)
+  | (RouteDefinition extends { data: Data }
+      ? RouteDataServiceName<RoutePath<RouteDefinition>>
+      : never)
+  | (RouteDefinition extends { queryParams: RouteQueryParamsFactory }
+      ? RouteQueryParamsServiceName<RoutePath<RouteDefinition>>
+      : never)
+  | ([RouteGuardedDataOutput<RouteDefinition>] extends [never]
+      ? never
+      : RouteGuardedDataServiceName<RoutePath<RouteDefinition>>);
+
+// Builder returned by `route(path, def)`. `.withProviders(cb)` resolves the route
+// type fully before contextually typing `cb`, so the route-scoped helpers are
+// fully typed (this is impossible with an inline object-literal callback, where the
+// callback parameter cannot depend on the same literal's inferred type).
+type RouteWithProvidersBuilder<RouteDefinition> = RouteDefinition & {
+  withProviders: <Providers extends AngularRouteProviders>(
+    factory: (helpers: RouteProviderHelpers<RouteDefinition>) => Providers,
+  ) => Simplify<
+    RouteDefinition & {
+      providersFn: (helpers: RouteProviderHelpers<RouteDefinition>) => Providers;
+    }
+  >;
+};
 
 type CraftRoutePathRegistryEntry<
   RouteDefinition,
@@ -1896,6 +2034,30 @@ function createCanMatchGuard(
     );
 }
 
+// Authors a single route with fully-typed, route-scoped provider helpers.
+// `route('query/:userId', { canActivate, ... }).withProviders(({ GuardedDataToYield }) => [...])`
+// — the `.withProviders` callback receives `ToYield` generators for the route's
+// auto-provisioned tokens (guarded data, path params, query params, data), so a
+// route-level provider can be built from them with full dependency tracking.
+export function route<const Path extends string, const Def extends object>(
+  path: Path,
+  def: Def,
+): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>> {
+  const routeDefinition = { ...def, path };
+
+  Object.defineProperty(routeDefinition, 'withProviders', {
+    value: (factory: (helpers: Record<string, unknown>) => unknown) => ({
+      ...routeDefinition,
+      providersFn: factory,
+    }),
+    enumerable: false,
+  });
+
+  return routeDefinition as RouteWithProvidersBuilder<
+    Simplify<Def & { path: Path }>
+  >;
+}
+
 export function craftRoutes<
   const Name extends string,
   const Routes extends readonly AnyCraftRouteDefinition[],
@@ -2097,9 +2259,18 @@ export function craftRoutes<
       componentDeps: _componentDeps,
       loadChildren,
       paramsProvider: _paramsProvider,
+      providers: routeProviders,
+      providersFn,
       queryParams: _queryParams,
       ...angularRoute
     } = route;
+    const factoryProviders = providersFn
+      ? providersFn(buildRouteProviderHelpers(route))
+      : [];
+    const resolvedRouteProviders = [
+      ...(routeProviders ?? []),
+      ...factoryProviders,
+    ];
     const wrappedCanActivate = canActivate
       ? createCanActivateGuard(
           routeCollectionName,
@@ -2128,9 +2299,60 @@ export function craftRoutes<
       canMatch: wrappedCanMatch ? [wrappedCanMatch] : undefined,
       loadChildren: wrappedLoadChildren,
       providers:
-        autoProviders.length > 0 || route.providers?.length
-          ? [...autoProviders, ...(route.providers ?? [])]
+        autoProviders.length > 0 || resolvedRouteProviders.length
+          ? [...autoProviders, ...resolvedRouteProviders]
           : undefined,
     };
+  }
+
+  function buildRouteProviderHelpers(
+    route: AnyCraftRouteDefinition,
+  ): Record<string, unknown> {
+    const helpers: Record<string, unknown> = {};
+
+    const addHelper = (helperKey: string, serviceName: string): void => {
+      const routeService = routeValueServices.get(serviceName);
+      if (routeService) {
+        helpers[helperKey] = (
+          routeService as Record<string, unknown>
+        )[`${serviceName}ToYield`];
+      }
+    };
+
+    for (const paramName of extractRouteParamNames(route.path)) {
+      addHelper(
+        `${toParamServiceName(paramName)}ParamsToYield`,
+        toRouteParamServiceName(routeCollectionName, paramName),
+      );
+    }
+
+    if (route.data !== undefined) {
+      addHelper(
+        'DataToYield',
+        toRouteCollectionDataServiceName(routeCollectionName, route.path),
+      );
+    }
+
+    if (route.queryParams !== undefined) {
+      addHelper(
+        'QueryParamsToYield',
+        toRouteCollectionQueryParamsServiceName(
+          routeCollectionName,
+          route.path,
+        ),
+      );
+    }
+
+    if (route.canActivate !== undefined) {
+      addHelper(
+        'GuardedDataToYield',
+        toRouteCollectionGuardedDataServiceName(
+          routeCollectionName,
+          route.path,
+        ),
+      );
+    }
+
+    return helpers;
   }
 }
