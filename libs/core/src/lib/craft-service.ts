@@ -48,6 +48,7 @@ import type {
   Simplify,
   UnionToTuple,
 } from './craft-service.shared';
+import type { ServiceTrackedDepsRequest } from './track';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 export declare const SERVICE_YIELD_METADATA: unique symbol;
@@ -838,6 +839,43 @@ type MergeDependencyNodes<Left, Right> = ServiceDependencies<
   >
 >;
 
+// Dependency maps carried by primitives yielded through `track(...)`. A tracked
+// primitive surfaces its already-built dependency map (keyed by service name) on
+// `ServiceTrackedDepsRequest`; these are folded into the host service tree so
+// dependencies used only inside loaders/effects are detected.
+type TrackedDepMapOf<Request> =
+  Request extends ServiceTrackedDepsRequest<infer DepMap> ? DepMap : never;
+
+type AppStartYieldedOf<Request> =
+  Request extends ServiceAppStartRequest<infer AppStartYielded>
+    ? AppStartYielded
+    : never;
+
+type TrackedDepMapUnion<Yielded> =
+  | TrackedDepMapOf<Extract<Yielded, ServiceTrackedDepsRequest<any>>>
+  | TrackedDepMapOf<
+      Extract<
+        AppStartYieldedOf<Extract<Yielded, ServiceAppStartRequest<any>>>,
+        ServiceTrackedDepsRequest<any>
+      >
+    >;
+
+type MergeAllDependencyNodeMaps<
+  Maps extends object[],
+  Accumulator extends object = {},
+> = Maps extends [infer First extends object, ...infer Rest extends object[]]
+  ? MergeAllDependencyNodeMaps<
+      Rest,
+      MergeDependencyNodeMaps<Accumulator, First>
+    >
+  : Accumulator;
+
+type TrackedDepsMapFromYielded<Yielded> = MergeAllDependencyNodeMaps<
+  UnionToTuple<TrackedDepMapUnion<Yielded>> extends infer Tuple extends object[]
+    ? Tuple
+    : []
+>;
+
 type ResolveServiceTrackingMetadata<Metadata> =
   Metadata extends ServiceTrackingMetadata<
     infer Name extends string,
@@ -851,7 +889,10 @@ type ResolveServiceTrackingMetadata<Metadata> =
   >
     ? ServiceDependencies<
         Scope,
-        BuildDependencyMap<DependencyRequests<Yielded>>,
+        MergeDependencyNodeMaps<
+          BuildDependencyMap<DependencyRequests<Yielded>>,
+          TrackedDepsMapFromYielded<Yielded>
+        >,
         WithServiceNodeFlags<Derived, BrowserBoundary, AppStart>
       >
     : never;

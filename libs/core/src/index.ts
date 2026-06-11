@@ -34,6 +34,7 @@ export * from './lib/craft-method';
 export * from './lib/craft-computed';
 export * from './lib/craft-effect';
 export * from './lib/craft-service';
+export * from './lib/track';
 export * from './lib/correlation-id';
 export * from './lib/correlation-id-plugin';
 export * from './lib/take-app-snapshot';

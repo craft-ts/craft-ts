@@ -12,6 +12,7 @@ const preferCraftHttpClient = require('./prefer-craft-http-client.cjs');
 const preferCraftService = require('./prefer-craft-service.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
+const requireTrackOnDependentPrimitives = require('./require-track-on-dependent-primitives.cjs');
 
 module.exports = {
   rules: {
@@ -29,5 +30,6 @@ module.exports = {
     'prefer-craft-service': preferCraftService,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
+    'require-track-on-dependent-primitives': requireTrackOnDependentPrimitives,
   },
 };

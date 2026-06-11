@@ -12,6 +12,9 @@ export const SERVICE_DEPENDENCY_ACCESS_MARKER = Symbol(
 export const SERVICE_APP_START_REQUEST_MARKER = Symbol(
   'service-app-start-request-marker',
 );
+export const SERVICE_TRACKED_DEPS_REQUEST_MARKER = Symbol(
+  'service-tracked-deps-request-marker',
+);
 
 type AppStartResult = Observable<unknown> | Promise<unknown> | void;
 
@@ -57,6 +60,10 @@ type RuntimeServiceAppStartRequest = Readonly<{
   run: () => AppStartResult;
 }>;
 
+type RuntimeServiceTrackedDepsRequest = Readonly<{
+  [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true;
+}>;
+
 type RunCraftGeneratorOptions = {
   iterator: Generator<unknown, unknown, unknown>;
   injector: Injector;
@@ -94,6 +101,13 @@ export function runCraftGenerator({
 
     if (isServiceDependencyAccessRequest(yielded)) {
       current = iterator.next(yielded.resolve());
+      continue;
+    }
+
+    if (isServiceTrackedDepsRequest(yielded)) {
+      // Type-level only: the tracked primitive resolves its own dependencies
+      // lazily through the injector. Nothing to do at runtime.
+      current = iterator.next(undefined);
       continue;
     }
 
@@ -211,5 +225,15 @@ function isServiceAppStartRequest(
     typeof value === 'object' &&
     value !== null &&
     SERVICE_APP_START_REQUEST_MARKER in value
+  );
+}
+
+function isServiceTrackedDepsRequest(
+  value: unknown,
+): value is RuntimeServiceTrackedDepsRequest {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    SERVICE_TRACKED_DEPS_REQUEST_MARKER in value
   );
 }

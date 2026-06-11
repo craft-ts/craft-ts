@@ -25,6 +25,7 @@ export default [
       'craft-ng/app-start-registry-match': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/require-component-monitoring': 'error',
+      'craft-ng/require-track-on-dependent-primitives': 'error',
       '@angular-eslint/directive-selector': [
         'error',
         {
