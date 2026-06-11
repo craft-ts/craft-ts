@@ -52,6 +52,7 @@ type AngularRouteBase = Omit<
   | 'loadComponent'
   | 'path'
   | 'providers'
+  | 'redirectTo'
 >;
 type AngularRouteProviders = NonNullable<Route['providers']>;
 type AngularRouteComponent = NonNullable<Route['component']>;
@@ -185,6 +186,18 @@ type ResolveGeneratorResult<Result> =
 type RouteQueryParamsFactory<Output = unknown, Yielded = never> = () =>
   | Output
   | Generator<Yielded, Output, unknown>;
+
+type RouteRedirectToResult = string | UrlTree;
+
+// A `redirectTo` that can be a plain string, a synchronous/async function (a
+// plain Angular `RedirectFunction`), or a generator factory that `yield*`s
+// craftService dependencies before returning the redirect target. The generator
+// form is what makes the redirect's service usage trackable for type-safe DI.
+type RouteRedirectToFactory<Yielded = never> = (
+  redirectData: PartialMatchRouteSnapshot,
+) =>
+  | MaybeAsync<RouteRedirectToResult>
+  | Generator<Yielded, RouteRedirectToResult, unknown>;
 
 type RouteParamsProvider<Path extends string> = (
   params: Signal<RouteParamMap<Path>>,
@@ -683,11 +696,27 @@ type RouteQueryParamsDepsMap<RouteDefinition> = RouteDefinition extends {
   ? QueryParamsDependenciesFromReturn<Result>
   : {};
 
+// Services a generator `redirectTo` depends on, read off the generator's yields.
+// A non-generator `redirectTo` (plain string or plain `RedirectFunction`)
+// contributes nothing.
+type RedirectToDependenciesFromReturn<Result> = [Result] extends [never]
+  ? {}
+  : Result extends Generator<infer Yielded, any, unknown>
+    ? ServiceDependencyMapFromYielded<Yielded>
+    : {};
+
+type RouteRedirectToDepsMap<RouteDefinition> = RouteDefinition extends {
+  redirectTo: (...args: any[]) => infer Result;
+}
+  ? RedirectToDependenciesFromReturn<Result>
+  : {};
+
 type RouteDepsMap<RouteDefinition> = Simplify<
   MergeObjectUnion<
     | DepsMap<ComponentDepsMap<RouteDefinition>>
     | RouteGuardDepsMap<RouteDefinition>
     | RouteQueryParamsDepsMap<RouteDefinition>
+    | RouteRedirectToDepsMap<RouteDefinition>
     | RouteProvidersDepsMap<RouteDefinition>
   >
 >;
@@ -735,7 +764,14 @@ type RouteHttpDepsMap<RouteDefinition> = HttpDepsMapFromRequests<
   | HttpRequestsFromComponentDeps<ComponentDepsMap<RouteDefinition>>
   | HttpRequestsFromDepsMap<RouteGuardDepsMap<RouteDefinition>>
   | HttpRequestsFromDepsMap<RouteQueryParamsDepsMap<RouteDefinition>>
+  | HttpRequestsFromDepsMap<RouteRedirectToDepsMap<RouteDefinition>>
 >;
+
+type HasRedirectToGenerator<RouteDefinition> = RouteDefinition extends {
+  redirectTo: (...args: any[]) => infer Result;
+}
+  ? IsGeneratorReturn<Result>
+  : false;
 
 type ShouldExposeRouteDeps<RouteDefinition> =
   ComponentDepsMap<RouteDefinition> extends { deps: object }
@@ -744,7 +780,9 @@ type ShouldExposeRouteDeps<RouteDefinition> =
       ? true
       : RouteDefinition extends { queryParams: RouteQueryParamsFactory }
         ? true
-        : false;
+        : HasRedirectToGenerator<RouteDefinition> extends true
+          ? true
+          : false;
 
 export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
   Omit<
@@ -868,6 +906,7 @@ type CraftRouteSharedFields<
     providersFn?: (helpers: any) => Providers;
     data?: RouteData;
     queryParams?: RouteQueryParamsFactory;
+    redirectTo?: string | RouteRedirectToFactory<any>;
     paramsProvider?: [PathParamNames<Path>] extends [never]
       ? never
       : RouteParamsProvider<Path>;
@@ -883,6 +922,7 @@ type AnyCraftRouteSharedFields = Simplify<
     providersFn?: (helpers: any) => AngularRouteProviders;
     data?: Data;
     queryParams?: RouteQueryParamsFactory;
+    redirectTo?: string | RouteRedirectToFactory<any>;
     paramsProvider?: (
       params: Signal<Record<string, string>>,
     ) => Record<string, unknown>;
@@ -1020,9 +1060,23 @@ type AnyCraftLazyRouteDefinition = Simplify<
   }
 >;
 
+// A redirect-only route: no component, no lazy children, just a `redirectTo`.
+// The `redirectTo` may be a generator factory whose `yield*`ed services are
+// tracked for type-safe DI.
+type AnyCraftRedirectRouteDefinition = Simplify<
+  AnyCraftRouteSharedFields & {
+    component?: never;
+    componentDeps?: never;
+    loadChildren?: never;
+    loadComponent?: never;
+    redirectTo: string | RouteRedirectToFactory<any>;
+  }
+>;
+
 export type AnyCraftRouteDefinition =
   | AnyCraftComponentRouteDefinition
-  | AnyCraftLazyRouteDefinition;
+  | AnyCraftLazyRouteDefinition
+  | AnyCraftRedirectRouteDefinition;
 
 type LoadChildrenRoutes<RouteDefinition> = RouteDefinition extends {
   loadChildren: (...args: any[]) => infer Output;
@@ -1787,6 +1841,40 @@ function executeRouteQueryParamsFactory<Output>(
   });
 }
 
+const ROUTE_REDIRECT_TO_INVALID_YIELD_ERROR_MESSAGE =
+  'route redirectTo generators can only yield craftService dependencies or exposed dependency helpers.';
+const ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE =
+  'route redirectTo generators do not support onAppStart(...).';
+
+// Wraps a craft `redirectTo` factory into a plain Angular `RedirectFunction`.
+// Angular runs the result in an injection context, so a generator factory can
+// `yield*` craftService dependencies; we drive it with `runCraftGenerator` and
+// return the resolved redirect target. Plain (non-generator) factories pass
+// their result straight through.
+function createRedirectTo(
+  factory: RouteRedirectToFactory<unknown>,
+): (redirectData: PartialMatchRouteSnapshot) => MaybeAsync<RouteRedirectToResult> {
+  return (redirectData) => {
+    const result = factory(redirectData);
+
+    if (!isGenerator(result)) {
+      return result as MaybeAsync<RouteRedirectToResult>;
+    }
+
+    const injector = inject(Injector);
+
+    return runCraftGenerator({
+      iterator: result,
+      injector,
+      hostScope: 'function',
+      invalidYieldErrorMessage: ROUTE_REDIRECT_TO_INVALID_YIELD_ERROR_MESSAGE,
+      multipleAppStartErrorMessage: ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE,
+      onAppStartNotSupportedErrorMessage:
+        ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE,
+    }).value as RouteRedirectToResult;
+  };
+}
+
 function provideRouteValueService(
   serviceName: string,
   serviceApi: AnyRouteValueServiceApi,
@@ -2262,6 +2350,7 @@ export function craftRoutes<
       providers: routeProviders,
       providersFn,
       queryParams: _queryParams,
+      redirectTo,
       ...angularRoute
     } = route;
     const factoryProviders = providersFn
@@ -2292,9 +2381,14 @@ export function craftRoutes<
       loadChildren && hasRouteLoadChildren(route)
         ? createLoadChildren(route.path, loadChildren)
         : undefined;
+    const wrappedRedirectTo =
+      typeof redirectTo === 'function'
+        ? createRedirectTo(redirectTo)
+        : redirectTo;
 
     return {
       ...angularRoute,
+      ...(redirectTo !== undefined ? { redirectTo: wrappedRedirectTo } : {}),
       canActivate: wrappedCanActivate ? [wrappedCanActivate] : undefined,
       canMatch: wrappedCanMatch ? [wrappedCanMatch] : undefined,
       loadChildren: wrappedLoadChildren,

@@ -718,6 +718,53 @@ describe('craftRoutes', () => {
     expect(result).toBe(true);
   });
 
+  it('should support a redirectTo generator that yields tracked dependencies', () => {
+    const { AuthToYield, provideAuth } = craftService(
+      { name: 'Auth', scope: 'toProvide' },
+      () => ({ isAdmin: () => true }),
+    );
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      {
+        path: '',
+        pathMatch: 'full',
+        providers: [provideAuth()],
+        redirectTo: function* () {
+          const auth = yield* AuthToYield();
+          return auth.isAdmin() ? '/pizzerias/admin' : '/pizzerias';
+        },
+      },
+    ]);
+
+    const routeConfig = appRoutes.toRoutes()[0];
+    const activatedRoute = createActivatedRouteStub();
+    const injector = createRouteInjector(
+      routeConfig.providers,
+      activatedRoute.route,
+    );
+
+    expect(typeof routeConfig.redirectTo).toBe('function');
+
+    const result = runInInjectionContext(injector, () =>
+      (routeConfig.redirectTo as (snapshot: PartialMatchRouteSnapshot) => string)(
+        partialMatchRouteSnapshotStub,
+      ),
+    );
+
+    expect(result).toBe('/pizzerias/admin');
+  });
+
+  it('should pass a plain string redirectTo straight through', () => {
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      {
+        path: '',
+        pathMatch: 'full',
+        redirectTo: '/pizzerias',
+      },
+    ]);
+
+    expect(appRoutes.toRoutes()[0].redirectTo).toBe('/pizzerias');
+  });
+
   it('should resolve params from the matching child ActivatedRoute in lazy contexts', () => {
     const {
       testRoutes: appRoutes,
