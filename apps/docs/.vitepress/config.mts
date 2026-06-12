@@ -125,6 +125,10 @@ export default defineConfig({
             link: '/type-safe-di-routes/route-providers',
           },
           {
+            text: 'Route Guards',
+            link: '/type-safe-di-routes/guards',
+          },
+          {
             text: 'Browser Boundaries',
             link: '/type-safe-di-routes/browser-boundaries',
           },

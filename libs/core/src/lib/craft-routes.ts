@@ -12,6 +12,7 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import {
   ActivatedRoute,
   RedirectCommand,
+  Router,
   UrlTree,
   type ActivatedRouteSnapshot,
   type CanActivateFn,
@@ -26,6 +27,15 @@ import {
 } from '@angular/router';
 import { Observable, filter, isObservable, map, take, throwIfEmpty } from 'rxjs';
 import type { ExtractDeps } from './branded-component/branded-component';
+import {
+  isCraftException,
+  type AnyCraftException,
+  type StripCraftException,
+} from './craft-exception';
+import {
+  isCraftGenShortCircuit,
+  type ExtractCraftGenExceptions,
+} from './craft-gen';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
 import { craftService } from './craft-service';
@@ -253,7 +263,12 @@ type ExtractCanActivateGuardData<Guard> = Guard extends (
 ) => infer Result
   ? Exclude<
       UnwrapCanActivateReturn<Result>,
-      boolean | UrlTree | RedirectCommand | undefined | null
+      | boolean
+      | UrlTree
+      | RedirectCommand
+      | AnyCraftException
+      | undefined
+      | null
     >
   : never;
 
@@ -612,6 +627,129 @@ type CraftRouteCanActivateGuard = (
 ) =>
   | CraftRouteCanActivateResult
   | Generator<unknown, CraftRouteCanActivateResult, unknown>;
+
+// A composing guard generator handed to `craftCanActivate`. It `yield*`s reusable
+// `craftGen` guards; their dependency yields surface here (so route DI tracking
+// works) alongside the `CraftGenExceptionMarker`s that advertise the reachable
+// exception codes.
+type CraftCanActivateGuardFn = (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot,
+) => Generator<unknown, unknown, unknown>;
+
+type CraftCanActivateGuardYielded<Guard> = Guard extends (
+  ...args: any[]
+) => Generator<infer Yielded, any, unknown>
+  ? Yielded
+  : never;
+
+type CraftCanActivateGuardReturn<Guard> = Guard extends (
+  ...args: any[]
+) => Generator<any, infer Output, unknown>
+  ? Output
+  : never;
+
+// The Angular-native redirect helpers (commands-array form) plus the resolved
+// exception, handed to each resolver. Native `Router` methods are used so a
+// resolver can `createUrlTree(['/auth/login'])` exactly like a plain Angular guard.
+type CraftGuardExceptionResolverContext<Exception extends AnyCraftException> = {
+  createUrlTree: Router['createUrlTree'];
+  navigate: Router['navigate'];
+  navigateByUrl: Router['navigateByUrl'];
+  router: Router;
+  exception: Exception;
+  payload: Exception extends { payload: infer Payload } ? Payload : unknown;
+};
+
+// A resolver maps an exception to a `GuardResult`. It may be a plain function or
+// a generator that `yield*`s craft services first (e.g. to read a redirect URL
+// from a config service) — those yields are tracked just like the guards' own.
+type CraftGuardExceptionResolver<Exception extends AnyCraftException> = (
+  context: CraftGuardExceptionResolverContext<Exception>,
+) => GuardResult | Generator<unknown, GuardResult, unknown>;
+
+type CraftGuardExceptionForCode<Exception, Code extends string> = Extract<
+  Exception,
+  { code: Code }
+>;
+
+type CraftGuardExceptionCodes<Exception> = Exception extends {
+  code: infer Code extends string;
+}
+  ? Code
+  : never;
+
+// Exhaustive resolver map: one resolver per reachable exception code. Used as the
+// concrete left side of the `resolvers` parameter intersection — it requires
+// every code (a missing key is a type error) and contextually types each
+// resolver's `context` param (`createUrlTree`, `exception`, …).
+type CraftGuardResolvers<Yielded> =
+  ExtractCraftGenExceptions<Yielded> extends infer Exception
+    ? {
+        [Code in CraftGuardExceptionCodes<Exception>]: CraftGuardExceptionResolver<
+          Extract<CraftGuardExceptionForCode<Exception, Code>, AnyCraftException>
+        >;
+      }
+    : never;
+
+// The full `resolvers` parameter type. `CraftGuardResolvers<Yielded>` (concrete)
+// drives contextual typing + the missing-key check; `& Resolvers` captures the
+// literal so generator resolvers' dependency yields can be extracted by
+// `CraftGuardResolversYielded` and folded into the guard's tracked deps.
+type CraftGuardResolversParam<Yielded, Resolvers> =
+  CraftGuardResolvers<Yielded> & Resolvers;
+
+// The craft dependency yields contributed by generator-returning resolvers,
+// folded into the guard's `Yielded` so route DI tracking sees redirect-time
+// dependencies (a resolver that yields an unprovided service surfaces as a
+// missing provider on the route).
+type CraftGuardResolversYielded<Resolvers> = {
+  [Code in keyof Resolvers]: Resolvers[Code] extends (
+    ...args: any[]
+  ) => infer Result
+    ? Result extends Generator<infer Yielded, any, unknown>
+      ? Yielded
+      : never
+    : never;
+}[keyof Resolvers];
+
+// The precise guard returned by `craftCanActivate`. Its generator `Yielded`
+// preserves the composing guard's AND the resolvers' dependency requests so
+// `RouteGuardDepsMap` tracks them both; its return surfaces the guard's success
+// value (data) for `injectXxxGuardedData`, alongside the resolvers' `GuardResult`.
+type CraftCanActivateResultGuard<Guard, Resolvers> = (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot,
+) => Generator<
+  CraftCanActivateGuardYielded<Guard> | CraftGuardResolversYielded<Resolvers>,
+  StripCraftException<CraftCanActivateGuardReturn<Guard>> | GuardResult,
+  unknown
+>;
+
+// The `craftCanMatch` counterparts. `canMatch` has no guarded-data path and must
+// resolve to a synchronous `GuardResult`, so the success branch is just a
+// `GuardResult` (no data passthrough).
+type CraftCanMatchGuardFn = (
+  route: Route,
+  segments: UrlSegment[],
+  currentSnapshot?: PartialMatchRouteSnapshot,
+) => Generator<unknown, unknown, unknown>;
+
+type CraftCanMatchGuardYielded<Guard> = Guard extends (
+  ...args: any[]
+) => Generator<infer Yielded, any, unknown>
+  ? Yielded
+  : never;
+
+type CraftCanMatchResultGuard<Guard, Resolvers> = (
+  route: Route,
+  segments: UrlSegment[],
+  currentSnapshot?: PartialMatchRouteSnapshot,
+) => Generator<
+  CraftCanMatchGuardYielded<Guard> | CraftGuardResolversYielded<Resolvers>,
+  GuardResult,
+  unknown
+>;
 
 type CraftRouteCanMatchGuard = (
   route: Route,
@@ -2120,6 +2258,155 @@ function createCanMatchGuard(
       executeGuard({ route, segments, currentSnapshot }),
       routePath,
     );
+}
+
+type CraftGuardResolverMap = Record<
+  string,
+  CraftGuardExceptionResolver<AnyCraftException> | undefined
+>;
+
+// Drives the composing guard, converting a `craftGen` short-circuit (a thrown
+// `CraftGenShortCircuit`) back into the `craftException` it carried so the
+// boundary can resolve it like a normally-returned exception. Any other throw is
+// rethrown.
+function* driveCraftGuard(
+  guardIterator: Generator<unknown, unknown, unknown>,
+): Generator<unknown, unknown, unknown> {
+  try {
+    return yield* guardIterator;
+  } catch (error) {
+    if (isCraftGenShortCircuit(error)) {
+      return error.exception;
+    }
+    throw error;
+  }
+}
+
+// Resolution boundary shared by `craftCanActivate` / `craftCanMatch`: a
+// non-exception result passes through; an exception is mapped through its
+// resolver (looked up by code, with a defensive runtime throw for an unmapped
+// code, which the exhaustive `resolvers` type already prevents). When the
+// resolver is a generator (it `yield*`s craft services to build the redirect),
+// it is delegated to so its dependency yields reach the driver and resolve.
+function* resolveCraftGuardResult(
+  result: unknown,
+  router: Router,
+  resolverMap: CraftGuardResolverMap,
+): Generator<unknown, unknown, unknown> {
+  if (!isCraftException(result)) {
+    return result;
+  }
+
+  const resolver = resolverMap[result.code];
+
+  if (!resolver) {
+    throw new Error(`Unhandled guard exception: ${result.code}`);
+  }
+
+  const resolved = resolver({
+    createUrlTree: router.createUrlTree.bind(router),
+    navigate: router.navigate.bind(router),
+    navigateByUrl: router.navigateByUrl.bind(router),
+    router,
+    exception: result,
+    payload: result.payload,
+  });
+
+  return isGenerator(resolved) ? yield* resolved : resolved;
+}
+
+// Composes reusable `craftGen` guards into a single `canActivate` and resolves
+// their failure cases exhaustively.
+//
+// `craftCanActivate(guard, resolvers)` returns a generator guard (the
+// `canActivate` contract is unchanged). The `guard` `yield*`s `craftGen` guards,
+// which short-circuit by throwing `CraftGenShortCircuit` as soon as one produces
+// a `craftException`. This boundary catches that throw, looks up the matching
+// resolver by exception code, and returns its `GuardResult` (e.g. a redirect
+// `UrlTree`). `resolvers` must cover exactly the reachable exception codes — a
+// missing one is a type error and, defensively, throws at runtime.
+//
+// ```ts
+// route('admin', {
+//   canActivate: craftCanActivate(
+//     function* () {
+//       yield* roleGuard(ROLES.PIZZERIA_ADMIN);
+//       yield* noPizzeriaGuard();
+//       return true;
+//     },
+//     {
+//       NOT_AUTHENTICATED: ({ createUrlTree }) => createUrlTree(['/auth/login']),
+//       FORBIDDEN_ROLE: ({ createUrlTree }) => createUrlTree(['/unauthorized']),
+//       HAS_PIZZERIA: ({ createUrlTree }) => createUrlTree(['/dashboard']),
+//     },
+//   ),
+// })
+// ```
+export function craftCanActivate<Guard extends CraftCanActivateGuardFn, Resolvers>(
+  guard: Guard,
+  resolvers: CraftGuardResolversParam<
+    CraftCanActivateGuardYielded<Guard>,
+    Resolvers
+  >,
+): CraftCanActivateResultGuard<Guard, Resolvers> {
+  const resolverMap = resolvers as unknown as CraftGuardResolverMap;
+
+  const resolvedGuard = function* (
+    route: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot,
+  ) {
+    const router = inject(Router);
+    const result = yield* driveCraftGuard(guard(route, state));
+
+    return yield* resolveCraftGuardResult(result, router, resolverMap);
+  };
+
+  return resolvedGuard as unknown as CraftCanActivateResultGuard<
+    Guard,
+    Resolvers
+  >;
+}
+
+// The `canMatch` counterpart of {@link craftCanActivate}. Same composition and
+// exhaustive resolution; the resolver's `GuardResult` (e.g. `false` to skip the
+// route, or a redirect `UrlTree`) is returned synchronously, as `canMatch`
+// requires. Unlike `canActivate`, a `canMatch` guard produces no guarded data.
+//
+// ```ts
+// {
+//   path: 'beta',
+//   canMatch: craftCanMatch(
+//     function* () {
+//       yield* featureFlagGuard('beta');
+//       return true;
+//     },
+//     { FLAG_DISABLED: () => false },
+//   ),
+// }
+// ```
+export function craftCanMatch<Guard extends CraftCanMatchGuardFn, Resolvers>(
+  guard: Guard,
+  resolvers: CraftGuardResolversParam<
+    CraftCanMatchGuardYielded<Guard>,
+    Resolvers
+  >,
+): CraftCanMatchResultGuard<Guard, Resolvers> {
+  const resolverMap = resolvers as unknown as CraftGuardResolverMap;
+
+  const resolvedGuard = function* (
+    route: Route,
+    segments: UrlSegment[],
+    currentSnapshot?: PartialMatchRouteSnapshot,
+  ) {
+    const router = inject(Router);
+    const result = yield* driveCraftGuard(
+      guard(route, segments, currentSnapshot),
+    );
+
+    return yield* resolveCraftGuardResult(result, router, resolverMap);
+  };
+
+  return resolvedGuard as unknown as CraftCanMatchResultGuard<Guard, Resolvers>;
 }
 
 // Authors a single route with fully-typed, route-scoped provider helpers.

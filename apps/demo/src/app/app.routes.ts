@@ -1,5 +1,8 @@
 import {
   abstract,
+  craftCanActivate,
+  craftException,
+  craftGen,
   craftRoutes,
   craftService,
   query,
@@ -18,6 +21,20 @@ const { UserRequirement, provideUser } = craftService(
   abstract<User>(),
 );
 
+// Reusable, composable guard: yields the tracked `Auth` dependency and either
+// returns the authenticated user (guarded data) or short-circuits with a typed
+// `craftException`. Composed via `yield*` inside `craftCanActivate` below.
+const authGuard = craftGen(() =>
+  function* () {
+    const user = yield* AuthToYield();
+    const userSafeValue = user.safeValue();
+
+    return userSafeValue
+      ? userSafeValue
+      : craftException({ code: 'NOT_AUTHENTICATED' });
+  },
+);
+
 export const {
   demoRoutes,
   injectDemoTeamIdParams,
@@ -29,14 +46,15 @@ export const {
     componentDeps:
       {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
     loadComponent: () => import('./examples/primitives/query/query'),
-    canActivate: function* () {
-      const user = yield* AuthToYield();
-      const userSafeValue = user.safeValue();
-      if (!userSafeValue) {
-        return false;
-      }
-      return userSafeValue;
-    },
+    canActivate: craftCanActivate(
+      function* () {
+        return yield* authGuard();
+      },
+      // Exhaustive: every reachable exception code must be resolved here.
+      {
+        NOT_AUTHENTICATED: ({ createUrlTree }) => createUrlTree(['/login-form']),
+      },
+    ),
   }).withProviders(({ GuardedDataToYield }) => [
     provideUser(function* () {
       const guardedUser = yield* GuardedDataToYield();
