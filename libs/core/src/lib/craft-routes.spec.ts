@@ -2489,16 +2489,14 @@ describe('craftRoutes', () => {
     });
   });
 
-  it('should throw when canMatch returns an observable', () => {
+  it('should resolve an observable canMatch result once it emits a defined value', async () => {
+    const guardResult = new BehaviorSubject<GuardResult | undefined>(undefined);
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
-        canMatch: (() =>
-          new BehaviorSubject<GuardResult | undefined>(
-            true,
-          ).asObservable()) as unknown as never,
+        canMatch: (() => guardResult.asObservable()) as unknown as never,
       },
     ]);
 
@@ -2509,14 +2507,22 @@ describe('craftRoutes', () => {
       activatedRoute.route,
     );
     const canMatch = getCanMatchGuard(routeConfig);
-
-    expect(() =>
-      runInInjectionContext(injector, () =>
-        canMatch(routeConfig, urlSegmentsStub, partialMatchRouteSnapshotStub),
-      ),
-    ).toThrow(
-      'Route "guard" canMatch guard must return a synchronous GuardResult.',
+    const result = runInInjectionContext(injector, () =>
+      canMatch(routeConfig, urlSegmentsStub, partialMatchRouteSnapshotStub),
     );
+    const guardPromise = firstValueFrom(result as any);
+    let resolved = false;
+
+    guardPromise.then(() => {
+      resolved = true;
+    });
+
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    guardResult.next(true);
+
+    expect(await guardPromise).toBe(true);
   });
 
   it('should throw when canActivate synchronously returns undefined', () => {

@@ -5,6 +5,8 @@ const componentTestGenDepsMatch = require('./component-test-gen-deps-match.cjs')
 const craftMethodNameMatch = require('./craft-method-name-match.cjs');
 const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
 const preferCraftComputed = require('./prefer-craft-computed.cjs');
+const preferCraftState = require('./prefer-craft-state.cjs');
+const preferCraftEffect = require('./prefer-craft-effect.cjs');
 const noAngularInject = require('./no-angular-inject.cjs');
 const noAngularSignalForms = require('./no-angular-signal-forms.cjs');
 const provideHostNameMatchComponent = require('./provide-host-name-match-component.cjs');
@@ -23,6 +25,8 @@ module.exports = {
     'craft-method-name-match': craftMethodNameMatch,
     'craft-computed-name-match': craftComputedNameMatch,
     'prefer-craft-computed': preferCraftComputed,
+    'prefer-craft-state': preferCraftState,
+    'prefer-craft-effect': preferCraftEffect,
     'no-angular-inject': noAngularInject,
     'no-angular-signal-forms': noAngularSignalForms,
     'provide-host-name-match-component': provideHostNameMatchComponent,

@@ -28,15 +28,15 @@ import {
 import { Observable, filter, isObservable, map, take, throwIfEmpty } from 'rxjs';
 import type { ExtractDeps } from './branded-component/branded-component';
 import {
-  isCraftException,
   type AnyCraftException,
   type StripCraftException,
 } from './craft-exception';
-import {
-  isCraftGenShortCircuit,
-  type ExtractCraftGenExceptions,
-} from './craft-gen';
+import { type ExtractCraftGenExceptions } from './craft-gen';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import {
+  runCraftGuardAsync,
+  type CraftGuardResolverMap,
+} from './craft-guard-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
 import { craftService } from './craft-service';
 import type {
@@ -2137,7 +2137,7 @@ function createPendingGuardResult(
     throwIfEmpty(
       () =>
         new Error(
-          `Route "${routePath}" canActivate guard completed before emitting a defined result.`,
+          `Route "${routePath}" guard completed before emitting a defined result.`,
         ),
     ),
   );
@@ -2189,19 +2189,30 @@ function normalizeCanActivateResult(
 function normalizeCanMatchResult(
   result: unknown,
   routePath: string,
-): GuardResult {
-  if (
-    result === undefined ||
-    isSignal(result) ||
-    isObservable(result) ||
-    isPromiseLike(result)
-  ) {
-    throw new Error(
-      `Route "${routePath}" canMatch guard must return a synchronous GuardResult. Promise, Observable, Signal and undefined are not supported.`,
+): MaybeAsync<GuardResult> {
+  // `canMatch` carries no guarded data, so the data holder is always null. A
+  // composing guard that suspends on `untilSettled`/`untilDefined` surfaces here
+  // as a Signal/Observable/Promise — Angular's `CanMatchFn` accepts
+  // `MaybeAsync<GuardResult>`, so it is normalized the same way as `canActivate`.
+  if (isSignal(result)) {
+    return createPendingGuardResult(
+      toObservable(result as Signal<unknown>),
+      routePath,
+      null,
     );
   }
 
-  return result as GuardResult;
+  if (isObservable(result)) {
+    return createPendingGuardResult(result as Observable<unknown>, routePath, null);
+  }
+
+  if (isPromiseLike(result)) {
+    return Promise.resolve(result).then((value) =>
+      assertCanActivateResult(resolveGuardData(value, null), routePath),
+    );
+  }
+
+  return assertCanActivateResult(resolveGuardData(result, null), routePath);
 }
 
 function isPromiseLike(
@@ -2260,61 +2271,6 @@ function createCanMatchGuard(
     );
 }
 
-type CraftGuardResolverMap = Record<
-  string,
-  CraftGuardExceptionResolver<AnyCraftException> | undefined
->;
-
-// Drives the composing guard, converting a `craftGen` short-circuit (a thrown
-// `CraftGenShortCircuit`) back into the `craftException` it carried so the
-// boundary can resolve it like a normally-returned exception. Any other throw is
-// rethrown.
-function* driveCraftGuard(
-  guardIterator: Generator<unknown, unknown, unknown>,
-): Generator<unknown, unknown, unknown> {
-  try {
-    return yield* guardIterator;
-  } catch (error) {
-    if (isCraftGenShortCircuit(error)) {
-      return error.exception;
-    }
-    throw error;
-  }
-}
-
-// Resolution boundary shared by `craftCanActivate` / `craftCanMatch`: a
-// non-exception result passes through; an exception is mapped through its
-// resolver (looked up by code, with a defensive runtime throw for an unmapped
-// code, which the exhaustive `resolvers` type already prevents). When the
-// resolver is a generator (it `yield*`s craft services to build the redirect),
-// it is delegated to so its dependency yields reach the driver and resolve.
-function* resolveCraftGuardResult(
-  result: unknown,
-  router: Router,
-  resolverMap: CraftGuardResolverMap,
-): Generator<unknown, unknown, unknown> {
-  if (!isCraftException(result)) {
-    return result;
-  }
-
-  const resolver = resolverMap[result.code];
-
-  if (!resolver) {
-    throw new Error(`Unhandled guard exception: ${result.code}`);
-  }
-
-  const resolved = resolver({
-    createUrlTree: router.createUrlTree.bind(router),
-    navigate: router.navigate.bind(router),
-    navigateByUrl: router.navigateByUrl.bind(router),
-    router,
-    exception: result,
-    payload: result.payload,
-  });
-
-  return isGenerator(resolved) ? yield* resolved : resolved;
-}
-
 // Composes reusable `craftGen` guards into a single `canActivate` and resolves
 // their failure cases exhaustively.
 //
@@ -2351,14 +2307,23 @@ export function craftCanActivate<Guard extends CraftCanActivateGuardFn, Resolver
 ): CraftCanActivateResultGuard<Guard, Resolvers> {
   const resolverMap = resolvers as unknown as CraftGuardResolverMap;
 
+  // A generator (not a plain function) so the guard executor runs its body inside
+  // `runInInjectionContext` — `inject(...)` below depends on that. It relays no
+  // yields itself; `runCraftGuardAsync` drives the composing guard's yields.
+  // eslint-disable-next-line require-yield
   const resolvedGuard = function* (
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot,
   ) {
+    const injector = inject(Injector);
     const router = inject(Router);
-    const result = yield* driveCraftGuard(guard(route, state));
 
-    return yield* resolveCraftGuardResult(result, router, resolverMap);
+    return runCraftGuardAsync(
+      guard(route, state),
+      injector,
+      router,
+      resolverMap,
+    );
   };
 
   return resolvedGuard as unknown as CraftCanActivateResultGuard<
@@ -2393,17 +2358,23 @@ export function craftCanMatch<Guard extends CraftCanMatchGuardFn, Resolvers>(
 ): CraftCanMatchResultGuard<Guard, Resolvers> {
   const resolverMap = resolvers as unknown as CraftGuardResolverMap;
 
+  // See the note in `craftCanActivate`: a generator so the body runs in an
+  // injection context; the actual driving happens in `runCraftGuardAsync`.
+  // eslint-disable-next-line require-yield
   const resolvedGuard = function* (
     route: Route,
     segments: UrlSegment[],
     currentSnapshot?: PartialMatchRouteSnapshot,
   ) {
+    const injector = inject(Injector);
     const router = inject(Router);
-    const result = yield* driveCraftGuard(
-      guard(route, segments, currentSnapshot),
-    );
 
-    return yield* resolveCraftGuardResult(result, router, resolverMap);
+    return runCraftGuardAsync(
+      guard(route, segments, currentSnapshot),
+      injector,
+      router,
+      resolverMap,
+    );
   };
 
   return resolvedGuard as unknown as CraftCanMatchResultGuard<Guard, Resolvers>;

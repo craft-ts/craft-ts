@@ -194,9 +194,10 @@ route('query/:userId', {
 
 ## `craftCanMatch`
 
-`craftCanMatch` is the sibling for `canMatch`. Same composition and exhaustive resolution; the
-resolver's `GuardResult` is returned **synchronously** (as `canMatch` requires). Unlike
-`canActivate`, a `canMatch` guard produces no guarded data.
+`craftCanMatch` is the sibling for `canMatch`. Same composition and exhaustive resolution. Unlike
+`canActivate`, a `canMatch` guard produces no guarded data. A guard with no async step resolves
+**synchronously**; one that suspends on [`untilSettled` / `untilDefined`](#async-guards) resolves
+asynchronously (Angular's `CanMatchFn` accepts `MaybeAsync<GuardResult>`).
 
 ```ts
 const featureFlagGuard = craftGen((flag: string) =>
@@ -219,6 +220,90 @@ route('beta', {
   ),
 });
 ```
+
+## Async guards {#async-guards}
+
+The guards above are **synchronous** — every `craftGen` resolves in one pass. To decide based on data
+that has to be *fetched first*, suspend the composing guard with `untilSettled` (or `untilDefined`).
+The guard stays a normal generator: `yield* a(); const x = yield* untilSettled(...); yield* b()`
+composes across the await, and the awaited operation's `craftException`s flow into the same
+exhaustive resolvers — the compiler still forces you to handle every reachable code.
+
+### `untilSettled` — await a resource or an HTTP call
+
+`untilSettled` takes either a craft **resource** (`query` / `mutation` / `asyncProcess`) or a
+`CraftHttpClient.*` **call** and suspends until it settles, then returns its success value.
+
+```ts
+route('users/:userId', {
+  componentDeps: {} as import('./user').GenDeps_User,
+  loadComponent: () => import('./user'),
+  canActivate: craftCanActivate(
+    function* (route) {
+      const userId = route.params['userId'];
+
+      // (a) Await an HTTP call directly — no named resource needed. Its declared
+      //     `exceptions` flow into the resolvers below.
+      const user = yield* untilSettled(
+        CraftHttpClient.get(({ response }) => ({
+          url: `/api/users/${userId}`,
+          success: response<User>(),
+          exceptions: [
+            function* ({ status, code }) {
+              if (!(yield* status(400))) return;
+              if (!(yield* code('PASSWORD_REQUIRED'))) return;
+              return craftException({ code: 'PASSWORD_REQUIRED', scope: 'UsersFeature' });
+            },
+          ],
+        })),
+      );
+
+      return user.active ? true : craftException({ code: 'INACTIVE_USER' });
+    },
+    {
+      // Both the guard's own exception AND the HTTP call's exception are required.
+      INACTIVE_USER: ({ createUrlTree }) => createUrlTree(['/inactive']),
+      PASSWORD_REQUIRED: ({ createUrlTree }) => createUrlTree(['/password']),
+    },
+  ),
+});
+```
+
+The **resource** form is identical — pass the ref (an inline `query(...)` works, though it is
+reactive; prefer the HTTP form for one-shots):
+
+```ts
+const user = yield* untilSettled(
+  query({ params: () => userId, loader: ({ params }) => fetchUser(params) }),
+);
+```
+
+**Settle semantics & exception routing:**
+
+- A resource settles when its `status` reaches `'resolved'` or `'error'`. A loader `craftException`
+  **short-circuits** to the resolvers; a thrown loader error is **rethrown**; otherwise the resolved
+  value is returned.
+- An HTTP call's declared business `exceptions` short-circuit to the resolvers. The generic
+  transport-level `HttpError` (`scope: 'HttpClient'`) is **rethrown** — a network failure is not a
+  resolvable business case. (An opt-in `HttpError` resolver may come later.)
+- The awaited HTTP endpoint is tracked as a route dependency automatically, exactly like one used in
+  a component or loader.
+
+### `untilDefined` — await a readiness signal
+
+`untilDefined(signal)` suspends until `signal()` is no longer `undefined`, then returns its
+non-nullable value. There is no exception channel — use it to wait on a plain readiness signal.
+
+```ts
+const session = yield* untilDefined(sessionService.current);
+```
+
+### Notes
+
+- A guard that never reaches an `untilSettled` / `untilDefined` await still resolves **synchronously**
+  (no forced microtask) — existing synchronous guards are unchanged.
+- This works for both `craftCanActivate` and `craftCanMatch`; async surfaces to Angular as the
+  `Observable<GuardResult>` both already accept.
 
 ## Exceptions {#exceptions}
 

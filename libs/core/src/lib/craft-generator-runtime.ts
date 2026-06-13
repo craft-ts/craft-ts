@@ -15,6 +15,7 @@ export const SERVICE_APP_START_REQUEST_MARKER = Symbol(
 export const SERVICE_TRACKED_DEPS_REQUEST_MARKER = Symbol(
   'service-tracked-deps-request-marker',
 );
+export const GUARD_AWAIT_REQUEST_MARKER = Symbol('guard-await-request-marker');
 
 type AppStartResult = Observable<unknown> | Promise<unknown> | void;
 
@@ -63,6 +64,52 @@ type RuntimeServiceAppStartRequest = Readonly<{
 type RuntimeServiceTrackedDepsRequest = Readonly<{
   [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true;
 }>;
+
+/**
+ * Minimal runtime view of a craft resource the guard driver needs to decide
+ * whether it has *settled* (`status` is `'resolved'` or `'error'`) and to read
+ * the outcome. Mirrors the public resource signals as plain getters so the
+ * driver does not depend on the full query/mutation types.
+ */
+export type GuardAwaitResourceLike = {
+  status: () => string;
+  safeValue: () => unknown;
+  error: () => unknown;
+  hasException: () => boolean;
+  exceptions: () => { list: readonly unknown[] };
+};
+
+/**
+ * The request a guard generator yields (via `untilSettled` / `untilDefined`) to
+ * suspend until an async craft operation completes. It is **never** handled by
+ * the synchronous {@link runCraftGenerator}; only the two-phase guard driver
+ * (`runCraftGuardAsync`) understands it. Discriminated by `kind`:
+ *
+ * - `'settle'` — wait for a craft resource signal to reach a settled status.
+ * - `'promise'` — wait for a thenable (e.g. a `CraftHttpClient` request
+ *   descriptor) to resolve, then resume with its value.
+ */
+export type RuntimeGuardAwaitRequest =
+  | Readonly<{
+      [GUARD_AWAIT_REQUEST_MARKER]: true;
+      kind: 'settle';
+      resource: GuardAwaitResourceLike;
+    }>
+  | Readonly<{
+      [GUARD_AWAIT_REQUEST_MARKER]: true;
+      kind: 'promise';
+      value: PromiseLike<unknown>;
+    }>;
+
+export function isGuardAwaitRequest(
+  value: unknown,
+): value is RuntimeGuardAwaitRequest {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    GUARD_AWAIT_REQUEST_MARKER in value
+  );
+}
 
 type RunCraftGeneratorOptions = {
   iterator: Generator<unknown, unknown, unknown>;
@@ -196,6 +243,34 @@ export function executeGeneratorCompatibleFactory<
       onAppStartNotSupportedErrorMessage,
     }).value as ResolveGeneratorResult<Result>;
   });
+}
+
+/**
+ * Resolves a single non-await craft generator yield (service request, dependency
+ * access, or tracked-deps marker) exactly as {@link runCraftGenerator}'s loop
+ * does. Returns `{ handled: false }` for anything it does not recognise (e.g. a
+ * guard await-request or an app-start request) so the caller can decide how to
+ * proceed. Shared with the guard driver, which must resolve these yields itself
+ * while intercepting guard await-requests.
+ */
+export function resolveCraftGeneratorYield(
+  yielded: unknown,
+  injector: Injector,
+  hostScope: ConcreteServiceScope,
+): { handled: true; value: unknown } | { handled: false } {
+  if (isServiceYieldRequest(yielded)) {
+    return { handled: true, value: yielded.resolve(injector, hostScope) };
+  }
+
+  if (isServiceDependencyAccessRequest(yielded)) {
+    return { handled: true, value: yielded.resolve() };
+  }
+
+  if (isServiceTrackedDepsRequest(yielded)) {
+    return { handled: true, value: undefined };
+  }
+
+  return { handled: false };
 }
 
 function isServiceYieldRequest(

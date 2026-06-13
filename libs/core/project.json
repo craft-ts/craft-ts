@@ -40,6 +40,17 @@
         "tag": "beta"
       }
     },
+    "patch-build-publish-beta": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "cd libs/core && npm version prepatch --preid=beta --no-git-tag-version",
+          "npx nx run ng-craft-core:build",
+          "npx nx run ng-craft-core:nx-release-publish-beta"
+        ],
+        "parallel": false
+      }
+    },
     "test": {
       "executor": "@nx/angular:unit-test",
       "options": {

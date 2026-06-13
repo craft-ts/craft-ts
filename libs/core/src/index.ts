@@ -63,5 +63,6 @@ export * from './lib/branded-component/branded-component';
 export * from './lib/craft-app-config';
 export * from './lib/craft-router';
 export * from './lib/craft-routes';
+export * from './lib/until-settled';
 export * from './lib/mock-http-request-for-route';
 export * from './lib/send-context-to-ai';

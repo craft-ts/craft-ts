@@ -30,12 +30,17 @@ const CRAFT_HTTP_CLIENT_EXCEPTION_DEPENDENCY_REQUEST_MARKER = Symbol(
   'craft-http-client-exception-dependency-request-marker',
 );
 
+type CraftHttpClientParamPrimitive = string | number | boolean | Date;
+
+type CraftHttpClientParamValue =
+  | CraftHttpClientParamPrimitive
+  | null
+  | undefined
+  | ReadonlyArray<CraftHttpClientParamPrimitive | null | undefined>;
+
 export type CraftHttpClientParams =
   | HttpParams
-  | Record<
-      string,
-      string | number | boolean | ReadonlyArray<string | number | boolean>
-    >;
+  | Record<string, CraftHttpClientParamValue>;
 
 export type CraftHttpClientJsonOptions = {
   headers?: HttpHeaders | Record<string, string | string[]>;
@@ -726,7 +731,8 @@ function createCraftHttpRequest<
 
 function toHttpClientRequestOptions(
   config: CraftHttpClientBaseConfig,
-): CraftHttpClientJsonOptions & {
+): Omit<CraftHttpClientJsonOptions, 'params'> & {
+  params?: HttpParams | Record<string, string | string[]>;
   body?: unknown | null;
 } {
   const {
@@ -735,8 +741,15 @@ function toHttpClientRequestOptions(
     exceptions: _exceptions,
     method: _method,
     payload,
-    ...options
+    params,
+    ...rest
   } = config as CraftHttpClientRequestConfig;
+
+  const normalizedParams = normalizeCraftHttpClientParams(params);
+  const options = {
+    ...rest,
+    ...(normalizedParams !== undefined ? { params: normalizedParams } : {}),
+  };
 
   return payload === undefined
     ? options
@@ -744,6 +757,48 @@ function toHttpClientRequestOptions(
         ...options,
         body: payload,
       };
+}
+
+function craftHttpClientParamToString(
+  value: CraftHttpClientParamPrimitive,
+): string {
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function normalizeCraftHttpClientParams(
+  params: CraftHttpClientParams | undefined,
+): HttpParams | Record<string, string | string[]> | undefined {
+  if (params === undefined) {
+    return undefined;
+  }
+
+  if (params instanceof HttpParams) {
+    return params;
+  }
+
+  const normalized: Record<string, string | string[]> = {};
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      normalized[key] = value
+        .filter(
+          (item): item is CraftHttpClientParamPrimitive =>
+            item !== undefined && item !== null,
+        )
+        .map(craftHttpClientParamToString);
+      continue;
+    }
+
+    normalized[key] = craftHttpClientParamToString(
+      value as CraftHttpClientParamPrimitive,
+    );
+  }
+
+  return normalized;
 }
 
 function getConfigPayload(config: CraftHttpClientBaseConfig): unknown {

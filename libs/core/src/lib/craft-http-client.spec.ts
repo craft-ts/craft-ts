@@ -2,6 +2,7 @@ import '@angular/compiler';
 import {
   HttpErrorResponse,
   HttpHeaders,
+  HttpParams,
   provideHttpClient,
 } from '@angular/common/http';
 import {
@@ -127,6 +128,133 @@ describe('CraftHttpClient', () => {
     });
 
     httpTesting.verify();
+  });
+
+  it('should normalize a flat params object before sending the request', async () => {
+    type User = { id: string; email: string };
+    const createdAfter = new Date('2026-01-01T00:00:00.000Z');
+
+    const { injectUsersFilterApi } = craftService(
+      { name: 'UsersFilterApi', scope: 'global' },
+      function* () {
+        const getUsers = yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/users',
+          params: {
+            search: 'john',
+            page: 2,
+            active: true,
+            createdAfter,
+            status: undefined,
+            role: null,
+            tags: ['a', 'b'],
+          },
+          success: response<User[]>(),
+        }));
+
+        return {
+          getUsers,
+        };
+      },
+    );
+
+    const httpTesting = TestBed.inject(HttpTestingController);
+
+    await TestBed.runInInjectionContext(async () => {
+      const usersApi = injectUsersFilterApi();
+      const resultPromise = usersApi.getUsers();
+
+      const request = httpTesting.expectOne((pendingRequest) => {
+        const params = pendingRequest.params;
+        return (
+          pendingRequest.url === '/api/users' &&
+          params.get('search') === 'john' &&
+          params.get('page') === '2' &&
+          params.get('active') === 'true' &&
+          params.get('createdAfter') === '2026-01-01T00:00:00.000Z' &&
+          params.has('status') === false &&
+          params.has('role') === false &&
+          params.getAll('tags')?.join(',') === 'a,b'
+        );
+      });
+      expect(request.request.method).toBe('GET');
+      request.flush([]);
+
+      await expect(resultPromise).resolves.toEqual([]);
+    });
+
+    httpTesting.verify();
+  });
+
+  it('should pass a provided HttpParams instance through unchanged', async () => {
+    type User = { id: string; email: string };
+
+    const { injectUsersHttpParamsApi } = craftService(
+      { name: 'UsersHttpParamsApi', scope: 'global' },
+      function* () {
+        const getUsers = yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/users',
+          params: new HttpParams().set('a', '1'),
+          success: response<User[]>(),
+        }));
+
+        return {
+          getUsers,
+        };
+      },
+    );
+
+    const httpTesting = TestBed.inject(HttpTestingController);
+
+    await TestBed.runInInjectionContext(async () => {
+      const usersApi = injectUsersHttpParamsApi();
+      const resultPromise = usersApi.getUsers();
+
+      const request = httpTesting.expectOne(
+        (pendingRequest) =>
+          pendingRequest.url === '/api/users' &&
+          pendingRequest.params.get('a') === '1',
+      );
+      request.flush([]);
+
+      await expect(resultPromise).resolves.toEqual([]);
+    });
+
+    httpTesting.verify();
+  });
+
+  it('should keep request.params as the original object (normalization stays at call time)', () => {
+    type User = { id: string; email: string };
+    const createdAfter = new Date('2026-01-01T00:00:00.000Z');
+
+    const { injectUsersParamsIdentityApi } = craftService(
+      { name: 'UsersParamsIdentityApi', scope: 'global' },
+      function* () {
+        const getUsers = yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/users',
+          params: {
+            search: 'john',
+            createdAfter,
+            status: undefined,
+          },
+          success: response<User[]>(),
+        }));
+
+        return {
+          getUsers,
+        };
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const usersApi = injectUsersParamsIdentityApi();
+
+      expect(usersApi.getUsers.params).toEqual({
+        search: 'john',
+        createdAfter,
+        status: undefined,
+      });
+      expect(usersApi.getUsers.params.createdAfter).toBe(createdAfter);
+    });
   });
 
   it('should map HttpClient failures to a custom craftException when declared', async () => {
