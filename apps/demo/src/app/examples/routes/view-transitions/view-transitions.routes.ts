@@ -10,6 +10,7 @@ import {
   untilSettled,
   viewTransitionPayload,
   type CanRun,
+  type RouteCheckedDI,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
@@ -77,11 +78,6 @@ export const {
       image: string | null;
     }>(),
     pendingComponent: () => import('./photo-skeleton'),
-    // DI declaration for the pending skeleton, mirroring `componentDeps` for the
-    // target. Folded into this collection's cascade check below so the skeleton's
-    // injected dependencies are verified too. (The brand rule only knows the
-    // `componentDeps` ↔ `loadComponent` couple, not this one yet.)
-    // ISOLATION TEST: pendingComponentDeps temporarily removed
     canActivate: craftCanActivate(function* () {
       return yield* slowDetailGuard();
     }),
@@ -94,14 +90,28 @@ export const {
 // Exhaustive over canActivate ∪ canMatch ∪ resolve for this collection.
 assertExhaustiveRouteExceptions(viewTransitionsRoutes);
 
-// Cascade DI safety for THIS lazy child collection (covers the target component
-// AND the pending skeleton via `pendingComponentDeps`). Like slow-page: the
-// parent `app.routes` cascade does not descend into `loadChildren`, so we
-// re-establish the check here with the same parent context (app-level `Router`).
-// ISOLATION TEST: cascade check temporarily disabled
-// type _CheckViewTransitionsDI = ValidateCascadeRoutesFile<
-//   never,
-//   Router,
-//   typeof viewTransitionsRoutes
-// >;
-// type _CanRunViewTransitions = CanRun<_CheckViewTransitionsDI>;
+// Cascade DI safety for THIS lazy child collection. Like slow-page: the parent
+// `app.routes` cascade does not descend into `loadChildren`, so we re-establish
+// the check here with the same parent context (app-level `Router`).
+//
+// Two checks. The TARGET component (`photo-detail`) via the aggregated cascade…
+type _CheckViewTransitionsDI = ValidateCascadeRoutesFile<
+  never,
+  Router,
+  typeof viewTransitionsRoutes
+>;
+type _CanRunViewTransitions = CanRun<_CheckViewTransitionsDI>;
+
+// …and the PENDING skeleton (`photo-skeleton`) via the per-component, O(1)
+// `RouteCheckedDI` (setup.md "Escape hatch"). The cascade does not see the
+// pending component, so we verify it directly here. The route auto-provides the
+// `:photoId` param and the typed view-transition payload (listed as available);
+// `Router` is the app-level provided value. This block is generated/refreshed
+// from `pendingComponent` by the `require-pending-component-di-check` ESLint rule.
+type _CheckViewTransitionsPendingDI = RouteCheckedDI<
+  import('./photo-skeleton').GenDeps_ViewTransitionsSkeletonComponent,
+  'ViewTransitionsPhotoIdParams' | 'ViewTransitionsPhotoIdViewTransition',
+  Router,
+  'pending component: view-transitions/:photoId'
+>;
+type _CanRunViewTransitionsPending = CanRun<_CheckViewTransitionsPendingDI>;

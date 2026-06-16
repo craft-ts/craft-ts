@@ -22,6 +22,7 @@ import {
 import { craftRoutes } from './craft-routes';
 import type { GetToYieldServiceDependencies } from './craft-service';
 import { queryParam } from './query-param';
+import { viewTransitionPayload } from './craft-view-transition';
 
 @Component({
   standalone: true,
@@ -75,6 +76,18 @@ const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
 type CraftRouterTestRoutesMetaData = typeof craftRouterTestRoutes.META_DATA;
 
 const { craftRouterNestedTestRoutes } = craftRoutes('craftRouterNestedTest', [
+  {
+    // Opts into the outlet-driven view transition by DECLARING the payload
+    // shape: navigations to it must pass a `viewTransition` payload of that shape
+    // (or an explicit `null` opt-out).
+    path: 'media/:mediaId',
+    component: BlankComponent,
+    componentDeps: {},
+    withLoaderViewTransitionImage: viewTransitionPayload<{
+      name: string;
+      image: string | null;
+    }>(),
+  },
   {
     path: 'parent/:teamId',
     component: BlankComponent,
@@ -351,6 +364,27 @@ describe('CraftRouter', () => {
         });
         // @ts-expect-error typo in joined path
         router.navigate({ to: 'parent/:teamId/childz/:userId' });
+
+        // A view-transition route REQUIRES a `viewTransition` payload.
+        router.navigate({
+          to: 'media/:mediaId',
+          params: { mediaId: '1' },
+          viewTransition: { name: 'photo-1', image: null },
+        });
+        // `null` is an accepted explicit opt-out.
+        router.navigate({
+          to: 'media/:mediaId',
+          params: { mediaId: '1' },
+          viewTransition: null,
+        });
+        // @ts-expect-error viewTransition is required for a view-transition route
+        router.navigate({ to: 'media/:mediaId', params: { mediaId: '1' } });
+        router.navigate({
+          to: 'media/:mediaId',
+          params: { mediaId: '1' },
+          // @ts-expect-error viewTransition payload requires a `name`
+          viewTransition: { image: null },
+        });
       });
     }
   });

@@ -1522,6 +1522,28 @@ export function query<
   ) {
     assertInInjectionContext(query);
     injector = ɵcreateHostTaggedInjector(inject(Injector), 'query', queryExtraProviders);
+  } else {
+    // Capture the injector eagerly whenever `query()` is constructed inside an
+    // injection context (the normal case: a component field initializer or a
+    // craft-service factory). The resource's reactive `params`/`loader`
+    // computeds may FIRST run while driven from OUTSIDE an injection context —
+    // e.g. a non-blocking route guard awaiting the resource via
+    // `untilSettled(...)`, which subscribes outside one. Without an eagerly
+    // captured injector, `getInjector()` below would fall back to the (absent)
+    // ambient context and throw NG0203.
+    //
+    // `isInInjectionContext` is not part of @angular/core's public API in this
+    // version, so probe by attempting `inject(Injector)` and falling back to the
+    // lazy `getInjector()` if `query()` was genuinely constructed out of context.
+    try {
+      injector = ɵcreateHostTaggedInjector(
+        inject(Injector),
+        'query',
+        queryExtraProviders,
+      );
+    } catch {
+      injector = undefined;
+    }
   }
 
   const getInjector = () => {

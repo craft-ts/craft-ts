@@ -1,11 +1,12 @@
 import { Component } from '@angular/core';
-import { RouterLinkActive, RouterOutlet, type Router } from '@angular/router';
+import { RouterLinkActive, type Router } from '@angular/router';
 import {
   BrowserLocation,
   BrowserWindow,
   componentMonitoring,
   craftMethod,
   CraftRouterLink,
+  CraftRouterOutlet,
   GlobalPersisterHandlerServiceToYield,
   provideHostName,
   type ExtractDeps,
@@ -14,7 +15,7 @@ import {
 } from '@craft-ng/core';
 
 @Component({
-  imports: [CraftRouterLink, RouterOutlet, RouterLinkActive],
+  imports: [CraftRouterLink, CraftRouterOutlet, RouterLinkActive],
   selector: 'app-root',
   template: `
     <div class="app-container">
@@ -29,6 +30,14 @@ import {
           [craftRouterLink]="{ to: 'query/:userId', params: { userId: '1' } }"
           routerLinkActive="active"
           >Query</a
+        >
+        <a [craftRouterLink]="{ to: 'slow-page' }" routerLinkActive="active"
+          >Slow Page</a
+        >
+        <a
+          [craftRouterLink]="{ to: 'view-transitions' }"
+          routerLinkActive="active"
+          >View Transitions</a
         >
         <a
           [craftRouterLink]="{
@@ -129,7 +138,7 @@ import {
         >
       </nav>
       <main class="content">
-        <router-outlet></router-outlet>
+        <craft-router-outlet></craft-router-outlet>
       </main>
       <button class="clear-cache-btn" (click)="clearCache()">
         🗑️ Clear Cache
@@ -323,21 +332,21 @@ export class App {
 }
 
 export type GenDeps_App = GetDeps<{
-  deps: {
-    RouterOutlet: RouterOutlet;
-    RouterLinkActive: RouterLinkActive;
-    Router: Router;
-    CraftRouterLink: CraftRouterLink;
-  };
-  propertiesDeps: {
-    _monitoring: ExtractDeps<App['_monitoring']>;
-    clearCache: ExtractDeps<App['clearCache']>;
-  };
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: GetPublicComponentProperties<App>;
-  missingProvider: {
-    Router: Router;
-  };
-}>;
+      deps: {
+        RouterLinkActive: RouterLinkActive;
+        Router: Router;
+        CraftRouterLink: CraftRouterLink;
+        CraftRouterOutlet: CraftRouterOutlet;
+      };
+      propertiesDeps: {
+        _monitoring: ExtractDeps<App["_monitoring"]>;
+        clearCache: ExtractDeps<App["clearCache"]>;
+      };
+      provided: {
+        HostName: ReturnType<typeof provideHostName>;
+      };
+      publicProperties: GetPublicComponentProperties<App>;
+      missingProvider: {
+        Router: Router;
+      };
+    }>;

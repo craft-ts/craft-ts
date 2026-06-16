@@ -129,6 +129,7 @@ import {
 export default class ViewTransitionsSkeletonComponent {
   private readonly _monitoring = componentMonitoring();
   protected readonly photoId = injectViewTransitionsPhotoIdParams();
+  // Signal<{ name; image } | null> — typed by the route via viewTransitionPayload<T>().
   private readonly viewTransition = injectViewTransitionsPhotoIdViewTransition();
   private readonly photo = computed(() => findPhoto(this.photoId()));
 
@@ -155,8 +156,7 @@ export type GenDeps_ViewTransitionsSkeletonComponent = GetDeps<{
         typeof injectViewTransitionsPhotoIdParams
       >;
     };
-    // Route-auto-provided too (the route declares the payload shape); stripped by
-    // the cascade's self-provision, exactly like the `:photoId` param above.
+    // Route-auto-provided (the route declares the payload via viewTransitionPayload<T>()).
     viewTransition: {
       ViewTransitionsPhotoIdViewTransition: ReturnType<
         typeof injectViewTransitionsPhotoIdViewTransition

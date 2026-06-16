@@ -324,6 +324,32 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
         },
       ],
     },
+    {
+      // Without this, the codemod brands `CraftRouterOutlet` (a library
+      // directive used in `imports`) as `GenDeps_CraftRouterOutlet`, which is
+      // not an exported symbol. Keep it as a plain `CraftRouterOutlet` dep, like
+      // `CraftRouterLink`. The outlet injects `Router`, so it is flagged in
+      // `missingProvider` too (deduplicated by key with the link rule above).
+      match: {
+        module: '@craft-ng/core',
+        symbols: ['CraftRouterOutlet'],
+        metadata: ['imports'],
+      },
+      deps: [
+        {
+          key: 'CraftRouterOutlet',
+          symbol: 'CraftRouterOutlet',
+          module: '@craft-ng/core',
+        },
+      ],
+      missingProvider: [
+        {
+          key: 'Router',
+          symbol: 'Router',
+          module: '@angular/router',
+        },
+      ],
+    },
   ],
 });
 const angularBrandConfigCache = new Map<string, AngularBrandConfig>();

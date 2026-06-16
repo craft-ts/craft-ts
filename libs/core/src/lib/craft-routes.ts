@@ -6,11 +6,13 @@ import {
   runInInjectionContext,
   signal,
   type Signal,
+  type Type,
   type WritableSignal,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import {
   ActivatedRoute,
+  NavigationEnd,
   RedirectCommand,
   Router,
   UrlTree,
@@ -33,11 +35,19 @@ import {
 } from './craft-exception';
 import { type ExtractCraftGenExceptions } from './craft-gen';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
-import {
-  runCraftGuardAsync,
-  type CraftGuardResolverMap,
-} from './craft-guard-runtime';
+import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
+import type { CraftResolveResultFn } from './craft-resolve';
+import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
+import { CRAFT_VIEW_TRANSITION } from './craft-view-transition';
+import type { ViewTransitionPayloadDef } from './craft-view-transition';
+import type {
+  CraftExceptionComponentInput,
+  CraftExceptionHandler,
+  HandledExceptionsForUnion,
+  NoExtraExceptionHandlers,
+  RouteExceptionUnion,
+} from './craft-route-exceptions';
 import { craftService } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -169,6 +179,16 @@ type RouteGuardedDataInjectHelperName<
   Name extends string,
   Path extends string,
 > = InjectHelperName<RouteCollectionGuardedDataServiceName<Name, Path>>;
+type RouteResolvedDataServiceName<Path extends string> =
+  `${RouteBaseServiceName<Path>}ResolvedData`;
+type RouteCollectionResolvedDataServiceName<
+  Name extends string,
+  Path extends string,
+> = `${RouteCollectionServiceName<Name>}${RouteResolvedDataServiceName<Path>}`;
+type RouteResolvedDataInjectHelperName<
+  Name extends string,
+  Path extends string,
+> = InjectHelperName<RouteCollectionResolvedDataServiceName<Name, Path>>;
 type RouteCollectionExportName<Name extends string> = Uncapitalize<
   RouteCollectionServiceName<Name>
 >;
@@ -186,6 +206,16 @@ type RouteQueryParamsInjectHelperName<
   Name extends string,
   Path extends string,
 > = InjectHelperName<RouteCollectionQueryParamsServiceName<Name, Path>>;
+type RouteViewTransitionServiceName<Path extends string> =
+  `${RouteBaseServiceName<Path>}ViewTransition`;
+type RouteCollectionViewTransitionServiceName<
+  Name extends string,
+  Path extends string,
+> = `${RouteCollectionServiceName<Name>}${RouteViewTransitionServiceName<Path>}`;
+type RouteViewTransitionInjectHelperName<
+  Name extends string,
+  Path extends string,
+> = InjectHelperName<RouteCollectionViewTransitionServiceName<Name, Path>>;
 
 type InjectHelperName<Name extends string> = `inject${Capitalize<Name>}`;
 type ProvideHelperName<Name extends string> = `provide${Capitalize<Name>}`;
@@ -281,6 +311,24 @@ type RouteGuardedDataOutput<RouteDefinition> =
         : Signal<ExtractCanActivateGuardData<Guard>>
     : never;
 
+// The resolved data a route's `resolve` step produces (its success value with
+// guard-results and exceptions stripped), mirroring `ExtractCanActivateGuardData`.
+type ExtractResolveData<Resolve> = Resolve extends (...args: any[]) => infer Result
+  ? Exclude<
+      UnwrapCanActivateReturn<Result>,
+      boolean | UrlTree | RedirectCommand | AnyCraftException | undefined | null
+    >
+  : never;
+
+type RouteResolvedDataOutput<RouteDefinition> =
+  RouteDefinition extends { resolve?: infer Resolve }
+    ? [Resolve] extends [undefined]
+      ? never
+      : [ExtractResolveData<Resolve>] extends [never]
+        ? never
+        : Signal<ExtractResolveData<Resolve>>
+    : never;
+
 type RouteQueryParamsStateConfig<RouteDefinition> =
   RouteQueryParamsOutput<RouteDefinition> extends {
     _config: {
@@ -308,6 +356,30 @@ type RouteQueryParamsMetaDataField<RouteDefinition> = RouteDefinition extends {
       queryParams: RouteQueryParamsMetaData<RouteDefinition>;
     }
   : {};
+
+// The output of the generated `injectXxxViewTransition()` helper: the declared
+// payload narrowed to `T | null` (the `null` = explicit opt-out the nav carries).
+// Single inline conditional — kept cheap, the path registry is depth-sensitive.
+type RouteViewTransitionOutput<RouteDefinition> = RouteDefinition extends {
+  withLoaderViewTransitionImage: ViewTransitionPayloadDef<infer T>;
+}
+  ? Signal<T | null>
+  : never;
+
+// Surfaced into the slim path registry (`META_PATHS`) so the navigation helpers
+// can make `viewTransition` a REQUIRED field on links/navigations to a route
+// that opted in via `viewTransitionPayload<T>()`. The registry stores the marker
+// AS-IS — a cheap pass-through, no narrowing: the app's `app.routes` registry is
+// at TypeScript's instantiation-depth ceiling, so this per-route entry must stay
+// minimal. craft-router's `ViewTransitionInputForPath` unwraps the marker to the
+// declared `T | null` lazily at each navigation call site, instead of for the
+// whole registered collection up front.
+type RouteViewTransitionMetaDataField<RouteDefinition> =
+  RouteDefinition extends {
+    withLoaderViewTransitionImage: infer ViewTransition extends object;
+  }
+    ? { viewTransition: ViewTransition }
+    : {};
 
 type RouteDataPublicPropertyNames<RouteDefinition> = RouteDefinition extends {
   data: infer RouteData extends Data;
@@ -584,7 +656,13 @@ type RouteAutoProvidedServiceNames<
       : RouteCollectionGuardedDataServiceName<
           RouteCollectionName,
           RoutePath<RouteDefinition>
-        >);
+        >)
+  | (RouteDefinition extends { resolve: CraftRouteResolve }
+      ? RouteCollectionResolvedDataServiceName<
+          RouteCollectionName,
+          RoutePath<RouteDefinition>
+        >
+      : never);
 
 type StripRouteProvidedDependency<
   Dependency,
@@ -714,14 +792,15 @@ type CraftGuardResolversYielded<Resolvers> = {
 }[keyof Resolvers];
 
 // The precise guard returned by `craftCanActivate`. Its generator `Yielded`
-// preserves the composing guard's AND the resolvers' dependency requests so
-// `RouteGuardDepsMap` tracks them both; its return surfaces the guard's success
-// value (data) for `injectXxxGuardedData`, alongside the resolvers' `GuardResult`.
-type CraftCanActivateResultGuard<Guard, Resolvers> = (
+// preserves the composing guard's dependency requests (so `RouteGuardDepsMap`
+// tracks them) and its `CraftGenExceptionMarker`s (so `handleExceptions`
+// exhaustiveness sees the reachable codes); its return surfaces the guard's
+// success value (data) for `injectXxxGuardedData`.
+type CraftCanActivateResultGuard<Guard> = (
   route: ActivatedRouteSnapshot,
   state: RouterStateSnapshot,
 ) => Generator<
-  CraftCanActivateGuardYielded<Guard> | CraftGuardResolversYielded<Resolvers>,
+  CraftCanActivateGuardYielded<Guard>,
   StripCraftException<CraftCanActivateGuardReturn<Guard>> | GuardResult,
   unknown
 >;
@@ -741,12 +820,12 @@ type CraftCanMatchGuardYielded<Guard> = Guard extends (
   ? Yielded
   : never;
 
-type CraftCanMatchResultGuard<Guard, Resolvers> = (
+type CraftCanMatchResultGuard<Guard> = (
   route: Route,
   segments: UrlSegment[],
   currentSnapshot?: PartialMatchRouteSnapshot,
 ) => Generator<
-  CraftCanMatchGuardYielded<Guard> | CraftGuardResolversYielded<Resolvers>,
+  CraftCanMatchGuardYielded<Guard>,
   GuardResult,
   unknown
 >;
@@ -944,6 +1023,24 @@ export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
         })
 >;
 
+// The set of missing providers reported for a route's META entry: the inherited
+// (parent) context merged with the route's own (target component / guards /
+// resolve), later winning on key clash.
+type ResolveCraftRouteMetaDataMissingProvider<
+  RouteDefinition,
+  RouteCollectionName extends string,
+  InheritedServiceNames extends string,
+  InheritedMissingProviders extends object,
+> = MergeRouteMissingProviderValues<
+  InheritedMissingProviders,
+  RouteResolvedMissingProviderMap<
+    RouteDefinition,
+    RouteCollectionName,
+    InheritedServiceNames
+  >
+>;
+
+
 type ResolveCraftRouteMetaDataComponentDeps<
   RouteDefinition,
   RouteCollectionName extends string,
@@ -966,24 +1063,20 @@ type ResolveCraftRouteMetaDataComponentDeps<
         }
       : {}) &
     ([
-      keyof MergeRouteMissingProviderValues<
-        InheritedMissingProviders,
-        RouteResolvedMissingProviderMap<
-          RouteDefinition,
-          RouteCollectionName,
-          InheritedServiceNames
-        >
+      keyof ResolveCraftRouteMetaDataMissingProvider<
+        RouteDefinition,
+        RouteCollectionName,
+        InheritedServiceNames,
+        InheritedMissingProviders
       >,
     ] extends [never]
       ? {}
       : {
-          missingProvider: MergeRouteMissingProviderValues<
-            InheritedMissingProviders,
-            RouteResolvedMissingProviderMap<
-              RouteDefinition,
-              RouteCollectionName,
-              InheritedServiceNames
-            >
+          missingProvider: ResolveCraftRouteMetaDataMissingProvider<
+            RouteDefinition,
+            RouteCollectionName,
+            InheritedServiceNames,
+            InheritedMissingProviders
           >;
         }) &
     ([
@@ -1031,28 +1124,67 @@ type CraftRouteMetaDataEntry<
     >
 >;
 
+// The optional data step of a route (`craftResolve(...)`), shaped like a guard.
+type CraftRouteResolve = (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot,
+) => Generator<unknown, unknown, unknown>;
+
+// Loose field type for `handleExceptions`. The exhaustive (and no-extra) check is
+// applied at the `route(path, def)` boundary (see `ValidateRouteHandleExceptions`).
+type CraftRouteHandleExceptions = Record<string, CraftExceptionHandler<any>>;
+// NOTE: `<any>` (not `<AnyCraftException>`) keeps a route whose handlers are typed
+// for *specific* exceptions assignable to `AnyCraftRouteDefinition` (the handler
+// param is contravariant), so `craftRoutes` still infers a precise `Routes`.
+
+// Craft-only execution + UX fields shared by every route shape. They are stripped
+// from the emitted Angular `Route` (stashed under `CRAFT_ROUTE_META`) and consumed
+// by the non-blocking `CraftRouterOutlet`.
+type CraftRouteUxFields = {
+  resolve?: CraftRouteResolve;
+  handleExceptions?: CraftRouteHandleExceptions;
+  pendingComponent?: CraftExceptionComponentInput;
+  errorComponent?: Type<unknown>;
+  stayMs?: number;
+  blankMs?: number;
+  pendingMinMs?: number;
+  reactiveGuards?: boolean;
+  /**
+   * Opt this route into the {@link CraftRouterOutlet}-driven view transition by
+   * declaring the shared-element payload shape via `viewTransitionPayload<T>()`.
+   * It makes a typed `viewTransition: T | null` payload REQUIRED on every
+   * `craftRouterLink` / `navigate` targeting this route (surfaced via the slim
+   * path registry), exposes a generated `injectXxxViewTransition(): Signal<T |
+   * null>` helper, and tells the outlet to skip the `'blank'` phase so a slow
+   * chain still morphs the shared element through the pending skeleton.
+   */
+  withLoaderViewTransitionImage?: ViewTransitionPayloadDef<any>;
+};
+
 type CraftRouteSharedFields<
   Path extends string = string,
   RouteData extends Data = Data,
   Providers extends AngularRouteProviders = AngularRouteProviders,
 > = Simplify<
-  AngularRouteBase & {
-    canActivate?: CraftRouteCanActivateGuard;
-    canMatch?: CraftRouteCanMatchGuard;
-    path: Path;
-    providers?: Providers;
-    providersFn?: (helpers: any) => Providers;
-    data?: RouteData;
-    queryParams?: RouteQueryParamsFactory;
-    redirectTo?: string | RouteRedirectToFactory<any>;
-    paramsProvider?: [PathParamNames<Path>] extends [never]
-      ? never
-      : RouteParamsProvider<Path>;
-  }
+  AngularRouteBase &
+    CraftRouteUxFields & {
+      canActivate?: CraftRouteCanActivateGuard;
+      canMatch?: CraftRouteCanMatchGuard;
+      path: Path;
+      providers?: Providers;
+      providersFn?: (helpers: any) => Providers;
+      data?: RouteData;
+      queryParams?: RouteQueryParamsFactory;
+      redirectTo?: string | RouteRedirectToFactory<any>;
+      paramsProvider?: [PathParamNames<Path>] extends [never]
+        ? never
+        : RouteParamsProvider<Path>;
+    }
 >;
 
 type AnyCraftRouteSharedFields = Simplify<
-  AngularRouteBase & {
+  AngularRouteBase &
+    CraftRouteUxFields & {
     canActivate?: CraftRouteCanActivateGuard;
     canMatch?: CraftRouteCanMatchGuard;
     path: string;
@@ -1073,6 +1205,9 @@ type AnyCraftRouteHelperDefinition = {
   paramsProvider?: (...args: any[]) => Record<string, unknown>;
   queryParams?: RouteQueryParamsFactory;
   canActivate?: CraftRouteCanActivateGuard;
+  canMatch?: CraftRouteCanMatchGuard;
+  resolve?: CraftRouteResolve;
+  withLoaderViewTransitionImage?: ViewTransitionPayloadDef<any>;
 };
 
 type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
@@ -1106,6 +1241,16 @@ type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
           canActivate: infer Guard extends CraftRouteCanActivateGuard;
         }
           ? { canActivate: Guard }
+          : {}) &
+        (RouteDefinition extends {
+          resolve: infer Resolve extends CraftRouteResolve;
+        }
+          ? { resolve: Resolve }
+          : {}) &
+        (RouteDefinition extends {
+          withLoaderViewTransitionImage: infer ViewTransition extends ViewTransitionPayloadDef<any>;
+        }
+          ? { withLoaderViewTransitionImage: ViewTransition }
           : {})
     >
   : never;
@@ -1481,6 +1626,38 @@ type QueryParamsInjectHelpers<
   >
 >;
 
+// Mirror of `QueryParamsInjectHelpers` for view transitions: generates
+// `injectXxxViewTransition(): Signal<T | null>` for every route that declared a
+// `viewTransitionPayload<T>()`.
+type ViewTransitionInjectHelpers<
+  Name extends string,
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
+> = Simplify<
+  MergeObjectUnion<
+    Routes[number] extends infer RouteDefinition
+      ? RouteDefinition extends {
+          withLoaderViewTransitionImage: ViewTransitionPayloadDef<any>;
+        }
+        ? {
+            [Key in RouteViewTransitionInjectHelperName<
+              Name,
+              RoutePath<RouteDefinition>
+            >]: CraftRouteValueServiceApi<
+              RouteCollectionViewTransitionServiceName<
+                Name,
+                RoutePath<RouteDefinition>
+              >,
+              RouteViewTransitionOutput<RouteDefinition>
+            >[RouteViewTransitionInjectHelperName<
+              Name,
+              RoutePath<RouteDefinition>
+            >];
+          }
+        : never
+      : never
+  >
+>;
+
 type GuardedDataInjectHelpers<
   Name extends string,
   Routes extends readonly AnyCraftRouteHelperDefinition[],
@@ -1501,6 +1678,37 @@ type GuardedDataInjectHelpers<
                 >,
                 RouteGuardedDataOutput<RouteDefinition>
               >[RouteGuardedDataInjectHelperName<
+                Name,
+                RoutePath<RouteDefinition>
+              >];
+            }
+        : never
+      : never
+  >
+>;
+
+// Mirror of `GuardedDataInjectHelpers` for the `resolve` step: generates
+// `injectXxxResolvedData(): Signal<ResolvedData>` for every route with a `resolve`.
+type ResolvedDataInjectHelpers<
+  Name extends string,
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
+> = Simplify<
+  MergeObjectUnion<
+    Routes[number] extends infer RouteDefinition
+      ? RouteDefinition extends { resolve: CraftRouteResolve }
+        ? [RouteResolvedDataOutput<RouteDefinition>] extends [never]
+          ? never
+          : {
+              [Key in RouteResolvedDataInjectHelperName<
+                Name,
+                RoutePath<RouteDefinition>
+              >]: CraftRouteValueServiceApi<
+                RouteCollectionResolvedDataServiceName<
+                  Name,
+                  RoutePath<RouteDefinition>
+                >,
+                RouteResolvedDataOutput<RouteDefinition>
+              >[RouteResolvedDataInjectHelperName<
                 Name,
                 RoutePath<RouteDefinition>
               >];
@@ -1616,7 +1824,8 @@ type CraftRoutePathRegistryEntry<
   RouteDefinition,
   ResolvedPath extends string,
 > = Simplify<
-  { path: ResolvedPath } & RouteQueryParamsMetaDataField<RouteDefinition>
+  { path: ResolvedPath } & RouteQueryParamsMetaDataField<RouteDefinition> &
+    RouteViewTransitionMetaDataField<RouteDefinition>
 >;
 
 type FlattenLoadChildrenPathRegistry<
@@ -1737,7 +1946,9 @@ type CraftRoutesSuccessResult<
   } & ParamInjectHelpers<Name, RoutesHelperShape<Routes>> &
     DataInjectHelpers<Name, RoutesHelperShape<Routes>> &
     QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>> &
-    GuardedDataInjectHelpers<Name, RoutesHelperShape<Routes>>
+    ViewTransitionInjectHelpers<Name, RoutesHelperShape<Routes>> &
+    GuardedDataInjectHelpers<Name, RoutesHelperShape<Routes>> &
+    ResolvedDataInjectHelpers<Name, RoutesHelperShape<Routes>>
 >;
 
 export type CraftRoutesResult<
@@ -1824,6 +2035,24 @@ function toRouteCollectionQueryParamsServiceName(
   return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteQueryParamsServiceName(routePath)}`;
 }
 
+function toRouteViewTransitionServiceName(path: string): string {
+  return `${toRouteBaseServiceName(path)}ViewTransition`;
+}
+
+function toRouteCollectionViewTransitionServiceName(
+  routeCollectionName: string,
+  routePath: string,
+): string {
+  return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteViewTransitionServiceName(routePath)}`;
+}
+
+function toViewTransitionInjectHelperName(
+  routeCollectionName: string,
+  routePath: string,
+): string {
+  return `inject${toRouteCollectionViewTransitionServiceName(routeCollectionName, routePath)}`;
+}
+
 function toRouteCollectionExportName(name: string): string {
   return `${uncapitalize(toRouteCollectionServiceName(name))}Routes`;
 }
@@ -1881,6 +2110,24 @@ function toGuardedDataInjectHelperName(
   return `inject${toRouteCollectionGuardedDataServiceName(routeCollectionName, routePath)}`;
 }
 
+function toRouteResolvedDataServiceName(path: string): string {
+  return `${toRouteBaseServiceName(path)}ResolvedData`;
+}
+
+function toRouteCollectionResolvedDataServiceName(
+  routeCollectionName: string,
+  routePath: string,
+): string {
+  return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteResolvedDataServiceName(routePath)}`;
+}
+
+function toResolvedDataInjectHelperName(
+  routeCollectionName: string,
+  routePath: string,
+): string {
+  return `inject${toRouteCollectionResolvedDataServiceName(routeCollectionName, routePath)}`;
+}
+
 function findActivatedRouteByPath(
   route: ActivatedRoute,
   routePath: string,
@@ -1919,14 +2166,58 @@ function resolveActivatedRouteByPath(routePath: string): ActivatedRoute {
   );
 }
 
+function findSnapshotRouteByPath(
+  snapshot: ActivatedRouteSnapshot,
+  routePath: string,
+): ActivatedRouteSnapshot | null {
+  if (snapshot.routeConfig?.path === routePath) {
+    return snapshot;
+  }
+
+  for (const child of snapshot.children) {
+    const match = findSnapshotRouteByPath(child, routePath);
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
 function injectRouteParamsSignal(
   routePath: string,
 ): Signal<Record<string, string>> {
-  const resolvedRoute = resolveActivatedRouteByPath(routePath);
+  // Read the params off the LIVE router snapshot on each navigation, rather than
+  // capturing one `ActivatedRoute` and subscribing to its `params`. The route's
+  // value service is a singleton cached on the (reused) route-`providers`
+  // injector, while Angular creates a fresh `ActivatedRoute` on every
+  // (re)activation — so a captured `route.params` observable goes stale the
+  // moment the route is left and re-entered (e.g. list → detail → list →
+  // detail). Driving off `Router.events` keeps the signal correct across
+  // activations.
+  const router = inject(Router);
 
-  return toSignal(resolvedRoute.params, {
-    initialValue: resolvedRoute.snapshot.params,
-  }) as Signal<Record<string, string>>;
+  const readSnapshot = (): ActivatedRouteSnapshot | null =>
+    findSnapshotRouteByPath(router.routerState.snapshot.root, routePath);
+
+  // Only emit while this route is part of the active tree. When it deactivates
+  // we deliberately DON'T emit (so `toSignal` retains the last params): the
+  // component is being torn down, and clearing to `{}` mid-teardown would drop
+  // anything bound to the params — e.g. a leaving page's `view-transition-name`
+  // would vanish before the browser snapshots the outgoing ("old") frame,
+  // killing the shared-element morph.
+  return toSignal(
+    router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => readSnapshot()),
+      filter(
+        (snapshot): snapshot is ActivatedRouteSnapshot => snapshot !== null,
+      ),
+      map((snapshot) => snapshot.params),
+    ),
+    { initialValue: readSnapshot()?.params ?? {} },
+  ) as Signal<Record<string, string>>;
 }
 
 function injectRouteDataSignal<RouteData extends Data>(
@@ -2272,112 +2563,54 @@ function createCanMatchGuard(
 }
 
 // Composes reusable `craftGen` guards into a single `canActivate` and resolves
-// their failure cases exhaustively.
+// their failure cases through the route's `handleExceptions`.
 //
-// `craftCanActivate(guard, resolvers)` returns a generator guard (the
-// `canActivate` contract is unchanged). The `guard` `yield*`s `craftGen` guards,
-// which short-circuit by throwing `CraftGenShortCircuit` as soon as one produces
-// a `craftException`. This boundary catches that throw, looks up the matching
-// resolver by exception code, and returns its `GuardResult` (e.g. a redirect
-// `UrlTree`). `resolvers` must cover exactly the reachable exception codes — a
-// missing one is a type error and, defensively, throws at runtime.
+// `craftCanActivate(guard)` packages a composing `canActivate` guard. The `guard`
+// `yield*`s `craftGen` guards, which short-circuit by throwing
+// `CraftGenShortCircuit` when one produces a `craftException`; the non-blocking
+// `CraftRouterOutlet` drives the guard after the URL commits and routes those
+// exceptions through the route's exhaustive `handleExceptions` map. Identity at
+// runtime — the outlet (not Angular) executes it.
 //
 // ```ts
 // route('admin', {
-//   canActivate: craftCanActivate(
-//     function* () {
-//       yield* roleGuard(ROLES.PIZZERIA_ADMIN);
-//       yield* noPizzeriaGuard();
-//       return true;
-//     },
-//     {
-//       NOT_AUTHENTICATED: ({ createUrlTree }) => createUrlTree(['/auth/login']),
-//       FORBIDDEN_ROLE: ({ createUrlTree }) => createUrlTree(['/unauthorized']),
-//       HAS_PIZZERIA: ({ createUrlTree }) => createUrlTree(['/dashboard']),
-//     },
-//   ),
+//   canActivate: craftCanActivate(function* () {
+//     yield* roleGuard(ROLES.PIZZERIA_ADMIN);
+//     yield* noPizzeriaGuard();
+//     return true;
+//   }),
+//   handleExceptions: {
+//     NOT_AUTHENTICATED: ({ redirect }) => redirect('/auth/login'),
+//     FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
+//     HAS_PIZZERIA: ({ redirect }) => redirect('/dashboard'),
+//   },
 // })
 // ```
-export function craftCanActivate<Guard extends CraftCanActivateGuardFn, Resolvers>(
+export function craftCanActivate<Guard extends CraftCanActivateGuardFn>(
   guard: Guard,
-  resolvers: CraftGuardResolversParam<
-    CraftCanActivateGuardYielded<Guard>,
-    Resolvers
-  >,
-): CraftCanActivateResultGuard<Guard, Resolvers> {
-  const resolverMap = resolvers as unknown as CraftGuardResolverMap;
-
-  // A generator (not a plain function) so the guard executor runs its body inside
-  // `runInInjectionContext` — `inject(...)` below depends on that. It relays no
-  // yields itself; `runCraftGuardAsync` drives the composing guard's yields.
-  // eslint-disable-next-line require-yield
-  const resolvedGuard = function* (
-    route: ActivatedRouteSnapshot,
-    state: RouterStateSnapshot,
-  ) {
-    const injector = inject(Injector);
-    const router = inject(Router);
-
-    return runCraftGuardAsync(
-      guard(route, state),
-      injector,
-      router,
-      resolverMap,
-    );
-  };
-
-  return resolvedGuard as unknown as CraftCanActivateResultGuard<
-    Guard,
-    Resolvers
-  >;
+): CraftCanActivateResultGuard<Guard> {
+  return guard as unknown as CraftCanActivateResultGuard<Guard>;
 }
 
-// The `canMatch` counterpart of {@link craftCanActivate}. Same composition and
-// exhaustive resolution; the resolver's `GuardResult` (e.g. `false` to skip the
-// route, or a redirect `UrlTree`) is returned synchronously, as `canMatch`
-// requires. Unlike `canActivate`, a `canMatch` guard produces no guarded data.
+// The `canMatch` counterpart of {@link craftCanActivate}. Its `craftException`s
+// also flow into the route's `handleExceptions` (driven by the outlet after
+// commit). Unlike `canActivate`, a `canMatch` guard produces no guarded data.
+// Identity at runtime.
 //
 // ```ts
 // {
 //   path: 'beta',
-//   canMatch: craftCanMatch(
-//     function* () {
-//       yield* featureFlagGuard('beta');
-//       return true;
-//     },
-//     { FLAG_DISABLED: () => false },
-//   ),
+//   canMatch: craftCanMatch(function* () {
+//     const ff = yield* FeatureFlagsToYield();
+//     return ff.betaEnabled ? true : craftException({ code: 'FLAG_DISABLED' });
+//   }),
+//   handleExceptions: { FLAG_DISABLED: ({ redirect }) => redirect('/home') },
 // }
 // ```
-export function craftCanMatch<Guard extends CraftCanMatchGuardFn, Resolvers>(
+export function craftCanMatch<Guard extends CraftCanMatchGuardFn>(
   guard: Guard,
-  resolvers: CraftGuardResolversParam<
-    CraftCanMatchGuardYielded<Guard>,
-    Resolvers
-  >,
-): CraftCanMatchResultGuard<Guard, Resolvers> {
-  const resolverMap = resolvers as unknown as CraftGuardResolverMap;
-
-  // See the note in `craftCanActivate`: a generator so the body runs in an
-  // injection context; the actual driving happens in `runCraftGuardAsync`.
-  // eslint-disable-next-line require-yield
-  const resolvedGuard = function* (
-    route: Route,
-    segments: UrlSegment[],
-    currentSnapshot?: PartialMatchRouteSnapshot,
-  ) {
-    const injector = inject(Injector);
-    const router = inject(Router);
-
-    return runCraftGuardAsync(
-      guard(route, segments, currentSnapshot),
-      injector,
-      router,
-      resolverMap,
-    );
-  };
-
-  return resolvedGuard as unknown as CraftCanMatchResultGuard<Guard, Resolvers>;
+): CraftCanMatchResultGuard<Guard> {
+  return guard as unknown as CraftCanMatchResultGuard<Guard>;
 }
 
 // Authors a single route with fully-typed, route-scoped provider helpers.
@@ -2385,9 +2618,16 @@ export function craftCanMatch<Guard extends CraftCanMatchGuardFn, Resolvers>(
 // — the `.withProviders` callback receives `ToYield` generators for the route's
 // auto-provisioned tokens (guarded data, path params, query params, data), so a
 // route-level provider can be built from them with full dependency tracking.
+//
+// `handleExceptions` is contextually typed by the loose `CraftRouteHandleExceptions`
+// (so each handler's `redirect` / `phase` / outcome constructors are typed) while
+// keeping `Def` — and thus `canActivate`'s tracked yields — precise. Exhaustiveness
+// over the route's reachable codes is enforced after inference via
+// {@link AssertRoutesExceptionsHandled} (the union is only resolvable once `Def` is
+// fully inferred, so it cannot be a self-referential constraint here).
 export function route<const Path extends string, const Def extends object>(
   path: Path,
-  def: Def,
+  def: Def & { handleExceptions?: CraftRouteHandleExceptions },
 ): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>> {
   const routeDefinition = { ...def, path };
 
@@ -2399,7 +2639,7 @@ export function route<const Path extends string, const Def extends object>(
     enumerable: false,
   });
 
-  return routeDefinition as RouteWithProvidersBuilder<
+  return routeDefinition as unknown as RouteWithProvidersBuilder<
     Simplify<Def & { path: Path }>
   >;
 }
@@ -2446,6 +2686,16 @@ export function craftRoutes<
       );
     }
 
+    if (route.withLoaderViewTransitionImage !== undefined) {
+      registerRouteValueService(
+        toRouteCollectionViewTransitionServiceName(
+          routeCollectionName,
+          route.path,
+        ),
+        toViewTransitionInjectHelperName(routeCollectionName, route.path),
+      );
+    }
+
     if (route.canActivate !== undefined) {
       registerRouteValueService(
         toRouteCollectionGuardedDataServiceName(
@@ -2453,6 +2703,16 @@ export function craftRoutes<
           route.path,
         ),
         toGuardedDataInjectHelperName(routeCollectionName, route.path),
+      );
+    }
+
+    if (route.resolve !== undefined) {
+      registerRouteValueService(
+        toRouteCollectionResolvedDataServiceName(
+          routeCollectionName,
+          route.path,
+        ),
+        toResolvedDataInjectHelperName(routeCollectionName, route.path),
       );
     }
   }
@@ -2576,6 +2836,25 @@ export function craftRoutes<
       }
     }
 
+    if (route.withLoaderViewTransitionImage !== undefined) {
+      const serviceName = toRouteCollectionViewTransitionServiceName(
+        routeCollectionName,
+        route.path,
+      );
+      const routeService = routeValueServices.get(serviceName);
+
+      if (routeService) {
+        // The typed route service is a thin re-export of the single global
+        // view-transition sink the outlet publishes into; the generated helper
+        // narrows it to the route's declared `Signal<T | null>`.
+        autoProviders.push(
+          provideRouteValueService(serviceName, routeService, () =>
+            inject(CRAFT_VIEW_TRANSITION),
+          ),
+        );
+      }
+    }
+
     let guardDataSignal: WritableSignal<unknown> | null = null;
 
     if (route.canActivate !== undefined) {
@@ -2599,16 +2878,49 @@ export function craftRoutes<
       }
     }
 
+    let resolveDataSignal: WritableSignal<unknown> | null = null;
+
+    if (route.resolve !== undefined) {
+      const resolvedDataServiceName = toRouteCollectionResolvedDataServiceName(
+        routeCollectionName,
+        route.path,
+      );
+      const routeService = routeValueServices.get(resolvedDataServiceName);
+
+      if (routeService) {
+        resolveDataSignal = signal<unknown>(undefined);
+        const capturedSignal = resolveDataSignal;
+
+        autoProviders.push(
+          provideRouteValueService(
+            resolvedDataServiceName,
+            routeService,
+            () => capturedSignal,
+          ),
+        );
+      }
+    }
+
     const {
       canActivate,
       canMatch,
       componentDeps: _componentDeps,
+      data: routeData,
       loadChildren,
       paramsProvider: _paramsProvider,
       providers: routeProviders,
       providersFn,
       queryParams: _queryParams,
       redirectTo,
+      resolve,
+      handleExceptions,
+      pendingComponent,
+      errorComponent,
+      stayMs,
+      blankMs,
+      pendingMinMs,
+      reactiveGuards,
+      withLoaderViewTransitionImage,
       ...angularRoute
     } = route;
     const factoryProviders = providersFn
@@ -2618,23 +2930,6 @@ export function craftRoutes<
       ...(routeProviders ?? []),
       ...factoryProviders,
     ];
-    const wrappedCanActivate = canActivate
-      ? createCanActivateGuard(
-          routeCollectionName,
-          route.path,
-          routeIndex,
-          canActivate,
-          guardDataSignal,
-        )
-      : undefined;
-    const wrappedCanMatch = canMatch
-      ? createCanMatchGuard(
-          routeCollectionName,
-          route.path,
-          routeIndex,
-          canMatch,
-        )
-      : undefined;
     const wrappedLoadChildren =
       loadChildren && hasRouteLoadChildren(route)
         ? createLoadChildren(route.path, loadChildren)
@@ -2644,11 +2939,44 @@ export function craftRoutes<
         ? createRedirectTo(redirectTo)
         : redirectTo;
 
+    // Non-blocking: no blocking Angular guard is registered, so the URL commits
+    // immediately. `CraftRouterOutlet` reads this meta and drives
+    // canMatch → canActivate → resolve *after* commit, rendering the target only
+    // on success and routing exceptions through `handleExceptions`.
+    const hasCraftChain =
+      canActivate !== undefined ||
+      canMatch !== undefined ||
+      resolve !== undefined;
+
+    const craftMeta: CraftRouteMeta | undefined = hasCraftChain
+      ? {
+          match: canMatch as unknown as CraftRouteMeta['match'],
+          guard: canActivate as unknown as CraftRouteMeta['guard'],
+          resolve: resolve as unknown as CraftRouteMeta['resolve'],
+          handleExceptions: (handleExceptions ??
+            {}) as CraftRouteExceptionHandlerMap,
+          guardDataSink: guardDataSignal,
+          resolveDataSink: resolveDataSignal,
+          pendingComponent,
+          errorComponent,
+          stayMs,
+          blankMs,
+          pendingMinMs,
+          reactiveGuards: reactiveGuards ?? true,
+          withLoaderViewTransitionImage:
+            withLoaderViewTransitionImage !== undefined,
+        }
+      : undefined;
+
+    const mergedData =
+      craftMeta !== undefined
+        ? { ...(routeData ?? {}), [CRAFT_ROUTE_META]: craftMeta }
+        : routeData;
+
     return {
       ...angularRoute,
+      ...(mergedData !== undefined ? { data: mergedData } : {}),
       ...(redirectTo !== undefined ? { redirectTo: wrappedRedirectTo } : {}),
-      canActivate: wrappedCanActivate ? [wrappedCanActivate] : undefined,
-      canMatch: wrappedCanMatch ? [wrappedCanMatch] : undefined,
       loadChildren: wrappedLoadChildren,
       providers:
         autoProviders.length > 0 || resolvedRouteProviders.length

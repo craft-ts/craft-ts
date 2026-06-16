@@ -75,4 +75,7 @@ export type GenDeps_SlowPageComponent = GetDeps<{
     HostName: ReturnType<typeof provideHostName>;
   };
   publicProperties: GetPublicComponentProperties<SlowPageComponent>;
+  missingProvider: {
+    SlowPageRootResolvedData: ReturnType<typeof injectSlowPageRootResolvedData>;
+  };
 }>;

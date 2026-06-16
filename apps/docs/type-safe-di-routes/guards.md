@@ -3,6 +3,13 @@
 Write **reusable, parameterised** route guards, **compose** them in a single `canActivate` /
 `canMatch`, and resolve their failure cases **exhaustively** — an unhandled case is a **type error**.
 
+> **Exception handling has moved off the guard.** `craftCanActivate` / `craftCanMatch` now take
+> **only the guard** — there is no inline `resolvers` argument. Every reachable `craftException` is
+> resolved by a single, exhaustive **[`handleExceptions`](./exception-handling.md)** map on the
+> route, applied **after the URL commits** by the non-blocking
+> [`CraftRouterOutlet`](./pending-ui.md). Some examples below still show the older inline
+> `resolvers` form; see [exception-handling.md](./exception-handling.md) for the current model.
+
 ## The problem
 
 A `craftRoutes` `canActivate` accepts a single function (or generator function). To apply several
@@ -62,21 +69,30 @@ const noPizzeriaGuard = craftGen(() =>
 route('admin', {
   componentDeps: {} as import('./admin').GenDeps_Admin,
   loadComponent: () => import('./admin'),
-  canActivate: craftCanActivate(
-    function* () {
-      yield* roleGuard(ROLES.PIZZERIA_ADMIN); // short-circuits on exception
-      yield* noPizzeriaGuard();
-      return true;
-    },
-    // Exhaustive: keys === the reachable exception codes. A missing key is a type error.
-    {
-      NOT_AUTHENTICATED: ({ createUrlTree }) => createUrlTree(['/auth/login']),
-      FORBIDDEN_ROLE: ({ createUrlTree }) => createUrlTree(['/unauthorized']),
-      HAS_PIZZERIA: ({ createUrlTree }) => createUrlTree(['/dashboard']),
-    },
-  ),
+  canActivate: craftCanActivate(function* () {
+    yield* roleGuard(ROLES.PIZZERIA_ADMIN); // short-circuits on exception
+    yield* noPizzeriaGuard();
+    return true;
+  }),
+  // Resolved centrally — exhaustive over canActivate ∪ canMatch ∪ resolve.
+  handleExceptions: {
+    NOT_AUTHENTICATED: ({ redirect }) => redirect('/auth/login'),
+    FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
+    HAS_PIZZERIA: ({ redirect }) => redirect('/dashboard'),
+  },
 });
+
+// After the collection is defined, assert every route handles exactly its codes:
+//   assertExhaustiveRouteExceptions(adminRoutes);
 ```
+
+## Reactive guards
+
+While a route is active, its `canActivate` invariant stays **under observation** (live guards, on by
+default). If a signal the guard reads changes — e.g. the user logs out and `Auth` becomes `null` —
+the guard re-evaluates synchronously and applies [`handleExceptions`](./exception-handling.md) with
+`phase: 'active'`, so the target is never left rendered in an incoherent state. The reactive phase
+never re-runs `resolve` (no new pending). Opt out per route with `reactiveGuards: false`.
 
 ## How composition works
 

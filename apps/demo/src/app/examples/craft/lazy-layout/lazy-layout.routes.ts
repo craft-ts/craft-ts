@@ -1,4 +1,4 @@
-import { craftRoutes } from '@craft-ng/core';
+import { craftRoutes, assertExhaustiveRouteExceptions } from '@craft-ng/core';
 
 export const { lazyLayoutRoutes } = craftRoutes('lazyLayout', [
   {
@@ -8,5 +8,6 @@ export const { lazyLayoutRoutes } = craftRoutes('lazyLayout', [
       {} as import('./lazy-layout-child').GenDeps_LazyLayoutChildComponent,
   },
 ]);
+assertExhaustiveRouteExceptions(lazyLayoutRoutes);
 
 export type LazyLayoutRoutesAppDeps = typeof lazyLayoutRoutes.META_DATA;

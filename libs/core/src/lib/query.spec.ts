@@ -84,6 +84,32 @@ describe('query', () => {
     });
   });
 
+  // Regression: a query whose `params`/`loader` are PLAIN (non-generator)
+  // functions used to defer resolving its injector until those computeds first
+  // ran — relying on the AMBIENT injection context at read time. A non-blocking
+  // route guard awaits such a query via `untilSettled(...)`, which subscribes
+  // OUTSIDE an injection context, so the params source (`resourceParamsSrc`,
+  // i.e. the wrapped params fn) first ran with no ambient context and threw
+  // NG0203. The injector is now captured eagerly at construction.
+  it('regression(NG0203): non-generator query params source is callable from OUTSIDE an injection context', () => {
+    let readParamsSrc: (() => unknown) | undefined;
+
+    // Construct inside an injection context (the normal case).
+    TestBed.runInInjectionContext(() => {
+      const queryRef = query({
+        params: () => 'user-1',
+        loader: async ({ params }) => ({ id: params }),
+      });
+      readParamsSrc = () => queryRef.resourceParamsSrc();
+    });
+
+    // Read the params source from OUTSIDE any injection context — this is the
+    // exact call (the wrapped params fn / `resourceParamsSrc`) that threw
+    // NG0203 before the fix.
+    expect(() => readParamsSrc?.()).not.toThrow();
+    expect(readParamsSrc?.()).toBe('user-1');
+  });
+
   it('typing: tracks generator dependencies from params, loader and insertions', () => {
     const { UserIdServiceToYield } = craftService(
       { name: 'UserIdService', scope: 'global' },

@@ -91,7 +91,163 @@ Notes:
 
 - `appRoutes.toRoutes()` gives Angular the real runtime routes.
 - `appRoutes.META_DATA` gives `craftAppConfig(...)` the compile-time route dependency graph.
+- For **non-blocking navigation** (immediate URL commit, pending UI, centralised exception
+  handling), render `<craft-router-outlet>` instead of `<router-outlet>` and use
+  `provideCraftRouter(...)` instead of `provideRouter(...)` — it accepts Angular router features
+  **and** craft loading features (`withErrorComponent`, `withTransitionTimings`, …) in one call,
+  e.g. `provideCraftRouter(appRoutes.toRoutes(), withComponentInputBinding(), withErrorComponent(MyGlobalErrorScreen))`.
+  (The features also work standalone via `provideCraftLoading(...)`.)
+  See [Non-blocking navigation & pending UI](./pending-ui.md).
 - For lazy routes, `loadChildren` should return the named route tree exported by the child collection, for example `childRoutes.childRoutes`.
+
+### Large route files — the cascade DI depth limit
+
+`ValidateCascadeRoutesFile<…, typeof appRoutes>` walks **every** route in the collection at the type
+level. TypeScript caps how deeply it will instantiate a recursive type, so a single collection has a
+**finite route budget**. Past it (in practice a few dozen routes, sooner if routes carry guards /
+`resolve` / `handleExceptions`), the check overflows:
+
+```
+TS2589: Type instantiation is excessively deep and possibly infinite.
+  app.routes.ts → ValidateCascadeRoutesFile<never, Router, typeof appRoutes>
+```
+
+::: warning Watch out for the knock-on collapse
+A `TS2589` makes TypeScript abandon that type and fall back to `any`, which **poisons inference of
+neighbouring `const`s in the same file**. The visible symptoms are misleading: `route(...)` calls
+collapse to `RouteWithProvidersBuilder<{ path }>`, the `craftRoutes(...)` helpers go missing
+(`Property 'injectXxx' does not exist`), and `craftRouterLink` targets type as `never`. The root
+cause is the overflowing check, not those routes.
+:::
+
+**Solution — split into a lazy child collection, and keep its own DI check.** The cascade check
+reads only the *current* collection's metadata; it does **not** descend into `loadChildren`. So move
+the extra routes into their own `craftRoutes(...)` file and reference it via `loadChildren`. That
+keeps the parent file under budget — **but a child collection ships with _no_ DI checking unless you
+add one**, so re-declare the check in the child file to keep DI sound:
+
+```ts
+// feature.routes.ts — its own lazy collection
+import {
+  craftRoutes,
+  route,
+  type CanRun,
+  type ValidateCascadeRoutesFile,
+} from '@craft-ng/core';
+import type { Router } from '@angular/router';
+
+export const { featureRoutes } = craftRoutes('feature', [
+  route('', {
+    componentDeps: {} as import('./feature').GenDeps_Feature,
+    loadComponent: () => import('./feature'),
+    // guards / resolve / handleExceptions …
+  }),
+]);
+
+// DI safety for THIS collection — `app.routes.ts` does NOT cover loadChildren.
+// Same parent context the parent route runs under: app-level `Router` by value,
+// no extra named providers.
+type _CheckFeatureDI = ValidateCascadeRoutesFile<never, Router, typeof featureRoutes>;
+type _CanRunFeature = CanRun<_CheckFeatureDI>;
+```
+
+```ts
+// app.routes.ts — a cheap loadChildren entry, outside the parent's budget
+{
+  path: 'feature',
+  loadChildren: () => import('./feature.routes').then((m) => m.featureRoutes),
+},
+```
+
+A missing provider in the child collection now surfaces as a TypeScript error **in the child file**,
+exactly like the main one:
+
+```
+Injected SomeService is not provided in path: ""
+```
+
+If a single feature is itself large, repeat the split, or break one big collection into several
+`craftRoutes(...)` collections each with its own check — every check then validates a smaller slice
+and stays under the depth limit. The takeaway: **DI is always verified — never drop the check; move
+it next to the routes it covers.**
+
+#### Why the budget exists (the mechanism)
+
+`ValidateCascadeRoutesFile` recurses over the route tuple **4 routes per step**, so a file of `N`
+routes recurses to depth `N / 4`. Two distinct TypeScript ceilings are in play:
+
+- **Instantiation _depth_** (the `TS2589` "excessively deep" error). The 4-at-a-time unrolling is what
+  fights this: it quarters the recursion depth, so the wall moves from ~50 routes to a few hundred —
+  but it is still a per-file ceiling.
+- **Total instantiation _count_**. Each route pays one full `RouteCheckedDI` instantiation (walking its
+  `GenDeps`, the `missingProvider` map, the parent context). The total cost is therefore roughly
+  **`N × cost-per-route`**, and a route carrying guards / `resolve` / `handleExceptions` costs several
+  times more than a trivial one. This is why "a few dozen" is only a rough figure — the real budget is
+  in route-_cost_, not route-_count_.
+
+### Scaling to hundreds of routes
+
+The split above is not a one-off patch — it is the architecture. Organise routes as a **tree of feature
+files joined by `loadChildren`** (which you want anyway for code-splitting):
+
+```
+app.routes.ts                 # "manifest": ~N cheap { path, loadChildren } entries
+├── billing.routes.ts         # ~15–20 leaf routes + its own check
+├── admin.routes.ts           # ~15–20 leaf routes + its own check
+└── reporting.routes.ts       # if itself large → re-split into sub-loadChildren (level 3+)
+```
+
+- A `{ path, loadChildren }` entry has no `componentDeps`, so it is **nearly free** in the parent's
+  cascade check — the manifest can list dozens of them.
+- Each feature file pays the budget for **its own leaves only**. ~500 routes ÷ ~17 per file ≈ ~30
+  files; two levels are plenty, and you can nest further without limit.
+- **Every `craftRoutes(...)` file re-declares its own check** (see the iron rule above). With many
+  files this is easy to forget and fails silently, so enforce it with an ESLint rule in the same
+  family as `brand-angular-deps-match`.
+
+::: tip Threading the parent DI context
+The child check's parent context (`ParentNames`, `ParentValues`) is everything provided **at its mount
+point** — app providers **plus** every ancestor route's providers. When no ancestor adds `providers`,
+this is just the app context (`<never, Router, …>`, as in the examples above), identical in every file.
+When an ancestor route _does_ add providers, re-export its cumulative context and union your own onto it:
+
+```ts
+// billing.routes.ts (mounted under a route with providers: [provideBilling()])
+export type BillingChildNames  = AppProvidedNames | 'BillingService';
+export type BillingChildValues = AppProvidedValues;
+
+// sub-billing.routes.ts
+type _Check = ValidateCascadeRoutesFile<BillingChildNames, BillingChildValues, typeof subRoutes>;
+```
+
+Forgetting to fold in an ancestor's provider makes the child check wrong (a real missing-provider bug
+slips through, or a provided service is flagged as missing), so keep the re-export next to the route
+that adds the providers.
+:::
+
+#### Escape hatch — the `O(1)`-per-route check
+
+If a single file genuinely must hold a large flat list (no natural `loadChildren` boundary), switch it
+from the aggregated `ValidateCascadeRoutesFile` to the **per-route** `RouteCheckedDI`. It validates one
+component at a time with **no recursion between routes**, so it never hits the depth ceiling and scales
+to thousands of routes in one file — at the cost of one check block per component instead of one per
+file:
+
+```ts
+import { type CanRun, type RouteCheckedDI } from '@craft-ng/core';
+
+type _CheckItem0 = RouteCheckedDI<
+  import('./item-0').GenDeps_Item0Component,
+  AppProvidedNames,
+  AppProvidedValues,
+  'Item0Component'
+>;
+type _CanRunItem0 = CanRun<_CheckItem0>;
+// …one pair per route component
+```
+
+Prefer the tree-of-`loadChildren` approach (it also lazy-loads); reach for `RouteCheckedDI` only when a
+single big file is unavoidable.
 
 ## 3. Run the Angular brand codemod through the published script
 
@@ -211,6 +367,10 @@ An Eslint error does not trigger a compilation error, so make sure to run the Qu
 
 ## See Also
 
+- [`Route Guards`](./guards.md)
+- [`Centralised Exception Handling`](./exception-handling.md)
+- [`Non-blocking Navigation & Pending UI`](./pending-ui.md)
+- [`Global Error Component`](./global-error-component.md)
 - [`Angular Brand Config`](/type-safe-di-routes/angular-brand-config)
 - [`craftService`](/store/craft-service)
 - [`toCraftService`](/store/to-craft-service)

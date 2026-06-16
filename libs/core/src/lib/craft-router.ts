@@ -1,4 +1,11 @@
-import { Directive, effect, inject, input } from '@angular/core';
+import {
+  Directive,
+  effect,
+  inject,
+  input,
+  type EnvironmentProviders,
+  type Provider,
+} from '@angular/core';
 import {
   Router,
   RouterLink,
@@ -6,9 +13,21 @@ import {
   type NavigationBehaviorOptions,
   type NavigationExtras,
   type Params,
+  type RouterFeatures,
+  type Routes,
   type UrlCreationOptions,
   type UrlTree,
 } from '@angular/router';
+import {
+  isCraftLoadingFeature,
+  provideCraftLoading,
+  type CraftLoadingFeature,
+} from './craft-pending';
+import {
+  CRAFT_VIEW_TRANSITION_STATE_KEY,
+  type CraftViewTransitionInput,
+  type ViewTransitionPayloadDef,
+} from './craft-view-transition';
 import {
   type GetServiceYields,
   type SERVICE_DEPENDENCY_ACCESS_MARKER,
@@ -90,11 +109,33 @@ type RouteQueryParamsField<Path extends string> = [
   ? { queryParams?: never }
   : { queryParams?: RouteQueryParamMap<Path> };
 
+// Unwraps the `viewTransitionPayload<T>()` marker the slim registry stores for a
+// view-transition route into the declared `T | null` (the `null` = the nav's
+// explicit opt-out). Done here — lazily, per navigation call site — rather than
+// inside the registry, which is at TypeScript's instantiation-depth ceiling.
+type ViewTransitionInputForPath<Path extends string> =
+  RegisteredRouteMetaDataForPath<Path> extends {
+    viewTransition: ViewTransitionPayloadDef<infer Payload>;
+  }
+    ? Payload | null
+    : never;
+
+// Mirrors `RouteQueryParamsField`, but REQUIRED: a route that declares
+// `withLoaderViewTransitionImage` surfaces a `viewTransition` field in the slim
+// registry, which forces every link/navigation to it to pass the payload (or an
+// explicit `null` opt-out).
+type RouteViewTransitionField<Path extends string> = [
+  ViewTransitionInputForPath<Path>,
+] extends [never]
+  ? { viewTransition?: never }
+  : { viewTransition: ViewTransitionInputForPath<Path> };
+
 type CraftRouterAbsoluteTarget<Path extends NavigableRoutePath> = Simplify<
   {
     to: Path;
   } & RouteParamsField<Path> &
-    RouteQueryParamsField<Path>
+    RouteQueryParamsField<Path> &
+    RouteViewTransitionField<Path>
 >;
 
 type CraftRouterUrlCreationOptions<Path extends string> = Simplify<
@@ -172,6 +213,7 @@ type CraftRouterInputWithOptionalQueryParams = {
   to: string;
   params?: Record<string, string>;
   queryParams?: Params | null;
+  viewTransition?: CraftViewTransitionInput;
 };
 
 type CraftRouterInputExtras = CraftRouterInputWithOptionalQueryParams &
@@ -198,7 +240,7 @@ const _routerService = toCraftService(
 };
 
 const injectCraftRouterInternal = _routerService.injectCraftRouter;
-const provideCraftRouter = _routerService.provideCraftRouter;
+const provideCraftRouterInternal = _routerService.provideCraftRouter;
 const CraftRouterToYieldInternal = _routerService.CraftRouterToYield;
 
 // We can't reach the request type via `ReturnType<typeof CraftRouterToYieldInternal>`
@@ -306,7 +348,47 @@ export type CraftRouterToYieldHelper = WithInternalHelperDependencies<
     ): Generator<CraftRouterYieldRequest, Exposed, unknown>;
   };
 
-export { provideCraftRouter };
+/**
+ * Registers the router (Angular `provideRouter` under the hood) AND the
+ * non-blocking outlet's pending/error surface in one call. Angular
+ * `RouterFeatures` (`withComponentInputBinding()`, `withViewTransitions()`, …)
+ * and craft loading features (`withErrorComponent()`, `withTransitionTimings()`,
+ * `withPendingComponent()`, `withLoadingText()`) can be mixed freely — they are
+ * split apart and routed to `provideRouter` / `provideCraftLoading` accordingly.
+ *
+ * ```ts
+ * provideCraftRouter(
+ *   demoRoutes.toRoutes(),
+ *   withComponentInputBinding(),
+ *   withErrorComponent(MyGlobalErrorScreen),
+ *   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
+ * )
+ * ```
+ *
+ * Equivalent to a separate `provideRouter(...)` + `provideCraftLoading(...)`,
+ * but keeps all routing configuration in a single provider.
+ */
+export function provideCraftRouter(
+  routes: Routes,
+  ...features: Array<RouterFeatures | CraftLoadingFeature>
+): (Provider | EnvironmentProviders)[] {
+  const routerFeatures: RouterFeatures[] = [];
+  const loadingFeatures: CraftLoadingFeature[] = [];
+
+  for (const feature of features) {
+    if (isCraftLoadingFeature(feature)) {
+      loadingFeatures.push(feature);
+    } else {
+      routerFeatures.push(feature);
+    }
+  }
+
+  return [
+    provideCraftRouterInternal(routes, ...routerFeatures),
+    ...provideCraftLoading(...loadingFeatures),
+  ];
+}
+
 export const injectCraftRouter =
   injectCraftRouterInternal as unknown as CraftRouterInjectHelper;
 
@@ -400,7 +482,10 @@ export class CraftRouterLink {
       this.routerLink.preserveFragment = input.preserveFragment ?? false;
       this.routerLink.skipLocationChange = input.skipLocationChange ?? false;
       this.routerLink.replaceUrl = input.replaceUrl ?? false;
-      this.routerLink.state = input.state;
+      this.routerLink.state = withViewTransitionState(
+        input as { viewTransition?: CraftViewTransitionInput },
+        input.state,
+      );
       this.routerLink.info = input.info;
       this.routerLink.relativeTo = null;
       this.routerLink.ngOnChanges();
@@ -497,7 +582,7 @@ function getNavigationOptions(input: CraftRouterInputExtras): NavigationExtras {
     onSameUrlNavigation: input.onSameUrlNavigation,
     skipLocationChange: input.skipLocationChange,
     replaceUrl: input.replaceUrl,
-    state: input.state,
+    state: withViewTransitionState(input, input.state),
     info: input.info,
     browserUrl: input.browserUrl,
     scroll: input.scroll,
@@ -511,9 +596,27 @@ function getNavigationBehaviorOptions(
     onSameUrlNavigation: input.onSameUrlNavigation,
     skipLocationChange: input.skipLocationChange,
     replaceUrl: input.replaceUrl,
-    state: input.state,
+    state: withViewTransitionState(input, input.state),
     info: input.info,
     browserUrl: input.browserUrl,
     scroll: input.scroll,
+  };
+}
+
+/**
+ * Threads the view-transition payload into Angular's navigation `state` under
+ * {@link CRAFT_VIEW_TRANSITION_STATE_KEY}, where the outlet reads it. Leaves the
+ * caller's `state` untouched when no `viewTransition` was passed.
+ */
+function withViewTransitionState(
+  input: { viewTransition?: CraftViewTransitionInput },
+  state: { [k: string]: unknown } | undefined,
+): { [k: string]: unknown } | undefined {
+  if (input.viewTransition === undefined) {
+    return state;
+  }
+  return {
+    ...(state ?? {}),
+    [CRAFT_VIEW_TRANSITION_STATE_KEY]: input.viewTransition,
   };
 }

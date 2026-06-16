@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { RouterOutlet, type Router } from '@angular/router';
+import { type Router } from '@angular/router';
 import {
     componentMonitoring,
+    CraftRouterOutlet,
     provideHostName,
     type ExtractDeps,
     type GetDeps,
@@ -42,7 +43,7 @@ import {
           </div>
         </article>
 
-        <router-outlet />
+        <craft-router-outlet />
       </div>
     </section>
   `,
@@ -172,7 +173,7 @@ import {
       }
     }
   `,
-  imports: [RouterOutlet],
+  imports: [CraftRouterOutlet],
   providers: [provideHostName('component:LazyLayoutComponent')]
 })
 export default class LazyLayoutComponent {
@@ -183,8 +184,7 @@ export default class LazyLayoutComponent {
 
 export type GenDeps_LazyLayoutComponent = GetDeps<{
       deps: {
-        RouterOutlet: RouterOutlet;
-        Router: Router;
+        CraftRouterOutlet: CraftRouterOutlet;
       };
       propertiesDeps: {
         _monitoring: ExtractDeps<LazyLayoutComponent["_monitoring"]>;

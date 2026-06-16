@@ -9,8 +9,12 @@ import {
   provideFnWrapper,
   provideSendContextToAi,
   provideTakeAppSnapshot,
+  withCraftViewTransitions,
+  withErrorComponent,
+  withTransitionTimings,
 } from '@craft-ng/core';
 import { demoRoutes } from './app.routes';
+import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
 
 export const appConfig = craftAppConfig({
@@ -20,7 +24,23 @@ export const appConfig = craftAppConfig({
   routingDeps: demoRoutes.META_DATA,
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideCraftRouter(demoRoutes.toRoutes(), withComponentInputBinding()),
+    // Routing + non-blocking outlet config in one provider: Angular router
+    // features and craft loading features (global error component, pending
+    // thresholds) are mixed freely and split apart internally.
+    provideCraftRouter(
+      demoRoutes.toRoutes(),
+      withComponentInputBinding(),
+      // Outlet-driven View Transitions: unlike Angular's withViewTransitions()
+      // (which brackets only the synchronous URL commit), the CraftRouterOutlet
+      // drives document.startViewTransition() around its OWN swaps, so the
+      // shared-element morph survives the non-blocking guard/resolve chain.
+      // Showcased by the `view-transitions` demo (tile → skeleton → detail hero).
+      withCraftViewTransitions(),
+      withErrorComponent(MyGlobalErrorScreen),
+      // 3-phase transition: keep previous page 300ms, then blank 300ms, then
+      // loader (held at least 500ms).
+      withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
+    ),
     provideFnWrapper(function* (factory, thisArg, args) {
       try {
         return yield* factory.apply(thisArg, args);

@@ -23,9 +23,13 @@ export default [
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
       'craft-ng/app-start-registry-match': 'error',
+      'craft-ng/global-exception-registry-match': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/require-component-monitoring': 'error',
       'craft-ng/require-track-on-dependent-primitives': 'error',
+      'craft-ng/require-assert-exhaustive-route-exceptions': 'error',
+      'craft-ng/prefer-craft-router-outlet': 'error',
+      'craft-ng/require-pending-component-di-check': 'error',
       '@angular-eslint/directive-selector': [
         'error',
         {

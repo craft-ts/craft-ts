@@ -132,23 +132,29 @@ provideCraftRouter(
 
 For the morph to bridge a slow navigation, **something** carrying the shared element's
 `view-transition-name` must stay on screen while the chain runs — the **pending skeleton**. A route
-opts in with `withLoaderViewTransitionImage: true`, which:
+opts in by **declaring the shared-element payload shape** with `viewTransitionPayload<T>()` — the
+view-transition analogue of how `queryParams` declares a route's query-param shape. This:
 
-- makes a `viewTransition` payload **required** on every `craftRouterLink` / `navigate` targeting it
-  (`{ name; image? } | null`, where `null` is an explicit opt-out);
+- makes a typed `viewTransition: T | null` payload **required** on every `craftRouterLink` / `navigate`
+  targeting it (`null` is an explicit opt-out);
+- exposes a route-generated, fully-typed `injectXxxViewTransition(): Signal<T | null>` helper;
 - tells the outlet to **skip the blank phase** (a blank would break the morph): `stay → pending → loaded`.
 
 ```ts
-route(':photoId', {
-  loadComponent: () => import('./photo-detail'),
-  withLoaderViewTransitionImage: true,
-  pendingComponent: () => import('./photo-skeleton'),
-  canActivate: craftCanActivate(/* slow guard */),
-  handleExceptions: { /* … */ },
-}),
+export const { photosRoutes, injectPhotosPhotoIdViewTransition } = craftRoutes('photos', [
+  route(':photoId', {
+    componentDeps: {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
+    loadComponent: () => import('./photo-detail'),
+    withLoaderViewTransitionImage: viewTransitionPayload<{ name: string; image: string | null }>(),
+    pendingComponent: () => import('./photo-skeleton'),
+    // The skeleton's DI is verified separately (see "Verifying the skeleton's DI").
+    canActivate: craftCanActivate(/* slow guard */),
+    handleExceptions: { /* … */ },
+  }),
+]);
 ```
 
-The link passes the payload (required by the type system):
+The link passes a payload of the **declared type** (required, and shape-checked):
 
 ```ts
 [craftRouterLink]="{
@@ -158,19 +164,55 @@ The link passes the payload (required by the type system):
 }"
 ```
 
-The skeleton and the target read it with `injectCraftViewTransition()` and wear the matching
-`view-transition-name`:
+The skeleton (and/or the target) reads it through the **route-generated typed helper** and wears the
+matching `view-transition-name`:
 
 ```ts
 export default class PhotoSkeleton {
-  protected readonly photoId = injectPhotoIdParams();
-  private readonly viewTransition = injectCraftViewTransition();
+  protected readonly photoId = injectPhotosPhotoIdParams();
+  // Signal<{ name: string; image: string | null } | null> — typed by the route.
+  private readonly viewTransition = injectPhotosPhotoIdViewTransition();
   protected readonly image = computed(() => this.viewTransition()?.image ?? null);
   // template: <span [style.view-transition-name]="'photo-' + photoId()"> … </span>
 }
 ```
 
+> The global, untyped `injectCraftViewTransition(): Signal<unknown>` still exists for ad-hoc reads, but
+> prefer the route-generated helper when you have a declared payload.
+
 The payload travels in Angular's navigation `state`, so it is **lost on reload or direct URL access**
 — there is no previous page to morph from in that case anyway; the app stays functional (skeleton
 without the preview image, then the target). Pass `withCraftViewTransitions({ skipBlank: true })` to
 skip the blank phase for **every** route, not just opted-in ones.
+
+### Verifying the skeleton's DI
+
+The pending skeleton is a real component that injects dependencies (route params, the typed payload,
+monitoring, …), but the aggregated cascade (`ValidateCascadeRoutesFile`) only sees the **target**
+component — it never descends into `pendingComponent`. So the skeleton is verified **directly**, with
+the per-component, O(1) [`RouteCheckedDI`](./setup.md#escape-hatch-the-o-1-per-route-check) escape
+hatch (not a second aggregated pass — that would add to the instantiation-count budget the cascade is
+already spending):
+
+```ts
+type _CheckTargetDI = ValidateCascadeRoutesFile<AppNames, AppValues, typeof photosRoutes>;
+type _CanRunTarget = CanRun<_CheckTargetDI>;
+
+// The skeleton injects the `:photoId` param and the typed payload — both
+// auto-provided by the route, so list those service names as available; the
+// parent context (`AppValues` here) is the same one the cascade check uses.
+type _CheckPendingDI = RouteCheckedDI<
+  import('./photo-skeleton').GenDeps_PhotoSkeletonComponent,
+  'PhotosPhotoIdParams' | 'PhotosPhotoIdViewTransition',
+  AppValues,
+  'pending component: photos/:photoId'
+>;
+type _CanRunPending = CanRun<_CheckPendingDI>;
+```
+
+A service the skeleton injects but nothing provides becomes a TypeScript error on `_CanRunPending`
+(`Injected X is not provided in pending component: photos/:photoId`). The
+`craft-ng/require-pending-component-di-check` ESLint rule **generates and refreshes this whole block**
+from `pendingComponent` on `--fix` — resolving the skeleton's `GenDeps_*`, deriving the auto-provided
+service names from the route's path params + payload, and borrowing the parent context from the
+collection's own `ValidateCascadeRoutesFile` — so you never hand-write or stale it.
