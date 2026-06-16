@@ -1,0 +1,360 @@
+import {
+  inject,
+  InjectionToken,
+  signal,
+  type Signal,
+  type Type,
+  type WritableSignal,
+} from '@angular/core';
+import type { Router, UrlTree } from '@angular/router';
+import type { AnyCraftException } from './craft-exception';
+import type { ExtractCraftGenExceptions } from './craft-gen';
+
+/**
+ * Centralised, typed exception handling for craft routes.
+ *
+ * A craft route keeps `canActivate` / `canMatch` / `resolve` as its writing API
+ * — each may throw a `craftException`. Instead of an inline resolver map per
+ * guard, a single **`handleExceptions`** map on the route resolves the **union**
+ * of every code reachable from those three steps, exhaustively (a missing or
+ * extra code is a compile error). Each handler picks an {@link CraftExceptionOutcome}.
+ *
+ * Outcomes delegated to the application-wide error component (`globalError()`)
+ * are mirrored into the {@link CraftGlobalExceptionRegistry} by an ESLint
+ * autofix, so the global error component can read **all** of its possible
+ * exceptions, typed, via {@link injectCraftGlobalError}.
+ */
+
+// ---------------------------------------------------------------------------
+// Outcomes (issues) a handler can choose
+// ---------------------------------------------------------------------------
+
+/** A component the outlet can render: an eager `Type` or a lazy default import. */
+export type CraftExceptionComponentInput =
+  | Type<unknown>
+  | (() => Promise<{ default: Type<unknown> }>);
+
+/**
+ * What a route exception handler resolves an exception to:
+ *
+ * - `redirect` — navigate away (string URL or `UrlTree`).
+ * - `render` — render a dedicated component instead of the target.
+ * - `global` — render the application-wide error component (see the registry).
+ * - `stay` — cancel the navigation; stay on the triggering page (restore URL).
+ * - `noop` — render the target anyway, with resolve data left `undefined`.
+ */
+export type CraftExceptionOutcome =
+  | { readonly kind: 'redirect'; readonly target: UrlTree | string }
+  | { readonly kind: 'render'; readonly component: CraftExceptionComponentInput }
+  | { readonly kind: 'global' }
+  | { readonly kind: 'stay' }
+  | { readonly kind: 'noop' };
+
+/** Distinguishes the initial route entry from a reactive guard re-evaluation. */
+export type CraftRoutePhase = 'enter' | 'active';
+
+/**
+ * The argument handed to each `handleExceptions` handler: the typed exception
+ * being handled, the navigation `phase`, the Angular-native redirect helpers,
+ * and the outcome constructors (`redirect`, `renderComponent`, `globalError`,
+ * `stay`, `noop`).
+ */
+export type CraftExceptionHandlerContext<Exception extends AnyCraftException> = {
+  readonly exception: Exception;
+  readonly payload: Exception extends { payload: infer Payload }
+    ? Payload
+    : unknown;
+  /** `'enter'` for the initial activation, `'active'` for a reactive re-check. */
+  readonly phase: CraftRoutePhase;
+  readonly router: Router;
+  readonly createUrlTree: Router['createUrlTree'];
+  readonly navigate: Router['navigate'];
+  readonly navigateByUrl: Router['navigateByUrl'];
+  redirect(target: UrlTree | string): CraftExceptionOutcome;
+  renderComponent(component: CraftExceptionComponentInput): CraftExceptionOutcome;
+  globalError(): CraftExceptionOutcome;
+  stay(): CraftExceptionOutcome;
+  noop(): CraftExceptionOutcome;
+};
+
+/**
+ * A single exception handler. May be a plain function returning an outcome, or a
+ * generator that `yield*`s craft services first (e.g. to read a redirect target
+ * from a config service) — those yields are tracked just like the guards' own.
+ */
+export type CraftExceptionHandler<Exception extends AnyCraftException> = (
+  context: CraftExceptionHandlerContext<Exception>,
+) => CraftExceptionOutcome | Generator<unknown, CraftExceptionOutcome, unknown>;
+
+/** The pure outcome constructors, merged into the handler context by the driver. */
+export const craftExceptionOutcomeApi = {
+  redirect: (target: UrlTree | string): CraftExceptionOutcome => ({
+    kind: 'redirect',
+    target,
+  }),
+  renderComponent: (
+    component: CraftExceptionComponentInput,
+  ): CraftExceptionOutcome => ({ kind: 'render', component }),
+  globalError: (): CraftExceptionOutcome => ({ kind: 'global' }),
+  stay: (): CraftExceptionOutcome => ({ kind: 'stay' }),
+  noop: (): CraftExceptionOutcome => ({ kind: 'noop' }),
+} as const;
+
+// ---------------------------------------------------------------------------
+// Exception-union extraction + exhaustive handler map
+// ---------------------------------------------------------------------------
+
+type CraftExceptionCodes<Exception> = Exception extends {
+  code: infer Code extends string;
+}
+  ? Code
+  : never;
+
+type CraftExceptionForCode<Exception, Code extends string> = Extract<
+  Exception,
+  { code: Code }
+>;
+
+/** `Yielded` of a generator-returning route field (canActivate/canMatch/resolve). */
+type RouteFieldYielded<Field> = Field extends (
+  ...args: any[]
+) => Generator<infer Yielded, any, any>
+  ? Yielded
+  : never;
+
+/** The `craftException`s a single guard/resolve field may produce. */
+type RouteFieldExceptions<Field> = ExtractCraftGenExceptions<
+  RouteFieldYielded<Field>
+>;
+
+/**
+ * The full union of `craftException`s reachable from a route's
+ * `canActivate ∪ canMatch ∪ resolve`. `handleExceptions` must resolve exactly
+ * these codes.
+ */
+export type RouteExceptionUnion<RouteDefinition> =
+  | (RouteDefinition extends { canActivate: infer Field }
+      ? RouteFieldExceptions<Field>
+      : never)
+  | (RouteDefinition extends { canMatch: infer Field }
+      ? RouteFieldExceptions<Field>
+      : never)
+  | (RouteDefinition extends { resolve: infer Field }
+      ? RouteFieldExceptions<Field>
+      : never);
+
+/**
+ * The exhaustive handler map for an exception union: one handler per reachable
+ * code. A missing key is a compile error; pair with {@link NoExtraExceptionHandlers}
+ * at the definition site to also reject codes that cannot occur.
+ */
+export type HandledExceptionsForUnion<Exception extends AnyCraftException> = {
+  [Code in CraftExceptionCodes<Exception>]: CraftExceptionHandler<
+    Extract<CraftExceptionForCode<Exception, Code>, AnyCraftException>
+  >;
+};
+
+/**
+ * Forces every key of the supplied `Handlers` literal that is **not** a reachable
+ * code to `never`, so an extra handler is a compile error. Intersect with
+ * {@link HandledExceptionsForUnion} at the field's definition site.
+ */
+export type NoExtraExceptionHandlers<
+  Handlers,
+  Exception extends AnyCraftException,
+> = {
+  [Code in keyof Handlers as Code extends CraftExceptionCodes<Exception>
+    ? never
+    : Code]: never;
+};
+
+/**
+ * The `handleExceptions` field type for a route definition: exhaustive over the
+ * union of its guard/resolve exception codes. `[Exception] extends [never]`
+ * short-circuits to an empty object so a route without typed exceptions needs no
+ * `handleExceptions`.
+ */
+export type RouteHandledExceptions<RouteDefinition> = [
+  RouteExceptionUnion<RouteDefinition>,
+] extends [never]
+  ? Record<never, never>
+  : HandledExceptionsForUnion<
+      Extract<RouteExceptionUnion<RouteDefinition>, AnyCraftException>
+    >;
+
+// ---------------------------------------------------------------------------
+// Post-inference exhaustiveness check
+//
+// `handleExceptions` cannot be validated by a self-referential field constraint
+// at `route(path, def)` — the reachable-code union is derived from the *same*
+// `def` being inferred, which TypeScript can only resolve as `never` (the
+// contextual type is needed before inference completes). Instead the field is
+// typed loosely (so handlers stay usable) and exhaustiveness is asserted once the
+// whole collection is inferred, mirroring this codebase's `ValidateCascadeRoutesFile`
+// DI check: `assertExhaustiveRouteExceptions(demoRoutes)`.
+// ---------------------------------------------------------------------------
+
+type RouteReachableCodes<RouteDefinition> = CraftExceptionCodes<
+  Extract<RouteExceptionUnion<RouteDefinition>, AnyCraftException>
+>;
+
+type RouteHandledCodes<RouteDefinition> = RouteDefinition extends {
+  handleExceptions: infer Handlers;
+}
+  ? Extract<keyof Handlers, string>
+  : never;
+
+type RoutePathOf<RouteDefinition> = RouteDefinition extends {
+  path: infer Path extends string;
+}
+  ? Path
+  : string;
+
+// `never` when a route's handlers cover exactly its reachable codes; otherwise an
+// object describing the missing or unexpected codes (surfaced in the type error).
+type RouteExceptionsError<RouteDefinition> = [
+  RouteReachableCodes<RouteDefinition>,
+] extends [never]
+  ? never
+  : [
+        Exclude<
+          RouteReachableCodes<RouteDefinition>,
+          RouteHandledCodes<RouteDefinition>
+        >,
+      ] extends [never]
+    ? [
+          Exclude<
+            RouteHandledCodes<RouteDefinition>,
+            RouteReachableCodes<RouteDefinition>
+          >,
+        ] extends [never]
+      ? never
+      : {
+          route: RoutePathOf<RouteDefinition>;
+          unexpectedHandlers: Exclude<
+            RouteHandledCodes<RouteDefinition>,
+            RouteReachableCodes<RouteDefinition>
+          >;
+        }
+    : {
+        route: RoutePathOf<RouteDefinition>;
+        missingHandlers: Exclude<
+          RouteReachableCodes<RouteDefinition>,
+          RouteHandledCodes<RouteDefinition>
+        >;
+      };
+
+type CollectRouteExceptionsErrors<Routes> = Routes extends readonly unknown[]
+  ? { [Index in keyof Routes]: RouteExceptionsError<Routes[Index]> }[number]
+  : never;
+
+/**
+ * `unknown` when every route in the collection handles exactly its reachable
+ * exception codes; otherwise an error object listing the offending routes. Used
+ * by {@link assertExhaustiveRouteExceptions}.
+ */
+export type AssertRoutesExceptionsHandled<RoutesApp> = RoutesApp extends {
+  readonly _routes: infer Routes;
+}
+  ? [Exclude<CollectRouteExceptionsErrors<Routes>, never>] extends [never]
+    ? unknown
+    : {
+        ERROR_unhandled_or_extra_route_exceptions: Exclude<
+          CollectRouteExceptionsErrors<Routes>,
+          never
+        >;
+      }
+  : unknown;
+
+/**
+ * Asserts (at compile time) that every route's `handleExceptions` covers exactly
+ * the exception codes reachable from its `canActivate` / `canMatch` / `resolve`.
+ * A missing or extra code makes `routes` un-assignable, surfacing the offending
+ * route + codes in the error.
+ *
+ * ```ts
+ * export const { demoRoutes } = craftRoutes('demo', [ … ]);
+ * assertExhaustiveRouteExceptions(demoRoutes);
+ * ```
+ */
+export function assertExhaustiveRouteExceptions<RoutesApp>(
+  routes: RoutesApp & AssertRoutesExceptionsHandled<RoutesApp>,
+): RoutesApp {
+  return routes;
+}
+
+// ---------------------------------------------------------------------------
+// Global exception registry + global error component access
+// ---------------------------------------------------------------------------
+
+/**
+ * Mirrors the codes a route delegates to the global error component (handlers
+ * that call `globalError()`), keyed by route path:
+ *
+ * ```ts
+ * declare module '@craft-ng/core' {
+ *   interface CraftGlobalExceptionRegistry {
+ *     'user/:userId': {
+ *       USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'user/:userId', 'USER_DISABLED'>;
+ *     };
+ *   }
+ * }
+ * ```
+ *
+ * Maintained automatically by the `global-exception-registry-match` ESLint
+ * autofix — do not edit by hand.
+ */
+export interface CraftGlobalExceptionRegistry {}
+
+/**
+ * The typed exception object for a `code` on a route `Path` of a `craftRoutes`
+ * collection. Resolves through the collection's phantom `_routes`, so the ESLint
+ * autofix can write `CraftRouteExceptionType<typeof demoRoutes, '<path>', '<code>'>`
+ * from literals alone (no type checker needed).
+ */
+export type CraftRouteExceptionType<
+  RoutesApp,
+  Path extends string,
+  Code extends string,
+> = RoutesApp extends { readonly _routes: infer Routes }
+  ? Routes extends readonly unknown[]
+    ? Extract<
+        RouteExceptionUnion<Extract<Routes[number], { path: Path }>>,
+        { code: Code }
+      >
+    : never
+  : never;
+
+/**
+ * The union of every exception delegated to the global error component, across
+ * all registered routes and codes. `never` until the registry is augmented.
+ */
+export type CraftGlobalHandledException = {
+  [Path in keyof CraftGlobalExceptionRegistry]: CraftGlobalExceptionRegistry[Path][keyof CraftGlobalExceptionRegistry[Path]];
+}[keyof CraftGlobalExceptionRegistry];
+
+/**
+ * The signal the outlet fills with the active global exception just before it
+ * renders the global error component. Runtime-typed loosely; the typed view is
+ * exposed by {@link injectCraftGlobalError}.
+ */
+export const CRAFT_GLOBAL_ERROR = new InjectionToken<
+  WritableSignal<AnyCraftException | null>
+>('CRAFT_GLOBAL_ERROR', {
+  providedIn: 'root',
+  factory: () => signal<AnyCraftException | null>(null),
+});
+
+/**
+ * Reads the exception that routed to the global error component, typed as the
+ * exhaustive union of everything the {@link CraftGlobalExceptionRegistry}
+ * records. Discriminate on `error().code`.
+ *
+ * ```ts
+ * readonly error = injectCraftGlobalError();
+ * // switch (this.error().code) { case 'USER_DISABLED': … }
+ * ```
+ */
+export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
+  return inject(CRAFT_GLOBAL_ERROR) as unknown as Signal<CraftGlobalHandledException>;
+}
