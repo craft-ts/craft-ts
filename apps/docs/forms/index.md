@@ -96,10 +96,22 @@ Connects form submission to a mutation.
 const updateUserMutation = mutation({
   method: (data: ValidatedFormValue<UserForm>) => data,
   loader: function* ({ params: user }) {
-    return yield* CraftHttpClient.patch(({ response }) => ({
+    return yield* CraftHttpClient.patch(({ response, status }) => ({
       url: '/api/users',
       body: user,
       success: response<User>(),
+      exceptions: [
+        function* ({ status }) {
+          if (!(yield* status(409))) {
+            return;
+          }
+
+          return craftException(
+            { code: 'USER_EMAIL_ALREADY_EXISTS' },
+            { message: 'This email is already used' as const },
+          );
+        },
+      ],
     }));
   },
 });
@@ -122,12 +134,64 @@ const userFormState = state(
         console.log('Form submitted successfully');
         return undefined;
       },
+      exceptions: [
+        ({ omit }) => omit(['USER_EMAIL_ALREADY_EXISTS']),
+        ({ submitCraftResource }) => {
+          const emailConflict =
+            submitCraftResource.exceptions()?.loader?.USER_EMAIL_ALREADY_EXISTS;
+
+          if (!emailConflict) return undefined;
+
+          return craftException(
+            { code: 'EMAIL_NOT_AVAILABLE' },
+            emailConflict.payload,
+          );
+        },
+      ],
     }),
   ),
 );
 
 // Submit the form
 userFormState.form().submit(); // Automatically triggers the mutation
+
+// Submit exceptions are inferred from the mutation and the `exceptions` rules.
+const submitErrors = userFormState.form().submitExceptions();
+const firstSubmitError = submitErrors[0]?.code; // 'EMAIL_NOT_AVAILABLE'
+```
+
+`insertFormSubmit` preserves mutation exceptions by default. Use `exceptions` as
+an ordered pipeline when you want to refine the submit exceptions exposed by the
+form:
+
+```ts
+insertFormSubmit(updateUserMutation, {
+  exceptions: [
+    // `omit` autocompletes the exception codes produced by `updateUserMutation`.
+    ({ omit }) => omit(['USER_EMAIL_ALREADY_EXISTS']),
+
+    // Returning a Craft exception appends it to the current submit exceptions.
+    ({ submitCraftResource }) => {
+      if (submitCraftResource.exceptions()?.loader?.USER_EMAIL_ALREADY_EXISTS) {
+        return craftException(
+          { code: 'EMAIL_NOT_AVAILABLE' },
+          { message: 'This email is already used' as const },
+        );
+      }
+
+      return undefined;
+    },
+  ],
+});
+```
+
+Returning an array, like `omit(...)`, replaces the current submit exception list.
+Returning a single `craftException(...)` adds it. The final inferred union is
+available through:
+
+```ts
+const submitExceptions = userFormState.form().submitExceptions();
+const aggregatedSubmitExceptions = userFormState.form().exceptions().submit;
 ```
 
 ### insertSelectFormTree

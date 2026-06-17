@@ -88,10 +88,11 @@ describe('insertFormSubmit', () => {
 
       expect(loginForm.form.hasSubmitExceptions()).toBe(true);
       const exceptions = loginForm.form.submitExceptions();
+      expectTypeOf(
+        exceptions[0]?.code,
+      ).toEqualTypeOf<'NameAlreadyExistsException'>();
       expect(exceptions.length).toBeGreaterThan(0);
-      expect((exceptions[0] as { code: string }).code).toBe(
-        'NameAlreadyExistsException',
-      );
+      expect(exceptions[0]?.code).toBe('NameAlreadyExistsException');
     });
   });
 
@@ -215,14 +216,17 @@ describe('insertFormSubmit', () => {
         await vi.advanceTimersByTimeAsync(20);
 
         const exceptions = loginForm.form.submitExceptions();
+        expectTypeOf(
+          exceptions[0]?.code,
+        ).toEqualTypeOf<'NameAlreadyExistsExceptionFromSuccess'>();
         expect(exceptions.length).toBe(1);
-        expect((exceptions[0] as { code: string }).code).toBe(
+        expect(exceptions[0]?.code).toBe(
           'NameAlreadyExistsExceptionFromSuccess',
         );
       });
     });
 
-    it('exception callback overrides the mutation exceptions', async () => {
+    it('exceptions rules can omit mutation exceptions and add typed form submit exceptions', async () => {
       await TestBed.runInInjectionContext(async () => {
         const submitRef = mutation({
           method: (login: ValidatedFormValue<LoginData>) => login,
@@ -238,21 +242,24 @@ describe('insertFormSubmit', () => {
           { id: '1', name: 'John', password: '1234' } satisfies LoginData,
           insertForm(
             insertFormSubmit(submitRef, {
-              exception: ({ submitCraftResource }) => {
-                const list = submitCraftResource.exceptions()?.list ?? [];
-                if (
-                  list.some(
-                    (e: { code: string }) =>
-                      e.code === 'NameAlreadyExistsException',
-                  )
-                ) {
-                  return craftException(
-                    { code: 'NameAlreadyExistsExceptionFromException' },
-                    undefined,
-                  );
-                }
-                return undefined;
-              },
+              exceptions: [
+                ({ omit }) => omit(['NameAlreadyExistsException']),
+                ({ submitCraftResource }) => {
+                  const list = submitCraftResource.exceptions()?.list ?? [];
+                  expectTypeOf(
+                    list[0]?.code,
+                  ).toEqualTypeOf<'NameAlreadyExistsException'>();
+                  if (
+                    list.some((e) => e.code === 'NameAlreadyExistsException')
+                  ) {
+                    return craftException(
+                      { code: 'NameAlreadyExistsExceptionFromException' },
+                      undefined,
+                    );
+                  }
+                  return undefined;
+                },
+              ],
             }),
           ),
         );
@@ -261,14 +268,17 @@ describe('insertFormSubmit', () => {
         await vi.advanceTimersByTimeAsync(20);
 
         const exceptions = loginForm.form.submitExceptions();
+        expectTypeOf(
+          exceptions[0]?.code,
+        ).toEqualTypeOf<'NameAlreadyExistsExceptionFromException'>();
         expect(exceptions.length).toBe(1);
-        expect((exceptions[0] as { code: string }).code).toBe(
+        expect(exceptions[0]?.code).toBe(
           'NameAlreadyExistsExceptionFromException',
         );
       });
     });
 
-    it('exception callback can omit specific mutation exceptions', async () => {
+    it('exceptions rules can omit specific mutation exceptions', async () => {
       await TestBed.runInInjectionContext(async () => {
         const submitRef = mutation({
           method: (login: ValidatedFormValue<LoginData>) => login,
@@ -284,8 +294,7 @@ describe('insertFormSubmit', () => {
           { id: '1', name: 'John', password: '1234' } satisfies LoginData,
           insertForm(
             insertFormSubmit(submitRef, {
-              exception: ({ omitExceptions }) =>
-                omitExceptions(['NameAlreadyExistsException']),
+              exceptions: [({ omit }) => omit(['NameAlreadyExistsException'])],
             }),
           ),
         );
@@ -294,6 +303,7 @@ describe('insertFormSubmit', () => {
         await vi.advanceTimersByTimeAsync(20);
 
         const exceptions = loginForm.form.submitExceptions();
+        expectTypeOf(exceptions).toEqualTypeOf<never[]>();
         expect(exceptions).toEqual([]);
         expect(loginForm.form.hasSubmitExceptions()).toBe(true);
       });
@@ -431,21 +441,19 @@ describe('insertFormSubmit — parallel forms', () => {
         insertForm(
           { identifier: ({ item: { id } }) => id },
           insertFormSubmit(submitRef, {
-            exception: ({ submitCraftResource }) => {
-              const list = submitCraftResource.exceptions()?.list ?? [];
-              if (
-                list.some(
-                  (e: { code: string }) =>
-                    e.code === 'NameAlreadyExistsException',
-                )
-              ) {
-                return craftException(
-                  { code: 'NameAlreadyExistsExceptionFromException' },
-                  undefined,
-                );
-              }
-              return undefined;
-            },
+            exceptions: [
+              ({ omit }) => omit(['NameAlreadyExistsException']),
+              ({ submitCraftResource }) => {
+                const list = submitCraftResource.exceptions()?.list ?? [];
+                if (list.some((e) => e.code === 'NameAlreadyExistsException')) {
+                  return craftException(
+                    { code: 'NameAlreadyExistsExceptionFromException' },
+                    undefined,
+                  );
+                }
+                return undefined;
+              },
+            ],
           }),
         ),
       );
@@ -459,8 +467,11 @@ describe('insertFormSubmit — parallel forms', () => {
 
       expect(form1!.hasSubmitExceptions()).toBe(true);
       const f1Exceptions = form1!.submitExceptions();
+      expectTypeOf(
+        f1Exceptions[0]?.code,
+      ).toEqualTypeOf<'NameAlreadyExistsExceptionFromException'>();
       expect(f1Exceptions.length).toBe(1);
-      expect((f1Exceptions[0] as { code: string }).code).toBe(
+      expect(f1Exceptions[0]?.code).toBe(
         'NameAlreadyExistsExceptionFromException',
       );
 
