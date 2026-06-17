@@ -89,14 +89,14 @@ export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
       resolve: craftResolve(function* () {
         return yield* loadSlowReport();
       }),
-      handleExceptions: {
-        NOT_AUTHENTICATED: ({ redirect }) => redirect('/login-form'),
-      },
+    }, {
+      // Exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at the call site.
+      NOT_AUTHENTICATED: ({ redirect }) => redirect('/login-form'),
     }),
   ],
 );
 
-// Exhaustive over canActivate ∪ canMatch ∪ resolve for this collection.
+// Required-handler safety net for routes authored with the 2-arg `route()` form.
 assertExhaustiveRouteExceptions(slowPageRoutes);
 
 // Cascade DI safety for THIS lazy child collection.

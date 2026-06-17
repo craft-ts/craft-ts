@@ -19,6 +19,7 @@ const requireTrackOnDependentPrimitives = require('./require-track-on-dependent-
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
 const preferCraftRouterOutlet = require('./prefer-craft-router-outlet.cjs');
 const requirePendingComponentDiCheck = require('./require-pending-component-di-check.cjs');
+const requireChildRouteMountCheck = require('./require-child-route-mount-check.cjs');
 
 module.exports = {
   rules: {
@@ -44,5 +45,6 @@ module.exports = {
       requireAssertExhaustiveRouteExceptions,
     'prefer-craft-router-outlet': preferCraftRouterOutlet,
     'require-pending-component-di-check': requirePendingComponentDiCheck,
+    'require-child-route-mount-check': requireChildRouteMountCheck,
   },
 };

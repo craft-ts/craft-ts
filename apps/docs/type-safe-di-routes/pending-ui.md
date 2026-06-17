@@ -151,8 +151,14 @@ export const { photosRoutes, injectPhotosPhotoIdViewTransition } = craftRoutes('
     canActivate: craftCanActivate(/* slow guard */),
     handleExceptions: { /* … */ },
   }),
-]);
+]).withParent<ParentRoutes<'photos'>>();
 ```
+
+This collection is a lazy child mounted via `loadChildren` (kept out of the parent's cascade DI budget).
+Because its components depend on the `:photoId` param **and** the declared view-transition payload, it is
+only correct under the `photos` route — so it is **pinned** to that mount with
+`.withParent<ParentRoutes<'photos'>>()`, and the parent enforces it with `assertChildRouteMounts(...)`.
+See [Pinning a lazy child to its mount path](./setup.md#pinning-a-lazy-child-to-its-mount-path-withparent-assertchildroutemounts).
 
 The link passes a payload of the **declared type** (required, and shape-checked):
 

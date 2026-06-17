@@ -1,5 +1,6 @@
 import {
   abstract,
+  assertChildRouteMounts,
   assertExhaustiveRouteExceptions,
   craftCanActivate,
   craftException,
@@ -33,12 +34,12 @@ export const {
     resolve: craftResolve(function* () {
       return yield* loadProfile();
     }),
-    // Centralised + exhaustive over canActivate ∪ canMatch ∪ resolve. The URL
-    // commits immediately; the outlet routes these exceptions after commit.
-    handleExceptions: {
-      NOT_AUTHENTICATED: ({ redirect }) => redirect('/login-form'),
-      USER_DISABLED: ({ globalError }) => globalError(),
-    },
+  }, {
+    // Centralised + exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at
+    // the call site. The URL commits immediately; the outlet routes these
+    // exceptions after commit.
+    NOT_AUTHENTICATED: ({ redirect }) => redirect('/login-form'),
+    USER_DISABLED: ({ globalError }) => globalError(),
   }).withProviders(({ GuardedDataToYield }) => [
     provideUser(function* () {
       const guardedUser = yield* GuardedDataToYield();
@@ -236,9 +237,14 @@ declare module '@craft-ng/core' {
   }
 }
 
-// Compile-time check: every route's `handleExceptions` covers exactly the codes
-// reachable from its canActivate ∪ canMatch ∪ resolve (missing/extra = type error).
+// Required-handler safety net: a route whose guards/resolve can throw but that was
+// authored with the 2-arg `route()` form (no handlers) shows its reachable codes as
+// unhandled here. The 3-arg form already enforces exhaustiveness at the call site.
 assertExhaustiveRouteExceptions(demoRoutes);
+
+// Placement safety: every `.withParent`-pinned lazy child (e.g. view-transitions)
+// must be mounted under the route path it declared. Scoped to this parent file.
+assertChildRouteMounts(demoRoutes);
 
 const { UserRequirement, provideUser } = craftService(
   {

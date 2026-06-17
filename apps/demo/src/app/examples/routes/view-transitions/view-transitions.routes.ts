@@ -10,6 +10,7 @@ import {
   untilSettled,
   viewTransitionPayload,
   type CanRun,
+  type ParentRoutes,
   type RouteCheckedDI,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
@@ -81,13 +82,16 @@ export const {
     canActivate: craftCanActivate(function* () {
       return yield* slowDetailGuard();
     }),
-    handleExceptions: {
-      DENIED: ({ redirect }) => redirect('/view-transitions'),
-    },
+  }, {
+    // Exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at the call site.
+    DENIED: ({ redirect }) => redirect('/view-transitions'),
   }),
-]);
+  // Pin this lazy child collection to its mount path: the `loadChildren` slot of
+  // the `view-transitions` route in `app.routes` only accepts a collection
+  // branded for that exact path — a wrong placement is a compile error.
+]).withParent<ParentRoutes<'view-transitions'>>();
 
-// Exhaustive over canActivate ∪ canMatch ∪ resolve for this collection.
+// Required-handler safety net for routes authored with the 2-arg `route()` form.
 assertExhaustiveRouteExceptions(viewTransitionsRoutes);
 
 // Cascade DI safety for THIS lazy child collection. Like slow-page: the parent

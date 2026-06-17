@@ -30,6 +30,7 @@ export default [
       'craft-ng/require-assert-exhaustive-route-exceptions': 'error',
       'craft-ng/prefer-craft-router-outlet': 'error',
       'craft-ng/require-pending-component-di-check': 'error',
+      'craft-ng/require-child-route-mount-check': 'error',
       '@angular-eslint/directive-selector': [
         'error',
         {

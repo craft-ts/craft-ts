@@ -45,7 +45,6 @@ import type {
   CraftExceptionComponentInput,
   CraftExceptionHandler,
   HandledExceptionsForUnion,
-  NoExtraExceptionHandlers,
   RouteExceptionUnion,
 } from './craft-route-exceptions';
 import { craftService } from './craft-service';
@@ -1130,8 +1129,8 @@ type CraftRouteResolve = (
   state: RouterStateSnapshot,
 ) => Generator<unknown, unknown, unknown>;
 
-// Loose field type for `handleExceptions`. The exhaustive (and no-extra) check is
-// applied at the `route(path, def)` boundary (see `ValidateRouteHandleExceptions`).
+// Loose runtime type for the merged `handleExceptions` map (the precise, exhaustive
+// shape is enforced at the `route()` call site by `RouteExceptionHandlersArgs`).
 type CraftRouteHandleExceptions = Record<string, CraftExceptionHandler<any>>;
 // NOTE: `<any>` (not `<AnyCraftException>`) keeps a route whose handlers are typed
 // for *specific* exceptions assignable to `AnyCraftRouteDefinition` (the handler
@@ -1377,6 +1376,84 @@ type LoadChildrenRouteCollectionName<RouteDefinition> =
       ? Name
       : never
     : never;
+
+// ---------------------------------------------------------------------------
+// .withParent placement check — assertChildRouteMounts(parentRoutes)
+// ---------------------------------------------------------------------------
+
+/**
+ * The error surfaced when a `.withParent`-pinned child collection is mounted
+ * under the wrong route path. Rendered as a string-literal type so it reads
+ * cleanly in the assert failure.
+ */
+type CraftParentMountMismatch<
+  Mount extends string,
+  Path extends string,
+> = `craftRoutes(...).withParent<ParentRoutes<'${Mount}'>>() must be loadChildren-mounted under the route with path '${Mount}', not '${Path}'`;
+
+/**
+ * Per-route check, reading the **raw** `_routes` (not the flattened `META_DATA`,
+ * so it never descends into a child already validated in its own file): if a
+ * route's `loadChildren` yields a collection **pinned** (via `.withParent`) to a
+ * mount path different from this route's own `path`, surface a mismatch error.
+ * Unpinned children (`ParentMount` = `string`) and non-lazy routes → `never`.
+ */
+type ChildRouteMountError<RouteDefinition> = RouteDefinition extends {
+  loadChildren: (...args: any[]) => infer Output;
+  path: infer Path extends string;
+}
+  ? Awaited<Output> extends CraftRoutesApp<
+      readonly AnyCraftRouteDefinition[],
+      string,
+      infer Mount
+    >
+    ? string extends Mount
+      ? never // unpinned child → mountable anywhere
+      : [Mount] extends [Path]
+        ? never
+        : CraftParentMountMismatch<Mount, Path>
+    : never
+  : never;
+
+type CollectChildRouteMountErrors<Routes> = Routes extends readonly unknown[]
+  ? { [Index in keyof Routes]: ChildRouteMountError<Routes[Index]> }[number]
+  : never;
+
+/**
+ * `unknown` when every `.withParent`-pinned child is mounted under its declared
+ * path; otherwise the mismatch message(s). Used by {@link assertChildRouteMounts}.
+ */
+export type AssertChildRouteMounts<RoutesApp> = RoutesApp extends {
+  readonly _routes: infer Routes;
+}
+  ? [Exclude<CollectChildRouteMountErrors<Routes>, never>] extends [never]
+    ? unknown
+    : {
+        ERROR_child_collection_mounted_under_wrong_path: Exclude<
+          CollectChildRouteMountErrors<Routes>,
+          never
+        >;
+      }
+  : unknown;
+
+/**
+ * Asserts (at compile time, in the **parent** collection's file) that every
+ * `loadChildren` route mounting a `.withParent`-pinned child uses the path the
+ * child declared. A wrong mount makes `routes` un-assignable. Scoped to the
+ * parent — child files pay nothing.
+ *
+ * ```ts
+ * export const { demoRoutes } = craftRoutes('demo', [
+ *   { path: 'view-transitions', loadChildren: () => import('./vt').then((m) => m.viewTransitionsRoutes) },
+ * ]);
+ * assertChildRouteMounts(demoRoutes);
+ * ```
+ */
+export function assertChildRouteMounts<RoutesApp>(
+  routes: RoutesApp & AssertChildRouteMounts<RoutesApp>,
+): RoutesApp {
+  return routes;
+}
 
 type RouteInheritedServiceNames<
   RouteDefinition,
@@ -1899,8 +1976,21 @@ export type CraftRoutesApp<
   Routes extends
     readonly AnyCraftRouteDefinition[] = readonly AnyCraftRouteDefinition[],
   Name extends string = string,
+  /**
+   * The parent mount path this child collection is **pinned** to via
+   * `.withParent<ParentRoutes<'path'>>()`. Defaults to `string` = *unpinned*
+   * (assignable to any `loadChildren`, backward compatible). When set to a
+   * literal, the `loadChildren` slot only accepts it under a route whose `path`
+   * matches — see `ValidateRouteParentMount`.
+   */
+  ParentMount extends string = string,
 > = {
   readonly name: Name;
+  /**
+   * @internal phantom carrying the pinned parent mount path (`.withParent`).
+   * Do not use at runtime.
+   */
+  readonly __craftParentMount?: ParentMount;
   /** @internal phantom property for fast type inference — do not use at runtime */
   readonly _routes: Routes;
   toRoutes(): Route[];
@@ -1925,6 +2015,18 @@ export type CraftRoutesApp<
   readonly META_PATHS: CraftRoutesPathRegistry<Routes>;
 };
 
+/**
+ * Type-only marker naming the parent mount path a child collection is pinned to,
+ * passed to `.withParent<ParentRoutes<'admin'>>()`. Carries no runtime value —
+ * it only threads the mount path into the collection's `ParentMount` brand so a
+ * `loadChildren` slot can require the child be mounted under that exact route.
+ */
+export type ParentRoutes<Mount extends string> = {
+  readonly __craftParentMount: Mount;
+};
+
+type ParentMountOf<P> = P extends ParentRoutes<infer Mount> ? Mount : string;
+
 export type CraftRoutesPublicPropertiesErrors<
   Routes extends readonly AnyCraftRouteDefinition[],
 > = Simplify<
@@ -1940,9 +2042,10 @@ export type CraftRoutesPublicPropertiesErrors<
 type CraftRoutesSuccessResult<
   Routes extends readonly AnyCraftRouteDefinition[],
   Name extends string = string,
+  ParentMount extends string = string,
 > = Simplify<
   {
-    [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name>;
+    [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name, ParentMount>;
   } & ParamInjectHelpers<Name, RoutesHelperShape<Routes>> &
     DataInjectHelpers<Name, RoutesHelperShape<Routes>> &
     QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>> &
@@ -1954,7 +2057,23 @@ type CraftRoutesSuccessResult<
 export type CraftRoutesResult<
   Routes extends readonly AnyCraftRouteDefinition[],
   Name extends string = string,
-> = CraftRoutesSuccessResult<Routes, Name>;
+> = CraftRoutesSuccessResult<Routes, Name> & {
+  /**
+   * Pin this collection to a parent mount path so its `loadChildren` slot only
+   * accepts it under that exact route — type-only, returns the same object at
+   * runtime. Pass the target via `ParentRoutes<'path'>`:
+   *
+   * ```ts
+   * export const { fooRoutes } = craftRoutes('foo', [...])
+   *   .withParent<ParentRoutes<'admin'>>();
+   * ```
+   */
+  withParent<Parent extends ParentRoutes<string>>(): CraftRoutesSuccessResult<
+    Routes,
+    Name,
+    ParentMountOf<Parent>
+  >;
+};
 
 type AnyRouteValueServiceApi = CraftRouteValueServiceApi<string, unknown>;
 
@@ -2579,11 +2698,11 @@ function createCanMatchGuard(
 //     yield* noPizzeriaGuard();
 //     return true;
 //   }),
-//   handleExceptions: {
-//     NOT_AUTHENTICATED: ({ redirect }) => redirect('/auth/login'),
-//     FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
-//     HAS_PIZZERIA: ({ redirect }) => redirect('/dashboard'),
-//   },
+// }, {
+//   // Third argument — required & exhaustive over the guards' reachable codes.
+//   NOT_AUTHENTICATED: ({ redirect }) => redirect('/auth/login'),
+//   FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
+//   HAS_PIZZERIA: ({ redirect }) => redirect('/dashboard'),
 // })
 // ```
 export function craftCanActivate<Guard extends CraftCanActivateGuardFn>(
@@ -2619,17 +2738,52 @@ export function craftCanMatch<Guard extends CraftCanMatchGuardFn>(
 // auto-provisioned tokens (guarded data, path params, query params, data), so a
 // route-level provider can be built from them with full dependency tracking.
 //
-// `handleExceptions` is contextually typed by the loose `CraftRouteHandleExceptions`
-// (so each handler's `redirect` / `phase` / outcome constructors are typed) while
-// keeping `Def` — and thus `canActivate`'s tracked yields — precise. Exhaustiveness
-// over the route's reachable codes is enforced after inference via
-// {@link AssertRoutesExceptionsHandled} (the union is only resolvable once `Def` is
-// fully inferred, so it cannot be a self-referential constraint here).
+// Exception handlers are passed as a SEPARATE third argument (not a `def` field) so
+// `Def` — and thus the union of codes reachable from `canActivate` / `canMatch` /
+// `resolve` — is inferred from `def` *before* the handlers are contextually typed.
+// A self-referential `def` field, or a conditional rest parameter, both collapse the
+// union to `never` (the contextual type is needed before inference completes, or — for
+// the rest tuple — an inline `craftCanActivate(...)` defers `Def` past the arity check).
+// Two fixed-arity overloads sidestep both: the 3-arg form types the handlers exhaustively
+// (full key autocomplete, rejects missing/extra codes, per-code `exception`/`payload`),
+// the 2-arg form is for routes that throw no `craftException`s. A route that DOES throw
+// but is authored with the 2-arg form is still caught after inference by
+// {@link assertExhaustiveRouteExceptions} (the 2-arg return type carries no
+// `handleExceptions`, so the reachable codes show up as unhandled).
+
+// 3-arg form: the route's guards/resolve can throw — handlers are exhaustive over the
+// reachable codes.
 export function route<const Path extends string, const Def extends object>(
   path: Path,
-  def: Def & { handleExceptions?: CraftRouteHandleExceptions },
-): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>> {
-  const routeDefinition = { ...def, path };
+  def: Def,
+  handlers: HandledExceptionsForUnion<
+    Extract<RouteExceptionUnion<Def>, AnyCraftException>
+  >,
+): RouteWithProvidersBuilder<
+  Simplify<
+    Def & {
+      path: Path;
+      handleExceptions: HandledExceptionsForUnion<
+        Extract<RouteExceptionUnion<Def>, AnyCraftException>
+      >;
+    }
+  >
+>;
+// 2-arg form: the route throws no `craftException`s, so no handlers are needed.
+export function route<const Path extends string, const Def extends object>(
+  path: Path,
+  def: Def,
+): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>>;
+export function route(
+  path: string,
+  def: object,
+  handlers?: CraftRouteHandleExceptions,
+): RouteWithProvidersBuilder<Record<string, unknown>> {
+  const routeDefinition = {
+    ...def,
+    ...(handlers ? { handleExceptions: handlers } : {}),
+    path,
+  };
 
   Object.defineProperty(routeDefinition, 'withProviders', {
     value: (factory: (helpers: Record<string, unknown>) => unknown) => ({
@@ -2640,7 +2794,7 @@ export function route<const Path extends string, const Def extends object>(
   });
 
   return routeDefinition as unknown as RouteWithProvidersBuilder<
-    Simplify<Def & { path: Path }>
+    Record<string, unknown>
   >;
 }
 
@@ -2745,10 +2899,16 @@ export function craftRoutes<
     META_PATHS: META_DATA as unknown as CraftRoutesPathRegistry<Routes>,
   };
 
-  return {
+  const result = {
     [routesExportKey]: craftedRoutes,
     ...helpers,
-  } as CraftRoutesResult<Routes, Name>;
+  } as Record<string, unknown>;
+
+  // `.withParent<ParentRoutes<'path'>>()` is type-only: it re-brands the result
+  // (pinning the child to a mount path) but returns the very same object.
+  result['withParent'] = () => result;
+
+  return result as CraftRoutesResult<Routes, Name>;
 
   function registerRouteValueService(
     serviceName: string,

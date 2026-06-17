@@ -249,6 +249,87 @@ type _CanRunItem0 = CanRun<_CheckItem0>;
 Prefer the tree-of-`loadChildren` approach (it also lazy-loads); reach for `RouteCheckedDI` only when a
 single big file is unavoidable.
 
+### Pinning a lazy child to its mount path (`.withParent` + `assertChildRouteMounts`)
+
+Splitting into `loadChildren` keeps each file under budget, but nothing yet guarantees a child is wired
+under the **right** parent route. A child whose components rely on a specific mount — its `:photoId`
+param, a declared view-transition payload, an ancestor's `providers` — is only correct under that path.
+Mount it elsewhere and its DI assumptions break silently.
+
+Pin a collection to its mount path with `.withParent<ParentRoutes<'path'>>()`, then enforce it once in
+the parent with `assertChildRouteMounts(parentRoutes)`:
+
+```ts
+// view-transitions.routes.ts — the child declares where it belongs
+import { craftRoutes, route, type ParentRoutes } from '@craft-ng/core';
+
+export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
+  route(':photoId', {
+    componentDeps: {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
+    loadComponent: () => import('./photo-detail'),
+    // …
+  }),
+]).withParent<ParentRoutes<'view-transitions'>>();
+```
+
+```ts
+// app.routes.ts — the parent enforces placement (scoped to this file)
+import { assertChildRouteMounts, craftRoutes } from '@craft-ng/core';
+
+export const { demoRoutes } = craftRoutes('demo', [
+  {
+    path: 'view-transitions',
+    loadChildren: () =>
+      import('./view-transitions.routes').then((m) => m.viewTransitionsRoutes),
+  },
+]);
+
+assertChildRouteMounts(demoRoutes);
+```
+
+Mount the pinned collection under any other path and the **parent file** fails to compile:
+
+```
+craftRoutes(...).withParent<ParentRoutes<'view-transitions'>>() must be
+loadChildren-mounted under the route with path 'view-transitions', not 'admin'
+```
+
+Notes:
+
+- **Opt-in.** A collection without `.withParent` is _unpinned_ and mountable anywhere — fully backward
+  compatible. Pin only the children whose placement actually matters.
+- **Scoped to the parent.** `assertChildRouteMounts` reads the parent's **own** routes (`_routes`) — it
+  does **not** descend into / re-validate the child (already checked in its own file), so it adds nothing
+  to the child's instantiation budget.
+- **Type-only.** `.withParent<…>()` returns the same object at runtime; `ParentRoutes<'path'>` carries no
+  value, only the path string — so importing it creates no runtime coupling between the files.
+- **Enforced by ESLint.** `craft-ng/require-child-route-mount-check` adds the missing
+  `assertChildRouteMounts(...)` call + import on `--fix`. (Whether a child opts in with `.withParent`
+  stays your decision — it expresses the "this belongs here" intent the rule can't guess.)
+
+::: details Design notes — two approaches we rejected
+Reaching the standalone-assert design above took two dead ends, both defeated by TypeScript's
+instantiation ceiling. They're recorded here because the failure modes are instructive.
+
+**1. Enforcing placement inside `craftRoutes(...)` itself.** The first attempt wove the mount check into
+the `routes` argument type of **every** `craftRoutes(...)` call, so a wrong mount would error right at
+the route literal. It type-checked — but the extra per-collection instantiation tipped an
+already-at-ceiling file into `TS2589`, and even a 2-route child with **no** `loadChildren` paid the cost
+(every collection runs the same inference). The lesson: the check must be **scoped to the parent that
+actually mounts children** — a standalone `assertChildRouteMounts(...)` reading the raw `_routes` — not
+folded into the hot `craftRoutes` inference that every file pays on every build.
+
+**2. A `loadChildrenType` carrier to speed up the check.** To avoid inferring the child's type through the
+dynamic `import('./x').then((m) => m.xRoutes)`, we tried an explicit
+`loadChildrenType: {} as typeof import('./x').xRoutes` field on the lazy route. In isolation it built
+fine — but applied across the board it **materialises the child's full type (components included)**,
+which creates a **circular reference** for any child whose components inject the _parent's_ route data
+(`TS2615` "circularly references itself" + `TS2589`): `parent → typeof childRoutes → child components →
+inject parent data → parent`. Since the dynamic-import resolution it replaced was both cycle-safe and —
+once measured against build-time noise — no slower, the carrier was dropped. `assertChildRouteMounts`
+resolves the child's pin through the existing `loadChildren` instead.
+:::
+
 ## 3. Run the Angular brand codemod through the published script
 
 Add a script in your app:
@@ -319,6 +400,7 @@ export default [
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
+      'craft-ng/require-child-route-mount-check': 'error',
     },
   },
 ];
@@ -332,6 +414,7 @@ What each rule does:
 - `craft-ng/no-angular-inject`: forbids raw Angular `inject()` usage so dependencies go through `craftService(...)` or `toCraftService(...)`
 - `craft-ng/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
 - `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
+- `craft-ng/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
 
 The two migration rules also expose a VS Code ESLint Quick Fix suggestion that inserts a temporary local disable comment with the intended migration note when you need to unblock a file before doing the full refactor.
 
