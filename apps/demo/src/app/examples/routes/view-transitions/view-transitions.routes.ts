@@ -44,17 +44,14 @@ const { ViewTransitionAccessToYield } = craftService(
     }),
 );
 
-const slowDetailGuard = craftGen(
-  () =>
-    function* () {
-      const accessRef = yield* ViewTransitionAccessToYield();
-      const access = yield* untilSettled(accessRef);
-      // Always allowed here — the `craftException` branch only exists so the guard
-      // carries a typed exception code (a guard with no exception branch collapses
-      // `route()`'s `Def` inference). `handleExceptions` routes it after commit.
-      return access.allowed ? access : craftException({ code: 'DENIED' });
-    },
-);
+const slowDetailGuard = craftGen(function* () {
+  const accessRef = yield* ViewTransitionAccessToYield();
+  const access = yield* untilSettled(accessRef);
+  // Always allowed here — the `craftException` branch only exists so the guard
+  // carries a typed exception code (a guard with no exception branch collapses
+  // `route()`'s `Def` inference). `handleExceptions` routes it after commit.
+  return access.allowed ? access : craftException({ code: 'DENIED' });
+});
 
 export const {
   viewTransitionsRoutes,

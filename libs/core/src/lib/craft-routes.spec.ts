@@ -2133,12 +2133,9 @@ describe('craftRoutes', () => {
     }
 
     it('allows the route when no composed guard short-circuits', () => {
-      const okGuard = craftGen(
-        () =>
-          function* () {
-            return true;
-          },
-      );
+      const okGuard = craftGen(function* () {
+        return true;
+      });
       const { testRoutes: appRoutes } = craftRoutes('test', [
         {
           path: 'admin',
@@ -2162,15 +2159,12 @@ describe('craftRoutes', () => {
         { name: 'Auth', scope: 'toProvide' },
         () => ({ role: 'user' }),
       );
-      const roleGuard = craftGen(
-        (...roles: string[]) =>
-          function* () {
-            const auth = yield* AuthToYield();
-            return roles.includes(auth.role)
-              ? true
-              : craftException({ code: 'FORBIDDEN_ROLE' });
-          },
-      );
+      const roleGuard = craftGen(function* (...roles: string[]) {
+        const auth = yield* AuthToYield();
+        return roles.includes(auth.role)
+          ? true
+          : craftException({ code: 'FORBIDDEN_ROLE' });
+      });
       const { testRoutes: appRoutes } = craftRoutes('test', [
         {
           path: 'admin',
@@ -2202,12 +2196,9 @@ describe('craftRoutes', () => {
     });
 
     it('throws for an exception code without a resolver', () => {
-      const failGuard = craftGen(
-        () =>
-          function* () {
-            return craftException({ code: 'FORBIDDEN_ROLE' });
-          },
-      );
+      const failGuard = craftGen(function* () {
+        return craftException({ code: 'FORBIDDEN_ROLE' });
+      });
       const { testRoutes: appRoutes } = craftRoutes('test', [
         {
           path: 'admin',
@@ -2229,12 +2220,9 @@ describe('craftRoutes', () => {
     });
 
     it('exposes guard success data through injectXxxGuardedData', () => {
-      const dataGuard = craftGen(
-        () =>
-          function* () {
-            return { tenantId: 'acme' } as const;
-          },
-      );
+      const dataGuard = craftGen(function* () {
+        return { tenantId: 'acme' } as const;
+      });
       const {
         testRoutes: appRoutes,
         injectTestAdminGuardedData: injectGuardedData,
@@ -2270,12 +2258,9 @@ describe('craftRoutes', () => {
         { name: 'RedirectConfig', scope: 'toProvide' },
         () => ({ loginUrl: '/auth/login' }),
       );
-      const authGuard = craftGen(
-        () =>
-          function* () {
-            return craftException({ code: 'NOT_AUTHENTICATED' });
-          },
-      );
+      const authGuard = craftGen(function* () {
+        return craftException({ code: 'NOT_AUTHENTICATED' });
+      });
       const { testRoutes: appRoutes } = craftRoutes('test', [
         {
           path: 'admin',
@@ -2311,22 +2296,16 @@ describe('craftRoutes', () => {
     });
 
     it('requires resolvers covering exactly the reachable exception codes', () => {
-      const roleGuard = craftGen(
-        (...roles: string[]) =>
-          function* () {
-            return roles.includes('admin')
-              ? true
-              : craftException({ code: 'FORBIDDEN_ROLE' });
-          },
-      );
-      const noPizzeriaGuard = craftGen(
-        () =>
-          function* () {
-            return Math.random() > 0.5
-              ? craftException({ code: 'HAS_PIZZERIA' })
-              : true;
-          },
-      );
+      const roleGuard = craftGen(function* (...roles: string[]) {
+        return roles.includes('admin')
+          ? true
+          : craftException({ code: 'FORBIDDEN_ROLE' });
+      });
+      const noPizzeriaGuard = craftGen(function* () {
+        return Math.random() > 0.5
+          ? craftException({ code: 'HAS_PIZZERIA' })
+          : true;
+      });
       const guard = function* () {
         yield* roleGuard('admin');
         yield* noPizzeriaGuard();
@@ -2373,14 +2352,11 @@ describe('craftRoutes', () => {
       );
     }
 
-    const flagGuard = craftGen(
-      (flag: string) =>
-        function* () {
-          return flag === 'beta'
-            ? true
-            : craftException({ code: 'FLAG_DISABLED' });
-        },
-    );
+    const flagGuard = craftGen(function* (flag: string) {
+      return flag === 'beta'
+        ? true
+        : craftException({ code: 'FLAG_DISABLED' });
+    });
 
     it('matches the route when no composed guard short-circuits', () => {
       const { testRoutes: appRoutes } = craftRoutes('test', [
@@ -3346,12 +3322,9 @@ describe('AppRoutes.META_DATA', () => {
       { name: 'RedirectConfig', scope: 'toProvide' },
       () => ({ loginUrl: '/login' }),
     );
-    const authGuard = craftGen(
-      () =>
-        function* () {
-          return craftException({ code: 'NOT_AUTHENTICATED' });
-        },
-    );
+    const authGuard = craftGen(function* () {
+      return craftException({ code: 'NOT_AUTHENTICATED' });
+    });
 
     type GuardRouteDeps = GetDeps<{
       provided: {};
@@ -3400,12 +3373,9 @@ describe('AppRoutes.META_DATA', () => {
       { name: 'RedirectConfig', scope: 'toProvide' },
       () => ({ loginUrl: '/login' }),
     );
-    const authGuard = craftGen(
-      () =>
-        function* () {
-          return craftException({ code: 'NOT_AUTHENTICATED' });
-        },
-    );
+    const authGuard = craftGen(function* () {
+      return craftException({ code: 'NOT_AUTHENTICATED' });
+    });
 
     type GuardRouteDeps = GetDeps<{
       provided: {};

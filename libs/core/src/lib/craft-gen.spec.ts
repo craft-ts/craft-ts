@@ -14,11 +14,9 @@ type GeneratorYielded<Gen> = Gen extends () => Generator<infer Yielded, any, any
 
 describe('craftGen', () => {
   it('propagates the success value through yield*', () => {
-    const okGuard = craftGen(() =>
-      function* () {
-        return true;
-      },
-    );
+    const okGuard = craftGen(function* () {
+      return true;
+    });
 
     const composed = function* () {
       const result = yield* okGuard();
@@ -29,11 +27,9 @@ describe('craftGen', () => {
   });
 
   it('short-circuits the enclosing generator when a guard returns a craftException', () => {
-    const failGuard = craftGen(() =>
-      function* () {
-        return craftException({ code: 'FORBIDDEN' });
-      },
-    );
+    const failGuard = craftGen(function* () {
+      return craftException({ code: 'FORBIDDEN' });
+    });
 
     let reachedAfterGuard = false;
     const composed = function* () {
@@ -49,11 +45,9 @@ describe('craftGen', () => {
   });
 
   it('exposes the produced exception on the short-circuit marker', () => {
-    const failGuard = craftGen(() =>
-      function* () {
-        return craftException({ code: 'FORBIDDEN' }, { reason: 'role' });
-      },
-    );
+    const failGuard = craftGen(function* () {
+      return craftException({ code: 'FORBIDDEN' }, { reason: 'role' });
+    });
 
     const composed = function* () {
       yield* failGuard();
@@ -74,12 +68,10 @@ describe('craftGen', () => {
 
   it('relays the inner generator dependency yields to the driver', () => {
     const sentinel = { dependency: 'request' };
-    const depGuard = craftGen(() =>
-      function* () {
-        const resolved = yield sentinel;
-        return resolved;
-      },
-    );
+    const depGuard = craftGen(function* () {
+      const resolved = yield sentinel;
+      return resolved;
+    });
 
     const composed = function* () {
       const resolved = yield* depGuard();
@@ -96,13 +88,11 @@ describe('craftGen', () => {
   });
 
   it('forwards factory arguments to the inner generator factory', () => {
-    const roleGuard = craftGen((...roles: string[]) =>
-      function* () {
-        return roles.includes('admin')
-          ? true
-          : craftException({ code: 'FORBIDDEN_ROLE' });
-      },
-    );
+    const roleGuard = craftGen(function* (...roles: string[]) {
+      return roles.includes('admin')
+        ? true
+        : craftException({ code: 'FORBIDDEN_ROLE' });
+    });
 
     const allowed = function* () {
       return yield* roleGuard('admin');
@@ -118,13 +108,11 @@ describe('craftGen', () => {
 
   describe('types', () => {
     it('strips the exception from the invocation success value', () => {
-      const roleGuard = craftGen((role: string) =>
-        function* () {
-          return role === 'x'
-            ? craftException({ code: 'FORBIDDEN' })
-            : (true as const);
-        },
-      );
+      const roleGuard = craftGen(function* (role: string) {
+        return role === 'x'
+          ? craftException({ code: 'FORBIDDEN' })
+          : (true as const);
+      });
 
       // The invocation's return value has the exception stripped to its success.
       type InvocationReturn =
@@ -147,12 +135,10 @@ describe('craftGen', () => {
     });
 
     it('advertises the reachable exception codes on the invocation Yielded', () => {
-      const roleGuard = craftGen(() =>
-        function* () {
-          if (Math.random() > 0.5) return craftException({ code: 'A' });
-          return craftException({ code: 'B' });
-        },
-      );
+      const roleGuard = craftGen(function* () {
+        if (Math.random() > 0.5) return craftException({ code: 'A' });
+        return craftException({ code: 'B' });
+      });
 
       const composed = function* () {
         yield* roleGuard();

@@ -1130,7 +1130,8 @@ type CraftRouteResolve = (
 ) => Generator<unknown, unknown, unknown>;
 
 // Loose runtime type for the merged `handleExceptions` map (the precise, exhaustive
-// shape is enforced at the `route()` call site by `RouteExceptionHandlersArgs`).
+// shape is enforced by `route()`'s 3-arg overload at the call site, and by
+// `assertExhaustiveRouteExceptions` as a safety net for the 2-arg form).
 type CraftRouteHandleExceptions = Record<string, CraftExceptionHandler<any>>;
 // NOTE: `<any>` (not `<AnyCraftException>`) keeps a route whose handlers are typed
 // for *specific* exceptions assignable to `AnyCraftRouteDefinition` (the handler

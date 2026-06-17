@@ -257,17 +257,14 @@ const { UserRequirement, provideUser } = craftService(
 // Reusable, composable guard: yields the tracked `Auth` dependency and either
 // returns the authenticated user (guarded data) or short-circuits with a typed
 // `craftException`. Composed via `yield*` inside `craftCanActivate` below.
-const authGuard = craftGen(
-  () =>
-    function* () {
-      const user = yield* AuthToYield();
-      const userSafeValue = user.safeValue();
+const authGuard = craftGen(function* () {
+  const user = yield* AuthToYield();
+  const userSafeValue = user.safeValue();
 
-      return userSafeValue
-        ? userSafeValue
-        : craftException({ code: 'NOT_AUTHENTICATED' });
-    },
-);
+  return userSafeValue
+    ? userSafeValue
+    : craftException({ code: 'NOT_AUTHENTICATED' });
+});
 
 type Profile = { displayName: string };
 
@@ -275,15 +272,12 @@ type Profile = { displayName: string };
 // the pending component while it is in flight). It may short-circuit with a
 // `USER_DISABLED` business exception, which `handleExceptions` delegates to the
 // global error component.
-const loadProfile = craftGen(
-  () =>
-    function* () {
-      const user = yield* AuthToYield();
-      return user.safeValue()
-        ? ({ displayName: 'Ada Lovelace' } satisfies Profile)
-        : craftException({ code: 'USER_DISABLED' });
-    },
-);
+const loadProfile = craftGen(function* () {
+  const user = yield* AuthToYield();
+  return user.safeValue()
+    ? ({ displayName: 'Ada Lovelace' } satisfies Profile)
+    : craftException({ code: 'USER_DISABLED' });
+});
 
 // Maintained by the `global-exception-registry-match` ESLint autofix: every code a
 // route delegates to the global error component via `globalError()` is mirrored

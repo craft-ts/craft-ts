@@ -13,21 +13,15 @@ import {
 
 // Reusable guards/resolvers that advertise a reachable exception code (the
 // `CraftGenExceptionMarker` flows through `yield*`).
-const authFail = craftGen(() =>
-  function* () {
-    return craftException({ code: 'NOT_AUTHENTICATED' });
-  },
-);
-const flagOff = craftGen(() =>
-  function* () {
-    return craftException({ code: 'FEATURE_OFF' });
-  },
-);
-const profileFail = craftGen(() =>
-  function* () {
-    return craftException({ code: 'USER_DISABLED' });
-  },
-);
+const authFail = craftGen(function* () {
+  return craftException({ code: 'NOT_AUTHENTICATED' });
+});
+const flagOff = craftGen(function* () {
+  return craftException({ code: 'FEATURE_OFF' });
+});
+const profileFail = craftGen(function* () {
+  return craftException({ code: 'USER_DISABLED' });
+});
 
 class Stub {}
 

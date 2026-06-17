@@ -56,24 +56,20 @@ const { SlowReportToYield } = craftService(
 // Slow canActivate: suspends ~1.5s until the access check settles, then either
 // allows navigation or short-circuits with a typed NOT_AUTHENTICATED exception
 // routed through `handleExceptions`.
-const slowAccessGuard = craftGen(() =>
-  function* () {
-    const accessRef = yield* SlowAccessToYield();
-    const access = yield* untilSettled(accessRef);
-    return access.allowed
-      ? access
-      : craftException({ code: 'NOT_AUTHENTICATED' });
-  },
-);
+const slowAccessGuard = craftGen(function* () {
+  const accessRef = yield* SlowAccessToYield();
+  const access = yield* untilSettled(accessRef);
+  return access.allowed
+    ? access
+    : craftException({ code: 'NOT_AUTHENTICATED' });
+});
 
 // Slow resolve: suspends ~1.5s until the report loads, then returns it. The
 // resolved value is consumed via `injectSlowPageRootResolvedData()`.
-const loadSlowReport = craftGen(() =>
-  function* () {
-    const reportRef = yield* SlowReportToYield();
-    return yield* untilSettled(reportRef);
-  },
-);
+const loadSlowReport = craftGen(function* () {
+  const reportRef = yield* SlowReportToYield();
+  return yield* untilSettled(reportRef);
+});
 
 export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
   'slowPage',

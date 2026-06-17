@@ -34,9 +34,11 @@ export type ExtractCraftGenExceptions<Yielded> =
 
 type AnyGeneratorFactory = (...args: any[]) => Generator<any, any, any>;
 
-type CraftGenFactory<Args extends any[], GenFn extends AnyGeneratorFactory> = (
-  ...args: Args
-) => GenFn;
+type GeneratorFactoryArgs<GenFn> = GenFn extends (
+  ...args: infer Args
+) => Generator<any, any, any>
+  ? Args
+  : never;
 
 type GeneratorFactoryYielded<GenFn> = GenFn extends (
   ...args: any[]
@@ -96,8 +98,8 @@ export function isCraftGenShortCircuit(
 /**
  * Builds a reusable, parameterised generator factory.
  *
- * `craftGen(factory)` returns a factory `(...args) => CraftGenInvocation` that is
- * composable with `yield*`. The inner generator's dependency yields
+ * `craftGen(generatorFn)` returns a factory `(...args) => CraftGenInvocation`
+ * that is composable with `yield*`. The inner generator's dependency yields
  * (`CraftAuthToYield`, `CraftRouterToYield`, …) flow up to the enclosing driver
  * unchanged, while the union of `craftException` it may return is tracked on the
  * invocation's `Yielded` (type-level only).
@@ -110,21 +112,20 @@ export function isCraftGenShortCircuit(
  *
  * @example
  * ```ts
- * export const roleGuard = craftGen((...roles: Role[]) =>
- *   function* () {
- *     const { user } = yield* CraftAuthToYield(undefined, ({ user }) => ({ user }));
- *     if (!user()) return craftException({ code: 'NOT_AUTHENTICATED' });
- *     return roles.includes(user()!.role)
- *       ? true
- *       : craftException({ code: 'FORBIDDEN_ROLE' });
- *   });
+ * export const roleGuard = craftGen(function* (...roles: Role[]) {
+ *   const { user } = yield* CraftAuthToYield(undefined, ({ user }) => ({ user }));
+ *   if (!user()) return craftException({ code: 'NOT_AUTHENTICATED' });
+ *   return roles.includes(user()!.role)
+ *     ? true
+ *     : craftException({ code: 'FORBIDDEN_ROLE' });
+ * });
  * ```
  */
-export function craftGen<Args extends any[], GenFn extends AnyGeneratorFactory>(
-  factory: CraftGenFactory<Args, GenFn>,
-): CraftGenInvoker<Args, GenFn> {
-  const invoker = function* (...args: Args) {
-    const result = factory(...args)();
+export function craftGen<GenFn extends AnyGeneratorFactory>(
+  generatorFn: GenFn,
+): CraftGenInvoker<GeneratorFactoryArgs<GenFn>, GenFn> {
+  const invoker = function* (...args: GeneratorFactoryArgs<GenFn>) {
+    const result = generatorFn(...args);
     const output: unknown = isGenerator(result) ? yield* result : result;
 
     if (isCraftException(output)) {
@@ -134,5 +135,8 @@ export function craftGen<Args extends any[], GenFn extends AnyGeneratorFactory>(
     return output;
   };
 
-  return invoker as unknown as CraftGenInvoker<Args, GenFn>;
+  return invoker as unknown as CraftGenInvoker<
+    GeneratorFactoryArgs<GenFn>,
+    GenFn
+  >;
 }
