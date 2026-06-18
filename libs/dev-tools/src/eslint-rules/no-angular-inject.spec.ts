@@ -43,7 +43,7 @@ describe('brand-angular-deps/no-angular-inject', () => {
     });
 
     expect(messages).toEqual([
-      'Angular inject() is forbidden. Expose a craftService/toCraftService injector instead.',
+      'Angular inject(Router) is forbidden. Use injectRouter from a craftService/toCraftService adapter instead.',
     ]);
   });
 
@@ -57,7 +57,7 @@ describe('brand-angular-deps/no-angular-inject', () => {
     });
 
     expect(messages).toEqual([
-      'Angular inject() is forbidden. Expose a craftService/toCraftService injector instead.',
+      'Angular inject(Router) is forbidden. Use injectRouter from a craftService/toCraftService adapter instead.',
     ]);
   });
 
@@ -71,7 +71,49 @@ describe('brand-angular-deps/no-angular-inject', () => {
     });
 
     expect(messages).toEqual([
-      'Angular inject() is forbidden. Expose a craftService/toCraftService injector instead.',
+      'Angular inject(Router) is forbidden. Use injectRouter from a craftService/toCraftService adapter instead.',
+    ]);
+  });
+
+  it('reports unused named inject imports from Angular packages', async () => {
+    const messages = await lintFixture({
+      'src/app/demo.ts': `
+        import { inject } from '@angular/core';
+
+        const router = injectRouter();
+      `,
+    });
+
+    expect(messages).toEqual([
+      'Angular inject() is forbidden. Import and use the injectX helper exposed by a craftService/toCraftService adapter instead.',
+    ]);
+  });
+
+  it('recommends inject helpers from injection token constants', async () => {
+    const messages = await lintFixture({
+      'src/app/demo.ts': `
+        import { inject } from '@angular/core';
+
+        const route = inject(CURRENT_ROUTE);
+      `,
+    });
+
+    expect(messages).toEqual([
+      'Angular inject(CURRENT_ROUTE) is forbidden. Use injectCurrentRoute from a craftService/toCraftService adapter instead.',
+    ]);
+  });
+
+  it('recommends inject helpers from member expression tokens', async () => {
+    const messages = await lintFixture({
+      'src/app/demo.ts': `
+        import * as ngCore from '@angular/core';
+
+        const router = ngCore.inject(AppTokens.Router);
+      `,
+    });
+
+    expect(messages).toEqual([
+      'Angular inject(AppTokens.Router) is forbidden. Use injectRouter from a craftService/toCraftService adapter instead.',
     ]);
   });
 
@@ -86,9 +128,37 @@ describe('brand-angular-deps/no-angular-inject', () => {
 
     expect(messages).toEqual([]);
   });
+
+  it('offers a migration quick fix suggestion on Angular inject calls', async () => {
+    const messages = await lintFixtureMessages({
+      'src/app/demo.ts': `
+        import { inject } from '@angular/core';
+
+        const router = inject(Router);
+      `,
+    });
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.suggestions?.[0]?.desc).toBe(
+      'Insert a temporary eslint-disable-next-line comment with a migration note.',
+    );
+    expect(messages[0]?.suggestions?.[0]?.fix?.text).toContain(
+      '// eslint-disable-next-line craft-ng/no-angular-inject -- replace this Angular inject(Router) call with injectRouter from a craftService/toCraftService adapter\n',
+    );
+  });
 });
 
 async function lintFixture(files: Record<string, string>): Promise<string[]> {
+  const messages = await lintFixtureMessages(files);
+  return messages.map((message) => message.message);
+}
+
+async function lintFixtureMessages(files: Record<string, string>): Promise<
+  Array<{
+    message: string;
+    suggestions?: Array<{ desc?: string; fix?: { text?: string } }>;
+  }>
+> {
   const tempDirectory = await mkdtemp(
     join(tmpdir(), 'no-angular-inject-rule-'),
   );
@@ -140,7 +210,13 @@ async function lintFixture(files: Record<string, string>): Promise<string[]> {
 
   const results = await eslint.lintFiles(['src/**/*.ts']);
   return results.flatMap((result) =>
-    result.messages.map((message) => message.message),
+    result.messages.map((message) => ({
+      message: message.message,
+      suggestions: message.suggestions?.map((suggestion) => ({
+        desc: suggestion.desc,
+        fix: suggestion.fix ? { text: suggestion.fix.text } : undefined,
+      })),
+    })),
   );
 }
 

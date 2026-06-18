@@ -30,8 +30,8 @@ module.exports = {
         }
 
         const text = sourceCode.getText();
-        // Cheap pre-filter: both the trigger and the delegated outcome must appear.
-        if (!text.includes('handleExceptions') || !text.includes('globalError')) {
+        // Cheap pre-filter: the delegated outcome must appear.
+        if (!text.includes('globalError')) {
           return;
         }
 
@@ -208,8 +208,8 @@ function resolveCollectionVar(craftRoutesCall) {
   return undefined;
 }
 
-// A route array element is either `route('path', { … })` (optionally followed by
-// `.withProviders(…)`) or a plain `{ path: '…', handleExceptions: { … } }`.
+// A route array element is either `route('path', { … }, { … })` (optionally
+// followed by `.withProviders(…)`) or a plain `{ path: '…', handleExceptions: { … } }`.
 function extractRouteDefinition(element) {
   if (Node.isObjectLiteralExpression(element)) {
     const pathValue = readStringProperty(element, 'path');
@@ -225,23 +225,19 @@ function extractRouteDefinition(element) {
     if (!routeCall) {
       return undefined;
     }
-    const [pathArg, defArg] = routeCall.getArguments();
+    const [pathArg, , handlersArg] = routeCall.getArguments();
     if (
       !pathArg ||
-      !defArg ||
-      !Node.isObjectLiteralExpression(defArg) ||
+      !handlersArg ||
+      !Node.isObjectLiteralExpression(handlersArg) ||
       (!Node.isStringLiteral(pathArg) &&
         !Node.isNoSubstitutionTemplateLiteral(pathArg))
     ) {
       return undefined;
     }
-    const handleExceptions = readObjectProperty(defArg, 'handleExceptions');
-    if (!handleExceptions) {
-      return undefined;
-    }
     return {
       path: pathArg.getLiteralText(),
-      handleExceptions,
+      handleExceptions: handlersArg,
       reportNode: routeCall,
     };
   }

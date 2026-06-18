@@ -46,7 +46,16 @@ Split the two concerns:
   **exactly** the reachable exception codes.
 
 ```ts
-import { craftCanActivate, craftException, craftGen, route } from '@craft-ng/core';
+import {
+  craftCanActivate,
+  craftException,
+  craftGen,
+  craftResolve,
+  CraftHttpClient,
+  query,
+  route,
+  untilSettled,
+} from '@craft-ng/core';
 
 // Reusable guards — each returns a success value | craftException(...)
 const roleGuard = craftGen((...roles: Role[]) =>
@@ -66,21 +75,50 @@ const noPizzeriaGuard = craftGen(() =>
   },
 );
 
-route('admin', {
-  componentDeps: {} as import('./admin').GenDeps_Admin,
-  loadComponent: () => import('./admin'),
-  canActivate: craftCanActivate(function* () {
-    yield* roleGuard(ROLES.PIZZERIA_ADMIN); // short-circuits on exception
-    yield* noPizzeriaGuard();
-    return true;
-  }),
-  // Resolved centrally — exhaustive over canActivate ∪ canMatch ∪ resolve.
-  handleExceptions: {
-    NOT_AUTHENTICATED: ({ redirect }) => redirect('/auth/login'),
-    FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
-    HAS_PIZZERIA: ({ redirect }) => redirect('/dashboard'),
+const pizzeriaDraftQuery = query({
+  params: () => true,
+  loader: function* () {
+    return yield* CraftHttpClient.get(({ response }) => ({
+      url: '/api/pizzerias/draft',
+      success: response<PizzeriaDraft>(),
+      exceptions: [
+        function* ({ status }) {
+          if (!(yield* status(404))) return;
+          return craftException({ code: 'PIZZERIA_DRAFT_UNAVAILABLE' });
+        },
+      ],
+    }));
   },
 });
+
+route(
+  'new',
+  {
+    title: 'Create Pizzeria',
+    canActivate: craftCanActivate(function* () {
+      yield* roleGuard(ROLES.PIZZERIA_ADMIN); // short-circuits on exception
+      yield* noPizzeriaGuard();
+      return true;
+    }),
+    resolve: craftResolve(function* () {
+      return yield* untilSettled(pizzeriaDraftQuery);
+    }),
+    loadComponent: () =>
+      import('./pages/admin-pizzeria-form-page/admin-pizzeria-form-page').then(
+        (m) => m.AdminPizzeriaFormPage,
+      ),
+    componentDeps:
+      {} as import('./pages/admin-pizzeria-form-page/admin-pizzeria-form-page').GenDeps_AdminPizzeriaFormPage,
+  },
+  {
+    // Resolved centrally — exhaustive over canActivate ∪ canMatch ∪ resolve.
+    NOT_AUTHENTICATED: ({ redirect }) => redirect('/auth/login'),
+    FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
+    HAS_PIZZERIA: ({ redirect }) => redirect('/pizzerias/admin'),
+    PIZZERIA_DRAFT_UNAVAILABLE: ({ globalError }) => globalError(),
+    HttpError: ({ globalError }) => globalError(),
+  },
+);
 
 // After the collection is defined, assert every route handles exactly its codes:
 //   assertExhaustiveRouteExceptions(adminRoutes);
@@ -109,73 +147,78 @@ never re-runs `resolve` (no new pending). Opt out per route with `reactiveGuards
 
 Order matters: guards run top-to-bottom and the first exception wins (fail-fast).
 
-## The resolver context
+## The handler context
 
-Each resolver receives the **native Angular `Router`** redirect helpers plus the resolved exception:
+Each route exception handler receives the typed exception and payload, the navigation phase, the
+native Angular `Router` helpers, and the five outcome constructors. See
+[Centralised Exception Handling](./exception-handling.md#handler-context) for the exhaustive list
+and examples.
 
-| Field            | Type                       |
-| ---------------- | -------------------------- |
-| `createUrlTree`  | `Router['createUrlTree']`  |
-| `navigate`       | `Router['navigate']`       |
-| `navigateByUrl`  | `Router['navigateByUrl']`  |
-| `router`         | `Router`                   |
-| `exception`      | the `craftException` (typed to that code) |
-| `payload`        | the exception's payload    |
-
-Because the helpers are the native Angular ones, you redirect with the usual commands array — no
-route registry required:
+For example, combine `createUrlTree(...)` with the `redirect(...)` outcome when query parameters are
+needed:
 
 ```ts
 {
-  RATE_LIMITED: ({ createUrlTree, payload }) =>
-    createUrlTree(['/cooldown'], { queryParams: { retryAfter: payload.retryAfter } }),
+  RATE_LIMITED: ({ createUrlTree, payload, redirect }) =>
+    redirect(
+      createUrlTree(['/cooldown'], {
+        queryParams: { retryAfter: payload.retryAfter },
+      }),
+    ),
 }
 ```
 
-A resolver returns a `GuardResult` (`boolean | UrlTree | RedirectCommand`). The `payload` is taken
-from `craftException({ code }, payload)`'s second argument and typed per code.
+A handler returns a `CraftExceptionOutcome` via `redirect`, `renderComponent`, `globalError`,
+`stay`, or `noop`. The `payload` is taken from `craftException({ code }, payload)`'s second argument
+and typed per code.
 
-## Resolvers can yield services
+## Handlers can yield services
 
-A resolver may be a **generator** that `yield*`s craft services before building the redirect — for
+A handler may be a **generator** that `yield*`s craft services before building the redirect — for
 example to read the login URL from a config service. Those yields are tracked exactly like the
 guards' own dependencies, so a service used only at redirect-time still flows into the route's
 [cascade DI](/type-safe-di-routes/setup) (yield an unprovided service and it surfaces as a
 missing-provider error on the route):
 
 ```ts
-canActivate: craftCanActivate(
-  function* () {
-    yield* roleGuard(ROLES.ADMIN);
-    return true;
+route(
+  'admin',
+  {
+    canActivate: craftCanActivate(function* () {
+      yield* roleGuard(ROLES.ADMIN);
+      return true;
+    }),
   },
   {
-    // Generator resolver — `RedirectConfig` becomes a tracked dependency of the route.
-    FORBIDDEN_ROLE: function* ({ createUrlTree }) {
+    // Generator handler — `RedirectConfig` becomes a tracked route dependency.
+    FORBIDDEN_ROLE: function* ({ redirect }) {
       const { unauthorizedUrl } = yield* RedirectConfigToYield();
-      return createUrlTree([unauthorizedUrl]);
+      return redirect(unauthorizedUrl);
     },
   },
-),
+);
 ```
 
-Plain function resolvers and generator resolvers can be mixed freely in the same map.
+Plain function handlers and generator handlers can be mixed freely in the same map.
 
 ## Exhaustiveness
 
-The `resolvers` map is a mapped type over the reachable codes, so **every** reachable code must be
-handled — a missing one is a type error:
+The handler map is typed over the reachable codes, so **every** reachable code must be handled — a
+missing one is a type error:
 
 ```ts
-craftCanActivate(guard, {
-  FORBIDDEN_ROLE: ({ createUrlTree }) => createUrlTree(['/unauthorized']),
-  // ❌ Type error: Property 'HAS_PIZZERIA' is missing
-});
+route(
+  'admin',
+  { canActivate: craftCanActivate(guard) },
+  {
+    FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
+    // Type error: Property 'HAS_PIZZERIA' is missing.
+  },
+);
 ```
 
-Add a guard that can raise a new code, and every `craftCanActivate` using it stops compiling until
-its resolver is added. A typo'd code is caught the same way — the correctly-spelled key is now
-missing. As a runtime safety net, an unmapped code throws `Unhandled guard exception: <CODE>`.
+Add a guard that can raise a new code, and every route using it stops compiling until its handler is
+added. A typo'd code is caught the same way because the correctly-spelled key is then missing.
 
 ## Guarded data still flows through
 

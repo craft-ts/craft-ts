@@ -114,11 +114,13 @@ type RouteQueryParamsField<Path extends string> = [
 // explicit opt-out). Done here — lazily, per navigation call site — rather than
 // inside the registry, which is at TypeScript's instantiation-depth ceiling.
 type ViewTransitionInputForPath<Path extends string> =
-  RegisteredRouteMetaDataForPath<Path> extends {
-    viewTransition: ViewTransitionPayloadDef<infer Payload>;
-  }
-    ? Payload | null
-    : never;
+  string extends Path
+    ? never
+    : RegisteredRouteMetaDataForPath<Path> extends {
+          viewTransition: ViewTransitionPayloadDef<infer Payload>;
+        }
+      ? Payload | null
+      : never;
 
 // Mirrors `RouteQueryParamsField`, but REQUIRED: a route that declares
 // `withLoaderViewTransitionImage` surfaces a `viewTransition` field in the slim
@@ -272,6 +274,11 @@ type DerivedUrlTreeInput<Path extends string> = Simplify<
     }
 >;
 
+type RoutePathFromInput<Input extends { to: NavigableRoutePath }> = Extract<
+  Input['to'],
+  NavigableRoutePath
+>;
+
 /**
  * Derived shortcuts for `createUrlTree`, `navigate`, `navigateByUrl`.
  *
@@ -299,13 +306,13 @@ type DerivedUrlTreeInput<Path extends string> = Simplify<
  */
 type CraftRouterCraftMethodShortcuts = {
   createUrlTree: <Input extends { to: NavigableRoutePath }>(
-    input: Input & CraftRouterUrlTreeInput<Input['to']>,
+    input: Input & CraftRouterUrlTreeInput<RoutePathFromInput<Input>>,
   ) => Generator<CraftRouterYieldRequest, UrlTree, unknown>;
   navigate: <Input extends { to: NavigableRoutePath }>(
-    input: Input & CraftRouterNavigationInput<Input['to']>,
+    input: Input & CraftRouterNavigationInput<RoutePathFromInput<Input>>,
   ) => Generator<CraftRouterYieldRequest, Promise<boolean>, unknown>;
   navigateByUrl: <Input extends { to: NavigableRoutePath }>(
-    input: Input & CraftRouterNavigationInput<Input['to']>,
+    input: Input & CraftRouterNavigationInput<RoutePathFromInput<Input>>,
   ) => Generator<CraftRouterYieldRequest, Promise<boolean>, unknown>;
 };
 

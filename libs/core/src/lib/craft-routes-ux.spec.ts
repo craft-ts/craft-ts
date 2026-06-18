@@ -132,6 +132,18 @@ describe('route handleExceptions (third argument)', () => {
     expect(def.path).toBe('plain');
   });
 
+  it('rejects handleExceptions inside the route definition object', () => {
+    // @ts-expect-error handleExceptions must be passed as route()'s third argument
+    route('user/:userId', {
+      loadComponent: () => Promise.resolve({ default: Stub }),
+      componentDeps: {},
+      canActivate: craftCanActivate(function* () {
+        return yield* authFail();
+      }),
+      handleExceptions: {},
+    });
+  });
+
   it('aggregates the union over canActivate ∪ canMatch ∪ resolve', () => {
     const { demoRoutes } = craftRoutes('demo', [
       route(

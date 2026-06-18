@@ -21,10 +21,9 @@ const ROUTE_FILE = (registryBlock = '') => `
       canActivate: craftCanActivate(function* () {
         return craftException({ code: 'NOT_AUTHENTICATED' });
       }),
-      handleExceptions: {
-        NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
-        USER_DISABLED: ({ globalError }) => globalError(),
-      },
+    }, {
+      NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
+      USER_DISABLED: ({ globalError }) => globalError(),
     }),
   ]);
 ${registryBlock}`;
@@ -105,9 +104,8 @@ describe('global-exception-registry-match', () => {
             canActivate: craftCanActivate(function* () {
               return craftException({ code: 'NOT_AUTHENTICATED' });
             }),
-            handleExceptions: {
-              NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
-            },
+          }, {
+            NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
           }),
         ]);
       `,

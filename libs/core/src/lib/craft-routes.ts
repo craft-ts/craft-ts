@@ -1142,7 +1142,6 @@ type CraftRouteHandleExceptions = Record<string, CraftExceptionHandler<any>>;
 // by the non-blocking `CraftRouterOutlet`.
 type CraftRouteUxFields = {
   resolve?: CraftRouteResolve;
-  handleExceptions?: CraftRouteHandleExceptions;
   pendingComponent?: CraftExceptionComponentInput;
   errorComponent?: Type<unknown>;
   stayMs?: number;
@@ -1159,6 +1158,10 @@ type CraftRouteUxFields = {
    * chain still morphs the shared element through the pending skeleton.
    */
   withLoaderViewTransitionImage?: ViewTransitionPayloadDef<any>;
+};
+
+type CraftRouteRuntimeUxFields = CraftRouteUxFields & {
+  handleExceptions?: CraftRouteHandleExceptions;
 };
 
 type CraftRouteSharedFields<
@@ -1184,7 +1187,7 @@ type CraftRouteSharedFields<
 
 type AnyCraftRouteSharedFields = Simplify<
   AngularRouteBase &
-    CraftRouteUxFields & {
+    CraftRouteRuntimeUxFields & {
     canActivate?: CraftRouteCanActivateGuard;
     canMatch?: CraftRouteCanMatchGuard;
     path: string;
@@ -1209,6 +1212,9 @@ type AnyCraftRouteHelperDefinition = {
   resolve?: CraftRouteResolve;
   withLoaderViewTransitionImage?: ViewTransitionPayloadDef<any>;
 };
+
+type CraftRouteDefinitionInput<Def extends object> =
+  'handleExceptions' extends keyof Def ? never : Def;
 
 type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
   path: infer Path extends string;
@@ -2718,14 +2724,14 @@ export function craftCanActivate<Guard extends CraftCanActivateGuardFn>(
 // Identity at runtime.
 //
 // ```ts
-// {
-//   path: 'beta',
+// route('beta', {
 //   canMatch: craftCanMatch(function* () {
 //     const ff = yield* FeatureFlagsToYield();
 //     return ff.betaEnabled ? true : craftException({ code: 'FLAG_DISABLED' });
 //   }),
-//   handleExceptions: { FLAG_DISABLED: ({ redirect }) => redirect('/home') },
-// }
+// }, {
+//   FLAG_DISABLED: ({ redirect }) => redirect('/home'),
+// })
 // ```
 export function craftCanMatch<Guard extends CraftCanMatchGuardFn>(
   guard: Guard,
@@ -2756,7 +2762,7 @@ export function craftCanMatch<Guard extends CraftCanMatchGuardFn>(
 // reachable codes.
 export function route<const Path extends string, const Def extends object>(
   path: Path,
-  def: Def,
+  def: CraftRouteDefinitionInput<Def>,
   handlers: HandledExceptionsForUnion<
     Extract<RouteExceptionUnion<Def>, AnyCraftException>
   >,
@@ -2773,7 +2779,7 @@ export function route<const Path extends string, const Def extends object>(
 // 2-arg form: the route throws no `craftException`s, so no handlers are needed.
 export function route<const Path extends string, const Def extends object>(
   path: Path,
-  def: Def,
+  def: CraftRouteDefinitionInput<Def>,
 ): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>>;
 export function route(
   path: string,

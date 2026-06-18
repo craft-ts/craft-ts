@@ -47,6 +47,11 @@ const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
     componentDeps: {},
   },
   {
+    path: 'auth/login',
+    component: BlankComponent,
+    componentDeps: {},
+  },
+  {
     path: 'query-param',
     component: BlankComponent,
     componentDeps: {},
@@ -365,6 +370,22 @@ describe('CraftRouter', () => {
         // @ts-expect-error typo in joined path
         router.navigate({ to: 'parent/:teamId/childz/:userId' });
 
+        CraftRouterToYield.createUrlTree({
+          to: 'parent/:teamId/child/:userId',
+          params: { teamId: '1', userId: '42' },
+        });
+        CraftRouterToYield.navigate({
+          to: 'parent/:teamId/child/:userId',
+          params: { teamId: '1', userId: '42' },
+        });
+        CraftRouterToYield.navigateByUrl({
+          to: 'parent/:teamId/child/:userId',
+          params: { teamId: '1', userId: '42' },
+        });
+        CraftRouterToYield.createUrlTree({
+          to: 'auth/login',
+        });
+
         // A view-transition route REQUIRES a `viewTransition` payload.
         router.navigate({
           to: 'media/:mediaId',
@@ -384,6 +405,16 @@ describe('CraftRouter', () => {
           params: { mediaId: '1' },
           // @ts-expect-error viewTransition payload requires a `name`
           viewTransition: { image: null },
+        });
+        CraftRouterToYield.createUrlTree({
+          to: 'media/:mediaId',
+          params: { mediaId: '1' },
+          viewTransition: { name: 'photo-1', image: null },
+        });
+        // @ts-expect-error viewTransition is required for a view-transition route
+        CraftRouterToYield.createUrlTree({
+          to: 'media/:mediaId',
+          params: { mediaId: '1' },
         });
       });
     }

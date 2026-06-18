@@ -142,15 +142,18 @@ view-transition analogue of how `queryParams` declares a route's query-param sha
 
 ```ts
 export const { photosRoutes, injectPhotosPhotoIdViewTransition } = craftRoutes('photos', [
-  route(':photoId', {
-    componentDeps: {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
-    loadComponent: () => import('./photo-detail'),
-    withLoaderViewTransitionImage: viewTransitionPayload<{ name: string; image: string | null }>(),
-    pendingComponent: () => import('./photo-skeleton'),
-    // The skeleton's DI is verified separately (see "Verifying the skeleton's DI").
-    canActivate: craftCanActivate(/* slow guard */),
-    handleExceptions: { /* … */ },
-  }),
+  route(
+    ':photoId',
+    {
+      componentDeps: {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
+      loadComponent: () => import('./photo-detail'),
+      withLoaderViewTransitionImage: viewTransitionPayload<{ name: string; image: string | null }>(),
+      pendingComponent: () => import('./photo-skeleton'),
+      // The skeleton's DI is verified separately (see "Verifying the skeleton's DI").
+      canActivate: craftCanActivate(/* slow guard */),
+    },
+    { /* … */ },
+  ),
 ]).withParent<ParentRoutes<'photos'>>();
 ```
 
