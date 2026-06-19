@@ -13,9 +13,9 @@ Those helpers are great **inside a component**, but they cannot be reached while
 route's own `providers`. So you cannot, for example, take the value resolved by `canActivate` and
 feed it into a provider that the routed component injects.
 
-## The solution: `route(...).withProviders(...)`
+## The solution: `craftRoute(...).withProviders(...)`
 
-`route(path, definition)` authors a single route and returns a builder with a `.withProviders(...)`
+`craftRoute(path, definition)` authors a single route and returns a builder with a `.withProviders(...)`
 method. The callback receives **route-scoped `ToYield` generators**, one per auto-provisioned token
 that exists on the route, and returns a normal Angular providers array.
 
@@ -25,7 +25,7 @@ import {
   craftRoutes,
   craftService,
   query,
-  route,
+  craftRoute,
 } from '@craft-ng/core';
 
 type User = { name: string };
@@ -45,7 +45,7 @@ const { AuthToYield } = craftService({ name: 'Auth', scope: 'global' }, () =>
 );
 
 export const { demoRoutes } = craftRoutes('demo', [
-  route('query/:userId', {
+  craftRoute('query/:userId', {
     componentDeps: {} as import('./query').GenDeps_GlobalQuery,
     loadComponent: () => import('./query'),
     canActivate: function* () {
@@ -98,7 +98,7 @@ Each helper is a generator you consume with `yield*`, exactly like a service's `
 
 ## Pairing with an abstract service
 
-`route(...).withProviders(...)` shines with `scope: 'abstract'` services. The abstract service
+`craftRoute(...).withProviders(...)` shines with `scope: 'abstract'` services. The abstract service
 declares a contract; each route provides a concrete implementation derived from that route's data.
 
 Abstract services now expose a `provideX(factory)` helper that takes a **generator factory**, tracks
@@ -149,7 +149,7 @@ both are merged (auto-provisioned services first, then `providers`, then the `wi
 factory output):
 
 ```ts
-route('admin', {
+craftRoute('admin', {
   componentDeps: {} as import('./admin').GenDeps_Admin,
   loadComponent: () => import('./admin'),
   providers: [SomeAngularProvider], // plain array, untyped helpers

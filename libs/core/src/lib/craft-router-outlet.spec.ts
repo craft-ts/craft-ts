@@ -1,5 +1,10 @@
 import '@angular/compiler';
-import { Component, EnvironmentInjector, signal, type Type } from '@angular/core';
+import {
+  Component,
+  EnvironmentInjector,
+  signal,
+  type Type,
+} from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -65,6 +70,7 @@ function makeMeta(overrides: Partial<CraftRouteMeta> = {}): CraftRouteMeta {
     handleExceptions: {},
     guardDataSink: signal<unknown>(undefined),
     resolveDataSink: signal<unknown>(undefined),
+    exceptionSinks: {},
     pendingComponent: undefined,
     errorComponent: undefined,
     stayMs: undefined,
@@ -79,7 +85,11 @@ function makeRoute(meta: CraftRouteMeta | undefined): ActivatedRoute {
   const data = meta ? { [CRAFT_ROUTE_META]: meta } : {};
   return {
     component: TargetCmp,
-    snapshot: { data, component: TargetCmp, routeConfig: { component: TargetCmp } },
+    snapshot: {
+      data,
+      component: TargetCmp,
+      routeConfig: { component: TargetCmp },
+    },
   } as unknown as ActivatedRoute;
 }
 
@@ -111,10 +121,16 @@ describe('CraftRouterOutlet', () => {
 
     const fixture = TestBed.createComponent(CraftRouterOutlet);
     fixture.detectChanges();
-    return { outlet: fixture.componentInstance, router: TestBed.inject(Router) };
+    return {
+      outlet: fixture.componentInstance,
+      router: TestBed.inject(Router),
+    };
   }
 
-  function activate(outlet: CraftRouterOutlet, meta: CraftRouteMeta | undefined) {
+  function activate(
+    outlet: CraftRouterOutlet,
+    meta: CraftRouteMeta | undefined,
+  ) {
     outlet.activateWith(makeRoute(meta), TestBed.inject(EnvironmentInjector));
   }
 
@@ -142,7 +158,11 @@ describe('CraftRouterOutlet', () => {
     expect(outlet.state()).toBe('stay');
     expect(outlet.targetComponent()).toBeNull();
 
-    deferred.resolve({ kind: 'data', guardData: { u: 1 }, resolveData: { p: 2 } });
+    deferred.resolve({
+      kind: 'data',
+      guardData: { u: 1 },
+      resolveData: { p: 2 },
+    });
     await flush();
 
     expect(outlet.state()).toBe('loaded');
@@ -154,7 +174,11 @@ describe('CraftRouterOutlet', () => {
   it('a fast chain (within stay) never blanks nor shows the loader', async () => {
     const { outlet } = setup();
     activate(outlet, makeMeta({ stayMs: 300, blankMs: 300 }));
-    deferred.resolve({ kind: 'data', guardData: undefined, resolveData: undefined });
+    deferred.resolve({
+      kind: 'data',
+      guardData: undefined,
+      resolveData: undefined,
+    });
     await flush();
     expect(outlet.state()).toBe('loaded');
     // Timers are cleared on resolution — advancing does not flip state.
@@ -179,7 +203,11 @@ describe('CraftRouterOutlet', () => {
     vi.advanceTimersByTime(1);
     expect(outlet.state()).toBe('pending');
 
-    deferred.resolve({ kind: 'data', guardData: undefined, resolveData: undefined });
+    deferred.resolve({
+      kind: 'data',
+      guardData: undefined,
+      resolveData: undefined,
+    });
     await flush();
     expect(outlet.state()).toBe('loaded');
   });
@@ -202,14 +230,21 @@ describe('CraftRouterOutlet', () => {
 
   it('anti-flicker: keeps the loader visible at least pendingMinMs', async () => {
     const { outlet } = setup();
-    activate(outlet, makeMeta({ stayMs: 300, blankMs: 300, pendingMinMs: 400 }));
+    activate(
+      outlet,
+      makeMeta({ stayMs: 300, blankMs: 300, pendingMinMs: 400 }),
+    );
     // Reach the pending (loader) phase at stayMs + blankMs.
     vi.advanceTimersByTime(600);
     expect(outlet.state()).toBe('pending');
 
     // Chain resolves only 50ms into the loader window.
     vi.advanceTimersByTime(50);
-    deferred.resolve({ kind: 'data', guardData: undefined, resolveData: undefined });
+    deferred.resolve({
+      kind: 'data',
+      guardData: undefined,
+      resolveData: undefined,
+    });
     await flush();
     // Still pending (must stay for 400ms total).
     expect(outlet.state()).toBe('pending');
@@ -242,13 +277,36 @@ describe('CraftRouterOutlet', () => {
   it('global outcome feeds CRAFT_GLOBAL_ERROR and renders the error component', async () => {
     const { outlet } = setup();
     const exception = craftException({ code: 'USER_DISABLED' });
-    activate(outlet, makeMeta({ errorComponent: ErrCmp }));
+    activate(
+      outlet,
+      makeMeta({ errorComponent: { component: ErrCmp, componentDeps: {} } }),
+    );
     deferred.resolve({ kind: 'global', exception });
     await flush();
     expect(TestBed.inject(CRAFT_GLOBAL_ERROR)()).toBe(exception);
     expect(outlet.errorComponent()).toBe(ErrCmp);
     expect(outlet.state()).toBe('error');
     expect(outlet.targetComponent()).toBeNull();
+  });
+
+  it('publishes a local rendered exception and clears it on navigation', async () => {
+    const { outlet } = setup();
+    const sink = signal<unknown | null>(null);
+    const exception = craftException(
+      { code: 'USER_DISABLED' },
+      { reason: 'policy' },
+    );
+    activate(outlet, makeMeta({ exceptionSinks: { USER_DISABLED: sink } }));
+    deferred.resolve({
+      kind: 'render',
+      component: { component: ErrCmp, componentDeps: {} },
+      exception,
+    });
+    await flush();
+    expect(sink()).toBe(exception);
+
+    outlet.deactivate();
+    expect(sink()).toBeNull();
   });
 
   it('noop outcome renders the target (resolve data left undefined)', async () => {
@@ -283,7 +341,10 @@ describe('CraftRouterOutlet (view transitions)', () => {
         provideRouter([]),
         { provide: CRAFT_ROUTE_CHAIN_RUNNER, useValue: () => deferred.promise },
         { provide: CRAFT_VIEW_TRANSITIONS_ENABLED, useValue: true },
-        { provide: CRAFT_VIEW_TRANSITION_SKIP_BLANK, useValue: opts.skipBlank ?? false },
+        {
+          provide: CRAFT_VIEW_TRANSITION_SKIP_BLANK,
+          useValue: opts.skipBlank ?? false,
+        },
         {
           // Capture the swap callback, then run it (so the DOM still updates).
           provide: CRAFT_START_VIEW_TRANSITION,
@@ -316,7 +377,11 @@ describe('CraftRouterOutlet (view transitions)', () => {
   it('routes the target swap through CRAFT_START_VIEW_TRANSITION', async () => {
     const { outlet } = setup();
     activate(outlet, makeMeta());
-    deferred.resolve({ kind: 'data', guardData: undefined, resolveData: undefined });
+    deferred.resolve({
+      kind: 'data',
+      guardData: undefined,
+      resolveData: undefined,
+    });
     await flush();
 
     expect(outlet.state()).toBe('loaded');
@@ -329,7 +394,11 @@ describe('CraftRouterOutlet (view transitions)', () => {
     const { outlet } = setup();
     activate(
       outlet,
-      makeMeta({ stayMs: 300, blankMs: 300, withLoaderViewTransitionImage: true }),
+      makeMeta({
+        stayMs: 300,
+        blankMs: 300,
+        withLoaderViewTransitionImage: true,
+      }),
     );
     expect(outlet.state()).toBe('stay');
 
@@ -361,12 +430,17 @@ describe('CraftRouterOutlet (view transitions)', () => {
 
 describe('resolveComponentInput', () => {
   it('passes through an eager component type', async () => {
-    expect(await resolveComponentInput(TargetCmp as Type<unknown>)).toBe(TargetCmp);
+    expect(
+      await resolveComponentInput({ component: TargetCmp, componentDeps: {} }),
+    ).toBe(TargetCmp);
   });
 
   it('resolves a lazy () => import() loader to its default export', async () => {
     expect(
-      await resolveComponentInput(() => Promise.resolve({ default: TargetCmp })),
+      await resolveComponentInput({
+        loadComponent: () => Promise.resolve({ default: TargetCmp }),
+        componentDeps: {},
+      }),
     ).toBe(TargetCmp);
   });
 

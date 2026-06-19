@@ -67,7 +67,7 @@ import {
   craftCanActivate,
   craftCanMatch,
   craftRoutes,
-  route,
+  craftRoute,
   type ResolveCraftRouteComponentDeps,
 } from './craft-routes';
 import { craftGen } from './craft-gen';
@@ -2528,7 +2528,7 @@ describe('craftRoutes', () => {
     );
   });
 
-  describe('route().withProviders()', () => {
+  describe('craftRoute().withProviders()', () => {
     type User = { id: number; name: string };
 
     it('should build a route-level provider from typed route-scoped ToYield helpers', () => {
@@ -2538,7 +2538,7 @@ describe('craftRoutes', () => {
       );
 
       const { wpRoutes } = craftRoutes('wp', [
-        route('dashboard/:userId', {
+        craftRoute('dashboard/:userId', {
           loadComponent: async () => null as unknown as Type<unknown>,
           componentDeps: {},
           canActivate: (): User | false => ({ id: 9, name: 'Carol' }),
@@ -2571,7 +2571,7 @@ describe('craftRoutes', () => {
     });
 
     it('should type the route-scoped helpers (guarded data + path param)', () => {
-      const builder = route('dashboard/:userId', {
+      const builder = craftRoute('dashboard/:userId', {
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
         canActivate: (): User | false => ({ id: 1, name: 'Alice' }),

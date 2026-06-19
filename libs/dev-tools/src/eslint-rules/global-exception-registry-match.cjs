@@ -176,7 +176,7 @@ function getCallExpressionName(callExpression) {
   if (Node.isIdentifier(expression)) {
     return expression.getText();
   }
-  // `route(...).withProviders` etc. — the leftmost call's callee.
+  // `craftRoute(...).withProviders` etc. — the leftmost call's callee.
   if (Node.isPropertyAccessExpression(expression)) {
     return expression.getName();
   }
@@ -208,7 +208,7 @@ function resolveCollectionVar(craftRoutesCall) {
   return undefined;
 }
 
-// A route array element is either `route('path', { … }, { … })` (optionally
+// A route array element is either `craftRoute('path', { … }, { … })` (optionally
 // followed by `.withProviders(…)`) or a plain `{ path: '…', handleExceptions: { … } }`.
 function extractRouteDefinition(element) {
   if (Node.isObjectLiteralExpression(element)) {
@@ -245,11 +245,11 @@ function extractRouteDefinition(element) {
   return undefined;
 }
 
-// Walks `route(...).withProviders(...)` (any depth) down to the `route(` call.
+// Walks `craftRoute(...).withProviders(...)` (any depth) down to the `craftRoute(` call.
 function findRouteCall(node) {
   let current = node;
   while (Node.isCallExpression(current)) {
-    if (getCallExpressionName(current) === 'route') {
+    if (getCallExpressionName(current) === 'craftRoute') {
       return current;
     }
     const expression = current.getExpression();

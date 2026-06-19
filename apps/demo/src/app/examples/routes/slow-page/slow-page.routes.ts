@@ -2,12 +2,13 @@ import {
   assertExhaustiveRouteExceptions,
   craftCanActivate,
   craftException,
+  craftExceptionHandler,
   craftGen,
   craftResolve,
   craftRoutes,
   craftService,
   query,
-  route,
+  craftRoute,
   untilSettled,
   type CanRun,
   type ValidateCascadeRoutesFile,
@@ -74,25 +75,31 @@ const loadSlowReport = craftGen(function* () {
 export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
   'slowPage',
   [
-    route('', {
-      componentDeps: {} as import('./slow-page').GenDeps_SlowPageComponent,
-      loadComponent: () => import('./slow-page'),
-      // Slow (~1.5s) — the outlet shows the pending component until it settles.
-      canActivate: craftCanActivate(function* () {
-        return yield* slowAccessGuard();
-      }),
-      // Slow (~1.5s) — runs after the guard; the target mounts only once settled.
-      resolve: craftResolve(function* () {
-        return yield* loadSlowReport();
-      }),
-    }, {
-      // Exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at the call site.
-      NOT_AUTHENTICATED: ({ redirect }) => redirect('/login-form'),
-    }),
+    craftRoute(
+      '',
+      {
+        componentDeps: {} as import('./slow-page').GenDeps_SlowPageComponent,
+        loadComponent: () => import('./slow-page'),
+        // Slow (~1.5s) — the outlet shows the pending component until it settles.
+        canActivate: craftCanActivate(function* () {
+          return yield* slowAccessGuard();
+        }),
+        // Slow (~1.5s) — runs after the guard; the target mounts only once settled.
+        resolve: craftResolve(function* () {
+          return yield* loadSlowReport();
+        }),
+      },
+      {
+        // Exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at the call site.
+        NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+          return redirectUrl('/login-form');
+        }),
+      },
+    ),
   ],
 );
 
-// Required-handler safety net for routes authored with the 2-arg `route()` form.
+// Required-handler safety net for routes authored with the 2-arg `craftRoute()` form.
 assertExhaustiveRouteExceptions(slowPageRoutes);
 
 // Cascade DI safety for THIS lazy child collection.

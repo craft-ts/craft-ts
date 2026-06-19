@@ -1,15 +1,28 @@
 import '@angular/compiler';
-import { describe, expect, it } from 'vitest';
+import type { Signal } from '@angular/core';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { craftException } from './craft-exception';
 import { craftGen } from './craft-gen';
 import { craftResolve } from './craft-resolve';
 import { assertExhaustiveRouteExceptions } from './craft-route-exceptions';
+import { craftExceptionHandler } from './craft-route-exceptions';
+import { craftService } from './craft-service';
 import {
   craftCanActivate,
   craftCanMatch,
   craftRoutes,
-  route,
+  craftRoute,
+  type RouteExceptionHandlerDepsMap,
 } from './craft-routes';
+
+declare module './craft-router' {
+  interface CraftRouterRoutesRegistry {
+    HandlerSpec: readonly [
+      { path: 'auth/login'; queryParams: { reason: string } },
+      { path: 'users/:userId' },
+    ];
+  }
+}
 
 // Reusable guards/resolvers that advertise a reachable exception code (the
 // `CraftGenExceptionMarker` flows through `yield*`).
@@ -25,69 +38,100 @@ const profileFail = craftGen(function* () {
 
 class Stub {}
 
-// `route()` takes exception handlers as a SEPARATE third argument. The 3-arg form
+// `craftRoute()` takes exception handlers as a SEPARATE third argument. The 3-arg form
 // types them exhaustively at the call site; the 2-arg form is for routes that throw
 // nothing. A route that throws but is authored with the 2-arg form is caught after
 // inference by `assertExhaustiveRouteExceptions`.
 describe('route handleExceptions (third argument)', () => {
-  it('contextually types the handler (redirect/phase/outcomes) on the third argument', () => {
-    const def = route(
-      'user/:userId',
-      {
-        loadComponent: () => Promise.resolve({ default: Stub }),
-        componentDeps: {},
-        canActivate: craftCanActivate(function* () {
-          return yield* authFail();
-        }),
-      },
-      {
-        NOT_AUTHENTICATED: ({ redirect, phase }) =>
-          redirect(phase === 'active' ? '/login?expired' : '/login'),
-      },
-    );
-    expect(def.path).toBe('user/:userId');
-  });
+  it('requires the wrapper and a generator function', () => {
+    // @ts-expect-error craftExceptionHandler accepts generator functions only
+    craftExceptionHandler(({ noop }) => noop());
 
-  it('rejects a wrong outcome-constructor argument (handlers are typed, not any)', () => {
-    route(
+    craftRoute(
       'user/:userId',
       {
-        loadComponent: () => Promise.resolve({ default: Stub }),
+        component: Stub,
         componentDeps: {},
         canActivate: craftCanActivate(function* () {
           return yield* authFail();
         }),
       },
       {
-        // @ts-expect-error redirect() takes a string | UrlTree, not a number
-        NOT_AUTHENTICATED: ({ redirect }) => redirect(123),
-      },
-    );
-  });
-
-  it('types `exception` per code on the handler context', () => {
-    route(
-      'user/:userId',
-      {
-        loadComponent: () => Promise.resolve({ default: Stub }),
-        componentDeps: {},
-        canActivate: craftCanActivate(function* () {
-          return yield* authFail();
-        }),
-      },
-      {
-        NOT_AUTHENTICATED: ({ exception, noop }) => {
-          // `exception.code` is narrowed to the literal, not `any`.
-          const code: 'NOT_AUTHENTICATED' = exception.code;
-          void code;
+        // @ts-expect-error bare handlers are not branded
+        NOT_AUTHENTICATED: function* ({ noop }) {
           return noop();
         },
       },
     );
   });
 
+  it('contextually types the handler (redirect/phase/outcomes) on the third argument', () => {
+    const def = craftRoute(
+      'user/:userId',
+      {
+        loadComponent: () => Promise.resolve({ default: Stub }),
+        componentDeps: {},
+        canActivate: craftCanActivate(function* () {
+          return yield* authFail();
+        }),
+      },
+      {
+        NOT_AUTHENTICATED: craftExceptionHandler(function* ({
+          redirectUrl,
+          phase,
+        }) {
+          return redirectUrl(phase === 'active' ? '/login?expired' : '/login');
+        }),
+      },
+    );
+    expect(def.path).toBe('user/:userId');
+  });
+
+  it('rejects a wrong outcome-constructor argument (handlers are typed, not any)', () => {
+    craftRoute(
+      'user/:userId',
+      {
+        loadComponent: () => Promise.resolve({ default: Stub }),
+        componentDeps: {},
+        canActivate: craftCanActivate(function* () {
+          return yield* authFail();
+        }),
+      },
+      {
+        NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+          // @ts-expect-error redirectUrl() takes a string | UrlTree, not a number
+          return redirectUrl(123);
+        }),
+      },
+    );
+  });
+
+  it('types `exception` per code on the handler context', () => {
+    craftRoute(
+      'user/:userId',
+      {
+        loadComponent: () => Promise.resolve({ default: Stub }),
+        componentDeps: {},
+        canActivate: craftCanActivate(function* () {
+          return yield* authFail();
+        }),
+      },
+      {
+        NOT_AUTHENTICATED: craftExceptionHandler(function* ({
+          exception,
+          noop,
+        }) {
+          // `exception.code` is narrowed to the literal, not `any`.
+          const code: string = exception.code;
+          void code;
+          return noop();
+        }),
+      },
+    );
+  });
+
   it('rejects a missing code at the call site', () => {
-    route(
+    craftRoute(
       'user/:userId',
       {
         loadComponent: () => Promise.resolve({ default: Stub }),
@@ -101,31 +145,40 @@ describe('route handleExceptions (third argument)', () => {
       },
       // @ts-expect-error 'USER_DISABLED' (from resolve) is unhandled
       {
-        NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
+        NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+          return redirectUrl('/login');
+        }),
       },
     );
   });
 
-  it('rejects an extra code at the call site', () => {
-    route(
-      'user/:userId',
-      {
-        loadComponent: () => Promise.resolve({ default: Stub }),
-        componentDeps: {},
-        canActivate: craftCanActivate(function* () {
-          return yield* authFail();
-        }),
-      },
-      {
-        NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
-        // @ts-expect-error 'NOPE' is not a reachable code
-        NOPE: ({ noop }) => noop(),
-      },
-    );
+  it('rejects an extra code through the collection exhaustiveness check', () => {
+    const { demoRoutes } = craftRoutes('demo', [
+      craftRoute(
+        'user/:userId',
+        {
+          loadComponent: () => Promise.resolve({ default: Stub }),
+          componentDeps: {},
+          canActivate: craftCanActivate(function* () {
+            return yield* authFail();
+          }),
+        },
+        {
+          NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+            return redirectUrl('/login');
+          }),
+          NOPE: craftExceptionHandler(function* ({ noop }) {
+            return noop();
+          }),
+        },
+      ),
+    ]);
+    // @ts-expect-error 'NOPE' is not a reachable code
+    assertExhaustiveRouteExceptions(demoRoutes);
   });
 
   it('allows the 2-arg form for a route that cannot throw', () => {
-    const def = route('plain', {
+    const def = craftRoute('plain', {
       loadComponent: () => Promise.resolve({ default: Stub }),
       componentDeps: {},
     });
@@ -133,8 +186,8 @@ describe('route handleExceptions (third argument)', () => {
   });
 
   it('rejects handleExceptions inside the route definition object', () => {
-    // @ts-expect-error handleExceptions must be passed as route()'s third argument
-    route('user/:userId', {
+    // @ts-expect-error handleExceptions must be passed as craftRoute()'s third argument
+    craftRoute('user/:userId', {
       loadComponent: () => Promise.resolve({ default: Stub }),
       componentDeps: {},
       canActivate: craftCanActivate(function* () {
@@ -146,7 +199,7 @@ describe('route handleExceptions (third argument)', () => {
 
   it('aggregates the union over canActivate ∪ canMatch ∪ resolve', () => {
     const { demoRoutes } = craftRoutes('demo', [
-      route(
+      craftRoute(
         'user/:userId',
         {
           loadComponent: () => Promise.resolve({ default: Stub }),
@@ -162,9 +215,15 @@ describe('route handleExceptions (third argument)', () => {
           }),
         },
         {
-          FEATURE_OFF: ({ redirect }) => redirect('/home'),
-          NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
-          USER_DISABLED: ({ globalError }) => globalError(),
+          FEATURE_OFF: craftExceptionHandler(function* ({ redirectUrl }) {
+            return redirectUrl('/home');
+          }),
+          NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+            return redirectUrl('/login');
+          }),
+          USER_DISABLED: craftExceptionHandler(function* ({ globalError }) {
+            return globalError();
+          }),
         },
       ).withProviders(() => []),
     ]);
@@ -174,7 +233,7 @@ describe('route handleExceptions (third argument)', () => {
 
   it('assertExhaustiveRouteExceptions flags a route authored with the 2-arg form', () => {
     const { demoRoutes } = craftRoutes('demo', [
-      route('user/:userId', {
+      craftRoute('user/:userId', {
         loadComponent: () => Promise.resolve({ default: Stub }),
         componentDeps: {},
         canActivate: craftCanActivate(function* () {
@@ -188,7 +247,7 @@ describe('route handleExceptions (third argument)', () => {
 
   it('generates injectXxxResolvedData for routes with a resolve step', () => {
     const result = craftRoutes('demo', [
-      route(
+      craftRoute(
         'user/:userId',
         {
           loadComponent: () => Promise.resolve({ default: Stub }),
@@ -201,8 +260,12 @@ describe('route handleExceptions (third argument)', () => {
           }),
         },
         {
-          NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
-          USER_DISABLED: ({ globalError }) => globalError(),
+          NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+            return redirectUrl('/login');
+          }),
+          USER_DISABLED: craftExceptionHandler(function* ({ globalError }) {
+            return globalError();
+          }),
         },
       ).withProviders(() => []),
     ]);
@@ -216,7 +279,7 @@ describe('route handleExceptions (third argument)', () => {
   });
 
   it('merges the handlers argument into the route definition at runtime', () => {
-    const def = route(
+    const def = craftRoute(
       'user/:userId',
       {
         loadComponent: () => Promise.resolve({ default: Stub }),
@@ -226,11 +289,96 @@ describe('route handleExceptions (third argument)', () => {
         }),
       },
       {
-        NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
+        NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+          return redirectUrl('/login');
+        }),
       },
     );
     expect(
       typeof (def as unknown as Record<string, unknown>).handleExceptions,
     ).toBe('object');
+  });
+
+  it('generates a route-scoped helper with the exact exception payload', () => {
+    const disabled = craftGen(function* () {
+      return craftException(
+        { code: 'USER_DISABLED' },
+        { reason: 'policy' as const },
+      );
+    });
+    const result = craftRoutes('demo', [
+      craftRoute(
+        ':userId',
+        {
+          component: Stub,
+          componentDeps: {},
+          canActivate: craftCanActivate(function* () {
+            return yield* disabled();
+          }),
+        },
+        {
+          USER_DISABLED: craftExceptionHandler(function* ({ renderComponent }) {
+            return renderComponent({ component: Stub, componentDeps: {} });
+          }),
+        },
+      ),
+    ]);
+
+    expect(typeof result.injectDemoUserIdUserDisabledException).toBe(
+      'function',
+    );
+    expectTypeOf<
+      ReturnType<typeof result.injectDemoUserIdUserDisabledException>
+    >().toExtend<Signal<{ readonly payload: { readonly reason: 'policy' } }>>();
+  });
+
+  it('preserves handler yields for route DI extraction', () => {
+    const { HandlerConfigToYield } = craftService(
+      { name: 'HandlerConfig', scope: 'toProvide' },
+      () => ({ target: '/login' }),
+    );
+    const def = craftRoute(
+      ':userId',
+      {
+        component: Stub,
+        componentDeps: {},
+        canActivate: craftCanActivate(function* () {
+          return yield* authFail();
+        }),
+      },
+      {
+        NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+          const config = yield* HandlerConfigToYield();
+          return redirectUrl(config.target);
+        }),
+      },
+    );
+
+    expectTypeOf<
+      keyof RouteExceptionHandlerDepsMap<typeof def>
+    >().toEqualTypeOf<'HandlerConfig'>();
+    type HandlerGenerator = ReturnType<
+      (typeof def.handleExceptions)['NOT_AUTHENTICATED']
+    >;
+    type HandlerOutcome =
+      HandlerGenerator extends Generator<any, infer Outcome, unknown>
+        ? Outcome
+        : never;
+    expectTypeOf<HandlerOutcome['kind']>().toEqualTypeOf<'redirect'>();
+  });
+
+  it('types redirectTo against the META_PATHS registry', () => {
+    craftExceptionHandler(function* ({ redirectTo }) {
+      yield* redirectTo({
+        to: 'auth/login',
+        queryParams: { reason: 'expired' },
+      });
+      yield* redirectTo({ to: 'users/:userId', params: { userId: '1' } });
+      // @ts-expect-error unknown internal route
+      yield* redirectTo({ to: 'auth/missing' });
+      // @ts-expect-error missing structural params
+      yield* redirectTo({ to: 'users/:userId' });
+      return { kind: 'noop' } as const;
+    });
   });
 });

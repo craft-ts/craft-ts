@@ -63,7 +63,10 @@ provideCraftRouter(
   appRoutes.toRoutes(),
   withComponentInputBinding(),                     // Angular router feature
   withCraftViewTransitions(),                       // craft loading feature (see below)
-  withErrorComponent(MyGlobalErrorScreen),         // craft loading feature
+  withErrorComponent({
+    component: MyGlobalErrorScreen,
+    componentDeps: {} as import('./global-error').GenDeps_MyGlobalErrorScreen,
+  }),
   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
   withLoadingText(() => computed(() => translate('common.loading'))),
   withPendingComponent(MyBrandedSpinner),
@@ -78,17 +81,20 @@ provideCraftLoading(
   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
   withLoadingText(() => computed(() => translate('common.loading'))),
   withPendingComponent(MyBrandedSpinner),
-  withErrorComponent(MyGlobalErrorScreen),
+  withErrorComponent({
+    component: MyGlobalErrorScreen,
+    componentDeps: {} as import('./global-error').GenDeps_MyGlobalErrorScreen,
+  }),
 ),
 ```
 
-| Feature                 | Token                                                    | Default                           |
-| ----------------------- | -------------------------------------------------------- | --------------------------------- |
-| `withPendingComponent`  | `CRAFT_PENDING_COMPONENT`                                | `DefaultCraftPendingComponent`    |
-| `withLoadingText`       | `CRAFT_LOADING_TEXT`                                     | locale-aware (en/fr, fallback en) |
-| `withTransitionTimings` | `CRAFT_STAY_MS` / `CRAFT_BLANK_MS` / `CRAFT_PENDING_MIN_MS` | `300` / `300` / `0`             |
-| `withErrorComponent`    | `CRAFT_ERROR_COMPONENT`                                  | `null`                            |
-| `withCraftViewTransitions` | `CRAFT_VIEW_TRANSITIONS_ENABLED` / `CRAFT_VIEW_TRANSITION_SKIP_BLANK` | `false` / `false`      |
+| Feature                    | Token                                                                 | Default                           |
+| -------------------------- | --------------------------------------------------------------------- | --------------------------------- |
+| `withPendingComponent`     | `CRAFT_PENDING_COMPONENT`                                             | `DefaultCraftPendingComponent`    |
+| `withLoadingText`          | `CRAFT_LOADING_TEXT`                                                  | locale-aware (en/fr, fallback en) |
+| `withTransitionTimings`    | `CRAFT_STAY_MS` / `CRAFT_BLANK_MS` / `CRAFT_PENDING_MIN_MS`           | `300` / `300` / `0`               |
+| `withErrorComponent`       | `CRAFT_ERROR_COMPONENT`                                               | `null`                            |
+| `withCraftViewTransitions` | `CRAFT_VIEW_TRANSITIONS_ENABLED` / `CRAFT_VIEW_TRANSITION_SKIP_BLANK` | `false` / `false`                 |
 
 The default pending component renders `CRAFT_LOADING_TEXT`, which reads `LOCALE_ID` and picks a
 built-in translation (`Loading…` / `Chargement…`).
@@ -99,7 +105,7 @@ Any route may override the defaults via craft-only fields (stripped from the emi
 `Route`):
 
 ```ts
-route('user/:userId', {
+craftRoute('user/:userId', {
   // …
   stayMs: 150,        // shorten the "keep previous page" window
   blankMs: 0,         // skip the blank phase → straight to loader
@@ -141,20 +147,29 @@ view-transition analogue of how `queryParams` declares a route's query-param sha
 - tells the outlet to **skip the blank phase** (a blank would break the morph): `stay → pending → loaded`.
 
 ```ts
-export const { photosRoutes, injectPhotosPhotoIdViewTransition } = craftRoutes('photos', [
-  route(
-    ':photoId',
-    {
-      componentDeps: {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
-      loadComponent: () => import('./photo-detail'),
-      withLoaderViewTransitionImage: viewTransitionPayload<{ name: string; image: string | null }>(),
-      pendingComponent: () => import('./photo-skeleton'),
-      // The skeleton's DI is verified separately (see "Verifying the skeleton's DI").
-      canActivate: craftCanActivate(/* slow guard */),
-    },
-    { /* … */ },
-  ),
-]).withParent<ParentRoutes<'photos'>>();
+export const { photosRoutes, injectPhotosPhotoIdViewTransition } = craftRoutes(
+  'photos',
+  [
+    craftRoute(
+      ':photoId',
+      {
+        componentDeps:
+          {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
+        loadComponent: () => import('./photo-detail'),
+        withLoaderViewTransitionImage: viewTransitionPayload<{
+          name: string;
+          image: string | null;
+        }>(),
+        pendingComponent: () => import('./photo-skeleton'),
+        // The skeleton's DI is verified separately (see "Verifying the skeleton's DI").
+        canActivate: craftCanActivate(/* slow guard */),
+      },
+      {
+        /* … */
+      },
+    ),
+  ],
+).withParent<ParentRoutes<'photos'>>();
 ```
 
 This collection is a lazy child mounted via `loadChildren` (kept out of the parent's cascade DI budget).
@@ -181,7 +196,9 @@ export default class PhotoSkeleton {
   protected readonly photoId = injectPhotosPhotoIdParams();
   // Signal<{ name: string; image: string | null } | null> — typed by the route.
   private readonly viewTransition = injectPhotosPhotoIdViewTransition();
-  protected readonly image = computed(() => this.viewTransition()?.image ?? null);
+  protected readonly image = computed(
+    () => this.viewTransition()?.image ?? null,
+  );
   // template: <span [style.view-transition-name]="'photo-' + photoId()"> … </span>
 }
 ```
@@ -204,7 +221,11 @@ hatch (not a second aggregated pass — that would add to the instantiation-coun
 already spending):
 
 ```ts
-type _CheckTargetDI = ValidateCascadeRoutesFile<AppNames, AppValues, typeof photosRoutes>;
+type _CheckTargetDI = ValidateCascadeRoutesFile<
+  AppNames,
+  AppValues,
+  typeof photosRoutes
+>;
 type _CanRunTarget = CanRun<_CheckTargetDI>;
 
 // The skeleton injects the `:photoId` param and the typed payload — both

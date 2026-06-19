@@ -53,26 +53,33 @@ import {
   craftResolve,
   CraftHttpClient,
   query,
-  route,
+  craftRoute,
   untilSettled,
 } from '@craft-ng/core';
 
 // Reusable guards — each returns a success value | craftException(...)
-const roleGuard = craftGen((...roles: Role[]) =>
-  function* () {
-    const { user } = yield* CraftAuthToYield(undefined, ({ user }) => ({ user }));
-    if (!user()) return craftException({ code: 'NOT_AUTHENTICATED' });
-    return roles.includes(user()!.role)
-      ? true
-      : craftException({ code: 'FORBIDDEN_ROLE' });
-  },
+const roleGuard = craftGen(
+  (...roles: Role[]) =>
+    function* () {
+      const { user } = yield* CraftAuthToYield(undefined, ({ user }) => ({
+        user,
+      }));
+      if (!user()) return craftException({ code: 'NOT_AUTHENTICATED' });
+      return roles.includes(user()!.role)
+        ? true
+        : craftException({ code: 'FORBIDDEN_ROLE' });
+    },
 );
 
-const noPizzeriaGuard = craftGen(() =>
-  function* () {
-    const { pizzeria } = yield* CraftAuthToYield(undefined, ({ pizzeria }) => ({ pizzeria }));
-    return pizzeria() ? craftException({ code: 'HAS_PIZZERIA' }) : true;
-  },
+const noPizzeriaGuard = craftGen(
+  () =>
+    function* () {
+      const { pizzeria } = yield* CraftAuthToYield(
+        undefined,
+        ({ pizzeria }) => ({ pizzeria }),
+      );
+      return pizzeria() ? craftException({ code: 'HAS_PIZZERIA' }) : true;
+    },
 );
 
 const pizzeriaDraftQuery = query({
@@ -91,7 +98,7 @@ const pizzeriaDraftQuery = query({
   },
 });
 
-route(
+craftRoute(
   'new',
   {
     title: 'Create Pizzeria',
@@ -112,11 +119,23 @@ route(
   },
   {
     // Resolved centrally — exhaustive over canActivate ∪ canMatch ∪ resolve.
-    NOT_AUTHENTICATED: ({ redirect }) => redirect('/auth/login'),
-    FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
-    HAS_PIZZERIA: ({ redirect }) => redirect('/pizzerias/admin'),
-    PIZZERIA_DRAFT_UNAVAILABLE: ({ globalError }) => globalError(),
-    HttpError: ({ globalError }) => globalError(),
+    NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectTo }) {
+      return yield* redirectTo({ to: 'auth/login' });
+    }),
+    FORBIDDEN_ROLE: craftExceptionHandler(function* ({ redirectTo }) {
+      return yield* redirectTo({ to: 'unauthorized' });
+    }),
+    HAS_PIZZERIA: craftExceptionHandler(function* ({ redirectTo }) {
+      return yield* redirectTo({ to: 'pizzerias/admin' });
+    }),
+    PIZZERIA_DRAFT_UNAVAILABLE: craftExceptionHandler(function* ({
+      globalError,
+    }) {
+      return globalError();
+    }),
+    HttpError: craftExceptionHandler(function* ({ globalError }) {
+      return globalError();
+    }),
   },
 );
 
@@ -154,22 +173,21 @@ native Angular `Router` helpers, and the five outcome constructors. See
 [Centralised Exception Handling](./exception-handling.md#handler-context) for the exhaustive list
 and examples.
 
-For example, combine `createUrlTree(...)` with the `redirect(...)` outcome when query parameters are
-needed:
+Use `redirectTo(...)` for typed internal routes:
 
 ```ts
 {
-  RATE_LIMITED: ({ createUrlTree, payload, redirect }) =>
-    redirect(
-      createUrlTree(['/cooldown'], {
-        queryParams: { retryAfter: payload.retryAfter },
-      }),
-    ),
+  RATE_LIMITED: craftExceptionHandler(function* ({ payload, redirectTo }) {
+    return yield* redirectTo({
+      to: 'cooldown',
+      queryParams: { retryAfter: String(payload.retryAfter) },
+    });
+  }),
 }
 ```
 
-A handler returns a `CraftExceptionOutcome` via `redirect`, `renderComponent`, `globalError`,
-`stay`, or `noop`. The `payload` is taken from `craftException({ code }, payload)`'s second argument
+A handler returns a `CraftExceptionOutcome` via `redirectTo`, `redirectUrl`, `renderComponent`,
+`globalError`, `stay`, or `noop`. The `payload` is taken from `craftException({ code }, payload)`'s second argument
 and typed per code.
 
 ## Handlers can yield services
@@ -181,7 +199,7 @@ guards' own dependencies, so a service used only at redirect-time still flows in
 missing-provider error on the route):
 
 ```ts
-route(
+craftRoute(
   'admin',
   {
     canActivate: craftCanActivate(function* () {
@@ -191,15 +209,15 @@ route(
   },
   {
     // Generator handler — `RedirectConfig` becomes a tracked route dependency.
-    FORBIDDEN_ROLE: function* ({ redirect }) {
+    FORBIDDEN_ROLE: craftExceptionHandler(function* ({ redirectUrl }) {
       const { unauthorizedUrl } = yield* RedirectConfigToYield();
-      return redirect(unauthorizedUrl);
-    },
+      return redirectUrl(unauthorizedUrl);
+    }),
   },
 );
 ```
 
-Plain function handlers and generator handlers can be mixed freely in the same map.
+Every handler uses the generator wrapper, including handlers that do not yield a service.
 
 ## Exhaustiveness
 
@@ -207,11 +225,13 @@ The handler map is typed over the reachable codes, so **every** reachable code m
 missing one is a type error:
 
 ```ts
-route(
+craftRoute(
   'admin',
   { canActivate: craftCanActivate(guard) },
   {
-    FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
+    FORBIDDEN_ROLE: craftExceptionHandler(function* ({ redirectTo }) {
+      return yield* redirectTo({ to: 'unauthorized' });
+    }),
     // Type error: Property 'HAS_PIZZERIA' is missing.
   },
 );
@@ -227,22 +247,27 @@ route's [guarded data](/type-safe-di-routes/route-providers). Returning it throu
 `craftCanActivate` keeps that behavior — `craftException` returns are never treated as data:
 
 ```ts
-const authGuard = craftGen(() =>
-  function* () {
-    const user = yield* AuthToYield();
-    const safeUser = user.safeValue();
-    return safeUser ? safeUser : craftException({ code: 'NOT_AUTHENTICATED' });
-  },
+const authGuard = craftGen(
+  () =>
+    function* () {
+      const user = yield* AuthToYield();
+      const safeUser = user.safeValue();
+      return safeUser
+        ? safeUser
+        : craftException({ code: 'NOT_AUTHENTICATED' });
+    },
 );
 
-route('query/:userId', {
+craftRoute('query/:userId', {
   componentDeps: {} as import('./query').GenDeps_GlobalQuery,
   loadComponent: () => import('./query'),
   canActivate: craftCanActivate(
     function* () {
       return yield* authGuard(); // success value = the user
     },
-    { NOT_AUTHENTICATED: ({ createUrlTree }) => createUrlTree(['/login-form']) },
+    {
+      NOT_AUTHENTICATED: ({ createUrlTree }) => createUrlTree(['/login-form']),
+    },
   ),
 }).withProviders(({ GuardedDataToYield }) => [
   provideUser(function* () {
@@ -259,14 +284,15 @@ route('query/:userId', {
 asynchronously (Angular's `CanMatchFn` accepts `MaybeAsync<GuardResult>`).
 
 ```ts
-const featureFlagGuard = craftGen((flag: string) =>
-  function* () {
-    const { flags } = yield* CraftConfigToYield();
-    return flags[flag] ? true : craftException({ code: 'FLAG_DISABLED' });
-  },
+const featureFlagGuard = craftGen(
+  (flag: string) =>
+    function* () {
+      const { flags } = yield* CraftConfigToYield();
+      return flags[flag] ? true : craftException({ code: 'FLAG_DISABLED' });
+    },
 );
 
-route('beta', {
+craftRoute('beta', {
   componentDeps: {} as import('./beta').GenDeps_Beta,
   loadComponent: () => import('./beta'),
   canMatch: craftCanMatch(
@@ -283,7 +309,7 @@ route('beta', {
 ## Async guards {#async-guards}
 
 The guards above are **synchronous** — every `craftGen` resolves in one pass. To decide based on data
-that has to be *fetched first*, suspend the composing guard with `untilSettled` (or `untilDefined`).
+that has to be _fetched first_, suspend the composing guard with `untilSettled` (or `untilDefined`).
 The guard stays a normal generator: `yield* a(); const x = yield* untilSettled(...); yield* b()`
 composes across the await, and the awaited operation's `craftException`s flow into the same
 exhaustive resolvers — the compiler still forces you to handle every reachable code.
@@ -294,7 +320,7 @@ exhaustive resolvers — the compiler still forces you to handle every reachable
 `CraftHttpClient.*` **call** and suspends until it settles, then returns its success value.
 
 ```ts
-route('users/:userId', {
+craftRoute('users/:userId', {
   componentDeps: {} as import('./user').GenDeps_User,
   loadComponent: () => import('./user'),
   canActivate: craftCanActivate(
@@ -311,7 +337,10 @@ route('users/:userId', {
             function* ({ status, code }) {
               if (!(yield* status(400))) return;
               if (!(yield* code('PASSWORD_REQUIRED'))) return;
-              return craftException({ code: 'PASSWORD_REQUIRED', scope: 'UsersFeature' });
+              return craftException({
+                code: 'PASSWORD_REQUIRED',
+                scope: 'UsersFeature',
+              });
             },
           ],
         })),
@@ -332,9 +361,11 @@ The **resource** form is identical — pass the ref (an inline `query(...)` work
 reactive; prefer the HTTP form for one-shots):
 
 ```ts
-const user = yield* untilSettled(
-  query({ params: () => userId, loader: ({ params }) => fetchUser(params) }),
-);
+const user =
+  yield *
+  untilSettled(
+    query({ params: () => userId, loader: ({ params }) => fetchUser(params) }),
+  );
 ```
 
 **Settle semantics & exception routing:**
@@ -354,7 +385,7 @@ const user = yield* untilSettled(
 non-nullable value. There is no exception channel — use it to wait on a plain readiness signal.
 
 ```ts
-const session = yield* untilDefined(sessionService.current);
+const session = yield * untilDefined(sessionService.current);
 ```
 
 ### Notes

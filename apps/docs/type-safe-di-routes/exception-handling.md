@@ -1,5 +1,37 @@
 # Centralised Exception Handling
 
+> Breaking change: every handler must use
+> `craftExceptionHandler(function* (...) {})`. Internal redirects use
+> `yield* redirectTo({ to, params, queryParams, viewTransition })`; opaque URLs
+> or prebuilt `UrlTree` values use `redirectUrl(...)`. `renderComponent`,
+> route-level `errorComponent`, and `withErrorComponent` accept only
+> `{ component | loadComponent, componentDeps }` descriptors. Bare handler
+> functions, `redirect(...)`, and bare error components are rejected.
+
+```ts
+USER_DISABLED: craftExceptionHandler(function* ({ renderComponent }) {
+  return renderComponent({
+    loadComponent: () =>
+      import('./user-disabled-error-page').then(
+        (m) => m.UserDisabledErrorPage,
+      ),
+    componentDeps:
+      {} as import('./user-disabled-error-page').GenDeps_UserDisabledErrorPage,
+  });
+}),
+
+NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectTo }) {
+  return yield* redirectTo({
+    to: 'auth/login',
+    queryParams: { reason: 'session-expired' },
+  });
+}),
+```
+
+The route result exposes a route-scoped signal helper per code, such as
+`injectDemoUserIdUserDisabledException()`. It returns the exact exception and
+payload for the locally rendered branch and is cleared on the next navigation.
+
 `canActivate` / `canMatch` / `resolve` stay your **writing** API — each may raise a typed
 [`craftException`](./guards.md#exceptions). But instead of an inline resolver map per guard, a
 single **`handleExceptions`** map on the route resolves the **union** of every code reachable from
@@ -26,7 +58,7 @@ const profileQuery = query({
   },
 });
 
-route(
+craftRoute(
   'user/:userId',
   {
     loadComponent: () => import('./user-detail'),
@@ -44,52 +76,63 @@ route(
     }),
   },
   {
-    FEATURE_OFF:       ({ redirect })        => redirect('/home'),
-    NOT_AUTHENTICATED: ({ redirect, phase }) =>
-      redirect(phase === 'active' ? '/login?reason=session-expired' : '/login'),
-    USER_DISABLED:     ({ globalError })     => globalError(),
-    HttpError:         ({ globalError })     => globalError(),
+    FEATURE_OFF: craftExceptionHandler(function* ({ redirectTo }) {
+      return yield* redirectTo({ to: 'home' });
+    }),
+    NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectTo, phase }) {
+      return yield* redirectTo({
+        to: 'login',
+        queryParams: phase === 'active' ? { reason: 'session-expired' } : {},
+      });
+    }),
+    USER_DISABLED: craftExceptionHandler(function* ({ globalError }) {
+      return globalError();
+    }),
+    HttpError: craftExceptionHandler(function* ({ globalError }) {
+      return globalError();
+    }),
   },
 ),
 ```
 
 `craftCanActivate` / `craftCanMatch` now take **only the guard** — there is no inline `resolvers`
-argument. Every reachable code flows to the third `route(...)` argument.
+argument. Every reachable code flows to the third `craftRoute(...)` argument.
 
 ## Handler context
 
 Every handler receives a `CraftExceptionHandlerContext` typed for its exception code:
 
-| Field             | Type / purpose                                                                                                               |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `exception`       | The complete typed `craftException`, including `code`, `scope`, and `payload`.                                               |
-| `payload`         | The typed payload passed as the second argument of `craftException(...)`.                                                    |
-| `phase`           | `'enter'` during initial activation, `'active'` during a live guard re-check.                                                |
-| `router`          | The native Angular `Router` instance.                                                                                        |
-| `createUrlTree`   | Bound `Router.createUrlTree`, useful for building a redirect with query params or fragments.                                 |
-| `navigate`        | Bound `Router.navigate`. This is imperative and returns a `Promise<boolean>`, not a handler outcome. Prefer `redirect(...)`. |
-| `navigateByUrl`   | Bound `Router.navigateByUrl`. Same caveat as `navigate`: prefer returning `redirect(...)`.                                   |
-| `redirect`        | Builds a redirect outcome from a string URL or `UrlTree`.                                                                    |
-| `renderComponent` | Builds an outcome that renders a dedicated component.                                                                        |
-| `globalError`     | Delegates rendering to the application-wide error component.                                                                 |
-| `stay`            | Restores the previous URL and keeps the triggering page.                                                                     |
-| `noop`            | Continues to the target despite the exception. Resolve data remains `undefined`.                                             |
+| Field             | Type / purpose                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| `exception`       | The complete typed `craftException`, including `code`, `scope`, and `payload`.               |
+| `payload`         | The typed payload passed as the second argument of `craftException(...)`.                    |
+| `phase`           | `'enter'` during initial activation, `'active'` during a live guard re-check.                |
+| `router`          | The native Angular `Router` instance.                                                        |
+| `createUrlTree`   | Bound `Router.createUrlTree`, useful for building a redirect with query params or fragments. |
+| `navigate`        | Bound `Router.navigate`. Imperative; prefer returning `yield* redirectTo(...)`.              |
+| `navigateByUrl`   | Bound `Router.navigateByUrl`. Imperative; prefer a redirect outcome.                         |
+| `redirectTo`      | Typed internal redirect checked against `META_PATHS`; yields `CraftRouter`.                  |
+| `redirectUrl`     | Explicit escape hatch for an opaque string URL or `UrlTree`.                                 |
+| `renderComponent` | Builds an outcome that renders a dedicated component.                                        |
+| `globalError`     | Delegates rendering to the application-wide error component.                                 |
+| `stay`            | Restores the previous URL and keeps the triggering page.                                     |
+| `noop`            | Continues to the target despite the exception. Resolve data remains `undefined`.             |
 
-A handler returns one of the five outcome constructors below. It can be a plain function or a
-generator that `yield*`s craft services. It is not an `async` callback: `navigate(...)` and
-`navigateByUrl(...)` return promises, not valid handler outcomes.
+A handler is always a synchronous generator wrapped with `craftExceptionHandler`. It may resolve
+services but cannot suspend with `untilSettled` / `untilDefined`.
 
 ## Outcomes
 
 Each handler receives a context and returns an outcome constructor:
 
-| Outcome                | Effect                                                                                                   |
-| ---------------------- | -------------------------------------------------------------------------------------------------------- |
-| `redirect(target)`     | Navigate away (`string` URL or `UrlTree`).                                                               |
-| `renderComponent(cmp)` | Render a dedicated component instead of the target (eager `Type` or lazy `() => import()`).              |
-| `globalError()`        | Render the application-wide error component (see [global error component](./global-error-component.md)). |
-| `stay()`               | Cancel the navigation; restore the previous URL (stay on the triggering page).                           |
-| `noop()`               | Render the target anyway, with `resolve` data left `undefined`.                                          |
+| Outcome                       | Effect                                                                                                   |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `yield* redirectTo(input)`    | Navigate to a registered internal route with typed params/query params/view transition.                  |
+| `redirectUrl(target)`         | Navigate to an opaque string URL or `UrlTree`.                                                           |
+| `renderComponent(descriptor)` | Render a DI-checked `{ component \| loadComponent, componentDeps }` descriptor.                          |
+| `globalError()`               | Render the application-wide error component (see [global error component](./global-error-component.md)). |
+| `stay()`                      | Cancel the navigation; restore the previous URL (stay on the triggering page).                           |
+| `noop()`                      | Render the target anyway, with `resolve` data left `undefined`.                                          |
 
 The context also carries the typed `exception`, its `payload`, the Angular-native `redirect`
 helpers (`createUrlTree` / `navigate` / `navigateByUrl`), and the navigation `phase` (see below). A
@@ -99,19 +142,20 @@ handler may be a **generator** that `yield*`s craft services before its outcome.
 
 ### Typed payload and `UrlTree`
 
-Use `redirect(...)` directly for a string URL, or combine it with `createUrlTree(...)` when Angular
-navigation options are needed:
+Use `redirectTo(...)` for registered application routes and `redirectUrl(...)` for a prebuilt
+`UrlTree`:
 
 ```ts
 {
-  NOT_AUTHENTICATED: ({ redirect }) => redirect('/auth/login'),
-  RATE_LIMITED: ({ payload, createUrlTree, redirect }) =>
-    redirect(
-      createUrlTree(['/cooldown'], {
-        queryParams: { retryAfter: payload.retryAfter },
-        fragment: 'retry',
-      }),
-    ),
+  NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectTo }) {
+    return yield* redirectTo({ to: 'auth/login' });
+  }),
+  RATE_LIMITED: craftExceptionHandler(function* ({ payload, redirectTo }) {
+    return yield* redirectTo({
+      to: 'cooldown',
+      queryParams: { retryAfter: String(payload.retryAfter) },
+    });
+  }),
 }
 ```
 
@@ -121,8 +165,12 @@ Here `payload` is inferred from `craftException({ code: 'RATE_LIMITED' }, { retr
 
 ```ts
 {
-  NOT_AUTHENTICATED: ({ phase, redirect }) =>
-    redirect(phase === 'active' ? '/login?reason=session-expired' : '/login'),
+  NOT_AUTHENTICATED: craftExceptionHandler(function* ({ phase, redirectTo }) {
+    return yield* redirectTo({
+      to: 'login',
+      queryParams: phase === 'active' ? { reason: 'session-expired' } : {},
+    });
+  }),
 }
 ```
 
@@ -130,34 +178,35 @@ Here `payload` is inferred from `craftException({ code: 'RATE_LIMITED' }, { retr
 
 ```ts
 {
-  ACCOUNT_LOCKED: ({ renderComponent }) =>
-    renderComponent(AccountLockedPage),
-
-  MAINTENANCE: ({ renderComponent }) =>
-    renderComponent(() =>
-      import('./maintenance-page').then(({ MaintenancePage }) => ({
-        default: MaintenancePage,
-      })),
-    ),
-
-  HttpError: ({ globalError }) => globalError(),
-  UNSAVED_CHANGES: ({ stay }) => stay(),
-  OPTIONAL_PROFILE_UNAVAILABLE: ({ noop }) => noop(),
+  ACCOUNT_LOCKED: craftExceptionHandler(function* ({ renderComponent }) {
+    return renderComponent({
+      component: AccountLockedPage,
+      componentDeps: {} as import('./account-locked-page').GenDeps_AccountLockedPage,
+    });
+  }),
+  MAINTENANCE: craftExceptionHandler(function* ({ renderComponent }) {
+    return renderComponent({
+      loadComponent: () => import('./maintenance-page').then((m) => m.MaintenancePage),
+      componentDeps: {} as import('./maintenance-page').GenDeps_MaintenancePage,
+    });
+  }),
+  HttpError: craftExceptionHandler(function* ({ globalError }) { return globalError(); }),
+  UNSAVED_CHANGES: craftExceptionHandler(function* ({ stay }) { return stay(); }),
+  OPTIONAL_PROFILE_UNAVAILABLE: craftExceptionHandler(function* ({ noop }) { return noop(); }),
 }
 ```
 
-`renderComponent` accepts either an eager Angular component type or a lazy function returning a
-module with a `default` component export. `noop()` is appropriate only when the target can operate
-without resolved data.
+The descriptor is checked independently with the O(1)
+`RouteExceptionComponentCheckedDI`; it is not added to `ValidateCascadeRoutesFile`.
 
 ### Handler using a craft service
 
 ```ts
 {
-  FORBIDDEN_ROLE: function* ({ redirect }) {
+  FORBIDDEN_ROLE: craftExceptionHandler(function* ({ redirectUrl }) {
     const config = yield* RedirectConfigToYield();
-    return redirect(config.unauthorizedUrl);
-  },
+    return redirectUrl(config.unauthorizedUrl);
+  }),
 }
 ```
 
@@ -196,6 +245,7 @@ The treatment of the generic transport `HttpError` depends on the `untilSettled`
   and rethrows it. The outlet sends that navigation error to the global error component.
 - `untilSettled(queryRef)` routes every exception exposed by the query. When its loader returns a
   `CraftHttpClient` request, that includes `HttpError`, so the route must declare an explicit handler
-  such as `HttpError: ({ globalError }) => globalError()`.
+  such as
+  `HttpError: craftExceptionHandler(function* ({ globalError }) { return globalError(); })`.
 
 Declared business exceptions remain routable in both forms.

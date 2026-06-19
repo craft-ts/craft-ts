@@ -26,7 +26,7 @@ export interface ViewTransitionPayloadDef<T> {
  * Place it on `withLoaderViewTransitionImage` exactly like `queryParams`:
  *
  * ```ts
- * route(':photoId', {
+ * craftRoute(':photoId', {
  *   withLoaderViewTransitionImage: viewTransitionPayload<{ name: string; image: string | null }>(),
  *   // ...
  * })

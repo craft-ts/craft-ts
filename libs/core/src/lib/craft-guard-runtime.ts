@@ -103,7 +103,11 @@ function pumpGuardSync(
         return { kind: 'await', request: yielded };
       }
 
-      const resolution = resolveCraftGeneratorYield(yielded, injector, 'function');
+      const resolution = resolveCraftGeneratorYield(
+        yielded,
+        injector,
+        'function',
+      );
 
       if (!resolution.handled) {
         throw new Error(GUARD_INVALID_YIELD_ERROR_MESSAGE);
@@ -143,9 +147,12 @@ function awaitGuardRequest(
   return new Promise<unknown>((resolve, reject) => {
     try {
       const settled$ = runInInjectionContext(injector, () =>
-        toObservable(computed(() => isResourceSettled(request.resource)), {
-          injector,
-        }),
+        toObservable(
+          computed(() => isResourceSettled(request.resource)),
+          {
+            injector,
+          },
+        ),
       ).pipe(
         filter((settled) => settled),
         take(1),
@@ -209,7 +216,13 @@ export function runCraftGuardAsync(
 
   if (guardStep.kind === 'await') {
     return from(
-      runGuardThenResolve(guardIterator, guardStep, injector, router, resolverMap),
+      runGuardThenResolve(
+        guardIterator,
+        guardStep,
+        injector,
+        router,
+        resolverMap,
+      ),
     );
   }
 
@@ -232,7 +245,11 @@ async function runGuardThenResolve(
   router: Router,
   resolverMap: CraftGuardResolverMap,
 ): Promise<unknown> {
-  const settledGuard = await driveGuardStageAsync(guardIterator, injector, guardStep);
+  const settledGuard = await driveGuardStageAsync(
+    guardIterator,
+    injector,
+    guardStep,
+  );
   const result =
     settledGuard.kind === 'shortCircuit'
       ? settledGuard.exception
@@ -308,7 +325,11 @@ export function evaluateCraftGuardSync(
 export type RouteChainOutcome =
   | { kind: 'data'; guardData: unknown; resolveData: unknown }
   | { kind: 'redirect'; target: UrlTree | string }
-  | { kind: 'render'; component: CraftExceptionComponentInput }
+  | {
+      kind: 'render';
+      component: CraftExceptionComponentInput;
+      exception: AnyCraftException;
+    }
   | { kind: 'global'; exception: AnyCraftException }
   | { kind: 'stay' }
   | { kind: 'noop' }
@@ -316,7 +337,7 @@ export type RouteChainOutcome =
 
 export type CraftRouteExceptionHandler = (
   context: CraftExceptionHandlerContext<AnyCraftException>,
-) => CraftExceptionOutcome | Generator<unknown, CraftExceptionOutcome, unknown>;
+) => Generator<unknown, CraftExceptionOutcome, unknown>;
 
 /** Runtime view of a route's `handleExceptions`, keyed by exception code. */
 export type CraftRouteExceptionHandlerMap = Record<
@@ -341,7 +362,7 @@ function mapOutcome(
     case 'redirect':
       return { kind: 'redirect', target: outcome.target };
     case 'render':
-      return { kind: 'render', component: outcome.component };
+      return { kind: 'render', component: outcome.component, exception };
     case 'global':
       return { kind: 'global', exception };
     case 'stay':
@@ -380,7 +401,12 @@ function* resolveRouteException(
   };
 
   const result = handler(context);
-  const outcome = isGenerator(result) ? yield* result : result;
+  if (!isGenerator(result)) {
+    throw new Error(
+      'Route exception handlers must be wrapped with craftExceptionHandler(function* (...) {}).',
+    );
+  }
+  const outcome = yield* result;
 
   return mapOutcome(outcome, exception);
 }
@@ -406,16 +432,27 @@ async function resolveExceptionOutcome(
   handleExceptions: CraftRouteExceptionHandlerMap,
   phase: CraftRoutePhase,
 ): Promise<RouteChainOutcome> {
-  const settled = await driveStageToSettled(
-    resolveRouteException(exception, router, handleExceptions, phase),
-    injector,
+  const iterator = resolveRouteException(
+    exception,
+    router,
+    handleExceptions,
+    phase,
   );
+  const first = runInInjectionContext(injector, () =>
+    pumpGuardSync(iterator, injector),
+  );
+
+  if (first.kind === 'await') {
+    throw new Error(
+      'Route exception handlers cannot suspend with untilSettled/untilDefined.',
+    );
+  }
 
   // A handler that itself short-circuited (rare) cannot be handled again —
   // surface it as a thrown error.
-  return settled.kind === 'shortCircuit'
-    ? { kind: 'thrownError', error: settled.exception }
-    : (settled.value as RouteChainOutcome);
+  return first.kind === 'shortCircuit'
+    ? { kind: 'thrownError', error: first.exception }
+    : (first.value as RouteChainOutcome);
 }
 
 // Drives one data stage (guard or resolve): either it yields an outcome to

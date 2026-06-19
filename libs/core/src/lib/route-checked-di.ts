@@ -229,6 +229,19 @@ export type RouteCheckedDI<
     : Errors
   : never;
 
+/** O(1) DI check for renderComponent/errorComponent/withErrorComponent branches. */
+export type RouteExceptionComponentCheckedDI<
+  ComponentDeps,
+  AvailableProviderNames extends string,
+  ProvidedValues = never,
+  Context extends string = 'exception component',
+> = RouteCheckedDI<
+  ComponentDeps,
+  AvailableProviderNames,
+  ProvidedValues,
+  Context
+>;
+
 /**
  * Extracts the union of provider service names from a `craftAppConfig()`
  * result.
@@ -239,7 +252,8 @@ export type RouteCheckedDI<
  */
 export type AppProvidedServiceNamesOf<AppConfigResult> =
   AppConfigResult extends {
-    readonly [Key in AppConfigProvidedServiceNamesKey]?: infer Names extends string;
+    readonly [Key in AppConfigProvidedServiceNamesKey]?: infer Names extends
+      string;
   }
     ? Names
     : never;
@@ -413,4 +427,3 @@ export type ValidateCascadeRoutesFile<
       : Errors
     : never
   : never;
-

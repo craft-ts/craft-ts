@@ -9,6 +9,7 @@ import {
   type Signal,
   type Type,
 } from '@angular/core';
+import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 
 /**
  * The non-blocking router outlet ({@link CraftRouterOutlet}) commits the URL
@@ -137,10 +138,11 @@ export const CRAFT_PENDING_MIN_MS = new InjectionToken<number>(
  * via {@link withErrorComponent}; the global error component reads its (typed)
  * exception with `injectCraftGlobalError()`.
  */
-export const CRAFT_ERROR_COMPONENT = new InjectionToken<Type<unknown> | null>(
-  'CRAFT_ERROR_COMPONENT',
-  { providedIn: 'root', factory: () => null },
-);
+export const CRAFT_ERROR_COMPONENT =
+  new InjectionToken<CraftExceptionComponentDescriptor | null>(
+    'CRAFT_ERROR_COMPONENT',
+    { providedIn: 'root', factory: () => null },
+  );
 
 const CRAFT_LOADING_FEATURE = Symbol('craft-loading-feature');
 
@@ -159,7 +161,9 @@ export interface CraftLoadingFeature {
  * sibling loading features (e.g. `withCraftViewTransitions`) so they all flow
  * through {@link provideCraftLoading} / {@link isCraftLoadingFeature}.
  */
-export function craftLoadingFeature(providers: Provider[]): CraftLoadingFeature {
+export function craftLoadingFeature(
+  providers: Provider[],
+): CraftLoadingFeature {
   return { [CRAFT_LOADING_FEATURE]: true, providers };
 }
 
@@ -238,7 +242,7 @@ export function withTransitionTimings(thresholds: {
 
 /** Register the application-wide global error component (see `globalError()`). */
 export function withErrorComponent(
-  component: Type<unknown>,
+  component: CraftExceptionComponentDescriptor,
 ): CraftLoadingFeature {
   return craftLoadingFeature([
     { provide: CRAFT_ERROR_COMPONENT, useValue: component },
@@ -253,7 +257,7 @@ export function withErrorComponent(
  *   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
  *   withLoadingText(() => computed(() => translate('common.loading'))),
  *   withPendingComponent(MyBrandedSpinner),
- *   withErrorComponent(MyGlobalErrorScreen),
+ *   withErrorComponent({ component: MyGlobalErrorScreen, componentDeps: {} as GenDeps_MyGlobalErrorScreen }),
  * )
  * ```
  */

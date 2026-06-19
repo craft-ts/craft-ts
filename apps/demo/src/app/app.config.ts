@@ -12,6 +12,8 @@ import {
   withCraftViewTransitions,
   withErrorComponent,
   withTransitionTimings,
+  type CanRun,
+  type RouteExceptionComponentCheckedDI,
 } from '@craft-ng/core';
 import { demoRoutes } from './app.routes';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
@@ -36,7 +38,11 @@ export const appConfig = craftAppConfig({
       // shared-element morph survives the non-blocking guard/resolve chain.
       // Showcased by the `view-transitions` demo (tile → skeleton → detail hero).
       withCraftViewTransitions(),
-      withErrorComponent(MyGlobalErrorScreen),
+      withErrorComponent({
+        component: MyGlobalErrorScreen,
+        componentDeps:
+          {} as import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,
+      }),
       // 3-phase transition: keep previous page 300ms, then blank 300ms, then
       // loader (held at least 500ms).
       withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
@@ -69,3 +75,11 @@ export const appConfig = craftAppConfig({
     provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
   ],
 });
+
+type _CheckGlobalErrorDI = RouteExceptionComponentCheckedDI<
+  import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,
+  'CraftGlobalError',
+  never,
+  'global error component'
+>;
+type _CanRunGlobalError = CanRun<_CheckGlobalErrorDI>;

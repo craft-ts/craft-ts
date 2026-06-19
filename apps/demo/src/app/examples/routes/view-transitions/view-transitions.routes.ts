@@ -2,11 +2,12 @@ import {
   assertExhaustiveRouteExceptions,
   craftCanActivate,
   craftException,
+  craftExceptionHandler,
   craftGen,
   craftRoutes,
   craftService,
   query,
-  route,
+  craftRoute,
   untilSettled,
   viewTransitionPayload,
   type CanRun,
@@ -49,7 +50,7 @@ const slowDetailGuard = craftGen(function* () {
   const access = yield* untilSettled(accessRef);
   // Always allowed here — the `craftException` branch only exists so the guard
   // carries a typed exception code (a guard with no exception branch collapses
-  // `route()`'s `Def` inference). `handleExceptions` routes it after commit.
+  // `craftRoute()`'s `Def` inference). `handleExceptions` routes it after commit.
   return access.allowed ? access : craftException({ code: 'DENIED' });
 });
 
@@ -58,37 +59,43 @@ export const {
   injectViewTransitionsPhotoIdParams,
   injectViewTransitionsPhotoIdViewTransition,
 } = craftRoutes('viewTransitions', [
-  route('', {
+  craftRoute('', {
     componentDeps:
       {} as import('./gallery').GenDeps_ViewTransitionsGalleryComponent,
     loadComponent: () => import('./gallery'),
   }),
-  route(':photoId', {
-    componentDeps:
-      {} as import('./photo-detail').GenDeps_ViewTransitionsDetailComponent,
-    loadComponent: () => import('./photo-detail'),
-    // The route DECLARES the shared-element payload shape (mirrors how
-    // `queryParams` declares query-param shape): every link/navigation must pass
-    // `viewTransition: { name; image } | null`, and the skeleton reads it via the
-    // generated `injectViewTransitionsPhotoIdViewTransition()` helper.
-    withLoaderViewTransitionImage: viewTransitionPayload<{
-      name: string;
-      image: string | null;
-    }>(),
-    pendingComponent: () => import('./photo-skeleton'),
-    canActivate: craftCanActivate(function* () {
-      return yield* slowDetailGuard();
-    }),
-  }, {
-    // Exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at the call site.
-    DENIED: ({ redirect }) => redirect('/view-transitions'),
-  }),
+  craftRoute(
+    ':photoId',
+    {
+      componentDeps:
+        {} as import('./photo-detail').GenDeps_ViewTransitionsDetailComponent,
+      loadComponent: () => import('./photo-detail'),
+      // The route DECLARES the shared-element payload shape (mirrors how
+      // `queryParams` declares query-param shape): every link/navigation must pass
+      // `viewTransition: { name; image } | null`, and the skeleton reads it via the
+      // generated `injectViewTransitionsPhotoIdViewTransition()` helper.
+      withLoaderViewTransitionImage: viewTransitionPayload<{
+        name: string;
+        image: string | null;
+      }>(),
+      pendingComponent: () => import('./photo-skeleton'),
+      canActivate: craftCanActivate(function* () {
+        return yield* slowDetailGuard();
+      }),
+    },
+    {
+      // Exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at the call site.
+      DENIED: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/view-transitions');
+      }),
+    },
+  ),
   // Pin this lazy child collection to its mount path: the `loadChildren` slot of
   // the `view-transitions` route in `app.routes` only accepts a collection
   // branded for that exact path — a wrong placement is a compile error.
 ]).withParent<ParentRoutes<'view-transitions'>>();
 
-// Required-handler safety net for routes authored with the 2-arg `route()` form.
+// Required-handler safety net for routes authored with the 2-arg `craftRoute()` form.
 assertExhaustiveRouteExceptions(viewTransitionsRoutes);
 
 // Cascade DI safety for THIS lazy child collection. Like slow-page: the parent

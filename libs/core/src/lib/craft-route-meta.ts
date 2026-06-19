@@ -4,7 +4,10 @@ import type {
   RouterStateSnapshot,
 } from '@angular/router';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
-import type { CraftExceptionComponentInput } from './craft-route-exceptions';
+import type {
+  CraftExceptionComponentInput,
+  CraftPendingComponentInput,
+} from './craft-route-exceptions';
 
 /**
  * Symbol key under which `craftRoutes` stashes a route's craft-only execution
@@ -34,10 +37,14 @@ export interface CraftRouteMeta {
   readonly guardDataSink: WritableSignal<unknown> | null;
   /** Signal the outlet writes the `resolve` success value into. */
   readonly resolveDataSink: WritableSignal<unknown> | null;
+  /** Route-scoped exception signals, keyed by locally handled code. */
+  readonly exceptionSinks: Readonly<
+    Record<string, WritableSignal<unknown | null>>
+  >;
   /** Per-route pending component override (eager or lazy). */
-  readonly pendingComponent?: CraftExceptionComponentInput;
+  readonly pendingComponent?: CraftPendingComponentInput;
   /** Per-route global error component override. */
-  readonly errorComponent?: Type<unknown>;
+  readonly errorComponent?: CraftExceptionComponentInput;
   /** Per-route phase 1 duration: keep the previous page on screen (ms). */
   readonly stayMs?: number;
   /** Per-route phase 2 duration: blank surface before the loader (ms). */

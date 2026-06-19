@@ -50,9 +50,9 @@ describe('craft-pending', () => {
   describe('defaults', () => {
     it('defaults the pending component to DefaultCraftPendingComponent', () => {
       TestBed.configureTestingModule({});
-      expect(TestBed.runInInjectionContext(() => inject(CRAFT_PENDING_COMPONENT))).toBe(
-        DefaultCraftPendingComponent,
-      );
+      expect(
+        TestBed.runInInjectionContext(() => inject(CRAFT_PENDING_COMPONENT)),
+      ).toBe(DefaultCraftPendingComponent);
     });
 
     it('defaults the phase timings and global error component', () => {
@@ -104,11 +104,15 @@ describe('craft-pending', () => {
 
     it('withErrorComponent registers the global error component', () => {
       TestBed.configureTestingModule({
-        providers: [provideCraftLoading(withErrorComponent(SpecError))],
+        providers: [
+          provideCraftLoading(
+            withErrorComponent({ component: SpecError, componentDeps: {} }),
+          ),
+        ],
       });
       expect(
         TestBed.runInInjectionContext(() => inject(CRAFT_ERROR_COMPONENT)),
-      ).toBe(SpecError);
+      ).toEqual({ component: SpecError, componentDeps: {} });
     });
 
     it('withLoadingText overrides the loading signal', () => {
@@ -124,13 +128,17 @@ describe('craft-pending', () => {
 
     it('withTransitionTimings overrides only the provided thresholds', () => {
       TestBed.configureTestingModule({
-        providers: [provideCraftLoading(withTransitionTimings({ stayMs: 200 }))],
+        providers: [
+          provideCraftLoading(withTransitionTimings({ stayMs: 200 })),
+        ],
       });
-      const [stayMs, blankMs, pendingMinMs] = TestBed.runInInjectionContext(() => [
-        inject(CRAFT_STAY_MS),
-        inject(CRAFT_BLANK_MS),
-        inject(CRAFT_PENDING_MIN_MS),
-      ]);
+      const [stayMs, blankMs, pendingMinMs] = TestBed.runInInjectionContext(
+        () => [
+          inject(CRAFT_STAY_MS),
+          inject(CRAFT_BLANK_MS),
+          inject(CRAFT_PENDING_MIN_MS),
+        ],
+      );
       expect(stayMs).toBe(200);
       // blankMs / pendingMinMs were not supplied — keep their defaults.
       expect(blankMs).toBe(300);
@@ -142,8 +150,12 @@ describe('craft-pending', () => {
         providers: [
           provideCraftLoading(
             withPendingComponent(SpecSpinner),
-            withErrorComponent(SpecError),
-            withTransitionTimings({ stayMs: 250, blankMs: 100, pendingMinMs: 400 }),
+            withErrorComponent({ component: SpecError, componentDeps: {} }),
+            withTransitionTimings({
+              stayMs: 250,
+              blankMs: 100,
+              pendingMinMs: 400,
+            }),
           ),
         ],
       });
@@ -155,7 +167,7 @@ describe('craft-pending', () => {
         pendingMinMs: inject(CRAFT_PENDING_MIN_MS),
       }));
       expect(result.pending).toBe(SpecSpinner);
-      expect(result.error).toBe(SpecError);
+      expect(result.error).toEqual({ component: SpecError, componentDeps: {} });
       expect(result.stayMs).toBe(250);
       expect(result.blankMs).toBe(100);
       expect(result.pendingMinMs).toBe(400);

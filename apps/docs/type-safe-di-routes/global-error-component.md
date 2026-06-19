@@ -14,23 +14,32 @@ your router features):
 provideCraftRouter(
   appRoutes.toRoutes(),
   withComponentInputBinding(),
-  withErrorComponent(MyGlobalErrorScreen),
+  withErrorComponent({
+    component: MyGlobalErrorScreen,
+    componentDeps:
+      {} as import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,
+  }),
 ),
 ```
 
-It also works standalone via `provideCraftLoading(withErrorComponent(MyGlobalErrorScreen))`.
+It also works standalone via `provideCraftLoading(withErrorComponent({ component,
+componentDeps }))`.
 
 ## Consume the exception
 
 ```ts
-@Component({ /* … */ })
+@Component({
+  /* … */
+})
 export class MyGlobalErrorScreen {
   readonly error = injectCraftGlobalError(); // Signal<USER_DISABLED | HttpError | …>
 
   readonly message = computed(() => {
     switch (this.error()?.code) {
-      case 'USER_DISABLED': return 'This account is disabled.';
-      default:              return 'Something went wrong.';
+      case 'USER_DISABLED':
+        return 'This account is disabled.';
+      default:
+        return 'Something went wrong.';
     }
   });
 }
@@ -48,8 +57,16 @@ The union comes from `CraftGlobalExceptionRegistry`, keyed by route path and cod
 declare module '@craft-ng/core' {
   interface CraftGlobalExceptionRegistry {
     'user/:userId': {
-      USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'user/:userId', 'USER_DISABLED'>;
-      HttpError:     CraftRouteExceptionType<typeof demoRoutes, 'user/:userId', 'HttpError'>;
+      USER_DISABLED: CraftRouteExceptionType<
+        typeof demoRoutes,
+        'user/:userId',
+        'USER_DISABLED'
+      >;
+      HttpError: CraftRouteExceptionType<
+        typeof demoRoutes,
+        'user/:userId',
+        'HttpError'
+      >;
     };
   }
 }

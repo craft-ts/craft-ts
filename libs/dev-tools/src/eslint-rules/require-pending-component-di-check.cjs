@@ -5,7 +5,7 @@ const { IndentationText, Node, Project, QuoteKind, SyntaxKind } = require('ts-mo
 const projectCache = new Map();
 
 const ROUTES_FACTORY = 'craftRoutes';
-const ROUTE_FN = 'route';
+const ROUTE_FN = 'craftRoute';
 const PENDING_PROP = 'pendingComponent';
 const VT_PROP = 'withLoaderViewTransitionImage';
 const CHECK_TYPE = 'RouteCheckedDI';
@@ -99,7 +99,7 @@ module.exports = {
         }
 
         const fixedText = sourceFile.getFullText();
-        const message = `route(s) with a pendingComponent must be verified with ${CHECK_TYPE}(): ${issues
+        const message = `craftRoute(s) with a pendingComponent must be verified with ${CHECK_TYPE}(): ${issues
           .map((i) => i.path)
           .join(', ')}`;
 
@@ -178,7 +178,7 @@ function collectCollections(sourceFile, filePath) {
   return collections;
 }
 
-// A route element is either `route('<path>', { … })` or a `{ path: '<path>', … }`
+// A route element is either `craftRoute('<path>', { … })` or a `{ path: '<path>', … }`
 // object literal. Returns the path string and the route's object literal.
 function readRoute(element) {
   if (Node.isCallExpression(element) && element.getExpression().getText() === ROUTE_FN) {

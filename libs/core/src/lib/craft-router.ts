@@ -61,7 +61,10 @@ type RegisteredRoutePath = RegisteredRouteMetaData extends {
   ? Path
   : never;
 
-type NavigableRoutePath = Exclude<RegisteredRoutePath, `${string}**${string}`>;
+export type NavigableRoutePath = Exclude<
+  RegisteredRoutePath,
+  `${string}**${string}`
+>;
 
 type RemoveOptionalMarker<Value extends string> = Value extends `${infer Name}?`
   ? Name
@@ -113,14 +116,13 @@ type RouteQueryParamsField<Path extends string> = [
 // view-transition route into the declared `T | null` (the `null` = the nav's
 // explicit opt-out). Done here — lazily, per navigation call site — rather than
 // inside the registry, which is at TypeScript's instantiation-depth ceiling.
-type ViewTransitionInputForPath<Path extends string> =
-  string extends Path
-    ? never
-    : RegisteredRouteMetaDataForPath<Path> extends {
-          viewTransition: ViewTransitionPayloadDef<infer Payload>;
-        }
-      ? Payload | null
-      : never;
+type ViewTransitionInputForPath<Path extends string> = string extends Path
+  ? never
+  : RegisteredRouteMetaDataForPath<Path> extends {
+        viewTransition: ViewTransitionPayloadDef<infer Payload>;
+      }
+    ? Payload | null
+    : never;
 
 // Mirrors `RouteQueryParamsField`, but REQUIRED: a route that declares
 // `withLoaderViewTransitionImage` surfaces a `viewTransition` field in the slim
@@ -250,7 +252,7 @@ const CraftRouterToYieldInternal = _routerService.CraftRouterToYield;
 // generator's yield collapses to `unknown` when the generics are unbound.
 // `GetServiceYields` extracts the proper `ServiceYieldRequest<...>` (and
 // `ExposureYield<...>`) union from the helper's tracked metadata directly.
-type CraftRouterYieldRequest = GetServiceYields<
+export type CraftRouterYieldRequest = GetServiceYields<
   typeof CraftRouterToYieldInternal
 >;
 
@@ -367,7 +369,7 @@ export type CraftRouterToYieldHelper = WithInternalHelperDependencies<
  * provideCraftRouter(
  *   demoRoutes.toRoutes(),
  *   withComponentInputBinding(),
- *   withErrorComponent(MyGlobalErrorScreen),
+ *   withErrorComponent({ component: MyGlobalErrorScreen, componentDeps: {} as GenDeps_MyGlobalErrorScreen }),
  *   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
  * )
  * ```

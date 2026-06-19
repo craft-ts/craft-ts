@@ -9,6 +9,12 @@ import {
 import type { Router, UrlTree } from '@angular/router';
 import type { AnyCraftException } from './craft-exception';
 import type { ExtractCraftGenExceptions } from './craft-gen';
+import {
+  CraftRouterToYield,
+  type CraftRouterUrlTreeInput,
+  type CraftRouterYieldRequest,
+  type NavigableRoutePath,
+} from './craft-router';
 
 /**
  * Centralised, typed exception handling for craft routes.
@@ -29,15 +35,32 @@ import type { ExtractCraftGenExceptions } from './craft-gen';
 // Outcomes (issues) a handler can choose
 // ---------------------------------------------------------------------------
 
-/** A component the outlet can render: an eager `Type` or a lazy default import. */
-export type CraftExceptionComponentInput =
+/** A DI-checked component rendered on an exception branch. */
+export type CraftExceptionComponentDescriptor<ComponentDeps = object> =
+  | {
+      readonly component: Type<unknown>;
+      readonly loadComponent?: never;
+      readonly componentDeps: ComponentDeps;
+    }
+  | {
+      readonly component?: never;
+      readonly loadComponent: () => Promise<
+        Type<unknown> | { default: Type<unknown> }
+      >;
+      readonly componentDeps: ComponentDeps;
+    };
+
+export type CraftExceptionComponentInput = CraftExceptionComponentDescriptor;
+
+/** Existing pending-component input; pending DI has its own check. */
+export type CraftPendingComponentInput =
   | Type<unknown>
   | (() => Promise<{ default: Type<unknown> }>);
 
 /**
  * What a route exception handler resolves an exception to:
  *
- * - `redirect` — navigate away (string URL or `UrlTree`).
+ * - `redirect` — navigate to a typed internal route or an explicit opaque URL.
  * - `render` — render a dedicated component instead of the target.
  * - `global` — render the application-wide error component (see the registry).
  * - `stay` — cancel the navigation; stay on the triggering page (restore URL).
@@ -45,59 +68,121 @@ export type CraftExceptionComponentInput =
  */
 export type CraftExceptionOutcome =
   | { readonly kind: 'redirect'; readonly target: UrlTree | string }
-  | { readonly kind: 'render'; readonly component: CraftExceptionComponentInput }
+  | {
+      readonly kind: 'render';
+      readonly component: CraftExceptionComponentDescriptor;
+    }
   | { readonly kind: 'global' }
   | { readonly kind: 'stay' }
   | { readonly kind: 'noop' };
 
 /** Distinguishes the initial route entry from a reactive guard re-evaluation. */
 export type CraftRoutePhase = 'enter' | 'active';
+type CraftExceptionOutcomeOf<Kind extends CraftExceptionOutcome['kind']> =
+  Extract<CraftExceptionOutcome, { kind: Kind }>;
 
 /**
  * The argument handed to each `handleExceptions` handler: the typed exception
  * being handled, the navigation `phase`, the Angular-native redirect helpers,
- * and the outcome constructors (`redirect`, `renderComponent`, `globalError`,
+ * and the outcome constructors (`redirectTo`, `redirectUrl`, `renderComponent`, `globalError`,
  * `stay`, `noop`).
  */
-export type CraftExceptionHandlerContext<Exception extends AnyCraftException> = {
-  readonly exception: Exception;
-  readonly payload: Exception extends { payload: infer Payload }
-    ? Payload
-    : unknown;
-  /** `'enter'` for the initial activation, `'active'` for a reactive re-check. */
-  readonly phase: CraftRoutePhase;
-  readonly router: Router;
-  readonly createUrlTree: Router['createUrlTree'];
-  readonly navigate: Router['navigate'];
-  readonly navigateByUrl: Router['navigateByUrl'];
-  redirect(target: UrlTree | string): CraftExceptionOutcome;
-  renderComponent(component: CraftExceptionComponentInput): CraftExceptionOutcome;
-  globalError(): CraftExceptionOutcome;
-  stay(): CraftExceptionOutcome;
-  noop(): CraftExceptionOutcome;
-};
+export type CraftExceptionHandlerContext<Exception extends AnyCraftException> =
+  {
+    readonly exception: Exception;
+    readonly payload: Exception extends { payload: infer Payload }
+      ? Payload
+      : unknown;
+    /** `'enter'` for the initial activation, `'active'` for a reactive re-check. */
+    readonly phase: CraftRoutePhase;
+    readonly router: Router;
+    readonly createUrlTree: Router['createUrlTree'];
+    readonly navigate: Router['navigate'];
+    readonly navigateByUrl: Router['navigateByUrl'];
+    redirectTo<Input extends CraftRouterUrlTreeInput<NavigableRoutePath>>(
+      input: Input,
+    ): Generator<
+      CraftRouterYieldRequest,
+      CraftExceptionOutcomeOf<'redirect'>,
+      unknown
+    >;
+    redirectUrl(target: UrlTree | string): CraftExceptionOutcomeOf<'redirect'>;
+    renderComponent(
+      component: CraftExceptionComponentDescriptor,
+    ): CraftExceptionOutcomeOf<'render'>;
+    globalError(): CraftExceptionOutcomeOf<'global'>;
+    stay(): CraftExceptionOutcomeOf<'stay'>;
+    noop(): CraftExceptionOutcomeOf<'noop'>;
+  };
 
 /**
- * A single exception handler. May be a plain function returning an outcome, or a
- * generator that `yield*`s craft services first (e.g. to read a redirect target
- * from a config service) — those yields are tracked just like the guards' own.
+ * A single branded generator handler. Its service yields are preserved exactly
+ * and folded into the route's DI and HTTP dependency maps.
  */
-export type CraftExceptionHandler<Exception extends AnyCraftException> = (
-  context: CraftExceptionHandlerContext<Exception>,
-) => CraftExceptionOutcome | Generator<unknown, CraftExceptionOutcome, unknown>;
+declare const CRAFT_EXCEPTION_HANDLER: unique symbol;
+type NormalizedHandlerException<Exception extends AnyCraftException> = [
+  Exception,
+] extends [never]
+  ? AnyCraftException
+  : Exception;
+
+export type CraftExceptionHandler<
+  Exception extends AnyCraftException,
+  Result extends Generator<any, CraftExceptionOutcome, unknown> = Generator<
+    unknown,
+    CraftExceptionOutcome,
+    unknown
+  >,
+> = ((context: CraftExceptionHandlerContext<Exception>) => Result) & {
+  readonly [CRAFT_EXCEPTION_HANDLER]: true;
+};
+
+/** Brands a generator as a route exception handler while preserving its exact type. */
+export function craftExceptionHandler<
+  Exception extends AnyCraftException = AnyCraftException,
+  Result extends Generator<any, CraftExceptionOutcome, unknown> = Generator<
+    unknown,
+    CraftExceptionOutcome,
+    unknown
+  >,
+>(
+  handler: (
+    context: CraftExceptionHandlerContext<
+      NoInfer<NormalizedHandlerException<Exception>>
+    >,
+  ) => Result,
+): CraftExceptionHandler<NormalizedHandlerException<Exception>, Result> {
+  return handler as CraftExceptionHandler<
+    NormalizedHandlerException<Exception>,
+    Result
+  >;
+}
 
 /** The pure outcome constructors, merged into the handler context by the driver. */
 export const craftExceptionOutcomeApi = {
-  redirect: (target: UrlTree | string): CraftExceptionOutcome => ({
-    kind: 'redirect',
-    target,
-  }),
+  redirectUrl: (target: UrlTree | string) =>
+    ({
+      kind: 'redirect',
+      target,
+    }) as const,
+  redirectTo: function* <
+    Input extends CraftRouterUrlTreeInput<NavigableRoutePath>,
+  >(
+    input: Input,
+  ): Generator<
+    CraftRouterYieldRequest,
+    CraftExceptionOutcomeOf<'redirect'>,
+    unknown
+  > {
+    const target = yield* CraftRouterToYield.createUrlTree(input as never);
+    return { kind: 'redirect', target };
+  },
   renderComponent: (
     component: CraftExceptionComponentInput,
-  ): CraftExceptionOutcome => ({ kind: 'render', component }),
-  globalError: (): CraftExceptionOutcome => ({ kind: 'global' }),
-  stay: (): CraftExceptionOutcome => ({ kind: 'stay' }),
-  noop: (): CraftExceptionOutcome => ({ kind: 'noop' }),
+  ): CraftExceptionOutcomeOf<'render'> => ({ kind: 'render', component }),
+  globalError: (): CraftExceptionOutcomeOf<'global'> => ({ kind: 'global' }),
+  stay: (): CraftExceptionOutcomeOf<'stay'> => ({ kind: 'stay' }),
+  noop: (): CraftExceptionOutcomeOf<'noop'> => ({ kind: 'noop' }),
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -186,7 +271,7 @@ export type RouteHandledExceptions<RouteDefinition> = [
 // Post-inference exhaustiveness check
 //
 // `handleExceptions` cannot be validated by a self-referential field constraint
-// at `route(path, def)` — the reachable-code union is derived from the *same*
+// at `craftRoute(path, def)` — the reachable-code union is derived from the *same*
 // `def` being inferred, which TypeScript can only resolve as `never` (the
 // contextual type is needed before inference completes). Instead the field is
 // typed loosely (so handlers stay usable) and exhaustiveness is asserted once the
@@ -223,11 +308,11 @@ type RouteExceptionsError<RouteDefinition> = [
         >,
       ] extends [never]
     ? [
-          Exclude<
-            RouteHandledCodes<RouteDefinition>,
-            RouteReachableCodes<RouteDefinition>
-          >,
-        ] extends [never]
+        Exclude<
+          RouteHandledCodes<RouteDefinition>,
+          RouteReachableCodes<RouteDefinition>
+        >,
+      ] extends [never]
       ? never
       : {
           route: RoutePathOf<RouteDefinition>;
@@ -356,5 +441,7 @@ export const CRAFT_GLOBAL_ERROR = new InjectionToken<
  * ```
  */
 export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
-  return inject(CRAFT_GLOBAL_ERROR) as unknown as Signal<CraftGlobalHandledException>;
+  return inject(
+    CRAFT_GLOBAL_ERROR,
+  ) as unknown as Signal<CraftGlobalHandledException>;
 }

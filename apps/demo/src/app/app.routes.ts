@@ -4,13 +4,14 @@ import {
   assertExhaustiveRouteExceptions,
   craftCanActivate,
   craftException,
+  craftExceptionHandler,
   craftGen,
   craftResolve,
   craftRoutes,
   craftService,
   query,
   queryParam,
-  route,
+  craftRoute,
   type CanRun,
   type CraftRouteExceptionType,
   type ValidateCascadeRoutesFile,
@@ -24,23 +25,31 @@ export const {
   injectDemoUserIdParams,
   injectDemoQueryParamQueryParams,
 } = craftRoutes('demo', [
-  route('query/:userId', {
-    componentDeps:
-      {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
-    loadComponent: () => import('./examples/primitives/query/query'),
-    canActivate: craftCanActivate(function* () {
-      return yield* authGuard();
-    }),
-    resolve: craftResolve(function* () {
-      return yield* loadProfile();
-    }),
-  }, {
-    // Centralised + exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at
-    // the call site. The URL commits immediately; the outlet routes these
-    // exceptions after commit.
-    NOT_AUTHENTICATED: ({ redirect }) => redirect('/login-form'),
-    USER_DISABLED: ({ globalError }) => globalError(),
-  }).withProviders(({ GuardedDataToYield }) => [
+  craftRoute(
+    'query/:userId',
+    {
+      componentDeps:
+        {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
+      loadComponent: () => import('./examples/primitives/query/query'),
+      canActivate: craftCanActivate(function* () {
+        return yield* authGuard();
+      }),
+      resolve: craftResolve(function* () {
+        return yield* loadProfile();
+      }),
+    },
+    {
+      // Centralised + exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at
+      // the call site. The URL commits immediately; the outlet routes these
+      // exceptions after commit.
+      NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/login-form');
+      }),
+      USER_DISABLED: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+  ).withProviders(({ GuardedDataToYield }) => [
     provideUser(function* () {
       const guardedUser = yield* GuardedDataToYield();
       return guardedUser();
@@ -238,7 +247,7 @@ declare module '@craft-ng/core' {
 }
 
 // Required-handler safety net: a route whose guards/resolve can throw but that was
-// authored with the 2-arg `route()` form (no handlers) shows its reachable codes as
+// authored with the 2-arg `craftRoute()` form (no handlers) shows its reachable codes as
 // unhandled here. The 3-arg form already enforces exhaustiveness at the call site.
 assertExhaustiveRouteExceptions(demoRoutes);
 
@@ -284,7 +293,13 @@ const loadProfile = craftGen(function* () {
 // here, so `injectCraftGlobalError()` is typed + exhaustive. Do not edit by hand.
 declare module '@craft-ng/core' {
   interface CraftGlobalExceptionRegistry {
-    'query/:userId': { USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'query/:userId', 'USER_DISABLED'> };
+    'query/:userId': {
+      USER_DISABLED: CraftRouteExceptionType<
+        typeof demoRoutes,
+        'query/:userId',
+        'USER_DISABLED'
+      >;
+    };
   }
 }
 

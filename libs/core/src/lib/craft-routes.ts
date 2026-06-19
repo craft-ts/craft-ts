@@ -6,7 +6,6 @@ import {
   runInInjectionContext,
   signal,
   type Signal,
-  type Type,
   type WritableSignal,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
@@ -27,7 +26,14 @@ import {
   type RouterStateSnapshot,
   type UrlSegment,
 } from '@angular/router';
-import { Observable, filter, isObservable, map, take, throwIfEmpty } from 'rxjs';
+import {
+  Observable,
+  filter,
+  isObservable,
+  map,
+  take,
+  throwIfEmpty,
+} from 'rxjs';
 import type { ExtractDeps } from './branded-component/branded-component';
 import {
   type AnyCraftException,
@@ -37,14 +43,13 @@ import { type ExtractCraftGenExceptions } from './craft-gen';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
-import type { CraftResolveResultFn } from './craft-resolve';
 import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
 import { CRAFT_VIEW_TRANSITION } from './craft-view-transition';
 import type { ViewTransitionPayloadDef } from './craft-view-transition';
 import type {
   CraftExceptionComponentInput,
+  CraftPendingComponentInput,
   CraftExceptionHandler,
-  HandledExceptionsForUnion,
   RouteExceptionUnion,
 } from './craft-route-exceptions';
 import { craftService } from './craft-service';
@@ -129,12 +134,16 @@ type RouteParamMap<Path extends string> = Simplify<{
   [Key in PathParamNames<Path>]: string;
 }>;
 
+type PascalWord<Value extends string> =
+  Value extends Uppercase<Value>
+    ? Capitalize<Lowercase<Value>>
+    : Capitalize<Value>;
 type PascalCaseToken<Value extends string> =
   Value extends `${infer Head}-${infer Tail}`
-    ? `${Capitalize<Head>}${PascalCaseToken<Tail>}`
+    ? `${PascalWord<Head>}${PascalCaseToken<Tail>}`
     : Value extends `${infer Head}_${infer Tail}`
-      ? `${Capitalize<Head>}${PascalCaseToken<Tail>}`
-      : Capitalize<Value>;
+      ? `${PascalWord<Head>}${PascalCaseToken<Tail>}`
+      : PascalWord<Value>;
 
 type SegmentServiceName<Segment extends string> = Segment extends ''
   ? ''
@@ -188,6 +197,25 @@ type RouteResolvedDataInjectHelperName<
   Name extends string,
   Path extends string,
 > = InjectHelperName<RouteCollectionResolvedDataServiceName<Name, Path>>;
+type ExceptionCodeOf<RouteDefinition> = RouteDefinition extends {
+  handleExceptions: infer Handlers;
+}
+  ? Extract<keyof Handlers, string>
+  : never;
+type RouteExceptionServiceName<
+  Path extends string,
+  Code extends string,
+> = `${RouteBaseServiceName<Path>}${PascalCaseToken<Code>}Exception`;
+type RouteCollectionExceptionServiceName<
+  Name extends string,
+  Path extends string,
+  Code extends string,
+> = `${RouteCollectionServiceName<Name>}${RouteExceptionServiceName<Path, Code>}`;
+type RouteExceptionInjectHelperName<
+  Name extends string,
+  Path extends string,
+  Code extends string,
+> = InjectHelperName<RouteCollectionExceptionServiceName<Name, Path, Code>>;
 type RouteCollectionExportName<Name extends string> = Uncapitalize<
   RouteCollectionServiceName<Name>
 >;
@@ -277,56 +305,63 @@ type RouteQueryParamsOutput<RouteDefinition> = RouteDefinition extends {
   ? ResolveGeneratorResult<Result>
   : never;
 
-type UnwrapCanActivateReturn<T> = T extends Generator<any, infer Output, any>
-  ? UnwrapCanActivateReturn<Output>
-  : T extends Promise<infer Inner>
-    ? UnwrapCanActivateReturn<Inner>
-    : T extends Observable<infer Inner>
+type UnwrapCanActivateReturn<T> =
+  T extends Generator<any, infer Output, any>
+    ? UnwrapCanActivateReturn<Output>
+    : T extends Promise<infer Inner>
       ? UnwrapCanActivateReturn<Inner>
-      : T extends Signal<infer Inner>
+      : T extends Observable<infer Inner>
         ? UnwrapCanActivateReturn<Inner>
-        : T;
+        : T extends Signal<infer Inner>
+          ? UnwrapCanActivateReturn<Inner>
+          : T;
 
 type ExtractCanActivateGuardData<Guard> = Guard extends (
   ...args: any[]
 ) => infer Result
   ? Exclude<
       UnwrapCanActivateReturn<Result>,
-      | boolean
-      | UrlTree
-      | RedirectCommand
-      | AnyCraftException
-      | undefined
-      | null
+      boolean | UrlTree | RedirectCommand | AnyCraftException | undefined | null
     >
   : never;
 
-type RouteGuardedDataOutput<RouteDefinition> =
-  RouteDefinition extends { canActivate?: infer Guard }
-    ? [Guard] extends [undefined]
+type RouteGuardedDataOutput<RouteDefinition> = RouteDefinition extends {
+  canActivate?: infer Guard;
+}
+  ? [Guard] extends [undefined]
+    ? never
+    : [ExtractCanActivateGuardData<Guard>] extends [never]
       ? never
-      : [ExtractCanActivateGuardData<Guard>] extends [never]
-        ? never
-        : Signal<ExtractCanActivateGuardData<Guard>>
-    : never;
+      : Signal<ExtractCanActivateGuardData<Guard>>
+  : never;
 
 // The resolved data a route's `resolve` step produces (its success value with
 // guard-results and exceptions stripped), mirroring `ExtractCanActivateGuardData`.
-type ExtractResolveData<Resolve> = Resolve extends (...args: any[]) => infer Result
+type ExtractResolveData<Resolve> = Resolve extends (
+  ...args: any[]
+) => infer Result
   ? Exclude<
       UnwrapCanActivateReturn<Result>,
       boolean | UrlTree | RedirectCommand | AnyCraftException | undefined | null
     >
   : never;
 
-type RouteResolvedDataOutput<RouteDefinition> =
-  RouteDefinition extends { resolve?: infer Resolve }
-    ? [Resolve] extends [undefined]
+type RouteResolvedDataOutput<RouteDefinition> = RouteDefinition extends {
+  resolve?: infer Resolve;
+}
+  ? [Resolve] extends [undefined]
+    ? never
+    : [ExtractResolveData<Resolve>] extends [never]
       ? never
-      : [ExtractResolveData<Resolve>] extends [never]
-        ? never
-        : Signal<ExtractResolveData<Resolve>>
-    : never;
+      : Signal<ExtractResolveData<Resolve>>
+  : never;
+
+type RouteExceptionOutput<RouteDefinition, Code extends string> = Signal<
+  Extract<
+    Extract<RouteExceptionUnion<RouteDefinition>, AnyCraftException>,
+    { code: Code }
+  >
+>;
 
 type RouteQueryParamsStateConfig<RouteDefinition> =
   RouteQueryParamsOutput<RouteDefinition> extends {
@@ -661,6 +696,13 @@ type RouteAutoProvidedServiceNames<
           RouteCollectionName,
           RoutePath<RouteDefinition>
         >
+      : never)
+  | (ExceptionCodeOf<RouteDefinition> extends infer Code extends string
+      ? RouteCollectionExceptionServiceName<
+          RouteCollectionName,
+          RoutePath<RouteDefinition>,
+          Code
+        >
       : never);
 
 type StripRouteProvidedDependency<
@@ -764,7 +806,10 @@ type CraftGuardResolvers<Yielded> =
   ExtractCraftGenExceptions<Yielded> extends infer Exception
     ? {
         [Code in CraftGuardExceptionCodes<Exception>]: CraftGuardExceptionResolver<
-          Extract<CraftGuardExceptionForCode<Exception, Code>, AnyCraftException>
+          Extract<
+            CraftGuardExceptionForCode<Exception, Code>,
+            AnyCraftException
+          >
         >;
       }
     : never;
@@ -823,11 +868,7 @@ type CraftCanMatchResultGuard<Guard> = (
   route: Route,
   segments: UrlSegment[],
   currentSnapshot?: PartialMatchRouteSnapshot,
-) => Generator<
-  CraftCanMatchGuardYielded<Guard>,
-  GuardResult,
-  unknown
->;
+) => Generator<CraftCanMatchGuardYielded<Guard>, GuardResult, unknown>;
 
 type CraftRouteCanMatchGuard = (
   route: Route,
@@ -891,6 +932,22 @@ type RouteGuardDepsMap<RouteDefinition> = Simplify<
   >
 >;
 
+type ExceptionHandlerYielded<Handler> = Handler extends (
+  ...args: any[]
+) => Generator<infer Yielded, any, unknown>
+  ? Yielded
+  : never;
+
+/** Service dependencies yielded by a route's concrete exception handlers. */
+export type RouteExceptionHandlerDepsMap<RouteDefinition> =
+  RouteDefinition extends { handleExceptions: infer Handlers extends object }
+    ? ServiceDependencyMapFromYielded<
+        {
+          [Code in keyof Handlers]: ExceptionHandlerYielded<Handlers[Code]>;
+        }[keyof Handlers]
+      >
+    : {};
+
 type QueryParamsDependenciesFromOutput<Output> = Output extends object
   ? ExtractDeps<Output>
   : {};
@@ -931,6 +988,7 @@ type RouteDepsMap<RouteDefinition> = Simplify<
   MergeObjectUnion<
     | DepsMap<ComponentDepsMap<RouteDefinition>>
     | RouteGuardDepsMap<RouteDefinition>
+    | RouteExceptionHandlerDepsMap<RouteDefinition>
     | RouteQueryParamsDepsMap<RouteDefinition>
     | RouteRedirectToDepsMap<RouteDefinition>
     | RouteProvidersDepsMap<RouteDefinition>
@@ -979,6 +1037,7 @@ type RouteResolvedMissingProviderMap<
 type RouteHttpDepsMap<RouteDefinition> = HttpDepsMapFromRequests<
   | HttpRequestsFromComponentDeps<ComponentDepsMap<RouteDefinition>>
   | HttpRequestsFromDepsMap<RouteGuardDepsMap<RouteDefinition>>
+  | HttpRequestsFromDepsMap<RouteExceptionHandlerDepsMap<RouteDefinition>>
   | HttpRequestsFromDepsMap<RouteQueryParamsDepsMap<RouteDefinition>>
   | HttpRequestsFromDepsMap<RouteRedirectToDepsMap<RouteDefinition>>
 >;
@@ -992,13 +1051,15 @@ type HasRedirectToGenerator<RouteDefinition> = RouteDefinition extends {
 type ShouldExposeRouteDeps<RouteDefinition> =
   ComponentDepsMap<RouteDefinition> extends { deps: object }
     ? true
-    : HasGeneratorGuard<RouteDefinition> extends true
+    : RouteDefinition extends { handleExceptions: object }
       ? true
-      : RouteDefinition extends { queryParams: RouteQueryParamsFactory }
+      : HasGeneratorGuard<RouteDefinition> extends true
         ? true
-        : HasRedirectToGenerator<RouteDefinition> extends true
+        : RouteDefinition extends { queryParams: RouteQueryParamsFactory }
           ? true
-          : false;
+          : HasRedirectToGenerator<RouteDefinition> extends true
+            ? true
+            : false;
 
 export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
   Omit<
@@ -1038,7 +1099,6 @@ type ResolveCraftRouteMetaDataMissingProvider<
     InheritedServiceNames
   >
 >;
-
 
 type ResolveCraftRouteMetaDataComponentDeps<
   RouteDefinition,
@@ -1130,7 +1190,7 @@ type CraftRouteResolve = (
 ) => Generator<unknown, unknown, unknown>;
 
 // Loose runtime type for the merged `handleExceptions` map (the precise, exhaustive
-// shape is enforced by `route()`'s 3-arg overload at the call site, and by
+// shape is enforced by `craftRoute()`'s 3-arg overload at the call site, and by
 // `assertExhaustiveRouteExceptions` as a safety net for the 2-arg form).
 type CraftRouteHandleExceptions = Record<string, CraftExceptionHandler<any>>;
 // NOTE: `<any>` (not `<AnyCraftException>`) keeps a route whose handlers are typed
@@ -1142,8 +1202,9 @@ type CraftRouteHandleExceptions = Record<string, CraftExceptionHandler<any>>;
 // by the non-blocking `CraftRouterOutlet`.
 type CraftRouteUxFields = {
   resolve?: CraftRouteResolve;
-  pendingComponent?: CraftExceptionComponentInput;
-  errorComponent?: Type<unknown>;
+  handleExceptions?: object;
+  pendingComponent?: CraftPendingComponentInput;
+  errorComponent?: CraftExceptionComponentInput;
   stayMs?: number;
   blankMs?: number;
   pendingMinMs?: number;
@@ -1188,18 +1249,18 @@ type CraftRouteSharedFields<
 type AnyCraftRouteSharedFields = Simplify<
   AngularRouteBase &
     CraftRouteRuntimeUxFields & {
-    canActivate?: CraftRouteCanActivateGuard;
-    canMatch?: CraftRouteCanMatchGuard;
-    path: string;
-    providers?: AngularRouteProviders;
-    providersFn?: (helpers: any) => AngularRouteProviders;
-    data?: Data;
-    queryParams?: RouteQueryParamsFactory;
-    redirectTo?: string | RouteRedirectToFactory<any>;
-    paramsProvider?: (
-      params: Signal<Record<string, string>>,
-    ) => Record<string, unknown>;
-  }
+      canActivate?: CraftRouteCanActivateGuard;
+      canMatch?: CraftRouteCanMatchGuard;
+      path: string;
+      providers?: AngularRouteProviders;
+      providersFn?: (helpers: any) => AngularRouteProviders;
+      data?: Data;
+      queryParams?: RouteQueryParamsFactory;
+      redirectTo?: string | RouteRedirectToFactory<any>;
+      paramsProvider?: (
+        params: Signal<Record<string, string>>,
+      ) => Record<string, unknown>;
+    }
 >;
 
 type AnyCraftRouteHelperDefinition = {
@@ -1215,6 +1276,37 @@ type AnyCraftRouteHelperDefinition = {
 
 type CraftRouteDefinitionInput<Def extends object> =
   'handleExceptions' extends keyof Def ? never : Def;
+
+type ExceptionCode<Exception> = Exception extends {
+  code: infer Code extends string;
+}
+  ? Code
+  : never;
+type ExceptionHandlerResults<Codes extends string> = Record<
+  Codes,
+  Generator<
+    any,
+    import('./craft-route-exceptions').CraftExceptionOutcome,
+    unknown
+  >
+>;
+type TypedExceptionHandlers<
+  Exception extends AnyCraftException,
+  Codes extends ExceptionCode<Exception>,
+  Results extends ExceptionHandlerResults<Codes>,
+> = {
+  [Code in Codes]: CraftExceptionHandler<
+    Extract<Exception, { code: Code }>,
+    Results[Code]
+  >;
+};
+type MissingExceptionHandlers<
+  Exception extends AnyCraftException,
+  Codes extends string,
+> =
+  Exclude<ExceptionCode<Exception>, Codes> extends never
+    ? unknown
+    : { readonly ERROR_missing_exception_handlers: never };
 
 type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
   path: infer Path extends string;
@@ -1254,7 +1346,13 @@ type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
           ? { resolve: Resolve }
           : {}) &
         (RouteDefinition extends {
-          withLoaderViewTransitionImage: infer ViewTransition extends ViewTransitionPayloadDef<any>;
+          handleExceptions: infer Handlers extends object;
+        }
+          ? { handleExceptions: Handlers }
+          : {}) &
+        (RouteDefinition extends {
+          withLoaderViewTransitionImage: infer ViewTransition extends
+            ViewTransitionPayloadDef<any>;
         }
           ? { withLoaderViewTransitionImage: ViewTransition }
           : {})
@@ -1370,7 +1468,9 @@ export type AnyCraftRouteDefinition =
 type LoadChildrenRoutes<RouteDefinition> = RouteDefinition extends {
   loadChildren: (...args: any[]) => infer Output;
 }
-  ? Awaited<Output> extends { readonly _routes: infer Routes extends readonly AnyCraftRouteDefinition[] }
+  ? Awaited<Output> extends {
+      readonly _routes: infer Routes extends readonly AnyCraftRouteDefinition[];
+    }
     ? Routes
     : never
   : never;
@@ -1802,6 +1902,38 @@ type ResolvedDataInjectHelpers<
   >
 >;
 
+type ExceptionInjectHelpers<
+  Name extends string,
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
+> = Simplify<
+  MergeObjectUnion<
+    Routes[number] extends infer RouteDefinition
+      ? RouteDefinition extends { handleExceptions: object }
+        ? ExceptionCodeOf<RouteDefinition> extends infer Code extends string
+          ? {
+              [Key in RouteExceptionInjectHelperName<
+                Name,
+                RoutePath<RouteDefinition>,
+                Code
+              >]: CraftRouteValueServiceApi<
+                RouteCollectionExceptionServiceName<
+                  Name,
+                  RoutePath<RouteDefinition>,
+                  Code
+                >,
+                RouteExceptionOutput<RouteDefinition, Code>
+              >[RouteExceptionInjectHelperName<
+                Name,
+                RoutePath<RouteDefinition>,
+                Code
+              >];
+            }
+          : never
+        : never
+      : never
+  >
+>;
+
 // A route-scoped `ToYield` generator handed to the `withProviders` callback. It
 // yields the route value service identified by `Name`, the route-BASE service name
 // (collection-less, e.g. `QueryUserIdGuardedData`), so the enclosing provider
@@ -1890,7 +2022,7 @@ type RouteSelfProvidedBaseNames<RouteDefinition> =
       ? never
       : RouteGuardedDataServiceName<RoutePath<RouteDefinition>>);
 
-// Builder returned by `route(path, def)`. `.withProviders(cb)` resolves the route
+// Builder returned by `craftRoute(path, def)`. `.withProviders(cb)` resolves the route
 // type fully before contextually typing `cb`, so the route-scoped helpers are
 // fully typed (this is impossible with an inline object-literal callback, where the
 // callback parameter cannot depend on the same literal's inferred type).
@@ -1899,7 +2031,9 @@ type RouteWithProvidersBuilder<RouteDefinition> = RouteDefinition & {
     factory: (helpers: RouteProviderHelpers<RouteDefinition>) => Providers,
   ) => Simplify<
     RouteDefinition & {
-      providersFn: (helpers: RouteProviderHelpers<RouteDefinition>) => Providers;
+      providersFn: (
+        helpers: RouteProviderHelpers<RouteDefinition>,
+      ) => Providers;
     }
   >;
 };
@@ -2058,7 +2192,8 @@ type CraftRoutesSuccessResult<
     QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>> &
     ViewTransitionInjectHelpers<Name, RoutesHelperShape<Routes>> &
     GuardedDataInjectHelpers<Name, RoutesHelperShape<Routes>> &
-    ResolvedDataInjectHelpers<Name, RoutesHelperShape<Routes>>
+    ResolvedDataInjectHelpers<Name, RoutesHelperShape<Routes>> &
+    ExceptionInjectHelpers<Name, RoutesHelperShape<Routes>>
 >;
 
 export type CraftRoutesResult<
@@ -2106,7 +2241,13 @@ function toPascalCase(value: string): string {
     .replace(/^:/, '')
     .split(/[^a-zA-Z0-9]+/)
     .filter(Boolean)
-    .map((segment) => segment[0].toUpperCase() + segment.slice(1))
+    .map((segment) => {
+      const rest =
+        segment === segment.toUpperCase()
+          ? segment.slice(1).toLowerCase()
+          : segment.slice(1);
+      return segment[0].toUpperCase() + rest;
+    })
     .join('');
 }
 
@@ -2252,6 +2393,22 @@ function toResolvedDataInjectHelperName(
   routePath: string,
 ): string {
   return `inject${toRouteCollectionResolvedDataServiceName(routeCollectionName, routePath)}`;
+}
+
+function toRouteCollectionExceptionServiceName(
+  routeCollectionName: string,
+  routePath: string,
+  code: string,
+): string {
+  return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteBaseServiceName(routePath)}${toPascalCase(code)}Exception`;
+}
+
+function toExceptionInjectHelperName(
+  routeCollectionName: string,
+  routePath: string,
+  code: string,
+): string {
+  return `inject${toRouteCollectionExceptionServiceName(routeCollectionName, routePath, code)}`;
 }
 
 function findActivatedRouteByPath(
@@ -2408,7 +2565,9 @@ const ROUTE_REDIRECT_TO_APP_START_ERROR_MESSAGE =
 // their result straight through.
 function createRedirectTo(
   factory: RouteRedirectToFactory<unknown>,
-): (redirectData: PartialMatchRouteSnapshot) => MaybeAsync<RouteRedirectToResult> {
+): (
+  redirectData: PartialMatchRouteSnapshot,
+) => MaybeAsync<RouteRedirectToResult> {
   return (redirectData) => {
     const result = factory(redirectData);
 
@@ -2600,7 +2759,10 @@ function normalizeCanActivateResult(
     );
   }
 
-  return assertCanActivateResult(resolveGuardData(result, dataHolder), routePath);
+  return assertCanActivateResult(
+    resolveGuardData(result, dataHolder),
+    routePath,
+  );
 }
 
 function normalizeCanMatchResult(
@@ -2620,7 +2782,11 @@ function normalizeCanMatchResult(
   }
 
   if (isObservable(result)) {
-    return createPendingGuardResult(result as Observable<unknown>, routePath, null);
+    return createPendingGuardResult(
+      result as Observable<unknown>,
+      routePath,
+      null,
+    );
   }
 
   if (isPromiseLike(result)) {
@@ -2699,7 +2865,7 @@ function createCanMatchGuard(
 // runtime — the outlet (not Angular) executes it.
 //
 // ```ts
-// route('admin', {
+// craftRoute('admin', {
 //   canActivate: craftCanActivate(function* () {
 //     yield* roleGuard(ROLES.PIZZERIA_ADMIN);
 //     yield* noPizzeriaGuard();
@@ -2707,9 +2873,9 @@ function createCanMatchGuard(
 //   }),
 // }, {
 //   // Third argument — required & exhaustive over the guards' reachable codes.
-//   NOT_AUTHENTICATED: ({ redirect }) => redirect('/auth/login'),
-//   FORBIDDEN_ROLE: ({ redirect }) => redirect('/unauthorized'),
-//   HAS_PIZZERIA: ({ redirect }) => redirect('/dashboard'),
+//   NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) { return redirectUrl('/auth/login'); }),
+//   FORBIDDEN_ROLE: craftExceptionHandler(function* ({ redirectUrl }) { return redirectUrl('/unauthorized'); }),
+//   HAS_PIZZERIA: craftExceptionHandler(function* ({ redirectUrl }) { return redirectUrl('/dashboard'); }),
 // })
 // ```
 export function craftCanActivate<Guard extends CraftCanActivateGuardFn>(
@@ -2724,13 +2890,13 @@ export function craftCanActivate<Guard extends CraftCanActivateGuardFn>(
 // Identity at runtime.
 //
 // ```ts
-// route('beta', {
+// craftRoute('beta', {
 //   canMatch: craftCanMatch(function* () {
 //     const ff = yield* FeatureFlagsToYield();
 //     return ff.betaEnabled ? true : craftException({ code: 'FLAG_DISABLED' });
 //   }),
 // }, {
-//   FLAG_DISABLED: ({ redirect }) => redirect('/home'),
+//   FLAG_DISABLED: craftExceptionHandler(function* ({ redirectUrl }) { return redirectUrl('/home'); }),
 // })
 // ```
 export function craftCanMatch<Guard extends CraftCanMatchGuardFn>(
@@ -2740,7 +2906,7 @@ export function craftCanMatch<Guard extends CraftCanMatchGuardFn>(
 }
 
 // Authors a single route with fully-typed, route-scoped provider helpers.
-// `route('query/:userId', { canActivate, ... }).withProviders(({ GuardedDataToYield }) => [...])`
+// `craftRoute('query/:userId', { canActivate, ... }).withProviders(({ GuardedDataToYield }) => [...])`
 // — the `.withProviders` callback receives `ToYield` generators for the route's
 // auto-provisioned tokens (guarded data, path params, query params, data), so a
 // route-level provider can be built from them with full dependency tracking.
@@ -2760,31 +2926,47 @@ export function craftCanMatch<Guard extends CraftCanMatchGuardFn>(
 
 // 3-arg form: the route's guards/resolve can throw — handlers are exhaustive over the
 // reachable codes.
-export function route<const Path extends string, const Def extends object>(
+export function craftRoute<
+  const Path extends string,
+  const Def extends object,
+  const Codes extends ExceptionCode<
+    Extract<RouteExceptionUnion<Def>, AnyCraftException>
+  > = ExceptionCode<Extract<RouteExceptionUnion<Def>, AnyCraftException>>,
+  const Handlers extends object = TypedExceptionHandlers<
+    Extract<RouteExceptionUnion<Def>, AnyCraftException>,
+    Codes,
+    ExceptionHandlerResults<Codes>
+  >,
+>(
   path: Path,
   def: CraftRouteDefinitionInput<Def>,
-  handlers: HandledExceptionsForUnion<
-    Extract<RouteExceptionUnion<Def>, AnyCraftException>
-  >,
+  handlers: TypedExceptionHandlers<
+    Extract<RouteExceptionUnion<Def>, AnyCraftException>,
+    Codes,
+    ExceptionHandlerResults<Codes>
+  > &
+    Handlers &
+    MissingExceptionHandlers<
+      Extract<RouteExceptionUnion<Def>, AnyCraftException>,
+      Codes
+    >,
 ): RouteWithProvidersBuilder<
   Simplify<
     Def & {
       path: Path;
-      handleExceptions: HandledExceptionsForUnion<
-        Extract<RouteExceptionUnion<Def>, AnyCraftException>
-      >;
+      handleExceptions: Handlers;
     }
   >
 >;
 // 2-arg form: the route throws no `craftException`s, so no handlers are needed.
-export function route<const Path extends string, const Def extends object>(
+export function craftRoute<const Path extends string, const Def extends object>(
   path: Path,
   def: CraftRouteDefinitionInput<Def>,
 ): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>>;
-export function route(
+export function craftRoute(
   path: string,
   def: object,
-  handlers?: CraftRouteHandleExceptions,
+  handlers?: Record<string, any>,
 ): RouteWithProvidersBuilder<Record<string, unknown>> {
   const routeDefinition = {
     ...def,
@@ -2874,6 +3056,17 @@ export function craftRoutes<
           route.path,
         ),
         toResolvedDataInjectHelperName(routeCollectionName, route.path),
+      );
+    }
+
+    for (const code of Object.keys(route.handleExceptions ?? {})) {
+      registerRouteValueService(
+        toRouteCollectionExceptionServiceName(
+          routeCollectionName,
+          route.path,
+          code,
+        ),
+        toExceptionInjectHelperName(routeCollectionName, route.path, code),
       );
     }
   }
@@ -3068,6 +3261,23 @@ export function craftRoutes<
       }
     }
 
+    const exceptionSinks: Record<string, WritableSignal<unknown | null>> = {};
+    for (const code of Object.keys(route.handleExceptions ?? {})) {
+      const serviceName = toRouteCollectionExceptionServiceName(
+        routeCollectionName,
+        route.path,
+        code,
+      );
+      const routeService = routeValueServices.get(serviceName);
+      if (!routeService) continue;
+
+      const sink = signal<unknown | null>(null);
+      exceptionSinks[code] = sink;
+      autoProviders.push(
+        provideRouteValueService(serviceName, routeService, () => sink),
+      );
+    }
+
     const {
       canActivate,
       canMatch,
@@ -3124,6 +3334,7 @@ export function craftRoutes<
             {}) as CraftRouteExceptionHandlerMap,
           guardDataSink: guardDataSignal,
           resolveDataSink: resolveDataSignal,
+          exceptionSinks,
           pendingComponent,
           errorComponent,
           stayMs,
@@ -3160,9 +3371,9 @@ export function craftRoutes<
     const addHelper = (helperKey: string, serviceName: string): void => {
       const routeService = routeValueServices.get(serviceName);
       if (routeService) {
-        helpers[helperKey] = (
-          routeService as Record<string, unknown>
-        )[`${serviceName}ToYield`];
+        helpers[helperKey] = (routeService as Record<string, unknown>)[
+          `${serviceName}ToYield`
+        ];
       }
     };
 

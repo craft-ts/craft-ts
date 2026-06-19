@@ -12,10 +12,10 @@ const globalExceptionRegistryMatchRule = require('./global-exception-registry-ma
 const tempDirectories: string[] = [];
 
 const ROUTE_FILE = (registryBlock = '') => `
-  import { craftRoutes, route, craftCanActivate, craftException } from '@craft-ng/core';
+  import { craftRoutes, craftRoute, craftCanActivate, craftException } from '@craft-ng/core';
 
   export const { demoRoutes } = craftRoutes('demo', [
-    route('query/:userId', {
+    craftRoute('query/:userId', {
       loadComponent: () => import('./query'),
       componentDeps: {},
       canActivate: craftCanActivate(function* () {
@@ -95,10 +95,10 @@ describe('global-exception-registry-match', () => {
   it('ignores a route whose handlers never call globalError()', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftRoutes, route, craftCanActivate, craftException } from '@craft-ng/core';
+        import { craftRoutes, craftRoute, craftCanActivate, craftException } from '@craft-ng/core';
 
         export const { demoRoutes } = craftRoutes('demo', [
-          route('query/:userId', {
+          craftRoute('query/:userId', {
             loadComponent: () => import('./query'),
             componentDeps: {},
             canActivate: craftCanActivate(function* () {
@@ -188,7 +188,7 @@ function baseFixtureFiles(): Record<string, string> {
     'src/craft-ng-core.d.ts': `
       declare module '@craft-ng/core' {
         export declare function craftRoutes(...args: any[]): any;
-        export declare function route(...args: any[]): any;
+        export declare function craftRoute(...args: any[]): any;
         export declare function craftCanActivate(...args: any[]): any;
         export declare function craftException(...args: any[]): any;
         export type CraftRouteExceptionType<R, P, C> = unknown;

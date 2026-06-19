@@ -1,8 +1,21 @@
+import '@angular/compiler';
 import { Injector } from '@angular/core';
-import type { Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { craftException, type AnyCraftException } from './craft-exception';
 import { CraftGenShortCircuit } from './craft-gen';
+import { GUARD_AWAIT_REQUEST_MARKER } from './craft-generator-runtime';
+import { SERVICE_RUNTIME_OVERRIDES } from './craft-service';
+import { provideCraftRouter } from './craft-router';
+import { FN_WRAPPER } from './fn-wrapper';
+
+declare module './craft-router' {
+  interface CraftRouterRoutesRegistry {
+    GuardRuntimeSpec: readonly [
+      { path: 'auth/login'; queryParams: { reason: string } },
+    ];
+  }
+}
 import {
   runCraftRouteChainAsync,
   type CraftRouteExceptionHandlerMap,
@@ -66,7 +79,9 @@ describe('runCraftRouteChainAsync', () => {
 
   it('routes a guard that returns a bare craftException through handleExceptions', async () => {
     const handlers: CraftRouteExceptionHandlerMap = {
-      NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
+      NOT_AUTHENTICATED: function* ({ redirectUrl }) {
+        return redirectUrl('/login');
+      },
     };
     const outcome = await runCraftRouteChainAsync(
       { guard: returnsException(ex('NOT_AUTHENTICATED')) },
@@ -79,7 +94,9 @@ describe('runCraftRouteChainAsync', () => {
 
   it('routes a guard that throws CraftGenShortCircuit through handleExceptions', async () => {
     const handlers: CraftRouteExceptionHandlerMap = {
-      FORBIDDEN: ({ stay }) => stay(),
+      FORBIDDEN: function* ({ stay }) {
+        return stay();
+      },
     };
     const outcome = await runCraftRouteChainAsync(
       { guard: throwsShortCircuit(ex('FORBIDDEN')) },
@@ -97,20 +114,34 @@ describe('runCraftRouteChainAsync', () => {
       return { profile: 1 };
     }
     await runCraftRouteChainAsync(
-      { guard: returnsException(ex('NOT_AUTHENTICATED')), resolve: resolveSpy() },
+      {
+        guard: returnsException(ex('NOT_AUTHENTICATED')),
+        resolve: resolveSpy(),
+      },
       injector,
       router,
-      { NOT_AUTHENTICATED: ({ redirect }) => redirect('/login') },
+      {
+        NOT_AUTHENTICATED: function* ({ redirectUrl }) {
+          return redirectUrl('/login');
+        },
+      },
     );
     expect(resolveRan).toBe(false);
   });
 
   it('routes a resolve exception through handleExceptions', async () => {
     const outcome = await runCraftRouteChainAsync(
-      { guard: returns({ user: 'ada' }), resolve: returnsException(ex('USER_DISABLED')) },
+      {
+        guard: returns({ user: 'ada' }),
+        resolve: returnsException(ex('USER_DISABLED')),
+      },
       injector,
       router,
-      { USER_DISABLED: ({ globalError }) => globalError() },
+      {
+        USER_DISABLED: function* ({ globalError }) {
+          return globalError();
+        },
+      },
     );
     expect(outcome).toEqual({
       kind: 'global',
@@ -124,15 +155,19 @@ describe('runCraftRouteChainAsync', () => {
       { resolve: returnsException(exception) },
       injector,
       router,
-      { USER_DISABLED: ({ globalError }) => globalError() },
+      {
+        USER_DISABLED: function* ({ globalError }) {
+          return globalError();
+        },
+      },
     );
     expect(outcome).toEqual({ kind: 'global', exception });
   });
 
   it('drives a generator handler that yields before its outcome', async () => {
     const handlers: CraftRouteExceptionHandlerMap = {
-      NEEDS_WORK: function* ({ redirect }) {
-        return redirect('/from-generator');
+      NEEDS_WORK: function* ({ redirectUrl }) {
+        return redirectUrl('/from-generator');
       },
     };
     const outcome = await runCraftRouteChainAsync(
@@ -156,18 +191,28 @@ describe('runCraftRouteChainAsync', () => {
   });
 
   it('routes a rethrown craftException (e.g. HttpError) through a matching handler', async () => {
-    const httpError = craftException({ code: 'HttpError', scope: 'HttpClient' });
+    const httpError = craftException({
+      code: 'HttpError',
+      scope: 'HttpClient',
+    });
     const outcome = await runCraftRouteChainAsync(
       { resolve: throwsRaw(httpError) },
       injector,
       router,
-      { HttpError: ({ globalError }) => globalError() },
+      {
+        HttpError: function* ({ globalError }) {
+          return globalError();
+        },
+      },
     );
     expect(outcome).toEqual({ kind: 'global', exception: httpError });
   });
 
   it('surfaces a rethrown craftException with no handler as a thrown error', async () => {
-    const httpError = craftException({ code: 'HttpError', scope: 'HttpClient' });
+    const httpError = craftException({
+      code: 'HttpError',
+      scope: 'HttpClient',
+    });
     const outcome = await runCraftRouteChainAsync(
       { resolve: throwsRaw(httpError) },
       injector,
@@ -198,7 +243,11 @@ describe('runCraftRouteChainAsync', () => {
       { match: returnsException(ex('FEATURE_OFF')), guard: guardSpy() },
       injector,
       router,
-      { FEATURE_OFF: ({ redirect }) => redirect('/home') },
+      {
+        FEATURE_OFF: function* ({ redirectUrl }) {
+          return redirectUrl('/home');
+        },
+      },
     );
     expect(outcome).toEqual({ kind: 'redirect', target: '/home' });
     expect(guardRan).toBe(false);
@@ -221,9 +270,9 @@ describe('runCraftRouteChainAsync', () => {
   it('forwards the phase to the exception handler', async () => {
     let seenPhase: string | undefined;
     const handlers: CraftRouteExceptionHandlerMap = {
-      NOT_AUTHENTICATED: ({ phase, redirect }) => {
+      NOT_AUTHENTICATED: function* ({ phase, redirectUrl }) {
         seenPhase = phase;
-        return redirect(phase === 'active' ? '/login?expired' : '/login');
+        return redirectUrl(phase === 'active' ? '/login?expired' : '/login');
       },
     };
     const outcome = await runCraftRouteChainAsync(
@@ -235,5 +284,60 @@ describe('runCraftRouteChainAsync', () => {
     );
     expect(seenPhase).toBe('active');
     expect(outcome).toEqual({ kind: 'redirect', target: '/login?expired' });
+  });
+
+  it('rejects suspension from an exception handler explicitly', async () => {
+    const outcome = await runCraftRouteChainAsync(
+      { guard: returnsException(ex('WAIT')) },
+      injector,
+      router,
+      {
+        WAIT: function* ({ noop }) {
+          yield {
+            [GUARD_AWAIT_REQUEST_MARKER]: true,
+            kind: 'promise',
+            value: Promise.resolve(undefined),
+          };
+          return noop();
+        },
+      },
+    );
+    expect(outcome).toEqual({
+      kind: 'thrownError',
+      error: expect.objectContaining({
+        message:
+          'Route exception handlers cannot suspend with untilSettled/untilDefined.',
+      }),
+    });
+  });
+
+  it('resolves redirectTo through the active injector', async () => {
+    const target = { typed: true };
+    const activeRouter = {
+      ...router,
+      createUrlTree: () => target,
+    } as unknown as Router;
+    const activeInjector = Injector.create({
+      providers: [
+        ...provideCraftRouter([]),
+        { provide: Router, useValue: activeRouter },
+        { provide: SERVICE_RUNTIME_OVERRIDES, useValue: new Map() },
+        { provide: FN_WRAPPER, useValue: [] },
+      ],
+    });
+    const outcome = await runCraftRouteChainAsync(
+      { guard: returnsException(ex('LOGIN')) },
+      activeInjector,
+      activeRouter,
+      {
+        LOGIN: function* ({ redirectTo }) {
+          return yield* redirectTo({
+            to: 'auth/login',
+            queryParams: { reason: 'expired' },
+          });
+        },
+      },
+    );
+    expect(outcome).toEqual({ kind: 'redirect', target });
   });
 });

@@ -39,9 +39,8 @@ import {
 } from './craft-pending';
 import {
   CRAFT_GLOBAL_ERROR,
-  craftExceptionOutcomeApi,
   type CraftExceptionComponentInput,
-  type CraftExceptionHandlerContext,
+  type CraftPendingComponentInput,
 } from './craft-route-exceptions';
 import { getCraftRouteMeta, type CraftRouteMeta } from './craft-route-meta';
 import {
@@ -259,6 +258,7 @@ export class CraftRouterOutlet
       activatedRoute.snapshot.data as Record<string | symbol, unknown>,
     );
     this._meta = meta ?? null;
+    this.clearExceptionSinks(meta);
     const component = this.resolveRouteComponent(activatedRoute);
 
     // Plain route (no craft chain) → behave like <router-outlet>.
@@ -342,7 +342,12 @@ export class CraftRouterOutlet
       },
       (error) => {
         if (this._navId === navId) {
-          this.applyOutcome({ kind: 'thrownError', error }, meta, component, phase);
+          this.applyOutcome(
+            { kind: 'thrownError', error },
+            meta,
+            component,
+            phase,
+          );
         }
       },
     );
@@ -352,7 +357,7 @@ export class CraftRouterOutlet
     outcome: RouteChainOutcome,
     meta: CraftRouteMeta,
     component: Type<unknown> | null,
-    phase: 'enter' | 'active',
+    _phase: 'enter' | 'active',
   ): void {
     this.clearTimers();
 
@@ -376,11 +381,15 @@ export class CraftRouterOutlet
         void this.router.navigateByUrl(this._previousUrl);
         return;
       case 'render':
-        void this.showErrorComponent(outcome.component, null);
+        meta.exceptionSinks[outcome.exception.code]?.set(outcome.exception);
+        void this.showErrorComponent(outcome.component, outcome.exception);
         return;
       case 'global':
         this.publishGlobalError(outcome.exception);
-        void this.showErrorComponent(meta.errorComponent ?? this.defaultErrorComponent, outcome.exception);
+        void this.showErrorComponent(
+          meta.errorComponent ?? this.defaultErrorComponent,
+          outcome.exception,
+        );
         return;
       case 'thrownError': {
         const exception = isCraftException(outcome.error)
@@ -430,7 +439,10 @@ export class CraftRouterOutlet
     });
   }
 
-  private showTarget(component: Type<unknown> | null, meta: CraftRouteMeta): void {
+  private showTarget(
+    component: Type<unknown> | null,
+    meta: CraftRouteMeta,
+  ): void {
     const injector = this._activeRouteInjector ?? this.rootInjector;
     const commit = () => {
       this.showComponent(component, injector);
@@ -446,7 +458,10 @@ export class CraftRouterOutlet
   ): Promise<void> {
     const component = await resolveComponentInput(input);
     this.errorComponent.set(component);
-    this.showComponent(component, this._activeRouteInjector ?? this.rootInjector);
+    this.showComponent(
+      component,
+      this._activeRouteInjector ?? this.rootInjector,
+    );
     this.state.set('error');
     // An error outcome that stays on the URL freezes reactive re-evaluation.
     this._frozen = true;
@@ -454,7 +469,10 @@ export class CraftRouterOutlet
 
   // Anti-flicker: once the loader is shown, keep it visible for at least
   // `pendingMinMs` so a chain that settles right after it appears does not blink.
-  private commitWithAntiFlicker(commit: () => void, meta: CraftRouteMeta): void {
+  private commitWithAntiFlicker(
+    commit: () => void,
+    meta: CraftRouteMeta,
+  ): void {
     const minMs = meta.pendingMinMs ?? this.defaultPendingMinMs;
     if (this.state() === 'pending' && minMs > 0) {
       const elapsed = Date.now() - this._pendingShownAt;
@@ -514,38 +532,18 @@ export class CraftRouterOutlet
     meta: CraftRouteMeta,
     component: Type<unknown> | null,
   ): Promise<void> {
-    const handler = meta.handleExceptions[exception.code];
-    if (!handler) {
-      this.publishGlobalError(exception);
-      void this.showErrorComponent(
-        meta.errorComponent ?? this.defaultErrorComponent,
-        exception,
-      );
-      return;
-    }
-
-    const context: CraftExceptionHandlerContext<AnyCraftException> = {
-      ...craftExceptionOutcomeApi,
-      exception,
-      payload: exception.payload,
-      phase: 'active',
-      router: this.router,
-      createUrlTree: this.router.createUrlTree.bind(this.router),
-      navigate: this.router.navigate.bind(this.router),
-      navigateByUrl: this.router.navigateByUrl.bind(this.router),
-    };
-
-    const raw = handler(context);
-    const outcome = isGeneratorLike(raw)
-      ? drainSyncGenerator(raw)
-      : raw;
-
-    this.applyOutcome(
-      mapHandlerOutcome(outcome, exception),
-      meta,
-      component,
+    const outcome = await this.chainRunner(
+      {
+        guard: (function* () {
+          return exception;
+        })(),
+      },
+      this._activeRouteInjector ?? this.rootInjector,
+      this.router,
+      meta.handleExceptions,
       'active',
     );
+    this.applyOutcome(outcome, meta, component, 'active');
   }
 
   // --------------------------------------------------------------------------
@@ -584,14 +582,14 @@ export class CraftRouterOutlet
   }
 
   private publishGlobalError(exception: AnyCraftException | null): void {
-    const sink = this.rootInjector.get(CRAFT_GLOBAL_ERROR) as WritableSignal<
-      AnyCraftException | null
-    >;
+    const sink = this.rootInjector.get(
+      CRAFT_GLOBAL_ERROR,
+    ) as WritableSignal<AnyCraftException | null>;
     sink.set(exception);
   }
 
   private async resolvePendingComponent(meta: CraftRouteMeta): Promise<void> {
-    const component = await resolveComponentInput(
+    const component = await resolvePendingComponentInput(
       meta.pendingComponent ?? this.defaultPendingComponent,
     );
     this.pendingComponent.set(component);
@@ -622,70 +620,46 @@ export class CraftRouterOutlet
     this._reactiveEffect?.destroy();
     this._reactiveEffect = null;
     this._frozen = false;
+    this.clearExceptionSinks(this._meta);
+  }
+
+  private clearExceptionSinks(meta: CraftRouteMeta | null | undefined): void {
+    if (!meta) return;
+    for (const sink of Object.values(meta.exceptionSinks)) sink.set(null);
   }
 }
 
 // --- pure helpers (testable, no Angular) ---
 
-function isGeneratorLike(
-  value: unknown,
-): value is Generator<unknown, unknown, unknown> {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    typeof (value as { next?: unknown }).next === 'function'
-  );
-}
-
-// Drains a handler generator synchronously (reactive handlers must not suspend).
-function drainSyncGenerator(
-  iterator: Generator<unknown, unknown, unknown>,
-): unknown {
-  let current = iterator.next();
-  while (!current.done) {
-    current = iterator.next();
-  }
-  return current.value;
-}
-
-function mapHandlerOutcome(
-  outcome: unknown,
-  exception: AnyCraftException,
-): RouteChainOutcome {
-  const value = outcome as { kind?: string; target?: unknown; component?: unknown };
-  switch (value.kind) {
-    case 'redirect':
-      return { kind: 'redirect', target: value.target as never };
-    case 'render':
-      return { kind: 'render', component: value.component as never };
-    case 'global':
-      return { kind: 'global', exception };
-    case 'stay':
-      return { kind: 'stay' };
-    default:
-      return { kind: 'noop' };
-  }
-}
-
-/** Resolves an eager `Type` or a lazy `() => import()` to a component `Type`. */
+/** Resolves an eager or lazy exception component descriptor. */
 export async function resolveComponentInput(
   input: CraftExceptionComponentInput | null | undefined,
 ): Promise<Type<unknown> | null> {
   if (!input) {
     return null;
   }
-  if (isLazyComponent(input)) {
-    const module = await input();
-    return module.default;
+  if (input.loadComponent) {
+    const loaded = await input.loadComponent();
+    return typeof loaded === 'object' && 'default' in loaded
+      ? loaded.default
+      : loaded;
+  }
+  return input.component;
+}
+
+async function resolvePendingComponentInput(
+  input: CraftPendingComponentInput | null | undefined,
+): Promise<Type<unknown> | null> {
+  if (!input) return null;
+  if (isLazyPendingComponent(input)) {
+    return (await input()).default;
   }
   return input;
 }
 
-function isLazyComponent(
-  input: CraftExceptionComponentInput,
+function isLazyPendingComponent(
+  input: CraftPendingComponentInput,
 ): input is () => Promise<{ default: Type<unknown> }> {
-  // A component `Type` is a class — its `.prototype` is an object. A lazy loader
-  // is an arrow function (`() => import(...)`), whose `.prototype` is `undefined`.
   return typeof input === 'function' && input.prototype === undefined;
 }
 

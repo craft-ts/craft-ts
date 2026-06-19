@@ -20,7 +20,7 @@ const SKELETON = `
 const ROUTES = (extra: string) => `
   import {
     craftRoutes,
-    route,
+    craftRoute,
     viewTransitionPayload,
     type CanRun,
     type RouteCheckedDI,
@@ -29,7 +29,7 @@ const ROUTES = (extra: string) => `
   import type { Router } from '@angular/router';
 
   export const { galleryRoutes } = craftRoutes('gallery', [
-    route(':photoId', {
+    craftRoute(':photoId', {
       componentDeps: {} as import('./detail').GenDeps_DetailComponent,
       loadComponent: () => import('./detail'),
       withLoaderViewTransitionImage: viewTransitionPayload<{ name: string }>(),
@@ -70,7 +70,7 @@ describe('require-pending-component-di-check', () => {
 
     const { messages } = await lintFixture(source);
     expect(messages).toEqual([
-      'route(s) with a pendingComponent must be verified with RouteCheckedDI(): :photoId',
+      'craftRoute(s) with a pendingComponent must be verified with RouteCheckedDI(): :photoId',
     ]);
 
     const { output } = await lintFixture(source, { fix: true });
@@ -88,9 +88,9 @@ describe('require-pending-component-di-check', () => {
 
   it('ignores routes without a lazy pendingComponent', async () => {
     const { messages } = await lintFixture(`
-      import { craftRoutes, route } from '@craft-ng/core';
+      import { craftRoutes, craftRoute } from '@craft-ng/core';
       export const { galleryRoutes } = craftRoutes('gallery', [
-        route('', {
+        craftRoute('', {
           componentDeps: {} as import('./detail').GenDeps_DetailComponent,
           loadComponent: () => import('./detail'),
         }),

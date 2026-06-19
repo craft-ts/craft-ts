@@ -10,6 +10,7 @@ import { craftException, type CraftException } from './craft-exception';
 import type { CraftGenExceptionMarker } from './craft-gen';
 import {
   CRAFT_GLOBAL_ERROR,
+  craftExceptionHandler,
   craftExceptionOutcomeApi,
   injectCraftGlobalError,
   type CraftExceptionHandler,
@@ -44,7 +45,11 @@ type Ex<Code extends string> = CraftException<
 type FakeCanActivate = (
   route: unknown,
   state: unknown,
-) => Generator<CraftGenExceptionMarker<Ex<'A'> | Ex<'B'>>, { user: string }, unknown>;
+) => Generator<
+  CraftGenExceptionMarker<Ex<'A'> | Ex<'B'>>,
+  { user: string },
+  unknown
+>;
 
 type FakeCanMatch = () => Generator<
   CraftGenExceptionMarker<Ex<'FLAG_OFF'>>,
@@ -84,10 +89,18 @@ describe('craft-route-exceptions (types)', () => {
   it('aggregates the union over canActivate ∪ canMatch ∪ resolve', () => {
     // A handler keyed on every reachable code (A, B, FLAG_OFF, C) compiles.
     handle({
-      A: ({ redirect }) => redirect('/a'),
-      B: ({ stay }) => stay(),
-      FLAG_OFF: ({ redirect }) => redirect('/home'),
-      C: ({ globalError }) => globalError(),
+      A: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/a');
+      }),
+      B: craftExceptionHandler(function* ({ stay }) {
+        return stay();
+      }),
+      FLAG_OFF: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/home');
+      }),
+      C: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
     });
     expect(true).toBe(true);
   });
@@ -95,47 +108,62 @@ describe('craft-route-exceptions (types)', () => {
   it('rejects a missing code', () => {
     // @ts-expect-error 'C' (from resolve) is missing — the error lands on the call
     handle({
-      A: ({ redirect }) => redirect('/a'),
-      B: ({ stay }) => stay(),
-      FLAG_OFF: ({ redirect }) => redirect('/home'),
+      A: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/a');
+      }),
+      B: craftExceptionHandler(function* ({ stay }) {
+        return stay();
+      }),
+      FLAG_OFF: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/home');
+      }),
     });
   });
 
   it('rejects an extra code', () => {
     handle({
-      A: ({ redirect }) => redirect('/a'),
-      B: ({ stay }) => stay(),
-      FLAG_OFF: ({ redirect }) => redirect('/home'),
-      C: ({ globalError }) => globalError(),
+      A: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/a');
+      }),
+      B: craftExceptionHandler(function* ({ stay }) {
+        return stay();
+      }),
+      FLAG_OFF: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/home');
+      }),
+      C: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
       // @ts-expect-error 'NOPE' is not a reachable code
-      NOPE: ({ noop }) => noop(),
+      NOPE: craftExceptionHandler(function* ({ noop }) {
+        return noop();
+      }),
     });
   });
 
   it('accepts a generator handler that yields before its outcome', () => {
-    const handler: CraftExceptionHandler<Ex<'A'>> = function* ({ redirect }) {
-      // a real handler could `yield* SomeConfigToYield()` here
-      return redirect('/from-generator');
-    };
+    const handler: CraftExceptionHandler<Ex<'A'>> = craftExceptionHandler(
+      function* ({ redirectUrl }) {
+        // a real handler could `yield* SomeConfigToYield()` here
+        return redirectUrl('/from-generator');
+      },
+    );
     expect(typeof handler).toBe('function');
   });
 
   it('types the exception and payload on the handler context', () => {
-    const handler: CraftExceptionHandler<Ex<'A'>> = ({
-      exception,
-      payload,
-      phase,
-      renderComponent,
-    }) => {
-      // exception.code is narrowed to 'A'; payload to { detail: string }
-      const code: 'A' = exception.code;
-      const detail: string = payload.detail;
-      const seenEnter: boolean = phase === 'enter';
-      void code;
-      void detail;
-      void seenEnter;
-      return renderComponent(class {});
-    };
+    const handler: CraftExceptionHandler<Ex<'A'>> = craftExceptionHandler(
+      function* ({ exception, payload, phase, renderComponent }) {
+        // exception.code is narrowed to 'A'; payload to { detail: string }
+        const code: 'A' = exception.code;
+        const detail: string = payload.detail;
+        const seenEnter: boolean = phase === 'enter';
+        void code;
+        void detail;
+        void seenEnter;
+        return renderComponent({ component: class {}, componentDeps: {} });
+      },
+    );
     expect(typeof handler).toBe('function');
   });
 });
@@ -146,7 +174,7 @@ describe('craft-route-exceptions (runtime)', () => {
   });
 
   it('builds discriminated outcomes', () => {
-    expect(craftExceptionOutcomeApi.redirect('/login')).toEqual({
+    expect(craftExceptionOutcomeApi.redirectUrl('/login')).toEqual({
       kind: 'redirect',
       target: '/login',
     });
@@ -154,9 +182,10 @@ describe('craft-route-exceptions (runtime)', () => {
     expect(craftExceptionOutcomeApi.stay()).toEqual({ kind: 'stay' });
     expect(craftExceptionOutcomeApi.noop()).toEqual({ kind: 'noop' });
     const cmp = class {};
-    expect(craftExceptionOutcomeApi.renderComponent(cmp)).toEqual({
+    const descriptor = { component: cmp, componentDeps: {} };
+    expect(craftExceptionOutcomeApi.renderComponent(descriptor)).toEqual({
       kind: 'render',
-      component: cmp,
+      component: descriptor,
     });
   });
 

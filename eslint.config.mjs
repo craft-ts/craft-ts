@@ -38,6 +38,8 @@ export default [
     ],
     // Override or add rules here
     rules: {
+      // craft generators may be synchronous while preserving a uniform API.
+      'require-yield': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         {

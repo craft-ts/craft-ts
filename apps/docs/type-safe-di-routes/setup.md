@@ -50,19 +50,25 @@ Typical errors look like:
 - `Injected Counter is not provided in path: "some-path"`
 - `Input "userId" is not provided in path: "some-path"`
 
-## 2. Wrap your routes with `craftRoutes`
+## 2. Define routes with `craftRoute` and collect them with `craftRoutes`
 
-Do not export a plain Angular `Routes` array directly. Wrap it in `craftRoutes(...)` and declare `componentDeps` on each route component.
+Do not export a plain Angular `Routes` array directly. Define each typed route with
+`craftRoute(...)`, collect them with `craftRoutes(...)`, and declare `componentDeps` on each route
+component.
+
+::: warning Breaking rename
+The former `route(...)` helper has been renamed to `craftRoute(...)`. There is no compatibility alias:
+update both the import and every call site.
+:::
 
 ```ts
-import { craftRoutes } from '@craft-ng/core';
+import { craftRoute, craftRoutes } from '@craft-ng/core';
 
 export const { appRoutes } = craftRoutes('app', [
-  {
-    path: '',
+  craftRoute('', {
     loadComponent: () => import('./test'),
     componentDeps: {} as import('./test').GenDeps_TestComponent,
-  },
+  }),
 ]);
 ```
 
@@ -95,7 +101,7 @@ Notes:
   handling), render `<craft-router-outlet>` instead of `<router-outlet>` and use
   `provideCraftRouter(...)` instead of `provideRouter(...)` — it accepts Angular router features
   **and** craft loading features (`withErrorComponent`, `withTransitionTimings`, …) in one call,
-  e.g. `provideCraftRouter(appRoutes.toRoutes(), withComponentInputBinding(), withErrorComponent(MyGlobalErrorScreen))`.
+  e.g. `provideCraftRouter(appRoutes.toRoutes(), withComponentInputBinding(), withErrorComponent({ component: MyGlobalErrorScreen, componentDeps }))`.
   (The features also work standalone via `provideCraftLoading(...)`.)
   See [Non-blocking navigation & pending UI](./pending-ui.md).
 - For lazy routes, `loadChildren` should return the named route tree exported by the child collection, for example `childRoutes.childRoutes`.
@@ -114,14 +120,14 @@ TS2589: Type instantiation is excessively deep and possibly infinite.
 
 ::: warning Watch out for the knock-on collapse
 A `TS2589` makes TypeScript abandon that type and fall back to `any`, which **poisons inference of
-neighbouring `const`s in the same file**. The visible symptoms are misleading: `route(...)` calls
+neighbouring `const`s in the same file**. The visible symptoms are misleading: `craftRoute(...)` calls
 collapse to `RouteWithProvidersBuilder<{ path }>`, the `craftRoutes(...)` helpers go missing
 (`Property 'injectXxx' does not exist`), and `craftRouterLink` targets type as `never`. The root
 cause is the overflowing check, not those routes.
 :::
 
 **Solution — split into a lazy child collection, and keep its own DI check.** The cascade check
-reads only the *current* collection's metadata; it does **not** descend into `loadChildren`. So move
+reads only the _current_ collection's metadata; it does **not** descend into `loadChildren`. So move
 the extra routes into their own `craftRoutes(...)` file and reference it via `loadChildren`. That
 keeps the parent file under budget — **but a child collection ships with _no_ DI checking unless you
 add one**, so re-declare the check in the child file to keep DI sound:
@@ -130,14 +136,14 @@ add one**, so re-declare the check in the child file to keep DI sound:
 // feature.routes.ts — its own lazy collection
 import {
   craftRoutes,
-  route,
+  craftRoute,
   type CanRun,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
 
 export const { featureRoutes } = craftRoutes('feature', [
-  route('', {
+  craftRoute('', {
     componentDeps: {} as import('./feature').GenDeps_Feature,
     loadComponent: () => import('./feature'),
     // guards / resolve / handleExceptions …
@@ -147,7 +153,11 @@ export const { featureRoutes } = craftRoutes('feature', [
 // DI safety for THIS collection — `app.routes.ts` does NOT cover loadChildren.
 // Same parent context the parent route runs under: app-level `Router` by value,
 // no extra named providers.
-type _CheckFeatureDI = ValidateCascadeRoutesFile<never, Router, typeof featureRoutes>;
+type _CheckFeatureDI = ValidateCascadeRoutesFile<
+  never,
+  Router,
+  typeof featureRoutes
+>;
 type _CanRunFeature = CanRun<_CheckFeatureDI>;
 ```
 
@@ -213,11 +223,15 @@ When an ancestor route _does_ add providers, re-export its cumulative context an
 
 ```ts
 // billing.routes.ts (mounted under a route with providers: [provideBilling()])
-export type BillingChildNames  = AppProvidedNames | 'BillingService';
+export type BillingChildNames = AppProvidedNames | 'BillingService';
 export type BillingChildValues = AppProvidedValues;
 
 // sub-billing.routes.ts
-type _Check = ValidateCascadeRoutesFile<BillingChildNames, BillingChildValues, typeof subRoutes>;
+type _Check = ValidateCascadeRoutesFile<
+  BillingChildNames,
+  BillingChildValues,
+  typeof subRoutes
+>;
 ```
 
 Forgetting to fold in an ancestor's provider makes the child check wrong (a real missing-provider bug
@@ -261,10 +275,10 @@ the parent with `assertChildRouteMounts(parentRoutes)`:
 
 ```ts
 // view-transitions.routes.ts — the child declares where it belongs
-import { craftRoutes, route, type ParentRoutes } from '@craft-ng/core';
+import { craftRoutes, craftRoute, type ParentRoutes } from '@craft-ng/core';
 
 export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
-  route(':photoId', {
+  craftRoute(':photoId', {
     componentDeps: {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
     loadComponent: () => import('./photo-detail'),
     // …
@@ -400,7 +414,12 @@ export default [
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
+      'craft-ng/require-assert-exhaustive-route-exceptions': 'error',
+      'craft-ng/require-craft-exception-handler': 'error',
+      'craft-ng/require-exception-component-di-check': 'error',
+      'craft-ng/require-pending-component-di-check': 'error',
       'craft-ng/require-child-route-mount-check': 'error',
+      'craft-ng/global-exception-registry-match': 'error',
     },
   },
 ];
@@ -414,7 +433,12 @@ What each rule does:
 - `craft-ng/no-angular-inject`: forbids raw Angular `inject()` usage so dependencies go through `craftService(...)` or `toCraftService(...)`
 - `craft-ng/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
 - `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
+- `craft-ng/require-assert-exhaustive-route-exceptions`: adds the collection-level `assertExhaustiveRouteExceptions(...)` safety net
+- `craft-ng/require-craft-exception-handler`: enforces `craftExceptionHandler(function* (...) {})`; simple handlers are autofixed and ambiguous raw redirects are reported for manual migration
+- `craft-ng/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, and `withErrorComponent`
+- `craft-ng/require-pending-component-di-check`: generates the independent `RouteCheckedDI` check for each `pendingComponent`
 - `craft-ng/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
+- `craft-ng/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
 
 The two migration rules also expose a VS Code ESLint Quick Fix suggestion that inserts a temporary local disable comment with the intended migration note when you need to unblock a file before doing the full refactor.
 
