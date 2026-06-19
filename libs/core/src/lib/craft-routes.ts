@@ -1300,13 +1300,19 @@ type TypedExceptionHandlers<
     Results[Code]
   >;
 };
+declare const MISSING_EXCEPTION_HANDLERS: unique symbol;
 type MissingExceptionHandlers<
   Exception extends AnyCraftException,
   Codes extends string,
 > =
   Exclude<ExceptionCode<Exception>, Codes> extends never
     ? unknown
-    : { readonly ERROR_missing_exception_handlers: never };
+    : {
+        readonly [MISSING_EXCEPTION_HANDLERS]: Exclude<
+          ExceptionCode<Exception>,
+          Codes
+        >;
+      };
 
 type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
   path: infer Path extends string;

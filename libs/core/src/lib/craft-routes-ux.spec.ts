@@ -35,6 +35,9 @@ const flagOff = craftGen(function* () {
 const profileFail = craftGen(function* () {
   return craftException({ code: 'USER_DISABLED' });
 });
+const pizzeriaFail = craftGen(function* () {
+  return craftException({ code: 'HAS_PIZZERIA' });
+});
 
 class Stub {}
 
@@ -149,6 +152,46 @@ describe('route handleExceptions (third argument)', () => {
           return redirectUrl('/login');
         }),
       },
+    );
+  });
+
+  it('rejects a missing code from sequential guards in one canActivate', () => {
+    craftRoute(
+      'new',
+      {
+        loadComponent: () => Promise.resolve({ default: Stub }),
+        componentDeps: {},
+        canActivate: craftCanActivate(function* () {
+          yield* authFail();
+          yield* profileFail();
+          yield* pizzeriaFail();
+          return true;
+        }),
+      },
+      // @ts-expect-error 'HAS_PIZZERIA' from the third guard is unhandled
+      {
+        NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+          return redirectUrl('/login');
+        }),
+        USER_DISABLED: craftExceptionHandler(function* ({ globalError }) {
+          return globalError();
+        }),
+      },
+    );
+  });
+
+  it('does not expose a string diagnostic key as a substitute handler', () => {
+    craftRoute(
+      'user/:userId',
+      {
+        loadComponent: () => Promise.resolve({ default: Stub }),
+        componentDeps: {},
+        canActivate: craftCanActivate(function* () {
+          return yield* authFail();
+        }),
+      },
+      // @ts-expect-error the only valid missing key is NOT_AUTHENTICATED
+      { ERROR_missing_exception_handlers: undefined },
     );
   });
 
