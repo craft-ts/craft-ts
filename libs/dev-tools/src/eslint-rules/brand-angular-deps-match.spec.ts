@@ -331,7 +331,7 @@ describe('brand-angular-deps-match', () => {
     );
   });
 
-  it('autofixes FormField<any> for signal forms imports', async () => {
+  it('autofixes a lint-safe FormField type for signal forms imports', async () => {
     const staleFixture = {
       'src/angular-forms-signals.d.ts': `
         declare module '@angular/forms/signals' {
@@ -397,9 +397,9 @@ describe('brand-angular-deps-match', () => {
     const { output } = await lintFixture(staleFixture, { fix: true });
 
     expect(output).toMatch(
-      /CommonModule: CommonModule;[\s\S]*GenDeps_StatusComponent: GenDeps_StatusComponent;[\s\S]*FormField: FormField<any>;/,
+      /CommonModule: CommonModule;[\s\S]*GenDeps_StatusComponent: GenDeps_StatusComponent;[\s\S]*FormField: FormField<never>;/,
     );
-    expect(output).toContain('FormField: FormField<any>;');
+    expect(output).toContain('FormField: FormField<never>;');
     expect(output).not.toContain('type FormField');
   });
 

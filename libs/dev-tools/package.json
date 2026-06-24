@@ -17,7 +17,10 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "craft-brand": "./src/bin/craft-brand.js"
+    "craft-brand": "./src/bin/craft-brand.js",
+    "craft-migrate-primitives": "./src/bin/craft-migrate-primitives.js",
+    "craft-migrate-services": "./src/bin/craft-migrate-services.js",
+    "craft-migrate-routes": "./src/bin/craft-migrate-routes.js"
   },
   "files": [
     "src/**/*",

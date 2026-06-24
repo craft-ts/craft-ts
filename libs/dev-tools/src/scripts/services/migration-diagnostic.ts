@@ -1,0 +1,27 @@
+export type ServiceMigrationDiagnosticCode =
+  | 'CONFLICTING_SCOPE'
+  | 'UNSUPPORTED_PROVIDED_IN'
+  | 'COMPLEX_PROVIDER'
+  | 'RUNTIME_TOKEN_USAGE'
+  | 'NON_CONVERTIBLE_CLASS'
+  | 'DI_CYCLE'
+  | 'LIFECYCLE_HOOK'
+  | 'INJECTION_FLAGS'
+  | 'FRAMEWORK_CONTRACT'
+  | 'INJECT_ASYNC'
+  | 'THIRD_PARTY_SCOPE_REQUIRED'
+  | 'HTTP_CLIENT_REWRITE_REQUIRED'
+  | 'MUTATION_SUBSCRIBE_REQUIRES_REWRITE'
+  | 'IMPERATIVE_WORKFLOW_REQUIRES_REVIEW'
+  | 'RESOURCE_CHAIN_REQUIRES_REWRITE'
+  | 'DIVERGENT_ROOTS'
+  | 'GEN_DEPS_OVERRIDE_REQUIRED'
+  | 'COMPLEX_TEST';
+
+export type ServiceMigrationDiagnostic = {
+  code: ServiceMigrationDiagnosticCode;
+  filePath: string;
+  symbol?: string;
+  message: string;
+  manual: true;
+};

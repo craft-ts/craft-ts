@@ -51,6 +51,35 @@ export type AngularBrandConfig = {
   importAugmentations?: readonly AngularBrandImportAugmentationRule[];
 };
 
+export type ServiceMigrationScope =
+  | 'global'
+  | 'toProvide'
+  | 'manuallyProvidedAtRoot'
+  | 'function'
+  | 'abstract';
+
+export type ServiceMigrationStrategy =
+  | 'craftService'
+  | 'toCraftService'
+  | 'companion'
+  | 'ignore';
+
+export type ServiceMigrationOverride = {
+  file?: string;
+  module?: string;
+  symbol?: string;
+  name?: string;
+  scope?: ServiceMigrationScope;
+  strategy?: ServiceMigrationStrategy;
+};
+
+export type CraftDevToolsConfig = {
+  brand?: AngularBrandConfig;
+  serviceMigration?: {
+    overrides?: readonly ServiceMigrationOverride[];
+  };
+};
+
 export type TransformResult = {
   changed: boolean;
   skipped: boolean;
@@ -247,6 +276,7 @@ const DEFAULT_OPTIONS: NormalizedOptions = {
   configFilePath: undefined,
 };
 
+const CRAFT_DEV_TOOLS_CONFIG_FILE_NAME = 'craft-dev-tools.config.ts';
 const ANGULAR_BRAND_CONFIG_FILE_NAME = 'craft-brand.config.ts';
 const DEFAULT_ANGULAR_BRAND_METADATA_CONTEXTS: AngularBrandMetadataContext[] = [
   'imports',
@@ -283,7 +313,22 @@ const DEFAULT_ANGULAR_BRAND_CONFIG = defineAngularBrandConfig({
         {
           key: 'FormField',
           symbol: 'FormField',
-          typeText: 'FormField<unknown>',
+          typeText: 'FormField<never>',
+          module: '@angular/forms/signals',
+        },
+      ],
+    },
+    {
+      match: {
+        module: '@angular/forms/signals',
+        symbols: ['FormRoot'],
+        metadata: ['imports'],
+      },
+      deps: [
+        {
+          key: 'FormRoot',
+          symbol: 'FormRoot',
+          typeText: 'FormRoot<unknown>',
           module: '@angular/forms/signals',
         },
       ],
@@ -404,6 +449,20 @@ export function defineAngularBrandConfig<Config extends AngularBrandConfig>(
   return config;
 }
 
+export function defineCraftDevToolsConfig<Config extends CraftDevToolsConfig>(
+  config: Config,
+): Config {
+  return config;
+}
+
+function isCraftDevToolsConfig(value: unknown): value is CraftDevToolsConfig {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      ('brand' in value || 'serviceMigration' in value),
+  );
+}
+
 export function discoverAngularBrandConfigFilePath(
   searchFromDir: string,
   stopDir?: string,
@@ -412,9 +471,14 @@ export function discoverAngularBrandConfigFilePath(
   let currentDir = resolve(searchFromDir);
 
   while (true) {
-    const candidatePath = join(currentDir, ANGULAR_BRAND_CONFIG_FILE_NAME);
-    if (existsSync(candidatePath) && statSync(candidatePath).isFile()) {
-      return candidatePath;
+    for (const fileName of [
+      CRAFT_DEV_TOOLS_CONFIG_FILE_NAME,
+      ANGULAR_BRAND_CONFIG_FILE_NAME,
+    ]) {
+      const candidatePath = join(currentDir, fileName);
+      if (existsSync(candidatePath) && statSync(candidatePath).isFile()) {
+        return candidatePath;
+      }
     }
 
     if (resolvedStopDir && currentDir === resolvedStopDir) {
@@ -480,7 +544,7 @@ export function loadAngularBrandConfigFromFile(
       module.exports,
       (specifier: string) => {
         if (specifier === '@craft-ng/dev-tools') {
-          return { defineAngularBrandConfig };
+          return { defineAngularBrandConfig, defineCraftDevToolsConfig };
         }
 
         return moduleRequire(specifier);
@@ -495,8 +559,11 @@ export function loadAngularBrandConfigFromFile(
       (module.exports['__esModule']
         ? module.exports['default']
         : module.exports);
+    const brandConfig = isCraftDevToolsConfig(exportedConfig)
+      ? (exportedConfig.brand ?? {})
+      : exportedConfig;
     const validatedConfig = validateAngularBrandConfig(
-      exportedConfig,
+      brandConfig,
       resolvedConfigFilePath,
     );
 
@@ -2014,8 +2081,12 @@ function ensureGeneratedDependencyTypeImports(
         continue;
       }
 
+      const declarationIsTypeOnly = existingImport.isTypeOnly();
       existingImport.addNamedImports(
-        namesToAdd.map((name) => ({ name, isTypeOnly: true })),
+        namesToAdd.map((name) => ({
+          name,
+          isTypeOnly: !declarationIsTypeOnly,
+        })),
       );
       continue;
     }

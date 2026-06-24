@@ -10,27 +10,45 @@ Development tools for ng-craft: ESLint configs, ESLint rules, and codemods.
 npm install -D @craft-ng/dev-tools
 ```
 
-## Angular Brand Codemod Config
+## Dev-tools configuration
 
-`craft-brand` can load a typed project config from `craft-brand.config.ts`.
+`craft-brand` and the migrations load a typed project config from
+`craft-dev-tools.config.ts`. The legacy `craft-brand.config.ts` format remains
+supported.
 
 ```ts
-import { defineAngularBrandConfig } from '@craft-ng/dev-tools';
+import { defineCraftDevToolsConfig } from '@craft-ng/dev-tools';
 
-export default defineAngularBrandConfig({
-  importAugmentations: [
-    {
-      match: {
-        module: '@ngx-translate/core',
-        symbols: ['TranslatePipe'],
-        metadata: ['imports'],
+export default defineCraftDevToolsConfig({
+  brand: {
+    importAugmentations: [
+      {
+        match: {
+          module: '@ngx-translate/core',
+          symbols: ['TranslatePipe'],
+          metadata: ['imports'],
+        },
+        deps: [
+          {
+            key: 'TranslateService',
+            symbol: 'TranslateService',
+            typeText: 'TranslateService<unknown>',
+          },
+        ],
       },
-      deps: [{ key: 'TranslateService', symbol: 'TranslateService' }],
-      missingProvider: [
-        { key: 'TranslateService', symbol: 'TranslateService' },
-      ],
-    },
-  ],
+    ],
+  },
+  serviceMigration: {
+    overrides: [
+      {
+        file: 'src/app/legacy-api.service.ts',
+        symbol: 'LegacyApiService',
+        name: 'Api',
+        scope: 'manuallyProvidedAtRoot',
+        strategy: 'craftService',
+      },
+    ],
+  },
 });
 ```
 
@@ -57,12 +75,9 @@ Discovery behavior:
 - `brand-angular-deps-match` can autofix an existing `GenDeps_*` alias in the current file
 - `component-test-gen-deps-match` verifies component test helpers use the matching `GenDeps_*` alias
 
-Current scope:
-
-- `TypeScript` config file only
-- declarative rules only
-- matching only from Angular `imports` and `hostDirectives`
-- no arbitrary `typeText` generation and no helper-local `typeof injectX` expressions
+`typeText` supports generic dependency spellings that cannot be inferred from
+Angular metadata. Service overrides match by file/module/symbol; later matching
+entries take precedence.
 
 Example CLI usage:
 
@@ -70,6 +85,90 @@ Example CLI usage:
 craft-brand --root apps/demo/src
 craft-brand --root apps/demo/src --config ./craft-brand.config.ts
 ```
+
+## Angular services migration
+
+Run services before routes so generated `GenDeps` and route provider names see
+the craft helpers:
+
+```bash
+craft-migrate-primitives --project apps/my-app/tsconfig.app.json --root apps/my-app/src --dry-run
+craft-migrate-primitives --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
+craft-migrate-services --project apps/my-app/tsconfig.app.json --root apps/my-app/src --dry-run
+craft-migrate-services --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
+craft-migrate-routes --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
+ng build my-app
+```
+
+`--write` runs ESLint on touched files by default; use `--no-eslint` only when
+the caller owns that step. `--json [path]`, `--check`, and `--fail-on-manual`
+support CI and staged migrations. Ambiguous classes are retained and receive an
+idempotent `.craft.ts` companion containing `CRAFT_IMPLEMENTATION_REQUIRED`.
+The companion uses a valid inferred scope and consumers import its generated
+helpers, so a manual service rewrite no longer leaves broken imports behind.
+
+`craft-migrate-primitives` runs before service migration. It converts simple
+Angular `signal(...)` calls to the craft `state(...)` primitive and reports
+signal-form migration points. Signal forms are intentionally diagnostic-first:
+`form(...)` must become `state(..., insertForm(...))`, but field paths and
+validators change shape. For async validators, the script reports the
+`validateAsync(...) + rxResource(...)` pattern so it can be rewritten as a local
+`query(...)` triggered by the field value plus `cAsyncValidate(queryRef, ...)`.
+
+The service migration also:
+
+- preserves method type parameters and avoids property/parameter shadowing
+- removes replaced Angular service imports
+- converts simple `httpResource(...)` calls to `query(...)` backed by
+  `CraftHttpClient.request(...)`
+- converts simple writable service methods using `HttpClient.post/put/patch/delete`
+  into generator operations backed by `CraftHttpClient`
+- when a component already performs a simple `.subscribe()`, creates a
+  component-local `mutation(...)` and replaces the subscription trigger with
+  `.mutate(...)`; complex subscriptions keep a manual diagnostic so callback
+  semantics are not silently moved to a shared service lifecycle
+- rewrites simple `chain(resource)` dependencies to `resource.value()` and
+  reports only complex chains that require a semantic decision
+- disables `@typescript-eslint/explicit-function-return-type` in the nearest
+  flat ESLint config, because generated craft callbacks rely on inference
+
+## Angular routes migration
+
+`craft-migrate-routes` converts exported `Routes` arrays to `craftRoutes`, wraps
+statically resolvable component routes with `craftRoute`, generates or reuses
+their `GenDeps_*` type, and adds the file-level DI check.
+
+Start with a dry run:
+
+```bash
+craft-migrate-routes \
+  --project apps/my-app/tsconfig.app.json \
+  --root apps/my-app/src/app \
+  --dry-run
+```
+
+Then write the deterministic changes and let the project rules refresh their
+generated assertions:
+
+```bash
+craft-migrate-routes --project apps/my-app/tsconfig.app.json --root apps/my-app/src/app --write
+eslint --fix "apps/my-app/src/**/*.ts"
+ng build my-app
+```
+
+When the root collection is fully migratable, the routes migration also updates
+`app.config.ts` to `craftAppConfig(...)` + `provideCraftRouter(routes.toRoutes())`
+and wraps the bootstrap config with `toApplicationConfig(...)`. Collections
+containing Angular guards or nested `children` are kept as Angular `Routes`
+instead of being half-converted; the CLI emits manual diagnostics and leaves
+`app.config.ts` unchanged until the root route tree is craft-compatible.
+
+The migration deliberately reports guards, dynamic paths/redirects, ambiguous
+components, inherited providers, and route splits instead of guessing their
+business semantics. Use `--fail-on-manual` to make these diagnostics fail the
+command, `--json <path>` for a machine-readable report, and `--check` in CI to
+reject remaining legacy collections. Lazy collections can declare their mount
+context with `--parent-mount <path>` and `--parent-names <name,...>`.
 
 ```bash
 import craftRules from '@craft-ng/dev-tools/eslint-rules';

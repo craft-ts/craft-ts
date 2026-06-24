@@ -408,7 +408,7 @@ describe('angular-brand-codemod', () => {
     expect(output).not.toMatch(/missingProvider: \{[\s\S]*Router: Router;/);
   });
 
-  it('emits FormField<any> when FormField is imported in metadata imports', async () => {
+  it('emits a lint-safe FormField type when FormField is imported in metadata imports', async () => {
     const project = await createSignalFormsMetadataProjectFixture({
       'src/app/status.component.ts': `
         import { Component } from '@angular/core';
@@ -446,9 +446,9 @@ describe('angular-brand-codemod', () => {
     expect(depsSection).toContain(
       'GenDeps_StatusComponent: GenDeps_StatusComponent;',
     );
-    expect(depsSection).toContain('FormField: FormField<any>;');
+    expect(depsSection).toContain('FormField: FormField<never>;');
     expect(depsSection).toMatch(
-      /CommonModule: CommonModule;[\s\S]*GenDeps_StatusComponent: GenDeps_StatusComponent;[\s\S]*FormField: FormField<any>;/,
+      /CommonModule: CommonModule;[\s\S]*GenDeps_StatusComponent: GenDeps_StatusComponent;[\s\S]*FormField: FormField<never>;/,
     );
     expect(output).not.toContain('type FormField');
   });

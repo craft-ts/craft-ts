@@ -462,16 +462,15 @@ function brandException<
   } as AnyCraftException & ValidatorUtilBrand<Name, Type, {}>;
 }
 
-function brandRawException<
-  Name extends string,
-  Type extends ValidatorType,
->(
+function brandRawException<Name extends string, Type extends ValidatorType>(
   name: Name,
   type: Type,
   exception: AnyCraftException | AnyCraftException[],
 ): CraftFieldError | CraftFieldError[] {
   if (Array.isArray(exception)) {
-    return exception.map((e) => ({ ...e, __brand: name, type } as unknown as CraftFieldError));
+    return exception.map(
+      (e) => ({ ...e, __brand: name, type }) as unknown as CraftFieldError,
+    );
   }
   return { ...exception, __brand: name, type } as unknown as CraftFieldError;
 }
@@ -506,10 +505,18 @@ function lengthOf(value: unknown): number | undefined {
   if (value === null || value === undefined) return undefined;
   if (typeof value === 'string') return value.length;
   if (Array.isArray(value)) return value.length;
-  if (typeof value === 'object' && 'length' in value && typeof (value as { length: unknown }).length === 'number') {
+  if (
+    typeof value === 'object' &&
+    'length' in value &&
+    typeof (value as { length: unknown }).length === 'number'
+  ) {
     return (value as { length: number }).length;
   }
-  if (typeof value === 'object' && 'size' in value && typeof (value as { size: unknown }).size === 'number') {
+  if (
+    typeof value === 'object' &&
+    'size' in value &&
+    typeof (value as { size: unknown }).size === 'number'
+  ) {
     return (value as { size: number }).size;
   }
   return undefined;
@@ -538,7 +545,9 @@ function getResourceExceptionList(value: unknown): AnyCraftException[] {
   ) {
     return [];
   }
-  const list = (value as { exceptions: Signal<{ list?: unknown[] }> }).exceptions()?.list;
+  const list = (
+    value as { exceptions: Signal<{ list?: unknown[] }> }
+  ).exceptions()?.list;
   return Array.isArray(list) ? list.filter(isCraftException) : [];
 }
 
@@ -590,7 +599,12 @@ function createRequiredValidator<TValue>({
     result: computed<CraftValidatorOutput>(() => {
       if (!shouldValidate(when)) return undefined;
       return isEmptyValue(value())
-        ? (brandException('cRequired', SYNC_VALIDATOR_TYPE, 'required', undefined) as CraftFieldError)
+        ? (brandException(
+            'cRequired',
+            SYNC_VALIDATOR_TYPE,
+            'required',
+            undefined,
+          ) as CraftFieldError)
         : undefined;
     }),
     attribute: computed<FieldAttributeMeta | undefined>(() => {
@@ -620,7 +634,12 @@ function createEmailValidator<TValue extends string | null | undefined>({
       if (typeof v !== 'string') return undefined;
       return EMAIL_REGEX.test(v)
         ? undefined
-        : (brandException('cEmail', SYNC_VALIDATOR_TYPE, 'email', undefined) as CraftFieldError);
+        : (brandException(
+            'cEmail',
+            SYNC_VALIDATOR_TYPE,
+            'email',
+            undefined,
+          ) as CraftFieldError);
     }),
   });
   return withRuntime(validator, {
@@ -645,7 +664,12 @@ function createMinValidator<TValue extends number | string | null | undefined>({
       const n = asNumber(value());
       if (n === undefined) return undefined;
       return n < m
-        ? (brandException('cMin', SYNC_VALIDATOR_TYPE, 'min', m) as CraftFieldError)
+        ? (brandException(
+            'cMin',
+            SYNC_VALIDATOR_TYPE,
+            'min',
+            m,
+          ) as CraftFieldError)
         : undefined;
     }),
     attribute: computed<FieldAttributeMeta | undefined>(() => {
@@ -677,7 +701,12 @@ function createMaxValidator<TValue extends number | string | null | undefined>({
       const n = asNumber(value());
       if (n === undefined) return undefined;
       return n > m
-        ? (brandException('cMax', SYNC_VALIDATOR_TYPE, 'max', m) as CraftFieldError)
+        ? (brandException(
+            'cMax',
+            SYNC_VALIDATOR_TYPE,
+            'max',
+            m,
+          ) as CraftFieldError)
         : undefined;
     }),
     attribute: computed<FieldAttributeMeta | undefined>(() => {
@@ -709,7 +738,12 @@ function createMinLengthValidator<TValue extends ValueWithLengthOrSize>({
       const len = lengthOf(value());
       if (len === undefined) return undefined;
       return len < m
-        ? (brandException('cMinLength', SYNC_VALIDATOR_TYPE, 'minLength', m) as CraftFieldError)
+        ? (brandException(
+            'cMinLength',
+            SYNC_VALIDATOR_TYPE,
+            'minLength',
+            m,
+          ) as CraftFieldError)
         : undefined;
     }),
     attribute: computed<FieldAttributeMeta | undefined>(() => {
@@ -741,7 +775,12 @@ function createMaxLengthValidator<TValue extends ValueWithLengthOrSize>({
       const len = lengthOf(value());
       if (len === undefined) return undefined;
       return len > m
-        ? (brandException('cMaxLength', SYNC_VALIDATOR_TYPE, 'maxLength', m) as CraftFieldError)
+        ? (brandException(
+            'cMaxLength',
+            SYNC_VALIDATOR_TYPE,
+            'maxLength',
+            m,
+          ) as CraftFieldError)
         : undefined;
     }),
     attribute: computed<FieldAttributeMeta | undefined>(() => {
@@ -775,7 +814,12 @@ function createPatternValidator<TValue extends string | null | undefined>({
       if (typeof v !== 'string') return undefined;
       return p.test(v)
         ? undefined
-        : (brandException('cPattern', SYNC_VALIDATOR_TYPE, 'pattern', p) as CraftFieldError);
+        : (brandException(
+            'cPattern',
+            SYNC_VALIDATOR_TYPE,
+            'pattern',
+            p,
+          ) as CraftFieldError);
     }),
   });
   return withRuntime(validator, {
@@ -798,17 +842,21 @@ function createCustomSyncValidator<
   if ('validate' in config) {
     const fn = config.validate;
     const validator: CraftValidator<TValue> = (context) => {
-      const inner = fn({ ...context, identifier: context.identifier as Identifier });
+      const inner = fn({
+        ...context,
+        identifier: context.identifier as Identifier,
+      });
       return {
         result: computed<CraftValidatorOutput>(() => {
           const result = inner();
           if (result === undefined) return undefined;
           const normalized = normalizeCraftExceptionOutput(result);
           if (!normalized) return undefined;
-          return brandRawException(name, SYNC_VALIDATOR_TYPE, normalized.raw) as
-            | CraftFieldError
-            | CraftFieldError[]
-            | undefined;
+          return brandRawException(
+            name,
+            SYNC_VALIDATOR_TYPE,
+            normalized.raw,
+          ) as CraftFieldError | CraftFieldError[] | undefined;
         }),
       };
     };
@@ -816,7 +864,13 @@ function createCustomSyncValidator<
       name,
       type: SYNC_VALIDATOR_TYPE,
       kind: 'signal',
-    }) as unknown as ValidatorOutput<TValue, Name, Exceptions, 'sync', Identifier>;
+    }) as unknown as ValidatorOutput<
+      TValue,
+      Name,
+      Exceptions,
+      'sync',
+      Identifier
+    >;
   }
 
   const simpleConfig = config;
@@ -837,7 +891,13 @@ function createCustomSyncValidator<
     name,
     type: SYNC_VALIDATOR_TYPE,
     kind: 'signal',
-  }) as unknown as ValidatorOutput<TValue, Name, Exceptions, 'sync', Identifier>;
+  }) as unknown as ValidatorOutput<
+    TValue,
+    Name,
+    Exceptions,
+    'sync',
+    Identifier
+  >;
 }
 
 function createCustomAsyncValidator<
@@ -892,7 +952,8 @@ function createCustomAsyncValidator<
   };
 
   const validator: CraftValidator<TValue> = (context) => {
-    const identifier = context.identifier as AsyncValidatorResourceIdentifier<TResourceRef>;
+    const identifier =
+      context.identifier as AsyncValidatorResourceIdentifier<TResourceRef>;
     const resourceTarget = computed(() =>
       resolveAsyncValidatorResourceTarget(resourceRef, identifier),
     );
@@ -905,13 +966,18 @@ function createCustomAsyncValidator<
     effect(() => {
       const v = context.value() as AsyncValidatorRequest<TResourceRef>;
       const target = untracked(() => resourceTarget()) as
-        | { mutate?: (params: unknown) => void }
+        | {
+            mutate?: (params: unknown) => void;
+            call?: (params: unknown) => void;
+          }
         | undefined;
       if (!target) return;
       if (!shouldValidate(cfg.when)) return;
       lastTriggered.set(v);
       if (typeof target.mutate === 'function') {
         target.mutate(v);
+      } else if (typeof target.call === 'function') {
+        target.call(v);
       }
     });
 
@@ -924,7 +990,9 @@ function createCustomAsyncValidator<
         identifier: identifier as Identifier,
         validateAsyncCraftResource: currentResource,
         omitExceptions: ((codes: readonly string[]) =>
-          exceptions.filter((e) => !codes.includes(e.code as string))) as AsyncValidatorContext<
+          exceptions.filter(
+            (e) => !codes.includes(e.code as string),
+          )) as AsyncValidatorContext<
           TValue,
           TResourceRef,
           Identifier
@@ -982,9 +1050,11 @@ function createCustomAsyncValidator<
       );
       if (!isValid || onSuccess) {
         if (onSuccess) {
-          return brandRawException(name, ASYNC_VALIDATOR_TYPE, onSuccess.raw) as
-            | CraftFieldError
-            | CraftFieldError[];
+          return brandRawException(
+            name,
+            ASYNC_VALIDATOR_TYPE,
+            onSuccess.raw,
+          ) as CraftFieldError | CraftFieldError[];
         }
         return brandException(
           name,
@@ -1040,7 +1110,11 @@ export function cMin<TValue extends number | string | null | undefined>(
 ): ValidatorOutput<TValue, 'cMin', CMinException> {
   return createMinValidator<TValue>({
     when: config.when,
-    min: 'min' in config && config.min !== undefined ? config.min : (config as { minValue: ValidatorOption<number | undefined> }).minValue,
+    min:
+      'min' in config && config.min !== undefined
+        ? config.min
+        : (config as { minValue: ValidatorOption<number | undefined> })
+            .minValue,
   });
 }
 
@@ -1049,7 +1123,11 @@ export function cMax<TValue extends number | string | null | undefined>(
 ): ValidatorOutput<TValue, 'cMax', CMaxException> {
   return createMaxValidator<TValue>({
     when: config.when,
-    max: 'max' in config && config.max !== undefined ? config.max : (config as { maxValue: ValidatorOption<number | undefined> }).maxValue,
+    max:
+      'max' in config && config.max !== undefined
+        ? config.max
+        : (config as { maxValue: ValidatorOption<number | undefined> })
+            .maxValue,
   });
 }
 
