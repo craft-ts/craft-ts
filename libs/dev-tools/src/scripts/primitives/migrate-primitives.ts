@@ -80,13 +80,18 @@ export async function runPrimitivesMigration(
 
   for (const sourceFile of sourceFiles) {
     const changedSignals = migrateSignalsToState(sourceFile);
+    const changedResources = migrateSingleEmissionRxResources(
+      sourceFile,
+      diagnostics,
+    );
     const changedWorkflows = annotateImperativeWorkflows(
       sourceFile,
       diagnostics,
     );
     diagnoseSignalForms(sourceFile, diagnostics);
-    if (changedSignals || changedWorkflows) touched.add(sourceFile);
-    if (changedSignals || changedWorkflows)
+    if (changedSignals || changedResources || changedWorkflows)
+      touched.add(sourceFile);
+    if (changedSignals || changedResources || changedWorkflows)
       getFileReport(files, sourceFile.getFilePath()).changed = true;
   }
 
@@ -203,6 +208,144 @@ function findImperativeStateDeclaration(
 
 const REACTIVE_WORKFLOW_COMMENT =
   '// CRAFT_REACTIVE_WORKFLOW_RECOMMENDED: workflow impératif détecté...';
+const FIRST_VALUE_FROM_REVIEW_COMMENT =
+  '// CRAFT_FIRST_VALUE_FROM_REVIEW: firstValueFrom bridges an Observable temporarily; prefer a Promise-native Craft API when possible.';
+
+function migrateSingleEmissionRxResources(
+  sourceFile: SourceFile,
+  diagnostics: PrimitiveMigrationDiagnostic[],
+): boolean {
+  const rxInterop = sourceFile.getImportDeclaration(
+    '@angular/core/rxjs-interop',
+  );
+  if (
+    !rxInterop
+      ?.getNamedImports()
+      .some((item) => item.getName() === 'rxResource')
+  )
+    return false;
+
+  let changed = false;
+  for (const call of sourceFile.getDescendantsOfKind(
+    SyntaxKind.CallExpression,
+  )) {
+    if (call.wasForgotten() || call.getExpression().getText() !== 'rxResource')
+      continue;
+    const config = call.getArguments()[0];
+    if (!config || !Node.isObjectLiteralExpression(config)) continue;
+    const stream = config.getProperty('stream');
+    if (!stream || !Node.isPropertyAssignment(stream)) continue;
+
+    const converted = convertSingleEmissionStream(
+      stream.getInitializer()?.getText() ?? '',
+    );
+    if (!converted) continue;
+
+    call.getExpression().replaceWithText('query');
+    stream.replaceWithText(`loader: ${converted}`);
+    changed = true;
+  }
+
+  if (!changed) return false;
+  ensureCoreImports(sourceFile, ['query']);
+  ensureNamedImport(sourceFile, 'rxjs', 'firstValueFrom');
+  removeNamedImportIfUnused(sourceFile, '@angular/core/rxjs-interop', 'rxResource');
+  removeNamedImportIfUnused(sourceFile, 'rxjs', 'from');
+  removeNamedImportIfUnused(sourceFile, 'rxjs', 'of');
+  removeNamedImportIfUnused(sourceFile, 'rxjs/operators', 'switchMap');
+
+  if (
+    !sourceFile
+      .getDescendantsOfKind(SyntaxKind.CallExpression)
+      .some((call) => call.getExpression().getText() === 'rxResource')
+  ) {
+    removeDiagnostic(diagnostics, sourceFile, 'RX_RESOURCE_REQUIRES_QUERY');
+  }
+  return true;
+}
+
+function convertSingleEmissionStream(initializer: string): string | undefined {
+  const match = initializer.match(
+    /^\s*\(([^)]*)\)\s*=>\s*\{([\s\S]*)\}\s*$/,
+  );
+  if (!match) return undefined;
+  let body = match[2];
+  const bridge = body.match(
+    /return\s+from\(([\s\S]*?)\)\.pipe\(\s*switchMap\(\s*\((\w+)\)\s*=>\s*([\s\S]*?)\s*\)\s*\)\s*;/,
+  );
+  if (!bridge) return undefined;
+
+  body = body.replace(/return\s+of\(([\s\S]*?)\)\s*;/g, 'return $1;');
+  body = body.replace(
+    bridge[0],
+    `${FIRST_VALUE_FROM_REVIEW_COMMENT}\nreturn firstValueFrom((await ${bridge[1]}).${stripReceiver(bridge[3], bridge[2])});`,
+  );
+  return `async (${match[1]}) => {${body}}`;
+}
+
+function stripReceiver(expression: string, receiver: string): string {
+  const trimmed = expression.trim();
+  const prefix = `${receiver}.`;
+  return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
+}
+
+function ensureNamedImport(
+  sourceFile: SourceFile,
+  moduleSpecifier: string,
+  name: string,
+): void {
+  let declaration = sourceFile.getImportDeclaration(moduleSpecifier);
+  if (!declaration)
+    declaration = sourceFile.addImportDeclaration({ moduleSpecifier });
+  if (
+    !declaration
+      .getNamedImports()
+      .some((namedImport) => namedImport.getName() === name)
+  )
+    declaration.addNamedImport(name);
+}
+
+function removeNamedImportIfUnused(
+  sourceFile: SourceFile,
+  moduleSpecifier: string,
+  name: string,
+): void {
+  const declaration = sourceFile.getImportDeclaration(moduleSpecifier);
+  const namedImport = declaration
+    ?.getNamedImports()
+    .find((item) => item.getName() === name);
+  if (!namedImport) return;
+  const stillUsed = sourceFile
+    .getDescendantsOfKind(SyntaxKind.Identifier)
+    .some(
+      (identifier) =>
+        identifier.getText() === name &&
+        identifier.getFirstAncestorByKind(SyntaxKind.ImportDeclaration) !==
+          declaration,
+    );
+  if (stillUsed) return;
+  namedImport.remove();
+  if (
+    declaration &&
+    !declaration.getDefaultImport() &&
+    !declaration.getNamespaceImport() &&
+    declaration.getNamedImports().length === 0
+  )
+    declaration.remove();
+}
+
+function removeDiagnostic(
+  diagnostics: PrimitiveMigrationDiagnostic[],
+  sourceFile: SourceFile,
+  code: PrimitiveMigrationDiagnosticCode,
+): void {
+  const index = diagnostics.findIndex(
+    (diagnostic) =>
+      diagnostic.code === code &&
+      diagnostic.filePath === sourceFile.getFilePath(),
+  );
+  if (index >= 0) diagnostics.splice(index, 1);
+}
 
 function annotateImperativeWorkflows(
   sourceFile: SourceFile,

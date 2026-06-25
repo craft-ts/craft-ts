@@ -197,6 +197,65 @@ describe('primitives migration', () => {
     ]);
   });
 
+  it('converts a debounced single-emission rxResource to query', async () => {
+    const root = await fixture({
+      'tsconfig.json': '{}',
+      'location-field.ts': `
+        import { signal } from '@angular/core';
+        import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
+        import { debounceTime, distinctUntilChanged, from, map, of } from 'rxjs';
+        import { switchMap } from 'rxjs/operators';
+
+        export class LocationField {
+          private readonly api = Promise.resolve({
+            search: (params: { q: string }) => of([{ label: params.q }]),
+          });
+          private readonly searchInput = signal('');
+          private readonly debouncedSearch = toSignal(
+            toObservable(this.searchInput).pipe(
+              debounceTime(280),
+              map((value) => value.trim()),
+              distinctUntilChanged(),
+            ),
+            { initialValue: '' },
+          );
+          readonly suggestions = rxResource({
+            params: () => {
+              const query = this.debouncedSearch();
+              return query.length < 2 ? undefined : { q: query };
+            },
+            stream: ({ params }) => {
+              if (!params) return of([]);
+              return from(this.api).pipe(switchMap((service) => service.search(params)));
+            },
+            defaultValue: [],
+          });
+        }
+      `,
+    });
+
+    const result = await runPrimitivesMigration({
+      rootDir: root,
+      write: true,
+      eslint: false,
+      log: () => undefined,
+    });
+
+    const output = await readFile(join(root, 'location-field.ts'), 'utf8');
+    expect(output).toContain('readonly suggestions = query({');
+    expect(output).toContain('loader: async ({ params }) =>');
+    expect(output).toContain('return [];');
+    expect(output).toContain(
+      '// CRAFT_FIRST_VALUE_FROM_REVIEW: firstValueFrom bridges an Observable temporarily; prefer a Promise-native Craft API when possible.',
+    );
+    expect(output).toContain(
+      'return firstValueFrom((await this.api).search(params));',
+    );
+    expect(output).not.toContain('rxResource');
+    expect(output).not.toContain("from 'rxjs/operators'");
+    expect(result.diagnostics).toEqual([]);
+  });
+
   it('supports check mode for remaining signal forms', async () => {
     const root = await fixture({
       'tsconfig.json': '{}',

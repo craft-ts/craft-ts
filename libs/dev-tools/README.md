@@ -92,6 +92,15 @@ Run services before routes so generated `GenDeps` and route provider names see
 the craft helpers:
 
 ```bash
+craft-migrate --project apps/my-app/tsconfig.app.json --root apps/my-app/src --dry-run
+craft-migrate --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
+```
+
+`craft-migrate` runs primitives, services, then routes and can emit one combined
+report with `--json [path]`. The individual commands remain available for
+targeted migrations:
+
+```bash
 craft-migrate-primitives --project apps/my-app/tsconfig.app.json --root apps/my-app/src --dry-run
 craft-migrate-primitives --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
 craft-migrate-services --project apps/my-app/tsconfig.app.json --root apps/my-app/src --dry-run

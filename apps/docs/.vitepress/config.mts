@@ -43,6 +43,10 @@ export default defineConfig({
         link: '/introduction',
       },
       {
+        text: 'Migration',
+        link: '/migration',
+      },
+      {
         text: 'Primitives',
         items: [
           { text: 'state', link: '/primitives/state' },
