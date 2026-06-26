@@ -332,21 +332,21 @@ export class App {
 }
 
 export type GenDeps_App = GetDeps<{
-      deps: {
-        RouterLinkActive: RouterLinkActive;
-        Router: Router;
-        CraftRouterLink: CraftRouterLink;
-        CraftRouterOutlet: CraftRouterOutlet;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<App["_monitoring"]>;
-        clearCache: ExtractDeps<App["clearCache"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<App>;
-      missingProvider: {
-        Router: Router;
-      };
-    }>;
+  deps: {
+    RouterLinkActive: RouterLinkActive;
+    Router: Router;
+    CraftRouterLink: CraftRouterLink;
+    CraftRouterOutlet: CraftRouterOutlet;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<App['_monitoring']>;
+    clearCache: ExtractDeps<App['clearCache']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<App>;
+  missingProvider: {
+    Router: Router;
+  };
+}>;

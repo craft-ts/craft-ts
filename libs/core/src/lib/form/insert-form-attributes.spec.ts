@@ -1,6 +1,7 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { craftException } from '../craft-exception';
+import { provideFnWrapper } from '../fn-wrapper';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { state } from '../state';
 import { insertForm } from './insert-form';
@@ -118,6 +119,35 @@ describe('insertFormAttributes', () => {
         list: [],
         byValidator: {},
       });
+    });
+  });
+
+  it('runs validators when a global fn wrapper is provided', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideFnWrapper(function* (factory, thisArg, args) {
+          return yield* factory.apply(thisArg, args);
+        }),
+      ],
+    });
+
+    TestBed.runInInjectionContext(() => {
+      const fieldState = signal<string>('');
+      const fieldForm = state(
+        fieldState,
+        insertForm(
+          insertFormAttributes(() => ({
+            validators: [cRequired()],
+          })),
+        ),
+      );
+
+      expect(fieldForm.form.errors()[0]).toMatchObject({ code: 'required' });
+
+      fieldState.set('ok');
+      TestBed.tick();
+
+      expect(fieldForm.form.errors()).toEqual([]);
     });
   });
 

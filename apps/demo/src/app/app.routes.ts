@@ -18,6 +18,8 @@ import {
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
 
+let attempt = 0;
+
 export const {
   demoRoutes,
   injectDemoTeamIdParams,
@@ -26,7 +28,7 @@ export const {
   injectDemoQueryParamQueryParams,
 } = craftRoutes('demo', [
   craftRoute(
-    'query/:userId',
+    'query/:userId', // todo change the canActivate/gauard to another dedicated route
     {
       componentDeps:
         {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
@@ -82,7 +84,17 @@ export const {
     path: 'mutation/:userId',
     componentDeps:
       {} as import('./examples/primitives/mutation/mutation').GenDeps_GlobalQuery,
-    loadComponent: () => import('./examples/primitives/mutation/mutation'),
+    // loadComponent: () => import('./examples/primitives/mutation/mutation'),
+    loadComponent: () => {
+      attempt++;
+      console.warn('attempt', attempt);
+      if (attempt <= 3) {
+        console.warn('attempt', attempt);
+        return Promise.reject(new Error('simulated chunk failure'));
+      }
+      const timestamp = Date.now();
+      return import(`./examples/primitives/mutation/mutation?t=${timestamp}`);
+    },
   },
   {
     path: 'list-with-pagination',

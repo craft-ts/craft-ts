@@ -37,6 +37,10 @@ never flashes a blank screen or a loader:
 On success the outlet writes the resolved data and mounts the **target**; on exception it applies
 the route's [`handleExceptions`](./exception-handling.md) outcome.
 
+Lazy JavaScript load failures (`loadComponent` / `loadChildren`) happen before the outlet can mount
+the target route. Configure [`withRouteLoadError`](./route-load-errors.md) to retry those failures
+and render a recovery screen while keeping the browser URL on the intended route.
+
 ```
 clic → URL committée
  ├─ 0 → stayMs ........ page PRÉCÉDENTE conservée   ─(résolu)─▶ cible
@@ -67,14 +71,21 @@ provideCraftRouter(
     component: MyGlobalErrorScreen,
     componentDeps: {} as import('./global-error').GenDeps_MyGlobalErrorScreen,
   }),
+  withRouteLoadError({
+    component: MyRouteLoadErrorScreen,
+    componentDeps:
+      {} as import('./route-load-error').GenDeps_MyRouteLoadErrorScreen,
+    retry: { attempts: 1, delayMs: 250 },
+  }),
   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
   withLoadingText(() => computed(() => translate('common.loading'))),
   withPendingComponent(MyBrandedSpinner),
 ),
 ```
 
-The same features still work standalone via `provideCraftLoading(...)` if you
-prefer to keep them in a separate provider:
+Most loading features still work standalone via `provideCraftLoading(...)` if you prefer to keep them
+in a separate provider. Keep `withRouteLoadError(...)` in `provideCraftRouter(...)`: it also
+registers an Angular navigation error handler and an internal recovery route.
 
 ```ts
 provideCraftLoading(
@@ -94,6 +105,7 @@ provideCraftLoading(
 | `withLoadingText`          | `CRAFT_LOADING_TEXT`                                                  | locale-aware (en/fr, fallback en) |
 | `withTransitionTimings`    | `CRAFT_STAY_MS` / `CRAFT_BLANK_MS` / `CRAFT_PENDING_MIN_MS`           | `300` / `300` / `0`               |
 | `withErrorComponent`       | `CRAFT_ERROR_COMPONENT`                                               | `null`                            |
+| `withRouteLoadError`       | `CRAFT_ROUTE_LOAD_ERROR_COMPONENT` / `CRAFT_ROUTE_LOAD_RETRY`         | `null` / one retry after 250 ms   |
 | `withCraftViewTransitions` | `CRAFT_VIEW_TRANSITIONS_ENABLED` / `CRAFT_VIEW_TRANSITION_SKIP_BLANK` | `false` / `false`                 |
 
 The default pending component renders `CRAFT_LOADING_TEXT`, which reads `LOCALE_ID` and picks a

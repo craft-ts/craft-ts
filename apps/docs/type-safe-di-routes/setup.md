@@ -100,10 +100,14 @@ Notes:
 - For **non-blocking navigation** (immediate URL commit, pending UI, centralised exception
   handling), render `<craft-router-outlet>` instead of `<router-outlet>` and use
   `provideCraftRouter(...)` instead of `provideRouter(...)` — it accepts Angular router features
-  **and** craft loading features (`withErrorComponent`, `withTransitionTimings`, …) in one call,
+  **and** craft loading features (`withErrorComponent`, `withRouteLoadError`,
+  `withTransitionTimings`, …) in one call,
   e.g. `provideCraftRouter(appRoutes.toRoutes(), withComponentInputBinding(), withErrorComponent({ component: MyGlobalErrorScreen, componentDeps }))`.
   (The features also work standalone via `provideCraftLoading(...)`.)
-  See [Non-blocking navigation & pending UI](./pending-ui.md).
+  `withRouteLoadError(...)` must stay in `provideCraftRouter(...)` because it also registers an
+  Angular navigation error handler and an internal recovery route. See
+  [Non-blocking navigation & pending UI](./pending-ui.md) and
+  [Route Load Errors](./route-load-errors.md).
 - For lazy routes, `loadChildren` should return the named route tree exported by the child collection, for example `childRoutes.childRoutes`.
 
 ### Large route files — the cascade DI depth limit
@@ -435,7 +439,7 @@ What each rule does:
 - `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
 - `craft-ng/require-assert-exhaustive-route-exceptions`: adds the collection-level `assertExhaustiveRouteExceptions(...)` safety net
 - `craft-ng/require-craft-exception-handler`: enforces `craftExceptionHandler(function* (...) {})`; simple handlers are autofixed and ambiguous raw redirects are reported for manual migration
-- `craft-ng/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, and `withErrorComponent`
+- `craft-ng/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, `withErrorComponent`, `withRouteLoadError`, and route-local `provideRouteLoadErrorComponent`
 - `craft-ng/require-pending-component-di-check`: generates the independent `RouteCheckedDI` check for each `pendingComponent`
 - `craft-ng/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
 - `craft-ng/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
@@ -478,6 +482,7 @@ An Eslint error does not trigger a compilation error, so make sure to run the Qu
 - [`Centralised Exception Handling`](./exception-handling.md)
 - [`Non-blocking Navigation & Pending UI`](./pending-ui.md)
 - [`Global Error Component`](./global-error-component.md)
+- [`Route Load Errors`](./route-load-errors.md)
 - [`Angular Brand Config`](/type-safe-di-routes/angular-brand-config)
 - [`craftService`](/store/craft-service)
 - [`toCraftService`](/store/to-craft-service)

@@ -67,6 +67,7 @@ export * from './lib/craft-resolve';
 export * from './lib/craft-route-exceptions';
 export * from './lib/craft-route-meta';
 export * from './lib/craft-pending';
+export * from './lib/craft-route-load-error';
 export * from './lib/craft-view-transition';
 export * from './lib/craft-router-outlet';
 export * from './lib/until-settled';

@@ -154,6 +154,8 @@ const CRAFT_LOADING_FEATURE = Symbol('craft-loading-feature');
 export interface CraftLoadingFeature {
   readonly [CRAFT_LOADING_FEATURE]: true;
   readonly providers: Provider[];
+  readonly routerFeatures?: readonly unknown[];
+  readonly recoveryRoute?: unknown;
 }
 
 /**

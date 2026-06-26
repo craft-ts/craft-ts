@@ -1,4 +1,4 @@
-/** Generates O(1) DI checks for renderComponent/errorComponent/withErrorComponent. */
+/** Generates O(1) DI checks for route, exception, and route-load error components. */
 module.exports = {
   meta: { type: 'problem', fixable: 'code', schema: [] },
   create(context) {
@@ -6,7 +6,11 @@ module.exports = {
     return {
       'Program:exit'(program) {
         const text = source.getText();
-        if (!/renderComponent|errorComponent|withErrorComponent/.test(text))
+        if (
+          !/renderComponent|errorComponent|withErrorComponent|withRouteLoadError|provideRouteLoadErrorComponent/.test(
+            text,
+          )
+        )
           return;
 
         const cascade = readCascadeContext(text);
@@ -14,25 +18,34 @@ module.exports = {
         walk(program, (node) => {
           if (isCall(node, 'craftRoutes')) {
             collectRouteChecks(node, source, cascade, checks);
-          } else if (isCall(node, 'withErrorComponent')) {
+          } else if (
+            isCall(node, 'withErrorComponent') ||
+            isCall(node, 'withRouteLoadError')
+          ) {
             const descriptor = node.arguments[0];
             const deps = readProperty(descriptor, 'componentDeps', source);
             if (deps) {
+              const routeLoad = isCall(node, 'withRouteLoadError');
               checks.push({
                 deps,
-                names: joinNames(cascade.names, ['CraftGlobalError']),
+                names: joinNames(
+                  cascade.names,
+                  routeLoad
+                    ? ['CraftRouteLoadError', 'CraftRouteLoadRecovery']
+                    : ['CraftGlobalError'],
+                ),
                 values: cascade.values,
-                label: 'global error component',
+                label: routeLoad
+                  ? 'global route load error component'
+                  : 'global error component',
               });
             }
           }
         });
 
+        const existingChecks = readExistingCheckDeps(text);
         const missing = checks.filter(
-          (check) =>
-            !text.includes(
-              `RouteExceptionComponentCheckedDI<\n  ${check.deps},`,
-            ),
+          (check) => !existingChecks.has(normalizeTypeText(check.deps)),
         );
         if (missing.length === 0) return;
 
@@ -82,6 +95,29 @@ function collectRouteChecks(call, source, cascade, checks) {
         values: cascade.values,
         label: `error component: ${path}`,
       });
+    }
+
+    const providers = propertyValue(def, 'providers');
+    if (providers?.type === 'ArrayExpression') {
+      for (const provider of providers.elements) {
+        if (!isCall(provider, 'provideRouteLoadErrorComponent')) continue;
+        const deps = readProperty(
+          provider.arguments[0],
+          'componentDeps',
+          source,
+        );
+        if (!deps) continue;
+        checks.push({
+          deps,
+          names: joinNames(cascade.names, [
+            ...baseNames,
+            'CraftRouteLoadError',
+            'CraftRouteLoadRecovery',
+          ]),
+          values: cascade.values,
+          label: `route load error component: ${path}`,
+        });
+      }
     }
 
     const handlers = routeCall
@@ -193,10 +229,30 @@ function ensureImports(text) {
   );
 }
 
+function readExistingCheckDeps(text) {
+  const deps = new Set();
+  const regex = /RouteExceptionComponentCheckedDI<\s*([\s\S]*?),\s*(?:'[^']*'|never)/g;
+  let match;
+  while ((match = regex.exec(text))) {
+    deps.add(normalizeTypeText(match[1]));
+  }
+  return deps;
+}
+
+function normalizeTypeText(text) {
+  return String(text).replace(/\s+/g, '');
+}
+
 function readProperty(node, name, source) {
   const value = propertyValue(node, name);
-  return value ? source.getText(value) : undefined;
+  return value ? readTypeText(value, source) : undefined;
 }
+
+function readTypeText(node, source) {
+  if (node?.type === 'TSAsExpression') return source.getText(node.typeAnnotation);
+  return source.getText(node);
+}
+
 function propertyValue(node, name) {
   if (node?.type !== 'ObjectExpression') return undefined;
   return node.properties.find(

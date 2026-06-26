@@ -1,7 +1,7 @@
-import { computed, inject, Injector, runInInjectionContext, type Signal, untracked } from '@angular/core';
+import { computed, inject, Injector, type Signal, untracked } from '@angular/core';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
-import { injectFnWrapper } from '../fn-wrapper';
 import { CraftExceptionResult } from '../craft-exception';
+import { executeGeneratorCompatibleFactory } from '../craft-generator-runtime';
 import type { MergeObject, Prettify, UnionToTuple } from '../util/util.type';
 import { CraftField, CraftValidator } from './craft-field';
 import type {
@@ -186,13 +186,19 @@ function applyFormAttributes<
       fieldInjector,
       `validator:${brand ?? 'unknown'}`,
     );
-    const wrappedValidator = runInInjectionContext(validatorInjector, () =>
-      injectFnWrapper()(validatorInput as (...args: unknown[]) => unknown),
-    );
     const finalValidator = (...args: unknown[]) =>
-      runInInjectionContext(validatorInjector, () =>
-        (wrappedValidator as (...a: unknown[]) => unknown)(...args),
-      );
+      executeGeneratorCompatibleFactory({
+        factory: validatorInput as (...args: unknown[]) => unknown,
+        thisArg: undefined,
+        getInjector: () => validatorInjector,
+        args,
+        invalidYieldErrorMessage:
+          'Form validators can only yield craftService dependencies.',
+        multipleAppStartErrorMessage:
+          'Form validators do not support onAppStart.',
+        onAppStartNotSupportedErrorMessage:
+          'Form validators do not support onAppStart.',
+      });
 
     field.ɵregisterValidator(
       finalValidator as unknown as CraftValidator<StateType>,

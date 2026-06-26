@@ -133,6 +133,10 @@ export default defineConfig({
             link: '/type-safe-di-routes/guards',
           },
           {
+            text: 'Route Load Errors',
+            link: '/type-safe-di-routes/route-load-errors',
+          },
+          {
             text: 'Browser Boundaries',
             link: '/type-safe-di-routes/browser-boundaries',
           },

@@ -11,12 +11,14 @@ import {
   provideTakeAppSnapshot,
   withCraftViewTransitions,
   withErrorComponent,
+  withRouteLoadError,
   withTransitionTimings,
   type CanRun,
   type RouteExceptionComponentCheckedDI,
 } from '@craft-ng/core';
 import { demoRoutes } from './app.routes';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
+import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
 
 export const appConfig = craftAppConfig({
@@ -42,6 +44,15 @@ export const appConfig = craftAppConfig({
         component: MyGlobalErrorScreen,
         componentDeps:
           {} as import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,
+      }),
+      withRouteLoadError({
+        component: MyRouteLoadErrorScreen,
+        componentDeps:
+          {} as import('./my-route-load-error-screen').GenDeps_MyRouteLoadErrorScreen,
+        retry: {
+          attempts: 2,
+          delayMs: 250,
+        },
       }),
       // 3-phase transition: keep previous page 300ms, then blank 300ms, then
       // loader (held at least 500ms).
@@ -83,3 +94,11 @@ type _CheckGlobalErrorDI = RouteExceptionComponentCheckedDI<
   'global error component'
 >;
 type _CanRunGlobalError = CanRun<_CheckGlobalErrorDI>;
+
+type _CheckGlobalRouteLoadErrorDI = RouteExceptionComponentCheckedDI<
+  import('./my-route-load-error-screen').GenDeps_MyRouteLoadErrorScreen,
+  'CraftRouteLoadError' | 'CraftRouteLoadRecovery',
+  never,
+  'global route load error component'
+>;
+type _CanRunGlobalRouteLoadError = CanRun<_CheckGlobalRouteLoadErrorDI>;

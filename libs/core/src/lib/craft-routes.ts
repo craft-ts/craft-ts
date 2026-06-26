@@ -29,6 +29,7 @@ import {
 import {
   Observable,
   filter,
+  firstValueFrom,
   isObservable,
   map,
   take,
@@ -64,6 +65,7 @@ import type {
 } from './craft-service';
 import type { MergeObjectUnion, Simplify } from './craft-service.shared';
 import { provideHostName } from './host-tag';
+import { loadRouteWithRetry } from './craft-route-load-error';
 
 type AngularRouteBase = Omit<
   Route,
@@ -2662,7 +2664,11 @@ function createLoadChildren(
   loadChildren: AnyCraftLazyRouteDefinition['loadChildren'],
 ): NonNullable<Route['loadChildren']> {
   return () =>
-    Promise.resolve(loadChildren()).then((childRoutes) => {
+    loadRouteWithRetry(
+      () => Promise.resolve(loadChildren()),
+      'children',
+      routePath,
+    ).then((childRoutes) => {
       if (isCraftRoutesApp(childRoutes)) {
         return childRoutes.toRoutes();
       }
@@ -2675,6 +2681,21 @@ function createLoadChildren(
         `Route "${routePath}" loadChildren must return a craftRoutes routes object or an Angular Route array.`,
       );
     });
+}
+
+function createLoadComponent(
+  routePath: string,
+  loadComponent: AngularLoadComponent,
+): AngularLoadComponent {
+  return () =>
+    loadRouteWithRetry(
+      async () => {
+        const result = loadComponent();
+        return isObservable(result) ? firstValueFrom(result) : await result;
+      },
+      'component',
+      routePath,
+    );
 }
 
 function createGuardExecutor<Inputs extends object, Output>(
@@ -3290,6 +3311,7 @@ export function craftRoutes<
       componentDeps: _componentDeps,
       data: routeData,
       loadChildren,
+      loadComponent,
       paramsProvider: _paramsProvider,
       providers: routeProviders,
       providersFn,
@@ -3316,6 +3338,10 @@ export function craftRoutes<
     const wrappedLoadChildren =
       loadChildren && hasRouteLoadChildren(route)
         ? createLoadChildren(route.path, loadChildren)
+        : undefined;
+    const wrappedLoadComponent =
+      loadComponent !== undefined
+        ? createLoadComponent(route.path, loadComponent)
         : undefined;
     const wrappedRedirectTo =
       typeof redirectTo === 'function'
@@ -3362,6 +3388,9 @@ export function craftRoutes<
       ...(mergedData !== undefined ? { data: mergedData } : {}),
       ...(redirectTo !== undefined ? { redirectTo: wrappedRedirectTo } : {}),
       loadChildren: wrappedLoadChildren,
+      ...(wrappedLoadComponent !== undefined
+        ? { loadComponent: wrappedLoadComponent }
+        : {}),
       providers:
         autoProviders.length > 0 || resolvedRouteProviders.length
           ? [...autoProviders, ...resolvedRouteProviders]

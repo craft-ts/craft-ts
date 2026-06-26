@@ -383,17 +383,26 @@ export function provideCraftRouter(
 ): (Provider | EnvironmentProviders)[] {
   const routerFeatures: RouterFeatures[] = [];
   const loadingFeatures: CraftLoadingFeature[] = [];
+  const configuredRoutes = [...routes];
 
   for (const feature of features) {
     if (isCraftLoadingFeature(feature)) {
       loadingFeatures.push(feature);
+      if (feature.routerFeatures) {
+        routerFeatures.push(
+          ...(feature.routerFeatures as readonly RouterFeatures[]),
+        );
+      }
+      if (feature.recoveryRoute) {
+        configuredRoutes.push(feature.recoveryRoute as Routes[number]);
+      }
     } else {
       routerFeatures.push(feature);
     }
   }
 
   return [
-    provideCraftRouterInternal(routes, ...routerFeatures),
+    provideCraftRouterInternal(configuredRoutes, ...routerFeatures),
     ...provideCraftLoading(...loadingFeatures),
   ];
 }
