@@ -110,10 +110,10 @@ craftRoute(
     resolve: craftResolve(function* () {
       return yield* untilSettled(pizzeriaDraftQuery);
     }),
-    loadComponent: () =>
-      import('./pages/admin-pizzeria-form-page/admin-pizzeria-form-page').then(
-        (m) => m.AdminPizzeriaFormPage,
-      ),
+    loadComponent: ({ withRetry }) =>
+      withRetry(
+        import('./pages/admin-pizzeria-form-page/admin-pizzeria-form-page'),
+      ).then((m) => m.AdminPizzeriaFormPage),
     componentDeps:
       {} as import('./pages/admin-pizzeria-form-page/admin-pizzeria-form-page').GenDeps_AdminPizzeriaFormPage,
   },
@@ -260,7 +260,7 @@ const authGuard = craftGen(
 
 craftRoute('query/:userId', {
   componentDeps: {} as import('./query').GenDeps_GlobalQuery,
-  loadComponent: () => import('./query'),
+  loadComponent: ({ withRetry }) => withRetry(import('./query')),
   canActivate: craftCanActivate(
     function* () {
       return yield* authGuard(); // success value = the user
@@ -294,7 +294,7 @@ const featureFlagGuard = craftGen(
 
 craftRoute('beta', {
   componentDeps: {} as import('./beta').GenDeps_Beta,
-  loadComponent: () => import('./beta'),
+  loadComponent: ({ withRetry }) => withRetry(import('./beta')),
   canMatch: craftCanMatch(
     function* () {
       yield* featureFlagGuard('beta');
@@ -322,7 +322,7 @@ exhaustive resolvers — the compiler still forces you to handle every reachable
 ```ts
 craftRoute('users/:userId', {
   componentDeps: {} as import('./user').GenDeps_User,
-  loadComponent: () => import('./user'),
+  loadComponent: ({ withRetry }) => withRetry(import('./user')),
   canActivate: craftCanActivate(
     function* (route) {
       const userId = route.params['userId'];

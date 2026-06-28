@@ -79,7 +79,7 @@ export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
       '',
       {
         componentDeps: {} as import('./slow-page').GenDeps_SlowPageComponent,
-        loadComponent: () => import('./slow-page'),
+        loadComponent: ({ withRetry }) => withRetry(import('./slow-page')),
         // Slow (~1.5s) — the outlet shows the pending component until it settles.
         canActivate: craftCanActivate(function* () {
           return yield* slowAccessGuard();

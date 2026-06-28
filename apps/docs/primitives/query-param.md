@@ -131,9 +131,11 @@ export const { demoRoutes, injectDemoQueryParamQueryParams } = craftRoutes(
       path: 'query-param',
       componentDeps:
         {} as import('./examples/routes/list-with-pagination/qp-list-with-pagination').GenDeps_QpListWithPagination,
-      loadComponent: () =>
-        import(
-          './examples/routes/list-with-pagination/qp-list-with-pagination'
+      loadComponent: ({ withRetry }) =>
+        withRetry(
+          import(
+            './examples/routes/list-with-pagination/qp-list-with-pagination'
+          ),
         ),
       queryParams: () =>
         queryParam(

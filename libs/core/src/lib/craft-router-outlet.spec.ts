@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import '@angular/compiler';
 import {
   Component,
@@ -251,6 +252,67 @@ describe('CraftRouterOutlet', () => {
 
     vi.advanceTimersByTime(350);
     expect(outlet.state()).toBe('loaded');
+  });
+
+  it('does not apply pendingMinMs when the chain resolves before pending appears', async () => {
+    const { outlet } = setup();
+    activate(
+      outlet,
+      makeMeta({ stayMs: 300, blankMs: 300, pendingMinMs: 400 }),
+    );
+
+    vi.advanceTimersByTime(599);
+    deferred.resolve({
+      kind: 'data',
+      guardData: undefined,
+      resolveData: undefined,
+    });
+    await flush();
+
+    expect(outlet.state()).toBe('loaded');
+    vi.advanceTimersByTime(1000);
+    expect(outlet.state()).toBe('loaded');
+  });
+
+  it.fails('keeps pending visible for pendingMinMs before a final error', async () => {
+    const { outlet } = setup();
+    const exception = craftException({ code: 'LOAD_FAILED' });
+    activate(
+      outlet,
+      makeMeta({
+        stayMs: 300,
+        blankMs: 300,
+        pendingMinMs: 400,
+        errorComponent: { component: ErrCmp, componentDeps: {} },
+      }),
+    );
+
+    vi.advanceTimersByTime(650);
+    deferred.resolve({ kind: 'global', exception });
+    await flush();
+
+    expect(outlet.state()).toBe('pending');
+    vi.advanceTimersByTime(350);
+    await flush();
+    expect(outlet.state()).toBe('error');
+  });
+
+  it.fails('ignores a late chain resolution after navigation cancellation', async () => {
+    const { outlet } = setup();
+    activate(outlet, makeMeta({ stayMs: 300, blankMs: 300 }));
+    outlet.deactivate();
+    await flush();
+
+    deferred.resolve({
+      kind: 'data',
+      guardData: undefined,
+      resolveData: undefined,
+    });
+    await flush();
+
+    expect(outlet.state()).toBe('idle');
+    expect(outlet.targetComponent()).toBeNull();
+    expect(outlet.displayedComponent()).toBeNull();
   });
 
   it('redirect outcome navigates and never renders the target', async () => {

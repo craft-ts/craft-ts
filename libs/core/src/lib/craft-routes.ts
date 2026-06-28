@@ -65,7 +65,10 @@ import type {
 } from './craft-service';
 import type { MergeObjectUnion, Simplify } from './craft-service.shared';
 import { provideHostName } from './host-tag';
-import { loadRouteWithRetry } from './craft-route-load-error';
+import {
+  loadRouteWithRetry,
+  type CraftRouteLazyLoadHelpers,
+} from './craft-route-load-error';
 
 type AngularRouteBase = Omit<
   Route,
@@ -83,6 +86,9 @@ type AngularRouteBase = Omit<
 type AngularRouteProviders = NonNullable<Route['providers']>;
 type AngularRouteComponent = NonNullable<Route['component']>;
 type AngularLoadComponent = NonNullable<Route['loadComponent']>;
+type CraftLoadComponent = (
+  helpers: CraftRouteLazyLoadHelpers,
+) => ReturnType<AngularLoadComponent>;
 type ComponentDepsMap<RouteDefinition> = RouteDefinition extends {
   componentDeps: infer ComponentDeps extends object;
 }
@@ -1378,13 +1384,13 @@ type CraftRouteComponentTarget =
     }
   | {
       component?: never;
-      loadComponent: AngularLoadComponent;
+      loadComponent: CraftLoadComponent;
     };
 
 type CraftRouteLoadChildrenCallback<
   Routes extends readonly AnyCraftRouteDefinition[],
   Name extends string = string,
-> = () =>
+> = (helpers: CraftRouteLazyLoadHelpers) =>
   | CraftRoutesApp<Routes, Name>
   | Promise<CraftRoutesApp<Routes, Name>>
   | Route[]
@@ -1400,6 +1406,11 @@ type CraftRouteOptionalLoadChildrenTarget<
   | {
       loadChildren: CraftRouteLoadChildrenCallback<ChildRoutes>;
     };
+
+type CraftRouteLazyLoaderContext = {
+  loadComponent?: CraftLoadComponent;
+  loadChildren?: CraftRouteLoadChildrenCallback<readonly AnyCraftRouteDefinition[]>;
+};
 
 export type CraftRouteDefinition<
   Path extends string = string,
@@ -1439,7 +1450,9 @@ type AnyCraftComponentRouteDefinition = Simplify<
           loadChildren?: never;
         }
       | {
-          loadChildren: (...args: any[]) => unknown;
+          loadChildren: (
+            helpers: CraftRouteLazyLoadHelpers,
+          ) => unknown;
         }
     ) & {
       componentDeps: unknown;
@@ -1450,7 +1463,7 @@ type AnyCraftLazyRouteDefinition = Simplify<
   AnyCraftRouteSharedFields & {
     component?: never;
     componentDeps?: never;
-    loadChildren: (...args: any[]) => unknown;
+    loadChildren: (helpers: CraftRouteLazyLoadHelpers) => unknown;
     loadComponent?: never;
   }
 >;
@@ -2665,7 +2678,7 @@ function createLoadChildren(
 ): NonNullable<Route['loadChildren']> {
   return () =>
     loadRouteWithRetry(
-      () => Promise.resolve(loadChildren()),
+      (helpers) => Promise.resolve(loadChildren(helpers)),
       'children',
       routePath,
     ).then((childRoutes) => {
@@ -2685,12 +2698,12 @@ function createLoadChildren(
 
 function createLoadComponent(
   routePath: string,
-  loadComponent: AngularLoadComponent,
+  loadComponent: CraftLoadComponent,
 ): AngularLoadComponent {
   return () =>
     loadRouteWithRetry(
-      async () => {
-        const result = loadComponent();
+      async (helpers) => {
+        const result = loadComponent(helpers);
         return isObservable(result) ? firstValueFrom(result) : await result;
       },
       'component',
@@ -2966,7 +2979,7 @@ export function craftRoute<
   >,
 >(
   path: Path,
-  def: CraftRouteDefinitionInput<Def>,
+  def: CraftRouteDefinitionInput<Def> & CraftRouteLazyLoaderContext,
   handlers: TypedExceptionHandlers<
     Extract<RouteExceptionUnion<Def>, AnyCraftException>,
     Codes,
@@ -2988,7 +3001,7 @@ export function craftRoute<
 // 2-arg form: the route throws no `craftException`s, so no handlers are needed.
 export function craftRoute<const Path extends string, const Def extends object>(
   path: Path,
-  def: CraftRouteDefinitionInput<Def>,
+  def: CraftRouteDefinitionInput<Def> & CraftRouteLazyLoaderContext,
 ): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>>;
 export function craftRoute(
   path: string,

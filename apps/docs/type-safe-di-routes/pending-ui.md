@@ -167,7 +167,8 @@ export const { photosRoutes, injectPhotosPhotoIdViewTransition } = craftRoutes(
       {
         componentDeps:
           {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
-        loadComponent: () => import('./photo-detail'),
+        loadComponent: ({ withRetry }) =>
+          withRetry(import('./photo-detail')),
         withLoaderViewTransitionImage: viewTransitionPayload<{
           name: string;
           image: string | null;

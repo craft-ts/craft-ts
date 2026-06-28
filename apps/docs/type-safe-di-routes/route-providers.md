@@ -47,7 +47,7 @@ const { AuthToYield } = craftService({ name: 'Auth', scope: 'global' }, () =>
 export const { demoRoutes } = craftRoutes('demo', [
   craftRoute('query/:userId', {
     componentDeps: {} as import('./query').GenDeps_GlobalQuery,
-    loadComponent: () => import('./query'),
+    loadComponent: ({ withRetry }) => withRetry(import('./query')),
     canActivate: function* () {
       const user = yield* AuthToYield();
       const safeUser = user.safeValue();
@@ -151,7 +151,7 @@ factory output):
 ```ts
 craftRoute('admin', {
   componentDeps: {} as import('./admin').GenDeps_Admin,
-  loadComponent: () => import('./admin'),
+  loadComponent: ({ withRetry }) => withRetry(import('./admin')),
   providers: [SomeAngularProvider], // plain array, untyped helpers
 }).withProviders(({ DataToYield }) => [
   /* factory-built providers with tracking */

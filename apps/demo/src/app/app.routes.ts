@@ -18,8 +18,6 @@ import {
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
 
-let attempt = 0;
-
 export const {
   demoRoutes,
   injectDemoTeamIdParams,
@@ -32,7 +30,8 @@ export const {
     {
       componentDeps:
         {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
-      loadComponent: () => import('./examples/primitives/query/query'),
+      loadComponent: ({ withRetry }) =>
+        withRetry(import('./examples/primitives/query/query')),
       canActivate: craftCanActivate(function* () {
         return yield* authGuard();
       }),
@@ -61,8 +60,8 @@ export const {
     // Slow guard + slow resolve demo for `CraftRouterOutlet`. Lazy child
     // collection so it stays out of this file's (saturated) cascade DI budget.
     path: 'slow-page',
-    loadChildren: () =>
-      import('./examples/routes/slow-page/slow-page.routes').then(
+    loadChildren: ({ withRetry }) =>
+      withRetry(import('./examples/routes/slow-page/slow-page.routes')).then(
         (m) => m.slowPageRoutes,
       ),
   },
@@ -70,120 +69,130 @@ export const {
     // View Transitions demo (gallery → detail, shared-element morph). Lazy child
     // collection, same rationale as slow-page: kept out of the cascade DI budget.
     path: 'view-transitions',
-    loadChildren: () =>
-      import('./examples/routes/view-transitions/view-transitions.routes').then(
-        (m) => m.viewTransitionsRoutes,
-      ),
+    loadChildren: ({ withRetry }) =>
+      withRetry(
+        import('./examples/routes/view-transitions/view-transitions.routes'),
+      ).then((m) => m.viewTransitionsRoutes),
   },
   {
     path: '',
-    loadComponent: () => import('./test'),
+    loadComponent: ({ withRetry }) => withRetry(import('./test')),
     componentDeps: {} as import('./test').GenDeps_TestComponent,
   },
   {
     path: 'mutation/:userId',
     componentDeps:
       {} as import('./examples/primitives/mutation/mutation').GenDeps_GlobalQuery,
-    // loadComponent: () => import('./examples/primitives/mutation/mutation'),
-    loadComponent: () => {
-      attempt++;
-      console.warn('attempt', attempt);
-      if (attempt <= 3) {
-        console.warn('attempt', attempt);
-        return Promise.reject(new Error('simulated chunk failure'));
-      }
-      const timestamp = Date.now();
-      return import(`./examples/primitives/mutation/mutation?t=${timestamp}`);
-    },
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/primitives/mutation/mutation')),
   },
   {
     path: 'list-with-pagination',
     componentDeps:
       {} as import('./examples/primitives/list-with-pagination/list-with-pagination').GenDeps_ListWithPagination,
-    loadComponent: () =>
-      import('./examples/primitives/list-with-pagination/list-with-pagination'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(
+        import(
+          './examples/primitives/list-with-pagination/list-with-pagination'
+        ),
+      ),
   },
   {
     path: 'granular-mutation',
     componentDeps:
       {} as import('./examples/primitives/granular-mutation/granular-mutation').GenDeps_GranularMutation,
-    loadComponent: () =>
-      import('./examples/primitives/granular-mutation/granular-mutation'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/granular-mutation/granular-mutation'),
+      ),
   },
   {
     path: 'full-demo',
     componentDeps:
       {} as import('./examples/primitives/full-demo/full-demo').GenDeps_FullDemo,
-    loadComponent: () => import('./examples/primitives/full-demo/full-demo'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/primitives/full-demo/full-demo')),
   },
   {
     path: 'pixel-art',
     componentDeps:
       {} as import('./examples/primitives/pixel-art/pixel-art').GenDeps_PixelArt,
-    loadComponent: () => import('./examples/primitives/pixel-art/pixel-art'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/primitives/pixel-art/pixel-art')),
   },
   {
     path: 'pixel-art-matrix',
     componentDeps:
       {} as import('./examples/primitives/pixel-art-matrix/pixel-art-matrix').GenDeps_PixelArtMatrix,
-    loadComponent: () =>
-      import('./examples/primitives/pixel-art-matrix/pixel-art-matrix'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/pixel-art-matrix/pixel-art-matrix'),
+      ),
   },
   {
     path: 'exceptions',
     componentDeps:
       {} as import('./examples/primitives/exceptions/exceptions').GenDeps_ExceptionsComponent,
-    loadComponent: () => import('./examples/primitives/exceptions/exceptions'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/primitives/exceptions/exceptions')),
   },
   {
     path: 'exception-query-param',
     componentDeps:
       {} as import('./examples/primitives/exceptions/exception-query-param').GenDeps_ExceptionQueryParamComponent,
-    loadComponent: () =>
-      import('./examples/primitives/exceptions/exception-query-param'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(
+        import('./examples/primitives/exceptions/exception-query-param'),
+      ),
   },
   {
     path: 'craft/query/:userId',
     componentDeps:
       {} as import('./examples/craft/query/query').GenDeps_GlobalQuery,
-    loadComponent: () => import('./examples/craft/query/query'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/craft/query/query')),
   },
   {
     path: 'craft/mutation/:userId',
     componentDeps:
       {} as import('./examples/craft/mutation/mutation').GenDeps_MutationCraft,
-    loadComponent: () => import('./examples/craft/mutation/mutation'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/craft/mutation/mutation')),
   },
   {
     path: 'craft/list-with-pagination',
     componentDeps:
       {} as import('./examples/craft/list-with-pagination/list-with-pagination').GenDeps_ListWithPaginationCraft,
-    loadComponent: () =>
-      import('./examples/craft/list-with-pagination/list-with-pagination'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(
+        import('./examples/craft/list-with-pagination/list-with-pagination'),
+      ),
   },
   {
     path: 'craft/granular-mutation',
     componentDeps:
       {} as import('./examples/craft/granular-mutation/granular-mutation').GenDeps_GranularMutationCraft,
-    loadComponent: () =>
-      import('./examples/craft/granular-mutation/granular-mutation'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/craft/granular-mutation/granular-mutation')),
   },
   {
     path: 'craft/full-demo',
     componentDeps:
       {} as import('./examples/craft/full-demo/full-demo').GenDeps_FullDemoCraft,
-    loadComponent: () => import('./examples/craft/full-demo/full-demo'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/craft/full-demo/full-demo')),
   },
   {
     path: 'craft/lazy-layout/:teamId',
     data: {
       someParentRouteData: 'foo',
     },
-    loadComponent: () => import('./examples/craft/lazy-layout/lazy-layout'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/craft/lazy-layout/lazy-layout')),
     componentDeps:
       {} as import('./examples/craft/lazy-layout/lazy-layout').GenDeps_LazyLayoutComponent,
-    loadChildren: () =>
-      import('./examples/craft/lazy-layout/lazy-layout.routes').then(
+    loadChildren: ({ withRetry }) =>
+      withRetry(import('./examples/craft/lazy-layout/lazy-layout.routes')).then(
         (m) => m.lazyLayoutRoutes,
       ),
   },
@@ -191,41 +200,47 @@ export const {
     path: 'login-form',
     componentDeps:
       {} as import('./examples/primitives/forms/login-form').GenDeps_LoginFormComponent,
-    loadComponent: () => import('./examples/primitives/forms/login-form'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/primitives/forms/login-form')),
   },
   {
     path: 'craft-service/counter',
     componentDeps:
       {} as import('./examples/craft-service/craft-service-counter').GenDeps_CraftServiceCounterComponent,
-    loadComponent: () =>
-      import('./examples/craft-service/craft-service-counter'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/craft-service/craft-service-counter')),
   },
   {
     path: 'craft-service/user-detail',
     componentDeps:
       {} as import('./examples/craft-service/craft-service-user-detail').GenDeps_CraftServiceUserDetailComponent,
-    loadComponent: () =>
-      import('./examples/craft-service/craft-service-user-detail'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/craft-service/craft-service-user-detail')),
   },
   {
     path: 'demo-send-context',
     componentDeps:
       {} as import('./examples/ia/demo-send-context/demo-send-context').GenDeps_DemoSendContextComponent,
-    loadComponent: () =>
-      import('./examples/ia/demo-send-context/demo-send-context'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/ia/demo-send-context/demo-send-context')),
   },
   {
     path: 'playground',
     componentDeps:
       {} as import('./examples/playground/playground').GenDeps_PlaygroundComponent,
-    loadComponent: () => import('./examples/playground/playground'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(import('./examples/playground/playground')),
   },
   {
     path: 'query-param',
     componentDeps:
       {} as import('./examples/routes/list-with-pagination/qp-list-with-pagination').GenDeps_QpListWithPagination,
-    loadComponent: () =>
-      import('./examples/routes/list-with-pagination/qp-list-with-pagination'),
+    loadComponent: ({ withRetry }) =>
+      withRetry(
+        import(
+          './examples/routes/list-with-pagination/qp-list-with-pagination'
+        ),
+      ),
     queryParams: () =>
       queryParam(
         {

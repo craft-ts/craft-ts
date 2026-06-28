@@ -61,7 +61,7 @@ const profileQuery = query({
 craftRoute(
   'user/:userId',
   {
-    loadComponent: () => import('./user-detail'),
+    loadComponent: ({ withRetry }) => withRetry(import('./user-detail')),
     componentDeps: {} as import('./user-detail').GenDeps_UserDetail,
     canMatch: craftCanMatch(function* () {
       const ff = yield* FeatureFlagsToYield();

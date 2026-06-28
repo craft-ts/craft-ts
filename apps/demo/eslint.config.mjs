@@ -33,6 +33,7 @@ export default [
       'craft-ng/require-craft-exception-handler': 'error',
       'craft-ng/require-exception-component-di-check': 'error',
       'craft-ng/require-child-route-mount-check': 'error',
+      'craft-ng/require-lazy-load-with-retry': 'error',
       '@angular-eslint/directive-selector': [
         'error',
         {

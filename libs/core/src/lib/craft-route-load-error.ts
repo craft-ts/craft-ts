@@ -41,6 +41,17 @@ export interface CraftRouteLoadErrorPayload {
 
 export type CraftRouteLoadError = ReturnType<typeof createRouteLoadError>;
 
+export interface CraftRouteLazyLoadHelpers {
+  withRetry<T>(moduleImport: Promise<T>): Promise<T>;
+}
+
+export const CRAFT_ROUTE_DYNAMIC_IMPORT = new InjectionToken<
+  (url: string) => Promise<unknown>
+>('CRAFT_ROUTE_DYNAMIC_IMPORT', {
+  providedIn: 'root',
+  factory: () => (url) => import(/* @vite-ignore */ url),
+});
+
 export interface CraftRouteLoadRetryContext {
   readonly phase: CraftRouteLoadPhase;
   readonly routePath: string;
@@ -284,7 +295,7 @@ export function isCraftRouteLoadError(
 }
 
 export function loadRouteWithRetry<T>(
-  loader: () => Promise<T>,
+  loader: (helpers: CraftRouteLazyLoadHelpers) => Promise<T>,
   phase: CraftRouteLoadPhase,
   routePath: string,
 ): Promise<T> {
@@ -293,6 +304,7 @@ export function loadRouteWithRetry<T>(
         injector: EnvironmentInjector;
         router: Router;
         retry: CraftRouteLoadRetry;
+        dynamicImport: (url: string) => Promise<unknown>;
       }
     | undefined;
   try {
@@ -300,6 +312,7 @@ export function loadRouteWithRetry<T>(
       injector: inject(EnvironmentInjector),
       router: inject(Router),
       retry: inject(CRAFT_ROUTE_LOAD_RETRY),
+      dynamicImport: inject(CRAFT_ROUTE_DYNAMIC_IMPORT),
     };
   } catch {
     // Some consumers invoke emitted loader callbacks directly in tests. Keep
@@ -308,7 +321,7 @@ export function loadRouteWithRetry<T>(
 
   return (async () => {
     try {
-      return await loader();
+      return await loader(INITIAL_ROUTE_LOAD_HELPERS);
     } catch (firstError) {
       if (!dependencies) throw firstError;
 
@@ -326,7 +339,7 @@ export function loadRouteWithRetry<T>(
       try {
         const retryLoader = () => {
           attempt++;
-          return loader();
+          return loader(createRetryRouteLoadHelpers(dependencies.dynamicImport));
         };
 
         return await dependencies.retry.execute(retryLoader, context);
@@ -344,6 +357,70 @@ export function loadRouteWithRetry<T>(
       }
     }
   })();
+}
+
+const INITIAL_ROUTE_LOAD_HELPERS: CraftRouteLazyLoadHelpers = {
+  withRetry: <T>(moduleImport: Promise<T>) => moduleImport,
+};
+
+const successfulRetriedImports = new Map<string, Promise<unknown>>();
+const retryImportAttempts = new Map<string, number>();
+
+function createRetryRouteLoadHelpers(
+  dynamicImport: (url: string) => Promise<unknown>,
+): CraftRouteLazyLoadHelpers {
+  return {
+    withRetry: <T>(moduleImport: Promise<T>) =>
+      retryFailedDynamicImport(moduleImport, dynamicImport),
+  };
+}
+
+async function retryFailedDynamicImport<T>(
+  moduleImport: Promise<T>,
+  dynamicImport: (url: string) => Promise<unknown>,
+): Promise<T> {
+  try {
+    return await moduleImport;
+  } catch (error) {
+    const failedUrl = failedDynamicImportUrl(error);
+    if (!failedUrl) throw error;
+
+    const baseUrl = failedUrl.href;
+    const cachedRetry = successfulRetriedImports.get(baseUrl);
+    if (cachedRetry) return cachedRetry as Promise<T>;
+
+    const attempt = (retryImportAttempts.get(baseUrl) ?? 0) + 1;
+    retryImportAttempts.set(baseUrl, attempt);
+    failedUrl.searchParams.set('__craft_route_retry', String(attempt));
+
+    const retriedImport = dynamicImport(failedUrl.href) as Promise<T>;
+    successfulRetriedImports.set(baseUrl, retriedImport);
+
+    try {
+      return await retriedImport;
+    } catch (retryError) {
+      successfulRetriedImports.delete(baseUrl);
+      throw retryError;
+    }
+  }
+}
+
+function failedDynamicImportUrl(error: unknown): URL | undefined {
+  if (!(error instanceof Error)) return undefined;
+
+  const prefix = 'Failed to fetch dynamically imported module:';
+  const prefixIndex = error.message.indexOf(prefix);
+  if (prefixIndex === -1) return undefined;
+
+  try {
+    const url = new URL(error.message.slice(prefixIndex + prefix.length).trim());
+    const currentOrigin = globalThis.location?.origin;
+    if (currentOrigin && url.origin !== currentOrigin) return undefined;
+    if (!url.pathname.endsWith('.js')) return undefined;
+    return url;
+  } catch {
+    return undefined;
+  }
 }
 
 function handleRouteLoadNavigationError(

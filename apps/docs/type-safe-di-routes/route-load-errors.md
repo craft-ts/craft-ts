@@ -64,15 +64,24 @@ something safe to render, but `browserUrl` keeps the visible URL as the intended
 ```
 
 ::: warning Browser-cached module failures
-`retry()` re-enters the Angular route and calls the lazy loader again, but browsers can remember a
-failed dynamic `import()` for the exact same module specifier. For example, if DevTools blocks
-`/chunk-ABC123.js`, a later `import('/chunk-ABC123.js')` may fail again without issuing a new
-network request. In that case, `reload()` is the reliable recovery path.
+Browsers can remember a failed dynamic `import()` for the exact same module specifier. Wrap each
+Craft lazy route import with the loader's `withRetry` helper:
 
-Do not wrap route imports in runtime helpers such as `import(withRetryPrefix('./detail'))`: Angular
-and Vite need the import specifier to stay statically analyzable so they can rewrite it to the
-hashed production chunk. Cache-busting route-load chunks would require a build-time integration that
-post-processes the already-generated chunk URLs, not a route-level helper.
+```ts
+loadComponent: ({ withRetry }) => withRetry(import('./detail')),
+loadChildren: ({ withRetry }) =>
+  withRetry(import('./admin.routes')).then((m) => m.adminRoutes),
+```
+
+The initial import remains statically analyzable, so Angular and Vite still rewrite it to the hashed
+production chunk. On a configured retry, Craft extracts the emitted chunk URL from the browser
+error and adds `__craft_route_retry` only to the failed request. A successful retry module is kept
+for the lifetime of the application and reused by later route activations.
+
+This recovery depends on the browser including the failed module URL in the dynamic-import error.
+When it does not, `reload()` remains the reliable recovery path. Do not write
+`import(withRetryPrefix('./detail'))`: a runtime import specifier prevents the production chunk from
+being statically discovered.
 :::
 
 ## Build the error component
@@ -213,7 +222,8 @@ craftRoute('admin', {
         {} as import('./admin-route-load-error-screen').GenDeps_AdminRouteLoadErrorScreen,
     }),
   ],
-  loadChildren: () => import('./admin.routes').then((m) => m.adminRoutes),
+  loadChildren: ({ withRetry }) =>
+    withRetry(import('./admin.routes')).then((m) => m.adminRoutes),
 });
 ```
 

@@ -62,14 +62,14 @@ export const {
   craftRoute('', {
     componentDeps:
       {} as import('./gallery').GenDeps_ViewTransitionsGalleryComponent,
-    loadComponent: () => import('./gallery'),
+    loadComponent: ({ withRetry }) => withRetry(import('./gallery')),
   }),
   craftRoute(
     ':photoId',
     {
       componentDeps:
         {} as import('./photo-detail').GenDeps_ViewTransitionsDetailComponent,
-      loadComponent: () => import('./photo-detail'),
+      loadComponent: ({ withRetry }) => withRetry(import('./photo-detail')),
       // The route DECLARES the shared-element payload shape (mirrors how
       // `queryParams` declares query-param shape): every link/navigation must pass
       // `viewTransition: { name; image } | null`, and the skeleton reads it via the

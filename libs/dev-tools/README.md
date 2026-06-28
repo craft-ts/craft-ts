@@ -196,6 +196,7 @@ export default [
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
+      'craft-ng/require-lazy-load-with-retry': 'error',
     }
   }
 ];

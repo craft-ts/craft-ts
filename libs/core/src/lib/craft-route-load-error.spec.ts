@@ -15,6 +15,7 @@ import { provideRouter, Router } from '@angular/router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CRAFT_ROUTE_LOAD_ERROR_CODE,
+  CRAFT_ROUTE_DYNAMIC_IMPORT,
   CRAFT_ROUTE_LOAD_RECOVERY,
   CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
   CRAFT_ROUTE_LOAD_ERROR_PATH,
@@ -59,6 +60,37 @@ beforeEach(() => {
 });
 
 describe('route load error recovery', () => {
+  function configureDynamicImportRetry(
+    dynamicImport: (url: string) => Promise<unknown>,
+  ): EnvironmentInjector {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        {
+          provide: CRAFT_ROUTE_LOAD_RETRY,
+          useValue: { execute: (loader: () => Promise<unknown>) => loader() },
+        },
+        { provide: CRAFT_ROUTE_DYNAMIC_IMPORT, useValue: dynamicImport },
+      ],
+    });
+    return TestBed.inject(EnvironmentInjector);
+  }
+
+  function retryFailedImport(
+    injector: EnvironmentInjector,
+    error: Error,
+  ): Promise<unknown> {
+    const loader = vi
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockImplementationOnce(({ withRetry }) =>
+        withRetry(Promise.reject(error)),
+      );
+    return runInInjectionContext(injector, () =>
+      loadRouteWithRetry(loader, 'component', 'users'),
+    );
+  }
+
   it('retries a failed route load once with the injected retry strategy', async () => {
     const retry: CraftRouteLoadRetry = {
       execute: async (loader) => loader(),
@@ -81,6 +113,132 @@ describe('route load error recovery', () => {
       ),
     ).resolves.toBe('loaded');
     expect(loader).toHaveBeenCalledTimes(2);
+  });
+
+  it('enables withRetry only for configured retry attempts', async () => {
+    const retry: CraftRouteLoadRetry = {
+      execute: async (loader) => loader(),
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: CRAFT_ROUTE_LOAD_RETRY, useValue: retry },
+      ],
+    });
+    const injector = TestBed.inject(EnvironmentInjector);
+    const initialError = new Error('initial import failed');
+    const loader = vi
+      .fn()
+      .mockImplementationOnce(({ withRetry }) =>
+        withRetry(Promise.reject(initialError)),
+      )
+      .mockImplementationOnce(({ withRetry }) =>
+        withRetry(Promise.resolve('loaded')),
+      );
+
+    await expect(
+      runInInjectionContext(injector, () =>
+        loadRouteWithRetry(loader, 'component', 'users'),
+      ),
+    ).resolves.toBe('loaded');
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
+
+  it('extracts Chrome dynamic-import URLs and adds the first retry query', async () => {
+    const dynamicImport = vi.fn().mockResolvedValue({ loaded: true });
+    const injector = configureDynamicImportRetry(dynamicImport);
+
+    await expect(
+      retryFailedImport(
+        injector,
+        new TypeError(
+          'Failed to fetch dynamically imported module: http://localhost:3000/chunk-users.js',
+        ),
+      ),
+    ).resolves.toEqual({ loaded: true });
+    expect(dynamicImport).toHaveBeenCalledWith(
+      'http://localhost:3000/chunk-users.js?__craft_route_retry=1',
+    );
+  });
+
+  it('increments the retry query and preserves existing query params', async () => {
+    const dynamicImport = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('retry failed'))
+      .mockResolvedValueOnce({ loaded: true });
+    const injector = configureDynamicImportRetry(dynamicImport);
+    const error = new TypeError(
+      'Failed to fetch dynamically imported module: http://localhost:3000/chunk-query.js?lang=fr',
+    );
+
+    await expect(retryFailedImport(injector, error)).rejects.toMatchObject({
+      payload: { cause: expect.objectContaining({ message: 'retry failed' }) },
+    });
+    await expect(retryFailedImport(injector, error)).resolves.toEqual({
+      loaded: true,
+    });
+    expect(dynamicImport).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:3000/chunk-query.js?lang=fr&__craft_route_retry=1',
+    );
+    expect(dynamicImport).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3000/chunk-query.js?lang=fr&__craft_route_retry=2',
+    );
+  });
+
+  it('refuses to retry a cross-origin dynamic-import URL', async () => {
+    const dynamicImport = vi.fn();
+    const injector = configureDynamicImportRetry(dynamicImport);
+    const error = new TypeError(
+      'Failed to fetch dynamically imported module: https://cdn.example/chunk.js',
+    );
+
+    await expect(retryFailedImport(injector, error)).rejects.toMatchObject({
+      payload: { cause: error },
+    });
+    expect(dynamicImport).not.toHaveBeenCalled();
+  });
+
+  it('reuses a successful retried import for the same failed URL', async () => {
+    const loadedModule = { loaded: true };
+    const dynamicImport = vi.fn().mockResolvedValue(loadedModule);
+    const injector = configureDynamicImportRetry(dynamicImport);
+    const error = new TypeError(
+      'Failed to fetch dynamically imported module: http://localhost:3000/chunk-cached.js',
+    );
+
+    await expect(retryFailedImport(injector, error)).resolves.toBe(loadedModule);
+    await expect(retryFailedImport(injector, error)).resolves.toBe(loadedModule);
+    expect(dynamicImport).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes a failed retried import from the success cache', async () => {
+    const dynamicImport = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('retry failed'))
+      .mockResolvedValueOnce({ loaded: true });
+    const injector = configureDynamicImportRetry(dynamicImport);
+    const error = new TypeError(
+      'Failed to fetch dynamically imported module: http://localhost:3000/chunk-evicted.js',
+    );
+
+    await expect(retryFailedImport(injector, error)).rejects.toBeDefined();
+    await expect(retryFailedImport(injector, error)).resolves.toEqual({
+      loaded: true,
+    });
+    expect(dynamicImport).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to the original error when its message has no import URL', async () => {
+    const dynamicImport = vi.fn();
+    const injector = configureDynamicImportRetry(dynamicImport);
+    const error = new TypeError('Import failed without a URL');
+
+    await expect(retryFailedImport(injector, error)).rejects.toMatchObject({
+      payload: { cause: error },
+    });
+    expect(dynamicImport).not.toHaveBeenCalled();
   });
 
   it('creates a configurable retry strategy', async () => {

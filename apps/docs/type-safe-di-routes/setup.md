@@ -66,7 +66,7 @@ import { craftRoute, craftRoutes } from '@craft-ng/core';
 
 export const { appRoutes } = craftRoutes('app', [
   craftRoute('', {
-    loadComponent: () => import('./test'),
+    loadComponent: ({ withRetry }) => withRetry(import('./test')),
     componentDeps: {} as import('./test').GenDeps_TestComponent,
   }),
 ]);
@@ -149,7 +149,7 @@ import type { Router } from '@angular/router';
 export const { featureRoutes } = craftRoutes('feature', [
   craftRoute('', {
     componentDeps: {} as import('./feature').GenDeps_Feature,
-    loadComponent: () => import('./feature'),
+    loadComponent: ({ withRetry }) => withRetry(import('./feature')),
     // guards / resolve / handleExceptions …
   }),
 ]);
@@ -169,7 +169,8 @@ type _CanRunFeature = CanRun<_CheckFeatureDI>;
 // app.routes.ts — a cheap loadChildren entry, outside the parent's budget
 {
   path: 'feature',
-  loadChildren: () => import('./feature.routes').then((m) => m.featureRoutes),
+  loadChildren: ({ withRetry }) =>
+    withRetry(import('./feature.routes')).then((m) => m.featureRoutes),
 },
 ```
 
@@ -284,7 +285,7 @@ import { craftRoutes, craftRoute, type ParentRoutes } from '@craft-ng/core';
 export const { viewTransitionsRoutes } = craftRoutes('viewTransitions', [
   craftRoute(':photoId', {
     componentDeps: {} as import('./photo-detail').GenDeps_PhotoDetailComponent,
-    loadComponent: () => import('./photo-detail'),
+    loadComponent: ({ withRetry }) => withRetry(import('./photo-detail')),
     // …
   }),
 ]).withParent<ParentRoutes<'view-transitions'>>();
@@ -297,8 +298,10 @@ import { assertChildRouteMounts, craftRoutes } from '@craft-ng/core';
 export const { demoRoutes } = craftRoutes('demo', [
   {
     path: 'view-transitions',
-    loadChildren: () =>
-      import('./view-transitions.routes').then((m) => m.viewTransitionsRoutes),
+    loadChildren: ({ withRetry }) =>
+      withRetry(import('./view-transitions.routes')).then(
+        (m) => m.viewTransitionsRoutes,
+      ),
   },
 ]);
 
@@ -423,6 +426,7 @@ export default [
       'craft-ng/require-exception-component-di-check': 'error',
       'craft-ng/require-pending-component-di-check': 'error',
       'craft-ng/require-child-route-mount-check': 'error',
+      'craft-ng/require-lazy-load-with-retry': 'error',
       'craft-ng/global-exception-registry-match': 'error',
     },
   },
@@ -442,6 +446,7 @@ What each rule does:
 - `craft-ng/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, `withErrorComponent`, `withRouteLoadError`, and route-local `provideRouteLoadErrorComponent`
 - `craft-ng/require-pending-component-di-check`: generates the independent `RouteCheckedDI` check for each `pendingComponent`
 - `craft-ng/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
+- `craft-ng/require-lazy-load-with-retry`: wraps route `loadComponent` and `loadChildren` imports with the generated `withRetry(...)` loader helper while preserving a statically analyzable import specifier
 - `craft-ng/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
 
 The two migration rules also expose a VS Code ESLint Quick Fix suggestion that inserts a temporary local disable comment with the intended migration note when you need to unblock a file before doing the full refactor.
