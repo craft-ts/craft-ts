@@ -60,6 +60,17 @@
         "packageRoot": "dist/{projectRoot}",
         "tag": "beta"
       }
+    },
+    "patch-build-publish-beta": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "cd libs/dev-tools && npm version prepatch --preid=beta --no-git-tag-version",
+          "npx nx run dev-tools:build",
+          "npx nx run dev-tools:nx-release-publish-beta"
+        ],
+        "parallel": false
+      }
     }
   }
 }
