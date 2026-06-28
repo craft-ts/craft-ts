@@ -39,7 +39,9 @@ the route's [`handleExceptions`](./exception-handling.md) outcome.
 
 Lazy JavaScript load failures (`loadComponent` / `loadChildren`) happen before the outlet can mount
 the target route. Configure [`withRouteLoadError`](./route-load-errors.md) to retry those failures
-and render a recovery screen while keeping the browser URL on the intended route.
+and render a recovery screen while keeping the browser URL on the intended route. A slow JavaScript
+download or retry does not currently activate this pending timeline; dedicated loading UI for that
+earlier phase is a planned evolution.
 
 ```
 clic → URL committée

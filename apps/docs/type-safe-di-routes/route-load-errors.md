@@ -63,6 +63,17 @@ something safe to render, but `browserUrl` keeps the visible URL as the intended
 → F5 reloads /mutation/123 and retries the real route
 ```
 
+::: info No dedicated loading UI during JavaScript fetches yet
+While Angular is fetching a lazy `loadComponent` / `loadChildren` chunk, including time spent in the
+configured retry strategy, Craft does not currently display the route's `pendingComponent` or another
+dedicated loading component. The pending component starts only after the JavaScript has loaded and the
+route has been activated, while the Craft `canMatch` / `canActivate` / `resolve` chain is running.
+
+Extending the pending timeline to cover slow chunk downloads and retries is planned as a future
+evolution. Until then, the previous route may remain visible while the JavaScript request is pending;
+the route-load error component appears only after all configured retries fail.
+:::
+
 ::: warning Browser-cached module failures
 Browsers can remember a failed dynamic `import()` for the exact same module specifier. Wrap each
 Craft lazy route import with the loader's `withRetry` helper:
