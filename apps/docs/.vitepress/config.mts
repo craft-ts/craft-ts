@@ -125,6 +125,10 @@ export default defineConfig({
             link: '/type-safe-di-routes/setup',
           },
           {
+            text: 'Automation',
+            link: '/type-safe-di-routes/automation',
+          },
+          {
             text: 'Route Providers',
             link: '/type-safe-di-routes/route-providers',
           },

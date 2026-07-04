@@ -1,134 +1,197 @@
-# @craft-ng/core
+<p align="center">
+  <img src="apps/docs/public/assets/ng-craft-logo.png" alt="ng-craft logo" width="160" />
+</p>
 
-**Reactive State Management for Angular** - Type-safe, signal-based utilities for composable and reusable state management.
+<h1 align="center">@craft-ng/core</h1>
 
-## 🎯 About
+<p align="center">
+  Type-safe, declarative building blocks for Angular applications.<br />
+  <strong>Declare. Yield. Derive. Compile — no surprises.</strong>
+</p>
 
-`@craft-ng/core` is a reactive state management library designed specifically for Angular applications. It focuses on URL, Client, and Server state management, allowing you to concentrate on business value and user experience.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@craft-ng/core">npm</a> ·
+  <a href="https://ng-angular-stack.github.io/craft/">Documentation</a> ·
+  <a href="https://github.com/ng-angular-stack/ng-craft/issues">Issues</a> ·
+  <a href="https://github.com/ng-angular-stack/ng-craft/discussions">Discussions</a>
+</p>
 
-### Core concepts
+> [!WARNING]
+> `@craft-ng/core` is currently in beta. APIs and documentation may evolve before a stable release.
 
-1. There are 5 **Primitives**, built on top of signals, each encapsulate their own state and logic.
-2. They can be used directly in both components and services.
-3. They all follow the same pattern: `primitive(config, insertion1, insertion2, ...)`.
-4. Insertions are used to extend behavior (modifiers, reactions, derived state, method-based or event-based logic, etc.).
-5. This pattern, combined with `insert...` utilities from **craft-ng**, enables a high level of composition, making it easy to scale from simple to complex use cases.
-6. A `craft` store is available to orchestrate these primitives. It can be composed with other stores and is itself fully composable.
+## What is ng-craft?
 
-### Why @craft-ng/core?
+ng-craft is a Signal-first toolkit for modeling Angular state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. RxJS remains optional.
 
-- **100% Signals** - Built on Angular Signals, RxJS is optional
-- **Reactive Primitives** - `state`, `asyncState`, `queryParam`, `query`, `mutation` and `asyncProcess` for a better developer experience
-- **Composition & Reusability** - Use insertions to compose your logic (localStorage sync, optimistic updates, smart loading states, etc.)
-- **Flexible Architecture** - Method-based, source-based, or hybrid approach to fit your needs
-- **Granular & Declarative State Management** - Promotes creating isolated states for better maintainability and testability
+It is designed to keep application behavior close to where it is used while making dependency graphs visible to the compiler and to tests.
 
-## 🚀 Installation
+### Main capabilities
+
+- **One reactive model for every kind of state** — `state`, `query`, `mutation`, `asyncProcess`, and `queryParam` cover local, server, asynchronous, and URL state.
+- **Composable behavior** — insertions add reusable capabilities such as persistence, entity management, selection, pagination placeholders, and optimistic updates.
+- **Function-based services** — `craftService` composes state and dependencies; `toCraftService` adapts existing Angular services and tokens.
+- **Type-safe Angular integration** — typed dependency injection, navigation, route inputs, route providers, guards, pending UI, and lazy-load error handling.
+- **Derived forms** — form state, validation, submission, and interdependent logic remain reactive and declarative.
+- **Deterministic testing** — tests describe the real dependency graph and can isolate browser or platform boundaries explicitly.
+- **Observability by design** — exceptions, correlations, and application state can be captured where failures occur.
+
+## Installation
+
+ng-craft currently targets Angular 21.
 
 ```bash
-npm i @craft-ng/core@latest
+npm install @craft-ng/core@latest @craft-ng/dev-tools@latest
 ```
 
-## 📖 Documentation
+`@craft-ng/dev-tools` provides the codemods and ESLint rules used by the type-safe DI and routing workflow.
 
-Full documentation is available at: **[ng-angular-stack.github.io/craft](<[https://ng-angular-stack.github.io/craft/](https://ng-angular-stack.github.io/craft/)>)**
+## Quick start
 
-### Quick Start
+Create granular state and derive its public API directly from it:
 
-```typescript
-import { Component } from '@angular/core';
+```ts
+import { computed } from '@angular/core';
 import { state } from '@craft-ng/core';
 
-@Component({
-  selector: 'app-counter',
-  template: `
-    <div>
-      <p>Count: {{ counter() }}</p>
-      <button (click)="counter.increment()">+1</button>
-      <button (click)="counter.reset()">Reset</button>
-    </div>
-  `,
-})
-export class CounterComponent {
-  counter = state(
-    0,
-    ({ update, set }) => ({
-      increment: () => update((current) => current + 1),
-      reset: () => set(0),
-      isOdd: computed(() => state() % 2 === 1),
-    }),
-    ({ insertions: { isOdd }) => ({
-      isEven: computed(() => !isOdd()),
-    }),
-  );
-}
+const counter = state(0, ({ state, update, set }) => ({
+  increment: () => update((value) => value + 1),
+  reset: () => set(0),
+  doubled: computed(() => state() * 2),
+}));
+
+counter(); // 0
+counter.increment();
+counter(); // 1
+counter.doubled(); // 2
 ```
 
-## 💎 Key Features
+When logic must be shared, package the same primitives in a named service:
 
-### Reactive Primitives
+```ts
+import { craftService, state } from '@craft-ng/core';
 
-- **`state`** - Reactive state based on Signals
-- **`query`** - Async data fetching management
-- **`mutation`** - Async operations with state management
-- **`queryParam`** - State synchronization with URL parameters
-- **`asyncProcess`** - Async process management
-
-### Insertions for Composition
-
-Compose your logic with reusable insertions:
-
-```typescript
-import { state, insertLocalStorage } from '@craft-ng/core';
-
-const myState = state(
-  0,
-  insertLocalStoragePersister({
-    storeName: 'myStore',
-    key: 'myState',
-  }),
+const { injectCounter } = craftService(
+  { name: 'Counter', scope: 'global' },
+  () =>
+    state(0, ({ update }) => ({
+      increment: () => update((value) => value + 1),
+    })),
 );
+
+const counter = injectCounter();
 ```
 
-### Composable Stores
+Continue with the [getting-started guide](https://ng-angular-stack.github.io/craft/get-started), then explore:
 
-Create global, local, or feature stores:
+- [Reactive primitives](https://ng-angular-stack.github.io/craft/primitives/state)
+- [Services and dependency composition](https://ng-angular-stack.github.io/craft/store/craft-service)
+- [Forms](https://ng-angular-stack.github.io/craft/forms/index)
+- [Type-safe DI and routing](https://ng-angular-stack.github.io/craft/type-safe-di-routes/setup)
+- [Runnable examples](https://ng-angular-stack.github.io/craft/examples)
+- [Migration tooling](https://ng-angular-stack.github.io/craft/migration)
 
-```typescript
-const { injectUserGlobalCraft } = craft(
-  {
-    name: 'userGlobal',
-    providedIn: 'root',
-  },
-  craftQuery('user', () =>
-    query({
-      params: () => userId(),
-      loader: async ({ params }) => fetchUser(params),
-    }),
-  ),
-  craftMutations(() => ({
-    updateEmail: mutation({
-      method: (email: string) => ({ email }),
-      loader: async ({ params }) => updateUserEmail(params),
-    }),
-  })),
-);
+## Repository structure
+
+This repository is an npm workspace managed with Nx.
+
+```text
+apps/
+├── demo/          Angular application used for examples and integration checks
+└── docs/          VitePress documentation and documentation tests
+libs/
+├── core/          Published @craft-ng/core package
+├── dev-tools/     Published codemods and ESLint tooling
+└── test-type/     Compile-time type test utilities
+tools/
+└── generators/    Nx generators and type-stress fixtures
 ```
 
-## 📝 License
+## Development
 
-MIT © [Romain Geffrault](https://github.com/ng-angular-stack)
+### Prerequisites
 
-## 🔗 Links
+- Node.js 20 (the version used by CI)
+- npm
 
-- [GitHub Repository](https://github.com/ng-angular-stack/ng-craft)
-- [NPM Package](https://www.npmjs.com/package/@craft-ng/core)
-- Documentation (coming soon)
+Install the exact dependency versions from the lockfile:
 
-## 🤝 Contributing
+```bash
+npm ci
+```
 
-Contributions are welcome! Feel free to open an issue or pull request.
+### Run the project locally
 
----
+Start the Angular demo:
 
-**Built with ❤️ for the Angular community**
+```bash
+npx nx serve demo
+```
+
+Start the documentation site at `http://localhost:5173`:
+
+```bash
+npx nx dev docs
+```
+
+### Make a change
+
+1. Find the relevant implementation under `libs/core/src/` or `libs/dev-tools/src/`.
+2. Add or update focused tests next to the affected code.
+3. Update the matching page under `apps/docs/`; the documentation is the reference for public behavior.
+4. Add or update an example in `apps/demo/` when the change benefits from an executable use case.
+5. Run the focused Nx targets while iterating, then run the full validation suite before opening a pull request.
+
+Useful focused commands:
+
+```bash
+npx nx test ng-craft-core
+npx nx lint ng-craft-core
+npx nx build ng-craft-core
+npx nx test docs
+npx nx build docs
+```
+
+Inspect all targets available for a project with:
+
+```bash
+npx nx show project ng-craft-core
+```
+
+### Validate before submitting
+
+Run the same core checks as CI:
+
+```bash
+npx nx format:check
+npx nx run-many -t lint test build typecheck e2e-ci
+```
+
+To automatically format changed files first:
+
+```bash
+npx nx format:write
+```
+
+### Documentation contributions
+
+Documentation pages live in `apps/docs/` and the sidebar is configured in `apps/docs/.vitepress/config.mts`.
+
+When documenting a public API:
+
+- place the page in the matching domain folder (`primitives`, `insertions`, `store`, `forms`, `utils`, or `type-safe-di-routes`);
+- show the relevant import statement;
+- favor complete, compilable examples;
+- add the page to the VitePress sidebar when necessary;
+- run both `npx nx test docs` and `npx nx build docs`.
+
+## Releases
+
+`@craft-ng/core` and `@craft-ng/dev-tools` are released independently through Nx. Publishing requires maintainer access and is intentionally not part of the regular contributor workflow.
+
+## Contributing
+
+Bug reports, design discussions, documentation improvements, and pull requests are welcome. For substantial API changes, open a [discussion](https://github.com/ng-angular-stack/ng-craft/discussions) or an [issue](https://github.com/ng-angular-stack/ng-craft/issues) first so the intended behavior can be agreed before implementation.
+
+## License
+
+MIT © Romain Geffrault

@@ -276,4 +276,47 @@ describe('primitives migration', () => {
     expect(result.exitCode).toBe(1);
     expect(result.remainingSignalForms).toBe(1);
   });
+
+  it('suggests inlining a local makeFormTreeInsert into insertForm', async () => {
+    const root = await fixture({
+      'tsconfig.json': '{}',
+      'checkout.ts': `
+        import { formTreeNeed, insertForm, insertSelectFormTree, makeFormTreeInsert, state } from '@craft-ng/core';
+        type CheckoutForm = { coupon: { code: string } };
+        const { insertCouponTree } = makeFormTreeInsert(
+          'Coupon',
+          formTreeNeed<CheckoutForm['coupon']>(),
+          () => ({}),
+        );
+        export const checkout = state(
+          { coupon: { code: '' } },
+          insertForm(insertSelectFormTree('coupon', insertCouponTree())),
+        );
+      `,
+    });
+
+    const first = await runPrimitivesMigration({
+      rootDir: root,
+      write: true,
+      eslint: false,
+      log: () => undefined,
+    });
+    await runPrimitivesMigration({
+      rootDir: root,
+      write: true,
+      eslint: false,
+      log: () => undefined,
+    });
+
+    const output = await readFile(join(root, 'checkout.ts'), 'utf8');
+    expect(first.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+      'FORM_TREE_INSERT_EXTRACTION_REQUIRES_REVIEW',
+    );
+    expect(output).toContain(
+      '// CRAFT_FORM_TREE_INSERT_EXTRACTION_REVIEW: makeFormTreeInsert sert surtout à extraire et découper une logique de formulaire; si cet insert n’est utilisé qu’ici, envisager de le placer directement dans insertForm.',
+    );
+    expect(
+      output.match(/CRAFT_FORM_TREE_INSERT_EXTRACTION_REVIEW/g),
+    ).toHaveLength(1);
+  });
 });

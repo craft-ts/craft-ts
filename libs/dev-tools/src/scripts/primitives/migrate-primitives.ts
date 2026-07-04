@@ -88,10 +88,24 @@ export async function runPrimitivesMigration(
       sourceFile,
       diagnostics,
     );
+    const changedFormTreeInserts = annotateFormTreeInsertExtractions(
+      sourceFile,
+      diagnostics,
+    );
     diagnoseSignalForms(sourceFile, diagnostics);
-    if (changedSignals || changedResources || changedWorkflows)
+    if (
+      changedSignals ||
+      changedResources ||
+      changedWorkflows ||
+      changedFormTreeInserts
+    )
       touched.add(sourceFile);
-    if (changedSignals || changedResources || changedWorkflows)
+    if (
+      changedSignals ||
+      changedResources ||
+      changedWorkflows ||
+      changedFormTreeInserts
+    )
       getFileReport(files, sourceFile.getFilePath()).changed = true;
   }
 
@@ -210,6 +224,50 @@ const REACTIVE_WORKFLOW_COMMENT =
   '// CRAFT_REACTIVE_WORKFLOW_RECOMMENDED: workflow impératif détecté...';
 const FIRST_VALUE_FROM_REVIEW_COMMENT =
   '// CRAFT_FIRST_VALUE_FROM_REVIEW: firstValueFrom bridges an Observable temporarily; prefer a Promise-native Craft API when possible.';
+const FORM_TREE_INSERT_EXTRACTION_REVIEW_COMMENT =
+  '// CRAFT_FORM_TREE_INSERT_EXTRACTION_REVIEW: makeFormTreeInsert sert surtout à extraire et découper une logique de formulaire; si cet insert n’est utilisé qu’ici, envisager de le placer directement dans insertForm.';
+
+function annotateFormTreeInsertExtractions(
+  sourceFile: SourceFile,
+  diagnostics: PrimitiveMigrationDiagnostic[],
+): boolean {
+  const statements = new Set<Node>();
+  for (const call of sourceFile.getDescendantsOfKind(
+    SyntaxKind.CallExpression,
+  )) {
+    if (call.getExpression().getText() !== 'makeFormTreeInsert') continue;
+    const statement = call.getFirstAncestor((ancestor) =>
+      Node.isVariableStatement(ancestor),
+    );
+    if (statement) statements.add(statement);
+  }
+
+  let changed = false;
+  for (const statement of [...statements].sort(
+    (left, right) => right.getStart() - left.getStart(),
+  )) {
+    if (
+      statement.wasForgotten() ||
+      statement
+        .getFullText()
+        .includes('CRAFT_FORM_TREE_INSERT_EXTRACTION_REVIEW')
+    )
+      continue;
+    statement.replaceWithText(
+      `${FORM_TREE_INSERT_EXTRACTION_REVIEW_COMMENT}\n${statement.getText()}`,
+    );
+    changed = true;
+  }
+  if (changed) {
+    diagnose(
+      diagnostics,
+      'FORM_TREE_INSERT_EXTRACTION_REQUIRES_REVIEW',
+      sourceFile,
+      '`makeFormTreeInsert(...)` est utile pour extraire une logique de formulaire; si l’insert n’a qu’un seul usage local, envisager de l’imbriquer directement dans `insertForm(...)`.',
+    );
+  }
+  return changed;
+}
 
 function migrateSingleEmissionRxResources(
   sourceFile: SourceFile,

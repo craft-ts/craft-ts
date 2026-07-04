@@ -714,6 +714,48 @@ describe('services migration', () => {
     );
     const page = await readFile(join(root, 'page.ts'), 'utf8');
     expect(page).toContain('subscribe({ next:');
+    expect(page).toContain(
+      '// CRAFT_EXPLICIT_SUBSCRIBE_REVIEW: subscribe explicite conservé; vérifier si query, mutation, asyncProcess ou le couple source$/on$ permet un workflow Craft déclaratif.',
+    );
     expect(page).not.toContain('cancelOrderMutation = mutation');
+  });
+
+  it('annotates every explicit subscribe that remains after migration', async () => {
+    const root = await fixture({
+      'tsconfig.json': '{}',
+      'page.ts': `
+        export class Page {
+          logout(): void {
+            this.auth.logout().pipe(this.untilDestroyed()).subscribe({
+              next: () => { window.location.href = '/'; },
+            });
+          }
+          private readonly auth = { logout: () => ({ pipe: (..._args: unknown[]) => ({ subscribe: (_observer: unknown) => undefined }) }) };
+          private readonly untilDestroyed = () => undefined;
+        }
+      `,
+    });
+
+    const first = await runServicesMigration({
+      rootDir: root,
+      write: true,
+      eslint: false,
+      log: () => undefined,
+    });
+    await runServicesMigration({
+      rootDir: root,
+      write: true,
+      eslint: false,
+      log: () => undefined,
+    });
+
+    const page = await readFile(join(root, 'page.ts'), 'utf8');
+    expect(first.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+      'EXPLICIT_SUBSCRIBE_REQUIRES_REVIEW',
+    );
+    expect(page.match(/CRAFT_EXPLICIT_SUBSCRIBE_REVIEW/g)).toHaveLength(1);
+    expect(page).toContain(
+      'query, mutation, asyncProcess ou le couple source$/on$',
+    );
   });
 });

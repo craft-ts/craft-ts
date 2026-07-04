@@ -2,6 +2,7 @@ export type PrimitiveMigrationDiagnosticCode =
   | 'SIGNAL_FORM_REQUIRES_INSERT_FORM'
   | 'ASYNC_VALIDATOR_REQUIRES_QUERY'
   | 'RX_RESOURCE_REQUIRES_QUERY'
+  | 'FORM_TREE_INSERT_EXTRACTION_REQUIRES_REVIEW'
   | 'IMPERATIVE_WORKFLOW_REQUIRES_REVIEW';
 
 export type PrimitiveMigrationDiagnostic = {

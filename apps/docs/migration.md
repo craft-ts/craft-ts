@@ -14,7 +14,17 @@ reported as a manual diagnostic.
 
 ```shell
 npm install @craft-ng/core
-npm install --save-dev @craft-ng/dev-tools
+npm install --save-dev @craft-ng/dev-tools@beta
+```
+
+The migration binaries are available starting with `0.5.1-beta.0` and are
+currently published on the `beta` tag. The `latest` version and older beta
+versions do not include `craft-migrate`. If the package was installed before
+that release, update it and verify the resolved version:
+
+```shell
+npm install --save-dev @craft-ng/dev-tools@beta
+npm ls @craft-ng/dev-tools
 ```
 
 Commit or stash the current application changes before writing a migration.

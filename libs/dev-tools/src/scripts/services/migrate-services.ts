@@ -157,6 +157,7 @@ export async function runServicesMigration(
 
   rewriteConsumers(sourceFiles, descriptors, diagnostics, touched);
   rewriteHttpOperationSubscribers(sourceFiles, descriptors, diagnostics, touched);
+  annotateRemainingExplicitSubscribes(sourceFiles, diagnostics, touched);
   rewriteProviders(sourceFiles, descriptors, diagnostics, touched);
   const eslintConfig = migrateEslintConfig(project, dirname(tsConfigFilePath));
   if (eslintConfig) touched.add(eslintConfig);
@@ -936,6 +937,59 @@ function rewriteHttpOperationSubscribers(
         touched.add(file);
       }
     }
+  }
+}
+
+const EXPLICIT_SUBSCRIBE_REVIEW_COMMENT =
+  '// CRAFT_EXPLICIT_SUBSCRIBE_REVIEW: subscribe explicite conservé; vérifier si query, mutation, asyncProcess ou le couple source$/on$ permet un workflow Craft déclaratif.';
+
+function annotateRemainingExplicitSubscribes(
+  files: readonly SourceFile[],
+  diagnostics: ServiceMigrationDiagnostic[],
+  touched: Set<SourceFile>,
+): void {
+  for (const file of files) {
+    const statements = new Set<Node>();
+    for (const call of file.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const expression = call.getExpression();
+      if (
+        !Node.isPropertyAccessExpression(expression) ||
+        expression.getName() !== 'subscribe'
+      )
+        continue;
+      const statement = call.getFirstAncestor(
+        (ancestor) =>
+          Node.isExpressionStatement(ancestor) ||
+          Node.isReturnStatement(ancestor) ||
+          Node.isVariableStatement(ancestor),
+      );
+      if (statement) statements.add(statement);
+    }
+    if (statements.size === 0) continue;
+
+    let annotated = false;
+    for (const statement of [...statements].sort(
+      (left, right) => right.getStart() - left.getStart(),
+    )) {
+      if (
+        statement.wasForgotten() ||
+        statement.getFullText().includes('CRAFT_EXPLICIT_SUBSCRIBE_REVIEW')
+      )
+        continue;
+      statement.replaceWithText(
+        `${EXPLICIT_SUBSCRIBE_REVIEW_COMMENT}\n${statement.getText()}`,
+      );
+      annotated = true;
+    }
+    if (!annotated) continue;
+    diagnostics.push({
+      code: 'EXPLICIT_SUBSCRIBE_REQUIRES_REVIEW',
+      filePath: file.getFilePath(),
+      message:
+        'Un subscribe explicite reste à migrer; évaluer query, mutation, asyncProcess ou le couple source$/on$ selon le cycle de vie de l’opération.',
+      manual: true,
+    });
+    touched.add(file);
   }
 }
 
