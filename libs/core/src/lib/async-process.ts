@@ -8,7 +8,6 @@ import {
   Provider,
   ResourceLoaderParams,
   ResourceOptions,
-  ResourceStatus,
   ResourceStreamingLoader,
   runInInjectionContext,
   Signal,
@@ -24,10 +23,15 @@ import {
   runCraftGenerator,
 } from './craft-generator-runtime';
 import { ReadonlySource } from './util/source.type';
+import {
+  CraftResourceStatus,
+  toCraftStatus,
+} from './util/craft-resource-status';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { isSource } from './util/util';
 import { MergeObjects } from './util/util.type';
 import { craftResource } from './craft-resource';
+import { CraftResourceRef } from './util/craft-resource-ref';
 import {
   AnyCraftException,
   ExtractCraftException,
@@ -123,8 +127,7 @@ export type AsyncProcessRef<
     [unknown] extends [GroupIdentifier]
       ? {
           readonly value: Signal<Value | undefined>;
-          readonly status: Signal<ResourceStatus>;
-          readonly error: Signal<Error | undefined>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           readonly safeValue: Signal<Value | undefined>;
           hasValue(): boolean;
@@ -160,8 +163,7 @@ export type AsyncProcessRef<
           select: (id: GroupIdentifier) =>
             | ({
                 readonly value: Signal<Value | undefined>;
-                readonly status: Signal<ResourceStatus>;
-                readonly error: Signal<Error | undefined>;
+                readonly status: Signal<CraftResourceStatus>;
                 readonly isLoading: Signal<boolean>;
                 readonly safeValue: Signal<Value | undefined>;
                 hasValue(): boolean;
@@ -290,6 +292,19 @@ export type ResourceLikeAsyncProcessExceptions<
   GroupIdentifier = unknown,
 > = {
   hasException: Signal<boolean>;
+  exception: Signal<
+    | InsertMetaInCraftExceptionIfExists<
+        AsyncProcessException['params'],
+        'params',
+        GroupIdentifier
+      >
+    | InsertMetaInCraftExceptionIfExists<
+        AsyncProcessException['loader'],
+        'loader',
+        GroupIdentifier
+      >
+    | undefined
+  >;
   exceptions: Signal<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
@@ -1526,6 +1541,12 @@ export function asyncProcess<
         stream: wrappedStream,
       } as ResourceOptions<any, any>);
 
+  // Capture the raw Angular status BEFORE `Object.assign` overrides
+  // `resourceTarget.status` with the craft computed (avoids a computation cycle).
+  const rawResourceStatus = (
+    resourceTarget as CraftResourceRef<AsyncProcesstate, AsyncProcessParams>
+  ).status;
+
   const asyncOutput = Object.assign(
     resourceTarget,
     // byId is used to helps TS to correctly infer the resourceByGroup
@@ -1561,7 +1582,12 @@ export function asyncProcess<
                 return undefined;
               }
 
+              const rawSelectStatus = resource.status;
               return Object.assign(resource, {
+                status: computed(() =>
+                  toCraftStatus(rawSelectStatus(), selectHasException()),
+                ),
+                exception: computed(() => selectExceptions().list[0]),
                 hasException: selectHasException,
                 exceptions: selectExceptions,
               });
@@ -1570,6 +1596,14 @@ export function asyncProcess<
         }
       : {},
     {
+      ...(isUsingIdentifier
+        ? {}
+        : {
+            status: computed(() =>
+              toCraftStatus(rawResourceStatus(), hasException()),
+            ),
+            exception: computed(() => exceptions().list[0]),
+          }),
       hasException,
       exceptions,
       ...(hasParamsFn

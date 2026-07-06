@@ -121,7 +121,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
             id: mutationIdentifier,
           }),
         reload: {
-          onMutationError: true,
+          onMutationException: true,
         },
       }),
       insertReactOnMutation(deleteUser, {

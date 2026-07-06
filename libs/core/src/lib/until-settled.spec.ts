@@ -189,13 +189,13 @@ describe('untilSettled (resource branch)', () => {
     }
   });
 
-  it('rethrows the loader error when the resource settled to an error', () => {
+  it('rethrows the loader error when the resource settled to an exception', () => {
     const { resource, status, error } = makeResource();
     const iterator = untilSettled(resource) as Generator<unknown, unknown, unknown>;
 
     iterator.next();
     error.set(new Error('boom'));
-    status.set('error');
+    status.set('exception');
 
     expect(() => iterator.next()).toThrowError('boom');
   });

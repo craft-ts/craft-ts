@@ -18,14 +18,19 @@ import type { CraftHttpClientError } from './craft-http-client';
 
 /**
  * The minimal shape a craft resource (`query` / `mutation` / `asyncProcess`)
- * exposes that {@link untilSettled} relies on: the `status`/`safeValue`/`error`
- * signals to read the settled outcome, and the `hasException`/`exceptions`
- * signals to surface a loader `craftException`.
+ * exposes that {@link untilSettled} relies on: the `status`/`safeValue` signals to
+ * read the settled outcome, and the `hasException`/`exceptions` signals to surface
+ * a loader `craftException`.
+ *
+ * `error` is the internal Angular channel: it is no longer part of the public craft
+ * façade type, but the raw signal remains on the ref at runtime (spread by the
+ * primitive's `Object.assign`). It is kept optional here so `untilSettled` can
+ * re-throw a residual technical failure while public refs still match this shape.
  */
 export type ResourceLike = {
   status: Signal<string>;
   safeValue: Signal<unknown>;
-  error: Signal<Error | undefined>;
+  error?: Signal<Error | undefined>;
   hasException: Signal<boolean>;
   exceptions: Signal<{ list: readonly AnyCraftException[] }>;
 };
@@ -90,8 +95,10 @@ function* untilSettledResource(
     throw new CraftGenShortCircuit(resource.exceptions().list[0]);
   }
 
-  if (resource.status() === 'error') {
-    throw resource.error();
+  if (resource.status() === 'exception') {
+    // No business `craftException` present but the status is `'exception'` — a
+    // residual technical failure. Rethrow the raw Angular error (internal channel).
+    throw resource.error?.();
   }
 
   return resource.safeValue();
@@ -129,9 +136,9 @@ function* untilSettledHttp(
  * Two forms, both `yield*`-composable across the suspension:
  *
  * - **Resource** — a `query` / `mutation` / `asyncProcess` ref. Settles when its
- *   `status` reaches `'resolved'` or `'error'`. A loader `craftException`
- *   short-circuits to the resolvers; a thrown loader error rethrows; otherwise
- *   the resolved value is returned.
+ *   `status` reaches `'resolved'` or `'exception'`. A loader `craftException`
+ *   short-circuits to the resolvers; a residual technical failure rethrows;
+ *   otherwise the resolved value is returned.
  *
  *   ```ts
  *   const user = yield* untilSettled(

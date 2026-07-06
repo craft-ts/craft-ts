@@ -148,7 +148,7 @@ type InsertFormSubmitConfig<
           SubmitExceptions
         >,
       ) => MaybeExceptions;
-      error?: (
+      exception?: (
         context: SubmitContext<
           FormValue,
           SubmitCraftResource,
@@ -234,8 +234,8 @@ type ToSubmitExceptions<
       FormIdentifier
     >
   | InsertMetaInCraftExceptionIfKnown<
-      Config extends { error: (...args: any[]) => infer ErrorExceptions }
-        ? ErrorExceptions
+      Config extends { exception: (...args: any[]) => infer ExceptionExceptions }
+        ? ExceptionExceptions
         : never,
       'insertFormSubmitError',
       FormIdentifier
@@ -434,10 +434,11 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
         if (next?.length) merged = [...merged, ...next];
       }
 
-      // `error` only fires on network/runtime errors (not on craft-exception responses).
-      if (status === 'error' && typeof config?.error === 'function') {
+      // `exception` only fires on residual technical failures (not on
+      // craft-exception responses, which flow through `exceptions`).
+      if (status === 'exception' && typeof config?.exception === 'function') {
         const next = normalizeExceptionList(
-          config.error({ ...ctx, exceptions: merged }),
+          config.exception({ ...ctx, exceptions: merged }),
         );
         if (next?.length) merged = [...merged, ...next];
       }

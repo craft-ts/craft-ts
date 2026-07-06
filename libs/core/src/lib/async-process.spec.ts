@@ -1,5 +1,6 @@
 import { asyncProcess } from './async-process';
-import { ResourceStatus, Signal, signal } from '@angular/core';
+import { Signal, signal } from '@angular/core';
+import { CraftResourceStatus } from './util/craft-resource-status';
 import { afterRecomputation } from './after-recomputation';
 import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
@@ -16,6 +17,7 @@ import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
 type EmptyAsyncProcessExceptions = {
   hasException: Signal<boolean>;
+  exception: Signal<undefined>;
   exceptions: Signal<{
     list: never[];
     params?: never;
@@ -140,9 +142,10 @@ describe('AsyncProcess', () => {
       myAsyncProcess.method(true);
       expect(myAsyncProcess.status()).toBe('loading');
       await vi.runAllTimersAsync();
-      expect(myAsyncProcess.status()).toBe('error');
-      expect(myAsyncProcess.error()).toBeInstanceOf(Error);
-      expect(myAsyncProcess.error()?.message).toBe('Test error');
+      // A thrown (technical) error surfaces as the craft `'exception'` status
+      // without a business `craftException`.
+      expect(myAsyncProcess.status()).toBe('exception');
+      expect(myAsyncProcess.hasException()).toBe(false);
       expect(myAsyncProcess.hasValue()).toBe(false);
 
       // safeValue should return undefined without throwing
@@ -329,11 +332,11 @@ describe('AsyncProcess types without identifier', () => {
               }
             | undefined
           >;
-          readonly status: Signal<ResourceStatus>;
-          readonly error: Signal<Error | undefined>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           hasException: Signal<boolean>;
+          exception: Signal<undefined>;
           exceptions: Signal<{
             list: never[];
             params?: never;
@@ -353,12 +356,12 @@ describe('AsyncProcess types without identifier', () => {
               }
             | undefined
           >;
-          readonly status: Signal<ResourceStatus>;
-          readonly error: Signal<Error | undefined>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           additionalInsertion: 'injectedValue';
           hasException: Signal<boolean>;
+          exception: Signal<undefined>;
           exceptions: Signal<{
             list: never[];
             params?: never;
@@ -438,7 +441,6 @@ describe('AsyncProcess types without identifier', () => {
       type props = (typeof AsyncProcessOutput)['props'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
-          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 searchChangeText: string;
@@ -451,13 +453,14 @@ describe('AsyncProcess types without identifier', () => {
               }
             | undefined
           >;
-          readonly status: Signal<ResourceStatus>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           source: ReadonlySource<{
             searchChangeText: string;
           }>;
           hasException: Signal<boolean>;
+          exception: Signal<undefined>;
           exceptions: Signal<{
             list: never[];
             params?: never;
@@ -465,7 +468,6 @@ describe('AsyncProcess types without identifier', () => {
           }>;
         };
         filterChange: {
-          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 filter: string;
@@ -478,11 +480,12 @@ describe('AsyncProcess types without identifier', () => {
               }
             | undefined
           >;
-          readonly status: Signal<ResourceStatus>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           additionalInsertion: 'injectedValue';
           hasException: Signal<boolean>;
+          exception: Signal<undefined>;
           exceptions: Signal<{
             list: never[];
             params?: never;
@@ -525,12 +528,12 @@ describe('AsyncProcess types without identifier', () => {
             }
           | undefined
         >;
-        readonly status: Signal<ResourceStatus>;
-        readonly error: Signal<Error | undefined>;
+        readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         method: (args: string) => string;
         hasException: Signal<boolean>;
+        exception: Signal<undefined>;
         exceptions: Signal<{
           list: never[];
           params?: never;
@@ -560,8 +563,7 @@ describe('AsyncProcess types without identifier', () => {
             }
           | undefined
         >;
-        readonly status: Signal<ResourceStatus>;
-        readonly error: Signal<Error | undefined>;
+        readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         readonly safeValue: Signal<
@@ -574,6 +576,7 @@ describe('AsyncProcess types without identifier', () => {
           searchChange: string;
         }>;
         hasException: Signal<boolean>;
+        exception: Signal<undefined>;
         exceptions: Signal<{
           list: never[];
           params?: never;
@@ -667,8 +670,7 @@ describe('AsyncProcess types with identifier', () => {
                 }
               | undefined
             >;
-            readonly status: Signal<ResourceStatus>;
-            readonly error: Signal<Error | undefined>;
+            readonly status: Signal<CraftResourceStatus>;
             readonly isLoading: Signal<boolean>;
             hasValue(): boolean;
           } & EmptyAsyncProcessExceptions)
@@ -680,7 +682,6 @@ describe('AsyncProcess types with identifier', () => {
 
       const filter = {} as f;
       expectTypeOf(filter).toEqualTypeOf<{
-        readonly error: Signal<Error | undefined>;
         readonly value: Signal<
           | {
               filter: string;
@@ -693,11 +694,12 @@ describe('AsyncProcess types with identifier', () => {
             }
           | undefined
         >;
-        readonly status: Signal<ResourceStatus>;
+        readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         additionalInsertion: 'injectedValue';
         hasException: Signal<boolean>;
+        exception: Signal<undefined>;
         exceptions: Signal<{
           list: never[];
           params?: never;
@@ -790,8 +792,7 @@ describe('AsyncProcess types with identifier', () => {
                   }
                 | undefined
               >;
-              readonly status: Signal<ResourceStatus>;
-              readonly error: Signal<Error | undefined>;
+              readonly status: Signal<CraftResourceStatus>;
               readonly isLoading: Signal<boolean>;
               hasValue(): boolean;
             } & EmptyAsyncProcessExceptions)
@@ -800,7 +801,6 @@ describe('AsyncProcess types with identifier', () => {
 
         const filter = AsyncProcessOutput.props.filterChange;
         expectTypeOf(filter).toEqualTypeOf<{
-          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 filter: string;
@@ -813,11 +813,12 @@ describe('AsyncProcess types with identifier', () => {
               }
             | undefined
           >;
-          readonly status: Signal<ResourceStatus>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           additionalInsertion: 'injectedValue';
           hasException: Signal<boolean>;
+          exception: Signal<undefined>;
           exceptions: Signal<{
             list: never[];
             params?: never;
@@ -859,8 +860,7 @@ describe('AsyncProcess types with identifier', () => {
                 }
               | undefined
             >;
-            readonly status: Signal<ResourceStatus>;
-            readonly error: Signal<Error | undefined>;
+            readonly status: Signal<CraftResourceStatus>;
             readonly isLoading: Signal<boolean>;
             readonly safeValue: Signal<
               | {
@@ -1398,12 +1398,12 @@ describe('AsyncProcess types with params config', () => {
             }
           | undefined
         >;
-        readonly status: Signal<ResourceStatus>;
-        readonly error: Signal<Error | undefined>;
+        readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         readonly resourceParamsSrc: Signal<string | undefined>;
         hasException: Signal<boolean>;
+        exception: Signal<undefined>;
         exceptions: Signal<{
           list: never[];
           params?: never;
@@ -1438,8 +1438,7 @@ describe('AsyncProcess types with params config', () => {
                 }
               | undefined
             >;
-            readonly status: Signal<ResourceStatus>;
-            readonly error: Signal<Error | undefined>;
+            readonly status: Signal<CraftResourceStatus>;
             readonly isLoading: Signal<boolean>;
             readonly safeValue: Signal<
               | {

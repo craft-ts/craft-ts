@@ -1,12 +1,12 @@
 import { Component, signal } from '@angular/core';
 import {
-    componentMonitoring,
-    craftException,
-    provideHostName,
-    query,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  componentMonitoring,
+  craftException,
+  provideHostName,
+  query,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
 type User = {
@@ -71,10 +71,27 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
         Access forbidden
       </button>
     </div>
+    status{{userQuery.status()}} : @if(userQuery.safeValue()){{{userQuery.safeValue()?.id}}}
 
-    @if (userQuery.isLoading()) {
+    @switch (userQuery.status()) {
+
+      @case ("idle")
+      @case ('reloading')
+      @case ("loading") {
       <p>Loading user...</p>
-    } @else if (userQuery.exceptions().loader; as exception) {
+
+      }
+      @case ('local')
+      @case ('resolved') {
+        @let user = userQuery.value()!;
+      <div>
+        <p><strong>ID:</strong> {{ user.id }}</p>
+        <p><strong>Name:</strong> {{ user.name }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+      </div>
+      }
+      @case ('exception') {
+      @let exception = userQuery.exceptions().loader!;
       <!-- code: "UserNotFoundException" | "UserConsentMissingException" | "UserAccessForbiddenException" -->
       @let exceptionCode = exception.code;
       @switch (exceptionCode) {
@@ -91,14 +108,10 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
           </button>
         }
         @default never;
+        }
       }
-    } @else if (userQuery.safeValue(); as user) {
-      <div>
-        <p><strong>ID:</strong> {{ user.id }}</p>
-        <p><strong>Name:</strong> {{ user.name }}</p>
-        <p><strong>Email:</strong> {{ user.email }}</p>
-      </div>
     }
+
   `,
   providers: [provideHostName('component:ExceptionsComponent')],
 })
@@ -149,14 +162,14 @@ export default class ExceptionsComponent {
 }
 
 export type GenDeps_ExceptionsComponent = GetDeps<{
-      deps: {};
-      propertiesDeps: {
-        _monitoring: ExtractDeps<ExceptionsComponent["_monitoring"]>;
-        scenario: ExtractDeps<ExceptionsComponent["scenario"]>;
-        userQuery: ExtractDeps<ExceptionsComponent["userQuery"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<ExceptionsComponent>;
-    }>;
+  deps: {};
+  propertiesDeps: {
+    _monitoring: ExtractDeps<ExceptionsComponent['_monitoring']>;
+    scenario: ExtractDeps<ExceptionsComponent['scenario']>;
+    userQuery: ExtractDeps<ExceptionsComponent['userQuery']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<ExceptionsComponent>;
+}>;

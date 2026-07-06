@@ -1,17 +1,13 @@
 import { computed, linkedSignal, Signal } from '@angular/core';
 import { CraftResourceRef } from './craft-resource-ref';
-
-export type ResourceStatus =
-  | 'resolved'
-  | 'error'
-  | 'loading'
-  | 'reloading'
-  | 'idle'
-  | 'local';
+import {
+  CraftResourceStatus,
+  toCraftStatus,
+} from './craft-resource-status';
 
 type FullResourceStatusSnapshot<GroupIdentifier extends string> = Map<
   GroupIdentifier,
-  { status: ResourceStatus; value: unknown }
+  { status: CraftResourceStatus; value: unknown }
 >;
 
 export type resourceByIdChangesTrackerResult<GroupIdentifier extends string> = {
@@ -20,7 +16,7 @@ export type resourceByIdChangesTrackerResult<GroupIdentifier extends string> = {
   resolved: Signal<GroupIdentifier[]>;
   loading: Signal<GroupIdentifier[]>;
   reloading: Signal<GroupIdentifier[]>;
-  error: Signal<GroupIdentifier[]>;
+  exception: Signal<GroupIdentifier[]>;
   onlyValueChange: Signal<GroupIdentifier[]>;
 };
 
@@ -29,7 +25,7 @@ type ChangesByStatus<GroupIdentifier extends string> = {
   resolved: GroupIdentifier[];
   loading: GroupIdentifier[];
   reloading: GroupIdentifier[];
-  error: GroupIdentifier[];
+  exception: GroupIdentifier[];
   onlyValueChange: GroupIdentifier[];
 };
 
@@ -41,7 +37,7 @@ type ChangesByStatus<GroupIdentifier extends string> = {
  * - resolved: IDs that transitioned to 'resolved' status
  * - loading: IDs that transitioned to 'loading' status
  * - reloading: IDs that transitioned to 'reloading' status
- * - error: IDs that transitioned to 'error' status
+ * - exception: IDs that transitioned to 'exception' status
  * - onlyValueChange: IDs where only the value changed (status stayed the same)
  *
  * @param resourceByIdSignal - The signal containing the resource map to track
@@ -67,7 +63,7 @@ export function resourceByIdChangesTracker<
         resolved: [],
         loading: [],
         reloading: [],
-        error: [],
+        exception: [],
         onlyValueChange: [],
       };
 
@@ -82,7 +78,7 @@ export function resourceByIdChangesTracker<
         resolved: [],
         loading: [],
         reloading: [],
-        error: [],
+        exception: [],
         onlyValueChange: [],
       };
 
@@ -103,8 +99,8 @@ export function resourceByIdChangesTracker<
               result.loading.push(id);
             } else if (current.status === 'reloading') {
               result.reloading.push(id);
-            } else if (current.status === 'error') {
-              result.error.push(id);
+            } else if (current.status === 'exception') {
+              result.exception.push(id);
             }
           } else if (valueChanged) {
             // Only value changed, not status
@@ -123,7 +119,7 @@ export function resourceByIdChangesTracker<
     resolved: computed(() => changes().resolved),
     loading: computed(() => changes().loading),
     reloading: computed(() => changes().reloading),
-    error: computed(() => changes().error),
+    exception: computed(() => changes().exception),
     onlyValueChange: computed(() => changes().onlyValueChange),
   };
 }
@@ -139,7 +135,7 @@ function getFullStatusSnapshot<
 ): FullResourceStatusSnapshot<GroupIdentifier> {
   const snapshot = new Map<
     GroupIdentifier,
-    { status: ResourceStatus; value: unknown }
+    { status: CraftResourceStatus; value: unknown }
   >();
 
   for (const [id, resourceRef] of Object.entries(resources) as [
@@ -148,7 +144,9 @@ function getFullStatusSnapshot<
   ][]) {
     if (!resourceRef) continue;
     snapshot.set(id, {
-      status: resourceRef.status(),
+      // These are the raw (internal) Angular resources; map their technical
+      // `'error'` status onto the craft-facing `'exception'` status.
+      status: toCraftStatus(resourceRef.status(), false),
       value: resourceRef.hasValue() ? resourceRef.value() : undefined,
     });
   }

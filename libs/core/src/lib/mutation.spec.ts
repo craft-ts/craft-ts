@@ -1,4 +1,5 @@
-import { ResourceStatus, Signal, WritableSignal, signal } from '@angular/core';
+import { Signal, WritableSignal, signal } from '@angular/core';
+import { CraftResourceStatus } from './util/craft-resource-status';
 import { afterRecomputation } from './after-recomputation';
 import { signalSource } from './signal-source';
 import { ReadonlySource } from './util/source.type';
@@ -144,9 +145,8 @@ describe('mutation', () => {
       mutationInstance.mutate(true);
       expect(mutationInstance.status()).toBe('loading');
       await vi.runAllTimersAsync();
-      expect(mutationInstance.status()).toBe('error');
-      expect(mutationInstance.error()).toBeInstanceOf(Error);
-      expect(mutationInstance.error()?.message).toBe('Test error');
+      // A thrown (technical) error surfaces as the craft `'exception'` status.
+      expect(mutationInstance.status()).toBe('exception');
       expect(mutationInstance.hasValue()).toBe(false);
 
       // safeValue should return undefined without throwing
@@ -328,7 +328,6 @@ describe('mutation types without identifier', () => {
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
           '~InternalType': 'Used to avoid TS type erasure';
-          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 searchChange: string;
@@ -341,7 +340,7 @@ describe('mutation types without identifier', () => {
               }
             | undefined
           >;
-          readonly status: Signal<ResourceStatus>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           readonly resourceParamsSrc: WritableSignal<
@@ -355,7 +354,6 @@ describe('mutation types without identifier', () => {
         };
         filterChange: {
           '~InternalType': 'Used to avoid TS type erasure';
-          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 filter: string;
@@ -368,7 +366,7 @@ describe('mutation types without identifier', () => {
               }
             | undefined
           >;
-          readonly status: Signal<ResourceStatus>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           readonly resourceParamsSrc: WritableSignal<
@@ -456,7 +454,6 @@ describe('mutation types without identifier', () => {
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
           '~InternalType': 'Used to avoid TS type erasure';
-          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 searchChangeText: string;
@@ -469,7 +466,7 @@ describe('mutation types without identifier', () => {
               }
             | undefined
           >;
-          readonly status: Signal<ResourceStatus>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           readonly resourceParamsSrc: WritableSignal<
@@ -488,7 +485,6 @@ describe('mutation types without identifier', () => {
         };
         filterChange: {
           '~InternalType': 'Used to avoid TS type erasure';
-          readonly error: Signal<Error | undefined>;
           readonly value: Signal<
             | {
                 filter: string;
@@ -501,7 +497,7 @@ describe('mutation types without identifier', () => {
               }
             | undefined
           >;
-          readonly status: Signal<ResourceStatus>;
+          readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
           readonly resourceParamsSrc: WritableSignal<
@@ -672,8 +668,7 @@ describe('mutation types with identifier', () => {
                 }
               | undefined
             >;
-            readonly status: Signal<ResourceStatus>;
-            readonly error: Signal<Error | undefined>;
+            readonly status: Signal<CraftResourceStatus>;
             readonly isLoading: Signal<boolean>;
             readonly safeValue: Signal<
               | {
@@ -692,7 +687,6 @@ describe('mutation types with identifier', () => {
       const filter = {} as f;
       expectTypeOf<typeof filter>().toEqualTypeOf<{
         '~InternalType': 'Used to avoid TS type erasure';
-        readonly error: Signal<Error | undefined>;
         readonly value: Signal<
           | {
               filter: string;
@@ -705,7 +699,7 @@ describe('mutation types with identifier', () => {
             }
           | undefined
         >;
-        readonly status: Signal<ResourceStatus>;
+        readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         readonly resourceParamsSrc: WritableSignal<
@@ -804,8 +798,7 @@ describe('mutation types with identifier', () => {
                 }
               | undefined
             >;
-            readonly status: Signal<ResourceStatus>;
-            readonly error: Signal<Error | undefined>;
+            readonly status: Signal<CraftResourceStatus>;
             readonly isLoading: Signal<boolean>;
             hasValue(): boolean;
           }
@@ -815,14 +808,13 @@ describe('mutation types with identifier', () => {
       const filter = mutationsOutput.props.filterChange;
       expectTypeOf<typeof filter>().toEqualTypeOf<{
         '~InternalType': 'Used to avoid TS type erasure';
-        readonly error: Signal<Error | undefined>;
         readonly value: Signal<
           | {
               filter: string;
             }
           | undefined
         >;
-        readonly status: Signal<ResourceStatus>;
+        readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
         readonly safeValue: Signal<
@@ -880,8 +872,7 @@ describe('mutation types with identifier', () => {
                 }
               | undefined
             >;
-            readonly status: Signal<ResourceStatus>;
-            readonly error: Signal<Error | undefined>;
+            readonly status: Signal<CraftResourceStatus>;
             readonly isLoading: Signal<boolean>;
             hasValue(): boolean;
           }

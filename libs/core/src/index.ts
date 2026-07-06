@@ -20,6 +20,7 @@ export * from './lib/signal-source';
 export * from './lib/stacked-source';
 export * from './lib/state';
 export * from './lib/to-source';
+export * from './lib/util/craft-resource-status';
 export * from './lib/util/extract-signal-props-and-methods';
 export * from './lib/util/source.type';
 export * from './lib/util/util';

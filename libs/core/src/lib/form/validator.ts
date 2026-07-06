@@ -386,7 +386,7 @@ type CAsyncValidateConfig<
       exceptionsOnSuccess?: (
         context: AsyncValidatorContext<TValue, TResourceRef, Identifier>,
       ) => SuccessExceptions;
-      error?: (
+      exception?: (
         context: AsyncValidatorContext<TValue, TResourceRef, Identifier>,
       ) => ErrorExceptions;
       onException?: (
@@ -943,7 +943,7 @@ function createCustomAsyncValidator<
     exceptionsOnSuccess?: (
       context: AsyncValidatorContext<TValue, TResourceRef, Identifier>,
     ) => SuccessExceptions;
-    error?: (
+    exception?: (
       context: AsyncValidatorContext<TValue, TResourceRef, Identifier>,
     ) => ErrorExceptions;
     onException?: (
@@ -1032,9 +1032,9 @@ function createCustomAsyncValidator<
           | CraftFieldError[];
       }
 
-      if (status === 'error') {
+      if (status === 'exception') {
         const errorOutput = normalizeCraftExceptionOutput(
-          cfg.error?.(asyncCtx),
+          cfg.exception?.(asyncCtx),
         );
         return errorOutput
           ? (brandRawException(name, ASYNC_VALIDATOR_TYPE, errorOutput.raw) as

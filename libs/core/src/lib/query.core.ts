@@ -1,4 +1,5 @@
-import { ResourceStatus, Signal, WritableSignal } from '@angular/core';
+import { Signal, WritableSignal } from '@angular/core';
+import { CraftResourceStatus } from './util/craft-resource-status';
 import {
   CustomReloadOnSpecificMutationStatus,
   FilterQueryById,
@@ -178,7 +179,7 @@ export function triggerQueryReloadFromMutationChange<
   mutationResources: ResourceByIdRef<string, any, unknown> | undefined;
 }) {
   const statusMappings = {
-    onMutationError: 'error',
+    onMutationException: 'exception',
     onMutationResolved: 'resolved',
     onMutationLoading: 'loading',
   };
@@ -237,7 +238,7 @@ export function triggerQueryReloadOnMutationStatusChange<
   mutationResource: CraftResourceRef<any, any>;
   mutationParamsSrc: Signal<QueryAndMutationRecord['mutation']['params']>;
   reloadCConfig: {
-    onMutationError?:
+    onMutationException?:
       | boolean
       | CustomReloadOnSpecificMutationStatus<QueryAndMutationRecord>;
     onMutationResolved?:
@@ -259,9 +260,9 @@ export function triggerQueryReloadOnMutationStatusChange<
     | undefined;
 }) {
   if (
-    (['error', 'loading', 'resolved'] satisfies ResourceStatus[]).includes(
-      mutationStatus as any,
-    )
+    (
+      ['exception', 'loading', 'resolved'] satisfies CraftResourceStatus[]
+    ).includes(mutationStatus as any)
   ) {
     if ('hasValue' in queryResourceTarget) {
       const queryResource = queryResourceTarget;

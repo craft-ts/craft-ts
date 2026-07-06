@@ -9,7 +9,6 @@ import {
   ResourceLoaderParams,
   ResourceOptions,
   ResourceRef,
-  ResourceStatus,
   ResourceStreamingLoader,
   runInInjectionContext,
   Signal,
@@ -30,6 +29,10 @@ import {
 } from './craft-generator-runtime';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
+import {
+  CraftResourceStatus,
+  toCraftStatus,
+} from './util/craft-resource-status';
 import { MergeObjects } from './util/util.type';
 import { preservedResource } from './preserved-resource';
 import { craftResource } from './craft-resource';
@@ -295,6 +298,19 @@ export type ResourceLikeExceptions<
   GroupIdentifier = unknown,
 > = {
   hasException: Signal<boolean>;
+  exception: Signal<
+    | InsertMetaInCraftExceptionIfExists<
+        QueryException['params'],
+        'params',
+        unknown
+      >
+    | InsertMetaInCraftExceptionIfExists<
+        QueryException['loader'],
+        'loader',
+        GroupIdentifier
+      >
+    | undefined
+  >;
   exceptions: Signal<{
     list: (
       | InsertMetaInCraftExceptionIfExists<
@@ -377,8 +393,7 @@ export type ResourceLikeQueryRef<
        * Avoids to throw error when accessing value during error state
        */
       readonly safeValue: Signal<Value | undefined>;
-      readonly status: Signal<ResourceStatus>;
-      readonly error: Signal<Error | undefined>;
+      readonly status: Signal<CraftResourceStatus>;
       readonly isLoading: Signal<boolean>;
       hasValue(): boolean;
     },
@@ -429,8 +444,7 @@ export type ResourceByIdLikeQueryRef<
          * Avoids to throw error when accessing value during error state
          */
         readonly safeValue: Signal<Value | undefined>;
-        readonly status: Signal<ResourceStatus>;
-        readonly error: Signal<Error | undefined>;
+        readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue(): boolean;
       } & ResourceLikeExceptions<QueryException, GroupIdentifier>) // todo exception params should be display outside
@@ -1763,6 +1777,11 @@ export function query<
           stream: wrappedStream,
         } as ResourceOptions<any, any>);
 
+  // Capture the raw Angular status BEFORE `Object.assign` overrides
+  // `resourceTarget.status` with the craft computed below (otherwise the craft
+  // status computed would read itself and form a computation cycle).
+  const rawResourceStatus = (resourceTarget as ResourceRef<QueryState>).status;
+
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
     // byId is used to helps TS to correctly infer the resourceByGroup
@@ -1798,7 +1817,12 @@ export function query<
                 return undefined;
               }
 
+              const rawSelectStatus = resource.status;
               return Object.assign(resource, {
+                status: computed(() =>
+                  toCraftStatus(rawSelectStatus(), selectHasException()),
+                ),
+                exception: computed(() => selectExceptions().list[0]),
                 hasException: selectHasException,
                 exceptions: selectExceptions,
               });
@@ -1807,6 +1831,14 @@ export function query<
         }
       : {},
     {
+      ...(isUsingIdentifier
+        ? {}
+        : {
+            status: computed(() =>
+              toCraftStatus(rawResourceStatus(), hasException()),
+            ),
+            exception: computed(() => exceptions().list[0]),
+          }),
       hasException,
       exceptions,
       resourceParamsSrc: resourceParamsSrc as WritableSignal<

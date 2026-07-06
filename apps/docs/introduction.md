@@ -1,8 +1,8 @@
 # Introduction
 
-## What is @craft-ng ?
+## What is @craft-ng/core?
 
-**@craft-ng** is a fully declarative and type-safe solution with explicit dependency tracking. Powered by a type-safe Dependency Injection system, it enables you to represent state and UX behavior in a composable, logic-driven manner. Ideal for improving readability, maintainability, testability, and AI generation.
+**@craft-ng/core** is a fully declarative and type-safe solution with explicit dependency tracking. Powered by a type-safe Dependency Injection system, it enables you to represent state and UX behavior in a composable, logic-driven manner. Ideal for improving readability, maintainability, testability, and AI generation.
 
 ## Core Philosophy
 
@@ -12,7 +12,7 @@ All helpers are designed to be used declaratively. The library derives as much l
 
 ### Type-Safe system
 
-By tracking component and service dependencies at the type level, @craft-ng provides a fully type-safe system that eliminates a whole class of runtime errors and enhances developer confidence.
+By tracking component and service dependencies at the type level, @craft-ng/core provides a fully type-safe system that eliminates a whole class of runtime errors and enhances developer confidence.
 
 - Promotes declaring state and logic as close as possible to where they are used.
 - Type-safe routing.
@@ -24,9 +24,9 @@ When injecting or yielding a service, you can derive only the part you need. Thi
 
 ### Focus on What Matters
 
-Stop wasting precious time on common application logic. @craft-ng provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
+Stop wasting precious time on common application logic. @craft-ng/core provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
 
-`state`, `asyncState`, `queryParam`, `query`, `mutation`, and `asyncProcess` are reactive primitives that significantly improve the developer experience.
+`state`, `queryParam`, `query`, `mutation`, and `asyncProcess` are reactive primitives that significantly improve the developer experience.
 
 ### Type-safe routing
 
@@ -197,7 +197,7 @@ const { injectUserProfile } = craftService(
           email: ({ mutationParams }) => mutationParams.email,
         },
         reload: {
-          onMutationError: true,
+          onMutationException: true,
         },
       }),
     );

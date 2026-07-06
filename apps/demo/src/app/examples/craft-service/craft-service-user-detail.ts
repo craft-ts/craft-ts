@@ -100,7 +100,7 @@ const { injectUser, provideUser } = craftService(
           @case ('loading') {
             <p class="loading">Loading user...</p>
           }
-          @case ('error') {
+          @case ('exception') {
             <p class="error">Failed to load user.</p>
           }
           @case ('resolved') {

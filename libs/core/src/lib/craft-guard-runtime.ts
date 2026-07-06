@@ -129,7 +129,7 @@ function pumpGuardSync(
 function isResourceSettled(resource: GuardAwaitResourceLike): boolean {
   const status = resource.status();
 
-  return status === 'resolved' || status === 'error';
+  return status === 'resolved' || status === 'exception';
 }
 
 // Bridges a single guard await-request to a Promise: `'promise'` requests await

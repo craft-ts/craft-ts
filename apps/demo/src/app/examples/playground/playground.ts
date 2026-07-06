@@ -143,7 +143,7 @@ const { injectPlayground, PlaygroundToYield } = craftService(
           @case ('loading') {
             <p class="loading">Loading todos...</p>
           }
-          @case ('error') {
+          @case ('exception') {
             <p class="error">Failed to load todos.</p>
           }
           @default {

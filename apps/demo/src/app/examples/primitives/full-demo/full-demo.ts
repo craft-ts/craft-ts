@@ -443,7 +443,7 @@ export default class FullDemo {
           id: mutationIdentifier,
         }),
       reload: {
-        onMutationError: true,
+        onMutationException: true,
       },
     }),
     insertReactOnMutation(this.deleteUser, {
@@ -462,7 +462,7 @@ export default class FullDemo {
           ids: mutationParams,
         }),
       reload: {
-        onMutationError: true,
+        onMutationException: true,
       },
     }),
     insertReactOnMutation(this.bulkDelete, {
@@ -487,7 +487,7 @@ export default class FullDemo {
           },
         }),
       reload: {
-        onMutationError: true,
+        onMutationException: true,
       },
     }),
   );

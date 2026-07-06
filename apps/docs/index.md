@@ -3,7 +3,7 @@
 layout: home
 
 hero:
-  name: '@craft-ng'
+  name: '@craft-ng/core'
   text: 'Type-Safe Angular'
   tagline: Declare. Yield. Derive. Compile — no surprises.
 

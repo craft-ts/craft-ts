@@ -25,11 +25,11 @@ const myQuery = query({
 });
 
 // Access query state
-console.log(myQuery.value()); // User data (throws if status is 'error')
-console.log(myQuery.safeValue()); // User data (never throws, returns undefined on error)
+console.log(myQuery.value()); // User data (throws if status is 'exception')
+console.log(myQuery.safeValue()); // User data (never throws, returns undefined on exception)
 console.log(myQuery.isLoading()); // true/false
-console.log(myQuery.error()); // Error or undefined
-console.log(myQuery.status()); // 'idle' | 'loading' | 'success' | 'error'
+console.log(myQuery.exception()); // craftException or undefined
+console.log(myQuery.status()); // 'idle' | 'loading' | 'resolved' | 'exception'
 ```
 
 ### Method-based query
@@ -143,7 +143,7 @@ const userQuery = query(
       email: ({ mutationParams }) => mutationParams.email,
     },
     // Reload the query if updateUserMutation failed
-    reload: { onMutationError: true },
+    reload: { onMutationException: true },
   }),
   insertLocalStoragePersister({
     storeName: 'demo-app',
@@ -291,7 +291,7 @@ const postsQuery = query({
 Use `safeValue()` instead of `value()` when you want to access the query value without throwing an error:
 
 ```typescript
-// value() throws an error when status is 'error'
+// value() throws an error when status is 'exception'
 // This can cause issues in templates or computed signals
 try {
   console.log(myQuery.value());
@@ -299,8 +299,8 @@ try {
   console.log('Error accessing value');
 }
 
-// safeValue() never throws, returns undefined when status is 'error'
-console.log(myQuery.safeValue()); // undefined on error, value otherwise
+// safeValue() never throws, returns undefined when status is 'exception'
+console.log(myQuery.safeValue()); // undefined on exception, value otherwise
 ```
 
 ::: tip

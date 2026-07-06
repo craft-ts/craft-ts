@@ -75,9 +75,11 @@ describe('query', () => {
       });
 
       await vi.runAllTimersAsync();
-      expect(queryRef.status()).toBe('error');
-      expect(queryRef.error()).toBeInstanceOf(Error);
-      expect(queryRef.error()?.message).toBe('Test error');
+      // A thrown (technical) error surfaces as the craft `'exception'` status
+      // without a business `craftException`.
+      expect(queryRef.status()).toBe('exception');
+      expect(queryRef.hasException()).toBe(false);
+      expect(queryRef.exception()).toBeUndefined();
 
       // safeValue should return undefined without throwing
       expect(queryRef.safeValue()).toBeUndefined();
@@ -922,6 +924,8 @@ describe('query exceptions', () => {
       expect(loader).not.toHaveBeenCalled();
       expect(queryRef.resourceParamsSrc()).toBeUndefined();
       expect(queryRef.hasException()).toBe(true);
+      expect(queryRef.status()).toBe('exception');
+      expect(queryRef.exception()).toBe(queryRef.exceptions().list[0]);
       expect(queryRef.exceptions().params?.payload.reason).toEqual('missing');
 
       shouldFail.set(false);
@@ -929,6 +933,7 @@ describe('query exceptions', () => {
 
       expect(queryRef.exceptions().params).toEqual({});
       expect(queryRef.hasException()).toBe(false);
+      expect(queryRef.exception()).toBeUndefined();
 
       expect(queryRef.status()).toBe('resolved');
     });
@@ -952,6 +957,11 @@ describe('query exceptions', () => {
       });
       expect(queryRef.safeValue()).toBeUndefined();
       expect(queryRef.hasException()).toBe(true);
+      // Returning a `craftException` from the loader flips the craft status to
+      // `'exception'` and exposes the primary exception via `exception()`.
+      expect(queryRef.status()).toBe('exception');
+      expect(queryRef.exception()).toBe(queryRef.exceptions().list[0]);
+      expect(queryRef.exception()?.code).toBe('INVALID_USER_ID');
     });
   });
 

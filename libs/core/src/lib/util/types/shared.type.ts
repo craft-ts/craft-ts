@@ -84,7 +84,7 @@ export type ReloadQueriesConfig<
 > =
   | false
   | {
-      onMutationError?:
+      onMutationException?:
         | boolean
         | CustomReloadOnSpecificMutationStatus<QueryAndMutationRecord>;
       onMutationResolved?:

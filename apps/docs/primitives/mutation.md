@@ -29,8 +29,8 @@ createUser.mutate({ name: 'John', email: 'john@example.com' });
 
 // Access state
 console.log(createUser.isLoading()); // true/false
-console.log(createUser.error()); // Error or undefined
-console.log(createUser.value()); // Created user data (throws if status is 'error')
+console.log(createUser.exception()); // craftException or undefined
+console.log(createUser.value()); // Created user data (throws if status is 'exception')
 console.log(createUser.safeValue()); // Created user data (never throws)
 ```
 
@@ -54,7 +54,7 @@ deleteUserSource.emit({ name: 'John', email: 'john@example.com', id: '5' });
 
 // Access state
 console.log(deleteUser.isLoading()); // true/false
-console.log(deleteUser.error()); // Error or undefined
+console.log(deleteUser.exception()); // craftException or undefined
 console.log(deleteUser.value()); // Created user data
 ```
 
@@ -79,7 +79,7 @@ deleteUser.mutate({ name: 'John', email: 'john@example.com', id: '5' });
 
 // Access state
 console.log(deleteUser.select('5')?.isLoading()); // true/false
-console.log(deleteUser.select('5')?.error()); // Error or undefined
+console.log(deleteUser.select('5')?.exception()); // craftException or undefined
 console.log(deleteUser.select('5')?.value()); // Created user data
 ```
 
@@ -193,15 +193,15 @@ const userFeature = craft(
 Use `safeValue()` instead of `value()` when you want to access the mutation value without throwing an error:
 
 ```typescript
-// value() throws an error when status is 'error'
+// value() throws an error when status is 'exception'
 try {
   console.log(createUser.value());
 } catch (e) {
   console.log('Error accessing value');
 }
 
-// safeValue() never throws, returns undefined when status is 'error'
-console.log(createUser.safeValue()); // undefined on error, value otherwise
+// safeValue() never throws, returns undefined when status is 'exception'
+console.log(createUser.safeValue()); // undefined on exception, value otherwise
 ```
 
 ::: tip

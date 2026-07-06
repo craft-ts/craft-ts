@@ -29,7 +29,7 @@ describe('resourceByIdChangesTracker', () => {
       expect(res.resolved()).toEqual([]);
       expect(res.loading()).toEqual([]);
       expect(res.reloading()).toEqual([]);
-      expect(res.error()).toEqual([]);
+      expect(res.exception()).toEqual([]);
       expect(res.onlyValueChange()).toEqual([]);
     });
   });
@@ -148,7 +148,7 @@ describe('resourceByIdChangesTracker', () => {
       await vi.advanceTimersByTimeAsync(10000);
 
       expect(res.hasChange()).toEqual(true);
-      expect(res.error()).toContain('error');
+      expect(res.exception()).toContain('error');
     });
   });
 });
