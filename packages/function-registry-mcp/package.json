@@ -1,0 +1,25 @@
+{
+  "name": "@ng-craft/function-registry-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ng-craft-registry-mcp": "dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build && node dist/main.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "ws": "8.18.3",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.9",
+    "@types/ws": "8.18.1",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  }
+}

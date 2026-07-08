@@ -2,7 +2,9 @@
   "name": "@ng-craft/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "registry:mcp": "npm run start --workspace @ng-craft/function-registry-mcp"
+  },
   "private": true,
   "devDependencies": {
     "@angular-devkit/core": "~21.2.0",

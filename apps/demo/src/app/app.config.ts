@@ -1,12 +1,15 @@
 import {
   DestroyRef,
   inject,
+  Injector,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { withComponentInputBinding } from '@angular/router';
 import {
   Console,
   craftAppConfig,
+  executeGeneratorCompatibleFactory,
   HostTagToYield,
   provideCorrelationIdTracking,
   provideCraftRouter,
@@ -21,6 +24,10 @@ import {
   type RouteExceptionComponentCheckedDI,
 } from '@craft-ng/core';
 import { demoRoutes } from './app.routes';
+import {
+  FUNCTION_REGISTRY_BRIDGE_URL,
+  startFunctionRegistryBridge,
+} from './function-registry-bridge';
 import { registerFunctionEntry } from './function-registry';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
@@ -33,6 +40,18 @@ export const appConfig = craftAppConfig({
   routingDeps: demoRoutes.META_DATA,
   providers: [
     provideBrowserGlobalErrorListeners(),
+    provideAppInitializer(() => {
+      // Bootstrap boundary: the bridge lifetime follows the application injector.
+      // eslint-disable-next-line craft-ng/no-angular-inject
+      const destroyRef = inject(DestroyRef);
+      const stopBridge = startFunctionRegistryBridge({
+        // eslint-disable-next-line craft-ng/no-angular-inject
+        injector: inject(Injector),
+        // eslint-disable-next-line craft-ng/no-angular-inject
+        url: inject(FUNCTION_REGISTRY_BRIDGE_URL),
+      });
+      destroyRef.onDestroy(stopBridge);
+    }),
     // Routing + non-blocking outlet config in one provider: Angular router
     // features and craft loading features (global error component, pending
     // thresholds) are mixed freely and split apart internally.
@@ -93,8 +112,28 @@ export const appConfig = craftAppConfig({
       const hostTags = yield* HostTagToYield();
       const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
       const ancestry = hostTags.slice(0, -1);
+      // Wrapper boundary: retain the original scoped injector for remote replay.
+      // eslint-disable-next-line craft-ng/no-angular-inject
       const destroyRef = inject(DestroyRef);
-      const cleanup = registerFunctionEntry(hostName, ancestry, factory);
+      // eslint-disable-next-line craft-ng/no-angular-inject
+      const injector = inject(Injector);
+      const cleanup = registerFunctionEntry(
+        hostName,
+        ancestry,
+        (...registryArgs) =>
+          executeGeneratorCompatibleFactory({
+            factory,
+            thisArg,
+            getInjector: () => injector,
+            args: registryArgs,
+            invalidYieldErrorMessage:
+              'Registry functions can only yield dependencies available in their original Craft context.',
+            multipleAppStartErrorMessage:
+              'Registry functions cannot declare multiple app-start hooks.',
+            onAppStartNotSupportedErrorMessage:
+              'Registry functions cannot declare app-start hooks.',
+          }),
+      );
       destroyRef.onDestroy(cleanup);
       return yield* factory.apply(thisArg, args);
     }),
