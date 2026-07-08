@@ -1,4 +1,8 @@
-import { provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  DestroyRef,
+  inject,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { withComponentInputBinding } from '@angular/router';
 import {
   Console,
@@ -17,6 +21,7 @@ import {
   type RouteExceptionComponentCheckedDI,
 } from '@craft-ng/core';
 import { demoRoutes } from './app.routes';
+import { registerFunctionEntry } from './function-registry';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
@@ -84,6 +89,15 @@ export const appConfig = craftAppConfig({
     // TODO RENAME
     // eslint-disable-next-line craft-ng/prefer-browser-boundaries
     provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
+    provideFnWrapper(function* (factory, thisArg, args) {
+      const hostTags = yield* HostTagToYield();
+      const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
+      const ancestry = hostTags.slice(0, -1);
+      const destroyRef = inject(DestroyRef);
+      const cleanup = registerFunctionEntry(hostName, ancestry, factory);
+      destroyRef.onDestroy(cleanup);
+      return yield* factory.apply(thisArg, args);
+    }),
   ],
 });
 
