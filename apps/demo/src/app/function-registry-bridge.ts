@@ -10,16 +10,36 @@ import {
   type FunctionRegistryEntry,
   type FunctionRegistryLog,
 } from './function-registry';
+import type { PrimitiveResourceRuntimeKind } from '@craft-ng/core';
 
 export const FUNCTION_REGISTRY_BRIDGE_URL = new InjectionToken<string>(
   'FUNCTION_REGISTRY_BRIDGE_URL',
   { factory: () => 'ws://127.0.0.1:3333' },
 );
 
+const FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY =
+  'ng-craft.function-registry.client-id';
+
+export const FUNCTION_REGISTRY_CLIENT_ID = new InjectionToken<string>(
+  'FUNCTION_REGISTRY_CLIENT_ID',
+  {
+    factory: () =>
+      createFunctionRegistryClientId(globalThis.sessionStorage, () =>
+        globalThis.crypto.randomUUID(),
+      ),
+  },
+);
+
 export type RegistryMethod =
   | 'registry/list'
   | 'registry/get'
   | 'registry/call'
+  | 'registry/resource/get'
+  | 'registry/resource/set'
+  | 'registry/resource/update'
+  | 'registry/resource/patch'
+  | 'registry/override'
+  | 'registry/restore'
   | 'registry/logs';
 
 export type RegistryBridgeRequest = Readonly<{
@@ -38,6 +58,9 @@ type RegistryBridgeResponse = Readonly<{
 
 type RegistrySnapshot = Readonly<{
   type: 'registry/snapshot';
+  clientId: string;
+  pageUrl?: string;
+  pageTitle?: string;
   entries: readonly FunctionRegistryEntry[];
   logs: readonly FunctionRegistryLog[];
 }>;
@@ -60,15 +83,22 @@ const SOCKET_OPEN = 1;
 export function startFunctionRegistryBridge({
   injector,
   url,
+  clientId,
   registry = functionRegistry,
   createSocket = (socketUrl) => new WebSocket(socketUrl),
   reconnectDelayMs = 1_000,
+  getPageInfo = () => ({
+    pageUrl: globalThis.location.href,
+    pageTitle: globalThis.document.title,
+  }),
 }: {
   injector: Injector;
   url: string;
+  clientId: string;
   registry?: FunctionRegistry;
   createSocket?: (url: string) => RegistryBridgeSocket;
   reconnectDelayMs?: number;
+  getPageInfo?: () => Readonly<{ pageUrl?: string; pageTitle?: string }>;
 }): () => void {
   let socket: RegistryBridgeSocket | undefined;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
@@ -76,7 +106,7 @@ export function startFunctionRegistryBridge({
 
   const snapshotEffect: EffectRef = effect(
     () => {
-      const snapshot = createSnapshot(registry);
+      const snapshot = createSnapshot(registry, clientId, getPageInfo());
       if (socket?.readyState === SOCKET_OPEN) {
         sendJson(socket, snapshot);
       }
@@ -100,8 +130,14 @@ export function startFunctionRegistryBridge({
     const currentSocket = socket;
     currentSocket.onopen = () => {
       registry.logBridge(`Connected to ${url}`);
-      sendJson(currentSocket, { type: 'hello', role: 'registry-app' });
-      sendJson(currentSocket, createSnapshot(registry));
+      const pageInfo = getPageInfo();
+      sendJson(currentSocket, {
+        type: 'hello',
+        role: 'registry-app',
+        clientId,
+        ...pageInfo,
+      });
+      sendJson(currentSocket, createSnapshot(registry, clientId, pageInfo));
     };
     currentSocket.onmessage = (event) => {
       void respondToBridgeMessage(currentSocket, event.data, registry);
@@ -182,6 +218,57 @@ export async function handleFunctionRegistryRequest(
       }
       return registry.invoke(key, args);
     }
+    case 'registry/resource/get': {
+      const key = requiredString(params, 'key');
+      const id = optionalString(params, 'id');
+      const kind = optionalResourceKind(params, 'kind');
+      return registry.resourceGet(key, id, kind);
+    }
+    case 'registry/resource/set': {
+      const key = requiredString(params, 'key');
+      const id = optionalString(params, 'id');
+      const kind = optionalResourceKind(params, 'kind');
+      if (!Object.prototype.hasOwnProperty.call(params, 'value')) {
+        throw new Error('registry/resource/set params.value is required');
+      }
+      return registry.resourceSet(key, params['value'], id, kind);
+    }
+    case 'registry/resource/update': {
+      const key = requiredString(params, 'key');
+      const id = optionalString(params, 'id');
+      const kind = optionalResourceKind(params, 'kind');
+      const source = requiredString(params, 'source');
+      if (source.length > 20_000) {
+        throw new Error(
+          'registry/resource/update params.source exceeds 20000 characters',
+        );
+      }
+      return registry.resourceUpdate(key, source, id, kind);
+    }
+    case 'registry/resource/patch': {
+      const key = requiredString(params, 'key');
+      const id = optionalString(params, 'id');
+      const kind = optionalResourceKind(params, 'kind');
+      const source = requiredString(params, 'source');
+      if (source.length > 20_000) {
+        throw new Error(
+          'registry/resource/patch params.source exceeds 20000 characters',
+        );
+      }
+      return registry.resourcePatch(key, source, id, kind);
+    }
+    case 'registry/override': {
+      const key = requiredString(params, 'key');
+      const source = requiredString(params, 'source');
+      if (source.length > 20_000) {
+        throw new Error(
+          'registry/override params.source exceeds 20000 characters',
+        );
+      }
+      return registry.override(key, source);
+    }
+    case 'registry/restore':
+      return registry.restore(requiredString(params, 'key'));
     case 'registry/logs': {
       const sinceId = params['sinceId'];
       if (sinceId !== undefined && typeof sinceId !== 'number') {
@@ -194,12 +281,31 @@ export async function handleFunctionRegistryRequest(
   }
 }
 
-function createSnapshot(registry: FunctionRegistry): RegistrySnapshot {
+function createSnapshot(
+  registry: FunctionRegistry,
+  clientId: string,
+  pageInfo: Readonly<{ pageUrl?: string; pageTitle?: string }>,
+): RegistrySnapshot {
   return {
     type: 'registry/snapshot',
+    clientId,
+    ...pageInfo,
     entries: registry.entries(),
     logs: registry.logs(),
   };
+}
+
+export function createFunctionRegistryClientId(
+  storage: Pick<Storage, 'getItem' | 'setItem'>,
+  randomUUID: () => string,
+): string {
+  const existing = storage.getItem(FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY);
+  if (existing !== null && existing.length > 0) {
+    return existing;
+  }
+  const clientId = randomUUID();
+  storage.setItem(FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY, clientId);
+  return clientId;
 }
 
 function parseRequest(rawMessage: unknown): RegistryBridgeRequest {
@@ -235,6 +341,12 @@ function isRegistryMethod(value: unknown): value is RegistryMethod {
     value === 'registry/list' ||
     value === 'registry/get' ||
     value === 'registry/call' ||
+    value === 'registry/resource/get' ||
+    value === 'registry/resource/set' ||
+    value === 'registry/resource/update' ||
+    value === 'registry/resource/patch' ||
+    value === 'registry/override' ||
+    value === 'registry/restore' ||
     value === 'registry/logs'
   );
 }
@@ -246,6 +358,41 @@ function requiredString(
   const value = params[name];
   if (typeof value !== 'string' || value.length === 0) {
     throw new Error(`params.${name} must be a non-empty string`);
+  }
+  return value;
+}
+
+function optionalString(
+  params: Readonly<Record<string, unknown>>,
+  name: string,
+): string | undefined {
+  const value = params[name];
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`params.${name} must be a non-empty string when provided`);
+  }
+  return value;
+}
+
+function optionalResourceKind(
+  params: Readonly<Record<string, unknown>>,
+  name: string,
+): PrimitiveResourceRuntimeKind | undefined {
+  const value = params[name];
+  if (value === undefined) {
+    return undefined;
+  }
+  if (
+    value !== 'query' &&
+    value !== 'asyncProcess' &&
+    value !== 'mutation' &&
+    value !== 'queryParam'
+  ) {
+    throw new Error(
+      `params.${name} must be query, asyncProcess, mutation or queryParam when provided`,
+    );
   }
   return value;
 }

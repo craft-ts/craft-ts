@@ -1,12 +1,32 @@
 /* eslint-disable playwright/no-standalone-expect */
 import {
+  createFunctionRegistryClientId,
   handleFunctionRegistryRequest,
   respondToBridgeMessage,
   type RegistryBridgeRequest,
 } from './function-registry-bridge';
 import { createFunctionRegistry } from './function-registry';
+import type {
+  PrimitiveResourceRuntimeContext,
+  StateMethodRuntimeContext,
+} from '@craft-ng/core';
 
 describe('function registry WebSocket bridge', () => {
+  it('keeps a stable client id in tab storage', () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    };
+
+    expect(createFunctionRegistryClientId(storage, () => 'generated-a')).toBe(
+      'generated-a',
+    );
+    expect(createFunctionRegistryClientId(storage, () => 'generated-b')).toBe(
+      'generated-a',
+    );
+  });
+
   it('transmits the registry list with the callId', async () => {
     const registry = createFunctionRegistry();
     registry.register('save', ['Editor'], () => undefined);
@@ -26,6 +46,8 @@ describe('function registry WebSocket bridge', () => {
           key: 'save <= Editor',
           hostName: 'save',
           ancestry: ['Editor'],
+          capabilities: [],
+          overrideActive: false,
         },
       ],
     });
@@ -89,6 +111,75 @@ describe('function registry WebSocket bridge', () => {
       expect.objectContaining({ event: 'registered', key: 'second' }),
     ]);
   });
+
+  it('installs and restores a runtime override', async () => {
+    const registry = createFunctionRegistry();
+    const state = createStateContext(0);
+    registry.register('increment', [], () => undefined, state);
+
+    const installed = await handleFunctionRegistryRequest(
+      request('override-1', 'registry/override', {
+        key: 'increment',
+        source: '({ state }) => state.update(value => value + 10)',
+      }),
+      registry,
+    );
+    registry.executeOverride('increment', [], state);
+
+    expect(installed).toMatchObject({ overrideActive: true });
+    expect(state.get()).toBe(10);
+
+    const restored = await handleFunctionRegistryRequest(
+      request('restore-1', 'registry/restore', { key: 'increment' }),
+      registry,
+    );
+    expect(restored).toMatchObject({ overrideActive: false });
+  });
+
+  it('routes direct primitive value mutations with kind validation', async () => {
+    const registry = createFunctionRegistry();
+    const resource = createResourceContext({ count: 0 });
+    registry.registerResource('query', [], resource);
+
+    await handleFunctionRegistryRequest(
+      request('set-1', 'registry/resource/set', {
+        key: 'query',
+        kind: 'query',
+        value: { count: 1 },
+      }),
+      registry,
+    );
+    await expect(
+      handleFunctionRegistryRequest(
+        request('update-1', 'registry/resource/update', {
+          key: 'query',
+          kind: 'query',
+          source: '(current) => ({ count: current.count + 2 })',
+        }),
+        registry,
+      ),
+    ).resolves.toEqual({ count: 3 });
+
+    await expect(
+      handleFunctionRegistryRequest(
+        request('get-1', 'registry/resource/get', {
+          key: 'query',
+          kind: 'query',
+        }),
+        registry,
+      ),
+    ).resolves.toEqual({ count: 3 });
+
+    await expect(
+      handleFunctionRegistryRequest(
+        request('get-2', 'registry/resource/get', {
+          key: 'query',
+          kind: 'mutation',
+        }),
+        registry,
+      ),
+    ).rejects.toThrow('exposes query capabilities, not mutation');
+  });
 });
 
 function request(
@@ -101,5 +192,32 @@ function request(
     callId,
     method,
     ...(params === undefined ? {} : { params }),
+  };
+}
+
+function createStateContext(initialValue: unknown): StateMethodRuntimeContext {
+  let value = initialValue;
+  return {
+    kind: 'state',
+    get: () => value,
+    set: (next) => (value = next),
+    update: (updater) => (value = updater(value)),
+    patch: (updater) => (value = { ...(value as object), ...updater(value) }),
+    originalSource: '() => undefined',
+  };
+}
+
+function createResourceContext(
+  initialValue: unknown,
+): PrimitiveResourceRuntimeContext<'query'> {
+  let value = initialValue;
+  return {
+    kind: 'query',
+    grouped: false,
+    ids: () => [],
+    get: () => value,
+    set: (next) => (value = next),
+    update: (updater) => (value = updater(value)),
+    patch: (updater) => (value = { ...(value as object), ...updater(value) }),
   };
 }

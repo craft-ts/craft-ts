@@ -19,6 +19,7 @@ import {
 } from './take-app-snapshot';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
+import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
 
 type SelectedTarget<
   StateType,
@@ -178,7 +179,9 @@ function createInsertSelectItemRuntime(
     context: any,
   ) => {
     const { state, update, insertions: previousInsertions } = context;
-    const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, { optional: true });
+    const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, {
+      optional: true,
+    });
     const injector = ɵcreateHostTaggedInjector(
       inject(Injector),
       `selectEntity:${entityName}`,
@@ -220,103 +223,107 @@ function createInsertSelectItemRuntime(
             const wrappedInsertion = runInInjectionContext(itemInjector, () =>
               injectFnWrapper()(insertion),
             );
-            const insertionCallResult = wrappedInsertion({
-                state: selectedStateSignal,
-                set: (newState: unknown) => {
-                  update((currentState: unknown) => {
-                    if (!Array.isArray(currentState)) {
-                      return currentState;
-                    }
-
-                    if (
-                      id < 0 ||
-                      id >= currentState.length ||
-                      !Number.isInteger(id)
-                    ) {
-                      return currentState;
-                    }
-
-                    const nextState = [...currentState];
-                    nextState[id] = newState;
-                    return nextState;
-                  });
-                  return newState;
-                },
-                update: (updateFn: (currentState: unknown) => unknown) => {
-                  const currentSelectedState = select(id);
-                  if (currentSelectedState === undefined) {
-                    return undefined;
+            const insertionContext = {
+              state: selectedStateSignal,
+              set: (newState: unknown) => {
+                update((currentState: unknown) => {
+                  if (!Array.isArray(currentState)) {
+                    return currentState;
                   }
 
-                  const nextState = updateFn(currentSelectedState);
-                  update((currentState: unknown) => {
-                    if (!Array.isArray(currentState)) {
-                      return currentState;
-                    }
-
-                    if (
-                      id < 0 ||
-                      id >= currentState.length ||
-                      !Number.isInteger(id)
-                    ) {
-                      return currentState;
-                    }
-
-                    const nextRootState = [...currentState];
-                    nextRootState[id] = nextState;
-                    return nextRootState;
-                  });
-
-                  return nextState;
-                },
-                patch: (
-                  patchFn: (currentState: unknown) => Partial<unknown>,
-                ) => {
-                  const currentSelectedState = select(id);
-                  if (currentSelectedState === undefined) {
-                    return undefined;
+                  if (
+                    id < 0 ||
+                    id >= currentState.length ||
+                    !Number.isInteger(id)
+                  ) {
+                    return currentState;
                   }
 
-                  const nextState = {
-                    ...(currentSelectedState as object),
-                    ...patchFn(currentSelectedState),
-                  };
-                  update((currentState: unknown) => {
-                    if (!Array.isArray(currentState)) {
-                      return currentState;
-                    }
-
-                    if (
-                      id < 0 ||
-                      id >= currentState.length ||
-                      !Number.isInteger(id)
-                    ) {
-                      return currentState;
-                    }
-
-                    const nextRootState = [...currentState];
-                    nextRootState[id] = nextState;
-                    return nextRootState;
-                  });
-
+                  const nextState = [...currentState];
+                  nextState[id] = newState;
                   return nextState;
-                },
-                insertions: {
-                  ...inheritedInsertions,
-                  ...acc.rawInsertionsOutput,
-                } as never,
-              });
+                });
+                return newState;
+              },
+              update: (updateFn: (currentState: unknown) => unknown) => {
+                const currentSelectedState = select(id);
+                if (currentSelectedState === undefined) {
+                  return undefined;
+                }
+
+                const nextState = updateFn(currentSelectedState);
+                update((currentState: unknown) => {
+                  if (!Array.isArray(currentState)) {
+                    return currentState;
+                  }
+
+                  if (
+                    id < 0 ||
+                    id >= currentState.length ||
+                    !Number.isInteger(id)
+                  ) {
+                    return currentState;
+                  }
+
+                  const nextRootState = [...currentState];
+                  nextRootState[id] = nextState;
+                  return nextRootState;
+                });
+
+                return nextState;
+              },
+              patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
+                const currentSelectedState = select(id);
+                if (currentSelectedState === undefined) {
+                  return undefined;
+                }
+
+                const nextState = {
+                  ...(currentSelectedState as object),
+                  ...patchFn(currentSelectedState),
+                };
+                update((currentState: unknown) => {
+                  if (!Array.isArray(currentState)) {
+                    return currentState;
+                  }
+
+                  if (
+                    id < 0 ||
+                    id >= currentState.length ||
+                    !Number.isInteger(id)
+                  ) {
+                    return currentState;
+                  }
+
+                  const nextRootState = [...currentState];
+                  nextRootState[id] = nextState;
+                  return nextRootState;
+                });
+
+                return nextState;
+              },
+              insertions: {
+                ...inheritedInsertions,
+                ...acc.rawInsertionsOutput,
+              } as never,
+            };
+            const insertionCallResult = wrappedInsertion(insertionContext);
             const nextRawInsertions = (
               isGenerator(insertionCallResult)
-                ? runInInjectionContext(itemInjector, () =>
-                    runCraftGenerator({
-                      iterator: insertionCallResult,
-                      injector: itemInjector,
-                      hostScope: 'function',
-                      invalidYieldErrorMessage: INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
-                      multipleAppStartErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                      onAppStartNotSupportedErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                    }).value
+                ? runInInjectionContext(
+                    itemInjector,
+                    () =>
+                      runCraftGenerator({
+                        iterator: insertionCallResult,
+                        injector: itemInjector,
+                        hostScope: 'function',
+                        invalidYieldErrorMessage:
+                          INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                        multipleAppStartErrorMessage:
+                          INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                        onAppStartNotSupportedErrorMessage:
+                          INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                      }).value,
                   )
                 : insertionCallResult
             ) as Record<string, unknown>;
@@ -338,21 +345,35 @@ function createInsertSelectItemRuntime(
                 }
 
                 if (typeof value === 'function' && !isSignal(value)) {
-                  const methodInjector = ɵcreateHostTaggedInjector(itemInjector, `method:${key}`);
-                  const wrappedFn = runInInjectionContext(itemInjector, () =>
+                  const methodInjector = ɵcreateHostTaggedInjector(
+                    itemInjector,
+                    `method:${key}`,
+                    [
+                      ɵprovideStateMethodRuntimeContext(
+                        insertionContext,
+                        value as (...args: never[]) => unknown,
+                      ),
+                    ],
+                  );
+                  const wrappedFn = runInInjectionContext(methodInjector, () =>
                     injectFnWrapper()(value as (...args: unknown[]) => unknown),
                   );
                   exposedAcc[key] = (...args: unknown[]) =>
                     runInInjectionContext(methodInjector, () => {
-                      const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
+                      const result = (
+                        wrappedFn as (...a: unknown[]) => unknown
+                      )(...args);
                       if (isGenerator(result)) {
                         return runCraftGenerator({
                           iterator: result,
                           injector: methodInjector,
                           hostScope: 'function',
-                          invalidYieldErrorMessage: INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
-                          multipleAppStartErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                          onAppStartNotSupportedErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                          invalidYieldErrorMessage:
+                            INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                          multipleAppStartErrorMessage:
+                            INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                          onAppStartNotSupportedErrorMessage:
+                            INSERT_SELECT_APP_START_ERROR_MESSAGE,
                         }).value;
                       }
                       return result;
@@ -456,7 +477,9 @@ function createInsertSelectPropertyRuntime(
     context: any,
   ) => {
     const { state, update, insertions: previousInsertions } = context;
-    const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, { optional: true });
+    const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, {
+      optional: true,
+    });
     const injector = ɵcreateHostTaggedInjector(
       inject(Injector),
       `selectProperty:${propertyKey}`,
@@ -521,34 +544,38 @@ function createInsertSelectPropertyRuntime(
             const wrappedInsertion = runInInjectionContext(injector, () =>
               injectFnWrapper()(insertion),
             );
-            const insertionCallResult = wrappedInsertion({
-                state: selectedPropertySignal,
-                set: setProperty,
-                update: updateProperty,
-                patch: (
-                  patchFn: (currentState: unknown) => Partial<unknown>,
-                ) => {
-                  return updateProperty((current) => ({
-                    ...(current as object),
-                    ...patchFn(current),
-                  }));
-                },
-                insertions: {
-                  ...inheritedInsertions,
-                  ...acc.rawInsertionsOutput,
-                } as never,
-              });
+            const insertionContext = {
+              state: selectedPropertySignal,
+              set: setProperty,
+              update: updateProperty,
+              patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
+                return updateProperty((current) => ({
+                  ...(current as object),
+                  ...patchFn(current),
+                }));
+              },
+              insertions: {
+                ...inheritedInsertions,
+                ...acc.rawInsertionsOutput,
+              } as never,
+            };
+            const insertionCallResult = wrappedInsertion(insertionContext);
             const nextRawInsertions = (
               isGenerator(insertionCallResult)
-                ? runInInjectionContext(injector, () =>
-                    runCraftGenerator({
-                      iterator: insertionCallResult,
-                      injector,
-                      hostScope: 'function',
-                      invalidYieldErrorMessage: INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
-                      multipleAppStartErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                      onAppStartNotSupportedErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                    }).value
+                ? runInInjectionContext(
+                    injector,
+                    () =>
+                      runCraftGenerator({
+                        iterator: insertionCallResult,
+                        injector,
+                        hostScope: 'function',
+                        invalidYieldErrorMessage:
+                          INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                        multipleAppStartErrorMessage:
+                          INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                        onAppStartNotSupportedErrorMessage:
+                          INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                      }).value,
                   )
                 : insertionCallResult
             ) as Record<string, unknown>;
@@ -593,21 +620,35 @@ function createInsertSelectPropertyRuntime(
                 }
 
                 if (typeof value === 'function' && !isSignal(value)) {
-                  const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${key}`);
-                  const wrappedFn = runInInjectionContext(injector, () =>
+                  const methodInjector = ɵcreateHostTaggedInjector(
+                    injector,
+                    `method:${key}`,
+                    [
+                      ɵprovideStateMethodRuntimeContext(
+                        insertionContext,
+                        value as (...args: never[]) => unknown,
+                      ),
+                    ],
+                  );
+                  const wrappedFn = runInInjectionContext(methodInjector, () =>
                     injectFnWrapper()(value as (...args: unknown[]) => unknown),
                   );
                   exposedAcc[key] = (...args: unknown[]) =>
                     runInInjectionContext(methodInjector, () => {
-                      const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
+                      const result = (
+                        wrappedFn as (...a: unknown[]) => unknown
+                      )(...args);
                       if (isGenerator(result)) {
                         return runCraftGenerator({
                           iterator: result,
                           injector: methodInjector,
                           hostScope: 'function',
-                          invalidYieldErrorMessage: INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
-                          multipleAppStartErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                          onAppStartNotSupportedErrorMessage: INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                          invalidYieldErrorMessage:
+                            INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                          multipleAppStartErrorMessage:
+                            INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                          onAppStartNotSupportedErrorMessage:
+                            INSERT_SELECT_APP_START_ERROR_MESSAGE,
                         }).value;
                       }
                       return result;

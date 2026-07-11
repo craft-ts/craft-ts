@@ -1,0 +1,4 @@
+interface:
+  display_name: "Craft NG Runtime Change Web MCP"
+  short_description: "Explain and operate runtime registry overrides"
+  default_prompt: "Use $craft-ng-runtime-change-web-mcp to explain or operate a primitive-method override through the Craft NG MCP registry."

@@ -2,12 +2,22 @@ export type RegistryMethod =
   | 'registry/list'
   | 'registry/get'
   | 'registry/call'
+  | 'registry/resource/get'
+  | 'registry/resource/set'
+  | 'registry/resource/update'
+  | 'registry/resource/patch'
+  | 'registry/override'
+  | 'registry/restore'
   | 'registry/logs';
+
+export type RegistryBrokerMethod = RegistryMethod | 'registry/clients';
 
 export type RegistryEntry = Readonly<{
   key: string;
   hostName: string;
   ancestry: readonly string[];
+  capabilities: readonly string[];
+  overrideActive: boolean;
 }>;
 
 export type RegistryLog = Readonly<{
@@ -34,6 +44,18 @@ export type RegistryResponse = Readonly<{
 
 export type RegistrySnapshot = Readonly<{
   type: 'registry/snapshot';
+  clientId: string;
+  pageUrl?: string;
+  pageTitle?: string;
   entries: readonly RegistryEntry[];
   logs: readonly RegistryLog[];
+}>;
+
+export type RegistryClient = Readonly<{
+  clientId: string;
+  connectedAt: string;
+  pageUrl?: string;
+  pageTitle?: string;
+  entryCount: number;
+  logCount: number;
 }>;

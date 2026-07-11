@@ -12,6 +12,11 @@ import { on$ } from './on$';
 import { Source$, source$ } from './source$';
 import { state } from './state';
 import { insertNoopTypingAnchor } from './insert-noop-typing-anchor';
+import { provideFnWrapper } from './fn-wrapper';
+import {
+  injectStateMethodRuntimeContext,
+  type StateMethodRuntimeContext,
+} from './state-method-runtime-context';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -32,6 +37,33 @@ beforeAll(() => {
 });
 
 describe('insertSelect', () => {
+  it('should expose the selected property context to method wrappers', () => {
+    let runtimeContext: StateMethodRuntimeContext | undefined;
+    TestBed.configureTestingModule({
+      providers: [
+        provideFnWrapper(function* (factory, thisArg, args) {
+          runtimeContext = injectStateMethodRuntimeContext();
+          return yield* factory.apply(thisArg, args);
+        }),
+      ],
+    });
+
+    runInInjectionContext(() => {
+      const counter = state(
+        { value: 0 },
+        insertSelect('value', ({ update }) => ({
+          increment: () => update((current) => current + 1),
+        })),
+      );
+
+      counter.selectValue().increment();
+
+      expect(runtimeContext?.get()).toBe(1);
+      expect(runtimeContext?.originalSource).toContain('current + 1');
+      runtimeContext?.update((current) => Number(current) + 9);
+      expect(counter().value).toBe(10);
+    });
+  });
   it('should reproduce payload inference issue on nested matrix emitters', () => {
     runInInjectionContext(() => {
       type PaintCellEvent = { color: string; cellIndex: number };

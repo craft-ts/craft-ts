@@ -15,6 +15,7 @@ export type FnWrapper = (
 ) => Generator<unknown, unknown, unknown>;
 
 export type FnFactoryAdapter = <F extends AnyFactory>(factory: F) => F;
+export type FnWrapObserver = (factory: AnyFactory) => void;
 
 const IDENTITY_ADAPTER: FnFactoryAdapter = ((factory) =>
   factory) as FnFactoryAdapter;
@@ -27,16 +28,35 @@ export const FN_WRAPPER = new InjectionToken<readonly FnWrapper[]>(
   },
 );
 
+export const FN_WRAP_OBSERVER = new InjectionToken<readonly FnWrapObserver[]>(
+  'FN_WRAP_OBSERVER',
+  {
+    providedIn: 'root',
+    factory: () => [],
+  },
+);
+
 export function provideFnWrapper(wrapper: FnWrapper): Provider {
   return { provide: FN_WRAPPER, useValue: wrapper, multi: true };
 }
 
+export function provideFnWrapObserver(observer: FnWrapObserver): Provider {
+  return { provide: FN_WRAP_OBSERVER, useValue: observer, multi: true };
+}
+
 export function injectFnWrapper(): FnFactoryAdapter {
   const wrappers = inject(FN_WRAPPER);
-  if (wrappers.length === 0) {
+  const observers = inject(FN_WRAP_OBSERVER);
+  if (wrappers.length === 0 && observers.length === 0) {
     return IDENTITY_ADAPTER;
   }
   return (<F extends AnyFactory>(factory: F): F => {
+    for (const observer of observers) {
+      observer(factory);
+    }
+    if (wrappers.length === 0) {
+      return factory;
+    }
     let current: AnyGeneratorFactory = toGeneratorFactory(factory);
     // First registered wrapper is the outermost; iterate from last to first.
     for (let i = wrappers.length - 1; i >= 0; i--) {

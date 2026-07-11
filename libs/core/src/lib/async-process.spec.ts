@@ -13,7 +13,19 @@ import {
 } from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetToYieldServiceDependencies } from './craft-service';
-import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
+import {
+  provideFnWrapObserver,
+  provideFnWrapper,
+  type FnWrapper,
+} from './fn-wrapper';
+import {
+  injectAsyncProcessMethodRuntimeContext,
+  type AsyncProcessMethodRuntimeContext,
+} from './primitive-method-runtime-context';
+import {
+  providePrimitiveResourceRuntimeObserver,
+  type PrimitiveResourceRuntimeContext,
+} from './primitive-resource-runtime-context';
 
 type EmptyAsyncProcessExceptions = {
   hasException: Signal<boolean>;
@@ -1464,14 +1476,77 @@ describe('asyncProcess — providers', () => {
     vi.restoreAllMocks();
   });
 
+  it('exposes the asyncProcess runtime context to insertion method wrappers', () => {
+    let runtimeContext: AsyncProcessMethodRuntimeContext | undefined;
+    let observedRuntimeContext: AsyncProcessMethodRuntimeContext | undefined;
+    const runtimeContextWrapper = provideFnWrapper(
+      function* (factory, thisArg, args) {
+        runtimeContext =
+          injectAsyncProcessMethodRuntimeContext() ?? runtimeContext;
+        return yield* factory.apply(thisArg, args);
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const processRef = asyncProcess(
+        {
+          providers: [
+            runtimeContextWrapper,
+            provideFnWrapObserver(() => {
+              observedRuntimeContext =
+                injectAsyncProcessMethodRuntimeContext() ??
+                observedRuntimeContext;
+            }),
+          ],
+          method: (id: string) => id,
+          loader: async () => ({ count: 0 }),
+        },
+        ({ set }) => ({
+          initialize: () => set({ count: 1 }),
+        }),
+      );
+
+      expect(observedRuntimeContext?.kind).toBe('asyncProcess');
+      processRef.initialize();
+
+      expect(runtimeContext?.kind).toBe('asyncProcess');
+      expect(runtimeContext?.get()).toEqual({ count: 1 });
+      expect(runtimeContext?.originalSource).toContain('count: 1');
+      runtimeContext?.update(() => ({ count: 10 }));
+      expect(runtimeContext?.get()).toEqual({ count: 10 });
+    });
+  });
+
+  it('exposes the asyncProcess resource context to runtime observers', () => {
+    let resourceContext: PrimitiveResourceRuntimeContext | undefined;
+
+    TestBed.runInInjectionContext(() => {
+      const processRef = asyncProcess({
+        providers: [
+          providePrimitiveResourceRuntimeObserver((context) => {
+            resourceContext = context;
+          }),
+        ],
+        method: (id: string) => id,
+        loader: async () => ({ count: 0 }),
+      });
+
+      expect(resourceContext?.kind).toBe('asyncProcess');
+      expect(resourceContext?.grouped).toBe(false);
+      resourceContext?.set({ count: 1 });
+      resourceContext?.update(() => ({ count: 2 }));
+      expect(resourceContext?.get()).toEqual({ count: 2 });
+      expect(processRef.value()).toEqual({ count: 2 });
+    });
+  });
+
   it('providers are applied to asyncProcess method generator', async () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('method');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     await TestBed.runInInjectionContext(async () => {
@@ -1494,10 +1569,9 @@ describe('asyncProcess — providers', () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('called');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     await TestBed.runInInjectionContext(async () => {
@@ -1540,7 +1614,9 @@ describe('asyncProcess — providers', () => {
         },
       });
       type WithoutDeps = ExtractDeps<typeof withoutProviders>;
-      expectTypeOf<'AsyncService' extends keyof WithoutDeps ? true : false>().toEqualTypeOf<true>();
+      expectTypeOf<
+        'AsyncService' extends keyof WithoutDeps ? true : false
+      >().toEqualTypeOf<true>();
 
       const withProviders = asyncProcess({
         providers: [provideAsyncService()],

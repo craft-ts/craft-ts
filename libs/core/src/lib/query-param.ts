@@ -4,6 +4,7 @@ import {
   DestroyRef,
   inject,
   Injector,
+  isSignal,
   linkedSignal,
   runInInjectionContext,
   Signal,
@@ -19,6 +20,7 @@ import { FilterSource, IsEmptyObject } from './util/util.type';
 import { Prettify } from './util/util.type';
 import { ActivatedRoute, Router } from '@angular/router';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import { injectFnWrapper } from './fn-wrapper';
 import {
   AnyCraftException,
   ExtractCraftException,
@@ -39,6 +41,11 @@ import {
   InsertionSnapshotRegistry,
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
+import { ɵprovidePrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
+import {
+  ɵcreatePrimitiveResourceRuntimeContext,
+  ɵobservePrimitiveResourceRuntimeContext,
+} from './primitive-resource-runtime-context';
 
 export interface QueryParamNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -609,6 +616,21 @@ export function queryParam<
     },
   };
 
+  runInInjectionContext(injector, () =>
+    ɵobservePrimitiveResourceRuntimeContext(
+      ɵcreatePrimitiveResourceRuntimeContext('queryParam', {
+        state: queryParamsState.asReadonly(),
+        set: (value) =>
+          methods.set(value as QueryParamsToState<QueryParamsType>),
+        update: (updater) =>
+          methods.update(
+            (current) =>
+              updater(current) as QueryParamsToState<QueryParamsType>,
+          ),
+      }),
+    ),
+  );
+
   // Process insertions
   const insertionResults =
     (insertions as InsertionsQueryParamsFactory<QueryParamsType, {}>[])?.reduce(
@@ -626,9 +648,70 @@ export function queryParam<
             insertions: acc as {},
           } as InsertionQueryParamsFactoryContext<QueryParamsType, {}>,
         );
+        const wrappedInsertions = Object.entries(newInsertions).reduce(
+          (wrappedAcc, [key, value]) => {
+            if (typeof value !== 'function' || isSignal(value)) {
+              wrappedAcc[key] = value;
+              return wrappedAcc;
+            }
+            const methodInjector = ɵcreateHostTaggedInjector(
+              injector,
+              `method:${key}`,
+              [
+                ɵprovidePrimitiveMethodRuntimeContext(
+                  'queryParam',
+                  {
+                    state: queryParamsState.asReadonly(),
+                    set: (next) =>
+                      methods.set(
+                        next as QueryParamsToState<QueryParamsType>,
+                      ),
+                    update: (updater) =>
+                      methods.update(
+                        (current) =>
+                          updater(current) as QueryParamsToState<QueryParamsType>,
+                      ),
+                    patch: (patchFn) =>
+                      methods.patch((current) =>
+                        patchFn(
+                          current,
+                        ) as Partial<QueryParamsToState<QueryParamsType>>,
+                      ),
+                  },
+                  value as (...args: never[]) => unknown,
+                ),
+              ],
+            );
+            const wrappedFn = runInInjectionContext(methodInjector, () =>
+              injectFnWrapper()(value as (...args: unknown[]) => unknown),
+            );
+            wrappedAcc[key] = (...args: unknown[]) =>
+              runInInjectionContext(methodInjector, () => {
+                const result = (wrappedFn as (...a: unknown[]) => unknown)(
+                  ...args,
+                );
+                if (isGenerator(result)) {
+                  return runCraftGenerator({
+                    iterator: result,
+                    injector: methodInjector,
+                    hostScope: 'function',
+                    invalidYieldErrorMessage:
+                      QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage:
+                      QUERY_PARAM_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage:
+                      QUERY_PARAM_APP_START_ERROR_MESSAGE,
+                  }).value;
+                }
+                return result;
+              });
+            return wrappedAcc;
+          },
+          {} as Record<string, unknown>,
+        );
         return {
           ...acc,
-          ...newInsertions,
+          ...wrappedInsertions,
         };
       },
       {} as Record<string, unknown>,

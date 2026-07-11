@@ -12,7 +12,15 @@ import {
 } from '@angular/platform-browser/testing';
 import { craftService } from './craft-service';
 import type { ExtractDeps } from './branded-component/branded-component';
-import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
+import {
+  provideFnWrapObserver,
+  provideFnWrapper,
+  type FnWrapper,
+} from './fn-wrapper';
+import {
+  injectStateMethodRuntimeContext,
+  type StateMethodRuntimeContext,
+} from './state-method-runtime-context';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -38,6 +46,49 @@ describe('state', () => {
   });
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+  it('should expose the root state mutation context to method wrappers', () => {
+    let runtimeContext: StateMethodRuntimeContext | undefined;
+    TestBed.configureTestingModule({
+      providers: [
+        provideFnWrapper(function* (factory, thisArg, args) {
+          runtimeContext = injectStateMethodRuntimeContext();
+          return yield* factory.apply(thisArg, args);
+        }),
+      ],
+    });
+
+    runInInjectionContext(() => {
+      const counter = state(0, ({ update }) => ({
+        increment: () => update((current) => current + 1),
+      }));
+
+      counter.increment();
+
+      expect(runtimeContext?.kind).toBe('state');
+      expect(runtimeContext?.get()).toBe(1);
+      expect(runtimeContext?.originalSource).toContain('current + 1');
+      runtimeContext?.update((current) => Number(current) + 9);
+      expect(counter()).toBe(10);
+    });
+  });
+  it('should expose insertion methods to wrap observers before invocation', () => {
+    const observedSources: string[] = [];
+    const observer = provideFnWrapObserver((factory) => {
+      const context = injectStateMethodRuntimeContext();
+      if (context !== undefined) {
+        observedSources.push(factory.toString());
+      }
+    });
+
+    runInInjectionContext(() => {
+      state({ $self: 0, providers: [observer] }, ({ update }) => ({
+        increment: () => update((current) => current + 1),
+      }));
+    });
+
+    expect(observedSources).toHaveLength(1);
+    expect(observedSources[0]).toContain('current + 1');
   });
   it('should create a simple state', () => {
     runInInjectionContext(() => {
@@ -345,10 +396,9 @@ describe('state — $self config with providers', () => {
 
   it('should work with insertions alongside $self', () => {
     runInInjectionContext(() => {
-      const myState = state(
-        { $self: 0 },
-        ({ update }) => ({ increment: () => update((v) => v + 1) }),
-      );
+      const myState = state({ $self: 0 }, ({ update }) => ({
+        increment: () => update((v) => v + 1),
+      }));
 
       expectTypeOf(myState()).toEqualTypeOf<number>();
       myState.increment();
@@ -360,10 +410,9 @@ describe('state — $self config with providers', () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('state-factory');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     runInInjectionContext(() => {
@@ -382,10 +431,9 @@ describe('state — $self config with providers', () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('insertion-method');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     runInInjectionContext(() => {
@@ -406,10 +454,9 @@ describe('state — $self config with providers', () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('called');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     runInInjectionContext(() => {
@@ -417,10 +464,9 @@ describe('state — $self config with providers', () => {
         { $self: 0, providers: [provideFnWrapper(trackingWrapper)] },
         ({ update }) => ({ increment: () => update((v) => v + 1) }),
       );
-      const withoutProvider = state(
-        0,
-        ({ update }) => ({ increment: () => update((v) => v + 1) }),
-      );
+      const withoutProvider = state(0, ({ update }) => ({
+        increment: () => update((v) => v + 1),
+      }));
 
       withoutProvider.increment();
       expect(callLog).toEqual([]);
@@ -447,14 +493,14 @@ describe('state — $self config with providers', () => {
     );
 
     runInInjectionContext(() => {
-      const withoutProviders = state(
-        function* () {
-          const counter = yield* LocalCounterToYield();
-          return counter.value();
-        },
-      );
+      const withoutProviders = state(function* () {
+        const counter = yield* LocalCounterToYield();
+        return counter.value();
+      });
       type WithoutDeps = ExtractDeps<typeof withoutProviders>;
-      expectTypeOf<'LocalCounter' extends keyof WithoutDeps ? true : false>().toEqualTypeOf<true>();
+      expectTypeOf<
+        'LocalCounter' extends keyof WithoutDeps ? true : false
+      >().toEqualTypeOf<true>();
 
       const withProviders = state({
         $self: function* () {
@@ -464,7 +510,9 @@ describe('state — $self config with providers', () => {
         providers: [provideLocalCounter()],
       });
       type WithDeps = ExtractDeps<typeof withProviders>;
-      expectTypeOf<'LocalCounter' extends keyof WithDeps ? true : false>().toEqualTypeOf<false>();
+      expectTypeOf<
+        'LocalCounter' extends keyof WithDeps ? true : false
+      >().toEqualTypeOf<false>();
     });
   });
 });

@@ -10,10 +10,14 @@ import {
   Console,
   craftAppConfig,
   executeGeneratorCompatibleFactory,
+  HOST_TAG_LIST,
   HostTagToYield,
+  injectPrimitiveMethodRuntimeContext,
   provideCorrelationIdTracking,
   provideCraftRouter,
+  provideFnWrapObserver,
   provideFnWrapper,
+  providePrimitiveResourceRuntimeObserver,
   provideSendContextToAi,
   provideTakeAppSnapshot,
   withCraftViewTransitions,
@@ -26,9 +30,16 @@ import {
 import { demoRoutes } from './app.routes';
 import {
   FUNCTION_REGISTRY_BRIDGE_URL,
+  FUNCTION_REGISTRY_CLIENT_ID,
   startFunctionRegistryBridge,
 } from './function-registry-bridge';
-import { registerFunctionEntry } from './function-registry';
+import {
+  buildFunctionRegistryKey,
+  functionRegistry,
+  getFunctionEntryByKey,
+  registerFunctionEntry,
+  registerResourceEntry,
+} from './function-registry';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
@@ -49,6 +60,7 @@ export const appConfig = craftAppConfig({
         injector: inject(Injector),
         // eslint-disable-next-line craft-ng/no-angular-inject
         url: inject(FUNCTION_REGISTRY_BRIDGE_URL),
+        clientId: inject(FUNCTION_REGISTRY_CLIENT_ID),
       });
       destroyRef.onDestroy(stopBridge);
     }),
@@ -108,37 +120,94 @@ export const appConfig = craftAppConfig({
     // TODO RENAME
     // eslint-disable-next-line craft-ng/prefer-browser-boundaries
     provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
+    provideFnWrapObserver((factory) => {
+      const runtimeContext = injectPrimitiveMethodRuntimeContext();
+      if (runtimeContext !== undefined) {
+        ensureFunctionRegistryEntry(factory, undefined, runtimeContext);
+      }
+    }),
+    providePrimitiveResourceRuntimeObserver((resourceContext) => {
+      ensureResourceRegistryEntry(resourceContext);
+    }),
     provideFnWrapper(function* (factory, thisArg, args) {
-      const hostTags = yield* HostTagToYield();
-      const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
-      const ancestry = hostTags.slice(0, -1);
-      // Wrapper boundary: retain the original scoped injector for remote replay.
-      // eslint-disable-next-line craft-ng/no-angular-inject
-      const destroyRef = inject(DestroyRef);
-      // eslint-disable-next-line craft-ng/no-angular-inject
-      const injector = inject(Injector);
-      const cleanup = registerFunctionEntry(
-        hostName,
-        ancestry,
-        (...registryArgs) =>
-          executeGeneratorCompatibleFactory({
-            factory,
-            thisArg,
-            getInjector: () => injector,
-            args: registryArgs,
-            invalidYieldErrorMessage:
-              'Registry functions can only yield dependencies available in their original Craft context.',
-            multipleAppStartErrorMessage:
-              'Registry functions cannot declare multiple app-start hooks.',
-            onAppStartNotSupportedErrorMessage:
-              'Registry functions cannot declare app-start hooks.',
-          }),
+      const runtimeContext = injectPrimitiveMethodRuntimeContext();
+      const key = ensureFunctionRegistryEntry(factory, thisArg, runtimeContext);
+      const override = functionRegistry.executeOverride(
+        key,
+        args,
+        runtimeContext,
       );
-      destroyRef.onDestroy(cleanup);
+      if (override.matched) {
+        return override.result;
+      }
       return yield* factory.apply(thisArg, args);
     }),
   ],
 });
+
+type RegistryFactory = (...args: unknown[]) => unknown;
+
+function ensureFunctionRegistryEntry(
+  factory: RegistryFactory,
+  thisArg: unknown,
+  runtimeContext: ReturnType<typeof injectPrimitiveMethodRuntimeContext>,
+): string {
+  // eslint-disable-next-line craft-ng/no-angular-inject
+  const hostTags = inject(HOST_TAG_LIST);
+  const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
+  const ancestry = hostTags.slice(0, -1);
+  const key = buildFunctionRegistryKey(hostName, ancestry);
+  if (getFunctionEntryByKey(key) !== undefined) {
+    return key;
+  }
+
+  // Wrapper boundary: retain the original scoped injector for remote replay.
+  // eslint-disable-next-line craft-ng/no-angular-inject
+  const destroyRef = inject(DestroyRef);
+  // eslint-disable-next-line craft-ng/no-angular-inject
+  const injector = inject(Injector);
+  const cleanup = registerFunctionEntry(
+    hostName,
+    ancestry,
+    (...registryArgs) =>
+      executeGeneratorCompatibleFactory({
+        factory,
+        thisArg,
+        getInjector: () => injector,
+        args: registryArgs,
+        invalidYieldErrorMessage:
+          'Registry functions can only yield dependencies available in their original Craft context.',
+        multipleAppStartErrorMessage:
+          'Registry functions cannot declare multiple app-start hooks.',
+        onAppStartNotSupportedErrorMessage:
+          'Registry functions cannot declare app-start hooks.',
+      }),
+    runtimeContext,
+  );
+  destroyRef.onDestroy(cleanup);
+  return key;
+}
+
+function ensureResourceRegistryEntry(
+  resourceContext: Parameters<typeof registerResourceEntry>[2],
+): string {
+  // eslint-disable-next-line craft-ng/no-angular-inject
+  const hostTags = inject(HOST_TAG_LIST);
+  const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
+  const ancestry = hostTags.slice(0, -1);
+  const key = buildFunctionRegistryKey(hostName, ancestry);
+  if (getFunctionEntryByKey(key)?.primitive !== undefined) {
+    return key;
+  }
+
+  // Primitive value boundary: expose the live primitive instance for dev-only MCP
+  // reads and mutations.
+  // eslint-disable-next-line craft-ng/no-angular-inject
+  const destroyRef = inject(DestroyRef);
+  const cleanup = registerResourceEntry(hostName, ancestry, resourceContext);
+  destroyRef.onDestroy(cleanup);
+  return key;
+}
 
 type _CheckGlobalErrorDI = RouteExceptionComponentCheckedDI<
   import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,

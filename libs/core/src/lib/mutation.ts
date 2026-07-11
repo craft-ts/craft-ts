@@ -62,6 +62,12 @@ import type {
 } from './craft-service';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { injectFnWrapper } from './fn-wrapper';
+import { ɵprovidePrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
+import {
+  ɵcreatePrimitiveResourceByIdRuntimeContext,
+  ɵcreatePrimitiveResourceRuntimeContext,
+  ɵobservePrimitiveResourceRuntimeContext,
+} from './primitive-resource-runtime-context';
 
 type MutationConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -139,7 +145,10 @@ type MutationConfig<
          * It also accepts a ReadonlySource<SourceParams> to connect the mutation params to an external signal source.
          */
         method:
-          | GeneratorCompatibleFactory<(args: ParamsArgs) => Params, MethodYielded>
+          | GeneratorCompatibleFactory<
+              (args: ParamsArgs) => Params,
+              MethodYielded
+            >
           | ReadonlySource<SourceParams>;
         fromResourceById?: never;
         /**
@@ -174,7 +183,10 @@ type MutationConfig<
          * It also accepts a ReadonlySource<SourceParams> to connect the mutation params to an external signal source.
          */
         method:
-          | GeneratorCompatibleFactory<(args: ParamsArgs) => Params, MethodYielded>
+          | GeneratorCompatibleFactory<
+              (args: ParamsArgs) => Params,
+              MethodYielded
+            >
           | ReadonlySource<SourceParams>;
         loader?: never;
         fromResourceById?: never;
@@ -611,7 +623,11 @@ export function mutation<
   LoaderYielded = never,
   StreamYielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -630,7 +646,8 @@ export function mutation<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
 ): MutationOutput<
   StripCraftException<MutationState>,
   StripCraftException<MutationParams>,
@@ -664,7 +681,11 @@ export function mutation<
   StreamYielded = never,
   Insertion1Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -683,7 +704,8 @@ export function mutation<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
@@ -728,7 +750,11 @@ export function mutation<
   Insertion1Yielded = never,
   Insertion2Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -747,7 +773,8 @@ export function mutation<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
@@ -803,7 +830,11 @@ export function mutation<
   Insertion2Yielded = never,
   Insertion3Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -822,7 +853,8 @@ export function mutation<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
@@ -889,7 +921,11 @@ export function mutation<
   Insertion3Yielded = never,
   Insertion4Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -908,7 +944,8 @@ export function mutation<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
@@ -989,7 +1026,11 @@ export function mutation<
   Insertion4Yielded = never,
   Insertion5Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -1008,7 +1049,8 @@ export function mutation<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
@@ -1101,7 +1143,11 @@ export function mutation<
   Insertion5Yielded = never,
   Insertion6Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -1120,7 +1166,8 @@ export function mutation<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
@@ -1225,7 +1272,11 @@ export function mutation<
   Insertion6Yielded = never,
   Insertion7Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -1244,7 +1295,8 @@ export function mutation<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<MutationState>>,
@@ -1556,7 +1608,11 @@ export function mutation<
   LoaderYielded = never,
   StreamYielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
     loader: ExtractCraftException<MutationState>;
@@ -1588,7 +1644,10 @@ export function mutation<
 > {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const mutationExtraProviders = [
-    { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
+    {
+      provide: INSERTION_SNAPSHOT_REGISTRY,
+      useValue: insertionSnapshotRegistry,
+    },
     ...(mutationConfig.providers ?? []),
   ];
 
@@ -1603,13 +1662,21 @@ export function mutation<
     ].some((value) => isGeneratorFunction(value))
   ) {
     assertInInjectionContext(mutation);
-    injector = ɵcreateHostTaggedInjector(inject(Injector), 'mutation', mutationExtraProviders);
+    injector = ɵcreateHostTaggedInjector(
+      inject(Injector),
+      'mutation',
+      mutationExtraProviders,
+    );
   }
 
   const getInjector = () => {
     if (!injector) {
       assertInInjectionContext(mutation);
-      injector = ɵcreateHostTaggedInjector(inject(Injector), 'mutation', mutationExtraProviders);
+      injector = ɵcreateHostTaggedInjector(
+        inject(Injector),
+        'mutation',
+        mutationExtraProviders,
+      );
     }
 
     return injector;
@@ -1712,7 +1779,9 @@ export function mutation<
       ? (((...args: unknown[]) =>
           sanitizeParamsResult(
             executeGeneratorCompatibleFactory({
-              factory: mutationConfig.params as (...args: unknown[]) => MutationParams,
+              factory: mutationConfig.params as (
+                ...args: unknown[]
+              ) => MutationParams,
               thisArg: undefined,
               getInjector,
               args,
@@ -1824,6 +1893,20 @@ export function mutation<
         loader: wrappedLoader,
         stream: wrappedStream,
       } as ResourceOptions<any, any>);
+
+  runInInjectionContext(getInjector(), () =>
+    ɵobservePrimitiveResourceRuntimeContext(
+      isUsingIdentifier
+        ? ɵcreatePrimitiveResourceByIdRuntimeContext(
+            'mutation',
+            resourceTarget as any,
+          )
+        : ɵcreatePrimitiveResourceRuntimeContext(
+            'mutation',
+            resourceTarget as any,
+          ),
+    ),
+  );
 
   // Capture the raw Angular status BEFORE `Object.assign` overrides
   // `resourceTarget.status` with the craft computed (avoids a computation cycle).
@@ -2008,21 +2091,45 @@ export function mutation<
         (wrappedAcc, [key, value]) => {
           if (typeof value === 'function' && !isSignal(value)) {
             const injector = getInjector();
-            const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${key}`);
-            const wrappedFn = runInInjectionContext(injector, () =>
+            const methodInjector = ɵcreateHostTaggedInjector(
+              injector,
+              `method:${key}`,
+              [
+                ɵprovidePrimitiveMethodRuntimeContext(
+                  'mutation',
+                  {
+                    state: resourceTarget.state,
+                    set: resourceTarget.set,
+                    update: resourceTarget.update,
+                    patch: (patchFn) =>
+                      resourceTarget.update((current: any) => ({
+                        ...current,
+                        ...patchFn(current),
+                      })),
+                  },
+                  value as (...args: never[]) => unknown,
+                ),
+              ],
+            );
+            const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
             wrappedAcc[key] = (...args: unknown[]) =>
               runInInjectionContext(methodInjector, () => {
-                const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
+                const result = (wrappedFn as (...a: unknown[]) => unknown)(
+                  ...args,
+                );
                 if (isGenerator(result)) {
                   return runCraftGenerator({
                     iterator: result,
                     injector: methodInjector,
                     hostScope: 'function',
-                    invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-                    multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-                    onAppStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+                    invalidYieldErrorMessage:
+                      MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage:
+                      MUTATION_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage:
+                      MUTATION_APP_START_ERROR_MESSAGE,
                   }).value;
                 }
                 return result;
@@ -2075,7 +2182,9 @@ export function mutation<
     snapshotRegistry.triggerSnapshot$
       .pipe(takeUntilDestroyed(destroyRefMutation))
       .subscribe(() => {
-        const insertionSnapshots = triggerAndCollectInsertions(insertionSnapshotRegistry);
+        const insertionSnapshots = triggerAndCollectInsertions(
+          insertionSnapshotRegistry,
+        );
         let stateSnapshot: unknown;
         try {
           if (isUsingIdentifier) {
@@ -2100,7 +2209,9 @@ export function mutation<
             };
           }
         } catch (error) {
-          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+          stateSnapshot = {
+            error: error instanceof Error ? error.message : String(error),
+          };
         }
         snapshotRegistry.allSnapShot$.next({
           source: 'mutation',

@@ -8,6 +8,30 @@ npm run start --workspace @ng-craft/function-registry-mcp
 ```
 
 Set `REGISTRY_BRIDGE_HOST` and `REGISTRY_BRIDGE_PORT` to override the WebSocket
-listener. MCP tools are `registry.list`, `registry.get`, `registry.call`, and
-`registry.logs`. Their WebSocket methods use the corresponding slash form
-(`registry/list`, etc.), and each request and response carries a `callId`.
+listener. MCP tools are `registry.clients`, `registry.list`, `registry.get`,
+`registry.call`, primitive-specific value tools such as `registry.query.get`,
+`registry.query.update`, `registry.mutation.patch`,
+`registry.asyncProcess.set`, `registry.queryParam.update`,
+`registry.override`, `registry.restore`, and `registry.logs`. Their WebSocket
+methods use slash forms internally (`registry/list`, `registry/resource/update`,
+etc.), and each request and response carries a `callId`.
+
+Each browser tab keeps a stable `clientId` in `sessionStorage`. The broker keeps
+one socket and one snapshot per client instead of choosing a global "latest"
+socket. Call `registry.clients` first; when several clients are connected, pass
+the selected `clientId` to every other tool. Omitting it in that situation
+returns an ambiguity error instead of targeting an arbitrary tab.
+
+Runtime overrides are supported for insertion methods from `state`,
+`insertSelect`, `query`, `asyncProcess`, `mutation`, and `queryParam`. The
+override receives the matching primitive capability (`state`, `query`,
+`asyncProcess`, `mutation`, or `queryParam`) plus `args`. Insertion methods are
+published when their primitive is created, before their first UI invocation.
+
+Primitive values from `query`, `asyncProcess`, `mutation`, and `queryParam` are
+also published directly. Use the primitive-specific tools on the root primitive
+entry, for example `registry.query.update` on
+`query <= route:list#1 > component:List#2`, or `registry.queryParam.patch` on
+`queryParam <= route:list#1 > component:List#2`. For `query`, `asyncProcess`,
+and `mutation` primitives with identifiers, pass `id` to target the selected
+instance; without `id`, the operation targets the by-id state record.

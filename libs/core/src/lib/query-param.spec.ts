@@ -11,6 +11,39 @@ import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetToYieldServiceDependencies } from './craft-service';
+import {
+  provideFnWrapObserver,
+  provideFnWrapper,
+  type FnWrapper,
+} from './fn-wrapper';
+import {
+  injectQueryParamMethodRuntimeContext,
+  type QueryParamMethodRuntimeContext,
+} from './primitive-method-runtime-context';
+import {
+  providePrimitiveResourceRuntimeObserver,
+  type PrimitiveResourceRuntimeContext,
+} from './primitive-resource-runtime-context';
+
+let queryParamResourceObserver:
+  | ((context: PrimitiveResourceRuntimeContext) => void)
+  | undefined;
+let queryParamWrapObserver: (() => void) | undefined;
+let queryParamRuntimeContextObserver:
+  | ((context: QueryParamMethodRuntimeContext) => void)
+  | undefined;
+
+const queryParamRuntimeContextWrapper: FnWrapper = function* (
+  factory,
+  thisArg,
+  args,
+) {
+  const context = injectQueryParamMethodRuntimeContext();
+  if (context !== undefined) {
+    queryParamRuntimeContextObserver?.(context);
+  }
+  return yield* factory.apply(thisArg, args);
+};
 
 beforeAll(() => {
   try {
@@ -30,8 +63,20 @@ beforeAll(() => {
 describe('queryParams', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    queryParamResourceObserver = undefined;
+    queryParamWrapObserver = undefined;
+    queryParamRuntimeContextObserver = undefined;
     TestBed.configureTestingModule({
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        providePrimitiveResourceRuntimeObserver((context) => {
+          queryParamResourceObserver?.(context);
+        }),
+        provideFnWrapObserver(() => {
+          queryParamWrapObserver?.();
+        }),
+        provideFnWrapper(queryParamRuntimeContextWrapper),
+      ],
     }).compileComponents();
   });
 
@@ -108,6 +153,78 @@ describe('queryParams', () => {
         pageSize: 50,
       });
       expect(myQueryParams.pageSize()).toBe(50);
+    });
+  });
+
+  it('exposes the queryParam resource context to runtime observers', () => {
+    let resourceContext: PrimitiveResourceRuntimeContext | undefined;
+    queryParamResourceObserver = (context) => {
+      resourceContext = context;
+    };
+
+    TestBed.runInInjectionContext(() => {
+      const queryParams = queryParam({
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value: string) => parseInt(value, 10),
+            serialize: (value: unknown) => String(value),
+          },
+          pageSize: {
+            fallbackValue: 10,
+            parse: (value: string) => parseInt(value, 10),
+            serialize: (value: unknown) => String(value),
+          },
+        },
+      });
+
+      expect(resourceContext?.kind).toBe('queryParam');
+      expect(resourceContext?.grouped).toBe(false);
+      resourceContext?.set({ page: 2, pageSize: 20 });
+      expect(queryParams()).toEqual({ page: 2, pageSize: 20 });
+      resourceContext?.update((current) => ({
+        ...(current as object),
+        page: 3,
+      }));
+      expect(queryParams.page()).toBe(3);
+      resourceContext?.patch(() => ({ pageSize: 30 }));
+      expect(queryParams.pageSize()).toBe(30);
+    });
+  });
+
+  it('exposes the queryParam runtime context to insertion method wrappers', () => {
+    let observedContext: QueryParamMethodRuntimeContext | undefined;
+    let runtimeContext: QueryParamMethodRuntimeContext | undefined;
+    queryParamWrapObserver = () => {
+      observedContext =
+        injectQueryParamMethodRuntimeContext() ?? observedContext;
+    };
+    queryParamRuntimeContextObserver = (context) => {
+      runtimeContext = context;
+    };
+
+    TestBed.runInInjectionContext(() => {
+      const queryParams = queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: unknown) => String(value),
+            },
+          },
+        },
+        ({ patch }) => ({
+          nextPage: () => patch((current) => ({ page: current.page + 1 })),
+        }),
+      );
+
+      expect(observedContext?.kind).toBe('queryParam');
+      queryParams.nextPage();
+      expect(runtimeContext?.kind).toBe('queryParam');
+      expect(runtimeContext?.get()).toEqual({ page: 2 });
+      runtimeContext?.patch(() => ({ page: 10 }));
+      expect(queryParams.page()).toBe(10);
     });
   });
 

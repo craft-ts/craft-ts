@@ -59,6 +59,12 @@ import type {
 } from './craft-service';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { injectFnWrapper } from './fn-wrapper';
+import { ɵprovidePrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
+import {
+  ɵcreatePrimitiveResourceByIdRuntimeContext,
+  ɵcreatePrimitiveResourceRuntimeContext,
+  ɵobservePrimitiveResourceRuntimeContext,
+} from './primitive-resource-runtime-context';
 
 type AsyncProcessConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -201,7 +207,10 @@ type AsyncProcessConfig<
          * Only support one parameter which can be an object to pass multiple parameters.
          */
         method:
-          | GeneratorCompatibleFactory<(args: ParamsArgs) => Params, MethodYielded>
+          | GeneratorCompatibleFactory<
+              (args: ParamsArgs) => Params,
+              MethodYielded
+            >
           | ReadonlySource<SourceParams>;
         /**
          * A unique identifier for the resource, derived from the params.
@@ -228,7 +237,10 @@ type AsyncProcessConfig<
       }
     | {
         method:
-          | GeneratorCompatibleFactory<(args: ParamsArgs) => Params, MethodYielded>
+          | GeneratorCompatibleFactory<
+              (args: ParamsArgs) => Params,
+              MethodYielded
+            >
           | ReadonlySource<SourceParams>;
         loader?: never;
         identifier?: (
@@ -580,7 +592,11 @@ export function asyncProcess<
   LoaderYielded = never,
   StreamYielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -596,7 +612,8 @@ export function asyncProcess<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
 ): AsyncProcessOutput<
   StripCraftException<AsyncProcesstate>,
   StripCraftException<AsyncProcessParams>,
@@ -627,7 +644,11 @@ export function asyncProcess<
   StreamYielded = never,
   Insertion1Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -643,7 +664,8 @@ export function asyncProcess<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
@@ -685,7 +707,11 @@ export function asyncProcess<
   Insertion1Yielded = never,
   Insertion2Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -701,7 +727,8 @@ export function asyncProcess<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
@@ -754,7 +781,11 @@ export function asyncProcess<
   Insertion2Yielded = never,
   Insertion3Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -770,7 +801,8 @@ export function asyncProcess<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
@@ -834,7 +866,11 @@ export function asyncProcess<
   Insertion3Yielded = never,
   Insertion4Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -850,7 +886,8 @@ export function asyncProcess<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
@@ -928,7 +965,11 @@ export function asyncProcess<
   Insertion4Yielded = never,
   Insertion5Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -944,7 +985,8 @@ export function asyncProcess<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
@@ -1034,7 +1076,11 @@ export function asyncProcess<
   Insertion5Yielded = never,
   Insertion6Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -1050,7 +1096,8 @@ export function asyncProcess<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
@@ -1152,7 +1199,11 @@ export function asyncProcess<
   Insertion6Yielded = never,
   Insertion7Yielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -1168,7 +1219,8 @@ export function asyncProcess<
     MethodYielded,
     LoaderYielded,
     StreamYielded
-  > & Config,
+  > &
+    Config,
   insertion1: InsertionsResourcesFactory<
     NoInfer<GroupIdentifier>,
     NoInfer<StripCraftException<AsyncProcesstate>>,
@@ -1272,7 +1324,11 @@ export function asyncProcess<
   LoaderYielded = never,
   StreamYielded = never,
   Config = {},
-  Providers extends readonly Provider[] = Config extends { readonly providers: infer P extends readonly Provider[] } ? P : never[],
+  Providers extends readonly Provider[] = Config extends {
+    readonly providers: infer P extends readonly Provider[];
+  }
+    ? P
+    : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
     loader: ExtractCraftException<AsyncProcesstate>;
@@ -1301,7 +1357,10 @@ export function asyncProcess<
 > {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const asyncExtraProviders = [
-    { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
+    {
+      provide: INSERTION_SNAPSHOT_REGISTRY,
+      useValue: insertionSnapshotRegistry,
+    },
     ...(AsyncProcessConfig.providers ?? []),
   ];
   let injector: Injector | undefined;
@@ -1315,13 +1374,21 @@ export function asyncProcess<
     ].some((value) => isGeneratorFunction(value))
   ) {
     assertInInjectionContext(asyncProcess);
-    injector = ɵcreateHostTaggedInjector(inject(Injector), 'asyncProcess', asyncExtraProviders);
+    injector = ɵcreateHostTaggedInjector(
+      inject(Injector),
+      'asyncProcess',
+      asyncExtraProviders,
+    );
   }
 
   const getInjector = () => {
     if (!injector) {
       assertInInjectionContext(asyncProcess);
-      injector = ɵcreateHostTaggedInjector(inject(Injector), 'asyncProcess', asyncExtraProviders);
+      injector = ɵcreateHostTaggedInjector(
+        inject(Injector),
+        'asyncProcess',
+        asyncExtraProviders,
+      );
     }
 
     return injector;
@@ -1433,15 +1500,16 @@ export function asyncProcess<
     ? ((() =>
         sanitizeParamsResult(
           executeGeneratorCompatibleFactory({
-            factory: (AsyncProcessConfig as {
-              params: () => AsyncProcessParams;
-            }).params,
+            factory: (
+              AsyncProcessConfig as {
+                params: () => AsyncProcessParams;
+              }
+            ).params,
             thisArg: undefined,
             getInjector,
             args: [],
             invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage:
-              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
             onAppStartNotSupportedErrorMessage:
               ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
           }) as AsyncProcessParams,
@@ -1464,7 +1532,8 @@ export function asyncProcess<
               thisArg: undefined,
               getInjector,
               args: [param],
-              invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+              invalidYieldErrorMessage:
+                ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage:
                 ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage:
@@ -1501,13 +1570,14 @@ export function asyncProcess<
     'stream' in AsyncProcessConfig && AsyncProcessConfig.stream
       ? (((...args: unknown[]) =>
           executeGeneratorCompatibleFactory({
-            factory: AsyncProcessConfig.stream as (...args: unknown[]) => unknown,
+            factory: AsyncProcessConfig.stream as (
+              ...args: unknown[]
+            ) => unknown,
             thisArg: undefined,
             getInjector,
             args,
             invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-            multipleAppStartErrorMessage:
-              ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
             onAppStartNotSupportedErrorMessage:
               ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
           })) as typeof AsyncProcessConfig.stream)
@@ -1540,6 +1610,20 @@ export function asyncProcess<
         loader: wrappedLoader,
         stream: wrappedStream,
       } as ResourceOptions<any, any>);
+
+  runInInjectionContext(getInjector(), () =>
+    ɵobservePrimitiveResourceRuntimeContext(
+      isUsingIdentifier
+        ? ɵcreatePrimitiveResourceByIdRuntimeContext(
+            'asyncProcess',
+            resourceTarget as any,
+          )
+        : ɵcreatePrimitiveResourceRuntimeContext(
+            'asyncProcess',
+            resourceTarget as any,
+          ),
+    ),
+  );
 
   // Capture the raw Angular status BEFORE `Object.assign` overrides
   // `resourceTarget.status` with the craft computed (avoids a computation cycle).
@@ -1613,11 +1697,13 @@ export function asyncProcess<
               ? undefined
               : (arg: AsyncProcessArgsParams) => {
                   const result = executeGeneratorCompatibleFactory({
-                    factory: (AsyncProcessConfig as {
-                      method: (
-                        args: AsyncProcessArgsParams,
-                      ) => AsyncProcessParams;
-                    }).method,
+                    factory: (
+                      AsyncProcessConfig as {
+                        method: (
+                          args: AsyncProcessArgsParams,
+                        ) => AsyncProcessParams;
+                      }
+                    ).method,
                     thisArg: undefined,
                     getInjector,
                     args: [arg],
@@ -1699,27 +1785,52 @@ export function asyncProcess<
         ],
         invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
         multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+        onAppStartNotSupportedErrorMessage:
+          ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
       });
       const wrappedResult = Object.entries(rawResult).reduce(
         (wrappedAcc, [key, value]) => {
           if (typeof value === 'function' && !isSignal(value)) {
             const injector = getInjector();
-            const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${key}`);
-            const wrappedFn = runInInjectionContext(injector, () =>
+            const methodInjector = ɵcreateHostTaggedInjector(
+              injector,
+              `method:${key}`,
+              [
+                ɵprovidePrimitiveMethodRuntimeContext(
+                  'asyncProcess',
+                  {
+                    state: resourceTarget.state,
+                    set: resourceTarget.set,
+                    update: resourceTarget.update,
+                    patch: (patchFn) =>
+                      resourceTarget.update((current: any) => ({
+                        ...current,
+                        ...patchFn(current),
+                      })),
+                  },
+                  value as (...args: never[]) => unknown,
+                ),
+              ],
+            );
+            const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
             wrappedAcc[key] = (...args: unknown[]) =>
               runInInjectionContext(methodInjector, () => {
-                const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
+                const result = (wrappedFn as (...a: unknown[]) => unknown)(
+                  ...args,
+                );
                 if (isGenerator(result)) {
                   return runCraftGenerator({
                     iterator: result,
                     injector: methodInjector,
                     hostScope: 'function',
-                    invalidYieldErrorMessage: ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-                    multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-                    onAppStartNotSupportedErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+                    invalidYieldErrorMessage:
+                      ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage:
+                      ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage:
+                      ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
                   }).value;
                 }
                 return result;
@@ -1772,7 +1883,9 @@ export function asyncProcess<
     snapshotRegistry.triggerSnapshot$
       .pipe(takeUntilDestroyed(destroyRefAsync))
       .subscribe(() => {
-        const insertionSnapshots = triggerAndCollectInsertions(insertionSnapshotRegistry);
+        const insertionSnapshots = triggerAndCollectInsertions(
+          insertionSnapshotRegistry,
+        );
         let stateSnapshot: unknown;
         try {
           if (isUsingIdentifier) {
@@ -1797,7 +1910,9 @@ export function asyncProcess<
             };
           }
         } catch (error) {
-          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+          stateSnapshot = {
+            error: error instanceof Error ? error.message : String(error),
+          };
         }
         snapshotRegistry.allSnapShot$.next({
           source: 'asyncProcess',

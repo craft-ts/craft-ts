@@ -1,9 +1,0 @@
-[mcp_servers.ng_craft_registry]
-command = "/bin/zsh"
-args = [
-  "-lc",
-  "npm --silent run build --workspace @ng-craft/function-registry-mcp >/dev/null && exec node packages/function-registry-mcp/dist/main.js",
-]
-cwd = "/Users/romaingeffrault/Documents/projects/prive/ng-craft"
-startup_timeout_sec = 120
-tool_timeout_sec = 60

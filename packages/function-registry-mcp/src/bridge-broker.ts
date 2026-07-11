@@ -6,30 +6,35 @@ import {
   type ServerOptions,
 } from 'ws';
 import type {
-  RegistryEntry,
-  RegistryLog,
-  RegistryMethod,
+  RegistryBrokerMethod,
+  RegistryClient,
   RegistryRequest,
   RegistryResponse,
   RegistrySnapshot,
 } from './protocol.js';
 
 type PendingCall = Readonly<{
+  clientId: string;
   resolve(value: unknown): void;
   reject(error: Error): void;
   timeout: ReturnType<typeof setTimeout>;
 }>;
 
+type ClientConnection = {
+  socket: WebSocket;
+  clientId: string;
+  connectedAt: string;
+  pageUrl?: string;
+  pageTitle?: string;
+  snapshot: RegistrySnapshot;
+};
+
 export class RegistryBridgeBroker {
   readonly #server: WebSocketServer;
   readonly #pending = new Map<string, PendingCall>();
+  readonly #clients = new Map<string, ClientConnection>();
+  readonly #socketClientIds = new WeakMap<WebSocket, string>();
   readonly #requestTimeoutMs: number;
-  #appSocket: WebSocket | undefined;
-  #snapshot: RegistrySnapshot = {
-    type: 'registry/snapshot',
-    entries: [],
-    logs: [],
-  };
 
   constructor({
     host = '127.0.0.1',
@@ -46,11 +51,21 @@ export class RegistryBridgeBroker {
     this.#server.on('connection', (socket) => this.#handleConnection(socket));
   }
 
-  get snapshot(): Readonly<{
-    entries: readonly RegistryEntry[];
-    logs: readonly RegistryLog[];
-  }> {
-    return this.#snapshot;
+  get clients(): readonly RegistryClient[] {
+    return Array.from(this.#clients.values(), (client) => ({
+      clientId: client.clientId,
+      connectedAt: client.connectedAt,
+      ...(client.pageUrl === undefined ? {} : { pageUrl: client.pageUrl }),
+      ...(client.pageTitle === undefined
+        ? {}
+        : { pageTitle: client.pageTitle }),
+      entryCount: client.snapshot.entries.length,
+      logCount: client.snapshot.logs.length,
+    }));
+  }
+
+  snapshot(clientId: string): RegistrySnapshot {
+    return this.#requireClient(clientId).snapshot;
   }
 
   async ready(): Promise<void> {
@@ -71,23 +86,22 @@ export class RegistryBridgeBroker {
     return { host: address.address, port: address.port };
   }
 
-  request(
-    method: RegistryMethod,
+  async request(
+    method: RegistryBrokerMethod,
     params?: Readonly<Record<string, unknown>>,
   ): Promise<unknown> {
-    const socket = this.#appSocket;
-    if (socket === undefined || socket.readyState !== WebSocket.OPEN) {
-      return Promise.reject(
-        new Error('Registry app is not connected to the WebSocket bridge'),
-      );
+    if (method === 'registry/clients') {
+      return this.clients;
     }
 
+    const { clientId, forwardedParams } = splitTargetParams(params);
+    const client = this.#resolveClient(clientId);
     const callId = randomUUID();
     const message: RegistryRequest = {
       type: 'request',
       callId,
       method,
-      ...(params === undefined ? {} : { params }),
+      ...(forwardedParams === undefined ? {} : { params: forwardedParams }),
     };
 
     return new Promise((resolve, reject) => {
@@ -97,9 +111,13 @@ export class RegistryBridgeBroker {
           new Error(`${method} timed out after ${this.#requestTimeoutMs}ms`),
         );
       }, this.#requestTimeoutMs);
-      this.#pending.set(callId, { resolve, reject, timeout });
-      socket.send(JSON.stringify(message), (error) => {
-        // ws uses null at runtime even though its callback type says undefined.
+      this.#pending.set(callId, {
+        clientId: client.clientId,
+        resolve,
+        reject,
+        timeout,
+      });
+      client.socket.send(JSON.stringify(message), (error) => {
         if (error == null) {
           return;
         }
@@ -115,10 +133,10 @@ export class RegistryBridgeBroker {
 
   async close(): Promise<void> {
     this.#rejectPending('Registry bridge closed');
-    this.#appSocket?.close();
     for (const client of this.#server.clients) {
       client.close();
     }
+    this.#clients.clear();
     await new Promise<void>((resolve, reject) => {
       this.#server.close((error) =>
         error === undefined ? resolve() : reject(error),
@@ -129,11 +147,16 @@ export class RegistryBridgeBroker {
   #handleConnection(socket: WebSocket): void {
     socket.on('message', (rawData) => this.#handleMessage(socket, rawData));
     socket.on('close', () => {
-      if (this.#appSocket === socket) {
-        this.#appSocket = undefined;
-        this.#snapshot = { type: 'registry/snapshot', entries: [], logs: [] };
-        this.#rejectPending('Registry app disconnected');
+      const clientId = this.#socketClientIds.get(socket);
+      if (clientId === undefined) {
+        return;
       }
+      const client = this.#clients.get(clientId);
+      if (client?.socket !== socket) {
+        return;
+      }
+      this.#clients.delete(clientId);
+      this.#rejectPending('Registry app disconnected', clientId);
     });
   }
 
@@ -148,21 +171,28 @@ export class RegistryBridgeBroker {
       return;
     }
     const record = message as Record<string, unknown>;
-    if (record['type'] === 'hello' && record['role'] === 'registry-app') {
-      this.#appSocket?.close();
-      this.#appSocket = socket;
+    if (isHello(record)) {
+      this.#registerClient(socket, record);
       return;
     }
-    if (socket !== this.#appSocket) {
+
+    const clientId = this.#socketClientIds.get(socket);
+    if (clientId === undefined) {
       return;
     }
-    if (isSnapshot(record)) {
-      this.#snapshot = record;
+    const client = this.#clients.get(clientId);
+    if (client?.socket !== socket) {
+      return;
+    }
+    if (isSnapshot(record, clientId)) {
+      client.snapshot = record;
+      client.pageUrl = record.pageUrl ?? client.pageUrl;
+      client.pageTitle = record.pageTitle ?? client.pageTitle;
       return;
     }
     if (isResponse(record)) {
       const pending = this.#pending.get(record.callId);
-      if (pending === undefined) {
+      if (pending === undefined || pending.clientId !== clientId) {
         return;
       }
       clearTimeout(pending.timeout);
@@ -175,22 +205,133 @@ export class RegistryBridgeBroker {
     }
   }
 
-  #rejectPending(message: string): void {
-    for (const pending of this.#pending.values()) {
+  #registerClient(
+    socket: WebSocket,
+    hello: Readonly<{
+      clientId: string;
+      pageUrl?: string;
+      pageTitle?: string;
+    }>,
+  ): void {
+    const previous = this.#clients.get(hello.clientId);
+    this.#socketClientIds.set(socket, hello.clientId);
+    this.#clients.set(hello.clientId, {
+      socket,
+      clientId: hello.clientId,
+      connectedAt: new Date().toISOString(),
+      ...(hello.pageUrl === undefined ? {} : { pageUrl: hello.pageUrl }),
+      ...(hello.pageTitle === undefined ? {} : { pageTitle: hello.pageTitle }),
+      snapshot: emptySnapshot(hello.clientId, hello.pageUrl, hello.pageTitle),
+    });
+    if (previous !== undefined && previous.socket !== socket) {
+      this.#rejectPending('Registry app reconnected', hello.clientId);
+      previous.socket.close();
+    }
+  }
+
+  #resolveClient(clientId: string | undefined): ClientConnection {
+    if (clientId !== undefined) {
+      return this.#requireClient(clientId);
+    }
+    const clients = [...this.#clients.values()];
+    if (clients.length === 0) {
+      throw new Error('Registry app is not connected to the WebSocket bridge');
+    }
+    if (clients.length > 1) {
+      throw new Error(
+        `Multiple registry apps are connected; clientId is required. Available clients: ${clients
+          .map((client) => client.clientId)
+          .join(', ')}`,
+      );
+    }
+    return clients[0] as ClientConnection;
+  }
+
+  #requireClient(clientId: string): ClientConnection {
+    const client = this.#clients.get(clientId);
+    if (client === undefined || client.socket.readyState !== WebSocket.OPEN) {
+      throw new Error(`Registry client "${clientId}" is not connected`);
+    }
+    return client;
+  }
+
+  #rejectPending(message: string, clientId?: string): void {
+    for (const [callId, pending] of this.#pending) {
+      if (clientId !== undefined && pending.clientId !== clientId) {
+        continue;
+      }
       clearTimeout(pending.timeout);
       pending.reject(new Error(message));
+      this.#pending.delete(callId);
     }
-    this.#pending.clear();
   }
+}
+
+function splitTargetParams(
+  params?: Readonly<Record<string, unknown>>,
+): Readonly<{
+  clientId?: string;
+  forwardedParams?: Readonly<Record<string, unknown>>;
+}> {
+  if (params === undefined) {
+    return {};
+  }
+  const { clientId: rawClientId, ...forwardedParams } = params;
+  if (rawClientId !== undefined && typeof rawClientId !== 'string') {
+    throw new Error('params.clientId must be a string');
+  }
+  return {
+    ...(rawClientId === undefined ? {} : { clientId: rawClientId }),
+    ...(Object.keys(forwardedParams).length === 0 ? {} : { forwardedParams }),
+  };
+}
+
+function emptySnapshot(
+  clientId: string,
+  pageUrl?: string,
+  pageTitle?: string,
+): RegistrySnapshot {
+  return {
+    type: 'registry/snapshot',
+    clientId,
+    ...(pageUrl === undefined ? {} : { pageUrl }),
+    ...(pageTitle === undefined ? {} : { pageTitle }),
+    entries: [],
+    logs: [],
+  };
+}
+
+function isHello(value: Record<string, unknown>): value is Record<
+  string,
+  unknown
+> & {
+  type: 'hello';
+  role: 'registry-app';
+  clientId: string;
+  pageUrl?: string;
+  pageTitle?: string;
+} {
+  return (
+    value['type'] === 'hello' &&
+    value['role'] === 'registry-app' &&
+    typeof value['clientId'] === 'string' &&
+    value['clientId'].length > 0 &&
+    (value['pageUrl'] === undefined || typeof value['pageUrl'] === 'string') &&
+    (value['pageTitle'] === undefined || typeof value['pageTitle'] === 'string')
+  );
 }
 
 function isSnapshot(
   value: Record<string, unknown>,
+  clientId: string,
 ): value is RegistrySnapshot & Record<string, unknown> {
   return (
     value['type'] === 'registry/snapshot' &&
+    value['clientId'] === clientId &&
     Array.isArray(value['entries']) &&
-    Array.isArray(value['logs'])
+    Array.isArray(value['logs']) &&
+    (value['pageUrl'] === undefined || typeof value['pageUrl'] === 'string') &&
+    (value['pageTitle'] === undefined || typeof value['pageTitle'] === 'string')
   );
 }
 

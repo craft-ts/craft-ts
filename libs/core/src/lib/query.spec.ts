@@ -11,7 +11,19 @@ import {
 } from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetToYieldServiceDependencies } from './craft-service';
-import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
+import {
+  provideFnWrapObserver,
+  provideFnWrapper,
+  type FnWrapper,
+} from './fn-wrapper';
+import {
+  injectQueryMethodRuntimeContext,
+  type QueryMethodRuntimeContext,
+} from './primitive-method-runtime-context';
+import {
+  providePrimitiveResourceRuntimeObserver,
+  type PrimitiveResourceRuntimeContext,
+} from './primitive-resource-runtime-context';
 
 type User = {
   id: string;
@@ -1157,14 +1169,135 @@ describe('query — providers', () => {
     vi.restoreAllMocks();
   });
 
+  it('exposes the query runtime context to insertion method wrappers', () => {
+    let runtimeContext: QueryMethodRuntimeContext | undefined;
+    let observedRuntimeContext: QueryMethodRuntimeContext | undefined;
+    const runtimeContextWrapper = provideFnWrapper(
+      function* (factory, thisArg, args) {
+        runtimeContext = injectQueryMethodRuntimeContext() ?? runtimeContext;
+        return yield* factory.apply(thisArg, args);
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const queryRef = query(
+        {
+          providers: [
+            runtimeContextWrapper,
+            provideFnWrapObserver(() => {
+              observedRuntimeContext =
+                injectQueryMethodRuntimeContext() ?? observedRuntimeContext;
+            }),
+          ],
+          params: () => 'initial',
+          loader: async () => ({ count: 0 }),
+        },
+        ({ set }) => ({
+          initialize: () => set({ count: 1 }),
+        }),
+      );
+
+      expect(observedRuntimeContext?.kind).toBe('query');
+      queryRef.initialize();
+
+      expect(runtimeContext?.kind).toBe('query');
+      expect(runtimeContext?.get()).toEqual({ count: 1 });
+      expect(runtimeContext?.originalSource).toContain('count: 1');
+      runtimeContext?.patch(() => ({ count: 10 }));
+      expect(runtimeContext?.get()).toEqual({ count: 10 });
+    });
+  });
+
+  it('exposes the root query resource context to runtime observers', () => {
+    let resourceContext: PrimitiveResourceRuntimeContext | undefined;
+
+    TestBed.runInInjectionContext(() => {
+      const queryRef = query({
+        providers: [
+          providePrimitiveResourceRuntimeObserver((context) => {
+            resourceContext = context;
+          }),
+        ],
+        params: () => 'initial',
+        loader: async () => ({ count: 0 }),
+      });
+
+      expect(resourceContext?.kind).toBe('query');
+      expect(resourceContext?.grouped).toBe(false);
+      resourceContext?.set({ count: 1 });
+      expect(resourceContext?.get()).toEqual({ count: 1 });
+      resourceContext?.patch(() => ({ count: 2 }));
+      expect(queryRef.value()).toEqual({ count: 2 });
+    });
+  });
+
+  it('exposes selected query resource instances to runtime observers', () => {
+    let resourceContext: PrimitiveResourceRuntimeContext | undefined;
+
+    TestBed.runInInjectionContext(() => {
+      const queryRef = query({
+        providers: [
+          providePrimitiveResourceRuntimeObserver((context) => {
+            resourceContext = context;
+          }),
+        ],
+        method: (id: string) => ({ id }),
+        identifier: (params) => params.id,
+        loader: async ({ params }) => ({ id: params.id, name: 'server' }),
+      });
+
+      expect(resourceContext?.kind).toBe('query');
+      expect(resourceContext?.grouped).toBe(true);
+      resourceContext?.set({ id: 'page-1', name: 'local' }, 'page-1');
+      expect(resourceContext?.ids()).toEqual(['page-1']);
+      expect(resourceContext?.get('page-1')).toEqual({
+        id: 'page-1',
+        name: 'local',
+      });
+
+      resourceContext?.update(
+        (current) => ({ ...(current as object), name: 'updated' }),
+        'page-1',
+      );
+      expect(queryRef.select('page-1')?.value()).toEqual({
+        id: 'page-1',
+        name: 'updated',
+      });
+    });
+  });
+
+  it('requires update rather than patch for an array query value', () => {
+    let resourceContext: PrimitiveResourceRuntimeContext | undefined;
+
+    TestBed.runInInjectionContext(() => {
+      query({
+        providers: [
+          providePrimitiveResourceRuntimeObserver((context) => {
+            resourceContext = context;
+          }),
+        ],
+        params: () => 'initial',
+        loader: async () => [],
+      });
+
+      resourceContext?.set([{ id: '1', name: 'Romain' }]);
+      expect(() => resourceContext?.patch(() => ({}))).toThrow(
+        'use update to replace arrays or primitives',
+      );
+      resourceContext?.update((current) =>
+        (current as User[]).map((user) => ({ ...user, name: 'Simon' })),
+      );
+      expect(resourceContext?.get()).toEqual([{ id: '1', name: 'Simon' }]);
+    });
+  });
+
   it('providers are applied to query loader generator', async () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('loader');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     await TestBed.runInInjectionContext(async () => {
@@ -1184,10 +1317,9 @@ describe('query — providers', () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
       callLog.push('called');
-      return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(
-        thisArg as object,
-        args,
-      );
+      return yield* (
+        factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+      ).apply(thisArg as object, args);
     };
 
     await TestBed.runInInjectionContext(async () => {
@@ -1225,7 +1357,9 @@ describe('query — providers', () => {
         },
       });
       type WithoutDeps = ExtractDeps<typeof withoutProviders>;
-      expectTypeOf<'QueryService' extends keyof WithoutDeps ? true : false>().toEqualTypeOf<true>();
+      expectTypeOf<
+        'QueryService' extends keyof WithoutDeps ? true : false
+      >().toEqualTypeOf<true>();
 
       const withProviders = query({
         providers: [provideQueryService()],

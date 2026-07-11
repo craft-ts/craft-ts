@@ -14,8 +14,20 @@ import {
 } from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetToYieldServiceDependencies } from './craft-service';
-import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
+import {
+  provideFnWrapObserver,
+  provideFnWrapper,
+  type FnWrapper,
+} from './fn-wrapper';
 import { CraftHttpClient } from './craft-http-client';
+import {
+  injectMutationMethodRuntimeContext,
+  type MutationMethodRuntimeContext,
+} from './primitive-method-runtime-context';
+import {
+  providePrimitiveResourceRuntimeObserver,
+  type PrimitiveResourceRuntimeContext,
+} from './primitive-resource-runtime-context';
 
 type EmptyMutationExceptions = {
   hasException: Signal<boolean>;
@@ -1325,6 +1337,68 @@ describe('mutation — providers', () => {
     vi.restoreAllMocks();
   });
 
+  it('exposes the mutation runtime context to insertion method wrappers', () => {
+    let runtimeContext: MutationMethodRuntimeContext | undefined;
+    let observedRuntimeContext: MutationMethodRuntimeContext | undefined;
+    const runtimeContextWrapper = provideFnWrapper(
+      function* (factory, thisArg, args) {
+        runtimeContext = injectMutationMethodRuntimeContext() ?? runtimeContext;
+        return yield* factory.apply(thisArg, args);
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const mutationRef = mutation(
+        {
+          providers: [
+            runtimeContextWrapper,
+            provideFnWrapObserver(() => {
+              observedRuntimeContext =
+                injectMutationMethodRuntimeContext() ?? observedRuntimeContext;
+            }),
+          ],
+          method: (id: string) => id,
+          loader: async () => ({ count: 0 }),
+        },
+        ({ set }) => ({
+          initialize: () => set({ count: 1 }),
+        }),
+      );
+
+      expect(observedRuntimeContext?.kind).toBe('mutation');
+      mutationRef.initialize();
+
+      expect(runtimeContext?.kind).toBe('mutation');
+      expect(runtimeContext?.get()).toEqual({ count: 1 });
+      expect(runtimeContext?.originalSource).toContain('count: 1');
+      runtimeContext?.set({ count: 10 });
+      expect(runtimeContext?.get()).toEqual({ count: 10 });
+    });
+  });
+
+  it('exposes the mutation resource context to runtime observers', () => {
+    let resourceContext: PrimitiveResourceRuntimeContext | undefined;
+
+    TestBed.runInInjectionContext(() => {
+      const mutationRef = mutation({
+        providers: [
+          providePrimitiveResourceRuntimeObserver((context) => {
+            resourceContext = context;
+          }),
+        ],
+        method: (id: string) => id,
+        loader: async () => ({ count: 0 }),
+      });
+
+      expect(resourceContext?.kind).toBe('mutation');
+      expect(resourceContext?.grouped).toBe(false);
+      resourceContext?.set({ count: 1 });
+      resourceContext?.patch(() => ({ count: 2 }));
+      expect(resourceContext?.get()).toEqual({ count: 2 });
+      expect(mutationRef.value()).toEqual({ count: 2 });
+    });
+  });
+
   it('providers are applied to mutation method generator', async () => {
     const callLog: string[] = [];
     const trackingWrapper: FnWrapper = function* (factory, thisArg, args) {
@@ -1447,7 +1521,9 @@ describe('mutation — providers', () => {
           return 'result';
         },
       });
-      expectTypeOf(withString.value).toEqualTypeOf<Signal<string | undefined>>();
+      expectTypeOf(withString.value).toEqualTypeOf<
+        Signal<string | undefined>
+      >();
     });
   });
 });
