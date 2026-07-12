@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
     componentMonitoring,
     craftMethod,
-    craftService,
-    insertReactOnMutation,
+    craftService,    insertReactOnMutation,
+    insertPipe,
     mutation,
     provideHostName,
     query,
@@ -98,15 +98,19 @@ const { injectPlayground, PlaygroundToYield } = craftService(
           return getTodos();
         },
       },
-      insertReactOnMutation(addTodo, {
-        reload: { onMutationResolved: true },
-      }),
-      insertReactOnMutation(toggleTodo, {
-        reload: { onMutationResolved: true },
-      }),
-      insertReactOnMutation(deleteTodo, {
-        reload: { onMutationResolved: true },
-      }),
+      (context) =>
+        insertPipe(
+        context,
+        insertReactOnMutation(addTodo, {
+          reload: { onMutationResolved: true },
+        }),
+        insertReactOnMutation(toggleTodo, {
+          reload: { onMutationResolved: true },
+        }),
+        insertReactOnMutation(deleteTodo, {
+          reload: { onMutationResolved: true },
+        }),
+      ),
     );
 
     return { todos, addTodo, toggleTodo, deleteTodo };

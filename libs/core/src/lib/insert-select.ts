@@ -778,19 +778,40 @@ type IsArray<T> = T extends any[] ? true : false;
  * console.log(cells.selectCell(0)?.paintCount); // 1
  * ```
  *
- * In some nested cases, TypeScript may lose contextual typing (notably when a
- * property is an array and the next insertion is another `insertSelect`).
- * In those cases, insert `insertNoopTypingAnchor` before the nested insertion
- * to preserve inference.
+ * `insertSelect` accepts a SINGLE nested insertion. To attach several (or to
+ * chain another `insertSelect` alongside other members), re-pass the selected
+ * context through `insertPipe` — contextual typing is preserved at every
+ * nesting level:
  *
  * @example
  * ```ts
- * insertSelect(
- *   'grid',
- *   insertNoopTypingAnchor,
- *   insertSelect('row', ({ update }) => ({
- *     // ...
- *   })),
+ * insertSelect('grid', (gridContext) =>
+ *   insertPipe(
+ *     gridContext,
+ *     ({ state, update }) => ({
+ *       addRow: () => update((grid) => [...grid, createNextRow(grid)]),
+ *       rowIndexes: computed(() => state().map((_row, index) => index)),
+ *     }),
+ *     insertSelect('row', ({ update }) => ({
+ *       // ...
+ *     })),
+ *   ),
+ * );
+ * ```
+ *
+ * `insertSelect` itself also composes as a member of an `insertPipe` at the
+ * primitive level:
+ *
+ * @example
+ * ```ts
+ * state(initialCells, (context) =>
+ *   insertPipe(
+ *     context,
+ *     insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
+ *     insertSelect('cell', ({ update }) => ({
+ *       paint: () => update((cell) => ({ ...cell, painted: true })),
+ *     })),
+ *   ),
  * );
  * ```
  */
@@ -811,193 +832,7 @@ export function insertSelect<
     PreviousInsertionsOutputs,
     Insertions1Yielded
   >,
-): InsertSelectReturn<
-  [Name] extends [keyof StateType]
-    ? IsArray<StateType[Name]> extends true
-      ? `craft-ng error, typing limitation: insertSelect does not currently support selecting items from an array property in first insertion position (e.g. insertSelect('grid', insertSelect('row', ...))). Consider using insertNoopTypingAnchor:
-    insertSelect('${Name}', insertNoopTypingAnchor, insertSelect(...)) `
-      : StateType
-    : StateType,
-  Name,
-  [Insertions1],
-  PreviousInsertionsOutputs
->;
-export function insertSelect<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  Insertions1 = {},
-  Insertions2 = {},
-  PreviousInsertionsOutputs = {},
-  Insertions1Yielded = never,
-  Insertions2Yielded = never,
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  name: Name,
-  insertion1: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions1,
-    PreviousInsertionsOutputs,
-    Insertions1Yielded
-  >,
-  insertion2: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions2,
-    PreviousInsertionsOutputs & Insertions1,
-    Insertions2Yielded
-  >,
-): InsertSelectReturn<
-  StateType,
-  Name,
-  [Insertions1, Insertions2],
-  PreviousInsertionsOutputs
->;
-export function insertSelect<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  Insertions1 = {},
-  Insertions2 = {},
-  Insertions3 = {},
-  PreviousInsertionsOutputs = {},
-  Insertions1Yielded = never,
-  Insertions2Yielded = never,
-  Insertions3Yielded = never,
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  name: Name,
-  insertion1: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions1,
-    PreviousInsertionsOutputs,
-    Insertions1Yielded
-  >,
-  insertion2: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions2,
-    PreviousInsertionsOutputs & Insertions1,
-    Insertions2Yielded
-  >,
-  insertion3: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions3,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2,
-    Insertions3Yielded
-  >,
-): InsertSelectReturn<
-  StateType,
-  Name,
-  [Insertions1, Insertions2, Insertions3],
-  PreviousInsertionsOutputs
->;
-export function insertSelect<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  Insertions1 = {},
-  Insertions2 = {},
-  Insertions3 = {},
-  Insertions4 = {},
-  PreviousInsertionsOutputs = {},
-  Insertions1Yielded = never,
-  Insertions2Yielded = never,
-  Insertions3Yielded = never,
-  Insertions4Yielded = never,
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  name: Name,
-  insertion1: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions1,
-    PreviousInsertionsOutputs,
-    Insertions1Yielded
-  >,
-  insertion2: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions2,
-    PreviousInsertionsOutputs & Insertions1,
-    Insertions2Yielded
-  >,
-  insertion3: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions3,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2,
-    Insertions3Yielded
-  >,
-  insertion4: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions4,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2 & Insertions3,
-    Insertions4Yielded
-  >,
-): InsertSelectReturn<
-  StateType,
-  Name,
-  [Insertions1, Insertions2, Insertions3, Insertions4],
-  PreviousInsertionsOutputs
->;
-export function insertSelect<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  Insertions1 = {},
-  Insertions2 = {},
-  Insertions3 = {},
-  Insertions4 = {},
-  Insertions5 = {},
-  PreviousInsertionsOutputs = {},
-  Insertions1Yielded = never,
-  Insertions2Yielded = never,
-  Insertions3Yielded = never,
-  Insertions4Yielded = never,
-  Insertions5Yielded = never,
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  name: Name,
-  insertion1: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions1,
-    PreviousInsertionsOutputs,
-    Insertions1Yielded
-  >,
-  insertion2: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions2,
-    PreviousInsertionsOutputs & Insertions1,
-    Insertions2Yielded
-  >,
-  insertion3: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions3,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2,
-    Insertions3Yielded
-  >,
-  insertion4: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions4,
-    PreviousInsertionsOutputs & Insertions1 & Insertions2 & Insertions3,
-    Insertions4Yielded
-  >,
-  insertion5: InsertionsStateFactory<
-    SelectedTarget<StateType, Name>,
-    Insertions5,
-    PreviousInsertionsOutputs &
-      Insertions1 &
-      Insertions2 &
-      Insertions3 &
-      Insertions4,
-    Insertions5Yielded
-  >,
-): InsertSelectReturn<
-  StateType,
-  Name,
-  [Insertions1, Insertions2, Insertions3, Insertions4, Insertions5],
-  PreviousInsertionsOutputs
->;
+): InsertSelectReturn<StateType, Name, [Insertions1], PreviousInsertionsOutputs>;
 
 export function insertSelect(
   name: string,

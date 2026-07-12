@@ -113,7 +113,7 @@ const query = query(
 ### React to mutation with insertReactOnMutation and persist in local storage
 
 ```typescript
-import { insertReactOnMutation } from '@craft-ng/core';
+import { insertPipe, insertReactOnMutation } from '@craft-ng/core';
 
 const updateUserMutation = mutation({
   method: (data: { id: string; name: string; email: string }) => data,
@@ -136,19 +136,24 @@ const userQuery = query(
       }));
     },
   },
-  insertReactOnMutation(updateUserMutation, {
-    // Optimistically update while mutation is loading
-    optimisticPatch: {
-      name: ({ mutationParams }) => mutationParams.name,
-      email: ({ mutationParams }) => mutationParams.email,
-    },
-    // Reload the query if updateUserMutation failed
-    reload: { onMutationException: true },
-  }),
-  insertLocalStoragePersister({
-    storeName: 'demo-app',
-    key: 'user-query',
-  }),
+  // several insertions compose into one with insertPipe
+  (context) =>
+    insertPipe(
+      context,
+      insertReactOnMutation(updateUserMutation, {
+      // Optimistically update while mutation is loading
+      optimisticPatch: {
+        name: ({ mutationParams }) => mutationParams.name,
+        email: ({ mutationParams }) => mutationParams.email,
+      },
+        // Reload the query if updateUserMutation failed
+        reload: { onMutationException: true },
+      }),
+      insertLocalStoragePersister({
+        storeName: 'demo-app',
+        key: 'user-query',
+      }),
+    ),
 );
 
 // When mutation is triggered, query updates immediately (optimistic)

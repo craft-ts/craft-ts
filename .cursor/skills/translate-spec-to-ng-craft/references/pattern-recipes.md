@@ -1,5 +1,13 @@
 # Pattern Recipes
 
+> Composition rule: a primitive takes ONE insertion. When a recipe below lists
+> several insertions for the same primitive, compose them with `insertPipe`,
+> passing the context explicitly, e.g.
+> `query(cfg, (context) => insertPipe(context, insertLocalStoragePersister(...), insertReactOnMutation(...), insertReactOnMutation(...)))`.
+> The same form works for the nested insertions of `insertSelect`:
+> `insertSelect('grid', (gridContext) => insertPipe(gridContext, ...))`.
+> Exception: the form-tree helpers stay variadic.
+
 ## Read-Only List Page
 
 Use:
@@ -38,7 +46,7 @@ Default policy:
 - For single delete, prefer `optimisticUpdate` with `removeOne`.
 - For bulk delete, prefer `optimisticUpdate` with `removeMany`.
 - Enable `reload: { onMutationError: true }` on both optimistic reactions by default.
-- Add a second `insertReactOnMutation(..., { reload: { onMutationResolved: true } })` when optimistic delete can empty the current page and the next page should be reloaded.
+- Add a second `insertReactOnMutation(..., { reload: { onMutationResolved: true } })` when optimistic delete can empty the current page and the next page should be reloaded; compose all the reactions on the list `query` with `(context) => insertPipe(context, ...)`.
 - Add `mutation.identifier` when row-level loading or cancel buttons matter.
 - Use `reactiveWritableSignal` if selection must reset when the current page changes or when delete mutations resolve.
 

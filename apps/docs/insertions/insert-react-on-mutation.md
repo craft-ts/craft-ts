@@ -8,6 +8,47 @@ The `insertReactOnMutation` insertion allows state to automatically react to mut
 import { insertReactOnMutation } from '@craft-ng/core';
 ```
 
+## Combining several reactions (and other insertions)
+
+A query accepts a single insertion; compose several `insertReactOnMutation`
+(and any other insertion) with
+[insertPipe](/insertions/pipe-insertions) — this is the primary
+real-world use case for the pipe:
+
+```typescript
+const users = query(
+  {
+    params: pagination,
+    identifier: (params) => `${params.page}-${params.pageSize}`,
+    loader: function* ({ params }) {
+      return yield* ApiServiceToYield.getDataList(params);
+    },
+  },
+  (context) =>
+    insertPipe(
+      context,
+      insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
+      insertReactOnMutation(deleteUser, {
+        filter: ({ mutationIdentifier, queryResource }) =>
+          !!queryResource.safeValue()?.some((u) => u.id === mutationIdentifier),
+        optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
+          removeOne({ entities: queryResource.value(), id: mutationIdentifier }),
+        reload: { onMutationException: true },
+      }),
+      insertReactOnMutation(deleteUser, {
+        // reload the current page when it becomes empty
+        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
+        reload: { onMutationResolved: true },
+      }),
+      insertReactOnMutation(bulkDelete, {
+        filter: ({ queryResource }) => (queryResource.safeValue()?.length ?? 0) > 0,
+        optimisticUpdate: ({ queryResource, mutationParams }) =>
+          removeMany({ entities: queryResource.value(), ids: mutationParams }),
+      }),
+    ),
+);
+```
+
 ## Basic Usage
 
 ```typescript

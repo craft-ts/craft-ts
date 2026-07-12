@@ -8,6 +8,7 @@ import {
     addOne,
     componentMonitoring,
     insertLocalStoragePersister,
+    insertPipe,
     insertSelect,
     on$,
     provideHostName,
@@ -191,97 +192,105 @@ export default class PixelArtMatrix {
       },
       grid: createInitialGrid(),
     },
-    insertLocalStoragePersister({
-      key: 'pixel-art-matrix-state',
-      storeName: 'pixel-art-matrix',
-    }),
-    () => ({
-      resetAll$: source$<void>(),
-    }),
-    insertSelect('ui', ({ set, insertions: { resetAll$ } }) => ({
-      resetColor$: on$(resetAll$, () =>
-        set({ activeColor: DEFAULT_ACTIVE_COLOR }),
-      ),
-      setActiveColor: (color: string) => set({ activeColor: color }),
-    })),
-    insertSelect(
-      'grid',
-      ({ state, update, set, insertions: { resetAll$ } }) => ({
-        paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
-        addRow: () =>
-          update((currentGrid) => [...currentGrid, createNextRow(currentGrid)]),
-        resetGrid: on$(resetAll$, () => set(createInitialGrid())),
-        rowIndexes: computed(() => state().map((_row, index) => index)),
-        totalCells: computed(() =>
-          state().reduce((count, row) => count + row.length, 0),
-        ),
-        paintedCount: computed(() =>
-          state().reduce(
-            (count, row) =>
-              count + row.filter((cell) => cell.color !== EMPTY_COLOR).length,
-            0,
-          ),
-        ),
+    (context) =>
+      insertPipe(
+      context,
+      insertLocalStoragePersister({
+        key: 'pixel-art-matrix-state',
+        storeName: 'pixel-art-matrix',
       }),
-      insertSelect(
-        'row',
-        ({ state, set }) => ({
-          addCell: () => {
-            const nextIndex = state().reduce(
-              (max, cell) => Math.max(max, cell.index),
-              -1,
-            );
-            return set(
-              addOne({
-                entities: state(),
-                entity: createNewCell(nextIndex, state),
-              }),
-            );
-          },
-          paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
+      () => ({
+        resetAll$: source$<void>(),
+      }),
+      insertSelect('ui', ({ set, insertions: { resetAll$ } }) => ({
+        resetColor$: on$(resetAll$, () =>
+          set({ activeColor: DEFAULT_ACTIVE_COLOR }),
+        ),
+        setActiveColor: (color: string) => set({ activeColor: color }),
+      })),
+      insertSelect('grid', (gridContext) =>
+        insertPipe(
+          gridContext,
+          ({ state, update, set, insertions: { resetAll$ } }) => ({
+          paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
+          addRow: () =>
+            update((currentGrid) => [...currentGrid, createNextRow(currentGrid)]),
+          resetGrid: on$(resetAll$, () => set(createInitialGrid())),
+          rowIndexes: computed(() => state().map((_row, index) => index)),
+          totalCells: computed(() =>
+            state().reduce((count, row) => count + row.length, 0),
+          ),
+          paintedCount: computed(() =>
+            state().reduce(
+              (count, row) =>
+                count + row.filter((cell) => cell.color !== EMPTY_COLOR).length,
+              0,
+            ),
+          ),
         }),
-        insertSelect(
-          'cell',
-          ({
-            state,
-            update,
-            patch,
-            insertions: {
-              paintRowWithTargetCellColor$,
-              paintColumnWithTargetCellColor$,
+          insertSelect('row', (rowContext) =>
+            insertPipe(
+              rowContext,
+              ({ state, set }) => ({
+            addCell: () => {
+              const nextIndex = state().reduce(
+                (max, cell) => Math.max(max, cell.index),
+                -1,
+              );
+              return set(
+                addOne({
+                  entities: state(),
+                  entity: createNewCell(nextIndex, state),
+                }),
+              );
             },
-          }) => ({
-            paint: () =>
-              patch(({ color, paintCount }) => ({
-                color:
-                  color === this.matrix.selectUi().activeColor
-                    ? EMPTY_COLOR
-                    : this.matrix.selectUi().activeColor,
-                paintCount: paintCount + 1,
-              })),
-            paintCountStr: computed(
-              () => `Painted ${state().paintCount} times`,
-            ),
-            paintCellOnSameRow: on$(paintRowWithTargetCellColor$, ({ color }) =>
-              patch(({ paintCount }) => ({
-                color,
-                paintCount: paintCount + 1,
-              })),
-            ),
-            paintCellOnSameColumn: on$(
-              paintColumnWithTargetCellColor$,
-              ({ color, cellIndex }) =>
-                update((targetCell) =>
-                  targetCell.columnIndex === cellIndex
-                    ? {
-                        ...targetCell,
-                        color,
-                        paintCount: targetCell.paintCount + 1,
-                      }
-                    : targetCell,
-                ),
-            ),
+            paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
           }),
+          insertSelect(
+            'cell',
+            ({
+              state,
+              update,
+              patch,
+              insertions: {
+                paintRowWithTargetCellColor$,
+                paintColumnWithTargetCellColor$,
+              },
+            }) => ({
+              paint: () =>
+                patch(({ color, paintCount }) => ({
+                  color:
+                    color === this.matrix.selectUi().activeColor
+                      ? EMPTY_COLOR
+                      : this.matrix.selectUi().activeColor,
+                  paintCount: paintCount + 1,
+                })),
+              paintCountStr: computed(
+                () => `Painted ${state().paintCount} times`,
+              ),
+              paintCellOnSameRow: on$(paintRowWithTargetCellColor$, ({ color }) =>
+                patch(({ paintCount }) => ({
+                  color,
+                  paintCount: paintCount + 1,
+                })),
+              ),
+              paintCellOnSameColumn: on$(
+                paintColumnWithTargetCellColor$,
+                ({ color, cellIndex }) =>
+                  update((targetCell) =>
+                    targetCell.columnIndex === cellIndex
+                      ? {
+                          ...targetCell,
+                          color,
+                          paintCount: targetCell.paintCount + 1,
+                        }
+                      : targetCell,
+                  ),
+              ),
+              }),
+              ),
+            ),
+          ),
         ),
       ),
     ),

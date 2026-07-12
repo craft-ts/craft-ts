@@ -5,8 +5,8 @@ import {
     craftMethod,
     craftService,
     insertLocalStoragePersister,
-    insertPaginationPlaceholderData,
-    insertReactOnMutation,
+    insertPaginationPlaceholderData,    insertReactOnMutation,
+    insertPipe,
     mutation,
     provideHostName,
     query,
@@ -68,26 +68,30 @@ const {
         return yield* ApiServiceToYield.getDataList(pagination);
       },
     },
-    insertLocalStoragePersister({
-      storeName: 'demo-app-craft',
-      key: 'granular',
-    }),
-    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-    insertReactOnMutation(updateUserName, {
-      filter: ({ mutationIdentifier, queryResource }) =>
-        queryResource
-          .safeValue()
-          ?.some((item) => item.id === mutationIdentifier) ?? false,
-      optimisticUpdate: ({
-        queryResource,
-        mutationIdentifier,
-        mutationParams,
-      }) => {
-        return queryResource.value()?.map((item) => {
-          return item.id === mutationIdentifier ? mutationParams : item;
-        });
-      },
-    }),
+    (context) =>
+      insertPipe(
+      context,
+      insertLocalStoragePersister({
+        storeName: 'demo-app-craft',
+        key: 'granular',
+      }),
+      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+      insertReactOnMutation(updateUserName, {
+        filter: ({ mutationIdentifier, queryResource }) =>
+          queryResource
+            .safeValue()
+            ?.some((item) => item.id === mutationIdentifier) ?? false,
+        optimisticUpdate: ({
+          queryResource,
+          mutationIdentifier,
+          mutationParams,
+        }) => {
+          return queryResource.value()?.map((item) => {
+            return item.id === mutationIdentifier ? mutationParams : item;
+          });
+        },
+      }),
+    ),
   );
 
   return { pagination, users, updateUserName };

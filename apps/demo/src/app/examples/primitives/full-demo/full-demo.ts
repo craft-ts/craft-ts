@@ -15,10 +15,9 @@ import {
     insertFormSubmit,
     insertLocalStoragePersister,
     insertNoopTypingAnchor,
-    insertPaginationPlaceholderData,
-    insertReactOnMutation,
-    insertSelectFormTree,
-    mutation,
+    insertPaginationPlaceholderData,    insertReactOnMutation,
+    insertPipe,
+    insertSelectFormTree,    mutation,
     on$,
     provideHostName,
     query,
@@ -427,69 +426,73 @@ export default class FullDemo {
         return yield* ApiServiceToYield.getDataList(pagination);
       },
     },
-    insertLocalStoragePersister({
-      storeName: 'demo-app-full-demo',
-      key: 'granular',
-    }),
-    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-    insertReactOnMutation(this.deleteUser, {
-      filter: ({ mutationIdentifier, queryResource }) =>
-        !!queryResource
-          .safeValue()
-          ?.some((item) => item.id === mutationIdentifier),
-      optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-        removeOne({
-          entities: queryResource.value(),
-          id: mutationIdentifier,
-        }),
-      reload: {
-        onMutationException: true,
-      },
-    }),
-    insertReactOnMutation(this.deleteUser, {
-      filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
-      reload: {
-        // reload the current page if there is no more data after mutation
-        onMutationResolved: true,
-      },
-    }),
-    insertReactOnMutation(this.bulkDelete, {
-      filter: ({ queryResource }) =>
-        (queryResource.safeValue()?.length ?? 0) > 0,
-      optimisticUpdate: ({ queryResource, mutationParams }) =>
-        removeMany({
-          entities: queryResource.value(),
-          ids: mutationParams,
-        }),
-      reload: {
-        onMutationException: true,
-      },
-    }),
-    insertReactOnMutation(this.bulkDelete, {
-      filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
-      reload: {
-        // reload the current page if there is no more data after mutation
-        onMutationResolved: ({ queryResource }) =>
-          queryResource.safeValue()?.length === 0,
-      },
-    }),
-    insertReactOnMutation(this.updateUserName, {
-      filter: ({ mutationIdentifier, queryResource }) =>
-        !!queryResource
-          .safeValue()
-          ?.some((item) => item.id === mutationIdentifier),
-      optimisticUpdate: ({ queryResource, mutationParams }) =>
-        updateOne({
-          entities: queryResource.value(),
-          update: {
-            id: mutationParams.id,
-            changes: mutationParams,
-          },
-        }),
-      reload: {
-        onMutationException: true,
-      },
-    }),
+    (context) =>
+      insertPipe(
+      context,
+      insertLocalStoragePersister({
+        storeName: 'demo-app-full-demo',
+        key: 'granular',
+      }),
+      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+      insertReactOnMutation(this.deleteUser, {
+        filter: ({ mutationIdentifier, queryResource }) =>
+          !!queryResource
+            .safeValue()
+            ?.some((item) => item.id === mutationIdentifier),
+        optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
+          removeOne({
+            entities: queryResource.value(),
+            id: mutationIdentifier,
+          }),
+        reload: {
+          onMutationException: true,
+        },
+      }),
+      insertReactOnMutation(this.deleteUser, {
+        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
+        reload: {
+          // reload the current page if there is no more data after mutation
+          onMutationResolved: true,
+        },
+      }),
+      insertReactOnMutation(this.bulkDelete, {
+        filter: ({ queryResource }) =>
+          (queryResource.safeValue()?.length ?? 0) > 0,
+        optimisticUpdate: ({ queryResource, mutationParams }) =>
+          removeMany({
+            entities: queryResource.value(),
+            ids: mutationParams,
+          }),
+        reload: {
+          onMutationException: true,
+        },
+      }),
+      insertReactOnMutation(this.bulkDelete, {
+        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
+        reload: {
+          // reload the current page if there is no more data after mutation
+          onMutationResolved: ({ queryResource }) =>
+            queryResource.safeValue()?.length === 0,
+        },
+      }),
+      insertReactOnMutation(this.updateUserName, {
+        filter: ({ mutationIdentifier, queryResource }) =>
+          !!queryResource
+            .safeValue()
+            ?.some((item) => item.id === mutationIdentifier),
+        optimisticUpdate: ({ queryResource, mutationParams }) =>
+          updateOne({
+            entities: queryResource.value(),
+            update: {
+              id: mutationParams.id,
+              changes: mutationParams,
+            },
+          }),
+        reload: {
+          onMutationException: true,
+        },
+      }),
+    ),
   );
 
   private readonly currentUsersPageResource = computed(() => {
@@ -503,42 +506,50 @@ export default class FullDemo {
 
   protected readonly usersByPage = state(
     computed(() => this.usersQuery.currentPageData() ?? []),
-    () => ({
-      status: computed(() =>
-        this.currentUsersPageResource()?.hasException()
-          ? 'exception'
-          : (this.currentUsersPageResource()?.status() ?? 'idle'),
-      ),
-      isLoading: computed(
-        () => this.currentUsersPageResource()?.isLoading() ?? false,
-      ),
-      exceptions: computed(() => this.currentUsersPageResource()?.exceptions()),
-      displayUsers: computed(() => !!this.usersQuery.currentPageData()?.length),
-    }),
-    insertForm(
-      { identifier: ({ item: { id } }) => id },
-      insertFormSubmit(this.updateUserName),
-      insertSelectFormTree(
-        'name',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired(), cMinLength({ minLength: 3 })],
-        })),
-      ),
-      () => {
-        const isEditing = signal<boolean>(false);
+    (context) =>
+      insertPipe(
+      context,
+      () => ({
+        status: computed(() =>
+          this.currentUsersPageResource()?.hasException()
+            ? 'exception'
+            : (this.currentUsersPageResource()?.status() ?? 'idle'),
+        ),
+        isLoading: computed(
+          () => this.currentUsersPageResource()?.isLoading() ?? false,
+        ),
+        exceptions: computed(() =>
+          this.currentUsersPageResource()?.exceptions(),
+        ),
+        displayUsers: computed(
+          () => !!this.usersQuery.currentPageData()?.length,
+        ),
+      }),
+      insertForm(
+        { identifier: ({ item: { id } }) => id },
+        insertFormSubmit(this.updateUserName),
+        insertSelectFormTree(
+          'name',
+          insertNoopTypingAnchor,
+          insertFormAttributes(() => ({
+            validators: [cRequired(), cMinLength({ minLength: 3 })],
+          })),
+        ),
+        () => {
+          const isEditing = signal<boolean>(false);
 
-        return {
-          isEditing: isEditing.asReadonly(),
-          toggleEditing: () => isEditing.update((v) => !v),
-        };
-      },
-    ),
-    ({ state, insertions: { select } }) => ({
-      disablePaginationWhileEditing: computed(() =>
-        state().some(({ id }) => !!select(id)?.isEditing?.()),
+          return {
+            isEditing: isEditing.asReadonly(),
+            toggleEditing: () => isEditing.update((v) => !v),
+          };
+        },
       ),
-    }),
+      ({ state, insertions: { select } }) => ({
+        disablePaginationWhileEditing: computed(() =>
+          state().some(({ id }) => !!select(id)?.isEditing?.()),
+        ),
+      }),
+    ),
   );
 
   protected readonly selectedRows = state(
@@ -562,42 +573,51 @@ export default class FullDemo {
             : current,
       ),
     })),
-    ({ state: selectedRows }) => ({
-      isAllSelected: computed(
-        () =>
-          this.usersQuery.currentPageData()?.length &&
-          this.usersQuery
-            .currentPageData()
-            ?.every((user) => selectedRows().includes(user.id)),
-      ),
-    }),
-    ({ update, set, state: selectedRows, insertions: { isAllSelected } }) => ({
-      toggleSelection: (id: string) =>
-        update((current) =>
-          current.includes(id)
-            ? current.filter((item) => item !== id)
-            : [...current, id],
+    (context) =>
+      insertPipe(
+      context,
+      ({ state: selectedRows }) => ({
+        isAllSelected: computed(
+          () =>
+            this.usersQuery.currentPageData()?.length &&
+            this.usersQuery
+              .currentPageData()
+              ?.every((user) => selectedRows().includes(user.id)),
         ),
-      isSelected: (id: string) => selectedRows().includes(id),
-      isAllSelected,
-      isSomeSelected: computed(
-        () =>
-          this.usersQuery
-            .currentPageData()
-            ?.some((user) => selectedRows().includes(user.id)) &&
-          !isAllSelected(),
-      ),
-      toggleAllSelection: () => {
-        if (isAllSelected()) {
-          set([]);
-        } else {
-          const allIds =
-            this.usersQuery.currentPageData()?.map((user) => user.id) || [];
-          set(allIds);
-        }
-      },
-      reset: on$(this.reset$, () => set([])),
-    }),
+      }),
+      ({
+        update,
+        set,
+        state: selectedRows,
+        insertions: { isAllSelected },
+      }) => ({
+        toggleSelection: (id: string) =>
+          update((current) =>
+            current.includes(id)
+              ? current.filter((item) => item !== id)
+              : [...current, id],
+          ),
+        isSelected: (id: string) => selectedRows().includes(id),
+        isAllSelected,
+        isSomeSelected: computed(
+          () =>
+            this.usersQuery
+              .currentPageData()
+              ?.some((user) => selectedRows().includes(user.id)) &&
+            !isAllSelected(),
+        ),
+        toggleAllSelection: () => {
+          if (isAllSelected()) {
+            set([]);
+          } else {
+            const allIds =
+              this.usersQuery.currentPageData()?.map((user) => user.id) || [];
+            set(allIds);
+          }
+        },
+        reset: on$(this.reset$, () => set([])),
+      }),
+    ),
   );
 
   protected updatePageSize(event: Event) {

@@ -227,8 +227,11 @@ export interface QueryParamConfig<
  *   - `onSameUrlNavigation` (optional): Behavior on same URL navigation ('reload' | 'ignore')
  *   - `replaceUrl` (optional): Whether to replace the URL in browser history
  *   - `skipLocationChange` (optional): Whether to skip updating the browser's location
- * @param insertions - Optional insertion functions to add custom methods, computed values or side effects to the query param manager.
- *   Insertions receive context with `state`, `config`, `set`, `update`, `patch`, `reset` and previous insertions.
+ * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query param manager.
+ *   The insertion receives a context with `state`, `config`, `set`, `update`, `patch` and `reset`.
+ *   To attach several insertions, compose them with `insertPipe`:
+ *   `queryParam(config, (context) => insertPipe(context, insertion1, insertion2))` —
+ *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
  * @returns A signal that returns the current query parameter state, extended with:
  *   - Individual signals for each query parameter (e.g., `queryParam.page()`)
@@ -336,74 +339,6 @@ export function queryParam<
   Insertion1,
   QueryParamsState,
   QueryParamTrackedDependencies<QueryParamsType, Insertion1Yielded>
->;
-export function queryParam<
-  QueryParamsType extends Record<string, AnyQueryParamConfig>,
-  Insertion1,
-  Insertion2,
-  Insertion1Yielded = never,
-  Insertion2Yielded = never,
-  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
->(
-  config: { state: QueryParamsType } & QueryParamNavigationOptions,
-  insertion1: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsType>,
-    Insertion1,
-    {},
-    Insertion1Yielded
-  >,
-  insertion2: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsType>,
-    Insertion2,
-    Insertion1,
-    Insertion2Yielded
-  >,
-): QueryParamOutput<
-  QueryParamsType,
-  Insertion1 & Insertion2,
-  QueryParamsState,
-  QueryParamTrackedDependencies<
-    QueryParamsType,
-    Insertion1Yielded | Insertion2Yielded
-  >
->;
-export function queryParam<
-  QueryParamsType extends Record<string, AnyQueryParamConfig>,
-  Insertion1,
-  Insertion2,
-  Insertion3,
-  Insertion1Yielded = never,
-  Insertion2Yielded = never,
-  Insertion3Yielded = never,
-  QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
->(
-  config: { state: QueryParamsType } & QueryParamNavigationOptions,
-  insertion1: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsType>,
-    Insertion1,
-    {},
-    Insertion1Yielded
-  >,
-  insertion2: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsType>,
-    Insertion2,
-    Insertion1,
-    Insertion2Yielded
-  >,
-  insertion3: InsertionsQueryParamsFactory<
-    NoInfer<QueryParamsType>,
-    Insertion3,
-    Insertion1 & Insertion2,
-    Insertion3Yielded
-  >,
-): QueryParamOutput<
-  QueryParamsType,
-  Insertion1 & Insertion2 & Insertion3,
-  QueryParamsState,
-  QueryParamTrackedDependencies<
-    QueryParamsType,
-    Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
-  >
 >;
 /**
  *

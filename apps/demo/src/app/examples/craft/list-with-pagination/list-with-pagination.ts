@@ -5,8 +5,8 @@ import {
     craftMethod,
     craftService,
     insertLocalStoragePersister,
-    insertPaginationPlaceholderData,
-    provideHostName,
+    insertPaginationPlaceholderData,    provideHostName,
+    insertPipe,
     query,
     queryParam,
     type ExtractDeps,
@@ -53,15 +53,19 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
           return yield* ApiServiceToYield.getDataList(pagination);
         },
       },
-      insertLocalStoragePersister({
-        storeName: 'demo-app-craft',
-        key: 'list-with-pagination',
-      }),
-      insertPaginationPlaceholderData(
-        { initialValue: [] as User[] },
-        ({ state }) => ({
-          total: computed(() => state().length),
+      (context) =>
+        insertPipe(
+        context,
+        insertLocalStoragePersister({
+          storeName: 'demo-app-craft',
+          key: 'list-with-pagination',
         }),
+        insertPaginationPlaceholderData(
+          { initialValue: [] as User[] },
+          ({ state }) => ({
+            total: computed(() => state().length),
+          }),
+        ),
       ),
     );
 

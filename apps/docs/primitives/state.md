@@ -50,17 +50,23 @@ console.log(counter()); // 0
 
 ### State with multiple insertions (methods and computed properties)
 
+Compose several insertions into one with [insertPipe](/insertions/pipe-insertions):
+
 ```typescript
 const origin = signal(5);
 const counter = state(
   computed(() => origin() * 2),
-  ({ update, set }) => ({
-    increment: () => update((current) => current + 1),
-    reset: () => set(0),
-  }),
-  ({ state }) => ({
-    isOdd: computed(() => state() % 2 === 1),
-  }),
+  (context) =>
+    insertPipe(
+      context,
+      ({ update, set }) => ({
+        increment: () => update((current) => current + 1),
+        reset: () => set(0),
+      }),
+      ({ state }) => ({
+        isOdd: computed(() => state() % 2 === 1),
+      }),
+    ),
 );
 
 console.log(counter()); // 10
@@ -95,21 +101,25 @@ console.log(myState()); // 0
 ```typescript
 state(
   0,
-  ({ update }, { logger = inject(Logger) }) => ({
-    increment: () => {
-      logger.log('Incrementing state');
-      update((v) => v + 1);
-    },
-  }),
-  // log each time the state value changes
-  function* ({ state }) {
-    const log = yield* Console.log;
+  (context) =>
+    insertPipe(
+      context,
+      ({ update }, { logger = inject(Logger) }) => ({
+        increment: () => {
+          logger.log('Incrementing state');
+          update((v) => v + 1);
+        },
+      }),
+      // log each time the state value changes
+      function* ({ state }) {
+        const log = yield* Console.log;
 
-    effect(() => {
-      log(`State value changed: ${state()}`);
-    });
-    return {};
-  },
+        effect(() => {
+          log(`State value changed: ${state()}`);
+        });
+        return {};
+      },
+    ),
 );
 ```
 

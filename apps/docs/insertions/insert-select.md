@@ -89,22 +89,51 @@ The dependencies are tracked at the primitive level.
 
 2. This currently breaks type inference. An improvement is planned.
 
-::: warning TypeScript inference limitation (workaround)
-In some nested cases, TypeScript can lose contextual typing (for example when selecting an array property and chaining another `insertSelect` immediately).
+::: tip Nested typing
+With `insertPipe` the selected context is re-passed explicitly at every level,
+so TypeScript keeps full contextual typing in nested `insertSelect` chains —
+the historical `insertNoopTypingAnchor` workaround is no longer needed here
+(it remains useful for the form-tree helpers).
+:::
 
-You can force TypeScript to preserve the typing context by inserting the no-op helper `insertNoopTypingAnchor` before the nested insertion:
+## insertSelect and insertPipe
+
+Like the primitives, `insertSelect` accepts a **single** nested insertion. To
+attach several, re-pass the selected context through
+[insertPipe](/insertions/pipe-insertions):
 
 ```ts
-insertSelect(
-  'grid',
-  insertNoopTypingAnchor,
-  insertSelect('row', ({ update }) => ({
-    // ...
-  })),
+state(
+  { grid: createInitialGrid() },
+  insertSelect('grid', (gridContext) =>
+    insertPipe(
+      gridContext,
+      ({ state, update }) => ({
+        addRow: () => update((grid) => [...grid, createNextRow(grid)]),
+      }),
+      insertSelect('row', ({ update }) => ({
+        // ...
+      })),
+    ),
+  ),
 );
 ```
 
-:::
+`insertSelect` also composes as a **member** of a pipe:
+
+```ts
+state(
+  initialCells,
+  (context) =>
+    insertPipe(
+      context,
+      insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
+      insertSelect('cell', ({ update }) => ({
+        paint: () => update((cell) => ({ ...cell, painted: true })),
+      })),
+    ),
+);
+```
 
 ## Pixel Art examples
 
@@ -113,4 +142,5 @@ insertSelect(
 
 ## See also
 
+- [insertPipe](/insertions/pipe-insertions) - Compose several insertions on one primitive
 - [state](/primitives/state)

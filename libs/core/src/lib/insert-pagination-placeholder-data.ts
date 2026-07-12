@@ -121,10 +121,12 @@ export function insertPaginationPlaceholderData<
   build?: (context: PaginationBuildContext<PageState>) => ExtraOutputs,
 ) {
   // The returned factory is generic over the query's shape (GroupIdentifier,
-  // ResourceParams, Exceptions, PreviousInsertionsOutputs) so that `query` keeps a
-  // proper inference anchor for those generics — in particular `Exceptions`, which
-  // would otherwise collapse to its empty default. Only `ResourceState` is fixed,
-  // to `PageState` (inferred from `config.initialValue`).
+  // ResourceParams, Exceptions, PreviousInsertionsOutputs) so it adapts to any
+  // query and its context stays precisely typed. Note: since the primitives
+  // wrap every shape generic of their insertion slot in `NoInfer` (including
+  // `Exceptions`), a factory can no longer degrade the primitive's inference —
+  // the generic shape here is about the factory's own context typing. Only
+  // `ResourceState` is fixed, to `PageState` (inferred from `config.initialValue`).
   return <
     GroupIdentifier extends string,
     ResourceParams,

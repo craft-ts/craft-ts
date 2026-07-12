@@ -41,6 +41,7 @@ Prioritize documented public APIs from `libs/core/src/index.ts`, `apps/docs`, an
 
 ## Default Heuristics
 
+- A primitive accepts ONE insertion. When composing 2+ insertions on the same primitive, use the universal `insertPipe` with an explicit context: `primitive(config, (context) => insertPipe(context, insertion1, insertion2))`. Never generate the removed variadic form `primitive(config, insertion1, insertion2)`. The same form applies to the nested insertions of `insertSelect`: `insertSelect('grid', (gridContext) => insertPipe(gridContext, ...))`. Exception: the form-tree helpers stay variadic.
 - When a mutation affects data already visible in a `query`, add `insertReactOnMutation` on the `query`.
 - When the optimistic path is obvious, prefer `optimisticPatch` for shallow field edits and `optimisticUpdate` for array or structural changes.
 - When using optimistic update, enable `reload: { onMutationError: true }` by default unless the spec forbids a refetch.

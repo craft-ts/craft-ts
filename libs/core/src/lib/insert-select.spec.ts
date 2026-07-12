@@ -11,7 +11,7 @@ import { insertSelect } from './insert-select';
 import { on$ } from './on$';
 import { Source$, source$ } from './source$';
 import { state } from './state';
-import { insertNoopTypingAnchor } from './insert-noop-typing-anchor';
+import { insertPipe } from './pipe-insertions';
 import { provideFnWrapper } from './fn-wrapper';
 import {
   injectStateMethodRuntimeContext,
@@ -87,19 +87,22 @@ describe('insertSelect', () => {
             ],
           ] as PixelCellState[][],
         },
-        insertSelect(
-          'grid',
-          insertNoopTypingAnchor,
-          insertSelect(
-            'row',
-            ({ state }) => ({
-              paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
+        insertSelect('grid', (gridContext) =>
+          insertPipe(
+            gridContext,
+            insertSelect('row', (rowContext) =>
+              insertPipe(
+                rowContext,
+                ({ state }) => ({
+                  paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
+                }),
+                insertSelect('cell', ({ state }) => ({})),
+              ),
+            ),
+            ({ state, set, update }) => ({
+              paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
             }),
-            insertSelect('cell', ({ state }) => ({})),
           ),
-          ({ state, set, update }) => ({
-            paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
-          }),
         ),
       );
 
@@ -236,19 +239,24 @@ describe('insertSelect', () => {
             },
           },
         ],
-        insertSelect(
-          'row',
-          insertSelect(
-            'cell',
-            insertNoopTypingAnchor,
-            insertSelect('style', ({ update }) => ({
-              paintStyle: () =>
-                update((style) => ({
-                  ...style,
-                  color: 'black',
-                  paintCount: style.paintCount + 1,
+        insertSelect('row', (rowContext) =>
+          insertPipe(
+            rowContext,
+            () => ({}),
+            insertSelect('cell', (cellContext) =>
+              insertPipe(
+                cellContext,
+                () => ({}),
+                insertSelect('style', ({ update }) => ({
+                  paintStyle: () =>
+                    update((style) => ({
+                      ...style,
+                      color: 'black',
+                      paintCount: style.paintCount + 1,
+                    })),
                 })),
-            })),
+              ),
+            ),
           ),
         ),
       );
@@ -275,14 +283,17 @@ describe('insertSelect', () => {
             paintCount: 0,
           },
         },
-        () => {
-          const test = source$<number>();
-          return {
-            test,
-            emitTest: (value: number) => test.emit(value),
-          };
-        },
-        insertSelect('cell', ({ state, update, insertions }) => {
+        (context) =>
+          insertPipe(
+          context,
+          () => {
+            const test = source$<number>();
+            return {
+              test,
+              emitTest: (value: number) => test.emit(value),
+            };
+          },
+          insertSelect('cell', ({ state, update, insertions }) => {
           expectTypeOf(insertions).toEqualTypeOf<{
             test: Source$<number>;
             emitTest: (value: number) => void;
@@ -298,7 +309,8 @@ describe('insertSelect', () => {
                 `Painted ${state().paintCount} times with ${insertions.test.value() ?? 0}`,
             ),
           };
-        }),
+          }),
+        ),
       );
 
       expectTypeOf(board.selectCell().paintFromTest).toEqualTypeOf<
@@ -320,14 +332,17 @@ describe('insertSelect', () => {
     runInInjectionContext(() => {
       const cells = state(
         [{ index: 0, paintCount: 0 }],
-        () => {
-          const test = source$<number>();
-          return {
-            test,
-            emitTest: (value: number) => test.emit(value),
-          };
-        },
-        insertSelect('cell', ({ state, update, insertions }) => {
+        (context) =>
+          insertPipe(
+          context,
+          () => {
+            const test = source$<number>();
+            return {
+              test,
+              emitTest: (value: number) => test.emit(value),
+            };
+          },
+          insertSelect('cell', ({ state, update, insertions }) => {
           expectTypeOf(insertions).toEqualTypeOf<{
             test: Source$<number>;
             emitTest: (value: number) => void;
@@ -343,7 +358,8 @@ describe('insertSelect', () => {
                 `Painted ${state().paintCount} times with ${insertions.test.value() ?? 0}`,
             ),
           };
-        }),
+          }),
+        ),
       );
 
       expectTypeOf(cells.selectCell(0)?.incrementFromTest).toEqualTypeOf<
@@ -369,37 +385,9 @@ describe('insertSelect', () => {
     runInInjectionContext(() => {
       const cells = state(
         [{ index: 0, paintCount: 0, color: 'white' }],
-        insertSelect(
-          'cell',
-          () => ({
-            paintCell$: source$<string>(),
-          }),
-          ({ update, insertions: { paintCell$ } }) => ({
-            _paintCell: on$(paintCell$, (color) =>
-              update((cell) => ({
-                ...cell,
-                color,
-                paintCount: cell.paintCount + 1,
-              })),
-            ),
-          }),
-        ),
-      );
-      TestBed.tick();
-      cells.selectCell(0)?.paintCell$('red');
-      expect(cells.selectCell(0)?.color).toBe('red');
-      expect(cells.selectCell(0)?.paintCount).toBe(1);
-    });
-  });
-  it('should expose cross-layer source$ from nested insertions', () => {
-    runInInjectionContext(() => {
-      const cells = state(
-        { data: [{ index: 0, paintCount: 0, color: 'white' }] },
-        insertSelect(
-          'data',
-          insertNoopTypingAnchor,
-          insertSelect(
-            'cell',
+        insertSelect('cell', (cellContext) =>
+          insertPipe(
+            cellContext,
             () => ({
               paintCell$: source$<string>(),
             }),
@@ -412,6 +400,40 @@ describe('insertSelect', () => {
                 })),
               ),
             }),
+          ),
+        ),
+      );
+      TestBed.tick();
+      cells.selectCell(0)?.paintCell$('red');
+      expect(cells.selectCell(0)?.color).toBe('red');
+      expect(cells.selectCell(0)?.paintCount).toBe(1);
+    });
+  });
+  it('should expose cross-layer source$ from nested insertions', () => {
+    runInInjectionContext(() => {
+      const cells = state(
+        { data: [{ index: 0, paintCount: 0, color: 'white' }] },
+        insertSelect('data', (dataContext) =>
+          insertPipe(
+            dataContext,
+            () => ({}),
+            insertSelect('cell', (cellContext) =>
+              insertPipe(
+                cellContext,
+                () => ({
+                  paintCell$: source$<string>(),
+                }),
+                ({ update, insertions: { paintCell$ } }) => ({
+                  _paintCell: on$(paintCell$, (color) =>
+                    update((cell) => ({
+                      ...cell,
+                      color,
+                      paintCount: cell.paintCount + 1,
+                    })),
+                  ),
+                }),
+              ),
+            ),
           ),
         ),
       );

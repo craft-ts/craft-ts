@@ -1,5 +1,5 @@
 import { inject, InjectionToken, type Provider } from '@angular/core';
-import { isGeneratorFunction } from './craft-generator-runtime';
+import { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
 
 export { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
 
@@ -75,6 +75,16 @@ function toGeneratorFactory(factory: AnyFactory): AnyGeneratorFactory {
     return factory as AnyGeneratorFactory;
   }
   return function* (this: unknown, ...args: unknown[]) {
-    return factory.apply(this, args);
+    const result = factory.apply(this, args);
+    // A sync factory may legally RETURN a generator (`(ctx) => Outputs |
+    // Generator`). The unwrapped path drives it (`isGenerator(result)` in
+    // executeGeneratorCompatibleFactory); delegate here too, otherwise the
+    // generator becomes the wrapper generator's return VALUE, is never
+    // driven, and the factory's outputs are silently lost whenever any
+    // FN_WRAPPER (correlation-id tracking, app snapshots) is installed.
+    if (isGenerator(result)) {
+      return yield* result;
+    }
+    return result;
   };
 }

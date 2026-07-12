@@ -137,6 +137,23 @@ Default: Use when the spec mentions programmatic navigation or link generation f
 
 ## Insertions
 
+Every primitive accepts **one** insertion. To attach several insertions,
+compose them with the universal `insertPipe`, passing the context explicitly:
+`primitive(config, (context) => insertPipe(context, insertion1, insertion2))`.
+Members run left to right, previous outputs are visible on
+`context.insertions`. Generated code MUST use this form — the variadic
+`primitive(config, insertion1, insertion2, ...)` signature no longer exists.
+The same applies to the nested insertions of `insertSelect`
+(`insertSelect('grid', (gridContext) => insertPipe(gridContext, ...))`).
+Exception: the form-tree helpers
+(`insertForm`/`insertSelectFormTree`/`makeFormTreeInsert`) stay variadic.
+
+### `insertPipe`
+
+Match: `plusieurs insertions`, `combine insertions`, `persister + optimistic update`, `several reactions on one query`.
+Pair with: every insertion below.
+Default: Wrap 2+ insertions of one primitive in `(context) => insertPipe(context, ...)`; a single insertion is passed directly without a pipe.
+
 ### `insertReactOnMutation`
 
 Match: `optimistic update`, `keep list in sync`, `instant UI update`, `cache invalidation`, `reload on failure`, `patch visible data after mutation`, `remove row immediately`, `sync query with mutation`.
@@ -164,14 +181,14 @@ Default: Use this when the spec repeatedly talks about item-level collection ope
 ### `insertSelect`
 
 Match: `nested state`, `row-level behavior`, `cell`, `grid`, `sub-tree`, `select nested object`, `per-item nested methods`.
-Pair with: `state`, `insertNoopTypingAnchor`.
-Default: Use this for object or array sub-state behavior. Keep `insertNoopTypingAnchor` nearby if TypeScript loses contextual typing.
+Pair with: `state`, `insertPipe`.
+Default: Use this for object or array sub-state behavior. It accepts ONE nested insertion; for several, use `insertSelect('name', (selectedContext) => insertPipe(selectedContext, ...))`.
 
 ### `insertNoopTypingAnchor`
 
-Match: `TypeScript inference breaks`, `nested insertSelect typing issue`, `form tree typing issue`.
-Pair with: `insertSelect`, `insertSelectFormTree`.
-Default: Use only as a typing anchor. It is not a product-level match by itself.
+Match: `form tree typing issue`.
+Pair with: `insertSelectFormTree`.
+Default: Use only as a typing anchor for the form-tree helpers. No longer needed with `insertSelect` (insertPipe preserves nested contextual typing).
 
 ## Entity Helpers
 

@@ -4,6 +4,7 @@ import {
     componentMonitoring,
     injectCraftRouter,
     insertLocalStoragePersister,
+    insertPipe,
     insertReactOnMutation,
     mutation,
     provideHostName,
@@ -73,15 +74,19 @@ export default class MutationDemoComponent {
       loader: ({ params: userId }) => this.apiService.getItemById(userId),
       preservePreviousValue: () => true, // keep the previous user display while the new one fetching
     },
-    insertLocalStoragePersister({
-      storeName: 'demo-app',
-      key: 'mutation',
-    }),
-    insertReactOnMutation(this.updateUserName, {
-      optimisticPatch: {
-        name: ({ mutationParams: { name } }) => name,
-      },
-    }),
+    (context) =>
+      insertPipe(
+      context,
+      insertLocalStoragePersister({
+        storeName: 'demo-app',
+        key: 'mutation',
+      }),
+      insertReactOnMutation(this.updateUserName, {
+        optimisticPatch: {
+          name: ({ mutationParams: { name } }) => name,
+        },
+      }),
+    ),
   );
 
   private readonly router = injectCraftRouter(undefined, ({ navigate }) => ({

@@ -6,9 +6,8 @@ import {
   craftMethod,
   craftService,
   insertLocalStoragePersister,
-  insertPaginationPlaceholderData,
-  insertReactOnMutation,
-  mutation,
+  insertPaginationPlaceholderData,  insertReactOnMutation,  mutation,
+  insertPipe,
   on$,
   provideHostName,
   query,
@@ -105,46 +104,52 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
           return yield* ApiServiceToYield.getDataList(pagination);
         },
       },
-      insertLocalStoragePersister({
-        storeName: 'demo-app-craft',
-        key: 'full-demo',
-      }),
-      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-      insertReactOnMutation(deleteUser, {
-        filter: ({ mutationIdentifier, queryResource }) =>
-          !!queryResource
-            .safeValue()
-            ?.some((item) => item.id === mutationIdentifier),
-        optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-          removeOne({
-            entities: queryResource.value(),
-            id: mutationIdentifier,
-          }),
-        reload: {
-          onMutationException: true,
-        },
-      }),
-      insertReactOnMutation(deleteUser, {
-        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
-        reload: {
-          onMutationResolved: true,
-        },
-      }),
-      insertReactOnMutation(bulkDelete, {
-        filter: ({ queryResource }) =>
-          (queryResource.safeValue()?.length ?? 0) > 0,
-        optimisticUpdate: ({ queryResource, mutationParams }) =>
-          removeMany({
-            entities: queryResource.value(),
-            ids: mutationParams,
-          }),
-      }),
-      insertReactOnMutation(bulkDelete, {
-        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
-        reload: {
-          onMutationResolved: true,
-        },
-      }),
+      (context) =>
+        insertPipe(
+        context,
+        insertLocalStoragePersister({
+          storeName: 'demo-app-craft',
+          key: 'full-demo',
+        }),
+        insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+        insertReactOnMutation(deleteUser, {
+          filter: ({ mutationIdentifier, queryResource }) =>
+            !!queryResource
+              .safeValue()
+              ?.some((item) => item.id === mutationIdentifier),
+          optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
+            removeOne({
+              entities: queryResource.value(),
+              id: mutationIdentifier,
+            }),
+          reload: {
+            onMutationException: true,
+          },
+        }),
+        insertReactOnMutation(deleteUser, {
+          filter: ({ queryResource }) =>
+            queryResource.safeValue()?.length === 0,
+          reload: {
+            onMutationResolved: true,
+          },
+        }),
+        insertReactOnMutation(bulkDelete, {
+          filter: ({ queryResource }) =>
+            (queryResource.safeValue()?.length ?? 0) > 0,
+          optimisticUpdate: ({ queryResource, mutationParams }) =>
+            removeMany({
+              entities: queryResource.value(),
+              ids: mutationParams,
+            }),
+        }),
+        insertReactOnMutation(bulkDelete, {
+          filter: ({ queryResource }) =>
+            queryResource.safeValue()?.length === 0,
+          reload: {
+            onMutationResolved: true,
+          },
+        }),
+      ),
     );
 
     const selectedRows = state(
@@ -168,53 +173,57 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
               : current,
         ),
       })),
-      ({ state: selectedRowsState }) => ({
-        isAllSelected: computed(
-          () =>
-            users.currentPageData()?.length &&
-            users
-              .currentPageData()
-              ?.every((user) => selectedRowsState().includes(user.id)),
-        ),
-      }),
-      ({
-        update,
-        set,
-        state: selectedRowsState,
-        insertions: { isAllSelected },
-      }) => {
-        return {
-          toggleSelection: (id: string) =>
-            update((current) =>
-              current.includes(id)
-                ? current.filter((item) => item !== id)
-                : [...current, id],
-            ),
-          isSelected: (id: string) => {
-            return selectedRowsState().includes(id);
-          },
-          isAllSelected,
-          isSomeSelected: computed(
+      (context) =>
+        insertPipe(
+        context,
+        ({ state: selectedRowsState }) => ({
+          isAllSelected: computed(
             () =>
+              users.currentPageData()?.length &&
               users
                 .currentPageData()
-                ?.some((user) => selectedRowsState().includes(user.id)) &&
-              !isAllSelected(),
+                ?.every((user) => selectedRowsState().includes(user.id)),
           ),
-          toggleAllSelection: () => {
-            if (isAllSelected()) {
-              set([]);
-            } else {
-              const allIds =
-                users.currentPageData()?.map((user) => user.id) || [];
-              set(allIds);
-            }
-          },
-        };
-      },
-      ({ set }) => ({
-        reset: on$(reset$, () => set([])),
-      }),
+        }),
+        ({
+          update,
+          set,
+          state: selectedRowsState,
+          insertions: { isAllSelected },
+        }) => {
+          return {
+            toggleSelection: (id: string) =>
+              update((current) =>
+                current.includes(id)
+                  ? current.filter((item) => item !== id)
+                  : [...current, id],
+              ),
+            isSelected: (id: string) => {
+              return selectedRowsState().includes(id);
+            },
+            isAllSelected,
+            isSomeSelected: computed(
+              () =>
+                users
+                  .currentPageData()
+                  ?.some((user) => selectedRowsState().includes(user.id)) &&
+                !isAllSelected(),
+            ),
+            toggleAllSelection: () => {
+              if (isAllSelected()) {
+                set([]);
+              } else {
+                const allIds =
+                  users.currentPageData()?.map((user) => user.id) || [];
+                set(allIds);
+              }
+            },
+          };
+        },
+        ({ set }) => ({
+          reset: on$(reset$, () => set([])),
+        }),
+      ),
     );
 
     return {

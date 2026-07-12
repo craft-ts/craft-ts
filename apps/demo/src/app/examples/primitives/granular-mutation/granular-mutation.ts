@@ -3,8 +3,8 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
     componentMonitoring,
     insertLocalStoragePersister,
-    insertPaginationPlaceholderData,
-    insertReactOnMutation,
+    insertPaginationPlaceholderData,    insertReactOnMutation,
+    insertPipe,
     mutation,
     provideHostName,
     query,
@@ -170,26 +170,30 @@ export default class GranularMutation {
         return this.apiService.getDataList(pagination);
       },
     },
-    insertLocalStoragePersister({
-      storeName: 'demo-app',
-      key: 'granular',
-    }),
-    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-    insertReactOnMutation(this.updateUserName, {
-      filter: ({ mutationIdentifier, queryResource }) =>
-        queryResource
-          .safeValue()
-          ?.some((item) => item.id === mutationIdentifier) ?? false,
-      optimisticUpdate: ({
-        queryResource,
-        mutationIdentifier,
-        mutationParams,
-      }) => {
-        return queryResource.value()?.map((item) => {
-          return item.id === mutationIdentifier ? mutationParams : item;
-        });
-      },
-    }),
+    (context) =>
+      insertPipe(
+      context,
+      insertLocalStoragePersister({
+        storeName: 'demo-app',
+        key: 'granular',
+      }),
+      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+      insertReactOnMutation(this.updateUserName, {
+        filter: ({ mutationIdentifier, queryResource }) =>
+          queryResource
+            .safeValue()
+            ?.some((item) => item.id === mutationIdentifier) ?? false,
+        optimisticUpdate: ({
+          queryResource,
+          mutationIdentifier,
+          mutationParams,
+        }) => {
+          return queryResource.value()?.map((item) => {
+            return item.id === mutationIdentifier ? mutationParams : item;
+          });
+        },
+      }),
+    ),
   );
 
   protected updatePageSize(event: Event) {

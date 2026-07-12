@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
     componentMonitoring,
     insertLocalStoragePersister,
+    insertPipe,
     insertSelect,
     provideHostName,
     state,
@@ -92,49 +93,57 @@ export default class PixelArt {
     {
       activeColor: DEFAULT_ACTIVE_COLOR,
     },
-    ({ update }) => ({
-      setActiveColor: (color: string) =>
-        update((current) => ({ ...current, activeColor: color })),
-    }),
-    insertLocalStoragePersister({
-      key: 'pixel-art-ui-state',
-      storeName: 'pixel-art-ui',
-    }),
+    (context) =>
+      insertPipe(
+      context,
+      ({ update }) => ({
+        setActiveColor: (color: string) =>
+          update((current) => ({ ...current, activeColor: color })),
+      }),
+      insertLocalStoragePersister({
+        key: 'pixel-art-ui-state',
+        storeName: 'pixel-art-ui',
+      }),
+    ),
   );
 
   protected readonly cells = state(
     initializePixelCells(), // { index: number; color: string; paintCount: number;}[]
-    insertLocalStoragePersister({
-      key: 'pixel-art-cells-state',
-      storeName: 'pixel-art-cells',
-    }),
-    insertSelect('cell', ({ state, update }) => ({
-      paint: () =>
-        update((cell) => ({
-          ...cell,
-          color:
-            cell.color === this.ui().activeColor
-              ? EMPTY_COLOR
-              : this.ui().activeColor,
-          paintCount: cell.paintCount + 1,
-        })),
-      paintCountStr: computed(() => `Painted ${state().paintCount} times`),
-    })),
-    ({ state, update }) => ({
-      clearAll: () =>
-        update((cells) =>
-          cells.map((cell) => ({
+    (context) =>
+      insertPipe(
+      context,
+      insertLocalStoragePersister({
+        key: 'pixel-art-cells-state',
+        storeName: 'pixel-art-cells',
+      }),
+      insertSelect('cell', ({ state, update }) => ({
+        paint: () =>
+          update((cell) => ({
             ...cell,
-            color: EMPTY_COLOR,
+            color:
+              cell.color === this.ui().activeColor
+                ? EMPTY_COLOR
+                : this.ui().activeColor,
+            paintCount: cell.paintCount + 1,
           })),
+        paintCountStr: computed(() => `Painted ${state().paintCount} times`),
+      })),
+      ({ state, update }) => ({
+        clearAll: () =>
+          update((cells) =>
+            cells.map((cell) => ({
+              ...cell,
+              color: EMPTY_COLOR,
+            })),
+          ),
+        paintedCount: computed(
+          () => state().filter((cell) => cell.color !== EMPTY_COLOR).length,
         ),
-      paintedCount: computed(
-        () => state().filter((cell) => cell.color !== EMPTY_COLOR).length,
-      ),
-      totalPaintActions: computed(() =>
-        state().reduce((count, cell) => count + cell.paintCount, 0),
-      ),
-    }),
+        totalPaintActions: computed(() =>
+          state().reduce((count, cell) => count + cell.paintCount, 0),
+        ),
+      }),
+    ),
   );
 }
 

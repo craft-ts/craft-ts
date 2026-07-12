@@ -6,6 +6,7 @@ import { insertLocalStoragePersister } from './insert-local-storage-persister';
 import { mutation } from './mutation';
 import { query } from './query';
 import { state } from './state';
+import { insertPipe } from './pipe-insertions';
 
 describe('insertLocalStoragePersister', () => {
   beforeEach(() => {
@@ -491,13 +492,17 @@ describe('insertLocalStoragePersister', () => {
     await TestBed.runInInjectionContext(async () => {
       const myState = state(
         0,
-        ({ set }) => ({
-          setValue: (value: number) => set(value),
-        }),
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myState',
-        }),
+        (context) =>
+          insertPipe(
+          context,
+          ({ set }) => ({
+            setValue: (value: number) => set(value),
+          }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myState',
+          }),
+        ),
       );
 
       expect(myState.persister).toBeDefined();

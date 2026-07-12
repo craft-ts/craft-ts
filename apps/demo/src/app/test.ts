@@ -4,6 +4,7 @@ import {
   BrowserNavigator,
   componentMonitoring,
   craftMethod,
+  insertPipe,
   insertSelect,
   provideHostName,
   state,
@@ -33,14 +34,18 @@ export default class TestComponent {
       value: 0,
       nestedValue: 'hello',
     },
-    insertSelect('value', ({ state, update }) => ({
-      increment: () => update((c) => c + 1),
-      isOdd: computed(() => state() % 2 === 1),
-    })),
-    insertSelect('nestedValue', ({ state }) => ({
-      value: computed(() => state()),
-      totalLength: computed(() => state().length),
-    })),
+    (context) =>
+      insertPipe(
+        context,
+        insertSelect('value', ({ state, update }) => ({
+          increment: () => update((c) => c + 1),
+          isOdd: computed(() => state() % 2 === 1),
+        })),
+        insertSelect('nestedValue', ({ state }) => ({
+          value: computed(() => state()),
+          totalLength: computed(() => state().length),
+        })),
+      ),
   );
 
   a = asyncProcess(

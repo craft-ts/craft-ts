@@ -14,6 +14,7 @@ Use this file to confirm the exact exported symbol names before recommending an 
 - `apps/docs/primitives/mutation.md`
 - `apps/docs/primitives/async-process.md`
 - `apps/docs/primitives/query-param.md`
+- `apps/docs/insertions/pipe-insertions.md`
 - `apps/docs/insertions/insert-react-on-mutation.md`
 - `apps/docs/insertions/insert-pagination-placeholder-data.md`
 - `apps/docs/insertions/insert-entities.md`
@@ -56,6 +57,7 @@ Use this example for:
 - `craftMutations`
 - `craftAsyncProcesses`
 - `craftState`
+- `insertPipe` composition
 - `insertReactOnMutation`
 - `removeOne`
 - `removeMany`

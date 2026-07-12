@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { query, ResourceByIdLikeQueryRef } from './query';
 import { craftService } from './craft-service';
+import { insertPipe } from './pipe-insertions';
 import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { computed, signal } from '@angular/core';
@@ -505,25 +506,29 @@ describe('query Insertions output', () => {
               } satisfies User;
             },
           },
-          // insert 1
-          () => {
-            return {
-              pagination: {
-                page: 1,
-              },
-            };
-          },
-          // insert 2
-          ({ insertions: inserts }) => {
-            expectTypeOf(inserts).toEqualTypeOf<{
-              pagination: {
-                page: number;
+          (context) =>
+            insertPipe(
+            context,
+            // insert 1
+            () => {
+              return {
+                pagination: {
+                  page: 1,
+                },
               };
-            }>();
-            return {
-              someOtherInfo: true,
-            };
-          },
+            },
+            // insert 2
+            ({ insertions: inserts }) => {
+              expectTypeOf(inserts).toEqualTypeOf<{
+                pagination: {
+                  page: number;
+                };
+              }>();
+              return {
+                someOtherInfo: true,
+              };
+            },
+          ),
         ),
       }),
     );
@@ -555,20 +560,24 @@ describe('query Insertions output', () => {
               } satisfies User;
             },
           },
-          // insert 1
-          () => ({ ext1: 1 }),
-          // insert 2
-          ({ insertions: inserts }) => ({ ext2: inserts.ext1 + 1 }),
-          // insert 3
-          ({ insertions: inserts }) => ({ ext3: inserts.ext2 + 1 }),
-          // insert 4
-          ({ insertions: inserts }) => ({ ext4: inserts.ext3 + 1 }),
-          // insert 5
-          ({ insertions: inserts }) => ({ ext5: inserts.ext4 + 1 }),
-          // insert 6
-          ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
-          // insert 7
-          ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
+          (context) =>
+            insertPipe(
+            context,
+            // insert 1
+            () => ({ ext1: 1 }),
+            // insert 2
+            ({ insertions: inserts }) => ({ ext2: inserts.ext1 + 1 }),
+            // insert 3
+            ({ insertions: inserts }) => ({ ext3: inserts.ext2 + 1 }),
+            // insert 4
+            ({ insertions: inserts }) => ({ ext4: inserts.ext3 + 1 }),
+            // insert 5
+            ({ insertions: inserts }) => ({ ext5: inserts.ext4 + 1 }),
+            // insert 6
+            ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
+            // insert 7
+            ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
+          ),
         ),
       }),
     );

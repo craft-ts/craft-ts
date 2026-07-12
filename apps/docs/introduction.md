@@ -44,13 +44,17 @@ Stop wasting precious time on common application logic. @craft-ng/core provides 
 ```typescript
 const myState = state(
   0,
-  ({ update, set }) => ({
-    increment: () => update((current) => current + 1),
-    reset: () => set(0),
-  }),
-  ({ state }) => ({
-    isOdd: computed(() => state() % 2 === 1),
-  }),
+  (context) =>
+    insertPipe(
+      context,
+      ({ update, set }) => ({
+        increment: () => update((current) => current + 1),
+        reset: () => set(0),
+      }),
+      ({ state }) => ({
+        isOdd: computed(() => state() % 2 === 1),
+      }),
+    ),
 );
 
 myState(); // 0

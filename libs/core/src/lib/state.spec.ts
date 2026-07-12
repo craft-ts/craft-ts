@@ -6,6 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { Source$, source$ } from './source$';
 import { on$ } from './on$';
 import { InsertionsStateFactory } from './query.core';
+import { insertPipe } from './pipe-insertions';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -115,13 +116,17 @@ describe('state', () => {
       const origin = signal(5);
       const myState = state(
         linkedSignal(() => origin() * 2),
-        ({ update, set }) => ({
-          increment: () => update((current) => current + 1),
-          reset: () => set(0),
-        }),
-        ({ state }) => ({
-          isOdd: computed(() => state() % 2 === 1),
-        }),
+        (context) =>
+          insertPipe(
+          context,
+          ({ update, set }) => ({
+            increment: () => update((current) => current + 1),
+            reset: () => set(0),
+          }),
+          ({ state }) => ({
+            isOdd: computed(() => state() % 2 === 1),
+          }),
+        ),
       );
 
       expect(myState).toBeDefined();
@@ -307,13 +312,17 @@ describe('state', () => {
     await runInInjectionContext(async () => {
       const myState = state(
         0,
-        ({ set }) => ({
-          resetAll$: source$<void>(),
-          increment: () => set(1),
-        }),
-        ({ insertions: { resetAll$ }, set }) => ({
-          syncReset: on$(resetAll$, () => set(0)),
-        }),
+        (context) =>
+          insertPipe(
+          context,
+          ({ set }) => ({
+            resetAll$: source$<void>(),
+            increment: () => set(1),
+          }),
+          ({ insertions: { resetAll$ }, set }) => ({
+            syncReset: on$(resetAll$, () => set(0)),
+          }),
+        ),
       );
 
       expectTypeOf(myState.resetAll$).toEqualTypeOf<

@@ -5,8 +5,8 @@ import {
   componentMonitoring,
   craftMethod,
   craftService,
-  insertLocalStoragePersister,
-  insertReactOnMutation,
+  insertLocalStoragePersister,  insertReactOnMutation,
+  insertPipe,
   mutation,
   provideHostName,
   query,
@@ -44,15 +44,19 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
           },
           preservePreviousValue: () => true,
         },
-        insertLocalStoragePersister({
-          storeName: 'demo-app-craft',
-          key: 'mutation',
-        }),
-        insertReactOnMutation(updateUserName, {
-          optimisticPatch: {
-            name: ({ mutationParams: { name } }) => name,
-          },
-        }),
+        (context) =>
+          insertPipe(
+          context,
+          insertLocalStoragePersister({
+            storeName: 'demo-app-craft',
+            key: 'mutation',
+          }),
+          insertReactOnMutation(updateUserName, {
+            optimisticPatch: {
+              name: ({ mutationParams: { name } }) => name,
+            },
+          }),
+        ),
       );
 
       return { user, updateUserName };

@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
     componentMonitoring,
     insertLocalStoragePersister,
-    insertPaginationPlaceholderData,
-    provideHostName,
+    insertPaginationPlaceholderData,    provideHostName,
+    insertPipe,
     query,
     type ExtractDeps,
     type GetDeps,
@@ -111,11 +111,15 @@ export default class QpListWithPagination {
       loader: ({ params: pagination }) =>
         this.apiService.getDataList(pagination),
     },
-    insertLocalStoragePersister({
-      storeName: 'demo-app',
-      key: 'list-with-pagination',
-    }),
-    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+    (context) =>
+      insertPipe(
+      context,
+      insertLocalStoragePersister({
+        storeName: 'demo-app',
+        key: 'list-with-pagination',
+      }),
+      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+    ),
   );
 
   protected updatePageSize(event: Event) {

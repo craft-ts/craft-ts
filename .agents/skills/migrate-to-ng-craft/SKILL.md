@@ -70,8 +70,12 @@ cannot be inferred safely. Preserve unrelated user changes.
   ```ts
   state(
     initialValue,
-    ({ set, update }) => ({ set, update }),
-    insertForm(/* field trees and submit */),
+    (context) =>
+      insertPipe(
+        context,
+        ({ set, update }) => ({ set, update }),
+        insertForm(/* field trees and submit */),
+      ),
   )
   ```
 
