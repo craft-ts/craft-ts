@@ -80,30 +80,31 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * @example
  * Basic source for user actions
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     loadUser: source<string>(),
- *   }),
- *   craftQuery('user', ({ loadUser }) =>
- *     query({
+ * const { injectUserStore } = craftService(
+ *   { name: 'UserStore', scope: 'toProvide' },
+ *   () => {
+ *     const loadUser = signalSource<string>();
+ *
+ *     const user = query({
  *       method: afterRecomputation(loadUser, (userId) => userId),
  *       loader: async ({ params }) => {
  *         const response = await fetch(`/api/users/${params}`);
  *         return response.json();
  *       },
- *     })
- *   )
+ *     });
+ *
+ *     return { loadUser, user };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectUserStore();
  *
  * // Query executes automatically when source emits
- * store.setLoadUser('user-123');
+ * store.loadUser.set('user-123');
  * // -> loadUser source emits 'user-123'
  * // -> user query executes with params 'user-123'
  *
- * store.setLoadUser('user-456');
+ * store.loadUser.set('user-456');
  * // -> user query executes again with params 'user-456'
  * ```
  *
@@ -112,13 +113,12 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * ```ts
  * type FormData = { name: string; email: string };
  *
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     submitForm: source<FormData>(),
- *   }),
- *   craftMutations(({ submitForm }) => ({
- *     submit: mutation({
+ * const { injectFormStore } = craftService(
+ *   { name: 'FormStore', scope: 'toProvide' },
+ *   () => {
+ *     const submitForm = signalSource<FormData>();
+ *
+ *     const submit = mutation({
  *       method: afterRecomputation(submitForm, (data) => data),
  *       loader: async ({ params }) => {
  *         const response = await fetch('/api/submit', {
@@ -127,11 +127,13 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *         });
  *         return response.json();
  *       },
- *     }),
- *   }))
+ *     });
+ *
+ *     return { submitForm, submit };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectFormStore();
  *
  * // In component template:
  * // <form (submit)="onSubmit()">
@@ -141,7 +143,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *
  * onSubmit() {
  *   // Mutation executes automatically
- *   this.store.setSubmitForm(this.formData);
+ *   this.store.submitForm.set(this.formData);
  *   // -> submitForm source emits
  *   // -> submit mutation executes
  * }
@@ -150,48 +152,45 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * @example
  * Source for reload/refresh actions
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     reload: source<void>(),
- *   }),
- *   craftQuery('data', ({ reload }) =>
- *     query(
- *       {
- *         params: () => ({}),
- *         loader: async () => {
- *           const response = await fetch('/api/data');
- *           return response.json();
- *         },
+ * const { injectDataStore } = craftService(
+ *   { name: 'DataStore', scope: 'toProvide' },
+ *   () => {
+ *     const reload = signalSource<void>();
+ *
+ *     const data = query({
+ *       method: afterRecomputation(reload, () => ({})),
+ *       loader: async () => {
+ *         const response = await fetch('/api/data');
+ *         return response.json();
  *       },
- *       insertReloadOnSource(reload)
- *     )
- *   )
+ *     });
+ *
+ *     return { reload, data };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectDataStore();
  *
  * // Trigger reload from anywhere
- * store.setReload();
+ * store.reload.set();
  * // -> reload source emits
- * // -> query reloads
+ * // -> query re-executes
  *
  * // In component:
- * // <button (click)="store.setReload()">Refresh</button>
+ * // <button (click)="store.reload.set()">Refresh</button>
  * ```
  *
  * @example
  * Multiple sources for different actions
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     addTodo: source<{ text: string }>(),
- *     deleteTodo: source<string>(),
- *     toggleTodo: source<string>(),
- *   }),
- *   craftMutations(({ addTodo, deleteTodo, toggleTodo }) => ({
- *     create: mutation({
+ * const { injectTodoStore } = craftService(
+ *   { name: 'TodoStore', scope: 'toProvide' },
+ *   () => {
+ *     const addTodo = signalSource<{ text: string }>();
+ *     const deleteTodo = signalSource<string>();
+ *     const toggleTodo = signalSource<string>();
+ *
+ *     const create = mutation({
  *       method: afterRecomputation(addTodo, (data) => data),
  *       loader: async ({ params }) => {
  *         const response = await fetch('/api/todos', {
@@ -200,15 +199,17 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *         });
  *         return response.json();
  *       },
- *     }),
- *     delete: mutation({
+ *     });
+ *
+ *     const remove = mutation({
  *       method: afterRecomputation(deleteTodo, (id) => id),
  *       loader: async ({ params }) => {
  *         await fetch(`/api/todos/${params}`, { method: 'DELETE' });
  *         return { deleted: true };
  *       },
- *     }),
- *     toggle: mutation({
+ *     });
+ *
+ *     const toggle = mutation({
  *       method: afterRecomputation(toggleTodo, (id) => id),
  *       loader: async ({ params }) => {
  *         const response = await fetch(`/api/todos/${params}/toggle`, {
@@ -216,22 +217,24 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *         });
  *         return response.json();
  *       },
- *     }),
- *   }))
+ *     });
+ *
+ *     return { addTodo, deleteTodo, toggleTodo, create, remove, toggle };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectTodoStore();
  *
  * // Different actions trigger different mutations
- * store.setAddTodo({ text: 'Buy milk' });
- * store.setToggleTodo('todo-123');
- * store.setDeleteTodo('todo-456');
+ * store.addTodo.set({ text: 'Buy milk' });
+ * store.toggleTodo.set('todo-123');
+ * store.deleteTodo.set('todo-456');
  * ```
  *
  * @example
  * Late listener with preserveLastValue
  * ```ts
- * const mySource = source<string>();
+ * const mySource = signalSource<string>();
  *
  * // Early listener
  * const listener1 = computed(() => mySource());
@@ -259,7 +262,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * ```ts
  * type Params = { id: string; timestamp: number };
  *
- * const paramsSource = source<Params>({
+ * const paramsSource = signalSource<Params>({
  *   equal: (a, b) => a?.id === b?.id, // Compare only by id
  * });
  *
@@ -278,32 +281,32 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * @example
  * Source for coordinating multiple components
  * ```ts
- * // Global source (outside component)
- * const refreshAllSource = source<void>();
+ * // Global source (outside any component/service)
+ * const refreshAllSource = signalSource<void>();
  *
- * // Component A
+ * // Component A's store
+ * const { injectDataViewStore, provideDataViewStore } = craftService(
+ *   { name: 'DataViewStore', scope: 'toProvide' },
+ *   () => {
+ *     const data = query({
+ *       method: afterRecomputation(refreshAllSource, () => ({})),
+ *       loader: async () => {
+ *         const response = await fetch('/api/data');
+ *         return response.json();
+ *       },
+ *     });
+ *
+ *     return { data };
+ *   },
+ * );
+ *
  * @Component({
  *   selector: 'app-data-view',
  *   template: '...',
+ *   providers: [provideDataViewStore()],
  * })
  * export class DataViewComponent {
- *   { injectCraft } = craft(
- *     { name: '', providedIn: 'root' },
- *     craftQuery('data', () =>
- *       query(
- *         {
- *           params: () => ({}),
- *           loader: async () => {
- *             const response = await fetch('/api/data');
- *             return response.json();
- *           },
- *         },
- *         insertReloadOnSource(refreshAllSource)
- *       )
- *     )
- *   );
- *
- *   store = this.injectCraft();
+ *   store = injectDataViewStore();
  * }
  *
  * // Component B
@@ -313,7 +316,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * })
  * export class RefreshButtonComponent {
  *   refresh() {
- *     // Triggers refresh in all components listening to this source
+ *     // Triggers refresh in every store listening to this source
  *     refreshAllSource.set();
  *   }
  * }
@@ -328,13 +331,12 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   page: number;
  * };
  *
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     search: source<SearchParams>(),
- *   }),
- *   craftQuery('results', ({ search }) =>
- *     query({
+ * const { injectSearchStore } = craftService(
+ *   { name: 'SearchStore', scope: 'toProvide' },
+ *   () => {
+ *     const search = signalSource<SearchParams>();
+ *
+ *     const results = query({
  *       method: afterRecomputation(search, (params) => params),
  *       loader: async ({ params }) => {
  *         const queryString = new URLSearchParams({
@@ -345,14 +347,16 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *         const response = await fetch(`/api/search?${queryString}`);
  *         return response.json();
  *       },
- *     })
- *   )
+ *     });
+ *
+ *     return { search, results };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectSearchStore();
  *
  * // Emit complex search parameters
- * store.setSearch({
+ * store.search.set({
  *   query: 'angular',
  *   filters: ['tutorial', 'advanced'],
  *   page: 1,

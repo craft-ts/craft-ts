@@ -75,39 +75,38 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * ```ts
  * @Component({
  *   selector: 'app-clicker',
- *   template: '<button #btn>Click me</button>',
+ *   template: '<button>Click me</button>',
+ *   providers: [provideClickTrackerStore()],
  * })
  * export class ClickerComponent {
- *   @ViewChild('btn', { read: ElementRef }) button!: ElementRef<HTMLButtonElement>;
- *
- *   clickSource = sourceFromEvent<MouseEvent>(
- *     this.button.nativeElement,
- *     'click'
- *   );
- *
- *   { injectCraft } = craft(
- *     { name: '', providedIn: 'root' },
- *     craftMutations(() => ({
- *       trackClick: mutation({
- *         method: afterRecomputation(this.clickSource, (event) => ({
- *           x: event.clientX,
- *           y: event.clientY,
- *         })),
- *         loader: async ({ params }) => {
- *           await fetch('/api/track-click', {
- *             method: 'POST',
- *             body: JSON.stringify(params),
- *           });
- *           return { tracked: true };
- *         },
- *       }),
- *     }))
- *   );
- *
- *   store = this.injectCraft();
+ *   store = injectClickTrackerStore();
  *
  *   // Mutation executes automatically on click
  * }
+ *
+ * const { injectClickTrackerStore, provideClickTrackerStore } = craftService(
+ *   { name: 'ClickTrackerStore', scope: 'toProvide' },
+ *   () => {
+ *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
+ *     const clickSource = sourceFromEvent<MouseEvent>(hostElement, 'click');
+ *
+ *     const trackClick = mutation({
+ *       method: afterRecomputation(clickSource, (event) => ({
+ *         x: event.clientX,
+ *         y: event.clientY,
+ *       })),
+ *       loader: async ({ params }) => {
+ *         await fetch('/api/track-click', {
+ *           method: 'POST',
+ *           body: JSON.stringify(params),
+ *         });
+ *         return { tracked: true };
+ *       },
+ *     });
+ *
+ *     return { clickSource, trackClick };
+ *   },
+ * );
  * ```
  *
  * @example
@@ -116,39 +115,42 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * @Component({
  *   selector: 'app-infinite-scroll',
  *   template: '...',
+ *   providers: [provideInfiniteScrollStore()],
  * })
  * export class InfiniteScrollComponent {
- *   scrollSource = sourceFromEvent(window, 'scroll', {
- *     computedValue: () => ({
- *       scrollY: window.scrollY,
- *       scrollHeight: document.documentElement.scrollHeight,
- *       clientHeight: window.innerHeight,
- *     }),
- *     event: { passive: true }, // Optimize performance
- *   });
- *
- *   { injectCraft } = craft(
- *     { name: '', providedIn: 'root' },
- *     craftAsyncProcesses(() => ({
- *       checkLoadMore: asyncProcess({
- *         method: afterRecomputation(this.scrollSource, (data) => data),
- *         loader: async ({ params }) => {
- *           const { scrollY, scrollHeight, clientHeight } = params;
- *           const nearBottom = scrollY + clientHeight >= scrollHeight - 100;
- *
- *           if (nearBottom) {
- *             // Load more data
- *             const response = await fetch('/api/load-more');
- *             return response.json();
- *           }
- *           return null;
- *         },
- *       }),
- *     }))
- *   );
- *
- *   store = this.injectCraft();
+ *   store = injectInfiniteScrollStore();
  * }
+ *
+ * const { injectInfiniteScrollStore, provideInfiniteScrollStore } = craftService(
+ *   { name: 'InfiniteScrollStore', scope: 'toProvide' },
+ *   () => {
+ *     const scrollSource = sourceFromEvent(window, 'scroll', {
+ *       computedValue: () => ({
+ *         scrollY: window.scrollY,
+ *         scrollHeight: document.documentElement.scrollHeight,
+ *         clientHeight: window.innerHeight,
+ *       }),
+ *       event: { passive: true }, // Optimize performance
+ *     });
+ *
+ *     const checkLoadMore = asyncProcess({
+ *       method: afterRecomputation(scrollSource, (data) => data),
+ *       loader: async ({ params }) => {
+ *         const { scrollY, scrollHeight, clientHeight } = params;
+ *         const nearBottom = scrollY + clientHeight >= scrollHeight - 100;
+ *
+ *         if (nearBottom) {
+ *           // Load more data
+ *           const response = await fetch('/api/load-more');
+ *           return response.json();
+ *         }
+ *         return null;
+ *       },
+ *     });
+ *
+ *     return { scrollSource, checkLoadMore };
+ *   },
+ * );
  * ```
  *
  * @example
@@ -156,41 +158,43 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * ```ts
  * @Component({
  *   selector: 'app-search',
- *   template: '<input #searchInput type="text" placeholder="Search..." />',
+ *   template: '<input type="text" placeholder="Search..." />',
+ *   providers: [provideSearchStore()],
  * })
  * export class SearchComponent {
- *   @ViewChild('searchInput', { read: ElementRef }) input!: ElementRef<HTMLInputElement>;
- *
- *   inputSource = sourceFromEvent(this.input.nativeElement, 'input', {
- *     computedValue: (event: Event) => {
- *       const target = event.target as HTMLInputElement;
- *       return target.value;
- *     },
- *   });
- *
- *   { injectCraft } = craft(
- *     { name: '', providedIn: 'root' },
- *     craftQuery('results', () =>
- *       query({
- *         method: afterRecomputation(this.inputSource, (term) => term),
- *         loader: async ({ params }) => {
- *           if (params.length < 3) return [];
- *
- *           const response = await fetch(`/api/search?q=${params}`);
- *           return response.json();
- *         },
- *       })
- *     )
- *   );
- *
- *   store = this.injectCraft();
+ *   store = injectSearchStore();
  *
  *   // Query executes on input changes
  * }
+ *
+ * const { injectSearchStore, provideSearchStore } = craftService(
+ *   { name: 'SearchStore', scope: 'toProvide' },
+ *   () => {
+ *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
+ *     const inputSource = sourceFromEvent(hostElement, 'input', {
+ *       computedValue: (event: Event) => {
+ *         const target = event.target as HTMLInputElement;
+ *         return target.value;
+ *       },
+ *     });
+ *
+ *     const results = query({
+ *       method: afterRecomputation(inputSource, (term) => term),
+ *       loader: async ({ params }) => {
+ *         if (params.length < 3) return [];
+ *
+ *         const response = await fetch(`/api/search?q=${params}`);
+ *         return response.json();
+ *       },
+ *     });
+ *
+ *     return { inputSource, results };
+ *   },
+ * );
  * ```
  *
  * @example
- * Window resize event with debouncing
+ * Window resize event updating a state
  * ```ts
  * @Component({
  *   selector: 'app-responsive',
@@ -204,20 +208,15 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *     }),
  *   });
  *
- *   { injectCraft } = craft(
- *     { name: '', providedIn: 'root' },
- *     craftState('dimensions', () =>
- *       state({ width: window.innerWidth, height: window.innerHeight }, {
- *         bindSources: {
- *           resize: afterRecomputation(this.resizeSource, (data) => data),
- *         },
- *       })
- *     )
+ *   dimensions = state(
+ *     { width: window.innerWidth, height: window.innerHeight },
+ *     ({ set }) => ({
+ *       // State updates automatically whenever resizeSource emits
+ *       trackResize: afterRecomputation(this.resizeSource, (data) => {
+ *         set(data);
+ *       }),
+ *     }),
  *   );
- *
- *   store = this.injectCraft();
- *
- *   // Dimensions state updates on resize
  * }
  * ```
  *
@@ -226,41 +225,44 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * ```ts
  * @Component({
  *   selector: 'app-custom-events',
- *   template: '<div #container></div>',
+ *   template: '<div></div>',
+ *   providers: [provideCustomEventsStore()],
  * })
  * export class CustomEventsComponent {
- *   @ViewChild('container', { read: ElementRef }) container!: ElementRef<HTMLDivElement>;
- *
- *   customEventSource = sourceFromEvent<CustomEvent<{ data: string }>>(
- *     this.container.nativeElement,
- *     'custom-event',
- *     {
- *       computedValue: (event) => event.detail.data,
- *     }
- *   );
- *
- *   { injectCraft } = craft(
- *     { name: '', providedIn: 'root' },
- *     craftAsyncProcesses(() => ({
- *       handleCustomEvent: asyncProcess({
- *         method: afterRecomputation(this.customEventSource, (data) => data),
- *         loader: async ({ params }) => {
- *           console.log('Custom event data:', params);
- *           return { processed: true };
- *         },
- *       }),
- *     }))
- *   );
- *
- *   store = this.injectCraft();
+ *   private readonly _elementRef = inject(ElementRef<HTMLElement>);
+ *   store = injectCustomEventsStore();
  *
  *   triggerCustomEvent() {
  *     const event = new CustomEvent('custom-event', {
  *       detail: { data: 'Hello from custom event' },
  *     });
- *     this.container.nativeElement.dispatchEvent(event);
+ *     this._elementRef.nativeElement.dispatchEvent(event);
  *   }
  * }
+ *
+ * const { injectCustomEventsStore, provideCustomEventsStore } = craftService(
+ *   { name: 'CustomEventsStore', scope: 'toProvide' },
+ *   () => {
+ *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
+ *     const customEventSource = sourceFromEvent<CustomEvent<{ data: string }>>(
+ *       hostElement,
+ *       'custom-event',
+ *       {
+ *         computedValue: (event) => event.detail.data,
+ *       },
+ *     );
+ *
+ *     const handleCustomEvent = asyncProcess({
+ *       method: afterRecomputation(customEventSource, (data) => data),
+ *       loader: async ({ params }) => {
+ *         console.log('Custom event data:', params);
+ *         return { processed: true };
+ *       },
+ *     });
+ *
+ *     return { customEventSource, handleCustomEvent };
+ *   },
+ * );
  * ```
  *
  * @example
@@ -298,41 +300,44 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * @Component({
  *   selector: 'app-shortcuts',
  *   template: '...',
+ *   providers: [provideShortcutsStore()],
  * })
  * export class ShortcutsComponent {
- *   keydownSource = sourceFromEvent(document, 'keydown', {
- *     computedValue: (event: KeyboardEvent) => ({
- *       key: event.key,
- *       ctrlKey: event.ctrlKey,
- *       shiftKey: event.shiftKey,
- *       altKey: event.altKey,
- *     }),
- *   });
- *
- *   { injectCraft } = craft(
- *     { name: '', providedIn: 'root' },
- *     craftAsyncProcesses(() => ({
- *       handleShortcut: asyncProcess({
- *         method: afterRecomputation(this.keydownSource, (data) => data),
- *         loader: async ({ params }) => {
- *           // Handle Ctrl+S
- *           if (params.ctrlKey && params.key === 's') {
- *             // Save action
- *             return { action: 'save' };
- *           }
- *           // Handle Ctrl+Z
- *           if (params.ctrlKey && params.key === 'z') {
- *             // Undo action
- *             return { action: 'undo' };
- *           }
- *           return null;
- *         },
- *       }),
- *     }))
- *   );
- *
- *   store = this.injectCraft();
+ *   store = injectShortcutsStore();
  * }
+ *
+ * const { injectShortcutsStore, provideShortcutsStore } = craftService(
+ *   { name: 'ShortcutsStore', scope: 'toProvide' },
+ *   () => {
+ *     const keydownSource = sourceFromEvent(document, 'keydown', {
+ *       computedValue: (event: KeyboardEvent) => ({
+ *         key: event.key,
+ *         ctrlKey: event.ctrlKey,
+ *         shiftKey: event.shiftKey,
+ *         altKey: event.altKey,
+ *       }),
+ *     });
+ *
+ *     const handleShortcut = asyncProcess({
+ *       method: afterRecomputation(keydownSource, (data) => data),
+ *       loader: async ({ params }) => {
+ *         // Handle Ctrl+S
+ *         if (params.ctrlKey && params.key === 's') {
+ *           // Save action
+ *           return { action: 'save' };
+ *         }
+ *         // Handle Ctrl+Z
+ *         if (params.ctrlKey && params.key === 'z') {
+ *           // Undo action
+ *           return { action: 'undo' };
+ *         }
+ *         return null;
+ *       },
+ *     });
+ *
+ *     return { keydownSource, handleShortcut };
+ *   },
+ * );
  * ```
  */
 export function sourceFromEvent<T>(

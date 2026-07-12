@@ -52,42 +52,42 @@ import { SourceBranded } from './util/util';
  * @example
  * Binding a query to a source for automatic execution
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     userIdChange: source<string>(),
- *   }),
- *   craftQuery('user', ({ userIdChange }) =>
- *     query({
+ * const { injectUserStore } = craftService(
+ *   { name: 'UserStore', scope: 'toProvide' },
+ *   () => {
+ *     const userIdChange = signalSource<string>();
+ *
+ *     const user = query({
  *       method: afterRecomputation(userIdChange, (userId) => userId),
  *       loader: async ({ params }) => {
  *         const response = await fetch(`/api/users/${params}`);
  *         return response.json();
  *       },
- *     })
- *   )
+ *     });
+ *
+ *     return { userIdChange, user };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectUserStore();
  *
  * // Query executes automatically when source emits
- * store.setUserIdChange('user-123');
+ * store.userIdChange.set('user-123');
  * // -> query loader executes with params 'user-123'
  *
- * store.setUserIdChange('user-456');
+ * store.userIdChange.set('user-456');
  * // -> query loader executes again with params 'user-456'
  * ```
  *
  * @example
  * Binding a mutation to a source
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     submitForm: source<{ name: string; email: string }>(),
- *   }),
- *   craftMutations(({ submitForm }) => ({
- *     submit: mutation({
+ * const { injectFormStore } = craftService(
+ *   { name: 'FormStore', scope: 'toProvide' },
+ *   () => {
+ *     const submitForm = signalSource<{ name: string; email: string }>();
+ *
+ *     const submit = mutation({
  *       method: afterRecomputation(submitForm, (formData) => formData),
  *       loader: async ({ params }) => {
  *         const response = await fetch('/api/submit', {
@@ -96,42 +96,45 @@ import { SourceBranded } from './util/util';
  *         });
  *         return response.json();
  *       },
- *     }),
- *   }))
+ *     });
+ *
+ *     return { submitForm, submit };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectFormStore();
  *
  * // Mutation executes automatically when source emits
- * store.setSubmitForm({ name: 'John', email: 'john@example.com' });
+ * store.submitForm.set({ name: 'John', email: 'john@example.com' });
  * // -> mutation loader executes with form data
- * // Note: No store.mutateSubmit method exposed (source-based)
+ * // The mutation is driven by the source; store.submit.mutate() is unused here
  * ```
  *
  * @example
- * Binding async method to a source
+ * Binding an async process to a source
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     searchInput: source<string>(),
- *   }),
- *   craftAsyncProcesses(({ searchInput }) => ({
- *     search: asyncProcess({
+ * const { injectSearchStore } = craftService(
+ *   { name: 'SearchStore', scope: 'toProvide' },
+ *   () => {
+ *     const searchInput = signalSource<string>();
+ *
+ *     const search = asyncProcess({
  *       method: afterRecomputation(searchInput, (term) => term),
  *       loader: async ({ params }) => {
  *         // Debounce at source level before setting
  *         const response = await fetch(`/api/search?q=${params}`);
  *         return response.json();
  *       },
- *     }),
- *   }))
+ *     });
+ *
+ *     return { searchInput, search };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectSearchStore();
  *
- * // Async method executes automatically
- * store.setSearchInput('query');
+ * // Async process executes automatically
+ * store.searchInput.set('query');
  * // -> search loader executes
  * ```
  *
@@ -143,13 +146,12 @@ import { SourceBranded } from './util/util';
  *   address: { city: string };
  * };
  *
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     formSubmit: source<FormData>(),
- *   }),
- *   craftMutations(({ formSubmit }) => ({
- *     updateUser: mutation({
+ * const { injectUserFormStore } = craftService(
+ *   { name: 'UserFormStore', scope: 'toProvide' },
+ *   () => {
+ *     const formSubmit = signalSource<FormData>();
+ *
+ *     const updateUser = mutation({
  *       // Extract only user data
  *       method: afterRecomputation(formSubmit, (data) => data.user),
  *       loader: async ({ params }) => {
@@ -159,14 +161,16 @@ import { SourceBranded } from './util/util';
  *         });
  *         return response.json();
  *       },
- *     }),
- *   }))
+ *     });
+ *
+ *     return { formSubmit, updateUser };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectUserFormStore();
  *
- * // Only user data is passed to mutation
- * store.setFormSubmit({
+ * // Only user data is passed to the mutation
+ * store.formSubmit.set({
  *   user: { id: 'user-1', name: 'John' },
  *   address: { city: 'NYC' },
  * });
@@ -176,30 +180,31 @@ import { SourceBranded } from './util/util';
  * @example
  * Transforming data before execution
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     searchParams: source<{ query: string; filters: string[] }>(),
- *   }),
- *   craftQuery('results', ({ searchParams }) =>
- *     query({
+ * const { injectResultsStore } = craftService(
+ *   { name: 'ResultsStore', scope: 'toProvide' },
+ *   () => {
+ *     const searchParams = signalSource<{ query: string; filters: string[] }>();
+ *
+ *     const results = query({
  *       method: afterRecomputation(searchParams, (params) => ({
  *         q: params.query.trim().toLowerCase(),
  *         f: params.filters.join(','),
  *       })),
  *       loader: async ({ params }) => {
- *         const query = new URLSearchParams(params);
- *         const response = await fetch(`/api/search?${query}`);
+ *         const queryString = new URLSearchParams(params);
+ *         const response = await fetch(`/api/search?${queryString}`);
  *         return response.json();
  *       },
- *     })
- *   )
+ *     });
+ *
+ *     return { searchParams, results };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectResultsStore();
  *
  * // Data is transformed before query execution
- * store.setSearchParams({
+ * store.searchParams.set({
  *   query: '  Angular  ',
  *   filters: ['tutorial', 'advanced'],
  * });
@@ -209,13 +214,12 @@ import { SourceBranded } from './util/util';
  * @example
  * Validation and type narrowing
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     inputChange: source<string>(),
- *   }),
- *   craftAsyncProcesses(({ inputChange }) => ({
- *     validate: asyncProcess({
+ * const { injectValidationStore } = craftService(
+ *   { name: 'ValidationStore', scope: 'toProvide' },
+ *   () => {
+ *     const inputChange = signalSource<string>();
+ *
+ *     const validate = asyncProcess({
  *       method: afterRecomputation(inputChange, (input) => {
  *         // Only proceed if input is valid
  *         const trimmed = input.trim();
@@ -231,34 +235,35 @@ import { SourceBranded } from './util/util';
  *         });
  *         return response.json();
  *       },
- *     }),
- *   }))
+ *     });
+ *
+ *     return { inputChange, validate };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectValidationStore();
  *
- * // Invalid input throws error in callback
- * store.setInputChange('ab'); // Error: Input too short
+ * // Invalid input throws error in the callback
+ * store.inputChange.set('ab'); // Error: Input too short
  *
  * // Valid input proceeds
- * store.setInputChange('valid input'); // Validation executes
+ * store.inputChange.set('valid input'); // Validation executes
  * ```
  *
  * @example
  * Multiple sources with different transformations
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     quickSearch: source<string>(),
- *     advancedSearch: source<{ query: string; options: unknown }>(),
- *   }),
- *   craftQuery('searchResults', ({ quickSearch, advancedSearch }) =>
- *     query({
+ * const { injectSearchResultsStore } = craftService(
+ *   { name: 'SearchResultsStore', scope: 'toProvide' },
+ *   () => {
+ *     const quickSearch = signalSource<string>();
+ *     const advancedSearch = signalSource<{ query: string; options: unknown }>();
+ *
+ *     const searchResults = query({
  *       method: afterRecomputation(
- *         // Can combine sources at higher level
+ *         // Can combine sources at a higher level
  *         quickSearch, // For this example, using one source
- *         (term) => ({ query: term, mode: 'quick' })
+ *         (term) => ({ query: term, mode: 'quick' }),
  *       ),
  *       loader: async ({ params }) => {
  *         const response = await fetch('/api/search', {
@@ -267,27 +272,28 @@ import { SourceBranded } from './util/util';
  *         });
  *         return response.json();
  *       },
- *     })
- *   )
+ *     });
+ *
+ *     return { quickSearch, advancedSearch, searchResults };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectSearchResultsStore();
  *
- * // Quick search with simple string
- * store.setQuickSearch('angular');
+ * // Quick search with a simple string
+ * store.quickSearch.set('angular');
  * // -> query receives { query: 'angular', mode: 'quick' }
  * ```
  *
  * @example
  * Identity transformation (pass-through)
  * ```ts
- * const { injectCraft } = craft(
- *   { name: '', providedIn: 'root' },
- *   craftSources({
- *     dataUpdate: source<{ id: string; payload: unknown }>(),
- *   }),
- *   craftMutations(({ dataUpdate }) => ({
- *     update: mutation({
+ * const { injectDataStore } = craftService(
+ *   { name: 'DataStore', scope: 'toProvide' },
+ *   () => {
+ *     const dataUpdate = signalSource<{ id: string; payload: unknown }>();
+ *
+ *     const update = mutation({
  *       // Pass data through unchanged
  *       method: afterRecomputation(dataUpdate, (data) => data),
  *       loader: async ({ params }) => {
@@ -297,15 +303,17 @@ import { SourceBranded } from './util/util';
  *         });
  *         return response.json();
  *       },
- *     }),
- *   }))
+ *     });
+ *
+ *     return { dataUpdate, update };
+ *   },
  * );
  *
- * const store = injectCraft();
+ * const store = injectDataStore();
  *
  * // Data passed through unchanged
- * store.setDataUpdate({ id: 'item-1', payload: { value: 123 } });
- * // -> mutation receives exact same object
+ * store.dataUpdate.set({ id: 'item-1', payload: { value: 123 } });
+ * // -> mutation receives the exact same object
  * ```
  */
 export function afterRecomputation<State, SourceType>(
