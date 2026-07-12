@@ -3,7 +3,7 @@ import {
     componentMonitoring,
     insertLocalStoragePersister,
     insertPaginationPlaceholderData,    provideHostName,
-    insertPipe,
+    craftPipe,
     query,
     type ExtractDeps,
     type GetDeps,
@@ -112,7 +112,7 @@ export default class QpListWithPagination {
         this.apiService.getDataList(pagination),
     },
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       insertLocalStoragePersister({
         storeName: 'demo-app',

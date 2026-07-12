@@ -60,8 +60,8 @@ export default defineConfig({
         text: 'Insertions',
         items: [
           {
-            text: 'insertPipe',
-            link: '/insertions/pipe-insertions',
+            text: 'craftPipe',
+            link: '/insertions/craft-pipe',
           },
           {
             text: 'insertSelect',

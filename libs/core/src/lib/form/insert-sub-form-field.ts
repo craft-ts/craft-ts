@@ -48,8 +48,11 @@ type InsertSubFormFieldReturn<
 >;
 
 // =====================================================================
-//  Public API — overload signatures
+//  Public API
 // =====================================================================
+//
+// At most one insertion slot — to compose several insertions, use `craftPipe`
+// inside that slot: `insertSubFormField('name', lens, (context) => craftPipe(context, m1, m2))`.
 
 export function insertSubFormField<
   Source,
@@ -92,120 +95,6 @@ export function insertSubFormField<
   [Insertion1],
   PreviousInsertionsOutputs
 >;
-export function insertSubFormField<
-  Source,
-  Sub,
-  const Name extends string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  PreviousInsertionsOutputs = {},
->(
-  name: Name,
-  lens: FieldLens<Source, Sub>,
-  insertion1: InsertionsFormFactory<
-    Sub,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs
-  >,
-  insertion2: InsertionsFormFactory<
-    Sub,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1
-  >,
-): InsertSubFormFieldReturn<
-  Source,
-  Sub,
-  Name,
-  FormIdentifier,
-  [Insertion1, Insertion2],
-  PreviousInsertionsOutputs
->;
-export function insertSubFormField<
-  Source,
-  Sub,
-  const Name extends string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  Insertion3 = {},
-  PreviousInsertionsOutputs = {},
->(
-  name: Name,
-  lens: FieldLens<Source, Sub>,
-  insertion1: InsertionsFormFactory<
-    Sub,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs
-  >,
-  insertion2: InsertionsFormFactory<
-    Sub,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1
-  >,
-  insertion3: InsertionsFormFactory<
-    Sub,
-    FormIdentifier,
-    Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
-  >,
-): InsertSubFormFieldReturn<
-  Source,
-  Sub,
-  Name,
-  FormIdentifier,
-  [Insertion1, Insertion2, Insertion3],
-  PreviousInsertionsOutputs
->;
-export function insertSubFormField<
-  Source,
-  Sub,
-  const Name extends string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  Insertion3 = {},
-  Insertion4 = {},
-  PreviousInsertionsOutputs = {},
->(
-  name: Name,
-  lens: FieldLens<Source, Sub>,
-  insertion1: InsertionsFormFactory<
-    Sub,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs
-  >,
-  insertion2: InsertionsFormFactory<
-    Sub,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1
-  >,
-  insertion3: InsertionsFormFactory<
-    Sub,
-    FormIdentifier,
-    Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
-  >,
-  insertion4: InsertionsFormFactory<
-    Sub,
-    FormIdentifier,
-    Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
-  >,
-): InsertSubFormFieldReturn<
-  Source,
-  Sub,
-  Name,
-  FormIdentifier,
-  [Insertion1, Insertion2, Insertion3, Insertion4],
-  PreviousInsertionsOutputs
->;
 
 // =====================================================================
 //  Implementation
@@ -215,9 +104,10 @@ export function insertSubFormField(
   name: string,
   lens: FieldLens<unknown, unknown>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...insertions: InsertionsFormFactory<any, any, any, any>[]
+  insertion1?: InsertionsFormFactory<any, any, any, any>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): InsertionsFormFactory<any, any, any, any> {
+  const insertions = insertion1 ? [insertion1] : [];
   return (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: InsertionFormFactoryContext<any, any, any>,

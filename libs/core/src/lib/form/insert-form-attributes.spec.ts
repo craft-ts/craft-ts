@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { craftException } from '../craft-exception';
 import { provideFnWrapper } from '../fn-wrapper';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
+import { craftPipe } from '../craft-pipe';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { formAttributes, insertFormAttributes } from './insert-form-attributes';
@@ -56,12 +57,14 @@ describe('insertFormAttributes', () => {
           },
         },
         insertForm(
-          insertSelectFormTree(
-            'profile',
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              hidden: hidden.asReadonly(),
-            })),
+          insertSelectFormTree('profile', (context) =>
+            craftPipe(
+              context,
+              insertNoopTypingAnchor,
+              insertFormAttributes(() => ({
+                hidden: hidden.asReadonly(),
+              })),
+            ),
           ),
         ),
       );
@@ -364,12 +367,14 @@ describe('insertFormAttributes', () => {
           ],
           insertForm(
             { identifier: ({ item }) => item.id },
-            insertSelectFormTree(
-              'email',
-              insertNoopTypingAnchor,
-              insertFormAttributes(() => ({
-                validators: [cRequired(), cEmail()],
-              })),
+            insertSelectFormTree('email', (context) =>
+              craftPipe(
+                context,
+                insertNoopTypingAnchor,
+                insertFormAttributes(() => ({
+                  validators: [cRequired(), cEmail()],
+                })),
+              ),
             ),
           ),
         );
@@ -403,13 +408,15 @@ describe('insertFormAttributes', () => {
           ],
           insertForm(
             { identifier: ({ item }) => item.id },
-            insertSelectFormTree(
-              'email',
-              insertNoopTypingAnchor,
-              insertFormAttributes(({ formIdentifier }) => {
-                seenIdentifiers.push(formIdentifier);
-                return { validators: [cRequired()] };
-              }),
+            insertSelectFormTree('email', (context) =>
+              craftPipe(
+                context,
+                insertNoopTypingAnchor,
+                insertFormAttributes(({ formIdentifier }) => {
+                  seenIdentifiers.push(formIdentifier);
+                  return { validators: [cRequired()] };
+                }),
+              ),
             ),
           ),
         );

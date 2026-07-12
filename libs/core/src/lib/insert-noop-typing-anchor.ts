@@ -9,7 +9,7 @@ import type { InsertionStateFactoryContext } from './query.core';
  * `insertSelectFormTree('name', insertNoopTypingAnchor, insertFormAttributes(...))`
  *
  * It is NOT needed with `insertSelect`: use
- * `insertSelect('grid', (gridContext) => insertPipe(gridContext, ...))`,
+ * `insertSelect('grid', (gridContext) => craftPipe(gridContext, ...))`,
  * which preserves nested contextual typing by itself.
  */
 export function insertNoopTypingAnchor<

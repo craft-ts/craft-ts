@@ -6,7 +6,7 @@ import { insertLocalStoragePersister } from './insert-local-storage-persister';
 import { mutation } from './mutation';
 import { query } from './query';
 import { state } from './state';
-import { insertPipe } from './pipe-insertions';
+import { craftPipe } from './craft-pipe';
 
 describe('insertLocalStoragePersister', () => {
   beforeEach(() => {
@@ -493,7 +493,7 @@ describe('insertLocalStoragePersister', () => {
       const myState = state(
         0,
         (context) =>
-          insertPipe(
+          craftPipe(
           context,
           ({ set }) => ({
             setValue: (value: number) => set(value),

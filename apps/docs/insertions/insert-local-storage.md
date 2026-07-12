@@ -127,7 +127,7 @@ const postsQuery = query(
 
 ## See Also
 
-- [insertPipe](/insertions/pipe-insertions) - Compose several insertions on one primitive
+- [craftPipe](/insertions/craft-pipe) - Compose several insertions on one primitive
 - [state](/primitives/state) - Base primitive for state
 - [query](/primitives/query) - Reactive data fetching
 - [insertReactOnMutation](/insertions/insert-react-on-mutation) - React to mutations

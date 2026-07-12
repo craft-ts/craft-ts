@@ -3,7 +3,7 @@ import {
     componentMonitoring,
     craftMethod,
     craftService,    insertReactOnMutation,
-    insertPipe,
+    craftPipe,
     mutation,
     provideHostName,
     query,
@@ -99,7 +99,7 @@ const { injectPlayground, PlaygroundToYield } = craftService(
         },
       },
       (context) =>
-        insertPipe(
+        craftPipe(
         context,
         insertReactOnMutation(addTodo, {
           reload: { onMutationResolved: true },

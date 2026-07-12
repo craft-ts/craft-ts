@@ -69,9 +69,9 @@ You can add methods and computed properties to your state using a second inserti
 export class CounterComponent {
   counter = state(
     0,
-    // insertPipe composes multiple insertions, so you can organize your logic as you want
+    // craftPipe composes multiple insertions, so you can organize your logic as you want
     (context) =>
-      insertPipe(
+      craftPipe(
         context,
         ({ update, state }) => ({
           // methods

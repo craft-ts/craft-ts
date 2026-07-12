@@ -13,7 +13,7 @@ import { insertPaginationPlaceholderData } from './insert-pagination-placeholder
 import { insertReactOnMutation } from './insert-react-on-mutation';
 import { insertSelect } from './insert-select';
 import { mutation } from './mutation';
-import { insertPipe } from './pipe-insertions';
+import { craftPipe } from './craft-pipe';
 import { query } from './query';
 import { state } from './state';
 
@@ -41,7 +41,7 @@ beforeAll(() => {
   }
 });
 
-describe('insertPipe with state', () => {
+describe('craftPipe with state', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -55,7 +55,7 @@ describe('insertPipe with state', () => {
       const myState = state(
         computed(() => origin() * 2),
         (context) =>
-          insertPipe(
+          craftPipe(
             context,
             ({ update, set }) => ({
               increment: () => update((current) => current + 1),
@@ -84,7 +84,7 @@ describe('insertPipe with state', () => {
     runInInjectionContext(() => {
       const executionOrder: string[] = [];
       const myState = state(0, (context) =>
-        insertPipe(
+        craftPipe(
           context,
           () => {
             executionOrder.push('first');
@@ -112,7 +112,7 @@ describe('insertPipe with state', () => {
   it('supports insertSelect as a member', () => {
     runInInjectionContext(() => {
       const counter = state({ value: 0, nestedValue: 'hello' }, (context) =>
-        insertPipe(
+        craftPipe(
           context,
           insertSelect('value', ({ state: st, update }) => ({
             increment: () => update((c) => c + 1),
@@ -140,10 +140,10 @@ describe('insertPipe with state', () => {
       const board = state(
         { cell: { style: { color: 'white', paintCount: 0 } } },
         (context) =>
-          insertPipe(
+          craftPipe(
             context,
             insertSelect('cell', (cellContext) =>
-              insertPipe(
+              craftPipe(
                 cellContext,
                 ({ state: st }) => ({
                   styleColor: computed(() => st().style.color),
@@ -200,7 +200,7 @@ describe('insertPipe with state', () => {
           return counter.read();
         },
         (context) =>
-          insertPipe(
+          craftPipe(
             context,
             function* ({ update }) {
               const counterStep = yield* PipeCounterStepToYield();
@@ -244,7 +244,7 @@ describe('insertPipe with state', () => {
   });
 });
 
-describe('insertPipe with query', () => {
+describe('craftPipe with query', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -268,7 +268,7 @@ describe('insertPipe with query', () => {
             },
           },
           (context) =>
-            insertPipe(
+            craftPipe(
               context,
               // insert 1
               () => {
@@ -323,7 +323,7 @@ describe('insertPipe with query', () => {
             },
           },
           (context) =>
-            insertPipe(
+            craftPipe(
               context,
               () => ({ ext1: 1 }),
               ({ insertions: inserts }) => ({ ext2: inserts.ext1 + 1 }),
@@ -374,7 +374,7 @@ describe('insertPipe with query', () => {
           loader: async () => [] as User[],
         },
         (context) =>
-          insertPipe(
+          craftPipe(
             context,
             insertLocalStoragePersister({ storeName: 'probe', key: 'probe' }),
             insertPaginationPlaceholderData({ initialValue: [] as User[] }),
@@ -446,7 +446,7 @@ describe('insertPipe with query', () => {
             }) satisfies User,
         },
         (context) =>
-          insertPipe(
+          craftPipe(
             context,
             function* () {
               const queryTools = yield* PipeQueryToolsToYield();
@@ -489,7 +489,7 @@ describe('insertPipe with query', () => {
     });
   });
 
-  it('insertPipe works with mutation too (universal pipe)', () => {
+  it('craftPipe works with mutation too (universal pipe)', () => {
     runInInjectionContext(() => {
       const save = mutation(
         {
@@ -497,7 +497,7 @@ describe('insertPipe with query', () => {
           loader: async ({ params }) => params,
         },
         (context) =>
-          insertPipe(
+          craftPipe(
             context,
             () => ({ label: 'save-user' }),
             ({ insertions }) => ({ labelLength: insertions.label.length }),
@@ -512,7 +512,7 @@ describe('insertPipe with query', () => {
   });
 });
 
-describe('insertPipe — fn-wrapper interaction', () => {
+describe('craftPipe — fn-wrapper interaction', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -537,7 +537,7 @@ describe('insertPipe — fn-wrapper interaction', () => {
       ],
     });
     runInInjectionContext(() =>
-      state(0, (context) => insertPipe(context, m1, m2)),
+      state(0, (context) => craftPipe(context, m1, m2)),
     );
     expect(wrappedFactories.filter((n) => n === 'm1').length).toBe(1);
     expect(wrappedFactories.filter((n) => n === 'm2').length).toBe(1);
@@ -558,7 +558,7 @@ describe('insertPipe — fn-wrapper interaction', () => {
     });
     const myState = runInInjectionContext(() =>
       state(0, (context) =>
-        insertPipe(
+        craftPipe(
           context,
           (memberContext) =>
             (function* () {
@@ -600,7 +600,7 @@ describe('insertPipe — fn-wrapper interaction', () => {
     expect(() =>
       runInInjectionContext(() =>
         state(0, (context) =>
-          insertPipe(
+          craftPipe(
             context,
             () => ({ ok: () => 1 }),
             () => {
@@ -614,11 +614,11 @@ describe('insertPipe — fn-wrapper interaction', () => {
   });
 });
 
-describe('insertPipe — injector capture timing', () => {
+describe('craftPipe — injector capture timing', () => {
   it('outside an injection context, construction throws like the direct forms', () => {
     expect(() =>
       state(0, (context) =>
-        insertPipe(
+        craftPipe(
           context,
           function* ({ update }) {
             return { inc: () => update((c) => c + 1) };
@@ -632,7 +632,7 @@ describe('insertPipe — injector capture timing', () => {
   it('constructed inside a context, insertion methods stay callable outside any context', () => {
     const s = runInInjectionContext(() =>
       state(0, (context) =>
-        insertPipe(
+        craftPipe(
           context,
           function* ({ update }) {
             return { inc: () => update((c) => c + 1) };

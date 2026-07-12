@@ -1,6 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HOST_TAG_LIST } from '../host-tag';
+import { craftPipe } from '../craft-pipe';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertSelectFormTree } from './insert-select-form-tree';
@@ -73,14 +74,18 @@ describe('makeFormTreeInsert', () => {
       const { insertUserFormTree } = makeFormTreeInsert(
         'UserForm',
         formTreeNeed<UserShape>(),
-        () => ({
-          greeting: 'hello',
-        }),
-        ({ insertions }) => ({
-          greetedName: computed(
-            () => `${(insertions as { greeting: string }).greeting} world`,
+        (context) =>
+          craftPipe(
+            context,
+            () => ({
+              greeting: 'hello',
+            }),
+            ({ insertions }) => ({
+              greetedName: computed(
+                () => `${(insertions as { greeting: string }).greeting} world`,
+              ),
+            }),
           ),
-        }),
       );
 
       const parent = state(

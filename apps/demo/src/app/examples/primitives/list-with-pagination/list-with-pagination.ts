@@ -4,7 +4,7 @@ import {
     componentMonitoring,
     insertLocalStoragePersister,
     insertPaginationPlaceholderData,    provideHostName,
-    insertPipe,
+    craftPipe,
     query,
     queryParam,
     type ExtractDeps,
@@ -131,7 +131,7 @@ export default class ListWithPagination {
         this.apiService.getDataList(pagination),
     },
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       insertLocalStoragePersister({
         storeName: 'demo-app',

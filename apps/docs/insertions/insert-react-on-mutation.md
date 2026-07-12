@@ -12,7 +12,7 @@ import { insertReactOnMutation } from '@craft-ng/core';
 
 A query accepts a single insertion; compose several `insertReactOnMutation`
 (and any other insertion) with
-[insertPipe](/insertions/pipe-insertions) — this is the primary
+[craftPipe](/insertions/craft-pipe) — this is the primary
 real-world use case for the pipe:
 
 ```typescript
@@ -25,7 +25,7 @@ const users = query(
     },
   },
   (context) =>
-    insertPipe(
+    craftPipe(
       context,
       insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
       insertReactOnMutation(deleteUser, {

@@ -8,7 +8,7 @@ import {
     addOne,
     componentMonitoring,
     insertLocalStoragePersister,
-    insertPipe,
+    craftPipe,
     insertSelect,
     on$,
     provideHostName,
@@ -193,7 +193,7 @@ export default class PixelArtMatrix {
       grid: createInitialGrid(),
     },
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       insertLocalStoragePersister({
         key: 'pixel-art-matrix-state',
@@ -209,7 +209,7 @@ export default class PixelArtMatrix {
         setActiveColor: (color: string) => set({ activeColor: color }),
       })),
       insertSelect('grid', (gridContext) =>
-        insertPipe(
+        craftPipe(
           gridContext,
           ({ state, update, set, insertions: { resetAll$ } }) => ({
           paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
@@ -229,7 +229,7 @@ export default class PixelArtMatrix {
           ),
         }),
           insertSelect('row', (rowContext) =>
-            insertPipe(
+            craftPipe(
               rowContext,
               ({ state, set }) => ({
             addCell: () => {

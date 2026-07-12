@@ -8,6 +8,7 @@ import {
     cRequired,
     componentMonitoring,
     craftException,
+    craftPipe,
     insertForm,
     insertFormAttributes,
     insertFormSubmit,
@@ -238,19 +239,23 @@ export default class LoginFormComponent {
     { email: '', password: '' } satisfies LoginData,
     insertForm(
       insertFormSubmit(this.loginMutation),
-      insertSelectFormTree(
-        'email',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired(), cEmail(), cMinLength({ minLength: 5 })],
-        })),
+      insertSelectFormTree('email', (context) =>
+        craftPipe(
+          context,
+          insertNoopTypingAnchor,
+          insertFormAttributes(() => ({
+            validators: [cRequired(), cEmail(), cMinLength({ minLength: 5 })],
+          })),
+        ),
       ),
-      insertSelectFormTree(
-        'password',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired()],
-        })),
+      insertSelectFormTree('password', (context) =>
+        craftPipe(
+          context,
+          insertNoopTypingAnchor,
+          insertFormAttributes(() => ({
+            validators: [cRequired()],
+          })),
+        ),
       ),
     ),
   );

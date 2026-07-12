@@ -6,7 +6,7 @@ import {
     craftService,
     insertLocalStoragePersister,
     insertPaginationPlaceholderData,    provideHostName,
-    insertPipe,
+    craftPipe,
     query,
     queryParam,
     type ExtractDeps,
@@ -54,7 +54,7 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
         },
       },
       (context) =>
-        insertPipe(
+        craftPipe(
         context,
         insertLocalStoragePersister({
           storeName: 'demo-app-craft',

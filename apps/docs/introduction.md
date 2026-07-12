@@ -45,7 +45,7 @@ Stop wasting precious time on common application logic. @craft-ng/core provides 
 const myState = state(
   0,
   (context) =>
-    insertPipe(
+    craftPipe(
       context,
       ({ update, set }) => ({
         increment: () => update((current) => current + 1),

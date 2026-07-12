@@ -11,7 +11,7 @@ import { insertSelect } from './insert-select';
 import { on$ } from './on$';
 import { Source$, source$ } from './source$';
 import { state } from './state';
-import { insertPipe } from './pipe-insertions';
+import { craftPipe } from './craft-pipe';
 import { provideFnWrapper } from './fn-wrapper';
 import {
   injectStateMethodRuntimeContext,
@@ -88,10 +88,10 @@ describe('insertSelect', () => {
           ] as PixelCellState[][],
         },
         insertSelect('grid', (gridContext) =>
-          insertPipe(
+          craftPipe(
             gridContext,
             insertSelect('row', (rowContext) =>
-              insertPipe(
+              craftPipe(
                 rowContext,
                 ({ state }) => ({
                   paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
@@ -240,11 +240,11 @@ describe('insertSelect', () => {
           },
         ],
         insertSelect('row', (rowContext) =>
-          insertPipe(
+          craftPipe(
             rowContext,
             () => ({}),
             insertSelect('cell', (cellContext) =>
-              insertPipe(
+              craftPipe(
                 cellContext,
                 () => ({}),
                 insertSelect('style', ({ update }) => ({
@@ -284,7 +284,7 @@ describe('insertSelect', () => {
           },
         },
         (context) =>
-          insertPipe(
+          craftPipe(
           context,
           () => {
             const test = source$<number>();
@@ -333,7 +333,7 @@ describe('insertSelect', () => {
       const cells = state(
         [{ index: 0, paintCount: 0 }],
         (context) =>
-          insertPipe(
+          craftPipe(
           context,
           () => {
             const test = source$<number>();
@@ -386,7 +386,7 @@ describe('insertSelect', () => {
       const cells = state(
         [{ index: 0, paintCount: 0, color: 'white' }],
         insertSelect('cell', (cellContext) =>
-          insertPipe(
+          craftPipe(
             cellContext,
             () => ({
               paintCell$: source$<string>(),
@@ -414,11 +414,11 @@ describe('insertSelect', () => {
       const cells = state(
         { data: [{ index: 0, paintCount: 0, color: 'white' }] },
         insertSelect('data', (dataContext) =>
-          insertPipe(
+          craftPipe(
             dataContext,
             () => ({}),
             insertSelect('cell', (cellContext) =>
-              insertPipe(
+              craftPipe(
                 cellContext,
                 () => ({
                   paintCell$: source$<string>(),

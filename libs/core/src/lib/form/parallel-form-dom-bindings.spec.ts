@@ -9,6 +9,7 @@ import { insertForm, ValidatedFormValue } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
 import { insertFormSubmit } from './insert-form-submit';
 import { insertSelectFormTree } from './insert-select-form-tree';
+import { craftPipe } from '../craft-pipe';
 import { cRequired } from './validator';
 
 type User = { id: string; name: string };
@@ -72,12 +73,14 @@ class ParallelLazySubFormComponent {
     insertForm(
       { identifier: ({ item }) => item.id },
       insertFormSubmit(this.updateUser),
-      insertSelectFormTree(
-        'name',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired()],
-        })),
+      insertSelectFormTree('name', (context) =>
+        craftPipe(
+          context,
+          insertNoopTypingAnchor,
+          insertFormAttributes(() => ({
+            validators: [cRequired()],
+          })),
+        ),
       ),
     ),
   );

@@ -16,7 +16,7 @@ import {
     insertLocalStoragePersister,
     insertNoopTypingAnchor,
     insertPaginationPlaceholderData,    insertReactOnMutation,
-    insertPipe,
+    craftPipe,
     insertSelectFormTree,    mutation,
     on$,
     provideHostName,
@@ -427,7 +427,7 @@ export default class FullDemo {
       },
     },
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       insertLocalStoragePersister({
         storeName: 'demo-app-full-demo',
@@ -507,7 +507,7 @@ export default class FullDemo {
   protected readonly usersByPage = state(
     computed(() => this.usersQuery.currentPageData() ?? []),
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       () => ({
         status: computed(() =>
@@ -528,12 +528,14 @@ export default class FullDemo {
       insertForm(
         { identifier: ({ item: { id } }) => id },
         insertFormSubmit(this.updateUserName),
-        insertSelectFormTree(
-          'name',
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({
-            validators: [cRequired(), cMinLength({ minLength: 3 })],
-          })),
+        insertSelectFormTree('name', (context) =>
+          craftPipe(
+            context,
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired(), cMinLength({ minLength: 3 })],
+            })),
+          ),
         ),
         () => {
           const isEditing = signal<boolean>(false);
@@ -574,7 +576,7 @@ export default class FullDemo {
       ),
     })),
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       ({ state: selectedRows }) => ({
         isAllSelected: computed(

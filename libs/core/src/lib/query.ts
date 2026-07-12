@@ -695,8 +695,8 @@ export function query<
  *   - Additional ResourceOptions like `equal`, `injector`, etc.
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query.
  *   The insertion receives a context with resource signals (`value`, `status`, `error`, `isLoading`, `hasValue`) and `config`.
- *   To attach several insertions, compose them with `insertPipe`:
- *   `query(config, (context) => insertPipe(context, insertion1, insertion2))` —
+ *   To attach several insertions, compose them with `craftPipe`:
+ *   `query(config, (context) => craftPipe(context, insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  * @returns A query reference object with:
  *   - `value`: Signal containing the query result (undefined if not yet executed)

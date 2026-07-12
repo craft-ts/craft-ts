@@ -71,7 +71,7 @@ cannot be inferred safely. Preserve unrelated user changes.
   state(
     initialValue,
     (context) =>
-      insertPipe(
+      craftPipe(
         context,
         ({ set, update }) => ({ set, update }),
         insertForm(/* field trees and submit */),

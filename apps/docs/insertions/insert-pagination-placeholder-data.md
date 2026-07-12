@@ -157,7 +157,7 @@ export class UsersListComponent {
 
 ## See Also
 
-- [insertPipe](/insertions/pipe-insertions) - Compose several insertions on one primitive
+- [craftPipe](/insertions/craft-pipe) - Compose several insertions on one primitive
 - [query](/primitives/query) - Base primitive for queries
 - [insertReactOnMutation](/insertions/insert-react-on-mutation) - React to mutations
 - [craftService](/store/craft-service) - Compose paginated queries inside reusable services

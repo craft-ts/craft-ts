@@ -7,7 +7,7 @@ import {
   craftService,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,  insertReactOnMutation,  mutation,
-  insertPipe,
+  craftPipe,
   on$,
   provideHostName,
   query,
@@ -105,7 +105,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
         },
       },
       (context) =>
-        insertPipe(
+        craftPipe(
         context,
         insertLocalStoragePersister({
           storeName: 'demo-app-craft',
@@ -174,7 +174,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
         ),
       })),
       (context) =>
-        insertPipe(
+        craftPipe(
         context,
         ({ state: selectedRowsState }) => ({
           isAllSelected: computed(

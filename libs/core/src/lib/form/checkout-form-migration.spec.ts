@@ -17,6 +17,7 @@ import { mutation } from '../mutation';
 import { query } from '../query';
 import { state } from '../state';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
+import { craftPipe } from '../craft-pipe';
 import { insertForm } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
 import { insertFormSubmit } from './insert-form-submit';
@@ -103,61 +104,69 @@ describe('migrated checkout form', () => {
       const { insertDeliveryTree } = makeFormTreeInsert(
         'Delivery',
         formTreeNeed<CheckoutForm['delivery']>(),
-        (context) =>
-          selectFormTree(
-            context,
-            'street',
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [cRequired(), cMaxLength({ maxLength: 250 })],
-            })),
-          ),
-        (context) =>
-          selectFormTree(
-            context,
-            'location',
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [cRequired()],
-            })),
-          ),
-        (context) =>
-          selectFormTree(
-            context,
-            'billingStreet',
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [
-                cRequired({
-                  when: () => !readModel().delivery.useSameAsBilling,
-                }),
-              ],
-            })),
+        (deliveryContext) =>
+          craftPipe(
+            deliveryContext,
+            (context) =>
+              selectFormTree(context, 'street', (fieldContext) =>
+                craftPipe(
+                  fieldContext,
+                  insertNoopTypingAnchor,
+                  insertFormAttributes(() => ({
+                    validators: [cRequired(), cMaxLength({ maxLength: 250 })],
+                  })),
+                ),
+              ),
+            (context) =>
+              selectFormTree(context, 'location', (fieldContext) =>
+                craftPipe(
+                  fieldContext,
+                  insertNoopTypingAnchor,
+                  insertFormAttributes(() => ({
+                    validators: [cRequired()],
+                  })),
+                ),
+              ),
+            (context) =>
+              selectFormTree(context, 'billingStreet', (fieldContext) =>
+                craftPipe(
+                  fieldContext,
+                  insertNoopTypingAnchor,
+                  insertFormAttributes(() => ({
+                    validators: [
+                      cRequired({
+                        when: () => !readModel().delivery.useSameAsBilling,
+                      }),
+                    ],
+                  })),
+                ),
+              ),
           ),
       );
       const { insertCouponTree } = makeFormTreeInsert(
         'Coupon',
         formTreeNeed<CheckoutForm['coupon']>(),
         (context) =>
-          selectFormTree(
-            context,
-            'code',
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [
-                cAsyncValidate(couponQuery, {
-                  name: 'couponValidation',
-                  when: () => readModel().coupon.code.length > 0,
-                  exceptionsOnSuccess: ({ validateAsyncCraftResource }) =>
-                    validateAsyncCraftResource.value()?.valid
-                      ? undefined
-                      : craftException(
-                          { code: 'couponInvalid' },
-                          { message: 'Invalid coupon' },
-                        ),
-                }),
-              ],
-            })),
+          selectFormTree(context, 'code', (fieldContext) =>
+            craftPipe(
+              fieldContext,
+              insertNoopTypingAnchor,
+              insertFormAttributes(() => ({
+                validators: [
+                  cAsyncValidate(couponQuery, {
+                    name: 'couponValidation',
+                    when: () => readModel().coupon.code.length > 0,
+                    exceptionsOnSuccess: ({ validateAsyncCraftResource }) =>
+                      validateAsyncCraftResource.value()?.valid
+                        ? undefined
+                        : craftException(
+                            { code: 'couponInvalid' },
+                            { message: 'Invalid coupon' },
+                          ),
+                  }),
+                ],
+              })),
+            ),
           ),
       );
 

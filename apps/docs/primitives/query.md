@@ -113,7 +113,7 @@ const query = query(
 ### React to mutation with insertReactOnMutation and persist in local storage
 
 ```typescript
-import { insertPipe, insertReactOnMutation } from '@craft-ng/core';
+import { craftPipe, insertReactOnMutation } from '@craft-ng/core';
 
 const updateUserMutation = mutation({
   method: (data: { id: string; name: string; email: string }) => data,
@@ -136,9 +136,9 @@ const userQuery = query(
       }));
     },
   },
-  // several insertions compose into one with insertPipe
+  // several insertions compose into one with craftPipe
   (context) =>
-    insertPipe(
+    craftPipe(
       context,
       insertReactOnMutation(updateUserMutation, {
       // Optimistically update while mutation is loading

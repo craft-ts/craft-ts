@@ -177,8 +177,8 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  *
  * The `state` function allows you to create a Signal-based state that can be extended with custom
  * methods and properties through an insertion. The insertion receives a context object with
- * `state`, `set` and `update` methods. Compose several insertions with `insertPipe`:
- * `state(value, (context) => insertPipe(context, insertion1, insertion2))`.
+ * `state`, `set` and `update` methods. Compose several insertions with `craftPipe`:
+ * `state(value, (context) => craftPipe(context, insertion1, insertion2))`.
  *
  * @remarks
  * For the best TypeScript inference, pass Angular `Signal` values (e.g. `signal`, `linkedSignal`)
@@ -216,12 +216,12 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * console.log(counter()); // 0
  *
  * @example
- * // State with multiple insertions, composed with insertPipe
+ * // State with multiple insertions, composed with craftPipe
  * const origin = signal(5);
  * const counterDouble = state(
  *   computed(() => origin() * 2),
  *   (context) =>
- *     insertPipe(
+ *     craftPipe(
  *       context,
  *       ({ update, set }) => ({
  *         increment: () => update((current) => current + 1),

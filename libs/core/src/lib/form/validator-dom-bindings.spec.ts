@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
+import { craftPipe } from '../craft-pipe';
 import { state } from '../state';
 import { CraftFieldDirective } from './craft-field.directive';
 import { insertForm } from './insert-form';
@@ -25,18 +26,20 @@ class EmailFieldValidatorBindingsComponent {
   protected readonly loginForm = state(
     { email: '' },
     insertForm(
-      insertSelectFormTree(
-        'email',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [
-            cRequired(),
-            cEmail(),
-            cMinLength({ minLength: 5 }),
-            cMaxLength({ maxLength: 10 }),
-            cPattern({ pattern: /@/ }),
-          ],
-        })),
+      insertSelectFormTree('email', (context) =>
+        craftPipe(
+          context,
+          insertNoopTypingAnchor,
+          insertFormAttributes(() => ({
+            validators: [
+              cRequired(),
+              cEmail(),
+              cMinLength({ minLength: 5 }),
+              cMaxLength({ maxLength: 10 }),
+              cPattern({ pattern: /@/ }),
+            ],
+          })),
+        ),
       ),
     ),
   );
@@ -51,12 +54,14 @@ class NumberFieldValidatorBindingsComponent {
   protected readonly numberForm = state(
     { age: 0 },
     insertForm(
-      insertSelectFormTree(
-        'age',
-        insertNoopTypingAnchor,
-        insertFormAttributes(() => ({
-          validators: [cRequired(), cMin({ min: 2 }), cMax({ max: 10 })],
-        })),
+      insertSelectFormTree('age', (context) =>
+        craftPipe(
+          context,
+          insertNoopTypingAnchor,
+          insertFormAttributes(() => ({
+            validators: [cRequired(), cMin({ min: 2 }), cMax({ max: 10 })],
+          })),
+        ),
       ),
     ),
   );

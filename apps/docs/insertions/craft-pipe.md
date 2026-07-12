@@ -1,12 +1,12 @@
-# insertPipe
+# craftPipe
 
 Every primitive accepts **a single insertion**. To attach several insertions,
-compose them with `insertPipe` — one universal utility for every primitive
+compose them with `craftPipe` — one universal utility for every primitive
 (`query`, `mutation`, `asyncProcess`, `state`, `queryParam`) and for the
 nested insertions of `insertSelect`.
 
 The primitive's context is passed **explicitly**: the insertion is a lambda
-receiving the context, and `insertPipe(context, ...members)` re-dispatches it
+receiving the context, and `craftPipe(context, ...members)` re-dispatches it
 to each member.
 
 ## Usage
@@ -15,7 +15,7 @@ to each member.
 import {
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
-  insertPipe,
+  craftPipe,
   insertReactOnMutation,
   query,
 } from '@craft-ng/core';
@@ -29,7 +29,7 @@ const users = query(
     },
   },
   (context) =>
-    insertPipe(
+    craftPipe(
       context,
       insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
       insertPaginationPlaceholderData({ initialValue: [] as User[] }),
@@ -43,14 +43,14 @@ const users = query(
 );
 ```
 
-The same `insertPipe` works with `state`, `mutation`, `asyncProcess` and
+The same `craftPipe` works with `state`, `mutation`, `asyncProcess` and
 `queryParam`:
 
 ```typescript
 const counter = state(
   0,
   (context) =>
-    insertPipe(
+    craftPipe(
       context,
       ({ update, set }) => ({
         increment: () => update((c) => c + 1),
@@ -84,7 +84,7 @@ Piping is strictly equivalent to attaching the members one by one:
 Passing `context` explicitly is what makes a single universal pipe possible:
 the outer `(context) => ...` lambda is contextually typed by the primitive,
 so TypeScript knows the exact context shape before it resolves the
-`insertPipe` call. Inline lambdas keep full contextual typing, higher-order
+`craftPipe` call. Inline lambdas keep full contextual typing, higher-order
 insertion factories (like `insertReactOnMutation(...)`) match as before, and
 the primitive's `Exceptions` inference is never degraded.
 
@@ -96,12 +96,12 @@ Pipes nest freely — each level re-passes its own context:
 const board = state(
   { ui: { activeColor: 'black' }, grid: createInitialGrid() },
   (context) =>
-    insertPipe(
+    craftPipe(
       context,
       insertLocalStoragePersister({ storeName: 'app', key: 'board' }),
       () => ({ resetAll$: source$<void>() }),
       insertSelect('grid', (gridContext) =>
-        insertPipe(
+        craftPipe(
           gridContext,
           ({ state, update }) => ({
             addRow: () => update((grid) => [...grid, createNextRow(grid)]),

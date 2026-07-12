@@ -13,6 +13,7 @@ import { insertFormSubmit } from './insert-form-submit';
 import { cRequired } from './validator';
 import { insertSelectFormTree } from './insert-select-form-tree';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
+import { craftPipe } from '../craft-pipe';
 
 type LoginData = {
   id: string;
@@ -161,12 +162,14 @@ describe('insertFormSubmit', () => {
         { name: '', age: 0 },
         insertForm(
           insertFormSubmit(submitRef),
-          insertSelectFormTree(
-            'name',
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [cRequired()],
-            })),
+          insertSelectFormTree('name', (context) =>
+            craftPipe(
+              context,
+              insertNoopTypingAnchor,
+              insertFormAttributes(() => ({
+                validators: [cRequired()],
+              })),
+            ),
           ),
         ),
       );

@@ -90,23 +90,23 @@ The dependencies are tracked at the primitive level.
 2. This currently breaks type inference. An improvement is planned.
 
 ::: tip Nested typing
-With `insertPipe` the selected context is re-passed explicitly at every level,
+With `craftPipe` the selected context is re-passed explicitly at every level,
 so TypeScript keeps full contextual typing in nested `insertSelect` chains —
 the historical `insertNoopTypingAnchor` workaround is no longer needed here
 (it remains useful for the form-tree helpers).
 :::
 
-## insertSelect and insertPipe
+## insertSelect and craftPipe
 
 Like the primitives, `insertSelect` accepts a **single** nested insertion. To
 attach several, re-pass the selected context through
-[insertPipe](/insertions/pipe-insertions):
+[craftPipe](/insertions/craft-pipe):
 
 ```ts
 state(
   { grid: createInitialGrid() },
   insertSelect('grid', (gridContext) =>
-    insertPipe(
+    craftPipe(
       gridContext,
       ({ state, update }) => ({
         addRow: () => update((grid) => [...grid, createNextRow(grid)]),
@@ -125,7 +125,7 @@ state(
 state(
   initialCells,
   (context) =>
-    insertPipe(
+    craftPipe(
       context,
       insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
       insertSelect('cell', ({ update }) => ({
@@ -142,5 +142,5 @@ state(
 
 ## See also
 
-- [insertPipe](/insertions/pipe-insertions) - Compose several insertions on one primitive
+- [craftPipe](/insertions/craft-pipe) - Compose several insertions on one primitive
 - [state](/primitives/state)

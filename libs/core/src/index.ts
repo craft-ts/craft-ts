@@ -29,7 +29,7 @@ export * from './lib/util/source.type';
 export * from './lib/util/util';
 export * from './lib/util/util.type';
 export * from './lib/insert-react-on-mutation';
-export * from './lib/pipe-insertions';
+export * from './lib/craft-pipe';
 export * from './lib/insert-pagination-placeholder-data';
 export * from './lib/resource-by-id';
 export * from './lib/local-storage-persister';

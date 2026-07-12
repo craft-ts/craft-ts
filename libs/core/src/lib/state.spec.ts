@@ -6,7 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { Source$, source$ } from './source$';
 import { on$ } from './on$';
 import { InsertionsStateFactory } from './query.core';
-import { insertPipe } from './pipe-insertions';
+import { craftPipe } from './craft-pipe';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -117,7 +117,7 @@ describe('state', () => {
       const myState = state(
         linkedSignal(() => origin() * 2),
         (context) =>
-          insertPipe(
+          craftPipe(
           context,
           ({ update, set }) => ({
             increment: () => update((current) => current + 1),
@@ -313,7 +313,7 @@ describe('state', () => {
       const myState = state(
         0,
         (context) =>
-          insertPipe(
+          craftPipe(
           context,
           ({ set }) => ({
             resetAll$: source$<void>(),

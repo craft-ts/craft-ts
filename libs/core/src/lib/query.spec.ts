@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { query, ResourceByIdLikeQueryRef } from './query';
 import { craftService } from './craft-service';
-import { insertPipe } from './pipe-insertions';
+import { craftPipe } from './craft-pipe';
 import { ResourceByIdRef } from './resource-by-id';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { computed, signal } from '@angular/core';
@@ -507,7 +507,7 @@ describe('query Insertions output', () => {
             },
           },
           (context) =>
-            insertPipe(
+            craftPipe(
             context,
             // insert 1
             () => {
@@ -561,7 +561,7 @@ describe('query Insertions output', () => {
             },
           },
           (context) =>
-            insertPipe(
+            craftPipe(
             context,
             // insert 1
             () => ({ ext1: 1 }),

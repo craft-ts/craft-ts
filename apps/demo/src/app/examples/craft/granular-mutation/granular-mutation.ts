@@ -6,7 +6,7 @@ import {
     craftService,
     insertLocalStoragePersister,
     insertPaginationPlaceholderData,    insertReactOnMutation,
-    insertPipe,
+    craftPipe,
     mutation,
     provideHostName,
     query,
@@ -69,7 +69,7 @@ const {
       },
     },
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       insertLocalStoragePersister({
         storeName: 'demo-app-craft',

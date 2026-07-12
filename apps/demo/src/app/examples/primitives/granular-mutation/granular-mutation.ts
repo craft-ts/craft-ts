@@ -4,7 +4,7 @@ import {
     componentMonitoring,
     insertLocalStoragePersister,
     insertPaginationPlaceholderData,    insertReactOnMutation,
-    insertPipe,
+    craftPipe,
     mutation,
     provideHostName,
     query,
@@ -171,7 +171,7 @@ export default class GranularMutation {
       },
     },
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       insertLocalStoragePersister({
         storeName: 'demo-app',

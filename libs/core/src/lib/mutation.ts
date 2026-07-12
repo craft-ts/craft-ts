@@ -764,8 +764,8 @@ export function mutation<
  *   - Additional ResourceOptions like `equal`, `injector`, etc.
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the mutation.
  *   The insertion receives a context with resource signals (`value`, `status`, `error`, `isLoading`, `hasValue`) and `config`.
- *   To attach several insertions, compose them with `insertPipe`:
- *   `mutation(config, (context) => insertPipe(context, insertion1, insertion2))` —
+ *   To attach several insertions, compose them with `craftPipe`:
+ *   `mutation(config, (context) => craftPipe(context, insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
  * @returns A mutation reference object with:

@@ -4,7 +4,7 @@ import {
   BrowserNavigator,
   componentMonitoring,
   craftMethod,
-  insertPipe,
+  craftPipe,
   insertSelect,
   provideHostName,
   state,
@@ -35,7 +35,7 @@ export default class TestComponent {
       nestedValue: 'hello',
     },
     (context) =>
-      insertPipe(
+      craftPipe(
         context,
         insertSelect('value', ({ state, update }) => ({
           increment: () => update((c) => c + 1),

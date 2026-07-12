@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
     componentMonitoring,
     insertLocalStoragePersister,
-    insertPipe,
+    craftPipe,
     insertSelect,
     provideHostName,
     state,
@@ -94,7 +94,7 @@ export default class PixelArt {
       activeColor: DEFAULT_ACTIVE_COLOR,
     },
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       ({ update }) => ({
         setActiveColor: (color: string) =>
@@ -110,7 +110,7 @@ export default class PixelArt {
   protected readonly cells = state(
     initializePixelCells(), // { index: number; color: string; paintCount: number;}[]
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       insertLocalStoragePersister({
         key: 'pixel-art-cells-state',

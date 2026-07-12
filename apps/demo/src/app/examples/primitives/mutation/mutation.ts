@@ -4,7 +4,7 @@ import {
     componentMonitoring,
     injectCraftRouter,
     insertLocalStoragePersister,
-    insertPipe,
+    craftPipe,
     insertReactOnMutation,
     mutation,
     provideHostName,
@@ -75,7 +75,7 @@ export default class MutationDemoComponent {
       preservePreviousValue: () => true, // keep the previous user display while the new one fetching
     },
     (context) =>
-      insertPipe(
+      craftPipe(
       context,
       insertLocalStoragePersister({
         storeName: 'demo-app',

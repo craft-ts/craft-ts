@@ -1,4 +1,4 @@
-import { inject, Injector, linkedSignal } from '@angular/core';
+import { inject, Injector } from '@angular/core';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
 import { CraftFieldTree } from './craft-field';
 import {
@@ -27,8 +27,6 @@ type SelectedFormTreeTarget<
       ? StateType[Name]
       : never
     : never;
-
-type IsArray<T> = T extends any[] ? true : false;
 
 type MaybeFormWithInsertions<Model, Insertions> = [Model] extends [never]
   ? never
@@ -100,7 +98,7 @@ type SelectFormTreeOutput<
 function createObjectRuntime(
   propertyKey: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...insertions: InsertionsFormFactory<any, any, any, any>[]
+  insertion: InsertionsFormFactory<any, any, any, any>,
 ) {
   return (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,7 +138,7 @@ function createObjectRuntime(
         subField,
         subState,
         setSub,
-        insertions,
+        insertions: [insertion],
         injector,
       });
       cachedSubFieldKey = subField as unknown as object;
@@ -156,7 +154,7 @@ function createObjectRuntime(
 function createArrayItemRuntime(
   entityName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...itemInsertions: InsertionsFormFactory<any, any, any, any>[]
+  itemInsertion: InsertionsFormFactory<any, any, any, any>,
 ) {
   return (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,7 +201,7 @@ function createArrayItemRuntime(
         subField,
         subState,
         setSub,
-        insertions: itemInsertions,
+        insertions: [itemInsertion],
         injector: itemInjector,
       });
       cache.set(id, form);
@@ -226,8 +224,11 @@ function createArrayItemRuntime(
 }
 
 // =====================================================================
-//  Public API — overload signatures
+//  Public API
 // =====================================================================
+//
+// Single insertion slot only — to compose several insertions, use `craftPipe`
+// inside that slot: `insertSelectFormTree('name', (context) => craftPipe(context, m1, m2))`.
 
 export function insertSelectFormTree<
   StateType,
@@ -249,146 +250,10 @@ export function insertSelectFormTree<
     Insertion1Yielded
   >,
 ): InsertSelectFormTreeReturn<
-  [Name] extends [keyof StateType]
-    ? IsArray<StateType[Name]> extends true
-      ? `craft-ng error, typing limitation: insertSelectFormTree does not currently support selecting items from an array property in first insertion position. Use insertNoopTypingAnchor in the first slot.`
-      : StateType
-    : StateType,
+  StateType,
   Name,
   FormIdentifier,
   [Insertion1],
-  PreviousInsertionsOutputs
->;
-export function insertSelectFormTree<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  PreviousInsertionsOutputs = {},
-  Insertion1Yielded = never,
-  Insertion2Yielded = never,
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  name: Name,
-  insertion1: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs,
-    Insertion1Yielded
-  >,
-  insertion2: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1,
-    Insertion2Yielded
-  >,
-): InsertSelectFormTreeReturn<
-  StateType,
-  Name,
-  FormIdentifier,
-  [Insertion1, Insertion2],
-  PreviousInsertionsOutputs
->;
-export function insertSelectFormTree<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  Insertion3 = {},
-  PreviousInsertionsOutputs = {},
-  Insertion1Yielded = never,
-  Insertion2Yielded = never,
-  Insertion3Yielded = never,
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  name: Name,
-  insertion1: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs,
-    Insertion1Yielded
-  >,
-  insertion2: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1,
-    Insertion2Yielded
-  >,
-  insertion3: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2,
-    Insertion3Yielded
-  >,
-): InsertSelectFormTreeReturn<
-  StateType,
-  Name,
-  FormIdentifier,
-  [Insertion1, Insertion2, Insertion3],
-  PreviousInsertionsOutputs
->;
-export function insertSelectFormTree<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  Insertion3 = {},
-  Insertion4 = {},
-  PreviousInsertionsOutputs = {},
-  Insertion1Yielded = never,
-  Insertion2Yielded = never,
-  Insertion3Yielded = never,
-  Insertion4Yielded = never,
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  name: Name,
-  insertion1: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs,
-    Insertion1Yielded
-  >,
-  insertion2: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1,
-    Insertion2Yielded
-  >,
-  insertion3: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2,
-    Insertion3Yielded
-  >,
-  insertion4: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3,
-    Insertion4Yielded
-  >,
-): InsertSelectFormTreeReturn<
-  StateType,
-  Name,
-  FormIdentifier,
-  [Insertion1, Insertion2, Insertion3, Insertion4],
   PreviousInsertionsOutputs
 >;
 
@@ -399,7 +264,7 @@ export function insertSelectFormTree<
 export function insertSelectFormTree(
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...insertions: InsertionsFormFactory<any, any, any, any>[]
+  insertion1: InsertionsFormFactory<any, any, any, any>,
 ): InsertionsFormFactory<any, any, any, any> {
   return (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -407,15 +272,18 @@ export function insertSelectFormTree(
   ) => {
     const currentState = context.state();
     if (Array.isArray(currentState)) {
-      return createArrayItemRuntime(name, ...insertions)(context);
+      return createArrayItemRuntime(name, insertion1)(context);
     }
-    return createObjectRuntime(name, ...insertions)(context);
+    return createObjectRuntime(name, insertion1)(context);
   };
 }
 
 // =====================================================================
 //  Public API — `selectFormTree` (context-first variant)
 // =====================================================================
+//
+// Single insertion slot only — to compose several insertions, use `craftPipe`
+// inside that slot: `selectFormTree(context, 'name', (c) => craftPipe(c, m1, m2))`.
 
 export function selectFormTree<
   StateType,
@@ -440,132 +308,9 @@ export function selectFormTree<
     PreviousInsertionsOutputs
   >,
 ): SelectFormTreeOutput<
-  [Name] extends [keyof StateType]
-    ? IsArray<StateType[Name]> extends true
-      ? `craft-ng error, typing limitation: selectFormTree does not currently support selecting items from an array property in first insertion position. Use insertNoopTypingAnchor in the first slot.`
-      : StateType
-    : StateType,
+  StateType,
   Name,
   [Insertion1]
->;
-export function selectFormTree<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  PreviousInsertionsOutputs = {},
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  context: InsertionFormFactoryContext<
-    StateType,
-    PreviousInsertionsOutputs,
-    FormIdentifier
-  >,
-  name: Name,
-  insertion1: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs
-  >,
-  insertion2: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1
-  >,
-): SelectFormTreeOutput<StateType, Name, [Insertion1, Insertion2]>;
-export function selectFormTree<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  Insertion3 = {},
-  PreviousInsertionsOutputs = {},
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  context: InsertionFormFactoryContext<
-    StateType,
-    PreviousInsertionsOutputs,
-    FormIdentifier
-  >,
-  name: Name,
-  insertion1: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs
-  >,
-  insertion2: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1
-  >,
-  insertion3: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
-  >,
-): SelectFormTreeOutput<
-  StateType,
-  Name,
-  [Insertion1, Insertion2, Insertion3]
->;
-export function selectFormTree<
-  StateType,
-  const Name extends AutoCompleteName & string,
-  FormIdentifier extends string | number | unknown = unknown,
-  Insertion1 = {},
-  Insertion2 = {},
-  Insertion3 = {},
-  Insertion4 = {},
-  PreviousInsertionsOutputs = {},
-  AutoCompleteName = StateType extends readonly object[]
-    ? string
-    : keyof StateType,
->(
-  context: InsertionFormFactoryContext<
-    StateType,
-    PreviousInsertionsOutputs,
-    FormIdentifier
-  >,
-  name: Name,
-  insertion1: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion1,
-    PreviousInsertionsOutputs
-  >,
-  insertion2: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion2,
-    PreviousInsertionsOutputs & Insertion1
-  >,
-  insertion3: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
-  >,
-  insertion4: InsertionsFormFactory<
-    SelectedFormTreeTarget<StateType, Name>,
-    FormIdentifier,
-    Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
-  >,
-): SelectFormTreeOutput<
-  StateType,
-  Name,
-  [Insertion1, Insertion2, Insertion3, Insertion4]
 >;
 
 // =====================================================================
@@ -577,15 +322,12 @@ export function selectFormTree(
   context: InsertionFormFactoryContext<any, any, any>,
   name: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...insertions: InsertionsFormFactory<any, any, any, any>[]
+  insertion1: InsertionsFormFactory<any, any, any, any>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
   const currentState = context.state();
   if (Array.isArray(currentState)) {
-    return createArrayItemRuntime(name, ...insertions)(context);
+    return createArrayItemRuntime(name, insertion1)(context);
   }
-  return createObjectRuntime(name, ...insertions)(context);
+  return createObjectRuntime(name, insertion1)(context);
 }
-
-// Reference linkedSignal so eslint doesn't complain about unused imports across overloads.
-void linkedSignal;

@@ -780,13 +780,13 @@ type IsArray<T> = T extends any[] ? true : false;
  *
  * `insertSelect` accepts a SINGLE nested insertion. To attach several (or to
  * chain another `insertSelect` alongside other members), re-pass the selected
- * context through `insertPipe` — contextual typing is preserved at every
+ * context through `craftPipe` — contextual typing is preserved at every
  * nesting level:
  *
  * @example
  * ```ts
  * insertSelect('grid', (gridContext) =>
- *   insertPipe(
+ *   craftPipe(
  *     gridContext,
  *     ({ state, update }) => ({
  *       addRow: () => update((grid) => [...grid, createNextRow(grid)]),
@@ -799,13 +799,13 @@ type IsArray<T> = T extends any[] ? true : false;
  * );
  * ```
  *
- * `insertSelect` itself also composes as a member of an `insertPipe` at the
+ * `insertSelect` itself also composes as a member of an `craftPipe` at the
  * primitive level:
  *
  * @example
  * ```ts
  * state(initialCells, (context) =>
- *   insertPipe(
+ *   craftPipe(
  *     context,
  *     insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
  *     insertSelect('cell', ({ update }) => ({

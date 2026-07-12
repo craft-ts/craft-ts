@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { HOST_TAG_LIST } from '../host-tag';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { craftService, onAppStart } from '../craft-service';
+import { craftPipe } from '../craft-pipe';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
@@ -40,20 +41,22 @@ describe('insertSelectFormTree', () => {
           status: 'draft',
         } satisfies ProfileFormValue,
         insertForm(
-          insertSelectFormTree(
-            'credentials',
-            ({ field }) => ({
-              getNameFromForm: () => field.name.value(),
-            }),
-            ({ insertions }) => ({
-              upperName: computed(() =>
-                insertions.getNameFromForm().toUpperCase(),
-              ),
-            }),
-            ({ update }) => ({
-              clearPassword: () =>
-                update((credentials) => ({ ...credentials, password: '' })),
-            }),
+          insertSelectFormTree('credentials', (context) =>
+            craftPipe(
+              context,
+              ({ field }) => ({
+                getNameFromForm: () => field.name.value(),
+              }),
+              ({ insertions }) => ({
+                upperName: computed(() =>
+                  insertions.getNameFromForm().toUpperCase(),
+                ),
+              }),
+              ({ update }) => ({
+                clearPassword: () =>
+                  update((credentials) => ({ ...credentials, password: '' })),
+              }),
+            ),
           ),
         ),
       );
@@ -104,20 +107,24 @@ describe('insertSelectFormTree', () => {
           addresses: [{ city: 'Paris', zip: '75000' }],
         } satisfies AddressBookFormValue,
         insertForm(
-          insertSelectFormTree(
-            'addresses',
-            insertNoopTypingAnchor,
-            insertSelectFormTree(
-              'address',
-              ({ field }) => ({
-                cityLabel: computed(
-                  () => `${field.city.value()} (${field.zip.value()})`,
+          insertSelectFormTree('addresses', (context) =>
+            craftPipe(
+              context,
+              insertNoopTypingAnchor,
+              insertSelectFormTree('address', (itemContext) =>
+                craftPipe(
+                  itemContext,
+                  ({ field }) => ({
+                    cityLabel: computed(
+                      () => `${field.city.value()} (${field.zip.value()})`,
+                    ),
+                  }),
+                  ({ update }) => ({
+                    renameCity: (city: string) =>
+                      update((address) => ({ ...address, city })),
+                  }),
                 ),
-              }),
-              ({ update }) => ({
-                renameCity: (city: string) =>
-                  update((address) => ({ ...address, city })),
-              }),
+              ),
             ),
           ),
         ),
@@ -162,12 +169,14 @@ describe('insertSelectFormTree', () => {
           ],
         } satisfies AddressBookFormValue,
         insertForm(
-          insertSelectFormTree(
-            'addresses',
-            insertNoopTypingAnchor,
-            insertSelectFormTree('address', () => ({
-              hostTags: inject(HOST_TAG_LIST),
-            })),
+          insertSelectFormTree('addresses', (context) =>
+            craftPipe(
+              context,
+              insertNoopTypingAnchor,
+              insertSelectFormTree('address', () => ({
+                hostTags: inject(HOST_TAG_LIST),
+              })),
+            ),
           ),
         ),
       );
@@ -233,26 +242,28 @@ describe('selectFormTree', () => {
         { email: '', password: '' } satisfies LoginData,
         insertForm(
           (context) =>
-            selectFormTree(
-              context,
-              'email',
-              insertNoopTypingAnchor,
-              insertFormAttributes(() => ({
-                validators: [
-                  cRequired(),
-                  cEmail(),
-                  cMinLength({ minLength: 5 }),
-                ],
-              })),
+            selectFormTree(context, 'email', (fieldContext) =>
+              craftPipe(
+                fieldContext,
+                insertNoopTypingAnchor,
+                insertFormAttributes(() => ({
+                  validators: [
+                    cRequired(),
+                    cEmail(),
+                    cMinLength({ minLength: 5 }),
+                  ],
+                })),
+              ),
             ),
           (context) =>
-            selectFormTree(
-              context,
-              'password',
-              insertNoopTypingAnchor,
-              insertFormAttributes(() => ({
-                validators: [cRequired()],
-              })),
+            selectFormTree(context, 'password', (fieldContext) =>
+              craftPipe(
+                fieldContext,
+                insertNoopTypingAnchor,
+                insertFormAttributes(() => ({
+                  validators: [cRequired()],
+                })),
+              ),
             ),
         ),
       );
@@ -291,21 +302,22 @@ describe('selectFormTree', () => {
           status: 'draft',
         } satisfies ProfileFormValue,
         insertForm((context) =>
-          selectFormTree(
-            context,
-            'credentials',
-            ({ field }) => ({
-              getNameFromForm: () => field.name.value(),
-            }),
-            ({ insertions }) => ({
-              upperName: computed(() =>
-                insertions.getNameFromForm().toUpperCase(),
-              ),
-            }),
-            ({ update }) => ({
-              clearPassword: () =>
-                update((credentials) => ({ ...credentials, password: '' })),
-            }),
+          selectFormTree(context, 'credentials', (fieldContext) =>
+            craftPipe(
+              fieldContext,
+              ({ field }) => ({
+                getNameFromForm: () => field.name.value(),
+              }),
+              ({ insertions }) => ({
+                upperName: computed(() =>
+                  insertions.getNameFromForm().toUpperCase(),
+                ),
+              }),
+              ({ update }) => ({
+                clearPassword: () =>
+                  update((credentials) => ({ ...credentials, password: '' })),
+              }),
+            ),
           ),
         ),
       );
@@ -338,16 +350,17 @@ describe('selectFormTree', () => {
           addresses: [{ city: 'Paris', zip: '75000' }],
         } satisfies AddressBookFormValue,
         insertForm((context) =>
-          selectFormTree(
-            context,
-            'addresses',
-            insertNoopTypingAnchor,
-            (subContext) =>
-              selectFormTree(subContext, 'address', ({ field }) => ({
-                cityLabel: computed(
-                  () => `${field.city.value()} (${field.zip.value()})`,
-                ),
-              })),
+          selectFormTree(context, 'addresses', (addressesContext) =>
+            craftPipe(
+              addressesContext,
+              insertNoopTypingAnchor,
+              (subContext) =>
+                selectFormTree(subContext, 'address', ({ field }) => ({
+                  cityLabel: computed(
+                    () => `${field.city.value()} (${field.zip.value()})`,
+                  ),
+                })),
+            ),
           ),
         ),
       );
@@ -476,12 +489,11 @@ describe('insertSelectFormTree with generator insertions', () => {
       const addressBookForm = state(
         { addresses: [{ city: 'Paris', zip: '75000' }] } satisfies AddressBookFormValue,
         insertForm(
-          insertSelectFormTree(
-            'addresses',
-            insertNoopTypingAnchor,
-            insertSelectFormTree(
-              'item',
-              function* ({ update }) {
+          insertSelectFormTree('addresses', (context) =>
+            craftPipe(
+              context,
+              insertNoopTypingAnchor,
+              insertSelectFormTree('item', function* ({ update }) {
                 const logger = yield* ArrFormLoggerToYield();
                 return {
                   updateCity: (city: string) => {
@@ -489,7 +501,7 @@ describe('insertSelectFormTree with generator insertions', () => {
                     return update((addr) => ({ ...addr, city }));
                   },
                 };
-              },
+              }),
             ),
           ),
         ),
@@ -528,15 +540,14 @@ describe('insertSelectFormTree with generator insertions', () => {
         state(
           { addresses: [{ city: 'Paris', zip: '75000' }] } satisfies AddressBookFormValue,
           insertForm(
-            insertSelectFormTree(
-              'addresses',
-              insertNoopTypingAnchor,
-              insertSelectFormTree(
-                'item',
-                function* () {
+            insertSelectFormTree('addresses', (context) =>
+              craftPipe(
+                context,
+                insertNoopTypingAnchor,
+                insertSelectFormTree('item', function* () {
                   yield* onAppStart(() => {});
                   return {};
-                },
+                }),
               ),
             ),
           ),

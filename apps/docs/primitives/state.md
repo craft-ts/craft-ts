@@ -50,14 +50,14 @@ console.log(counter()); // 0
 
 ### State with multiple insertions (methods and computed properties)
 
-Compose several insertions into one with [insertPipe](/insertions/pipe-insertions):
+Compose several insertions into one with [craftPipe](/insertions/craft-pipe):
 
 ```typescript
 const origin = signal(5);
 const counter = state(
   computed(() => origin() * 2),
   (context) =>
-    insertPipe(
+    craftPipe(
       context,
       ({ update, set }) => ({
         increment: () => update((current) => current + 1),
@@ -102,7 +102,7 @@ console.log(myState()); // 0
 state(
   0,
   (context) =>
-    insertPipe(
+    craftPipe(
       context,
       ({ update }, { logger = inject(Logger) }) => ({
         increment: () => {

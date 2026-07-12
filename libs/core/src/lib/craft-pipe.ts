@@ -1,8 +1,8 @@
 import { isGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
 
-// `insertPipe` composes several insertions into ONE, with the primitive's
-// context passed EXPLICITLY: `primitive(config, (context) => insertPipe(context, m1, m2))`.
+// `craftPipe` composes several insertions into ONE, with the primitive's
+// context passed EXPLICITLY: `primitive(config, (context) => craftPipe(context, m1, m2))`.
 //
 // Why explicit context: the outer lambda is context-sensitive, so the
 // primitive types `context` concretely BEFORE the pipe call is resolved, and
@@ -35,7 +35,7 @@ type MergedIns<Ctx extends { insertions?: any }, I> = NormalizeIns<
  * const users = query(
  *   config,
  *   (context) =>
- *     insertPipe(
+ *     craftPipe(
  *       context,
  *       insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
  *       insertReactOnMutation(deleteUser, { ... }),
@@ -54,11 +54,11 @@ type MergedIns<Ctx extends { insertions?: any }, I> = NormalizeIns<
  *   (correlation-id tracking, app snapshots observe each member).
  *
  * Inline lambdas keep the primitive's contextual typing because the outer
- * `(context) => insertPipe(context, ...)` lambda receives the concrete
+ * `(context) => craftPipe(context, ...)` lambda receives the concrete
  * context from the primitive. Pipes nest freely, including inside
- * `insertSelect`: `insertSelect('grid', (gridContext) => insertPipe(gridContext, ...))`.
+ * `insertSelect`: `insertSelect('grid', (gridContext) => craftPipe(gridContext, ...))`.
  */
-export function insertPipe<
+export function craftPipe<
   Ctx extends { insertions?: any },
   I1,
   I2,
@@ -71,7 +71,7 @@ export function insertPipe<
     context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1>>,
   ) => I2 | Generator<Y2, I2, unknown>,
 ): Generator<Y1 | Y2, I1 & I2, unknown>;
-export function insertPipe<
+export function craftPipe<
   Ctx extends { insertions?: any },
   I1,
   I2,
@@ -89,7 +89,7 @@ export function insertPipe<
     context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2>>,
   ) => I3 | Generator<Y3, I3, unknown>,
 ): Generator<Y1 | Y2 | Y3, I1 & I2 & I3, unknown>;
-export function insertPipe<
+export function craftPipe<
   Ctx extends { insertions?: any },
   I1,
   I2,
@@ -112,7 +112,7 @@ export function insertPipe<
     context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3>>,
   ) => I4 | Generator<Y4, I4, unknown>,
 ): Generator<Y1 | Y2 | Y3 | Y4, I1 & I2 & I3 & I4, unknown>;
-export function insertPipe<
+export function craftPipe<
   Ctx extends { insertions?: any },
   I1,
   I2,
@@ -140,7 +140,7 @@ export function insertPipe<
     context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4>>,
   ) => I5 | Generator<Y5, I5, unknown>,
 ): Generator<Y1 | Y2 | Y3 | Y4 | Y5, I1 & I2 & I3 & I4 & I5, unknown>;
-export function insertPipe<
+export function craftPipe<
   Ctx extends { insertions?: any },
   I1,
   I2,
@@ -173,7 +173,7 @@ export function insertPipe<
     context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4 & I5>>,
   ) => I6 | Generator<Y6, I6, unknown>,
 ): Generator<Y1 | Y2 | Y3 | Y4 | Y5 | Y6, I1 & I2 & I3 & I4 & I5 & I6, unknown>;
-export function insertPipe<
+export function craftPipe<
   Ctx extends { insertions?: any },
   I1,
   I2,
@@ -211,7 +211,7 @@ export function insertPipe<
     context: CtxWithIns<NoInfer<Ctx>, MergedIns<NoInfer<Ctx>, I1 & I2 & I3 & I4 & I5 & I6>>,
   ) => I7 | Generator<Y7, I7, unknown>,
 ): Generator<Y1 | Y2 | Y3 | Y4 | Y5 | Y6 | Y7, I1 & I2 & I3 & I4 & I5 & I6 & I7, unknown>;
-export function* insertPipe(
+export function* craftPipe(
   context: { insertions?: Record<string, unknown> },
   ...members: Array<(context: any) => unknown>
 ): Generator<unknown, Record<string, unknown>, unknown> {
