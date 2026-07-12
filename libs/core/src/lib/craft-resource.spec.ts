@@ -1,0 +1,125 @@
+import '@angular/compiler';
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { craftResource } from './craft-resource';
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
+
+describe('craftResource', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  function createResource() {
+    const params = signal({ id: 1 });
+    return TestBed.runInInjectionContext(() =>
+      craftResource({
+        params: () => params(),
+        loader: async ({ params: p }) => ({ id: p.id, name: `item-${p.id}` }),
+      }),
+    );
+  }
+
+  it('resolves the loader result on value/state/safeValue', async () => {
+    const resource = createResource();
+    await TestBed.tick();
+    await vi_waitForResolved(resource);
+
+    expect(resource.hasValue()).toBe(true);
+    expect(resource.value()).toEqual({ id: 1, name: 'item-1' });
+    expect(resource.state()).toEqual({ id: 1, name: 'item-1' });
+    expect(resource.safeValue()).toEqual({ id: 1, name: 'item-1' });
+    expect(resource.status()).toBe('resolved');
+    expect(resource.isLoading()).toBe(false);
+  });
+
+  it('safeValue and state are undefined while there is no value yet', () => {
+    const resource = createResource();
+    expect(resource.hasValue()).toBe(false);
+    expect(resource.safeValue()).toBeUndefined();
+    expect(resource.state()).toBeUndefined();
+  });
+
+  it('exposes paramSrc as the exact params function passed in', () => {
+    const params = signal({ id: 7 });
+    const resource = TestBed.runInInjectionContext(() =>
+      craftResource({
+        params: params,
+        loader: async ({ params: p }) => p,
+      }),
+    );
+    expect(resource.paramSrc).toBe(params as never);
+  });
+
+  it('exposes the raw error signal as an internal channel', async () => {
+    const resource = TestBed.runInInjectionContext(() =>
+      craftResource({
+        params: () => ({ id: 1 }),
+        loader: async () => {
+          throw new Error('loader failed');
+        },
+      }),
+    );
+    await vi_waitForSettled(resource);
+    const internalError = (resource as unknown as { error: () => unknown })
+      .error();
+    expect(internalError).toBeInstanceOf(Error);
+    expect(resource.hasValue()).toBe(false);
+  });
+
+  it('bound methods (reload, destroy, update, set, asReadonly) operate without a `this` receiver', async () => {
+    const resource = createResource();
+    await vi_waitForResolved(resource);
+
+    const { set, update, reload, asReadonly, destroy } = resource;
+    set({ id: 99, name: 'manual' });
+    expect(resource.value()).toEqual({ id: 99, name: 'manual' });
+
+    update((current) => ({ ...(current as { id: number; name: string }), name: 'updated' }));
+    expect(resource.value()).toEqual({ id: 99, name: 'updated' });
+
+    expect(asReadonly()).toBeTruthy();
+    expect(() => reload()).not.toThrow();
+    expect(() => destroy()).not.toThrow();
+  });
+});
+
+async function vi_waitForResolved(resource: {
+  status: () => string;
+}): Promise<void> {
+  for (let i = 0; i < 50 && resource.status() !== 'resolved'; i++) {
+    await new Promise((r) => setTimeout(r, 0));
+    TestBed.tick();
+  }
+}
+
+async function vi_waitForSettled(resource: {
+  status: () => string;
+}): Promise<void> {
+  for (
+    let i = 0;
+    i < 50 && !['resolved', 'error'].includes(resource.status());
+    i++
+  ) {
+    await new Promise((r) => setTimeout(r, 0));
+    TestBed.tick();
+  }
+}
