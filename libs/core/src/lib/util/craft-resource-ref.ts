@@ -8,5 +8,14 @@ export type CraftResourceRefSpecificState<Value, Params> = {
   safeValue: Signal<Value | undefined>;
   state: Signal<Value | undefined>;
 };
-export type CraftResourceRef<Value, Params> = ResourceRef<Value> &
+/**
+ * Angular's `error` signal is excluded from the craft surface: business failures
+ * are exposed through the `exceptions()`/`hasException()` API instead. The raw
+ * signal still exists on the ref at runtime as an internal channel (see
+ * `untilSettled`, which rethrows a residual technical failure through it).
+ */
+export type CraftResourceRef<Value, Params> = Omit<
+  ResourceRef<Value>,
+  'error'
+> &
   CraftResourceRefSpecificState<Value, Params>;

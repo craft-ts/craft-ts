@@ -3,6 +3,7 @@ import {
   linkedSignal,
   ResourceOptions,
   computed,
+  Signal,
 } from '@angular/core';
 import {
   CraftResourceRef,
@@ -16,8 +17,8 @@ export function preservedResource<T, R>(
   const originalCopy = { ...original };
   const preserved = linkedSignal({
     source: () => ({
-      //@ts-expect-error originalCopy can access to isError
-      value: originalCopy.isError() ? undefined : originalCopy.value(),
+      value:
+        originalCopy.status() === 'error' ? undefined : originalCopy.value(),
       status: originalCopy.status(),
       isLoading: originalCopy.isLoading(),
     }),
@@ -48,7 +49,10 @@ export function preservedResource<T, R>(
   return {
     value: preserved,
     hasValue: original.hasValue.bind(original),
+    snapshot: original.snapshot,
     status: original.status,
+    // Internal channel only: not part of the CraftResourceRef surface, kept at
+    // runtime for `untilSettled` (see craft-resource.ts).
     error: original.error,
     isLoading: original.isLoading,
     reload: original.reload.bind(original),
@@ -57,7 +61,7 @@ export function preservedResource<T, R>(
     set: original.set.bind(original),
     asReadonly: original.asReadonly.bind(original),
     safeValue: state,
-    paramSrc: config.params,
+    paramSrc: config.params as Signal<R | undefined>,
     state,
   } as CraftResourceRef<T | undefined, R>;
 }

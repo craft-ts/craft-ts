@@ -409,10 +409,10 @@ export type AsyncProcessOutput<
  * Creates an async method that manages asynchronous operations with automatic state tracking.
  *
  * This function creates a reactive async operation by:
- * - Managing loading, resolved, error, and idle states automatically
+ * - Managing loading, resolved, exception, and idle states automatically
  * - Supporting both method-based (manual) and source-based (automatic) triggering
  * - Enabling parallel execution with identifiers
- * - Providing signals for value, status, error, and loading state
+ * - Providing signals for value, status, exceptions, and loading state
  * - Supporting streaming data with progressive updates
  * - Enabling custom insertions for extending functionality
  *
@@ -430,7 +430,8 @@ export type AsyncProcessOutput<
  * - `idle`: Initial state, no operation started
  * - `loading`: Operation in progress
  * - `resolved`: Operation completed successfully
- * - `error`: Operation failed
+ * - `exception`: A `craftException` was returned by the method/loader (technical
+ *   errors are left to throw and are not part of the craft status)
  *
  * **Identifier Usage:**
  * - Without identifier: Single global state for the async method
@@ -455,8 +456,10 @@ export type AsyncProcessOutput<
  *
  * @returns An async method reference with:
  *   - `value`: Signal containing the result (or undefined)
- *   - `status`: Signal with current state ('idle' | 'loading' | 'resolved' | 'error')
- *   - `error`: Signal containing error (or undefined)
+ *   - `status`: Signal with the craft state ('idle' | 'loading' | 'reloading' | 'resolved' | 'local' | 'exception')
+ *   - `exception`: Signal with the primary `craftException` (or undefined)
+ *   - `exceptions`: Signal with the captured exceptions (`list` / `params` / `loader`)
+ *   - `hasException()`: Signal indicating whether an exception is captured
  *   - `isLoading`: Signal for loading state
  *   - `hasValue()`: Function to check if value exists
  *   - `method`: (method-based only) Function to trigger the operation

@@ -738,8 +738,8 @@ export function mutation<
  *
  * This function manages mutation state by:
  * - Executing asynchronous operations (loader or stream) when triggered
- * - Tracking operation status (idle, loading, resolved, rejected)
- * - Providing reactive signals for value, status, error, and loading state
+ * - Tracking operation status (idle, loading, resolved, exception)
+ * - Providing reactive signals for value, status, exceptions, and loading state
  * - Supporting both method-based triggers and source-based automatic execution
  * - Optionally enabling parallel mutation execution by grouping instances with an identifier
  *
@@ -763,15 +763,17 @@ export function mutation<
  *   - `params` (optional): Function to derive params from a resource entity
  *   - Additional ResourceOptions like `equal`, `injector`, etc.
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the mutation.
- *   The insertion receives a context with resource signals (`value`, `status`, `error`, `isLoading`, `hasValue`) and `config`.
+ *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`).
  *   To attach several insertions, compose them with `craftPipe`:
  *   `mutation(config, (context) => craftPipe(context, insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
  * @returns A mutation reference object with:
  *   - `value`: Signal containing the mutation result (undefined if not yet executed)
- *   - `status`: Signal with current status ('idle' | 'loading' | 'resolved' | 'rejected')
- *   - `error`: Signal containing any error that occurred
+ *   - `status`: Signal with the craft status ('idle' | 'loading' | 'reloading' | 'resolved' | 'local' | 'exception')
+ *   - `exception`: Signal with the primary `craftException` (or undefined)
+ *   - `exceptions`: Signal with the captured exceptions (`list` / `params` / `loader`)
+ *   - `hasException()`: Signal indicating whether an exception is captured
  *   - `isLoading`: Signal indicating if the mutation is currently executing
  *   - `hasValue()`: Method to check if a value is available
  *   - `mutate(args)`: Method to trigger the mutation (only for method-based mutations)
@@ -1256,13 +1258,15 @@ export function mutation<
 
   // Capture the raw Angular status BEFORE `Object.assign` overrides
   // `resourceTarget.status` with the craft computed (avoids a computation cycle).
-  const rawResourceStatus = (resourceTarget as ResourceRef<MutationState>)
-    .status;
+  const rawResourceStatus = (
+    resourceTarget as unknown as ResourceRef<MutationState>
+  ).status;
 
   if (!isUsingIdentifier) {
     Object.assign(resourceTarget, {
       safeValue: computed(() => {
-        const resourceRef = resourceTarget as ResourceRef<MutationState>;
+        const resourceRef =
+          resourceTarget as unknown as ResourceRef<MutationState>;
         return resourceRef.hasValue() ? resourceRef.value() : undefined;
       }),
     });

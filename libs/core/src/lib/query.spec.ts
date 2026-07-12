@@ -1079,40 +1079,37 @@ describe('query exceptions', () => {
     });
   });
 
-  it.todo(
-    'maps loader exceptions by identifier only when identifier is provided on the exception',
-    async () => {
-      await TestBed.runInInjectionContext(async () => {
-        const current = signal<'A' | 'B'>('A');
-        const queryRef = query({
-          params: () => current(),
-          identifier: (id) => id,
-          loader: async ({ params }) =>
-            params === 'A'
-              ? craftException({ code: 'PARSE_FAILED' }, { params })
-              : craftException({ code: 'PARSE_FAILED' }, { params }),
-        });
-
-        await vi.runAllTimersAsync();
-        expect(queryRef.exceptions().loader?.['A']?.code).toEqual({
-          params: 'A',
-        });
-
-        current.set('B');
-        await vi.runAllTimersAsync();
-
-        expect(queryRef.exceptions().loader['A']).toBeDefined();
-        expect(
-          queryRef.exceptions().list.some((item) => item.identifier === 'A'),
-        ).toBe(true);
-        expect(
-          queryRef.exceptions().list.some((item) => item.identifier === 'B'),
-        ).toBe(true);
+  it('maps loader exceptions by identifier only when identifier is provided on the exception', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const current = signal<'A' | 'B'>('A');
+      const queryRef = query({
+        params: () => current(),
+        identifier: (id) => id,
+        loader: async ({ params }) =>
+          craftException({ code: 'PARSE_FAILED' }, { params }),
       });
-    },
-  );
 
-  it.todo('keeps params exceptions global in parallel query', async () => {
+      await vi.runAllTimersAsync();
+      expect(queryRef.exceptions().loader['A']?.payload).toEqual({
+        params: 'A',
+      });
+      expect(queryRef.exceptions().loader['A']?.identifier).toBe('A');
+
+      current.set('B');
+      await vi.runAllTimersAsync();
+
+      // The 'A' exception stays mapped under its identifier while 'B' fails too.
+      expect(queryRef.exceptions().loader['A']).toBeDefined();
+      expect(
+        queryRef.exceptions().list.some((item) => item.identifier === 'A'),
+      ).toBe(true);
+      expect(
+        queryRef.exceptions().list.some((item) => item.identifier === 'B'),
+      ).toBe(true);
+    });
+  });
+
+  it('keeps params exceptions global in parallel query', async () => {
     await TestBed.runInInjectionContext(async () => {
       const current = signal<'A' | 'B'>('A');
       const queryRef = query({
@@ -1128,46 +1125,44 @@ describe('query exceptions', () => {
 
       expect(queryRef.exceptions().params?.payload).toEqual({ params: 'A' });
       expect(queryRef.exceptions().loader).toEqual({});
+      expect(queryRef.hasException()).toBe(true);
     });
   });
 
-  it.todo(
-    'exposes typed exception accessors from params and insertions',
-    () => {
-      TestBed.runInInjectionContext(() => {
-        const current = signal<'A' | 'B'>('A');
-        const queryRef = query(
-          {
-            params: () =>
-              current()
-                ? craftException(
-                    { code: 'PARAM_VALUE_MISMATCH' },
-                    { from: 'params' as const },
-                  )
-                : current(),
-            loader: async ({ params }) => ({ id: params }),
-          },
-          () => ({
-            computedFailure: computed(() =>
-              craftException(
-                { code: 'COMPUTED_VALUE_MISMATCH' },
-                { from: 'insertion-1' as const },
-              ),
+  it('exposes typed exception accessors from params and insertions', () => {
+    TestBed.runInInjectionContext(() => {
+      const current = signal<'A' | 'B'>('A');
+      const queryRef = query(
+        {
+          params: () =>
+            current()
+              ? craftException(
+                  { code: 'PARAM_VALUE_MISMATCH' },
+                  { from: 'params' as const },
+                )
+              : current(),
+          loader: async ({ params }) => ({ id: params }),
+        },
+        () => ({
+          computedFailure: computed(() =>
+            craftException(
+              { code: 'COMPUTED_VALUE_MISMATCH' },
+              { from: 'insertion-1' as const },
             ),
-            validate: () =>
-              craftException(
-                { code: 'METHOD_VALUE_MISMATCH' },
-                { value: 'x' as string },
-              ),
-          }),
-        );
+          ),
+          validate: () =>
+            craftException(
+              { code: 'METHOD_VALUE_MISMATCH' },
+              { value: 'x' as string },
+            ),
+        }),
+      );
 
-        expectTypeOf(
-          queryRef.exceptions().params?.PARAM_VALUE_MISMATCH,
-        ).toEqualTypeOf<{ from: 'params' } | undefined>();
-      });
-    },
-  );
+      expectTypeOf(
+        queryRef.exceptions().params?.PARAM_VALUE_MISMATCH,
+      ).toEqualTypeOf<{ from: 'params' } | undefined>();
+    });
+  });
 });
 
 describe('query — providers', () => {

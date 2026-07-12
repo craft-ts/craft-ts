@@ -660,8 +660,8 @@ export function query<
  *
  * This function manages query state by:
  * - Executing asynchronous fetch operations (loader or stream) automatically when params change
- * - Tracking operation status (idle, loading, resolved, rejected)
- * - Providing reactive signals for value, status, error, and loading state
+ * - Tracking operation status (idle, loading, resolved, exception)
+ * - Providing reactive signals for value, status, exceptions, and loading state
  * - Supporting both params-based automatic execution and method-based manual triggers
  * - Optionally enabling parallel query execution by grouping instances with an identifier
  * - Caching and reusing query results based on params
@@ -694,14 +694,16 @@ export function query<
  *   - `equalParams` (optional): Controls params comparison ('default' | 'useIdentifier' | custom function)
  *   - Additional ResourceOptions like `equal`, `injector`, etc.
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query.
- *   The insertion receives a context with resource signals (`value`, `status`, `error`, `isLoading`, `hasValue`) and `config`.
+ *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`).
  *   To attach several insertions, compose them with `craftPipe`:
  *   `query(config, (context) => craftPipe(context, insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  * @returns A query reference object with:
  *   - `value`: Signal containing the query result (undefined if not yet executed)
- *   - `status`: Signal with current status ('idle' | 'loading' | 'resolved' | 'rejected')
- *   - `error`: Signal containing any error that occurred
+ *   - `status`: Signal with the craft status ('idle' | 'loading' | 'reloading' | 'resolved' | 'local' | 'exception')
+ *   - `exception`: Signal with the primary `craftException` (or undefined)
+ *   - `exceptions`: Signal with the captured exceptions (`list` / `params` / `loader`)
+ *   - `hasException()`: Signal indicating whether an exception is captured
  *   - `isLoading`: Signal indicating if the query is currently executing
  *   - `hasValue()`: Method to check if a value is available
  *   - `call(args)`: Method to trigger the query manually (only for method-based queries)
@@ -1204,7 +1206,10 @@ export function query<
   // Capture the raw Angular status BEFORE `Object.assign` overrides
   // `resourceTarget.status` with the craft computed below (otherwise the craft
   // status computed would read itself and form a computation cycle).
-  const rawResourceStatus = (resourceTarget as ResourceRef<QueryState>).status;
+  // (`as unknown` because the raw Angular ref view — `error` included — is no
+  // longer part of the CraftResourceRef surface.)
+  const rawResourceStatus = (resourceTarget as unknown as ResourceRef<QueryState>)
+    .status;
 
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
