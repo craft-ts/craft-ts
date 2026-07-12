@@ -104,7 +104,7 @@ describe('AsyncProcess', () => {
       const searchSource = signalSource<{
         searchChange: string;
         timeToWait: number;
-      }>();
+      }>('searchSource');
       const myAsyncProcess = asyncProcess({
         method: afterRecomputation(
           searchSource,
@@ -403,7 +403,7 @@ describe('AsyncProcess types without identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChangeText: string }>();
+      const searchSource = signalSource<{ searchChangeText: string }>('searchSource');
       const { injectAsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
@@ -557,7 +557,7 @@ describe('AsyncProcess types without identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChange: string }>();
+      const searchSource = signalSource<{ searchChange: string }>('searchSource');
 
       const _AsyncProcessOutput = asyncProcess({
         method: afterRecomputation(searchSource, (searchChange) => {
@@ -740,7 +740,7 @@ describe('AsyncProcess types with identifier', () => {
 
   it.skip('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChangeText: string }>();
+      const searchSource = signalSource<{ searchChangeText: string }>('searchSource');
       const { injectAsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
@@ -889,7 +889,7 @@ describe('AsyncProcess types with identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChange: string }>();
+      const searchSource = signalSource<{ searchChange: string }>('searchSource');
 
       const _AsyncProcessOutput = asyncProcess({
         method: afterRecomputation(searchSource, (searchChange) => {

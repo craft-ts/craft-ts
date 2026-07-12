@@ -7,11 +7,11 @@ import tsParser from '@typescript-eslint/parser';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const craftComputedNameMatchRule = require('./craft-computed-name-match.cjs');
+const craftSourceNameMatchRule = require('./craft-source-name-match.cjs');
 
 const tempDirectories: string[] = [];
 
-describe('craft-computed-name-match', () => {
+describe('craft-source-name-match', () => {
   afterEach(async () => {
     await Promise.all(
       tempDirectories
@@ -20,13 +20,25 @@ describe('craft-computed-name-match', () => {
     );
   });
 
+  it('accepts a const whose first arg matches its name', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { source$ } from '@craft-ng/core';
+
+        const reset$ = source$<void>('reset$');
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
   it('accepts a class property whose first arg matches its name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { source$ } from '@craft-ng/core';
 
         export class DemoComponent {
-          readonly total = craftComputed('total', () => 42);
+          readonly reset$ = source$<void>('reset$');
         }
       `,
     });
@@ -34,25 +46,13 @@ describe('craft-computed-name-match', () => {
     expect(messages).toEqual([]);
   });
 
-  it('accepts a const whose first arg matches its name', async () => {
+  it('accepts an object property whose first arg matches its key', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
-
-        const myValue = craftComputed('myValue', () => 42);
-      `,
-    });
-
-    expect(messages).toEqual([]);
-  });
-
-  it('accepts an object-literal property whose first arg matches its key', async () => {
-    const { messages } = await lintFixture({
-      'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { source$ } from '@craft-ng/core';
 
         const insertions = {
-          total: craftComputed('total', () => 42),
+          resetAll$: source$<void>('resetAll$'),
         };
       `,
     });
@@ -60,35 +60,33 @@ describe('craft-computed-name-match', () => {
     expect(messages).toEqual([]);
   });
 
-  it('reports a mismatch between property name and first arg', async () => {
+  it('reports a mismatch between object property key and first arg', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { source$ } from '@craft-ng/core';
 
-        export class DemoComponent {
-          readonly total = craftComputed('wrong', () => 42);
-        }
+        const insertions = {
+          resetAll$: source$<void>('wrong'),
+        };
       `,
     });
 
     expect(messages).toEqual([
-      "craftComputed first argument 'wrong' must match the declared name 'total'.",
+      "source$ first argument 'wrong' must match the declared name 'resetAll$'.",
     ]);
   });
 
-  it('reports a missing first arg on a class property', async () => {
+  it('reports a missing first arg on a const', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { source$ } from '@craft-ng/core';
 
-        export class DemoComponent {
-          readonly total = craftComputed(() => 42);
-        }
+        const reset$ = source$<void>();
       `,
     });
 
     expect(messages).toEqual([
-      "craftComputed must be called with a string literal name matching 'total' as the first argument.",
+      "source$ must be called with a string literal name matching 'reset$' as the first argument.",
     ]);
   });
 
@@ -96,43 +94,39 @@ describe('craft-computed-name-match', () => {
     const { output } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { craftComputed } from '@craft-ng/core';
+          import { source$ } from '@craft-ng/core';
 
-          export class DemoComponent {
-            readonly total = craftComputed('wrong', () => 42);
-          }
+          const reset$ = source$<void>('wrong');
         `,
       },
       { fix: true },
     );
 
-    expect(output).toContain("craftComputed('total'");
+    expect(output).toContain("source$<void>('reset$')");
   });
 
   it('auto-fixes a missing first arg', async () => {
     const { output } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { craftComputed } from '@craft-ng/core';
+          import { source$ } from '@craft-ng/core';
 
-          export class DemoComponent {
-            readonly total = craftComputed(() => 42);
-          }
+          const reset$ = source$<void>();
         `,
       },
       { fix: true },
     );
 
-    expect(output).toContain("craftComputed('total'");
+    expect(output).toContain("source$<void>('reset$'");
   });
 
-  it('ignores craftComputed calls not assigned to a known name', async () => {
+  it('ignores source$ calls not assigned to a known name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ng/core';
+        import { source$ } from '@craft-ng/core';
 
-        export function createComputed() {
-          return craftComputed('total', () => 42);
+        export function createSource() {
+          return source$<void>('reset$');
         }
       `,
     });
@@ -146,7 +140,7 @@ async function lintFixture(
   options: { fix?: boolean; filePath?: string } = {},
 ): Promise<{ messages: string[]; output: string | undefined }> {
   const tempDirectory = await mkdtemp(
-    join(tmpdir(), 'craft-computed-name-match-rule-'),
+    join(tmpdir(), 'craft-source-name-match-rule-'),
   );
   tempDirectories.push(tempDirectory);
 
@@ -167,7 +161,7 @@ async function lintFixture(
     ),
     'src/craft-core.d.ts': `
       declare module '@craft-ng/core' {
-        export declare function craftComputed(...args: unknown[]): unknown;
+        export declare function source$<T>(...args: unknown[]): unknown;
       }
     `,
     ...files,
@@ -190,12 +184,12 @@ async function lintFixture(
         plugins: {
           local: {
             rules: {
-              'craft-computed-name-match': craftComputedNameMatchRule as never,
+              'craft-source-name-match': craftSourceNameMatchRule as never,
             },
           },
         },
         rules: {
-          'local/craft-computed-name-match': 'error',
+          'local/craft-source-name-match': 'error',
         },
       },
     ],

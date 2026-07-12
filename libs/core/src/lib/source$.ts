@@ -1,10 +1,15 @@
 import {
+  assertInInjectionContext,
   DestroyRef,
   EventEmitter,
   inject,
+  Injector,
   Signal,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
+import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 
 export type SourceSubscribe<T> = {
   subscribe: (
@@ -45,6 +50,9 @@ export type ReadonlySource$<T> = {
  *
  * @template T - The type of values emitted by the source
  *
+ * @param name - Name matching the variable/property this source is assigned to (used for host
+ * tagging and dev-tools snapshot reporting, consistent with `craftComputed`/`craftEffect`)
+ *
  * @returns {Source$<T>} An object with the following methods and properties:
  * - `emit(value: T)` - Emits a value to all subscribers and updates the internal signal
  * - `subscribe(callback: (value: T) => void)` - Subscribes to emissions with automatic cleanup
@@ -66,7 +74,7 @@ export type ReadonlySource$<T> = {
  *   `,
  * })
  * export class CounterComponent {
- *   reset$ = source$<void>();
+ *   reset$ = source$<void>('reset$');
  *
  *   counter = state(0, ({ set, update }) => ({
  *     increment: () => update((v) => v + 1),
@@ -79,7 +87,7 @@ export type ReadonlySource$<T> = {
  * @example
  * Late subscriber with preserved last value
  * ```typescript
- * const notifications$ = source$<string>().preserveLastValue();
+ * const notifications$ = source$<string>('notifications$').preserveLastValue();
  *
  * notifications$.emit('Server started');
  * notifications$.emit('Database connected');
@@ -94,7 +102,7 @@ export type ReadonlySource$<T> = {
  * Read-only access pattern
  * ```typescript
  * class DataService {
- *   private dataUpdated$ = source$<Data>();
+ *   private dataUpdated$ = source$<Data>('dataUpdated$');
  *   readonly dataUpdated = this.dataUpdated$.asReadonly();
  *
  *   updateData(data: Data) {
@@ -105,11 +113,29 @@ export type ReadonlySource$<T> = {
  *
  * @see {@link https://ng-craft.dev/utils/source$ | source$ documentation}
  */
-export function source$<T>(): Source$<T> {
+export function source$<T>(name: string): Source$<T> {
+  assertInInjectionContext(source$);
+  const injector = inject(Injector);
+  const sourceInjector = ɵcreateHostTaggedInjector(injector, `source:${name}`);
+
   const sourceRef$ = new EventEmitter<T>();
   const destroyRef = inject(DestroyRef);
 
   const sourceAsSignal = signal<T | undefined>(undefined);
+
+  const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+  if (registry) {
+    const from = sourceInjector.get(ɵHOST_TAG_LIST, null) ?? [];
+    registry.triggerSnapshot$.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
+      let stateSnapshot: unknown;
+      try {
+        stateSnapshot = sourceAsSignal();
+      } catch (error) {
+        stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+      }
+      registry.allSnapShot$.next({ source: name, from, state: stateSnapshot });
+    });
+  }
 
   return {
     emit: (value: T) => {

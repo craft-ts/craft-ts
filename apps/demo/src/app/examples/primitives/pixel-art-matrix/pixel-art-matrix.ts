@@ -200,7 +200,7 @@ export default class PixelArtMatrix {
         storeName: 'pixel-art-matrix',
       }),
       () => ({
-        resetAll$: source$<void>(),
+        resetAll$: source$<void>('resetAll$'),
       }),
       insertSelect('ui', ({ set, insertions: { resetAll$ } }) => ({
         resetColor$: on$(resetAll$, () =>
@@ -212,7 +212,9 @@ export default class PixelArtMatrix {
         craftPipe(
           gridContext,
           ({ state, update, set, insertions: { resetAll$ } }) => ({
-          paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
+          paintColumnWithTargetCellColor$: source$<PaintCellEvent>(
+            'paintColumnWithTargetCellColor$',
+          ),
           addRow: () =>
             update((currentGrid) => [...currentGrid, createNextRow(currentGrid)]),
           resetGrid: on$(resetAll$, () => set(createInitialGrid())),
@@ -244,7 +246,9 @@ export default class PixelArtMatrix {
                 }),
               );
             },
-            paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
+            paintRowWithTargetCellColor$: source$<PaintCellEvent>(
+              'paintRowWithTargetCellColor$',
+            ),
           }),
           insertSelect(
             'cell',

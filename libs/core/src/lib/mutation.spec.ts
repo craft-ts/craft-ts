@@ -103,7 +103,7 @@ describe('mutation', () => {
       const searchSource = signalSource<{
         searchChange: string;
         timeToWait: number;
-      }>();
+      }>('searchSource');
       const test = afterRecomputation(
         searchSource,
         (searchConfig) => searchConfig,
@@ -413,7 +413,7 @@ describe('mutation types without identifier', () => {
 
   it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChangeText: string }>();
+      const searchSource = signalSource<{ searchChangeText: string }>('searchSource');
       const { injectMutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
@@ -565,7 +565,7 @@ describe('mutation types without identifier', () => {
 
   it('should infer correctly the mutation bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChange: string }>();
+      const searchSource = signalSource<{ searchChange: string }>('searchSource');
 
       const _mutationsOutput = mutation({
         method: afterRecomputation(searchSource, (searchChange) => {
@@ -745,7 +745,7 @@ describe('mutation types with identifier', () => {
 
   it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChangeText: string }>();
+      const searchSource = signalSource<{ searchChangeText: string }>('searchSource');
       const { injectMutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
@@ -895,7 +895,7 @@ describe('mutation types with identifier', () => {
 
   it('should infer correctly the mutation bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChange: string }>();
+      const searchSource = signalSource<{ searchChange: string }>('searchSource');
 
       const _mutationsOutput = mutation({
         method: afterRecomputation(searchSource, (searchChange) => {

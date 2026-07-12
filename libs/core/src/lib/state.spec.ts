@@ -254,7 +254,7 @@ describe('state', () => {
 
   it('methods can be bind to a source, but not exposed', async () => {
     await runInInjectionContext(async () => {
-      const sourceSignal = signalSource<number>();
+      const sourceSignal = signalSource<number>('sourceSignal');
       const myState = state(0, ({ set }) => ({
         setValue: afterRecomputation(sourceSignal, (value) => {
           set(value);
@@ -283,7 +283,7 @@ describe('state', () => {
 
   it('methods can be bind to a source$, but not exposed', async () => {
     await runInInjectionContext(async () => {
-      const sourceSignal = source$<number>();
+      const sourceSignal = source$<number>('sourceSignal');
       const myState = state(0, ({ set }) => ({
         setValue: on$(sourceSignal, (value) => {
           set(value);
@@ -316,7 +316,7 @@ describe('state', () => {
           craftPipe(
           context,
           ({ set }) => ({
-            resetAll$: source$<void>(),
+            resetAll$: source$<void>('resetAll$'),
             increment: () => set(1),
           }),
           ({ insertions: { resetAll$ }, set }) => ({

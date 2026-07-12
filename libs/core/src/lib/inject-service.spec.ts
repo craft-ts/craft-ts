@@ -106,9 +106,9 @@ describe('injectService2', () => {
     }
 
     await TestBed.runInInjectionContext(async () => {
-      const reset$ = source$<void>();
-      const addValue = signalSource<number>();
-      const replaceTotal = signalSource<number>();
+      const reset$ = source$<void>('reset$');
+      const addValue = signalSource<number>('addValue');
+      const replaceTotal = signalSource<number>('replaceTotal');
       const pushEvent$ = new Subject<number>();
 
       const result = injectService(
@@ -188,8 +188,8 @@ describe('injectService2', () => {
           >();
           return {
             total,
-            reset: on$(source$<void>(), () => reset()),
-            editableTotal: afterRecomputation(signalSource<number>(), (value) =>
+            reset: on$(source$<void>('reset'), () => reset()),
+            editableTotal: afterRecomputation(signalSource<number>('editableTotal'), (value) =>
               editableTotal.set(value),
             ),
             events: on$(new Subject<number>(), (value) => events.next(value)),

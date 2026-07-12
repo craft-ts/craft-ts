@@ -226,7 +226,7 @@ export function fromEventToSource$(
 ): FromEventToSource$<unknown> {
   assertInInjectionContext(fromEventToSource$);
 
-  const eventSource$ = source$<unknown>();
+  const eventSource$ = source$<unknown>(eventName);
 
   const listener = (event: Event) => {
     if (options?.computedValue) {

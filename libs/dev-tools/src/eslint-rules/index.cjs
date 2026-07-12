@@ -5,6 +5,8 @@ const globalExceptionRegistryMatch = require('./global-exception-registry-match.
 const componentTestGenDepsMatch = require('./component-test-gen-deps-match.cjs');
 const craftMethodNameMatch = require('./craft-method-name-match.cjs');
 const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
+const craftSourceNameMatch = require('./craft-source-name-match.cjs');
+const craftSignalSourceNameMatch = require('./craft-signal-source-name-match.cjs');
 const preferCraftComputed = require('./prefer-craft-computed.cjs');
 const preferCraftState = require('./prefer-craft-state.cjs');
 const preferCraftEffect = require('./prefer-craft-effect.cjs');
@@ -33,6 +35,8 @@ module.exports = {
     'component-test-gen-deps-match': componentTestGenDepsMatch,
     'craft-method-name-match': craftMethodNameMatch,
     'craft-computed-name-match': craftComputedNameMatch,
+    'craft-source-name-match': craftSourceNameMatch,
+    'craft-signal-source-name-match': craftSignalSourceNameMatch,
     'prefer-craft-computed': preferCraftComputed,
     'prefer-craft-state': preferCraftState,
     'prefer-craft-effect': preferCraftEffect,

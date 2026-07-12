@@ -55,7 +55,7 @@ import { SourceBranded } from './util/util';
  * const { injectUserStore } = craftService(
  *   { name: 'UserStore', scope: 'toProvide' },
  *   () => {
- *     const userIdChange = signalSource<string>();
+ *     const userIdChange = signalSource<string>('userIdChange');
  *
  *     const user = query({
  *       method: afterRecomputation(userIdChange, (userId) => userId),
@@ -85,7 +85,7 @@ import { SourceBranded } from './util/util';
  * const { injectFormStore } = craftService(
  *   { name: 'FormStore', scope: 'toProvide' },
  *   () => {
- *     const submitForm = signalSource<{ name: string; email: string }>();
+ *     const submitForm = signalSource<{ name: string; email: string }>('submitForm');
  *
  *     const submit = mutation({
  *       method: afterRecomputation(submitForm, (formData) => formData),
@@ -116,7 +116,7 @@ import { SourceBranded } from './util/util';
  * const { injectSearchStore } = craftService(
  *   { name: 'SearchStore', scope: 'toProvide' },
  *   () => {
- *     const searchInput = signalSource<string>();
+ *     const searchInput = signalSource<string>('searchInput');
  *
  *     const search = asyncProcess({
  *       method: afterRecomputation(searchInput, (term) => term),
@@ -149,7 +149,7 @@ import { SourceBranded } from './util/util';
  * const { injectUserFormStore } = craftService(
  *   { name: 'UserFormStore', scope: 'toProvide' },
  *   () => {
- *     const formSubmit = signalSource<FormData>();
+ *     const formSubmit = signalSource<FormData>('formSubmit');
  *
  *     const updateUser = mutation({
  *       // Extract only user data
@@ -183,7 +183,7 @@ import { SourceBranded } from './util/util';
  * const { injectResultsStore } = craftService(
  *   { name: 'ResultsStore', scope: 'toProvide' },
  *   () => {
- *     const searchParams = signalSource<{ query: string; filters: string[] }>();
+ *     const searchParams = signalSource<{ query: string; filters: string[] }>('searchParams');
  *
  *     const results = query({
  *       method: afterRecomputation(searchParams, (params) => ({
@@ -217,7 +217,7 @@ import { SourceBranded } from './util/util';
  * const { injectValidationStore } = craftService(
  *   { name: 'ValidationStore', scope: 'toProvide' },
  *   () => {
- *     const inputChange = signalSource<string>();
+ *     const inputChange = signalSource<string>('inputChange');
  *
  *     const validate = asyncProcess({
  *       method: afterRecomputation(inputChange, (input) => {
@@ -256,8 +256,8 @@ import { SourceBranded } from './util/util';
  * const { injectSearchResultsStore } = craftService(
  *   { name: 'SearchResultsStore', scope: 'toProvide' },
  *   () => {
- *     const quickSearch = signalSource<string>();
- *     const advancedSearch = signalSource<{ query: string; options: unknown }>();
+ *     const quickSearch = signalSource<string>('quickSearch');
+ *     const advancedSearch = signalSource<{ query: string; options: unknown }>('advancedSearch');
  *
  *     const searchResults = query({
  *       method: afterRecomputation(
@@ -291,7 +291,7 @@ import { SourceBranded } from './util/util';
  * const { injectDataStore } = craftService(
  *   { name: 'DataStore', scope: 'toProvide' },
  *   () => {
- *     const dataUpdate = signalSource<{ id: string; payload: unknown }>();
+ *     const dataUpdate = signalSource<{ id: string; payload: unknown }>('dataUpdate');
  *
  *     const update = mutation({
  *       // Pass data through unchanged

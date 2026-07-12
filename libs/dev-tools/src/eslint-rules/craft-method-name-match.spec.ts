@@ -154,6 +154,22 @@ describe('craft-method-name-match', () => {
     expect(messages).toEqual([]);
   });
 
+  it('accepts an object-literal property whose first arg matches its key', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftMethod } from '@craft-ng/core';
+
+        const insertions = {
+          increment: craftMethod('increment', function* () {
+            return 1;
+          }),
+        };
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
   it('accepts an object config whose name property matches the declared name', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `

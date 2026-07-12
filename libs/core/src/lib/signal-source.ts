@@ -1,5 +1,19 @@
-import { linkedSignal, Signal, signal, ValueEqualityFn } from '@angular/core';
+import {
+  assertInInjectionContext,
+  DestroyRef,
+  inject,
+  Injector,
+  linkedSignal,
+  runInInjectionContext,
+  Signal,
+  signal,
+  ValueEqualityFn,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SourceBranded } from './util/util';
+import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
+import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import { injectFnWrapper } from './fn-wrapper';
 
 export type SignalSource<T> = Signal<T | undefined> & {
   set: (value: T) => void;
@@ -68,9 +82,10 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *
  * @template T - The type of values emitted by the source
  *
+ * @param name - Name matching the variable/property this source is assigned to (used for host
+ * tagging and dev-tools snapshot reporting, consistent with `craftComputed`/`craftEffect`)
  * @param options - Optional configuration:
  *   - `equal`: Custom equality function for change detection (prevents duplicate emissions)
- *   - `debugName`: Name for debugging purposes
  *
  * @returns A source object with:
  *   - `()`: Read current value (undefined until first emission)
@@ -83,7 +98,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * const { injectUserStore } = craftService(
  *   { name: 'UserStore', scope: 'toProvide' },
  *   () => {
- *     const loadUser = signalSource<string>();
+ *     const loadUser = signalSource<string>('loadUser');
  *
  *     const user = query({
  *       method: afterRecomputation(loadUser, (userId) => userId),
@@ -116,7 +131,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * const { injectFormStore } = craftService(
  *   { name: 'FormStore', scope: 'toProvide' },
  *   () => {
- *     const submitForm = signalSource<FormData>();
+ *     const submitForm = signalSource<FormData>('submitForm');
  *
  *     const submit = mutation({
  *       method: afterRecomputation(submitForm, (data) => data),
@@ -155,7 +170,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * const { injectDataStore } = craftService(
  *   { name: 'DataStore', scope: 'toProvide' },
  *   () => {
- *     const reload = signalSource<void>();
+ *     const reload = signalSource<void>('reload');
  *
  *     const data = query({
  *       method: afterRecomputation(reload, () => ({})),
@@ -186,9 +201,9 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * const { injectTodoStore } = craftService(
  *   { name: 'TodoStore', scope: 'toProvide' },
  *   () => {
- *     const addTodo = signalSource<{ text: string }>();
- *     const deleteTodo = signalSource<string>();
- *     const toggleTodo = signalSource<string>();
+ *     const addTodo = signalSource<{ text: string }>('addTodo');
+ *     const deleteTodo = signalSource<string>('deleteTodo');
+ *     const toggleTodo = signalSource<string>('toggleTodo');
  *
  *     const create = mutation({
  *       method: afterRecomputation(addTodo, (data) => data),
@@ -234,7 +249,8 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * @example
  * Late listener with preserveLastValue
  * ```ts
- * const mySource = signalSource<string>();
+ * // Inside a component constructor or a craftService factory (injection context)
+ * const mySource = signalSource<string>('mySource');
  *
  * // Early listener
  * const listener1 = computed(() => mySource());
@@ -262,7 +278,8 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * ```ts
  * type Params = { id: string; timestamp: number };
  *
- * const paramsSource = signalSource<Params>({
+ * // Inside a component constructor or a craftService factory (injection context)
+ * const paramsSource = signalSource<Params>('paramsSource', {
  *   equal: (a, b) => a?.id === b?.id, // Compare only by id
  * });
  *
@@ -281,13 +298,21 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * @example
  * Source for coordinating multiple components
  * ```ts
- * // Global source (outside any component/service)
- * const refreshAllSource = signalSource<void>();
+ * // Root-provided coordinator service, injected wherever the shared source is needed
+ * const { injectRefreshCoordinator } = craftService(
+ *   { name: 'RefreshCoordinator', scope: 'root' },
+ *   () => {
+ *     const refreshAllSource = signalSource<void>('refreshAllSource');
+ *     return { refreshAllSource };
+ *   },
+ * );
  *
  * // Component A's store
  * const { injectDataViewStore, provideDataViewStore } = craftService(
  *   { name: 'DataViewStore', scope: 'toProvide' },
  *   () => {
+ *     const { refreshAllSource } = injectRefreshCoordinator();
+ *
  *     const data = query({
  *       method: afterRecomputation(refreshAllSource, () => ({})),
  *       loader: async () => {
@@ -315,9 +340,11 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   template: '<button (click)="refresh()">Refresh All</button>',
  * })
  * export class RefreshButtonComponent {
+ *   private readonly coordinator = injectRefreshCoordinator();
+ *
  *   refresh() {
  *     // Triggers refresh in every store listening to this source
- *     refreshAllSource.set();
+ *     this.coordinator.refreshAllSource.set();
  *   }
  * }
  * ```
@@ -334,7 +361,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * const { injectSearchStore } = craftService(
  *   { name: 'SearchStore', scope: 'toProvide' },
  *   () => {
- *     const search = signalSource<SearchParams>();
+ *     const search = signalSource<SearchParams>('search');
  *
  *     const results = query({
  *       method: afterRecomputation(search, (params) => params),
@@ -363,16 +390,27 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * });
  * ```
  */
-export function signalSource<T>(options?: {
-  equal?: ValueEqualityFn<NoInfer<T> | undefined>;
-  debugName?: string;
-}): SignalSource<T> {
+export function signalSource<T>(
+  name: string,
+  options?: {
+    equal?: ValueEqualityFn<NoInfer<T> | undefined>;
+  },
+): SignalSource<T> {
+  assertInInjectionContext(signalSource);
+  const injector = inject(Injector);
+  const sourceInjector = ɵcreateHostTaggedInjector(injector, `signal-source:${name}`);
+  const destroyRef = inject(DestroyRef);
+
   const sourceState = signal<T | undefined>(undefined, {
     ...(options?.equal && { equal: options?.equal }), // add the equal function here, it may helps to detect changes when using scalar values
-    ...(options?.debugName && {
-      debugName: options?.debugName + '_sourceState',
-    }),
+    debugName: `${name}_sourceState`,
   });
+
+  const wrappedSet = runInInjectionContext(sourceInjector, () =>
+    injectFnWrapper()((value: T) => sourceState.set(value)),
+  );
+  const set = (value: T) =>
+    runInInjectionContext(sourceInjector, () => wrappedSet(value));
 
   const listener = (listenerOptions: { nullishFirstValue?: boolean }) =>
     linkedSignal<T, T | undefined>({
@@ -385,17 +423,34 @@ export function signalSource<T>(options?: {
         return currentSourceState;
       },
       ...(options?.equal && { equal: options?.equal }),
-      ...(options?.debugName && { debugName: options?.debugName }),
+      debugName: name,
     });
+
+  const result = listener({
+    nullishFirstValue: true,
+  });
+
+  const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+  if (registry) {
+    const from = sourceInjector.get(ɵHOST_TAG_LIST, null) ?? [];
+    registry.triggerSnapshot$.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
+      let stateSnapshot: unknown;
+      try {
+        stateSnapshot = result();
+      } catch (error) {
+        stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+      }
+      registry.allSnapShot$.next({ source: name, from, state: stateSnapshot });
+    });
+  }
+
   return Object.assign(
-    listener({
-      nullishFirstValue: true,
-    }),
+    result,
     {
       preserveLastValue: listener({
         nullishFirstValue: false,
       }),
-      set: sourceState.set,
+      set,
     },
     SourceBranded,
   ) as SignalSource<T>;

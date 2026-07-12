@@ -240,8 +240,8 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  *
  * @example
  * // State with source binding (Event-based)
- * const increment = source$<void>();
- * const reset = source$<void>();
+ * const increment = source$<void>('increment');
+ * const reset = source$<void>('reset');
  * const myState = state(0, ({ update, set }) => ({
  *   setValue: on$(increment, () => update(value => value + 1)),
  *   reset: () => on$(reset, () => set(0)),
@@ -340,9 +340,17 @@ export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
 
           if (isSource$(value)) {
             const localSource = value;
-            exposedAcc[key] = (payload: unknown) => {
-              localSource.emit(payload as never);
-            };
+            const sourceInjector = ɵcreateHostTaggedInjector(
+              getInjector(),
+              `source:${key}`,
+            );
+            const wrappedEmit = runInInjectionContext(sourceInjector, () =>
+              injectFnWrapper()((payload: unknown) =>
+                localSource.emit(payload as never),
+              ),
+            );
+            exposedAcc[key] = (payload: unknown) =>
+              runInInjectionContext(sourceInjector, () => wrappedEmit(payload));
             return exposedAcc;
           }
 

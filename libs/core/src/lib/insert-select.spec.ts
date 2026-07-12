@@ -94,13 +94,17 @@ describe('insertSelect', () => {
               craftPipe(
                 rowContext,
                 ({ state }) => ({
-                  paintRowWithTargetCellColor$: source$<PaintCellEvent>(),
+                  paintRowWithTargetCellColor$: source$<PaintCellEvent>(
+                    'paintRowWithTargetCellColor$',
+                  ),
                 }),
                 insertSelect('cell', ({ state }) => ({})),
               ),
             ),
             ({ state, set, update }) => ({
-              paintColumnWithTargetCellColor$: source$<PaintCellEvent>(),
+              paintColumnWithTargetCellColor$: source$<PaintCellEvent>(
+                'paintColumnWithTargetCellColor$',
+              ),
             }),
           ),
         ),
@@ -287,7 +291,7 @@ describe('insertSelect', () => {
           craftPipe(
           context,
           () => {
-            const test = source$<number>();
+            const test = source$<number>('test');
             return {
               test,
               emitTest: (value: number) => test.emit(value),
@@ -336,7 +340,7 @@ describe('insertSelect', () => {
           craftPipe(
           context,
           () => {
-            const test = source$<number>();
+            const test = source$<number>('test');
             return {
               test,
               emitTest: (value: number) => test.emit(value),
@@ -389,7 +393,7 @@ describe('insertSelect', () => {
           craftPipe(
             cellContext,
             () => ({
-              paintCell$: source$<string>(),
+              paintCell$: source$<string>('paintCell$'),
             }),
             ({ update, insertions: { paintCell$ } }) => ({
               _paintCell: on$(paintCell$, (color) =>
@@ -421,7 +425,7 @@ describe('insertSelect', () => {
               craftPipe(
                 cellContext,
                 () => ({
-                  paintCell$: source$<string>(),
+                  paintCell$: source$<string>('paintCell$'),
                 }),
                 ({ update, insertions: { paintCell$ } }) => ({
                   _paintCell: on$(paintCell$, (color) =>

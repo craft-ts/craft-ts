@@ -12,7 +12,7 @@ describe('source$', () => {
   });
   it('should generate a source that enable to emit a value, and the listener to receive it', () => {
     TestBed.runInInjectionContext(() => {
-      const mySource = source$<string>();
+      const mySource = source$<string>('mySource');
 
       //expectTypeOf(mySource).toEqualTypeOf<Source<string>>();
 
@@ -32,7 +32,7 @@ describe('source$', () => {
 
   it('A listener at n+1 should not get the value when listened and get data for the first time', () => {
     TestBed.runInInjectionContext(() => {
-      const mySource = source$<string>();
+      const mySource = source$<string>('mySource');
 
       mySource.emit('Hello World');
 
@@ -46,7 +46,7 @@ describe('source$', () => {
 
   it('A listener at n+1 should get the last value when using "preserveLastValue" config and listened and get data for the first time ', () => {
     TestBed.runInInjectionContext(() => {
-      const mySource = source$<string>();
+      const mySource = source$<string>('mySource');
 
       mySource.emit('Hello World');
 

@@ -343,7 +343,7 @@ import { ApiServiceToYield, injectApiService, User } from './api.service';
 })
 export default class FullDemo {
   private readonly _monitoring = componentMonitoring();
-  protected readonly reset$ = source$<void>();
+  protected readonly reset$ = source$<void>('reset$');
 
   protected readonly apiService = injectApiService(
     undefined,

@@ -171,7 +171,7 @@ export function injectService<
  *   standalone: true,
  * })
  * export class TermsPageComponent {
- *   private readonly userAccept = source$<void>();
+ *   private readonly userAccept = source$<void>('userAccept');
  *
  *   readonly navigation = injectService(
  *     Router,

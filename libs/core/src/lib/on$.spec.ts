@@ -16,7 +16,7 @@ describe('on$', () => {
 
   it('should call the callback when the source emits a value', () => {
     TestBed.runInInjectionContext(() => {
-      const mySource = source$<string>();
+      const mySource = source$<string>('mySource');
       const callbackResults: string[] = [];
 
       on$(mySource, (value) => {
@@ -36,7 +36,7 @@ describe('on$', () => {
 
   it('should return a branded source', () => {
     TestBed.runInInjectionContext(() => {
-      const mySource = source$<number>();
+      const mySource = source$<number>('mySource');
 
       const brandedSource = on$(mySource, (value) => value * 2);
 
@@ -54,7 +54,7 @@ describe('on$', () => {
     @Component({ template: '', standalone: true })
     class TestComponent {
       constructor() {
-        mySource = source$<string>();
+        mySource = source$<string>('mySource');
         on$(mySource, (value) => {
           callbackResults.push(value);
           return value;
@@ -81,7 +81,7 @@ describe('on$', () => {
         name: string;
       }
 
-      const userSource = source$<User>();
+      const userSource = source$<User>('userSource');
       const receivedUsers: User[] = [];
 
       on$(userSource, (user) => {
@@ -101,7 +101,7 @@ describe('on$', () => {
 
   it('should allow the callback to perform side effects', () => {
     TestBed.runInInjectionContext(() => {
-      const mySource = source$<number>();
+      const mySource = source$<number>('mySource');
       let total = 0;
 
       on$(mySource, (value) => {

@@ -558,7 +558,7 @@ describe('queryParams', () => {
 
   it('should not expose methods bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const mySource = signalSource<number>();
+      const mySource = signalSource<number>('mySource');
       const myQueryParams = queryParam(
         {
           state: {

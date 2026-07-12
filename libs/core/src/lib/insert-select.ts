@@ -338,9 +338,19 @@ function createInsertSelectItemRuntime(
 
                 if (isSource$(value)) {
                   const localSource = value;
-                  exposedAcc[key] = (payload: unknown) => {
-                    localSource.emit(payload as never);
-                  };
+                  const sourceInjector = ɵcreateHostTaggedInjector(
+                    itemInjector,
+                    `source:${key}`,
+                  );
+                  const wrappedEmit = runInInjectionContext(sourceInjector, () =>
+                    injectFnWrapper()((payload: unknown) =>
+                      localSource.emit(payload as never),
+                    ),
+                  );
+                  exposedAcc[key] = (payload: unknown) =>
+                    runInInjectionContext(sourceInjector, () =>
+                      wrappedEmit(payload),
+                    );
                   return exposedAcc;
                 }
 
@@ -496,7 +506,7 @@ function createInsertSelectPropertyRuntime(
       if (sourceValue) {
         return sourceValue;
       }
-      const newSource = source$<unknown>();
+      const newSource = source$<unknown>(key);
       crossLayerSourcesByKey.set(key, newSource);
       return newSource;
     };
@@ -613,9 +623,19 @@ function createInsertSelectPropertyRuntime(
                     });
                   });
 
-                  exposedAcc[key] = (payload: unknown) => {
-                    localSource.emit(payload as never);
-                  };
+                  const sourceInjector = ɵcreateHostTaggedInjector(
+                    injector,
+                    `source:${key}`,
+                  );
+                  const wrappedEmit = runInInjectionContext(sourceInjector, () =>
+                    injectFnWrapper()((payload: unknown) =>
+                      localSource.emit(payload as never),
+                    ),
+                  );
+                  exposedAcc[key] = (payload: unknown) =>
+                    runInInjectionContext(sourceInjector, () =>
+                      wrappedEmit(payload),
+                    );
                   return exposedAcc;
                 }
 

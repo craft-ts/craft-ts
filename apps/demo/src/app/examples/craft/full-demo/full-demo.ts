@@ -34,7 +34,7 @@ function wait(ms: number) {
 const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
   { name: 'FullDemo', scope: 'toProvide' },
   () => {
-    const reset$ = source$<void>();
+    const reset$ = source$<void>('reset$');
 
     const pagination = queryParam(
       {

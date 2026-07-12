@@ -63,7 +63,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * @param options - Optional configuration:
  *   - `event`: Event listener options (capture, passive, once, etc.)
  *   - `computedValue`: Function to transform event before emission
- *   - `source`: Source options (equal, debugName)
+ *   - `source`: Source options (equal)
  *
  * @returns A source that emits on DOM events with:
  *   - All standard source capabilities (set, preserveLastValue)
@@ -348,7 +348,6 @@ export function sourceFromEvent<T>(
     computedValue?: never;
     source: {
       equal?: ValueEqualityFn<NoInfer<T> | undefined>;
-      debugName?: string;
     };
   },
 ): SourceFromEvent<T>;
@@ -360,7 +359,6 @@ export function sourceFromEvent<T, ComputedValue>(
     computedValue: (event: T) => ComputedValue;
     source?: {
       equal?: ValueEqualityFn<NoInfer<T> | undefined>;
-      debugName?: string;
     };
   },
 ): SourceFromEvent<ComputedValue>;
@@ -372,12 +370,11 @@ export function sourceFromEvent(
     computedValue?: (event: Event) => unknown;
     source?: {
       equal?: ValueEqualityFn<NoInfer<unknown> | undefined>;
-      debugName?: string;
     };
   },
 ): SourceFromEvent<unknown> {
   assertInInjectionContext(sourceFromEvent);
-  const eventSignalSource = signalSource<unknown>(options?.source);
+  const eventSignalSource = signalSource<unknown>(eventName, options?.source);
 
   const listener = (event: Event) => {
     if (options?.computedValue) {

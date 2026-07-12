@@ -21,8 +21,12 @@ import { source$ } from '@craft-ng/core';
 ## Signature
 
 ```typescript
-function source$<T>(): Source$<T>;
+function source$<T>(name: string): Source$<T>;
 ```
+
+### Parameters
+
+- **`name: string`** - Name matching the variable/property this source is assigned to. Used for host tagging and dev-tools snapshot reporting, consistent with `craftComputed`/`craftEffect`. The [`craft-ng/craft-source-name-match`](/type-safe-di-routes/setup) ESLint rule enforces the match and offers a quick fix.
 
 ### Returns
 
@@ -72,7 +76,7 @@ type ReadonlySource$<T> = {
 Subscriptions are automatically cleaned up when the injection context is destroyed, preventing memory leaks:
 
 ```typescript
-const userAction$ = source$<string>();
+const userAction$ = source$<string>('userAction$');
 
 // Subscription is automatically unsubscribed on component destruction
 userAction$.subscribe((action) => console.log(action));
@@ -83,7 +87,7 @@ userAction$.subscribe((action) => console.log(action));
 The `value` property provides reactive access to the last emitted value:
 
 ```typescript
-const message$ = source$<string>();
+const message$ = source$<string>('message$');
 
 message$.emit('Hello');
 console.log(message$.value()); // 'Hello'
@@ -97,7 +101,7 @@ const uppercased = computed(() => message$.value()?.toUpperCase());
 Use `preserveLastValue()` to ensure late subscribers receive the most recent value:
 
 ```typescript
-const counter$ = source$<number>();
+const counter$ = source$<number>('counter$');
 counter$.emit(42);
 
 // Standard source: late subscriber receives nothing
@@ -113,7 +117,7 @@ preserved$.subscribe((v) => console.log('Preserved:', v)); // Logs: Preserved: 4
 ### Event Broadcasting
 
 ```typescript
-const buttonClick$ = source$<MouseEvent>();
+const buttonClick$ = source$<MouseEvent>('buttonClick$');
 
 // Multiple subscribers
 buttonClick$.subscribe((event) => console.log('Logger:', event));
@@ -127,7 +131,7 @@ button.addEventListener('click', (e) => buttonClick$.emit(e));
 
 ```typescript
 class DataService {
-  private dataUpdated$ = source$<Data>();
+  private dataUpdated$ = source$<Data>('dataUpdated$');
 
   // Expose read-only version
   readonly dataUpdated = this.dataUpdated$.asReadonly();
@@ -141,7 +145,7 @@ class DataService {
 ### Coordination with State
 
 ```typescript
-const resetTrigger$ = source$<void>();
+const resetTrigger$ = source$<void>('resetTrigger$');
 
 const counter = state(0, ({ set, update }) => ({
   increment: () => update((v) => v + 1),
@@ -171,7 +175,7 @@ import { Component } from '@angular/core';
 })
 export class CounterComponent {
   // Create a source for reset events
-  reset$ = source$<void>();
+  reset$ = source$<void>('reset$');
 
   // Create state with automatic reset on source emission
   counter = state(0, ({ set, update }) => ({
@@ -190,8 +194,8 @@ export class CounterComponent {
 import { source$, state, on$ } from '@craft-ng/core';
 
 // Multiple sources for different events
-const userLogin$ = source$<User>();
-const userLogout$ = source$<void>();
+const userLogin$ = source$<User>('userLogin$');
+const userLogout$ = source$<void>('userLogout$');
 
 const authState = state<User | null>(null, ({ set }) => ({
   // Respond to multiple sources
@@ -212,7 +216,7 @@ console.log(authState()); // null
 ```typescript
 import { source$ } from '@craft-ng/core';
 
-const notifications$ = source$<string>().preserveLastValue();
+const notifications$ = source$<string>('notifications$').preserveLastValue();
 
 // Emit before any subscribers
 notifications$.emit('Server started');
