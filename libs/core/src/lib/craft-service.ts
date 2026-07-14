@@ -48,7 +48,7 @@ import type {
   Simplify,
   UnionToTuple,
 } from './craft-service.shared';
-import type { ServiceTrackedDepsRequest } from './track';
+import type { ServiceTrackedDepsRequest } from './craft-primitive-gen';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 export declare const SERVICE_YIELD_METADATA: unique symbol;
@@ -841,8 +841,8 @@ type MergeDependencyNodes<Left, Right> = ServiceDependencies<
   >
 >;
 
-// Dependency maps carried by primitives yielded through `track(...)`. A tracked
-// primitive surfaces its already-built dependency map (keyed by service name) on
+// Dependency maps carried by primitives consumed through `yield*`. A primitive
+// generator surfaces its already-built dependency map (keyed by service name) on
 // `ServiceTrackedDepsRequest`; these are folded into the host service tree so
 // dependencies used only inside loaders/effects are detected.
 type TrackedDepMapOf<Request> =

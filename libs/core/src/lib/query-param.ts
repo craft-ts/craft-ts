@@ -29,6 +29,10 @@ import {
   isCraftException,
 } from './craft-exception';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
+import {
+  createPrimitiveGen,
+  type CraftPrimitiveGen,
+} from './craft-primitive-gen';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencyMapFromYielded,
@@ -241,7 +245,7 @@ export interface QueryParamConfig<
  * @example
  * Basic usage
  * ```ts
- * const myQueryParams = queryParam(
+ * const myQueryParams = craftUse(queryParam(
  *   {
  *     state: {
  *       page: {
@@ -257,7 +261,7 @@ export interface QueryParamConfig<
  *     },
  *   },
  *   ({ set, update, patch, reset }) => ({ set, update, patch, reset })
- * );
+ * ));
  *
  * // Access state
  * console.log(myQueryParams()); // { page: 1, pageSize: 10 }
@@ -273,7 +277,7 @@ export interface QueryParamConfig<
  * @example
  * With custom methods via insertions
  * ```ts
- * const myQueryParams = queryParam(
+ * const myQueryParams = craftUse(queryParam(
  *   {
  *     state: {
  *       page: { fallbackValue: 1, parse: parseInt, serialize: String },
@@ -284,7 +288,7 @@ export interface QueryParamConfig<
  *       set({ ...state(), page: newPage });
  *     },
  *   })
- * );
+ * ));
  *
  * myQueryParams.goTo(5); // Custom method from insertion
  * ```
@@ -294,7 +298,7 @@ export interface QueryParamConfig<
  * ```ts
  * import { craftException, queryParam } from '@craft-ng/core';
  *
- * const mode = queryParam({
+ * const mode = craftUse(queryParam({
  *   state: {
  *     mode: {
  *       fallbackValue: 'success' as const,
@@ -308,7 +312,7 @@ export interface QueryParamConfig<
  *       serialize: (value) => String(value),
  *     },
  *   },
- * });
+ * }));
  *
  * console.log(mode.mode()); // fallbackValue when parse exception occurs
  * console.log(mode.hasException()); // true/false
@@ -320,7 +324,7 @@ export function queryParam<
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
   config: { state: QueryParamsType } & QueryParamNavigationOptions,
-): QueryParamOutput<QueryParamsType, {}, QueryParamsState>;
+): CraftPrimitiveGen<QueryParamOutput<QueryParamsType, {}, QueryParamsState>>;
 export function queryParam<
   QueryParamsType extends Record<string, AnyQueryParamConfig>,
   Insertion1,
@@ -334,17 +338,24 @@ export function queryParam<
     {},
     Insertion1Yielded
   >,
-): QueryParamOutput<
-  QueryParamsType,
-  Insertion1,
-  QueryParamsState,
-  QueryParamTrackedDependencies<QueryParamsType, Insertion1Yielded>
+): CraftPrimitiveGen<
+  QueryParamOutput<
+    QueryParamsType,
+    Insertion1,
+    QueryParamsState,
+    QueryParamTrackedDependencies<QueryParamsType, Insertion1Yielded>
+  >
 >;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function queryParam(config: any, ...insertions: any[]): any {
+  return createPrimitiveGen(createQueryParamRef(config, ...insertions));
+}
+
 /**
  *
  * If it is not called in an injection context, it returns the config under _config.
  */
-export function queryParam<
+function createQueryParamRef<
   QueryParamsType extends Record<string, AnyQueryParamConfig>,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(

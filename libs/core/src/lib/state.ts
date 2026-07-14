@@ -35,6 +35,7 @@ import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
+import { createPrimitiveGen, type CraftPrimitiveGen } from './craft-primitive-gen';
 
 type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
@@ -186,29 +187,42 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  *
  * @param stateConfig - The initial state value or a Signal (e.g., linkedSignal)
  * @param insertion1 - Optional single insertion factory to extend the state with methods and properties
- * @returns A Signal representing the state, merged with all insertion properties and methods
+ * @returns A single-use primitive generator resolving to the state Signal,
+ * merged with all insertion properties and methods. Consume it with `yield*`
+ * inside a generator host (craftService factory, craftGen, …) or with
+ * `craftUse(...)` elsewhere (typically a component field).
  *
  * @example
- * // Simple state with a primitive value
- * const counter = state(0);
+ * // Simple state with a primitive value (component field)
+ * const counter = craftUse(state(0));
  * console.log(counter()); // 0
+ *
+ * @example
+ * // Inside a craftService generator factory
+ * const { injectCounter } = craftService(
+ *   { name: 'Counter', scope: 'global' },
+ *   function* () {
+ *     const counter = yield* state(0);
+ *     return { counter };
+ *   },
+ * );
  *
  * @example
  * // State with a computed
  * const origin = signal(5);
- * const doubled = state(computed(() => origin() * 2));
+ * const doubled = craftUse(state(computed(() => origin() * 2)));
  * console.log(doubled()); // 10
  *
  * @example
  * // State with insertions to add methods (Method-based)
  * const origin = signal(5);
- * const counter = state(
+ * const counter = craftUse(state(
  *   computed(() => origin() * 2),
  *   ({ update, set }) => ({
  *     increment: () => update((current) => current + 1),
  *     reset: () => set(0),
  *   })
- * );
+ * ));
  * console.log(counter()); // 10
  * counter.increment();
  * console.log(counter()); // 11
@@ -218,7 +232,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * @example
  * // State with multiple insertions, composed with craftPipe
  * const origin = signal(5);
- * const counterDouble = state(
+ * const counterDouble = craftUse(state(
  *   computed(() => origin() * 2),
  *   (context) =>
  *     craftPipe(
@@ -231,7 +245,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  *         isOdd: computed(() => state() % 2 === 1),
  *       }),
  *     ),
- * );
+ * ));
  * console.log(counterDouble()); // 10
  * console.log(counterDouble.isOdd()); // false
  * counterDouble.increment();
@@ -242,10 +256,10 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * // State with source binding (Event-based)
  * const increment = source$<void>('increment');
  * const reset = source$<void>('reset');
- * const myState = state(0, ({ update, set }) => ({
+ * const myState = craftUse(state(0, ({ update, set }) => ({
  *   setValue: on$(increment, () => update(value => value + 1)),
  *   reset: () => on$(reset, () => set(0)),
- * }));
+ * })));
  * console.log(myState()); // 0
  * // Note: setValue is not exposed on myState, only used internally
  * increment.emit();
@@ -255,10 +269,12 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  */
 export function state<StateInput>(
   stateConfig: StateInput,
-): StateOutput<
-  ResolvedStateType<StateInput>,
-  {},
-  StateTrackedDependencies<StateInput>
+): CraftPrimitiveGen<
+  StateOutput<
+    ResolvedStateType<StateInput>,
+    {},
+    StateTrackedDependencies<StateInput>
+  >
 >;
 export function state<StateInput, Insertion1, Insertion1Yielded = never>(
   stateConfig: StateInput,
@@ -268,13 +284,20 @@ export function state<StateInput, Insertion1, Insertion1Yielded = never>(
     {},
     Insertion1Yielded
   >,
-): StateOutput<
-  ResolvedStateType<StateInput>,
-  Insertion1,
-  StateTrackedDependencies<StateInput, Insertion1Yielded>
+): CraftPrimitiveGen<
+  StateOutput<
+    ResolvedStateType<StateInput>,
+    Insertion1,
+    StateTrackedDependencies<StateInput, Insertion1Yielded>
+  >
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function state<StateType>(stateConfig: any, ...insertions: any[]): any {
+export function state(stateConfig: any, ...insertions: any[]): any {
+  return createPrimitiveGen(createStateRef(stateConfig, ...insertions));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function createStateRef<StateType>(stateConfig: any, ...insertions: any[]): any {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const hasSelfConfig =
     typeof stateConfig === 'object' &&

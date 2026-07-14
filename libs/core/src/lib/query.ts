@@ -49,6 +49,10 @@ import {
 } from './resource-exception';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
 import {
+  createPrimitiveGen,
+  type CraftPrimitiveGen,
+} from './craft-primitive-gen';
+import {
   APP_SNAPSHOT_REGISTRY,
   INSERTION_SNAPSHOT_REGISTRY,
   InsertionSnapshotRegistry,
@@ -571,21 +575,23 @@ export function query<
     StreamYielded
   > &
     Config,
-): QueryOutput<
-  StripCraftException<QueryState>,
-  StripCraftException<QueryParams>,
-  QueryArgsParams,
-  StripCraftException<QueryParams>,
-  GroupIdentifier,
-  {},
-  Exceptions,
-  QueryTrackedDependencies<
-    ParamsYielded,
-    MethodYielded,
-    LoaderYielded,
-    StreamYielded,
-    never,
-    Providers
+): CraftPrimitiveGen<
+  QueryOutput<
+    StripCraftException<QueryState>,
+    StripCraftException<QueryParams>,
+    QueryArgsParams,
+    StripCraftException<QueryParams>,
+    GroupIdentifier,
+    {},
+    Exceptions,
+    QueryTrackedDependencies<
+      ParamsYielded,
+      MethodYielded,
+      LoaderYielded,
+      StreamYielded,
+      never,
+      Providers
+    >
   >
 >;
 export function query<
@@ -638,21 +644,23 @@ export function query<
     {},
     Insertion1Yielded
   >,
-): QueryOutput<
-  StripCraftException<QueryState>,
-  StripCraftException<QueryParams>,
-  QueryArgsParams,
-  StripCraftException<QueryParams>,
-  GroupIdentifier,
-  Insertion1,
-  Exceptions,
-  QueryTrackedDependencies<
-    ParamsYielded,
-    MethodYielded,
-    LoaderYielded,
-    StreamYielded,
-    Insertion1Yielded,
-    Providers
+): CraftPrimitiveGen<
+  QueryOutput<
+    StripCraftException<QueryState>,
+    StripCraftException<QueryParams>,
+    QueryArgsParams,
+    StripCraftException<QueryParams>,
+    GroupIdentifier,
+    Insertion1,
+    Exceptions,
+    QueryTrackedDependencies<
+      ParamsYielded,
+      MethodYielded,
+      LoaderYielded,
+      StreamYielded,
+      Insertion1Yielded,
+      Providers
+    >
   >
 >;
 /**
@@ -717,13 +725,13 @@ export function query<
  * ```ts
  * const userIdSignal = signal('user-123');
  *
- * const userQuery = query({
+ * const userQuery = craftUse(query({
  *   params: () => userIdSignal(),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params}`);
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Query executes automatically when created and when userIdSignal changes
  * console.log(userQuery.status()); // 'loading'
@@ -738,13 +746,13 @@ export function query<
  * @example
  * Method-based manual query
  * ```ts
- * const searchQuery = query({
+ * const searchQuery = craftUse(query({
  *   method: (searchTerm: string) => ({ term: searchTerm }),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/search?q=${params.term}`);
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Query doesn't execute automatically
  * console.log(searchQuery.status()); // 'idle'
@@ -759,7 +767,7 @@ export function query<
  * ```ts
  * import { craftException, query } from '@craft-ng/core';
  *
- * const userQuery = query({
+ * const userQuery = craftUse(query({
  *   method: (value: string) =>
  *     value.length < 3
  *       ? craftException(
@@ -774,7 +782,7 @@ export function query<
  *           { id: params },
  *         )
  *       : { id: params, name: 'John Doe' },
- * });
+ * }));
  *
  * userQuery.call('ab');
  * console.log(userQuery.hasException()); // true
@@ -787,14 +795,14 @@ export function query<
  * @example
  * Query with identifier for parallel execution
  * ```ts
- * const userDetailsQuery = query({
+ * const userDetailsQuery = craftUse(query({
  *   params: () => currentUserId(),
  *   identifier: (userId) => userId,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params}`);
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Multiple users can be queried in parallel
  * // Each has its own state tracked by identifier
@@ -809,7 +817,7 @@ export function query<
  * @example
  * With custom methods via insertions
  * ```ts
- * const todosQuery = query(
+ * const todosQuery = craftUse(query(
  *   {
  *     params: () => ({ completed: showCompleted() }),
  *     loader: async ({ params }) => {
@@ -821,7 +829,7 @@ export function query<
  *     count: computed(() => value()?.length ?? 0),
  *     isEmpty: computed(() => !isLoading() && value()?.length === 0),
  *   })
- * );
+ * ));
  *
  * console.log(todosQuery.count()); // Custom computed from insertion
  * console.log(todosQuery.isEmpty()); // true/false
@@ -830,7 +838,7 @@ export function query<
  * @example
  * Streaming query
  * ```ts
- * const liveDataQuery = query({
+ * const liveDataQuery = craftUse(query({
  *   params: () => ({ channel: currentChannel() }),
  *   stream: async ({ params }) => {
  *     const response = await fetch(`/api/stream/${params.channel}`);
@@ -841,7 +849,7 @@ export function query<
  *     // ... process stream and update resultSignal
  *     return resultSignal;
  *   },
- * });
+ * }));
  *
  * // value() updates continuously as stream data arrives
  * ```
@@ -850,17 +858,17 @@ export function query<
  * Derived query from another ResourceByIdRef
  * ```ts
  * // First query fetches basic user data
- * const usersQuery = query({
+ * const usersQuery = craftUse(query({
  *   params: () => currentUserId(),
  *   identifier: (userId) => userId,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params}`);
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Derived query enriches user data with additional info
- * const enrichedUsersQuery = query({
+ * const enrichedUsersQuery = craftUse(query({
  *   fromResourceById: usersQuery,
  *   params: ({ value, status }) => {
  *     // Only process when source is resolved
@@ -873,14 +881,19 @@ export function query<
  *     const details = await response.json();
  *     return { ...params, ...details };
  *   },
- * });
+ * }));
  *
  * // Derived query executes automatically when usersQuery resolves
  * const enrichedUser = enrichedUsersQuery.select('user-123');
  * console.log(enrichedUser?.value()); // { ...userData, ...details }
  * ```
  */
-export function query<
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function query(queryConfig: any, ...insertions: any[]): any {
+  return createPrimitiveGen(createQueryRef(queryConfig, ...insertions));
+}
+
+function createQueryRef<
   QueryState extends object | undefined,
   QueryParams,
   QueryArgsParams,

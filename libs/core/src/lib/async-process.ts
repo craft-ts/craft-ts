@@ -40,6 +40,10 @@ import {
   isCraftException,
 } from './craft-exception';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
+import {
+  createPrimitiveGen,
+  type CraftPrimitiveGen,
+} from './craft-primitive-gen';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   APP_SNAPSHOT_REGISTRY,
@@ -469,13 +473,13 @@ export type AsyncProcessOutput<
  * @example
  * Basic method-based async method
  * ```ts
- * const delay = asyncProcess({
+ * const delay = craftUse(asyncProcess({
  *   method: (delay: number) => delay,
  *   loader: async ({ params }) => {
  *     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
  *     return 'done';
  *   },
- * });
+ * }));
  *
  * // Trigger manually
  * delay.method(500);
@@ -495,14 +499,14 @@ export type AsyncProcessOutput<
  * ```ts
  * const delaySource = source<number>();
  *
- * const delay = asyncProcess({
+ * const delay = craftUse(asyncProcess({
  *   method: afterRecomputation(delaySource, (term) => term),
  *   loader: async ({ params }) => {
  *     // Debounce at source level
  *     await new Promise(resolve => setTimeout(resolve, 300));
  *     return 'done';
  *   },
- * });
+ * }));
  *
  * // Triggers automatically when source emits
  * delaySource.set(500);
@@ -518,7 +522,7 @@ export type AsyncProcessOutput<
  * ```ts
  * import { asyncProcess, craftException } from '@craft-ng/core';
  *
- * const loadUser = asyncProcess({
+ * const loadUser = craftUse(asyncProcess({
  *   method: (value: string) =>
  *     value.length < 3
  *       ? craftException(
@@ -533,7 +537,7 @@ export type AsyncProcessOutput<
  *           { id: params },
  *         )
  *       : { id: params, name: 'John Doe' },
- * });
+ * }));
  *
  * loadUser.method('ab');
  * console.log(loadUser.hasException()); // true
@@ -546,14 +550,14 @@ export type AsyncProcessOutput<
  * @example
  * Async method with identifier for parallel operations
  * ```ts
- * const delayById = asyncProcess({
+ * const delayById = craftUse(asyncProcess({
  *   method: (id: string) => id,
  *   identifier: (id) => id,
  *   loader: async () => {
  *     await new Promise(resolve => setTimeout(resolve, 300));
  *     return 'done'; // Simulate delay
  *   },
- * });
+ * }));
  *
  * delayById.method('id1');
  * delayById.method('id2');
@@ -571,12 +575,12 @@ export type AsyncProcessOutput<
  * @example
  * Calling async js native API
  * ```ts
- * const shareContent = asyncProcess({
+ * const shareContent = craftUse(asyncProcess({
  *   method: (payload: { title: string, url: string }) => payload,
  *   loader: async ({ params }) => {
  *      return navigator.share(params);
  *   },
- * }, ({resource}) => ({isMenuOpen: computed(() => resource.status() === 'loading')} ));
+ * }, ({resource}) => ({isMenuOpen: computed(() => resource.status() === 'loading')} )));
  *
  * // Trigger shareContent
  * shareContent.method({ title: 'Hello AI!', url: 'https://example.com' });
@@ -617,21 +621,23 @@ export function asyncProcess<
     StreamYielded
   > &
     Config,
-): AsyncProcessOutput<
-  StripCraftException<AsyncProcesstate>,
-  StripCraftException<AsyncProcessParams>,
-  AsyncProcessArgsParams,
-  SourceParams,
-  GroupIdentifier,
-  {},
-  Exceptions,
-  AsyncProcessTrackedDependencies<
-    ParamsYielded,
-    MethodYielded,
-    LoaderYielded,
-    StreamYielded,
-    never,
-    Providers
+): CraftPrimitiveGen<
+  AsyncProcessOutput<
+    StripCraftException<AsyncProcesstate>,
+    StripCraftException<AsyncProcessParams>,
+    AsyncProcessArgsParams,
+    SourceParams,
+    GroupIdentifier,
+    {},
+    Exceptions,
+    AsyncProcessTrackedDependencies<
+      ParamsYielded,
+      MethodYielded,
+      LoaderYielded,
+      StreamYielded,
+      never,
+      Providers
+    >
   >
 >;
 export function asyncProcess<
@@ -678,24 +684,33 @@ export function asyncProcess<
     {},
     Insertion1Yielded
   >,
-): AsyncProcessOutput<
-  StripCraftException<AsyncProcesstate>,
-  StripCraftException<AsyncProcessParams>,
-  AsyncProcessArgsParams,
-  SourceParams,
-  GroupIdentifier,
-  Insertion1,
-  Exceptions,
-  AsyncProcessTrackedDependencies<
-    ParamsYielded,
-    MethodYielded,
-    LoaderYielded,
-    StreamYielded,
-    Insertion1Yielded,
-    Providers
+): CraftPrimitiveGen<
+  AsyncProcessOutput<
+    StripCraftException<AsyncProcesstate>,
+    StripCraftException<AsyncProcessParams>,
+    AsyncProcessArgsParams,
+    SourceParams,
+    GroupIdentifier,
+    Insertion1,
+    Exceptions,
+    AsyncProcessTrackedDependencies<
+      ParamsYielded,
+      MethodYielded,
+      LoaderYielded,
+      StreamYielded,
+      Insertion1Yielded,
+      Providers
+    >
   >
 >;
-export function asyncProcess<
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function asyncProcess(AsyncProcessConfig: any, ...insertions: any[]): any {
+  return createPrimitiveGen(
+    createAsyncProcessRef(AsyncProcessConfig, ...insertions),
+  );
+}
+
+function createAsyncProcessRef<
   AsyncProcesstate extends object | undefined,
   AsyncProcessParams,
   AsyncProcessArgsParams,

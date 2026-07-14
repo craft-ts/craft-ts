@@ -49,6 +49,10 @@ import {
 } from './resource-exception';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
 import {
+  createPrimitiveGen,
+  type CraftPrimitiveGen,
+} from './craft-primitive-gen';
+import {
   APP_SNAPSHOT_REGISTRY,
   INSERTION_SNAPSHOT_REGISTRY,
   InsertionSnapshotRegistry,
@@ -589,7 +593,8 @@ export type MutationRef<
 // };
 
 export type MutationOutput<
-  State extends object | undefined,
+  // Unconstrained: sync loaders may resolve to null or primitives too.
+  State,
   Params,
   ArgParams,
   SourceParams,
@@ -610,7 +615,7 @@ export type MutationOutput<
 >;
 
 export function mutation<
-  MutationState extends object | undefined,
+  MutationState,
   MutationParams,
   MutationArgsParams,
   SourceParams,
@@ -648,21 +653,23 @@ export function mutation<
     StreamYielded
   > &
     Config,
-): MutationOutput<
-  StripCraftException<MutationState>,
-  StripCraftException<MutationParams>,
-  MutationArgsParams,
-  StripCraftException<MutationParams>,
-  GroupIdentifier,
-  {},
-  Exceptions,
-  MutationTrackedDependencies<
-    ParamsYielded,
-    MethodYielded,
-    LoaderYielded,
-    StreamYielded,
-    never,
-    Providers
+): CraftPrimitiveGen<
+  MutationOutput<
+    StripCraftException<MutationState>,
+    StripCraftException<MutationParams>,
+    MutationArgsParams,
+    StripCraftException<MutationParams>,
+    GroupIdentifier,
+    {},
+    Exceptions,
+    MutationTrackedDependencies<
+      ParamsYielded,
+      MethodYielded,
+      LoaderYielded,
+      StreamYielded,
+      never,
+      Providers
+    >
   >
 >;
 export function mutation<
@@ -715,21 +722,23 @@ export function mutation<
     {},
     Insertion1Yielded
   >,
-): MutationOutput<
-  StripCraftException<MutationState>,
-  StripCraftException<MutationParams>,
-  MutationArgsParams,
-  StripCraftException<MutationParams>,
-  GroupIdentifier,
-  Insertion1,
-  Exceptions,
-  MutationTrackedDependencies<
-    ParamsYielded,
-    MethodYielded,
-    LoaderYielded,
-    StreamYielded,
-    Insertion1Yielded,
-    Providers
+): CraftPrimitiveGen<
+  MutationOutput<
+    StripCraftException<MutationState>,
+    StripCraftException<MutationParams>,
+    MutationArgsParams,
+    StripCraftException<MutationParams>,
+    GroupIdentifier,
+    Insertion1,
+    Exceptions,
+    MutationTrackedDependencies<
+      ParamsYielded,
+      MethodYielded,
+      LoaderYielded,
+      StreamYielded,
+      Insertion1Yielded,
+      Providers
+    >
   >
 >;
 
@@ -784,13 +793,13 @@ export function mutation<
  * @example
  * Basic method-based mutation
  * ```ts
- * const updateUser = mutation({
+ * const updateUser = craftUse(mutation({
  *   method: (userId: string) => ({ userId }),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}`, { method: 'PATCH' });
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Check status
  * console.log(updateUser.status()); // 'idle'
@@ -811,13 +820,13 @@ export function mutation<
  *  todo change example for mutation
  * const updateUserSource = source<{ userId: string, email: string }>();
  *
- *  const updateUser = mutation({
+ *  const updateUser = craftUse(mutation({
  *   method:  afterRecomputation(updateUserSource, (params) => params),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}`, { method: 'PATCH' });
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Mutation executes automatically when source changes
  * updateUserSource.set({ userId: 'user-123', email: 'newemail@example.com' });
@@ -829,7 +838,7 @@ export function mutation<
  * ```ts
  * import { craftException, mutation } from '@craft-ng/core';
  *
- * const updateUser = mutation({
+ * const updateUser = craftUse(mutation({
  *   method: (value: string) =>
  *     value.length < 3
  *       ? craftException(
@@ -844,7 +853,7 @@ export function mutation<
  *           { id: params },
  *         )
  *       : { id: params, updated: true },
- * });
+ * }));
  *
  * updateUser.mutate('ab');
  * console.log(updateUser.hasException()); // true
@@ -857,14 +866,14 @@ export function mutation<
  * @example
  * Mutation with identifier for grouping
  * ```ts
- * const deleteItem = mutation({
+ * const deleteItem = craftUse(mutation({
  *   method: (itemId: string) => ({ itemId }),
  *   identifier: (params) => params.itemId,
  *   loader: async ({ params }) => {
  *     await fetch(`/api/items/${params.itemId}`, { method: 'DELETE' });
  *     return { deleted: true };
  *   },
- * });
+ * }));
  *
  * // Trigger mutations for different items
  * deleteItem.mutate('item-1');
@@ -879,7 +888,7 @@ export function mutation<
  * @example
  * With custom methods via insertions
  * ```ts
- * const createPost = mutation(
+ * const createPost = craftUse(mutation(
  *   {
  *     method: (data: { title: string; content: string }) => data,
  *     loader: async ({ params }) => {
@@ -896,7 +905,7 @@ export function mutation<
  *       // Custom reset logic
  *     },
  *   })
- * );
+ * ));
  *
  * createPost.mutate({ title: 'Hello', content: 'World' });
  * console.log(createPost.isSuccess()); // Custom computed from insertion
@@ -906,17 +915,17 @@ export function mutation<
  * Binding to another ResourceByIdRef
  * ```ts
  * // First, create a source mutation by ID
- * const fetchUsers = mutation({
+ * const fetchUsers = craftUse(mutation({
  *   method: (userId: string) => ({ userId }),
  *   identifier: (params) => params.userId,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}`);
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Then create a derived mutation that processes the results
- * const processedUsers = mutation({
+ * const processedUsers = craftUse(mutation({
  *   fromResourceById: fetchUsers,
  *   params: ({ value, status }) => {
  *     // Only process when the source is resolved
@@ -931,7 +940,7 @@ export function mutation<
  *       timestamp: Date.now(),
  *     };
  *   },
- * });
+ * }));
  *
  * // Trigger the source mutation
  * fetchUsers.mutate('user-123');
@@ -942,8 +951,13 @@ export function mutation<
  * console.log(processed?.value()); // { userId: 'user-123', processed: true, ... }
  * ```
  */
-export function mutation<
-  MutationState extends object | undefined,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function mutation(mutationConfig: any, ...insertions: any[]): any {
+  return createPrimitiveGen(createMutationRef(mutationConfig, ...insertions));
+}
+
+function createMutationRef<
+  MutationState,
   MutationParams,
   MutationArgsParams,
   SourceParams,
@@ -1397,7 +1411,7 @@ export function mutation<
   const insertionsResult = (
     insertions as InsertionsResourcesFactory<
       NoInfer<GroupIdentifier>,
-      NoInfer<StripCraftException<MutationState>>,
+      NoInfer<Extract<StripCraftException<MutationState>, object | undefined>>,
       NoInfer<StripCraftException<MutationParams>>,
       ResourceExceptionConstraints,
       {},
