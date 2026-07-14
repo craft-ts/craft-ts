@@ -69,22 +69,14 @@ You can add methods and computed properties to your state using a second inserti
 export class CounterComponent {
   counter = state(
     0,
-    // craftPipe composes multiple insertions, so you can organize your logic as you want
-    (context) =>
-      craftPipe(
-        context,
-        ({ update, state }) => ({
-          // methods
-          increment: () => update((current) => current + 1),
-          decrement: () => update((current) => current - 1),
-          // computed properties
-          isEven: computed(() => state() % 2 === 0),
-          double: computed(() => state() * 2),
-        }),
-        ({ state }) => ({
-          isPositive: computed(() => state() > 0),
-        }),
-      ),
+    ({ update, state }) => ({
+      // methods
+      increment: () => update((current) => current + 1),
+      decrement: () => update((current) => current - 1),
+      // computed properties
+      isEven: computed(() => state() % 2 === 0),
+      double: computed(() => state() * 2),
+      isPositive: computed(() => state() > 0),
   );
 }
 ```
