@@ -2,8 +2,8 @@ import type { ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/route
 import type { StripCraftException } from './craft-exception';
 
 /**
- * The optional data step of a craft route. Mirrors {@link craftCanActivate} but
- * yields a value rather than a guard decision: it `yield*`s craft services and
+ * The optional data step of a craft route. Mirrors a route's `canActivate` guard
+ * but yields a value rather than a guard decision: it `yield*`s craft services and
  * `yield* untilSettled(...)`, then returns the data the target component reads
  * through the generated `injectXxxResolvedData()` helper.
  *

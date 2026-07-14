@@ -67,11 +67,11 @@ export const noPizzeriaGuard = craftGen(function* () {
 Used from a route:
 
 ```typescript
-canActivate: craftCanActivate(function* () {
+canActivate: function* () {
   yield* roleGuard(ROLES.PIZZERIA_ADMIN);
   yield* noPizzeriaGuard();
   return true;
-}),
+},
 ```
 
 ## How it behaves

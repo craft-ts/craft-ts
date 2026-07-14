@@ -8,8 +8,6 @@ import { assertExhaustiveRouteExceptions } from './craft-route-exceptions';
 import { craftExceptionHandler } from './craft-route-exceptions';
 import { craftService } from './craft-service';
 import {
-  craftCanActivate,
-  craftCanMatch,
   craftRoutes,
   craftRoute,
   type RouteExceptionHandlerDepsMap,
@@ -55,9 +53,9 @@ describe('route handleExceptions (third argument)', () => {
       {
         component: Stub,
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* authFail();
-        }),
+        },
       },
       {
         // @ts-expect-error bare handlers are not branded
@@ -74,9 +72,9 @@ describe('route handleExceptions (third argument)', () => {
       {
         loadComponent: () => Promise.resolve({ default: Stub }),
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* authFail();
-        }),
+        },
       },
       {
         NOT_AUTHENTICATED: craftExceptionHandler(function* ({
@@ -96,9 +94,9 @@ describe('route handleExceptions (third argument)', () => {
       {
         loadComponent: () => Promise.resolve({ default: Stub }),
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* authFail();
-        }),
+        },
       },
       {
         NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
@@ -115,9 +113,9 @@ describe('route handleExceptions (third argument)', () => {
       {
         loadComponent: () => Promise.resolve({ default: Stub }),
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* authFail();
-        }),
+        },
       },
       {
         NOT_AUTHENTICATED: craftExceptionHandler(function* ({
@@ -139,9 +137,9 @@ describe('route handleExceptions (third argument)', () => {
       {
         loadComponent: () => Promise.resolve({ default: Stub }),
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* authFail();
-        }),
+        },
         resolve: craftResolve(function* () {
           return yield* profileFail();
         }),
@@ -161,12 +159,12 @@ describe('route handleExceptions (third argument)', () => {
       {
         loadComponent: () => Promise.resolve({ default: Stub }),
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           yield* authFail();
           yield* profileFail();
           yield* pizzeriaFail();
           return true;
-        }),
+        },
       },
       // @ts-expect-error 'HAS_PIZZERIA' from the third guard is unhandled
       {
@@ -186,9 +184,9 @@ describe('route handleExceptions (third argument)', () => {
       {
         loadComponent: () => Promise.resolve({ default: Stub }),
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* authFail();
-        }),
+        },
       },
       // @ts-expect-error the only valid missing key is NOT_AUTHENTICATED
       { ERROR_missing_exception_handlers: undefined },
@@ -202,9 +200,9 @@ describe('route handleExceptions (third argument)', () => {
         {
           loadComponent: () => Promise.resolve({ default: Stub }),
           componentDeps: {},
-          canActivate: craftCanActivate(function* () {
+          canActivate: function* () {
             return yield* authFail();
-          }),
+          },
         },
         {
           NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
@@ -233,9 +231,9 @@ describe('route handleExceptions (third argument)', () => {
     craftRoute('user/:userId', {
       loadComponent: () => Promise.resolve({ default: Stub }),
       componentDeps: {},
-      canActivate: craftCanActivate(function* () {
+      canActivate: function* () {
         return yield* authFail();
-      }),
+      },
       handleExceptions: {},
     });
   });
@@ -247,12 +245,12 @@ describe('route handleExceptions (third argument)', () => {
         {
           loadComponent: () => Promise.resolve({ default: Stub }),
           componentDeps: {},
-          canMatch: craftCanMatch(function* () {
+          canMatch: function* () {
             return yield* flagOff();
-          }),
-          canActivate: craftCanActivate(function* () {
+          },
+          canActivate: function* () {
             return yield* authFail();
-          }),
+          },
           resolve: craftResolve(function* () {
             return yield* profileFail();
           }),
@@ -279,9 +277,9 @@ describe('route handleExceptions (third argument)', () => {
       craftRoute('user/:userId', {
         loadComponent: () => Promise.resolve({ default: Stub }),
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* authFail();
-        }),
+        },
       }).withProviders(() => []),
     ]);
     // @ts-expect-error 'NOT_AUTHENTICATED' is reachable but no handlers were passed
@@ -295,9 +293,9 @@ describe('route handleExceptions (third argument)', () => {
         {
           loadComponent: () => Promise.resolve({ default: Stub }),
           componentDeps: {},
-          canActivate: craftCanActivate(function* () {
+          canActivate: function* () {
             return yield* authFail();
-          }),
+          },
           resolve: craftResolve(function* () {
             return yield* profileFail();
           }),
@@ -327,9 +325,9 @@ describe('route handleExceptions (third argument)', () => {
       {
         loadComponent: () => Promise.resolve({ default: Stub }),
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* authFail();
-        }),
+        },
       },
       {
         NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
@@ -355,9 +353,9 @@ describe('route handleExceptions (third argument)', () => {
         {
           component: Stub,
           componentDeps: {},
-          canActivate: craftCanActivate(function* () {
+          canActivate: function* () {
             return yield* disabled();
-          }),
+          },
         },
         {
           USER_DISABLED: craftExceptionHandler(function* ({ renderComponent }) {
@@ -385,9 +383,9 @@ describe('route handleExceptions (third argument)', () => {
       {
         component: Stub,
         componentDeps: {},
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* authFail();
-        }),
+        },
       },
       {
         NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {

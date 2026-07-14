@@ -63,14 +63,14 @@ craftRoute(
   {
     loadComponent: ({ withRetry }) => withRetry(import('./user-detail')),
     componentDeps: {} as import('./user-detail').GenDeps_UserDetail,
-    canMatch: craftCanMatch(function* () {
+    canMatch: function* () {
       const ff = yield* FeatureFlagsToYield();
       return ff.userPageEnabled ? true : craftException({ code: 'FEATURE_OFF' });
-    }),
-    canActivate: craftCanActivate(function* () {
+    },
+    canActivate: function* () {
       const user = yield* AuthToYield();
       return user.safeValue() ?? craftException({ code: 'NOT_AUTHENTICATED' });
-    }),
+    },
     resolve: craftResolve(function* () {
       return yield* untilSettled(profileQuery);
     }),
@@ -95,8 +95,8 @@ craftRoute(
 ),
 ```
 
-`craftCanActivate` / `craftCanMatch` now take **only the guard** — there is no inline `resolvers`
-argument. Every reachable code flows to the third `craftRoute(...)` argument.
+`canActivate` / `canMatch` are bare generator functions — there is no guard wrapper and no inline
+`resolvers` argument. Every reachable code flows to the third `craftRoute(...)` argument.
 
 ## Handler context
 

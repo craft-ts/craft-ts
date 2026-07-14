@@ -12,15 +12,15 @@ const globalExceptionRegistryMatchRule = require('./global-exception-registry-ma
 const tempDirectories: string[] = [];
 
 const ROUTE_FILE = (registryBlock = '') => `
-  import { craftRoutes, craftRoute, craftCanActivate, craftException } from '@craft-ng/core';
+  import { craftRoutes, craftRoute, craftException } from '@craft-ng/core';
 
   export const { demoRoutes } = craftRoutes('demo', [
     craftRoute('query/:userId', {
       loadComponent: () => import('./query'),
       componentDeps: {},
-      canActivate: craftCanActivate(function* () {
+      canActivate: function* () {
         return craftException({ code: 'NOT_AUTHENTICATED' });
-      }),
+      },
     }, {
       NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
       USER_DISABLED: ({ globalError }) => globalError(),
@@ -95,15 +95,15 @@ describe('global-exception-registry-match', () => {
   it('ignores a route whose handlers never call globalError()', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftRoutes, craftRoute, craftCanActivate, craftException } from '@craft-ng/core';
+        import { craftRoutes, craftRoute, craftException } from '@craft-ng/core';
 
         export const { demoRoutes } = craftRoutes('demo', [
           craftRoute('query/:userId', {
             loadComponent: () => import('./query'),
             componentDeps: {},
-            canActivate: craftCanActivate(function* () {
+            canActivate: function* () {
               return craftException({ code: 'NOT_AUTHENTICATED' });
-            }),
+            },
           }, {
             NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
           }),
@@ -189,7 +189,6 @@ function baseFixtureFiles(): Record<string, string> {
       declare module '@craft-ng/core' {
         export declare function craftRoutes(...args: any[]): any;
         export declare function craftRoute(...args: any[]): any;
-        export declare function craftCanActivate(...args: any[]): any;
         export declare function craftException(...args: any[]): any;
         export type CraftRouteExceptionType<R, P, C> = unknown;
       }

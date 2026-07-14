@@ -1,6 +1,5 @@
 import {
   assertExhaustiveRouteExceptions,
-  craftCanActivate,
   craftException,
   craftExceptionHandler,
   craftGen,
@@ -83,9 +82,9 @@ export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
         loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
           withRetry(import('./slow-page')),
         // Slow (~1.5s) — the outlet shows the pending component until it settles.
-        canActivate: craftCanActivate(function* () {
+        canActivate: function* () {
           return yield* slowAccessGuard();
-        }),
+        },
         // Slow (~1.5s) — runs after the guard; the target mounts only once settled.
         resolve: craftResolve(function* () {
           return yield* loadSlowReport();

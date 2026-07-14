@@ -3,7 +3,6 @@ import {
   abstract,
   assertChildRouteMounts,
   assertExhaustiveRouteExceptions,
-  craftCanActivate,
   craftException,
   craftExceptionHandler,
   craftGen,
@@ -34,9 +33,9 @@ export const {
         {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
       loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
         withRetry(import('./examples/primitives/query/query')),
-      canActivate: craftCanActivate(function* () {
+      canActivate: function* () {
         return yield* authGuard();
-      }),
+      },
       resolve: craftResolve(function* () {
         return yield* loadProfile();
       }),
@@ -294,7 +293,7 @@ const { UserRequirement, provideUser } = craftService(
 
 // Reusable, composable guard: yields the tracked `Auth` dependency and either
 // returns the authenticated user (guarded data) or short-circuits with a typed
-// `craftException`. Composed via `yield*` inside `craftCanActivate` below.
+// `craftException`. Composed via `yield*` inside the route's `canActivate` below.
 const authGuard = craftGen(function* () {
   const user = yield* AuthToYield();
   const userSafeValue = user.safeValue();

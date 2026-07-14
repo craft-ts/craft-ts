@@ -513,18 +513,16 @@ function hasAngularGuard(
   for (const guardName of ['canActivate', 'canMatch'] as const) {
     const guard = getProperty(route, guardName)?.getInitializer();
     if (!guard) continue;
-    if (
-      Node.isCallExpression(guard) &&
-      guard.getExpression().getText() ===
-        (guardName === 'canActivate' ? 'craftCanActivate' : 'craftCanMatch')
-    ) {
+    // A craft guard is authored as a bare generator function (`function* () {}`);
+    // the outlet drives it after commit. Such a guard is already migrated.
+    if (Node.isFunctionExpression(guard) && guard.isGenerator()) {
       continue;
     }
     found = true;
     if (Node.isArrayLiteralExpression(guard) && guard.getElements().length > 1) {
       diagnose(context, 'MULTIPLE_GUARDS_REQUIRE_COMPOSITION', routePath, `${guardName} contient plusieurs guards ; leur composition craft-ng est une décision métier.`);
     } else {
-      diagnose(context, 'ANGULAR_GUARD_REQUIRES_REWRITE', routePath, `${guardName} doit être réécrit avec craftCanActivate/craftCanMatch.`);
+      diagnose(context, 'ANGULAR_GUARD_REQUIRES_REWRITE', routePath, `${guardName} doit être réécrit en générateur craft (function* () {}).`);
     }
   }
   return found;

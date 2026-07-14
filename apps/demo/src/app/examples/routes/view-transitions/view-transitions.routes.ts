@@ -1,6 +1,5 @@
 import {
   assertExhaustiveRouteExceptions,
-  craftCanActivate,
   craftException,
   craftExceptionHandler,
   craftGen,
@@ -82,9 +81,9 @@ export const {
         image: string | null;
       }>(),
       pendingComponent: () => import('./photo-skeleton'),
-      canActivate: craftCanActivate(function* () {
+      canActivate: function* () {
         return yield* slowDetailGuard();
-      }),
+      },
     },
     {
       // Exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at the call site.

@@ -49,7 +49,7 @@ type GuardPumpResult =
 
 type GuardSettledStep = Exclude<GuardPumpResult, { kind: 'await' }>;
 
-// Resolution boundary shared by `craftCanActivate` / `craftCanMatch`: a
+// Guard resolution boundary: a
 // non-exception result passes through; an exception is mapped through its
 // resolver (looked up by code, with a defensive runtime throw for an unmapped
 // code, which the exhaustive `resolvers` type already prevents). When the

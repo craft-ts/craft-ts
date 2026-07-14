@@ -3,12 +3,11 @@
 Write **reusable, parameterised** route guards, **compose** them in a single `canActivate` /
 `canMatch`, and resolve their failure cases **exhaustively** — an unhandled case is a **type error**.
 
-> **Exception handling has moved off the guard.** `craftCanActivate` / `craftCanMatch` now take
-> **only the guard** — there is no inline `resolvers` argument. Every reachable `craftException` is
-> resolved by a single, exhaustive **[`handleExceptions`](./exception-handling.md)** map on the
-> route, applied **after the URL commits** by the non-blocking
-> [`CraftRouterOutlet`](./pending-ui.md). Some examples below still show the older inline
-> `resolvers` form; see [exception-handling.md](./exception-handling.md) for the current model.
+> **A guard is just a generator function.** `canActivate` / `canMatch` take a bare
+> `function* () { … }` directly — there is no `craftCanActivate` / `craftCanMatch` wrapper and no
+> inline `resolvers` argument. Every reachable `craftException` is resolved by a single, exhaustive
+> **[`handleExceptions`](./exception-handling.md)** map on the route, applied **after the URL commits**
+> by the non-blocking [`CraftRouterOutlet`](./pending-ui.md).
 
 ## The problem
 
@@ -36,21 +35,20 @@ canActivate: function* () {
 The rules are not reusable, the redirect logic is tangled with the checks, and nothing forces you to
 handle every rejection — forget a branch and it silently falls through.
 
-## The solution: `craftGen` + `craftCanActivate`
+## The solution: `craftGen` + a composing generator guard
 
 Split the two concerns:
 
 - **`craftGen`** authors a reusable, parameterised guard. It either returns a success value or a
   typed [`craftException`](#exceptions).
-- **`craftCanActivate`** composes guards with `yield*` and takes a `resolvers` map that must cover
-  **exactly** the reachable exception codes.
+- The route's **`canActivate` generator** composes guards with `yield*`; the route's exhaustive
+  [`handleExceptions`](./exception-handling.md) map must cover **exactly** the reachable exception codes.
 
 For a focused overview of `craftGen` itself and why it is useful, see
 [`craftGen`](./craft-gen.md).
 
 ```ts
 import {
-  craftCanActivate,
   craftException,
   craftGen,
   craftResolve,
@@ -105,11 +103,11 @@ craftRoute(
   'new',
   {
     title: 'Create Pizzeria',
-    canActivate: craftCanActivate(function* () {
+    canActivate: function* () {
       yield* roleGuard(ROLES.PIZZERIA_ADMIN); // short-circuits on exception
       yield* noPizzeriaGuard();
       return true;
-    }),
+    },
     resolve: craftResolve(function* () {
       return yield* untilSettled(pizzeriaDraftQuery);
     }),
@@ -163,9 +161,9 @@ never re-runs `resolve` (no new pending). Opt out per route with `reactiveGuards
   still sees them.
 - As soon as a composed guard produces a `craftException`, the enclosing generator
   **short-circuits**: `yield* roleGuard(...)` interrupts the whole `function*`, and the exception is
-  propagated to the `craftCanActivate` boundary — no `if`/`return` plumbing in the composing guard.
-- The set of exceptions each guard can produce is tracked **at the type level**, so
-  `craftCanActivate` knows precisely which codes its `resolvers` must handle.
+  propagated to the route's guard boundary — no `if`/`return` plumbing in the composing guard.
+- The set of exceptions each guard can produce is tracked **at the type level**, so the route's
+  `handleExceptions` map knows precisely which codes it must handle.
 
 Order matters: guards run top-to-bottom and the first exception wins (fail-fast).
 
@@ -205,10 +203,10 @@ missing-provider error on the route):
 craftRoute(
   'admin',
   {
-    canActivate: craftCanActivate(function* () {
+    canActivate: function* () {
       yield* roleGuard(ROLES.ADMIN);
       return true;
-    }),
+    },
   },
   {
     // Generator handler — `RedirectConfig` becomes a tracked route dependency.
@@ -230,7 +228,7 @@ missing one is a type error:
 ```ts
 craftRoute(
   'admin',
-  { canActivate: craftCanActivate(guard) },
+  { canActivate: guard },
   {
     FORBIDDEN_ROLE: craftExceptionHandler(function* ({ redirectTo }) {
       return yield* redirectTo({ to: 'unauthorized' });
@@ -246,8 +244,8 @@ added. A typo'd code is caught the same way because the correctly-spelled key is
 ## Guarded data still flows through
 
 A `canActivate` guard's **success value** (anything other than `true`/`UrlTree`/…) becomes the
-route's [guarded data](/type-safe-di-routes/route-providers). Returning it through
-`craftCanActivate` keeps that behavior — `craftException` returns are never treated as data:
+route's [guarded data](/type-safe-di-routes/route-providers) — `craftException` returns are never
+treated as data:
 
 ```ts
 const authGuard = craftGen(
@@ -261,30 +259,31 @@ const authGuard = craftGen(
     },
 );
 
-craftRoute('query/:userId', {
-  componentDeps: {} as import('./query').GenDeps_GlobalQuery,
-  loadComponent: ({ withRetry }) => withRetry(import('./query')),
-  canActivate: craftCanActivate(
-    function* () {
+craftRoute(
+  'query/:userId',
+  {
+    componentDeps: {} as import('./query').GenDeps_GlobalQuery,
+    loadComponent: ({ withRetry }) => withRetry(import('./query')),
+    canActivate: function* () {
       return yield* authGuard(); // success value = the user
     },
-    {
-      NOT_AUTHENTICATED: ({ createUrlTree }) => createUrlTree(['/login-form']),
-    },
-  ),
-}).withProviders(({ GuardedDataToYield }) => [
+  },
+  {
+    NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+      return redirectUrl('/login-form');
+    }),
+  },
+).withProviders(({ GuardedDataToYield }) => [
   provideUser(function* () {
     return (yield* GuardedDataToYield())(); // Signal<User> → User
   }),
 ]);
 ```
 
-## `craftCanMatch`
+## `canMatch`
 
-`craftCanMatch` is the sibling for `canMatch`. Same composition and exhaustive resolution. Unlike
-`canActivate`, a `canMatch` guard produces no guarded data. A guard with no async step resolves
-**synchronously**; one that suspends on [`untilSettled` / `untilDefined`](#async-guards) resolves
-asynchronously (Angular's `CanMatchFn` accepts `MaybeAsync<GuardResult>`).
+`canMatch` is the sibling of `canActivate` — same composition and exhaustive resolution through
+`handleExceptions`. Unlike `canActivate`, a `canMatch` guard produces no guarded data.
 
 ```ts
 const featureFlagGuard = craftGen(
@@ -295,18 +294,22 @@ const featureFlagGuard = craftGen(
     },
 );
 
-craftRoute('beta', {
-  componentDeps: {} as import('./beta').GenDeps_Beta,
-  loadComponent: ({ withRetry }) => withRetry(import('./beta')),
-  canMatch: craftCanMatch(
-    function* () {
+craftRoute(
+  'beta',
+  {
+    componentDeps: {} as import('./beta').GenDeps_Beta,
+    loadComponent: ({ withRetry }) => withRetry(import('./beta')),
+    canMatch: function* () {
       yield* featureFlagGuard('beta');
       return true;
     },
-    // `false` skips the route (the router tries the next match); a UrlTree redirects.
-    { FLAG_DISABLED: () => false },
-  ),
-});
+  },
+  {
+    FLAG_DISABLED: craftExceptionHandler(function* ({ redirectUrl }) {
+      return redirectUrl('/home');
+    }),
+  },
+);
 ```
 
 ## Async guards {#async-guards}
@@ -315,7 +318,7 @@ The guards above are **synchronous** — every `craftGen` resolves in one pass. 
 that has to be _fetched first_, suspend the composing guard with `untilSettled` (or `untilDefined`).
 The guard stays a normal generator: `yield* a(); const x = yield* untilSettled(...); yield* b()`
 composes across the await, and the awaited operation's `craftException`s flow into the same
-exhaustive resolvers — the compiler still forces you to handle every reachable code.
+exhaustive `handleExceptions` map — the compiler still forces you to handle every reachable code.
 
 ### `untilSettled` — await a resource or an HTTP call
 
@@ -323,15 +326,16 @@ exhaustive resolvers — the compiler still forces you to handle every reachable
 `CraftHttpClient.*` **call** and suspends until it settles, then returns its success value.
 
 ```ts
-craftRoute('users/:userId', {
-  componentDeps: {} as import('./user').GenDeps_User,
-  loadComponent: ({ withRetry }) => withRetry(import('./user')),
-  canActivate: craftCanActivate(
-    function* (route) {
+craftRoute(
+  'users/:userId',
+  {
+    componentDeps: {} as import('./user').GenDeps_User,
+    loadComponent: ({ withRetry }) => withRetry(import('./user')),
+    canActivate: function* (route) {
       const userId = route.params['userId'];
 
       // (a) Await an HTTP call directly — no named resource needed. Its declared
-      //     `exceptions` flow into the resolvers below.
+      //     `exceptions` flow into the route's handleExceptions below.
       const user = yield* untilSettled(
         CraftHttpClient.get(({ response }) => ({
           url: `/api/users/${userId}`,
@@ -351,13 +355,17 @@ craftRoute('users/:userId', {
 
       return user.active ? true : craftException({ code: 'INACTIVE_USER' });
     },
-    {
-      // Both the guard's own exception AND the HTTP call's exception are required.
-      INACTIVE_USER: ({ createUrlTree }) => createUrlTree(['/inactive']),
-      PASSWORD_REQUIRED: ({ createUrlTree }) => createUrlTree(['/password']),
-    },
-  ),
-});
+  },
+  {
+    // Both the guard's own exception AND the HTTP call's exception are required.
+    INACTIVE_USER: craftExceptionHandler(function* ({ redirectUrl }) {
+      return redirectUrl('/inactive');
+    }),
+    PASSWORD_REQUIRED: craftExceptionHandler(function* ({ redirectUrl }) {
+      return redirectUrl('/password');
+    }),
+  },
+);
 ```
 
 The **resource** form is identical — pass the ref (an inline `query(...)` works, though it is
@@ -374,11 +382,11 @@ const user =
 **Settle semantics & exception routing:**
 
 - A resource settles when its `status` reaches `'resolved'` or `'error'`. A loader `craftException`
-  **short-circuits** to the resolvers; a thrown loader error is **rethrown**; otherwise the resolved
-  value is returned.
-- An HTTP call's declared business `exceptions` short-circuit to the resolvers. The generic
+  **short-circuits** to `handleExceptions`; a thrown loader error is **rethrown**; otherwise the
+  resolved value is returned.
+- An HTTP call's declared business `exceptions` short-circuit to `handleExceptions`. The generic
   transport-level `HttpError` (`scope: 'HttpClient'`) is **rethrown** — a network failure is not a
-  resolvable business case. (An opt-in `HttpError` resolver may come later.)
+  resolvable business case. (An opt-in `HttpError` handler may come later.)
 - The awaited HTTP endpoint is tracked as a route dependency automatically, exactly like one used in
   a component or loader.
 
@@ -395,8 +403,8 @@ const session = yield * untilDefined(sessionService.current);
 
 - A guard that never reaches an `untilSettled` / `untilDefined` await still resolves **synchronously**
   (no forced microtask) — existing synchronous guards are unchanged.
-- This works for both `craftCanActivate` and `craftCanMatch`; async surfaces to Angular as the
-  `Observable<GuardResult>` both already accept.
+- This works for both `canActivate` and `canMatch`; the outlet drives the guard to settlement after
+  the URL commits.
 
 ## Exceptions {#exceptions}
 
@@ -405,20 +413,20 @@ Guards fail with `craftException({ code }, payload?)` — the same typed-excepti
 
 ```ts
 craftException({ code: 'FORBIDDEN_ROLE' });
-craftException({ code: 'RATE_LIMITED' }, { retryAfter: 30 }); // payload reaches the resolver
+craftException({ code: 'RATE_LIMITED' }, { retryAfter: 30 }); // payload reaches the handler
 ```
 
-The `code` drives both the exhaustiveness check and the resolver lookup; the optional payload is
-typed and forwarded to the resolver.
+The `code` drives both the exhaustiveness check and the handler lookup; the optional payload is
+typed and forwarded to the handler.
 
 ## When to reach for it
 
-`craftGen` + `craftCanActivate` / `craftCanMatch` fit **sequential, fail-fast gates resolved at a
+`craftGen` + a `canActivate` / `canMatch` generator fit **sequential, fail-fast gates resolved at a
 single boundary**: authorization, account-state checks, feature flags, action preconditions.
 
 It is **not** the right tool when you want to **collect and surface multiple failures**
 reactively — that is what `query` / `mutation` `hasException` and the form-submit exception model are
-for. Guards stop at the first failure and hand off to a resolver.
+for. Guards stop at the first failure and hand off to a handler.
 
 ## See Also
 

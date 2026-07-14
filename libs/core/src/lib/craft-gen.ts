@@ -12,8 +12,8 @@ const CRAFT_GEN_SHORT_CIRCUIT = Symbol('craft-gen-short-circuit');
 /**
  * Type-level marker surfaced by a {@link craftGen} invocation's `Yielded`. It
  * carries the union of {@link AnyCraftException} the generator may produce so a
- * composing generator (and {@link craftCanActivate}) can read the reachable
- * exception codes off its `Yielded`.
+ * composing generator (and a route's `canActivate`/`canMatch`) can read the
+ * reachable exception codes off its `Yielded`.
  *
  * It is **never** yielded at runtime — the short-circuit is a native `throw` of
  * {@link CraftGenShortCircuit}. The marker is also intentionally NOT a
@@ -73,8 +73,8 @@ export type CraftGenInvoker<Args extends any[], GenFn> = (
 
 /**
  * Thrown to short-circuit the enclosing generator when a {@link craftGen}
- * invocation produces a `craftException`. {@link craftCanActivate} catches it at
- * the resolution boundary; composing generators simply let it propagate.
+ * invocation produces a `craftException`. The route chain driver catches it at
+ * the guard/resolve boundary; composing generators simply let it propagate.
  */
 export class CraftGenShortCircuit extends Error {
   readonly [CRAFT_GEN_SHORT_CIRCUIT] = true as const;
@@ -106,9 +106,9 @@ export function isCraftGenShortCircuit(
  *
  * When the inner generator returns a `craftException`, the invocation **throws**
  * {@link CraftGenShortCircuit}, interrupting the enclosing generator at any depth
- * and propagating the exception to the nearest boundary (typically
- * {@link craftCanActivate}). When it returns a non-exception value, that value is
- * returned from the `yield*`.
+ * and propagating the exception to the nearest boundary (typically a route's
+ * `canActivate`/`canMatch` guard). When it returns a non-exception value, that
+ * value is returned from the `yield*`.
  *
  * @example
  * ```ts

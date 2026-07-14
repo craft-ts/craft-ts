@@ -64,8 +64,6 @@ import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
 import { queryParam } from './query-param';
 import {
   CraftRouteInjectHelper,
-  craftCanActivate,
-  craftCanMatch,
   craftRoutes,
   craftRoute,
   type CraftRoutesPublicPropertiesErrors,
@@ -2979,7 +2977,7 @@ describe('AppRoutes.META_DATA', () => {
     >();
   });
 
-  it('should include craftCanActivate generator resolver deps in META_DATA', () => {
+  it('should include canActivate generator handler deps in META_DATA', () => {
     const { injectRedirectConfig, RedirectConfigToYield } = craftService(
       { name: 'RedirectConfig', scope: 'toProvide' },
       () => ({ loginUrl: '/login' }),
@@ -2999,10 +2997,10 @@ describe('AppRoutes.META_DATA', () => {
         {
           loadComponent: async () => null as unknown as Type<unknown>,
           componentDeps: {} as GuardRouteDeps,
-          canActivate: craftCanActivate(function* () {
+          canActivate: function* () {
             yield* authGuard();
             return true;
-          }),
+          },
         },
         {
           // Generator handler — its yielded service is tracked as a route dep.
@@ -3030,7 +3028,7 @@ describe('AppRoutes.META_DATA', () => {
     >();
   });
 
-  it('should strip craftCanActivate resolver deps satisfied by route providers', () => {
+  it('should strip canActivate handler deps satisfied by route providers', () => {
     const { RedirectConfigToYield, provideRedirectConfig } = craftService(
       { name: 'RedirectConfig', scope: 'toProvide' },
       () => ({ loginUrl: '/login' }),
@@ -3051,10 +3049,10 @@ describe('AppRoutes.META_DATA', () => {
           loadComponent: async () => null as unknown as Type<unknown>,
           componentDeps: {} as GuardRouteDeps,
           providers: [provideRedirectConfig()],
-          canActivate: craftCanActivate(function* () {
+          canActivate: function* () {
             yield* authGuard();
             return true;
-          }),
+          },
         },
         {
           NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {

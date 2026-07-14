@@ -177,7 +177,9 @@ export const { photosRoutes, injectPhotosPhotoIdViewTransition } = craftRoutes(
         }>(),
         pendingComponent: () => import('./photo-skeleton'),
         // The skeleton's DI is verified separately (see "Verifying the skeleton's DI").
-        canActivate: craftCanActivate(/* slow guard */),
+        canActivate: function* () {
+          /* slow guard */
+        },
       },
       {
         /* … */
