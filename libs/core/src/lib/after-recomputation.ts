@@ -54,10 +54,10 @@ import { SourceBranded } from './util/util';
  * ```ts
  * const { injectUserStore } = craftService(
  *   { name: 'UserStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const userIdChange = signalSource<string>('userIdChange');
  *
- *     const user = query({
+ *     const user = yield* query({
  *       method: afterRecomputation(userIdChange, (userId) => userId),
  *       loader: async ({ params }) => {
  *         const response = await fetch(`/api/users/${params}`);
@@ -84,10 +84,10 @@ import { SourceBranded } from './util/util';
  * ```ts
  * const { injectFormStore } = craftService(
  *   { name: 'FormStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const submitForm = signalSource<{ name: string; email: string }>('submitForm');
  *
- *     const submit = mutation({
+ *     const submit = yield* mutation({
  *       method: afterRecomputation(submitForm, (formData) => formData),
  *       loader: async ({ params }) => {
  *         const response = await fetch('/api/submit', {
@@ -115,10 +115,10 @@ import { SourceBranded } from './util/util';
  * ```ts
  * const { injectSearchStore } = craftService(
  *   { name: 'SearchStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const searchInput = signalSource<string>('searchInput');
  *
- *     const search = asyncProcess({
+ *     const search = yield* asyncProcess({
  *       method: afterRecomputation(searchInput, (term) => term),
  *       loader: async ({ params }) => {
  *         // Debounce at source level before setting
@@ -148,10 +148,10 @@ import { SourceBranded } from './util/util';
  *
  * const { injectUserFormStore } = craftService(
  *   { name: 'UserFormStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const formSubmit = signalSource<FormData>('formSubmit');
  *
- *     const updateUser = mutation({
+ *     const updateUser = yield* mutation({
  *       // Extract only user data
  *       method: afterRecomputation(formSubmit, (data) => data.user),
  *       loader: async ({ params }) => {
@@ -182,10 +182,10 @@ import { SourceBranded } from './util/util';
  * ```ts
  * const { injectResultsStore } = craftService(
  *   { name: 'ResultsStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const searchParams = signalSource<{ query: string; filters: string[] }>('searchParams');
  *
- *     const results = query({
+ *     const results = yield* query({
  *       method: afterRecomputation(searchParams, (params) => ({
  *         q: params.query.trim().toLowerCase(),
  *         f: params.filters.join(','),
@@ -216,10 +216,10 @@ import { SourceBranded } from './util/util';
  * ```ts
  * const { injectValidationStore } = craftService(
  *   { name: 'ValidationStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const inputChange = signalSource<string>('inputChange');
  *
- *     const validate = asyncProcess({
+ *     const validate = yield* asyncProcess({
  *       method: afterRecomputation(inputChange, (input) => {
  *         // Only proceed if input is valid
  *         const trimmed = input.trim();
@@ -255,11 +255,11 @@ import { SourceBranded } from './util/util';
  * ```ts
  * const { injectSearchResultsStore } = craftService(
  *   { name: 'SearchResultsStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const quickSearch = signalSource<string>('quickSearch');
  *     const advancedSearch = signalSource<{ query: string; options: unknown }>('advancedSearch');
  *
- *     const searchResults = query({
+ *     const searchResults = yield* query({
  *       method: afterRecomputation(
  *         // Can combine sources at a higher level
  *         quickSearch, // For this example, using one source
@@ -290,10 +290,10 @@ import { SourceBranded } from './util/util';
  * ```ts
  * const { injectDataStore } = craftService(
  *   { name: 'DataStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const dataUpdate = signalSource<{ id: string; payload: unknown }>('dataUpdate');
  *
- *     const update = mutation({
+ *     const update = yield* mutation({
  *       // Pass data through unchanged
  *       method: afterRecomputation(dataUpdate, (data) => data),
  *       loader: async ({ params }) => {

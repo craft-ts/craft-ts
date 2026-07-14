@@ -86,11 +86,11 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *
  * const { injectClickTrackerStore, provideClickTrackerStore } = craftService(
  *   { name: 'ClickTrackerStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
  *     const clickSource = sourceFromEvent<MouseEvent>(hostElement, 'click');
  *
- *     const trackClick = mutation({
+ *     const trackClick = yield* mutation({
  *       method: afterRecomputation(clickSource, (event) => ({
  *         x: event.clientX,
  *         y: event.clientY,
@@ -123,7 +123,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *
  * const { injectInfiniteScrollStore, provideInfiniteScrollStore } = craftService(
  *   { name: 'InfiniteScrollStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const scrollSource = sourceFromEvent(window, 'scroll', {
  *       computedValue: () => ({
  *         scrollY: window.scrollY,
@@ -133,7 +133,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *       event: { passive: true }, // Optimize performance
  *     });
  *
- *     const checkLoadMore = asyncProcess({
+ *     const checkLoadMore = yield* asyncProcess({
  *       method: afterRecomputation(scrollSource, (data) => data),
  *       loader: async ({ params }) => {
  *         const { scrollY, scrollHeight, clientHeight } = params;
@@ -169,7 +169,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *
  * const { injectSearchStore, provideSearchStore } = craftService(
  *   { name: 'SearchStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
  *     const inputSource = sourceFromEvent(hostElement, 'input', {
  *       computedValue: (event: Event) => {
@@ -178,7 +178,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *       },
  *     });
  *
- *     const results = query({
+ *     const results = yield* query({
  *       method: afterRecomputation(inputSource, (term) => term),
  *       loader: async ({ params }) => {
  *         if (params.length < 3) return [];
@@ -208,7 +208,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *     }),
  *   });
  *
- *   dimensions = state(
+ *   dimensions = craftUse(state(
  *     { width: window.innerWidth, height: window.innerHeight },
  *     ({ set }) => ({
  *       // State updates automatically whenever resizeSource emits
@@ -216,7 +216,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *         set(data);
  *       }),
  *     }),
- *   );
+ *   ));
  * }
  * ```
  *
@@ -242,7 +242,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *
  * const { injectCustomEventsStore, provideCustomEventsStore } = craftService(
  *   { name: 'CustomEventsStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
  *     const customEventSource = sourceFromEvent<CustomEvent<{ data: string }>>(
  *       hostElement,
@@ -252,7 +252,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *       },
  *     );
  *
- *     const handleCustomEvent = asyncProcess({
+ *     const handleCustomEvent = yield* asyncProcess({
  *       method: afterRecomputation(customEventSource, (data) => data),
  *       loader: async ({ params }) => {
  *         console.log('Custom event data:', params);
@@ -308,7 +308,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *
  * const { injectShortcutsStore, provideShortcutsStore } = craftService(
  *   { name: 'ShortcutsStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const keydownSource = sourceFromEvent(document, 'keydown', {
  *       computedValue: (event: KeyboardEvent) => ({
  *         key: event.key,
@@ -318,7 +318,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *       }),
  *     });
  *
- *     const handleShortcut = asyncProcess({
+ *     const handleShortcut = yield* asyncProcess({
  *       method: afterRecomputation(keydownSource, (data) => data),
  *       loader: async ({ params }) => {
  *         // Handle Ctrl+S

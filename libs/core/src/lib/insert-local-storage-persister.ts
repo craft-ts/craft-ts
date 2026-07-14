@@ -55,7 +55,7 @@ import { ResourceRef } from '@angular/core';
  * @example
  * Basic query with localStorage persistence
  * ```ts
- * const userQuery = query(
+ * const userQuery = craftUse(query(
  *   {
  *     params: () => ({ userId: currentUserId() }),
  *     loader: async ({ params }) => {
@@ -68,7 +68,7 @@ import { ResourceRef } from '@angular/core';
  *     key: 'currentUser',
  *     cacheTime: 600000, // 10 minutes
  *   })
- * );
+ * ));
  *
  * // On first load, data is fetched from server and cached
  * // On subsequent loads, cached data is shown immediately while fresh data loads in background
@@ -78,7 +78,7 @@ import { ResourceRef } from '@angular/core';
  * @example
  * Query with identifier for multiple cached instances
  * ```ts
- * const postsQuery = query(
+ * const postsQuery = craftUse(query(
  *   {
  *     params: () => currentPostId(),
  *     identifier: (postId) => postId,
@@ -92,7 +92,7 @@ import { ResourceRef } from '@angular/core';
  *     key: 'posts',
  *     cacheTime: 900000, // 15 minutes
  *   })
- * );
+ * ));
  *
  * // Each post is cached individually by its identifier
  * // Cache keys: blogApp:posts:post-123, blogApp:posts:post-456, etc.
@@ -103,7 +103,7 @@ import { ResourceRef } from '@angular/core';
  * @example
  * Mutation with persistence for optimistic updates
  * ```ts
- * const updateSettingsMutation = mutation(
+ * const updateSettingsMutation = craftUse(mutation(
  *   {
  *     method: (settings: UserSettings) => settings,
  *     loader: async ({ params }) => {
@@ -119,7 +119,7 @@ import { ResourceRef } from '@angular/core';
  *     key: 'userSettings',
  *     cacheTime: 86400000, // 24 hours
  *   })
- * );
+ * ));
  *
  * // Settings are persisted across sessions
  * // User's preferences survive page refreshes and browser restarts
@@ -128,14 +128,14 @@ import { ResourceRef } from '@angular/core';
  * @example
  * State persistence for UI preferences
  * ```ts
- * const themeState = state(
+ * const themeState = craftUse(state(
  *   { mode: 'light', fontSize: 14 } as const,
  *   insertLocalStoragePersister({
  *     storeName: 'myApp',
  *     key: 'theme',
  *     cacheTime: Number.POSITIVE_INFINITY, // Never expire
  *   })
- * );
+ * ));
  *
  * // Theme preferences are automatically saved and restored
  * themeState.set({ mode: 'dark', fontSize: 16 });
@@ -145,7 +145,7 @@ import { ResourceRef } from '@angular/core';
  * @example
  * Short-lived cache for frequently changing data
  * ```ts
- * const searchResultsQuery = query(
+ * const searchResultsQuery = craftUse(query(
  *   {
  *     params: () => ({ query: searchTerm() }),
  *     loader: async ({ params }) => {
@@ -158,7 +158,7 @@ import { ResourceRef } from '@angular/core';
  *     key: 'results',
  *     cacheTime: 60000, // 1 minute - short cache for fresh results
  *   })
- * );
+ * ));
  *
  * // Search results are cached briefly to improve UX during navigation
  * // Old results are quickly expired to avoid showing stale data
@@ -169,7 +169,7 @@ import { ResourceRef } from '@angular/core';
  * ```ts
  * const userIdSignal = signal<string | undefined>(undefined);
  *
- * const userQuery = query(
+ * const userQuery = craftUse(query(
  *   {
  *     params: () => userIdSignal(),
  *     loader: async ({ params }) => {
@@ -183,7 +183,7 @@ import { ResourceRef } from '@angular/core';
  *     key: 'user',
  *     waitForParamsSrcToBeEqualToPreviousValue: true, // Wait for userId to be set
  *   })
- * );
+ * ));
  *
  * // Persistence waits until userIdSignal has a stable value
  * // Prevents caching with undefined params
@@ -193,7 +193,7 @@ import { ResourceRef } from '@angular/core';
  * @example
  * Manual cache control via persister
  * ```ts
- * const dataQuery = query(
+ * const dataQuery = craftUse(query(
  *   {
  *     params: () => ({}),
  *     loader: async () => {
@@ -205,7 +205,7 @@ import { ResourceRef } from '@angular/core';
  *     storeName: 'myApp',
  *     key: 'data',
  *   })
- * );
+ * ));
  *
  * // Access the persister for manual control
  * // Clear this specific cache entry

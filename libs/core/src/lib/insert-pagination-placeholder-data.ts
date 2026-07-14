@@ -76,14 +76,14 @@ export type PaginationBuildContext<PageState> =
  * ```typescript
  * const pagination = signal(1);
  *
- * const userQuery = query(
+ * const userQuery = craftUse(query(
  *   {
  *     params: pagination,
  *     identifier: (params) => '' + params,
  *     loader: async ({ params: page }) => fetchUsers(page),
  *   },
  *   insertPaginationPlaceholderData({ initialValue: [] as User[] }),
- * );
+ * ));
  *
  * // Access the data (or placeholder during loading) — never undefined
  * const data = userQuery.currentPageData();
@@ -92,7 +92,7 @@ export type PaginationBuildContext<PageState> =
  * @example
  * With custom outputs via `build`:
  * ```typescript
- * const usersQuery = query(
+ * const usersQuery = craftUse(query(
  *   {
  *     params: pagination,
  *     identifier: (params) => `${params.page}-${params.pageSize}`,
@@ -110,7 +110,7 @@ export type PaginationBuildContext<PageState> =
  *         set(state().map((d) => (d.id === id ? { ...d, completed: true } : d))),
  *     }),
  *   ),
- * );
+ * ));
  * ```
  */
 export function insertPaginationPlaceholderData<

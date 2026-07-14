@@ -66,12 +66,12 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Use in async method or query
- * const greetUser = asyncProcess({
+ * const greetUser = craftUse(asyncProcess({
  *   method: afterRecomputation(fullNameSource, (fullName) => fullName),
  *   loader: async ({ params }) => {
  *     return `Hello, ${params}!`;
  *   },
- * });
+ * }));
  *
  * // Trigger chain
  * userSource.set({ firstName: 'John', lastName: 'Doe' });
@@ -103,7 +103,7 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Use extracted sources
- * const validateEmail = asyncProcess({
+ * const validateEmail = craftUse(asyncProcess({
  *   method: afterRecomputation(emailSource, (email) => email),
  *   loader: async ({ params }) => {
  *     const response = await fetch('/api/validate-email', {
@@ -112,7 +112,7 @@ import { SourceBranded } from './util/util';
  *     });
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Update form triggers both validations
  * formSource.set({
@@ -146,7 +146,7 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Final async method uses fully transformed data
- * const search = asyncProcess({
+ * const search = craftUse(asyncProcess({
  *   method: afterRecomputation(searchQuerySource, (query) => query),
  *   loader: async ({ params }) => {
  *     const response = await fetch('/api/search', {
@@ -155,7 +155,7 @@ import { SourceBranded } from './util/util';
  *     });
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Single input triggers entire chain
  * inputSource.set('  Angular  Signals  ');
@@ -224,16 +224,16 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Handle success and errors separately
- * const Processuccess = asyncProcess({
+ * const Processuccess = craftUse(asyncProcess({
  *   method: afterRecomputation(successDataSource, (data) => data),
  *   loader: async ({ params }) => {
  *     if (!params) return null;
  *     // Process successful data
  *     return processData(params);
  *   },
- * });
+ * }));
  *
- * const logError = asyncProcess({
+ * const logError = craftUse(asyncProcess({
  *   method: afterRecomputation(errorSource, (error) => error),
  *   loader: async ({ params }) => {
  *     if (!params) return null;
@@ -241,7 +241,7 @@ import { SourceBranded } from './util/util';
  *     await logToService(params);
  *     return { logged: true };
  *   },
- * });
+ * }));
  * ```
  *
  * @example
@@ -264,14 +264,14 @@ import { SourceBranded } from './util/util';
  * );
  *
  * // Use formatted value in UI updates
- * const updatePriceDisplay = asyncProcess({
+ * const updatePriceDisplay = craftUse(asyncProcess({
  *   method: afterRecomputation(formattedPriceSource, (formatted) => formatted),
  *   loader: async ({ params }) => {
  *     // Update analytics or external service
  *     await trackPriceView(params);
  *     return { displayed: params };
  *   },
- * });
+ * }));
  *
  * priceSource.set({ amount: 1234.56, currency: 'USD' });
  * // -> formattedPriceSource emits '$1,234.56'

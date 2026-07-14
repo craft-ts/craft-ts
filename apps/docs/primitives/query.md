@@ -5,8 +5,26 @@ The `query` primitive manages server data fetching - that can be easily extended
 ## Import
 
 ```typescript
-import { query } from '@craft-ng/core';
+import { query, craftUse } from '@craft-ng/core';
 ```
+
+## Consuming the primitive
+
+Calling `query(...)` (like every craft primitive) returns a **generator**
+that carries the primitive's dependency map. Consume it where you create it:
+
+- inside a generator host (a `craftService` factory, `craftGen`, …) with
+  `yield* query({...})` — the dependencies fold into the enclosing service
+  tree automatically;
+- anywhere else (typically a component field) with
+  `craftUse(query({...}))`.
+
+A factory arrow that returns the primitive directly stays valid — the runtime
+drives the generator for you: `craftService({...}, () => query({...}))`.
+The generator is single-use: consume each invocation exactly once.
+
+For brevity, the examples below focus on the configuration and omit the
+`yield*` / `craftUse` wrapper.
 
 ## Basic Examples
 

@@ -32,7 +32,7 @@ type MergedIns<Ctx extends { insertions?: any }, I> = NormalizeIns<
  * nested insertions of `insertSelect`.
  *
  * ```typescript
- * const users = query(
+ * const users = craftUse(query(
  *   config,
  *   (context) =>
  *     craftPipe(
@@ -40,7 +40,7 @@ type MergedIns<Ctx extends { insertions?: any }, I> = NormalizeIns<
  *       insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
  *       insertReactOnMutation(deleteUser, { ... }),
  *     ),
- * );
+ * ));
  * ```
  *
  * Semantics are identical to passing the members directly:
@@ -48,8 +48,8 @@ type MergedIns<Ctx extends { insertions?: any }, I> = NormalizeIns<
  * - each member sees the previous members' outputs on `context.insertions`,
  * - the resulting outputs are the intersection of all members' outputs
  *   (on a key conflict the rightmost member wins at runtime),
- * - tracked dependencies (`yield* track(...)`, craft-service yields) are the
- *   union of all members',
+ * - tracked dependencies (primitive generator yields, craft-service yields)
+ *   are the union of all members',
  * - each member factory is individually wrapped with the fn-wrapper chain
  *   (correlation-id tracking, app snapshots observe each member).
  *

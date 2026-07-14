@@ -81,9 +81,9 @@ export type FromEventToSource$<T> = ReadonlySource$<T> & {
  *     'click'
  *   );
  *
- *   counter = state(0, ({ update }) => ({
+ *   counter = craftUse(state(0, ({ update }) => ({
  *     increment: on$(this.click$, () => update((v) => v + 1)),
- *   }));
+ *   })));
  * }
  * ```
  *
@@ -140,7 +140,7 @@ export type FromEventToSource$<T> = ReadonlySource$<T> & {
  *   searchTerm = this.input$.value;
  *
  *   // React to input changes
- *   searchResults = state([], ({ set }) => ({
+ *   searchResults = craftUse(state([], ({ set }) => ({
  *     search: on$(this.input$, async (term) => {
  *       if (term.length < 3) {
  *         set([]);
@@ -149,7 +149,7 @@ export type FromEventToSource$<T> = ReadonlySource$<T> & {
  *       const results = await fetchResults(term);
  *       set(results);
  *     }),
- *   }));
+ *   })));
  * }
  * ```
  *

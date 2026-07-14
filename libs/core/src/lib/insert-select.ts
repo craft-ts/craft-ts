@@ -762,7 +762,7 @@ type IsArray<T> = T extends any[] ? true : false;
  *
  * @example
  * ```ts
- * const board = state(
+ * const board = craftUse(state(
  *   {
  *     cell: { color: 'white', paintCount: 0 },
  *   },
@@ -774,7 +774,7 @@ type IsArray<T> = T extends any[] ? true : false;
  *         paintCount: cell.paintCount + 1,
  *       })),
  *   })),
- * );
+ * ));
  *
  * board.selectCell().paintBlack();
  * console.log(board.selectCell().color); // 'black'
@@ -782,7 +782,7 @@ type IsArray<T> = T extends any[] ? true : false;
  *
  * @example
  * ```ts
- * const cells = state(
+ * const cells = craftUse(state(
  *   [{ color: 'white', paintCount: 0 }],
  *   insertSelect('cell', ({ update }) => ({
  *     paint: () =>
@@ -792,7 +792,7 @@ type IsArray<T> = T extends any[] ? true : false;
  *         paintCount: cell.paintCount + 1,
  *       })),
  *   })),
- * );
+ * ));
  *
  * cells.selectCell(0)?.paint();
  * console.log(cells.selectCell(0)?.paintCount); // 1

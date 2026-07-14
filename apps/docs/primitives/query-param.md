@@ -5,8 +5,26 @@ The `queryParam` primitive creates a reactive query parameter manager that synch
 ## Import
 
 ```typescript
-import { queryParam } from '@craft-ng/core';
+import { queryParam, craftUse } from '@craft-ng/core';
 ```
+
+## Consuming the primitive
+
+Calling `queryParam(...)` (like every craft primitive) returns a **generator**
+that carries the primitive's dependency map. Consume it where you create it:
+
+- inside a generator host (a `craftService` factory, `craftGen`, …) with
+  `yield* queryParam({...})` — the dependencies fold into the enclosing service
+  tree automatically;
+- anywhere else (typically a component field) with
+  `craftUse(queryParam({...}))`.
+
+A factory arrow that returns the primitive directly stays valid — the runtime
+drives the generator for you: `craftService({...}, () => queryParam({...}))`.
+The generator is single-use: consume each invocation exactly once.
+
+For brevity, the examples below focus on the configuration and omit the
+`yield*` / `craftUse` wrapper.
 
 ## Basic Examples
 

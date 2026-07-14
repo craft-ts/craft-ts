@@ -76,10 +76,10 @@ export type ReadonlySource$<T> = {
  * export class CounterComponent {
  *   reset$ = source$<void>('reset$');
  *
- *   counter = state(0, ({ set, update }) => ({
+ *   counter = craftUse(state(0, ({ set, update }) => ({
  *     increment: () => update((v) => v + 1),
  *     reset: on$(this.reset$, () => set(0)),
- *   }));
+ *   })));
  * }
  * ```
  *

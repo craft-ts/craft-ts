@@ -5,8 +5,26 @@ The `asyncProcess` primitive creates an async operation that manages asynchronou
 ## Import
 
 ```typescript
-import { asyncProcess } from '@craft-ng/core';
+import { asyncProcess, craftUse } from '@craft-ng/core';
 ```
+
+## Consuming the primitive
+
+Calling `asyncProcess(...)` (like every craft primitive) returns a **generator**
+that carries the primitive's dependency map. Consume it where you create it:
+
+- inside a generator host (a `craftService` factory, `craftGen`, …) with
+  `yield* asyncProcess({...})` — the dependencies fold into the enclosing service
+  tree automatically;
+- anywhere else (typically a component field) with
+  `craftUse(asyncProcess({...}))`.
+
+A factory arrow that returns the primitive directly stays valid — the runtime
+drives the generator for you: `craftService({...}, () => asyncProcess({...}))`.
+The generator is single-use: consume each invocation exactly once.
+
+For brevity, the examples below focus on the configuration and omit the
+`yield*` / `craftUse` wrapper.
 
 ## Basic Examples
 

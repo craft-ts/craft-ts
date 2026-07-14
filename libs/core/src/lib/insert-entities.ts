@@ -102,12 +102,12 @@ type EntitiesUtilsToMap<
  *
  * @example
  * // Basic usage with primitives
- * const tags = state(
+ * const tags = craftUse(state(
  *   [] as string[],
  *   insertEntities({
  *     methods: [addOne, addMany, removeOne],
  *   })
- * );
+ * ));
  * tags.addOne({ entity: 'typescript' });
  * tags.addMany({ newEntities: ['angular', 'signals'] });
  *
@@ -118,12 +118,12 @@ type EntitiesUtilsToMap<
  *   name: string;
  *   price: number;
  * }
- * const products = state(
+ * const products = craftUse(state(
  *   [] as Product[],
  *   insertEntities({
  *     methods: [addOne, setOne, removeOne],
  *   })
- * );
+ * ));
  * products.addOne({ entity: { id: '1', name: 'Laptop', price: 999 } });
  *
  * @example
@@ -132,13 +132,13 @@ type EntitiesUtilsToMap<
  *   uuid: string;
  *   name: string;
  * }
- * const users = state(
+ * const users = craftUse(state(
  *   [] as User[],
  *   insertEntities({
  *     methods: [setOne, removeOne],
  *     identifier: (user) => user.uuid,
  *   })
- * );
+ * ));
  *
  * @example
  * // With nested path
@@ -146,18 +146,18 @@ type EntitiesUtilsToMap<
  *   total: number;
  *   products: Array<{ id: string; name: string }>;
  * }
- * const catalog = state(
+ * const catalog = craftUse(state(
  *   { total: 0, products: [] } as Catalog,
  *   insertEntities({
  *     methods: [addMany, removeOne],
  *     path: 'products',
  *   })
- * );
+ * ));
  * catalog.productsAddMany({ newEntities: [{ id: '1', name: 'Item' }] });
  *
  * @example
  * // With parallel queries
- * const userQuery = query(
+ * const userQuery = craftUse(query(
  *   {
  *     params: () => 'userId',
  *     identifier: (params) => params,
@@ -166,7 +166,7 @@ type EntitiesUtilsToMap<
  *   insertEntities({
  *     methods: [addOne],
  *   })
- * );
+ * ));
  * userQuery.addOne({
  *   select: 'user-123', // Target specific query instance
  *   entity: { id: 'post-1', title: 'New Post' },

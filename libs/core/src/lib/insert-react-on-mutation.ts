@@ -46,7 +46,7 @@ import { InternalType } from './util/types/util.type';
  * @example
  * Basic optimistic update with patch
  * ```ts
- * const updateUserMutation = mutation({
+ * const updateUserMutation = craftUse(mutation({
  *   method: (data: { id: string; name: string }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.id}`, {
@@ -55,9 +55,9 @@ import { InternalType } from './util/types/util.type';
  *     });
  *     return response.json();
  *   },
- * });
+ * }));
  *
- * const userQuery = query(
+ * const userQuery = craftUse(query(
  *   {
  *     params: () => ({ userId: currentUserId() }),
  *     loader: async ({ params }) => {
@@ -75,7 +75,7 @@ import { InternalType } from './util/types/util.type';
  *       name: ({ mutationParams }) => mutationParams.name,
  *     },
  *   })
- * );
+ * ));
  *
  * // When mutation is triggered, query updates immediately (optimistic)
  * updateUserMutation.mutate({ id: '123', name: 'New Name' });
@@ -88,15 +88,15 @@ import { InternalType } from './util/types/util.type';
  * @example
  * Full state update on mutation completion
  * ```ts
- * const deleteTodoMutation = mutation({
+ * const deleteTodoMutation = craftUse(mutation({
  *   method: (todoId: string) => ({ todoId }),
  *   loader: async ({ params }) => {
  *     await fetch(`/api/todos/${params.todoId}`, { method: 'DELETE' });
  *     return { deleted: true };
  *   },
- * });
+ * }));
  *
- * const todosQuery = query(
+ * const todosQuery = craftUse(query(
  *   {
  *     params: () => ({}),
  *     loader: async () => {
@@ -116,13 +116,13 @@ import { InternalType } from './util/types/util.type';
  *       return currentTodos.filter(todo => todo.id !== mutationParams.todoId);
  *     },
  *   })
- * );
+ * ));
  * ```
  *
  * @example
  * Reload query after mutation
  * ```ts
- * const createPostMutation = mutation({
+ * const createPostMutation = craftUse(mutation({
  *   method: (data: { title: string; content: string }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch('/api/posts', {
@@ -131,9 +131,9 @@ import { InternalType } from './util/types/util.type';
  *     });
  *     return response.json();
  *   },
- * });
+ * }));
  *
- * const postsQuery = query(
+ * const postsQuery = craftUse(query(
  *   {
  *     params: () => ({ page: 1 }),
  *     loader: async ({ params }) => {
@@ -147,7 +147,7 @@ import { InternalType } from './util/types/util.type';
  *       onMutationResolved: true, // Reload on success
  *     },
  *   })
- * );
+ * ));
  *
  * // When mutation completes, postsQuery automatically reloads
  * createPostMutation.mutate({ title: 'New Post', content: 'Content' });
@@ -156,7 +156,7 @@ import { InternalType } from './util/types/util.type';
  * @example
  * Filtered updates with identifiers
  * ```ts
- * const updatePostMutation = mutation({
+ * const updatePostMutation = craftUse(mutation({
  *   method: (data: { postId: string; title: string }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/posts/${params.postId}`, {
@@ -165,9 +165,9 @@ import { InternalType } from './util/types/util.type';
  *     });
  *     return response.json();
  *   },
- * });
+ * }));
  *
- * const postsQuery = query(
+ * const postsQuery = craftUse(query(
  *   {
  *     params: () => currentPostId(),
  *     identifier: (params) => params, // params is the postId
@@ -184,7 +184,7 @@ import { InternalType } from './util/types/util.type';
  *       title: ({ mutationParams }) => mutationParams.title,
  *     },
  *   })
- * );
+ * ));
  *
  * // Only the query instance for post '123' will be updated
  * updatePostMutation.mutate({ postId: '123', title: 'Updated Title' });
@@ -195,7 +195,7 @@ import { InternalType } from './util/types/util.type';
  * @example
  * Complex nested field updates
  * ```ts
- * const updateUserProfileMutation = mutation({
+ * const updateUserProfileMutation = craftUse(mutation({
  *   method: (data: { userId: string; profile: { bio: string; avatar: string } }) => data,
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}/profile`, {
@@ -204,9 +204,9 @@ import { InternalType } from './util/types/util.type';
  *     });
  *     return response.json();
  *   },
- * });
+ * }));
  *
- * const userQuery = query(
+ * const userQuery = craftUse(query(
  *   {
  *     params: () => ({ userId: currentUserId() }),
  *     loader: async ({ params }) => {
@@ -220,7 +220,7 @@ import { InternalType } from './util/types/util.type';
  *       'profile.avatar': ({ mutationParams }) => mutationParams.profile.avatar,
  *     },
  *   })
- * );
+ * ));
  *
  * // Nested fields are updated optimistically
  * updateUserProfileMutation.mutate({

@@ -70,13 +70,13 @@ import { SourceBranded } from './util/util';
  * const countSource = toSource(countSignal);
  *
  * // Use in query for automatic execution
- * const fetchData = query({
+ * const fetchData = craftUse(query({
  *   method: afterRecomputation(countSource, (count) => count),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/data/${params}`);
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Query executes when signal changes
  * countSignal.set(1);
@@ -148,7 +148,7 @@ import { SourceBranded } from './util/util';
  * });
  *
  * // Use in async method
- * const validateEmail = asyncProcess({
+ * const validateEmail = craftUse(asyncProcess({
  *   method: afterRecomputation(emailSource, (email) => email),
  *   loader: async ({ params }) => {
  *     if (!params) return null;
@@ -158,7 +158,7 @@ import { SourceBranded } from './util/util';
  *     });
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Email validation triggers when form email changes
  * formSignal.update(form => ({ ...form, email: 'john@example.com' }));
@@ -182,14 +182,14 @@ import { SourceBranded } from './util/util';
  * const debouncedSearchSource = toSource(debouncedSearchSignal);
  *
  * // Use in query
- * const searchResults = query({
+ * const searchResults = craftUse(query({
  *   method: afterRecomputation(debouncedSearchSource, (term) => term),
  *   loader: async ({ params }) => {
  *     if (!params) return [];
  *     const response = await fetch(`/api/search?q=${params}`);
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Query executes only after debounce
  * searchInputSignal.set('ang');
@@ -310,7 +310,7 @@ import { SourceBranded } from './util/util';
  * });
  *
  * // Use in mutation
- * const submitInput = mutation({
+ * const submitInput = craftUse(mutation({
  *   method: afterRecomputation(validInputSource, (data) => data),
  *   loader: async ({ params }) => {
  *     if (!params) {
@@ -322,7 +322,7 @@ import { SourceBranded } from './util/util';
  *     });
  *     return response.json();
  *   },
- * });
+ * }));
  *
  * // Invalid input
  * inputSignal.set({ text: 'ab' });

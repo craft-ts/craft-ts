@@ -5,15 +5,47 @@ The `state` primitive creates a Signal-based state with optional insertions for 
 ## Import
 
 ```typescript
-import { state } from '@craft-ng/core';
+import { state, craftUse } from '@craft-ng/core';
 ```
+
+## Consuming the primitive
+
+Calling `state(...)` (like every craft primitive) returns a **generator** that
+carries the primitive's dependency map. Consume it where you create it:
+
+- inside a generator host (a `craftService` factory, `craftGen`, …) with
+  `yield*` — the dependencies fold into the enclosing service tree
+  automatically:
+
+  ```typescript
+  const { injectCounter } = craftService(
+    { name: 'Counter', scope: 'global' },
+    function* () {
+      const counter = yield* state(0);
+      return { counter };
+    },
+  );
+  ```
+
+- anywhere else (typically a component field) with `craftUse(...)`:
+
+  ```typescript
+  export class CounterComponent {
+    readonly counter = craftUse(state(0));
+  }
+  ```
+
+A factory arrow that returns the primitive directly stays valid — the runtime
+drives the generator for you: `craftService({...}, () => state(0))`.
+
+The generator is single-use: consume each invocation exactly once.
 
 ## Basic Examples
 
 ### Simple state with a primitive value
 
 ```typescript
-const counter = state(0);
+const counter = craftUse(state(0));
 console.log(counter()); // 0
 ```
 
@@ -23,22 +55,24 @@ console.log(counter()); // 0
 import { signal, computed } from '@angular/core';
 
 const origin = signal(5);
-const doubled = state(computed(() => origin() * 2));
+const doubled = craftUse(state(computed(() => origin() * 2)));
 console.log(doubled()); // 10
 ```
 
 ### State with insertions to add methods (Method-based)
 
 ```typescript
-import { signal, computed, computed } from '@angular/core';
+import { signal, computed } from '@angular/core';
 
 const origin = signal(5);
-const counter = state(
-  computed(() => origin() * 2),
-  ({ update, set }) => ({
-    increment: () => update((current) => current + 1),
-    reset: () => set(0),
-  }),
+const counter = craftUse(
+  state(
+    computed(() => origin() * 2),
+    ({ update, set }) => ({
+      increment: () => update((current) => current + 1),
+      reset: () => set(0),
+    }),
+  ),
 );
 
 console.log(counter()); // 10
@@ -54,19 +88,21 @@ Compose several insertions into one with [craftPipe](/insertions/craft-pipe):
 
 ```typescript
 const origin = signal(5);
-const counter = state(
-  computed(() => origin() * 2),
-  (context) =>
-    craftPipe(
-      context,
-      ({ update, set }) => ({
-        increment: () => update((current) => current + 1),
-        reset: () => set(0),
-      }),
-      ({ state }) => ({
-        isOdd: computed(() => state() % 2 === 1),
-      }),
-    ),
+const counter = craftUse(
+  state(
+    computed(() => origin() * 2),
+    (context) =>
+      craftPipe(
+        context,
+        ({ update, set }) => ({
+          increment: () => update((current) => current + 1),
+          reset: () => set(0),
+        }),
+        ({ state }) => ({
+          isOdd: computed(() => state() % 2 === 1),
+        }),
+      ),
+  ),
 );
 
 console.log(counter()); // 10
@@ -83,10 +119,12 @@ Methods bound to sources using `on$` are not exposed on the state, they only wor
 ```typescript
 const increment = source$<void>();
 const reset = source$<void>();
-const myState = state(0, ({ update, set }) => ({
-  setValue: on$(increment, () => update((v) => v + 1)),
-  reset: () => on$(reset, () => set(0)),
-}));
+const myState = craftUse(
+  state(0, ({ update, set }) => ({
+    setValue: on$(increment, () => update((v) => v + 1)),
+    reset: () => on$(reset, () => set(0)),
+  })),
+);
 
 console.log(myState()); // 0
 // Note: setValue is not exposed on myState, only used internally
@@ -99,50 +137,54 @@ console.log(myState()); // 0
 ### State and dependency injection
 
 ```typescript
-state(
-  0,
-  (context) =>
-    craftPipe(
-      context,
-      ({ update }, { logger = inject(Logger) }) => ({
-        increment: () => {
-          logger.log('Incrementing state');
-          update((v) => v + 1);
-        },
-      }),
-      // log each time the state value changes
-      function* ({ state }) {
-        const log = yield* Console.log;
+craftUse(
+  state(
+    0,
+    (context) =>
+      craftPipe(
+        context,
+        ({ update }, { logger = inject(Logger) }) => ({
+          increment: () => {
+            logger.log('Incrementing state');
+            update((v) => v + 1);
+          },
+        }),
+        // log each time the state value changes
+        function* ({ state }) {
+          const log = yield* Console.log;
 
-        effect(() => {
-          log(`State value changed: ${state()}`);
-        });
-        return {};
-      },
-    ),
+          effect(() => {
+            log(`State value changed: ${state()}`);
+          });
+          return {};
+        },
+      ),
+  ),
 );
 ```
 
-Instead of using `inject`, craft-ng provides Services to yield. This allows you to track dependencies in primitives.
+Instead of using `inject`, craft-ng provides Services to yield. This allows you to track dependencies in primitives — consume the primitive with `yield*` inside a `craftService` factory so those dependencies fold into the service tree.
 
 ## Add providers to state
 
 Use the object form with `$self` when you want to scope providers to a single state:
 
 ```typescript
-const counter = state(
-  {
-    $self: function* () {
-      return yield* CounterPreferencesToYield.initialValue();
+const counter = craftUse(
+  state(
+    {
+      $self: function* () {
+        return yield* CounterPreferencesToYield.initialValue();
+      },
+      providers: [provideCounterPreferences(), provideCounterAnalytics()],
     },
-    providers: [provideCounterPreferences(), provideCounterAnalytics()],
-  },
-  ({ update }) => ({
-    increment: function* () {
-      yield* CounterAnalyticsToYield.track('increment');
-      update((value) => value + 1);
-    },
-  }),
+    ({ update }) => ({
+      increment: function* () {
+        yield* CounterAnalyticsToYield.track('increment');
+        update((value) => value + 1);
+      },
+    }),
+  ),
 );
 ```
 

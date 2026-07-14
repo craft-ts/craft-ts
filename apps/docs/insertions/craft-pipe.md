@@ -72,8 +72,8 @@ Piping is strictly equivalent to attaching the members one by one:
 - each member sees the previous members' outputs on `context.insertions`;
 - the resulting outputs are the **intersection** of all members' outputs
   (on a key conflict, the rightmost member wins at runtime);
-- tracked dependencies (`yield* track(...)`, craft-service yields) are the
-  **union** of all members' — `ExtractDeps` sees them all;
+- tracked dependencies (primitive generator yields, craft-service yields) are
+  the **union** of all members' — `ExtractDeps` sees them all;
 - each member factory is **individually wrapped** by the fn-wrapper chain, so
   correlation-id tracking and app snapshots observe every member separately;
 - generator members (`function*`) are driven by the craft generator runtime,

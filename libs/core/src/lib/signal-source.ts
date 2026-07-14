@@ -97,10 +97,10 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * ```ts
  * const { injectUserStore } = craftService(
  *   { name: 'UserStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const loadUser = signalSource<string>('loadUser');
  *
- *     const user = query({
+ *     const user = yield* query({
  *       method: afterRecomputation(loadUser, (userId) => userId),
  *       loader: async ({ params }) => {
  *         const response = await fetch(`/api/users/${params}`);
@@ -130,10 +130,10 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *
  * const { injectFormStore } = craftService(
  *   { name: 'FormStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const submitForm = signalSource<FormData>('submitForm');
  *
- *     const submit = mutation({
+ *     const submit = yield* mutation({
  *       method: afterRecomputation(submitForm, (data) => data),
  *       loader: async ({ params }) => {
  *         const response = await fetch('/api/submit', {
@@ -169,10 +169,10 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * ```ts
  * const { injectDataStore } = craftService(
  *   { name: 'DataStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const reload = signalSource<void>('reload');
  *
- *     const data = query({
+ *     const data = yield* query({
  *       method: afterRecomputation(reload, () => ({})),
  *       loader: async () => {
  *         const response = await fetch('/api/data');
@@ -200,12 +200,12 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * ```ts
  * const { injectTodoStore } = craftService(
  *   { name: 'TodoStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const addTodo = signalSource<{ text: string }>('addTodo');
  *     const deleteTodo = signalSource<string>('deleteTodo');
  *     const toggleTodo = signalSource<string>('toggleTodo');
  *
- *     const create = mutation({
+ *     const create = yield* mutation({
  *       method: afterRecomputation(addTodo, (data) => data),
  *       loader: async ({ params }) => {
  *         const response = await fetch('/api/todos', {
@@ -216,7 +216,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *       },
  *     });
  *
- *     const remove = mutation({
+ *     const remove = yield* mutation({
  *       method: afterRecomputation(deleteTodo, (id) => id),
  *       loader: async ({ params }) => {
  *         await fetch(`/api/todos/${params}`, { method: 'DELETE' });
@@ -224,7 +224,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *       },
  *     });
  *
- *     const toggle = mutation({
+ *     const toggle = yield* mutation({
  *       method: afterRecomputation(toggleTodo, (id) => id),
  *       loader: async ({ params }) => {
  *         const response = await fetch(`/api/todos/${params}/toggle`, {
@@ -310,10 +310,10 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * // Component A's store
  * const { injectDataViewStore, provideDataViewStore } = craftService(
  *   { name: 'DataViewStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const { refreshAllSource } = injectRefreshCoordinator();
  *
- *     const data = query({
+ *     const data = yield* query({
  *       method: afterRecomputation(refreshAllSource, () => ({})),
  *       loader: async () => {
  *         const response = await fetch('/api/data');
@@ -360,10 +360,10 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *
  * const { injectSearchStore } = craftService(
  *   { name: 'SearchStore', scope: 'toProvide' },
- *   () => {
+ *   function* () {
  *     const search = signalSource<SearchParams>('search');
  *
- *     const results = query({
+ *     const results = yield* query({
  *       method: afterRecomputation(search, (params) => params),
  *       loader: async ({ params }) => {
  *         const queryString = new URLSearchParams({

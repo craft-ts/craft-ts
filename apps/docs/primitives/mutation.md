@@ -5,8 +5,26 @@ The `mutation` primitive handles server updates (POST, PUT, DELETE) with loading
 ## Import
 
 ```typescript
-import { mutation } from '@craft-ng/core';
+import { mutation, craftUse } from '@craft-ng/core';
 ```
+
+## Consuming the primitive
+
+Calling `mutation(...)` (like every craft primitive) returns a **generator**
+that carries the primitive's dependency map. Consume it where you create it:
+
+- inside a generator host (a `craftService` factory, `craftGen`, …) with
+  `yield* mutation({...})` — the dependencies fold into the enclosing service
+  tree automatically;
+- anywhere else (typically a component field) with
+  `craftUse(mutation({...}))`.
+
+A factory arrow that returns the primitive directly stays valid — the runtime
+drives the generator for you: `craftService({...}, () => mutation({...}))`.
+The generator is single-use: consume each invocation exactly once.
+
+For brevity, the examples below focus on the configuration and omit the
+`yield*` / `craftUse` wrapper.
 
 ## Basic Examples
 
