@@ -11,6 +11,7 @@ import {
   craftRoute,
   untilSettled,
   type CanRun,
+  type CraftRouteLazyLoadHelpers,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
@@ -79,7 +80,8 @@ export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
       '',
       {
         componentDeps: {} as import('./slow-page').GenDeps_SlowPageComponent,
-        loadComponent: ({ withRetry }) => withRetry(import('./slow-page')),
+        loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
+          withRetry(import('./slow-page')),
         // Slow (~1.5s) — the outlet shows the pending component until it settles.
         canActivate: craftCanActivate(function* () {
           return yield* slowAccessGuard();

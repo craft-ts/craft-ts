@@ -27,6 +27,7 @@ import type {
   GetServiceReferenceMeta,
   GetServiceTrackingMetadata,
 } from './craft-service';
+import { craftUse } from './craft-use';
 
 @Component({
   standalone: true,
@@ -121,13 +122,10 @@ describe('toCraftService', () => {
     const { injectShortcutNavigation } = craftService(
       { name: 'ShortcutNavigation', scope: 'global' },
       function* () {
-        const navigateByUrl =
-          yield* RouterLikeShortcutToYield.navigateByUrl();
+        const navigateByUrl = yield* RouterLikeShortcutToYield.navigateByUrl();
 
         expectTypeOf(navigateByUrl).toEqualTypeOf<
-          GetServiceOutput<
-            typeof RouterLikeShortcutToYield
-          >['navigateByUrl']
+          GetServiceOutput<typeof RouterLikeShortcutToYield>['navigateByUrl']
         >();
 
         return {
@@ -266,9 +264,11 @@ describe('toCraftService', () => {
 
   it('should support $self derivation for callable external dependencies', () => {
     function createCounter() {
-      return state(10, ({ update }) => ({
-        increment: () => update((value) => value + 1),
-      }));
+      return craftUse(
+        state(10, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        })),
+      );
     }
 
     const COUNTER = new InjectionToken<ReturnType<typeof createCounter>>(
@@ -582,10 +582,12 @@ describe('toCraftService', () => {
 
   it('should track derived properties like a craftService leaf dependency', () => {
     function createCounter() {
-      return state(10, ({ update }) => ({
-        increment: () => update((value) => value + 1),
-        decrement: () => update((value) => value - 1),
-      }));
+      return craftUse(
+        state(10, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+          decrement: () => update((value) => value - 1),
+        })),
+      );
     }
 
     const COUNTER = new InjectionToken<ReturnType<typeof createCounter>>(

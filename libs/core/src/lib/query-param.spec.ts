@@ -24,6 +24,7 @@ import {
   providePrimitiveResourceRuntimeObserver,
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
+import { craftUse } from './craft-use';
 
 let queryParamResourceObserver:
   | ((context: PrimitiveResourceRuntimeContext) => void)
@@ -75,7 +76,10 @@ describe('queryParams', () => {
         provideFnWrapObserver(() => {
           queryParamWrapObserver?.();
         }),
-        provideFnWrapper(queryParamRuntimeContextWrapper),
+        provideFnWrapper(
+          'Warning: dependency injection here is not type-safe and may fail at runtime',
+          queryParamRuntimeContextWrapper,
+        ),
       ],
     }).compileComponents();
   });
@@ -86,28 +90,8 @@ describe('queryParams', () => {
 
   it('should create a query params', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = queryParam({
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: unknown) => String(value),
-          },
-          pageSize: {
-            fallbackValue: 10,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: unknown) => String(value),
-          },
-        },
-      });
-      expect(myQueryParams).toBeDefined();
-    });
-  });
-
-  it('should create a query params and can expose state and basic methods (set, update, patch)', () => {
-    TestBed.runInInjectionContext(() => {
-      const myQueryParams = queryParam(
-        {
+      const myQueryParams = craftUse(
+        queryParam({
           state: {
             page: {
               fallbackValue: 1,
@@ -120,8 +104,32 @@ describe('queryParams', () => {
               serialize: (value: unknown) => String(value),
             },
           },
-        },
-        ({ set, update, patch }) => ({ set, update, patch }),
+        }),
+      );
+      expect(myQueryParams).toBeDefined();
+    });
+  });
+
+  it('should create a query params and can expose state and basic methods (set, update, patch)', () => {
+    TestBed.runInInjectionContext(() => {
+      const myQueryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
+              pageSize: {
+                fallbackValue: 10,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
+            },
+          },
+          ({ set, update, patch }) => ({ set, update, patch }),
+        ),
       );
       expectTypeOf(myQueryParams()).toEqualTypeOf<{
         page: number;
@@ -163,20 +171,22 @@ describe('queryParams', () => {
     };
 
     TestBed.runInInjectionContext(() => {
-      const queryParams = queryParam({
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: unknown) => String(value),
+      const queryParams = craftUse(
+        queryParam({
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: unknown) => String(value),
+            },
+            pageSize: {
+              fallbackValue: 10,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: unknown) => String(value),
+            },
           },
-          pageSize: {
-            fallbackValue: 10,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: unknown) => String(value),
-          },
-        },
-      });
+        }),
+      );
 
       expect(resourceContext?.kind).toBe('queryParam');
       expect(resourceContext?.grouped).toBe(false);
@@ -204,19 +214,21 @@ describe('queryParams', () => {
     };
 
     TestBed.runInInjectionContext(() => {
-      const queryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+      const queryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
             },
           },
-        },
-        ({ patch }) => ({
-          nextPage: () => patch((current) => ({ page: current.page + 1 })),
-        }),
+          ({ patch }) => ({
+            nextPage: () => patch((current) => ({ page: current.page + 1 })),
+          }),
+        ),
       );
 
       expect(observedContext?.kind).toBe('queryParam');
@@ -249,33 +261,35 @@ describe('queryParams', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const queryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: function* (value: string) {
-                return yield* ParsePageToYield.parsePage(value);
-              },
-              serialize: function* (value: number) {
-                return yield* SerializePageToYield.serializePage(value);
+      const queryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: function* (value: string) {
+                  return yield* ParsePageToYield.parsePage(value);
+                },
+                serialize: function* (value: number) {
+                  return yield* SerializePageToYield.serializePage(value);
+                },
               },
             },
           },
-        },
-        function* ({ patch, state }) {
-          const maxPage = yield* PaginationRulesToYield.maxPage();
-          return {
-            nextPage: () => {
-              if (state().page >= maxPage()) {
-                return;
-              }
-              patch(({ page }) => ({
-                page: page + 1,
-              }));
-            },
-          };
-        },
+          function* ({ patch, state }) {
+            const maxPage = yield* PaginationRulesToYield.maxPage();
+            return {
+              nextPage: () => {
+                if (state().page >= maxPage()) {
+                  return;
+                }
+                patch(({ page }) => ({
+                  page: page + 1,
+                }));
+              },
+            };
+          },
+        ),
       );
 
       expectTypeOf(queryParams.page()).toEqualTypeOf<number>();
@@ -335,31 +349,33 @@ describe('queryParams', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const queryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: number) => String(value),
+      const queryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: number) => String(value),
+              },
             },
           },
-        },
-        function* ({ patch, state }) {
-          const rules = yield* PaginationRulesDepsToYield();
+          function* ({ patch, state }) {
+            const rules = yield* PaginationRulesDepsToYield();
 
-          return {
-            nextPage: () => {
-              if (state().page >= rules.maxPage()) {
-                return;
-              }
+            return {
+              nextPage: () => {
+                if (state().page >= rules.maxPage()) {
+                  return;
+                }
 
-              patch(({ page }) => ({
-                page: page + 1,
-              }));
-            },
-          };
-        },
+                patch(({ page }) => ({
+                  page: page + 1,
+                }));
+              },
+            };
+          },
+        ),
       );
 
       expectTypeOf<ExtractDeps<typeof queryParams>>().toEqualTypeOf<{
@@ -367,6 +383,7 @@ describe('queryParams', () => {
           scope: 'global';
           dependencies: {};
           browserBoundary: false;
+          appStart: false;
         };
         PaginationRulesDeps: GetToYieldServiceDependencies<
           typeof PaginationRulesDepsToYield
@@ -377,20 +394,22 @@ describe('queryParams', () => {
 
   it('should create a query params and  basic methods (set, update, patch) should not be exposed implicitly', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = queryParam({
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: unknown) => String(value),
+      const myQueryParams = craftUse(
+        queryParam({
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: unknown) => String(value),
+            },
+            pageSize: {
+              fallbackValue: 10,
+              parse: (value: string) => parseInt(value, 10),
+              serialize: (value: unknown) => String(value),
+            },
           },
-          pageSize: {
-            fallbackValue: 10,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: unknown) => String(value),
-          },
-        },
-      });
+        }),
+      );
 
       type t = keyof typeof myQueryParams;
 
@@ -404,61 +423,24 @@ describe('queryParams', () => {
 
   it('should create a query params and methods', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
-            },
-            pageSize: {
-              fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
-            },
-          },
-        },
-        ({ state, set }) => ({
-          goTo: (newPage: number) => {
-            expectTypeOf(state()).toEqualTypeOf<{
-              page: number;
-              pageSize: number;
-            }>();
-            set({
-              ...state(),
-              page: newPage,
-            });
-          },
-        }),
-      );
-    });
-  });
-
-  it('should expose basic methods in insertions', () => {
-    TestBed.runInInjectionContext(() => {
-      const myQueryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
-            },
-            pageSize: {
-              fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+      const myQueryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
+              pageSize: {
+                fallbackValue: 10,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
             },
           },
-        },
-        ({ state, set, update, patch, reset, config }) => {
-          expect(update).toBeDefined();
-          expect(patch).toBeDefined();
-          expect(reset).toBeDefined();
-          expect(config).toBeDefined();
-          return {
-            _setPage: (newPage: number) => {
+          ({ state, set }) => ({
+            goTo: (newPage: number) => {
               expectTypeOf(state()).toEqualTypeOf<{
                 page: number;
                 pageSize: number;
@@ -468,22 +450,63 @@ describe('queryParams', () => {
                 page: newPage,
               });
             },
-            _updatePage: (inc: number) => {
-              update((current) => ({
-                ...current,
-                page: current.page + inc,
-              }));
+          }),
+        ),
+      );
+    });
+  });
+
+  it('should expose basic methods in insertions', () => {
+    TestBed.runInInjectionContext(() => {
+      const myQueryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
+              pageSize: {
+                fallbackValue: 10,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
             },
-            _patchPageSize: (newPageSize: number) => {
-              patch({
-                pageSize: newPageSize,
-              });
-            },
-            _reset: () => {
-              reset();
-            },
-          };
-        },
+          },
+          ({ state, set, update, patch, reset, config }) => {
+            expect(update).toBeDefined();
+            expect(patch).toBeDefined();
+            expect(reset).toBeDefined();
+            expect(config).toBeDefined();
+            return {
+              _setPage: (newPage: number) => {
+                expectTypeOf(state()).toEqualTypeOf<{
+                  page: number;
+                  pageSize: number;
+                }>();
+                set({
+                  ...state(),
+                  page: newPage,
+                });
+              },
+              _updatePage: (inc: number) => {
+                update((current) => ({
+                  ...current,
+                  page: current.page + inc,
+                }));
+              },
+              _patchPageSize: (newPageSize: number) => {
+                patch({
+                  pageSize: newPageSize,
+                });
+              },
+              _reset: () => {
+                reset();
+              },
+            };
+          },
+        ),
       );
       myQueryParams._setPage(2);
       expect(myQueryParams.page()).toBe(2);
@@ -501,57 +524,59 @@ describe('queryParams', () => {
 
   it('should accept options and not loosing insertions inference', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+      const myQueryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
+              pageSize: {
+                fallbackValue: 10,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
             },
-            pageSize: {
-              fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
-            },
+            queryParamsHandling: 'merge',
+            onSameUrlNavigation: 'reload',
+            replaceUrl: true,
+            skipLocationChange: false,
           },
-          queryParamsHandling: 'merge',
-          onSameUrlNavigation: 'reload',
-          replaceUrl: true,
-          skipLocationChange: false,
-        },
-        ({ state, set, update, patch, reset, config }) => {
-          expect(update).toBeDefined();
-          expect(patch).toBeDefined();
-          expect(reset).toBeDefined();
-          expect(config).toBeDefined();
-          return {
-            _set: (newPage: number) => {
-              expectTypeOf(state()).toEqualTypeOf<{
-                page: number;
-                pageSize: number;
-              }>();
-              set({
-                ...state(),
-                page: newPage,
-              });
-            },
-            _update: (inc: number) => {
-              update((current) => ({
-                ...current,
-                page: current.page + inc,
-              }));
-            },
-            _patch: (newPageSize: number) => {
-              patch({
-                pageSize: newPageSize,
-              });
-            },
-            _reset: () => {
-              reset();
-            },
-          };
-        },
+          ({ state, set, update, patch, reset, config }) => {
+            expect(update).toBeDefined();
+            expect(patch).toBeDefined();
+            expect(reset).toBeDefined();
+            expect(config).toBeDefined();
+            return {
+              _set: (newPage: number) => {
+                expectTypeOf(state()).toEqualTypeOf<{
+                  page: number;
+                  pageSize: number;
+                }>();
+                set({
+                  ...state(),
+                  page: newPage,
+                });
+              },
+              _update: (inc: number) => {
+                update((current) => ({
+                  ...current,
+                  page: current.page + inc,
+                }));
+              },
+              _patch: (newPageSize: number) => {
+                patch({
+                  pageSize: newPageSize,
+                });
+              },
+              _reset: () => {
+                reset();
+              },
+            };
+          },
+        ),
       );
     });
   });
@@ -559,35 +584,37 @@ describe('queryParams', () => {
   it('should not expose methods bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const mySource = signalSource<number>('mySource');
-      const myQueryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
-            },
-            pageSize: {
-              fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+      const myQueryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
+              pageSize: {
+                fallbackValue: 10,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
             },
           },
-        },
-        ({ state, set }) => {
-          return {
-            _setPage: afterRecomputation(mySource, (newPage: number) => {
-              expectTypeOf(state()).toEqualTypeOf<{
-                page: number;
-                pageSize: number;
-              }>();
-              set({
-                ...state(),
-                page: newPage,
-              });
-            }),
-          };
-        },
+          ({ state, set }) => {
+            return {
+              _setPage: afterRecomputation(mySource, (newPage: number) => {
+                expectTypeOf(state()).toEqualTypeOf<{
+                  page: number;
+                  pageSize: number;
+                }>();
+                set({
+                  ...state(),
+                  page: newPage,
+                });
+              }),
+            };
+          },
+        ),
       );
       //@ts-expect-error _setPage is bind to a source, so it should not be exposed
       expectTypeOf(myQueryParams._setPage).toEqualTypeOf<never>();
@@ -626,54 +653,56 @@ describe('queryParams', () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
 
-      const queryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: function* (value: string) {
-                const parser = yield* ParsePageRuntimeToYield(
-                  undefined,
-                  ({ parsePage }) => ({
-                    parsePage,
-                  }),
-                );
+      const queryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: function* (value: string) {
+                  const parser = yield* ParsePageRuntimeToYield(
+                    undefined,
+                    ({ parsePage }) => ({
+                      parsePage,
+                    }),
+                  );
 
-                return parser.parsePage(value);
-              },
-              serialize: function* (value: number) {
-                const serializer = yield* SerializePageRuntimeToYield(
-                  undefined,
-                  ({ serializePage }) => ({
-                    serializePage,
-                  }),
-                );
+                  return parser.parsePage(value);
+                },
+                serialize: function* (value: number) {
+                  const serializer = yield* SerializePageRuntimeToYield(
+                    undefined,
+                    ({ serializePage }) => ({
+                      serializePage,
+                    }),
+                  );
 
-                return serializer.serializePage(value);
+                  return serializer.serializePage(value);
+                },
               },
             },
           },
-        },
-        function* ({ patch, state }) {
-          const rules = yield* PaginationRulesRuntimeToYield(
-            undefined,
-            ({ maxPage }) => ({
-              maxPage,
-            }),
-          );
+          function* ({ patch, state }) {
+            const rules = yield* PaginationRulesRuntimeToYield(
+              undefined,
+              ({ maxPage }) => ({
+                maxPage,
+              }),
+            );
 
-          return {
-            nextPage: () => {
-              if (state().page >= rules.maxPage()) {
-                return;
-              }
+            return {
+              nextPage: () => {
+                if (state().page >= rules.maxPage()) {
+                  return;
+                }
 
-              patch(({ page }) => ({
-                page: page + 1,
-              }));
-            },
-          };
-        },
+                patch(({ page }) => ({
+                  page: page + 1,
+                }));
+              },
+            };
+          },
+        ),
       );
 
       await router.navigate([], { queryParams: { page: '2' } });
@@ -697,22 +726,24 @@ describe('queryParams', () => {
   it('should remove query params from URL when reset to fallback values', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const myQueryParams = queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
-            },
-            pageSize: {
-              fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+      const myQueryParams = craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
+              pageSize: {
+                fallbackValue: 10,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: unknown) => String(value),
+              },
             },
           },
-        },
-        ({ set, reset }) => ({ set, reset }),
+          ({ set, reset }) => ({ set, reset }),
+        ),
       );
 
       // Set non-fallback values
@@ -760,21 +791,23 @@ describe('queryParam exceptions', () => {
 
   it('typing: captures parse exception', () => {
     TestBed.runInInjectionContext(() => {
-      const queryParams = queryParam({
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value) =>
-              value === 'invalid'
-                ? craftException(
-                    { code: 'INVALID_PAGE' },
-                    { reason: 'NaN' as const },
-                  )
-                : parseInt(value, 10),
-            serialize: (value) => String(value),
+      const queryParams = craftUse(
+        queryParam({
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value) =>
+                value === 'invalid'
+                  ? craftException(
+                      { code: 'INVALID_PAGE' },
+                      { reason: 'NaN' as const },
+                    )
+                  : parseInt(value, 10),
+              serialize: (value) => String(value),
+            },
           },
-        },
-      });
+        }),
+      );
 
       expectTypeOf(queryParams.page()).toEqualTypeOf<number>();
       expectTypeOf(queryParams.exceptions().list).toEqualTypeOf<
@@ -807,38 +840,27 @@ describe('queryParam exceptions', () => {
 
   it('typing: exposes exceptions in insertions context', () => {
     TestBed.runInInjectionContext(() => {
-      queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value) =>
-                value === 'invalid'
-                  ? craftException(
-                      { code: 'INVALID_PAGE' },
-                      { reason: 'NaN' as const },
-                    )
-                  : parseInt(value, 10),
-              serialize: (value) => String(value),
+      craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value) =>
+                  value === 'invalid'
+                    ? craftException(
+                        { code: 'INVALID_PAGE' },
+                        { reason: 'NaN' as const },
+                      )
+                    : parseInt(value, 10),
+                serialize: (value) => String(value),
+              },
             },
           },
-        },
-        ({ exceptions, hasException }) => {
-          expectTypeOf(hasException()).toEqualTypeOf<boolean>();
-          expectTypeOf(exceptions().list).toEqualTypeOf<
-            CraftExceptionResult<
-              {
-                code: 'INVALID_PAGE';
-                scope: 'parse';
-                identifier: 'page';
-              },
-              {
-                reason: 'NaN';
-              }
-            >[]
-          >();
-          expectTypeOf(exceptions().parse.page).toEqualTypeOf<
-            | CraftExceptionResult<
+          ({ exceptions, hasException }) => {
+            expectTypeOf(hasException()).toEqualTypeOf<boolean>();
+            expectTypeOf(exceptions().list).toEqualTypeOf<
+              CraftExceptionResult<
                 {
                   code: 'INVALID_PAGE';
                   scope: 'parse';
@@ -847,11 +869,24 @@ describe('queryParam exceptions', () => {
                 {
                   reason: 'NaN';
                 }
-              >
-            | undefined
-          >();
-          return {};
-        },
+              >[]
+            >();
+            expectTypeOf(exceptions().parse.page).toEqualTypeOf<
+              | CraftExceptionResult<
+                  {
+                    code: 'INVALID_PAGE';
+                    scope: 'parse';
+                    identifier: 'page';
+                  },
+                  {
+                    reason: 'NaN';
+                  }
+                >
+              | undefined
+            >();
+            return {};
+          },
+        ),
       );
     });
   });
@@ -859,21 +894,23 @@ describe('queryParam exceptions', () => {
   it('captures parse exception returned by parse function', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const queryParams = queryParam({
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value: string) =>
-              value === 'invalid'
-                ? craftException(
-                    { code: 'INVALID_PAGE' },
-                    { reason: 'NaN' as const },
-                  )
-                : parseInt(value, 10),
-            serialize: (value: unknown) => String(value),
+      const queryParams = craftUse(
+        queryParam({
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) =>
+                value === 'invalid'
+                  ? craftException(
+                      { code: 'INVALID_PAGE' },
+                      { reason: 'NaN' as const },
+                    )
+                  : parseInt(value, 10),
+              serialize: (value: unknown) => String(value),
+            },
           },
-        },
-      });
+        }),
+      );
 
       await router.navigate([], { queryParams: { page: 'invalid' } });
       await vi.runAllTimersAsync();
@@ -889,23 +926,25 @@ describe('queryParam exceptions', () => {
   it('captures parse exception thrown by parse function', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const queryParams = queryParam({
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value: string) => {
-              if (value === 'invalid') {
-                return craftException(
-                  { code: 'INVALID_PAGE' },
-                  { reason: 'throw' as const },
-                );
-              }
-              return parseInt(value, 10);
+      const queryParams = craftUse(
+        queryParam({
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) => {
+                if (value === 'invalid') {
+                  return craftException(
+                    { code: 'INVALID_PAGE' },
+                    { reason: 'throw' as const },
+                  );
+                }
+                return parseInt(value, 10);
+              },
+              serialize: (value: unknown) => String(value),
             },
-            serialize: (value: unknown) => String(value),
           },
-        },
-      });
+        }),
+      );
 
       await router.navigate([], { queryParams: { page: 'invalid' } });
       await vi.runAllTimersAsync();
@@ -921,20 +960,22 @@ describe('queryParam exceptions', () => {
   it('does not expose non-craft parse errors in exceptions', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const queryParams = queryParam({
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value: string) => {
-              if (value === 'invalid') {
-                throw new Error('Non-craft error');
-              }
-              return parseInt(value, 10);
+      const queryParams = craftUse(
+        queryParam({
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value: string) => {
+                if (value === 'invalid') {
+                  throw new Error('Non-craft error');
+                }
+                return parseInt(value, 10);
+              },
+              serialize: (value: unknown) => String(value),
             },
-            serialize: (value: unknown) => String(value),
           },
-        },
-      });
+        }),
+      );
 
       await router.navigate([], { queryParams: { page: 'invalid' } });
       await vi.runAllTimersAsync();

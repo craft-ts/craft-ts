@@ -1,23 +1,25 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-    componentMonitoring,
-    craftMethod,
-    craftService,
-    insertLocalStoragePersister,
-    insertPaginationPlaceholderData,    insertReactOnMutation,
-    craftPipe,
-    mutation,
-    provideHostName,
-    query,
-    queryParam,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftUse,
+  componentMonitoring,
+  craftMethod,
+  craftService,
+  insertLocalStoragePersister,
+  insertPaginationPlaceholderData,
+  insertReactOnMutation,
+  craftPipe,
+  mutation,
+  provideHostName,
+  query,
+  queryParam,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
@@ -26,71 +28,77 @@ const {
   provideGranularMutation,
   GranularMutationToYield,
 } = craftService({ name: 'GranularMutation', scope: 'toProvide' }, () => {
-  const pagination = queryParam(
-    {
-      state: {
-        page: {
-          fallbackValue: 1,
-          parse: (value) => parseInt(value, 10),
-          serialize: (value) => String(value),
-        },
-        pageSize: {
-          fallbackValue: 4,
-          parse: (value) => parseInt(value, 10),
-          serialize: (value) => String(value),
+  const pagination = craftUse(
+    queryParam(
+      {
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value) => parseInt(value, 10),
+            serialize: (value) => String(value),
+          },
+          pageSize: {
+            fallbackValue: 4,
+            parse: (value) => parseInt(value, 10),
+            serialize: (value) => String(value),
+          },
         },
       },
-    },
-    ({ patch, state }) => ({
-      nextPage: () => patch({ page: state().page + 1 }),
-      previousPage: () => patch({ page: state().page - 1 }),
-      updatePageSize: (newPageSize: number) =>
-        patch({ pageSize: newPageSize, page: 1 }),
+      ({ patch, state }) => ({
+        nextPage: () => patch({ page: state().page + 1 }),
+        previousPage: () => patch({ page: state().page - 1 }),
+        updatePageSize: (newPageSize: number) =>
+          patch({ pageSize: newPageSize, page: 1 }),
+      }),
+    ),
+  );
+
+  const updateUserName = craftUse(
+    mutation({
+      method: (payload: User) => ({
+        ...payload,
+        name: payload.name + '-',
+      }),
+      identifier: ({ id }) => id,
+      loader: function* ({ params: user }) {
+        return yield* ApiServiceToYield.updateItem(user);
+      },
     }),
   );
 
-  const updateUserName = mutation({
-    method: (payload: User) => ({
-      ...payload,
-      name: payload.name + '-',
-    }),
-    identifier: ({ id }) => id,
-    loader: function* ({ params: user }) {
-      return yield* ApiServiceToYield.updateItem(user);
-    },
-  });
-
-  const users = query(
-    {
-      params: pagination,
-      identifier: (params) => `${params.page}-${params.pageSize}`,
-      loader: function* ({ params: pagination }) {
-        return yield* ApiServiceToYield.getDataList(pagination);
-      },
-    },
-    (context) =>
-      craftPipe(
-      context,
-      insertLocalStoragePersister({
-        storeName: 'demo-app-craft',
-        key: 'granular',
-      }),
-      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-      insertReactOnMutation(updateUserName, {
-        filter: ({ mutationIdentifier, queryResource }) =>
-          queryResource
-            .safeValue()
-            ?.some((item) => item.id === mutationIdentifier) ?? false,
-        optimisticUpdate: ({
-          queryResource,
-          mutationIdentifier,
-          mutationParams,
-        }) => {
-          return queryResource.value()?.map((item) => {
-            return item.id === mutationIdentifier ? mutationParams : item;
-          });
+  const users = craftUse(
+    query(
+      {
+        params: pagination,
+        identifier: (params) => `${params.page}-${params.pageSize}`,
+        loader: function* ({ params: pagination }) {
+          return yield* ApiServiceToYield.getDataList(pagination);
         },
-      }),
+      },
+      (context) =>
+        craftPipe(
+          context,
+          insertLocalStoragePersister({
+            storeName: 'demo-app-craft',
+            key: 'granular',
+          }),
+          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+          insertReactOnMutation(updateUserName, {
+            filter: ({ mutationIdentifier, queryResource }) =>
+              queryResource
+                .safeValue()
+                ?.some((item) => item.id === mutationIdentifier) ?? false,
+            optimisticUpdate: ({
+              queryResource,
+              mutationIdentifier,
+              mutationParams,
+            }) => {
+              return queryResource.value()?.map((item) => {
+                return item.id === mutationIdentifier ? mutationParams : item;
+              });
+            },
+          }),
+        ),
     ),
   );
 
@@ -209,35 +217,43 @@ const {
   `,
   styleUrls: ['./granular-mutation.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideGranularMutation(), provideHostName('component:GranularMutationCraft')],
+  providers: [
+    provideGranularMutation(),
+    provideHostName('component:GranularMutationCraft'),
+  ],
 })
 export default class GranularMutationCraft {
   private readonly _monitoring = componentMonitoring();
   protected readonly store = injectGranularMutation();
 
-  protected updatePageSize = craftMethod('updatePageSize', function* (event: Event) {
-    const value = Number((event.target as HTMLSelectElement).value);
-    const store = yield* GranularMutationToYield();
-    store.pagination.updatePageSize(value);
-    return;
-  });
+  protected updatePageSize = craftMethod(
+    'updatePageSize',
+    function* (event: Event) {
+      const value = Number((event.target as HTMLSelectElement).value);
+      const store = yield* GranularMutationToYield();
+      store.pagination.updatePageSize(value);
+      return;
+    },
+  );
 }
 
 export type GenDeps_GranularMutationCraft = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<GranularMutationCraft["_monitoring"]>;
-        store: {
-            GranularMutation: ExtractDeps<typeof injectGranularMutation>["GranularMutation"];
-          };
-        updatePageSize: ExtractDeps<GranularMutationCraft["updatePageSize"]>;
-      };
-      provided: {
-        GranularMutation: ReturnType<typeof provideGranularMutation>;
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<GranularMutationCraft>;
-    }>;
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<GranularMutationCraft['_monitoring']>;
+    store: {
+      GranularMutation: ExtractDeps<
+        typeof injectGranularMutation
+      >['GranularMutation'];
+    };
+    updatePageSize: ExtractDeps<GranularMutationCraft['updatePageSize']>;
+  };
+  provided: {
+    GranularMutation: ReturnType<typeof provideGranularMutation>;
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<GranularMutationCraft>;
+}>;

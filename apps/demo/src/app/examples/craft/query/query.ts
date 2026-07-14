@@ -1,41 +1,44 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-    Console,
-    CraftRouterToYield,
-    componentMonitoring,
-    craftMethod,
-    craftService,
-    insertLocalStoragePersister,
-    provideHostName,
-    query,
-    toValue,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties,
-    type MaybeSignal
+  craftUse,
+  Console,
+  CraftRouterToYield,
+  componentMonitoring,
+  craftMethod,
+  craftService,
+  insertLocalStoragePersister,
+  provideHostName,
+  query,
+  toValue,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
+  type MaybeSignal,
 } from '@craft-ng/core';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield } from './api.service';
 
 const { injectUserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
   (inputs: { userId: MaybeSignal<string | undefined> }) => {
-    return query(
-      {
-        params: () => toValue(inputs.userId),
-        loader: function* ({ params: userId }) {
-          yield* Console.log('Loading user with id:', userId);
-          return yield* ApiServiceToYield.getItemById(userId);
+    return craftUse(
+      query(
+        {
+          params: () => toValue(inputs.userId),
+          loader: function* ({ params: userId }) {
+            yield* Console.log('Loading user with id:', userId);
+            return yield* ApiServiceToYield.getItemById(userId);
+          },
         },
-      },
-      insertLocalStoragePersister({
-        storeName: 'demo-app-craft',
-        key: 'user-query',
-      }),
+        insertLocalStoragePersister({
+          storeName: 'demo-app-craft',
+          key: 'user-query',
+        }),
+      ),
     );
   },
 );
@@ -65,7 +68,7 @@ const { injectUserQuery } = craftService(
     <button (click)="previousPage()">Previous user</button>
     <button (click)="nextPage()">Next user</button>
   `,
-  providers: [provideHostName('component:GlobalQuery')]
+  providers: [provideHostName('component:GlobalQuery')],
 })
 export default class GlobalQuery {
   private readonly _monitoring = componentMonitoring();
@@ -103,23 +106,22 @@ export default class GlobalQuery {
   });
 }
 
-
 export type GenDeps_GlobalQuery = GetDeps<{
-      deps: {
-        JsonPipe: JsonPipe;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<GlobalQuery["_monitoring"]>;
-        userId: ExtractDeps<GlobalQuery["userId"]>;
-        user: {
-            UserQuery: ExtractDeps<typeof injectUserQuery>["UserQuery"];
-          };
-        nextPage: ExtractDeps<GlobalQuery["nextPage"]>;
-        previousPage: ExtractDeps<GlobalQuery["previousPage"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<GlobalQuery>;
-    }>;
+  deps: {
+    JsonPipe: JsonPipe;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<GlobalQuery['_monitoring']>;
+    userId: ExtractDeps<GlobalQuery['userId']>;
+    user: {
+      UserQuery: ExtractDeps<typeof injectUserQuery>['UserQuery'];
+    };
+    nextPage: ExtractDeps<GlobalQuery['nextPage']>;
+    previousPage: ExtractDeps<GlobalQuery['previousPage']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<GlobalQuery>;
+}>;

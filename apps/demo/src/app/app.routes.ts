@@ -1,4 +1,5 @@
 import {
+  craftUse,
   abstract,
   assertChildRouteMounts,
   assertExhaustiveRouteExceptions,
@@ -14,6 +15,7 @@ import {
   craftRoute,
   type CanRun,
   type CraftRouteExceptionType,
+  type CraftRouteLazyLoadHelpers,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
@@ -30,7 +32,7 @@ export const {
     {
       componentDeps:
         {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
-      loadComponent: ({ withRetry }) =>
+      loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
         withRetry(import('./examples/primitives/query/query')),
       canActivate: craftCanActivate(function* () {
         return yield* authGuard();
@@ -334,12 +336,18 @@ declare module '@craft-ng/core' {
 // Route-level providers are already stripped from META_DATA[N].missingProvider
 // by craftRoutes; only the app-level context needs to be passed here.
 // Cascade DI check — one alias for the whole route file (no per-component boilerplate).
-// AppProvidedNames: none (all global services use scope:'global', no explicit named providers).
+// AppProvidedNames: CraftRouter (scope 'manuallyProvidedAtRoot', provided by
+// provideCraftRouter in app.config — its tracked dependency surfaces in
+// missingProvider as metadata, so it must be acknowledged by NAME here).
 // AppProvidedValues: Router (provided by value via provideCraftRouter).
 // Note: AppProvidedServiceNamesOf<typeof appConfig> hits TS2589 for this app because
 // the demo providers (fn wrappers, monitoring, etc.) are too complex for TypeScript
 // to evaluate in a generic constraint. Listing the value types explicitly is the workaround.
-type _CheckDemoDI = ValidateCascadeRoutesFile<never, Router, typeof demoRoutes>;
+type _CheckDemoDI = ValidateCascadeRoutesFile<
+  'CraftRouter',
+  Router,
+  typeof demoRoutes
+>;
 type _CanRunDemo = CanRun<_CheckDemoDI>;
 
 type User = {
@@ -347,8 +355,10 @@ type User = {
 };
 
 const { AuthToYield } = craftService({ name: 'Auth', scope: 'global' }, () => {
-  return query({
-    params: () => true,
-    loader: async () => ({}) as User,
-  });
+  return craftUse(
+    query({
+      params: () => true,
+      loader: async () => ({}) as User,
+    }),
+  );
 });

@@ -27,6 +27,7 @@ import {
   selectFormTree,
 } from './insert-select-form-tree';
 import { cAsyncValidate, cMaxLength, cRequired } from './validator';
+import { craftUse } from '../craft-use';
 
 type CheckoutForm = {
   delivery: {
@@ -73,20 +74,24 @@ describe('migrated checkout form', () => {
   it('composes nested validators, async coupon validation and mutation submit', async () => {
     await TestBed.runInInjectionContext(async () => {
       const submitted = vi.fn();
-      const couponQuery = query({
-        method: (code: string) => code.trim(),
-        loader: async ({ params: code }) => ({
-          valid: code === 'SAVE20',
-          message: code === 'SAVE20' ? undefined : 'Invalid coupon',
+      const couponQuery = craftUse(
+        query({
+          method: (code: string) => code.trim(),
+          loader: async ({ params: code }) => ({
+            valid: code === 'SAVE20',
+            message: code === 'SAVE20' ? undefined : 'Invalid coupon',
+          }),
         }),
-      });
-      const submitMutation = mutation({
-        method: (value: CheckoutForm) => value,
-        loader: async ({ params }) => {
-          submitted(params);
-          return params;
-        },
-      });
+      );
+      const submitMutation = craftUse(
+        mutation({
+          method: (value: CheckoutForm) => value,
+          loader: async ({ params }) => {
+            submitted(params);
+            return params;
+          },
+        }),
+      );
       const initial = {
         delivery: {
           location: null,
@@ -170,12 +175,14 @@ describe('migrated checkout form', () => {
           ),
       );
 
-      const checkout = state(
-        initial,
-        insertForm(
-          insertSelectFormTree('delivery', insertDeliveryTree()),
-          insertSelectFormTree('coupon', insertCouponTree()),
-          insertFormSubmit(submitMutation),
+      const checkout = craftUse(
+        state(
+          initial,
+          insertForm(
+            insertSelectFormTree('delivery', insertDeliveryTree()),
+            insertSelectFormTree('coupon', insertCouponTree()),
+            insertFormSubmit(submitMutation),
+          ),
         ),
       );
       readModel = checkout;

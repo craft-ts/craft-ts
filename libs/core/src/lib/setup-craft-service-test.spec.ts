@@ -9,6 +9,7 @@ import { type GetDeps, type GetPublicComponentProperties } from '../index';
 import { craftService, toCraftService } from './craft-service';
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
+import { craftUse } from './craft-use';
 
 @Component({
   standalone: true,
@@ -609,18 +610,22 @@ describe('setupCraftServiceTest', () => {
     const { injectService1, Service1ToYield } = craftService(
       { name: 'Service1', scope: 'global' },
       () => {
-        return state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        }));
+        return craftUse(
+          state(0, ({ update }) => ({
+            increment: () => update((value) => value + 1),
+          })),
+        );
       },
     );
 
     const { injectService2, Service2ToYield } = craftService(
       { name: 'Service2', scope: 'global' },
       () => {
-        return state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        }));
+        return craftUse(
+          state(0, ({ update }) => ({
+            increment: () => update((value) => value + 1),
+          })),
+        );
       },
     );
 
@@ -630,7 +635,7 @@ describe('setupCraftServiceTest', () => {
         const _service1 = yield* Service1ToYield();
         const _service2 = yield* Service2ToYield();
 
-        return state(0, ({ update }) => ({
+        return yield* state(0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },

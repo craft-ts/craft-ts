@@ -1,18 +1,20 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-    componentMonitoring,
-    insertLocalStoragePersister,
-    insertPaginationPlaceholderData,    provideHostName,
-    craftPipe,
-    query,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftUse,
+  componentMonitoring,
+  insertLocalStoragePersister,
+  insertPaginationPlaceholderData,
+  provideHostName,
+  craftPipe,
+  query,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 import { injectDemoQueryParamQueryParams } from '../../../app.routes';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { injectApiService, type User } from './api.service';
 
@@ -97,28 +99,30 @@ import { injectApiService, type User } from './api.service';
   `,
   styleUrls: ['./list-with-pagination.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('component:QpListWithPagination')]
+  providers: [provideHostName('component:QpListWithPagination')],
 })
 export default class QpListWithPagination {
   private readonly _monitoring = componentMonitoring();
   protected readonly pagination = injectDemoQueryParamQueryParams();
   private readonly apiService = injectApiService();
 
-  protected readonly usersQuery = query(
-    {
-      params: this.pagination,
-      identifier: (params) => `${params.page}-${params.pageSize}`,
-      loader: ({ params: pagination }) =>
-        this.apiService.getDataList(pagination),
-    },
-    (context) =>
-      craftPipe(
-      context,
-      insertLocalStoragePersister({
-        storeName: 'demo-app',
-        key: 'list-with-pagination',
-      }),
-      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+  protected readonly usersQuery = craftUse(
+    query(
+      {
+        params: this.pagination,
+        identifier: (params) => `${params.page}-${params.pageSize}`,
+        loader: ({ params: pagination }) =>
+          this.apiService.getDataList(pagination),
+      },
+      (context) =>
+        craftPipe(
+          context,
+          insertLocalStoragePersister({
+            storeName: 'demo-app',
+            key: 'list-with-pagination',
+          }),
+          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+        ),
     ),
   );
 
@@ -129,24 +133,28 @@ export default class QpListWithPagination {
 }
 
 export type GenDeps_QpListWithPagination = GetDeps<{
-      deps: {
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<QpListWithPagination["_monitoring"]>;
-        pagination: {
-            DemoQueryParamQueryParams: ReturnType<typeof injectDemoQueryParamQueryParams>;
-          };
-        apiService: {
-            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
-          };
-        usersQuery: ExtractDeps<QpListWithPagination["usersQuery"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<QpListWithPagination>;
-      missingProvider: {
-        DemoQueryParamQueryParams: ReturnType<typeof injectDemoQueryParamQueryParams>;
-      };
-    }>;
+  deps: {
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<QpListWithPagination['_monitoring']>;
+    pagination: {
+      DemoQueryParamQueryParams: ReturnType<
+        typeof injectDemoQueryParamQueryParams
+      >;
+    };
+    apiService: {
+      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
+    };
+    usersQuery: ExtractDeps<QpListWithPagination['usersQuery']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<QpListWithPagination>;
+  missingProvider: {
+    DemoQueryParamQueryParams: ReturnType<
+      typeof injectDemoQueryParamQueryParams
+    >;
+  };
+}>;

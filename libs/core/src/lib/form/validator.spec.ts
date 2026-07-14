@@ -16,6 +16,7 @@ import {
   cValidate,
   cValidator,
 } from './validator';
+import { craftUse } from '../craft-use';
 
 function expectedException<
   Name extends string,
@@ -36,12 +37,14 @@ describe('validator', () => {
   it('reports cRequired as a craft exception', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const fieldForm = state(
-        model,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cRequired()],
-          })),
+      const fieldForm = craftUse(
+        state(
+          model,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+          ),
         ),
       );
 
@@ -62,12 +65,14 @@ describe('validator', () => {
   it('honors `when` to skip validation', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const fieldForm = state(
-        model,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cRequired({ when: () => false })],
-          })),
+      const fieldForm = craftUse(
+        state(
+          model,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cRequired({ when: () => false })],
+            })),
+          ),
         ),
       );
       expect(fieldForm.form.exceptions()).toEqual({
@@ -80,12 +85,14 @@ describe('validator', () => {
   it('reports cEmail when value does not match', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const fieldForm = state(
-        model,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cEmail()],
-          })),
+      const fieldForm = craftUse(
+        state(
+          model,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cEmail()],
+            })),
+          ),
         ),
       );
 
@@ -114,12 +121,14 @@ describe('validator', () => {
   it('reports cMin and cMax when value is outside range', () => {
     TestBed.runInInjectionContext(() => {
       const minModel = signal('2');
-      const minForm = state(
-        minModel,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cMin({ min: () => 3 })],
-          })),
+      const minForm = craftUse(
+        state(
+          minModel,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cMin({ min: () => 3 })],
+            })),
+          ),
         ),
       );
 
@@ -136,12 +145,14 @@ describe('validator', () => {
       });
 
       const maxModel = signal('11');
-      const maxForm = state(
-        maxModel,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cMax({ max: () => 10 })],
-          })),
+      const maxForm = craftUse(
+        state(
+          maxModel,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cMax({ max: () => 10 })],
+            })),
+          ),
         ),
       );
 
@@ -154,12 +165,14 @@ describe('validator', () => {
   it('reports cMinLength on an empty array', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal<string[]>([]);
-      const fieldForm = state(
-        model,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cMinLength({ minLength: 1 })],
-          })),
+      const fieldForm = craftUse(
+        state(
+          model,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cMinLength({ minLength: 1 })],
+            })),
+          ),
         ),
       );
 
@@ -179,36 +192,42 @@ describe('validator', () => {
 
   it('reports cMinLength, cMaxLength and cPattern errors', () => {
     TestBed.runInInjectionContext(() => {
-      const minLenForm = state(
-        signal('ab'),
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cMinLength({ minLength: 3 })],
-          })),
+      const minLenForm = craftUse(
+        state(
+          signal('ab'),
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cMinLength({ minLength: 3 })],
+            })),
+          ),
         ),
       );
       expect(minLenForm.form.exceptions().byValidator).toMatchObject({
         cMinLength: expectedException('cMinLength', 'minLength', 3),
       });
 
-      const maxLenForm = state(
-        signal('abcd'),
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cMaxLength({ maxLength: 3 })],
-          })),
+      const maxLenForm = craftUse(
+        state(
+          signal('abcd'),
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cMaxLength({ maxLength: 3 })],
+            })),
+          ),
         ),
       );
       expect(maxLenForm.form.exceptions().byValidator).toMatchObject({
         cMaxLength: expectedException('cMaxLength', 'maxLength', 3),
       });
 
-      const patternForm = state(
-        signal('abc'),
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cPattern({ pattern: () => /^\d+$/ })],
-          })),
+      const patternForm = craftUse(
+        state(
+          signal('abc'),
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cPattern({ pattern: () => /^\d+$/ })],
+            })),
+          ),
         ),
       );
       expect(patternForm.form.exceptions().byValidator).toMatchObject({
@@ -220,22 +239,24 @@ describe('validator', () => {
   it('supports custom sync validators with cValidate', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal('');
-      const fieldForm = state(
-        fieldState,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [
-              cValidate({
-                name: 'myCustomValidator',
-                validWhen: () => fieldState() !== 'blocked',
-                exception: () =>
-                  craftException(
-                    { code: 'blockedValue' },
-                    { reason: 'reserved' },
-                  ),
-              }),
-            ],
-          })),
+      const fieldForm = craftUse(
+        state(
+          fieldState,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [
+                cValidate({
+                  name: 'myCustomValidator',
+                  validWhen: () => fieldState() !== 'blocked',
+                  exception: () =>
+                    craftException(
+                      { code: 'blockedValue' },
+                      { reason: 'reserved' },
+                    ),
+                }),
+              ],
+            })),
+          ),
         ),
       );
       expect(fieldForm.form.exceptions()).toEqual({
@@ -248,10 +269,7 @@ describe('validator', () => {
 
       expect(fieldForm.form.exceptions().byValidator).toMatchObject({
         myCustomValidator: {
-          ...craftException(
-            { code: 'blockedValue' },
-            { reason: 'reserved' },
-          ),
+          ...craftException({ code: 'blockedValue' }, { reason: 'reserved' }),
           __brand: 'myCustomValidator',
           type: 'sync',
         },

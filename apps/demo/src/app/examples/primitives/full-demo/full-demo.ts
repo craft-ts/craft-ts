@@ -1,43 +1,46 @@
 import {
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    signal,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  signal,
 } from '@angular/core';
 import {
-    asyncProcess,
-    cMinLength,
-    componentMonitoring,
-    CraftFieldDirective,
-    cRequired,
-    insertForm,
-    insertFormAttributes,
-    insertFormSubmit,
-    insertLocalStoragePersister,
-    insertNoopTypingAnchor,
-    insertPaginationPlaceholderData,    insertReactOnMutation,
-    craftPipe,
-    insertSelectFormTree,    mutation,
-    on$,
-    provideHostName,
-    query,
-    queryParam,
-    reactiveWritableSignal,
-    removeMany,
-    removeOne,
-    source$,
-    state,
-    updateOne,
-    ValidatedFormValue,
-    type DerivedService,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties,
-    type GetServiceOutput
+  craftUse,
+  asyncProcess,
+  cMinLength,
+  componentMonitoring,
+  CraftFieldDirective,
+  cRequired,
+  insertForm,
+  insertFormAttributes,
+  insertFormSubmit,
+  insertLocalStoragePersister,
+  insertNoopTypingAnchor,
+  insertPaginationPlaceholderData,
+  insertReactOnMutation,
+  craftPipe,
+  insertSelectFormTree,
+  mutation,
+  on$,
+  provideHostName,
+  query,
+  queryParam,
+  reactiveWritableSignal,
+  removeMany,
+  removeOne,
+  source$,
+  state,
+  updateOne,
+  ValidatedFormValue,
+  type DerivedService,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
+  type GetServiceOutput,
 } from '@craft-ng/core';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield, injectApiService, User } from './api.service';
 
@@ -350,148 +353,162 @@ export default class FullDemo {
     ({ throwError, toggleUpdateError }) => ({ throwError, toggleUpdateError }),
   );
 
-  protected readonly pagination = queryParam(
-    {
-      state: {
-        page: {
-          fallbackValue: 1,
-          parse: (value) => parseInt(value, 10),
-          serialize: (value) => String(value),
-        },
-        pageSize: {
-          fallbackValue: 4,
-          parse: (value) => parseInt(value, 10),
-          serialize: (value) => String(value),
+  protected readonly pagination = craftUse(
+    queryParam(
+      {
+        state: {
+          page: {
+            fallbackValue: 1,
+            parse: (value) => parseInt(value, 10),
+            serialize: (value) => String(value),
+          },
+          pageSize: {
+            fallbackValue: 4,
+            parse: (value) => parseInt(value, 10),
+            serialize: (value) => String(value),
+          },
         },
       },
-    },
-    ({ patch, state, reset }) => ({
-      nextPage: () => patch({ page: state().page + 1 }),
-      previousPage: () => patch({ page: state().page - 1 }),
-      updatePageSize: (newPageSize: number) =>
-        patch({ pageSize: newPageSize, page: 1 }),
-      reset: on$(this.reset$, () => reset()),
+      ({ patch, state, reset }) => ({
+        nextPage: () => patch({ page: state().page + 1 }),
+        previousPage: () => patch({ page: state().page - 1 }),
+        updatePageSize: (newPageSize: number) =>
+          patch({ pageSize: newPageSize, page: 1 }),
+        reset: on$(this.reset$, () => reset()),
+      }),
+    ),
+  );
+
+  protected readonly bulkDelete = craftUse(
+    mutation({
+      method: (ids: string[]) => ids,
+      loader: function* ({ params: ids }) {
+        return yield* ApiServiceToYield.bulkDelete(ids);
+      },
     }),
   );
 
-  protected readonly bulkDelete = mutation({
-    method: (ids: string[]) => ids,
-    loader: function* ({ params: ids }) {
-      return yield* ApiServiceToYield.bulkDelete(ids);
-    },
-  });
-
-  protected readonly delayUserDeletion = asyncProcess({
-    method: (payload: { user: User; action: 'delete' | 'cancel' }) => payload,
-    identifier: ({ user: { id } }) => id,
-    loader: async ({ params: { user, action } }) => {
-      if (action === 'cancel') {
-        return undefined;
-      }
-      await wait(5000);
-      return user;
-    },
-  });
-
-  protected readonly deleteUser = mutation({
-    fromResourceById: this.delayUserDeletion._resourceById,
-    params: (resource) => {
-      const value = resource?.safeValue();
-      return value
-        ? {
-            ...value,
-            name: value?.name + '-',
-          }
-        : undefined;
-    },
-    identifier: ({ id }) => id,
-    loader: function* ({ params: user }) {
-      return yield* ApiServiceToYield.updateItem(user);
-    },
-  });
-
-  private readonly updateUserName = mutation({
-    method: (payload: NonNullable<ValidatedFormValue<User>>) => payload,
-    identifier: ({ id }) => id,
-    loader: function* ({ params: user }) {
-      return yield* ApiServiceToYield.updateItem(user);
-    },
-  });
-
-  private readonly usersQuery = query(
-    {
-      params: this.pagination,
-      identifier: (params) => `${params.page}-${params.pageSize}`,
-      loader: function* ({ params: pagination }) {
-        return yield* ApiServiceToYield.getDataList(pagination);
+  protected readonly delayUserDeletion = craftUse(
+    asyncProcess({
+      method: (payload: { user: User; action: 'delete' | 'cancel' }) => payload,
+      identifier: ({ user: { id } }) => id,
+      loader: async ({ params: { user, action } }) => {
+        if (action === 'cancel') {
+          return undefined;
+        }
+        await wait(5000);
+        return user;
       },
-    },
-    (context) =>
-      craftPipe(
-      context,
-      insertLocalStoragePersister({
-        storeName: 'demo-app-full-demo',
-        key: 'granular',
-      }),
-      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-      insertReactOnMutation(this.deleteUser, {
-        filter: ({ mutationIdentifier, queryResource }) =>
-          !!queryResource
-            .safeValue()
-            ?.some((item) => item.id === mutationIdentifier),
-        optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-          removeOne({
-            entities: queryResource.value(),
-            id: mutationIdentifier,
+    }),
+  );
+
+  protected readonly deleteUser = craftUse(
+    mutation({
+      fromResourceById: this.delayUserDeletion._resourceById,
+      params: (resource) => {
+        const value = resource?.safeValue();
+        return value
+          ? {
+              ...value,
+              name: value?.name + '-',
+            }
+          : undefined;
+      },
+      identifier: ({ id }) => id,
+      loader: function* ({ params: user }) {
+        return yield* ApiServiceToYield.updateItem(user);
+      },
+    }),
+  );
+
+  private readonly updateUserName = craftUse(
+    mutation({
+      method: (payload: NonNullable<ValidatedFormValue<User>>) => payload,
+      identifier: ({ id }) => id,
+      loader: function* ({ params: user }) {
+        return yield* ApiServiceToYield.updateItem(user);
+      },
+    }),
+  );
+
+  private readonly usersQuery = craftUse(
+    query(
+      {
+        params: this.pagination,
+        identifier: (params) => `${params.page}-${params.pageSize}`,
+        loader: function* ({ params: pagination }) {
+          return yield* ApiServiceToYield.getDataList(pagination);
+        },
+      },
+      (context) =>
+        craftPipe(
+          context,
+          insertLocalStoragePersister({
+            storeName: 'demo-app-full-demo',
+            key: 'granular',
           }),
-        reload: {
-          onMutationException: true,
-        },
-      }),
-      insertReactOnMutation(this.deleteUser, {
-        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
-        reload: {
-          // reload the current page if there is no more data after mutation
-          onMutationResolved: true,
-        },
-      }),
-      insertReactOnMutation(this.bulkDelete, {
-        filter: ({ queryResource }) =>
-          (queryResource.safeValue()?.length ?? 0) > 0,
-        optimisticUpdate: ({ queryResource, mutationParams }) =>
-          removeMany({
-            entities: queryResource.value(),
-            ids: mutationParams,
-          }),
-        reload: {
-          onMutationException: true,
-        },
-      }),
-      insertReactOnMutation(this.bulkDelete, {
-        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
-        reload: {
-          // reload the current page if there is no more data after mutation
-          onMutationResolved: ({ queryResource }) =>
-            queryResource.safeValue()?.length === 0,
-        },
-      }),
-      insertReactOnMutation(this.updateUserName, {
-        filter: ({ mutationIdentifier, queryResource }) =>
-          !!queryResource
-            .safeValue()
-            ?.some((item) => item.id === mutationIdentifier),
-        optimisticUpdate: ({ queryResource, mutationParams }) =>
-          updateOne({
-            entities: queryResource.value(),
-            update: {
-              id: mutationParams.id,
-              changes: mutationParams,
+          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+          insertReactOnMutation(this.deleteUser, {
+            filter: ({ mutationIdentifier, queryResource }) =>
+              !!queryResource
+                .safeValue()
+                ?.some((item) => item.id === mutationIdentifier),
+            optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
+              removeOne({
+                entities: queryResource.value(),
+                id: mutationIdentifier,
+              }),
+            reload: {
+              onMutationException: true,
             },
           }),
-        reload: {
-          onMutationException: true,
-        },
-      }),
+          insertReactOnMutation(this.deleteUser, {
+            filter: ({ queryResource }) =>
+              queryResource.safeValue()?.length === 0,
+            reload: {
+              // reload the current page if there is no more data after mutation
+              onMutationResolved: true,
+            },
+          }),
+          insertReactOnMutation(this.bulkDelete, {
+            filter: ({ queryResource }) =>
+              (queryResource.safeValue()?.length ?? 0) > 0,
+            optimisticUpdate: ({ queryResource, mutationParams }) =>
+              removeMany({
+                entities: queryResource.value(),
+                ids: mutationParams,
+              }),
+            reload: {
+              onMutationException: true,
+            },
+          }),
+          insertReactOnMutation(this.bulkDelete, {
+            filter: ({ queryResource }) =>
+              queryResource.safeValue()?.length === 0,
+            reload: {
+              // reload the current page if there is no more data after mutation
+              onMutationResolved: ({ queryResource }) =>
+                queryResource.safeValue()?.length === 0,
+            },
+          }),
+          insertReactOnMutation(this.updateUserName, {
+            filter: ({ mutationIdentifier, queryResource }) =>
+              !!queryResource
+                .safeValue()
+                ?.some((item) => item.id === mutationIdentifier),
+            optimisticUpdate: ({ queryResource, mutationParams }) =>
+              updateOne({
+                entities: queryResource.value(),
+                update: {
+                  id: mutationParams.id,
+                  changes: mutationParams,
+                },
+              }),
+            reload: {
+              onMutationException: true,
+            },
+          }),
+        ),
     ),
   );
 
@@ -504,121 +521,126 @@ export default class FullDemo {
     return this.usersQuery.select(currentIdentifier);
   });
 
-  protected readonly usersByPage = state(
-    computed(() => this.usersQuery.currentPageData() ?? []),
-    (context) =>
-      craftPipe(
-      context,
-      () => ({
-        status: computed(() =>
-          this.currentUsersPageResource()?.hasException()
-            ? 'exception'
-            : (this.currentUsersPageResource()?.status() ?? 'idle'),
-        ),
-        isLoading: computed(
-          () => this.currentUsersPageResource()?.isLoading() ?? false,
-        ),
-        exceptions: computed(() =>
-          this.currentUsersPageResource()?.exceptions(),
-        ),
-        displayUsers: computed(
-          () => !!this.usersQuery.currentPageData()?.length,
-        ),
-      }),
-      insertForm(
-        { identifier: ({ item: { id } }) => id },
-        insertFormSubmit(this.updateUserName),
-        insertSelectFormTree('name', (context) =>
-          craftPipe(
-            context,
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [cRequired(), cMinLength({ minLength: 3 })],
-            })),
-          ),
-        ),
-        () => {
-          const isEditing = signal<boolean>(false);
+  protected readonly usersByPage = craftUse(
+    state(
+      computed(() => this.usersQuery.currentPageData() ?? []),
+      (context) =>
+        craftPipe(
+          context,
+          () => ({
+            status: computed(() =>
+              this.currentUsersPageResource()?.hasException()
+                ? 'exception'
+                : (this.currentUsersPageResource()?.status() ?? 'idle'),
+            ),
+            isLoading: computed(
+              () => this.currentUsersPageResource()?.isLoading() ?? false,
+            ),
+            exceptions: computed(() =>
+              this.currentUsersPageResource()?.exceptions(),
+            ),
+            displayUsers: computed(
+              () => !!this.usersQuery.currentPageData()?.length,
+            ),
+          }),
+          insertForm(
+            { identifier: ({ item: { id } }) => id },
+            insertFormSubmit(this.updateUserName),
+            insertSelectFormTree('name', (context) =>
+              craftPipe(
+                context,
+                insertNoopTypingAnchor,
+                insertFormAttributes(() => ({
+                  validators: [cRequired(), cMinLength({ minLength: 3 })],
+                })),
+              ),
+            ),
+            () => {
+              const isEditing = signal<boolean>(false);
 
-          return {
-            isEditing: isEditing.asReadonly(),
-            toggleEditing: () => isEditing.update((v) => !v),
-          };
-        },
-      ),
-      ({ state, insertions: { select } }) => ({
-        disablePaginationWhileEditing: computed(() =>
-          state().some(({ id }) => !!select(id)?.isEditing?.()),
+              return {
+                isEditing: isEditing.asReadonly(),
+                toggleEditing: () => isEditing.update((v) => !v),
+              };
+            },
+          ),
+          ({ state, insertions: { select } }) => ({
+            disablePaginationWhileEditing: computed(() =>
+              state().some(({ id }) => !!select(id)?.isEditing?.()),
+            ),
+          }),
         ),
-      }),
     ),
   );
 
-  protected readonly selectedRows = state(
-    reactiveWritableSignal([] as string[], (sync) => ({
-      resetWhenCurrentPageIsResolved: sync(
-        this.usersQuery.currentPageStatus,
-        ({ params, current }) => (params === 'resolved' ? [] : current),
-      ),
-      resetWhenBulkDeleteIsResolved: sync(
-        this.bulkDelete.status,
-        ({ params, current }) => (params === 'resolved' ? [] : current),
-      ),
-      removeDeletedItemsWhenDeleteUserIsResolved: sync(
-        this.delayUserDeletion.changes.resolved,
-        ({ params: resolvedIds, current }) =>
-          resolvedIds.length > 0
-            ? removeMany({
-                entities: current,
-                ids: resolvedIds,
-              })
-            : current,
-      ),
-    })),
-    (context) =>
-      craftPipe(
-      context,
-      ({ state: selectedRows }) => ({
-        isAllSelected: computed(
-          () =>
-            this.usersQuery.currentPageData()?.length &&
-            this.usersQuery
-              .currentPageData()
-              ?.every((user) => selectedRows().includes(user.id)),
+  protected readonly selectedRows = craftUse(
+    state(
+      reactiveWritableSignal([] as string[], (sync) => ({
+        resetWhenCurrentPageIsResolved: sync(
+          this.usersQuery.currentPageStatus,
+          ({ params, current }) => (params === 'resolved' ? [] : current),
         ),
-      }),
-      ({
-        update,
-        set,
-        state: selectedRows,
-        insertions: { isAllSelected },
-      }) => ({
-        toggleSelection: (id: string) =>
-          update((current) =>
-            current.includes(id)
-              ? current.filter((item) => item !== id)
-              : [...current, id],
-          ),
-        isSelected: (id: string) => selectedRows().includes(id),
-        isAllSelected,
-        isSomeSelected: computed(
-          () =>
-            this.usersQuery
-              .currentPageData()
-              ?.some((user) => selectedRows().includes(user.id)) &&
-            !isAllSelected(),
+        resetWhenBulkDeleteIsResolved: sync(
+          this.bulkDelete.status,
+          ({ params, current }) => (params === 'resolved' ? [] : current),
         ),
-        toggleAllSelection: () => {
-          if (isAllSelected()) {
-            set([]);
-          } else {
-            const allIds =
-              this.usersQuery.currentPageData()?.map((user) => user.id) || [];
-            set(allIds);
-          }
-        },
-        reset: on$(this.reset$, () => set([])),
-      }),
+        removeDeletedItemsWhenDeleteUserIsResolved: sync(
+          this.delayUserDeletion.changes.resolved,
+          ({ params: resolvedIds, current }) =>
+            resolvedIds.length > 0
+              ? removeMany({
+                  entities: current,
+                  ids: resolvedIds,
+                })
+              : current,
+        ),
+      })),
+      (context) =>
+        craftPipe(
+          context,
+          ({ state: selectedRows }) => ({
+            isAllSelected: computed(
+              () =>
+                this.usersQuery.currentPageData()?.length &&
+                this.usersQuery
+                  .currentPageData()
+                  ?.every((user) => selectedRows().includes(user.id)),
+            ),
+          }),
+          ({
+            update,
+            set,
+            state: selectedRows,
+            insertions: { isAllSelected },
+          }) => ({
+            toggleSelection: (id: string) =>
+              update((current) =>
+                current.includes(id)
+                  ? current.filter((item) => item !== id)
+                  : [...current, id],
+              ),
+            isSelected: (id: string) => selectedRows().includes(id),
+            isAllSelected,
+            isSomeSelected: computed(
+              () =>
+                this.usersQuery
+                  .currentPageData()
+                  ?.some((user) => selectedRows().includes(user.id)) &&
+                !isAllSelected(),
+            ),
+            toggleAllSelection: () => {
+              if (isAllSelected()) {
+                set([]);
+              } else {
+                const allIds =
+                  this.usersQuery.currentPageData()?.map((user) => user.id) ||
+                  [];
+                set(allIds);
+              }
+            },
+            reset: on$(this.reset$, () => set([])),
+          }),
+        ),
     ),
   );
 
@@ -633,37 +655,44 @@ function wait(ms: number) {
 }
 
 export type GenDeps_FullDemo = GetDeps<{
-      deps: {
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-        CraftFieldDirective: CraftFieldDirective<unknown>;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<FullDemo["_monitoring"]>;
-        reset$: ExtractDeps<FullDemo["reset$"]>;
-        apiService: {
-            ApiService: DerivedService<ExtractDeps<typeof injectApiService>["ApiService"], {
-              derivedPropertiesUsed: {
-                throwError: GetServiceOutput<typeof injectApiService>["throwError"];
-                toggleUpdateError: GetServiceOutput<typeof injectApiService>["toggleUpdateError"];
-              };
-              derivedPropertiesExposed: {
-                throwError: GetServiceOutput<typeof injectApiService>["throwError"];
-                toggleUpdateError: GetServiceOutput<typeof injectApiService>["toggleUpdateError"];
-              };
-            }>;
+  deps: {
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+    CraftFieldDirective: CraftFieldDirective<unknown>;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<FullDemo['_monitoring']>;
+    reset$: ExtractDeps<FullDemo['reset$']>;
+    apiService: {
+      ApiService: DerivedService<
+        ExtractDeps<typeof injectApiService>['ApiService'],
+        {
+          derivedPropertiesUsed: {
+            throwError: GetServiceOutput<typeof injectApiService>['throwError'];
+            toggleUpdateError: GetServiceOutput<
+              typeof injectApiService
+            >['toggleUpdateError'];
           };
-        pagination: ExtractDeps<FullDemo["pagination"]>;
-        bulkDelete: ExtractDeps<FullDemo["bulkDelete"]>;
-        delayUserDeletion: ExtractDeps<FullDemo["delayUserDeletion"]>;
-        deleteUser: ExtractDeps<FullDemo["deleteUser"]>;
-        updateUserName: ExtractDeps<FullDemo["updateUserName"]>;
-        usersQuery: ExtractDeps<FullDemo["usersQuery"]>;
-        currentUsersPageResource: ExtractDeps<FullDemo["currentUsersPageResource"]>;
-        usersByPage: ExtractDeps<FullDemo["usersByPage"]>;
-        selectedRows: ExtractDeps<FullDemo["selectedRows"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<FullDemo>;
-    }>;
+          derivedPropertiesExposed: {
+            throwError: GetServiceOutput<typeof injectApiService>['throwError'];
+            toggleUpdateError: GetServiceOutput<
+              typeof injectApiService
+            >['toggleUpdateError'];
+          };
+        }
+      >;
+    };
+    pagination: ExtractDeps<FullDemo['pagination']>;
+    bulkDelete: ExtractDeps<FullDemo['bulkDelete']>;
+    delayUserDeletion: ExtractDeps<FullDemo['delayUserDeletion']>;
+    deleteUser: ExtractDeps<FullDemo['deleteUser']>;
+    updateUserName: ExtractDeps<FullDemo['updateUserName']>;
+    usersQuery: ExtractDeps<FullDemo['usersQuery']>;
+    currentUsersPageResource: ExtractDeps<FullDemo['currentUsersPageResource']>;
+    usersByPage: ExtractDeps<FullDemo['usersByPage']>;
+    selectedRows: ExtractDeps<FullDemo['selectedRows']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<FullDemo>;
+}>;

@@ -1,5 +1,6 @@
 import { afterEveryRender, Component, computed } from '@angular/core';
 import {
+  craftUse,
   asyncProcess,
   BrowserNavigator,
   componentMonitoring,
@@ -29,35 +30,39 @@ export default class TestComponent {
   private readonly _monitoring = componentMonitoring();
 
   _ = _render();
-  counter = state(
-    {
-      value: 0,
-      nestedValue: 'hello',
-    },
-    (context) =>
-      craftPipe(
-        context,
-        insertSelect('value', ({ state, update }) => ({
-          increment: () => update((c) => c + 1),
-          isOdd: computed(() => state() % 2 === 1),
-        })),
-        insertSelect('nestedValue', ({ state }) => ({
-          value: computed(() => state()),
-          totalLength: computed(() => state().length),
-        })),
-      ),
+  counter = craftUse(
+    state(
+      {
+        value: 0,
+        nestedValue: 'hello',
+      },
+      (context) =>
+        craftPipe(
+          context,
+          insertSelect('value', ({ state, update }) => ({
+            increment: () => update((c) => c + 1),
+            isOdd: computed(() => state() % 2 === 1),
+          })),
+          insertSelect('nestedValue', ({ state }) => ({
+            value: computed(() => state()),
+            totalLength: computed(() => state().length),
+          })),
+        ),
+    ),
   );
 
-  a = asyncProcess(
-    {
-      method: (payload: { title: string; url: string }) => payload,
-      loader: function* ({ params }) {
-        return (yield* BrowserNavigator.share(params)) as Promise<undefined>;
+  a = craftUse(
+    asyncProcess(
+      {
+        method: (payload: { title: string; url: string }) => payload,
+        loader: function* ({ params }) {
+          return (yield* BrowserNavigator.share(params)) as Promise<undefined>;
+        },
       },
-    },
-    ({ resource }) => ({
-      isMenuOpen: computed(() => resource.status() === 'loading'),
-    }),
+      ({ resource }) => ({
+        isMenuOpen: computed(() => resource.status() === 'loading'),
+      }),
+    ),
   );
 
   shouldFailed = craftMethod('shouldFailed', this, () => {

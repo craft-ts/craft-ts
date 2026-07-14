@@ -29,6 +29,7 @@ import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 import type { ExtractDeps } from './branded-component/branded-component';
 import { query } from './query';
 import { CraftHttpClient } from './craft-http-client';
+import { craftUse } from './craft-use';
 
 // todo later ne pas passer d'input et passer une dérivation inject...
 
@@ -124,7 +125,7 @@ describe('craftService', () => {
           return waitXTime;
         });
 
-        return state(0);
+        return yield* state(0);
       },
     );
 
@@ -207,7 +208,7 @@ describe('craftService', () => {
         appStart: true,
       },
       function* () {
-        const userQuery = query({
+        const userQuery = yield* query({
           method: (emptyPayload: string) => emptyPayload,
           loader: function* () {
             return yield* CraftHttpClient.get(({ response }) => ({
@@ -467,9 +468,11 @@ describe('scope', () => {
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
-    const manualCounter = state(10, ({ update }) => ({
-      increment: () => update((v) => v + 1),
-    }));
+    const manualCounter = craftUse(
+      state(10, ({ update }) => ({
+        increment: () => update((v) => v + 1),
+      })),
+    );
 
     TestBed.configureTestingModule({
       providers: [{ provide: CounterToProvide, useValue: manualCounter }],
@@ -1295,10 +1298,12 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     const { injectCounter } = craftService(
       { name: 'Counter', scope: 'global' },
       () => {
-        const counter = state(10, ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        }));
+        const counter = craftUse(
+          state(10, ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          })),
+        );
 
         return {
           state: counter,
@@ -1341,10 +1346,12 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     const { CounterToYield } = craftService(
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) => {
-        const counter = state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        }));
+        const counter = craftUse(
+          state(toValue(inputs.initialValue), ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          })),
+        );
 
         return {
           state: counter,
@@ -1638,12 +1645,14 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       const updateItem = injectSinglePropertyShortcutInjectApi.updateItem();
 
       expectTypeOf(updateItem).toEqualTypeOf<
-        GetServiceOutput<typeof injectSinglePropertyShortcutInjectApi>['updateItem']
+        GetServiceOutput<
+          typeof injectSinglePropertyShortcutInjectApi
+        >['updateItem']
       >();
 
-      await expect(
-        updateItem({ id: '1', name: 'Geffrault' }),
-      ).resolves.toEqual({ id: '1', name: 'Geffrault' });
+      await expect(updateItem({ id: '1', name: 'Geffrault' })).resolves.toEqual(
+        { id: '1', name: 'Geffrault' },
+      );
       expect(users()).toEqual([{ id: '1', name: 'Geffrault' }]);
     });
   });
@@ -1699,7 +1708,9 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 
       expectTypeOf(result).toEqualTypeOf<
         ReturnType<
-          GetServiceOutput<typeof injectDirectMethodShortcutInjectApi>['updateItem']
+          GetServiceOutput<
+            typeof injectDirectMethodShortcutInjectApi
+          >['updateItem']
         >
       >();
 
@@ -1763,7 +1774,9 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     TestBed.runInInjectionContext(() => {
       const result = injectNestedPropShortcutService.userQuery.isLoading();
       expectTypeOf(result).toMatchTypeOf<typeof isLoading>();
-      expectTypeOf<GetInjectedServiceDependencies<typeof result>>().toEqualTypeOf<ShortcutDependencies>();
+      expectTypeOf<
+        GetInjectedServiceDependencies<typeof result>
+      >().toEqualTypeOf<ShortcutDependencies>();
       expect(result).toBe(isLoading);
     });
   });
@@ -1881,7 +1894,8 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const result = injectOmitInputsNestedService.OmitInputs.userQuery.isLoading();
+      const result =
+        injectOmitInputsNestedService.OmitInputs.userQuery.isLoading();
       expectTypeOf(result).toMatchTypeOf<typeof isLoading>();
       expect(result).toBe(isLoading);
     });
@@ -2404,7 +2418,12 @@ describe('craftService — providers', () => {
       {
         name: 'TrackedService',
         scope: 'global',
-        providers: [provideFnWrapper(trackingWrapper)],
+        providers: [
+          provideFnWrapper(
+            'Warning: dependency injection here is not type-safe and may fail at runtime',
+            trackingWrapper,
+          ),
+        ],
       },
       function* () {
         return { value: () => 1 };
@@ -2430,7 +2449,12 @@ describe('craftService — providers', () => {
       {
         name: 'SiblingA',
         scope: 'global',
-        providers: [provideFnWrapper(trackingWrapper)],
+        providers: [
+          provideFnWrapper(
+            'Warning: dependency injection here is not type-safe and may fail at runtime',
+            trackingWrapper,
+          ),
+        ],
       },
       function* () {
         return { value: () => 1 };

@@ -7,6 +7,7 @@ import { mutation } from './mutation';
 import { query } from './query';
 import { state } from './state';
 import { craftPipe } from './craft-pipe';
+import { craftUse } from './craft-use';
 
 describe('insertLocalStoragePersister', () => {
   beforeEach(() => {
@@ -43,38 +44,42 @@ describe('insertLocalStoragePersister', () => {
       );
 
       const paramsSrc = signal<string | undefined>(undefined);
-      const myQuery = query(
-        {
-          params: paramsSrc,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: `server:${params}` };
+      const myQuery = craftUse(
+        query(
+          {
+            params: paramsSrc,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: `server:${params}` };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myTestQuery',
-          waitForParamsSrcToBeEqualToPreviousValue: false,
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myTestQuery',
+            waitForParamsSrcToBeEqualToPreviousValue: false,
+          }),
+        ),
       );
 
       expect(myQuery.persister).toBeDefined();
       expect(myQuery.status()).toBe('local');
       expect(myQuery.value()).toEqual({ data: 'cached' });
 
-      const myQueryById = query(
-        {
-          params: () => 'id-1',
-          identifier: (params) => params,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: `server:${params}` };
+      const myQueryById = craftUse(
+        query(
+          {
+            params: () => 'id-1',
+            identifier: (params) => params,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: `server:${params}` };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myTestQueryById',
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myTestQueryById',
+          }),
+        ),
       );
 
       await vi.runAllTimersAsync();
@@ -88,7 +93,8 @@ describe('insertLocalStoragePersister', () => {
       const byIdCalls = vi
         .mocked(localStorage.setItem)
         .mock.calls.filter(
-          ([key]) => key === 'ng-craft-myTestStore-resourceById-myTestQueryById',
+          ([key]) =>
+            key === 'ng-craft-myTestStore-resourceById-myTestQueryById',
         );
       expect(byIdCalls.length).toBeGreaterThan(0);
 
@@ -101,33 +107,37 @@ describe('insertLocalStoragePersister', () => {
 
   it('persists mutation results at runtime for resource and resourceById modes', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myMutation = mutation(
-        {
-          method: (id: string) => id,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: params };
+      const myMutation = craftUse(
+        mutation(
+          {
+            method: (id: string) => id,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: params };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myMutation',
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myMutation',
+          }),
+        ),
       );
 
-      const myMutationById = mutation(
-        {
-          method: (id: string) => id,
-          identifier: (params) => params,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: params };
+      const myMutationById = craftUse(
+        mutation(
+          {
+            method: (id: string) => id,
+            identifier: (params) => params,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: params };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myMutationById',
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myMutationById',
+          }),
+        ),
       );
 
       expect(myMutation.persister).toBeDefined();
@@ -156,33 +166,37 @@ describe('insertLocalStoragePersister', () => {
 
   it('persists async process results at runtime for resource and resourceById modes', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = asyncProcess(
-        {
-          method: (id: string) => id,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: params };
+      const myAsyncProcess = craftUse(
+        asyncProcess(
+          {
+            method: (id: string) => id,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: params };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myAsyncProcess',
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myAsyncProcess',
+          }),
+        ),
       );
 
-      const myAsyncProcessById = asyncProcess(
-        {
-          method: (id: string) => id,
-          identifier: (params) => params,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: params };
+      const myAsyncProcessById = craftUse(
+        asyncProcess(
+          {
+            method: (id: string) => id,
+            identifier: (params) => params,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: params };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myAsyncProcessById',
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myAsyncProcessById',
+          }),
+        ),
       );
 
       expect(myAsyncProcess.persister).toBeDefined();
@@ -223,21 +237,23 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const myQuery = query(
-        {
-          params: signal<string | undefined>(undefined),
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: `server:${params}` };
+      const myQuery = craftUse(
+        query(
+          {
+            params: signal<string | undefined>(undefined),
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: `server:${params}` };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myStaleQuery',
-          waitForParamsSrcToBeEqualToPreviousValue: false,
-          cacheTime: 60000,
-          staleTime: 5000,
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myStaleQuery',
+            waitForParamsSrcToBeEqualToPreviousValue: false,
+            cacheTime: 60000,
+            staleTime: 5000,
+          }),
+        ),
       );
 
       // Fresh: restored without reload
@@ -257,21 +273,23 @@ describe('insertLocalStoragePersister', () => {
       );
 
       const paramsSrc = signal<string | undefined>('p1');
-      const myQuery = query(
-        {
-          params: paramsSrc,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: `server:${params}` };
+      const myQuery = craftUse(
+        query(
+          {
+            params: paramsSrc,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: `server:${params}` };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'mySWRQuery',
-          waitForParamsSrcToBeEqualToPreviousValue: false,
-          cacheTime: 60000,
-          staleTime: 5000,
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'mySWRQuery',
+            waitForParamsSrcToBeEqualToPreviousValue: false,
+            cacheTime: 60000,
+            staleTime: 5000,
+          }),
+        ),
       );
 
       // Stale: value visible (preservedResource) but status is loading (reload triggered)
@@ -302,21 +320,23 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const myQuery = query(
-        {
-          params: () => 'id-1',
-          identifier: (p) => p,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: `server:${params}` };
+      const myQuery = craftUse(
+        query(
+          {
+            params: () => 'id-1',
+            identifier: (p) => p,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: `server:${params}` };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myStaleQueryById',
-          cacheTime: 60000,
-          staleTime: 5000,
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myStaleQueryById',
+            cacheTime: 60000,
+            staleTime: 5000,
+          }),
+        ),
       );
 
       // Resource was restored but reload triggered
@@ -346,21 +366,23 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const myQuery = query(
-        {
-          params: () => 'id-1',
-          identifier: (p) => p,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: `server:${params}` };
+      const myQuery = craftUse(
+        query(
+          {
+            params: () => 'id-1',
+            identifier: (p) => p,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: `server:${params}` };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myFreshQueryById',
-          cacheTime: 60000,
-          staleTime: 5000,
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myFreshQueryById',
+            cacheTime: 60000,
+            staleTime: 5000,
+          }),
+        ),
       );
 
       // Fresh: no reload, status stays local
@@ -382,22 +404,24 @@ describe('insertLocalStoragePersister', () => {
       );
 
       const paramsSrc = signal<string | undefined>('p1');
-      const myQuery = query(
-        {
-          params: paramsSrc,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: `server:${params}`, version: 2 };
+      const myQuery = craftUse(
+        query(
+          {
+            params: paramsSrc,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: `server:${params}`, version: 2 };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myValidatedQuery',
-          waitForParamsSrcToBeEqualToPreviousValue: false,
-          // validate rejects the old shape (missing 'version' field)
-          validate: (v): v is { data: string; version: number } =>
-            typeof (v as any)?.version === 'number',
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myValidatedQuery',
+            waitForParamsSrcToBeEqualToPreviousValue: false,
+            // validate rejects the old shape (missing 'version' field)
+            validate: (v): v is { data: string; version: number } =>
+              typeof (v as any)?.version === 'number',
+          }),
+        ),
       );
 
       // Cache discarded — should be loading fresh
@@ -422,21 +446,23 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const myQuery = query(
-        {
-          params: signal<string | undefined>(undefined),
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: `server:${params}`, version: 1 };
+      const myQuery = craftUse(
+        query(
+          {
+            params: signal<string | undefined>(undefined),
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: `server:${params}`, version: 1 };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myValidatedQuery2',
-          waitForParamsSrcToBeEqualToPreviousValue: false,
-          validate: (v): v is { data: string; version: number } =>
-            typeof (v as any)?.version === 'number',
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myValidatedQuery2',
+            waitForParamsSrcToBeEqualToPreviousValue: false,
+            validate: (v): v is { data: string; version: number } =>
+              typeof (v as any)?.version === 'number',
+          }),
+        ),
       );
 
       expect(myQuery.status()).toBe('local');
@@ -462,21 +488,23 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const myQuery = query(
-        {
-          params: () => 'id-1',
-          identifier: (p) => p,
-          loader: async ({ params }) => {
-            await wait(100);
-            return { data: `server:${params}`, version: 2 };
+      const myQuery = craftUse(
+        query(
+          {
+            params: () => 'id-1',
+            identifier: (p) => p,
+            loader: async ({ params }) => {
+              await wait(100);
+              return { data: `server:${params}`, version: 2 };
+            },
           },
-        },
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myValidatedQueryById',
-          validate: (v): v is { data: string; version: number } =>
-            typeof (v as any)?.version === 'number',
-        }),
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myValidatedQueryById',
+            validate: (v): v is { data: string; version: number } =>
+              typeof (v as any)?.version === 'number',
+          }),
+        ),
       );
 
       // validate failed → no defaultValue → resource loads fresh
@@ -484,24 +512,27 @@ describe('insertLocalStoragePersister', () => {
 
       await vi.runAllTimersAsync();
       expect(myQuery.select('id-1')?.status()).toBe('resolved');
-      expect(myQuery.select('id-1')?.value()).toEqual({ data: 'server:id-1', version: 2 });
+      expect(myQuery.select('id-1')?.value()).toEqual({
+        data: 'server:id-1',
+        version: 2,
+      });
     });
   });
 
   it('persists and restores state at runtime', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myState = state(
-        0,
-        (context) =>
+      const myState = craftUse(
+        state(0, (context) =>
           craftPipe(
-          context,
-          ({ set }) => ({
-            setValue: (value: number) => set(value),
-          }),
-          insertLocalStoragePersister({
-            storeName: 'myTestStore',
-            key: 'myState',
-          }),
+            context,
+            ({ set }) => ({
+              setValue: (value: number) => set(value),
+            }),
+            insertLocalStoragePersister({
+              storeName: 'myTestStore',
+              key: 'myState',
+            }),
+          ),
         ),
       );
 
@@ -531,12 +562,14 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const restoredState = state(
-        0,
-        insertLocalStoragePersister({
-          storeName: 'myTestStore',
-          key: 'myStateRestored',
-        }),
+      const restoredState = craftUse(
+        state(
+          0,
+          insertLocalStoragePersister({
+            storeName: 'myTestStore',
+            key: 'myStateRestored',
+          }),
+        ),
       );
 
       expect(restoredState.persister).toBeDefined();

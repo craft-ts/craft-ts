@@ -16,6 +16,7 @@ import {
   cPattern,
   cRequired,
 } from './validator';
+import { craftUse } from '../craft-use';
 
 @Component({
   standalone: true,
@@ -23,22 +24,24 @@ import {
   template: `<input [craftField]="loginForm.form.email" />`,
 })
 class EmailFieldValidatorBindingsComponent {
-  protected readonly loginForm = state(
-    { email: '' },
-    insertForm(
-      insertSelectFormTree('email', (context) =>
-        craftPipe(
-          context,
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({
-            validators: [
-              cRequired(),
-              cEmail(),
-              cMinLength({ minLength: 5 }),
-              cMaxLength({ maxLength: 10 }),
-              cPattern({ pattern: /@/ }),
-            ],
-          })),
+  protected readonly loginForm = craftUse(
+    state(
+      { email: '' },
+      insertForm(
+        insertSelectFormTree('email', (context) =>
+          craftPipe(
+            context,
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [
+                cRequired(),
+                cEmail(),
+                cMinLength({ minLength: 5 }),
+                cMaxLength({ maxLength: 10 }),
+                cPattern({ pattern: /@/ }),
+              ],
+            })),
+          ),
         ),
       ),
     ),
@@ -51,16 +54,18 @@ class EmailFieldValidatorBindingsComponent {
   template: `<input type="number" [craftField]="numberForm.form.age" />`,
 })
 class NumberFieldValidatorBindingsComponent {
-  protected readonly numberForm = state(
-    { age: 0 },
-    insertForm(
-      insertSelectFormTree('age', (context) =>
-        craftPipe(
-          context,
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({
-            validators: [cRequired(), cMin({ min: 2 }), cMax({ max: 10 })],
-          })),
+  protected readonly numberForm = craftUse(
+    state(
+      { age: 0 },
+      insertForm(
+        insertSelectFormTree('age', (context) =>
+          craftPipe(
+            context,
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired(), cMin({ min: 2 }), cMax({ max: 10 })],
+            })),
+          ),
         ),
       ),
     ),

@@ -48,7 +48,7 @@ const { injectUsersApiOnError } = craftService(
 
     return {
       users,
-      query: query({
+      query: yield* query({
         params: () => true,
         loader: () => users(),
       }),

@@ -17,6 +17,7 @@ import {
   injectStateMethodRuntimeContext,
   type StateMethodRuntimeContext,
 } from './state-method-runtime-context';
+import { craftUse } from './craft-use';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -41,19 +42,24 @@ describe('insertSelect', () => {
     let runtimeContext: StateMethodRuntimeContext | undefined;
     TestBed.configureTestingModule({
       providers: [
-        provideFnWrapper(function* (factory, thisArg, args) {
-          runtimeContext = injectStateMethodRuntimeContext();
-          return yield* factory.apply(thisArg, args);
-        }),
+        provideFnWrapper(
+          'Warning: dependency injection here is not type-safe and may fail at runtime',
+          function* (factory, thisArg, args) {
+            runtimeContext = injectStateMethodRuntimeContext();
+            return yield* factory.apply(thisArg, args);
+          },
+        ),
       ],
     });
 
     runInInjectionContext(() => {
-      const counter = state(
-        { value: 0 },
-        insertSelect('value', ({ update }) => ({
-          increment: () => update((current) => current + 1),
-        })),
+      const counter = craftUse(
+        state(
+          { value: 0 },
+          insertSelect('value', ({ update }) => ({
+            increment: () => update((current) => current + 1),
+          })),
+        ),
       );
 
       counter.selectValue().increment();
@@ -74,38 +80,40 @@ describe('insertSelect', () => {
         paintCount: number;
       };
 
-      const matrix = state(
-        {
-          grid: [
-            [
-              {
-                index: 0,
-                columnIndex: 0,
-                color: 'white',
-                paintCount: 0,
-              } satisfies PixelCellState,
-            ],
-          ] as PixelCellState[][],
-        },
-        insertSelect('grid', (gridContext) =>
-          craftPipe(
-            gridContext,
-            insertSelect('row', (rowContext) =>
-              craftPipe(
-                rowContext,
-                ({ state }) => ({
-                  paintRowWithTargetCellColor$: source$<PaintCellEvent>(
-                    'paintRowWithTargetCellColor$',
-                  ),
-                }),
-                insertSelect('cell', ({ state }) => ({})),
+      const matrix = craftUse(
+        state(
+          {
+            grid: [
+              [
+                {
+                  index: 0,
+                  columnIndex: 0,
+                  color: 'white',
+                  paintCount: 0,
+                } satisfies PixelCellState,
+              ],
+            ] as PixelCellState[][],
+          },
+          insertSelect('grid', (gridContext) =>
+            craftPipe(
+              gridContext,
+              insertSelect('row', (rowContext) =>
+                craftPipe(
+                  rowContext,
+                  ({ state }) => ({
+                    paintRowWithTargetCellColor$: source$<PaintCellEvent>(
+                      'paintRowWithTargetCellColor$',
+                    ),
+                  }),
+                  insertSelect('cell', ({ state }) => ({})),
+                ),
               ),
+              ({ state, set, update }) => ({
+                paintColumnWithTargetCellColor$: source$<PaintCellEvent>(
+                  'paintColumnWithTargetCellColor$',
+                ),
+              }),
             ),
-            ({ state, set, update }) => ({
-              paintColumnWithTargetCellColor$: source$<PaintCellEvent>(
-                'paintColumnWithTargetCellColor$',
-              ),
-            }),
           ),
         ),
       );
@@ -132,23 +140,27 @@ describe('insertSelect', () => {
 
   it('should work on object states', () => {
     runInInjectionContext(() => {
-      const board = state(
-        {
-          cell: {
-            index: 0,
-            color: 'white',
-            paintCount: 0,
+      const board = craftUse(
+        state(
+          {
+            cell: {
+              index: 0,
+              color: 'white',
+              paintCount: 0,
+            },
           },
-        },
-        insertSelect('cell', ({ state, update }) => ({
-          paint: () =>
-            update((cell) => ({
-              ...cell,
-              color: 'black',
-              paintCount: cell.paintCount + 1,
-            })),
-          paintCountStr: computed(() => `Painted ${state().paintCount} times`),
-        })),
+          insertSelect('cell', ({ state, update }) => ({
+            paint: () =>
+              update((cell) => ({
+                ...cell,
+                color: 'black',
+                paintCount: cell.paintCount + 1,
+              })),
+            paintCountStr: computed(
+              () => `Painted ${state().paintCount} times`,
+            ),
+          })),
+        ),
       );
       expectTypeOf(board.selectCell().paint).toEqualTypeOf<
         () => { index: number; color: string; paintCount: number }
@@ -166,16 +178,18 @@ describe('insertSelect', () => {
 
   it('should tag object select insertions with the select name', () => {
     runInInjectionContext(() => {
-      const board = state(
-        {
-          cell: {
-            index: 0,
-            color: 'white',
+      const board = craftUse(
+        state(
+          {
+            cell: {
+              index: 0,
+              color: 'white',
+            },
           },
-        },
-        insertSelect('cell', () => ({
-          hostTags: inject(HOST_TAG_LIST),
-        })),
+          insertSelect('cell', () => ({
+            hostTags: inject(HOST_TAG_LIST),
+          })),
+        ),
       );
 
       expect(board.selectCell().hostTags).toEqual(['selectProperty:cell']);
@@ -184,17 +198,21 @@ describe('insertSelect', () => {
 
   it('should work on array states', () => {
     runInInjectionContext(() => {
-      const cells = state(
-        [{ index: 0, color: 'white', paintCount: 0 }],
-        insertSelect('cell', ({ state, update }) => ({
-          paint: () =>
-            update((cell) => ({
-              ...cell,
-              color: 'black',
-              paintCount: cell.paintCount + 1,
-            })),
-          paintCountStr: computed(() => `Painted ${state().paintCount} times`),
-        })),
+      const cells = craftUse(
+        state(
+          [{ index: 0, color: 'white', paintCount: 0 }],
+          insertSelect('cell', ({ state, update }) => ({
+            paint: () =>
+              update((cell) => ({
+                ...cell,
+                color: 'black',
+                paintCount: cell.paintCount + 1,
+              })),
+            paintCountStr: computed(
+              () => `Painted ${state().paintCount} times`,
+            ),
+          })),
+        ),
       );
       expectTypeOf(cells.selectCell(0)?.paint).toEqualTypeOf<
         (() => { index: number; color: string; paintCount: number }) | undefined
@@ -213,14 +231,16 @@ describe('insertSelect', () => {
 
   it('should tag array select insertions with the select name and selected identifier', () => {
     runInInjectionContext(() => {
-      const cells = state(
-        [
-          { index: 0, color: 'white' },
-          { index: 1, color: 'black' },
-        ],
-        insertSelect('cell', () => ({
-          hostTags: inject(HOST_TAG_LIST),
-        })),
+      const cells = craftUse(
+        state(
+          [
+            { index: 0, color: 'white' },
+            { index: 1, color: 'black' },
+          ],
+          insertSelect('cell', () => ({
+            hostTags: inject(HOST_TAG_LIST),
+          })),
+        ),
       );
 
       expect(cells.selectCell(1)?.hostTags).toEqual([
@@ -232,33 +252,35 @@ describe('insertSelect', () => {
 
   it('should support mixed nesting item + property via insertSelect', () => {
     runInInjectionContext(() => {
-      const matrix = state(
-        [
-          {
-            cell: {
-              style: {
-                color: 'white',
-                paintCount: 0,
+      const matrix = craftUse(
+        state(
+          [
+            {
+              cell: {
+                style: {
+                  color: 'white',
+                  paintCount: 0,
+                },
               },
             },
-          },
-        ],
-        insertSelect('row', (rowContext) =>
-          craftPipe(
-            rowContext,
-            () => ({}),
-            insertSelect('cell', (cellContext) =>
-              craftPipe(
-                cellContext,
-                () => ({}),
-                insertSelect('style', ({ update }) => ({
-                  paintStyle: () =>
-                    update((style) => ({
-                      ...style,
-                      color: 'black',
-                      paintCount: style.paintCount + 1,
-                    })),
-                })),
+          ],
+          insertSelect('row', (rowContext) =>
+            craftPipe(
+              rowContext,
+              () => ({}),
+              insertSelect('cell', (cellContext) =>
+                craftPipe(
+                  cellContext,
+                  () => ({}),
+                  insertSelect('style', ({ update }) => ({
+                    paintStyle: () =>
+                      update((style) => ({
+                        ...style,
+                        color: 'black',
+                        paintCount: style.paintCount + 1,
+                      })),
+                  })),
+                ),
               ),
             ),
           ),
@@ -279,41 +301,44 @@ describe('insertSelect', () => {
 
   it('should allow first insertSelect insertion to access previous state insertions on object states', () => {
     runInInjectionContext(() => {
-      const board = state(
-        {
-          cell: {
-            index: 0,
-            color: 'white',
-            paintCount: 0,
+      const board = craftUse(
+        state(
+          {
+            cell: {
+              index: 0,
+              color: 'white',
+              paintCount: 0,
+            },
           },
-        },
-        (context) =>
-          craftPipe(
-          context,
-          () => {
-            const test = source$<number>('test');
-            return {
-              test,
-              emitTest: (value: number) => test.emit(value),
-            };
-          },
-          insertSelect('cell', ({ state, update, insertions }) => {
-          expectTypeOf(insertions).toEqualTypeOf<{
-            test: Source$<number>;
-            emitTest: (value: number) => void;
-          }>();
-          return {
-            paintFromTest: () =>
-              update((cell) => ({
-                ...cell,
-                paintCount: cell.paintCount + (insertions.test.value() ?? 0),
-              })),
-            paintCountStr: computed(
-              () =>
-                `Painted ${state().paintCount} times with ${insertions.test.value() ?? 0}`,
+          (context) =>
+            craftPipe(
+              context,
+              () => {
+                const test = source$<number>('test');
+                return {
+                  test,
+                  emitTest: (value: number) => test.emit(value),
+                };
+              },
+              insertSelect('cell', ({ state, update, insertions }) => {
+                expectTypeOf(insertions).toEqualTypeOf<{
+                  test: Source$<number>;
+                  emitTest: (value: number) => void;
+                }>();
+                return {
+                  paintFromTest: () =>
+                    update((cell) => ({
+                      ...cell,
+                      paintCount:
+                        cell.paintCount + (insertions.test.value() ?? 0),
+                    })),
+                  paintCountStr: computed(
+                    () =>
+                      `Painted ${state().paintCount} times with ${insertions.test.value() ?? 0}`,
+                  ),
+                };
+              }),
             ),
-          };
-          }),
         ),
       );
 
@@ -334,35 +359,36 @@ describe('insertSelect', () => {
 
   it('should allow first insertSelect insertion to access previous state insertions on array states', () => {
     runInInjectionContext(() => {
-      const cells = state(
-        [{ index: 0, paintCount: 0 }],
-        (context) =>
+      const cells = craftUse(
+        state([{ index: 0, paintCount: 0 }], (context) =>
           craftPipe(
-          context,
-          () => {
-            const test = source$<number>('test');
-            return {
-              test,
-              emitTest: (value: number) => test.emit(value),
-            };
-          },
-          insertSelect('cell', ({ state, update, insertions }) => {
-          expectTypeOf(insertions).toEqualTypeOf<{
-            test: Source$<number>;
-            emitTest: (value: number) => void;
-          }>();
-          return {
-            incrementFromTest: () =>
-              update((cell) => ({
-                ...cell,
-                paintCount: cell.paintCount + (insertions.test.value() ?? 0),
-              })),
-            paintCountStr: computed(
-              () =>
-                `Painted ${state().paintCount} times with ${insertions.test.value() ?? 0}`,
-            ),
-          };
-          }),
+            context,
+            () => {
+              const test = source$<number>('test');
+              return {
+                test,
+                emitTest: (value: number) => test.emit(value),
+              };
+            },
+            insertSelect('cell', ({ state, update, insertions }) => {
+              expectTypeOf(insertions).toEqualTypeOf<{
+                test: Source$<number>;
+                emitTest: (value: number) => void;
+              }>();
+              return {
+                incrementFromTest: () =>
+                  update((cell) => ({
+                    ...cell,
+                    paintCount:
+                      cell.paintCount + (insertions.test.value() ?? 0),
+                  })),
+                paintCountStr: computed(
+                  () =>
+                    `Painted ${state().paintCount} times with ${insertions.test.value() ?? 0}`,
+                ),
+              };
+            }),
+          ),
         ),
       );
 
@@ -387,23 +413,25 @@ describe('insertSelect', () => {
 
   it('should expose cross-layer source$ from nested insertions', () => {
     runInInjectionContext(() => {
-      const cells = state(
-        [{ index: 0, paintCount: 0, color: 'white' }],
-        insertSelect('cell', (cellContext) =>
-          craftPipe(
-            cellContext,
-            () => ({
-              paintCell$: source$<string>('paintCell$'),
-            }),
-            ({ update, insertions: { paintCell$ } }) => ({
-              _paintCell: on$(paintCell$, (color) =>
-                update((cell) => ({
-                  ...cell,
-                  color,
-                  paintCount: cell.paintCount + 1,
-                })),
-              ),
-            }),
+      const cells = craftUse(
+        state(
+          [{ index: 0, paintCount: 0, color: 'white' }],
+          insertSelect('cell', (cellContext) =>
+            craftPipe(
+              cellContext,
+              () => ({
+                paintCell$: source$<string>('paintCell$'),
+              }),
+              ({ update, insertions: { paintCell$ } }) => ({
+                _paintCell: on$(paintCell$, (color) =>
+                  update((cell) => ({
+                    ...cell,
+                    color,
+                    paintCount: cell.paintCount + 1,
+                  })),
+                ),
+              }),
+            ),
           ),
         ),
       );
@@ -415,27 +443,29 @@ describe('insertSelect', () => {
   });
   it('should expose cross-layer source$ from nested insertions', () => {
     runInInjectionContext(() => {
-      const cells = state(
-        { data: [{ index: 0, paintCount: 0, color: 'white' }] },
-        insertSelect('data', (dataContext) =>
-          craftPipe(
-            dataContext,
-            () => ({}),
-            insertSelect('cell', (cellContext) =>
-              craftPipe(
-                cellContext,
-                () => ({
-                  paintCell$: source$<string>('paintCell$'),
-                }),
-                ({ update, insertions: { paintCell$ } }) => ({
-                  _paintCell: on$(paintCell$, (color) =>
-                    update((cell) => ({
-                      ...cell,
-                      color,
-                      paintCount: cell.paintCount + 1,
-                    })),
-                  ),
-                }),
+      const cells = craftUse(
+        state(
+          { data: [{ index: 0, paintCount: 0, color: 'white' }] },
+          insertSelect('data', (dataContext) =>
+            craftPipe(
+              dataContext,
+              () => ({}),
+              insertSelect('cell', (cellContext) =>
+                craftPipe(
+                  cellContext,
+                  () => ({
+                    paintCell$: source$<string>('paintCell$'),
+                  }),
+                  ({ update, insertions: { paintCell$ } }) => ({
+                    _paintCell: on$(paintCell$, (color) =>
+                      update((cell) => ({
+                        ...cell,
+                        color,
+                        paintCount: cell.paintCount + 1,
+                      })),
+                    ),
+                  }),
+                ),
               ),
             ),
           ),
@@ -463,11 +493,10 @@ describe('insertSelect with generator insertions', () => {
     );
 
     runInInjectionContext(() => {
-      const board = state(
-        { cell: { color: 'white', paintCount: 0 } },
-        insertSelect(
-          'cell',
-          function* ({ update }) {
+      const board = craftUse(
+        state(
+          { cell: { color: 'white', paintCount: 0 } },
+          insertSelect('cell', function* ({ update }) {
             const logger = yield* ObjLoggerToYield();
             return {
               paint: () => {
@@ -479,7 +508,7 @@ describe('insertSelect with generator insertions', () => {
                 }));
               },
             };
-          },
+          }),
         ),
       );
 
@@ -505,11 +534,10 @@ describe('insertSelect with generator insertions', () => {
     );
 
     runInInjectionContext(() => {
-      const cells = state(
-        [{ color: 'white', paintCount: 0 }],
-        insertSelect(
-          'cell',
-          function* ({ update }) {
+      const cells = craftUse(
+        state(
+          [{ color: 'white', paintCount: 0 }],
+          insertSelect('cell', function* ({ update }) {
             const logger = yield* ArrLoggerToYield();
             return {
               paint: (color: string) => {
@@ -521,7 +549,7 @@ describe('insertSelect with generator insertions', () => {
                 }));
               },
             };
-          },
+          }),
         ),
       );
 
@@ -537,14 +565,13 @@ describe('insertSelect with generator insertions', () => {
   it('should throw on onAppStart inside generator insertion on object states', () => {
     runInInjectionContext(() => {
       expect(() => {
-        state(
-          { cell: { color: 'white' } },
-          insertSelect(
-            'cell',
-            function* () {
+        craftUse(
+          state(
+            { cell: { color: 'white' } },
+            insertSelect('cell', function* () {
               yield* onAppStart(() => {});
               return {};
-            },
+            }),
           ),
         );
       }).toThrow('insertSelect generators do not support onAppStart');
@@ -554,14 +581,13 @@ describe('insertSelect with generator insertions', () => {
   it('should throw on onAppStart inside generator insertion on array states', () => {
     runInInjectionContext(() => {
       expect(() => {
-        state(
-          [{ color: 'white' }],
-          insertSelect(
-            'cell',
-            function* () {
+        craftUse(
+          state(
+            [{ color: 'white' }],
+            insertSelect('cell', function* () {
               yield* onAppStart(() => {});
               return {};
-            },
+            }),
           ),
         );
       }).toThrow('insertSelect generators do not support onAppStart');
@@ -571,11 +597,13 @@ describe('insertSelect with generator insertions', () => {
 
 describe('previous regressions on insertSelect typings', () => {
   it('counter with derived values from insertSelect', () => {
-    const counter = state(
-      { value: 0 },
-      insertSelect('value', ({ state }) => ({
-        isOdd: computed(() => state() % 2 === 1),
-      })),
+    const counter = craftUse(
+      state(
+        { value: 0 },
+        insertSelect('value', ({ state }) => ({
+          isOdd: computed(() => state() % 2 === 1),
+        })),
+      ),
     );
     const isOdd = counter.selectValue().isOdd();
     expectTypeOf(isOdd).toEqualTypeOf<boolean>();

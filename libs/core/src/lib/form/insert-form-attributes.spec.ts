@@ -12,6 +12,7 @@ import {
   selectFormTree,
 } from './insert-select-form-tree';
 import { cEmail, cMinLength, cRequired, cValidator } from './validator';
+import { craftUse } from '../craft-use';
 
 describe('insertFormAttributes', () => {
   it('binds disable, hidden and readonly signals to the field', () => {
@@ -20,14 +21,16 @@ describe('insertFormAttributes', () => {
       const hidden = signal(false);
       const readonly = signal(false);
 
-      const fieldForm = state(
-        '' as string,
-        insertForm(
-          insertFormAttributes(() => ({
-            disable: disabled.asReadonly(),
-            hidden: hidden.asReadonly(),
-            readonly: readonly.asReadonly(),
-          })),
+      const fieldForm = craftUse(
+        state(
+          '' as string,
+          insertForm(
+            insertFormAttributes(() => ({
+              disable: disabled.asReadonly(),
+              hidden: hidden.asReadonly(),
+              readonly: readonly.asReadonly(),
+            })),
+          ),
         ),
       );
 
@@ -50,20 +53,22 @@ describe('insertFormAttributes', () => {
     TestBed.runInInjectionContext(() => {
       const hidden = signal(false);
 
-      const profileForm = state(
-        {
-          profile: {
-            name: 'romain',
+      const profileForm = craftUse(
+        state(
+          {
+            profile: {
+              name: 'romain',
+            },
           },
-        },
-        insertForm(
-          insertSelectFormTree('profile', (context) =>
-            craftPipe(
-              context,
-              insertNoopTypingAnchor,
-              insertFormAttributes(() => ({
-                hidden: hidden.asReadonly(),
-              })),
+          insertForm(
+            insertSelectFormTree('profile', (context) =>
+              craftPipe(
+                context,
+                insertNoopTypingAnchor,
+                insertFormAttributes(() => ({
+                  hidden: hidden.asReadonly(),
+                })),
+              ),
             ),
           ),
         ),
@@ -82,23 +87,26 @@ describe('insertFormAttributes', () => {
   it('aggregates sync validator exceptions into list and byValidator', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal<string>('');
-      const fieldForm = state(
-        fieldState,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [
-              cRequired(),
-              cValidator({
-                name: 'hasAtSign',
-                validWhen: () => fieldState() === '' || fieldState().includes('@'),
-                exception: () =>
-                  craftException(
-                    { code: 'MISSING_AT' },
-                    { message: 'Missing @' as const },
-                  ),
-              }),
-            ],
-          })),
+      const fieldForm = craftUse(
+        state(
+          fieldState,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [
+                cRequired(),
+                cValidator({
+                  name: 'hasAtSign',
+                  validWhen: () =>
+                    fieldState() === '' || fieldState().includes('@'),
+                  exception: () =>
+                    craftException(
+                      { code: 'MISSING_AT' },
+                      { message: 'Missing @' as const },
+                    ),
+                }),
+              ],
+            })),
+          ),
         ),
       );
 
@@ -128,20 +136,25 @@ describe('insertFormAttributes', () => {
   it('runs validators when a global fn wrapper is provided', () => {
     TestBed.configureTestingModule({
       providers: [
-        provideFnWrapper(function* (factory, thisArg, args) {
-          return yield* factory.apply(thisArg, args);
-        }),
+        provideFnWrapper(
+          'Warning: dependency injection here is not type-safe and may fail at runtime',
+          function* (factory, thisArg, args) {
+            return yield* factory.apply(thisArg, args);
+          },
+        ),
       ],
     });
 
     TestBed.runInInjectionContext(() => {
       const fieldState = signal<string>('');
-      const fieldForm = state(
-        fieldState,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cRequired()],
-          })),
+      const fieldForm = craftUse(
+        state(
+          fieldState,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+          ),
         ),
       );
 
@@ -156,12 +169,14 @@ describe('insertFormAttributes', () => {
 
   it('keeps exceptions hidden until the field is dirty or submit is attempted', () => {
     TestBed.runInInjectionContext(() => {
-      const fieldForm = state(
-        '' as string,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cRequired()],
-          })),
+      const fieldForm = craftUse(
+        state(
+          '' as string,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+          ),
         ),
       );
 
@@ -178,44 +193,50 @@ describe('insertFormAttributes', () => {
     it('exposes the first left and last right failing validator exceptions', () => {
       TestBed.runInInjectionContext(() => {
         const fieldState = signal<string>('');
-        const fieldForm = state(
-          fieldState,
-          insertForm(
-            insertFormAttributes(() => ({
-              validators: [
-                cRequired(),
-                cValidator({
-                  name: 'hasAtSign',
-                  validWhen: () =>
-                    fieldState() === '' || fieldState().includes('@'),
-                  exception: () => craftException({ code: 'MISSING_AT' }),
-                }),
-                cValidator({
-                  name: 'minLen5',
-                  validWhen: () => fieldState().length >= 5,
-                  exception: () => craftException({ code: 'TOO_SHORT' }),
-                }),
-              ],
-            })),
+        const fieldForm = craftUse(
+          state(
+            fieldState,
+            insertForm(
+              insertFormAttributes(() => ({
+                validators: [
+                  cRequired(),
+                  cValidator({
+                    name: 'hasAtSign',
+                    validWhen: () =>
+                      fieldState() === '' || fieldState().includes('@'),
+                    exception: () => craftException({ code: 'MISSING_AT' }),
+                  }),
+                  cValidator({
+                    name: 'minLen5',
+                    validWhen: () => fieldState().length >= 5,
+                    exception: () => craftException({ code: 'TOO_SHORT' }),
+                  }),
+                ],
+              })),
+            ),
           ),
         );
 
         // empty -> only cRequired fails
         expect(
-          (fieldForm.form.firstLeftFailedValidation() as { code: string })?.code,
+          (fieldForm.form.firstLeftFailedValidation() as { code: string })
+            ?.code,
         ).toBe('required');
         expect(
-          (fieldForm.form.lastRightFailedValidation() as { code: string })?.code,
+          (fieldForm.form.lastRightFailedValidation() as { code: string })
+            ?.code,
         ).toBe('required');
 
         // "ab" -> hasAtSign + minLen5 fail
         fieldState.set('ab');
         TestBed.tick();
         expect(
-          (fieldForm.form.firstLeftFailedValidation() as { code: string })?.code,
+          (fieldForm.form.firstLeftFailedValidation() as { code: string })
+            ?.code,
         ).toBe('MISSING_AT');
         expect(
-          (fieldForm.form.lastRightFailedValidation() as { code: string })?.code,
+          (fieldForm.form.lastRightFailedValidation() as { code: string })
+            ?.code,
         ).toBe('TOO_SHORT');
 
         // valid -> undefined
@@ -228,12 +249,14 @@ describe('insertFormAttributes', () => {
 
     it('visible variants stay undefined until dirty or submit attempted', () => {
       TestBed.runInInjectionContext(() => {
-        const fieldForm = state(
-          '' as string,
-          insertForm(
-            insertFormAttributes(() => ({
-              validators: [cRequired()],
-            })),
+        const fieldForm = craftUse(
+          state(
+            '' as string,
+            insertForm(
+              insertFormAttributes(() => ({
+                validators: [cRequired()],
+              })),
+            ),
           ),
         );
 
@@ -256,13 +279,15 @@ describe('insertFormAttributes', () => {
   it('skips validators when the field is hidden, disabled, or readonly', () => {
     TestBed.runInInjectionContext(() => {
       const hidden = signal(false);
-      const fieldForm = state(
-        '' as string,
-        insertForm(
-          insertFormAttributes(() => ({
-            hidden: hidden.asReadonly(),
-            validators: [cRequired()],
-          })),
+      const fieldForm = craftUse(
+        state(
+          '' as string,
+          insertForm(
+            insertFormAttributes(() => ({
+              hidden: hidden.asReadonly(),
+              validators: [cRequired()],
+            })),
+          ),
         ),
       );
 
@@ -288,34 +313,36 @@ describe('insertFormAttributes', () => {
           submittingObservedInsideFactory?: boolean;
         } = {};
 
-        const profileForm = state(
-          { email: 'romain@example.com' },
-          insertForm(
-            ({ state }) => ({
-              upperEmail: computed(() => state().email.toUpperCase()),
-            }),
-            insertFormAttributes((context) => {
-              seen.insertionsHasUpperEmail =
-                typeof (context.insertions as { upperEmail?: unknown })
-                  .upperEmail === 'function';
-              seen.upperEmail = (
-                context.insertions as { upperEmail: () => string }
-              ).upperEmail();
-              seen.stateEmail = context.state().email;
-              seen.fieldValueEmail = context.field.value().email;
-              seen.validatedEmail = context.validatedFormValue()?.email;
-              seen.formIdentifier = context.formIdentifier;
+        const profileForm = craftUse(
+          state(
+            { email: 'romain@example.com' },
+            insertForm(
+              ({ state }) => ({
+                upperEmail: computed(() => state().email.toUpperCase()),
+              }),
+              insertFormAttributes((context) => {
+                seen.insertionsHasUpperEmail =
+                  typeof (context.insertions as { upperEmail?: unknown })
+                    .upperEmail === 'function';
+                seen.upperEmail = (
+                  context.insertions as { upperEmail: () => string }
+                ).upperEmail();
+                seen.stateEmail = context.state().email;
+                seen.fieldValueEmail = context.field.value().email;
+                seen.validatedEmail = context.validatedFormValue()?.email;
+                seen.formIdentifier = context.formIdentifier;
 
-              // setSubmitting toggles the controller state visible from within
-              // the same insertion factory.
-              context.setSubmitting(true);
-              seen.submittingObservedInsideFactory = context.submitting();
-              context.setSubmitting(false);
+                // setSubmitting toggles the controller state visible from within
+                // the same insertion factory.
+                context.setSubmitting(true);
+                seen.submittingObservedInsideFactory = context.submitting();
+                context.setSubmitting(false);
 
-              // set/update/patch mutate through the field tree.
-              context.set({ email: 'set@example.com' });
-              return {};
-            }),
+                // set/update/patch mutate through the field tree.
+                context.set({ email: 'set@example.com' });
+                return {};
+              }),
+            ),
           ),
         );
 
@@ -336,19 +363,21 @@ describe('insertFormAttributes', () => {
 
     it('chains insertion outputs through context.insertions', () => {
       TestBed.runInInjectionContext(() => {
-        const f = state(
-          { name: 'romain' },
-          insertForm(
-            ({ field }) => ({
-              getNameUpper: () => field.value().name.toUpperCase(),
-            }),
-            insertFormAttributes(({ insertions }) => {
-              // chained insertion output is reachable in subsequent insertions
-              expect(
-                (insertions as { getNameUpper: () => string }).getNameUpper(),
-              ).toBe('ROMAIN');
-              return {};
-            }),
+        const f = craftUse(
+          state(
+            { name: 'romain' },
+            insertForm(
+              ({ field }) => ({
+                getNameUpper: () => field.value().name.toUpperCase(),
+              }),
+              insertFormAttributes(({ insertions }) => {
+                // chained insertion output is reachable in subsequent insertions
+                expect(
+                  (insertions as { getNameUpper: () => string }).getNameUpper(),
+                ).toBe('ROMAIN');
+                return {};
+              }),
+            ),
           ),
         );
 
@@ -360,20 +389,22 @@ describe('insertFormAttributes', () => {
   describe('parallel forms', () => {
     it('registers independent validators per parallel entry', () => {
       TestBed.runInInjectionContext(() => {
-        const usersForm = state(
-          [
-            { id: 'a', email: '' },
-            { id: 'b', email: 'b@bar.com' },
-          ],
-          insertForm(
-            { identifier: ({ item }) => item.id },
-            insertSelectFormTree('email', (context) =>
-              craftPipe(
-                context,
-                insertNoopTypingAnchor,
-                insertFormAttributes(() => ({
-                  validators: [cRequired(), cEmail()],
-                })),
+        const usersForm = craftUse(
+          state(
+            [
+              { id: 'a', email: '' },
+              { id: 'b', email: 'b@bar.com' },
+            ],
+            insertForm(
+              { identifier: ({ item }) => item.id },
+              insertSelectFormTree('email', (context) =>
+                craftPipe(
+                  context,
+                  insertNoopTypingAnchor,
+                  insertFormAttributes(() => ({
+                    validators: [cRequired(), cEmail()],
+                  })),
+                ),
               ),
             ),
           ),
@@ -401,21 +432,23 @@ describe('insertFormAttributes', () => {
       TestBed.runInInjectionContext(() => {
         const seenIdentifiers: string[] = [];
 
-        const usersForm = state(
-          [
-            { id: 'a', email: 'a@a.com' },
-            { id: 'b', email: 'b@b.com' },
-          ],
-          insertForm(
-            { identifier: ({ item }) => item.id },
-            insertSelectFormTree('email', (context) =>
-              craftPipe(
-                context,
-                insertNoopTypingAnchor,
-                insertFormAttributes(({ formIdentifier }) => {
-                  seenIdentifiers.push(formIdentifier);
-                  return { validators: [cRequired()] };
-                }),
+        const usersForm = craftUse(
+          state(
+            [
+              { id: 'a', email: 'a@a.com' },
+              { id: 'b', email: 'b@b.com' },
+            ],
+            insertForm(
+              { identifier: ({ item }) => item.id },
+              insertSelectFormTree('email', (context) =>
+                craftPipe(
+                  context,
+                  insertNoopTypingAnchor,
+                  insertFormAttributes(({ formIdentifier }) => {
+                    seenIdentifiers.push(formIdentifier);
+                    return { validators: [cRequired()] };
+                  }),
+                ),
               ),
             ),
           ),
@@ -438,14 +471,16 @@ describe('formAttributes', () => {
       const hidden = signal(false);
       const readonly = signal(false);
 
-      const fieldForm = state(
-        '' as string,
-        insertForm((context) =>
-          formAttributes(context, {
-            disable: disabled.asReadonly(),
-            hidden: hidden.asReadonly(),
-            readonly: readonly.asReadonly(),
-          }),
+      const fieldForm = craftUse(
+        state(
+          '' as string,
+          insertForm((context) =>
+            formAttributes(context, {
+              disable: disabled.asReadonly(),
+              hidden: hidden.asReadonly(),
+              readonly: readonly.asReadonly(),
+            }),
+          ),
         ),
       );
 
@@ -467,24 +502,26 @@ describe('formAttributes', () => {
   it('aggregates sync validator exceptions into list and byValidator', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal<string>('');
-      const fieldForm = state(
-        fieldState,
-        insertForm((context) =>
-          formAttributes(context, {
-            validators: [
-              cRequired(),
-              cValidator({
-                name: 'hasAtSign',
-                validWhen: () =>
-                  fieldState() === '' || fieldState().includes('@'),
-                exception: () =>
-                  craftException(
-                    { code: 'MISSING_AT' },
-                    { message: 'Missing @' as const },
-                  ),
-              }),
-            ],
-          }),
+      const fieldForm = craftUse(
+        state(
+          fieldState,
+          insertForm((context) =>
+            formAttributes(context, {
+              validators: [
+                cRequired(),
+                cValidator({
+                  name: 'hasAtSign',
+                  validWhen: () =>
+                    fieldState() === '' || fieldState().includes('@'),
+                  exception: () =>
+                    craftException(
+                      { code: 'MISSING_AT' },
+                      { message: 'Missing @' as const },
+                    ),
+                }),
+              ],
+            }),
+          ),
         ),
       );
 
@@ -509,30 +546,35 @@ describe('formAttributes', () => {
     TestBed.runInInjectionContext(() => {
       type LoginData = { email: string; password: string };
 
-      const loginForm = state(
-        { email: '', password: '' } satisfies LoginData,
-        insertForm(
-          (context) =>
-            selectFormTree(context, 'email', (sub) =>
-              formAttributes(sub, {
-                validators: [
-                  cRequired(),
-                  cEmail(),
-                  cMinLength({ minLength: 5 }),
-                ],
-              }),
-            ),
-          (context) =>
-            selectFormTree(context, 'password', (sub) =>
-              formAttributes(sub, { validators: [cRequired()] }),
-            ),
+      const loginForm = craftUse(
+        state(
+          { email: '', password: '' } satisfies LoginData,
+          insertForm(
+            (context) =>
+              selectFormTree(context, 'email', (sub) =>
+                formAttributes(sub, {
+                  validators: [
+                    cRequired(),
+                    cEmail(),
+                    cMinLength({ minLength: 5 }),
+                  ],
+                }),
+              ),
+            (context) =>
+              selectFormTree(context, 'password', (sub) =>
+                formAttributes(sub, { validators: [cRequired()] }),
+              ),
+          ),
         ),
       );
 
       const email = (
         loginForm.form as unknown as {
           selectEmail: () =>
-            | { invalid: () => boolean; exceptions: () => { byValidator: Record<string, unknown> } }
+            | {
+                invalid: () => boolean;
+                exceptions: () => { byValidator: Record<string, unknown> };
+              }
             | undefined;
         }
       ).selectEmail();
@@ -562,10 +604,12 @@ describe('formAttributes', () => {
 
   it('keeps exceptions hidden until the field is dirty or submit is attempted', () => {
     TestBed.runInInjectionContext(() => {
-      const fieldForm = state(
-        '' as string,
-        insertForm((context) =>
-          formAttributes(context, { validators: [cRequired()] }),
+      const fieldForm = craftUse(
+        state(
+          '' as string,
+          insertForm((context) =>
+            formAttributes(context, { validators: [cRequired()] }),
+          ),
         ),
       );
 
@@ -582,18 +626,18 @@ describe('formAttributes', () => {
     TestBed.runInInjectionContext(() => {
       const seenIdentifiers: string[] = [];
 
-      const usersForm = state(
-        [
-          { id: 'a', email: 'a@a.com' },
-          { id: 'b', email: 'b@b.com' },
-        ],
-        insertForm(
-          { identifier: ({ item }) => item.id },
-          (context) =>
+      const usersForm = craftUse(
+        state(
+          [
+            { id: 'a', email: 'a@a.com' },
+            { id: 'b', email: 'b@b.com' },
+          ],
+          insertForm({ identifier: ({ item }) => item.id }, (context) =>
             selectFormTree(context, 'email', (sub) => {
               seenIdentifiers.push(sub.formIdentifier);
               return formAttributes(sub, { validators: [cRequired()] });
             }),
+          ),
         ),
       );
 
@@ -607,23 +651,25 @@ describe('formAttributes', () => {
   it('exposes firstLeftFailedValidation and lastRightFailedValidation', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal<string>('');
-      const fieldForm = state(
-        fieldState,
-        insertForm((context) =>
-          formAttributes(context, {
-            validators: [
-              cValidator({
-                name: 'hasAtSign',
-                validWhen: () => fieldState().includes('@'),
-                exception: () => craftException({ code: 'MISSING_AT' }),
-              }),
-              cValidator({
-                name: 'hasDot',
-                validWhen: () => fieldState().includes('.'),
-                exception: () => craftException({ code: 'MISSING_DOT' }),
-              }),
-            ],
-          }),
+      const fieldForm = craftUse(
+        state(
+          fieldState,
+          insertForm((context) =>
+            formAttributes(context, {
+              validators: [
+                cValidator({
+                  name: 'hasAtSign',
+                  validWhen: () => fieldState().includes('@'),
+                  exception: () => craftException({ code: 'MISSING_AT' }),
+                }),
+                cValidator({
+                  name: 'hasDot',
+                  validWhen: () => fieldState().includes('.'),
+                  exception: () => craftException({ code: 'MISSING_DOT' }),
+                }),
+              ],
+            }),
+          ),
         ),
       );
 

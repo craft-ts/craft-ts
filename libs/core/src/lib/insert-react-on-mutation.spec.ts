@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { insertReactOnMutation } from './insert-react-on-mutation';
 import { mutation } from './mutation';
 import { query } from './query';
+import { craftUse } from './craft-use';
 
 describe('insertReactOnMutation', () => {
   beforeEach(() => {
@@ -12,24 +13,28 @@ describe('insertReactOnMutation', () => {
   });
   it('a query can use insertReactOnMutation', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = mutation({
-        method: (payload: { name: string }) => payload,
-        loader: async ({ params }) => params,
-      });
-
-      const queryRef = query(
-        {
-          params: () => '5',
-          loader: async ({ params }) => ({
-            id: params,
-            name: 'John',
-          }),
-        },
-        insertReactOnMutation(mutationRef, {
-          patch: {
-            name: ({ mutationParams }) => mutationParams.name,
-          },
+      const mutationRef = craftUse(
+        mutation({
+          method: (payload: { name: string }) => payload,
+          loader: async ({ params }) => params,
         }),
+      );
+
+      const queryRef = craftUse(
+        query(
+          {
+            params: () => '5',
+            loader: async ({ params }) => ({
+              id: params,
+              name: 'John',
+            }),
+          },
+          insertReactOnMutation(mutationRef, {
+            patch: {
+              name: ({ mutationParams }) => mutationParams.name,
+            },
+          }),
+        ),
       );
 
       await vi.runAllTimersAsync();
@@ -43,27 +48,31 @@ describe('insertReactOnMutation', () => {
 
   it('a query with identifier can use insertReactOnMutation', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = mutation({
-        method: (payload: { name: string; id: string }) => payload,
-        loader: async ({ params }) => params,
-      });
-
-      const queryRef = query(
-        {
-          params: () => '5',
-          identifier: (params) => params,
-          loader: async ({ params }) => ({
-            id: params,
-            name: 'John',
-          }),
-        },
-        insertReactOnMutation(mutationRef, {
-          filter: ({ queryIdentifier, mutationParams }) =>
-            mutationParams.id === queryIdentifier,
-          patch: {
-            name: ({ mutationParams }) => mutationParams.name,
-          },
+      const mutationRef = craftUse(
+        mutation({
+          method: (payload: { name: string; id: string }) => payload,
+          loader: async ({ params }) => params,
         }),
+      );
+
+      const queryRef = craftUse(
+        query(
+          {
+            params: () => '5',
+            identifier: (params) => params,
+            loader: async ({ params }) => ({
+              id: params,
+              name: 'John',
+            }),
+          },
+          insertReactOnMutation(mutationRef, {
+            filter: ({ queryIdentifier, mutationParams }) =>
+              mutationParams.id === queryIdentifier,
+            patch: {
+              name: ({ mutationParams }) => mutationParams.name,
+            },
+          }),
+        ),
       );
 
       await vi.runAllTimersAsync();

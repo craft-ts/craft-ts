@@ -1,5 +1,6 @@
 import { Component, input } from '@angular/core';
 import {
+  craftUse,
   componentMonitoring,
   provideHostName,
   state,
@@ -22,10 +23,12 @@ export class SendContextCounterComponent {
   private readonly _monitoring = componentMonitoring();
   readonly initialValue = input.required<number>();
 
-  protected counter = state(this.initialValue, ({ update }) => ({
-    increment: () => update((value) => value + 1),
-    decrement: () => update((value) => value - 1),
-  }));
+  protected counter = craftUse(
+    state(this.initialValue, ({ update }) => ({
+      increment: () => update((value) => value + 1),
+      decrement: () => update((value) => value - 1),
+    })),
+  );
 }
 
 export type GenDeps_SendContextCounterComponent = GetDeps<{

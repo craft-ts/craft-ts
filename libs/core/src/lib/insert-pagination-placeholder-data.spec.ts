@@ -2,26 +2,29 @@ import { computed, ResourceStatus, signal, Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { query } from './query';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
+import { craftUse } from './craft-use';
 
 describe('insertPaginationPlaceholderData', () => {
   it('should return the data of the currentPage', () => {
     TestBed.runInInjectionContext(() => {
-      const finalResult = query(
-        {
-          params: () => ({
-            id: '1',
-          }),
-          identifier: (params) => params.id,
-          loader: async ({ params }) => {
-            return {
-              id: params.id,
-              name: 'Test Name',
-            };
+      const finalResult = craftUse(
+        query(
+          {
+            params: () => ({
+              id: '1',
+            }),
+            identifier: (params) => params.id,
+            loader: async ({ params }) => {
+              return {
+                id: params.id,
+                name: 'Test Name',
+              };
+            },
           },
-        },
-        insertPaginationPlaceholderData({
-          initialValue: { id: '', name: '' },
-        }),
+          insertPaginationPlaceholderData({
+            initialValue: { id: '', name: '' },
+          }),
+        ),
       );
 
       // initialValue drives the type: currentPageData is never undefined
@@ -48,22 +51,24 @@ describe('insertPaginationPlaceholderData', () => {
     vi.useFakeTimers();
     await TestBed.runInInjectionContext(async () => {
       const pagination = signal(1);
-      const userQuery = query(
-        {
-          params: pagination,
-          identifier: (params) => '' + params,
-          loader: async ({ params: pagination }) => {
-            await wait(10000);
-            return [
-              {
-                name: 'User' + pagination,
-              },
-            ];
+      const userQuery = craftUse(
+        query(
+          {
+            params: pagination,
+            identifier: (params) => '' + params,
+            loader: async ({ params: pagination }) => {
+              await wait(10000);
+              return [
+                {
+                  name: 'User' + pagination,
+                },
+              ];
+            },
           },
-        },
-        insertPaginationPlaceholderData({
-          initialValue: [] as { name: string }[],
-        }),
+          insertPaginationPlaceholderData({
+            initialValue: [] as { name: string }[],
+          }),
+        ),
       );
 
       // initialValue is returned instead of undefined before the first load
@@ -89,28 +94,30 @@ describe('insertPaginationPlaceholderData', () => {
     await TestBed.runInInjectionContext(async () => {
       type Item = { id: string; name: string; completed: boolean };
       const pagination = signal(1);
-      const userQuery = query(
-        {
-          params: pagination,
-          identifier: (params) => '' + params,
-          loader: async ({ params: page }) => {
-            await wait(1000);
-            return [
-              { id: `${page}-a`, name: 'User' + page, completed: false },
-            ] as Item[];
+      const userQuery = craftUse(
+        query(
+          {
+            params: pagination,
+            identifier: (params) => '' + params,
+            loader: async ({ params: page }) => {
+              await wait(1000);
+              return [
+                { id: `${page}-a`, name: 'User' + page, completed: false },
+              ] as Item[];
+            },
           },
-        },
-        insertPaginationPlaceholderData(
-          { initialValue: [] as Item[] },
-          ({ state, update }) => ({
-            uncompletedCount: computed(
-              () => state().filter((d) => !d.completed).length,
-            ),
-            markFirstCompleted: () =>
-              update((list) =>
-                list.map((d, i) => (i === 0 ? { ...d, completed: true } : d)),
+          insertPaginationPlaceholderData(
+            { initialValue: [] as Item[] },
+            ({ state, update }) => ({
+              uncompletedCount: computed(
+                () => state().filter((d) => !d.completed).length,
               ),
-          }),
+              markFirstCompleted: () =>
+                update((list) =>
+                  list.map((d, i) => (i === 0 ? { ...d, completed: true } : d)),
+                ),
+            }),
+          ),
         ),
       );
 

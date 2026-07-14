@@ -1,71 +1,77 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
-    componentMonitoring,
-    craftMethod,
-    craftService,
-    insertLocalStoragePersister,
-    insertPaginationPlaceholderData,    provideHostName,
-    craftPipe,
-    query,
-    queryParam,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftUse,
+  componentMonitoring,
+  craftMethod,
+  craftService,
+  insertLocalStoragePersister,
+  insertPaginationPlaceholderData,
+  provideHostName,
+  craftPipe,
+  query,
+  queryParam,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
 const { injectUserList, provideUserList, UserListToYield } = craftService(
   { name: 'UserList', scope: 'toProvide' },
   () => {
-    const pagination = queryParam(
-      {
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value) => parseInt(value, 10),
-            serialize: (value) => String(value),
-          },
-          pageSize: {
-            fallbackValue: 4,
-            parse: (value) => parseInt(value, 10),
-            serialize: (value) => String(value),
+    const pagination = craftUse(
+      queryParam(
+        {
+          state: {
+            page: {
+              fallbackValue: 1,
+              parse: (value) => parseInt(value, 10),
+              serialize: (value) => String(value),
+            },
+            pageSize: {
+              fallbackValue: 4,
+              parse: (value) => parseInt(value, 10),
+              serialize: (value) => String(value),
+            },
           },
         },
-      },
-      ({ patch, state }) => ({
-        nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: state().page - 1 }),
-        updatePageSize: (newPageSize: number) =>
-          patch({ pageSize: newPageSize, page: 1 }),
-      }),
+        ({ patch, state }) => ({
+          nextPage: () => patch({ page: state().page + 1 }),
+          previousPage: () => patch({ page: state().page - 1 }),
+          updatePageSize: (newPageSize: number) =>
+            patch({ pageSize: newPageSize, page: 1 }),
+        }),
+      ),
     );
 
-    const users = query(
-      {
-        params: pagination,
-        identifier: (params) => `${params.page}-${params.pageSize}`,
-        loader: function* ({ params: pagination }) {
-          return yield* ApiServiceToYield.getDataList(pagination);
+    const users = craftUse(
+      query(
+        {
+          params: pagination,
+          identifier: (params) => `${params.page}-${params.pageSize}`,
+          loader: function* ({ params: pagination }) {
+            return yield* ApiServiceToYield.getDataList(pagination);
+          },
         },
-      },
-      (context) =>
-        craftPipe(
-        context,
-        insertLocalStoragePersister({
-          storeName: 'demo-app-craft',
-          key: 'list-with-pagination',
-        }),
-        insertPaginationPlaceholderData(
-          { initialValue: [] as User[] },
-          ({ state }) => ({
-            total: computed(() => state().length),
-          }),
-        ),
+        (context) =>
+          craftPipe(
+            context,
+            insertLocalStoragePersister({
+              storeName: 'demo-app-craft',
+              key: 'list-with-pagination',
+            }),
+            insertPaginationPlaceholderData(
+              { initialValue: [] as User[] },
+              ({ state }) => ({
+                total: computed(() => state().length),
+              }),
+            ),
+          ),
       ),
     );
 
@@ -84,7 +90,9 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
             <h2 class="card-title">
               User Management:
               <app-status [status]="store.users.currentPageStatus()" />
-              <span class="current-page">{{ store.users.total() }} on page</span>
+              <span class="current-page"
+                >{{ store.users.total() }} on page</span
+              >
             </h2>
 
             <div class="table-container">
@@ -160,35 +168,41 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
   `,
   styleUrls: ['./list-with-pagination.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideUserList(), provideHostName('component:ListWithPaginationCraft')],
+  providers: [
+    provideUserList(),
+    provideHostName('component:ListWithPaginationCraft'),
+  ],
 })
 export default class ListWithPaginationCraft {
   private readonly _monitoring = componentMonitoring();
   protected readonly store = injectUserList();
 
-  protected updatePageSize = craftMethod('updatePageSize', function* (event: Event) {
-    const value = Number((event.target as HTMLSelectElement).value);
-    const store = yield* UserListToYield();
-    store.pagination.updatePageSize(value);
-    return;
-  });
+  protected updatePageSize = craftMethod(
+    'updatePageSize',
+    function* (event: Event) {
+      const value = Number((event.target as HTMLSelectElement).value);
+      const store = yield* UserListToYield();
+      store.pagination.updatePageSize(value);
+      return;
+    },
+  );
 }
 
 export type GenDeps_ListWithPaginationCraft = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<ListWithPaginationCraft["_monitoring"]>;
-        store: {
-            UserList: ExtractDeps<typeof injectUserList>["UserList"];
-          };
-        updatePageSize: ExtractDeps<ListWithPaginationCraft["updatePageSize"]>;
-      };
-      provided: {
-        UserList: ReturnType<typeof provideUserList>;
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<ListWithPaginationCraft>;
-    }>;
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<ListWithPaginationCraft['_monitoring']>;
+    store: {
+      UserList: ExtractDeps<typeof injectUserList>['UserList'];
+    };
+    updatePageSize: ExtractDeps<ListWithPaginationCraft['updatePageSize']>;
+  };
+  provided: {
+    UserList: ReturnType<typeof provideUserList>;
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<ListWithPaginationCraft>;
+}>;

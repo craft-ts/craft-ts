@@ -26,6 +26,7 @@ import {
   providePrimitiveResourceRuntimeObserver,
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
+import { craftUse } from './craft-use';
 
 type EmptyAsyncProcessExceptions = {
   hasException: Signal<boolean>;
@@ -66,24 +67,26 @@ describe('AsyncProcess', () => {
   });
   it('should enable to define async method and be called with a method', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = asyncProcess({
-        method: ({
-          timeToWait,
-          searchChange,
-        }: {
-          timeToWait: number;
-          searchChange: string;
-        }) => ({
-          timeToWait,
-          searchChange,
+      const myAsyncProcess = craftUse(
+        asyncProcess({
+          method: ({
+            timeToWait,
+            searchChange,
+          }: {
+            timeToWait: number;
+            searchChange: string;
+          }) => ({
+            timeToWait,
+            searchChange,
+          }),
+          loader: async ({ params: { timeToWait, searchChange } }) => {
+            expectTypeOf(searchChange).toEqualTypeOf<string>();
+            expectTypeOf(timeToWait).toEqualTypeOf<number>();
+            await new Promise((resolve) => setTimeout(resolve, timeToWait));
+            return { searchChange };
+          },
         }),
-        loader: async ({ params: { timeToWait, searchChange } }) => {
-          expectTypeOf(searchChange).toEqualTypeOf<string>();
-          expectTypeOf(timeToWait).toEqualTypeOf<number>();
-          await new Promise((resolve) => setTimeout(resolve, timeToWait));
-          return { searchChange };
-        },
-      });
+      );
 
       expect(myAsyncProcess.status()).toBe('idle');
       myAsyncProcess.method({
@@ -105,18 +108,20 @@ describe('AsyncProcess', () => {
         searchChange: string;
         timeToWait: number;
       }>('searchSource');
-      const myAsyncProcess = asyncProcess({
-        method: afterRecomputation(
-          searchSource,
-          (searchConfig) => searchConfig,
-        ),
-        loader: async ({ params: { timeToWait, searchChange } }) => {
-          expectTypeOf(timeToWait).toEqualTypeOf<number>();
-          expectTypeOf(searchChange).toEqualTypeOf<string>();
-          await new Promise((resolve) => setTimeout(resolve, timeToWait));
-          return { searchChange };
-        },
-      });
+      const myAsyncProcess = craftUse(
+        asyncProcess({
+          method: afterRecomputation(
+            searchSource,
+            (searchConfig) => searchConfig,
+          ),
+          loader: async ({ params: { timeToWait, searchChange } }) => {
+            expectTypeOf(timeToWait).toEqualTypeOf<number>();
+            expectTypeOf(searchChange).toEqualTypeOf<string>();
+            await new Promise((resolve) => setTimeout(resolve, timeToWait));
+            return { searchChange };
+          },
+        }),
+      );
 
       expect(myAsyncProcess.status()).toBe('idle');
       expectTypeOf(myAsyncProcess.source).toEqualTypeOf<
@@ -140,15 +145,17 @@ describe('AsyncProcess', () => {
 
   it('should return undefined with safeValue when status is error', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = asyncProcess({
-        method: (shouldFail: boolean) => shouldFail,
-        loader: async ({ params: shouldFail }) => {
-          if (shouldFail) {
-            throw new Error('Test error');
-          }
-          return { success: true };
-        },
-      });
+      const myAsyncProcess = craftUse(
+        asyncProcess({
+          method: (shouldFail: boolean) => shouldFail,
+          loader: async ({ params: shouldFail }) => {
+            if (shouldFail) {
+              throw new Error('Test error');
+            }
+            return { success: true };
+          },
+        }),
+      );
 
       expect(myAsyncProcess.status()).toBe('idle');
       myAsyncProcess.method(true);
@@ -187,23 +194,25 @@ describe('AsyncProcess', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const asyncRef = asyncProcess(
-        {
-          method: function* (userId: string) {
-            const params = yield* AsyncParamsToYield();
-            return params.normalize(userId);
+      const asyncRef = craftUse(
+        asyncProcess(
+          {
+            method: function* (userId: string) {
+              const params = yield* AsyncParamsToYield();
+              return params.normalize(userId);
+            },
+            loader: function* ({ params }) {
+              const api = yield* AsyncApiToYield();
+              return api.load(params);
+            },
           },
-          loader: function* ({ params }) {
-            const api = yield* AsyncApiToYield();
-            return api.load(params);
+          function* () {
+            const tools = yield* AsyncToolsToYield();
+            return {
+              processKey: tools.key(),
+            };
           },
-        },
-        function* () {
-          const tools = yield* AsyncToolsToYield();
-          return {
-            processKey: tools.key(),
-          };
-        },
+        ),
       );
 
       expectTypeOf<ExtractDeps<typeof asyncRef>>().toEqualTypeOf<{
@@ -234,25 +243,27 @@ describe('AsyncProcess', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const asyncRef = asyncProcess(
-        {
-          method: function* (userId: string) {
+      const asyncRef = craftUse(
+        asyncProcess(
+          {
+            method: function* (userId: string) {
+              const logger = yield* AsyncLoggerRuntimeToYield();
+              logger.log(`async:${userId}`);
+              return userId;
+            },
+            loader: function* ({ params }) {
+              const api = yield* AsyncApiRuntimeToYield();
+              return api.load(params);
+            },
+          },
+          function* () {
             const logger = yield* AsyncLoggerRuntimeToYield();
-            logger.log(`async:${userId}`);
-            return userId;
+            logger.log('insert:init');
+            return {
+              initialized: true,
+            };
           },
-          loader: function* ({ params }) {
-            const api = yield* AsyncApiRuntimeToYield();
-            return api.load(params);
-          },
-        },
-        function* () {
-          const logger = yield* AsyncLoggerRuntimeToYield();
-          logger.log('insert:init');
-          return {
-            initialized: true,
-          };
-        },
+        ),
       );
 
       asyncRef.method('user-4');
@@ -271,37 +282,41 @@ describe('AsyncProcess types without identifier', () => {
       const { injectAsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
-          const searchChange = asyncProcess({
-            method: ({
-              timeToWait,
-              searchChange,
-            }: {
-              timeToWait: number;
-              searchChange: string;
-            }) => ({
-              timeToWait,
-              searchChange,
-            }),
-            loader: async ({ params: { timeToWait, searchChange } }) => {
-              expectTypeOf(timeToWait).toEqualTypeOf<number>();
-              expectTypeOf(searchChange).toEqualTypeOf<string>();
-              await new Promise((resolve) => setTimeout(resolve, timeToWait));
-              return { searchChange };
-            },
-          });
-          const filterChange = asyncProcess(
-            {
-              method: ({ filter }: { filter: string }) => ({
-                filter,
+          const searchChange = craftUse(
+            asyncProcess({
+              method: ({
+                timeToWait,
+                searchChange,
+              }: {
+                timeToWait: number;
+                searchChange: string;
+              }) => ({
+                timeToWait,
+                searchChange,
               }),
-              loader: async ({ params: { filter } }) => {
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-                return { filter };
+              loader: async ({ params: { timeToWait, searchChange } }) => {
+                expectTypeOf(timeToWait).toEqualTypeOf<number>();
+                expectTypeOf(searchChange).toEqualTypeOf<string>();
+                await new Promise((resolve) => setTimeout(resolve, timeToWait));
+                return { searchChange };
               },
-            },
-            () => ({
-              additionalInsertion: 'injectedValue' as const,
             }),
+          );
+          const filterChange = craftUse(
+            asyncProcess(
+              {
+                method: ({ filter }: { filter: string }) => ({
+                  filter,
+                }),
+                loader: async ({ params: { filter } }) => {
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  return { filter };
+                },
+              },
+              () => ({
+                additionalInsertion: 'injectedValue' as const,
+              }),
+            ),
           );
 
           return {
@@ -403,33 +418,39 @@ describe('AsyncProcess types without identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChangeText: string }>('searchSource');
+      const searchSource = signalSource<{ searchChangeText: string }>(
+        'searchSource',
+      );
       const { injectAsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
-          const searchChange = asyncProcess({
-            method: afterRecomputation(searchSource, (searchChange) => {
-              return searchChange;
-            }),
-            loader: async ({ params: { searchChangeText } }) => {
-              expectTypeOf(searchChangeText).toEqualTypeOf<string>();
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { searchChangeText };
-            },
-          });
-          const filterChange = asyncProcess(
-            {
-              method: ({ filter }: { filter: string }) => ({
-                filter,
+          const searchChange = craftUse(
+            asyncProcess({
+              method: afterRecomputation(searchSource, (searchChange) => {
+                return searchChange;
               }),
-              loader: async ({ params: { filter } }) => {
+              loader: async ({ params: { searchChangeText } }) => {
+                expectTypeOf(searchChangeText).toEqualTypeOf<string>();
                 await new Promise((resolve) => setTimeout(resolve, 1000));
-                return { filter };
+                return { searchChangeText };
               },
-            },
-            () => ({
-              additionalInsertion: 'injectedValue' as const,
             }),
+          );
+          const filterChange = craftUse(
+            asyncProcess(
+              {
+                method: ({ filter }: { filter: string }) => ({
+                  filter,
+                }),
+                loader: async ({ params: { filter } }) => {
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  return { filter };
+                },
+              },
+              () => ({
+                additionalInsertion: 'injectedValue' as const,
+              }),
+            ),
           );
 
           return {
@@ -518,15 +539,17 @@ describe('AsyncProcess types without identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _AsyncProcessOutput = asyncProcess({
-        method: (searchChange: string) => {
-          return searchChange;
-        },
-        loader: async ({ params: searchChange }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return { searchChange };
-        },
-      });
+      const _AsyncProcessOutput = craftUse(
+        asyncProcess({
+          method: (searchChange: string) => {
+            return searchChange;
+          },
+          loader: async ({ params: searchChange }) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { searchChange };
+          },
+        }),
+      );
       expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<{
         readonly value: Signal<
           | {
@@ -557,17 +580,21 @@ describe('AsyncProcess types without identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChange: string }>('searchSource');
+      const searchSource = signalSource<{ searchChange: string }>(
+        'searchSource',
+      );
 
-      const _AsyncProcessOutput = asyncProcess({
-        method: afterRecomputation(searchSource, (searchChange) => {
-          return searchChange;
+      const _AsyncProcessOutput = craftUse(
+        asyncProcess({
+          method: afterRecomputation(searchSource, (searchChange) => {
+            return searchChange;
+          }),
+          loader: async ({ params: searchChange }) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { searchChangeResult: searchChange.searchChange };
+          },
         }),
-        loader: async ({ params: searchChange }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return { searchChangeResult: searchChange.searchChange };
-        },
-      });
+      );
       expectTypeOf<typeof _AsyncProcessOutput>().toEqualTypeOf<{
         readonly value: Signal<
           | {
@@ -605,38 +632,42 @@ describe('AsyncProcess types with identifier', () => {
       const { injectAsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
-          const searchChange = asyncProcess({
-            method: ({
-              timeToWait,
-              searchChange,
-            }: {
-              timeToWait: number;
-              searchChange: string;
-            }) => ({
-              timeToWait,
-              searchChange,
-            }),
-            identifier: (params) => params.searchChange,
-            loader: async ({ params: { timeToWait, searchChange } }) => {
-              expectTypeOf(timeToWait).toEqualTypeOf<number>();
-              expectTypeOf(searchChange).toEqualTypeOf<string>();
-              await new Promise((resolve) => setTimeout(resolve, timeToWait));
-              return { searchChange };
-            },
-          });
-          const filterChange = asyncProcess(
-            {
-              method: ({ filter }: { filter: string }) => ({
-                filter,
+          const searchChange = craftUse(
+            asyncProcess({
+              method: ({
+                timeToWait,
+                searchChange,
+              }: {
+                timeToWait: number;
+                searchChange: string;
+              }) => ({
+                timeToWait,
+                searchChange,
               }),
-              loader: async ({ params: { filter } }) => {
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-                return { filter };
+              identifier: (params) => params.searchChange,
+              loader: async ({ params: { timeToWait, searchChange } }) => {
+                expectTypeOf(timeToWait).toEqualTypeOf<number>();
+                expectTypeOf(searchChange).toEqualTypeOf<string>();
+                await new Promise((resolve) => setTimeout(resolve, timeToWait));
+                return { searchChange };
               },
-            },
-            () => ({
-              additionalInsertion: 'injectedValue' as const,
             }),
+          );
+          const filterChange = craftUse(
+            asyncProcess(
+              {
+                method: ({ filter }: { filter: string }) => ({
+                  filter,
+                }),
+                loader: async ({ params: { filter } }) => {
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  return { filter };
+                },
+              },
+              () => ({
+                additionalInsertion: 'injectedValue' as const,
+              }),
+            ),
           );
 
           return {
@@ -740,34 +771,40 @@ describe('AsyncProcess types with identifier', () => {
 
   it.skip('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChangeText: string }>('searchSource');
+      const searchSource = signalSource<{ searchChangeText: string }>(
+        'searchSource',
+      );
       const { injectAsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
-          const searchChange = asyncProcess({
-            method: afterRecomputation(searchSource, (searchChange) => {
-              return searchChange;
-            }),
-            identifier: (params) => params.searchChangeText,
-            loader: async ({ params: { searchChangeText } }) => {
-              expectTypeOf(searchChangeText).toEqualTypeOf<string>();
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { searchChangeText };
-            },
-          });
-          const filterChange = asyncProcess(
-            {
-              method: ({ filter }: { filter: string }) => ({
-                filter,
+          const searchChange = craftUse(
+            asyncProcess({
+              method: afterRecomputation(searchSource, (searchChange) => {
+                return searchChange;
               }),
-              loader: async ({ params: { filter } }) => {
+              identifier: (params) => params.searchChangeText,
+              loader: async ({ params: { searchChangeText } }) => {
+                expectTypeOf(searchChangeText).toEqualTypeOf<string>();
                 await new Promise((resolve) => setTimeout(resolve, 1000));
-                return { filter };
+                return { searchChangeText };
               },
-            },
-            () => ({
-              additionalInsertion: 'injectedValue' as const,
             }),
+          );
+          const filterChange = craftUse(
+            asyncProcess(
+              {
+                method: ({ filter }: { filter: string }) => ({
+                  filter,
+                }),
+                loader: async ({ params: { filter } }) => {
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  return { filter };
+                },
+              },
+              () => ({
+                additionalInsertion: 'injectedValue' as const,
+              }),
+            ),
           );
 
           return {
@@ -853,16 +890,18 @@ describe('AsyncProcess types with identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _AsyncProcessOutput = asyncProcess({
-        method: (searchChange: string) => {
-          return searchChange;
-        },
-        identifier: (searchChange) => searchChange,
-        loader: async ({ params: searchChange }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return { searchChange };
-        },
-      });
+      const _AsyncProcessOutput = craftUse(
+        asyncProcess({
+          method: (searchChange: string) => {
+            return searchChange;
+          },
+          identifier: (searchChange) => searchChange,
+          loader: async ({ params: searchChange }) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { searchChange };
+          },
+        }),
+      );
       const _entity = _AsyncProcessOutput.select('test');
       expectTypeOf<typeof _entity>().toEqualTypeOf<
         | ({
@@ -889,18 +928,22 @@ describe('AsyncProcess types with identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChange: string }>('searchSource');
+      const searchSource = signalSource<{ searchChange: string }>(
+        'searchSource',
+      );
 
-      const _AsyncProcessOutput = asyncProcess({
-        method: afterRecomputation(searchSource, (searchChange) => {
-          return searchChange;
+      const _AsyncProcessOutput = craftUse(
+        asyncProcess({
+          method: afterRecomputation(searchSource, (searchChange) => {
+            return searchChange;
+          }),
+          identifier: (params) => params.searchChange,
+          loader: async ({ params: searchChange }) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { searchChangeResult: searchChange.searchChange };
+          },
         }),
-        identifier: (params) => params.searchChange,
-        loader: async ({ params: searchChange }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return { searchChangeResult: searchChange.searchChange };
-        },
-      });
+      );
 
       expectTypeOf(_AsyncProcessOutput.select('test')?.value()).toEqualTypeOf<
         { searchChangeResult: string } | undefined
@@ -921,85 +964,87 @@ describe('asyncProcess exceptions', () => {
     TestBed.runInInjectionContext(() => {
       const shouldFail = signal(true);
 
-      asyncProcess(
-        {
-          method: (value: string) =>
-            shouldFail()
-              ? craftException(
-                  { code: 'INVALID_USER_ID_Param' },
-                  { reason: 'missing' as const },
-                )
-              : value,
-          loader: async ({ params }) => {
-            return shouldFail()
-              ? craftException(
-                  { code: 'INVALID_USER_ID_Loader' },
-                  { reason: 'missing' as const },
-                )
-              : {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                };
+      craftUse(
+        asyncProcess(
+          {
+            method: (value: string) =>
+              shouldFail()
+                ? craftException(
+                    { code: 'INVALID_USER_ID_Param' },
+                    { reason: 'missing' as const },
+                  )
+                : value,
+            loader: async ({ params }) => {
+              return shouldFail()
+                ? craftException(
+                    { code: 'INVALID_USER_ID_Loader' },
+                    { reason: 'missing' as const },
+                  )
+                : {
+                    id: params,
+                    name: 'John Doe',
+                    email: 'test@a.com',
+                  };
+            },
           },
-        },
-        ({ exceptions, hasException, state }) => {
-          expectTypeOf(state()).toEqualTypeOf<{
-            id: string;
-            name: string;
-            email: string;
-          }>();
-          expectTypeOf(exceptions()).toEqualTypeOf<{
-            list: (
-              | CraftExceptionResult<
-                  {
-                    code: 'INVALID_USER_ID_Param';
-                    scope: 'params';
-                  },
-                  {
-                    reason: 'missing';
-                  }
-                >
-              | CraftExceptionResult<
-                  {
-                    code: 'INVALID_USER_ID_Loader';
-                    scope: 'loader';
-                  },
-                  {
-                    reason: 'missing';
-                  }
-                >
-            )[];
-            params?:
-              | CraftExceptionResult<
-                  {
-                    code: 'INVALID_USER_ID_Param';
-                    scope: 'params';
-                  },
-                  {
-                    reason: 'missing';
-                  }
-                >
-              | undefined;
-            loader?:
-              | CraftExceptionResult<
-                  {
-                    code: 'INVALID_USER_ID_Loader';
-                    scope: 'loader';
-                  },
-                  {
-                    reason: 'missing';
-                  }
-                >
-              | undefined;
-          }>();
-          expectTypeOf(hasException()).toEqualTypeOf<boolean>();
-          expectTypeOf(exceptions).toBeFunction();
-          expectTypeOf(exceptions()).toHaveProperty('list').toBeArray();
-          expectTypeOf(exceptions()).toHaveProperty('params');
-          expectTypeOf(exceptions()).toHaveProperty('loader');
-          return {};
-        },
+          ({ exceptions, hasException, state }) => {
+            expectTypeOf(state()).toEqualTypeOf<{
+              id: string;
+              name: string;
+              email: string;
+            }>();
+            expectTypeOf(exceptions()).toEqualTypeOf<{
+              list: (
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID_Param';
+                      scope: 'params';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID_Loader';
+                      scope: 'loader';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+              )[];
+              params?:
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID_Param';
+                      scope: 'params';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | undefined;
+              loader?:
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID_Loader';
+                      scope: 'loader';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | undefined;
+            }>();
+            expectTypeOf(hasException()).toEqualTypeOf<boolean>();
+            expectTypeOf(exceptions).toBeFunction();
+            expectTypeOf(exceptions()).toHaveProperty('list').toBeArray();
+            expectTypeOf(exceptions()).toHaveProperty('params');
+            expectTypeOf(exceptions()).toHaveProperty('loader');
+            return {};
+          },
+        ),
       );
     });
   });
@@ -1007,23 +1052,25 @@ describe('asyncProcess exceptions', () => {
   it('typing: captures exception returned by method and loader', async () => {
     await TestBed.runInInjectionContext(async () => {
       const shouldFail = signal(true);
-      const asyncProcessRef = asyncProcess({
-        method: (value: string) =>
-          shouldFail()
-            ? craftException(
-                { code: 'INVALID_USER_ID' },
-                { reason: 'missing' as const },
-              )
-            : value,
-        loader: async ({ params }) => {
-          return shouldFail()
-            ? craftException(
-                { code: 'INVALID_USER_ID' },
-                { reason: 'missing' as const },
-              )
-            : { id: params };
-        },
-      });
+      const asyncProcessRef = craftUse(
+        asyncProcess({
+          method: (value: string) =>
+            shouldFail()
+              ? craftException(
+                  { code: 'INVALID_USER_ID' },
+                  { reason: 'missing' as const },
+                )
+              : value,
+          loader: async ({ params }) => {
+            return shouldFail()
+              ? craftException(
+                  { code: 'INVALID_USER_ID' },
+                  { reason: 'missing' as const },
+                )
+              : { id: params };
+          },
+        }),
+      );
 
       asyncProcessRef.method('user-1');
       await vi.runAllTimersAsync();
@@ -1058,24 +1105,26 @@ describe('asyncProcess exceptions', () => {
       const shouldFailMethod = signal(true);
       const shouldFailLoader = signal(true);
 
-      const asyncProcessRef = asyncProcess({
-        method: (value: string) =>
-          shouldFailMethod()
-            ? craftException(
-                { code: 'INVALID_USER_ID' },
-                { reason: 'missing' as const },
-              )
-            : value,
-        identifier: (id) => id,
-        loader: async ({ params }) => {
-          return shouldFailLoader()
-            ? craftException(
-                { code: 'API_ERROR' },
-                { reason: 'missing user' as const },
-              )
-            : { id: params };
-        },
-      });
+      const asyncProcessRef = craftUse(
+        asyncProcess({
+          method: (value: string) =>
+            shouldFailMethod()
+              ? craftException(
+                  { code: 'INVALID_USER_ID' },
+                  { reason: 'missing' as const },
+                )
+              : value,
+          identifier: (id) => id,
+          loader: async ({ params }) => {
+            return shouldFailLoader()
+              ? craftException(
+                  { code: 'API_ERROR' },
+                  { reason: 'missing user' as const },
+                )
+              : { id: params };
+          },
+        }),
+      );
 
       asyncProcessRef.method('user-1');
       await vi.runAllTimersAsync();
@@ -1139,17 +1188,19 @@ describe('asyncProcess exceptions', () => {
 
   it('typing with identifier: return select exceptions for an identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const asyncProcessRef = asyncProcess({
-        method: (value: string) => value,
-        identifier: (id) => id,
-        loader: async () =>
-          craftException(
-            {
-              code: 'API_ERROR',
-            },
-            { reason: 'missing' as const },
-          ),
-      });
+      const asyncProcessRef = craftUse(
+        asyncProcess({
+          method: (value: string) => value,
+          identifier: (id) => id,
+          loader: async () =>
+            craftException(
+              {
+                code: 'API_ERROR',
+              },
+              { reason: 'missing' as const },
+            ),
+        }),
+      );
 
       asyncProcessRef.method('user-1');
       await vi.runAllTimersAsync();
@@ -1193,24 +1244,26 @@ describe('asyncProcess exceptions', () => {
   it('typing with identifier: supports union of loader exceptions', async () => {
     await TestBed.runInInjectionContext(async () => {
       const failed = signal(true);
-      const asyncProcessRef = asyncProcess({
-        method: (value: string) => value,
-        identifier: (id) => id,
-        loader: async () =>
-          failed()
-            ? craftException(
-                {
-                  code: 'API_ERROR',
-                },
-                { reason: 'missing' as const },
-              )
-            : craftException(
-                {
-                  code: 'HTTP_ERROR',
-                },
-                { reason: 'disconnected' as const },
-              ),
-      });
+      const asyncProcessRef = craftUse(
+        asyncProcess({
+          method: (value: string) => value,
+          identifier: (id) => id,
+          loader: async () =>
+            failed()
+              ? craftException(
+                  {
+                    code: 'API_ERROR',
+                  },
+                  { reason: 'missing' as const },
+                )
+              : craftException(
+                  {
+                    code: 'HTTP_ERROR',
+                  },
+                  { reason: 'disconnected' as const },
+                ),
+        }),
+      );
 
       asyncProcessRef.method('user-1');
       await vi.runAllTimersAsync();
@@ -1255,16 +1308,18 @@ describe('asyncProcess exceptions', () => {
         id: params,
       }));
 
-      const asyncProcessRef = asyncProcess({
-        method: (value: string) =>
-          value.length < 3
-            ? craftException(
-                { code: 'SEARCH_TERM_TOO_SHORT' },
-                { min: 3, received: value.length },
-              )
-            : value,
-        loader: loader as any,
-      });
+      const asyncProcessRef = craftUse(
+        asyncProcess({
+          method: (value: string) =>
+            value.length < 3
+              ? craftException(
+                  { code: 'SEARCH_TERM_TOO_SHORT' },
+                  { min: 3, received: value.length },
+                )
+              : value,
+          loader: loader as any,
+        }),
+      );
 
       asyncProcessRef.method('ab');
       await vi.runAllTimersAsync();
@@ -1282,14 +1337,16 @@ describe('asyncProcess exceptions', () => {
 
   it('captures exception returned by loader without exposing it in safeValue', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const asyncProcessRef = asyncProcess({
-        method: (value: string) => value,
-        loader: async () =>
-          craftException(
-            { code: 'INVALID_USER_ID', scope: 'loader' },
-            { from: 'loader' as const },
-          ),
-      });
+      const asyncProcessRef = craftUse(
+        asyncProcess({
+          method: (value: string) => value,
+          loader: async () =>
+            craftException(
+              { code: 'INVALID_USER_ID', scope: 'loader' },
+              { from: 'loader' as const },
+            ),
+        }),
+      );
 
       asyncProcessRef.method('user-1');
       await vi.runAllTimersAsync();
@@ -1304,12 +1361,14 @@ describe('asyncProcess exceptions', () => {
 
   it('keeps method exceptions global in parallel asyncProcess', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const asyncProcessRef = asyncProcess({
-        method: (id: 'A' | 'B') =>
-          craftException({ code: 'INVALID_ID' }, { params: id }),
-        identifier: (id) => id,
-        loader: async ({ params }) => ({ id: params }),
-      });
+      const asyncProcessRef = craftUse(
+        asyncProcess({
+          method: (id: 'A' | 'B') =>
+            craftException({ code: 'INVALID_ID' }, { params: id }),
+          identifier: (id) => id,
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
 
       asyncProcessRef.method('A');
       await vi.runAllTimersAsync();
@@ -1332,16 +1391,18 @@ describe('AsyncProcess with params config', () => {
 
   it('should accept params config and auto-trigger loader', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = asyncProcess({
-        params: () => '5',
-        loader: async ({ params }) => {
-          return {
-            id: params,
-            name: 'John Doe',
-            email: 'test@a.com',
-          };
-        },
-      });
+      const myAsyncProcess = craftUse(
+        asyncProcess({
+          params: () => '5',
+          loader: async ({ params }) => {
+            return {
+              id: params,
+              name: 'John Doe',
+              email: 'test@a.com',
+            };
+          },
+        }),
+      );
 
       await vi.runAllTimersAsync();
       expect(myAsyncProcess.status()).toBe('resolved');
@@ -1355,17 +1416,19 @@ describe('AsyncProcess with params config', () => {
 
   it('should accept params config with identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = asyncProcess({
-        params: () => '5',
-        identifier: (params) => params,
-        loader: async ({ params }) => {
-          return {
-            id: params,
-            name: 'John Doe',
-            email: 'test@a.com',
-          };
-        },
-      });
+      const myAsyncProcess = craftUse(
+        asyncProcess({
+          params: () => '5',
+          identifier: (params) => params,
+          loader: async ({ params }) => {
+            return {
+              id: params,
+              name: 'John Doe',
+              email: 'test@a.com',
+            };
+          },
+        }),
+      );
 
       await vi.runAllTimersAsync();
       const entity = myAsyncProcess.select('5');
@@ -1382,16 +1445,18 @@ describe('AsyncProcess with params config', () => {
 describe('AsyncProcess types with params config', () => {
   it('should infer correctly the types of asyncProcess with params (no identifier)', () => {
     TestBed.runInInjectionContext(() => {
-      const _asyncProcessOutput = asyncProcess({
-        params: () => '5',
-        loader: async ({ params }) => {
-          return {
-            id: params,
-            name: 'John Doe',
-            email: 'test@a.com',
-          };
-        },
-      });
+      const _asyncProcessOutput = craftUse(
+        asyncProcess({
+          params: () => '5',
+          loader: async ({ params }) => {
+            return {
+              id: params,
+              name: 'John Doe',
+              email: 'test@a.com',
+            };
+          },
+        }),
+      );
 
       expectTypeOf<typeof _asyncProcessOutput>().toEqualTypeOf<{
         readonly value: Signal<
@@ -1427,17 +1492,19 @@ describe('AsyncProcess types with params config', () => {
 
   it('should infer correctly the types of asyncProcess with params and identifier', () => {
     TestBed.runInInjectionContext(() => {
-      const _asyncProcessOutput = asyncProcess({
-        params: () => '5',
-        identifier: (params) => params,
-        loader: async ({ params }) => {
-          return {
-            id: params,
-            name: 'John Doe',
-            email: 'test@a.com',
-          };
-        },
-      });
+      const _asyncProcessOutput = craftUse(
+        asyncProcess({
+          params: () => '5',
+          identifier: (params) => params,
+          loader: async ({ params }) => {
+            return {
+              id: params,
+              name: 'John Doe',
+              email: 'test@a.com',
+            };
+          },
+        }),
+      );
 
       const entity = _asyncProcessOutput.select('5');
       expectTypeOf(entity).toEqualTypeOf<
@@ -1480,6 +1547,7 @@ describe('asyncProcess — providers', () => {
     let runtimeContext: AsyncProcessMethodRuntimeContext | undefined;
     let observedRuntimeContext: AsyncProcessMethodRuntimeContext | undefined;
     const runtimeContextWrapper = provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (factory, thisArg, args) {
         runtimeContext =
           injectAsyncProcessMethodRuntimeContext() ?? runtimeContext;
@@ -1488,22 +1556,24 @@ describe('asyncProcess — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const processRef = asyncProcess(
-        {
-          providers: [
-            runtimeContextWrapper,
-            provideFnWrapObserver(() => {
-              observedRuntimeContext =
-                injectAsyncProcessMethodRuntimeContext() ??
-                observedRuntimeContext;
-            }),
-          ],
-          method: (id: string) => id,
-          loader: async () => ({ count: 0 }),
-        },
-        ({ set }) => ({
-          initialize: () => set({ count: 1 }),
-        }),
+      const processRef = craftUse(
+        asyncProcess(
+          {
+            providers: [
+              runtimeContextWrapper,
+              provideFnWrapObserver(() => {
+                observedRuntimeContext =
+                  injectAsyncProcessMethodRuntimeContext() ??
+                  observedRuntimeContext;
+              }),
+            ],
+            method: (id: string) => id,
+            loader: async () => ({ count: 0 }),
+          },
+          ({ set }) => ({
+            initialize: () => set({ count: 1 }),
+          }),
+        ),
       );
 
       expect(observedRuntimeContext?.kind).toBe('asyncProcess');
@@ -1521,15 +1591,17 @@ describe('asyncProcess — providers', () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
     TestBed.runInInjectionContext(() => {
-      const processRef = asyncProcess({
-        providers: [
-          providePrimitiveResourceRuntimeObserver((context) => {
-            resourceContext = context;
-          }),
-        ],
-        method: (id: string) => id,
-        loader: async () => ({ count: 0 }),
-      });
+      const processRef = craftUse(
+        asyncProcess({
+          providers: [
+            providePrimitiveResourceRuntimeObserver((context) => {
+              resourceContext = context;
+            }),
+          ],
+          method: (id: string) => id,
+          loader: async () => ({ count: 0 }),
+        }),
+      );
 
       expect(resourceContext?.kind).toBe('asyncProcess');
       expect(resourceContext?.grouped).toBe(false);
@@ -1550,13 +1622,20 @@ describe('asyncProcess — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const processRef = asyncProcess({
-        providers: [provideFnWrapper(trackingWrapper)],
-        method: function* (id: string) {
-          return id;
-        },
-        loader: async ({ params }) => ({ id: params }),
-      });
+      const processRef = craftUse(
+        asyncProcess({
+          providers: [
+            provideFnWrapper(
+              'Warning: dependency injection here is not type-safe and may fail at runtime',
+              trackingWrapper,
+            ),
+          ],
+          method: function* (id: string) {
+            return id;
+          },
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
 
       expect(callLog).toEqual([]);
       processRef.method('user-1');
@@ -1575,19 +1654,28 @@ describe('asyncProcess — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const withProvider = asyncProcess({
-        providers: [provideFnWrapper(trackingWrapper)],
-        method: function* (id: string) {
-          return id;
-        },
-        loader: async ({ params }) => ({ id: params }),
-      });
-      const withoutProvider = asyncProcess({
-        method: function* (id: string) {
-          return id;
-        },
-        loader: async ({ params }) => ({ id: params }),
-      });
+      const withProvider = craftUse(
+        asyncProcess({
+          providers: [
+            provideFnWrapper(
+              'Warning: dependency injection here is not type-safe and may fail at runtime',
+              trackingWrapper,
+            ),
+          ],
+          method: function* (id: string) {
+            return id;
+          },
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
+      const withoutProvider = craftUse(
+        asyncProcess({
+          method: function* (id: string) {
+            return id;
+          },
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
 
       withoutProvider.method('x');
       await vi.runAllTimersAsync();
@@ -1606,23 +1694,27 @@ describe('asyncProcess — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const withoutProviders = asyncProcess({
-        method: (id: string) => id,
-        loader: function* ({ params }) {
-          yield* AsyncServiceToYield();
-          return Promise.resolve({ id: params });
-        },
-      });
+      const withoutProviders = craftUse(
+        asyncProcess({
+          method: (id: string) => id,
+          loader: function* ({ params }) {
+            yield* AsyncServiceToYield();
+            return Promise.resolve({ id: params });
+          },
+        }),
+      );
       type WithoutDeps = ExtractDeps<typeof withoutProviders>;
       expectTypeOf<
         'AsyncService' extends keyof WithoutDeps ? true : false
       >().toEqualTypeOf<true>();
 
-      const withProviders = asyncProcess({
-        providers: [provideAsyncService()],
-        method: (id: string) => id,
-        loader: async ({ params }) => ({ id: params }),
-      });
+      const withProviders = craftUse(
+        asyncProcess({
+          providers: [provideAsyncService()],
+          method: (id: string) => id,
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
       expectTypeOf(withProviders.method).toBeFunction();
     });
   });

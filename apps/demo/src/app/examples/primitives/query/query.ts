@@ -1,19 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-    componentMonitoring,
-    craftMethod,
-    CraftRouterToYield,
-    insertLocalStoragePersister,
-    provideHostName,
-    query,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftUse,
+  componentMonitoring,
+  craftMethod,
+  CraftRouterToYield,
+  insertLocalStoragePersister,
+  provideHostName,
+  query,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 import {
-    StatusComponent,
-    type GenDeps_StatusComponent,
+  StatusComponent,
+  type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
 import { injectApiService } from './api.service';
 
@@ -50,15 +51,17 @@ export default class GlobalQuery {
 
   private readonly apiService = injectApiService();
 
-  protected readonly userQuery = query(
-    {
-      params: this.userId,
-      loader: ({ params: userId }) => this.apiService.getItemById(userId),
-    },
-    insertLocalStoragePersister({
-      storeName: 'demo-app',
-      key: 'user-query',
-    }),
+  protected readonly userQuery = craftUse(
+    query(
+      {
+        params: this.userId,
+        loader: ({ params: userId }) => this.apiService.getItemById(userId),
+      },
+      insertLocalStoragePersister({
+        storeName: 'demo-app',
+        key: 'user-query',
+      }),
+    ),
   );
 
   protected nextPage = craftMethod('nextPage', this, function* () {
@@ -81,22 +84,22 @@ export default class GlobalQuery {
 }
 
 export type GenDeps_GlobalQuery = GetDeps<{
-      deps: {
-        CommonModule: CommonModule;
-        GenDeps_StatusComponent: GenDeps_StatusComponent;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<GlobalQuery["_monitoring"]>;
-        userId: ExtractDeps<GlobalQuery["userId"]>;
-        apiService: {
-            ApiService: ExtractDeps<typeof injectApiService>["ApiService"];
-          };
-        userQuery: ExtractDeps<GlobalQuery["userQuery"]>;
-        nextPage: ExtractDeps<GlobalQuery["nextPage"]>;
-        previousPage: ExtractDeps<GlobalQuery["previousPage"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<GlobalQuery>;
-    }>;
+  deps: {
+    CommonModule: CommonModule;
+    GenDeps_StatusComponent: GenDeps_StatusComponent;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<GlobalQuery['_monitoring']>;
+    userId: ExtractDeps<GlobalQuery['userId']>;
+    apiService: {
+      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
+    };
+    userQuery: ExtractDeps<GlobalQuery['userQuery']>;
+    nextPage: ExtractDeps<GlobalQuery['nextPage']>;
+    previousPage: ExtractDeps<GlobalQuery['previousPage']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<GlobalQuery>;
+}>;

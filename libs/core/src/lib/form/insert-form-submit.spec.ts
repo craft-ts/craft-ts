@@ -14,6 +14,7 @@ import { cRequired } from './validator';
 import { insertSelectFormTree } from './insert-select-form-tree';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { craftPipe } from '../craft-pipe';
+import { craftUse } from '../craft-use';
 
 type LoginData = {
   id: string;
@@ -33,23 +34,27 @@ describe('insertFormSubmit', () => {
 
   it('submits without config (no second argument) — stays clean of exceptions', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = mutation({
-        method: (validatedLogin: ValidatedFormValue<LoginData>) => {
-          expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
-          return validatedLogin;
-        },
-        loader: async ({ params: login }) => {
-          await wait(10000);
-          return login;
-        },
-      });
-      const loginForm = state(
-        {
-          id: '1',
-          name: 'John',
-          password: '1234',
-        } satisfies LoginData,
-        insertForm(insertFormSubmit(submitRef)),
+      const submitRef = craftUse(
+        mutation({
+          method: (validatedLogin: ValidatedFormValue<LoginData>) => {
+            expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
+            return validatedLogin;
+          },
+          loader: async ({ params: login }) => {
+            await wait(10000);
+            return login;
+          },
+        }),
+      );
+      const loginForm = craftUse(
+        state(
+          {
+            id: '1',
+            name: 'John',
+            password: '1234',
+          } satisfies LoginData,
+          insertForm(insertFormSubmit(submitRef)),
+        ),
       );
 
       expect(loginForm.form.submitting()).toBe(false);
@@ -69,19 +74,23 @@ describe('insertFormSubmit', () => {
 
   it('reflects mutation exceptions on the form', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = mutation({
-        method: (login: ValidatedFormValue<LoginData>) => login,
-        loader: async () => {
-          await wait(10000);
-          return craftException(
-            { code: 'NameAlreadyExistsException' },
-            { message: 'Name already exists' as const },
-          );
-        },
-      });
-      const loginForm = state(
-        { id: '1', name: 'John', password: '1234' } satisfies LoginData,
-        insertForm(insertFormSubmit(submitRef)),
+      const submitRef = craftUse(
+        mutation({
+          method: (login: ValidatedFormValue<LoginData>) => login,
+          loader: async () => {
+            await wait(10000);
+            return craftException(
+              { code: 'NameAlreadyExistsException' },
+              { message: 'Name already exists' as const },
+            );
+          },
+        }),
+      );
+      const loginForm = craftUse(
+        state(
+          { id: '1', name: 'John', password: '1234' } satisfies LoginData,
+          insertForm(insertFormSubmit(submitRef)),
+        ),
       );
 
       loginForm.form.submit();
@@ -99,13 +108,17 @@ describe('insertFormSubmit', () => {
 
   it('marks hasAttemptedSubmit on submit()', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = mutation({
-        method: (login: ValidatedFormValue<LoginData>) => login,
-        loader: async ({ params }) => params,
-      });
-      const loginForm = state(
-        { id: '1', name: 'John', password: '1234' } satisfies LoginData,
-        insertForm(insertFormSubmit(submitRef)),
+      const submitRef = craftUse(
+        mutation({
+          method: (login: ValidatedFormValue<LoginData>) => login,
+          loader: async ({ params }) => params,
+        }),
+      );
+      const loginForm = craftUse(
+        state(
+          { id: '1', name: 'John', password: '1234' } satisfies LoginData,
+          insertForm(insertFormSubmit(submitRef)),
+        ),
       );
 
       expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
@@ -117,20 +130,25 @@ describe('insertFormSubmit', () => {
   it('does not call the loader when the form is invalid', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loaderSpy = vi.fn();
-      const submitRef = mutation({
-        method: (validatedValue: ValidatedFormValue<string>) => validatedValue,
-        loader: async ({ params }) => {
-          loaderSpy(params);
-          return params;
-        },
-      });
-      const loginForm = state(
-        '' as string,
-        insertForm(
-          insertFormAttributes(() => ({
-            validators: [cRequired()],
-          })),
-          insertFormSubmit(submitRef),
+      const submitRef = craftUse(
+        mutation({
+          method: (validatedValue: ValidatedFormValue<string>) =>
+            validatedValue,
+          loader: async ({ params }) => {
+            loaderSpy(params);
+            return params;
+          },
+        }),
+      );
+      const loginForm = craftUse(
+        state(
+          '' as string,
+          insertForm(
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+            insertFormSubmit(submitRef),
+          ),
         ),
       );
 
@@ -149,26 +167,30 @@ describe('insertFormSubmit', () => {
   it('does not call the loader when a sub-field validator fails', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loaderSpy = vi.fn();
-      const submitRef = mutation({
-        method: (
-          validatedValue: ValidatedFormValue<{ name: string; age: number }>,
-        ) => validatedValue,
-        loader: async ({ params }) => {
-          loaderSpy(params);
-          return params;
-        },
-      });
-      const userForm = state(
-        { name: '', age: 0 },
-        insertForm(
-          insertFormSubmit(submitRef),
-          insertSelectFormTree('name', (context) =>
-            craftPipe(
-              context,
-              insertNoopTypingAnchor,
-              insertFormAttributes(() => ({
-                validators: [cRequired()],
-              })),
+      const submitRef = craftUse(
+        mutation({
+          method: (
+            validatedValue: ValidatedFormValue<{ name: string; age: number }>,
+          ) => validatedValue,
+          loader: async ({ params }) => {
+            loaderSpy(params);
+            return params;
+          },
+        }),
+      );
+      const userForm = craftUse(
+        state(
+          { name: '', age: 0 },
+          insertForm(
+            insertFormSubmit(submitRef),
+            insertSelectFormTree('name', (context) =>
+              craftPipe(
+                context,
+                insertNoopTypingAnchor,
+                insertFormAttributes(() => ({
+                  validators: [cRequired()],
+                })),
+              ),
             ),
           ),
         ),
@@ -193,25 +215,29 @@ describe('insertFormSubmit', () => {
   describe('config callbacks', () => {
     it('success callback adds exceptions on resolved (no mutation exception)', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const submitRef = mutation({
-          method: (login: ValidatedFormValue<LoginData>) => login,
-          loader: async ({ params }) => {
-            await wait(10);
-            return params;
-          },
-        });
-        const loginForm = state(
-          { id: '1', name: 'John', password: '1234' } satisfies LoginData,
-          insertForm(
-            insertFormSubmit(submitRef, {
-              success: ({ submitCraftResource }) =>
-                submitCraftResource.value()?.name === 'John'
-                  ? craftException(
-                      { code: 'NameAlreadyExistsExceptionFromSuccess' },
-                      undefined,
-                    )
-                  : undefined,
-            }),
+        const submitRef = craftUse(
+          mutation({
+            method: (login: ValidatedFormValue<LoginData>) => login,
+            loader: async ({ params }) => {
+              await wait(10);
+              return params;
+            },
+          }),
+        );
+        const loginForm = craftUse(
+          state(
+            { id: '1', name: 'John', password: '1234' } satisfies LoginData,
+            insertForm(
+              insertFormSubmit(submitRef, {
+                success: ({ submitCraftResource }) =>
+                  submitCraftResource.value()?.name === 'John'
+                    ? craftException(
+                        { code: 'NameAlreadyExistsExceptionFromSuccess' },
+                        undefined,
+                      )
+                    : undefined,
+              }),
+            ),
           ),
         );
 
@@ -231,39 +257,43 @@ describe('insertFormSubmit', () => {
 
     it('exceptions rules can omit mutation exceptions and add typed form submit exceptions', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const submitRef = mutation({
-          method: (login: ValidatedFormValue<LoginData>) => login,
-          loader: async () => {
-            await wait(10);
-            return craftException(
-              { code: 'NameAlreadyExistsException' },
-              { message: 'Name already exists' as const },
-            );
-          },
-        });
-        const loginForm = state(
-          { id: '1', name: 'John', password: '1234' } satisfies LoginData,
-          insertForm(
-            insertFormSubmit(submitRef, {
-              exceptions: [
-                ({ omit }) => omit(['NameAlreadyExistsException']),
-                ({ submitCraftResource }) => {
-                  const list = submitCraftResource.exceptions()?.list ?? [];
-                  expectTypeOf(
-                    list[0]?.code,
-                  ).toEqualTypeOf<'NameAlreadyExistsException'>();
-                  if (
-                    list.some((e) => e.code === 'NameAlreadyExistsException')
-                  ) {
-                    return craftException(
-                      { code: 'NameAlreadyExistsExceptionFromException' },
-                      undefined,
-                    );
-                  }
-                  return undefined;
-                },
-              ],
-            }),
+        const submitRef = craftUse(
+          mutation({
+            method: (login: ValidatedFormValue<LoginData>) => login,
+            loader: async () => {
+              await wait(10);
+              return craftException(
+                { code: 'NameAlreadyExistsException' },
+                { message: 'Name already exists' as const },
+              );
+            },
+          }),
+        );
+        const loginForm = craftUse(
+          state(
+            { id: '1', name: 'John', password: '1234' } satisfies LoginData,
+            insertForm(
+              insertFormSubmit(submitRef, {
+                exceptions: [
+                  ({ omit }) => omit(['NameAlreadyExistsException']),
+                  ({ submitCraftResource }) => {
+                    const list = submitCraftResource.exceptions()?.list ?? [];
+                    expectTypeOf(
+                      list[0]?.code,
+                    ).toEqualTypeOf<'NameAlreadyExistsException'>();
+                    if (
+                      list.some((e) => e.code === 'NameAlreadyExistsException')
+                    ) {
+                      return craftException(
+                        { code: 'NameAlreadyExistsExceptionFromException' },
+                        undefined,
+                      );
+                    }
+                    return undefined;
+                  },
+                ],
+              }),
+            ),
           ),
         );
 
@@ -283,22 +313,28 @@ describe('insertFormSubmit', () => {
 
     it('exceptions rules can omit specific mutation exceptions', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const submitRef = mutation({
-          method: (login: ValidatedFormValue<LoginData>) => login,
-          loader: async () => {
-            await wait(10);
-            return craftException(
-              { code: 'NameAlreadyExistsException' },
-              { message: 'Name already exists' as const },
-            );
-          },
-        });
-        const loginForm = state(
-          { id: '1', name: 'John', password: '1234' } satisfies LoginData,
-          insertForm(
-            insertFormSubmit(submitRef, {
-              exceptions: [({ omit }) => omit(['NameAlreadyExistsException'])],
-            }),
+        const submitRef = craftUse(
+          mutation({
+            method: (login: ValidatedFormValue<LoginData>) => login,
+            loader: async () => {
+              await wait(10);
+              return craftException(
+                { code: 'NameAlreadyExistsException' },
+                { message: 'Name already exists' as const },
+              );
+            },
+          }),
+        );
+        const loginForm = craftUse(
+          state(
+            { id: '1', name: 'John', password: '1234' } satisfies LoginData,
+            insertForm(
+              insertFormSubmit(submitRef, {
+                exceptions: [
+                  ({ omit }) => omit(['NameAlreadyExistsException']),
+                ],
+              }),
+            ),
           ),
         );
 
@@ -315,16 +351,20 @@ describe('insertFormSubmit', () => {
     it('success callback does NOT fire when the mutation returned an exception', async () => {
       await TestBed.runInInjectionContext(async () => {
         const successSpy = vi.fn(() => undefined);
-        const submitRef = mutation({
-          method: (login: ValidatedFormValue<LoginData>) => login,
-          loader: async () => {
-            await wait(10);
-            return craftException({ code: 'BizError' }, undefined);
-          },
-        });
-        const loginForm = state(
-          { id: '1', name: 'John', password: '1234' } satisfies LoginData,
-          insertForm(insertFormSubmit(submitRef, { success: successSpy })),
+        const submitRef = craftUse(
+          mutation({
+            method: (login: ValidatedFormValue<LoginData>) => login,
+            loader: async () => {
+              await wait(10);
+              return craftException({ code: 'BizError' }, undefined);
+            },
+          }),
+        );
+        const loginForm = craftUse(
+          state(
+            { id: '1', name: 'John', password: '1234' } satisfies LoginData,
+            insertForm(insertFormSubmit(submitRef, { success: successSpy })),
+          ),
         );
 
         loginForm.form.submit();
@@ -336,16 +376,20 @@ describe('insertFormSubmit', () => {
 
     it('resets the form after a successful resolved mutation', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const submitRef = mutation({
-          method: (login: ValidatedFormValue<LoginData>) => login,
-          loader: async ({ params }) => {
-            await wait(10);
-            return params;
-          },
-        });
-        const loginForm = state(
-          { id: '1', name: 'John', password: '1234' } satisfies LoginData,
-          insertForm(insertFormSubmit(submitRef)),
+        const submitRef = craftUse(
+          mutation({
+            method: (login: ValidatedFormValue<LoginData>) => login,
+            loader: async ({ params }) => {
+              await wait(10);
+              return params;
+            },
+          }),
+        );
+        const loginForm = craftUse(
+          state(
+            { id: '1', name: 'John', password: '1234' } satisfies LoginData,
+            insertForm(insertFormSubmit(submitRef)),
+          ),
         );
 
         loginForm.form.name.set('Jane');
@@ -370,29 +414,33 @@ describe('insertFormSubmit — parallel forms', () => {
 
   it('each parallel form has its own submitting state', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = mutation({
-        method: (validatedLogin: ValidatedFormValue<LoginData>) => {
-          expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
-          return validatedLogin;
-        },
-        identifier: ({ id }) => id,
-        loader: async ({ params: login }) => {
-          await wait(10000);
-          return login;
-        },
-      });
+      const submitRef = craftUse(
+        mutation({
+          method: (validatedLogin: ValidatedFormValue<LoginData>) => {
+            expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
+            return validatedLogin;
+          },
+          identifier: ({ id }) => id,
+          loader: async ({ params: login }) => {
+            await wait(10000);
+            return login;
+          },
+        }),
+      );
 
-      const loginForms = state(
-        [
-          { id: '1', name: '1', password: '' },
-          { id: '2', name: '2', password: '' },
-        ] satisfies LoginData[],
-        insertForm(
-          { identifier: ({ item: { id } }) => id },
-          insertFormSubmit(submitRef),
-          ({ update }) => ({
-            setName: (name: string) => update((v) => ({ ...v, name })),
-          }),
+      const loginForms = craftUse(
+        state(
+          [
+            { id: '1', name: '1', password: '' },
+            { id: '2', name: '2', password: '' },
+          ] satisfies LoginData[],
+          insertForm(
+            { identifier: ({ item: { id } }) => id },
+            insertFormSubmit(submitRef),
+            ({ update }) => ({
+              setName: (name: string) => update((v) => ({ ...v, name })),
+            }),
+          ),
         ),
       );
 
@@ -423,41 +471,47 @@ describe('insertFormSubmit — parallel forms', () => {
 
   it('each parallel form has its own exceptions and override callbacks', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const submitRef = mutation({
-        method: (validatedLogin: ValidatedFormValue<LoginData>) =>
-          validatedLogin,
-        identifier: ({ id }: { id: string }) => id,
-        loader: async () => {
-          await wait(10);
-          return craftException(
-            { code: 'NameAlreadyExistsException' },
-            { message: 'Name already exists' as const },
-          );
-        },
-      });
+      const submitRef = craftUse(
+        mutation({
+          method: (validatedLogin: ValidatedFormValue<LoginData>) =>
+            validatedLogin,
+          identifier: ({ id }: { id: string }) => id,
+          loader: async () => {
+            await wait(10);
+            return craftException(
+              { code: 'NameAlreadyExistsException' },
+              { message: 'Name already exists' as const },
+            );
+          },
+        }),
+      );
 
-      const loginForms = state(
-        [
-          { id: '1', name: '1', password: '' },
-          { id: '2', name: '2', password: '' },
-        ] satisfies LoginData[],
-        insertForm(
-          { identifier: ({ item: { id } }) => id },
-          insertFormSubmit(submitRef, {
-            exceptions: [
-              ({ omit }) => omit(['NameAlreadyExistsException']),
-              ({ submitCraftResource }) => {
-                const list = submitCraftResource.exceptions()?.list ?? [];
-                if (list.some((e) => e.code === 'NameAlreadyExistsException')) {
-                  return craftException(
-                    { code: 'NameAlreadyExistsExceptionFromException' },
-                    undefined,
-                  );
-                }
-                return undefined;
-              },
-            ],
-          }),
+      const loginForms = craftUse(
+        state(
+          [
+            { id: '1', name: '1', password: '' },
+            { id: '2', name: '2', password: '' },
+          ] satisfies LoginData[],
+          insertForm(
+            { identifier: ({ item: { id } }) => id },
+            insertFormSubmit(submitRef, {
+              exceptions: [
+                ({ omit }) => omit(['NameAlreadyExistsException']),
+                ({ submitCraftResource }) => {
+                  const list = submitCraftResource.exceptions()?.list ?? [];
+                  if (
+                    list.some((e) => e.code === 'NameAlreadyExistsException')
+                  ) {
+                    return craftException(
+                      { code: 'NameAlreadyExistsExceptionFromException' },
+                      undefined,
+                    );
+                  }
+                  return undefined;
+                },
+              ],
+            }),
+          ),
         ),
       );
 

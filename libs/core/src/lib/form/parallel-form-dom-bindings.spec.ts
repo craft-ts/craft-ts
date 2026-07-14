@@ -11,6 +11,7 @@ import { insertFormSubmit } from './insert-form-submit';
 import { insertSelectFormTree } from './insert-select-form-tree';
 import { craftPipe } from '../craft-pipe';
 import { cRequired } from './validator';
+import { craftUse } from '../craft-use';
 
 type User = { id: string; name: string };
 
@@ -24,18 +25,20 @@ type User = { id: string; name: string };
   `,
 })
 class ParallelSelectedFieldBindingsComponent {
-  protected readonly usersForm = state(
-    [
-      {
-        id: '1',
-        name: 'Alpha',
-      },
-    ],
-    insertForm(
-      {
-        identifier: ({ item }) => item.id,
-      },
-      insertSelectFormTree('name', insertNoopTypingAnchor),
+  protected readonly usersForm = craftUse(
+    state(
+      [
+        {
+          id: '1',
+          name: 'Alpha',
+        },
+      ],
+      insertForm(
+        {
+          identifier: ({ item }) => item.id,
+        },
+        insertSelectFormTree('name', insertNoopTypingAnchor),
+      ),
     ),
   );
 }
@@ -60,26 +63,30 @@ class ParallelLazySubFormComponent {
   //   - insertFormSubmit creates effects on construction
   //   - insertFormAttributes registers validators (signal writes via plain arrays)
   // Both must construct without throwing.
-  private readonly updateUser = mutation({
-    method: (validated: ValidatedFormValue<User>) => validated,
-    loader: async ({ params }) => params,
-  });
+  private readonly updateUser = craftUse(
+    mutation({
+      method: (validated: ValidatedFormValue<User>) => validated,
+      loader: async ({ params }) => params,
+    }),
+  );
 
-  protected readonly usersForm = state(
-    [
-      { id: '1', name: 'Alpha' },
-      { id: '2', name: 'Beta' },
-    ] as User[],
-    insertForm(
-      { identifier: ({ item }) => item.id },
-      insertFormSubmit(this.updateUser),
-      insertSelectFormTree('name', (context) =>
-        craftPipe(
-          context,
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({
-            validators: [cRequired()],
-          })),
+  protected readonly usersForm = craftUse(
+    state(
+      [
+        { id: '1', name: 'Alpha' },
+        { id: '2', name: 'Beta' },
+      ] as User[],
+      insertForm(
+        { identifier: ({ item }) => item.id },
+        insertFormSubmit(this.updateUser),
+        insertSelectFormTree('name', (context) =>
+          craftPipe(
+            context,
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+          ),
         ),
       ),
     ),

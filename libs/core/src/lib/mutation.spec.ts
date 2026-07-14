@@ -28,6 +28,7 @@ import {
   providePrimitiveResourceRuntimeObserver,
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
+import { craftUse } from './craft-use';
 
 type EmptyMutationExceptions = {
   hasException: Signal<boolean>;
@@ -67,24 +68,28 @@ describe('mutation', () => {
   });
   it('should enable to define a mutation that can be call with the method', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationInstance = mutation({
-        method: ({
-          timeToWait,
-          searchChange,
-        }: {
-          timeToWait: number;
-          searchChange: string;
-        }) => ({
-          timeToWait,
-          searchChange,
+      const mutationInstance = craftUse(
+        mutation({
+          method: ({
+            timeToWait,
+            searchChange,
+          }: {
+            timeToWait: number;
+            searchChange: string;
+          }) => ({
+            timeToWait,
+            searchChange,
+          }),
+          loader: async ({ params: { timeToWait, searchChange } }) => {
+            type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
+            type ExpectSearchChange = Expect<
+              Equal<typeof searchChange, string>
+            >;
+            await new Promise((resolve) => setTimeout(resolve, timeToWait));
+            return { searchChange };
+          },
         }),
-        loader: async ({ params: { timeToWait, searchChange } }) => {
-          type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-          type ExpectSearchChange = Expect<Equal<typeof searchChange, string>>;
-          await new Promise((resolve) => setTimeout(resolve, timeToWait));
-          return { searchChange };
-        },
-      });
+      );
 
       expect(mutationInstance.status()).toBe('idle');
       mutationInstance.mutate({
@@ -109,18 +114,22 @@ describe('mutation', () => {
         (searchConfig) => searchConfig,
       );
       const result = test();
-      const myMutation = mutation({
-        method: afterRecomputation(
-          searchSource,
-          (searchConfig) => searchConfig,
-        ),
-        loader: async ({ params: { timeToWait, searchChange } }) => {
-          type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-          type ExpectSearchChange = Expect<Equal<typeof searchChange, string>>;
-          await new Promise((resolve) => setTimeout(resolve, timeToWait));
-          return { searchChange };
-        },
-      });
+      const myMutation = craftUse(
+        mutation({
+          method: afterRecomputation(
+            searchSource,
+            (searchConfig) => searchConfig,
+          ),
+          loader: async ({ params: { timeToWait, searchChange } }) => {
+            type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
+            type ExpectSearchChange = Expect<
+              Equal<typeof searchChange, string>
+            >;
+            await new Promise((resolve) => setTimeout(resolve, timeToWait));
+            return { searchChange };
+          },
+        }),
+      );
 
       expect(myMutation.status()).toBe('idle');
       expectTypeOf(myMutation.source).toEqualTypeOf<
@@ -143,15 +152,17 @@ describe('mutation', () => {
 
   it('should return undefined with safeValue when status is error', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationInstance = mutation({
-        method: (shouldFail: boolean) => shouldFail,
-        loader: async ({ params: shouldFail }) => {
-          if (shouldFail) {
-            throw new Error('Test error');
-          }
-          return { success: true };
-        },
-      });
+      const mutationInstance = craftUse(
+        mutation({
+          method: (shouldFail: boolean) => shouldFail,
+          loader: async ({ params: shouldFail }) => {
+            if (shouldFail) {
+              throw new Error('Test error');
+            }
+            return { success: true };
+          },
+        }),
+      );
 
       expect(mutationInstance.status()).toBe('idle');
       mutationInstance.mutate(true);
@@ -188,23 +199,25 @@ describe('mutation', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const mutationRef = mutation(
-        {
-          method: function* (userId: string) {
-            const paramsMapper = yield* MutationParamsToYield();
-            return paramsMapper.mapUserId(userId);
+      const mutationRef = craftUse(
+        mutation(
+          {
+            method: function* (userId: string) {
+              const paramsMapper = yield* MutationParamsToYield();
+              return paramsMapper.mapUserId(userId);
+            },
+            loader: function* ({ params }) {
+              const api = yield* MutationApiToYield();
+              return api.save(params);
+            },
           },
-          loader: function* ({ params }) {
-            const api = yield* MutationApiToYield();
-            return api.save(params);
+          function* () {
+            const tools = yield* MutationToolsToYield();
+            return {
+              mutationLabel: tools.label(),
+            };
           },
-        },
-        function* () {
-          const tools = yield* MutationToolsToYield();
-          return {
-            mutationLabel: tools.label(),
-          };
-        },
+        ),
       );
 
       expectTypeOf<ExtractDeps<typeof mutationRef>>().toEqualTypeOf<{
@@ -239,25 +252,27 @@ describe('mutation', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = mutation(
-        {
-          method: function* (userId: string) {
+      const mutationRef = craftUse(
+        mutation(
+          {
+            method: function* (userId: string) {
+              const logger = yield* MutationLoggerRuntimeToYield();
+              logger.log(`mutate:${userId}`);
+              return userId;
+            },
+            loader: function* ({ params }) {
+              const api = yield* MutationApiRuntimeToYield();
+              return api.save(params);
+            },
+          },
+          function* () {
             const logger = yield* MutationLoggerRuntimeToYield();
-            logger.log(`mutate:${userId}`);
-            return userId;
+            logger.log('insert:init');
+            return {
+              initialized: true,
+            };
           },
-          loader: function* ({ params }) {
-            const api = yield* MutationApiRuntimeToYield();
-            return api.save(params);
-          },
-        },
-        function* () {
-          const logger = yield* MutationLoggerRuntimeToYield();
-          logger.log('insert:init');
-          return {
-            initialized: true,
-          };
-        },
+        ),
       );
 
       mutationRef.mutate('user-1');
@@ -276,39 +291,45 @@ describe('mutation types without identifier', () => {
       const { injectMutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const searchChange = mutation({
-            method: ({
-              timeToWait,
-              searchChange,
-            }: {
-              timeToWait: number;
-              searchChange: string;
-            }) => ({
-              timeToWait,
-              searchChange,
-            }),
-            loader: async ({ params: { timeToWait, searchChange } }) => {
-              type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-              type ExpectSearchChange = Expect<
-                Equal<typeof searchChange, string>
-              >;
-              await new Promise((resolve) => setTimeout(resolve, timeToWait));
-              return { searchChange };
-            },
-          });
-          const filterChange = mutation(
-            {
-              method: ({ filter }: { filter: string }) => ({
-                filter,
+          const searchChange = craftUse(
+            mutation({
+              method: ({
+                timeToWait,
+                searchChange,
+              }: {
+                timeToWait: number;
+                searchChange: string;
+              }) => ({
+                timeToWait,
+                searchChange,
               }),
-              loader: async ({ params: { filter } }) => {
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-                return { filter };
+              loader: async ({ params: { timeToWait, searchChange } }) => {
+                type ExpectTimeToWait = Expect<
+                  Equal<typeof timeToWait, number>
+                >;
+                type ExpectSearchChange = Expect<
+                  Equal<typeof searchChange, string>
+                >;
+                await new Promise((resolve) => setTimeout(resolve, timeToWait));
+                return { searchChange };
               },
-            },
-            () => ({
-              additionalInsertion: 'injectedValue' as const,
             }),
+          );
+          const filterChange = craftUse(
+            mutation(
+              {
+                method: ({ filter }: { filter: string }) => ({
+                  filter,
+                }),
+                loader: async ({ params: { filter } }) => {
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  return { filter };
+                },
+              },
+              () => ({
+                additionalInsertion: 'injectedValue' as const,
+              }),
+            ),
           );
 
           return {
@@ -413,35 +434,41 @@ describe('mutation types without identifier', () => {
 
   it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChangeText: string }>('searchSource');
+      const searchSource = signalSource<{ searchChangeText: string }>(
+        'searchSource',
+      );
       const { injectMutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const searchChange = mutation({
-            method: afterRecomputation(searchSource, (searchChange) => {
-              return searchChange;
-            }),
-            loader: async ({ params: { searchChangeText } }) => {
-              type ExpectSearchChangeText = Expect<
-                Equal<typeof searchChangeText, string>
-              >;
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { searchChangeText };
-            },
-          });
-          const filterChange = mutation(
-            {
-              method: ({ filter }: { filter: string }) => ({
-                filter,
+          const searchChange = craftUse(
+            mutation({
+              method: afterRecomputation(searchSource, (searchChange) => {
+                return searchChange;
               }),
-              loader: async ({ params: { filter } }) => {
+              loader: async ({ params: { searchChangeText } }) => {
+                type ExpectSearchChangeText = Expect<
+                  Equal<typeof searchChangeText, string>
+                >;
                 await new Promise((resolve) => setTimeout(resolve, 1000));
-                return { filter };
+                return { searchChangeText };
               },
-            },
-            () => ({
-              additionalInsertion: 'injectedValue' as const,
             }),
+          );
+          const filterChange = craftUse(
+            mutation(
+              {
+                method: ({ filter }: { filter: string }) => ({
+                  filter,
+                }),
+                loader: async ({ params: { filter } }) => {
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  return { filter };
+                },
+              },
+              () => ({
+                additionalInsertion: 'injectedValue' as const,
+              }),
+            ),
           );
 
           return {
@@ -535,15 +562,17 @@ describe('mutation types without identifier', () => {
 
   it('should infer correctly the mutation bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _mutationsOutput = mutation({
-        method: (searchChange: string) => {
-          return searchChange;
-        },
-        loader: async ({ params: searchChange }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return { searchChange };
-        },
-      });
+      const _mutationsOutput = craftUse(
+        mutation({
+          method: (searchChange: string) => {
+            return searchChange;
+          },
+          loader: async ({ params: searchChange }) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { searchChange };
+          },
+        }),
+      );
       expectTypeOf<typeof _mutationsOutput>().toEqualTypeOf<
         MutationOutput<
           {
@@ -565,17 +594,21 @@ describe('mutation types without identifier', () => {
 
   it('should infer correctly the mutation bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChange: string }>('searchSource');
+      const searchSource = signalSource<{ searchChange: string }>(
+        'searchSource',
+      );
 
-      const _mutationsOutput = mutation({
-        method: afterRecomputation(searchSource, (searchChange) => {
-          return searchChange;
+      const _mutationsOutput = craftUse(
+        mutation({
+          method: afterRecomputation(searchSource, (searchChange) => {
+            return searchChange;
+          }),
+          loader: async ({ params: searchChange }) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { searchChangeResult: searchChange.searchChange };
+          },
         }),
-        loader: async ({ params: searchChange }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return { searchChangeResult: searchChange.searchChange };
-        },
-      });
+      );
       expectTypeOf<typeof _mutationsOutput>().toEqualTypeOf<
         MutationOutput<
           {
@@ -607,40 +640,46 @@ describe('mutation types with identifier', () => {
       const { injectMutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const searchChange = mutation({
-            method: ({
-              timeToWait,
-              searchChange,
-            }: {
-              timeToWait: number;
-              searchChange: string;
-            }) => ({
-              timeToWait,
-              searchChange,
-            }),
-            identifier: (params) => params.searchChange,
-            loader: async ({ params: { timeToWait, searchChange } }) => {
-              type ExpectTimeToWait = Expect<Equal<typeof timeToWait, number>>;
-              type ExpectSearchChange = Expect<
-                Equal<typeof searchChange, string>
-              >;
-              await new Promise((resolve) => setTimeout(resolve, timeToWait));
-              return { searchChange };
-            },
-          });
-          const filterChange = mutation(
-            {
-              method: ({ filter }: { filter: string }) => ({
-                filter,
+          const searchChange = craftUse(
+            mutation({
+              method: ({
+                timeToWait,
+                searchChange,
+              }: {
+                timeToWait: number;
+                searchChange: string;
+              }) => ({
+                timeToWait,
+                searchChange,
               }),
-              loader: async ({ params: { filter } }) => {
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-                return { filter };
+              identifier: (params) => params.searchChange,
+              loader: async ({ params: { timeToWait, searchChange } }) => {
+                type ExpectTimeToWait = Expect<
+                  Equal<typeof timeToWait, number>
+                >;
+                type ExpectSearchChange = Expect<
+                  Equal<typeof searchChange, string>
+                >;
+                await new Promise((resolve) => setTimeout(resolve, timeToWait));
+                return { searchChange };
               },
-            },
-            () => ({
-              additionalInsertion: 'injectedValue' as const,
             }),
+          );
+          const filterChange = craftUse(
+            mutation(
+              {
+                method: ({ filter }: { filter: string }) => ({
+                  filter,
+                }),
+                loader: async ({ params: { filter } }) => {
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  return { filter };
+                },
+              },
+              () => ({
+                additionalInsertion: 'injectedValue' as const,
+              }),
+            ),
           );
 
           return {
@@ -745,36 +784,42 @@ describe('mutation types with identifier', () => {
 
   it('should infer correctly the mutation bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChangeText: string }>('searchSource');
+      const searchSource = signalSource<{ searchChangeText: string }>(
+        'searchSource',
+      );
       const { injectMutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const searchChange = mutation({
-            method: afterRecomputation(searchSource, (searchChange) => {
-              return searchChange;
-            }),
-            identifier: (params) => params.searchChangeText,
-            loader: async ({ params: { searchChangeText } }) => {
-              type ExpectSearchChangeText = Expect<
-                Equal<typeof searchChangeText, string>
-              >;
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-              return { searchChangeText };
-            },
-          });
-          const filterChange = mutation(
-            {
-              method: ({ filter }: { filter: string }) => ({
-                filter,
+          const searchChange = craftUse(
+            mutation({
+              method: afterRecomputation(searchSource, (searchChange) => {
+                return searchChange;
               }),
-              loader: async ({ params: { filter } }) => {
+              identifier: (params) => params.searchChangeText,
+              loader: async ({ params: { searchChangeText } }) => {
+                type ExpectSearchChangeText = Expect<
+                  Equal<typeof searchChangeText, string>
+                >;
                 await new Promise((resolve) => setTimeout(resolve, 1000));
-                return { filter };
+                return { searchChangeText };
               },
-            },
-            () => ({
-              additionalInsertion: 'injectedValue' as const,
             }),
+          );
+          const filterChange = craftUse(
+            mutation(
+              {
+                method: ({ filter }: { filter: string }) => ({
+                  filter,
+                }),
+                loader: async ({ params: { filter } }) => {
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  return { filter };
+                },
+              },
+              () => ({
+                additionalInsertion: 'injectedValue' as const,
+              }),
+            ),
           );
 
           return {
@@ -859,16 +904,18 @@ describe('mutation types with identifier', () => {
 
   it('should infer correctly the mutation bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _mutationsOutput = mutation({
-        method: (searchChange: string) => {
-          return searchChange;
-        },
-        identifier: (searchChange) => searchChange,
-        loader: async ({ params: searchChange }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return { searchChange };
-        },
-      });
+      const _mutationsOutput = craftUse(
+        mutation({
+          method: (searchChange: string) => {
+            return searchChange;
+          },
+          identifier: (searchChange) => searchChange,
+          loader: async ({ params: searchChange }) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { searchChange };
+          },
+        }),
+      );
       const _entity = _mutationsOutput.select('test');
       expectTypeOf<typeof _entity>().toEqualTypeOf<
         | {
@@ -895,18 +942,22 @@ describe('mutation types with identifier', () => {
 
   it('should infer correctly the mutation bind to a source', () => {
     TestBed.runInInjectionContext(() => {
-      const searchSource = signalSource<{ searchChange: string }>('searchSource');
+      const searchSource = signalSource<{ searchChange: string }>(
+        'searchSource',
+      );
 
-      const _mutationsOutput = mutation({
-        method: afterRecomputation(searchSource, (searchChange) => {
-          return searchChange;
+      const _mutationsOutput = craftUse(
+        mutation({
+          method: afterRecomputation(searchSource, (searchChange) => {
+            return searchChange;
+          }),
+          identifier: (params) => params.searchChange,
+          loader: async ({ params: searchChange }) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { searchChangeResult: searchChange.searchChange };
+          },
         }),
-        identifier: (params) => params.searchChange,
-        loader: async ({ params: searchChange }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return { searchChangeResult: searchChange.searchChange };
-        },
-      });
+      );
 
       expectTypeOf(_mutationsOutput.select('test')?.value()).toEqualTypeOf<
         { searchChangeResult: string } | undefined
@@ -927,85 +978,87 @@ describe('mutation exceptions', () => {
     TestBed.runInInjectionContext(() => {
       const shouldFail = signal(true);
 
-      mutation(
-        {
-          method: (value: string) =>
-            shouldFail()
-              ? craftException(
-                  { code: 'INVALID_USER_ID_Param' },
-                  { reason: 'missing' as const },
-                )
-              : value,
-          loader: async ({ params }) => {
-            return shouldFail()
-              ? craftException(
-                  { code: 'INVALID_USER_ID_Loader' },
-                  { reason: 'missing' as const },
-                )
-              : {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                };
+      craftUse(
+        mutation(
+          {
+            method: (value: string) =>
+              shouldFail()
+                ? craftException(
+                    { code: 'INVALID_USER_ID_Param' },
+                    { reason: 'missing' as const },
+                  )
+                : value,
+            loader: async ({ params }) => {
+              return shouldFail()
+                ? craftException(
+                    { code: 'INVALID_USER_ID_Loader' },
+                    { reason: 'missing' as const },
+                  )
+                : {
+                    id: params,
+                    name: 'John Doe',
+                    email: 'test@a.com',
+                  };
+            },
           },
-        },
-        ({ exceptions, hasException, state }) => {
-          expectTypeOf(state()).toEqualTypeOf<{
-            id: string;
-            name: string;
-            email: string;
-          }>();
-          expectTypeOf(exceptions()).toEqualTypeOf<{
-            list: (
-              | CraftExceptionResult<
-                  {
-                    code: 'INVALID_USER_ID_Param';
-                    scope: 'params';
-                  },
-                  {
-                    reason: 'missing';
-                  }
-                >
-              | CraftExceptionResult<
-                  {
-                    code: 'INVALID_USER_ID_Loader';
-                    scope: 'loader';
-                  },
-                  {
-                    reason: 'missing';
-                  }
-                >
-            )[];
-            params?:
-              | CraftExceptionResult<
-                  {
-                    code: 'INVALID_USER_ID_Param';
-                    scope: 'params';
-                  },
-                  {
-                    reason: 'missing';
-                  }
-                >
-              | undefined;
-            loader?:
-              | CraftExceptionResult<
-                  {
-                    code: 'INVALID_USER_ID_Loader';
-                    scope: 'loader';
-                  },
-                  {
-                    reason: 'missing';
-                  }
-                >
-              | undefined;
-          }>();
-          expectTypeOf(hasException()).toEqualTypeOf<boolean>();
-          expectTypeOf(exceptions).toBeFunction();
-          expectTypeOf(exceptions()).toHaveProperty('list').toBeArray();
-          expectTypeOf(exceptions()).toHaveProperty('params');
-          expectTypeOf(exceptions()).toHaveProperty('loader');
-          return {};
-        },
+          ({ exceptions, hasException, state }) => {
+            expectTypeOf(state()).toEqualTypeOf<{
+              id: string;
+              name: string;
+              email: string;
+            }>();
+            expectTypeOf(exceptions()).toEqualTypeOf<{
+              list: (
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID_Param';
+                      scope: 'params';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID_Loader';
+                      scope: 'loader';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+              )[];
+              params?:
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID_Param';
+                      scope: 'params';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | undefined;
+              loader?:
+                | CraftExceptionResult<
+                    {
+                      code: 'INVALID_USER_ID_Loader';
+                      scope: 'loader';
+                    },
+                    {
+                      reason: 'missing';
+                    }
+                  >
+                | undefined;
+            }>();
+            expectTypeOf(hasException()).toEqualTypeOf<boolean>();
+            expectTypeOf(exceptions).toBeFunction();
+            expectTypeOf(exceptions()).toHaveProperty('list').toBeArray();
+            expectTypeOf(exceptions()).toHaveProperty('params');
+            expectTypeOf(exceptions()).toHaveProperty('loader');
+            return {};
+          },
+        ),
       );
     });
   });
@@ -1013,25 +1066,27 @@ describe('mutation exceptions', () => {
   it('typing: captures exception returned by method and loader', async () => {
     await TestBed.runInInjectionContext(async () => {
       const shouldFail = signal(true);
-      const mutationRef = mutation({
-        method: (value: string) =>
-          shouldFail()
-            ? craftException(
-                { code: 'INVALID_USER_ID' },
-                { reason: 'missing' as const },
-              )
-            : value,
-        loader: async ({ params }) => {
-          return shouldFail()
-            ? craftException(
-                { code: 'INVALID_USER_ID' },
-                { reason: 'missing' as const },
-              )
-            : {
-                id: params,
-              };
-        },
-      });
+      const mutationRef = craftUse(
+        mutation({
+          method: (value: string) =>
+            shouldFail()
+              ? craftException(
+                  { code: 'INVALID_USER_ID' },
+                  { reason: 'missing' as const },
+                )
+              : value,
+          loader: async ({ params }) => {
+            return shouldFail()
+              ? craftException(
+                  { code: 'INVALID_USER_ID' },
+                  { reason: 'missing' as const },
+                )
+              : {
+                  id: params,
+                };
+          },
+        }),
+      );
 
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
@@ -1066,28 +1121,30 @@ describe('mutation exceptions', () => {
       const shouldFailMethod = signal(true);
       const shouldFailLoader = signal(true);
 
-      const mutationRef = mutation({
-        method: (value: string) =>
-          shouldFailMethod()
-            ? craftException(
-                { code: 'INVALID_USER_ID' },
-                { reason: 'missing' as const },
-              )
-            : value,
-        identifier: (id) => id,
-        loader: async ({ params }) => {
-          return shouldFailLoader()
-            ? craftException(
-                {
-                  code: 'API_ERROR',
-                },
-                { reason: 'missing user' as const },
-              )
-            : {
-                id: params,
-              };
-        },
-      });
+      const mutationRef = craftUse(
+        mutation({
+          method: (value: string) =>
+            shouldFailMethod()
+              ? craftException(
+                  { code: 'INVALID_USER_ID' },
+                  { reason: 'missing' as const },
+                )
+              : value,
+          identifier: (id) => id,
+          loader: async ({ params }) => {
+            return shouldFailLoader()
+              ? craftException(
+                  {
+                    code: 'API_ERROR',
+                  },
+                  { reason: 'missing user' as const },
+                )
+              : {
+                  id: params,
+                };
+          },
+        }),
+      );
 
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
@@ -1151,17 +1208,19 @@ describe('mutation exceptions', () => {
 
   it('typing with identifier: return a select exceptions for an identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = mutation({
-        method: (value: string) => value,
-        identifier: (id) => id,
-        loader: async () =>
-          craftException(
-            {
-              code: 'API_ERROR',
-            },
-            { reason: 'missing' as const },
-          ),
-      });
+      const mutationRef = craftUse(
+        mutation({
+          method: (value: string) => value,
+          identifier: (id) => id,
+          loader: async () =>
+            craftException(
+              {
+                code: 'API_ERROR',
+              },
+              { reason: 'missing' as const },
+            ),
+        }),
+      );
 
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
@@ -1203,24 +1262,26 @@ describe('mutation exceptions', () => {
   it('typing with identifier: return a select exceptions for an identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
       const failed = signal(true);
-      const mutationRef = mutation({
-        method: (value: string) => value,
-        identifier: (id) => id,
-        loader: async () =>
-          failed()
-            ? craftException(
-                {
-                  code: 'API_ERROR',
-                },
-                { reason: 'missing' as const },
-              )
-            : craftException(
-                {
-                  code: 'HTTP_ERROR',
-                },
-                { reason: 'disconnected' as const },
-              ),
-      });
+      const mutationRef = craftUse(
+        mutation({
+          method: (value: string) => value,
+          identifier: (id) => id,
+          loader: async () =>
+            failed()
+              ? craftException(
+                  {
+                    code: 'API_ERROR',
+                  },
+                  { reason: 'missing' as const },
+                )
+              : craftException(
+                  {
+                    code: 'HTTP_ERROR',
+                  },
+                  { reason: 'disconnected' as const },
+                ),
+        }),
+      );
 
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
@@ -1265,16 +1326,18 @@ describe('mutation exceptions', () => {
         id: params,
       }));
 
-      const mutationRef = mutation({
-        method: (value: string) =>
-          value.length < 3
-            ? craftException(
-                { code: 'SEARCH_TERM_TOO_SHORT' },
-                { min: 3, received: value.length },
-              )
-            : value,
-        loader: loader as any,
-      });
+      const mutationRef = craftUse(
+        mutation({
+          method: (value: string) =>
+            value.length < 3
+              ? craftException(
+                  { code: 'SEARCH_TERM_TOO_SHORT' },
+                  { min: 3, received: value.length },
+                )
+              : value,
+          loader: loader as any,
+        }),
+      );
 
       mutationRef.mutate('ab');
       await vi.runAllTimersAsync();
@@ -1291,14 +1354,16 @@ describe('mutation exceptions', () => {
 
   it('captures exception returned by loader without exposing it in safeValue', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = mutation({
-        method: (value: string) => value,
-        loader: async () =>
-          craftException(
-            { code: 'INVALID_USER_ID', scope: 'loader' },
-            { from: 'loader' as const },
-          ),
-      });
+      const mutationRef = craftUse(
+        mutation({
+          method: (value: string) => value,
+          loader: async () =>
+            craftException(
+              { code: 'INVALID_USER_ID', scope: 'loader' },
+              { from: 'loader' as const },
+            ),
+        }),
+      );
 
       mutationRef.mutate('user-1');
       await vi.runAllTimersAsync();
@@ -1313,12 +1378,14 @@ describe('mutation exceptions', () => {
 
   it('keeps method exceptions global in parallel mutation', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = mutation({
-        method: (id: 'A' | 'B') =>
-          craftException({ code: 'INVALID_ID' }, { params: id }),
-        identifier: (id) => id,
-        loader: async ({ params }) => ({ id: params }),
-      });
+      const mutationRef = craftUse(
+        mutation({
+          method: (id: 'A' | 'B') =>
+            craftException({ code: 'INVALID_ID' }, { params: id }),
+          identifier: (id) => id,
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
 
       mutationRef.mutate('A');
       await vi.runAllTimersAsync();
@@ -1341,6 +1408,7 @@ describe('mutation — providers', () => {
     let runtimeContext: MutationMethodRuntimeContext | undefined;
     let observedRuntimeContext: MutationMethodRuntimeContext | undefined;
     const runtimeContextWrapper = provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (factory, thisArg, args) {
         runtimeContext = injectMutationMethodRuntimeContext() ?? runtimeContext;
         return yield* factory.apply(thisArg, args);
@@ -1348,21 +1416,24 @@ describe('mutation — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const mutationRef = mutation(
-        {
-          providers: [
-            runtimeContextWrapper,
-            provideFnWrapObserver(() => {
-              observedRuntimeContext =
-                injectMutationMethodRuntimeContext() ?? observedRuntimeContext;
-            }),
-          ],
-          method: (id: string) => id,
-          loader: async () => ({ count: 0 }),
-        },
-        ({ set }) => ({
-          initialize: () => set({ count: 1 }),
-        }),
+      const mutationRef = craftUse(
+        mutation(
+          {
+            providers: [
+              runtimeContextWrapper,
+              provideFnWrapObserver(() => {
+                observedRuntimeContext =
+                  injectMutationMethodRuntimeContext() ??
+                  observedRuntimeContext;
+              }),
+            ],
+            method: (id: string) => id,
+            loader: async () => ({ count: 0 }),
+          },
+          ({ set }) => ({
+            initialize: () => set({ count: 1 }),
+          }),
+        ),
       );
 
       expect(observedRuntimeContext?.kind).toBe('mutation');
@@ -1380,15 +1451,17 @@ describe('mutation — providers', () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
     TestBed.runInInjectionContext(() => {
-      const mutationRef = mutation({
-        providers: [
-          providePrimitiveResourceRuntimeObserver((context) => {
-            resourceContext = context;
-          }),
-        ],
-        method: (id: string) => id,
-        loader: async () => ({ count: 0 }),
-      });
+      const mutationRef = craftUse(
+        mutation({
+          providers: [
+            providePrimitiveResourceRuntimeObserver((context) => {
+              resourceContext = context;
+            }),
+          ],
+          method: (id: string) => id,
+          loader: async () => ({ count: 0 }),
+        }),
+      );
 
       expect(resourceContext?.kind).toBe('mutation');
       expect(resourceContext?.grouped).toBe(false);
@@ -1409,13 +1482,20 @@ describe('mutation — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const mutationRef = mutation({
-        providers: [provideFnWrapper(trackingWrapper)],
-        method: function* (id: string) {
-          return id;
-        },
-        loader: async ({ params }) => ({ id: params }),
-      });
+      const mutationRef = craftUse(
+        mutation({
+          providers: [
+            provideFnWrapper(
+              'Warning: dependency injection here is not type-safe and may fail at runtime',
+              trackingWrapper,
+            ),
+          ],
+          method: function* (id: string) {
+            return id;
+          },
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
 
       expect(callLog).toEqual([]);
       mutationRef.mutate('user-1');
@@ -1434,19 +1514,28 @@ describe('mutation — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const withProvider = mutation({
-        providers: [provideFnWrapper(trackingWrapper)],
-        method: function* (id: string) {
-          return id;
-        },
-        loader: async ({ params }) => ({ id: params }),
-      });
-      const withoutProvider = mutation({
-        method: function* (id: string) {
-          return id;
-        },
-        loader: async ({ params }) => ({ id: params }),
-      });
+      const withProvider = craftUse(
+        mutation({
+          providers: [
+            provideFnWrapper(
+              'Warning: dependency injection here is not type-safe and may fail at runtime',
+              trackingWrapper,
+            ),
+          ],
+          method: function* (id: string) {
+            return id;
+          },
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
+      const withoutProvider = craftUse(
+        mutation({
+          method: function* (id: string) {
+            return id;
+          },
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
 
       withoutProvider.mutate('x');
       await vi.runAllTimersAsync();
@@ -1465,62 +1554,78 @@ describe('mutation — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const withoutProviders = mutation({
-        params: function* () {
-          yield* MethodServiceToYield();
-          return 'user-1';
-        },
-        loader: async ({ params }) => ({ id: params }),
-      });
+      const withoutProviders = craftUse(
+        mutation({
+          params: function* () {
+            yield* MethodServiceToYield();
+            return 'user-1';
+          },
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
       type WithoutDeps = ExtractDeps<typeof withoutProviders>;
       expectTypeOf<
         'MethodService' extends keyof WithoutDeps ? true : false
       >().toEqualTypeOf<true>();
 
       // Verify mutation accepts providers without type errors
-      const withProviders = mutation({
-        providers: [provideMethodService()],
-        params: () => 'user-1',
-        loader: async ({ params }) => ({ id: params }),
-      });
+      const withProviders = craftUse(
+        mutation({
+          providers: [provideMethodService()],
+          params: () => 'user-1',
+          loader: async ({ params }) => ({ id: params }),
+        }),
+      );
       expectTypeOf(withProviders.hasValue).toBeFunction();
     });
   });
 
   it('should accepts this', () => {
     TestBed.runInInjectionContext(() => {
-      const registerPizzeriaOwner = mutation({
-        method: ({ email, password }: { email: string; password: string }) => ({
-          email,
-          password,
+      const registerPizzeriaOwner = craftUse(
+        mutation({
+          method: ({
+            email,
+            password,
+          }: {
+            email: string;
+            password: string;
+          }) => ({
+            email,
+            password,
+          }),
+          loader: function* ({ params }) {
+            return yield* CraftHttpClient.post(({ response }) => ({
+              url: '/api/pizzeria-owners',
+              payload: params,
+              success: response<{ id: string }>(),
+            }));
+          },
         }),
-        loader: function* ({ params }) {
-          return yield* CraftHttpClient.post(({ response }) => ({
-            url: '/api/pizzeria-owners',
-            payload: params,
-            success: response<{ id: string }>(),
-          }));
-        },
-      });
+      );
     });
   });
 
   it('typing: loader generator can return null or primitive sync values', () => {
     TestBed.runInInjectionContext(() => {
-      const withNull = mutation({
-        method: (id: string) => id,
-        loader: function* () {
-          return null;
-        },
-      });
+      const withNull = craftUse(
+        mutation({
+          method: (id: string) => id,
+          loader: function* () {
+            return null;
+          },
+        }),
+      );
       expectTypeOf(withNull.value).toEqualTypeOf<Signal<null | undefined>>();
 
-      const withString = mutation({
-        method: (id: string) => id,
-        loader: function* () {
-          return 'result';
-        },
-      });
+      const withString = craftUse(
+        mutation({
+          method: (id: string) => id,
+          loader: function* () {
+            return 'result';
+          },
+        }),
+      );
       expectTypeOf(withString.value).toEqualTypeOf<
         Signal<string | undefined>
       >();

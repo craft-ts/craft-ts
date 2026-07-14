@@ -1,24 +1,28 @@
 import {
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    Signal,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  Signal,
 } from '@angular/core';
 import {
-    addOne,
-    componentMonitoring,
-    insertLocalStoragePersister,
-    craftPipe,
-    insertSelect,
-    on$,
-    provideHostName,
-    source$,
-    state,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftUse,
+  addOne,
+  componentMonitoring,
+  insertLocalStoragePersister,
+  craftPipe,
+  insertSelect,
+  on$,
+  provideHostName,
+  source$,
+  state,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import { LongPressDirective, type GenDeps_LongPressDirective } from './long-press.directive';
+import {
+  LongPressDirective,
+  type GenDeps_LongPressDirective,
+} from './long-press.directive';
 
 type PixelCellState = {
   index: number;
@@ -178,125 +182,133 @@ const createInitialGrid = (): PixelCellState[][] =>
   `,
   styleUrls: ['./pixel-art-matrix.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('component:PixelArtMatrix')]
+  providers: [provideHostName('component:PixelArtMatrix')],
 })
 export default class PixelArtMatrix {
   private readonly _monitoring = componentMonitoring();
   protected readonly emptyColor = EMPTY_COLOR;
   protected readonly colorPalette = COLOR_PALETTE;
 
-  protected readonly matrix = state(
-    {
-      ui: {
-        activeColor: DEFAULT_ACTIVE_COLOR,
+  protected readonly matrix = craftUse(
+    state(
+      {
+        ui: {
+          activeColor: DEFAULT_ACTIVE_COLOR,
+        },
+        grid: createInitialGrid(),
       },
-      grid: createInitialGrid(),
-    },
-    (context) =>
-      craftPipe(
-      context,
-      insertLocalStoragePersister({
-        key: 'pixel-art-matrix-state',
-        storeName: 'pixel-art-matrix',
-      }),
-      () => ({
-        resetAll$: source$<void>('resetAll$'),
-      }),
-      insertSelect('ui', ({ set, insertions: { resetAll$ } }) => ({
-        resetColor$: on$(resetAll$, () =>
-          set({ activeColor: DEFAULT_ACTIVE_COLOR }),
-        ),
-        setActiveColor: (color: string) => set({ activeColor: color }),
-      })),
-      insertSelect('grid', (gridContext) =>
+      (context) =>
         craftPipe(
-          gridContext,
-          ({ state, update, set, insertions: { resetAll$ } }) => ({
-          paintColumnWithTargetCellColor$: source$<PaintCellEvent>(
-            'paintColumnWithTargetCellColor$',
-          ),
-          addRow: () =>
-            update((currentGrid) => [...currentGrid, createNextRow(currentGrid)]),
-          resetGrid: on$(resetAll$, () => set(createInitialGrid())),
-          rowIndexes: computed(() => state().map((_row, index) => index)),
-          totalCells: computed(() =>
-            state().reduce((count, row) => count + row.length, 0),
-          ),
-          paintedCount: computed(() =>
-            state().reduce(
-              (count, row) =>
-                count + row.filter((cell) => cell.color !== EMPTY_COLOR).length,
-              0,
-            ),
-          ),
-        }),
-          insertSelect('row', (rowContext) =>
-            craftPipe(
-              rowContext,
-              ({ state, set }) => ({
-            addCell: () => {
-              const nextIndex = state().reduce(
-                (max, cell) => Math.max(max, cell.index),
-                -1,
-              );
-              return set(
-                addOne({
-                  entities: state(),
-                  entity: createNewCell(nextIndex, state),
-                }),
-              );
-            },
-            paintRowWithTargetCellColor$: source$<PaintCellEvent>(
-              'paintRowWithTargetCellColor$',
-            ),
+          context,
+          insertLocalStoragePersister({
+            key: 'pixel-art-matrix-state',
+            storeName: 'pixel-art-matrix',
           }),
-          insertSelect(
-            'cell',
-            ({
-              state,
-              update,
-              patch,
-              insertions: {
-                paintRowWithTargetCellColor$,
-                paintColumnWithTargetCellColor$,
-              },
-            }) => ({
-              paint: () =>
-                patch(({ color, paintCount }) => ({
-                  color:
-                    color === this.matrix.selectUi().activeColor
-                      ? EMPTY_COLOR
-                      : this.matrix.selectUi().activeColor,
-                  paintCount: paintCount + 1,
-                })),
-              paintCountStr: computed(
-                () => `Painted ${state().paintCount} times`,
-              ),
-              paintCellOnSameRow: on$(paintRowWithTargetCellColor$, ({ color }) =>
-                patch(({ paintCount }) => ({
-                  color,
-                  paintCount: paintCount + 1,
-                })),
-              ),
-              paintCellOnSameColumn: on$(
-                paintColumnWithTargetCellColor$,
-                ({ color, cellIndex }) =>
-                  update((targetCell) =>
-                    targetCell.columnIndex === cellIndex
-                      ? {
-                          ...targetCell,
-                          color,
-                          paintCount: targetCell.paintCount + 1,
-                        }
-                      : targetCell,
+          () => ({
+            resetAll$: source$<void>('resetAll$'),
+          }),
+          insertSelect('ui', ({ set, insertions: { resetAll$ } }) => ({
+            resetColor$: on$(resetAll$, () =>
+              set({ activeColor: DEFAULT_ACTIVE_COLOR }),
+            ),
+            setActiveColor: (color: string) => set({ activeColor: color }),
+          })),
+          insertSelect('grid', (gridContext) =>
+            craftPipe(
+              gridContext,
+              ({ state, update, set, insertions: { resetAll$ } }) => ({
+                paintColumnWithTargetCellColor$: source$<PaintCellEvent>(
+                  'paintColumnWithTargetCellColor$',
+                ),
+                addRow: () =>
+                  update((currentGrid) => [
+                    ...currentGrid,
+                    createNextRow(currentGrid),
+                  ]),
+                resetGrid: on$(resetAll$, () => set(createInitialGrid())),
+                rowIndexes: computed(() => state().map((_row, index) => index)),
+                totalCells: computed(() =>
+                  state().reduce((count, row) => count + row.length, 0),
+                ),
+                paintedCount: computed(() =>
+                  state().reduce(
+                    (count, row) =>
+                      count +
+                      row.filter((cell) => cell.color !== EMPTY_COLOR).length,
+                    0,
                   ),
-              ),
+                ),
               }),
+              insertSelect('row', (rowContext) =>
+                craftPipe(
+                  rowContext,
+                  ({ state, set }) => ({
+                    addCell: () => {
+                      const nextIndex = state().reduce(
+                        (max, cell) => Math.max(max, cell.index),
+                        -1,
+                      );
+                      return set(
+                        addOne({
+                          entities: state(),
+                          entity: createNewCell(nextIndex, state),
+                        }),
+                      );
+                    },
+                    paintRowWithTargetCellColor$: source$<PaintCellEvent>(
+                      'paintRowWithTargetCellColor$',
+                    ),
+                  }),
+                  insertSelect(
+                    'cell',
+                    ({
+                      state,
+                      update,
+                      patch,
+                      insertions: {
+                        paintRowWithTargetCellColor$,
+                        paintColumnWithTargetCellColor$,
+                      },
+                    }) => ({
+                      paint: () =>
+                        patch(({ color, paintCount }) => ({
+                          color:
+                            color === this.matrix.selectUi().activeColor
+                              ? EMPTY_COLOR
+                              : this.matrix.selectUi().activeColor,
+                          paintCount: paintCount + 1,
+                        })),
+                      paintCountStr: computed(
+                        () => `Painted ${state().paintCount} times`,
+                      ),
+                      paintCellOnSameRow: on$(
+                        paintRowWithTargetCellColor$,
+                        ({ color }) =>
+                          patch(({ paintCount }) => ({
+                            color,
+                            paintCount: paintCount + 1,
+                          })),
+                      ),
+                      paintCellOnSameColumn: on$(
+                        paintColumnWithTargetCellColor$,
+                        ({ color, cellIndex }) =>
+                          update((targetCell) =>
+                            targetCell.columnIndex === cellIndex
+                              ? {
+                                  ...targetCell,
+                                  color,
+                                  paintCount: targetCell.paintCount + 1,
+                                }
+                              : targetCell,
+                          ),
+                      ),
+                    }),
+                  ),
+                ),
               ),
             ),
           ),
         ),
-      ),
     ),
   );
 }
@@ -327,17 +339,17 @@ function createNextRow(currentGrid: PixelCellState[][]) {
 }
 
 export type GenDeps_PixelArtMatrix = GetDeps<{
-      deps: {
-        GenDeps_LongPressDirective: GenDeps_LongPressDirective;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<PixelArtMatrix["_monitoring"]>;
-        emptyColor: ExtractDeps<PixelArtMatrix["emptyColor"]>;
-        colorPalette: ExtractDeps<PixelArtMatrix["colorPalette"]>;
-        matrix: ExtractDeps<PixelArtMatrix["matrix"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<PixelArtMatrix>;
-    }>;
+  deps: {
+    GenDeps_LongPressDirective: GenDeps_LongPressDirective;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<PixelArtMatrix['_monitoring']>;
+    emptyColor: ExtractDeps<PixelArtMatrix['emptyColor']>;
+    colorPalette: ExtractDeps<PixelArtMatrix['colorPalette']>;
+    matrix: ExtractDeps<PixelArtMatrix['matrix']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<PixelArtMatrix>;
+}>;

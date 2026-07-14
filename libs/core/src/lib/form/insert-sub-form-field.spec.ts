@@ -6,13 +6,16 @@ import { insertFormAttributes } from './insert-form-attributes';
 import { insertSelectFormTree } from './insert-select-form-tree';
 import { insertSubFormField } from './insert-sub-form-field';
 import { cRequired } from './validator';
+import { craftUse } from '../craft-use';
 
 describe('insertSubFormField', () => {
   it('exposes a derived sub-field that reads from the parent', () => {
     TestBed.runInInjectionContext(() => {
-      const form = state(
-        '2026-05-10 12:00',
-        insertForm(insertSubFormField('date', splitLens(' ', 0))),
+      const form = craftUse(
+        state(
+          '2026-05-10 12:00',
+          insertForm(insertSubFormField('date', splitLens(' ', 0))),
+        ),
       );
 
       const dateForm = form.form.selectDate();
@@ -22,11 +25,13 @@ describe('insertSubFormField', () => {
 
   it('writes back to the parent through the lens.write function', () => {
     TestBed.runInInjectionContext(() => {
-      const form = state(
-        '2026-05-10 12:00',
-        insertForm(
-          insertSubFormField('date', splitLens(' ', 0)),
-          insertSubFormField('time', splitLens(' ', 1)),
+      const form = craftUse(
+        state(
+          '2026-05-10 12:00',
+          insertForm(
+            insertSubFormField('date', splitLens(' ', 0)),
+            insertSubFormField('time', splitLens(' ', 1)),
+          ),
         ),
       );
 
@@ -42,9 +47,11 @@ describe('insertSubFormField', () => {
 
   it('reflects external parent updates in the sub-field value', () => {
     TestBed.runInInjectionContext(() => {
-      const form = state(
-        '2026-05-10 12:00',
-        insertForm(insertSubFormField('date', splitLens(' ', 0))),
+      const form = craftUse(
+        state(
+          '2026-05-10 12:00',
+          insertForm(insertSubFormField('date', splitLens(' ', 0))),
+        ),
       );
 
       const dateForm = form.form.selectDate();
@@ -58,13 +65,15 @@ describe('insertSubFormField', () => {
 
   it('runs validators registered via nested insertFormAttributes', () => {
     TestBed.runInInjectionContext(() => {
-      const form = state(
-        ' 12:00',
-        insertForm(
-          insertSubFormField(
-            'date',
-            splitLens(' ', 0),
-            insertFormAttributes(() => ({ validators: [cRequired()] })),
+      const form = craftUse(
+        state(
+          ' 12:00',
+          insertForm(
+            insertSubFormField(
+              'date',
+              splitLens(' ', 0),
+              insertFormAttributes(() => ({ validators: [cRequired()] })),
+            ),
           ),
         ),
       );
@@ -80,9 +89,11 @@ describe('insertSubFormField', () => {
 
   it('marks the parent dirty when the sub-field is edited', () => {
     TestBed.runInInjectionContext(() => {
-      const form = state(
-        '2026-05-10 12:00',
-        insertForm(insertSubFormField('date', splitLens(' ', 0))),
+      const form = craftUse(
+        state(
+          '2026-05-10 12:00',
+          insertForm(insertSubFormField('date', splitLens(' ', 0))),
+        ),
       );
 
       expect(form.form.dirty()).toBe(false);
@@ -94,11 +105,13 @@ describe('insertSubFormField', () => {
 
   it('round-trips through splitLens (read → set → read)', () => {
     TestBed.runInInjectionContext(() => {
-      const form = state(
-        '2026-05-10 12:00',
-        insertForm(
-          insertSubFormField('date', splitLens(' ', 0)),
-          insertSubFormField('time', splitLens(' ', 1)),
+      const form = craftUse(
+        state(
+          '2026-05-10 12:00',
+          insertForm(
+            insertSubFormField('date', splitLens(' ', 0)),
+            insertSubFormField('time', splitLens(' ', 1)),
+          ),
         ),
       );
 
@@ -114,11 +127,13 @@ describe('insertSubFormField', () => {
 
   it('supports two derived sub-fields on the same parent without collision', () => {
     TestBed.runInInjectionContext(() => {
-      const form = state(
-        '2026-05-10 12:00',
-        insertForm(
-          insertSubFormField('date', splitLens(' ', 0)),
-          insertSubFormField('time', splitLens(' ', 1)),
+      const form = craftUse(
+        state(
+          '2026-05-10 12:00',
+          insertForm(
+            insertSubFormField('date', splitLens(' ', 0)),
+            insertSubFormField('time', splitLens(' ', 1)),
+          ),
         ),
       );
 
@@ -129,9 +144,11 @@ describe('insertSubFormField', () => {
 
   it('caches the derived form so repeated calls return the same instance', () => {
     TestBed.runInInjectionContext(() => {
-      const form = state(
-        '2026-05-10 12:00',
-        insertForm(insertSubFormField('date', splitLens(' ', 0))),
+      const form = craftUse(
+        state(
+          '2026-05-10 12:00',
+          insertForm(insertSubFormField('date', splitLens(' ', 0))),
+        ),
       );
 
       const a = form.form.selectDate();
@@ -142,16 +159,18 @@ describe('insertSubFormField', () => {
 
   it('mapLens converts string ↔ number for nested numeric editing', () => {
     TestBed.runInInjectionContext(() => {
-      const form = state(
-        { ageStr: '42' },
-        insertForm(
-          insertSelectFormTree(
-            'ageStr',
-            insertSubFormField(
-              'asNumber',
-              mapLens<string, number>(
-                (s) => Number(s),
-                (n) => String(n),
+      const form = craftUse(
+        state(
+          { ageStr: '42' },
+          insertForm(
+            insertSelectFormTree(
+              'ageStr',
+              insertSubFormField(
+                'asNumber',
+                mapLens<string, number>(
+                  (s) => Number(s),
+                  (n) => String(n),
+                ),
               ),
             ),
           ),
@@ -162,7 +181,10 @@ describe('insertSubFormField', () => {
       expect(ageStrForm).toBeDefined();
       const numberForm = (
         ageStrForm as unknown as {
-          selectAsNumber: () => { value: () => number; set: (n: number) => void };
+          selectAsNumber: () => {
+            value: () => number;
+            set: (n: number) => void;
+          };
         }
       ).selectAsNumber();
 

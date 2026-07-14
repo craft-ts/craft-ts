@@ -1,11 +1,13 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
+  craftUse,
   CraftRouterToYield,
   componentMonitoring,
   craftMethod,
   craftService,
-  insertLocalStoragePersister,  insertReactOnMutation,
+  insertLocalStoragePersister,
+  insertReactOnMutation,
   craftPipe,
   mutation,
   provideHostName,
@@ -26,36 +28,40 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
   craftService(
     { name: 'UserMutation', scope: 'toProvide' },
     (inputs: { userId: MaybeSignal<string | undefined> }) => {
-      const updateUserName = mutation({
-        method: (payload: { userName: string; user: User }) => ({
-          ...payload.user,
-          name: payload.userName,
-        }),
-        loader: function* ({ params: user }) {
-          return yield* ApiServiceToYield.updateItem(user);
-        },
-      });
-
-      const user = query(
-        {
-          params: () => toValue(inputs.userId),
-          loader: function* ({ params: userId }) {
-            return yield* ApiServiceToYield.getItemById(userId);
+      const updateUserName = craftUse(
+        mutation({
+          method: (payload: { userName: string; user: User }) => ({
+            ...payload.user,
+            name: payload.userName,
+          }),
+          loader: function* ({ params: user }) {
+            return yield* ApiServiceToYield.updateItem(user);
           },
-          preservePreviousValue: () => true,
-        },
-        (context) =>
-          craftPipe(
-          context,
-          insertLocalStoragePersister({
-            storeName: 'demo-app-craft',
-            key: 'mutation',
-          }),
-          insertReactOnMutation(updateUserName, {
-            optimisticPatch: {
-              name: ({ mutationParams: { name } }) => name,
+        }),
+      );
+
+      const user = craftUse(
+        query(
+          {
+            params: () => toValue(inputs.userId),
+            loader: function* ({ params: userId }) {
+              return yield* ApiServiceToYield.getItemById(userId);
             },
-          }),
+            preservePreviousValue: () => true,
+          },
+          (context) =>
+            craftPipe(
+              context,
+              insertLocalStoragePersister({
+                storeName: 'demo-app-craft',
+                key: 'mutation',
+              }),
+              insertReactOnMutation(updateUserName, {
+                optimisticPatch: {
+                  name: ({ mutationParams: { name } }) => name,
+                },
+              }),
+            ),
         ),
       );
 

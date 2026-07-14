@@ -22,6 +22,7 @@ import {
   injectStateMethodRuntimeContext,
   type StateMethodRuntimeContext,
 } from './state-method-runtime-context';
+import { craftUse } from './craft-use';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -52,17 +53,22 @@ describe('state', () => {
     let runtimeContext: StateMethodRuntimeContext | undefined;
     TestBed.configureTestingModule({
       providers: [
-        provideFnWrapper(function* (factory, thisArg, args) {
-          runtimeContext = injectStateMethodRuntimeContext();
-          return yield* factory.apply(thisArg, args);
-        }),
+        provideFnWrapper(
+          'Warning: dependency injection here is not type-safe and may fail at runtime',
+          function* (factory, thisArg, args) {
+            runtimeContext = injectStateMethodRuntimeContext();
+            return yield* factory.apply(thisArg, args);
+          },
+        ),
       ],
     });
 
     runInInjectionContext(() => {
-      const counter = state(0, ({ update }) => ({
-        increment: () => update((current) => current + 1),
-      }));
+      const counter = craftUse(
+        state(0, ({ update }) => ({
+          increment: () => update((current) => current + 1),
+        })),
+      );
 
       counter.increment();
 
@@ -83,9 +89,11 @@ describe('state', () => {
     });
 
     runInInjectionContext(() => {
-      state({ $self: 0, providers: [observer] }, ({ update }) => ({
-        increment: () => update((current) => current + 1),
-      }));
+      craftUse(
+        state({ $self: 0, providers: [observer] }, ({ update }) => ({
+          increment: () => update((current) => current + 1),
+        })),
+      );
     });
 
     expect(observedSources).toHaveLength(1);
@@ -93,7 +101,7 @@ describe('state', () => {
   });
   it('should create a simple state', () => {
     runInInjectionContext(() => {
-      const myState = state(0);
+      const myState = craftUse(state(0));
 
       expect(myState).toBeDefined();
       expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
@@ -103,7 +111,7 @@ describe('state', () => {
   it('should create a signal state', () => {
     runInInjectionContext(() => {
       const origin = signal(5);
-      const myState = state(linkedSignal(() => origin() * 2));
+      const myState = craftUse(state(linkedSignal(() => origin() * 2)));
 
       expect(myState).toBeDefined();
       expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
@@ -114,18 +122,20 @@ describe('state', () => {
   it('should accept insertion, use to add methods and properties', () => {
     runInInjectionContext(() => {
       const origin = signal(5);
-      const myState = state(
-        linkedSignal(() => origin() * 2),
-        (context) =>
-          craftPipe(
-          context,
-          ({ update, set }) => ({
-            increment: () => update((current) => current + 1),
-            reset: () => set(0),
-          }),
-          ({ state }) => ({
-            isOdd: computed(() => state() % 2 === 1),
-          }),
+      const myState = craftUse(
+        state(
+          linkedSignal(() => origin() * 2),
+          (context) =>
+            craftPipe(
+              context,
+              ({ update, set }) => ({
+                increment: () => update((current) => current + 1),
+                reset: () => set(0),
+              }),
+              ({ state }) => ({
+                isOdd: computed(() => state() % 2 === 1),
+              }),
+            ),
         ),
       );
 
@@ -167,24 +177,27 @@ describe('state', () => {
     );
 
     runInInjectionContext(() => {
-      const myState = state(
-        function* () {
-          const counter = yield* CounterReaderToYield(
-            undefined,
-            ({ read }) => ({
-              read,
-            }),
-          );
+      const myState = craftUse(
+        state(
+          function* () {
+            const counter = yield* CounterReaderToYield(
+              undefined,
+              ({ read }) => ({
+                read,
+              }),
+            );
 
-          return counter.read();
-        },
-        function* ({ update }) {
-          const counterStep = yield* CounterStepToYield();
+            return counter.read();
+          },
+          function* ({ update }) {
+            const counterStep = yield* CounterStepToYield();
 
-          return {
-            increment: () => update((current) => current + counterStep.step()),
-          };
-        },
+            return {
+              increment: () =>
+                update((current) => current + counterStep.step()),
+            };
+          },
+        ),
       );
 
       expectTypeOf(myState()).toEqualTypeOf<number>();
@@ -226,24 +239,27 @@ describe('state', () => {
     );
 
     runInInjectionContext(() => {
-      const myState = state(
-        function* () {
-          const counter = yield* CounterReaderRuntimeToYield(
-            undefined,
-            ({ read }) => ({
-              read,
-            }),
-          );
+      const myState = craftUse(
+        state(
+          function* () {
+            const counter = yield* CounterReaderRuntimeToYield(
+              undefined,
+              ({ read }) => ({
+                read,
+              }),
+            );
 
-          return counter.read();
-        },
-        function* ({ update }) {
-          const counterStep = yield* CounterStepRuntimeToYield();
+            return counter.read();
+          },
+          function* ({ update }) {
+            const counterStep = yield* CounterStepRuntimeToYield();
 
-          return {
-            increment: () => update((current) => current + counterStep.step()),
-          };
-        },
+            return {
+              increment: () =>
+                update((current) => current + counterStep.step()),
+            };
+          },
+        ),
       );
 
       expect(myState()).toBe(2);
@@ -255,12 +271,14 @@ describe('state', () => {
   it('methods can be bind to a source, but not exposed', async () => {
     await runInInjectionContext(async () => {
       const sourceSignal = signalSource<number>('sourceSignal');
-      const myState = state(0, ({ set }) => ({
-        setValue: afterRecomputation(sourceSignal, (value) => {
-          set(value);
-        }),
-        reset: () => set(0),
-      }));
+      const myState = craftUse(
+        state(0, ({ set }) => ({
+          setValue: afterRecomputation(sourceSignal, (value) => {
+            set(value);
+          }),
+          reset: () => set(0),
+        })),
+      );
 
       expect(myState).toBeDefined();
       expectTypeOf(myState()).toEqualTypeOf<number>();
@@ -284,12 +302,14 @@ describe('state', () => {
   it('methods can be bind to a source$, but not exposed', async () => {
     await runInInjectionContext(async () => {
       const sourceSignal = source$<number>('sourceSignal');
-      const myState = state(0, ({ set }) => ({
-        setValue: on$(sourceSignal, (value) => {
-          set(value);
-        }),
-        reset: () => set(0),
-      }));
+      const myState = craftUse(
+        state(0, ({ set }) => ({
+          setValue: on$(sourceSignal, (value) => {
+            set(value);
+          }),
+          reset: () => set(0),
+        })),
+      );
 
       expect(myState).toBeDefined();
       expectTypeOf(myState()).toEqualTypeOf<number>();
@@ -310,18 +330,18 @@ describe('state', () => {
 
   it('should expose root source$ insertions as callable methods', async () => {
     await runInInjectionContext(async () => {
-      const myState = state(
-        0,
-        (context) =>
+      const myState = craftUse(
+        state(0, (context) =>
           craftPipe(
-          context,
-          ({ set }) => ({
-            resetAll$: source$<void>('resetAll$'),
-            increment: () => set(1),
-          }),
-          ({ insertions: { resetAll$ }, set }) => ({
-            syncReset: on$(resetAll$, () => set(0)),
-          }),
+            context,
+            ({ set }) => ({
+              resetAll$: source$<void>('resetAll$'),
+              increment: () => set(1),
+            }),
+            ({ insertions: { resetAll$ }, set }) => ({
+              syncReset: on$(resetAll$, () => set(0)),
+            }),
+          ),
         ),
       );
 
@@ -357,7 +377,9 @@ describe('state', () => {
         },
       });
 
-      const s = state(linkedSignal(() => myRefSigal()).asReadonly(), insertion);
+      const s = craftUse(
+        state(linkedSignal(() => myRefSigal()).asReadonly(), insertion),
+      );
       expect(s()).toEqual([0]);
     });
   });
@@ -373,7 +395,7 @@ describe('state — $self config with providers', () => {
 
   it('should resolve $self plain value identically to the direct form', () => {
     runInInjectionContext(() => {
-      const myState = state({ $self: 42 });
+      const myState = craftUse(state({ $self: 42 }));
 
       expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
       expect(myState()).toBe(42);
@@ -383,7 +405,7 @@ describe('state — $self config with providers', () => {
   it('should resolve $self signal value', () => {
     runInInjectionContext(() => {
       const src = signal(7);
-      const myState = state({ $self: src });
+      const myState = craftUse(state({ $self: src }));
 
       expectTypeOf(myState()).toEqualTypeOf<number>();
       expect(myState()).toBe(7);
@@ -392,11 +414,13 @@ describe('state — $self config with providers', () => {
 
   it('should resolve $self generator factory', () => {
     runInInjectionContext(() => {
-      const myState = state({
-        $self: function* () {
-          return 99;
-        },
-      });
+      const myState = craftUse(
+        state({
+          $self: function* () {
+            return 99;
+          },
+        }),
+      );
 
       expectTypeOf(myState()).toEqualTypeOf<number>();
       expect(myState()).toBe(99);
@@ -405,9 +429,11 @@ describe('state — $self config with providers', () => {
 
   it('should work with insertions alongside $self', () => {
     runInInjectionContext(() => {
-      const myState = state({ $self: 0 }, ({ update }) => ({
-        increment: () => update((v) => v + 1),
-      }));
+      const myState = craftUse(
+        state({ $self: 0 }, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        })),
+      );
 
       expectTypeOf(myState()).toEqualTypeOf<number>();
       myState.increment();
@@ -425,12 +451,19 @@ describe('state — $self config with providers', () => {
     };
 
     runInInjectionContext(() => {
-      state({
-        $self: function* () {
-          return 0;
-        },
-        providers: [provideFnWrapper(trackingWrapper)],
-      });
+      craftUse(
+        state({
+          $self: function* () {
+            return 0;
+          },
+          providers: [
+            provideFnWrapper(
+              'Warning: dependency injection here is not type-safe and may fail at runtime',
+              trackingWrapper,
+            ),
+          ],
+        }),
+      );
 
       expect(callLog).toEqual(['state-factory']);
     });
@@ -446,9 +479,19 @@ describe('state — $self config with providers', () => {
     };
 
     runInInjectionContext(() => {
-      const myState = state(
-        { $self: 0, providers: [provideFnWrapper(trackingWrapper)] },
-        ({ update }) => ({ increment: () => update((v) => v + 1) }),
+      const myState = craftUse(
+        state(
+          {
+            $self: 0,
+            providers: [
+              provideFnWrapper(
+                'Warning: dependency injection here is not type-safe and may fail at runtime',
+                trackingWrapper,
+              ),
+            ],
+          },
+          ({ update }) => ({ increment: () => update((v) => v + 1) }),
+        ),
       );
 
       expect(callLog).toEqual([]);
@@ -469,13 +512,25 @@ describe('state — $self config with providers', () => {
     };
 
     runInInjectionContext(() => {
-      const withProvider = state(
-        { $self: 0, providers: [provideFnWrapper(trackingWrapper)] },
-        ({ update }) => ({ increment: () => update((v) => v + 1) }),
+      const withProvider = craftUse(
+        state(
+          {
+            $self: 0,
+            providers: [
+              provideFnWrapper(
+                'Warning: dependency injection here is not type-safe and may fail at runtime',
+                trackingWrapper,
+              ),
+            ],
+          },
+          ({ update }) => ({ increment: () => update((v) => v + 1) }),
+        ),
       );
-      const withoutProvider = state(0, ({ update }) => ({
-        increment: () => update((v) => v + 1),
-      }));
+      const withoutProvider = craftUse(
+        state(0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        })),
+      );
 
       withoutProvider.increment();
       expect(callLog).toEqual([]);
@@ -487,10 +542,10 @@ describe('state — $self config with providers', () => {
 
   it('typing: $self unwraps to the correct state type', () => {
     runInInjectionContext(() => {
-      const plain = state({ $self: 'hello' });
+      const plain = craftUse(state({ $self: 'hello' }));
       expectTypeOf(plain()).toEqualTypeOf<string>();
 
-      const withSignal = state({ $self: signal(0) });
+      const withSignal = craftUse(state({ $self: signal(0) }));
       expectTypeOf(withSignal()).toEqualTypeOf<number>();
     });
   });
@@ -502,22 +557,26 @@ describe('state — $self config with providers', () => {
     );
 
     runInInjectionContext(() => {
-      const withoutProviders = state(function* () {
-        const counter = yield* LocalCounterToYield();
-        return counter.value();
-      });
+      const withoutProviders = craftUse(
+        state(function* () {
+          const counter = yield* LocalCounterToYield();
+          return counter.value();
+        }),
+      );
       type WithoutDeps = ExtractDeps<typeof withoutProviders>;
       expectTypeOf<
         'LocalCounter' extends keyof WithoutDeps ? true : false
       >().toEqualTypeOf<true>();
 
-      const withProviders = state({
-        $self: function* () {
-          const counter = yield* LocalCounterToYield();
-          return counter.value();
-        },
-        providers: [provideLocalCounter()],
-      });
+      const withProviders = craftUse(
+        state({
+          $self: function* () {
+            const counter = yield* LocalCounterToYield();
+            return counter.value();
+          },
+          providers: [provideLocalCounter()],
+        }),
+      );
       type WithDeps = ExtractDeps<typeof withProviders>;
       expectTypeOf<
         'LocalCounter' extends keyof WithDeps ? true : false

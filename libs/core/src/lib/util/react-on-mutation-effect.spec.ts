@@ -3,6 +3,7 @@ import { mutation } from '../mutation';
 import { query } from '../query';
 import { reactOnMutationEffect } from './react-on-mutation-effect';
 import { resourceById } from '../resource-by-id';
+import { craftUse } from '../craft-use';
 
 describe('reactOnMutation', () => {
   beforeEach(() => {
@@ -13,26 +14,30 @@ describe('reactOnMutation', () => {
   });
   it('should enable to a query to react to a mutation change', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const queryRef = query({
-        params: () => '5',
-        loader: async ({ params }) => {
-          return {
-            id: params,
-            name: 'John Doe',
-            email: 'test@a.com',
-          };
-        },
-      });
-      const mutationRef = mutation({
-        method: (payload: { id: string; name: string; email: string }) =>
-          payload,
-        loader: async ({ params }) => {
-          return {
-            id: params.id,
-            name: params.name,
-          };
-        },
-      });
+      const queryRef = craftUse(
+        query({
+          params: () => '5',
+          loader: async ({ params }) => {
+            return {
+              id: params,
+              name: 'John Doe',
+              email: 'test@a.com',
+            };
+          },
+        }),
+      );
+      const mutationRef = craftUse(
+        mutation({
+          method: (payload: { id: string; name: string; email: string }) =>
+            payload,
+          loader: async ({ params }) => {
+            return {
+              id: params.id,
+              name: params.name,
+            };
+          },
+        }),
+      );
       reactOnMutationEffect(
         {
           queryTargeted: queryRef,
@@ -58,27 +63,31 @@ describe('reactOnMutation', () => {
 
   it('should enable to a query with identifier to react to a mutation change', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const queryRef = query({
-        params: () => '5',
-        identifier: (params) => params,
-        loader: async ({ params }) => {
-          return {
-            id: params,
-            name: 'John Doe',
-            email: 'test@a.com',
-          };
-        },
-      });
-      const mutationRef = mutation({
-        method: (payload: { id: string; name: string; email: string }) =>
-          payload,
-        loader: async ({ params }) => {
-          return {
-            id: params.id,
-            name: params.name,
-          };
-        },
-      });
+      const queryRef = craftUse(
+        query({
+          params: () => '5',
+          identifier: (params) => params,
+          loader: async ({ params }) => {
+            return {
+              id: params,
+              name: 'John Doe',
+              email: 'test@a.com',
+            };
+          },
+        }),
+      );
+      const mutationRef = craftUse(
+        mutation({
+          method: (payload: { id: string; name: string; email: string }) =>
+            payload,
+          loader: async ({ params }) => {
+            return {
+              id: params.id,
+              name: params.name,
+            };
+          },
+        }),
+      );
       reactOnMutationEffect(
         {
           queryTargeted: queryRef,
@@ -126,34 +135,38 @@ describe('reactOnMutation', () => {
           defaultValue: { id: '2', name: 'Jane Doe2', email: '' },
         });
 
-        const mutationRef = mutation({
-          fromResourceById: resourceByIdRef,
-          params: (resource) => {
-            if (!resource) {
-            }
-            return resource?.hasValue() ? resource?.value() : undefined;
-          },
-          loader: async ({ params }) => {
-            return {
-              id: params.id,
-              name: params.name,
-            };
-          },
-        });
+        const mutationRef = craftUse(
+          mutation({
+            fromResourceById: resourceByIdRef,
+            params: (resource) => {
+              if (!resource) {
+              }
+              return resource?.hasValue() ? resource?.value() : undefined;
+            },
+            loader: async ({ params }) => {
+              return {
+                id: params.id,
+                name: params.name,
+              };
+            },
+          }),
+        );
 
-        const queryRef = query({
-          params: () => '1',
-          identifier: (params) => params,
-          loader: async ({ params }) => {
-            return [
-              {
-                id: params,
-                name: 'John Doe',
-                email: 'test@a.com',
-              },
-            ];
-          },
-        });
+        const queryRef = craftUse(
+          query({
+            params: () => '1',
+            identifier: (params) => params,
+            loader: async ({ params }) => {
+              return [
+                {
+                  id: params,
+                  name: 'John Doe',
+                  email: 'test@a.com',
+                },
+              ];
+            },
+          }),
+        );
         reactOnMutationEffect(
           {
             queryTargeted: queryRef,

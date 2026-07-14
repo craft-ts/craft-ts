@@ -1,25 +1,26 @@
 import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-    CraftFieldDirective,
-    ValidatedFormValue,
-    cEmail,
-    cMinLength,
-    cRequired,
-    componentMonitoring,
-    craftException,
-    craftPipe,
-    insertForm,
-    insertFormAttributes,
-    insertFormSubmit,
-    insertNoopTypingAnchor,
-    insertSelectFormTree,
-    mutation,
-    provideHostName,
-    state,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
+  craftUse,
+  CraftFieldDirective,
+  ValidatedFormValue,
+  cEmail,
+  cMinLength,
+  cRequired,
+  componentMonitoring,
+  craftException,
+  craftPipe,
+  insertForm,
+  insertFormAttributes,
+  insertFormSubmit,
+  insertNoopTypingAnchor,
+  insertSelectFormTree,
+  mutation,
+  provideHostName,
+  state,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
 type LoginData = {
@@ -215,46 +216,50 @@ type LoginData = {
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('component:LoginFormComponent')]
+  providers: [provideHostName('component:LoginFormComponent')],
 })
 export default class LoginFormComponent {
   private readonly _monitoring = componentMonitoring();
-  private readonly loginMutation = mutation({
-    method: (payload: NonNullable<ValidatedFormValue<LoginData>>) => payload,
-    loader: async ({ params: credentials }) => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+  private readonly loginMutation = craftUse(
+    mutation({
+      method: (payload: NonNullable<ValidatedFormValue<LoginData>>) => payload,
+      loader: async ({ params: credentials }) => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if (credentials.email === 'invalid@gmail.com') {
-        return craftException(
-          { code: 'UserBannedException' },
-          { message: 'This user has been banned.' as const },
-        );
-      }
+        if (credentials.email === 'invalid@gmail.com') {
+          return craftException(
+            { code: 'UserBannedException' },
+            { message: 'This user has been banned.' as const },
+          );
+        }
 
-      return credentials;
-    },
-  });
+        return credentials;
+      },
+    }),
+  );
 
-  protected readonly loginForm = state(
-    { email: '', password: '' } satisfies LoginData,
-    insertForm(
-      insertFormSubmit(this.loginMutation),
-      insertSelectFormTree('email', (context) =>
-        craftPipe(
-          context,
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({
-            validators: [cRequired(), cEmail(), cMinLength({ minLength: 5 })],
-          })),
+  protected readonly loginForm = craftUse(
+    state(
+      { email: '', password: '' } satisfies LoginData,
+      insertForm(
+        insertFormSubmit(this.loginMutation),
+        insertSelectFormTree('email', (context) =>
+          craftPipe(
+            context,
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired(), cEmail(), cMinLength({ minLength: 5 })],
+            })),
+          ),
         ),
-      ),
-      insertSelectFormTree('password', (context) =>
-        craftPipe(
-          context,
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({
-            validators: [cRequired()],
-          })),
+        insertSelectFormTree('password', (context) =>
+          craftPipe(
+            context,
+            insertNoopTypingAnchor,
+            insertFormAttributes(() => ({
+              validators: [cRequired()],
+            })),
+          ),
         ),
       ),
     ),
@@ -262,17 +267,17 @@ export default class LoginFormComponent {
 }
 
 export type GenDeps_LoginFormComponent = GetDeps<{
-      deps: {
-        JsonPipe: JsonPipe;
-        CraftFieldDirective: CraftFieldDirective<unknown>;
-      };
-      propertiesDeps: {
-        _monitoring: ExtractDeps<LoginFormComponent["_monitoring"]>;
-        loginMutation: ExtractDeps<LoginFormComponent["loginMutation"]>;
-        loginForm: ExtractDeps<LoginFormComponent["loginForm"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<LoginFormComponent>;
-    }>;
+  deps: {
+    JsonPipe: JsonPipe;
+    CraftFieldDirective: CraftFieldDirective<unknown>;
+  };
+  propertiesDeps: {
+    _monitoring: ExtractDeps<LoginFormComponent['_monitoring']>;
+    loginMutation: ExtractDeps<LoginFormComponent['loginMutation']>;
+    loginForm: ExtractDeps<LoginFormComponent['loginForm']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<LoginFormComponent>;
+}>;

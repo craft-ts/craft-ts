@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import {
+  craftUse,
   componentMonitoring,
   craftException,
   provideHostName,
@@ -119,10 +120,12 @@ export default class ExceptionsComponent {
   private readonly _monitoring = componentMonitoring();
   private readonly scenario = signal<Scenario>('success');
 
-  protected readonly userQuery = query({
-    params: () => this.scenario(),
-    loader: async ({ params }) => this.mockGetUser(params),
-  });
+  protected readonly userQuery = craftUse(
+    query({
+      params: () => this.scenario(),
+      loader: async ({ params }) => this.mockGetUser(params),
+    }),
+  );
 
   protected setScenario(scenario: Scenario): void {
     this.scenario.set(scenario);

@@ -5,6 +5,7 @@ import { insertEntities } from './insert-entities';
 import { queryParam } from './query-param';
 import { query } from './query';
 import { provideRouter } from '@angular/router';
+import { craftUse } from './craft-use';
 
 describe('insertEntities', () => {
   beforeAll(() => {
@@ -15,11 +16,13 @@ describe('insertEntities', () => {
   });
   it('should enable to insert entities util to a state', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myState = state(
-        [] as string[],
-        insertEntities({
-          methods: [addOne, addMany, removeOne],
-        }),
+      const myState = craftUse(
+        state(
+          [] as string[],
+          insertEntities({
+            methods: [addOne, addMany, removeOne],
+          }),
+        ),
       );
       myState.addMany({
         newEntities: ['1', '2', '3'],
@@ -32,20 +35,22 @@ describe('insertEntities', () => {
       providers: [provideRouter([])],
     }).compileComponents();
     await TestBed.runInInjectionContext(async () => {
-      const myState = queryParam(
-        {
-          state: {
-            selectedRows: {
-              fallbackValue: [] as string[],
-              parse: (value) => value.split(','),
-              serialize: (value) => (value as string[]).join(','),
+      const myState = craftUse(
+        queryParam(
+          {
+            state: {
+              selectedRows: {
+                fallbackValue: [] as string[],
+                parse: (value) => value.split(','),
+                serialize: (value) => (value as string[]).join(','),
+              },
             },
           },
-        },
-        insertEntities({
-          methods: [addOne, addMany, removeOne],
-          path: 'selectedRows',
-        }),
+          insertEntities({
+            methods: [addOne, addMany, removeOne],
+            path: 'selectedRows',
+          }),
+        ),
       );
       myState.selectedRowsAddMany({
         newEntities: ['1', '2', '3'],
@@ -55,14 +60,16 @@ describe('insertEntities', () => {
 
   it('should enable to insert entities util to a query', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myQuery = query(
-        {
-          params: () => '1',
-          loader: async () => ['1', '2', '3'],
-        },
-        insertEntities({
-          methods: [addOne, addMany, removeOne],
-        }),
+      const myQuery = craftUse(
+        query(
+          {
+            params: () => '1',
+            loader: async () => ['1', '2', '3'],
+          },
+          insertEntities({
+            methods: [addOne, addMany, removeOne],
+          }),
+        ),
       );
       await vi.runAllTimersAsync();
       myQuery.addMany({
@@ -73,15 +80,17 @@ describe('insertEntities', () => {
   });
   it('should enable to insert entities util to a query that run in paralllel', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myQuery = query(
-        {
-          params: () => '1',
-          identifier: (params) => params,
-          loader: async () => ['1', '2', '3'],
-        },
-        insertEntities({
-          methods: [addOne, addMany, removeOne],
-        }),
+      const myQuery = craftUse(
+        query(
+          {
+            params: () => '1',
+            identifier: (params) => params,
+            loader: async () => ['1', '2', '3'],
+          },
+          insertEntities({
+            methods: [addOne, addMany, removeOne],
+          }),
+        ),
       );
       await vi.runAllTimersAsync();
       myQuery.addMany({
@@ -101,23 +110,25 @@ describe('insertEntities', () => {
 
   it('should enable to insert entities util to a query that return an object', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myQuery = query(
-        {
-          params: () => '1',
-          loader: async () => ({
-            total: 1,
-            products: [
-              {
-                id: '1',
-                name: 'Product 1',
-              },
-            ],
+      const myQuery = craftUse(
+        query(
+          {
+            params: () => '1',
+            loader: async () => ({
+              total: 1,
+              products: [
+                {
+                  id: '1',
+                  name: 'Product 1',
+                },
+              ],
+            }),
+          },
+          insertEntities({
+            methods: [addOne, addMany, removeOne],
+            path: 'products',
           }),
-        },
-        insertEntities({
-          methods: [addOne, addMany, removeOne],
-          path: 'products',
-        }),
+        ),
       );
       await vi.runAllTimersAsync();
       myQuery.productsAddMany({
@@ -161,24 +172,26 @@ describe('insertEntities', () => {
   });
   it('should enable to insert entities util to parallel queries that return an object', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myQuery = query(
-        {
-          params: () => '1',
-          identifier: (params) => params,
-          loader: async () => ({
-            total: 1,
-            products: [
-              {
-                id: '1',
-                name: 'Product 1',
-              },
-            ],
+      const myQuery = craftUse(
+        query(
+          {
+            params: () => '1',
+            identifier: (params) => params,
+            loader: async () => ({
+              total: 1,
+              products: [
+                {
+                  id: '1',
+                  name: 'Product 1',
+                },
+              ],
+            }),
+          },
+          insertEntities({
+            methods: [addOne, addMany, removeOne],
+            path: 'products',
           }),
-        },
-        insertEntities({
-          methods: [addOne, addMany, removeOne],
-          path: 'products',
-        }),
+        ),
       );
       await vi.runAllTimersAsync();
       myQuery.productsAddMany({
@@ -224,22 +237,24 @@ describe('insertEntities', () => {
 
   it('should update a nested dotted path on state', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myState = state(
-        {
-          catalog: {
-            products: [
-              {
-                id: '1',
-                name: 'Product 1',
-              },
-            ],
+      const myState = craftUse(
+        state(
+          {
+            catalog: {
+              products: [
+                {
+                  id: '1',
+                  name: 'Product 1',
+                },
+              ],
+            },
+            total: 1,
           },
-          total: 1,
-        },
-        insertEntities({
-          methods: [addMany],
-          path: 'catalog.products',
-        }),
+          insertEntities({
+            methods: [addMany],
+            path: 'catalog.products',
+          }),
+        ),
       );
 
       myState.catalogProductsAddMany({
@@ -271,12 +286,14 @@ describe('insertEntities', () => {
 
   it('should forward a custom identifier to helper methods', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myState = state(
-        [] as Array<{ uuid: string; name: string }>,
-        insertEntities({
-          methods: [setOne],
-          identifier: (entity) => entity.uuid,
-        }),
+      const myState = craftUse(
+        state(
+          [] as Array<{ uuid: string; name: string }>,
+          insertEntities({
+            methods: [setOne],
+            identifier: (entity) => entity.uuid,
+          }),
+        ),
       );
 
       myState.setOne({

@@ -68,12 +68,15 @@ import {
   craftCanMatch,
   craftRoutes,
   craftRoute,
+  type CraftRoutesPublicPropertiesErrors,
   type ResolveCraftRouteComponentDeps,
 } from './craft-routes';
 import { craftGen } from './craft-gen';
 import { craftException } from './craft-exception';
+import { craftExceptionHandler } from './craft-route-exceptions';
 import { GetDeps } from './branded-component/branded-component';
 import { HOST_TAG_LIST, injectHostName, provideHostName } from './host-tag';
+import { craftUse } from './craft-use';
 
 function _injectDemoUserIdParams(): Signal<string> {
   throw new Error('Type-only helper');
@@ -321,27 +324,29 @@ describe('craftRoutes', () => {
 
   it('should expose typed inject helpers for route queryParams', () => {
     const listQueryParams = () =>
-      queryParam(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: number) => String(value),
-            },
-            pageSize: {
-              fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: number) => String(value),
+      craftUse(
+        queryParam(
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: number) => String(value),
+              },
+              pageSize: {
+                fallbackValue: 10,
+                parse: (value: string) => parseInt(value, 10),
+                serialize: (value: number) => String(value),
+              },
             },
           },
-        },
-        ({ set, update, patch, reset }) => ({
-          set,
-          update,
-          patch,
-          reset,
-        }),
+          ({ set, update, patch, reset }) => ({
+            set,
+            update,
+            patch,
+            reset,
+          }),
+        ),
       );
 
     const routes = craftRoutes('player', [
@@ -1670,7 +1675,13 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    expectTypeOf(routes).toEqualTypeOf<{
+    // Unmatched inputs no longer collapse the whole result: they are surfaced
+    // through the exported error map (and META_DATA.publicProperties), checked
+    // at app-config level where the parent-mount context is known.
+    type RouteErrors = CraftRoutesPublicPropertiesErrors<
+      (typeof routes.testRoutes)['_routes']
+    >;
+    expectTypeOf<RouteErrors>().toEqualTypeOf<{
       'query/:userId': {
         teamId: 'The input teamId is not matching any route param or data property';
       };
@@ -2103,367 +2114,12 @@ describe('craftRoutes', () => {
     expect(result).toBe(true);
   });
 
-  describe('craftCanActivate', () => {
-    function configureRouterTestingModule(
-      providers: NonNullable<Route['providers']> | undefined,
-      activatedRoute: ActivatedRoute,
-    ) {
-      TestBed.configureTestingModule({
-        providers: [
-          provideRouter([]),
-          {
-            provide: ActivatedRoute,
-            useValue: activatedRoute,
-          },
-          {
-            provide: SERVICE_RUNTIME_OVERRIDES,
-            useValue: new Map(),
-          },
-          ...flattenProviders(providers),
-        ] as never[],
-      });
-    }
-
-    function runCanActivate(routeConfig: Route) {
-      const guard = getCanActivateGuard(routeConfig);
-
-      return TestBed.runInInjectionContext(() =>
-        guard(activatedRouteSnapshotStub, routerStateSnapshotStub),
-      );
-    }
-
-    it('allows the route when no composed guard short-circuits', () => {
-      const okGuard = craftGen(function* () {
-        return true;
-      });
-      const { testRoutes: appRoutes } = craftRoutes('test', [
-        {
-          path: 'admin',
-          loadComponent: async () => null as unknown as Type<unknown>,
-          componentDeps: {},
-          canActivate: craftCanActivate(function* () {
-            yield* okGuard();
-            return true;
-          }, {} as never),
-        },
-      ]);
-      const routeConfig = appRoutes.toRoutes()[0];
-      const activatedRoute = createActivatedRouteStub();
-      configureRouterTestingModule(routeConfig.providers, activatedRoute.route);
-
-      expect(runCanActivate(routeConfig)).toBe(true);
-    });
-
-    it('resolves a short-circuited exception to the resolver redirect', () => {
-      const { AuthToYield, provideAuth } = craftService(
-        { name: 'Auth', scope: 'toProvide' },
-        () => ({ role: 'user' }),
-      );
-      const roleGuard = craftGen(function* (...roles: string[]) {
-        const auth = yield* AuthToYield();
-        return roles.includes(auth.role)
-          ? true
-          : craftException({ code: 'FORBIDDEN_ROLE' });
-      });
-      const { testRoutes: appRoutes } = craftRoutes('test', [
-        {
-          path: 'admin',
-          loadComponent: async () => null as unknown as Type<unknown>,
-          componentDeps: {},
-          providers: [provideAuth()],
-          canActivate: craftCanActivate(
-            function* () {
-              yield* roleGuard('admin');
-              return true;
-            },
-            {
-              FORBIDDEN_ROLE: ({ createUrlTree }) =>
-                createUrlTree(['/unauthorized']),
-            },
-          ),
-        },
-      ]);
-      const routeConfig = appRoutes.toRoutes()[0];
-      const activatedRoute = createActivatedRouteStub();
-      configureRouterTestingModule(routeConfig.providers, activatedRoute.route);
-
-      const result = runCanActivate(routeConfig);
-
-      expect(result).toBeInstanceOf(UrlTree);
-      expect(TestBed.inject(Router).serializeUrl(result as UrlTree)).toBe(
-        '/unauthorized',
-      );
-    });
-
-    it('throws for an exception code without a resolver', () => {
-      const failGuard = craftGen(function* () {
-        return craftException({ code: 'FORBIDDEN_ROLE' });
-      });
-      const { testRoutes: appRoutes } = craftRoutes('test', [
-        {
-          path: 'admin',
-          loadComponent: async () => null as unknown as Type<unknown>,
-          componentDeps: {},
-          canActivate: craftCanActivate(function* () {
-            yield* failGuard();
-            return true;
-          }, {} as never),
-        },
-      ]);
-      const routeConfig = appRoutes.toRoutes()[0];
-      const activatedRoute = createActivatedRouteStub();
-      configureRouterTestingModule(routeConfig.providers, activatedRoute.route);
-
-      expect(() => runCanActivate(routeConfig)).toThrow(
-        'Unhandled guard exception: FORBIDDEN_ROLE',
-      );
-    });
-
-    it('exposes guard success data through injectXxxGuardedData', () => {
-      const dataGuard = craftGen(function* () {
-        return { tenantId: 'acme' } as const;
-      });
-      const {
-        testRoutes: appRoutes,
-        injectTestAdminGuardedData: injectGuardedData,
-      } = craftRoutes('test', [
-        {
-          path: 'admin',
-          loadComponent: async () => null as unknown as Type<unknown>,
-          componentDeps: {},
-          canActivate: craftCanActivate(function* () {
-            return yield* dataGuard();
-          }, {} as never),
-        },
-      ]);
-      const routeConfig = appRoutes.toRoutes()[0];
-      const activatedRoute = createActivatedRouteStub();
-      configureRouterTestingModule(routeConfig.providers, activatedRoute.route);
-
-      expect(runCanActivate(routeConfig)).toBe(true);
-
-      const guardedData = TestBed.runInInjectionContext(() =>
-        injectGuardedData(),
-      );
-
-      expect(guardedData()).toEqual({ tenantId: 'acme' });
-
-      expectTypeOf(guardedData()).toEqualTypeOf<{
-        readonly tenantId: 'acme';
-      }>();
-    });
-
-    it('lets a generator resolver yield a service to build the redirect', () => {
-      const { RedirectConfigToYield, provideRedirectConfig } = craftService(
-        { name: 'RedirectConfig', scope: 'toProvide' },
-        () => ({ loginUrl: '/auth/login' }),
-      );
-      const authGuard = craftGen(function* () {
-        return craftException({ code: 'NOT_AUTHENTICATED' });
-      });
-      const { testRoutes: appRoutes } = craftRoutes('test', [
-        {
-          path: 'admin',
-          loadComponent: async () => null as unknown as Type<unknown>,
-          componentDeps: {},
-          providers: [provideRedirectConfig()],
-          canActivate: craftCanActivate(
-            function* () {
-              yield* authGuard();
-              return true;
-            },
-            {
-              NOT_AUTHENTICATED: function* ({ createUrlTree }) {
-                const config = yield* RedirectConfigToYield();
-                return createUrlTree([config.loginUrl]);
-              },
-            },
-          ),
-        },
-      ]);
-      const routeConfig = appRoutes.toRoutes()[0];
-      configureRouterTestingModule(
-        routeConfig.providers,
-        createActivatedRouteStub().route,
-      );
-
-      const result = runCanActivate(routeConfig);
-
-      expect(result).toBeInstanceOf(UrlTree);
-      expect(TestBed.inject(Router).serializeUrl(result as UrlTree)).toBe(
-        '/auth/login',
-      );
-    });
-
-    it('requires resolvers covering exactly the reachable exception codes', () => {
-      const roleGuard = craftGen(function* (...roles: string[]) {
-        return roles.includes('admin')
-          ? true
-          : craftException({ code: 'FORBIDDEN_ROLE' });
-      });
-      const noPizzeriaGuard = craftGen(function* () {
-        return Math.random() > 0.5
-          ? craftException({ code: 'HAS_PIZZERIA' })
-          : true;
-      });
-      const guard = function* () {
-        yield* roleGuard('admin');
-        yield* noPizzeriaGuard();
-        return true;
-      };
-
-      // Exact coverage type-checks.
-      craftCanActivate(guard, {
-        FORBIDDEN_ROLE: ({ createUrlTree }) => createUrlTree(['/unauthorized']),
-        HAS_PIZZERIA: ({ createUrlTree }) => createUrlTree(['/dashboard']),
-      });
-
-      craftCanActivate(
-        guard,
-        // @ts-expect-error - `HAS_PIZZERIA` resolver is missing.
-        {
-          FORBIDDEN_ROLE: ({ createUrlTree }) =>
-            createUrlTree(['/unauthorized']),
-        },
-      );
-
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('craftCanMatch', () => {
-    function configureRouterTestingModule(
-      providers: NonNullable<Route['providers']> | undefined,
-    ) {
-      TestBed.configureTestingModule({
-        providers: [
-          provideRouter([]),
-          { provide: SERVICE_RUNTIME_OVERRIDES, useValue: new Map() },
-          ...flattenProviders(providers),
-        ] as never[],
-      });
-    }
-
-    function runCanMatch(routeConfig: Route) {
-      const guard = getCanMatchGuard(routeConfig);
-
-      return TestBed.runInInjectionContext(() =>
-        guard(routeConfig, urlSegmentsStub, partialMatchRouteSnapshotStub),
-      );
-    }
-
-    const flagGuard = craftGen(function* (flag: string) {
-      return flag === 'beta'
-        ? true
-        : craftException({ code: 'FLAG_DISABLED' });
-    });
-
-    it('matches the route when no composed guard short-circuits', () => {
-      const { testRoutes: appRoutes } = craftRoutes('test', [
-        {
-          path: 'beta',
-          loadComponent: async () => null as unknown as Type<unknown>,
-          componentDeps: {},
-          canMatch: craftCanMatch(
-            function* () {
-              yield* flagGuard('beta');
-              return true;
-            },
-            { FLAG_DISABLED: () => false },
-          ),
-        },
-      ]);
-      const routeConfig = appRoutes.toRoutes()[0];
-      configureRouterTestingModule(routeConfig.providers);
-
-      expect(runCanMatch(routeConfig)).toBe(true);
-    });
-
-    it('resolves a short-circuit to the resolver GuardResult (skip the route)', () => {
-      const { testRoutes: appRoutes } = craftRoutes('test', [
-        {
-          path: 'beta',
-          loadComponent: async () => null as unknown as Type<unknown>,
-          componentDeps: {},
-          canMatch: craftCanMatch(
-            function* () {
-              yield* flagGuard('disabled');
-              return true;
-            },
-            { FLAG_DISABLED: () => false },
-          ),
-        },
-      ]);
-      const routeConfig = appRoutes.toRoutes()[0];
-      configureRouterTestingModule(routeConfig.providers);
-
-      expect(runCanMatch(routeConfig)).toBe(false);
-    });
-
-    it('can resolve a short-circuit to a redirect UrlTree', () => {
-      const { testRoutes: appRoutes } = craftRoutes('test', [
-        {
-          path: 'beta',
-          loadComponent: async () => null as unknown as Type<unknown>,
-          componentDeps: {},
-          canMatch: craftCanMatch(
-            function* () {
-              yield* flagGuard('disabled');
-              return true;
-            },
-            { FLAG_DISABLED: ({ createUrlTree }) => createUrlTree(['/home']) },
-          ),
-        },
-      ]);
-      const routeConfig = appRoutes.toRoutes()[0];
-      configureRouterTestingModule(routeConfig.providers);
-
-      const result = runCanMatch(routeConfig);
-
-      expect(result).toBeInstanceOf(UrlTree);
-      expect(TestBed.inject(Router).serializeUrl(result as UrlTree)).toBe(
-        '/home',
-      );
-    });
-
-    it('throws for an exception code without a resolver', () => {
-      const { testRoutes: appRoutes } = craftRoutes('test', [
-        {
-          path: 'beta',
-          loadComponent: async () => null as unknown as Type<unknown>,
-          componentDeps: {},
-          canMatch: craftCanMatch(function* () {
-            yield* flagGuard('disabled');
-            return true;
-          }, {} as never),
-        },
-      ]);
-      const routeConfig = appRoutes.toRoutes()[0];
-      configureRouterTestingModule(routeConfig.providers);
-
-      expect(() => runCanMatch(routeConfig)).toThrow(
-        'Unhandled guard exception: FLAG_DISABLED',
-      );
-    });
-
-    it('requires resolvers covering exactly the reachable exception codes', () => {
-      const guard = function* () {
-        yield* flagGuard('beta');
-        return true;
-      };
-
-      // Exact coverage type-checks.
-      craftCanMatch(guard, { FLAG_DISABLED: () => false });
-
-      craftCanMatch(
-        guard,
-        // @ts-expect-error - `FLAG_DISABLED` resolver is missing.
-        {},
-      );
-
-      expect(true).toBe(true);
-    });
-  });
+  // The legacy blocking-guard describes ('craftCanActivate' / 'craftCanMatch')
+  // were removed: guards are no longer registered as Angular route guards —
+  // CraftRouterOutlet drives them after the URL commits and resolves their
+  // exceptions through the route-level `handleExceptions` (3rd argument of
+  // `craftRoute`). Runtime coverage lives in craft-guard-runtime.spec.ts,
+  // type-level exhaustiveness coverage in craft-routes-ux.spec.ts.
 
   it('should resolve an observable canMatch result once it emits a defined value', async () => {
     const guardResult = new BehaviorSubject<GuardResult | undefined>(undefined);
@@ -2806,7 +2462,10 @@ describe('AppRoutes.META_DATA', () => {
       },
     ]);
 
-    expectTypeOf(routes).toEqualTypeOf<{
+    type RouteErrors = CraftRoutesPublicPropertiesErrors<
+      (typeof routes.testRoutes)['_routes']
+    >;
+    expectTypeOf<RouteErrors>().toEqualTypeOf<{
       '': {
         userId: 'The input userId is not matching any route param or data property';
       };
@@ -2844,7 +2503,10 @@ describe('AppRoutes.META_DATA', () => {
       },
     ]);
 
-    expectTypeOf(routes).toEqualTypeOf<{
+    type RouteErrors = CraftRoutesPublicPropertiesErrors<
+      (typeof routes.testRoutes)['_routes']
+    >;
+    expectTypeOf<RouteErrors>().toEqualTypeOf<{
       '': {
         userId: 'The input userId is not matching any route param or data property';
       };
@@ -2997,7 +2659,7 @@ describe('AppRoutes.META_DATA', () => {
         queryParams: function* () {
           yield* Console.log('init list queryParam');
 
-          return queryParam(
+          return yield* queryParam(
             {
               state: {
                 page: {
@@ -3129,7 +2791,7 @@ describe('AppRoutes.META_DATA', () => {
         queryParams: function* () {
           yield* CounterToYield();
 
-          return queryParam({
+          return yield* queryParam({
             state: {
               page: {
                 fallbackValue: 1,
@@ -3332,24 +2994,24 @@ describe('AppRoutes.META_DATA', () => {
     }>;
 
     const { testRoutes: appRoutes } = craftRoutes('test', [
-      {
-        path: 'admin',
-        loadComponent: async () => null as unknown as Type<unknown>,
-        componentDeps: {} as GuardRouteDeps,
-        canActivate: craftCanActivate(
-          function* () {
+      craftRoute(
+        'admin',
+        {
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {} as GuardRouteDeps,
+          canActivate: craftCanActivate(function* () {
             yield* authGuard();
             return true;
-          },
-          {
-            // Generator resolver — its yielded service is tracked as a route dep.
-            NOT_AUTHENTICATED: function* ({ createUrlTree }) {
-              const config = yield* RedirectConfigToYield();
-              return createUrlTree([config.loginUrl]);
-            },
-          },
-        ),
-      },
+          }),
+        },
+        {
+          // Generator handler — its yielded service is tracked as a route dep.
+          NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+            const config = yield* RedirectConfigToYield();
+            return redirectUrl(config.loginUrl);
+          }),
+        },
+      ),
     ]);
 
     expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
@@ -3383,24 +3045,24 @@ describe('AppRoutes.META_DATA', () => {
     }>;
 
     const { testRoutes: appRoutes } = craftRoutes('test', [
-      {
-        path: 'admin',
-        loadComponent: async () => null as unknown as Type<unknown>,
-        componentDeps: {} as GuardRouteDeps,
-        providers: [provideRedirectConfig()],
-        canActivate: craftCanActivate(
-          function* () {
+      craftRoute(
+        'admin',
+        {
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {} as GuardRouteDeps,
+          providers: [provideRedirectConfig()],
+          canActivate: craftCanActivate(function* () {
             yield* authGuard();
             return true;
-          },
-          {
-            NOT_AUTHENTICATED: function* ({ createUrlTree }) {
-              const config = yield* RedirectConfigToYield();
-              return createUrlTree([config.loginUrl]);
-            },
-          },
-        ),
-      },
+          }),
+        },
+        {
+          NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+            const config = yield* RedirectConfigToYield();
+            return redirectUrl(config.loginUrl);
+          }),
+        },
+      ),
     ]);
 
     expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<

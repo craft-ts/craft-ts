@@ -6,6 +6,7 @@ import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertSelectFormTree } from './insert-select-form-tree';
 import { formTreeNeed, makeFormTreeInsert } from './make-form-tree-insert';
+import { craftUse } from '../craft-use';
 
 type UserShape = {
   user: { name: string; age: number };
@@ -22,9 +23,11 @@ describe('makeFormTreeInsert', () => {
         })),
       );
 
-      const parent = state(
-        { user: { name: 'romain', age: 30 }, orderId: 'abc' },
-        insertForm(insertUserFormTree()),
+      const parent = craftUse(
+        state(
+          { user: { name: 'romain', age: 30 }, orderId: 'abc' },
+          insertForm(insertUserFormTree()),
+        ),
       );
 
       const userForm = (
@@ -56,9 +59,11 @@ describe('makeFormTreeInsert', () => {
         }),
       );
 
-      const parent = state(
-        { user: { name: 'romain', age: 30 } },
-        insertForm(insertUserFormTree()),
+      const parent = craftUse(
+        state(
+          { user: { name: 'romain', age: 30 } },
+          insertForm(insertUserFormTree()),
+        ),
       );
 
       const tags = (parent.form as unknown as { hostTags: readonly string[] })
@@ -88,18 +93,18 @@ describe('makeFormTreeInsert', () => {
           ),
       );
 
-      const parent = state(
-        { user: { name: 'romain', age: 30 } },
-        insertForm(insertUserFormTree()),
+      const parent = craftUse(
+        state(
+          { user: { name: 'romain', age: 30 } },
+          insertForm(insertUserFormTree()),
+        ),
       );
 
+      expect((parent.form as unknown as { greeting: string }).greeting).toBe(
+        'hello',
+      );
       expect(
-        (parent.form as unknown as { greeting: string }).greeting,
-      ).toBe('hello');
-      expect(
-        (
-          parent.form as unknown as { greetedName: () => string }
-        ).greetedName(),
+        (parent.form as unknown as { greetedName: () => string }).greetedName(),
       ).toBe('hello world');
     });
   });
@@ -112,11 +117,13 @@ describe('makeFormTreeInsert', () => {
         insertSelectFormTree('user', () => ({})),
       );
 
-      state(
-        { orderId: 'abc' as const },
-        // @ts-expect-error parent state has no `user` field, so it does
-        //  not satisfy `formTreeNeed<UserShape>()`.
-        insertForm(insertUserFormTree()),
+      craftUse(
+        state(
+          { orderId: 'abc' as const },
+          // @ts-expect-error parent state has no `user` field, so it does
+          //  not satisfy `formTreeNeed<UserShape>()`.
+          insertForm(insertUserFormTree()),
+        ),
       );
     });
   });
