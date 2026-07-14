@@ -462,10 +462,9 @@ function migrateSimpleClass(
       if (token)
         yields.push(makeYield(internalName, token, descriptor, all, diagnostics));
     } else {
-      const shouldTrack = isDependentPrimitive(initializer);
-      if (shouldTrack) {
+      const shouldYield = isPrimitiveCreation(initializer);
+      if (shouldYield) {
         hasTrackedPrimitive = true;
-        ensureCoreImports(file, ['track']);
       }
       const imperativeStateComment = property
         .getFullText()
@@ -473,7 +472,7 @@ function migrateSimpleClass(
         ? '// CRAFT_IMPERATIVE_CODE_DETECTED: imperative code detected, prefer a declarative approach.\n'
         : '';
       declarations.push(
-        `${imperativeStateComment}const ${internalName} = ${shouldTrack ? 'yield* track(' : ''}${rewriteThis(initializer.getText(), propertyNames)}${shouldTrack ? ')' : ''};`,
+        `${imperativeStateComment}const ${internalName} = ${shouldYield ? 'yield* ' : ''}${rewriteThis(initializer.getText(), propertyNames)};`,
       );
     }
     if (
@@ -595,17 +594,15 @@ function getImperativeWorkflowComment(
   return '// CRAFT_REACTIVE_WORKFLOW_RECOMMENDED: workflow impératif détecté...';
 }
 
-function isDependentPrimitive(initializer: Node): boolean {
-  if (
-    !Node.isCallExpression(initializer) ||
-    !['query', 'mutation', 'asyncProcess', 'state', 'craftMethod'].includes(
+// The generator primitives must always be consumed with `yield*` inside the
+// service factory so their dependency map folds into the service tree.
+function isPrimitiveCreation(initializer: Node): boolean {
+  return (
+    Node.isCallExpression(initializer) &&
+    ['query', 'mutation', 'asyncProcess', 'state', 'queryParam'].includes(
       initializer.getExpression().getText(),
     )
-  )
-    return false;
-  return initializer
-    .getDescendantsOfKind(SyntaxKind.YieldExpression)
-    .some((yieldExpression) => yieldExpression.getAsteriskToken() !== undefined);
+  );
 }
 
 function migrateHttpResources(

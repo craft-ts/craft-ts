@@ -481,7 +481,7 @@ function diagnoseSignalForms(
         diagnostics,
         'ASYNC_VALIDATOR_REQUIRES_QUERY',
         sourceFile,
-        '`validateAsync(...)` basé sur `rxResource(...)` doit devenir une `query(...)` locale déclenchée par la valeur du champ, puis `cAsyncValidate(queryRef, ...)`. Dans un craftService, créer la query avec `yield* track(query(...))`.',
+        '`validateAsync(...)` basé sur `rxResource(...)` doit devenir une `query(...)` locale déclenchée par la valeur du champ, puis `cAsyncValidate(queryRef, ...)`. Dans un craftService, créer la query avec `yield* query(...)` ; dans un champ de composant, `craftUse(query(...))`.',
       );
     }
   }
@@ -490,7 +490,7 @@ function diagnoseSignalForms(
       diagnostics,
       'RX_RESOURCE_REQUIRES_QUERY',
       sourceFile,
-      '`rxResource(...)` doit être remplacé par `query(...)` ou `mutation(...)` selon l’intention; dans un validateur async, préférer `query(...) + cAsyncValidate(...)`. Dans un craftService, englober toute primitive dépendante avec `yield* track(...)`.',
+      '`rxResource(...)` doit être remplacé par `query(...)` ou `mutation(...)` selon l’intention; dans un validateur async, préférer `query(...) + cAsyncValidate(...)`. Dans un craftService, consommer toute primitive avec `yield*` ; dans un champ de composant, `craftUse(...)`.',
     );
   }
 }

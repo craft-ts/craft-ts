@@ -17,7 +17,7 @@ const preferCraftHttpClient = require('./prefer-craft-http-client.cjs');
 const preferCraftService = require('./prefer-craft-service.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
-const requireTrackOnDependentPrimitives = require('./require-track-on-dependent-primitives.cjs');
+const requirePrimitiveGeneratorUnwrap = require('./require-primitive-generator-unwrap.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
 const preferCraftRouterOutlet = require('./prefer-craft-router-outlet.cjs');
 const requirePendingComponentDiCheck = require('./require-pending-component-di-check.cjs');
@@ -47,7 +47,7 @@ module.exports = {
     'prefer-craft-service': preferCraftService,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
-    'require-track-on-dependent-primitives': requireTrackOnDependentPrimitives,
+    'require-primitive-generator-unwrap': requirePrimitiveGeneratorUnwrap,
     'require-assert-exhaustive-route-exceptions':
       requireAssertExhaustiveRouteExceptions,
     'prefer-craft-router-outlet': preferCraftRouterOutlet,

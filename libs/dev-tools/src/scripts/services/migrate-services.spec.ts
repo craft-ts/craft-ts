@@ -212,7 +212,7 @@ describe('services migration', () => {
     expect(output).toContain(
       '// CRAFT_IMPERATIVE_CODE_DETECTED: imperative code detected, prefer a declarative approach.',
     );
-    expect(output).toContain("const _activeStep = state('delivery'");
+    expect(output).toContain("const _activeStep = yield* state('delivery'");
   });
 
   it('flags imperative form workflows for a reactive orchestration review', async () => {
@@ -553,7 +553,7 @@ describe('services migration', () => {
     expect(output).not.toContain('ResourceRef');
   });
 
-  it('tracks a dependent query created as a craftService property', async () => {
+  it('yields a query created as a craftService property', async () => {
     const root = await fixture({
       'tsconfig.json': JSON.stringify({
         compilerOptions: { experimentalDecorators: true },
@@ -579,9 +579,9 @@ describe('services migration', () => {
 
     const output = await readFile(join(root, 'catalog.ts'), 'utf8');
     expect(output).toContain('function* ()');
-    expect(output).toContain('const _products = yield* track(query({');
+    expect(output).toContain('const _products = yield* query({');
     expect(output).toContain('yield* CraftHttpClient.request');
-    expect(output).toMatch(
+    expect(output).not.toMatch(
       /import\s*\{[^}]*\btrack\b[^}]*\}\s*from '@craft-ng\/core'/,
     );
   });

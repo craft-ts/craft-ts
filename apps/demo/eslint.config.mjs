@@ -29,7 +29,7 @@ export default [
       'craft-ng/global-exception-registry-match': 'error',
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/require-component-monitoring': 'error',
-      'craft-ng/require-track-on-dependent-primitives': 'error',
+      'craft-ng/require-primitive-generator-unwrap': 'error',
       'craft-ng/require-assert-exhaustive-route-exceptions': 'error',
       'craft-ng/prefer-craft-router-outlet': 'error',
       'craft-ng/require-pending-component-di-check': 'error',
