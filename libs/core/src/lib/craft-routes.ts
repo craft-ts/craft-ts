@@ -2964,6 +2964,12 @@ export function craftCanMatch<Guard extends CraftCanMatchGuardFn>(
 // {@link assertExhaustiveRouteExceptions} (the 2-arg return type carries no
 // `handleExceptions`, so the reachable codes show up as unhandled).
 
+// NOTE: `def` must stay typed as bare `CraftRouteDefinitionInput<Def>`. Intersecting
+// `CraftRouteLazyLoaderContext` into it (to contextually type the `helpers` argument of
+// `loadComponent`/`loadChildren`) collapses `Def` inference to `object` as soon as the
+// literal contains an inline guard — callers annotate `helpers` explicitly instead
+// (`loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) => ...`).
+
 // 3-arg form: the route's guards/resolve can throw — handlers are exhaustive over the
 // reachable codes.
 export function craftRoute<
@@ -2979,7 +2985,7 @@ export function craftRoute<
   >,
 >(
   path: Path,
-  def: CraftRouteDefinitionInput<Def> & CraftRouteLazyLoaderContext,
+  def: CraftRouteDefinitionInput<Def>,
   handlers: TypedExceptionHandlers<
     Extract<RouteExceptionUnion<Def>, AnyCraftException>,
     Codes,
@@ -3001,7 +3007,7 @@ export function craftRoute<
 // 2-arg form: the route throws no `craftException`s, so no handlers are needed.
 export function craftRoute<const Path extends string, const Def extends object>(
   path: Path,
-  def: CraftRouteDefinitionInput<Def> & CraftRouteLazyLoaderContext,
+  def: CraftRouteDefinitionInput<Def>,
 ): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>>;
 export function craftRoute(
   path: string,

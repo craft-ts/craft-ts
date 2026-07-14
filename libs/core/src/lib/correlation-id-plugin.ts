@@ -7,7 +7,10 @@ import {
   type Provider,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { EVENT_MANAGER_PLUGINS, EventManagerPlugin } from '@angular/platform-browser';
+import {
+  EVENT_MANAGER_PLUGINS,
+  EventManagerPlugin,
+} from '@angular/platform-browser';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 import {
   CORRELATION_ID_SERVICE,
@@ -102,7 +105,9 @@ const correlationIdFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   setCurrentStartCorrelationId(startCorrelationId);
 
   try {
-    return yield* (factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>).apply(thisArg as object, args);
+    return yield* (
+      factory as (...a: unknown[]) => Generator<unknown, unknown, unknown>
+    ).apply(thisArg as object, args);
   } finally {
     setCurrentStartCorrelationId(previousStartId);
   }
@@ -127,7 +132,9 @@ export function provideCorrelationIdTracking(): Provider[] {
       },
       multi: true,
     },
-    provideFnWrapper(correlationIdFnWrapper),
+    provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      correlationIdFnWrapper,
+    ),
   ];
 }
-

@@ -319,7 +319,9 @@ describe('runCraftRouteChainAsync', () => {
     } as unknown as Router;
     const activeInjector = Injector.create({
       providers: [
-        ...provideCraftRouter([]),
+        // provideCraftRouter's type admits EnvironmentProviders, but with no
+        // features it only returns plain providers — safe for Injector.create.
+        ...(provideCraftRouter([]) as import('@angular/core').Provider[]),
         { provide: Router, useValue: activeRouter },
         { provide: SERVICE_RUNTIME_OVERRIDES, useValue: new Map() },
         { provide: FN_WRAPPER, useValue: [] },

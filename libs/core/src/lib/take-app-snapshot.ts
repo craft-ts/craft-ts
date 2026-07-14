@@ -70,14 +70,17 @@ export function provideTakeAppSnapshot(
         return () => registry.triggerSnapshot$.next();
       },
     },
-    provideFnWrapper(function* (factory, thisArg, args) {
-      try {
-        return yield* factory.apply(thisArg, args);
-      } catch (error) {
-        inject(TAKE_APP_SNAPSHOT)();
-        throw error;
-      }
-    }),
+    provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (factory, thisArg, args) {
+        try {
+          return yield* factory.apply(thisArg, args);
+        } catch (error) {
+          inject(TAKE_APP_SNAPSHOT)();
+          throw error;
+        }
+      },
+    ),
   ];
 }
 
@@ -94,10 +97,17 @@ export function triggerAndCollectInsertions(
   return Object.keys(snapshots).length > 0 ? snapshots : undefined;
 }
 
-export function snapshotSelectProxy(proxy: unknown, rawState?: unknown): unknown {
+export function snapshotSelectProxy(
+  proxy: unknown,
+  rawState?: unknown,
+): unknown {
   const result: Record<string, unknown> = {};
 
-  if (rawState !== undefined && rawState !== null && typeof rawState === 'object') {
+  if (
+    rawState !== undefined &&
+    rawState !== null &&
+    typeof rawState === 'object'
+  ) {
     Object.assign(result, rawState);
   }
 

@@ -814,7 +814,7 @@ describe('CraftHttpClient', () => {
       >;
 
       expectTypeOf<HttpDependency['scope']>().toEqualTypeOf<'global'>();
-      expectTypeOf<HttpDependency['browserBoundary']>().toEqualTypeOf<false>();
+      expectTypeOf<HttpDependency['browserBoundary']>().toEqualTypeOf<true>();
       expectTypeOf<HttpDependency['dependencies']>().toEqualTypeOf<{}>();
       expectTypeOf<TrackedRequest['method']>().toEqualTypeOf<'GET'>();
       expectTypeOf<TrackedRequest['url']>().toEqualTypeOf<'/api/users'>();

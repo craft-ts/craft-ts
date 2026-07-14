@@ -13,7 +13,7 @@ import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
 import {
   appStartCalls,
   injectAppStartCounter,
-  requiredAppStartFlag,
+  requiredAppStart,
 } from './craft-app-config.app-start.fixture';
 import { craftRoutes } from './craft-routes';
 import {
@@ -54,7 +54,7 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { appRoutes } = craftRoutes('app', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -66,7 +66,7 @@ describe('craftAppConfig', () => {
     craftAppConfig({ routingDeps: appRoutes.META_DATA });
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: appRoutes.META_DATA,
     });
 
@@ -101,7 +101,7 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { appRoutes } = craftRoutes('app', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -110,7 +110,7 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: appRoutes.META_DATA,
       providers: [provideCounter()],
     });
@@ -142,7 +142,7 @@ describe('craftAppConfig', () => {
     }>;
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: [] as const,
       providers: [provideCounter()] as const,
     });
@@ -169,14 +169,14 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const childRoutes = craftRoutes([
+    const childRoutes = craftRoutes('app', [
       {
         path: 'child',
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {} as ChildRouteDeps,
       },
     ]);
-    const { appRoutes } = craftRoutes([
+    const { appRoutes } = craftRoutes('app', [
       {
         path: 'lazy-parent',
         loadChildren: () => childRoutes.appRoutes,
@@ -184,7 +184,7 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: appRoutes.META_DATA,
       providers: [provideCounter()],
     });
@@ -232,7 +232,7 @@ describe('craftAppConfig', () => {
       };
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { appRoutes } = craftRoutes('app', [
       {
         path: 'router',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -241,7 +241,7 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: appRoutes.META_DATA,
       providers: [provideCraftRouter()],
     });
@@ -269,7 +269,7 @@ describe('craftAppConfig', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { appRoutes } = craftRoutes('app', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -282,7 +282,7 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: appRoutes.META_DATA,
     });
 
@@ -340,7 +340,7 @@ describe('craftAppConfig', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: appRoutes.META_DATA,
     });
 
@@ -368,7 +368,7 @@ describe('craftAppConfig', () => {
   it('should convert to ApplicationConfig', () => {
     const marker = new InjectionToken<string>('marker');
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: [] as const,
       providers: [
         {
@@ -397,7 +397,7 @@ describe('craftAppConfig appStart', () => {
       publicProperties: {};
     }>;
 
-    const { appRoutes } = craftRoutes([
+    const { appRoutes } = craftRoutes('app', [
       {
         path: 'counter',
         loadComponent: async () => null as unknown as Type<unknown>,
@@ -406,7 +406,7 @@ describe('craftAppConfig appStart', () => {
     ]);
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: appRoutes.META_DATA,
     });
 
@@ -429,7 +429,7 @@ describe('craftAppConfig appStart', () => {
     TestBed.configureTestingModule({
       providers: [
         ...craftAppConfig({
-          appStart: requiredAppStartFlag,
+          appStart: requiredAppStart,
           routingDeps: [] as const,
         }).providers,
       ],
@@ -467,7 +467,7 @@ describe('craftAppConfig appStart', () => {
     TestBed.configureTestingModule({
       providers: [
         ...craftAppConfig({
-          appStart: requiredAppStartFlag,
+          appStart: requiredAppStart,
           routingDeps: [] as const,
         }).providers,
       ],

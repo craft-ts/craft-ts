@@ -137,6 +137,10 @@ export default defineConfig({
             link: '/type-safe-di-routes/route-providers',
           },
           {
+            text: 'craftGen',
+            link: '/type-safe-di-routes/craft-gen',
+          },
+          {
             text: 'Route Guards',
             link: '/type-safe-di-routes/guards',
           },

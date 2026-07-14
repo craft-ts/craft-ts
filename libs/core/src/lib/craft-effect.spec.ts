@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { signal, type EffectCleanupRegisterFn } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -70,7 +70,7 @@ describe('craftEffect', () => {
   });
 
   it('should run a generator factory that resolves DI deps once and returns the effect body', () => {
-    const { MultiplierToYield } = craftService(
+    const { EffectMultiplierToYield } = craftService(
       { name: 'EffectMultiplier', scope: 'function' },
       () => ({ factor: 3 }),
     );
@@ -79,8 +79,10 @@ describe('craftEffect', () => {
       readonly count = signal(0);
       readonly seen: number[] = [];
 
-      readonly fx = craftEffect('compute', function* () {
-        const m = yield* MultiplierToYield();
+      // The host form binds `this` inside the generator (and the effect body
+      // it returns) to the component instance.
+      readonly fx = craftEffect('compute', this, function* () {
+        const m = yield* EffectMultiplierToYield();
         return () => {
           this.seen.push(this.count() * m.factor);
         };
@@ -101,10 +103,13 @@ describe('craftEffect', () => {
     class Component {
       readonly count = signal(0);
       readonly cleanups: number[] = [];
-      readonly fx = craftEffect('cleanup', (onCleanup) => {
-        const current = this.count();
-        onCleanup(() => this.cleanups.push(current));
-      });
+      readonly fx = craftEffect(
+        'cleanup',
+        (onCleanup: EffectCleanupRegisterFn) => {
+          const current = this.count();
+          onCleanup(() => this.cleanups.push(current));
+        },
+      );
     }
 
     const component = TestBed.runInInjectionContext(() => new Component());
@@ -156,15 +161,15 @@ describe('craftEffect', () => {
   });
 
   it('should expose craftEffect dependencies through ExtractDeps', () => {
-    const { MultiplierToYield } = craftService(
+    const { EffectMultiplierDepsToYield } = craftService(
       { name: 'EffectMultiplierDeps', scope: 'function' },
       () => ({ factor: 5 }),
     );
 
     class Component {
       readonly count = signal(0);
-      readonly fx = craftEffect('with-deps', function* () {
-        const m = yield* MultiplierToYield();
+      readonly fx = craftEffect('with-deps', this, function* () {
+        const m = yield* EffectMultiplierDepsToYield();
         return () => {
           void (this.count() * m.factor);
         };
@@ -173,7 +178,7 @@ describe('craftEffect', () => {
 
     type ExpectedDeps = {
       EffectMultiplierDeps: GetToYieldServiceDependencies<
-        typeof MultiplierToYield
+        typeof EffectMultiplierDepsToYield
       >;
     };
     type _Deps = Expect<Equal<ExtractDeps<Component['fx']>, ExpectedDeps>>;

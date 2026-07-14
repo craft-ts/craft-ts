@@ -37,6 +37,7 @@ import {
   type SERVICE_RUNTIME_META,
   type SERVICE_YIELD_METADATA,
   type SERVICE_YIELD_REQUEST_MARKER,
+  type ServiceTrackingMetadata,
   toCraftService,
 } from './craft-service';
 import type { Simplify } from './craft-service.shared';
@@ -238,9 +239,28 @@ const _routerService = toCraftService(
   },
   (router): Router => createCraftRouter(router),
 ) as unknown as {
-  injectCraftRouter: Function;
+  injectCraftRouter: Function & CraftRouterTrackedHelper;
   provideCraftRouter: Function;
-  CraftRouterToYield: Function;
+  CraftRouterToYield: Function & CraftRouterTrackedHelper;
+};
+
+// Serializable stand-in for the tracked metadata the `Function` erasure above
+// would otherwise lose — without it, `GetServiceYields` / dependency tracking
+// (`ExtractDeps` through `yield* CraftRouterToYield()`) collapse to `never`.
+// Mirrors exactly what `toCraftService` infers for this definition.
+type CraftRouterTrackingMetadata = ServiceTrackingMetadata<
+  'CraftRouter',
+  'manuallyProvidedAtRoot',
+  Router,
+  never,
+  undefined,
+  [routes: Routes, ...features: RouterFeatures[]],
+  false,
+  false
+>;
+
+type CraftRouterTrackedHelper = {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: CraftRouterTrackingMetadata;
 };
 
 const injectCraftRouterInternal = _routerService.injectCraftRouter;

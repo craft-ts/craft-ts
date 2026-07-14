@@ -45,6 +45,9 @@ Split the two concerns:
 - **`craftCanActivate`** composes guards with `yield*` and takes a `resolvers` map that must cover
   **exactly** the reachable exception codes.
 
+For a focused overview of `craftGen` itself and why it is useful, see
+[`craftGen`](./craft-gen.md).
+
 ```ts
 import {
   craftCanActivate,

@@ -3,7 +3,7 @@ import { craftService, GetInjectedServiceDependencies } from './craft-service';
 import { GetDeps } from './branded-component/branded-component';
 import type { AppCheckedDI, CanRun } from './app-checked-di';
 import { craftAppConfig } from './craft-app-config';
-import { requiredAppStartFlag } from './craft-app-config.app-start.fixture';
+import { requiredAppStart } from './craft-app-config.app-start.fixture';
 
 function _injectDemoUserIdParams(): string {
   throw new Error('Type-only helper');
@@ -260,7 +260,7 @@ describe('AppCheckedDI', () => {
     }>;
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: [] as const,
       providers: [provideCounter()] as const,
     });
@@ -302,7 +302,7 @@ describe('AppCheckedDI', () => {
     ];
 
     const appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: [] as unknown as APP_ROUTES,
     });
 
@@ -342,7 +342,7 @@ describe('AppCheckedDI', () => {
     ];
 
     const _appConfig = craftAppConfig({
-      appStart: requiredAppStartFlag,
+      appStart: requiredAppStart,
       routingDeps: [] as unknown as DemoRoutingDeps,
     });
 

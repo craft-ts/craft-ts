@@ -255,7 +255,15 @@ describe('craftMethod — object config with providers', () => {
 
     TestBed.runInInjectionContext(() => {
       const increment = craftMethod(
-        { name: 'increment', providers: [provideFnWrapper(trackingWrapper)] },
+        {
+          name: 'increment',
+          providers: [
+            provideFnWrapper(
+              'Warning: dependency injection here is not type-safe and may fail at runtime',
+              trackingWrapper,
+            ),
+          ],
+        },
         function* (step: number) {
           return step + 1;
         },
@@ -282,7 +290,12 @@ describe('craftMethod — object config with providers', () => {
       const withProvider = craftMethod(
         {
           name: 'withProvider',
-          providers: [provideFnWrapper(trackingWrapper)],
+          providers: [
+            provideFnWrapper(
+              'Warning: dependency injection here is not type-safe and may fail at runtime',
+              trackingWrapper,
+            ),
+          ],
         },
         function* (x: number) {
           return x;

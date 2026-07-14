@@ -94,26 +94,32 @@ export const appConfig = craftAppConfig({
       // loader (held at least 500ms).
       withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
     ),
-    provideFnWrapper(function* (factory, thisArg, args) {
-      try {
-        return yield* factory.apply(thisArg, args);
-      } catch (error) {
-        yield* Console.error(error);
-        throw error;
-      }
-    }),
+    provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (factory, thisArg, args) {
+        try {
+          return yield* factory.apply(thisArg, args);
+        } catch (error) {
+          yield* Console.error(error);
+          throw error;
+        }
+      },
+    ),
     // Timing
-    provideFnWrapper(function* (factory, thisArg, args) {
-      // eslint-disable-next-line craft-ng/prefer-browser-boundaries
-      const start = performance.now();
-      try {
-        return yield* factory.apply(thisArg, args);
-      } finally {
-        const name = yield* HostTagToYield();
+    provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (factory, thisArg, args) {
         // eslint-disable-next-line craft-ng/prefer-browser-boundaries
-        console.log(`$${name} took ${performance.now() - start}ms`);
-      }
-    }),
+        const start = performance.now();
+        try {
+          return yield* factory.apply(thisArg, args);
+        } finally {
+          const name = yield* HostTagToYield();
+          // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+          console.log(`$${name} took ${performance.now() - start}ms`);
+        }
+      },
+    ),
     provideCorrelationIdTracking(),
     provideSendContextToAi(),
     // App snapshot
@@ -129,19 +135,26 @@ export const appConfig = craftAppConfig({
     providePrimitiveResourceRuntimeObserver((resourceContext) => {
       ensureResourceRegistryEntry(resourceContext);
     }),
-    provideFnWrapper(function* (factory, thisArg, args) {
-      const runtimeContext = injectPrimitiveMethodRuntimeContext();
-      const key = ensureFunctionRegistryEntry(factory, thisArg, runtimeContext);
-      const override = functionRegistry.executeOverride(
-        key,
-        args,
-        runtimeContext,
-      );
-      if (override.matched) {
-        return override.result;
-      }
-      return yield* factory.apply(thisArg, args);
-    }),
+    provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (factory, thisArg, args) {
+        const runtimeContext = injectPrimitiveMethodRuntimeContext();
+        const key = ensureFunctionRegistryEntry(
+          factory,
+          thisArg,
+          runtimeContext,
+        );
+        const override = functionRegistry.executeOverride(
+          key,
+          args,
+          runtimeContext,
+        );
+        if (override.matched) {
+          return override.result;
+        }
+        return yield* factory.apply(thisArg, args);
+      },
+    ),
   ],
 });
 

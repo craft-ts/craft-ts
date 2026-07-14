@@ -20,31 +20,60 @@ import {
 } from './craft-generator-runtime';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 
-type CraftComputedGenerator<Yielded, T> = () => Generator<
-  Yielded,
-  () => T,
-  unknown
->;
+type CraftComputedGenerator<This, Yielded, T> = (
+  this: This,
+) => Generator<Yielded, () => T, unknown>;
 
 type TrackedCraftComputed<S, Yielded> = S & {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
 };
 
+// Host-bound forms — `craftComputed('name', this, function* () { ... })` — bind
+// `this` inside the factory (and the computation it returns) to the given host,
+// so a class-field initializer can read instance state (mirrors `craftMethod`).
+// Without a host, a `function*` factory is called with `this = undefined`.
+// The generator overloads must come first: a generator function also matches
+// `() => T` (with `T` inferred as the whole `Generator<...>`), so the plain
+// overload would otherwise win and type the signal as `Signal<Generator<...>>`.
+export function craftComputed<Name extends string, This, Yielded, T>(
+  name: Name,
+  host: This,
+  factory: CraftComputedGenerator<This, Yielded, T>,
+  options?: CreateComputedOptions<T>,
+): TrackedCraftComputed<Signal<T>, Yielded>;
+export function craftComputed<Name extends string, Yielded, T>(
+  name: Name,
+  factory: CraftComputedGenerator<void, Yielded, T>,
+  options?: CreateComputedOptions<T>,
+): TrackedCraftComputed<Signal<T>, Yielded>;
+export function craftComputed<Name extends string, This, T>(
+  name: Name,
+  host: This,
+  computation: (this: This) => T,
+  options?: CreateComputedOptions<T>,
+): Signal<T>;
 export function craftComputed<Name extends string, T>(
   name: Name,
   computation: () => T,
   options?: CreateComputedOptions<T>,
 ): Signal<T>;
-export function craftComputed<Name extends string, Yielded, T>(
-  name: Name,
-  factory: CraftComputedGenerator<Yielded, T>,
-  options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<Signal<T>, Yielded>;
 export function craftComputed<T>(
   name: string,
-  computationOrFactory: (() => T) | CraftComputedGenerator<unknown, T>,
-  options?: CreateComputedOptions<T>,
+  hostOrComputation: unknown,
+  factoryOrOptions?: unknown,
+  maybeOptions?: CreateComputedOptions<T>,
 ): Signal<T> {
+  // The host form is recognized by its 3rd argument being the factory —
+  // `options` is never a function.
+  const hasHost = typeof factoryOrOptions === 'function';
+  const host = hasHost ? hostOrComputation : undefined;
+  const computationOrFactory = (
+    hasHost ? factoryOrOptions : hostOrComputation
+  ) as ((this: unknown) => T) | CraftComputedGenerator<unknown, unknown, T>;
+  const options = (hasHost ? maybeOptions : factoryOrOptions) as
+    | CreateComputedOptions<T>
+    | undefined;
+
   assertInInjectionContext(craftComputed);
   const injector = inject(Injector);
   const computedInjector = ɵcreateHostTaggedInjector(
@@ -57,8 +86,8 @@ export function craftComputed<T>(
   if (isGeneratorFunction(computationOrFactory)) {
     const computationFn = runInInjectionContext(computedInjector, () => {
       const iterator = (
-        computationOrFactory as CraftComputedGenerator<unknown, T>
-      )();
+        computationOrFactory as CraftComputedGenerator<unknown, unknown, T>
+      ).call(host);
       return runCraftGenerator({
         iterator,
         injector: computedInjector,
@@ -73,7 +102,11 @@ export function craftComputed<T>(
     });
     result = computed(computationFn, options);
   } else {
-    result = computed(computationOrFactory as () => T, options);
+    const computation = computationOrFactory as (this: unknown) => T;
+    result = computed(
+      hasHost ? () => computation.call(host) : (computation as () => T),
+      options,
+    );
   }
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });

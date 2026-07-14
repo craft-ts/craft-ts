@@ -36,7 +36,12 @@ export const FN_WRAP_OBSERVER = new InjectionToken<readonly FnWrapObserver[]>(
   },
 );
 
-export function provideFnWrapper(wrapper: FnWrapper): Provider {
+// The warning literal is part of the public API to make the runtime DI risk
+// explicit at every call site.
+export function provideFnWrapper(
+  _warning: string,
+  wrapper: FnWrapper,
+): Provider {
   return { provide: FN_WRAPPER, useValue: wrapper, multi: true };
 }
 

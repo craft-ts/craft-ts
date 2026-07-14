@@ -74,7 +74,9 @@ describe('craftComputed', () => {
     class CounterComponent {
       readonly count = signal(0);
 
-      readonly tripled = craftComputed('tripled', function* () {
+      // The host form binds `this` inside the generator (and the computation
+      // it returns) to the component instance.
+      readonly tripled = craftComputed('tripled', this, function* () {
         const multiplier = yield* MultiplierToYield();
         return () => this.count() * multiplier.factor;
       });
@@ -105,7 +107,7 @@ describe('craftComputed', () => {
   });
 
   it('should preserve Signal<T> type from plain computation', () => {
-    const { MultiplierToYield } = craftService(
+    const { Multiplier4ToYield } = craftService(
       { name: 'Multiplier4', scope: 'function' },
       () => ({ factor: 2 }),
     );
@@ -113,8 +115,8 @@ describe('craftComputed', () => {
     class CounterComponent {
       readonly count = signal(0);
       readonly doubled = craftComputed('doubled', () => this.count() * 2);
-      readonly tripled = craftComputed('tripled', function* () {
-        const m = yield* MultiplierToYield();
+      readonly tripled = craftComputed('tripled', this, function* () {
+        const m = yield* Multiplier4ToYield();
         return () => this.count() * m.factor;
       });
     }
@@ -128,21 +130,21 @@ describe('craftComputed', () => {
   });
 
   it('should expose craftComputed dependencies through ExtractDeps', () => {
-    const { MultiplierToYield } = craftService(
+    const { Multiplier5ToYield } = craftService(
       { name: 'Multiplier5', scope: 'function' },
       () => ({ factor: 5 }),
     );
 
     class Component {
       readonly count = signal(0);
-      readonly value = craftComputed('value', function* () {
-        const m = yield* MultiplierToYield();
+      readonly value = craftComputed('value', this, function* () {
+        const m = yield* Multiplier5ToYield();
         return () => this.count() * m.factor;
       });
     }
 
     type ExpectedDeps = {
-      Multiplier5: GetToYieldServiceDependencies<typeof MultiplierToYield>;
+      Multiplier5: GetToYieldServiceDependencies<typeof Multiplier5ToYield>;
     };
     type _Deps = Expect<Equal<ExtractDeps<Component['value']>, ExpectedDeps>>;
   });

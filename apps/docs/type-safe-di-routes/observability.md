@@ -9,7 +9,7 @@ The same DI system that powers `craftService` also lets you cross-cut every craf
 `craft-ng` distinguishes two kinds of failures:
 
 - **Expected errors**: handled explicitly with [`craftException`](/store/craft-service) in your business code.
-- **Unexpected errors**: bugs. They should never happen — and if they do, they should never happen *again*.
+- **Unexpected errors**: bugs. They should never happen — and if they do, they should never happen _again_.
 
 Unexpected errors are exactly where observability shines. Since they are supposed to be impossible, you want to capture the maximum amount of context the moment one is thrown: stack, app state, correlation chain, etc. That context can then be shipped to a log server, an alerting pipeline, or directly to an AI webhook for triage.
 
@@ -31,14 +31,17 @@ import { craftAppConfig, provideFnWrapper, Console } from '@craft-ng/core';
 export const appConfig = craftAppConfig({
   // ...
   providers: [
-    provideFnWrapper(function* (factory, thisArg, args) {
-      try {
-        return yield* factory.apply(thisArg, args);
-      } catch (error) {
-        yield* Console.error(error);
-        throw error;
-      }
-    }),
+    provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (factory, thisArg, args) {
+        try {
+          return yield* factory.apply(thisArg, args);
+        } catch (error) {
+          yield* Console.error(error);
+          throw error;
+        }
+      },
+    ),
   ],
 });
 ```
@@ -67,15 +70,18 @@ import {
   HostTagToYield,
 } from '@craft-ng/core';
 
-provideFnWrapper(function* (factory, thisArg, args) {
-  const start = performance.now();
-  try {
-    return yield* factory.apply(thisArg, args);
-  } finally {
-    const name = yield* HostTagToYield();
-    console.log(`${name} took ${performance.now() - start}ms`);
-  }
-});
+provideFnWrapper(
+  'Warning: dependency injection here is not type-safe and may fail at runtime',
+  function* (factory, thisArg, args) {
+    const start = performance.now();
+    try {
+      return yield* factory.apply(thisArg, args);
+    } finally {
+      const name = yield* HostTagToYield();
+      console.log(`${name} took ${performance.now() - start}ms`);
+    }
+  },
+);
 ```
 
 ## `provideTakeAppSnapshot`
@@ -131,7 +137,7 @@ Once enabled, the correlation id is attached to the metadata of browser boundari
 - `lastCorrelationId` — the most recent id observed in the app
 - `mayCorrelatedIds` — the chain of ids the operation can be linked to
 
-This lets you reconstruct, from logs alone, the full causal chain between *"user clicked Save"* and *"the third sub-request returned 500 four seconds later"*.
+This lets you reconstruct, from logs alone, the full causal chain between _"user clicked Save"_ and _"the third sub-request returned 500 four seconds later"_.
 
 Combined with `provideTakeAppSnapshot`, you get on every unexpected error:
 
@@ -155,14 +161,17 @@ import {
 export const appConfig = craftAppConfig({
   // ...
   providers: [
-    provideFnWrapper(function* (factory, thisArg, args) {
-      try {
-        return yield* factory.apply(thisArg, args);
-      } catch (error) {
-        yield* Console.error(error);
-        throw error;
-      }
-    }),
+    provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (factory, thisArg, args) {
+        try {
+          return yield* factory.apply(thisArg, args);
+        } catch (error) {
+          yield* Console.error(error);
+          throw error;
+        }
+      },
+    ),
     provideCorrelationIdTracking(),
     provideTakeAppSnapshot((reports) => {
       // forward to your log server or AI webhook

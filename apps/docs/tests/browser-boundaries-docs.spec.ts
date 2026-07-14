@@ -44,6 +44,10 @@ describe('docs sidebar', () => {
           link: '/type-safe-di-routes/route-providers',
         },
         {
+          text: 'craftGen',
+          link: '/type-safe-di-routes/craft-gen',
+        },
+        {
           text: 'Route Guards',
           link: '/type-safe-di-routes/guards',
         },
@@ -120,6 +124,25 @@ describe('docs sidebar', () => {
       },
       { text: 'Entities Utilities', link: '/utils/entities-util' },
     ]);
+  });
+});
+
+describe('craftGen doc page', () => {
+  const content = readFileSync(
+    new URL('../type-safe-di-routes/craft-gen.md', import.meta.url),
+    'utf8',
+  );
+
+  it('documents composable short-circuiting and the main reason to use it', () => {
+    expect(content).toContain('# craftGen');
+    expect(content).toContain(
+      'Build reusable generator factories that can be composed with `yield*`',
+    );
+    expect(content).toContain('`CraftGenShortCircuit`');
+    expect(content).toContain('`craftException(...)` results are converted');
+    expect(content).toContain('parameterise one guard and reuse it across routes');
+    expect(content).toContain('the first exception wins');
+    expect(content).toContain('[`Route Guards`](/type-safe-di-routes/guards)');
   });
 });
 

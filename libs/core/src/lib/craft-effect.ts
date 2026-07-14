@@ -23,31 +23,60 @@ import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 
 type CraftEffectFn = (onCleanup: EffectCleanupRegisterFn) => void;
 
-type CraftEffectGenerator<Yielded> = () => Generator<
-  Yielded,
-  CraftEffectFn,
-  unknown
->;
+type CraftEffectGenerator<This, Yielded> = (
+  this: This,
+) => Generator<Yielded, CraftEffectFn, unknown>;
 
 type TrackedCraftEffect<E, Yielded> = E & {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
 };
 
+// Host-bound forms — `craftEffect('name', this, function* () { ... })` — bind
+// `this` inside the factory (and the effect body it returns) to the given host,
+// so a class-field initializer can read instance state (mirrors `craftMethod`).
+// Without a host, a `function*` factory is called with `this = undefined`.
+// The generator overloads must come first: a generator function is also
+// assignable to `CraftEffectFn` (a `void` return accepts anything), so the
+// plain overload would otherwise win and drop the dependency metadata.
+export function craftEffect<Name extends string, This, Yielded>(
+  name: Name,
+  host: This,
+  factory: CraftEffectGenerator<This, Yielded>,
+  options?: CreateEffectOptions,
+): TrackedCraftEffect<EffectRef, Yielded>;
+export function craftEffect<Name extends string, Yielded>(
+  name: Name,
+  factory: CraftEffectGenerator<void, Yielded>,
+  options?: CreateEffectOptions,
+): TrackedCraftEffect<EffectRef, Yielded>;
+export function craftEffect<Name extends string, This>(
+  name: Name,
+  host: This,
+  effectFn: (this: This, onCleanup: EffectCleanupRegisterFn) => void,
+  options?: CreateEffectOptions,
+): EffectRef;
 export function craftEffect<Name extends string>(
   name: Name,
   effectFn: CraftEffectFn,
   options?: CreateEffectOptions,
 ): EffectRef;
-export function craftEffect<Name extends string, Yielded>(
-  name: Name,
-  factory: CraftEffectGenerator<Yielded>,
-  options?: CreateEffectOptions,
-): TrackedCraftEffect<EffectRef, Yielded>;
 export function craftEffect(
   name: string,
-  fnOrFactory: CraftEffectFn | CraftEffectGenerator<unknown>,
-  options?: CreateEffectOptions,
+  hostOrFn: unknown,
+  fnOrOptions?: unknown,
+  maybeOptions?: CreateEffectOptions,
 ): EffectRef {
+  // The host form is recognized by its 3rd argument being the factory —
+  // `options` is never a function.
+  const hasHost = typeof fnOrOptions === 'function';
+  const host = hasHost ? hostOrFn : undefined;
+  const fnOrFactory = (hasHost ? fnOrOptions : hostOrFn) as
+    | ((this: unknown, onCleanup: EffectCleanupRegisterFn) => void)
+    | CraftEffectGenerator<unknown, unknown>;
+  const options = (hasHost ? maybeOptions : fnOrOptions) as
+    | CreateEffectOptions
+    | undefined;
+
   assertInInjectionContext(craftEffect);
   const parentInjector = inject(Injector);
   const parentDestroyRef = inject(DestroyRef);
@@ -60,7 +89,9 @@ export function craftEffect(
 
   if (isGeneratorFunction(fnOrFactory)) {
     effectBody = runInInjectionContext(effectInjector, () => {
-      const iterator = (fnOrFactory as CraftEffectGenerator<unknown>)();
+      const iterator = (
+        fnOrFactory as CraftEffectGenerator<unknown, unknown>
+      ).call(host);
       return runCraftGenerator({
         iterator,
         injector: effectInjector,
@@ -74,7 +105,13 @@ export function craftEffect(
       }).value as CraftEffectFn;
     });
   } else {
-    effectBody = fnOrFactory as CraftEffectFn;
+    const plainFn = fnOrFactory as (
+      this: unknown,
+      onCleanup: EffectCleanupRegisterFn,
+    ) => void;
+    effectBody = hasHost
+      ? (onCleanup) => plainFn.call(host, onCleanup)
+      : (plainFn as CraftEffectFn);
   }
 
   const ref = effect(effectBody, {

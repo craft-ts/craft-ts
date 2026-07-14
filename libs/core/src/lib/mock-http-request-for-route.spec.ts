@@ -614,10 +614,10 @@ if (false) {
   // @ts-expect-error unknown route paths should be rejected
   mockHttpRequestForRoute('RouteHttpMockApp', 'unknown', {});
 
-  // @ts-expect-error unknown endpoints should be rejected
   createDashboardRouteMock({
     'GET /api/users': 'ignore',
     'POST /api/login': 'unusedOrThrow',
+    // @ts-expect-error unknown endpoints should be rejected
     'DELETE /api/users': 'ignore',
   });
 

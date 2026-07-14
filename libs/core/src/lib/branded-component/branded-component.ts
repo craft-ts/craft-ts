@@ -1,4 +1,4 @@
-import type { InputSignal, InputSignalWithTransform } from '@angular/core';
+import type { InputSignalWithTransform } from '@angular/core';
 import type {
   ExtractServiceHelperDependencyMap,
   SERVICE_HELPER_DEPENDENCIES,
@@ -21,14 +21,16 @@ type ExtractPublicInstance<Component> = Component extends abstract new (
   ? Instance
   : Component;
 
+// The `WriteT` side of `InputSignalWithTransform` is contravariant, so the
+// checks below must use `any` (not `unknown`) or no input property matches.
 type ToPublicSignalType<T> =
-  T extends InputSignalWithTransform<infer ReadT, unknown> ? () => ReadT : T;
+  T extends InputSignalWithTransform<infer ReadT, any> ? () => ReadT : T;
 
 type InputSignalPropertyKeys<Instance> = Extract<
   {
     [K in keyof Instance]: Instance[K] extends InputSignalWithTransform<
-      unknown,
-      unknown
+      any,
+      any
     >
       ? K
       : never;
@@ -36,9 +38,17 @@ type InputSignalPropertyKeys<Instance> = Extract<
   string
 >;
 
-export type GetPublicComponentProperties<Component> = {
-  [Property in keyof Component as `${Component[Property] extends InputSignal<any> ? Property & string : never}`]: Component[Property];
-};
+// Accepts either a component class (`typeof MyComponent`) or an instance type,
+// keeps only `input()` properties, and exposes each one as a plain callable
+// (`() => T`) with the internal `InputSignal` brand symbols stripped.
+export type GetPublicComponentProperties<Component> =
+  ExtractPublicInstance<Component> extends object
+    ? Simplify<{
+        [K in InputSignalPropertyKeys<
+          ExtractPublicInstance<Component>
+        >]: ToPublicSignalType<ExtractPublicInstance<Component>[K]>;
+      }>
+    : never;
 
 export type DerivedService<Service, Tracking extends object> = Simplify<
   Omit<
