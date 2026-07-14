@@ -82,8 +82,8 @@ export type GuardAwaitResourceLike = {
 /**
  * The request a guard generator yields (via `untilSettled` / `untilDefined`) to
  * suspend until an async craft operation completes. It is **never** handled by
- * the synchronous {@link runCraftGenerator}; only the two-phase guard driver
- * (`runCraftGuardAsync`) understands it. Discriminated by `kind`:
+ * the synchronous {@link runCraftGenerator}; only the two-phase route chain
+ * driver (`runCraftRouteChainAsync`) understands it. Discriminated by `kind`:
  *
  * - `'settle'` — wait for a craft resource signal to reach a settled status.
  * - `'promise'` — wait for a thenable (e.g. a `CraftHttpClient` request

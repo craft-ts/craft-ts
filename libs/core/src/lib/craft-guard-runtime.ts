@@ -1,7 +1,7 @@
 import { computed, Injector, runInInjectionContext } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
-import type { GuardResult, Router, UrlTree } from '@angular/router';
-import { filter, from, take } from 'rxjs';
+import type { Router, UrlTree } from '@angular/router';
+import { filter, take } from 'rxjs';
 import { isCraftException, type AnyCraftException } from './craft-exception';
 import { isCraftGenShortCircuit } from './craft-gen';
 import {
@@ -19,26 +19,6 @@ import {
   type RuntimeGuardAwaitRequest,
 } from './craft-generator-runtime';
 
-// The redirect helpers plus the resolved exception handed to each resolver. Kept
-// structural here (the precisely-typed counterpart lives in craft-routes) so the
-// guard runtime stays independent of the route type plumbing.
-export type CraftGuardExceptionResolverContext = {
-  createUrlTree: Router['createUrlTree'];
-  navigate: Router['navigate'];
-  navigateByUrl: Router['navigateByUrl'];
-  router: Router;
-  exception: AnyCraftException;
-  payload: unknown;
-};
-
-export type CraftGuardResolverMap = Record<
-  string,
-  | ((
-      context: CraftGuardExceptionResolverContext,
-    ) => GuardResult | Generator<unknown, GuardResult, unknown>)
-  | undefined
->;
-
 const GUARD_INVALID_YIELD_ERROR_MESSAGE =
   'craft route guards can only yield craftService dependencies, exposed dependency helpers, or an untilSettled/untilDefined await request.';
 
@@ -48,39 +28,6 @@ type GuardPumpResult =
   | { kind: 'shortCircuit'; exception: AnyCraftException };
 
 type GuardSettledStep = Exclude<GuardPumpResult, { kind: 'await' }>;
-
-// Guard resolution boundary: a
-// non-exception result passes through; an exception is mapped through its
-// resolver (looked up by code, with a defensive runtime throw for an unmapped
-// code, which the exhaustive `resolvers` type already prevents). When the
-// resolver is a generator (it `yield*`s craft services to build the redirect),
-// it is delegated to so its dependency yields reach the driver and resolve.
-export function* resolveCraftGuardResult(
-  result: unknown,
-  router: Router,
-  resolverMap: CraftGuardResolverMap,
-): Generator<unknown, unknown, unknown> {
-  if (!isCraftException(result)) {
-    return result;
-  }
-
-  const resolver = resolverMap[result.code];
-
-  if (!resolver) {
-    throw new Error(`Unhandled guard exception: ${result.code}`);
-  }
-
-  const resolved = resolver({
-    createUrlTree: router.createUrlTree.bind(router),
-    navigate: router.navigate.bind(router),
-    navigateByUrl: router.navigateByUrl.bind(router),
-    router,
-    exception: result,
-    payload: result.payload,
-  });
-
-  return isGenerator(resolved) ? yield* resolved : resolved;
-}
 
 // Pumps `iterator` synchronously, resolving craft service yields, until it
 // completes, throws a `CraftGenShortCircuit` (caught and surfaced as the carried
@@ -189,89 +136,6 @@ async function driveGuardStageAsync(
   return current;
 }
 
-function finalizeGuardResult(step: GuardSettledStep): unknown {
-  if (step.kind === 'shortCircuit') {
-    // A resolver let an exception escape (the resolver itself short-circuited),
-    // or no resolver matched — the exhaustive `resolvers` type prevents this.
-    throw new Error(`Unhandled guard exception: ${step.exception.code}`);
-  }
-
-  return step.value;
-}
-
-// Drives a composing guard to a `GuardResult`, going async only when the guard
-// (or a resolver) actually suspends on an `untilSettled`/`untilDefined` await.
-//
-// Sync fast-path: if neither the guard nor its resolver yields an await-request,
-// the bare value is returned synchronously — preserving every existing
-// synchronous guard (no forced microtask). The first await escalates to an
-// `Observable<GuardResult>` (what `canActivate`/`canMatch` accept for async).
-export function runCraftGuardAsync(
-  guardIterator: Generator<unknown, unknown, unknown>,
-  injector: Injector,
-  router: Router,
-  resolverMap: CraftGuardResolverMap,
-): unknown {
-  const guardStep = pumpGuardSync(guardIterator, injector);
-
-  if (guardStep.kind === 'await') {
-    return from(
-      runGuardThenResolve(
-        guardIterator,
-        guardStep,
-        injector,
-        router,
-        resolverMap,
-      ),
-    );
-  }
-
-  const result =
-    guardStep.kind === 'shortCircuit' ? guardStep.exception : guardStep.value;
-  const resolverIterator = resolveCraftGuardResult(result, router, resolverMap);
-  const resolverStep = pumpGuardSync(resolverIterator, injector);
-
-  if (resolverStep.kind === 'await') {
-    return from(driveResolverAsync(resolverIterator, resolverStep, injector));
-  }
-
-  return finalizeGuardResult(resolverStep);
-}
-
-async function runGuardThenResolve(
-  guardIterator: Generator<unknown, unknown, unknown>,
-  guardStep: GuardPumpResult,
-  injector: Injector,
-  router: Router,
-  resolverMap: CraftGuardResolverMap,
-): Promise<unknown> {
-  const settledGuard = await driveGuardStageAsync(
-    guardIterator,
-    injector,
-    guardStep,
-  );
-  const result =
-    settledGuard.kind === 'shortCircuit'
-      ? settledGuard.exception
-      : settledGuard.value;
-  const resolverIterator = resolveCraftGuardResult(result, router, resolverMap);
-  const firstResolverStep = runInInjectionContext(injector, () =>
-    pumpGuardSync(resolverIterator, injector),
-  );
-
-  return driveResolverAsync(resolverIterator, firstResolverStep, injector);
-}
-
-async function driveResolverAsync(
-  resolverIterator: Generator<unknown, unknown, unknown>,
-  step: GuardPumpResult,
-  injector: Injector,
-): Promise<unknown> {
-  const settled = await driveGuardStageAsync(resolverIterator, injector, step);
-
-  return finalizeGuardResult(settled);
-}
-
 /**
  * The result of a synchronous guard re-evaluation (reactive "live" guards):
  * - `valid` — the guard passed without producing an exception;
@@ -312,13 +176,13 @@ export function evaluateCraftGuardSync(
 }
 
 // ---------------------------------------------------------------------------
-// Non-blocking route chain driver — sibling of `runCraftGuardAsync` (untouched).
+// Non-blocking route chain driver.
 //
 // Drives a route's `canActivate` → `resolve` chain *after* the URL has committed
 // (the `CraftRouterOutlet` calls this), routing any `craftException` through the
 // route's exhaustive `handleExceptions` map to a {@link RouteChainOutcome}.
-// Unlike `runCraftGuardAsync` it never returns a `GuardResult`/`Observable` — the
-// outlet owns rendering, and mounts the target only on `'data'`/`'noop'`.
+// It never returns a `GuardResult`/`Observable` — the outlet owns rendering, and
+// mounts the target only on `'data'`/`'noop'`.
 // ---------------------------------------------------------------------------
 
 /** The settled result of a route's guard/resolve chain, consumed by the outlet. */
@@ -374,7 +238,7 @@ function mapOutcome(
 
 // Resolves one exception through `handleExceptions`. A generator handler (it
 // `yield*`s craft services before its outcome) is delegated to so its yields
-// reach the driver, exactly like a generator guard resolver.
+// reach the driver, exactly like a generator guard/resolve stage.
 function* resolveRouteException(
   exception: AnyCraftException,
   router: Router,
@@ -413,7 +277,7 @@ function* resolveRouteException(
 
 // Drives any composing generator (guard, resolve, or exception handler) to a
 // settled step, going async only across real `untilSettled`/`untilDefined`
-// awaits — reusing the same pump/await plumbing as `runCraftGuardAsync`.
+// awaits — reusing the same pump/await plumbing as the synchronous re-check.
 async function driveStageToSettled(
   iterator: Generator<unknown, unknown, unknown>,
   injector: Injector,
@@ -468,7 +332,7 @@ async function driveDataStage(
   const settled = await driveStageToSettled(iterator, injector);
 
   // A stage may signal an exception by throwing (`CraftGenShortCircuit`) or by
-  // returning a bare `craftException` — handle both (mirrors the resolver path).
+  // returning a bare `craftException` — handle both (mirrors the handler path).
   const exception =
     settled.kind === 'shortCircuit'
       ? settled.exception

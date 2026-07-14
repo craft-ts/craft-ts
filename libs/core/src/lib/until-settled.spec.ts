@@ -1,19 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Injector, signal, type WritableSignal } from '@angular/core';
-import type { Router, UrlTree } from '@angular/router';
-import { firstValueFrom, isObservable } from 'rxjs';
+import type { Router } from '@angular/router';
 import { craftException, type AnyCraftException } from './craft-exception';
 import { CraftGenShortCircuit, isCraftGenShortCircuit } from './craft-gen';
 import { isGuardAwaitRequest } from './craft-generator-runtime';
-import { runCraftGuardAsync } from './craft-guard-runtime';
+import {
+  runCraftRouteChainAsync,
+  type CraftRouteExceptionHandlerMap,
+} from './craft-guard-runtime';
 import { untilSettled, type ResourceLike } from './until-settled';
 
-// A stub Router whose redirect helpers return inspectable sentinels — enough for
-// the guard resolvers, without pulling the DOM/router DI graph into the test.
+// A stub Router — the chain driver only binds these three methods onto the
+// exception-handler context; the handlers below use the outcome constructors.
 function stubRouter(): Router {
   return {
-    createUrlTree: (commands: unknown[]) =>
-      ({ __urlTree: commands }) as unknown as UrlTree,
+    createUrlTree: () => ({}) as unknown,
     navigate: () => Promise.resolve(true),
     navigateByUrl: () => Promise.resolve(true),
   } as unknown as Router;
@@ -54,100 +55,92 @@ function makeResource(): {
   };
 }
 
-describe('runCraftGuardAsync', () => {
+// Exercises `untilSettled`'s async HTTP-await path end-to-end, driven by the live
+// non-blocking route chain (`runCraftRouteChainAsync`): a suspended guard resumes
+// with the call's success value, and a business `craftException` short-circuits to
+// the route's `handleExceptions`.
+describe('untilSettled (HTTP await path)', () => {
   let injector: Injector;
 
   beforeEach(() => {
     injector = Injector.create({ providers: [] });
   });
 
-  describe('synchronous fast-path', () => {
-    it('returns a bare value when the guard never awaits', () => {
-      // eslint-disable-next-line require-yield
-      const guard = function* () {
-        return true;
-      };
+  it('resumes the guard with the success value when the call succeeds', async () => {
+    const guard = function* () {
+      const user = yield* untilSettled(fakeHttpCall('USER'));
+      return user === 'USER';
+    };
 
-      const result = runCraftGuardAsync(guard(), injector, stubRouter(), {});
+    const outcome = await runCraftRouteChainAsync(
+      { guard: guard() },
+      injector,
+      stubRouter(),
+      {},
+    );
 
-      expect(result).toBe(true);
-      expect(isObservable(result)).toBe(false);
-    });
-
-    it('resolves a synchronous short-circuit through the resolver synchronously', () => {
-      // eslint-disable-next-line require-yield
-      const guard = function* (): Generator<unknown, unknown, unknown> {
-        throw new CraftGenShortCircuit(
-          craftException({ code: 'BLOCKED', scope: 'Test' }),
-        );
-      };
-
-      const result = runCraftGuardAsync(guard(), injector, stubRouter(), {
-        BLOCKED: () => false,
-      });
-
-      expect(result).toBe(false);
+    expect(outcome).toEqual({
+      kind: 'data',
+      guardData: true,
+      resolveData: undefined,
     });
   });
 
-  describe('HTTP await path', () => {
-    it('resolves the success value when the call succeeds', async () => {
-      const guard = function* () {
-        const user = yield* untilSettled(fakeHttpCall('USER'));
-        return user === 'USER';
-      };
+  it('routes a business exception through the matching handler', async () => {
+    const guard = function* () {
+      yield* untilSettled(
+        fakeHttpCall(
+          craftException({ code: 'PASSWORD_REQUIRED', scope: 'UsersFeature' }),
+        ),
+      );
+      return true;
+    };
 
-      const result = runCraftGuardAsync(guard(), injector, stubRouter(), {});
+    const handlers: CraftRouteExceptionHandlerMap = {
+      PASSWORD_REQUIRED: function* ({ redirectUrl }) {
+        return redirectUrl('/password');
+      },
+    };
 
-      expect(isObservable(result)).toBe(true);
-      expect(await firstValueFrom(result as never)).toBe(true);
-    });
+    const outcome = await runCraftRouteChainAsync(
+      { guard: guard() },
+      injector,
+      stubRouter(),
+      handlers,
+    );
 
-    it('routes a business exception through the matching resolver', async () => {
-      const guard = function* () {
-        yield* untilSettled(
-          fakeHttpCall(
-            craftException({ code: 'PASSWORD_REQUIRED', scope: 'UsersFeature' }),
+    expect(outcome).toEqual({ kind: 'redirect', target: '/password' });
+  });
+
+  it('surfaces a rethrown HttpError as a thrown error instead of routing it', async () => {
+    const guard = function* () {
+      yield* untilSettled(
+        fakeHttpCall(
+          craftException(
+            { code: 'HttpError', scope: 'HttpClient' },
+            { error: {}, method: 'GET', url: '/x' },
           ),
-        );
-        return true;
-      };
+        ),
+      );
+      return true;
+    };
 
-      const result = runCraftGuardAsync(guard(), injector, stubRouter(), {
-        PASSWORD_REQUIRED: ({ createUrlTree }) => createUrlTree(['/password']),
-      });
+    const outcome = await runCraftRouteChainAsync(
+      { guard: guard() },
+      injector,
+      stubRouter(),
+      {},
+    );
 
-      const resolved = (await firstValueFrom(result as never)) as {
-        __urlTree: unknown[];
-      };
-      expect(resolved.__urlTree).toEqual(['/password']);
-    });
-
-    it('rethrows a generic HttpError instead of routing it to a resolver', async () => {
-      const guard = function* () {
-        yield* untilSettled(
-          fakeHttpCall(
-            craftException(
-              { code: 'HttpError', scope: 'HttpClient' },
-              { error: {}, method: 'GET', url: '/x' },
-            ),
-          ),
-        );
-        return true;
-      };
-
-      const result = runCraftGuardAsync(guard(), injector, stubRouter(), {});
-
-      await expect(firstValueFrom(result as never)).rejects.toMatchObject({
-        code: 'HttpError',
-        scope: 'HttpClient',
-      });
-    });
+    expect(outcome.kind).toBe('thrownError');
+    expect(
+      (outcome as { kind: 'thrownError'; error: AnyCraftException }).error,
+    ).toMatchObject({ code: 'HttpError', scope: 'HttpClient' });
   });
 });
 
 // Drives the resource branch's settle decision directly — the `toObservable`
-// suspension (exercised through `runCraftGuardAsync` for the signal path) is
+// suspension (exercised through the route chain driver for the signal path) is
 // orthogonal here; what matters is what the generator does once a resource has
 // settled.
 describe('untilSettled (resource branch)', () => {
