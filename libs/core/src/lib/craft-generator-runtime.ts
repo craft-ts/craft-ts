@@ -121,6 +121,7 @@ type RunCraftGeneratorOptions = {
     run: RuntimeServiceAppStartRequest['run'],
   ) => () => AppStartResult;
   onAppStartNotSupportedErrorMessage?: string;
+  guardAwaitNotSupportedErrorMessage?: string;
 };
 
 export function runCraftGenerator({
@@ -131,6 +132,7 @@ export function runCraftGenerator({
   multipleAppStartErrorMessage,
   createAppStartHook,
   onAppStartNotSupportedErrorMessage,
+  guardAwaitNotSupportedErrorMessage,
 }: RunCraftGeneratorOptions): {
   value: unknown;
   appStartHook?: () => AppStartResult;
@@ -172,6 +174,10 @@ export function runCraftGenerator({
         : yielded.run;
       current = iterator.next(undefined);
       continue;
+    }
+
+    if (guardAwaitNotSupportedErrorMessage && isGuardAwaitRequest(yielded)) {
+      throw new Error(guardAwaitNotSupportedErrorMessage);
     }
 
     throw new Error(invalidYieldErrorMessage);
