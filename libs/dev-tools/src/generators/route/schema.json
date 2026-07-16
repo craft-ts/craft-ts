@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "CraftRoute",
+  "title": "Add a Craft NG route",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Absolute route path to add.",
+      "$default": { "$source": "argv", "index": 0 },
+      "x-prompt": "Route path:"
+    },
+    "project": {
+      "type": "string",
+      "description": "Angular application project.",
+      "x-dropdown": "projects"
+    },
+    "parent": {
+      "type": "string",
+      "description": "Parent routes file and optional collection name."
+    },
+    "component": {
+      "type": "string",
+      "description": "Existing component as file#Class."
+    },
+    "createComponent": {
+      "type": "string",
+      "description": "Create an Angular component using workspace conventions."
+    },
+    "featureFile": {
+      "type": "string",
+      "description": "Explicit lazy feature routes file."
+    },
+    "redirectTo": {
+      "type": "string",
+      "description": "Static redirect target."
+    },
+    "skipValidation": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip post-write ESLint and Angular diagnostics."
+    },
+    "yes": {
+      "type": "boolean",
+      "default": false,
+      "description": "Apply the generated plan without asking for confirmation."
+    }
+  },
+  "required": ["path"]
+}

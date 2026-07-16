@@ -147,6 +147,66 @@ The service migration also:
 statically resolvable component routes with `craftRoute`, generates or reuses
 their `GenDeps_*` type, and adds the file-level DI check.
 
+For new routes, use the `craft` façade rather than the migration command:
+
+```bash
+npx craft route add /users/:userId --component src/app/users/user-detail.ts#UserDetailComponent
+npx craft route add /users/:userId --create-component users/user-detail
+npx craft route add /legacy --redirect-to /users --parent src/app/app.routes.ts#appRoutes
+npx craft route split --parent src/app/app.routes.ts#appRoutes --prefix users --target src/app/users/users.routes.ts
+```
+
+The same route engine is also published as a native Nx generator and as an
+Angular CLI schematic. Both use a virtual workspace tree, so their host CLI
+provides project-name resolution and `--dry-run` without direct filesystem
+writes:
+
+```bash
+# Nx workspace
+npx nx g @craft-ng/dev-tools:route /users/:userId \
+  --project=my-app \
+  --create-component=users/UserDetail
+
+npx nx g @craft-ng/dev-tools:route-split \
+  --project=my-app \
+  --parent=apps/my-app/src/app/app.routes.ts#appRoutes \
+  --prefix=users \
+  --target=apps/my-app/src/app/users/users.routes.ts
+
+# Angular CLI workspace
+npx ng g @craft-ng/dev-tools:route /users/:userId \
+  --project=my-app \
+  --create-component=users/UserDetail
+```
+
+Without route target options, the generator asks for the target kind. Component
+creation then asks for the path relative to the application's `src/app` base,
+followed by the component name. Before mutating the virtual tree it prints the
+planned `CREATE` and `UPDATE` operations and asks for confirmation. Use `--yes`
+for non-interactive automation; Nx/Angular `--dry-run` prints the preview without
+asking for confirmation or writing files.
+
+When `--parent` is omitted in an interactive terminal, the generator discovers
+every `craftRoutes(...)` collection in the selected Angular project and lists
+its exported routes name, source file, and prefix. Select `0` to retain route
+path-based auto-detection, or choose a collection number. Scripted calls can
+still pass `--parent=path/to/routes.ts#routesName` directly.
+
+Pass `--skip-validation` when another task will run lint and the Angular build.
+Otherwise validation runs after the virtual tree has been committed. Nx
+workspaces compose the native `@nx/angular:component` generator; Angular CLI
+workspaces compose the local `@schematics/angular:component` schematic.
+
+The add command defaults to a lazy routes file per feature and generates
+`componentDeps`, `withRetry`, the cascade DI proof, exception assertion,
+`.withParent`, and the parent mount assertion. Both commands print their plan
+before writing. `--dry-run`, `--yes`, `--json`, `--project`, `--parent`, and
+`--feature-file` support scripted usage. After writing, ESLint autofix and the
+project TypeScript diagnostics run automatically; failed validation leaves the
+changes in place and returns a non-zero exit code with diagnostics.
+Component creation uses the local Angular CLI in an `angular.json` workspace,
+or the local Nx Angular schematic in an `nx.json` workspace.
+
 Start with a dry run:
 
 ```bash
@@ -197,6 +257,7 @@ export default [
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
       'craft-ng/require-lazy-load-with-retry': 'error',
+      'craft-ng/require-cascade-route-di-check': 'error',
     }
   }
 ];

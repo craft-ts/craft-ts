@@ -11,39 +11,35 @@ npm install @craft-ng/core
 npm install -D @craft-ng/dev-tools
 ```
 
-## 1. Add the app-level type check in `src/main.ts`
+## 1. Add a cascade DI check to every routes file
 
-::: warning
-The current approach is "central-based" and has some limitations due to TypeScript typing context limitations.
-I will change this setup in favor of a cascading approach.
-:::
-
-Your `main.ts` is where the final app-wide DI check happens.
+DI is checked next to the routes it covers. Every file containing `craftRoutes(...)` must pair its
+collection with `ValidateCascadeRoutesFile` and `CanRun`; a parent check deliberately does not descend
+through `loadChildren`.
 
 ```ts
-import { bootstrapApplication } from '@angular/platform-browser';
-import { AppCheckedDI, CanRun, toApplicationConfig } from '@craft-ng/core';
-import { appConfig } from './app/app.config';
-import { AppComponent, GenDeps_AppComponent } from './app/app.component';
+import {
+  craftRoutes,
+  type CanRun,
+  type ValidateCascadeRoutesFile,
+} from '@craft-ng/core';
+import type { Router } from '@angular/router';
 
-bootstrapApplication(AppComponent, toApplicationConfig(appConfig)).catch(
-  (err) => console.error(err),
-);
+export const { appRoutes } = craftRoutes('app', [
+  /* routes */
+]);
 
-type CheckAppDI = AppCheckedDI<
-  GenDeps_AppComponent,
-  typeof appConfig.APP_CONFIG_META_DATA
->;
-type _CanRun = CanRun<CheckAppDI>;
+type _CheckAppDI = ValidateCascadeRoutesFile<never, Router, typeof appRoutes>;
+type _CanRunApp = CanRun<_CheckAppDI>;
 ```
 
-`AppCheckedDI` compares:
+`ValidateCascadeRoutesFile` compares:
 
-- the generated dependencies of your root component
 - the generated dependencies declared on every route
-- the providers resolved by `craftAppConfig(...)`
+- the providers available from the app, parent mount, route and component
 
-If a route depends on a service that is not provided, or if a routed component expects an input that the route does not supply, `_CanRun` turns that mismatch into a TypeScript error in `main.ts`.
+If a route depends on a service that is not provided, or if a routed component expects an input that
+the route does not supply, `_CanRunApp` turns that mismatch into a TypeScript error in the routes file.
 
 Typical errors look like:
 
@@ -78,7 +74,40 @@ The important part is:
 componentDeps: {} as import('./test').GenDeps_TestComponent,
 ```
 
-That line connects the generated `GenDeps_*` type of the component to the route metadata checked later by `AppCheckedDI`.
+That line connects the generated `GenDeps_*` type of the component to the same-file cascade check.
+
+### Prefer the route CLI for day-to-day authoring
+
+The CLI is the primary writing façade while the generated result remains ordinary editable TypeScript:
+
+```bash
+npx craft route add
+npx craft route add /users/:userId --component src/app/users/user-detail.ts#UserDetailComponent
+npx craft route add /users/:userId --create-component users/user-detail
+```
+
+By default it detects the Angular project and `craftRoutes` collections, creates one lazy routes file
+per feature, adds `componentDeps`, `withRetry`, `.withParent`, the parent mount assertion and the
+same-file DI check, then runs ESLint and TypeScript diagnostics. Use `--dry-run` to inspect the plan,
+`--yes` for non-interactive scripts and `--json` for machine-readable output.
+
+Static redirects stay in the selected collection:
+
+```bash
+npx craft route add /old-users --redirect-to /users --parent src/app/app.routes.ts#appRoutes
+```
+
+Existing flat groups can be split explicitly:
+
+```bash
+npx craft route split \
+  --parent src/app/app.routes.ts#appRoutes \
+  --prefix users \
+  --target src/app/users/users.routes.ts
+```
+
+The split command only moves statically analyzable routes. It reports local declarations or dynamic
+paths without mutating files, so business logic is never guessed.
 
 Then wire the crafted routes into your application config:
 
@@ -217,8 +246,8 @@ app.routes.ts                 # "manifest": ~N cheap { path, loadChildren } entr
 - Each feature file pays the budget for **its own leaves only**. ~500 routes ÷ ~17 per file ≈ ~30
   files; two levels are plenty, and you can nest further without limit.
 - **Every `craftRoutes(...)` file re-declares its own check** (see the iron rule above). With many
-  files this is easy to forget and fails silently, so enforce it with an ESLint rule in the same
-  family as `brand-angular-deps-match`.
+  files this is easy to forget and fails silently, so enable
+  `craft-ng/require-cascade-route-di-check`.
 
 ::: tip Threading the parent DI context
 The child check's parent context (`ParentNames`, `ParentValues`) is everything provided **at its mount
@@ -427,6 +456,7 @@ export default [
       'craft-ng/require-pending-component-di-check': 'error',
       'craft-ng/require-child-route-mount-check': 'error',
       'craft-ng/require-lazy-load-with-retry': 'error',
+      'craft-ng/require-cascade-route-di-check': 'error',
       'craft-ng/global-exception-registry-match': 'error',
     },
   },
@@ -447,6 +477,7 @@ What each rule does:
 - `craft-ng/require-pending-component-di-check`: generates the independent `RouteCheckedDI` check for each `pendingComponent`
 - `craft-ng/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
 - `craft-ng/require-lazy-load-with-retry`: wraps route `loadComponent` and `loadChildren` imports with the generated `withRetry(...)` loader helper while preserving a statically analyzable import specifier
+- `craft-ng/require-cascade-route-di-check`: rejects any `craftRoutes(...)` collection without a same-file `ValidateCascadeRoutesFile + CanRun` proof; its autofix adds the conservative `<never, Router>` context, which should be adjusted when the mount inherits providers
 - `craft-ng/global-exception-registry-match`: keeps `CraftGlobalExceptionRegistry` synchronized with handlers delegating to `globalError()`
 
 The two migration rules also expose a VS Code ESLint Quick Fix suggestion that inserts a temporary local disable comment with the intended migration note when you need to unblock a file before doing the full refactor.

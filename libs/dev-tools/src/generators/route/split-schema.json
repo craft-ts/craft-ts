@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "CraftRouteSplit",
+  "title": "Split Craft NG routes into a lazy collection",
+  "type": "object",
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "Angular application project.",
+      "$default": { "$source": "projectName" },
+      "x-dropdown": "projects"
+    },
+    "parent": { "type": "string" },
+    "prefix": { "type": "string" },
+    "target": { "type": "string" },
+    "skipValidation": { "type": "boolean", "default": false }
+  },
+  "required": ["parent", "prefix", "target"]
+}

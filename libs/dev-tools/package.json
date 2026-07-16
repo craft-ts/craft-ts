@@ -16,7 +16,10 @@
     },
     "./package.json": "./package.json"
   },
+  "generators": "./generators.json",
+  "schematics": "./generators.json",
   "bin": {
+    "craft": "./src/bin/craft.js",
     "craft-brand": "./src/bin/craft-brand.js",
     "craft-migrate": "./src/bin/craft-migrate.js",
     "craft-migrate-primitives": "./src/bin/craft-migrate-primitives.js",
@@ -24,10 +27,12 @@
     "craft-migrate-routes": "./src/bin/craft-migrate-routes.js"
   },
   "files": [
+    "generators.json",
     "src/**/*",
     "README.md"
   ],
   "dependencies": {
+    "@nx/devkit": "^22.3.1",
     "tslib": "^2.3.0",
     "ts-morph": "^24.0.0",
     "ts-node": "^10.9.2",
@@ -35,11 +40,19 @@
   },
   "peerDependencies": {
     "@angular-eslint/eslint-plugin": ">=21.0.0",
+    "@nx/angular": ">=21.0.0 <24.0.0",
+    "@schematics/angular": ">=20.0.0 <23.0.0",
     "@typescript-eslint/eslint-plugin": ">=8.0.0",
     "eslint": ">=9.0.0"
   },
   "peerDependenciesMeta": {
     "@angular-eslint/eslint-plugin": {
+      "optional": true
+    },
+    "@nx/angular": {
+      "optional": true
+    },
+    "@schematics/angular": {
       "optional": true
     },
     "@typescript-eslint/eslint-plugin": {

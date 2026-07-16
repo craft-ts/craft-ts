@@ -25,6 +25,7 @@ const requireCraftExceptionHandler = require('./require-craft-exception-handler.
 const requireExceptionComponentDiCheck = require('./require-exception-component-di-check.cjs');
 const requireChildRouteMountCheck = require('./require-child-route-mount-check.cjs');
 const requireLazyLoadWithRetry = require('./require-lazy-load-with-retry.cjs');
+const requireCascadeRouteDiCheck = require('./require-cascade-route-di-check.cjs');
 
 module.exports = {
   rules: {
@@ -56,5 +57,6 @@ module.exports = {
     'require-exception-component-di-check': requireExceptionComponentDiCheck,
     'require-child-route-mount-check': requireChildRouteMountCheck,
     'require-lazy-load-with-retry': requireLazyLoadWithRetry,
+    'require-cascade-route-di-check': requireCascadeRouteDiCheck,
   },
 };

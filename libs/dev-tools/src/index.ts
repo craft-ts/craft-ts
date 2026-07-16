@@ -5,6 +5,7 @@ export * from './scripts/migrate';
 export * from './scripts/primitives/migration-diagnostic';
 export * from './scripts/routes/migrate-routes';
 export * from './scripts/routes/migration-diagnostic';
+export * from './scripts/routes/route-command';
 export * from './scripts/services/config';
 export * from './scripts/services/migrate-services';
 export * from './scripts/services/migration-diagnostic';

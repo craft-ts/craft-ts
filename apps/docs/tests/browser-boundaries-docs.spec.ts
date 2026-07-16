@@ -140,7 +140,9 @@ describe('craftGen doc page', () => {
     );
     expect(content).toContain('`CraftGenShortCircuit`');
     expect(content).toContain('`craftException(...)` results are converted');
-    expect(content).toContain('parameterise one guard and reuse it across routes');
+    expect(content).toContain(
+      'parameterise one guard and reuse it across routes',
+    );
     expect(content).toContain('the first exception wins');
     expect(content).toContain('[`Route Guards`](/type-safe-di-routes/guards)');
   });
@@ -189,8 +191,10 @@ describe('Type-safe DI/Routes setup doc page', () => {
     expect(content).toContain(
       'This guide assumes you are integrating type-safe DI/routes into an Angular app that consumes `@craft-ng/core`.',
     );
-    expect(content).toContain('type CheckAppDI = AppCheckedDI<');
-    expect(content).toContain('type _CanRun = CanRun<CheckAppDI>;');
+    expect(content).toContain(
+      'type _CheckAppDI = ValidateCascadeRoutesFile<never, Router, typeof appRoutes>;',
+    );
+    expect(content).toContain('type _CanRunApp = CanRun<_CheckAppDI>;');
     expect(content).toContain(
       "componentDeps: {} as import('./test').GenDeps_TestComponent,",
     );
@@ -211,6 +215,9 @@ describe('Type-safe DI/Routes setup doc page', () => {
     expect(content).toContain("'craft-ng/no-angular-inject': 'error'");
     expect(content).toContain("'craft-ng/prefer-craft-service': 'error'");
     expect(content).toContain("'craft-ng/prefer-craft-http-client': 'error'");
+    expect(content).toContain(
+      "'craft-ng/require-cascade-route-di-check': 'error'",
+    );
     expect(content).toContain(
       'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`',
     );

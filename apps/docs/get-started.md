@@ -35,7 +35,7 @@ import { state } from '@craft-ng/core';
   `,
 })
 export class CounterComponent {
-  counter = state(0);
+  protected readonly counter = state(0);
 }
 ```
 
@@ -67,9 +67,8 @@ You can add methods and computed properties to your state using a second inserti
   `,
 })
 export class CounterComponent {
-  counter = state(
-    0,
-    ({ update, state }) => ({
+  protected readonly counter = craftUse(
+    state(0, ({ update, state }) => ({
       // methods
       increment: () => update((current) => current + 1),
       decrement: () => update((current) => current - 1),
@@ -77,6 +76,7 @@ export class CounterComponent {
       isEven: computed(() => state() % 2 === 0),
       double: computed(() => state() * 2),
       isPositive: computed(() => state() > 0),
+    })),
   );
 }
 ```
@@ -127,7 +127,7 @@ const { injectTodos } = craftService({ name: 'Todos', scope: 'global' }, () =>
   standalone: true,
   template: `
     <div>
-      <h2>Todos ({{ store.total() }})</h2>
+      <h2>Todos ({{ todos.total() }})</h2>
       <input
         #input
         type="text"

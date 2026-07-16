@@ -21,6 +21,7 @@
         "tsConfig": "libs/dev-tools/tsconfig.lib.json",
         "assets": [
           "libs/dev-tools/*.md",
+          "libs/dev-tools/generators.json",
           {
             "input": "libs/dev-tools/src/eslint",
             "glob": "**/*.mjs",
@@ -40,6 +41,11 @@
             "input": "libs/dev-tools/src",
             "glob": "tsconfig.codemod.json",
             "output": "src"
+          },
+          {
+            "input": "libs/dev-tools/src/generators",
+            "glob": "**/*.json",
+            "output": "src/generators"
           },
           {
             "input": "libs/dev-tools/src/scripts",
