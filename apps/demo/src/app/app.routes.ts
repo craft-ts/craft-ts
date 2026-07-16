@@ -283,7 +283,7 @@ assertExhaustiveRouteExceptions(demoRoutes);
 // must be mounted under the route path it declared. Scoped to this parent file.
 assertChildRouteMounts(demoRoutes);
 
-const { UserRequirement, provideUser } = craftService(
+const { provideUser } = craftService(
   {
     name: 'User',
     scope: 'abstract',
