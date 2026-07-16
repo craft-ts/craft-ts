@@ -70,6 +70,29 @@ describe('global-exception-registry-match', () => {
     expect(messages).toEqual([]);
   });
 
+  it('accepts the Prettier-wrapped (multi-line) form of an up-to-date entry', async () => {
+    // The rule writes the entry on one line, but Prettier re-wraps long generics
+    // across lines. That form must still read as up to date — otherwise --fix and
+    // format-on-save fight each other forever.
+    const prettierWrapped = `
+        declare module '@craft-ng/core' {
+          interface CraftGlobalExceptionRegistry {
+            'query/:userId': {
+              USER_DISABLED: CraftRouteExceptionType<
+                typeof demoRoutes,
+                'query/:userId',
+                'USER_DISABLED'
+              >;
+            };
+          }
+        }
+      `;
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': ROUTE_FILE(prettierWrapped),
+    });
+    expect(messages).toEqual([]);
+  });
+
   it('updates a stale registry entry', async () => {
     const stale = `
         declare module '@craft-ng/core' {

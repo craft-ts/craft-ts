@@ -492,6 +492,17 @@ function formatNameList(names) {
     .join(', ')}, and '${names[names.length - 1]}'`;
 }
 
+// Compares two type strings for equality up to Prettier's formatting freedom.
+// The rule emits the type on one line, but Prettier re-wraps long entries across
+// lines — which introduces spaces around `<`/`>`/`,` and a trailing `;` before the
+// closing brace. Collapsing whitespace alone would leave those, so the comparison
+// would flip to "out of date" and fight Prettier forever. We additionally strip
+// spaces adjacent to punctuation (keeping token boundaries like `typeof demoRoutes`
+// intact) and drop a member-terminating `;` right before a `}`.
 function normalizeText(text) {
-  return text.replace(/\s+/g, ' ').trim();
+  return text
+    .replace(/\s+/g, ' ')
+    .replace(/\s*([<>(),;])\s*/g, '$1')
+    .replace(/;(?=}|$)/g, '')
+    .trim();
 }
