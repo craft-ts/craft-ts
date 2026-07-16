@@ -1,5 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
-import { componentMonitoring, injectCraftGlobalError, provideHostName, type ExtractDeps, type GetDeps, type GetPublicComponentProperties } from '@craft-ng/core';
+import {
+  componentMonitoring,
+  craftComputed,
+  injectCraftGlobalError,
+  provideHostName,
+  type ExtractDeps,
+  type GetDeps,
+  type GetPublicComponentProperties,
+} from '@craft-ng/core';
 
 /**
  * The application-wide error screen rendered by `CraftRouterOutlet` when a route
@@ -29,13 +37,13 @@ import { componentMonitoring, injectCraftGlobalError, provideHostName, type Extr
       }
     `,
   ],
-  providers: [provideHostName('component:MyGlobalErrorScreen')]
+  providers: [provideHostName('component:MyGlobalErrorScreen')],
 })
 export class MyGlobalErrorScreen {
   private readonly _monitoring = componentMonitoring();
   readonly error = injectCraftGlobalError();
 
-  readonly title = computed(() => {
+  readonly title = craftComputed(() => {
     const exception = this.error();
     return exception?.code === 'USER_DISABLED'
       ? 'Account disabled'
@@ -54,20 +62,20 @@ export class MyGlobalErrorScreen {
 }
 
 export type GenDeps_MyGlobalErrorScreen = GetDeps<{
-      deps: {};
-      propertiesDeps: {
-        _monitoring: ExtractDeps<MyGlobalErrorScreen["_monitoring"]>;
-        error: {
-            CraftGlobalError: ReturnType<typeof injectCraftGlobalError>;
-          };
-        title: ExtractDeps<MyGlobalErrorScreen["title"]>;
-        message: ExtractDeps<MyGlobalErrorScreen["message"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<MyGlobalErrorScreen>;
-      missingProvider: {
-        CraftGlobalError: ReturnType<typeof injectCraftGlobalError>;
-      };
-    }>;
+  deps: {};
+  propertiesDeps: {
+    _monitoring: ExtractDeps<MyGlobalErrorScreen['_monitoring']>;
+    error: {
+      CraftGlobalError: ReturnType<typeof injectCraftGlobalError>;
+    };
+    title: ExtractDeps<MyGlobalErrorScreen['title']>;
+    message: ExtractDeps<MyGlobalErrorScreen['message']>;
+  };
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: GetPublicComponentProperties<MyGlobalErrorScreen>;
+  missingProvider: {
+    CraftGlobalError: ReturnType<typeof injectCraftGlobalError>;
+  };
+}>;

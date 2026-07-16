@@ -12,6 +12,7 @@ import {
   sep,
 } from 'node:path';
 import { promisify } from 'node:util';
+import { names } from '@nx/devkit';
 import {
   ArrayLiteralExpression,
   CallExpression,
@@ -933,6 +934,8 @@ async function createAngularComponent(
             'generate',
             'component',
             name,
+            '--inline-template',
+            '--inline-style',
             '--skip-tests',
             ...(projectName ? ['--project', projectName] : []),
           ],
@@ -944,6 +947,8 @@ async function createAngularComponent(
               'generate',
               '@schematics/angular:component',
               name,
+              '--inline-template',
+              '--inline-style',
               ...(projectName ? ['--project', projectName] : []),
               '--skip-tests',
             ],
@@ -961,7 +966,7 @@ async function createAngularComponent(
   const name = options.createComponent;
   if (!name)
     throw new Error('createAngularComponent requires createComponent.');
-  const expectedFileName = `${basename(name)}.ts`;
+  const expectedFileName = `${names(basename(name)).fileName}.ts`;
   const filesBefore = new Set(await findFiles(rootDir, expectedFileName));
   try {
     await execFileAsync(runner.binary, runner.args(name), { cwd: rootDir });

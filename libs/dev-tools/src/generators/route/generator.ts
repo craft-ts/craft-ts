@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import {
   getProjects,
   logger,
+  names,
   readProjectConfiguration,
   type GeneratorCallback,
   type ProjectConfiguration,
@@ -444,6 +445,8 @@ async function generateComponent(
     const { componentGenerator } = await import('@nx/angular/generators');
     await componentGenerator(tree, {
       path: requestedPath,
+      inlineStyle: true,
+      inlineTemplate: true,
       skipTests: true,
       skipFormat: true,
     });
@@ -457,6 +460,8 @@ async function generateComponent(
       path: dirname(requestedPath),
       project: projectName,
       flat: true,
+      inlineStyle: true,
+      inlineTemplate: true,
       skipTests: true,
     });
   }
@@ -493,7 +498,7 @@ function resolveComponentPath(
   const directory = path.startsWith(project.root)
     ? path
     : join(componentBase, path);
-  return join(directory, target.name);
+  return join(directory, names(target.name).fileName);
 }
 
 function printGeneratorPlan(
@@ -507,10 +512,10 @@ function printGeneratorPlan(
     const requestedPath = join(
       componentBase,
       component.path === '.' ? '' : component.path,
-      component.name,
+      names(component.name).fileName,
     );
     lines.push(
-      `  CREATE ${requestedPath}.* (exact component files follow workspace conventions)`,
+      `  CREATE ${requestedPath}.ts (inline template and styles; filename normalized by Angular)`,
     );
   }
   for (const filePath of result.plan?.files ?? []) {

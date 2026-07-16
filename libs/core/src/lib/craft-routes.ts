@@ -1154,6 +1154,19 @@ type AnyCraftRouteHelperDefinition = {
 type CraftRouteDefinitionInput<Def extends object> =
   'handleExceptions' extends keyof Def ? never : Def;
 
+// Constraint (not intersection) carrying the contextual type for the lazy-loader
+// callbacks. Used as `Def`'s *constraint* in `craftRoute`, it types the `helpers`
+// argument of `loadComponent`/`loadChildren` — so callers no longer annotate it —
+// WITHOUT collapsing `Def` inference. Intersecting the same shape into the `def`
+// parameter type (the previously-documented dead end) did collapse inference to
+// `object` on inline guards; a constraint only supplies contextual types while the
+// literal is still inferred into `Def`. Callbacks return `unknown` so every concrete
+// route def satisfies it.
+type CraftRouteLoaderHelperConstraint = {
+  loadComponent?: (helpers: CraftRouteLazyLoadHelpers) => unknown;
+  loadChildren?: (helpers: CraftRouteLazyLoadHelpers) => unknown;
+};
+
 type ExceptionCode<Exception> = Exception extends {
   code: infer Code extends string;
 }
@@ -2587,11 +2600,14 @@ function createLoadComponent(
 // {@link assertExhaustiveRouteExceptions} (the 2-arg return type carries no
 // `handleExceptions`, so the reachable codes show up as unhandled).
 
-// NOTE: `def` must stay typed as bare `CraftRouteDefinitionInput<Def>`. Intersecting
-// `CraftRouteLazyLoaderContext` into it (to contextually type the `helpers` argument of
-// `loadComponent`/`loadChildren`) collapses `Def` inference to `object` as soon as the
-// literal contains an inline guard — callers annotate `helpers` explicitly instead
-// (`loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) => ...`).
+// NOTE: the 3-arg `def` stays constrained to bare `object`. Narrowing its constraint
+// (or intersecting the loader context into the `def` parameter) perturbs `Def`
+// inference for an inline `canActivate`/`resolve` generator — the reachable exception
+// union collapses and `handleExceptions` stops being exhaustiveness-checked. So the
+// 3-arg form keeps annotating `helpers` explicitly
+// (`loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) => ...`). The 2-arg form
+// has no such generators to infer, so it can carry the loader constraint (below) and
+// type `helpers` for free.
 
 // 3-arg form: the route's guards/resolve can throw — handlers are exhaustive over the
 // reachable codes.
@@ -2628,7 +2644,10 @@ export function craftRoute<
   >
 >;
 // 2-arg form: the route throws no `craftException`s, so no handlers are needed.
-export function craftRoute<const Path extends string, const Def extends object>(
+export function craftRoute<
+  const Path extends string,
+  const Def extends CraftRouteLoaderHelperConstraint,
+>(
   path: Path,
   def: CraftRouteDefinitionInput<Def>,
 ): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>>;

@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-  craftUse,
   componentMonitoring,
   craftMethod,
   CraftRouterToYield,
+  craftUse,
   insertLocalStoragePersister,
   provideHostName,
   query,
@@ -16,7 +16,7 @@ import {
   StatusComponent,
   type GenDeps_StatusComponent,
 } from '../../../ui/status.component';
-import { injectApiService } from './api.service';
+import { ApiServiceToYield } from './api.service';
 
 @Component({
   selector: 'app-query',
@@ -49,13 +49,13 @@ export default class GlobalQuery {
   private readonly _monitoring = componentMonitoring();
   public readonly userId = input<string>();
 
-  private readonly apiService = injectApiService();
-
   protected readonly userQuery = craftUse(
     query(
       {
         params: this.userId,
-        loader: ({ params: userId }) => this.apiService.getItemById(userId),
+        loader: function* ({ params: userId }) {
+          return yield* ApiServiceToYield.getItemById(userId);
+        },
       },
       insertLocalStoragePersister({
         storeName: 'demo-app',
@@ -91,9 +91,6 @@ export type GenDeps_GlobalQuery = GetDeps<{
   propertiesDeps: {
     _monitoring: ExtractDeps<GlobalQuery['_monitoring']>;
     userId: ExtractDeps<GlobalQuery['userId']>;
-    apiService: {
-      ApiService: ExtractDeps<typeof injectApiService>['ApiService'];
-    };
     userQuery: ExtractDeps<GlobalQuery['userQuery']>;
     nextPage: ExtractDeps<GlobalQuery['nextPage']>;
     previousPage: ExtractDeps<GlobalQuery['previousPage']>;

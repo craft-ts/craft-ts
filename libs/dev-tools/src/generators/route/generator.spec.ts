@@ -127,17 +127,26 @@ describe('Craft route generators', () => {
     await routeGenerator(tree, {
       path: '/created',
       project: 'demo',
-      createComponent: 'created-page',
+      createComponent: 'created-page/DemoPage',
       skipValidation: true,
       yes: true,
     });
 
     expect(
-      tree.read('apps/demo/src/app/created-page/created-page.ts', 'utf8'),
-    ).toContain('export class CreatedPage');
+      tree.read('apps/demo/src/app/created-page/demo-page.ts', 'utf8'),
+    ).toContain('export class DemoPage');
+    expect(tree.exists('apps/demo/src/app/created-page/DemoPage.ts')).toBe(
+      false,
+    );
+    expect(tree.exists('apps/demo/src/app/created-page/demo-page.html')).toBe(
+      false,
+    );
+    expect(tree.exists('apps/demo/src/app/created-page/demo-page.css')).toBe(
+      false,
+    );
     expect(
       tree.read('apps/demo/src/app/created/created.routes.ts', 'utf8'),
-    ).toContain('GenDeps_CreatedPage');
+    ).toContain('GenDeps_DemoPage');
   });
 
   it('keeps the separate component path and name with the Angular schematic', async () => {
@@ -182,6 +191,8 @@ describe('Craft route generators', () => {
     expect(generatedComponent?.content?.toString()).toContain(
       'export class TestCli',
     );
+    expect(tree.exists('apps/demo/src/app/test-cli/test-cli.html')).toBe(false);
+    expect(tree.exists('apps/demo/src/app/test-cli/test-cli.css')).toBe(false);
   });
 
   it('splits routes through the same virtual Tree', async () => {

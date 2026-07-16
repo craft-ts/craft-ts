@@ -1,12 +1,10 @@
 import {
   craftUse,
-  abstract,
   assertChildRouteMounts,
   assertExhaustiveRouteExceptions,
   craftException,
   craftExceptionHandler,
   craftGen,
-  craftResolve,
   craftRoutes,
   craftService,
   query,
@@ -31,32 +29,10 @@ export const {
     {
       componentDeps:
         {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,
-      loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
+      loadComponent: ({ withRetry }) =>
         withRetry(import('./examples/primitives/query/query')),
-      canActivate: function* () {
-        return yield* authGuard();
-      },
-      resolve: craftResolve(function* () {
-        return yield* loadProfile();
-      }),
     },
-    {
-      // Centralised + exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at
-      // the call site. The URL commits immediately; the outlet routes these
-      // exceptions after commit.
-      NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
-        return redirectUrl('/login-form');
-      }),
-      USER_DISABLED: craftExceptionHandler(function* ({ globalError }) {
-        return globalError();
-      }),
-    },
-  ).withProviders(({ GuardedDataToYield }) => [
-    provideUser(function* () {
-      const guardedUser = yield* GuardedDataToYield();
-      return guardedUser();
-    }),
-  ]),
+  ),
   {
     // Slow guard + slow resolve demo for `CraftRouterOutlet`. Lazy child
     // collection so it stays out of this file's (saturated) cascade DI budget.
@@ -266,6 +242,25 @@ export const {
         }),
       ),
   },
+  craftRoute(
+    'guard-demo',
+    {
+      componentDeps:
+        {} as import('./examples/routes/guard-demo/GuardDemo').GenDeps_GuardDemo,
+      loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
+        withRetry(import('./examples/routes/guard-demo/GuardDemo')).then(
+          (m) => m.GuardDemo,
+        ),
+      canActivate: function* () {
+        return yield* authGuard();
+      },
+    },
+    {
+      NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/login-form');
+      }),
+    },
+  ),
 ]);
 
 declare module '@craft-ng/core' {
@@ -283,14 +278,6 @@ assertExhaustiveRouteExceptions(demoRoutes);
 // must be mounted under the route path it declared. Scoped to this parent file.
 assertChildRouteMounts(demoRoutes);
 
-const { provideUser } = craftService(
-  {
-    name: 'User',
-    scope: 'abstract',
-  },
-  abstract<User>(),
-);
-
 // Reusable, composable guard: yields the tracked `Auth` dependency and either
 // returns the authenticated user (guarded data) or short-circuits with a typed
 // `craftException`. Composed via `yield*` inside the route's `canActivate` below.
@@ -303,19 +290,6 @@ const authGuard = craftGen(function* () {
     : craftException({ code: 'NOT_AUTHENTICATED' });
 });
 
-type Profile = { displayName: string };
-
-// Resolve step: loads the profile after the URL has committed (the outlet shows
-// the pending component while it is in flight). It may short-circuit with a
-// `USER_DISABLED` business exception, which `handleExceptions` delegates to the
-// global error component.
-const loadProfile = craftGen(function* () {
-  const user = yield* AuthToYield();
-  return user.safeValue()
-    ? ({ displayName: 'Ada Lovelace' } satisfies Profile)
-    : craftException({ code: 'USER_DISABLED' });
-});
-
 // Maintained by the `global-exception-registry-match` ESLint autofix: every code a
 // route delegates to the global error component via `globalError()` is mirrored
 // here, so `injectCraftGlobalError()` is typed + exhaustive. Do not edit by hand.
@@ -325,6 +299,13 @@ declare module '@craft-ng/core' {
       USER_DISABLED: CraftRouteExceptionType<
         typeof demoRoutes,
         'query/:userId',
+        'USER_DISABLED'
+      >;
+    };
+    'guard-demo': {
+      USER_DISABLED: CraftRouteExceptionType<
+        typeof demoRoutes,
+        'guard-demo',
         'USER_DISABLED'
       >;
     };

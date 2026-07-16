@@ -163,9 +163,10 @@ describe('craft route commands', () => {
     await writeFile(
       ng,
       `#!/bin/sh
-target="$3.ts"
+printf "%s\\n" "$@" > "$PWD/ng-args.txt"
+target="$(dirname "$3")/demo-page.ts"
 mkdir -p "$(dirname "$target")"
-printf "%s\\n" "import { Component } from '@angular/core';" "@Component({ template: '' })" "export class Generated {}" > "$target"
+printf "%s\\n" "import { Component } from '@angular/core';" "@Component({ template: '' })" "export class DemoPage {}" > "$target"
 `,
       'utf8',
     );
@@ -174,7 +175,7 @@ printf "%s\\n" "import { Component } from '@angular/core';" "@Component({ templa
     const result = await runRouteAdd({
       rootDir: root,
       path: '/users/generated',
-      createComponent: 'src/app/users/generated',
+      createComponent: 'src/app/users/DemoPage',
       yes: true,
       validate: false,
       log: () => undefined,
@@ -182,11 +183,14 @@ printf "%s\\n" "import { Component } from '@angular/core';" "@Component({ templa
 
     expect(result.exitCode).toBe(0);
     expect(
-      await readFile(join(root, 'src/app/users/generated.ts'), 'utf8'),
-    ).toContain('GenDeps_Generated');
+      await readFile(join(root, 'src/app/users/demo-page.ts'), 'utf8'),
+    ).toContain('GenDeps_DemoPage');
     expect(
       await readFile(join(root, 'src/app/users/users.routes.ts'), 'utf8'),
-    ).toContain("componentDeps: {} as import('./generated').GenDeps_Generated");
+    ).toContain("componentDeps: {} as import('./demo-page').GenDeps_DemoPage");
+    expect(await readFile(join(root, 'ng-args.txt'), 'utf8')).toContain(
+      '--inline-template\n--inline-style',
+    );
   });
 
   it('delegates through Nx when the Angular project has no angular.json workspace', async () => {
@@ -245,6 +249,7 @@ printf "%s\\n" "import { Component } from '@angular/core';" "@Component({ templa
     await writeFile(
       join(binDirectory, 'nx'),
       `#!/bin/sh
+printf "%s\\n" "$@" > "$PWD/nx-args.txt"
 target="apps/demo/src/app/$3/$3.ts"
 mkdir -p "$(dirname "$target")"
 printf "%s\\n" "import { Component } from '@angular/core';" "@Component({ template: '' })" "export class TestGenerated {}" > "$target"
@@ -292,6 +297,9 @@ exit 0
         'utf8',
       ),
     ).toContain('GenDeps_TestGenerated');
+    expect(await readFile(join(root, 'nx-args.txt'), 'utf8')).toContain(
+      '--inline-template\n--inline-style',
+    );
     expect(await readFile(join(root, 'ngc-called'), 'utf8')).toBe('');
   });
 

@@ -136,6 +136,13 @@ import {
           routerLinkActive="active"
           >Demo Send Context</a
         >
+        <a
+          [craftRouterLink]="{
+            to: 'guard-demo',
+          }"
+          routerLinkActive="active"
+          >Guard demo</a
+        >
       </nav>
       <main class="content">
         <craft-router-outlet></craft-router-outlet>

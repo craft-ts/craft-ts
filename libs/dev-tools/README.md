@@ -195,7 +195,12 @@ still pass `--parent=path/to/routes.ts#routesName` directly.
 Pass `--skip-validation` when another task will run lint and the Angular build.
 Otherwise validation runs after the virtual tree has been committed. Nx
 workspaces compose the native `@nx/angular:component` generator; Angular CLI
-workspaces compose the local `@schematics/angular:component` schematic.
+workspaces compose the local `@schematics/angular:component` schematic. New
+components use an inline template and inline styles, so the generator creates a
+single component `.ts` file rather than separate `.ts`, `.html`, and `.css`
+files. Component filenames are always normalized to kebab-case: a component
+name such as `DemoPage` produces `demo-page.ts` while retaining the `DemoPage`
+class name.
 
 The add command defaults to a lazy routes file per feature and generates
 `componentDeps`, `withRetry`, the cascade DI proof, exception assertion,

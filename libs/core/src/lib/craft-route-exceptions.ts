@@ -15,6 +15,19 @@ import {
   type CraftRouterYieldRequest,
   type NavigableRoutePath,
 } from './craft-router';
+import {
+  toCraftService,
+  // These marker symbols are imported type-only so the generated
+  // `CraftGlobalErrorToYield` helper's inferred type is nameable in this
+  // module's `.d.ts` (otherwise TS4023 — same recipe as `craft-router.ts`).
+  type SERVICE_DEPENDENCY_ACCESS_MARKER,
+  type SERVICE_EXPOSURE_TOKEN_MARKER,
+  type SERVICE_HELPER_DEPENDENCIES,
+  type SERVICE_META_DATA_TYPE,
+  type SERVICE_RUNTIME_META,
+  type SERVICE_YIELD_METADATA,
+  type SERVICE_YIELD_REQUEST_MARKER,
+} from './craft-service';
 
 /**
  * Centralised, typed exception handling for craft routes.
@@ -445,3 +458,33 @@ export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
     CRAFT_GLOBAL_ERROR,
   ) as unknown as Signal<CraftGlobalHandledException>;
 }
+
+/**
+ * Adapts the same {@link CRAFT_GLOBAL_ERROR} token as a craft dependency named
+ * `CraftGlobalError`, so the global exception can be read from a generator body
+ * the way a `toCraftService` dependency is — see {@link CraftGlobalErrorToYield}.
+ * Typed as the exhaustive {@link CraftGlobalHandledException} view, matching
+ * {@link injectCraftGlobalError}.
+ */
+const craftGlobalErrorService = toCraftService({
+  name: 'CraftGlobalError',
+  scope: 'global',
+  inject: (): Signal<CraftGlobalHandledException> =>
+    inject(CRAFT_GLOBAL_ERROR) as unknown as Signal<CraftGlobalHandledException>,
+});
+
+/**
+ * Generator counterpart to {@link injectCraftGlobalError}. Reads the exception
+ * routed to the global error component from inside a `function*` body:
+ *
+ * ```ts
+ * const error = yield* CraftGlobalErrorToYield();
+ * // switch (error().code) { case 'USER_DISABLED': … }
+ * ```
+ *
+ * Same typed view as {@link injectCraftGlobalError} — the exhaustive union
+ * recorded in {@link CraftGlobalExceptionRegistry} — and it tracks as a
+ * `CraftGlobalError` dependency, exactly like the property form.
+ */
+export const CraftGlobalErrorToYield =
+  craftGlobalErrorService.CraftGlobalErrorToYield;
