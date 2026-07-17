@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import './demo-route-http-registry';
-import { matchMockHttpRequestForRoute, mockHttpRequestForRoute } from '@craft-ng/core';
+import {
+  matchMockHttpRequestForRoute,
+  mockHttpRequestForRoute,
+} from '../../../libs/core/src/lib/mock-http-request-for-route';
 
 test('should mock the lazy-layout users call through matchMockHttpRequestForRoute', async ({
   page,
