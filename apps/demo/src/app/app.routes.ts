@@ -1,21 +1,17 @@
+import type { Router } from '@angular/router';
 import {
-  craftUse,
   assertChildRouteMounts,
   assertExhaustiveRouteExceptions,
-  craftException,
   craftExceptionHandler,
-  craftGen,
-  craftRoutes,
-  craftService,
-  query,
-  queryParam,
   craftRoute,
+  craftRoutes,
+  queryParam,
   type CanRun,
   type CraftRouteExceptionType,
   type CraftRouteLazyLoadHelpers,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
-import type { Router } from '@angular/router';
+import { authGuard } from './guard/auth.guard';
 
 export const {
   demoRoutes,
@@ -259,6 +255,9 @@ export const {
       NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
         return redirectUrl('/login-form');
       }),
+      USER_DISABLED: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
     },
   ),
 ]);
@@ -278,30 +277,11 @@ assertExhaustiveRouteExceptions(demoRoutes);
 // must be mounted under the route path it declared. Scoped to this parent file.
 assertChildRouteMounts(demoRoutes);
 
-// Reusable, composable guard: yields the tracked `Auth` dependency and either
-// returns the authenticated user (guarded data) or short-circuits with a typed
-// `craftException`. Composed via `yield*` inside the route's `canActivate` below.
-const authGuard = craftGen(function* () {
-  const user = yield* AuthToYield();
-  const userSafeValue = user.safeValue();
-
-  return userSafeValue
-    ? userSafeValue
-    : craftException({ code: 'NOT_AUTHENTICATED' });
-});
-
 // Maintained by the `global-exception-registry-match` ESLint autofix: every code a
 // route delegates to the global error component via `globalError()` is mirrored
 // here, so `injectCraftGlobalError()` is typed + exhaustive. Do not edit by hand.
 declare module '@craft-ng/core' {
   interface CraftGlobalExceptionRegistry {
-    'query/:userId': {
-      USER_DISABLED: CraftRouteExceptionType<
-        typeof demoRoutes,
-        'query/:userId',
-        'USER_DISABLED'
-      >;
-    };
     'guard-demo': {
       USER_DISABLED: CraftRouteExceptionType<
         typeof demoRoutes,
@@ -329,16 +309,3 @@ type _CheckDemoDI = ValidateCascadeRoutesFile<
   typeof demoRoutes
 >;
 type _CanRunDemo = CanRun<_CheckDemoDI>;
-
-type User = {
-  name: string;
-};
-
-const { AuthToYield } = craftService({ name: 'Auth', scope: 'global' }, () => {
-  return craftUse(
-    query({
-      params: () => true,
-      loader: async () => ({}) as User,
-    }),
-  );
-});

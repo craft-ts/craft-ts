@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
 import {
   componentMonitoring,
-  craftComputed,
   injectCraftGlobalError,
   provideHostName,
   type ExtractDeps,
@@ -43,7 +42,7 @@ export class MyGlobalErrorScreen {
   private readonly _monitoring = componentMonitoring();
   readonly error = injectCraftGlobalError();
 
-  readonly title = craftComputed(() => {
+  readonly title = computed(() => {
     const exception = this.error();
     return exception?.code === 'USER_DISABLED'
       ? 'Account disabled'

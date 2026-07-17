@@ -115,6 +115,71 @@ describe('global-exception-registry-match', () => {
     expect(output).not.toContain('LEGACY_CODE');
   });
 
+  it('reports and purges an orphaned entry when no route delegates to globalError()', async () => {
+    // The globalError() handler was refactored away (here: only a redirect
+    // remains), but the registry still carries the obsolete entry — which would
+    // resolve to `never` and collapse CraftGlobalHandledException downstream.
+    const orphanRegistry = `
+        declare module '@craft-ng/core' {
+          interface CraftGlobalExceptionRegistry {
+            'query/:userId': { USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'query/:userId', 'USER_DISABLED'> };
+          }
+        }
+      `;
+    const fixture = {
+      'src/app/demo.ts': `
+        import { craftRoutes, craftRoute, craftException } from '@craft-ng/core';
+
+        export const { demoRoutes } = craftRoutes('demo', [
+          craftRoute('query/:userId', {
+            loadComponent: () => import('./query'),
+            componentDeps: {},
+            canActivate: function* () {
+              return craftException({ code: 'NOT_AUTHENTICATED' });
+            },
+          }, {
+            NOT_AUTHENTICATED: ({ redirect }) => redirect('/login'),
+          }),
+        ]);
+        ${orphanRegistry}
+      `,
+    };
+
+    const { messages } = await lintFixture(fixture);
+    expect(messages).toEqual([
+      "CraftGlobalExceptionRegistry is orphaned for 'query/:userId'. Run ESLint --fix on this file to register globalError() route exceptions.",
+    ]);
+
+    const { output } = await lintFixture(fixture, { fix: true });
+    expect(output).not.toContain('USER_DISABLED');
+    // The (now empty) interface is kept rather than deleting the module block.
+    expect(output).toContain('interface CraftGlobalExceptionRegistry {');
+  });
+
+  it('purges an orphaned entry while keeping a still-valid one', async () => {
+    const mixedRegistry = `
+        declare module '@craft-ng/core' {
+          interface CraftGlobalExceptionRegistry {
+            'query/:userId': { USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'query/:userId', 'USER_DISABLED'> };
+            'old-route': { GONE: CraftRouteExceptionType<typeof demoRoutes, 'old-route', 'GONE'> };
+          }
+        }
+      `;
+    const fixture = { 'src/app/demo.ts': ROUTE_FILE(mixedRegistry) };
+
+    const { messages } = await lintFixture(fixture);
+    expect(messages).toEqual([
+      "CraftGlobalExceptionRegistry is orphaned for 'old-route'. Run ESLint --fix on this file to register globalError() route exceptions.",
+    ]);
+
+    const { output } = await lintFixture(fixture, { fix: true });
+    expect(output).toContain(
+      "'query/:userId': { USER_DISABLED: CraftRouteExceptionType<typeof demoRoutes, 'query/:userId', 'USER_DISABLED'> };",
+    );
+    expect(output).not.toContain('old-route');
+    expect(output).not.toContain('GONE');
+  });
+
   it('ignores a route whose handlers never call globalError()', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `

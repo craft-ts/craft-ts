@@ -30,8 +30,12 @@ module.exports = {
         }
 
         const text = sourceCode.getText();
-        // Cheap pre-filter: the delegated outcome must appear.
-        if (!text.includes('globalError')) {
+        // Cheap pre-filter: either a delegated outcome (`globalError()`) that must
+        // be registered, or an existing registry that may now hold orphaned entries.
+        if (
+          !text.includes('globalError') &&
+          !text.includes('CraftGlobalExceptionRegistry')
+        ) {
           return;
         }
 
@@ -41,7 +45,11 @@ module.exports = {
           text,
         );
         const requiredRegistrations = collectRequiredRegistrations(sourceFile);
-        if (requiredRegistrations.length === 0) {
+        // Nothing to register AND no registry to prune → nothing to do.
+        if (
+          requiredRegistrations.length === 0 &&
+          !getGlobalRegistryInterface(sourceFile)
+        ) {
           return;
         }
 
@@ -51,19 +59,25 @@ module.exports = {
         );
         if (
           registryState.missing.length === 0 &&
-          registryState.outOfDate.length === 0
+          registryState.outOfDate.length === 0 &&
+          registryState.orphaned.length === 0
         ) {
           return;
         }
 
+        // Capture the report location BEFORE mutating: purging an orphaned entry
+        // removes its node, so `reportNode.getStart()` would throw afterwards.
+        const reportLoc = getNodeLoc(sourceCode, registryState.reportNode);
+
         ensureRegistryEntries(sourceFile, requiredRegistrations);
+        removeOrphanedRegistryEntries(sourceFile, requiredRegistrations);
         const fixedText = sourceFile.getFullText();
         if (fixedText === text) {
           return;
         }
 
         context.report({
-          loc: getNodeLoc(sourceCode, registryState.reportNode),
+          loc: reportLoc,
           message: formatRegistryMessage(registryState),
           fix(fixer) {
             return fixer.replaceTextRange([0, text.length], fixedText);
@@ -369,8 +383,9 @@ function analyzeRegistryState(sourceFile, requiredRegistrations) {
 
   const missing = [];
   const outOfDate = [];
+  const requiredByPath = groupByPath(requiredRegistrations);
 
-  for (const [routePath, entries] of groupByPath(requiredRegistrations)) {
+  for (const [routePath, entries] of requiredByPath) {
     const property = propertiesByName.get(routePath);
     if (!property) {
       missing.push(routePath);
@@ -383,11 +398,47 @@ function analyzeRegistryState(sourceFile, requiredRegistrations) {
     }
   }
 
-  return {
-    missing,
-    outOfDate,
-    reportNode: requiredRegistrations[0].reportNode,
-  };
+  // Orphaned: a registry entry whose route path no longer delegates any code to
+  // `globalError()` (the guard/handler was refactored, or the route removed).
+  // Such an entry resolves `CraftRouteExceptionType<…>` to `never`, silently
+  // collapsing `CraftGlobalHandledException` for every consumer.
+  const orphaned = [];
+  for (const routePath of propertiesByName.keys()) {
+    if (!requiredByPath.has(routePath)) {
+      orphaned.push(routePath);
+    }
+  }
+
+  // With no globalError() route left, the report anchors on the first orphaned
+  // registry property (falling back to the interface itself).
+  const reportNode =
+    requiredRegistrations[0]?.reportNode ??
+    (orphaned.length > 0
+      ? propertiesByName.get(orphaned[0])
+      : registryInterface);
+
+  return { missing, outOfDate, orphaned, reportNode };
+}
+
+function removeOrphanedRegistryEntries(sourceFile, requiredRegistrations) {
+  const registryInterface = getGlobalRegistryInterface(sourceFile);
+  if (!registryInterface) {
+    return;
+  }
+
+  const requiredPaths = new Set(
+    requiredRegistrations.map((registration) => registration.path),
+  );
+  for (const property of registryInterface.getProperties()) {
+    if (!requiredPaths.has(readInterfacePropertyName(property))) {
+      property.remove();
+    }
+  }
+
+  // Deliberately keep an emptied `interface CraftGlobalExceptionRegistry {}`
+  // rather than deleting the interface / `declare module` block: the block may
+  // carry sibling augmentations (e.g. CraftRouterRoutesRegistry) or leading
+  // documentation, and an empty registry is valid + stable (no re-report).
 }
 
 // A file may have several `declare module '@craft-ng/core'` blocks (e.g. one for
@@ -468,13 +519,16 @@ function getNodeLoc(sourceCode, node) {
   };
 }
 
-function formatRegistryMessage({ missing, outOfDate }) {
+function formatRegistryMessage({ missing, outOfDate, orphaned }) {
   const segments = [];
   if (missing.length > 0) {
     segments.push(`missing ${formatNameList(missing)}`);
   }
   if (outOfDate.length > 0) {
     segments.push(`out of date for ${formatNameList(outOfDate)}`);
+  }
+  if (orphaned.length > 0) {
+    segments.push(`orphaned for ${formatNameList(orphaned)}`);
   }
   return `CraftGlobalExceptionRegistry is ${segments.join(' and ')}. Run ESLint --fix on this file to register globalError() route exceptions.`;
 }
