@@ -769,7 +769,7 @@ describe('AsyncProcess types with identifier', () => {
     });
   });
 
-  it.skip('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
+  it('should infer correctly the AsyncProcess bind to a source type, and not exposed the method bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
