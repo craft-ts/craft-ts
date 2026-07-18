@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { CRAFT_EXCEPTION_SYMBOL, craftException } from '../craft-exception';
+import { query } from '../query';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { insertFormAttributes } from './insert-form-attributes';
@@ -281,9 +282,77 @@ describe('validator', () => {
     expect(cValidator).toBe(cValidate);
   });
 
-  it.todo('supports custom async validators (cAsyncValidate)');
-  // The async validator factory is exported as cAsyncValidate; integration
-  // testing requires a working query/mutation infrastructure (see integration
-  // tests in apps/demo).
-  void cAsyncValidate;
+  it('supports custom async validators (cAsyncValidate)', async () => {
+    vi.useFakeTimers();
+    try {
+      await TestBed.runInInjectionContext(async () => {
+        const model = signal('');
+        const usernameQuery = craftUse(
+          query({
+            method: (username: string) => username,
+            loader: async ({ params }) => ({ available: params !== 'taken' }),
+          }),
+        );
+
+        const fieldForm = craftUse(
+          state(
+            model,
+            insertForm(
+              insertFormAttributes(() => ({
+                validators: [
+                  cAsyncValidate(usernameQuery, {
+                    name: 'usernameAvailable',
+                    when: () => model().length > 0,
+                    exceptionsOnSuccess: ({ validateAsyncCraftResource }) =>
+                      validateAsyncCraftResource.value()?.available
+                        ? undefined
+                        : craftException(
+                            { code: 'usernameTaken' },
+                            { message: 'Username already taken' },
+                          ),
+                  }),
+                ],
+              })),
+            ),
+          ),
+        );
+
+        // `when` is false while the field is empty: nothing is validated.
+        expect(fieldForm.form.exceptions()).toEqual({
+          list: [],
+          byValidator: {},
+        });
+
+        // A taken username resolves successfully but fails the success check.
+        model.set('taken');
+        TestBed.tick();
+        await vi.runAllTimersAsync();
+        TestBed.tick();
+
+        expect(fieldForm.form.exceptions().byValidator).toMatchObject({
+          usernameAvailable: {
+            ...craftException(
+              { code: 'usernameTaken' },
+              { message: 'Username already taken' },
+            ),
+            __brand: 'usernameAvailable',
+            type: 'async',
+          },
+        });
+
+        // An available username clears the exception.
+        model.set('available');
+        TestBed.tick();
+        await vi.runAllTimersAsync();
+        TestBed.tick();
+
+        expect(fieldForm.form.exceptions()).toEqual({
+          list: [],
+          byValidator: {},
+        });
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
