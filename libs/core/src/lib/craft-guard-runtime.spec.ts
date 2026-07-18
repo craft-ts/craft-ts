@@ -3,7 +3,8 @@ import { Injector } from '@angular/core';
 import { Router } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { craftException, type AnyCraftException } from './craft-exception';
-import { CraftGenShortCircuit } from './craft-gen';
+import { craftGen, CraftGenShortCircuit } from './craft-gen';
+import { catchTag, retry } from './craft-program-operators';
 import { GUARD_AWAIT_REQUEST_MARKER } from './craft-generator-runtime';
 import { SERVICE_RUNTIME_OVERRIDES } from './craft-service';
 import { provideCraftRouter } from './craft-router';
@@ -341,5 +342,57 @@ describe('runCraftRouteChainAsync', () => {
       },
     );
     expect(outcome).toEqual({ kind: 'redirect', target });
+  });
+});
+
+describe('runCraftRouteChainAsync — piped guard programs', () => {
+  it('recovers a short-circuit through .pipe(catchTag(...))', async () => {
+    const failing = craftGen(function* () {
+      return craftException({ code: 'USER_NOT_FOUND' });
+    });
+
+    const guard = failing().pipe(
+      catchTag('USER_NOT_FOUND', function* () {
+        return { user: 'guest' };
+      }),
+    );
+
+    const outcome = await runCraftRouteChainAsync(
+      { guard },
+      injector,
+      router,
+      {},
+    );
+
+    expect(outcome).toEqual({
+      kind: 'data',
+      guardData: { user: 'guest' },
+      resolveData: undefined,
+    });
+  });
+
+  it('retries a flaky guard program across the async backoff', async () => {
+    let calls = 0;
+    const flaky = craftGen(function* () {
+      calls += 1;
+      if (calls < 3) return craftException({ code: 'FLAKY' });
+      return { user: 'ada' };
+    });
+
+    const guard = flaky().pipe(retry({ times: 3, delayMs: 1 }));
+
+    const outcome = await runCraftRouteChainAsync(
+      { guard },
+      injector,
+      router,
+      {},
+    );
+
+    expect(calls).toBe(3);
+    expect(outcome).toEqual({
+      kind: 'data',
+      guardData: { user: 'ada' },
+      resolveData: undefined,
+    });
   });
 });

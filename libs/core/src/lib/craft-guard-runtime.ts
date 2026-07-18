@@ -1,9 +1,6 @@
-import { computed, Injector, runInInjectionContext } from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { Injector, runInInjectionContext } from '@angular/core';
 import type { Router, UrlTree } from '@angular/router';
-import { filter, take } from 'rxjs';
 import { isCraftException, type AnyCraftException } from './craft-exception';
-import { isCraftGenShortCircuit } from './craft-gen';
 import {
   craftExceptionOutcomeApi,
   type CraftExceptionComponentInput,
@@ -11,130 +8,20 @@ import {
   type CraftExceptionOutcome,
   type CraftRoutePhase,
 } from './craft-route-exceptions';
+import { isGenerator } from './craft-generator-runtime';
 import {
-  isGenerator,
-  isGuardAwaitRequest,
-  resolveCraftGeneratorYield,
-  type GuardAwaitResourceLike,
-  type RuntimeGuardAwaitRequest,
-} from './craft-generator-runtime';
+  driveCraftProgramAsync,
+  pumpCraftProgramSync,
+  type CraftProgramPumpOptions,
+  type CraftProgramSettledStep,
+} from './craft-program-runtime';
 
 const GUARD_INVALID_YIELD_ERROR_MESSAGE =
   'craft route guards can only yield craftService dependencies, exposed dependency helpers, or an untilSettled/untilDefined await request.';
 
-type GuardPumpResult =
-  | { kind: 'done'; value: unknown }
-  | { kind: 'await'; request: RuntimeGuardAwaitRequest }
-  | { kind: 'shortCircuit'; exception: AnyCraftException };
-
-type GuardSettledStep = Exclude<GuardPumpResult, { kind: 'await' }>;
-
-// Pumps `iterator` synchronously, resolving craft service yields, until it
-// completes, throws a `CraftGenShortCircuit` (caught and surfaced as the carried
-// exception), or yields a guard await-request — at which point the iterator is
-// left positioned right after the await so the caller can resume it once the
-// awaited value is available. `resumeValue` feeds the first `next(...)` (used to
-// resume after an await; ignored on the initial pump).
-function pumpGuardSync(
-  iterator: Generator<unknown, unknown, unknown>,
-  injector: Injector,
-  resumeValue?: unknown,
-): GuardPumpResult {
-  try {
-    let current = iterator.next(resumeValue as never);
-
-    while (!current.done) {
-      const yielded = current.value;
-
-      if (isGuardAwaitRequest(yielded)) {
-        return { kind: 'await', request: yielded };
-      }
-
-      const resolution = resolveCraftGeneratorYield(
-        yielded,
-        injector,
-        'function',
-      );
-
-      if (!resolution.handled) {
-        throw new Error(GUARD_INVALID_YIELD_ERROR_MESSAGE);
-      }
-
-      current = iterator.next(resolution.value as never);
-    }
-
-    return { kind: 'done', value: current.value };
-  } catch (error) {
-    if (isCraftGenShortCircuit(error)) {
-      return { kind: 'shortCircuit', exception: error.exception };
-    }
-
-    throw error;
-  }
-}
-
-function isResourceSettled(resource: GuardAwaitResourceLike): boolean {
-  const status = resource.status();
-
-  return status === 'resolved' || status === 'exception';
-}
-
-// Bridges a single guard await-request to a Promise: `'promise'` requests await
-// the thenable directly; `'settle'` requests subscribe to the resource's settled
-// status (computed off its signals, observed on `injector`) and resolve on the
-// first settle.
-function awaitGuardRequest(
-  request: RuntimeGuardAwaitRequest,
-  injector: Injector,
-): Promise<unknown> {
-  if (request.kind === 'promise') {
-    return Promise.resolve(request.value);
-  }
-
-  return new Promise<unknown>((resolve, reject) => {
-    try {
-      const settled$ = runInInjectionContext(injector, () =>
-        toObservable(
-          computed(() => isResourceSettled(request.resource)),
-          {
-            injector,
-          },
-        ),
-      ).pipe(
-        filter((settled) => settled),
-        take(1),
-      );
-
-      settled$.subscribe({
-        next: () => resolve(undefined),
-        error: reject,
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
-
-// Resumes `iterator` across every await it hits until it settles (completes or
-// short-circuits). Each post-await segment runs inside the injection context —
-// ambient context is gone after an `await`, so service resolution and the next
-// `toObservable({ injector })` need it restored.
-async function driveGuardStageAsync(
-  iterator: Generator<unknown, unknown, unknown>,
-  injector: Injector,
-  step: GuardPumpResult,
-): Promise<GuardSettledStep> {
-  let current = step;
-
-  while (current.kind === 'await') {
-    const value = await awaitGuardRequest(current.request, injector);
-    current = runInInjectionContext(injector, () =>
-      pumpGuardSync(iterator, injector, value),
-    );
-  }
-
-  return current;
-}
+const GUARD_PUMP_OPTIONS: CraftProgramPumpOptions = {
+  invalidYieldErrorMessage: GUARD_INVALID_YIELD_ERROR_MESSAGE,
+};
 
 /**
  * The result of a synchronous guard re-evaluation (reactive "live" guards):
@@ -159,7 +46,7 @@ export function evaluateCraftGuardSync(
   injector: Injector,
 ): CraftGuardSyncResult {
   const step = runInInjectionContext(injector, () =>
-    pumpGuardSync(iterator, injector),
+    pumpCraftProgramSync(iterator, injector, GUARD_PUMP_OPTIONS),
   );
 
   if (step.kind === 'await') {
@@ -281,12 +168,12 @@ function* resolveRouteException(
 async function driveStageToSettled(
   iterator: Generator<unknown, unknown, unknown>,
   injector: Injector,
-): Promise<GuardSettledStep> {
+): Promise<CraftProgramSettledStep> {
   const first = runInInjectionContext(injector, () =>
-    pumpGuardSync(iterator, injector),
+    pumpCraftProgramSync(iterator, injector, GUARD_PUMP_OPTIONS),
   );
 
-  return driveGuardStageAsync(iterator, injector, first);
+  return driveCraftProgramAsync(iterator, injector, first, GUARD_PUMP_OPTIONS);
 }
 
 async function resolveExceptionOutcome(
@@ -303,7 +190,7 @@ async function resolveExceptionOutcome(
     phase,
   );
   const first = runInInjectionContext(injector, () =>
-    pumpGuardSync(iterator, injector),
+    pumpCraftProgramSync(iterator, injector, GUARD_PUMP_OPTIONS),
   );
 
   if (first.kind === 'await') {

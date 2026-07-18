@@ -141,6 +141,10 @@ export default defineConfig({
             link: '/type-safe-di-routes/craft-gen',
           },
           {
+            text: 'Program Operators (.pipe)',
+            link: '/type-safe-di-routes/program-operators',
+          },
+          {
             text: 'Route Guards',
             link: '/type-safe-di-routes/guards',
           },

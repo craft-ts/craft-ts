@@ -12,6 +12,18 @@
         "4200"
       ],
       "port": 4200
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/vitepress/bin/vitepress.js",
+        "dev",
+        "apps/docs",
+        "--port",
+        "5173"
+      ],
+      "port": 5173
     }
   ]
 }

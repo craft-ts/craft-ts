@@ -41,7 +41,9 @@ export type ExtractFactoryYielded<Factory> = Factory extends (
 
 export type GeneratorCompatibleFactory<Factory, Yielded = never> =
   Factory extends (...args: infer Args) => infer Result
-    ? (...args: Args) => Result | Generator<Yielded, Result, unknown>
+    ? (
+        ...args: Args
+      ) => Result | Generator<Yielded, Result | Awaited<Result>, unknown>
     : never;
 
 type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
@@ -299,7 +301,7 @@ function isServiceDependencyAccessRequest(
   );
 }
 
-function isServiceAppStartRequest(
+export function isServiceAppStartRequest(
   value: unknown,
 ): value is RuntimeServiceAppStartRequest {
   return (

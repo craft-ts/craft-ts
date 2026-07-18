@@ -4,6 +4,10 @@
     "src/lib/insert-select.spec.ts",
     "src/lib/state.spec.ts",
     "src/lib/query.spec.ts",
-    "src/lib/insert-local-storage-persister.spec.ts"
+    "src/lib/insert-local-storage-persister.spec.ts",
+    "src/lib/craft-gen.spec.ts",
+    "src/lib/craft-program-operators.spec.ts",
+    "src/lib/craft-guard-runtime.spec.ts",
+    "src/lib/until-settled.spec.ts"
   ]
 }

@@ -26,6 +26,9 @@ import {
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 import { craftUse } from './craft-use';
+import { craftGen } from './craft-gen';
+import { catchTag, retry } from './craft-program-operators';
+import { untilSettled } from './until-settled';
 
 type User = {
   id: string;
@@ -1455,6 +1458,121 @@ describe('query — providers', () => {
         }),
       );
       expectTypeOf(withProviders.hasValue).toBeFunction();
+    });
+  });
+});
+
+describe('query — loader programs (async pump)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.resetAllMocks();
+    vi.useRealTimers();
+  });
+
+  const userNotFound = craftGen(function* (userId: string) {
+    return craftException({ code: 'USER_NOT_FOUND' }, { userId });
+  });
+
+  it('resolves a generator loader suspended on an untilSettled promise await', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query({
+          params: () => 'user-1',
+          loader: function* ({ params }) {
+            const user = yield* untilSettled(
+              (function* () {
+                return Promise.resolve({
+                  id: params,
+                  name: 'Jane Doe',
+                  email: 'jane@doe.com',
+                });
+              })(),
+            );
+            return user;
+          },
+        }),
+      );
+
+      await vi.runAllTimersAsync();
+
+      expect(queryRef.status()).toBe('resolved');
+      expect(queryRef.value()?.id).toBe('user-1');
+    });
+  });
+
+  it('surfaces an uncaught program short-circuit as the loader exception', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query({
+          params: () => 'user-1',
+          loader: function* ({ params }) {
+            yield* userNotFound(params);
+            return { id: params, name: 'never', email: 'never@x.com' };
+          },
+        }),
+      );
+
+      await vi.runAllTimersAsync();
+
+      // No technical rethrow: the short-circuit feeds the exception channel.
+      expect(queryRef.status()).toBe('exception');
+      expect(queryRef.hasException()).toBe(true);
+      expect(queryRef.exception()?.code).toBe('USER_NOT_FOUND');
+      expect(queryRef.exception()?.payload).toEqual({ userId: 'user-1' });
+      expect(queryRef.safeValue()).toBeUndefined();
+    });
+  });
+
+  it('recovers through .pipe(catchTag(...)) inside a generator loader', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query({
+          params: () => 'user-1',
+          loader: function* ({ params }) {
+            return yield* userNotFound(params).pipe(
+              catchTag('USER_NOT_FOUND', function* () {
+                return { id: 'guest', name: 'Guest', email: 'guest@x.com' };
+              }),
+            );
+          },
+        }),
+      );
+
+      await vi.runAllTimersAsync();
+
+      expect(queryRef.status()).toBe('resolved');
+      expect(queryRef.hasException()).toBe(false);
+      expect(queryRef.value()?.id).toBe('guest');
+    });
+  });
+
+  it('retries a flaky program across the backoff await', async () => {
+    let calls = 0;
+    const flakyUser = craftGen(function* (userId: string) {
+      calls += 1;
+      if (calls < 3) return craftException({ code: 'FLAKY' });
+      return { id: userId, name: 'Jane Doe', email: 'jane@doe.com' };
+    });
+
+    await TestBed.runInInjectionContext(async () => {
+      const queryRef = craftUse(
+        query({
+          params: () => 'user-1',
+          loader: function* ({ params }) {
+            return yield* flakyUser(params).pipe(
+              retry({ times: 3, backoff: 'exponential', delayMs: 5 }),
+            );
+          },
+        }),
+      );
+
+      await vi.runAllTimersAsync();
+
+      expect(calls).toBe(3);
+      expect(queryRef.status()).toBe('resolved');
+      expect(queryRef.value()?.id).toBe('user-1');
     });
   });
 });

@@ -83,6 +83,8 @@ canActivate: function* () {
 
 ## See Also
 
+- [`Program Operators (.pipe)`](/type-safe-di-routes/program-operators) to recover (`catchTag`) or
+  retry a program locally
 - [`Route Guards`](/type-safe-di-routes/guards)
 - [`Exception Handling`](/type-safe-di-routes/exception-handling)
 - [`craftService`](/store/craft-service) if you want to expose `AuthToYield`-style helpers

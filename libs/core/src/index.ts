@@ -7,6 +7,7 @@ export * from './lib/computed-source';
 export * from './lib/craft-http-client';
 export * from './lib/craft-exception';
 export * from './lib/craft-gen';
+export * from './lib/craft-program-operators';
 export * from './lib/insert-local-storage-persister';
 export * from './lib/insert-noop-typing-anchor';
 export * from './lib/insert-select';

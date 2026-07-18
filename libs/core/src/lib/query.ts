@@ -27,6 +27,8 @@ import {
   isGeneratorFunction,
   runCraftGenerator,
 } from './craft-generator-runtime';
+import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
+import type { ExtractCraftGenExceptions } from './craft-gen';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import {
@@ -557,7 +559,9 @@ export function query<
     : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
+    loader:
+      | ExtractCraftException<QueryState>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
   queryConfig: QueryConfig<
@@ -617,7 +621,9 @@ export function query<
     : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<QueryParams>;
-    loader: ExtractCraftException<QueryState>;
+    loader:
+      | ExtractCraftException<QueryState>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
   queryConfig: QueryConfig<
@@ -1116,7 +1122,7 @@ function createQueryRef<
           if (operationId) correlationSvc?.startOperation(operationId);
 
           try {
-            const result = await executeGeneratorCompatibleFactory({
+            const step = await executeGeneratorCompatibleFactoryAsync({
               factory: queryConfig.loader as (
                 param: ResourceLoaderParams<QueryParams>,
               ) => Promise<QueryState>,
@@ -1124,9 +1130,22 @@ function createQueryRef<
               getInjector,
               args: [param],
               invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-              multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-              onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+              appStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
             });
+
+            if (step.kind === 'shortCircuit') {
+              const exceptionId = getIdentifierFromParams(param.params);
+              setLoaderException(
+                enrichResourceException(step.exception, {
+                  scope: 'loader',
+                  identifier: exceptionId,
+                }),
+                exceptionId,
+              );
+              return undefined as QueryState;
+            }
+
+            const result = step.value;
 
             if (isCraftException(result)) {
               const exceptionId = getIdentifierFromParams(param.params);
@@ -1142,7 +1161,7 @@ function createQueryRef<
 
             const successId = getIdentifierFromParams(param.params);
             setLoaderException(undefined, successId);
-            return result;
+            return result as QueryState;
           } catch (error) {
             if (!isCraftException(error)) {
               injector.get(TAKE_APP_SNAPSHOT, null)?.();

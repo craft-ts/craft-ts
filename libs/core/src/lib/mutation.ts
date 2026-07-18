@@ -27,6 +27,8 @@ import {
   isGeneratorFunction,
   runCraftGenerator,
 } from './craft-generator-runtime';
+import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
+import type { ExtractCraftGenExceptions } from './craft-gen';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { ReadonlySource } from './util/source.type';
 import {
@@ -635,7 +637,9 @@ export function mutation<
     : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
-    loader: ExtractCraftException<MutationState>;
+    loader:
+      | ExtractCraftException<MutationState>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
   mutationConfig: MutationConfig<
@@ -695,7 +699,9 @@ export function mutation<
     : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
-    loader: ExtractCraftException<MutationState>;
+    loader:
+      | ExtractCraftException<MutationState>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
   mutationConfig: MutationConfig<
@@ -977,7 +983,9 @@ function createMutationRef<
     : never[],
   Exceptions extends ResourceExceptionConstraints = {
     params: ExtractCraftException<MutationParams>;
-    loader: ExtractCraftException<MutationState>;
+    loader:
+      | ExtractCraftException<MutationState>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
   mutationConfig: MutationConfig<
@@ -1176,7 +1184,7 @@ function createMutationRef<
           if (operationId) correlationSvc?.startOperation(operationId);
 
           try {
-            const result = await executeGeneratorCompatibleFactory({
+            const step = await executeGeneratorCompatibleFactoryAsync({
               factory: mutationConfig.loader as (
                 param: ResourceLoaderParams<any>,
               ) => Promise<any>,
@@ -1184,10 +1192,22 @@ function createMutationRef<
               getInjector,
               args: [param],
               invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-              multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-              onAppStartNotSupportedErrorMessage:
-                MUTATION_APP_START_ERROR_MESSAGE,
+              appStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
             });
+
+            if (step.kind === 'shortCircuit') {
+              const exceptionId = getIdentifierFromParams(param.params);
+              setLoaderException(
+                enrichResourceException(step.exception, {
+                  scope: 'loader',
+                  identifier: exceptionId,
+                }),
+                exceptionId,
+              );
+              return undefined;
+            }
+
+            const result = step.value;
 
             if (isCraftException(result)) {
               const exceptionId = getIdentifierFromParams(param.params);

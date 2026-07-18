@@ -22,6 +22,8 @@ import {
   isGeneratorFunction,
   runCraftGenerator,
 } from './craft-generator-runtime';
+import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
+import type { ExtractCraftGenExceptions } from './craft-gen';
 import { ReadonlySource } from './util/source.type';
 import {
   CraftResourceStatus,
@@ -606,7 +608,9 @@ export function asyncProcess<
     : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
-    loader: ExtractCraftException<AsyncProcesstate>;
+    loader:
+      | ExtractCraftException<AsyncProcesstate>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
   AsyncProcessConfig: AsyncProcessConfig<
@@ -660,7 +664,9 @@ export function asyncProcess<
     : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
-    loader: ExtractCraftException<AsyncProcesstate>;
+    loader:
+      | ExtractCraftException<AsyncProcesstate>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
   AsyncProcessConfig: AsyncProcessConfig<
@@ -728,7 +734,9 @@ function createAsyncProcessRef<
     : never[],
   Exceptions extends AsyncProcessExceptionConstraints = {
     params: ExtractCraftException<AsyncProcessParams>;
-    loader: ExtractCraftException<AsyncProcesstate>;
+    loader:
+      | ExtractCraftException<AsyncProcesstate>
+      | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
   AsyncProcessConfig: AsyncProcessConfig<
@@ -922,7 +930,7 @@ function createAsyncProcessRef<
           if (operationId) correlationSvc?.startOperation(operationId);
 
           try {
-            const result = await executeGeneratorCompatibleFactory({
+            const step = await executeGeneratorCompatibleFactoryAsync({
               factory: AsyncProcessConfig.loader as (
                 param: ResourceLoaderParams<any>,
               ) => Promise<any>,
@@ -931,11 +939,23 @@ function createAsyncProcessRef<
               args: [param],
               invalidYieldErrorMessage:
                 ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-              multipleAppStartErrorMessage:
-                ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-              onAppStartNotSupportedErrorMessage:
+              appStartNotSupportedErrorMessage:
                 ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
             });
+
+            if (step.kind === 'shortCircuit') {
+              const exceptionId = getIdentifierFromParams(param.params);
+              setLoaderException(
+                enrichResourceException(step.exception, {
+                  scope: 'loader',
+                  identifier: exceptionId,
+                }),
+                exceptionId,
+              );
+              return undefined;
+            }
+
+            const result = step.value;
 
             if (isCraftException(result)) {
               const exceptionId = getIdentifierFromParams(param.params);

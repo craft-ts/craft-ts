@@ -1,5 +1,6 @@
 import {
   assertExhaustiveRouteExceptions,
+  catchTag,
   craftException,
   craftExceptionHandler,
   craftGen,
@@ -8,6 +9,7 @@ import {
   craftService,
   query,
   craftRoute,
+  retry,
   untilSettled,
   type CanRun,
   type CraftRouteLazyLoadHelpers,
@@ -65,11 +67,15 @@ const slowAccessGuard = craftGen(function* () {
     : craftException({ code: 'NOT_AUTHENTICATED' });
 });
 
-// Slow resolve: suspends ~1.5s until the report loads, then returns it. The
-// resolved value is consumed via `injectSlowPageRootResolvedData()`.
+// Slow resolve: suspends ~1.5s until the report loads, then returns it (or a
+// typed REPORT_EMPTY exception — recovered locally below through `catchTag`).
+// The resolved value is consumed via `injectSlowPageRootResolvedData()`.
 const loadSlowReport = craftGen(function* () {
   const reportRef = yield* SlowReportToYield();
-  return yield* untilSettled(reportRef);
+  const report = yield* untilSettled(reportRef);
+  return report.totalUsers === 0
+    ? craftException({ code: 'REPORT_EMPTY' })
+    : report;
 });
 
 export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
@@ -82,12 +88,22 @@ export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
         loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
           withRetry(import('./slow-page')),
         // Slow (~1.5s) — the outlet shows the pending component until it settles.
+        // `retry` replays the whole guard program on failure (E unchanged, so
+        // NOT_AUTHENTICATED still routes through `handleExceptions`).
         canActivate: function* () {
-          return yield* slowAccessGuard();
+          return yield* slowAccessGuard().pipe(
+            retry({ times: 2, backoff: 'linear', delayMs: 250 }),
+          );
         },
         // Slow (~1.5s) — runs after the guard; the target mounts only once settled.
+        // `catchTag` recovers REPORT_EMPTY locally: the code leaves the route's
+        // exception union, so no route handler is required for it.
         resolve: craftResolve(function* () {
-          return yield* loadSlowReport();
+          return yield* loadSlowReport().pipe(
+            catchTag('REPORT_EMPTY', function* () {
+              return { generatedAt: 'n/a', totalUsers: 0 };
+            }),
+          );
         }),
       },
       {
