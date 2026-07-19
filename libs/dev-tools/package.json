@@ -2,6 +2,10 @@
   "name": "@craft-ng/dev-tools",
   "version": "0.5.1-beta.0",
   "description": "Development tools for ng-craft: ESLint configs, ESLint rules, and codemods",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ng-angular-stack/ng-craft.git"
+  },
   "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",

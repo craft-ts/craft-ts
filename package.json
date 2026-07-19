@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "registry:mcp": "npm run start --workspace @ng-craft/function-registry-mcp"
+    "registry:mcp": "npm run start --workspace @ng-craft/function-registry-mcp",
+    "release:check": "node --test tools/release.test.mjs tools/release-local.test.mjs",
+    "release:local": "node tools/release-local.mjs"
   },
   "private": true,
   "devDependencies": {

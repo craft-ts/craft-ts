@@ -186,7 +186,24 @@ When documenting a public API:
 
 ## Releases
 
-`@craft-ng/core` and `@craft-ng/dev-tools` are released independently through Nx. Publishing requires maintainer access and is intentionally not part of the regular contributor workflow.
+`@craft-ng/core` and `@craft-ng/dev-tools` are released together with one local
+command. It versions and builds the packages, publishes npm, deploys the built
+documentation, and synchronizes the complete demo used by StackBlitz:
+
+```bash
+npm run release:local -- patch
+npm run release:local -- minor
+npm run release:local -- major
+```
+
+An exact version, including a prerelease, is also accepted:
+
+```bash
+npm run release:local -- 0.6.0-beta.3
+```
+
+See [RELEASING.md](RELEASING.md) for the required sibling workspaces, safe
+preview, authentication, supported versions, and recovery guidance.
 
 ## Contributing
 

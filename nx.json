@@ -1,10 +1,7 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": [
-      "{projectRoot}/**/*",
-      "sharedGlobals"
-    ],
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
       "default",
       "!{projectRoot}/.eslintrc.json",
@@ -53,20 +50,12 @@
   "targetDefaults": {
     "@nx/angular:package": {
       "cache": true,
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "production",
-        "^production"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     },
     "@nx/angular:unit-test": {
       "cache": true,
-      "inputs": [
-        "default",
-        "^production"
-      ]
+      "inputs": ["default", "^production"]
     },
     "@nx/eslint:lint": {
       "cache": true,
@@ -79,35 +68,39 @@
     },
     "@nx/js:tsc": {
       "cache": true,
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "production",
-        "^production"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     },
     "@angular/build:application": {
       "cache": true,
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "production",
-        "^production"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
     },
     "@angular/build:unit-test": {
       "cache": true,
-      "inputs": [
-        "default",
-        "^production"
-      ]
+      "inputs": ["default", "^production"]
     }
   },
   "release": {
+    "projects": ["ng-craft-core", "dev-tools"],
+    "projectsRelationship": "fixed",
+    "releaseTag": {
+      "pattern": "v{version}"
+    },
     "version": {
-      "preVersionCommand": "npx nx run-many -t build"
+      "manifestRootsToUpdate": ["{projectRoot}", "dist/{projectRoot}"],
+      "currentVersionResolver": "git-tag",
+      "git": {
+        "commit": false,
+        "tag": false
+      }
+    },
+    "changelog": {
+      "git": {
+        "commit": false,
+        "tag": false
+      },
+      "workspaceChangelog": true
     }
   },
   "generators": {

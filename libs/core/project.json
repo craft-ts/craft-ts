@@ -4,13 +4,6 @@
   "sourceRoot": "libs/core/src",
   "prefix": "lib",
   "projectType": "library",
-  "release": {
-    "version": {
-      "manifestRootsToUpdate": ["dist/{projectRoot}"],
-      "currentVersionResolver": "git-tag",
-      "fallbackCurrentVersionResolver": "disk"
-    }
-  },
   "tags": [],
   "targets": {
     "build": {
@@ -31,24 +24,6 @@
     "nx-release-publish": {
       "options": {
         "packageRoot": "dist/{projectRoot}"
-      }
-    },
-    "nx-release-publish-beta": {
-      "executor": "@nx/js:release-publish",
-      "options": {
-        "packageRoot": "dist/{projectRoot}",
-        "tag": "beta"
-      }
-    },
-    "patch-build-publish-beta": {
-      "executor": "nx:run-commands",
-      "options": {
-        "commands": [
-          "cd libs/core && npm version prepatch --preid=beta --no-git-tag-version",
-          "npx nx run ng-craft-core:build",
-          "npx nx run ng-craft-core:nx-release-publish-beta"
-        ],
-        "parallel": false
       }
     },
     "test": {
