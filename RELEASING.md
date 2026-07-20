@@ -57,8 +57,8 @@ dist-tags are respectively `latest`, `beta`, and `next`.
 ## What the command does
 
 Before changing files, the command checks that all three workspaces are clean,
-on `main`, and synchronized with `origin/main`. It then validates the release
-tooling and builds both packages and the documentation.
+on `main`, and synchronized with `origin/main`. It then runs `npm ci`, validates
+the release tooling, and builds both packages and the documentation.
 
 After showing the resolved version, it asks for confirmation and:
 

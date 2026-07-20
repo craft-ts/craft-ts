@@ -243,6 +243,7 @@ async function main(args) {
   assertGitWorkspace(docsRepo, 'main', 'documentation');
   assertGitWorkspace(demoRepo, 'main', 'StackBlitz demo');
 
+  run('npm', ['ci']);
   const release = resolveRelease(argument);
   run('node', ['tools/release.mjs', 'assert-target', release.version]);
   run('npm', ['run', 'release:check']);
