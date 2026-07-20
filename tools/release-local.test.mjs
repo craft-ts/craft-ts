@@ -12,6 +12,7 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 
 import {
+  npmPublishArguments,
   parseReleaseArgument,
   syncBuiltDocumentation,
   syncDemoWorkspace,
@@ -36,6 +37,17 @@ test('accepts automatic bumps and exact versions', () => {
     version: '1.0.0-rc.0',
   });
   assert.throws(() => parseReleaseArgument(''), /Missing release argument/);
+});
+
+test('publishes fixed-group packages directly from their dist directories', () => {
+  assert.deepEqual(npmPublishArguments('dist/libs/core', 'beta'), [
+    'publish',
+    'dist/libs/core',
+    '--tag',
+    'beta',
+    '--access',
+    'public',
+  ]);
 });
 
 test('mirrors the complete demo source and pins Craft NG dependencies', () => {

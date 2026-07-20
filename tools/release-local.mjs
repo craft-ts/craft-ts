@@ -208,18 +208,12 @@ async function askForConfirmation(version, docsRepo, demoRepo) {
   }
 }
 
-function publishPackage(project, channel) {
-  run('npx', [
-    'nx',
-    'release',
-    'publish',
-    '--projects',
-    project,
-    '--tag',
-    channel,
-    '--access',
-    'public',
-  ]);
+export function npmPublishArguments(packageRoot, channel) {
+  return ['publish', packageRoot, '--tag', channel, '--access', 'public'];
+}
+
+function publishPackage(packageRoot, channel) {
+  run('npm', npmPublishArguments(packageRoot, channel));
 }
 
 async function main(args) {
@@ -327,9 +321,11 @@ async function main(args) {
       { capture: true },
     ),
   );
-  if (plan.core === 'publish') publishPackage('ng-craft-core', release.channel);
+  if (plan.core === 'publish') {
+    publishPackage('dist/libs/core', release.channel);
+  }
   if (plan.dev_tools === 'publish')
-    publishPackage('dev-tools', release.channel);
+    publishPackage('dist/libs/dev-tools', release.channel);
 
   const verification = parseMetadata(
     run(
