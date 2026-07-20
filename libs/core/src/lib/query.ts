@@ -36,6 +36,11 @@ import {
   toCraftStatus,
 } from './util/craft-resource-status';
 import { MergeObjects } from './util/util.type';
+import {
+  methodParamsWrapperEqual,
+  unwrapMethodParams,
+  wrapMethodParams,
+} from './util/method-trigger-nonce';
 import { preservedResource } from './preserved-resource';
 import { craftResource } from './craft-resource';
 import {
@@ -1003,6 +1008,11 @@ function createQueryRef<
   const queryResourceParamsFnSignal =
     queryConfig.params ?? signal<QueryParams | undefined>(undefined);
 
+  // Incremented on every explicit call() so the resource request always changes,
+  // forcing the loader to re-run even when the method returns the same value or
+  // `undefined`. Starts at 0 = "never called" to preserve idle.
+  const methodTriggerSeq = signal(0);
+
   const isConnectedToSource = isSignal(queryConfig.method);
   const isUsingIdentifier = 'identifier' in queryConfig;
 
@@ -1121,6 +1131,11 @@ function createQueryRef<
           const operationId = correlationSvc?.lastCorrelationId() ?? null;
           if (operationId) correlationSvc?.startOperation(operationId);
 
+          // Unwrap the method-trigger nonce so the user loader and identifier logic
+          // only ever see plain params (no-op for source / params-fn / byId modes).
+          const rawParams = unwrapMethodParams(param.params);
+          const loaderParam = { ...param, params: rawParams } as typeof param;
+
           try {
             const step = await executeGeneratorCompatibleFactoryAsync({
               factory: queryConfig.loader as (
@@ -1128,13 +1143,13 @@ function createQueryRef<
               ) => Promise<QueryState>,
               thisArg: undefined,
               getInjector,
-              args: [param],
+              args: [loaderParam],
               invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
               appStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
             });
 
             if (step.kind === 'shortCircuit') {
-              const exceptionId = getIdentifierFromParams(param.params);
+              const exceptionId = getIdentifierFromParams(rawParams);
               setLoaderException(
                 enrichResourceException(step.exception, {
                   scope: 'loader',
@@ -1148,7 +1163,7 @@ function createQueryRef<
             const result = step.value;
 
             if (isCraftException(result)) {
-              const exceptionId = getIdentifierFromParams(param.params);
+              const exceptionId = getIdentifierFromParams(rawParams);
               setLoaderException(
                 enrichResourceException(result, {
                   scope: 'loader',
@@ -1159,7 +1174,7 @@ function createQueryRef<
               return undefined as QueryState;
             }
 
-            const successId = getIdentifierFromParams(param.params);
+            const successId = getIdentifierFromParams(rawParams);
             setLoaderException(undefined, successId);
             return result as QueryState;
           } catch (error) {
@@ -1191,6 +1206,28 @@ function createQueryRef<
     ? (wrappedSourceParams as typeof queryConfig.method)
     : (wrappedParamsFn ?? queryResourceParamsFnSignal);
 
+  // Method-based, non-grouped: feed the resource a nonce-tagged request so every
+  // explicit call() re-runs the loader (even for identical / `undefined` params),
+  // while `resourceParamsSrc` stays the raw signal for all public consumers.
+  const methodTaggedParams = computed(() => {
+    const seq = methodTriggerSeq();
+    if (seq === 0) return undefined; // idle until the first call
+    // In method mode this is always the plain signal (no params fn), but its union
+    // type includes the fromResourceById params function — narrow with a cast.
+    return wrapMethodParams(
+      (queryResourceParamsFnSignal as Signal<QueryParams | undefined>)(),
+      seq,
+    );
+  });
+  const nonGroupedParams = hasMethodFn
+    ? (methodTaggedParams as unknown as typeof resourceParamsSrc)
+    : resourceParamsSrc;
+  const nonGroupedEqual = hasMethodFn
+    ? methodParamsWrapperEqual(
+        (queryConfig as { equal?: (a: any, b: any) => boolean }).equal,
+      )
+    : (queryConfig as { equal?: (a: any, b: any) => boolean }).equal;
+
   const resourceTarget = isUsingIdentifier
     ? resourceById<
         QueryState,
@@ -1210,13 +1247,15 @@ function createQueryRef<
     : !queryConfig.preservePreviousValue || queryConfig.preservePreviousValue()
       ? preservedResource<QueryState, QueryParams>({
           ...queryConfig,
-          params: resourceParamsSrc,
+          params: nonGroupedParams,
+          equal: nonGroupedEqual,
           loader: wrappedLoader,
           stream: wrappedStream,
         } as ResourceOptions<any, any>)
       : craftResource<QueryState, QueryParams>({
           ...queryConfig,
-          params: resourceParamsSrc,
+          params: nonGroupedParams,
+          equal: nonGroupedEqual,
           loader: wrappedLoader,
           stream: wrappedStream,
         } as ResourceOptions<any, any>);
@@ -1341,6 +1380,9 @@ function createQueryRef<
                 >
               ).addById(id as GroupIdentifier & string);
             }
+            // Bump before the set so both writes land in the same tick and the
+            // resource request changes on every call.
+            methodTriggerSeq.update((n) => n + 1);
             //@ts-expect-error if method is exposed params can not be of type (entity: ResourceRef<NoInfer<FromObjectState>>) => QueryParams
             queryResourceParamsFnSignal.set(result as QueryParams);
             return result;

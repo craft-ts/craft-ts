@@ -31,6 +31,11 @@ import {
 } from './util/craft-resource-status';
 import { resourceById, ResourceByIdRef } from './resource-by-id';
 import { isSource } from './util/util';
+import {
+  methodParamsWrapperEqual,
+  unwrapMethodParams,
+  wrapMethodParams,
+} from './util/method-trigger-nonce';
 import { MergeObjects } from './util/util.type';
 import { craftResource } from './craft-resource';
 import { CraftResourceRef } from './util/craft-resource-ref';
@@ -803,6 +808,11 @@ function createAsyncProcessRef<
     AsyncProcessParams | undefined
   >(undefined);
 
+  // Incremented on every explicit method call so the resource request always
+  // changes, forcing the loader to re-run even when the method returns the same
+  // value or `undefined`. Starts at 0 = "never called" to preserve idle.
+  const methodTriggerSeq = signal(0);
+
   const hasParamsFn =
     'params' in AsyncProcessConfig &&
     typeof AsyncProcessConfig.params === 'function';
@@ -929,6 +939,11 @@ function createAsyncProcessRef<
           const operationId = correlationSvc?.lastCorrelationId() ?? null;
           if (operationId) correlationSvc?.startOperation(operationId);
 
+          // Unwrap the method-trigger nonce so the user loader and identifier logic
+          // only ever see plain params (no-op for source / params-fn / byId modes).
+          const rawParams = unwrapMethodParams(param.params);
+          const loaderParam = { ...param, params: rawParams };
+
           try {
             const step = await executeGeneratorCompatibleFactoryAsync({
               factory: AsyncProcessConfig.loader as (
@@ -936,7 +951,7 @@ function createAsyncProcessRef<
               ) => Promise<any>,
               thisArg: undefined,
               getInjector,
-              args: [param],
+              args: [loaderParam],
               invalidYieldErrorMessage:
                 ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
               appStartNotSupportedErrorMessage:
@@ -944,7 +959,7 @@ function createAsyncProcessRef<
             });
 
             if (step.kind === 'shortCircuit') {
-              const exceptionId = getIdentifierFromParams(param.params);
+              const exceptionId = getIdentifierFromParams(rawParams);
               setLoaderException(
                 enrichResourceException(step.exception, {
                   scope: 'loader',
@@ -958,7 +973,7 @@ function createAsyncProcessRef<
             const result = step.value;
 
             if (isCraftException(result)) {
-              const exceptionId = getIdentifierFromParams(param.params);
+              const exceptionId = getIdentifierFromParams(rawParams);
               setLoaderException(
                 enrichResourceException(result, {
                   scope: 'loader',
@@ -969,7 +984,7 @@ function createAsyncProcessRef<
               return undefined;
             }
 
-            const successId = getIdentifierFromParams(param.params);
+            const successId = getIdentifierFromParams(rawParams);
             setLoaderException(undefined, successId);
             return result;
           } catch (error) {
@@ -1006,6 +1021,16 @@ function createAsyncProcessRef<
       ? wrappedParamsFn
       : AsyncProcessResourceParamsFnSignal;
 
+  // Method-based, non-grouped: feed the resource a nonce-tagged request so every
+  // explicit call re-runs the loader (even for identical / `undefined` params),
+  // while `resourceParamsSrc` stays the raw signal for all public consumers.
+  const usesMethodParamsSignal = !isConnectedToSource && !hasParamsFn;
+  const methodTaggedParams = computed(() => {
+    const seq = methodTriggerSeq();
+    if (seq === 0) return undefined; // idle until the first call
+    return wrapMethodParams(AsyncProcessResourceParamsFnSignal(), seq);
+  });
+
   const resourceTarget = isUsingIdentifier
     ? resourceById<
         AsyncProcesstate,
@@ -1023,7 +1048,16 @@ function createAsyncProcessRef<
       } as any)
     : craftResource<AsyncProcesstate, AsyncProcessParams>({
         ...AsyncProcessConfig,
-        params: resourceParamsSrc,
+        params: usesMethodParamsSignal
+          ? (methodTaggedParams as unknown as typeof resourceParamsSrc)
+          : resourceParamsSrc,
+        equal: usesMethodParamsSignal
+          ? methodParamsWrapperEqual(
+              (AsyncProcessConfig as { equal?: (a: any, b: any) => boolean })
+                .equal,
+            )
+          : (AsyncProcessConfig as { equal?: (a: any, b: any) => boolean })
+              .equal,
         loader: wrappedLoader,
         stream: wrappedStream,
       } as ResourceOptions<any, any>);
@@ -1152,6 +1186,9 @@ function createAsyncProcessRef<
                       >
                     ).addById(id as GroupIdentifier & string);
                   }
+                  // Bump before the set so both writes land in the same tick and
+                  // the resource request changes on every call.
+                  methodTriggerSeq.update((n) => n + 1);
                   AsyncProcessResourceParamsFnSignal.set(
                     result as AsyncProcessParams,
                   );

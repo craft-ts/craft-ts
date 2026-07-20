@@ -37,6 +37,11 @@ import {
 } from './util/craft-resource-status';
 import { MergeObjects } from './util/util.type';
 import { CraftResourceRef } from './util/craft-resource-ref';
+import {
+  methodParamsWrapperEqual,
+  unwrapMethodParams,
+  wrapMethodParams,
+} from './util/method-trigger-nonce';
 import { craftResource } from './craft-resource';
 import {
   AnyCraftException,
@@ -1056,6 +1061,11 @@ function createMutationRef<
     //@ts-expect-error if no params, it will create a signal
     mutationConfig.params ?? signal<MutationParams | undefined>(undefined);
 
+  // Incremented on every explicit mutate() so the resource request always changes,
+  // forcing the loader to re-run even when the method returns the same value or
+  // `undefined`. Starts at 0 = "never called" to preserve idle.
+  const methodTriggerSeq = signal(0);
+
   const isConnectedToAResourceById = 'fromResourceById' in mutationConfig;
 
   const isConnectedToSource =
@@ -1183,6 +1193,11 @@ function createMutationRef<
           const operationId = correlationSvc?.lastCorrelationId() ?? null;
           if (operationId) correlationSvc?.startOperation(operationId);
 
+          // Unwrap the method-trigger nonce so the user loader and identifier logic
+          // only ever see plain params (no-op for source / params-fn / byId modes).
+          const rawParams = unwrapMethodParams(param.params);
+          const loaderParam = { ...param, params: rawParams };
+
           try {
             const step = await executeGeneratorCompatibleFactoryAsync({
               factory: mutationConfig.loader as (
@@ -1190,13 +1205,13 @@ function createMutationRef<
               ) => Promise<any>,
               thisArg: undefined,
               getInjector,
-              args: [param],
+              args: [loaderParam],
               invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
               appStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
             });
 
             if (step.kind === 'shortCircuit') {
-              const exceptionId = getIdentifierFromParams(param.params);
+              const exceptionId = getIdentifierFromParams(rawParams);
               setLoaderException(
                 enrichResourceException(step.exception, {
                   scope: 'loader',
@@ -1210,7 +1225,7 @@ function createMutationRef<
             const result = step.value;
 
             if (isCraftException(result)) {
-              const exceptionId = getIdentifierFromParams(param.params);
+              const exceptionId = getIdentifierFromParams(rawParams);
               setLoaderException(
                 enrichResourceException(result, {
                   scope: 'loader',
@@ -1221,7 +1236,7 @@ function createMutationRef<
               return undefined;
             }
 
-            const successId = getIdentifierFromParams(param.params);
+            const successId = getIdentifierFromParams(rawParams);
             setLoaderException(undefined, successId);
             return result;
           } catch (error) {
@@ -1254,6 +1269,15 @@ function createMutationRef<
     ? (wrappedSourceParams as typeof mutationConfig.method)
     : (wrappedParamsFn ?? mutationResourceParamsFnSignal);
 
+  // Method-based, non-grouped: feed the resource a nonce-tagged request so every
+  // explicit mutate() re-runs the loader (even for identical / `undefined` params),
+  // while `resourceParamsSrc` stays the raw signal for all public consumers.
+  const methodTaggedParams = computed(() => {
+    const seq = methodTriggerSeq();
+    if (seq === 0) return undefined; // idle until the first call
+    return wrapMethodParams(mutationResourceParamsFnSignal(), seq);
+  });
+
   const resourceTarget = isUsingIdentifier
     ? resourceById<
         MutationState,
@@ -1271,7 +1295,14 @@ function createMutationRef<
       } as any)
     : craftResource<MutationState, MutationParams>({
         ...mutationConfig,
-        params: resourceParamsSrc,
+        params: hasMethodFn
+          ? (methodTaggedParams as unknown as typeof resourceParamsSrc)
+          : resourceParamsSrc,
+        equal: hasMethodFn
+          ? methodParamsWrapperEqual(
+              (mutationConfig as { equal?: (a: any, b: any) => boolean }).equal,
+            )
+          : (mutationConfig as { equal?: (a: any, b: any) => boolean }).equal,
         loader: wrappedLoader,
         stream: wrappedStream,
       } as ResourceOptions<any, any>);
@@ -1403,6 +1434,9 @@ function createMutationRef<
               if (methodParamsException()) {
                 methodParamsException.set(undefined);
               }
+              // Bump before the set so both writes land in the same tick and the
+              // resource request changes on every call.
+              methodTriggerSeq.update((n) => n + 1);
               // make sure  mutationResourceParamsFnSignal.set(result as MutationParams); is set before calling addById
               mutationResourceParamsFnSignal.set(result as MutationParams);
               if (isUsingIdentifier) {
