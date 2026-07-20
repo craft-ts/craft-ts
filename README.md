@@ -202,6 +202,10 @@ An exact version, including a prerelease, is also accepted:
 npm run release:local -- 0.6.0-beta.3
 ```
 
+Beta releases use an explicit `-beta.N` version. Increment `N` for each beta;
+the command automatically publishes it under the npm `beta` dist-tag and marks
+the GitHub Release as a prerelease.
+
 See [RELEASING.md](RELEASING.md) for the required sibling workspaces, safe
 preview, authentication, supported versions, and recovery guidance.
 

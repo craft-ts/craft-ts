@@ -19,6 +19,27 @@ Or choose an exact version, including a prerelease:
 npm run release:local -- 0.6.0-beta.3
 ```
 
+## Beta releases
+
+Beta versions must currently be specified explicitly. Start a new minor beta
+series with:
+
+```bash
+npm run release:local -- 0.6.0-beta.0
+```
+
+Then increment the beta number for each subsequent release:
+
+```bash
+npm run release:local -- 0.6.0-beta.1
+npm run release:local -- 0.6.0-beta.2
+```
+
+The `-beta.N` suffix automatically selects the npm `beta` dist-tag, creates the
+Git tag `v0.6.0-beta.N`, and marks the GitHub Release as a prerelease. The
+automatic `patch`, `minor`, and `major` arguments produce stable versions; they
+do not start or increment a beta series.
+
 Automatic bumps use the highest supported version published across both npm
 packages as their baseline:
 
