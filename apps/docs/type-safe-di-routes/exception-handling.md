@@ -72,7 +72,7 @@ craftRoute(
       return user.safeValue() ?? craftException({ code: 'NOT_AUTHENTICATED' });
     },
     resolve: craftResolve(function* () {
-      return yield* untilSettled(profileQuery);
+      return yield* craftUntilSettled(profileQuery);
     }),
   },
   {
@@ -119,7 +119,7 @@ Every handler receives a `CraftExceptionHandlerContext` typed for its exception 
 | `noop`            | Continues to the target despite the exception. Resolve data remains `undefined`.             |
 
 A handler is always a synchronous generator wrapped with `craftExceptionHandler`. It may resolve
-services but cannot suspend with `untilSettled` / `untilDefined`.
+services but cannot suspend with `craftUntilSettled` / `craftUntilDefined`.
 
 ## Outcomes
 
@@ -239,11 +239,11 @@ phase entirely with `noop()`.
 
 ## HttpError
 
-The treatment of the generic transport `HttpError` depends on the `untilSettled` form:
+The treatment of the generic transport `HttpError` depends on the `craftUntilSettled` form:
 
-- `untilSettled(CraftHttpClient.get(...))` excludes `HttpError` from the routable exception union
+- `craftUntilSettled(CraftHttpClient.get(...))` excludes `HttpError` from the routable exception union
   and rethrows it. The outlet sends that navigation error to the global error component.
-- `untilSettled(queryRef)` routes every exception exposed by the query. When its loader returns a
+- `craftUntilSettled(queryRef)` routes every exception exposed by the query. When its loader returns a
   `CraftHttpClient` request, that includes `HttpError`, so the route must declare an explicit handler
   such as
   `HttpError: craftExceptionHandler(function* ({ globalError }) { return globalError(); })`.

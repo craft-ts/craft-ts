@@ -52,7 +52,7 @@ export function preservedResource<T, R>(
     snapshot: original.snapshot,
     status: original.status,
     // Internal channel only: not part of the CraftResourceRef surface, kept at
-    // runtime for `untilSettled` (see craft-resource.ts).
+    // runtime for `craftUntilSettled` (see craft-resource.ts).
     error: original.error,
     isLoading: original.isLoading,
     reload: original.reload.bind(original),

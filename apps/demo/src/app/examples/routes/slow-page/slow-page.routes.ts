@@ -10,7 +10,7 @@ import {
   query,
   craftRoute,
   retry,
-  untilSettled,
+  craftUntilSettled,
   type CanRun,
   type CraftRouteLazyLoadHelpers,
   type ValidateCascadeRoutesFile,
@@ -61,7 +61,7 @@ const { SlowReportToYield } = craftService(
 // routed through `handleExceptions`.
 const slowAccessGuard = craftGen(function* () {
   const accessRef = yield* SlowAccessToYield();
-  const access = yield* untilSettled(accessRef);
+  const access = yield* craftUntilSettled(accessRef);
   return access.allowed
     ? access
     : craftException({ code: 'NOT_AUTHENTICATED' });
@@ -72,7 +72,7 @@ const slowAccessGuard = craftGen(function* () {
 // The resolved value is consumed via `injectSlowPageRootResolvedData()`.
 const loadSlowReport = craftGen(function* () {
   const reportRef = yield* SlowReportToYield();
-  const report = yield* untilSettled(reportRef);
+  const report = yield* craftUntilSettled(reportRef);
   return report.totalUsers === 0
     ? craftException({ code: 'REPORT_EMPTY' })
     : report;

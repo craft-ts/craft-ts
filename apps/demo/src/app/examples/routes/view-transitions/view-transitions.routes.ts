@@ -7,7 +7,7 @@ import {
   craftService,
   query,
   craftRoute,
-  untilSettled,
+  craftUntilSettled,
   viewTransitionPayload,
   type CanRun,
   type ParentRoutes,
@@ -47,7 +47,7 @@ const { ViewTransitionAccessToYield } = craftService(
 
 const slowDetailGuard = craftGen(function* () {
   const accessRef = yield* ViewTransitionAccessToYield();
-  const access = yield* untilSettled(accessRef);
+  const access = yield* craftUntilSettled(accessRef);
   // Always allowed here — the `craftException` branch only exists so the guard
   // carries a typed exception code (a guard with no exception branch collapses
   // `craftRoute()`'s `Def` inference). `handleExceptions` routes it after commit.

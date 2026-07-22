@@ -8,6 +8,6 @@
     "src/lib/craft-gen.spec.ts",
     "src/lib/craft-program-operators.spec.ts",
     "src/lib/craft-guard-runtime.spec.ts",
-    "src/lib/until-settled.spec.ts"
+    "src/lib/craft-until-settled.spec.ts"
   ]
 }

@@ -25,6 +25,21 @@ import {
   craftLoadingFeature,
   type CraftLoadingFeature,
 } from './craft-pending';
+import {
+  createCraftLoadRetry,
+  createRetryLazyLoadHelpers,
+  CRAFT_DYNAMIC_IMPORT,
+  INITIAL_LAZY_LOAD_HELPERS,
+  isCraftLoadRetry,
+  isCraftLoadRetryType,
+  type CraftLazyLoadHelpers,
+  type CraftLoadRetry,
+  type CraftLoadRetryConfig,
+  type CraftLoadRetryContextBase,
+  type CraftLoadRetryOptions,
+} from './craft-load-retry';
+
+const CRAFT_ROUTE_DYNAMIC_IMPORT_RETRY_PARAM = '__craft_route_retry';
 
 export const CRAFT_ROUTE_LOAD_ERROR_CODE = 'CRAFT_ROUTE_LOAD_ERROR' as const;
 export const CRAFT_ROUTE_LOAD_ERROR_PATH = '__craft/route-load-error';
@@ -41,59 +56,37 @@ export interface CraftRouteLoadErrorPayload {
 
 export type CraftRouteLoadError = ReturnType<typeof createRouteLoadError>;
 
-export interface CraftRouteLazyLoadHelpers {
-  withRetry<T>(moduleImport: Promise<T>): Promise<T>;
-}
+/**
+ * The route lazy-load helpers. Structurally identical to the generic
+ * {@link CraftLazyLoadHelpers}; kept as a named alias for the public route API.
+ */
+export type CraftRouteLazyLoadHelpers = CraftLazyLoadHelpers;
 
-export const CRAFT_ROUTE_DYNAMIC_IMPORT = new InjectionToken<
-  (url: string) => Promise<unknown>
->('CRAFT_ROUTE_DYNAMIC_IMPORT', {
-  providedIn: 'root',
-  factory: () => (url) => import(/* @vite-ignore */ url),
-});
+/**
+ * The route flavour of {@link CRAFT_DYNAMIC_IMPORT}. It is the **same** token
+ * instance, re-exported under the historical name so existing providers keep
+ * working; provisioning either overrides the dynamic import for both.
+ */
+export const CRAFT_ROUTE_DYNAMIC_IMPORT = CRAFT_DYNAMIC_IMPORT;
 
-export interface CraftRouteLoadRetryContext {
+export interface CraftRouteLoadRetryContext extends CraftLoadRetryContextBase {
   readonly phase: CraftRouteLoadPhase;
   readonly routePath: string;
   readonly targetUrl: string;
-  readonly attempt: number;
-  readonly error: unknown;
 }
 
-export interface CraftRouteLoadRetry {
-  execute<T>(
-    loader: () => Promise<T>,
-    context: CraftRouteLoadRetryContext,
-  ): Promise<T>;
-}
+export type CraftRouteLoadRetry = CraftLoadRetry<CraftRouteLoadRetryContext>;
 
-export interface CraftRouteLoadRetryOptions {
-  readonly attempts?: number;
-  readonly delayMs?:
-    | number
-    | ((error: unknown, context: CraftRouteLoadRetryContext) => number);
-  readonly shouldRetry?: (
-    error: unknown,
-    context: CraftRouteLoadRetryContext,
-  ) => boolean | Promise<boolean>;
-}
+export type CraftRouteLoadRetryOptions =
+  CraftLoadRetryOptions<CraftRouteLoadRetryContext>;
 
 export type CraftRouteLoadRetryConfig =
-  | CraftRouteLoadRetry
-  | Type<CraftRouteLoadRetry>
-  | CraftRouteLoadRetryOptions;
-
-const DEFAULT_ROUTE_LOAD_RETRY_OPTIONS = {
-  attempts: 1,
-  delayMs: 250,
-} satisfies Required<
-  Pick<CraftRouteLoadRetryOptions, 'attempts' | 'delayMs'>
->;
+  CraftLoadRetryConfig<CraftRouteLoadRetryContext>;
 
 export const CRAFT_ROUTE_LOAD_RETRY =
   new InjectionToken<CraftRouteLoadRetry>('CRAFT_ROUTE_LOAD_RETRY', {
     providedIn: 'root',
-    factory: () => createRouteLoadRetry(DEFAULT_ROUTE_LOAD_RETRY_OPTIONS),
+    factory: () => createRouteLoadRetry(),
   });
 
 export const CRAFT_ROUTE_LOAD_ERROR_COMPONENT =
@@ -168,51 +161,9 @@ export function provideRouteLoadRetry(
 }
 
 export function createRouteLoadRetry(
-  options: CraftRouteLoadRetryOptions = DEFAULT_ROUTE_LOAD_RETRY_OPTIONS,
+  options: CraftRouteLoadRetryOptions = {},
 ): CraftRouteLoadRetry {
-  const attempts = Math.max(
-    1,
-    Math.floor(options.attempts ?? DEFAULT_ROUTE_LOAD_RETRY_OPTIONS.attempts),
-  );
-  const delayMs = options.delayMs ?? DEFAULT_ROUTE_LOAD_RETRY_OPTIONS.delayMs;
-
-  return {
-    async execute<T>(
-      loader: () => Promise<T>,
-      baseContext: CraftRouteLoadRetryContext,
-    ): Promise<T> {
-      let lastError: unknown;
-      let previousError = baseContext.error;
-      for (let index = 0; index < attempts; index++) {
-        const context = {
-          ...baseContext,
-          attempt: baseContext.attempt + index + 1,
-          error: previousError,
-        };
-        const shouldRetry =
-          options.shouldRetry?.(previousError, context) ?? true;
-        if (!(await shouldRetry)) throw previousError;
-
-        const resolvedDelayMs = Math.max(
-          0,
-          typeof delayMs === 'function'
-            ? delayMs(previousError, context)
-            : delayMs,
-        );
-        if (resolvedDelayMs > 0) {
-          await new Promise((resolve) => setTimeout(resolve, resolvedDelayMs));
-        }
-
-        try {
-          return await loader();
-        } catch (error) {
-          lastError = error;
-          previousError = error;
-        }
-      }
-      throw lastError;
-    },
-  };
+  return createCraftLoadRetry<CraftRouteLoadRetryContext>(options);
 }
 
 function routeLoadRetryProvider(
@@ -223,24 +174,14 @@ function routeLoadRetryProvider(
       provide: typeof CRAFT_ROUTE_LOAD_RETRY;
       useClass: Type<CraftRouteLoadRetry>;
     } {
-  if (isRouteLoadRetryType(retry)) {
+  if (isCraftLoadRetryType(retry)) {
     return { provide: CRAFT_ROUTE_LOAD_RETRY, useClass: retry };
   }
 
   return {
     provide: CRAFT_ROUTE_LOAD_RETRY,
-    useValue: isRouteLoadRetry(retry) ? retry : createRouteLoadRetry(retry),
+    useValue: isCraftLoadRetry(retry) ? retry : createRouteLoadRetry(retry),
   };
-}
-
-function isRouteLoadRetry(value: CraftRouteLoadRetryConfig): value is CraftRouteLoadRetry {
-  return typeof (value as CraftRouteLoadRetry).execute === 'function';
-}
-
-function isRouteLoadRetryType(
-  value: CraftRouteLoadRetryConfig,
-): value is Type<CraftRouteLoadRetry> {
-  return typeof value === 'function';
 }
 
 export interface RouteLoadErrorFeature extends CraftLoadingFeature {
@@ -312,7 +253,7 @@ export function loadRouteWithRetry<T>(
       injector: inject(EnvironmentInjector),
       router: inject(Router),
       retry: inject(CRAFT_ROUTE_LOAD_RETRY),
-      dynamicImport: inject(CRAFT_ROUTE_DYNAMIC_IMPORT),
+      dynamicImport: inject(CRAFT_DYNAMIC_IMPORT),
     };
   } catch {
     // Some consumers invoke emitted loader callbacks directly in tests. Keep
@@ -321,7 +262,7 @@ export function loadRouteWithRetry<T>(
 
   return (async () => {
     try {
-      return await loader(INITIAL_ROUTE_LOAD_HELPERS);
+      return await loader(INITIAL_LAZY_LOAD_HELPERS);
     } catch (firstError) {
       if (!dependencies) throw firstError;
 
@@ -337,9 +278,13 @@ export function loadRouteWithRetry<T>(
 
       let attempt = 1;
       try {
+        const retryHelpers = createRetryLazyLoadHelpers(
+          dependencies.dynamicImport,
+          CRAFT_ROUTE_DYNAMIC_IMPORT_RETRY_PARAM,
+        );
         const retryLoader = () => {
           attempt++;
-          return loader(createRetryRouteLoadHelpers(dependencies.dynamicImport));
+          return loader(retryHelpers);
         };
 
         return await dependencies.retry.execute(retryLoader, context);
@@ -357,70 +302,6 @@ export function loadRouteWithRetry<T>(
       }
     }
   })();
-}
-
-const INITIAL_ROUTE_LOAD_HELPERS: CraftRouteLazyLoadHelpers = {
-  withRetry: <T>(moduleImport: Promise<T>) => moduleImport,
-};
-
-const successfulRetriedImports = new Map<string, Promise<unknown>>();
-const retryImportAttempts = new Map<string, number>();
-
-function createRetryRouteLoadHelpers(
-  dynamicImport: (url: string) => Promise<unknown>,
-): CraftRouteLazyLoadHelpers {
-  return {
-    withRetry: <T>(moduleImport: Promise<T>) =>
-      retryFailedDynamicImport(moduleImport, dynamicImport),
-  };
-}
-
-async function retryFailedDynamicImport<T>(
-  moduleImport: Promise<T>,
-  dynamicImport: (url: string) => Promise<unknown>,
-): Promise<T> {
-  try {
-    return await moduleImport;
-  } catch (error) {
-    const failedUrl = failedDynamicImportUrl(error);
-    if (!failedUrl) throw error;
-
-    const baseUrl = failedUrl.href;
-    const cachedRetry = successfulRetriedImports.get(baseUrl);
-    if (cachedRetry) return cachedRetry as Promise<T>;
-
-    const attempt = (retryImportAttempts.get(baseUrl) ?? 0) + 1;
-    retryImportAttempts.set(baseUrl, attempt);
-    failedUrl.searchParams.set('__craft_route_retry', String(attempt));
-
-    const retriedImport = dynamicImport(failedUrl.href) as Promise<T>;
-    successfulRetriedImports.set(baseUrl, retriedImport);
-
-    try {
-      return await retriedImport;
-    } catch (retryError) {
-      successfulRetriedImports.delete(baseUrl);
-      throw retryError;
-    }
-  }
-}
-
-function failedDynamicImportUrl(error: unknown): URL | undefined {
-  if (!(error instanceof Error)) return undefined;
-
-  const prefix = 'Failed to fetch dynamically imported module:';
-  const prefixIndex = error.message.indexOf(prefix);
-  if (prefixIndex === -1) return undefined;
-
-  try {
-    const url = new URL(error.message.slice(prefixIndex + prefix.length).trim());
-    const currentOrigin = globalThis.location?.origin;
-    if (currentOrigin && url.origin !== currentOrigin) return undefined;
-    if (!url.pathname.endsWith('.js')) return undefined;
-    return url;
-  } catch {
-    return undefined;
-  }
 }
 
 function handleRouteLoadNavigationError(

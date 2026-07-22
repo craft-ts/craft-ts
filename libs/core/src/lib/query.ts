@@ -972,7 +972,7 @@ function createQueryRef<
     // craft-service factory). The resource's reactive `params`/`loader`
     // computeds may FIRST run while driven from OUTSIDE an injection context —
     // e.g. a non-blocking route guard awaiting the resource via
-    // `untilSettled(...)`, which subscribes outside one. Without an eagerly
+    // `craftUntilSettled(...)`, which subscribes outside one. Without an eagerly
     // captured injector, `getInjector()` below would fall back to the (absent)
     // ambient context and throw NG0203.
     //

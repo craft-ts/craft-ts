@@ -6,7 +6,9 @@ import {
 } from './craft-exception';
 import {
   CraftGenShortCircuit,
+  ɵcreateCraftProgram,
   type CraftGenExceptionMarker,
+  type CraftPipeableProgram,
 } from './craft-gen';
 import {
   GUARD_AWAIT_REQUEST_MARKER,
@@ -18,13 +20,13 @@ import type { CraftHttpClientError } from './craft-http-client';
 
 /**
  * The minimal shape a craft resource (`query` / `mutation` / `asyncProcess`)
- * exposes that {@link untilSettled} relies on: the `status`/`safeValue` signals to
+ * exposes that {@link craftUntilSettled} relies on: the `status`/`safeValue` signals to
  * read the settled outcome, and the `hasException`/`exceptions` signals to surface
  * a loader `craftException`.
  *
  * `error` is the internal Angular channel: it is no longer part of the public craft
  * façade type, but the raw signal remains on the ref at runtime (spread by the
- * primitive's `Object.assign`). It is kept optional here so `untilSettled` can
+ * primitive's `Object.assign`). It is kept optional here so `craftUntilSettled` can
  * re-throw a residual technical failure while public refs still match this shape.
  */
 export type ResourceLike = {
@@ -64,7 +66,7 @@ type HttpResolved<G> = Awaited<HttpCallDescriptor<G>>;
 
 /**
  * The business `craftException`s an HTTP call may produce, excluding the generic
- * {@link CraftHttpClientError} (which `untilSettled` rethrows rather than routing
+ * {@link CraftHttpClientError} (which `craftUntilSettled` rethrows rather than routing
  * through the guard resolvers).
  */
 type HttpCallException<G> = Exclude<
@@ -83,7 +85,7 @@ function guardAwaitRequest(
   return { [GUARD_AWAIT_REQUEST_MARKER]: true, ...request } as RuntimeGuardAwaitRequest;
 }
 
-function* untilSettledResource(
+function* craftUntilSettledResource(
   resource: ResourceLike,
 ): Generator<unknown, unknown, unknown> {
   yield guardAwaitRequest({
@@ -104,7 +106,7 @@ function* untilSettledResource(
   return resource.safeValue();
 }
 
-function* untilSettledHttp(
+function* craftUntilSettledHttp(
   call: Generator<unknown, unknown, unknown>,
 ): Generator<unknown, unknown, unknown> {
   const descriptor = yield* call;
@@ -141,7 +143,7 @@ function* untilSettledHttp(
  *   otherwise the resolved value is returned.
  *
  *   ```ts
- *   const user = yield* untilSettled(
+ *   const user = yield* craftUntilSettled(
  *     query({ params: () => true, loader: async () => fetchUser() }),
  *   );
  *   ```
@@ -151,7 +153,7 @@ function* untilSettledHttp(
  *   generic `HttpError` is rethrown.
  *
  *   ```ts
- *   const user = yield* untilSettled(
+ *   const user = yield* craftUntilSettled(
  *     CraftHttpClient.get(({ response }) => ({
  *       url: `/api/users/${userId}`,
  *       success: response<User>(),
@@ -160,26 +162,26 @@ function* untilSettledHttp(
  *   );
  *   ```
  */
-export function untilSettled<R extends ResourceLike>(
+export function craftUntilSettled<R extends ResourceLike>(
   resource: R,
-): Generator<
+): CraftPipeableProgram<
   CraftGenExceptionMarker<ResourceExceptionUnion<R>>,
-  ResourceResolvedValue<R>,
-  unknown
+  ResourceResolvedValue<R>
 >;
-export function untilSettled<G extends Generator<any, any, any>>(
+export function craftUntilSettled<G extends Generator<any, any, any>>(
   call: G,
-): Generator<
+): CraftPipeableProgram<
   HttpCallYielded<G> | CraftGenExceptionMarker<HttpCallException<G>>,
-  HttpCallSuccess<G>,
-  unknown
+  HttpCallSuccess<G>
 >;
-export function untilSettled(
+export function craftUntilSettled(
   source: ResourceLike | Generator<unknown, unknown, unknown>,
-): Generator<unknown, unknown, unknown> {
-  return isGenerator(source)
-    ? untilSettledHttp(source)
-    : untilSettledResource(source);
+): CraftPipeableProgram<unknown, unknown> {
+  return ɵcreateCraftProgram(() =>
+    isGenerator(source)
+      ? craftUntilSettledHttp(source)
+      : craftUntilSettledResource(source),
+  ) as CraftPipeableProgram<unknown, unknown>;
 }
 
 function signalSettleAdapter<T>(signal: Signal<T>): GuardAwaitResourceLike {
@@ -194,18 +196,18 @@ function signalSettleAdapter<T>(signal: Signal<T>): GuardAwaitResourceLike {
 
 /**
  * Suspends a composing route guard until `signal()` is no longer `undefined`,
- * then returns its (non-nullable) value. Unlike {@link untilSettled} there is no
+ * then returns its (non-nullable) value. Unlike {@link craftUntilSettled} there is no
  * exception channel — use it to wait on a plain readiness signal.
  */
-export function untilDefined<T>(
+export function craftUntilDefined<T>(
   signal: Signal<T>,
-): Generator<never, NonNullable<T>, unknown> {
-  return (function* () {
+): CraftPipeableProgram<never, NonNullable<T>> {
+  return ɵcreateCraftProgram(function* () {
     yield guardAwaitRequest({
       kind: 'settle',
       resource: signalSettleAdapter(signal),
     });
 
     return signal();
-  })() as Generator<never, NonNullable<T>, unknown>;
+  }) as unknown as CraftPipeableProgram<never, NonNullable<T>>;
 }

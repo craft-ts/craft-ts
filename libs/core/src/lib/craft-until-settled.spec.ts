@@ -8,7 +8,12 @@ import {
   runCraftRouteChainAsync,
   type CraftRouteExceptionHandlerMap,
 } from './craft-guard-runtime';
-import { untilSettled, type ResourceLike } from './until-settled';
+import { catchTag } from './craft-program-operators';
+import {
+  craftUntilDefined,
+  craftUntilSettled,
+  type ResourceLike,
+} from './craft-until-settled';
 
 // A stub Router — the chain driver only binds these three methods onto the
 // exception-handler context; the handlers below use the outcome constructors.
@@ -21,7 +26,7 @@ function stubRouter(): Router {
 }
 
 // A generator that mimics a `CraftHttpClient.*` call: it returns a thenable
-// descriptor that `untilSettled`'s HTTP branch awaits.
+// descriptor that `craftUntilSettled`'s HTTP branch awaits.
 function fakeHttpCall(
   resolved: unknown,
 ): Generator<unknown, PromiseLike<unknown>, unknown> {
@@ -55,11 +60,11 @@ function makeResource(): {
   };
 }
 
-// Exercises `untilSettled`'s async HTTP-await path end-to-end, driven by the live
+// Exercises `craftUntilSettled`'s async HTTP-await path end-to-end, driven by the live
 // non-blocking route chain (`runCraftRouteChainAsync`): a suspended guard resumes
 // with the call's success value, and a business `craftException` short-circuits to
 // the route's `handleExceptions`.
-describe('untilSettled (HTTP await path)', () => {
+describe('craftUntilSettled (HTTP await path)', () => {
   let injector: Injector;
 
   beforeEach(() => {
@@ -68,7 +73,7 @@ describe('untilSettled (HTTP await path)', () => {
 
   it('resumes the guard with the success value when the call succeeds', async () => {
     const guard = function* () {
-      const user = yield* untilSettled(fakeHttpCall('USER'));
+      const user = yield* craftUntilSettled(fakeHttpCall('USER'));
       return user === 'USER';
     };
 
@@ -88,7 +93,7 @@ describe('untilSettled (HTTP await path)', () => {
 
   it('routes a business exception through the matching handler', async () => {
     const guard = function* () {
-      yield* untilSettled(
+      yield* craftUntilSettled(
         fakeHttpCall(
           craftException({ code: 'PASSWORD_REQUIRED', scope: 'UsersFeature' }),
         ),
@@ -114,7 +119,7 @@ describe('untilSettled (HTTP await path)', () => {
 
   it('surfaces a rethrown HttpError as a thrown error instead of routing it', async () => {
     const guard = function* () {
-      yield* untilSettled(
+      yield* craftUntilSettled(
         fakeHttpCall(
           craftException(
             { code: 'HttpError', scope: 'HttpClient' },
@@ -137,16 +142,45 @@ describe('untilSettled (HTTP await path)', () => {
       (outcome as { kind: 'thrownError'; error: AnyCraftException }).error,
     ).toMatchObject({ code: 'HttpError', scope: 'HttpClient' });
   });
+
+  it('recovers a business exception through .pipe(catchTag(...))', async () => {
+    const guard = function* () {
+      const access = yield* craftUntilSettled(
+        fakeHttpCall(
+          craftException({ code: 'PASSWORD_REQUIRED', scope: 'UsersFeature' }),
+        ),
+      ).pipe(
+        catchTag('PASSWORD_REQUIRED', function* () {
+          return 'GUEST' as const;
+        }),
+      );
+      return access === 'GUEST';
+    };
+
+    const outcome = await runCraftRouteChainAsync(
+      { guard: guard() },
+      injector,
+      stubRouter(),
+      {},
+    );
+
+    // The exception was caught inside the guard, so no handler routing occurs.
+    expect(outcome).toEqual({
+      kind: 'data',
+      guardData: true,
+      resolveData: undefined,
+    });
+  });
 });
 
 // Drives the resource branch's settle decision directly — the `toObservable`
 // suspension (exercised through the route chain driver for the signal path) is
 // orthogonal here; what matters is what the generator does once a resource has
 // settled.
-describe('untilSettled (resource branch)', () => {
+describe('craftUntilSettled (resource branch)', () => {
   it('yields a settle await-request, then returns the resolved value', () => {
     const { resource, status, safeValue } = makeResource();
-    const iterator = untilSettled(resource) as Generator<unknown, unknown, unknown>;
+    const iterator = craftUntilSettled(resource) as Generator<unknown, unknown, unknown>;
 
     const first = iterator.next();
     expect(first.done).toBe(false);
@@ -162,7 +196,7 @@ describe('untilSettled (resource branch)', () => {
 
   it('short-circuits with the loader exception when the resource has one', () => {
     const { resource, status, hasException, exceptions } = makeResource();
-    const iterator = untilSettled(resource) as Generator<unknown, unknown, unknown>;
+    const iterator = craftUntilSettled(resource) as Generator<unknown, unknown, unknown>;
 
     iterator.next();
     hasException.set(true);
@@ -184,12 +218,53 @@ describe('untilSettled (resource branch)', () => {
 
   it('rethrows the loader error when the resource settled to an exception', () => {
     const { resource, status, error } = makeResource();
-    const iterator = untilSettled(resource) as Generator<unknown, unknown, unknown>;
+    const iterator = craftUntilSettled(resource) as Generator<unknown, unknown, unknown>;
 
     iterator.next();
     error.set(new Error('boom'));
     status.set('exception');
 
     expect(() => iterator.next()).toThrowError('boom');
+  });
+
+  it('recovers a loader exception through .pipe(catchTag(...))', () => {
+    const { resource, status, hasException, exceptions } = makeResource();
+    const program = craftUntilSettled(resource).pipe(
+      catchTag('NOT_ALLOWED', function* () {
+        return 'FALLBACK' as const;
+      }),
+    ) as Generator<unknown, unknown, unknown>;
+
+    const first = program.next();
+    expect(isGuardAwaitRequest(first.value)).toBe(true);
+
+    hasException.set(true);
+    exceptions.set({
+      list: [craftException({ code: 'NOT_ALLOWED', scope: 'UsersFeature' })],
+    });
+    status.set('resolved');
+
+    const done = program.next();
+    expect(done.done).toBe(true);
+    expect(done.value).toBe('FALLBACK');
+  });
+});
+
+// `craftUntilDefined` is now a pipeable program too (no exception channel, but
+// `.pipe(...)` composes operators uniformly with the rest of the craft programs).
+describe('craftUntilDefined (pipeable)', () => {
+  it('yields a settle await-request, then returns the defined value', () => {
+    const ready = signal<string | undefined>(undefined);
+    const program = craftUntilDefined(ready);
+    expectTypeOf(program.pipe).toBeFunction();
+
+    const iterator = program as Generator<unknown, unknown, unknown>;
+    const first = iterator.next();
+    expect(isGuardAwaitRequest(first.value)).toBe(true);
+
+    ready.set('SESSION');
+    const done = iterator.next();
+    expect(done.done).toBe(true);
+    expect(done.value).toBe('SESSION');
   });
 });

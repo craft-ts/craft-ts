@@ -6,7 +6,7 @@ const INVALID_YIELD_ERROR_MESSAGE =
 const ON_APP_START_ERROR_MESSAGE =
   'craftUse(...) does not support onAppStart(...): it is only available inside a craftService factory.';
 const GUARD_AWAIT_ERROR_MESSAGE =
-  'craftUse(...) does not support untilSettled(...)/untilDefined(...): they are only available inside route guards.';
+  'craftUse(...) does not support craftUntilSettled(...)/craftUntilDefined(...): they are only available inside route guards.';
 
 /**
  * Drives any craft generator synchronously outside a generator host and

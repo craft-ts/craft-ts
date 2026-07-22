@@ -49,12 +49,12 @@ With `.pipe`:
 ## `catchTag(code, handler)`
 
 Catches one exception code. The handler is a generator: its yields (craft services, nested
-programs, `untilSettled`) are relayed to the driver, so its dependencies stay tracked.
+programs, `craftUntilSettled`) are relayed to the driver, so its dependencies stay tracked.
 
 ```typescript
 const loadSlowReport = craftGen(function* () {
   const reportRef = yield* SlowReportToYield();
-  const report = yield* untilSettled(reportRef);
+  const report = yield* craftUntilSettled(reportRef);
   return report.totalUsers === 0
     ? craftException({ code: 'REPORT_EMPTY' })
     : report;
@@ -175,7 +175,7 @@ Notes:
 ## Programs inside `query` / `mutation` / `asyncProcess` loaders
 
 The three primitives drive their generator loaders with the same async pump as route guards, so
-loaders can suspend on `untilSettled` and compose programs:
+loaders can suspend on `craftUntilSettled` and compose programs:
 
 ```typescript
 const userQuery = query({

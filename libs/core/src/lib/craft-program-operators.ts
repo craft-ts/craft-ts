@@ -164,7 +164,7 @@ interface CatchTagOperator {
   /**
    * Catches the program's `craftException` of `code`: the handler generator
    * runs in its place (its yields — craft services, nested programs,
-   * `untilSettled` — are relayed to the driver, so its dependencies stay
+   * `craftUntilSettled` — are relayed to the driver, so its dependencies stay
    * tracked) and its success value widens the program's. `code` is removed
    * from the program's exception union; exceptions the handler itself
    * produces are added to it.

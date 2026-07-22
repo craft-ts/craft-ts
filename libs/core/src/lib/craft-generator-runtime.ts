@@ -82,7 +82,7 @@ export type GuardAwaitResourceLike = {
 };
 
 /**
- * The request a guard generator yields (via `untilSettled` / `untilDefined`) to
+ * The request a guard generator yields (via `craftUntilSettled` / `craftUntilDefined`) to
  * suspend until an async craft operation completes. It is **never** handled by
  * the synchronous {@link runCraftGenerator}; only the two-phase route chain
  * driver (`runCraftRouteChainAsync`) understands it. Discriminated by `kind`:

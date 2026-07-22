@@ -307,7 +307,7 @@ describe('runCraftRouteChainAsync', () => {
       kind: 'thrownError',
       error: expect.objectContaining({
         message:
-          'Route exception handlers cannot suspend with untilSettled/untilDefined.',
+          'Route exception handlers cannot suspend with craftUntilSettled/craftUntilDefined.',
       }),
     });
   });

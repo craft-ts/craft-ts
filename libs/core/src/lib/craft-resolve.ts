@@ -4,7 +4,7 @@ import type { StripCraftException } from './craft-exception';
 /**
  * The optional data step of a craft route. Mirrors a route's `canActivate` guard
  * but yields a value rather than a guard decision: it `yield*`s craft services and
- * `yield* untilSettled(...)`, then returns the data the target component reads
+ * `yield* craftUntilSettled(...)`, then returns the data the target component reads
  * through the generated `injectXxxResolvedData()` helper.
  *
  * Like the guards, it carries no inline exception handling — any `craftException`
@@ -14,7 +14,7 @@ import type { StripCraftException } from './craft-exception';
  *
  * ```ts
  * resolve: craftResolve(function* () {
- *   return yield* untilSettled(CraftHttpClient.get<Profile>('/api/profile'));
+ *   return yield* craftUntilSettled(CraftHttpClient.get<Profile>('/api/profile'));
  * }),
  * ```
  */

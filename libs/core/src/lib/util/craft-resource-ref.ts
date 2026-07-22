@@ -12,7 +12,7 @@ export type CraftResourceRefSpecificState<Value, Params> = {
  * Angular's `error` signal is excluded from the craft surface: business failures
  * are exposed through the `exceptions()`/`hasException()` API instead. The raw
  * signal still exists on the ref at runtime as an internal channel (see
- * `untilSettled`, which rethrows a residual technical failure through it).
+ * `craftUntilSettled`, which rethrows a residual technical failure through it).
  */
 export type CraftResourceRef<Value, Params> = Omit<
   ResourceRef<Value>,

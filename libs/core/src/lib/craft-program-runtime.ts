@@ -19,7 +19,7 @@ import { injectFnWrapper } from './fn-wrapper';
 // A "program" is any craft generator (route guard, resolve stage, exception
 // handler, or a primitive's generator loader): it yields craft service
 // requests — resolved synchronously — and may suspend on an
-// `untilSettled`/`untilDefined` await-request. The driver pumps synchronously
+// `craftUntilSettled`/`craftUntilDefined` await-request. The driver pumps synchronously
 // between awaits and goes async only across real suspensions; a
 // `CraftGenShortCircuit` (a composed `craftGen` producing a `craftException`)
 // settles as a structured `shortCircuit` step instead of a thrown error.
@@ -168,8 +168,8 @@ export async function driveCraftProgramAsync(
 /**
  * Async counterpart of `executeGeneratorCompatibleFactory`: same contract (a
  * factory that returns either a plain value or a craft generator), but the
- * generator path is driven by the async program pump — `untilSettled` /
- * `untilDefined` awaits suspend instead of erroring, and a
+ * generator path is driven by the async program pump — `craftUntilSettled` /
+ * `craftUntilDefined` awaits suspend instead of erroring, and a
  * `CraftGenShortCircuit` settles as a `shortCircuit` step instead of throwing.
  * The `done` value is awaited (generator loaders may return a bare promise).
  */

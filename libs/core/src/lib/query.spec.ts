@@ -28,7 +28,7 @@ import {
 import { craftUse } from './craft-use';
 import { craftGen } from './craft-gen';
 import { catchTag, retry } from './craft-program-operators';
-import { untilSettled } from './until-settled';
+import { craftUntilSettled } from './craft-until-settled';
 
 type User = {
   id: string;
@@ -110,7 +110,7 @@ describe('query', () => {
   // Regression: a query whose `params`/`loader` are PLAIN (non-generator)
   // functions used to defer resolving its injector until those computeds first
   // ran — relying on the AMBIENT injection context at read time. A non-blocking
-  // route guard awaits such a query via `untilSettled(...)`, which subscribes
+  // route guard awaits such a query via `craftUntilSettled(...)`, which subscribes
   // OUTSIDE an injection context, so the params source (`resourceParamsSrc`,
   // i.e. the wrapped params fn) first ran with no ambient context and threw
   // NG0203. The injector is now captured eagerly at construction.
@@ -1475,13 +1475,13 @@ describe('query — loader programs (async pump)', () => {
     return craftException({ code: 'USER_NOT_FOUND' }, { userId });
   });
 
-  it('resolves a generator loader suspended on an untilSettled promise await', async () => {
+  it('resolves a generator loader suspended on an craftUntilSettled promise await', async () => {
     await TestBed.runInInjectionContext(async () => {
       const queryRef = craftUse(
         query({
           params: () => 'user-1',
           loader: function* ({ params }) {
-            const user = yield* untilSettled(
+            const user = yield* craftUntilSettled(
               (function* () {
                 return Promise.resolve({
                   id: params,

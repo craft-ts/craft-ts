@@ -13,7 +13,7 @@ export function craftResource<Value, Params>(
     status: resourceRef.status,
     // Internal channel only: `error` is not part of the CraftResourceRef surface
     // (replaced by the exceptions API) but stays on the object at runtime so
-    // `untilSettled` can rethrow a residual technical failure.
+    // `craftUntilSettled` can rethrow a residual technical failure.
     error: resourceRef.error,
     isLoading: resourceRef.isLoading,
     reload: resourceRef.reload.bind(resourceRef),

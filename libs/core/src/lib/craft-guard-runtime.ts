@@ -17,7 +17,7 @@ import {
 } from './craft-program-runtime';
 
 const GUARD_INVALID_YIELD_ERROR_MESSAGE =
-  'craft route guards can only yield craftService dependencies, exposed dependency helpers, or an untilSettled/untilDefined await request.';
+  'craft route guards can only yield craftService dependencies, exposed dependency helpers, or an craftUntilSettled/craftUntilDefined await request.';
 
 const GUARD_PUMP_OPTIONS: CraftProgramPumpOptions = {
   invalidYieldErrorMessage: GUARD_INVALID_YIELD_ERROR_MESSAGE,
@@ -27,7 +27,7 @@ const GUARD_PUMP_OPTIONS: CraftProgramPumpOptions = {
  * The result of a synchronous guard re-evaluation (reactive "live" guards):
  * - `valid` — the guard passed without producing an exception;
  * - `exception` — the guard short-circuited / returned a `craftException`;
- * - `pending` — the guard suspended on a not-yet-settled `untilSettled` (cannot be
+ * - `pending` — the guard suspended on a not-yet-settled `craftUntilSettled` (cannot be
  *   resolved synchronously) — the reactive check treats this as "still valid".
  */
 export type CraftGuardSyncResult =
@@ -38,7 +38,7 @@ export type CraftGuardSyncResult =
 /**
  * Evaluates a guard generator **synchronously** for the reactive `phase: 'active'`
  * re-check. Pumping the generator reads the craft signals it yields synchronously,
- * so an enclosing `effect` tracks them; a settled `untilSettled` resolves on the
+ * so an enclosing `effect` tracks them; a settled `craftUntilSettled` resolves on the
  * fast path, while a not-yet-settled await yields `'pending'` (no suspension).
  */
 export function evaluateCraftGuardSync(
@@ -163,7 +163,7 @@ function* resolveRouteException(
 }
 
 // Drives any composing generator (guard, resolve, or exception handler) to a
-// settled step, going async only across real `untilSettled`/`untilDefined`
+// settled step, going async only across real `craftUntilSettled`/`craftUntilDefined`
 // awaits — reusing the same pump/await plumbing as the synchronous re-check.
 async function driveStageToSettled(
   iterator: Generator<unknown, unknown, unknown>,
@@ -195,7 +195,7 @@ async function resolveExceptionOutcome(
 
   if (first.kind === 'await') {
     throw new Error(
-      'Route exception handlers cannot suspend with untilSettled/untilDefined.',
+      'Route exception handlers cannot suspend with craftUntilSettled/craftUntilDefined.',
     );
   }
 

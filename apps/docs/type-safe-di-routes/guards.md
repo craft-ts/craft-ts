@@ -55,7 +55,7 @@ import {
   CraftHttpClient,
   query,
   craftRoute,
-  untilSettled,
+  craftUntilSettled,
 } from '@craft-ng/core';
 
 // Reusable guards — each returns a success value | craftException(...)
@@ -109,7 +109,7 @@ craftRoute(
       return true;
     },
     resolve: craftResolve(function* () {
-      return yield* untilSettled(pizzeriaDraftQuery);
+      return yield* craftUntilSettled(pizzeriaDraftQuery);
     }),
     loadComponent: ({ withRetry }) =>
       withRetry(
@@ -315,14 +315,14 @@ craftRoute(
 ## Async guards {#async-guards}
 
 The guards above are **synchronous** — every `craftGen` resolves in one pass. To decide based on data
-that has to be _fetched first_, suspend the composing guard with `untilSettled` (or `untilDefined`).
-The guard stays a normal generator: `yield* a(); const x = yield* untilSettled(...); yield* b()`
+that has to be _fetched first_, suspend the composing guard with `craftUntilSettled` (or `craftUntilDefined`).
+The guard stays a normal generator: `yield* a(); const x = yield* craftUntilSettled(...); yield* b()`
 composes across the await, and the awaited operation's `craftException`s flow into the same
 exhaustive `handleExceptions` map — the compiler still forces you to handle every reachable code.
 
-### `untilSettled` — await a resource or an HTTP call
+### `craftUntilSettled` — await a resource or an HTTP call
 
-`untilSettled` takes either a craft **resource** (`query` / `mutation` / `asyncProcess`) or a
+`craftUntilSettled` takes either a craft **resource** (`query` / `mutation` / `asyncProcess`) or a
 `CraftHttpClient.*` **call** and suspends until it settles, then returns its success value.
 
 ```ts
@@ -336,7 +336,7 @@ craftRoute(
 
       // (a) Await an HTTP call directly — no named resource needed. Its declared
       //     `exceptions` flow into the route's handleExceptions below.
-      const user = yield* untilSettled(
+      const user = yield* craftUntilSettled(
         CraftHttpClient.get(({ response }) => ({
           url: `/api/users/${userId}`,
           success: response<User>(),
@@ -374,7 +374,7 @@ reactive; prefer the HTTP form for one-shots):
 ```ts
 const user =
   yield *
-  untilSettled(
+  craftUntilSettled(
     query({ params: () => userId, loader: ({ params }) => fetchUser(params) }),
   );
 ```
@@ -390,18 +390,18 @@ const user =
 - The awaited HTTP endpoint is tracked as a route dependency automatically, exactly like one used in
   a component or loader.
 
-### `untilDefined` — await a readiness signal
+### `craftUntilDefined` — await a readiness signal
 
-`untilDefined(signal)` suspends until `signal()` is no longer `undefined`, then returns its
+`craftUntilDefined(signal)` suspends until `signal()` is no longer `undefined`, then returns its
 non-nullable value. There is no exception channel — use it to wait on a plain readiness signal.
 
 ```ts
-const session = yield * untilDefined(sessionService.current);
+const session = yield * craftUntilDefined(sessionService.current);
 ```
 
 ### Notes
 
-- A guard that never reaches an `untilSettled` / `untilDefined` await still resolves **synchronously**
+- A guard that never reaches an `craftUntilSettled` / `craftUntilDefined` await still resolves **synchronously**
   (no forced microtask) — existing synchronous guards are unchanged.
 - This works for both `canActivate` and `canMatch`; the outlet drives the guard to settlement after
   the URL commits.

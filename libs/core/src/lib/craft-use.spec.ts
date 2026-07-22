@@ -6,7 +6,7 @@ import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import { createPrimitiveGen } from './craft-primitive-gen';
 import { onAppStart } from './craft-service';
 import { craftUse } from './craft-use';
-import { untilDefined } from './until-settled';
+import { craftUntilDefined } from './craft-until-settled';
 
 describe('craftUse', () => {
   it('drives an inline generator and resolves its dependency yields', () => {
@@ -72,11 +72,11 @@ describe('craftUse', () => {
     ).toThrow(/craftUse\(\.\.\.\) does not support onAppStart/);
   });
 
-  it('rejects guard await requests (untilDefined/untilSettled) with a dedicated error', () => {
+  it('rejects guard await requests (craftUntilDefined/craftUntilSettled) with a dedicated error', () => {
     const neverReady = (() => undefined) as unknown as Signal<string>;
 
-    expect(() => craftUse(untilDefined(neverReady))).toThrow(
-      /craftUse\(\.\.\.\) does not support untilSettled/,
+    expect(() => craftUse(craftUntilDefined(neverReady))).toThrow(
+      /craftUse\(\.\.\.\) does not support craftUntilSettled/,
     );
   });
 
