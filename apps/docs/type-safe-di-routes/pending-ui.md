@@ -153,7 +153,7 @@ provideCraftRouter(
 For the morph to bridge a slow navigation, **something** carrying the shared element's
 `view-transition-name` must stay on screen while the chain runs — the **pending skeleton**. A route
 opts in by **declaring the shared-element payload shape** with `viewTransitionPayload<T>()` — the
-view-transition analogue of how `queryParams` declares a route's query-param shape. This:
+view-transition analogue of how `queryParams` declares a route's query-params shape. This:
 
 - makes a typed `viewTransition: T | null` payload **required** on every `craftRouterLink` / `navigate`
   targeting it (`null` is an explicit opt-out);

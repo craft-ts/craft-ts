@@ -66,11 +66,11 @@
 
 ---
 
-### 9. Exception QueryParam - Parse Exceptions
+### 9. Exception QueryParams - Parse Exceptions
 
-**Description:** Demonstrates `queryParam` parse exceptions with two navigation actions (`success` and `exception`) and UI handling through `hasException()` and `exceptions().parse`.
+**Description:** Demonstrates `queryParams` parse exceptions with two navigation actions (`success` and `exception`) and UI handling through `hasException()` and `exceptions().parse`.
 
-🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/primitives/exceptions/exception-query-param.ts&initialpath=/exception-query-param)
+🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/primitives/exceptions/exception-query-params.ts&initialpath=/exception-query-params)
 
 ---
 
@@ -94,7 +94,7 @@
 
 ### 3. List with Pagination - Paginated List
 
-**Description:** Demonstrates managing a paginated list service with `queryParam` and `insertPaginationPlaceholderData` for a smooth user experience.
+**Description:** Demonstrates managing a paginated list service with `queryParams` and `insertPaginationPlaceholderData` for a smooth user experience.
 
 🔗 [Open in StackBlitz](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/list-with-pagination/list-with-pagination.ts&initialpath=/craft/list-with-pagination)
 

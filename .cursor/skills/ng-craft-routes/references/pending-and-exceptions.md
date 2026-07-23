@@ -44,7 +44,7 @@ Don't hand-maintain it.
 ## View transitions (shared-element morph across a slow chain)
 
 For a shared-element morph to survive a slow navigation, the route **declares the payload shape** with
-`viewTransitionPayload<T>()` — the view-transition analogue of how `queryParams` declares query-param shape:
+`viewTransitionPayload<T>()` — the view-transition analogue of how `queryParams` declares query-params shape:
 
 ```ts
 export const { photosRoutes, injectPhotosPhotoIdViewTransition } = craftRoutes('photos', [

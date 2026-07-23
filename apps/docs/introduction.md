@@ -26,7 +26,7 @@ When injecting or yielding a service, you can derive only the part you need. Thi
 
 Stop wasting precious time on common application logic. @craft-ng/core provides utilities that handle the repetitive patterns found in every Angular application, so you can focus on delivering value to your users.
 
-`state`, `queryParam`, `query`, `mutation`, and `asyncProcess` are reactive primitives that significantly improve the developer experience.
+`state`, `queryParams`, `query`, `mutation`, and `asyncProcess` are reactive primitives that significantly improve the developer experience.
 
 ### Type-safe routing
 
@@ -250,7 +250,7 @@ Designed for a **smooth developer experience** with:
 import {
   state,
   AsyncProcess,
-  queryParam,
+  queryParams,
   query,
   mutation,
   craftService,

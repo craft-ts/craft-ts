@@ -4,7 +4,7 @@ import type { RegistryBridgeBroker } from './bridge-broker.js';
 import type { RegistryBrokerMethod } from './protocol.js';
 
 type RegistryRequester = Pick<RegistryBridgeBroker, 'request'>;
-type PrimitiveValueKind = 'query' | 'asyncProcess' | 'mutation' | 'queryParam';
+type PrimitiveValueKind = 'query' | 'asyncProcess' | 'mutation' | 'queryParams';
 
 export function createRegistryMcpServer(bridge: RegistryRequester): McpServer {
   const server = new McpServer({
@@ -52,13 +52,13 @@ export function createRegistryMcpServer(bridge: RegistryRequester): McpServer {
   registerPrimitiveValueTools(server, bridge, 'query', true);
   registerPrimitiveValueTools(server, bridge, 'mutation', true);
   registerPrimitiveValueTools(server, bridge, 'asyncProcess', true);
-  registerPrimitiveValueTools(server, bridge, 'queryParam', false);
+  registerPrimitiveValueTools(server, bridge, 'queryParams', false);
   registerTool(
     server,
     bridge,
     'registry.override',
     'registry/override',
-    'Replace an active primitive method at runtime with a development-only JavaScript function such as ({ state }) => state.update(current => current + 10), ({ query }) => query.set(value), or ({ queryParam }) => queryParam.patch(current => ({ page: current.page + 1 }))',
+    'Replace an active primitive method at runtime with a development-only JavaScript function such as ({ state }) => state.update(current => current + 10), ({ query }) => query.set(value), or ({ queryParams }) => queryParams.patch(current => ({ page: current.page + 1 }))',
     {
       clientId: z.string().min(1).optional(),
       key: z.string().min(1),
@@ -96,7 +96,7 @@ function registerPrimitiveValueTools(
   kind: PrimitiveValueKind,
   supportsId: boolean,
 ): void {
-  const capitalizedKind = kind === 'queryParam' ? 'queryParam' : kind;
+  const capitalizedKind = kind === 'queryParams' ? 'queryParams' : kind;
   const baseSchema = {
     clientId: z.string().min(1).optional(),
     key: z.string().min(1),

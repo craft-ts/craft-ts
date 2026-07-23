@@ -12,12 +12,12 @@
 
 Use:
 - `query` for the remote collection.
-- `queryParam` when pagination, sort, search, filters, or tabs live in the URL.
+- `queryParams` when pagination, sort, search, filters, or tabs live in the URL.
 - `insertPaginationPlaceholderData` when page transitions should keep old data visible.
 - `insertLocalStoragePersister` when results or params should survive a refresh.
 
 Default policy:
-- Put `page`, `pageSize`, `search`, `sort`, and filters in `queryParam`.
+- Put `page`, `pageSize`, `search`, `sort`, and filters in `queryParams`.
 - Use `identifier` on the `query` when page or filter combinations should keep independent cached instances.
 - Prefer `currentPageData()` and `currentPageStatus()` when using pagination placeholders.
 
@@ -68,14 +68,14 @@ Default policy:
 ## Search Page With URL Filters
 
 Use:
-- `queryParam` or `craftQueryParam` for the filters.
+- `queryParams` or `craftQueryParams` for the filters.
 - `query` for the result list.
 - `craftSetAllQueriesParamsStandalone` when links or router navigation must be generated outside injection context.
 
 Default policy:
 - Reset `page` to `1` when a search term or filter changes.
 - Keep URL parsing and serialization explicit for each field.
-- Choose `craftQueryParams` when the page has several named query-param groups.
+- Choose `craftQueryParams` when the page has several named query-params groups.
 
 ## Feature Or Page Store
 
@@ -83,7 +83,7 @@ Use:
 - `craft` as the boundary.
 - `craftInject` for services and tokens.
 - `craftInputs` for non-URL external values.
-- `craftQueryParam` or `craftQueryParams` for URL-backed state.
+- `craftQueryParams` or `craftQueryParams` for URL-backed state.
 - `craftSources` for reset, refresh, and cross-entry triggers.
 - `craftQuery`, `craftMutations`, `craftState`, and `craftComputedStates` for the actual feature logic.
 

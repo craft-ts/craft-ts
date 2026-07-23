@@ -75,9 +75,9 @@ import {
           >Login Form</a
         >
         <a
-          [craftRouterLink]="{ to: 'exception-query-param' }"
+          [craftRouterLink]="{ to: 'exception-query-params' }"
           routerLinkActive="active"
-          >Exception QueryParam</a
+          >Exception QueryParams</a
         >
         <a
           [craftRouterLink]="{

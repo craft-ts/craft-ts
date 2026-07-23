@@ -10,7 +10,7 @@ import {
   mutation,
   provideHostName,
   query,
-  queryParam,
+  queryParams,
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
@@ -132,7 +132,7 @@ import { injectApiService, User } from './api.service';
 export default class GranularMutation {
   private readonly _monitoring = componentMonitoring();
   protected readonly pagination = craftUse(
-    queryParam(
+    queryParams(
       {
         state: {
           page: {

@@ -388,10 +388,10 @@ function optionalResourceKind(
     value !== 'query' &&
     value !== 'asyncProcess' &&
     value !== 'mutation' &&
-    value !== 'queryParam'
+    value !== 'queryParams'
   ) {
     throw new Error(
-      `params.${name} must be query, asyncProcess, mutation or queryParam when provided`,
+      `params.${name} must be query, asyncProcess, mutation or queryParams when provided`,
     );
   }
   return value;

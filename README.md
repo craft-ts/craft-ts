@@ -27,7 +27,7 @@ It is designed to keep application behavior close to where it is used while maki
 
 ### Main capabilities
 
-- **One reactive model for every kind of state** — `state`, `query`, `mutation`, `asyncProcess`, and `queryParam` cover local, server, asynchronous, and URL state.
+- **One reactive model for every kind of state** — `state`, `query`, `mutation`, `asyncProcess`, and `queryParams` cover local, server, asynchronous, and URL state.
 - **Composable behavior** — insertions add reusable capabilities such as persistence, entity management, selection, pagination placeholders, and optimistic updates.
 - **Function-based services** — `craftService` composes state and dependencies; `toCraftService` adapts existing Angular services and tokens.
 - **Type-safe Angular integration** — typed dependency injection, navigation, route inputs, route providers, guards, pending UI, and lazy-load error handling.

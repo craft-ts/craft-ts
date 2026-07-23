@@ -79,7 +79,7 @@ type EntitiesUtilsToMap<
   : Acc;
 
 /**
- * Creates an insertion that adds entity collection management methods to state, query, or queryParam primitives.
+ * Creates an insertion that adds entity collection management methods to state, query, or queryParams primitives.
  *
  * Provides type-safe manipulation of arrays of entities with operations like add, remove, update, and upsert.
  * Supports nested properties via dot notation paths and custom entity identifiers.

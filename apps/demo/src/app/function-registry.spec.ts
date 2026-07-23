@@ -132,7 +132,7 @@ describe('function registry', () => {
     );
   });
 
-  it.each(['query', 'asyncProcess', 'mutation', 'queryParam'] as const)(
+  it.each(['query', 'asyncProcess', 'mutation', 'queryParams'] as const)(
     'exposes and executes %s runtime capabilities',
     (kind) => {
       const registry = createFunctionRegistry();
@@ -158,20 +158,20 @@ describe('function registry', () => {
 
   it('exposes and mutates primitive value capabilities directly', () => {
     const registry = createFunctionRegistry();
-    const resource = createResourceContext('queryParam', { count: 0 });
-    registry.registerResource('queryParam', ['component:List#1'], resource);
+    const resource = createResourceContext('queryParams', { count: 0 });
+    registry.registerResource('queryParams', ['component:List#1'], resource);
 
-    const key = 'queryParam <= component:List#1';
+    const key = 'queryParams <= component:List#1';
 
     expect(registry.get(key)).toMatchObject({
       capabilities: [
-        'queryParam.get',
-        'queryParam.set',
-        'queryParam.update',
-        'queryParam.patch',
+        'queryParams.get',
+        'queryParams.set',
+        'queryParams.update',
+        'queryParams.patch',
       ],
       primitive: {
-        kind: 'queryParam',
+        kind: 'queryParams',
         grouped: false,
         ids: [],
       },
@@ -303,7 +303,7 @@ function createPrimitiveContext<Kind extends PrimitiveMethodRuntimeKind>(
 }
 
 function createResourceContext(
-  kind: 'query' | 'asyncProcess' | 'mutation' | 'queryParam',
+  kind: 'query' | 'asyncProcess' | 'mutation' | 'queryParams',
   initialValue: unknown,
 ): PrimitiveResourceRuntimeContext {
   let value = initialValue;
@@ -319,7 +319,7 @@ function createResourceContext(
 }
 
 function createGroupedResourceContext(
-  kind: 'query' | 'asyncProcess' | 'mutation' | 'queryParam',
+  kind: 'query' | 'asyncProcess' | 'mutation' | 'queryParams',
 ): PrimitiveResourceRuntimeContext {
   const values = new Map<string, unknown>();
   const requireValue = (id: string | undefined): unknown => {

@@ -51,7 +51,7 @@ export default defineConfig({
         items: [
           { text: 'state', link: '/primitives/state' },
           { text: 'asyncProcess', link: '/primitives/async-process' },
-          { text: 'queryParam', link: '/primitives/query-param' },
+          { text: 'queryParams', link: '/primitives/query-params' },
           { text: 'query', link: '/primitives/query' },
           { text: 'mutation', link: '/primitives/mutation' },
         ],

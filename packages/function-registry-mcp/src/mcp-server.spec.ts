@@ -34,10 +34,10 @@ describe('registry MCP server', () => {
       'registry.asyncProcess.set',
       'registry.asyncProcess.update',
       'registry.asyncProcess.patch',
-      'registry.queryParam.get',
-      'registry.queryParam.set',
-      'registry.queryParam.update',
-      'registry.queryParam.patch',
+      'registry.queryParams.get',
+      'registry.queryParams.set',
+      'registry.queryParams.update',
+      'registry.queryParams.patch',
       'registry.override',
       'registry.restore',
       'registry.logs',
@@ -76,18 +76,18 @@ describe('registry MCP server', () => {
     });
 
     await client.callTool({
-      name: 'registry.queryParam.patch',
+      name: 'registry.queryParams.patch',
       arguments: {
         clientId: 'browser-a',
-        key: 'queryParam',
+        key: 'queryParams',
         source: '() => ({ page: 2 })',
       },
     });
     expect(request).toHaveBeenLastCalledWith('registry/resource/patch', {
       clientId: 'browser-a',
-      key: 'queryParam',
+      key: 'queryParams',
       source: '() => ({ page: 2 })',
-      kind: 'queryParam',
+      kind: 'queryParams',
     });
 
     await client.callTool({

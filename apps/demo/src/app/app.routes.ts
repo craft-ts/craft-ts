@@ -5,7 +5,7 @@ import {
   craftExceptionHandler,
   craftRoute,
   craftRoutes,
-  queryParam,
+  queryParams,
   type CanRun,
   type CraftRouteExceptionType,
   type CraftRouteLazyLoadHelpers,
@@ -18,7 +18,7 @@ export const {
   injectDemoTeamIdParams,
   injectDemoCraftLazyLayoutTeamIdData,
   injectDemoUserIdParams,
-  injectDemoQueryParamQueryParams,
+  injectDemoQueryParamsQueryParams,
 } = craftRoutes('demo', [
   craftRoute(
     'query/:userId',
@@ -110,12 +110,12 @@ export const {
       withRetry(import('./examples/primitives/exceptions/exceptions')),
   },
   {
-    path: 'exception-query-param',
+    path: 'exception-query-params',
     componentDeps:
-      {} as import('./examples/primitives/exceptions/exception-query-param').GenDeps_ExceptionQueryParamComponent,
+      {} as import('./examples/primitives/exceptions/exception-query-params').GenDeps_ExceptionQueryParamsComponent,
     loadComponent: ({ withRetry }) =>
       withRetry(
-        import('./examples/primitives/exceptions/exception-query-param'),
+        import('./examples/primitives/exceptions/exception-query-params'),
       ),
   },
   {
@@ -205,7 +205,7 @@ export const {
       withRetry(import('./examples/playground/playground')),
   },
   {
-    path: 'query-param',
+    path: 'query-params',
     componentDeps:
       {} as import('./examples/routes/list-with-pagination/qp-list-with-pagination').GenDeps_QpListWithPagination,
     loadComponent: ({ withRetry }) =>
@@ -215,7 +215,7 @@ export const {
         ),
       ),
     queryParams: () =>
-      queryParam(
+      queryParams(
         {
           state: {
             page: {

@@ -8,7 +8,7 @@ import {
   provideHostName,
   craftPipe,
   query,
-  queryParam,
+  queryParams,
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
@@ -105,7 +105,7 @@ import { injectApiService, type User } from './api.service';
 export default class ListWithPagination {
   private readonly _monitoring = componentMonitoring();
   protected readonly pagination = craftUse(
-    queryParam(
+    queryParams(
       {
         state: {
           page: {

@@ -21,7 +21,7 @@ hero:
 
 features:
   - title: Same API for client, server, URL, and async state
-    details: state, query, mutation, asyncProcess, and queryParam give you a complete set of reactive primitives for every kind of state.
+    details: state, query, mutation, asyncProcess, and queryParams give you a complete set of reactive primitives for every kind of state.
   - title: Tackle state complexity
     details: Model complex state declaratively by deriving modifiers, reactions, and computed state. Use the provided insertions to handle common UX behaviors and apply logic exactly where you need it.
   - title: Derive forms logic and validators

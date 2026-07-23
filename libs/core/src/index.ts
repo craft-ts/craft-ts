@@ -14,7 +14,7 @@ export * from './lib/insert-select';
 export * from './lib/inject-service';
 export * from './lib/linked-source';
 export * from './lib/mutation';
-export * from './lib/query-param';
+export * from './lib/query-params';
 export * from './lib/query';
 export * from './lib/source-from-event';
 export * from './lib/signal-source';

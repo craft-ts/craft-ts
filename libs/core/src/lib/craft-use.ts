@@ -13,7 +13,7 @@ const GUARD_AWAIT_ERROR_MESSAGE =
  * returns its result — the imperative counterpart of `yield*`.
  *
  * Its main use is consuming a craft primitive (`state`, `query`, `mutation`,
- * `asyncProcess`, `queryParam`) in a component field, where no enclosing
+ * `asyncProcess`, `queryParams`) in a component field, where no enclosing
  * generator exists:
  *
  * ```ts

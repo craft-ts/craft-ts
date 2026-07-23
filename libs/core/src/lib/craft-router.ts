@@ -88,17 +88,17 @@ type RegisteredRouteMetaDataForPath<Path extends string> = Extract<
   { path: Path }
 >;
 
-type QueryParamNamesFromRouteMetaData<RouteMetaData> = RouteMetaData extends {
+type QueryParamsNamesFromRouteMetaData<RouteMetaData> = RouteMetaData extends {
   queryParams: infer QueryParams extends object;
 }
   ? Extract<keyof QueryParams, string>
   : never;
 
-type QueryParamNamesForPath<Path extends string> =
-  QueryParamNamesFromRouteMetaData<RegisteredRouteMetaDataForPath<Path>>;
+type QueryParamsNamesForPath<Path extends string> =
+  QueryParamsNamesFromRouteMetaData<RegisteredRouteMetaDataForPath<Path>>;
 
-type RouteQueryParamMap<Path extends string> = Simplify<{
-  [Key in QueryParamNamesForPath<Path>]?: string;
+type RouteQueryParamsMap<Path extends string> = Simplify<{
+  [Key in QueryParamsNamesForPath<Path>]?: string;
 }>;
 
 type RouteParamsField<Path extends string> = [PathParamNames<Path>] extends [
@@ -108,10 +108,10 @@ type RouteParamsField<Path extends string> = [PathParamNames<Path>] extends [
   : { params: RouteParamMap<Path> };
 
 type RouteQueryParamsField<Path extends string> = [
-  QueryParamNamesForPath<Path>,
+  QueryParamsNamesForPath<Path>,
 ] extends [never]
   ? { queryParams?: never }
-  : { queryParams?: RouteQueryParamMap<Path> };
+  : { queryParams?: RouteQueryParamsMap<Path> };
 
 // Unwraps the `viewTransitionPayload<T>()` marker the slim registry stores for a
 // view-transition route into the declared `T | null` (the `null` = the nav's

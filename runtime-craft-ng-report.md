@@ -22,10 +22,10 @@ Résultat:
 J'ai listé les entrées actives pour ce `clientId`.
 
 Entrées repérées:
-- `queryParam <= route:list-with-pagination#2 > component:ListWithPagination#3`
-- `method:nextPage <= route:list-with-pagination#2 > component:ListWithPagination#3 > queryParam`
-- `method:previousPage <= route:list-with-pagination#2 > component:ListWithPagination#3 > queryParam`
-- `method:updatePageSize <= route:list-with-pagination#2 > component:ListWithPagination#3 > queryParam`
+- `queryParams <= route:list-with-pagination#2 > component:ListWithPagination#3`
+- `method:nextPage <= route:list-with-pagination#2 > component:ListWithPagination#3 > queryParams`
+- `method:previousPage <= route:list-with-pagination#2 > component:ListWithPagination#3 > queryParams`
+- `method:updatePageSize <= route:list-with-pagination#2 > component:ListWithPagination#3 > queryParams`
 - `query <= route:list-with-pagination#2 > component:ListWithPagination#3`
 
 L'entrée intéressante était:

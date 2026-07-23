@@ -11,7 +11,7 @@ import {
   type GetDeps,
   type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import { injectDemoQueryParamQueryParams } from '../../../app.routes';
+import { injectDemoQueryParamsQueryParams } from '../../../app.routes';
 import {
   StatusComponent,
   type GenDeps_StatusComponent,
@@ -103,7 +103,7 @@ import { injectApiService, type User } from './api.service';
 })
 export default class QpListWithPagination {
   private readonly _monitoring = componentMonitoring();
-  protected readonly pagination = injectDemoQueryParamQueryParams();
+  protected readonly pagination = injectDemoQueryParamsQueryParams();
   private readonly apiService = injectApiService();
 
   protected readonly usersQuery = craftUse(
@@ -139,8 +139,8 @@ export type GenDeps_QpListWithPagination = GetDeps<{
   propertiesDeps: {
     _monitoring: ExtractDeps<QpListWithPagination['_monitoring']>;
     pagination: {
-      DemoQueryParamQueryParams: ReturnType<
-        typeof injectDemoQueryParamQueryParams
+      DemoQueryParamsQueryParams: ReturnType<
+        typeof injectDemoQueryParamsQueryParams
       >;
     };
     apiService: {
@@ -153,8 +153,8 @@ export type GenDeps_QpListWithPagination = GetDeps<{
   };
   publicProperties: GetPublicComponentProperties<QpListWithPagination>;
   missingProvider: {
-    DemoQueryParamQueryParams: ReturnType<
-      typeof injectDemoQueryParamQueryParams
+    DemoQueryParamsQueryParams: ReturnType<
+      typeof injectDemoQueryParamsQueryParams
     >;
   };
 }>;

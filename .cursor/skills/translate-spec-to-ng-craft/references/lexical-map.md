@@ -10,7 +10,7 @@ Prefer the documented APIs first. Use the advanced exports only when the request
 ### `query`
 
 Match: `afficher`, `liste`, `tableau`, `detail`, `charger`, `recuperer`, `fetch`, `read`, `dashboard`, `feed`, `resultats`, `historique`, `stats`, `donnees serveur`, `recharger`, `rafraichir`.
-Pair with: `queryParam`, `insertReactOnMutation`, `insertPaginationPlaceholderData`, `insertLocalStoragePersister`, `craftQuery`.
+Pair with: `queryParams`, `insertReactOnMutation`, `insertPaginationPlaceholderData`, `insertLocalStoragePersister`, `craftQuery`.
 Default: Use `params` for reactive inputs, `method` for explicit trigger flows, `identifier` for pagination or parallel instances, and `preservePreviousValue` or placeholder strategies when flicker matters.
 
 ### `mutation`
@@ -31,10 +31,10 @@ Match: `etat local`, `selection`, `toggle`, `ouvert`, `ferme`, `modal`, `onglet 
 Pair with: `insertSelect`, `insertEntities`, `insertForm`, `reactiveWritableSignal`, `craftState`.
 Default: Keep the state granular. Use it for client-only state and view state that should not live in the URL.
 
-### `queryParam`
+### `queryParams`
 
 Match: `URL`, `query string`, `search params`, `filtre URL`, `pagination URL`, `tri dans l'URL`, `onglet partageable`, `deep link`, `etat partageable`, `back-forward`.
-Pair with: `query`, `craftQueryParam`, `craftQueryParams`, `craftSetAllQueriesParamsStandalone`.
+Pair with: `query`, `craftQueryParams`, `craftQueryParams`, `craftSetAllQueriesParamsStandalone`.
 Default: Split URL concerns by group when useful. Put `page`, `pageSize`, `sort`, `search`, `filters`, `tab`, and similar shareable state here.
 
 ### `source$`
@@ -66,7 +66,7 @@ Default: Choose this outside store composition when the user wants a smaller typ
 ### `craft`
 
 Match: `feature store`, `page store`, `global store`, `store reutilisable`, `compose store`, `DI`, `providedIn`, `scope`, `reusable state module`.
-Pair with: `craftState`, `craftQuery`, `craftMutations`, `craftSources`, `craftInputs`, `craftQueryParam`, `craftQueryParams`, `craftInject`, `craftComputedStates`, `craftAsyncProcesses`.
+Pair with: `craftState`, `craftQuery`, `craftMutations`, `craftSources`, `craftInputs`, `craftQueryParams`, `craftQueryParams`, `craftInject`, `craftComputedStates`, `craftAsyncProcesses`.
 Default: Use `providedIn: 'feature'` for page or route scoped logic and `providedIn: 'root'` for global shared logic.
 
 ### `craftState`
@@ -78,7 +78,7 @@ Default: Use when the state belongs inside a `craft` store and should be exposed
 ### `craftQuery`
 
 Match: `requete dans le store`, `server state in store`, `cached resource in feature store`, `page query`.
-Pair with: `query`, `craftInputs`, `craftInject`, `craftQueryParam`, `insertReactOnMutation`.
+Pair with: `query`, `craftInputs`, `craftInject`, `craftQueryParams`, `insertReactOnMutation`.
 Default: Use when a `query` belongs inside a composed store boundary.
 
 ### `craftMutations`
@@ -103,19 +103,19 @@ Default: Use this to define event channels inside a store and to auto-generate `
 
 Match: `parent provides id`, `route provides id`, `component input`, `external signal`, `context value`, `page receives userId`.
 Pair with: `craftQuery`, `craftState`, `craftMutations`.
-Default: Use this instead of `queryParam` when the value does not belong in the URL.
+Default: Use this instead of `queryParams` when the value does not belong in the URL.
 
-### `craftQueryParam`
+### `craftQueryParams`
 
 Match: `one query param group in store`, `pagination in store`, `filters in store`, `search params in store`.
-Pair with: `queryParam`, `craftQuery`, `craftSetAllQueriesParamsStandalone`.
-Default: Use when one named query-param group should live inside a `craft` store.
+Pair with: `queryParams`, `craftQuery`, `craftSetAllQueriesParamsStandalone`.
+Default: Use when one named query-params group should live inside a `craft` store.
 
 ### `craftQueryParams`
 
 Match: `several URL state groups`, `pagination + filters + active tab`, `multiple query param groups`.
-Pair with: `queryParam`, `craftSetAllQueriesParamsStandalone`.
-Default: Use when the store needs several named query-param groups.
+Pair with: `queryParams`, `craftSetAllQueriesParamsStandalone`.
+Default: Use when the store needs several named query-params groups.
 
 ### `craftComputedStates`
 
@@ -132,8 +132,8 @@ Default: Use inside `craft` when store factories need Angular services or tokens
 ### `craftSetAllQueriesParamsStandalone`
 
 Match: `generate URL`, `router navigate queryParams`, `shareable link`, `build full query string outside injection context`.
-Pair with: `craftQueryParam`, `craftQueryParams`.
-Default: Use when the spec mentions programmatic navigation or link generation from the current query-param model.
+Pair with: `craftQueryParams`, `craftQueryParams`.
+Default: Use when the spec mentions programmatic navigation or link generation from the current query-params model.
 
 ## Insertions
 
@@ -163,7 +163,7 @@ Default: Put this on the `query`, not on the mutation. Use `optimisticPatch` for
 ### `insertPaginationPlaceholderData`
 
 Match: `pagination without flicker`, `keep previous page visible`, `placeholder data`, `smooth page transition`.
-Pair with: `query`, `queryParam`.
+Pair with: `query`, `queryParams`.
 Default: Prefer this when pagination is user-visible and loading empty states would degrade the UX.
 
 ### `insertLocalStoragePersister`
@@ -175,7 +175,7 @@ Default: This is the public insertion name even if some docs page titles still s
 ### `insertEntities`
 
 Match: `entity collection`, `array of entities`, `manage list items by id`, `adapter-like methods`, `bulk array operations`, `collection helper methods`.
-Pair with: `state`, `query`, `queryParam`, entity helpers such as `removeOne`, `updateMany`, and `upsertOne`.
+Pair with: `state`, `query`, `queryParams`, entity helpers such as `removeOne`, `updateMany`, and `upsertOne`.
 Default: Use this when the spec repeatedly talks about item-level collection operations and the collection should expose reusable typed methods.
 
 ### `insertSelect`

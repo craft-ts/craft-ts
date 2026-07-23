@@ -10,7 +10,7 @@ import {
   provideHostName,
   craftPipe,
   query,
-  queryParam,
+  queryParams,
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
@@ -25,7 +25,7 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
   { name: 'UserList', scope: 'toProvide' },
   () => {
     const pagination = craftUse(
-      queryParam(
+      queryParams(
         {
           state: {
             page: {

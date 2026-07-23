@@ -13,7 +13,7 @@ Use this file to confirm the exact exported symbol names before recommending an 
 - `apps/docs/primitives/query.md`
 - `apps/docs/primitives/mutation.md`
 - `apps/docs/primitives/async-process.md`
-- `apps/docs/primitives/query-param.md`
+- `apps/docs/primitives/query-params.md`
 - `apps/docs/insertions/craft-pipe.md`
 - `apps/docs/insertions/insert-react-on-mutation.md`
 - `apps/docs/insertions/insert-pagination-placeholder-data.md`
@@ -40,7 +40,7 @@ Use this file to confirm the exact exported symbol names before recommending an 
 
 Use this example for:
 
-- `queryParam` pagination state
+- `queryParams` pagination state
 - paged `query`
 - `insertPaginationPlaceholderData`
 - `insertLocalStoragePersister`
@@ -52,7 +52,7 @@ Use this example for:
 Use this example for:
 
 - `craft`
-- `craftQueryParam`
+- `craftQueryParams`
 - `craftQuery`
 - `craftMutations`
 - `craftAsyncProcesses`

@@ -10,7 +10,7 @@ export type PrimitiveMethodRuntimeKind =
   | 'query'
   | 'asyncProcess'
   | 'mutation'
-  | 'queryParam';
+  | 'queryParams';
 
 export type PrimitiveMethodRuntimeContext<
   Kind extends PrimitiveMethodRuntimeKind = PrimitiveMethodRuntimeKind,
@@ -28,8 +28,8 @@ export type AsyncProcessMethodRuntimeContext =
   PrimitiveMethodRuntimeContext<'asyncProcess'>;
 export type MutationMethodRuntimeContext =
   PrimitiveMethodRuntimeContext<'mutation'>;
-export type QueryParamMethodRuntimeContext =
-  PrimitiveMethodRuntimeContext<'queryParam'>;
+export type QueryParamsMethodRuntimeContext =
+  PrimitiveMethodRuntimeContext<'queryParams'>;
 
 type PrimitiveInsertionContext = Readonly<{
   state: Signal<unknown>;
@@ -69,10 +69,10 @@ export function injectMutationMethodRuntimeContext():
   return injectRuntimeContextFor('mutation');
 }
 
-export function injectQueryParamMethodRuntimeContext():
-  | QueryParamMethodRuntimeContext
+export function injectQueryParamsMethodRuntimeContext():
+  | QueryParamsMethodRuntimeContext
   | undefined {
-  return injectRuntimeContextFor('queryParam');
+  return injectRuntimeContextFor('queryParams');
 }
 
 export function ɵprovidePrimitiveMethodRuntimeContext(

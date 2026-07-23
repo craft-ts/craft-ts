@@ -89,7 +89,7 @@ particular, complete the following work before considering the migration done:
 
 - Rewrite Angular Signal Forms as `state(..., insertForm(...))`.
 - Consume every primitive invocation (`state`, `query`, `mutation`,
-  `asyncProcess`, `queryParam`): `yield*` inside a generator factory,
+  `asyncProcess`, `queryParams`): `yield*` inside a generator factory,
   `craftUse(...)` in a component field. The
   `craft-ng/require-primitive-generator-unwrap` ESLint rule reports and
   autofixes the remaining bare calls, and

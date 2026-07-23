@@ -599,7 +599,7 @@ function getImperativeWorkflowComment(
 function isPrimitiveCreation(initializer: Node): boolean {
   return (
     Node.isCallExpression(initializer) &&
-    ['query', 'mutation', 'asyncProcess', 'state', 'queryParam'].includes(
+    ['query', 'mutation', 'asyncProcess', 'state', 'queryParams'].includes(
       initializer.getExpression().getText(),
     )
   );

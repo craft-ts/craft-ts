@@ -24,7 +24,7 @@ import {
   on$,
   provideHostName,
   query,
-  queryParam,
+  queryParams,
   reactiveWritableSignal,
   removeMany,
   removeOne,
@@ -354,7 +354,7 @@ export default class FullDemo {
   );
 
   protected readonly pagination = craftUse(
-    queryParam(
+    queryParams(
       {
         state: {
           page: {

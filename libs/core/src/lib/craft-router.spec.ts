@@ -21,7 +21,7 @@ import {
 } from './craft-router';
 import { craftRoutes } from './craft-routes';
 import type { GetToYieldServiceDependencies } from './craft-service';
-import { queryParam } from './query-param';
+import { queryParams } from './query-params';
 import { viewTransitionPayload } from './craft-view-transition';
 
 @Component({
@@ -52,11 +52,11 @@ const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
     componentDeps: {},
   },
   {
-    path: 'query-param',
+    path: 'query-params',
     component: BlankComponent,
     componentDeps: {},
     queryParams: () =>
-      queryParam({
+      queryParams({
         state: {
           page: {
             fallbackValue: 1,
@@ -169,7 +169,7 @@ describe('CraftRouter', () => {
           params: { userId: '1' },
         });
         router.navigate({
-          to: 'query-param',
+          to: 'query-params',
           queryParams: {
             page: '2',
           },
@@ -199,7 +199,7 @@ describe('CraftRouter', () => {
         });
 
         router.navigateByUrl({
-          to: 'query-param',
+          to: 'query-params',
           queryParams: {
             // @ts-expect-error query params must be strings
             page: 2,
@@ -207,7 +207,7 @@ describe('CraftRouter', () => {
         });
 
         router.navigateByUrl({
-          to: 'query-param',
+          to: 'query-params',
           queryParams: {
             page: '2',
             // @ts-expect-error unknown query params are rejected
@@ -253,7 +253,7 @@ describe('CraftRouter', () => {
     expect(angularRouter.serializeUrl(userTree)).toBe('/users/42');
 
     const queryTree = craftRouter.createUrlTree({
-      to: 'query-param',
+      to: 'query-params',
       queryParams: {
         page: '2',
         pageSize: '20',
@@ -262,7 +262,7 @@ describe('CraftRouter', () => {
     });
 
     expect(angularRouter.serializeUrl(queryTree)).toBe(
-      '/query-param?page=2&pageSize=20#top',
+      '/query-params?page=2&pageSize=20#top',
     );
 
     await craftRouter.navigateByUrl({
@@ -273,12 +273,12 @@ describe('CraftRouter', () => {
     expect(angularRouter.url).toBe('/users/42');
 
     await craftRouter.navigate({
-      to: 'query-param',
+      to: 'query-params',
       queryParams: {
         page: '3',
       },
     });
-    expect(angularRouter.url).toBe('/query-param?page=3');
+    expect(angularRouter.url).toBe('/query-params?page=3');
   });
 
   it('should render CraftRouterLink href and keep routerLinkActive compatible', async () => {

@@ -14,7 +14,7 @@ import {
   on$,
   provideHostName,
   query,
-  queryParam,
+  queryParams,
   reactiveWritableSignal,
   removeMany,
   removeOne,
@@ -40,7 +40,7 @@ const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
     const reset$ = source$<void>('reset$');
 
     const pagination = craftUse(
-      queryParam(
+      queryParams(
         {
           state: {
             page: {

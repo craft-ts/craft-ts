@@ -12,7 +12,7 @@ import {
 
 /**
  * Migrates call-sites of the generator-returning craft primitives (`state`,
- * `query`, `mutation`, `asyncProcess`, `queryParam`):
+ * `query`, `mutation`, `asyncProcess`, `queryParams`):
  *
  * 1. `yield* track(X)` → `yield* X` (track import purged when unused).
  * 2. Already-consumed invocations (`yield*`, `craftUse(...)`) are left alone.
@@ -31,7 +31,7 @@ export const ALL_PRIMITIVES = [
   'query',
   'mutation',
   'asyncProcess',
-  'queryParam',
+  'queryParams',
 ] as const;
 
 export type PrimitiveName = (typeof ALL_PRIMITIVES)[number];

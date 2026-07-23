@@ -28,7 +28,7 @@ type MergedIns<Ctx extends { insertions?: any }, I> = NormalizeIns<
 
 /**
  * Composes several insertions into a single one, for ANY primitive
- * (`query`, `mutation`, `asyncProcess`, `state`, `queryParam`) and for the
+ * (`query`, `mutation`, `asyncProcess`, `state`, `queryParams`) and for the
  * nested insertions of `insertSelect`.
  *
  * ```typescript

@@ -51,7 +51,7 @@ import {
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 
-export interface QueryParamNavigationOptions {
+export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
   onSameUrlNavigation?: 'reload' | 'ignore';
   replaceUrl?: boolean;
@@ -76,7 +76,7 @@ type ExtractFactoryYielded<Factory> = Factory extends (
   ? Yielded
   : never;
 
-type QueryParamConfigYielded<Config> = Config extends {
+type QueryParamsSingleConfigYielded<Config> = Config extends {
   parse: infer Parse;
   serialize: infer Serialize;
 }
@@ -84,34 +84,34 @@ type QueryParamConfigYielded<Config> = Config extends {
   : never;
 
 type QueryParamsConfigYielded<QueryParamsType> = {
-  [K in keyof QueryParamsType]: QueryParamConfigYielded<QueryParamsType[K]>;
+  [K in keyof QueryParamsType]: QueryParamsSingleConfigYielded<QueryParamsType[K]>;
 }[keyof QueryParamsType];
 
-type RouterQueryParamYield = ServiceYieldRequest<
+type RouterQueryParamsYield = ServiceYieldRequest<
   'global',
   Router,
   ServiceTrackingMetadata<'Router', 'global', Router, never, undefined, never, false>
 >;
 
-type QueryParamTrackedDependencies<
+type QueryParamsTrackedDependencies<
   QueryParamsType,
   InsertionsYielded = never,
 > = ServiceDependencyMapFromYielded<
-  RouterQueryParamYield | QueryParamsConfigYielded<QueryParamsType> | InsertionsYielded
+  RouterQueryParamsYield | QueryParamsConfigYielded<QueryParamsType> | InsertionsYielded
 >;
 
-type AnyQueryParamConfig = QueryParamConfig<any>;
+type AnyQueryParamsConfig = QueryParamsConfig<any>;
 
-export type QueryParamsToState<QueryParamConfigs> = {
-  [K in keyof QueryParamConfigs]: 'parse' extends keyof QueryParamConfigs[K]
-    ? QueryParamConfigs[K]['parse'] extends (...args: any[]) => unknown
-      ? StripCraftException<ResolveFactoryResult<QueryParamConfigs[K]['parse']>>
+export type QueryParamsToState<QueryParamsConfigs> = {
+  [K in keyof QueryParamsConfigs]: 'parse' extends keyof QueryParamsConfigs[K]
+    ? QueryParamsConfigs[K]['parse'] extends (...args: any[]) => unknown
+      ? StripCraftException<ResolveFactoryResult<QueryParamsConfigs[K]['parse']>>
       : 'Error1: QueryParamsToState'
     : 'Error2: QueryParamsToState';
 };
 
-type QueryParamParseExceptionsByKey<QueryParamsType> =
-  QueryParamsType extends Record<string, AnyQueryParamConfig>
+type QueryParamsParseExceptionsByKey<QueryParamsType> =
+  QueryParamsType extends Record<string, AnyQueryParamsConfig>
     ? {
         [K in keyof QueryParamsType]: InsertMetaInCraftExceptionIfExists<
           ExtractCraftException<ResolveFactoryResult<QueryParamsType[K]['parse']>>,
@@ -121,19 +121,19 @@ type QueryParamParseExceptionsByKey<QueryParamsType> =
       }
     : Record<string, never>;
 
-type QueryParamParseExceptionUnion<QueryParamsType> =
-  QueryParamParseExceptionsByKey<QueryParamsType>[keyof QueryParamParseExceptionsByKey<QueryParamsType>];
+type QueryParamsParseExceptionUnion<QueryParamsType> =
+  QueryParamsParseExceptionsByKey<QueryParamsType>[keyof QueryParamsParseExceptionsByKey<QueryParamsType>];
 
-export type QueryParamExceptions<QueryParamsType> = {
-  list: QueryParamParseExceptionUnion<QueryParamsType>[];
-  parse: Partial<QueryParamParseExceptionsByKey<QueryParamsType>>;
+export type QueryParamsExceptions<QueryParamsType> = {
+  list: QueryParamsParseExceptionUnion<QueryParamsType>[];
+  parse: Partial<QueryParamsParseExceptionsByKey<QueryParamsType>>;
 };
 
-export type QueryParamOutput<
+export type QueryParamsOutput<
   QueryParamsType,
   Insertions,
   QueryParamsState,
-  Dependencies = QueryParamTrackedDependencies<QueryParamsType>,
+  Dependencies = QueryParamsTrackedDependencies<QueryParamsType>,
 > =
   Signal<QueryParamsState> &
     MergeObjects<
@@ -144,7 +144,7 @@ export type QueryParamOutput<
         IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
         {
           hasException: Signal<boolean>;
-          exceptions: Signal<QueryParamExceptions<QueryParamsType>>;
+          exceptions: Signal<QueryParamsExceptions<QueryParamsType>>;
         },
         {
           _config: QueryParamsType;
@@ -153,7 +153,7 @@ export type QueryParamOutput<
       ]
     >;
 
-function enrichQueryParamParseException(
+function enrichQueryParamsParseException(
   exception: AnyCraftException,
   key: string,
 ): AnyCraftException {
@@ -166,11 +166,11 @@ function enrichQueryParamParseException(
 }
 
 const QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE =
-  'queryParam generators can only yield craftService dependencies or exposed dependency helpers.';
+  'queryParams generators can only yield craftService dependencies or exposed dependency helpers.';
 const QUERY_PARAM_APP_START_ERROR_MESSAGE =
-  'queryParam generators do not support onAppStart(...).';
+  'queryParams generators do not support onAppStart(...).';
 
-function executeQueryParamFactory<This, Args extends unknown[], Result>(
+function executeQueryParamsFactory<This, Args extends unknown[], Result>(
   injector: Injector,
   factory: (this: This, ...args: Args) => Result,
   thisArg: This,
@@ -194,18 +194,18 @@ function executeQueryParamFactory<This, Args extends unknown[], Result>(
   });
 }
 
-export type QueryParamParser<T = unknown> = (
+export type QueryParamsParser<T = unknown> = (
   value: string,
 ) => T | Generator<unknown, T, unknown>;
 
-export type QueryParamSerializer<T = unknown> = (
+export type QueryParamsSerializer<T = unknown> = (
   value: NoInfer<T>,
 ) => string | Generator<unknown, string, unknown>;
 
-export interface QueryParamConfig<
+export interface QueryParamsConfig<
   T = unknown,
-  Parse extends QueryParamParser<T> = QueryParamParser<T>,
-  Serialize extends QueryParamSerializer<T> = QueryParamSerializer<T>,
+  Parse extends QueryParamsParser<T> = QueryParamsParser<T>,
+  Serialize extends QueryParamsSerializer<T> = QueryParamsSerializer<T>,
 > {
   parse: Parse;
   fallbackValue: NoInfer<T>;
@@ -234,18 +234,18 @@ export interface QueryParamConfig<
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query param manager.
  *   The insertion receives a context with `state`, `config`, `set`, `update`, `patch` and `reset`.
  *   To attach several insertions, compose them with `craftPipe`:
- *   `queryParam(config, (context) => craftPipe(context, insertion1, insertion2))` —
+ *   `queryParams(config, (context) => craftPipe(context, insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
  * @returns A signal that returns the current query parameter state, extended with:
- *   - Individual signals for each query parameter (e.g., `queryParam.page()`)
+ *   - Individual signals for each query parameter (e.g., `queryParams.page()`)
  *   - Custom methods from insertions (excluding methods bound to sources)
  *   - `_config`: The original configuration
  *
  * @example
  * Basic usage
  * ```ts
- * const myQueryParams = craftUse(queryParam(
+ * const myQueryParams = craftUse(queryParams(
  *   {
  *     state: {
  *       page: {
@@ -277,7 +277,7 @@ export interface QueryParamConfig<
  * @example
  * With custom methods via insertions
  * ```ts
- * const myQueryParams = craftUse(queryParam(
+ * const myQueryParams = craftUse(queryParams(
  *   {
  *     state: {
  *       page: { fallbackValue: 1, parse: parseInt, serialize: String },
@@ -296,9 +296,9 @@ export interface QueryParamConfig<
  * @example
  * Parse exceptions with `craftException`
  * ```ts
- * import { craftException, queryParam } from '@craft-ng/core';
+ * import { craftException, queryParams } from '@craft-ng/core';
  *
- * const mode = craftUse(queryParam({
+ * const mode = craftUse(queryParams({
  *   state: {
  *     mode: {
  *       fallbackValue: 'success' as const,
@@ -319,19 +319,19 @@ export interface QueryParamConfig<
  * console.log(mode.exceptions().parse.mode?.INVALID_MODE_FROM_URL);
  * ```
  */
-export function queryParam<
-  QueryParamsType extends Record<string, AnyQueryParamConfig>,
+export function queryParams<
+  QueryParamsType extends Record<string, AnyQueryParamsConfig>,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
-  config: { state: QueryParamsType } & QueryParamNavigationOptions,
-): CraftPrimitiveGen<QueryParamOutput<QueryParamsType, {}, QueryParamsState>>;
-export function queryParam<
-  QueryParamsType extends Record<string, AnyQueryParamConfig>,
+  config: { state: QueryParamsType } & QueryParamsNavigationOptions,
+): CraftPrimitiveGen<QueryParamsOutput<QueryParamsType, {}, QueryParamsState>>;
+export function queryParams<
+  QueryParamsType extends Record<string, AnyQueryParamsConfig>,
   Insertion1,
   Insertion1Yielded = never,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
-  config: { state: QueryParamsType } & QueryParamNavigationOptions,
+  config: { state: QueryParamsType } & QueryParamsNavigationOptions,
   insertion1: InsertionsQueryParamsFactory<
     NoInfer<QueryParamsType>,
     Insertion1,
@@ -339,31 +339,31 @@ export function queryParam<
     Insertion1Yielded
   >,
 ): CraftPrimitiveGen<
-  QueryParamOutput<
+  QueryParamsOutput<
     QueryParamsType,
     Insertion1,
     QueryParamsState,
-    QueryParamTrackedDependencies<QueryParamsType, Insertion1Yielded>
+    QueryParamsTrackedDependencies<QueryParamsType, Insertion1Yielded>
   >
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function queryParam(config: any, ...insertions: any[]): any {
-  return createPrimitiveGen(createQueryParamRef(config, ...insertions));
+export function queryParams(config: any, ...insertions: any[]): any {
+  return createPrimitiveGen(createQueryParamsRef(config, ...insertions));
 }
 
 /**
  *
  * If it is not called in an injection context, it returns the config under _config.
  */
-function createQueryParamRef<
-  QueryParamsType extends Record<string, AnyQueryParamConfig>,
+function createQueryParamsRef<
+  QueryParamsType extends Record<string, AnyQueryParamsConfig>,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
-  config: { state: QueryParamsType } & QueryParamNavigationOptions,
+  config: { state: QueryParamsType } & QueryParamsNavigationOptions,
   ...insertions: any[]
-): QueryParamOutput<QueryParamsType, {}, QueryParamsState> {
+): QueryParamsOutput<QueryParamsType, {}, QueryParamsState> {
   try {
-    assertInInjectionContext(queryParam);
+    assertInInjectionContext(queryParams);
   } catch (e) {
     return {
       _config: config,
@@ -371,7 +371,7 @@ function createQueryParamRef<
   }
 
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
-  const injector = ɵcreateHostTaggedInjector(inject(Injector), 'queryParam', [
+  const injector = ɵcreateHostTaggedInjector(inject(Injector), 'queryParams', [
     { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
   ]);
   const router = inject(Router);
@@ -380,7 +380,7 @@ function createQueryParamRef<
   const { state: queryParamsConfig, ...options } = config;
 
   // Create signals for each query parameter
-  const queryParamFromUrl = linkedSignal(() => {
+  const queryParamsFromUrl = linkedSignal(() => {
     return (
       router.currentNavigation()?.extractedUrl.queryParams ??
       activatedRoute.snapshot.queryParams
@@ -391,13 +391,13 @@ function createQueryParamRef<
   const queryParamsState = linkedSignal(() =>
     Object.entries(queryParamsConfig).reduce(
       (acc, [key, config]) => {
-        const rawValue = queryParamFromUrl()?.[key];
+        const rawValue = queryParamsFromUrl()?.[key];
         if (rawValue === undefined || rawValue === null) {
           acc[key] = config.fallbackValue;
           return acc;
         }
         try {
-          const parsedValue = executeQueryParamFactory(
+          const parsedValue = executeQueryParamsFactory(
             injector,
             config.parse,
             config,
@@ -421,25 +421,25 @@ function createQueryParamRef<
   const parseExceptions = computed(() =>
     Object.entries(queryParamsConfig).reduce(
       (acc, [key, config]) => {
-        const rawValue = queryParamFromUrl()?.[key];
+        const rawValue = queryParamsFromUrl()?.[key];
         if (rawValue === undefined || rawValue === null) {
           return acc;
         }
 
         try {
-          const parsedValue = executeQueryParamFactory(
+          const parsedValue = executeQueryParamsFactory(
             injector,
             config.parse,
             config,
             rawValue,
           );
           if (isCraftException(parsedValue)) {
-            acc[key] = enrichQueryParamParseException(parsedValue, key);
+            acc[key] = enrichQueryParamsParseException(parsedValue, key);
           }
           return acc;
         } catch (error) {
           if (isCraftException(error)) {
-            acc[key] = enrichQueryParamParseException(error, key);
+            acc[key] = enrichQueryParamsParseException(error, key);
           }
           return acc;
         }
@@ -454,7 +454,7 @@ function createQueryParamRef<
       list: Object.values(parse),
       parse,
     };
-  }) as Signal<QueryParamExceptions<QueryParamsType>>;
+  }) as Signal<QueryParamsExceptions<QueryParamsType>>;
 
   const hasException = computed(() => exceptions().list.length > 0);
 
@@ -474,7 +474,7 @@ function createQueryParamRef<
   // Navigation helper
   const navigate = (
     newState: QueryParamsToState<QueryParamsType>,
-    navOptions?: QueryParamNavigationOptions,
+    navOptions?: QueryParamsNavigationOptions,
   ) => {
     // Update the local state first using the original set method
     originalSet(newState);
@@ -487,7 +487,7 @@ function createQueryParamRef<
         const currentValue = newState[key];
         // Skip if value equals fallback value
         if (currentValue !== config.fallbackValue) {
-          acc[key] = executeQueryParamFactory(
+          acc[key] = executeQueryParamsFactory(
             injector,
             config.serialize,
             config,
@@ -525,7 +525,7 @@ function createQueryParamRef<
   const methods = {
     set: (
       params: QueryParamsToState<QueryParamsType>,
-      navOptions?: QueryParamNavigationOptions,
+      navOptions?: QueryParamsNavigationOptions,
     ) => {
       navigate(params, navOptions);
       return params;
@@ -534,7 +534,7 @@ function createQueryParamRef<
       updateFn: (
         currentParams: QueryParamsToState<QueryParamsType>,
       ) => QueryParamsToState<QueryParamsType>,
-      navOptions?: QueryParamNavigationOptions,
+      navOptions?: QueryParamsNavigationOptions,
     ) => {
       const newState = updateFn(queryParamsState());
       navigate(newState, navOptions);
@@ -546,7 +546,7 @@ function createQueryParamRef<
         | ((
             currentParams: QueryParamsToState<QueryParamsType>,
           ) => Partial<QueryParamsToState<QueryParamsType>>),
-      navOptions?: QueryParamNavigationOptions,
+      navOptions?: QueryParamsNavigationOptions,
     ) => {
       const params =
         typeof paramsOrPatchFn === 'function'
@@ -556,7 +556,7 @@ function createQueryParamRef<
       navigate(newState, navOptions);
       return newState;
     },
-    reset: (navOptions?: QueryParamNavigationOptions) => {
+    reset: (navOptions?: QueryParamsNavigationOptions) => {
       const defaultState = getDefaultState();
       navigate(defaultState, navOptions);
     },
@@ -564,7 +564,7 @@ function createQueryParamRef<
 
   runInInjectionContext(injector, () =>
     ɵobservePrimitiveResourceRuntimeContext(
-      ɵcreatePrimitiveResourceRuntimeContext('queryParam', {
+      ɵcreatePrimitiveResourceRuntimeContext('queryParams', {
         state: queryParamsState.asReadonly(),
         set: (value) =>
           methods.set(value as QueryParamsToState<QueryParamsType>),
@@ -581,7 +581,7 @@ function createQueryParamRef<
   const insertionResults =
     (insertions as InsertionsQueryParamsFactory<QueryParamsType, {}>[])?.reduce(
       (acc, insert) => {
-        const newInsertions = executeQueryParamFactory(
+        const newInsertions = executeQueryParamsFactory(
           injector,
           insert,
           undefined,
@@ -605,7 +605,7 @@ function createQueryParamRef<
               `method:${key}`,
               [
                 ɵprovidePrimitiveMethodRuntimeContext(
-                  'queryParam',
+                  'queryParams',
                   {
                     state: queryParamsState.asReadonly(),
                     set: (next) =>
@@ -663,12 +663,12 @@ function createQueryParamRef<
       {} as Record<string, unknown>,
     ) || {};
 
-  const queryParamOutput = Object.assign(
+  const queryParamsOutput = Object.assign(
     queryParamsState.asReadonly(),
     props,
     insertionResults,
     { hasException, exceptions, _config: config },
-  ) as unknown as QueryParamOutput<QueryParamsType, {}, QueryParamsState>;
+  ) as unknown as QueryParamsOutput<QueryParamsType, {}, QueryParamsState>;
 
   const snapshotRegistry = injector.get(APP_SNAPSHOT_REGISTRY, null);
   const hostTagList: readonly string[] =
@@ -691,12 +691,12 @@ function createQueryParamRef<
           stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
         }
         snapshotRegistry.allSnapShot$.next({
-          source: 'queryParam',
+          source: 'queryParams',
           from: hostTagList,
           state: stateSnapshot,
         });
       });
   }
 
-  return queryParamOutput;
+  return queryParamsOutput;
 }

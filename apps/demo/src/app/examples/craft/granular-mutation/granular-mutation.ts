@@ -12,7 +12,7 @@ import {
   mutation,
   provideHostName,
   query,
-  queryParam,
+  queryParams,
   type ExtractDeps,
   type GetDeps,
   type GetPublicComponentProperties,
@@ -29,7 +29,7 @@ const {
   GranularMutationToYield,
 } = craftService({ name: 'GranularMutation', scope: 'toProvide' }, () => {
   const pagination = craftUse(
-    queryParam(
+    queryParams(
       {
         state: {
           page: {

@@ -1,26 +1,26 @@
-# queryParam
+# queryParams
 
-The `queryParam` primitive creates a reactive query parameter manager that synchronizes state with URL query parameters.
+The `queryParams` primitive creates a reactive query parameter manager that synchronizes state with URL query parameters.
 
 ## Import
 
 ```typescript
-import { queryParam, craftUse } from '@craft-ng/core';
+import { queryParams, craftUse } from '@craft-ng/core';
 ```
 
 ## Consuming the primitive
 
-Calling `queryParam(...)` (like every craft primitive) returns a **generator**
+Calling `queryParams(...)` (like every craft primitive) returns a **generator**
 that carries the primitive's dependency map. Consume it where you create it:
 
 - inside a generator host (a `craftService` factory, `craftGen`, …) with
-  `yield* queryParam({...})` — the dependencies fold into the enclosing service
+  `yield* queryParams({...})` — the dependencies fold into the enclosing service
   tree automatically;
 - anywhere else (typically a component field) with
-  `craftUse(queryParam({...}))`.
+  `craftUse(queryParams({...}))`.
 
 A factory arrow that returns the primitive directly stays valid — the runtime
-drives the generator for you: `craftService({...}, () => queryParam({...}))`.
+drives the generator for you: `craftService({...}, () => queryParams({...}))`.
 The generator is single-use: consume each invocation exactly once.
 
 For brevity, the examples below focus on the configuration and omit the
@@ -31,7 +31,7 @@ For brevity, the examples below focus on the configuration and omit the
 ### Basic usage with pagination
 
 ```typescript
-const myQueryParams = queryParam(
+const myQueryParams = queryParams(
   {
     state: {
       page: {
@@ -63,7 +63,7 @@ myQueryParams.reset();
 ### With custom methods via insertions
 
 ```typescript
-const myQueryParams = queryParam(
+const myQueryParams = queryParams(
   {
     state: {
       page: { fallbackValue: 1, parse: parseInt, serialize: String },
@@ -82,9 +82,9 @@ myQueryParams.goTo(5); // Custom method from insertion
 ### Parse exceptions (`hasException` / `exceptions().parse`)
 
 ```typescript
-import { craftException, queryParam } from '@craft-ng/core';
+import { craftException, queryParams } from '@craft-ng/core';
 
-const mode = queryParam({
+const mode = queryParams({
   state: {
     mode: {
       fallbackValue: 'success' as const,
@@ -107,7 +107,7 @@ if (mode.hasException()) {
 ## With dependency injection
 
 ```typescript
-queryParam(
+queryParams(
   {
     state: {
       page: {
@@ -142,11 +142,11 @@ queryParam(
 For a full declarative route, queryParams can live inside `craftRoutes`:
 
 ```typescript
-export const { demoRoutes, injectDemoQueryParamQueryParams } = craftRoutes(
+export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
   'demo',
   [
     {
-      path: 'query-param',
+      path: 'query-params',
       componentDeps:
         {} as import('./examples/routes/list-with-pagination/qp-list-with-pagination').GenDeps_QpListWithPagination,
       loadComponent: ({ withRetry }) =>
@@ -156,7 +156,7 @@ export const { demoRoutes, injectDemoQueryParamQueryParams } = craftRoutes(
           ),
         ),
       queryParams: () =>
-        queryParam(
+        queryParams(
           {
             state: {
               page: {
@@ -185,7 +185,7 @@ export const { demoRoutes, injectDemoQueryParamQueryParams } = craftRoutes(
 
 Demo source:
 
-- [exception-query-param.ts](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-param.ts)
+- [exception-query-params.ts](https://github.com/ng-angular-stack/ng-craft/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts)
 
 ## Important Notes
 
@@ -198,7 +198,7 @@ Demo source:
 ### Search filters
 
 ```typescript
-const filters = queryParam({
+const filters = queryParams({
   state: {
     q: { fallbackValue: '', parse: String, serialize: String },
     category: { fallbackValue: 'all', parse: String, serialize: String },
@@ -210,7 +210,7 @@ const filters = queryParam({
 ### Array parameters
 
 ```typescript
-const filters = queryParam({
+const filters = queryParams({
   state: {
     tags: {
       fallbackValue: [],
@@ -224,7 +224,7 @@ const filters = queryParam({
 ### Boolean parameters
 
 ```typescript
-const options = queryParam({
+const options = queryParams({
   state: {
     showArchived: {
       fallbackValue: false,

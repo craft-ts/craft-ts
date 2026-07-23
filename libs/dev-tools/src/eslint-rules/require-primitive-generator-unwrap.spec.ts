@@ -77,7 +77,7 @@ describe('require-primitive-generator-unwrap', () => {
   it('does not report a direct factory return or a queryParams concise body', async () => {
     const { messages } = await lintFixture({
       'src/app/routes.ts': `
-        import { craftService, query, queryParam } from '@craft-ng/core';
+        import { craftService, query, queryParams } from '@craft-ng/core';
 
         export const slow = craftService({ name: 'Slow', scope: 'global' }, () =>
           query({ params: () => true, loader: () => Promise.resolve(1) }),
@@ -86,7 +86,7 @@ describe('require-primitive-generator-unwrap', () => {
         export const routes = [
           {
             path: 'list',
-            queryParams: () => queryParam({ state: {} }),
+            queryParams: () => queryParams({ state: {} }),
           },
         ];
       `,

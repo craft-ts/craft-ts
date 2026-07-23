@@ -2,7 +2,7 @@
 
 Every primitive accepts **a single insertion**. To attach several insertions,
 compose them with `craftPipe` — one universal utility for every primitive
-(`query`, `mutation`, `asyncProcess`, `state`, `queryParam`) and for the
+(`query`, `mutation`, `asyncProcess`, `state`, `queryParams`) and for the
 nested insertions of `insertSelect`.
 
 The primitive's context is passed **explicitly**: the insertion is a lambda
@@ -44,7 +44,7 @@ const users = query(
 ```
 
 The same `craftPipe` works with `state`, `mutation`, `asyncProcess` and
-`queryParam`:
+`queryParams`:
 
 ```typescript
 const counter = state(

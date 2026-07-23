@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The development-only override path changes the runtime behavior of an insertion method returned by `state`, `insertSelect`, `query`, `asyncProcess`, `mutation`, or `queryParam`. It does not edit TypeScript, replace the callback reference, or reload the browser. The existing wrapper checks the override table on every invocation.
+The development-only override path changes the runtime behavior of an insertion method returned by `state`, `insertSelect`, `query`, `asyncProcess`, `mutation`, or `queryParams`. It does not edit TypeScript, replace the callback reference, or reload the browser. The existing wrapper checks the override table on every invocation.
 
 ## Call path
 
@@ -35,7 +35,7 @@ Overrides remain in their independent map when an Angular component is destroyed
 
 ## Method runtime context
 
-The common public context type is defined in `libs/core/src/lib/primitive-method-runtime-context.ts` and injected into each generated insertion-method scope. `state` keeps its compatibility API in `state-method-runtime-context.ts`. Root `state` methods operate on the root state. Methods from `insertSelect` receive the selected item or selected property context. `query`, `asyncProcess`, and `mutation` insertion methods receive a same-named context operating on that primitive state. `queryParam` insertion methods receive a `queryParam` context operating on the current query-param state and URL synchronization methods.
+The common public context type is defined in `libs/core/src/lib/primitive-method-runtime-context.ts` and injected into each generated insertion-method scope. `state` keeps its compatibility API in `state-method-runtime-context.ts`. Root `state` methods operate on the root state. Methods from `insertSelect` receive the selected item or selected property context. `query`, `asyncProcess`, and `mutation` insertion methods receive a same-named context operating on that primitive state. `queryParams` insertion methods receive a `queryParams` context operating on the current query-params state and URL synchronization methods.
 
 The override receives `args` and exactly one primitive capability matching the entry kind. For a query, the effective shape is:
 
@@ -55,18 +55,18 @@ The registry compiles source with `new Function`. This is capability-limited by 
 
 ## Primitive value runtime context
 
-Root primitive values from `query`, `asyncProcess`, `mutation`, and `queryParam` are published through `libs/core/src/lib/primitive-resource-runtime-context.ts`. The demo app registers these contexts as active registry entries with the same ancestry-derived key as the root primitive, for example:
+Root primitive values from `query`, `asyncProcess`, `mutation`, and `queryParams` are published through `libs/core/src/lib/primitive-resource-runtime-context.ts`. The demo app registers these contexts as active registry entries with the same ancestry-derived key as the root primitive, for example:
 
 ```text
 query <= route:list-with-pagination#6 > component:ListWithPagination#7
-queryParam <= route:list-with-pagination#6 > component:ListWithPagination#7
+queryParams <= route:list-with-pagination#6 > component:ListWithPagination#7
 ```
 
 `registry.get` exposes this metadata under `primitive`. These entries expose direct primitive value capabilities:
 
 ```ts
 {
-  kind: 'query' | 'asyncProcess' | 'mutation' | 'queryParam';
+  kind: 'query' | 'asyncProcess' | 'mutation' | 'queryParams';
   grouped: boolean;
   ids(): readonly string[];
   get(id?: string): unknown;
@@ -76,7 +76,7 @@ queryParam <= route:list-with-pagination#6 > component:ListWithPagination#7
 }
 ```
 
-For non-identified primitives, including `queryParam`, `id` is rejected. For identified primitives, `id` targets the selected instance, equivalent to `queryRef.select(id)` / `asyncProcessRef.select(id)` / `mutationRef.select(id)`. Omitting `id` targets the whole by-id state record.
+For non-identified primitives, including `queryParams`, `id` is rejected. For identified primitives, `id` targets the selected instance, equivalent to `queryRef.select(id)` / `asyncProcessRef.select(id)` / `mutationRef.select(id)`. Omitting `id` targets the whole by-id state record.
 
 ## Transport boundaries
 
@@ -91,7 +91,7 @@ Each browser tab is a WebSocket client with a `clientId` persisted in `sessionSt
 | `registry.query.get/set/update/patch` | `registry/resource/get/set/update/patch` with `kind: "query"` | set/update/patch |
 | `registry.mutation.get/set/update/patch` | `registry/resource/get/set/update/patch` with `kind: "mutation"` | set/update/patch |
 | `registry.asyncProcess.get/set/update/patch` | `registry/resource/get/set/update/patch` with `kind: "asyncProcess"` | set/update/patch |
-| `registry.queryParam.get/set/update/patch` | `registry/resource/get/set/update/patch` with `kind: "queryParam"` | set/update/patch |
+| `registry.queryParams.get/set/update/patch` | `registry/resource/get/set/update/patch` with `kind: "queryParams"` | set/update/patch |
 | `registry.override` | `registry/override` | Yes             |
 | `registry.restore`  | `registry/restore`  | Yes             |
 | `registry.logs`     | `registry/logs`     | No              |

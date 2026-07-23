@@ -19,11 +19,11 @@ import {
   ResourceLikeMutationRef,
 } from './mutation';
 import { CraftResourceRef } from './util/craft-resource-ref';
-import { QueryParamExceptions, QueryParamsToState } from './query-param';
+import { QueryParamsExceptions, QueryParamsToState } from './query-params';
 import { Prettify } from './util/util.type';
 import { InsertMetaInCraftExceptionIfExists } from './craft-exception';
 
-export interface QueryParamNavigationOptions {
+export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
   onSameUrlNavigation?: 'reload' | 'ignore';
   replaceUrl?: boolean;
@@ -689,40 +689,40 @@ export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
       : never;
   };
 
-export type QueryParamMethods<QueryParamsState> = {
+export type QueryParamsMethods<QueryParamsState> = {
   patch: {
     (
       patchFn: (
         currentParams: QueryParamsState,
       ) => Partial<QueryParamsState>,
-      options?: QueryParamNavigationOptions,
+      options?: QueryParamsNavigationOptions,
     ): QueryParamsState;
     (
       params: Partial<QueryParamsState>,
-      options?: QueryParamNavigationOptions,
+      options?: QueryParamsNavigationOptions,
     ): QueryParamsState;
   };
-  reset: (options?: QueryParamNavigationOptions) => void;
+  reset: (options?: QueryParamsNavigationOptions) => void;
   set: (
     params: QueryParamsState,
-    options?: QueryParamNavigationOptions,
+    options?: QueryParamsNavigationOptions,
   ) => QueryParamsState;
   update: (
     updateFn: (currentParams: QueryParamsState) => QueryParamsState,
-    options?: QueryParamNavigationOptions,
+    options?: QueryParamsNavigationOptions,
   ) => QueryParamsState;
 };
 
 export type InsertionQueryParamsFactoryContext<
   QueryParamsType,
   PreviousInsertionsOutputs,
-  //! do not get the QueryParamState directly from the queryParam utility (it's broke the inference),
+  //! do not get the QueryParamsState directly from the queryParams utility (it's broke the inference),
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
-> = QueryParamMethods<QueryParamsState> & {
+> = QueryParamsMethods<QueryParamsState> & {
   state: Signal<QueryParamsState>;
   config: QueryParamsType;
   hasException: Signal<boolean>;
-  exceptions: Signal<QueryParamExceptions<QueryParamsType>>;
+  exceptions: Signal<QueryParamsExceptions<QueryParamsType>>;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? PreviousInsertionsOutputs
     : never;

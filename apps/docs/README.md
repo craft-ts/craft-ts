@@ -37,7 +37,7 @@ apps/docs/
 ├── primitives/             # Primitive APIs
 │   ├── state.md
 │   ├── async-process.md
-│   ├── query-param.md
+│   ├── query-params.md
 │   ├── query.md
 │   └── mutation.md
 ├── insertions/             # Insertion features
@@ -51,7 +51,7 @@ apps/docs/
 │   ├── craft-inputs.md
 │   ├── craft-computed.md
 │   ├── craft-async-processed.md
-│   ├── craft-query-param.md
+│   ├── craft-query-params.md
 │   ├── craft-query-params.md
 │   ├── craft-query.md
 │   ├── craft-mutation.md

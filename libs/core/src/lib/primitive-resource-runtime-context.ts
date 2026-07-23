@@ -9,7 +9,7 @@ export type PrimitiveResourceRuntimeKind =
   | 'query'
   | 'asyncProcess'
   | 'mutation'
-  | 'queryParam';
+  | 'queryParams';
 
 export type PrimitiveResourceRuntimeContext<
   Kind extends PrimitiveResourceRuntimeKind = PrimitiveResourceRuntimeKind,

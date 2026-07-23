@@ -44,7 +44,7 @@ export class CounterComponent {
 
 - `query` - For managing async data fetching
 - `mutation` - For handling async operations with state
-- `queryParam` - For syncing state with URL parameters
+- `queryParams` - For syncing state with URL parameters
 - `asyncProcess` - For managing async operations
   :::
 

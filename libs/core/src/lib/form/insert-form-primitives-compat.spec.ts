@@ -6,7 +6,7 @@ import {
 import { provideRouter } from '@angular/router';
 import { craftService } from '../craft-service';
 import { query } from '../query';
-import { queryParam } from '../query-param';
+import { queryParams } from '../query-params';
 import { state } from '../state';
 import { insertForm } from './insert-form';
 import { craftUse } from '../craft-use';
@@ -32,7 +32,7 @@ beforeAll(() => {
   }
 });
 
-describe('insertForm compatibility with queryParam', () => {
+describe('insertForm compatibility with queryParams', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     TestBed.configureTestingModule({
@@ -47,7 +47,7 @@ describe('insertForm compatibility with queryParam', () => {
   it('infers the field tree type from the query param state (not unknown)', () => {
     TestBed.runInInjectionContext(() => {
       craftUse(
-        queryParam(
+        queryParams(
           {
             state: {
               name: {
@@ -77,7 +77,7 @@ describe('insertForm compatibility with queryParam', () => {
   it('exposes a working form at runtime over the query param state', () => {
     TestBed.runInInjectionContext(() => {
       const params = craftUse(
-        queryParam(
+        queryParams(
           {
             state: {
               name: {
@@ -103,10 +103,10 @@ describe('insertForm compatibility with queryParam', () => {
     });
   });
 
-  it('runs chained insertions inside a queryParam context', () => {
+  it('runs chained insertions inside a queryParams context', () => {
     TestBed.runInInjectionContext(() => {
       const params = craftUse(
-        queryParam(
+        queryParams(
           {
             state: {
               name: {

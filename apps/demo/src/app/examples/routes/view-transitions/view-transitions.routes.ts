@@ -73,7 +73,7 @@ export const {
       loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
         withRetry(import('./photo-detail')),
       // The route DECLARES the shared-element payload shape (mirrors how
-      // `queryParams` declares query-param shape): every link/navigation must pass
+      // `queryParams` declares query-params shape): every link/navigation must pass
       // `viewTransition: { name; image } | null`, and the skeleton reads it via the
       // generated `injectViewTransitionsPhotoIdViewTransition()` helper.
       withLoaderViewTransitionImage: viewTransitionPayload<{

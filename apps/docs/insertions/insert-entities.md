@@ -1,6 +1,6 @@
 # insertEntities
 
-The `insertEntities` insertion adds entity collection management methods to state, query, or queryParam primitives. It provides a type-safe way to manipulate arrays of entities with common operations like add, remove, update, and upsert.
+The `insertEntities` insertion adds entity collection management methods to state, query, or queryParams primitives. It provides a type-safe way to manipulate arrays of entities with common operations like add, remove, update, and upsert.
 
 ## Import
 
@@ -479,12 +479,12 @@ tasks.setAll({
 });
 ```
 
-### Using with queryParam
+### Using with queryParams
 
 ```typescript
-import { queryParam, insertEntities, addOne, removeOne } from '@craft-ng/core';
+import { queryParams, insertEntities, addOne, removeOne } from '@craft-ng/core';
 
-const filters = queryParam(
+const filters = queryParams(
   {
     state: {
       selectedIds: {
@@ -500,7 +500,7 @@ const filters = queryParam(
   }),
 );
 
-// Methods update queryParam state and URL
+// Methods update queryParams state and URL
 filters.selectedIdsAddOne({ entity: 'item-1' });
 // URL: ?selectedIds=item-1
 
@@ -562,7 +562,7 @@ products.updateOne({
 
 - [state](/primitives/state) - Base primitive for state
 - [query](/primitives/query) - Query primitive for async data
-- [queryParam](/primitives/query-param) - URL state synchronization
+- [queryParams](/primitives/query-params) - URL state synchronization
 - [entities-util](/utils/entities-util) - Entity manipulation utilities
 - [insertLocalStorage](/insertions/insert-local-storage) - Persist state
 - [craftService](/store/craft-service) - Compose entity state inside reusable services

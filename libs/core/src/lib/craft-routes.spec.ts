@@ -62,7 +62,7 @@ import {
   type CraftServiceApi,
 } from './craft-service';
 import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
-import { queryParam } from './query-param';
+import { queryParams } from './query-params';
 import {
   CraftRouteInjectHelper,
   craftRoutes,
@@ -338,7 +338,7 @@ describe('craftRoutes', () => {
   it('should expose typed inject helpers for route queryParams', () => {
     const listQueryParams = () =>
       craftUse(
-        queryParam(
+        queryParams(
           {
             state: {
               page: {
@@ -390,7 +390,7 @@ describe('craftRoutes', () => {
             loadComponent: async () => null as unknown as Type<unknown>,
             componentDeps: {},
             queryParams: () =>
-              queryParam(
+              queryParams(
                 {
                   state: {
                     page: {
@@ -501,7 +501,7 @@ describe('craftRoutes', () => {
           {
             path: 'layout',
             queryParams: () =>
-              queryParam(
+              queryParams(
                 {
                   state: {
                     page: {
@@ -1929,7 +1929,7 @@ describe('craftRoutes', () => {
           };
         },
         queryParams: () =>
-          queryParam({
+          queryParams({
             state: {
               page: {
                 fallbackValue: 1,
@@ -2727,9 +2727,9 @@ describe('AppRoutes.META_DATA', () => {
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {} as QueryParamsRouteDeps,
         queryParams: function* () {
-          yield* Console.log('init list queryParam');
+          yield* Console.log('init list queryParams');
 
-          return yield* queryParam(
+          return yield* queryParams(
             {
               state: {
                 page: {
@@ -2861,7 +2861,7 @@ describe('AppRoutes.META_DATA', () => {
         queryParams: function* () {
           yield* CounterToYield();
 
-          return yield* queryParam({
+          return yield* queryParams({
             state: {
               page: {
                 fallbackValue: 1,
@@ -2914,7 +2914,7 @@ describe('AppRoutes.META_DATA', () => {
       {
         path: 'layout',
         queryParams: () =>
-          queryParam({
+          queryParams({
             state: {
               page: {
                 fallbackValue: 1,

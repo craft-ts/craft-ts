@@ -5,7 +5,7 @@ import type { SERVICE_HELPER_DEPENDENCIES } from './craft-service';
 
 /**
  * Dependency map carried by a primitive (`mutation`, `query`, `asyncProcess`,
- * `state`, `queryParam`, …) on its phantom
+ * `state`, `queryParams`, …) on its phantom
  * `[SERVICE_HELPER_DEPENDENCIES]` property.
  */
 export type HelperDependencyMap<Helper> = Helper extends {
@@ -30,7 +30,7 @@ export type ServiceTrackedDepsRequest<DepMap extends object = object> = Readonly
 
 /**
  * The generator returned by the craft primitives (`state`, `query`, `mutation`,
- * `asyncProcess`, `queryParam`). Consume it with `yield*` inside a generator
+ * `asyncProcess`, `queryParams`). Consume it with `yield*` inside a generator
  * host (a `craftService` factory, `craftGen`, …) or with `craftUse(...)` in a
  * component field:
  *

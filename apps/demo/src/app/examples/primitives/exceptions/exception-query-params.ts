@@ -6,7 +6,7 @@ import {
   componentMonitoring,
   craftException,
   provideHostName,
-  queryParam,
+  queryParams,
   toCraftService,
   type DerivedService,
   type ExtractDeps,
@@ -30,11 +30,11 @@ const { injectRouter } = toCraftService({
 });
 
 @Component({
-  selector: 'app-exception-query-param',
+  selector: 'app-exception-query-params',
   imports: [CommonModule],
   styles: [
     `
-      .query-param-demo {
+      .query-params-demo {
         margin-top: 24px;
         padding: 16px;
         border: 1px solid #e2e8f0;
@@ -68,8 +68,8 @@ const { injectRouter } = toCraftService({
     `,
   ],
   template: `
-    <section class="query-param-demo">
-      <h4>QueryParam parse exception</h4>
+    <section class="query-params-demo">
+      <h4>QueryParams parse exception</h4>
 
       <div class="actions">
         <button type="button" class="btn" (click)="navigateSuccess()">
@@ -81,10 +81,10 @@ const { injectRouter } = toCraftService({
       </div>
 
       <p class="row">
-        <strong>Parsed value:</strong> {{ modeQueryParam.mode() }}
+        <strong>Parsed value:</strong> {{ modeQueryParams.mode() }}
       </p>
 
-      @if (modeQueryParam.exceptions().parse.mode; as parseException) {
+      @if (modeQueryParams.exceptions().parse.mode; as parseException) {
         <p class="row error">
           <strong>Exception:</strong>
           {{ parseException.code }} (received:
@@ -95,17 +95,17 @@ const { injectRouter } = toCraftService({
       }
     </section>
   `,
-  providers: [provideHostName('component:ExceptionQueryParamComponent')],
+  providers: [provideHostName('component:ExceptionQueryParamsComponent')],
 })
-export default class ExceptionQueryParamComponent {
+export default class ExceptionQueryParamsComponent {
   private readonly _monitoring = componentMonitoring();
   private readonly router = injectRouter(undefined, ({ navigate }) => ({
     navigate,
   }));
   private readonly activatedRoute = injectActivatedRoute();
 
-  protected readonly modeQueryParam = craftUse(
-    queryParam({
+  protected readonly modeQueryParams = craftUse(
+    queryParams({
       state: {
         mode: {
           fallbackValue: 'fallbackValue' as const,
@@ -139,12 +139,12 @@ export default class ExceptionQueryParamComponent {
   }
 }
 
-export type GenDeps_ExceptionQueryParamComponent = GetDeps<{
+export type GenDeps_ExceptionQueryParamsComponent = GetDeps<{
   deps: {
     CommonModule: CommonModule;
   };
   propertiesDeps: {
-    _monitoring: ExtractDeps<ExceptionQueryParamComponent['_monitoring']>;
+    _monitoring: ExtractDeps<ExceptionQueryParamsComponent['_monitoring']>;
     router: {
       Router: DerivedService<
         ExtractDeps<typeof injectRouter>['Router'],
@@ -163,10 +163,10 @@ export type GenDeps_ExceptionQueryParamComponent = GetDeps<{
         typeof injectActivatedRoute
       >['ActivatedRoute'];
     };
-    modeQueryParam: ExtractDeps<ExceptionQueryParamComponent['modeQueryParam']>;
+    modeQueryParams: ExtractDeps<ExceptionQueryParamsComponent['modeQueryParams']>;
   };
   provided: {
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<ExceptionQueryParamComponent>;
+  publicProperties: GetPublicComponentProperties<ExceptionQueryParamsComponent>;
 }>;

@@ -1,6 +1,6 @@
 ---
 name: translate-spec-to-ng-craft
-description: Translate functional specifications, user stories, page requirements, CRUD flows, list/detail screens, filters, pagination, bulk actions, optimistic updates, forms, and Angular feature-store architecture into @craft-ng/core primitives, insertions, store utilities, and source helpers. Use when a request asks which ng-craft utility to choose, or when wording such as "afficher", "liste", "detail", "supprimer", "selection multiple", "pagination", "filtre URL", "formulaire", "recharger en cas d'erreur", or "feature store" must be mapped to `query`, `mutation`, `state`, `queryParam`, `craft*`, form helpers, or entity helpers.
+description: Translate functional specifications, user stories, page requirements, CRUD flows, list/detail screens, filters, pagination, bulk actions, optimistic updates, forms, and Angular feature-store architecture into @craft-ng/core primitives, insertions, store utilities, and source helpers. Use when a request asks which ng-craft utility to choose, or when wording such as "afficher", "liste", "detail", "supprimer", "selection multiple", "pagination", "filtre URL", "formulaire", "recharger en cas d'erreur", or "feature store" must be mapped to `query`, `mutation`, `state`, `queryParams`, `craft*`, form helpers, or entity helpers.
 ---
 
 # Translate Spec To Ng Craft
@@ -31,7 +31,7 @@ Prioritize documented public APIs from `libs/core/src/index.ts`, `apps/docs`, an
 - Match server writes to `mutation`.
 - Match generic asynchronous client tasks to `asyncProcess`.
 - Match local UI-only state to `state`.
-- Match URL-backed state to `queryParam`.
+- Match URL-backed state to `queryParams`.
 - Match reusable, page-level, or global store requirements to `craft` plus `craft*` helpers.
 - Match event buses, resets, refreshes, and hidden triggers to `source$` and `on$`.
 - Match list collection semantics to `insertEntities` and the entity helpers when the spec explicitly talks about add, remove, update, upsert, replace, or clear.
@@ -67,13 +67,13 @@ When the spec implies a helper method, name it too: `removeOne`, `removeMany`, `
 ## Example Mappings
 
 Spec: `Creer une page qui affiche une liste d'utilisateurs.`
-Mapping: `query` for remote list loading. Add `queryParam` only if pagination, filters, sort, or shareable URL state are part of the spec.
+Mapping: `query` for remote list loading. Add `queryParams` only if pagination, filters, sort, or shareable URL state are part of the spec.
 
 Spec: `Creer une page qui affiche une liste d'utilisateurs. On peut supprimer un utilisateur via un bouton, ou en selectionner plusieurs pour en supprimer plusieurs.`
 Mapping: `query` for the list, one `mutation` for single delete, one `mutation` for bulk delete, one selection `state` or `craftState` for selected ids, and `insertReactOnMutation` on the `query` with optimistic removal plus `reload.onMutationError = true`. Use `removeOne` and `removeMany` for the optimistic transforms.
 
 Spec: `Creer une page de recherche avec filtres dans l'URL et pagination sans flicker.`
-Mapping: `queryParam` for filter and pagination state, `query` for results, `insertPaginationPlaceholderData` to keep previous page data visible during transitions, `craftSetAllQueriesParamsStandalone` if the page must generate URLs outside injection context.
+Mapping: `queryParams` for filter and pagination state, `query` for results, `insertPaginationPlaceholderData` to keep previous page data visible during transitions, `craftSetAllQueriesParamsStandalone` if the page must generate URLs outside injection context.
 
 ## References
 
