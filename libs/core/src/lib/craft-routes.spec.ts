@@ -37,6 +37,7 @@ import {
   BehaviorSubject,
   combineLatest,
   firstValueFrom,
+  isObservable,
   map,
   type Observable,
 } from 'rxjs';
@@ -50,7 +51,7 @@ import {
   vi,
 } from 'vitest';
 import { Console, injectConsoleService } from './browser-boundaries';
-import { FN_WRAPPER } from './fn-wrapper';
+import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 import { craftMethod } from './craft-method';
 import {
   abstract,
@@ -75,6 +76,7 @@ import { craftExceptionHandler } from './craft-route-exceptions';
 import { GetDeps } from './branded-component/branded-component';
 import { HOST_TAG_LIST, injectHostName, provideHostName } from './host-tag';
 import { craftUse } from './craft-use';
+import { craftUntilSettled } from './craft-until-settled';
 
 function _injectDemoUserIdParams(): Signal<string> {
   throw new Error('Type-only helper');
@@ -231,6 +233,10 @@ function createRouteInjector(
         provide: FN_WRAPPER,
         useValue: [],
       },
+      {
+        provide: FN_WRAP_OBSERVER,
+        useValue: [],
+      },
       ...flattenProviders(providers),
     ] as never[],
   });
@@ -278,6 +284,15 @@ function getCanMatchGuard(route: Route): CanMatchFn {
   }
 
   return guard as CanMatchFn;
+}
+
+function fakeHttpCall<T>(
+  resolved: PromiseLike<T>,
+): Generator<unknown, PromiseLike<T>, unknown> {
+  // eslint-disable-next-line require-yield
+  return (function* () {
+    return resolved;
+  })();
 }
 
 beforeAll(() => {
@@ -2110,6 +2125,63 @@ describe('craftRoutes', () => {
     );
 
     expect(result).toBe(true);
+  });
+
+  it('should wait for craftUntilSettled in canMatch before selecting a lazy dashboard route', async () => {
+    class AdminDashboardComponent {}
+    class UserDashboardComponent {}
+
+    type DashboardAccess = { kind: 'admin' } | { kind: 'user' };
+
+    async function selectDashboardComponent(access: DashboardAccess) {
+      const { testRoutes: appRoutes } = craftRoutes('test', [
+        craftRoute('dashboard', {
+          componentDeps: {},
+          loadComponent: ({ withRetry }) =>
+            withRetry(Promise.resolve({ AdminDashboardComponent })).then(
+              (m) => m.AdminDashboardComponent,
+            ),
+          canMatch: function* () {
+            const settledAccess = yield* craftUntilSettled(
+              fakeHttpCall(Promise.resolve(access)),
+            );
+
+            return settledAccess.kind === 'admin';
+          },
+        }),
+        craftRoute('dashboard', {
+          componentDeps: {},
+          loadComponent: ({ withRetry }) =>
+            withRetry(Promise.resolve({ UserDashboardComponent })).then(
+              (m) => m.UserDashboardComponent,
+            ),
+        }),
+      ]);
+
+      const [adminRoute, userRoute] = appRoutes.toRoutes();
+      const activatedRoute = createActivatedRouteStub();
+      const injector = createRouteInjector(
+        adminRoute.providers,
+        activatedRoute.route,
+      );
+      const canMatch = getCanMatchGuard(adminRoute);
+      const matchResult = runInInjectionContext(injector, () =>
+        canMatch(adminRoute, urlSegmentsStub, partialMatchRouteSnapshotStub),
+      );
+      const adminMatches = isObservable(matchResult)
+        ? await firstValueFrom(matchResult)
+        : await matchResult;
+      const selectedRoute = adminMatches ? adminRoute : userRoute;
+
+      return selectedRoute.loadComponent?.();
+    }
+
+    await expect(
+      selectDashboardComponent({ kind: 'admin' }),
+    ).resolves.toBe(AdminDashboardComponent);
+    await expect(
+      selectDashboardComponent({ kind: 'user' }),
+    ).resolves.toBe(UserDashboardComponent);
   });
 
   // The legacy blocking-guard describes ('craftCanActivate' / 'craftCanMatch')

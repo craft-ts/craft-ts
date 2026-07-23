@@ -21,7 +21,7 @@ export const {
   injectDemoQueryParamQueryParams,
 } = craftRoutes('demo', [
   craftRoute(
-    'query/:userId', // todo change the canActivate/gauard to another dedicated route
+    'query/:userId',
     {
       componentDeps:
         {} as import('./examples/primitives/query/query').GenDeps_GlobalQuery,

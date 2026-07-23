@@ -2,6 +2,7 @@ import {
   computed,
   inject,
   Injector,
+  isSignal,
   runInInjectionContext,
   signal,
   type Signal,
@@ -29,11 +30,17 @@ import {
   firstValueFrom,
   isObservable,
   map,
+  take,
 } from 'rxjs';
 import type { ExtractDeps } from './branded-component/branded-component';
 import { type AnyCraftException } from './craft-exception';
 import { type ExtractCraftGenExceptions } from './craft-gen';
-import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
+import {
+  executeGeneratorCompatibleFactory,
+  isGenerator,
+  runCraftGenerator,
+} from './craft-generator-runtime';
+import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
 import type { CraftHttpRequest } from './craft-http-client';
 import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
@@ -2581,6 +2588,141 @@ function createLoadComponent(
     );
 }
 
+const ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE =
+  'craft route guards can only yield craftService dependencies, exposed dependency helpers, or an craftUntilSettled/craftUntilDefined await request.';
+const ANGULAR_GUARD_APP_START_ERROR_MESSAGE =
+  'craft route guards cannot register application start hooks.';
+
+function isAngularGuardResult(value: unknown): value is GuardResult {
+  return (
+    typeof value === 'boolean' ||
+    value instanceof UrlTree ||
+    value instanceof RedirectCommand
+  );
+}
+
+function toAngularGuardResult(
+  value: unknown,
+  successDataSink?: WritableSignal<unknown>,
+): GuardResult {
+  if (isAngularGuardResult(value)) {
+    return value;
+  }
+
+  successDataSink?.set(value);
+  return true;
+}
+
+function normalizeAngularGuardResult(
+  routePath: string,
+  guardName: 'canActivate' | 'canMatch',
+  value: unknown,
+  successDataSink?: WritableSignal<unknown>,
+): MaybeAsync<GuardResult> | Observable<GuardResult> {
+  if (value === undefined) {
+    throw new Error(
+      `Route "${routePath}" ${guardName} guard must not synchronously return undefined.`,
+    );
+  }
+
+  if (isSignal(value)) {
+    return new Observable<GuardResult>((subscriber) => {
+      let active = true;
+
+      const poll = () => {
+        if (!active) {
+          return;
+        }
+
+        const result = value();
+
+        if (result === undefined) {
+          setTimeout(poll, 0);
+          return;
+        }
+
+        subscriber.next(toAngularGuardResult(result, successDataSink));
+        subscriber.complete();
+      };
+
+      poll();
+
+      return () => {
+        active = false;
+      };
+    });
+  }
+
+  if (isObservable(value)) {
+    return value.pipe(
+      filter((result) => result !== undefined),
+      take(1),
+      map((result) => toAngularGuardResult(result, successDataSink)),
+    );
+  }
+
+  if (value instanceof Promise) {
+    return value.then((result) =>
+      toAngularGuardResult(result, successDataSink),
+    );
+  }
+
+  return toAngularGuardResult(value, successDataSink);
+}
+
+function createAngularGuard<
+  Args extends unknown[],
+  Result extends CraftRouteCanActivateResult | GuardResult,
+>(
+  routePath: string,
+  guardName: 'canActivate' | 'canMatch',
+  guard: (...args: Args) => Result | Generator<unknown, Result, unknown>,
+  successDataSink?: WritableSignal<unknown>,
+): (...args: Args) => MaybeAsync<GuardResult> | Observable<GuardResult> {
+  return (...args) => {
+    const injector = inject(Injector);
+
+    try {
+      const result = executeGeneratorCompatibleFactory({
+        factory: guard,
+        thisArg: undefined,
+        getInjector: () => injector,
+        args,
+        invalidYieldErrorMessage: ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE,
+        multipleAppStartErrorMessage: ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
+        onAppStartNotSupportedErrorMessage: ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
+      });
+
+      return normalizeAngularGuardResult(
+        routePath,
+        guardName,
+        result,
+        successDataSink,
+      );
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        error.message !== ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE
+      ) {
+        throw error;
+      }
+
+      return executeGeneratorCompatibleFactoryAsync({
+        factory: guard,
+        thisArg: undefined,
+        getInjector: () => injector,
+        args,
+        invalidYieldErrorMessage: ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE,
+        appStartNotSupportedErrorMessage: ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
+      }).then((settled) =>
+        settled.kind === 'shortCircuit'
+          ? false
+          : toAngularGuardResult(settled.value, successDataSink),
+      );
+    }
+  };
+}
+
 // Authors a single route with fully-typed, route-scoped provider helpers.
 // `craftRoute('query/:userId', { canActivate, ... }).withProviders(({ GuardedDataToYield }) => [...])`
 // — the `.withProviders` callback receives `ToYield` generators for the route's
@@ -3008,11 +3150,31 @@ export function craftRoutes<
       typeof redirectTo === 'function'
         ? createRedirectTo(redirectTo)
         : redirectTo;
+    const wrappedCanActivate =
+      canActivate !== undefined
+        ? [
+            createAngularGuard(
+              route.path,
+              'canActivate',
+              canActivate as CraftRouteCanActivateGuard,
+              guardDataSignal ?? undefined,
+            ),
+          ]
+        : undefined;
+    const wrappedCanMatch =
+      canMatch !== undefined
+        ? [
+            createAngularGuard(
+              route.path,
+              'canMatch',
+              canMatch as CraftRouteCanMatchGuard,
+            ),
+          ]
+        : undefined;
 
-    // Non-blocking: no blocking Angular guard is registered, so the URL commits
-    // immediately. `CraftRouterOutlet` reads this meta and drives
-    // canMatch → canActivate → resolve *after* commit, rendering the target only
-    // on success and routing exceptions through `handleExceptions`.
+    // Angular guards keep router matching/activation semantics intact. The
+    // outlet also reads this meta to publish guarded/resolved data and route
+    // exceptions through Craft's typed handlers.
     const hasCraftChain =
       canActivate !== undefined ||
       canMatch !== undefined ||
@@ -3052,6 +3214,10 @@ export function craftRoutes<
       ...(wrappedLoadComponent !== undefined
         ? { loadComponent: wrappedLoadComponent }
         : {}),
+      ...(wrappedCanActivate !== undefined
+        ? { canActivate: wrappedCanActivate }
+        : {}),
+      ...(wrappedCanMatch !== undefined ? { canMatch: wrappedCanMatch } : {}),
       providers:
         autoProviders.length > 0 || resolvedRouteProviders.length
           ? [...autoProviders, ...resolvedRouteProviders]
