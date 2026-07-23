@@ -114,6 +114,48 @@ function git(path, args, options = {}) {
   return run('git', args, { cwd: path, ...options });
 }
 
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+
+function commitCount(count, qualifier) {
+  return `${count} ${qualifier} commit${count === 1 ? '' : 's'}`;
+}
+
+export function gitSynchronizationError({
+  path,
+  branch,
+  label,
+  ahead,
+  behind,
+}) {
+  const remoteBranch = `origin/${branch}`;
+  const repository = shellQuote(path);
+
+  if (ahead > 0 && behind === 0) {
+    return new Error(
+      `${label} has ${commitCount(ahead, 'local')} not pushed to ${remoteBranch}.\n` +
+        `Push ${ahead === 1 ? 'it' : 'them'} before retrying:\n` +
+        `  git -C ${repository} push origin ${branch}`,
+    );
+  }
+
+  if (ahead === 0 && behind > 0) {
+    return new Error(
+      `${label} is ${commitCount(behind, 'remote')} behind ${remoteBranch}.\n` +
+        `Update it before retrying:\n` +
+        `  git -C ${repository} pull --ff-only origin ${branch}`,
+    );
+  }
+
+  return new Error(
+    `${label} has diverged from ${remoteBranch} ` +
+      `(${commitCount(ahead, 'local')}, ${commitCount(behind, 'remote')}).\n` +
+      `Inspect and reconcile both histories before retrying:\n` +
+      `  git -C ${repository} log --oneline --left-right HEAD...${remoteBranch}`,
+  );
+}
+
 function assertGitWorkspace(path, expectedBranch, label) {
   if (!existsSync(path)) {
     throw new Error(`${label} workspace does not exist: ${path}`);
@@ -147,9 +189,13 @@ function assertGitWorkspace(path, expectedBranch, label) {
   ).trim();
   const [ahead, behind] = divergence.split(/\s+/).map(Number);
   if (ahead !== 0 || behind !== 0) {
-    throw new Error(
-      `${label} is not synchronized with origin/${expectedBranch} (${divergence}).`,
-    );
+    throw gitSynchronizationError({
+      path,
+      branch: expectedBranch,
+      label,
+      ahead,
+      behind,
+    });
   }
 }
 

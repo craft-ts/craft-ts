@@ -12,6 +12,7 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 
 import {
+  gitSynchronizationError,
   npmPublishArguments,
   parseReleaseArgument,
   syncBuiltDocumentation,
@@ -48,6 +49,55 @@ test('publishes fixed-group packages directly from their dist directories', () =
     '--access',
     'public',
   ]);
+});
+
+test('explains how to synchronize a repository with its remote', () => {
+  const repository = '/tmp/craft docs';
+
+  assert.equal(
+    gitSynchronizationError({
+      path: repository,
+      branch: 'main',
+      label: 'documentation',
+      ahead: 1,
+      behind: 0,
+    }).message,
+    [
+      'documentation has 1 local commit not pushed to origin/main.',
+      'Push it before retrying:',
+      "  git -C '/tmp/craft docs' push origin main",
+    ].join('\n'),
+  );
+
+  assert.equal(
+    gitSynchronizationError({
+      path: repository,
+      branch: 'main',
+      label: 'documentation',
+      ahead: 0,
+      behind: 2,
+    }).message,
+    [
+      'documentation is 2 remote commits behind origin/main.',
+      'Update it before retrying:',
+      "  git -C '/tmp/craft docs' pull --ff-only origin main",
+    ].join('\n'),
+  );
+
+  assert.equal(
+    gitSynchronizationError({
+      path: repository,
+      branch: 'main',
+      label: 'documentation',
+      ahead: 1,
+      behind: 2,
+    }).message,
+    [
+      'documentation has diverged from origin/main (1 local commit, 2 remote commits).',
+      'Inspect and reconcile both histories before retrying:',
+      "  git -C '/tmp/craft docs' log --oneline --left-right HEAD...origin/main",
+    ].join('\n'),
+  );
 });
 
 test('mirrors the complete demo source and pins Craft NG dependencies', () => {
