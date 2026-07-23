@@ -1,3 +1,15 @@
+## 0.6.0-beta.4 (2026-07-23)
+
+### 🚀 Features
+
+- **core:** add craftLazy for lazy service imports; rename untilSettled → craftUntilSettled ([c23c616](https://github.com/ng-angular-stack/ng-craft/commit/c23c616))
+- **release:** actionable git sync errors with fix commands ([e5892e6](https://github.com/ng-angular-stack/ng-craft/commit/e5892e6))
+
+### ❤️ Thank You
+
+- Claude Opus 4.8
+- Romain
+
 ## 0.6.0-beta.2 (2026-07-20)
 
 This was a version bump only, there were no code changes.
