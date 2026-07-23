@@ -153,6 +153,10 @@ export default defineConfig({
             link: '/type-safe-di-routes/route-load-errors',
           },
           {
+            text: 'Lazy Services (craftLazy)',
+            link: '/type-safe-di-routes/lazy-services',
+          },
+          {
             text: 'Browser Boundaries',
             link: '/type-safe-di-routes/browser-boundaries',
           },
