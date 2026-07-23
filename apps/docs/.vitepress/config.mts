@@ -145,6 +145,10 @@ export default defineConfig({
             link: '/type-safe-di-routes/program-operators',
           },
           {
+            text: 'Pattern Matching (craftMatch)',
+            link: '/type-safe-di-routes/pattern-matching',
+          },
+          {
             text: 'Route Guards',
             link: '/type-safe-di-routes/guards',
           },
