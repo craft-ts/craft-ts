@@ -11,11 +11,19 @@ import {
   viewTransitionPayload,
   type CanRun,
   type ParentRoutes,
-  type CraftRouteLazyLoadHelpers,
   type RouteCheckedDI,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
+import {
+  CraftPendingComponentHost,
+  CraftRoutedComponentHost,
+  provideCraftComponent,
+  provideCraftPendingComponent,
+} from '@craft-ng/component';
+import Gallery from './gallery';
+import PhotoDetail from './photo-detail';
+import PhotoSkeleton from './photo-skeleton';
 
 // --- View Transitions demo (gallery → detail, shared-element morph) ----------
 // Two routes showcasing Angular's `withViewTransitions()` feature, mixed into
@@ -59,19 +67,23 @@ export const {
   injectViewTransitionsPhotoIdParams,
   injectViewTransitionsPhotoIdViewTransition,
 } = craftRoutes('viewTransitions', [
-  craftRoute('', {
+  {
+    path: '',
     componentDeps:
       {} as import('./gallery').GenDeps_ViewTransitionsGalleryComponent,
-    loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
-        withRetry(import('./gallery')),
-  }),
+    component: CraftRoutedComponentHost,
+    providers: [provideCraftComponent(Gallery)],
+  },
   craftRoute(
     ':photoId',
     {
       componentDeps:
         {} as import('./photo-detail').GenDeps_ViewTransitionsDetailComponent,
-      loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
-        withRetry(import('./photo-detail')),
+      component: CraftRoutedComponentHost,
+      providers: [
+        provideCraftComponent(PhotoDetail),
+        provideCraftPendingComponent(PhotoSkeleton),
+      ],
       // The route DECLARES the shared-element payload shape (mirrors how
       // `queryParams` declares query-params shape): every link/navigation must pass
       // `viewTransition: { name; image } | null`, and the skeleton reads it via the
@@ -80,7 +92,7 @@ export const {
         name: string;
         image: string | null;
       }>(),
-      pendingComponent: () => import('./photo-skeleton'),
+      pendingComponent: CraftPendingComponentHost,
       canActivate: function* () {
         return yield* slowDetailGuard();
       },

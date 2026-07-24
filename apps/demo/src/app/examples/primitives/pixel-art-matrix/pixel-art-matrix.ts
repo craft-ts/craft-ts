@@ -1,355 +1,146 @@
+import { signal } from '@angular/core';
 import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  Signal,
-} from '@angular/core';
+  button,
+  component,
+  div,
+  each,
+  h1,
+  header,
+  p,
+  section,
+} from '@craft-ng/component';
 import {
-  craftUse,
-  addOne,
   componentMonitoring,
-  insertLocalStoragePersister,
-  craftPipe,
-  insertSelect,
-  on$,
   provideHostName,
-  source$,
-  state,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import {
-  LongPressDirective,
-  type GenDeps_LongPressDirective,
-} from './long-press.directive';
 
-type PixelCellState = {
-  index: number;
-  columnIndex: number;
-  color: string;
-  paintCount: number;
-};
-type PaintCellEvent = {
-  color: string;
-  cellIndex: number;
-};
+type Cell = { readonly id: number; readonly color: string; readonly count: number };
+const SIZE = 16;
+const EMPTY = '#f8fafc';
+const COLORS = ['#0f172a', '#ef4444', '#22c55e', '#3b82f6', '#eab308'];
+let nextCellId = SIZE ** 2;
 
-const GRID_SIZE = 16;
-const EMPTY_COLOR = '#f8fafc';
-const DEFAULT_ACTIVE_COLOR = '#0f172a';
-const COLOR_PALETTE = ['#0f172a', '#ef4444', '#22c55e', '#3b82f6', '#eab308'];
-const ROW_INDEXES = Array.from(
-  { length: GRID_SIZE },
-  (_unused, index) => index,
-);
-const CELL_INDEXES = Array.from(
-  { length: GRID_SIZE },
-  (_unused, cellIndex) => cellIndex,
-);
-
-const createInitialGrid = (): PixelCellState[][] =>
-  ROW_INDEXES.map((rowIndex) =>
-    CELL_INDEXES.map((cellIndex) => ({
-      index: rowIndex * GRID_SIZE + cellIndex,
-      columnIndex: cellIndex,
-      color: EMPTY_COLOR,
-      paintCount: 0,
+const makeGrid = (): Cell[][] =>
+  Array.from({ length: SIZE }, (_, row) =>
+    Array.from({ length: SIZE }, (_, column) => ({
+      id: row * SIZE + column,
+      color: EMPTY,
+      count: 0,
     })),
   );
 
-@Component({
-  selector: 'app-pixel-art-matrix',
-  imports: [LongPressDirective],
-  template: `
-    <section class="pixel-art">
-      <header class="pixel-art__header">
-        <h1>Pixel Art Workshop (Matrix)</h1>
-        <p>16x16 grid modeled as a 2D array (rows -> cells).</p>
-        <p>
-          Note: this example is intentionally "fairly" complex to showcase
-          multiple patterns together.
-        </p>
-        <p>Interactions:</p>
-        <ul>
-          <li>Left click paints a cell.</li>
-          <li>Right click copies the target cell color to the full row.</li>
-          <li>
-            Long press/touch paints the full column with the target color.
-          </li>
-          <li>"+" adds a cell to a row.</li>
-          <li>"Add row" appends a new row.</li>
-          <li>
-            "Reset" resets all colors, paint counts, and active color, rows, and
-            columns.
-          </li>
-        </ul>
-      </header>
-
-      <div class="pixel-art__controls">
-        <div class="pixel-art__palette">
-          @for (color of colorPalette; track color) {
-            <button
-              type="button"
-              class="pixel-art__color"
-              [class.active]="matrix.selectUi().activeColor === color"
-              [style.background-color]="color"
-              (click)="matrix.selectUi().setActiveColor(color)"
-              [attr.aria-label]="'Choose color ' + color"
-            ></button>
-          }
-        </div>
-        <button type="button" (click)="matrix.resetAll$()">Reset</button>
-      </div>
-
-      <div class="pixel-art__stats">
-        <span
-          >Painted cells: {{ matrix.selectGrid().paintedCount() }}/{{
-            matrix.selectGrid().totalCells()
-          }}</span
-        >
-      </div>
-
-      <div
-        class="pixel-art__grid"
-        role="grid"
-        aria-label="Pixel Art 16x16 matrix"
-      >
-        @for (rowIndex of matrix.selectGrid().rowIndexes(); track rowIndex) {
-          @let row = matrix.selectGrid().selectRow(rowIndex);
-          <div class="pixel-art__row">
-            <div class="pixel-art__row-cells">
-              @for (
-                cellState of row;
-                track cellState.index;
-                let cellIndex = $index
-              ) {
-                @let cellItem = row?.selectCell(cellIndex);
-                <button
-                  type="button"
-                  role="gridcell"
-                  class="pixel-art__cell"
-                  [style.background-color]="cellItem?.color ?? emptyColor"
-                  (click)="cellItem?.paint()"
-                  [appLongPress]="450"
-                  (longPress)="
-                    matrix.selectGrid().paintColumnWithTargetCellColor$({
-                      color: cellItem?.color ?? emptyColor,
-                      cellIndex: cellIndex,
-                    })
-                  "
-                  (contextmenu)="
-                    $event.preventDefault();
-                    row?.paintRowWithTargetCellColor$({
-                      color: cellItem?.color ?? emptyColor,
-                      cellIndex: cellIndex,
-                    })
-                  "
-                  [attr.aria-label]="
-                    'Cell row ' + (rowIndex + 1) + ', column ' + (cellIndex + 1)
-                  "
-                  [attr.title]="
-                    'Row ' +
-                    (rowIndex + 1) +
-                    ', column ' +
-                    (cellIndex + 1) +
-                    ' - ' +
-                    (cellItem?.paintCountStr() ?? 'Painted 0 times')
-                  "
-                ></button>
-              }
-            </div>
-            <button
-              type="button"
-              class="pixel-art__add-btn"
-              (click)="row?.addCell()"
-              [attr.aria-label]="'Add cell to row ' + (rowIndex + 1)"
-              [attr.title]="'Add cell to row ' + (rowIndex + 1)"
-            >
-              +
-            </button>
-          </div>
-        }
-        <button
-          type="button"
-          class="pixel-art__add-btn pixel-art__add-btn--row"
-          (click)="matrix.selectGrid().addRow()"
-        >
-          Add row
-        </button>
-      </div>
-    </section>
-  `,
-  styleUrls: ['./pixel-art-matrix.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('component:PixelArtMatrix')],
-})
-export default class PixelArtMatrix {
-  private readonly _monitoring = componentMonitoring();
-  protected readonly emptyColor = EMPTY_COLOR;
-  protected readonly colorPalette = COLOR_PALETTE;
-
-  protected readonly matrix = craftUse(
-    state(
-      {
-        ui: {
-          activeColor: DEFAULT_ACTIVE_COLOR,
-        },
-        grid: createInitialGrid(),
-      },
-      (context) =>
-        craftPipe(
-          context,
-          insertLocalStoragePersister({
-            key: 'pixel-art-matrix-state',
-            storeName: 'pixel-art-matrix',
-          }),
-          () => ({
-            resetAll$: source$<void>('resetAll$'),
-          }),
-          insertSelect('ui', ({ set, insertions: { resetAll$ } }) => ({
-            resetColor$: on$(resetAll$, () =>
-              set({ activeColor: DEFAULT_ACTIVE_COLOR }),
-            ),
-            setActiveColor: (color: string) => set({ activeColor: color }),
-          })),
-          insertSelect('grid', (gridContext) =>
-            craftPipe(
-              gridContext,
-              ({ state, update, set, insertions: { resetAll$ } }) => ({
-                paintColumnWithTargetCellColor$: source$<PaintCellEvent>(
-                  'paintColumnWithTargetCellColor$',
-                ),
-                addRow: () =>
-                  update((currentGrid) => [
-                    ...currentGrid,
-                    createNextRow(currentGrid),
-                  ]),
-                resetGrid: on$(resetAll$, () => set(createInitialGrid())),
-                rowIndexes: computed(() => state().map((_row, index) => index)),
-                totalCells: computed(() =>
-                  state().reduce((count, row) => count + row.length, 0),
-                ),
-                paintedCount: computed(() =>
-                  state().reduce(
-                    (count, row) =>
-                      count +
-                      row.filter((cell) => cell.color !== EMPTY_COLOR).length,
-                    0,
-                  ),
-                ),
-              }),
-              insertSelect('row', (rowContext) =>
-                craftPipe(
-                  rowContext,
-                  ({ state, set }) => ({
-                    addCell: () => {
-                      const nextIndex = state().reduce(
-                        (max, cell) => Math.max(max, cell.index),
-                        -1,
-                      );
-                      return set(
-                        addOne({
-                          entities: state(),
-                          entity: createNewCell(nextIndex, state),
-                        }),
-                      );
-                    },
-                    paintRowWithTargetCellColor$: source$<PaintCellEvent>(
-                      'paintRowWithTargetCellColor$',
-                    ),
-                  }),
-                  insertSelect(
-                    'cell',
-                    ({
-                      state,
-                      update,
-                      patch,
-                      insertions: {
-                        paintRowWithTargetCellColor$,
-                        paintColumnWithTargetCellColor$,
-                      },
-                    }) => ({
-                      paint: () =>
-                        patch(({ color, paintCount }) => ({
-                          color:
-                            color === this.matrix.selectUi().activeColor
-                              ? EMPTY_COLOR
-                              : this.matrix.selectUi().activeColor,
-                          paintCount: paintCount + 1,
-                        })),
-                      paintCountStr: computed(
-                        () => `Painted ${state().paintCount} times`,
-                      ),
-                      paintCellOnSameRow: on$(
-                        paintRowWithTargetCellColor$,
-                        ({ color }) =>
-                          patch(({ paintCount }) => ({
-                            color,
-                            paintCount: paintCount + 1,
-                          })),
-                      ),
-                      paintCellOnSameColumn: on$(
-                        paintColumnWithTargetCellColor$,
-                        ({ color, cellIndex }) =>
-                          update((targetCell) =>
-                            targetCell.columnIndex === cellIndex
-                              ? {
-                                  ...targetCell,
-                                  color,
-                                  paintCount: targetCell.paintCount + 1,
-                                }
-                              : targetCell,
-                          ),
-                      ),
-                    }),
-                  ),
-                ),
-              ),
-            ),
-          ),
+const PixelArtMatrix = component(
+  {
+    providers: [provideHostName('component:PixelArtMatrix')],
+    styles: `
+      .matrix-grid{display:grid;gap:1px}.matrix-row{display:flex;gap:1px}.matrix-cell{width:22px;height:22px;border:1px solid #e2e8f0;padding:0}.matrix-palette{display:flex;gap:8px;margin:1rem 0}.matrix-color{width:32px;height:32px}
+    `,
+  },
+  () => {
+    componentMonitoring();
+    const activeColor = signal(COLORS[0]);
+    const grid = signal(makeGrid());
+    const paint = (rowIndex: number, columnIndex: number) =>
+      grid.update((rows) =>
+        rows.map((row, r) =>
+          r === rowIndex
+            ? row.map((cell, c) =>
+                c === columnIndex
+                  ? {
+                      ...cell,
+                      color:
+                        cell.color === activeColor() ? EMPTY : activeColor(),
+                      count: cell.count + 1,
+                    }
+                  : cell,
+              )
+            : row,
         ),
-    ),
-  );
-}
-function createNewCell(
-  nextIndex: number,
-  state: Signal<PixelCellState[]>,
-): { index: number; columnIndex: number; color: string; paintCount: number } {
-  return {
-    index: nextIndex + 1,
-    columnIndex: state().length,
-    color: EMPTY_COLOR,
-    paintCount: 0,
-  };
-}
+      );
+    const paintRow = (rowIndex: number, color: string) =>
+      grid.update((rows) =>
+        rows.map((row, r) =>
+          r === rowIndex
+            ? row.map((cell) => ({
+                ...cell,
+                color,
+                count: cell.count + 1,
+              }))
+            : row,
+        ),
+      );
+    const addRow = () =>
+      grid.update((rows) => [
+        ...rows,
+        Array.from({ length: rows[0]?.length ?? SIZE }, () => ({
+          id: nextCellId++,
+          color: EMPTY,
+          count: 0,
+        })),
+      ]);
+    const addCell = (rowIndex: number) =>
+      grid.update((rows) =>
+        rows.map((row, r) =>
+          r === rowIndex
+            ? [...row, { id: nextCellId++, color: EMPTY, count: 0 }]
+            : row,
+        ),
+      );
+    return { activeColor, grid, paint, paintRow, addRow, addCell };
+  },
+  ({ activeColor, grid, paint, paintRow, addRow, addCell }) =>
+    section([
+      header([
+        h1('Pixel Art Workshop (Matrix)'),
+        p('2D matrix: click paints, right-click paints a row.'),
+      ]),
+      div(
+        { class: 'matrix-palette' },
+        each(COLORS, { track: (color) => color }, (color) =>
+          button({
+            class: 'matrix-color',
+            style: { backgroundColor: color },
+            click: () => activeColor.set(color),
+          }),
+        ),
+      ),
+      button({ click: () => grid.set(makeGrid()) }, 'Reset'),
+      div(
+        { class: 'matrix-grid' },
+        each(
+          grid,
+          { track: (row) => row[0]?.id ?? row.length },
+          (row, rowIndex) =>
+            div({ class: 'matrix-row' }, [
+              each(
+                row,
+                { track: (cell) => cell.id },
+                (cell, columnIndex) =>
+                  button({
+                    class: 'matrix-cell',
+                    style: { backgroundColor: cell.color },
+                    click: () => paint(rowIndex, columnIndex),
+                    contextmenu: (event) => {
+                      event.preventDefault();
+                      paintRow(rowIndex, cell.color);
+                    },
+                  }),
+              ),
+              button({ click: () => addCell(rowIndex) }, '+'),
+            ]),
+        ),
+      ),
+      button({ click: addRow }, 'Add row'),
+    ]),
+);
 
-function createNextRow(currentGrid: PixelCellState[][]) {
-  const columnCount = currentGrid[0]?.length ?? GRID_SIZE;
-  const nextIndex = currentGrid
-    .flat()
-    .reduce((max, cell) => Math.max(max, cell.index), -1);
-  const newRow = Array.from({ length: columnCount }, (_unused, i) => ({
-    index: nextIndex + i + 1,
-    columnIndex: i,
-    color: EMPTY_COLOR,
-    paintCount: 0,
-  }));
-  return newRow;
-}
-
+export default PixelArtMatrix;
 export type GenDeps_PixelArtMatrix = GetDeps<{
-  deps: {
-    GenDeps_LongPressDirective: GenDeps_LongPressDirective;
-  };
-  propertiesDeps: {
-    _monitoring: ExtractDeps<PixelArtMatrix['_monitoring']>;
-    emptyColor: ExtractDeps<PixelArtMatrix['emptyColor']>;
-    colorPalette: ExtractDeps<PixelArtMatrix['colorPalette']>;
-    matrix: ExtractDeps<PixelArtMatrix['matrix']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<PixelArtMatrix>;
+  publicProperties: Record<never, never>;
 }>;

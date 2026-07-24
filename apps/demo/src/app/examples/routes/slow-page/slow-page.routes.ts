@@ -12,10 +12,14 @@ import {
   retry,
   craftUntilSettled,
   type CanRun,
-  type CraftRouteLazyLoadHelpers,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
+import {
+  CraftRoutedComponentHost,
+  provideCraftComponent,
+} from '@craft-ng/component';
+import SlowPageComponent from './slow-page';
 
 // --- Slow guard + slow resolve demo (non-blocking outlet) -------------------
 // Two deliberately slow async steps (~1.5s each) used to showcase
@@ -85,8 +89,8 @@ export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
       '',
       {
         componentDeps: {} as import('./slow-page').GenDeps_SlowPageComponent,
-        loadComponent: ({ withRetry }: CraftRouteLazyLoadHelpers) =>
-          withRetry(import('./slow-page')),
+        component: CraftRoutedComponentHost,
+        providers: [provideCraftComponent(SlowPageComponent)],
         // Slow (~1.5s) — the outlet shows the pending component until it settles.
         // `retry` replays the whole guard program on failure (E unchanged, so
         // NOT_AUTHENTICATED still routes through `handleExceptions`).

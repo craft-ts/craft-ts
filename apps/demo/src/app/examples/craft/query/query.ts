@@ -1,37 +1,36 @@
-import { JsonPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
-  craftUse,
-  Console,
-  CraftRouterToYield,
+  button,
+  component,
+  div,
+  h,
+  p,
+  type Input,
+} from '@craft-ng/component';
+import {
   componentMonitoring,
+  Console,
   craftMethod,
+  CraftRouterToYield,
   craftService,
+  craftUse,
   insertLocalStoragePersister,
   provideHostName,
   query,
-  toValue,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
-  type MaybeSignal,
 } from '@craft-ng/core';
-import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
-} from '../../../ui/status.component';
+import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield } from './api.service';
 
 const { injectUserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
-  (inputs: { userId: MaybeSignal<string | undefined> }) => {
-    return craftUse(
+  (inputs: { userId: () => string | undefined }) =>
+    craftUse(
       query(
         {
-          params: () => toValue(inputs.userId),
-          loader: function* ({ params: userId }) {
-            yield* Console.log('Loading user with id:', userId);
-            return yield* ApiServiceToYield.getItemById(userId);
+          params: inputs.userId,
+          loader: function* ({ params }) {
+            yield* Console.log('Loading user with id:', params);
+            return yield* ApiServiceToYield.getItemById(params);
           },
         },
         insertLocalStoragePersister({
@@ -39,89 +38,50 @@ const { injectUserQuery } = craftService(
           key: 'user-query',
         }),
       ),
-    );
-  },
+    ),
 );
 
-@Component({
-  selector: 'app-query',
-  imports: [JsonPipe, StatusComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrls: ['query.css'],
-  template: `
-    <div>
-      User
-      <app-status [status]="user.status()" />
+const GlobalQuery = component(
+  { providers: [provideHostName('component:GlobalQuery')] },
+  (userId: Input<string | undefined>) => {
+    componentMonitoring();
+    const user = injectUserQuery({ userId: () => userId() });
+    const navigate = (offset: number) =>
+      craftMethod('navigate', function* () {
+        const router = yield* CraftRouterToYield(
+          undefined,
+          ({ navigate }) => ({ navigate }),
+        );
+        void router.navigate({
+          to: 'craft/query/:userId',
+          params: {
+            userId: String(Number(userId() ?? '0') + offset),
+          },
+        });
+      })();
+    return { user, navigate };
+  },
+  ({ user, navigate }) => [
+    div([
+      'User ',
+      StatusComponent({ status: () => user.status() }),
+      user.hasValue()
+        ? h('pre', JSON.stringify(user.value(), null, 2))
+        : [],
+    ]),
+    p('Reload the page to retrieve the query result from the cache.'),
+    button({ click: () => void navigate(-1) }, 'Previous user'),
+    button({ click: () => void navigate(1) }, 'Next user'),
+  ],
+);
 
-      :
-      @if (user.hasValue()) {
-        <pre>{{ user.value() | json }}</pre>
-      }
-    </div>
-
-    <div>
-      <p>
-        > Reload the page to see the query result to be retrieved from the cache
-      </p>
-    </div>
-
-    <button (click)="previousPage()">Previous user</button>
-    <button (click)="nextPage()">Next user</button>
-  `,
-  providers: [provideHostName('component:GlobalQuery')],
-})
-export default class GlobalQuery {
-  private readonly _monitoring = componentMonitoring();
-  public readonly userId = input<string>();
-
-  protected readonly user = injectUserQuery({
-    userId: this.userId,
-  });
-
-  protected nextPage = craftMethod('nextPage', this, function* () {
-    yield* Console.log('Navigating to next user');
-    const { navigate } = yield* CraftRouterToYield(
-      undefined,
-      ({ navigate }) => ({ navigate }),
-    );
-    void navigate({
-      to: 'craft/query/:userId',
-      params: {
-        userId: String(parseInt(this.userId() ?? '0', 10) + 1),
-      },
-    });
-  });
-
-  protected previousPage = craftMethod('previousPage', this, function* () {
-    const { navigate } = yield* CraftRouterToYield(
-      undefined,
-      ({ navigate }) => ({ navigate }),
-    );
-    void navigate({
-      to: 'craft/query/:userId',
-      params: {
-        userId: String(parseInt(this.userId() ?? '10', 10) - 1),
-      },
-    });
-  });
-}
+export default GlobalQuery;
 
 export type GenDeps_GlobalQuery = GetDeps<{
-  deps: {
-    JsonPipe: JsonPipe;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    _monitoring: ExtractDeps<GlobalQuery['_monitoring']>;
-    userId: ExtractDeps<GlobalQuery['userId']>;
-    user: {
-      UserQuery: ExtractDeps<typeof injectUserQuery>['UserQuery'];
-    };
-    nextPage: ExtractDeps<GlobalQuery['nextPage']>;
-    previousPage: ExtractDeps<GlobalQuery['previousPage']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<GlobalQuery>;
+  publicProperties: Record<never, never>;
 }>;

@@ -1,5 +1,12 @@
-import { JsonPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import {
+  button,
+  component,
+  div,
+  h,
+  input,
+  p,
+  type Input,
+} from '@craft-ng/component';
 import {
   craftUse,
   CraftRouterToYield,
@@ -12,22 +19,15 @@ import {
   mutation,
   provideHostName,
   query,
-  toValue,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
-  type MaybeSignal,
 } from '@craft-ng/core';
-import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
-} from '../../../ui/status.component';
+import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
 const { injectUserMutation, provideUserMutation, UserMutationToYield } =
   craftService(
     { name: 'UserMutation', scope: 'toProvide' },
-    (inputs: { userId: MaybeSignal<string | undefined> }) => {
+    (inputs: { userId: () => string | undefined }) => {
       const updateUserName = craftUse(
         mutation({
           method: (payload: { userName: string; user: User }) => ({
@@ -43,7 +43,7 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
       const user = craftUse(
         query(
           {
-            params: () => toValue(inputs.userId),
+            params: inputs.userId,
             loader: function* ({ params: userId }) {
               return yield* ApiServiceToYield.getItemById(userId);
             },
@@ -69,108 +69,89 @@ const { injectUserMutation, provideUserMutation, UserMutationToYield } =
     },
   );
 
-@Component({
-  selector: 'app-mutation',
-  imports: [JsonPipe, StatusComponent],
-  providers: [
-    provideUserMutation(),
-    provideHostName('component:MutationCraft'),
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrls: ['mutation.css'],
-  template: `
-    <div>
-      User
-      <app-status [status]="store.user.status()" />
-
-      :
-      @if (store.user.hasValue()) {
-        <pre>{{ store.user.value() | json }}</pre>
-      }
-    </div>
-
-    <div>
-      <p>
-        > Reload the page to see the query result to be retrieved from the cache
-      </p>
-      <p>> Update the user name to see optimistic updates in action</p>
-    </div>
-
-    <input #nameInput type="text" placeholder="New name" />
-    <button
-      (click)="updateUserNameFn(nameInput.value)"
-      [disabled]="store.updateUserName.isLoading()"
-    >
-      Update name (<app-status [status]="store.updateUserName.status()" />)
-    </button>
-  `,
-})
-export default class MutationCraft {
-  private readonly _monitoring = componentMonitoring();
-  public readonly userId = input<string>();
-
-  protected readonly store = injectUserMutation({
-    userId: this.userId,
-  });
-
-  protected updateUserNameFn = craftMethod(
-    'updateUserNameFn',
-    function* (newName: string) {
-      const { user, updateUserName } = yield* UserMutationToYield(
-        undefined,
-        ({ user, updateUserName }) => ({ user, updateUserName }),
-      );
-      const userValue = user.hasValue() ? user.value() : null;
-      if (!userValue) {
-        return;
-      }
-      updateUserName.mutate({ userName: newName, user: userValue });
-    },
-  );
-
-  protected nextPage = craftMethod('nextPage', this, function* () {
-    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
-      navigate,
-    }));
-    void router.navigate({
-      to: 'craft/mutation/:userId',
-      params: {
-        userId: String(parseInt(this.userId() ?? '0', 10) + 1),
+const MutationCraft = component(
+  {
+    providers: [
+      provideUserMutation(),
+      provideHostName('component:MutationCraft'),
+    ],
+  },
+  (userId: Input<string | undefined>) => {
+    componentMonitoring();
+    const store = injectUserMutation({ userId: () => userId() });
+    const updateUserNameFn = craftMethod(
+      'updateUserNameFn',
+      function* (newName: string) {
+        const { user, updateUserName } = yield* UserMutationToYield(
+          undefined,
+          ({ user, updateUserName }) => ({ user, updateUserName }),
+        );
+        const userValue = user.safeValue();
+        if (userValue) {
+          updateUserName.mutate({
+            userName: newName,
+            user: userValue,
+          });
+        }
       },
-    });
-  });
+    );
+    const navigate = (offset: number) =>
+      craftMethod('navigate', function* () {
+        const router = yield* CraftRouterToYield(
+          undefined,
+          ({ navigate }) => ({ navigate }),
+        );
+        void router.navigate({
+          to: 'craft/mutation/:userId',
+          params: { userId: String(Number(userId() ?? '0') + offset) },
+        });
+      })();
+    return { store, updateUserNameFn, navigate };
+  },
+  ({ store, updateUserNameFn, navigate }) => {
+    let nameInput: HTMLInputElement | undefined;
+    return [
+      div([
+        'User ',
+        StatusComponent({ status: () => store.user.status() }),
+        store.user.hasValue()
+          ? h('pre', JSON.stringify(store.user.value(), null, 2))
+          : [],
+      ]),
+      p('Reload to see the cached result; update the name optimistically.'),
+      input({
+        type: 'text',
+        placeholder: 'New name',
+        input: (event) => {
+          nameInput = event.target as HTMLInputElement;
+        },
+      }),
+      button(
+        {
+          disabled: store.updateUserName.isLoading(),
+          click: () => void updateUserNameFn(nameInput?.value ?? ''),
+        },
+        [
+          'Update name ',
+          StatusComponent({
+            status: () => store.updateUserName.status(),
+          }),
+        ],
+      ),
+      button({ click: () => void navigate(-1) }, 'Previous user'),
+      button({ click: () => void navigate(1) }, 'Next user'),
+    ];
+  },
+);
 
-  protected previousPage = craftMethod('previousPage', this, function* () {
-    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
-      navigate,
-    }));
-    void router.navigate({
-      to: 'craft/mutation/:userId',
-      params: {
-        userId: String(parseInt(this.userId() ?? '10', 10) - 1),
-      },
-    });
-  });
-}
+export default MutationCraft;
 
 export type GenDeps_MutationCraft = GetDeps<{
-  deps: {
-    JsonPipe: JsonPipe;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    _monitoring: ExtractDeps<MutationCraft['_monitoring']>;
-    userId: ExtractDeps<MutationCraft['userId']>;
-    store: {
-      UserMutation: ExtractDeps<typeof injectUserMutation>['UserMutation'];
-    };
-    updateUserNameFn: ExtractDeps<MutationCraft['updateUserNameFn']>;
-    nextPage: ExtractDeps<MutationCraft['nextPage']>;
-    previousPage: ExtractDeps<MutationCraft['previousPage']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     UserMutation: ReturnType<typeof provideUserMutation>;
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<MutationCraft>;
+  publicProperties: Record<never, never>;
 }>;

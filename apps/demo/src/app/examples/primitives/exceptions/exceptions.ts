@@ -1,178 +1,94 @@
-import { Component, signal } from '@angular/core';
+import { signal } from '@angular/core';
 import {
-  craftUse,
+  button,
+  component,
+  div,
+  h3,
+  p,
+  strong,
+} from '@craft-ng/component';
+import {
   componentMonitoring,
   craftException,
+  craftUse,
   provideHostName,
   query,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-};
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 
-@Component({
-  selector: 'app-exceptions',
-  styles: [
-    `
-      .actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-bottom: 12px;
-      }
+const ExceptionsComponent = component(
+  {
+    providers: [provideHostName('component:ExceptionsComponent')],
+    styles:
+      '.exception-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.exception-actions button{padding:8px 16px}',
+  },
+  () => {
+    componentMonitoring();
+    const scenario = signal<Scenario>('success');
+    const userQuery = craftUse(
+      query({
+        params: scenario,
+        loader: async ({ params }) => {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+          if (params === 'not-found') {
+            return craftException(
+              { code: 'UserNotFoundException' },
+              { message: 'User does not exist' as const },
+            );
+          }
+          if (params === 'consent-missing') {
+            return craftException(
+              { code: 'UserConsentMissingException' },
+              { message: 'User consent is required' as const },
+            );
+          }
+          if (params === 'forbidden') {
+            return craftException(
+              { code: 'UserAccessForbiddenException' },
+              { message: 'Access forbidden' as const },
+            );
+          }
+          return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
+        },
+      }),
+    );
+    return { scenario, userQuery };
+  },
+  ({ scenario, userQuery }) => {
+    const exception = userQuery.exceptions().loader;
+    const user = userQuery.safeValue();
+    return [
+      h3(`Query user with business exceptions (${userQuery.status()})`),
+      div({ class: 'exception-actions' }, [
+        button({ click: () => scenario.set('success') }, 'Success'),
+        button({ click: () => scenario.set('not-found') }, 'User not found'),
+        button(
+          { click: () => scenario.set('consent-missing') },
+          'Consent missing',
+        ),
+        button({ click: () => scenario.set('forbidden') }, 'Access forbidden'),
+      ]),
+      user
+        ? div([
+            p([strong('ID: '), user.id]),
+            p([strong('Name: '), user.name]),
+            p([strong('Email: '), user.email]),
+          ])
+        : exception
+          ? p(`⚠️ ${exception.code}`)
+          : p('Loading user…'),
+    ];
+  },
+);
 
-      .btn {
-        padding: 8px 16px;
-        border: 1px solid #e2e8f0;
-        background: white;
-        border-radius: 6px;
-        color: #4a5568;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .btn:hover {
-        background: #f8fafc;
-        border-color: #cbd5e0;
-      }
-
-      .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-    `,
-  ],
-  template: `
-    <h3>Query user with business exceptions ({{userQuery.status()}})</h3>
-
-    <div class="actions">
-      <button type="button" class="btn" (click)="setScenario('success')">
-        Success
-      </button>
-      <button type="button" class="btn" (click)="setScenario('not-found')">
-        User not found
-      </button>
-      <button
-        type="button"
-        class="btn"
-        (click)="setScenario('consent-missing')"
-      >
-        Consent missing
-      </button>
-      <button type="button" class="btn" (click)="setScenario('forbidden')">
-        Access forbidden
-      </button>
-    </div>
-    status{{userQuery.status()}} : @if(userQuery.safeValue()){{{userQuery.safeValue()?.id}}}
-
-    @switch (userQuery.status()) {
-
-      @case ("idle")
-      @case ('reloading')
-      @case ("loading") {
-      <p>Loading user...</p>
-
-      }
-      @case ('local')
-      @case ('resolved') {
-        @let user = userQuery.value()!;
-      <div>
-        <p><strong>ID:</strong> {{ user.id }}</p>
-        <p><strong>Name:</strong> {{ user.name }}</p>
-        <p><strong>Email:</strong> {{ user.email }}</p>
-      </div>
-      }
-      @case ('exception') {
-      @let exception = userQuery.exceptions().loader!;
-      <!-- code: "UserNotFoundException" | "UserConsentMissingException" | "UserAccessForbiddenException" -->
-      @let exceptionCode = exception.code;
-      @switch (exceptionCode) {
-        @case ('UserNotFoundException') {
-          <p>❌ UserNotFoundException</p>
-        }
-        @case ('UserAccessForbiddenException') {
-          <p>⛔ UserAccessForbiddenException</p>
-        }
-        @case ('UserConsentMissingException') {
-          <p>⚠️ UserConsentMissingException</p>
-          <button type="button" class="btn" (click)="acceptConsent()">
-            Accept consent
-          </button>
-        }
-        @default never;
-        }
-      }
-    }
-
-  `,
-  providers: [provideHostName('component:ExceptionsComponent')],
-})
-export default class ExceptionsComponent {
-  private readonly _monitoring = componentMonitoring();
-  private readonly scenario = signal<Scenario>('success');
-
-  protected readonly userQuery = craftUse(
-    query({
-      params: () => this.scenario(),
-      loader: async ({ params }) => this.mockGetUser(params),
-    }),
-  );
-
-  protected setScenario(scenario: Scenario): void {
-    this.scenario.set(scenario);
-  }
-
-  protected acceptConsent(): void {
-    return;
-  }
-
-  private async mockGetUser(scenario: Scenario) {
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    switch (scenario) {
-      case 'not-found':
-        return craftException(
-          { code: 'UserNotFoundException' },
-          { message: 'User does not exist' as const },
-        );
-      case 'consent-missing':
-        return craftException(
-          { code: 'UserConsentMissingException' },
-          { message: 'User consent is required' as const },
-        );
-      case 'forbidden':
-        return craftException(
-          { code: 'UserAccessForbiddenException' },
-          { message: 'Access to this user is forbidden' as const },
-        );
-      default:
-        return {
-          id: 'user-1',
-          name: 'John Doe',
-          email: 'john@doe.dev',
-        } satisfies User;
-    }
-  }
-}
-
+export default ExceptionsComponent;
 export type GenDeps_ExceptionsComponent = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    _monitoring: ExtractDeps<ExceptionsComponent['_monitoring']>;
-    scenario: ExtractDeps<ExceptionsComponent['scenario']>;
-    userQuery: ExtractDeps<ExceptionsComponent['userQuery']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<ExceptionsComponent>;
+  publicProperties: Record<never, never>;
 }>;

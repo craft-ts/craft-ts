@@ -1,29 +1,17 @@
-import { Component } from '@angular/core';
-import {
-  componentMonitoring,
-  type ExtractDeps,
-  type GetDeps,
-  type GetPublicComponentProperties,
-  provideHostName,
-} from '@craft-ng/core';
+import { component } from '@craft-ng/component';
+import { provideHostName, type GetDeps } from '@craft-ng/core';
 
-@Component({
-  selector: 'app-guard-demo',
-  imports: [],
-  template: `Should not be displayed`,
-  providers: [provideHostName('component:GuardDemo')],
-})
-export class GuardDemo {
-  private readonly _monitoring = componentMonitoring();
-}
+export const GuardDemo = component(
+  { providers: [provideHostName('component:GuardDemo')] },
+  () => ({}),
+  () => 'Should not be displayed',
+);
 
 export type GenDeps_GuardDemo = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    _monitoring: ExtractDeps<GuardDemo['_monitoring']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<GuardDemo>;
+  publicProperties: Record<never, never>;
 }>;

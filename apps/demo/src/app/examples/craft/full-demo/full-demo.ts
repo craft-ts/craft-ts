@@ -1,459 +1,132 @@
-import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { signal } from '@angular/core';
 import {
-  craftUse,
-  asyncProcess,
+  button,
+  component,
+  div,
+  each,
+  h2,
+  input,
+  li,
+  p,
+  span,
+  ul,
+} from '@craft-ng/component';
+import {
   componentMonitoring,
-  craftMethod,
   craftService,
-  insertLocalStoragePersister,
-  insertPaginationPlaceholderData,
-  insertReactOnMutation,
+  craftUse,
   mutation,
-  craftPipe,
-  on$,
   provideHostName,
   query,
-  queryParams,
-  reactiveWritableSignal,
-  removeMany,
-  removeOne,
-  source$,
-  state,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
-} from '../../../ui/status.component';
-import { ApiServiceToYield, type User } from './api.service';
+import { StatusComponent } from '../../../ui/status.component';
 
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+type Todo = { readonly id: number; readonly title: string };
+let nextId = 3;
+let records: Todo[] = [
+  { id: 1, title: 'Compose a craftService' },
+  { id: 2, title: 'Expose query and mutations' },
+];
 
-const { injectFullDemo, provideFullDemo, FullDemoToYield } = craftService(
-  { name: 'FullDemo', scope: 'toProvide' },
+const { injectTodoStore, provideTodoStore } = craftService(
+  { name: 'TodoStore', scope: 'toProvide' },
   () => {
-    const reset$ = source$<void>('reset$');
-
-    const pagination = craftUse(
-      queryParams(
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value) => parseInt(value, 10),
-              serialize: (value) => String(value),
-            },
-            pageSize: {
-              fallbackValue: 4,
-              parse: (value) => parseInt(value, 10),
-              serialize: (value) => String(value),
-            },
-          },
-        },
-        ({ patch, state, reset }) => ({
-          nextPage: () => patch({ page: state().page + 1 }),
-          previousPage: () => patch({ page: state().page - 1 }),
-          updatePageSize: (newPageSize: number) =>
-            patch({ pageSize: newPageSize, page: 1 }),
-          reset: on$(reset$, () => reset()),
-        }),
-      ),
+    const refresh = signal(0);
+    const todos = craftUse(
+      query({
+        params: refresh,
+        loader: async () => [...records],
+      }),
     );
-
-    const bulkDelete = craftUse(
+    const add = craftUse(
       mutation({
-        method: (ids: string[]) => ids,
-        loader: function* ({ params: ids }) {
-          return yield* ApiServiceToYield.bulkDelete(ids);
+        method: (title: string) => title,
+        loader: async ({ params: title }) => {
+          const todo = { id: nextId++, title };
+          records = [...records, todo];
+          refresh.update((value) => value + 1);
+          return todo;
         },
       }),
     );
-
-    const delayUserDeletion = craftUse(
-      asyncProcess({
-        method: (payload: { user: User; action: 'delete' | 'cancel' }) =>
-          payload,
-        identifier: ({ user: { id } }) => id,
-        loader: async ({ params: { user, action } }) => {
-          if (action === 'cancel') {
-            return undefined;
-          }
-          await wait(5000);
-          return user;
-        },
-      }),
-    );
-
-    const deleteUser = craftUse(
+    const remove = craftUse(
       mutation({
-        fromResourceById: delayUserDeletion._resourceById,
-        params: (resource) => {
-          const value = resource?.safeValue();
-          return value
-            ? {
-                ...value,
-                name: value?.name + '-',
-              }
-            : undefined;
-        },
-        identifier: ({ id }) => id,
-        loader: function* ({ params: user }) {
-          return yield* ApiServiceToYield.updateItem(user);
+        method: (id: number) => id,
+        loader: async ({ params: id }) => {
+          records = records.filter((todo) => todo.id !== id);
+          refresh.update((value) => value + 1);
+          return id;
         },
       }),
     );
-
-    const users = craftUse(
-      query(
-        {
-          params: pagination,
-          identifier: (params) => `${params.page}-${params.pageSize}`,
-          loader: function* ({ params: pagination }) {
-            return yield* ApiServiceToYield.getDataList(pagination);
-          },
-        },
-        (context) =>
-          craftPipe(
-            context,
-            insertLocalStoragePersister({
-              storeName: 'demo-app-craft',
-              key: 'full-demo',
-            }),
-            insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-            insertReactOnMutation(deleteUser, {
-              filter: ({ mutationIdentifier, queryResource }) =>
-                !!queryResource
-                  .safeValue()
-                  ?.some((item) => item.id === mutationIdentifier),
-              optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-                removeOne({
-                  entities: queryResource.value(),
-                  id: mutationIdentifier,
-                }),
-              reload: {
-                onMutationException: true,
-              },
-            }),
-            insertReactOnMutation(deleteUser, {
-              filter: ({ queryResource }) =>
-                queryResource.safeValue()?.length === 0,
-              reload: {
-                onMutationResolved: true,
-              },
-            }),
-            insertReactOnMutation(bulkDelete, {
-              filter: ({ queryResource }) =>
-                (queryResource.safeValue()?.length ?? 0) > 0,
-              optimisticUpdate: ({ queryResource, mutationParams }) =>
-                removeMany({
-                  entities: queryResource.value(),
-                  ids: mutationParams,
-                }),
-            }),
-            insertReactOnMutation(bulkDelete, {
-              filter: ({ queryResource }) =>
-                queryResource.safeValue()?.length === 0,
-              reload: {
-                onMutationResolved: true,
-              },
-            }),
-          ),
-      ),
-    );
-
-    const selectedRows = craftUse(
-      state(
-        reactiveWritableSignal([] as string[], (sync) => ({
-          resetWhenCurrentPageIsResolved: sync(
-            users.currentPageStatus,
-            ({ params, current }) => (params === 'resolved' ? [] : current),
-          ),
-          resetWhenBulkDeleteIsResolved: sync(
-            bulkDelete.status,
-            ({ params, current }) => (params === 'resolved' ? [] : current),
-          ),
-          removeDeletedItemsWhenDeleteUserIsResolved: sync(
-            deleteUser.changes.resolved,
-            ({ params: resolvedIds, current }) =>
-              resolvedIds.length > 0
-                ? removeMany({
-                    entities: current,
-                    ids: resolvedIds,
-                  })
-                : current,
-          ),
-        })),
-        (context) =>
-          craftPipe(
-            context,
-            ({ state: selectedRowsState }) => ({
-              isAllSelected: computed(
-                () =>
-                  users.currentPageData()?.length &&
-                  users
-                    .currentPageData()
-                    ?.every((user) => selectedRowsState().includes(user.id)),
-              ),
-            }),
-            ({
-              update,
-              set,
-              state: selectedRowsState,
-              insertions: { isAllSelected },
-            }) => {
-              return {
-                toggleSelection: (id: string) =>
-                  update((current) =>
-                    current.includes(id)
-                      ? current.filter((item) => item !== id)
-                      : [...current, id],
-                  ),
-                isSelected: (id: string) => {
-                  return selectedRowsState().includes(id);
-                },
-                isAllSelected,
-                isSomeSelected: computed(
-                  () =>
-                    users
-                      .currentPageData()
-                      ?.some((user) => selectedRowsState().includes(user.id)) &&
-                    !isAllSelected(),
-                ),
-                toggleAllSelection: () => {
-                  if (isAllSelected()) {
-                    set([]);
-                  } else {
-                    const allIds =
-                      users.currentPageData()?.map((user) => user.id) || [];
-                    set(allIds);
-                  }
-                },
-              };
-            },
-            ({ set }) => ({
-              reset: on$(reset$, () => set([])),
-            }),
-          ),
-      ),
-    );
-
-    return {
-      pagination,
-      bulkDelete,
-      delayUserDeletion,
-      deleteUser,
-      users,
-      selectedRows,
-      reset$,
-    };
+    return { todos, add, remove };
   },
 );
 
-@Component({
-  selector: 'app-full-demo',
-  imports: [CommonModule, StatusComponent],
-  template: `
-    <div class="container">
-      <main class="content">
-        <div class="content-wrapper">
-          <div class="card">
-            <h2 class="card-title">
-              User Management:
-              <app-status [status]="store.users.currentPageStatus()" />
-            </h2>
+const FullDemoCraft = component(
+  {
+    providers: [
+      provideTodoStore(),
+      provideHostName('component:FullDemoCraft'),
+    ],
+    styles:
+      '.craft-full-demo{display:grid;gap:1rem;max-width:640px}.craft-full-demo li{display:flex;gap:.75rem}.craft-full-demo li span{flex:1}',
+  },
+  () => {
+    componentMonitoring();
+    return { store: injectTodoStore() };
+  },
+  ({ store }) => {
+    let title = '';
+    return div({ class: 'craft-full-demo' }, [
+      h2([
+        'Full craftService demo ',
+        StatusComponent({ status: () => store.todos.status() }),
+      ]),
+      p('A toProvide service composed from a query and two mutations.'),
+      div([
+        input({
+          placeholder: 'New todo',
+          input: (event) => {
+            title = (event.target as HTMLInputElement).value;
+          },
+        }),
+        button(
+          {
+            disabled: store.add.isLoading(),
+            click: () => {
+              if (title.trim()) store.add.mutate(title.trim());
+            },
+          },
+          'Add',
+        ),
+      ]),
+      ul(
+        each(
+          () => store.todos.safeValue() ?? [],
+          { track: (todo) => todo.id, empty: () => p('No todos.') },
+          (todo) =>
+            li([
+              span(todo.title),
+              button(
+                { click: () => store.remove.mutate(todo.id) },
+                'Remove',
+              ),
+            ]),
+        ),
+      ),
+    ]);
+  },
+);
 
-            <div style="margin-bottom: 16px">
-              <button
-                class="action-btn"
-                [disabled]="
-                  store.selectedRows().length === 0 ||
-                  store.bulkDelete.status() === 'loading'
-                "
-                (click)="store.bulkDelete.mutate(store.selectedRows())"
-              >
-                Bulk Delete Selected Users ({{
-                  store.selectedRows().length || '-'
-                }})
-                <app-status [status]="store.bulkDelete.status()" />
-              </button>
-              <button
-                class="action-btn reset-btn"
-                (click)="store.reset$.emit()"
-              >
-                Reset Filters
-              </button>
-            </div>
-
-            <div class="table-container">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>
-                      <input
-                        type="checkbox"
-                        [checked]="store.selectedRows.isAllSelected()"
-                        [indeterminate]="store.selectedRows.isSomeSelected()"
-                        (change)="store.selectedRows.toggleAllSelection()"
-                      />
-                    </th>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @if (store.users.currentPageData()) {
-                    @for (
-                      user of store.users.currentPageData();
-                      track user.id
-                    ) {
-                      <tr>
-                        <td>
-                          <input
-                            type="checkbox"
-                            [checked]="store.selectedRows.isSelected(user.id)"
-                            (change)="
-                              store.selectedRows.toggleSelection(user.id)
-                            "
-                          />
-                        </td>
-                        <td>{{ user.id }}</td>
-
-                        <td>{{ user.name }}</td>
-
-                        <td>
-                          @let delayDeleteUserRef =
-                            store.delayUserDeletion.select(user.id);
-
-                          @if (delayDeleteUserRef?.status() === 'loading') {
-                            <button
-                              class="action-btn cancel-btn"
-                              (click)="
-                                store.delayUserDeletion.method({
-                                  user,
-                                  action: 'cancel',
-                                })
-                              "
-                            >
-                              Cancel Deletion (5s)
-                            </button>
-                          } @else {
-                            <button
-                              class="action-btn"
-                              (click)="
-                                store.delayUserDeletion.method({
-                                  user,
-                                  action: 'delete',
-                                })
-                              "
-                            >
-                              Delete User
-                            </button>
-                          }
-                        </td>
-                      </tr>
-                    } @empty {
-                      @if (
-                        store.users.currentPageStatus() === 'resolved' ||
-                        store.users.currentPageStatus() === 'local'
-                      ) {
-                        <tr>
-                          <td
-                            colspan="5"
-                            style="text-align: center; padding: 32px"
-                          >
-                            No users found
-                          </td>
-                        </tr>
-                      } @else {
-                        <tr>
-                          <td
-                            colspan="5"
-                            style="text-align: center; padding: 32px"
-                          >
-                            Loading...
-                          </td>
-                        </tr>
-                      }
-                    }
-                  } @else {
-                    <tr>
-                      <td colspan="5" style="text-align: center; padding: 32px">
-                        Loading...
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-
-            <div class="pagination">
-              <select
-                [value]="store.pagination().pageSize"
-                (change)="updatePageSize($event)"
-                style="margin-right: 8px"
-              >
-                <option [value]="2">2</option>
-                <option [value]="4">4</option>
-                <option [value]="8">8</option>
-                <option [value]="16">16</option>
-              </select>
-              <button class="btn" (click)="store.pagination.previousPage()">
-                Previous
-              </button>
-              <span class="current-page">
-                {{ store.pagination().page }}
-              </span>
-              <button class="btn" (click)="store.pagination.nextPage()">
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  `,
-  styleUrls: ['./full-demo.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideFullDemo(), provideHostName('component:FullDemoCraft')],
-})
-export default class FullDemoCraft {
-  private readonly _monitoring = componentMonitoring();
-  protected readonly store = injectFullDemo();
-
-  protected updatePageSize = craftMethod(
-    'updatePageSize',
-    function* (event: Event) {
-      const value = Number((event.target as HTMLSelectElement).value);
-      const pagination = yield* FullDemoToYield.pagination();
-      pagination.updatePageSize(value);
-    },
-  );
-
-  test = injectFullDemo.users.currentPageData();
-}
-
+export default FullDemoCraft;
 export type GenDeps_FullDemoCraft = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    _monitoring: ExtractDeps<FullDemoCraft['_monitoring']>;
-    store: {
-      FullDemo: ExtractDeps<typeof injectFullDemo>['FullDemo'];
-    };
-    updatePageSize: ExtractDeps<FullDemoCraft['updatePageSize']>;
-    test: ExtractDeps<FullDemoCraft['test']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
-    FullDemo: ReturnType<typeof provideFullDemo>;
+    TodoStore: ReturnType<typeof provideTodoStore>;
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<FullDemoCraft>;
+  publicProperties: Record<never, never>;
 }>;

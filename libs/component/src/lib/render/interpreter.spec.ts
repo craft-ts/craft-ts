@@ -1,0 +1,411 @@
+// @vitest-environment jsdom
+import '@angular/compiler';
+import {
+  Component,
+  Directive,
+  EventEmitter,
+  HostBinding,
+  inject,
+  InjectionToken,
+  Injector,
+  Input as AngularInput,
+  Output as AngularOutput,
+  signal,
+} from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import {
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+import {
+  craftService,
+} from '@craft-ng/core';
+import {
+  CraftRoutedComponentHost,
+  mountCraftComponent,
+  provideCraftComponent,
+} from '../bridge';
+import {
+  angular,
+  directive,
+} from '../angular';
+import { component } from '../component';
+import { defer } from '../defer';
+import { each } from '../each';
+import {
+  button,
+  div,
+  p,
+  span,
+} from '../hyperscript';
+import type {
+  Input,
+  Output,
+} from '../types';
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
+
+@Component({
+  selector: 'test-angular-child',
+  standalone: true,
+  template: `<button (click)="selected.emit(label)">{{ label }}</button>`,
+})
+class TestAngularChild {
+  @AngularInput() label = '';
+  @AngularOutput() readonly selected = new EventEmitter<string>();
+}
+
+@Directive({
+  selector: '[craftTestMarker]',
+  standalone: true,
+})
+class TestMarkerDirective {
+  @AngularInput() craftTestMarker = '';
+  @HostBinding('attr.data-marker')
+  get marker(): string {
+    return this.craftTestMarker;
+  }
+}
+
+function host(): HTMLElement {
+  const element = document.createElement('div');
+  document.body.append(element);
+  return element;
+}
+
+describe('functional component interpreter', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    document.body.replaceChildren();
+  });
+
+  it('renders static nodes, listeners, classes and reactive signal reads', () => {
+    const count = signal(0);
+    const counter = component(
+      { host: { 'data-kind': 'counter' } },
+      () => ({ count }),
+      ({ count }) =>
+        div({ class: ['counter', 'active'] }, [
+          p({ class: { value: true } }, `Count: ${count()}`),
+          button({ click: () => count.update((value) => value + 1) }, '+'),
+        ]),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      counter,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.getAttribute('data-kind')).toBe('counter');
+    expect(element.querySelector('.value')?.textContent).toBe('Count: 0');
+
+    element.querySelector('button')?.click();
+    TestBed.tick();
+    expect(element.querySelector('.value')?.textContent).toBe('Count: 1');
+
+    mounted.destroy();
+    expect(element.textContent).toBe('');
+  });
+
+  it('patches Input accessors without recreating the component', () => {
+    const value = signal('first');
+    let factoryRuns = 0;
+    const label = component(
+      {},
+      (text: Input<string>) => {
+        factoryRuns += 1;
+        return { text };
+      },
+      ({ text }) => p(text()),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      label,
+      element,
+      TestBed.inject(Injector),
+      { text: value },
+    );
+    TestBed.tick();
+    const paragraph = element.querySelector('p');
+
+    value.set('second');
+    TestBed.tick();
+
+    expect(element.textContent).toBe('second');
+    expect(element.querySelector('p')).toBe(paragraph);
+    expect(factoryRuns).toBe(1);
+    mounted.destroy();
+  });
+
+  it('resolves yield* craftService dependencies in the child injector', () => {
+    const PREFIX = new InjectionToken<string>('component-prefix');
+    const { GreetingToYield } = craftService(
+      { name: 'Greeting', scope: 'function' },
+      () => ({ prefix: inject(PREFIX) }),
+    );
+
+    const greeting = component(
+      { providers: [{ provide: PREFIX, useValue: 'Bonjour' }] },
+      function* (name: Input<string>) {
+        const service = yield* GreetingToYield();
+        return { name, service };
+      },
+      ({ name, service }) => p(`${service.prefix} ${name()}`),
+    );
+
+    const element = host();
+    mountCraftComponent(
+      greeting,
+      element,
+      TestBed.inject(Injector),
+      { name: () => 'Ada' },
+    );
+    TestBed.tick();
+
+    expect(element.textContent).toBe('Bonjour Ada');
+  });
+
+  it('mounts selectorless children by lexical component reference', () => {
+    const picked = vi.fn();
+    const userCard = component(
+      {},
+      (
+        name: Input<string>,
+        onPick: Output<(name: string) => void>,
+      ) => ({ name, onPick }),
+      ({ name, onPick }) =>
+        button({ click: () => onPick(name()) }, name()),
+    );
+    const parent = component(
+      {},
+      () => ({ picked }),
+      ({ picked }) =>
+        div([
+          span('Parent'),
+          userCard({
+            name: () => 'Grace',
+            onPick: picked,
+          }),
+        ]),
+    );
+
+    const element = host();
+    mountCraftComponent(parent, element, TestBed.inject(Injector));
+    TestBed.tick();
+    element.querySelector('button')?.click();
+
+    expect(element.textContent).toBe('ParentGrace');
+    expect(picked).toHaveBeenCalledWith('Grace');
+  });
+
+  it('reconciles each() blocks by key and renders the empty block', () => {
+    const users = signal([
+      { id: 1, name: 'Ada' },
+      { id: 2, name: 'Grace' },
+    ]);
+    const list = component(
+      {},
+      () => ({ users }),
+      ({ users }) =>
+        div(
+          each(
+            users,
+            {
+              track: (user) => user.id,
+              empty: () => p({ class: 'empty' }, 'Nobody'),
+            },
+            (user) => p({ 'data-id': user.id }, user.name),
+          ),
+        ),
+    );
+    const element = host();
+    mountCraftComponent(list, element, TestBed.inject(Injector));
+    TestBed.tick();
+    const ada = element.querySelector('[data-id="1"]');
+    const grace = element.querySelector('[data-id="2"]');
+
+    users.set([
+      { id: 2, name: 'Grace Hopper' },
+      { id: 1, name: 'Ada Lovelace' },
+      { id: 3, name: 'Linus' },
+    ]);
+    TestBed.tick();
+
+    const rows = Array.from(element.querySelectorAll('[data-id]'));
+    expect(rows.map((row) => row.getAttribute('data-id'))).toEqual([
+      '2',
+      '1',
+      '3',
+    ]);
+    expect(rows[0]).toBe(grace);
+    expect(rows[1]).toBe(ada);
+    expect(rows[0].textContent).toBe('Grace Hopper');
+
+    users.set([]);
+    TestBed.tick();
+    expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
+  });
+
+  it('renders defer loading, success and CRAFT_LAZY_LOAD_ERROR branches', async () => {
+    let resolveModule!: (value: string) => void;
+    const loaded = new Promise<string>((resolve) => {
+      resolveModule = resolve;
+    });
+    const success = component(
+      {},
+      () => ({}),
+      () =>
+        defer(() => loaded, {
+          trigger: 'immediate',
+          resolve: (value) => p({ class: 'loaded' }, value),
+          placeholder: () => p('Placeholder'),
+          loading: () => p({ class: 'loading' }, 'Loading'),
+        }),
+    );
+    const successHost = host();
+    mountCraftComponent(success, successHost, TestBed.inject(Injector));
+    TestBed.tick();
+    expect(successHost.querySelector('.loading')?.textContent).toBe('Loading');
+
+    resolveModule('Ready');
+    await vi.waitFor(() => {
+      expect(successHost.querySelector('.loaded')?.textContent).toBe('Ready');
+    });
+
+    const failure = component(
+      {},
+      () => ({}),
+      () =>
+        defer(() => Promise.reject(new Error('boom')), {
+          trigger: 'immediate',
+          resolve: () => p('unreachable'),
+          error: (error) =>
+            p(
+              { class: 'error' },
+              (error as { code?: string }).code ?? 'unknown',
+            ),
+        }),
+    );
+    const failureHost = host();
+    mountCraftComponent(failure, failureHost, TestBed.inject(Injector));
+    TestBed.tick();
+
+    await vi.waitFor(() => {
+      expect(failureHost.querySelector('.error')?.textContent).toBe(
+        'CRAFT_LAZY_LOAD_ERROR',
+      );
+    });
+  });
+
+  it('keeps a defer placeholder until its interaction trigger fires', async () => {
+    const interaction = component(
+      {},
+      () => ({}),
+      () =>
+        defer(() => Promise.resolve('Interacted'), {
+          trigger: 'interaction',
+          resolve: (value) => p({ class: 'interaction-loaded' }, value),
+          placeholder: () =>
+            button({ class: 'interaction-trigger' }, 'Start'),
+        }),
+    );
+    const element = host();
+    mountCraftComponent(interaction, element, TestBed.inject(Injector));
+    TestBed.tick();
+
+    expect(element.querySelector('.interaction-trigger')?.textContent).toBe(
+      'Start',
+    );
+    expect(element.querySelector('.interaction-loaded')).toBeNull();
+
+    element.querySelector<HTMLButtonElement>('.interaction-trigger')?.click();
+    await vi.waitFor(() => {
+      expect(
+        element.querySelector('.interaction-loaded')?.textContent,
+      ).toBe('Interacted');
+    });
+  });
+
+  it('mounts Angular components and directives through public interop nodes', () => {
+    const label = signal('Angular child');
+    const selected = vi.fn();
+    const interop = component(
+      {},
+      () => ({ label, selected }),
+      ({ label, selected }) =>
+        div([
+          angular(TestAngularChild, {
+            inputs: { label },
+            outputs: { selected },
+          }),
+          p(
+            {
+              directives: [
+                directive(TestMarkerDirective, {
+                  inputs: { craftTestMarker: () => 'active' },
+                }),
+              ],
+            },
+            'Marked',
+          ),
+        ]),
+    );
+    const element = host();
+    mountCraftComponent(interop, element, TestBed.inject(Injector));
+    TestBed.tick();
+
+    expect(element.querySelector('test-angular-child')?.textContent).toContain(
+      'Angular child',
+    );
+    expect(element.querySelector('[data-marker="active"]')?.textContent).toBe(
+      'Marked',
+    );
+
+    element
+      .querySelector<HTMLButtonElement>('test-angular-child button')
+      ?.click();
+    expect(selected).toHaveBeenCalledWith('Angular child');
+  });
+
+  it('mounts a routed functional component from a route-scoped provider', () => {
+    const routed = component(
+      {},
+      () => ({}),
+      () => p({ class: 'routed-functional' }, 'Routed'),
+    );
+    TestBed.configureTestingModule({
+      providers: [provideCraftComponent(routed)],
+    });
+    const fixture = TestBed.createComponent(CraftRoutedComponentHost);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(
+      fixture.nativeElement.querySelector('.routed-functional')?.textContent,
+    ).toBe('Routed');
+  });
+});

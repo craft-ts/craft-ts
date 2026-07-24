@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { component, div, p } from '@craft-ng/component';
 import {
   componentMonitoring,
   craftException,
@@ -6,12 +6,13 @@ import {
   craftService,
   provideHostName,
   query,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import { User } from '../query/api.service';
-import { injectOtherService, provideOtherService } from './to-provide.service';
+import type { User } from '../query/api.service';
+import {
+  injectOtherService,
+  provideOtherService,
+} from './to-provide.service';
 
 const { injectUsersApiOnError } = craftService(
   { name: 'UsersApiOnError', scope: 'global' },
@@ -21,31 +22,20 @@ const { injectUsersApiOnError } = craftService(
       success: response<User[]>(),
       exceptions: [
         function* ({ status, code, content }) {
-          if (!(yield* status(400))) {
-            return;
+          if (
+            (yield* status(400)) &&
+            (yield* code('PASSWORD_REQUIRED')) &&
+            (yield* content('Password is required'))
+          ) {
+            return craftException(
+              { code: 'PASSWORD_REQUIRED', scope: 'AuthApi' },
+              { field: 'password' },
+            );
           }
-
-          if (!(yield* code('PASSWORD_REQUIRED'))) {
-            return;
-          }
-
-          if (!(yield* content('Password is required'))) {
-            return;
-          }
-
-          return craftException(
-            {
-              code: 'PASSWORD_REQUIRED',
-              scope: 'AuthApi',
-            },
-            {
-              field: 'password',
-            },
-          );
+          return;
         },
       ],
     }));
-
     return {
       users,
       query: yield* query({
@@ -56,61 +46,39 @@ const { injectUsersApiOnError } = craftService(
   },
 );
 
-const { TestToYield } = craftService({ name: 'test', scope: 'global' }, () => {
-  return {
-    getValue: () => 'test service value',
-    getValue2: () => 'test service value2',
-  };
-});
 const { injectTest2 } = craftService(
   { name: 'test2', scope: 'global' },
-  function* () {
-    yield* TestToYield(undefined, ({ getValue }) => ({ getValue }));
-
-    return {};
-  },
+  () => ({}),
 );
 
-@Component({
-  selector: 'app-other',
-  providers: [
-    provideOtherService(),
-    provideHostName('component:OtherComponent'),
-  ],
-  template: ` {{ _injectOtherService.getValue() }}
-    query status: {{ _injectUsersApiOnError.query.status() }}`,
-})
-export class OtherComponent {
-  private readonly _monitoring = componentMonitoring();
-  _injectOtherService = injectOtherService();
-  _injectUsersApiOnError = injectUsersApiOnError();
-  _injectTest2 = injectTest2();
-}
-
-type _UsersApiOnErrorDeps = ExtractDeps<
-  typeof injectUsersApiOnError
->['UsersApiOnError'];
-type _Test2Deps = ExtractDeps<typeof injectTest2>['test2'];
+export const OtherComponent = component(
+  {
+    providers: [
+      provideOtherService(),
+      provideHostName('component:OtherComponent'),
+    ],
+  },
+  () => {
+    componentMonitoring();
+    return {
+      other: injectOtherService(),
+      users: injectUsersApiOnError(),
+      test: injectTest2(),
+    };
+  },
+  ({ other, users }) =>
+    div([
+      p(other.getValue()),
+      p(`Query status: ${users.query.status()}`),
+    ]),
+);
 
 export type GenDeps_OtherComponent = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    _monitoring: ExtractDeps<OtherComponent['_monitoring']>;
-    _injectOtherService: {
-      OtherService: ExtractDeps<typeof injectOtherService>['OtherService'];
-    };
-    _injectUsersApiOnError: {
-      UsersApiOnError: ExtractDeps<
-        typeof injectUsersApiOnError
-      >['UsersApiOnError'];
-    };
-    _injectTest2: {
-      test2: ExtractDeps<typeof injectTest2>['test2'];
-    };
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     OtherService: ReturnType<typeof provideOtherService>;
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<OtherComponent>;
+  publicProperties: Record<never, never>;
 }>;

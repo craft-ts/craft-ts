@@ -5,3 +5,62 @@
 * {
   font-family: 'Chivo', Arial, Helvetica, sans-serif !important;
 }
+/* Functional component demo: these nodes are produced by @craft-ng/component,
+   so their styles live at the application boundary rather than in an Angular
+   component stylesheet. */
+.component-demo-host {
+  display: block;
+}
+
+.component-demo {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  font-family: system-ui, sans-serif;
+}
+
+.component-demo__list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.component-demo__user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #dbe2ea;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.component-demo button {
+  width: fit-content;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #94a3b8;
+  border-radius: 0.4rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.component-demo__add,
+.component-demo__defer-trigger {
+  color: #fff;
+  border-color: #2563eb !important;
+  background: #2563eb !important;
+}
+
+.component-demo__empty,
+.component-demo__error {
+  color: #b91c1c;
+}
+
+.component-demo__lazy-content {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  color: #166534;
+  background: #dcfce7;
+}

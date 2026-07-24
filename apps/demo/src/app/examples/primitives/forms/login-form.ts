@@ -1,283 +1,87 @@
-import { JsonPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import {
-  craftUse,
-  CraftFieldDirective,
-  ValidatedFormValue,
-  cEmail,
-  cMinLength,
-  cRequired,
+  button,
+  component,
+  div,
+  form,
+  h2,
+  input,
+  label,
+  p,
+} from '@craft-ng/component';
+import {
   componentMonitoring,
-  craftException,
-  craftPipe,
-  insertForm,
-  insertFormAttributes,
-  insertFormSubmit,
-  insertNoopTypingAnchor,
-  insertSelectFormTree,
-  mutation,
   provideHostName,
-  state,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
-type LoginData = {
-  email: string;
-  password: string;
-};
-
-@Component({
-  selector: 'app-login-form',
-  imports: [CraftFieldDirective, JsonPipe],
-  template: `
-    <div class="login-container">
-      <div class="login-card">
-        <h2>Login</h2>
-
-        @if (loginForm.form.hasSubmitExceptions()) {
-          <div class="submit-errors">
-            @for (
-              exception of loginForm.form.submitExceptions();
-              track exception.code
-            ) {
-              @switch (exception.code) {
-                @case ('UserBannedException') {
-                  <p>{{ exception.payload.message }}</p>
-                }
-                @default {
-                  <p>An unexpected error occurred.</p>
-                }
-              }
-            }
-          </div>
-        }
-
-        <form (submit)="$event.preventDefault(); loginForm.form.submit()">
-          <div class="form-group">
-            <label for="email">Email</label>
-            @let emailField = loginForm.form.selectEmail();
-            <input
-              id="email"
-              type="email"
-              placeholder="Enter your email"
-              [craftField]="loginForm.form.email"
-            />
-            <div class="field-errors">
-              @for (
-                error of emailField?.visibleExceptions()?.list ?? [];
-                track error.code
-              ) {
-                @switch (error.code) {
-                  @case ('required') {
-                    <span>Email is required.</span>
-                  }
-                  @case ('email') {
-                    <span>Please enter a valid email address.</span>
-                  }
-                }
-              }
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="password">Password</label>
-            @let passwordField = loginForm.form.selectPassword();
-            <input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              [craftField]="loginForm.form.password"
-            />
-            <div class="field-errors">
-              @for (
-                error of passwordField?.visibleExceptions()?.list ?? [];
-                track error.code
-              ) {
-                @switch (error.code) {
-                  @case ('required') {
-                    <span>Password is required.</span>
-                  }
-                }
-              }
-            </div>
-          </div>
-
-          <button type="submit" class="submit-btn">
-            {{ loginForm.form.submitting() ? 'Logging in...' : 'Log in' }}
-          </button>
-        </form>
-      </div>
-    </div>
-    errors:
-    {{ loginForm.form.email.errors() | json }} hasAttemptedSubmit:{{
-      loginForm.form.hasAttemptedSubmit()
-    }}
-  `,
-  styles: [
-    `
-      .login-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        background: #f0f2f5;
-      }
-
-      .login-card {
-        background: white;
-        border-radius: 12px;
-        padding: 40px;
-        width: 100%;
-        max-width: 400px;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-      }
-
-      h2 {
-        margin: 0 0 24px;
-        font-size: 24px;
-        color: #1a202c;
-      }
-
-      .form-group {
-        margin-bottom: 20px;
-      }
-
-      label {
-        display: block;
-        margin-bottom: 6px;
-        font-weight: 500;
-        color: #4a5568;
-        font-size: 14px;
-      }
-
-      input {
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        font-size: 14px;
-        transition: border-color 0.2s;
-        box-sizing: border-box;
-      }
-
-      input:focus {
-        outline: none;
-        border-color: #4299e1;
-        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
-      }
-
-      .field-errors {
-        margin-top: 4px;
-      }
-
-      .field-errors span {
-        display: block;
-        color: #e53e3e;
-        font-size: 12px;
-      }
-
-      .submit-errors {
-        background: #fff5f5;
-        border: 1px solid #feb2b2;
-        border-radius: 6px;
-        padding: 12px;
-        margin-bottom: 20px;
-      }
-
-      .submit-errors p {
-        margin: 0;
-        color: #c53030;
-        font-size: 14px;
-      }
-
-      .submit-btn {
-        width: 100%;
-        padding: 12px;
-        background: #4299e1;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-size: 16px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-
-      .submit-btn:hover:not(:disabled) {
-        background: #3182ce;
-      }
-
-      .submit-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
+const LoginFormComponent = component(
+  {
+    providers: [provideHostName('component:LoginFormComponent')],
+    styles: `
+      .login-form{max-width:420px;display:grid;gap:1rem;padding:2rem;border:1px solid #e2e8f0;border-radius:12px}.login-field{display:grid;gap:.35rem}.login-form input{padding:.75rem;border:1px solid #cbd5e1;border-radius:6px}.login-error{color:#b91c1c}
     `,
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('component:LoginFormComponent')],
-})
-export default class LoginFormComponent {
-  private readonly _monitoring = componentMonitoring();
-  private readonly loginMutation = craftUse(
-    mutation({
-      method: (payload: NonNullable<ValidatedFormValue<LoginData>>) => payload,
-      loader: async ({ params: credentials }) => {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        if (credentials.email === 'invalid@gmail.com') {
-          return craftException(
-            { code: 'UserBannedException' },
-            { message: 'This user has been banned.' as const },
-          );
-        }
-
-        return credentials;
+  },
+  () => {
+    componentMonitoring();
+    const email = signal('');
+    const password = signal('');
+    const submitted = signal(false);
+    const valid = computed(
+      () => email().includes('@') && password().length >= 6,
+    );
+    const submit = () => submitted.set(true);
+    return { email, password, submitted, valid, submit };
+  },
+  ({ email, password, submitted, valid, submit }) =>
+    form(
+      {
+        class: 'login-form',
+        submit: (event) => {
+          event.preventDefault();
+          submit();
+        },
       },
-    }),
-  );
-
-  protected readonly loginForm = craftUse(
-    state(
-      { email: '', password: '' } satisfies LoginData,
-      insertForm(
-        insertFormSubmit(this.loginMutation),
-        insertSelectFormTree('email', (context) =>
-          craftPipe(
-            context,
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [cRequired(), cEmail(), cMinLength({ minLength: 5 })],
-            })),
-          ),
-        ),
-        insertSelectFormTree('password', (context) =>
-          craftPipe(
-            context,
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [cRequired()],
-            })),
-          ),
-        ),
-      ),
+      [
+        h2('Login form'),
+        div({ class: 'login-field' }, [
+          label({ htmlFor: 'email' }, 'Email'),
+          input({
+            id: 'email',
+            type: 'email',
+            value: email(),
+            input: (event) =>
+              email.set((event.target as HTMLInputElement).value),
+          }),
+        ]),
+        div({ class: 'login-field' }, [
+          label({ htmlFor: 'password' }, 'Password'),
+          input({
+            id: 'password',
+            type: 'password',
+            value: password(),
+            input: (event) =>
+              password.set((event.target as HTMLInputElement).value),
+          }),
+        ]),
+        submitted() && !valid()
+          ? p(
+              { class: 'login-error' },
+              'Enter a valid email and a password of at least 6 characters.',
+            )
+          : [],
+        submitted() && valid() ? p('✅ Login form submitted.') : [],
+        button({ type: 'submit' }, 'Sign in'),
+      ],
     ),
-  );
-}
+);
 
+export default LoginFormComponent;
 export type GenDeps_LoginFormComponent = GetDeps<{
-  deps: {
-    JsonPipe: JsonPipe;
-    CraftFieldDirective: CraftFieldDirective<unknown>;
-  };
-  propertiesDeps: {
-    _monitoring: ExtractDeps<LoginFormComponent['_monitoring']>;
-    loginMutation: ExtractDeps<LoginFormComponent['loginMutation']>;
-    loginForm: ExtractDeps<LoginFormComponent['loginForm']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<LoginFormComponent>;
+  publicProperties: Record<never, never>;
 }>;

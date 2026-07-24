@@ -1,5 +1,11 @@
-import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import {
+  button,
+  component,
+  div,
+  h,
+  p,
+  type Input,
+} from '@craft-ng/component';
 import {
   componentMonitoring,
   craftMethod,
@@ -8,95 +14,63 @@ import {
   insertLocalStoragePersister,
   provideHostName,
   query,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
-} from '../../../ui/status.component';
+import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield } from './api.service';
 
-@Component({
-  selector: 'app-query',
-  imports: [CommonModule, StatusComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrls: ['query.css'],
-  template: `
-    <div>
-      User
-      <app-status [status]="userQuery.status()" />
-
-      :
-      @if (userQuery.hasValue()) {
-        <pre>{{ userQuery.value() | json }}</pre>
-      }
-    </div>
-
-    <div>
-      <p>
-        > Reload the page to see the query result to be retrieved from the cache
-      </p>
-    </div>
-
-    <button (click)="previousPage()">Previous user</button>
-    <button (click)="nextPage()">Next user</button>
-  `,
-  providers: [provideHostName('component:GlobalQuery')],
-})
-export default class GlobalQuery {
-  private readonly _monitoring = componentMonitoring();
-  public readonly userId = input<string>();
-
-  protected readonly userQuery = craftUse(
-    query(
-      {
-        params: this.userId,
-        loader: function* ({ params: userId }) {
-          return yield* ApiServiceToYield.getItemById(userId);
+const GlobalQuery = component(
+  {
+    providers: [provideHostName('component:GlobalQuery')],
+  },
+  (userId: Input<string | undefined>) => {
+    componentMonitoring();
+    const userQuery = craftUse(
+      query(
+        {
+          params: userId,
+          loader: function* ({ params }) {
+            return yield* ApiServiceToYield.getItemById(params);
+          },
         },
-      },
-      insertLocalStoragePersister({
-        storeName: 'demo-app',
-        key: 'user-query',
-      }),
-    ),
-  );
+        insertLocalStoragePersister({
+          storeName: 'demo-app',
+          key: 'user-query',
+        }),
+      ),
+    );
+    const navigate = (offset: number) =>
+      craftMethod('navigate', function* () {
+        yield* CraftRouterToYield.navigate({
+          to: 'query/:userId',
+          params: {
+            userId: String(Number(userId() ?? '0') + offset),
+          },
+        });
+      })();
+    return { userQuery, navigate };
+  },
+  ({ userQuery, navigate }) => [
+    div([
+      'User ',
+      StatusComponent({ status: () => userQuery.status() }),
+      userQuery.hasValue()
+        ? h('pre', JSON.stringify(userQuery.value(), null, 2))
+        : [],
+    ]),
+    p('Reload the page to retrieve the query result from the cache.'),
+    button({ click: () => void navigate(-1) }, 'Previous user'),
+    button({ click: () => void navigate(1) }, 'Next user'),
+  ],
+);
 
-  protected nextPage = craftMethod('nextPage', this, function* () {
-    return yield* CraftRouterToYield.navigate({
-      to: 'query/:userId',
-      params: {
-        userId: String(parseInt(this.userId() ?? '0', 10) + 1),
-      },
-    });
-  });
-
-  protected previousPage = craftMethod('previousPage', this, function* () {
-    return yield* CraftRouterToYield.navigate({
-      to: 'query/:userId',
-      params: {
-        userId: String(parseInt(this.userId() ?? '10', 10) - 1),
-      },
-    });
-  });
-}
+export default GlobalQuery;
 
 export type GenDeps_GlobalQuery = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    _monitoring: ExtractDeps<GlobalQuery['_monitoring']>;
-    userId: ExtractDeps<GlobalQuery['userId']>;
-    userQuery: ExtractDeps<GlobalQuery['userQuery']>;
-    nextPage: ExtractDeps<GlobalQuery['nextPage']>;
-    previousPage: ExtractDeps<GlobalQuery['previousPage']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<GlobalQuery>;
+  publicProperties: Record<never, never>;
 }>;

@@ -1,183 +1,146 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { computed } from '@angular/core';
 import {
-  craftUse,
+  button,
+  component,
+  div,
+  each,
+  h1,
+  header,
+  p,
+  section,
+  span,
+} from '@craft-ng/component';
+import {
   componentMonitoring,
-  insertLocalStoragePersister,
   craftPipe,
+  craftUse,
+  insertLocalStoragePersister,
   insertSelect,
   provideHostName,
   state,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
 } from '@craft-ng/core';
 
-type PixelCellState = {
-  index: number;
-  color: string;
-  paintCount: number;
-};
-
 const GRID_SIZE = 16;
-const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
 const EMPTY_COLOR = '#f8fafc';
-const DEFAULT_ACTIVE_COLOR = '#0f172a';
-const COLOR_PALETTE = ['#0f172a', '#ef4444', '#22c55e', '#3b82f6', '#eab308'];
-const CELL_INDEXES = Array.from(
-  { length: TOTAL_CELLS },
-  (_unused, index) => index,
+const COLORS = ['#0f172a', '#ef4444', '#22c55e', '#3b82f6', '#eab308'];
+const INDEXES = Array.from({ length: GRID_SIZE ** 2 }, (_, index) => index);
+
+const PixelArt = component(
+  {
+    providers: [provideHostName('component:PixelArt')],
+    styles: `
+      .pixel-grid{display:grid;grid-template-columns:repeat(16,22px);gap:1px}.pixel-cell{width:22px;height:22px;border:1px solid #e2e8f0;padding:0}.pixel-palette{display:flex;gap:8px;margin:1rem 0}.pixel-color{width:32px;height:32px;border:2px solid #fff;box-shadow:0 0 0 1px #94a3b8}
+    `,
+  },
+  () => {
+    componentMonitoring();
+    const ui = craftUse(
+      state(
+        { activeColor: COLORS[0] },
+        (context) =>
+          craftPipe(
+            context,
+            ({ update }) => ({
+              setActiveColor: (activeColor: string) =>
+                update(() => ({ activeColor })),
+            }),
+            insertLocalStoragePersister({
+              key: 'pixel-art-ui-state',
+              storeName: 'pixel-art-ui',
+            }),
+          ),
+      ),
+    );
+    const cells = craftUse(
+      state(
+        INDEXES.map((index) => ({
+          index,
+          color: EMPTY_COLOR,
+          paintCount: 0,
+        })),
+        (context) =>
+          craftPipe(
+            context,
+            insertLocalStoragePersister({
+              key: 'pixel-art-cells-state',
+              storeName: 'pixel-art-cells',
+            }),
+            insertSelect('cell', ({ update }) => ({
+              paint: () =>
+                update((cell) => ({
+                  ...cell,
+                  color:
+                    cell.color === ui().activeColor
+                      ? EMPTY_COLOR
+                      : ui().activeColor,
+                  paintCount: cell.paintCount + 1,
+                })),
+            })),
+            ({ state, update }) => ({
+              clearAll: () =>
+                update((current) =>
+                  current.map((cell) => ({ ...cell, color: EMPTY_COLOR })),
+                ),
+              paintedCount: computed(
+                () =>
+                  state().filter(({ color }) => color !== EMPTY_COLOR).length,
+              ),
+              totalPaintActions: computed(() =>
+                state().reduce(
+                  (total, { paintCount }) => total + paintCount,
+                  0,
+                ),
+              ),
+            }),
+          ),
+      ),
+    );
+    return { ui, cells };
+  },
+  ({ ui, cells }) =>
+    section([
+      header([
+        h1('Atelier Pixel Art'),
+        p('Grille 16×16 avec state simple et insertions par case.'),
+      ]),
+      div(
+        { class: 'pixel-palette' },
+        each(COLORS, { track: (color) => color }, (color) =>
+          button({
+            class: 'pixel-color',
+            style: { backgroundColor: color },
+            'aria-label': `Choisir ${color}`,
+            click: () => ui.setActiveColor(color),
+          }),
+        ),
+      ),
+      button({ click: cells.clearAll }, 'Effacer'),
+      p([
+        span(`Cases peintes: ${cells.paintedCount()}/${INDEXES.length}`),
+        span(` · Clics: ${cells.totalPaintActions()}`),
+      ]),
+      div(
+        { class: 'pixel-grid', role: 'grid' },
+        each(INDEXES, { track: (index) => index }, (index) => {
+          const cell = cells.selectCell(index);
+          return button({
+            class: 'pixel-cell',
+            style: { backgroundColor: cell?.color ?? EMPTY_COLOR },
+            title: `Case ${index + 1}`,
+            click: () => cell?.paint(),
+          });
+        }),
+      ),
+    ]),
 );
 
-@Component({
-  selector: 'app-pixel-art',
-  template: `
-    <section class="pixel-art">
-      <header class="pixel-art__header">
-        <h1>Atelier Pixel Art</h1>
-        <p>Grille 16x16 avec state simple et insertions par case.</p>
-      </header>
-
-      <div class="pixel-art__controls">
-        <div class="pixel-art__palette">
-          @for (color of colorPalette; track color) {
-            <button
-              type="button"
-              class="pixel-art__color"
-              [class.active]="ui().activeColor === color"
-              [style.background-color]="color"
-              (click)="ui.setActiveColor(color)"
-              [attr.aria-label]="'Choisir la couleur ' + color"
-            ></button>
-          }
-        </div>
-        <button type="button" (click)="cells.clearAll()">Effacer</button>
-      </div>
-
-      <div class="pixel-art__stats">
-        <span>Cases peintes: {{ cells.paintedCount() }}/{{ totalCells }}</span>
-        <span>Clics totaux: {{ cells.totalPaintActions() }}</span>
-      </div>
-
-      <div class="pixel-art__grid" role="grid" aria-label="Pixel Art 16x16">
-        @for (index of cellIndexes; track index) {
-          @let cell = cells.selectCell(index);
-          <button
-            type="button"
-            role="gridcell"
-            class="pixel-art__cell"
-            [style.background-color]="cell?.color ?? emptyColor"
-            (click)="cell?.paint()"
-            [attr.aria-label]="'Case ' + (index + 1)"
-            [attr.title]="
-              'Case ' +
-              (index + 1) +
-              ' - ' +
-              (cell?.paintCountStr() ?? 'Painted 0 times')
-            "
-          ></button>
-        }
-      </div>
-    </section>
-  `,
-  styleUrls: ['./pixel-art.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [provideHostName('component:PixelArt')],
-})
-export default class PixelArt {
-  private readonly _monitoring = componentMonitoring();
-  protected readonly totalCells = TOTAL_CELLS;
-  protected readonly emptyColor = EMPTY_COLOR;
-  protected readonly colorPalette = COLOR_PALETTE;
-  protected readonly cellIndexes = CELL_INDEXES;
-
-  protected readonly ui = craftUse(
-    state(
-      {
-        activeColor: DEFAULT_ACTIVE_COLOR,
-      },
-      (context) =>
-        craftPipe(
-          context,
-          ({ update }) => ({
-            setActiveColor: (color: string) =>
-              update((current) => ({ ...current, activeColor: color })),
-          }),
-          insertLocalStoragePersister({
-            key: 'pixel-art-ui-state',
-            storeName: 'pixel-art-ui',
-          }),
-        ),
-    ),
-  );
-
-  protected readonly cells = craftUse(
-    state(
-      initializePixelCells(), // { index: number; color: string; paintCount: number;}[]
-      (context) =>
-        craftPipe(
-          context,
-          insertLocalStoragePersister({
-            key: 'pixel-art-cells-state',
-            storeName: 'pixel-art-cells',
-          }),
-          insertSelect('cell', ({ state, update }) => ({
-            paint: () =>
-              update((cell) => ({
-                ...cell,
-                color:
-                  cell.color === this.ui().activeColor
-                    ? EMPTY_COLOR
-                    : this.ui().activeColor,
-                paintCount: cell.paintCount + 1,
-              })),
-            paintCountStr: computed(
-              () => `Painted ${state().paintCount} times`,
-            ),
-          })),
-          ({ state, update }) => ({
-            clearAll: () =>
-              update((cells) =>
-                cells.map((cell) => ({
-                  ...cell,
-                  color: EMPTY_COLOR,
-                })),
-              ),
-            paintedCount: computed(
-              () => state().filter((cell) => cell.color !== EMPTY_COLOR).length,
-            ),
-            totalPaintActions: computed(() =>
-              state().reduce((count, cell) => count + cell.paintCount, 0),
-            ),
-          }),
-        ),
-    ),
-  );
-}
-
-function initializePixelCells() {
-  return CELL_INDEXES.map(
-    (index) =>
-      ({
-        index,
-        color: EMPTY_COLOR,
-        paintCount: 0,
-      }) satisfies PixelCellState,
-  );
-}
-
+export default PixelArt;
 export type GenDeps_PixelArt = GetDeps<{
-  deps: {};
-  propertiesDeps: {
-    _monitoring: ExtractDeps<PixelArt['_monitoring']>;
-    totalCells: ExtractDeps<PixelArt['totalCells']>;
-    emptyColor: ExtractDeps<PixelArt['emptyColor']>;
-    colorPalette: ExtractDeps<PixelArt['colorPalette']>;
-    cellIndexes: ExtractDeps<PixelArt['cellIndexes']>;
-    ui: ExtractDeps<PixelArt['ui']>;
-    cells: ExtractDeps<PixelArt['cells']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<PixelArt>;
+  publicProperties: Record<never, never>;
 }>;

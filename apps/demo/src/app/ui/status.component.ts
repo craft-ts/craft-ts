@@ -1,157 +1,51 @@
-import { Component, input, ResourceStatus } from '@angular/core';
+import type { ResourceStatus } from '@angular/core';
 import {
-    componentMonitoring,
-    provideHostName,
-    type ExtractDeps,
-    type GetDeps,
-    type GetPublicComponentProperties
-} from '@craft-ng/core';
+  component,
+  span,
+  type Input,
+} from '@craft-ng/component';
+import { provideHostName, type GetDeps } from '@craft-ng/core';
 
-@Component({
-  selector: 'app-status',
-  standalone: true,
-  styles: [
-    `
-      .badge-container {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-      }
+const STATUS_VIEW = {
+  idle: ['🛌', 'Idle', 'gray'],
+  error: ['❌', 'Error', 'red'],
+  loading: ['⏳', 'Loading', 'orange'],
+  reloading: ['🔄', 'Reloading', 'orange'],
+  resolved: ['✅', 'Loaded', 'green'],
+  local: ['📦', 'Local', 'blue'],
+  exception: ['⚠️', 'Exception', 'red'],
+} as const;
 
-      .status-emoji {
-        display: inline-block;
-        font-size: 14px;
-        line-height: 1;
-      }
-
-      .badge {
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        line-height: 1;
-      }
-
-      .badge-gray {
-        background: #e2e8f0;
-        color: #4a5568;
-      }
-
-      .badge-red {
-        background: #fed7d7;
-        color: #c53030;
-        animation: shake 0.5s ease-in-out;
-      }
-
-      .badge-orange {
-        background: #feebc8;
-        color: #c05621;
-      }
-
-      .badge-green {
-        background: #c6f6d5;
-        color: #2f855a;
-        animation: pulse 0.5s ease-in-out;
-      }
-
-      .badge-blue {
-        background: #bee3f8;
-        color: #2b6cb0;
-      }
-
-      .badge-darkgray {
-        background: #cbd5e0;
-        color: #4a5568;
-      }
-
-      @keyframes shake {
-        0%,
-        100% {
-          transform: translateX(0);
-        }
-        25% {
-          transform: translateX(-2px);
-        }
-        75% {
-          transform: translateX(2px);
-        }
-      }
-
-      @keyframes pulse {
-        0%,
-        100% {
-          transform: scale(1);
-        }
-        50% {
-          transform: scale(1.05);
-        }
-      }
+export const StatusComponent = component(
+  {
+    providers: [provideHostName('component:StatusComponent')],
+    styles: `
+      .badge-container { display:inline-flex; align-items:center; gap:4px; }
+      .status-emoji { display:inline-block; font-size:14px; line-height:1; }
+      .badge { padding:4px 8px; border-radius:6px; font-size:12px; font-weight:500; line-height:1; }
+      .badge-gray { background:#e2e8f0; color:#4a5568; }
+      .badge-red { background:#fed7d7; color:#c53030; }
+      .badge-orange { background:#feebc8; color:#c05621; }
+      .badge-green { background:#c6f6d5; color:#2f855a; }
+      .badge-blue { background:#bee3f8; color:#2b6cb0; }
     `,
-  ],
-  template: `
-    @let _status = this.status();
-    @switch (_status) {
-      @case ('idle') {
-        <span class="badge-container">
-          <span class="status-emoji">🛌</span>
-          <span class="badge badge-gray">Idle</span>
-        </span>
-      }
-      @case ('error') {
-        <span class="badge-container">
-          <span class="status-emoji error">❌</span>
-          <span class="badge badge-red">Error</span>
-        </span>
-      }
-      @case ('loading') {
-        <span class="badge-container">
-          <span class="status-emoji loading">⏳</span>
-          <span class="badge badge-orange">Loading</span>
-        </span>
-      }
-      @case ('reloading') {
-        <span class="badge-container">
-          <span class="status-emoji loading">🔄</span>
-          <span class="badge badge-orange">Reloading</span>
-        </span>
-      }
-      @case ('resolved') {
-        <span class="badge-container">
-          <span class="status-emoji success">✅</span>
-          <span class="badge badge-green">Loaded</span>
-        </span>
-      }
-      @case ('local') {
-        <span class="badge-container">
-          <span class="status-emoji">📦</span>
-          <span class="badge badge-blue">Local</span>
-        </span>
-      }
-      @case ('exception') {
-        <span class="badge-container">
-          <span class="status-emoji error">⚠️</span>
-          <span class="badge badge-red">Exception</span>
-        </span>
-      }
-      @default never;
-    }
-  `,
-  providers: [provideHostName('component:StatusComponent')],
-})
-export class StatusComponent {
-  private readonly _monitoring = componentMonitoring();
-  readonly status = input.required<ResourceStatus | 'exception'>();
-}
+  },
+  (status: Input<ResourceStatus | 'exception'>) => ({ status }),
+  ({ status }) => {
+    const [emoji, label, color] = STATUS_VIEW[status()];
+    return span({ class: 'badge-container' }, [
+      span({ class: 'status-emoji' }, emoji),
+      span({ class: `badge badge-${color}` }, label),
+    ]);
+  },
+);
 
+export type StatusComponent = typeof StatusComponent;
 export type GenDeps_StatusComponent = GetDeps<{
-      deps: {};
-      propertiesDeps: {
-        _monitoring: ExtractDeps<StatusComponent["_monitoring"]>;
-        status: ExtractDeps<StatusComponent["status"]>;
-      };
-      provided: {
-        HostName: ReturnType<typeof provideHostName>;
-      };
-      publicProperties: GetPublicComponentProperties<StatusComponent>;
-    }>;
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
+  provided: {
+    HostName: ReturnType<typeof provideHostName>;
+  };
+  publicProperties: Record<never, never>;
+}>;

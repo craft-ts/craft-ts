@@ -1,16 +1,22 @@
 import type { Router } from '@angular/router';
 import {
+  CraftRoutedComponentHost,
+  provideCraftComponent,
+} from '@craft-ng/component';
+import {
   assertExhaustiveRouteExceptions,
   craftRoutes,
   type CanRun,
   type ParentRoutes,
   type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
+import LazyLayoutChild from './lazy-layout-child';
 
 export const { lazyLayoutRoutes } = craftRoutes('lazyLayout', [
   {
     path: 'users/:userId',
-    loadComponent: ({ withRetry }) => withRetry(import('./lazy-layout-child')),
+    component: CraftRoutedComponentHost,
+    providers: [provideCraftComponent(LazyLayoutChild)],
     componentDeps:
       {} as import('./lazy-layout-child').GenDeps_LazyLayoutChildComponent,
   },

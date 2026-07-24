@@ -1,0 +1,1179 @@
+import {
+  ApplicationRef,
+  createComponent,
+  createEnvironmentInjector,
+  ElementRef,
+  EnvironmentInjector,
+  Injector,
+  inputBinding,
+  outputBinding,
+  reflectComponentType,
+  Renderer2,
+  RendererFactory2,
+  runInInjectionContext,
+  signal,
+  untracked,
+  type Binding,
+  type ComponentRef,
+  type DirectiveWithBindings,
+  type EffectRef,
+  type Type,
+} from '@angular/core';
+import {
+  craftEffect,
+  craftLazy,
+} from '@craft-ng/core';
+import { executeCraftComponentFactory } from '../factory-runtime';
+import { CraftAngularDirectiveHost } from '../angular-host';
+import {
+  CRAFT_COMPONENT,
+  type CraftComponent,
+} from '../types';
+import {
+  normalizeChildren,
+  type AngularComponentNode,
+  type AngularDirectiveNode,
+  type CraftNode,
+  type CraftNodeChildren,
+  type DeferNode,
+  type EachNode,
+  type ElementNode,
+} from './vnode';
+import { executeCraftComponentFactoryAsync } from '../factory-runtime';
+
+type NativeNode = Node;
+type NativeParent = Node;
+
+interface RenderContext {
+  readonly renderer: Renderer2;
+  readonly injector: Injector;
+}
+
+interface RenderedNode {
+  readonly kind: CraftNode['kind'] | 'fragment';
+  firstNode(): NativeNode;
+  lastNode(): NativeNode;
+  patch(node: CraftNode): boolean;
+  destroy(): void;
+}
+
+function resolveAngularValue(value: unknown): unknown {
+  return typeof value === 'function' ? value() : value;
+}
+
+function angularBindings(
+  getInputs: () => Readonly<Record<string, unknown>>,
+  getOutputs: () => Readonly<Record<string, (value: unknown) => unknown>>,
+): Binding[] {
+  return [
+    ...Object.keys(getInputs()).map((name) =>
+      inputBinding(name, () => resolveAngularValue(getInputs()[name])),
+    ),
+    ...Object.keys(getOutputs()).map((name) =>
+      outputBinding(name, (value) => getOutputs()[name]?.(value)),
+    ),
+  ];
+}
+
+function angularDirectives(
+  source: ReturnType<typeof signal<readonly AngularDirectiveNode[]>>,
+): DirectiveWithBindings<unknown>[] {
+  return source().map((descriptor, index) => ({
+    type: descriptor.type,
+    bindings: angularBindings(
+      () => source()[index]?.inputs ?? {},
+      () => source()[index]?.outputs ?? {},
+    ),
+  }));
+}
+
+class AngularMount {
+  private readonly descriptorSource;
+  private readonly directiveSource;
+  private readonly componentRef: ComponentRef<unknown>;
+  private readonly applicationRef: ApplicationRef;
+
+  constructor(
+    component: Type<unknown>,
+    hostElement: Element,
+    inputs: Readonly<Record<string, unknown>>,
+    outputs: Readonly<Record<string, (value: unknown) => unknown>>,
+    directives: readonly AngularDirectiveNode[],
+    context: RenderContext,
+  ) {
+    this.descriptorSource = signal({ inputs, outputs, directives });
+    this.directiveSource = signal(directives);
+    this.applicationRef = context.injector.get(ApplicationRef);
+    this.componentRef = createComponent(component, {
+      environmentInjector: context.injector.get(EnvironmentInjector),
+      elementInjector: context.injector,
+      hostElement,
+      bindings: angularBindings(
+        () => this.descriptorSource().inputs,
+        () => this.descriptorSource().outputs,
+      ),
+      directives: angularDirectives(this.directiveSource),
+    });
+    this.applicationRef.attachView(this.componentRef.hostView);
+    this.componentRef.changeDetectorRef.detectChanges();
+  }
+
+  update(
+    inputs: Readonly<Record<string, unknown>>,
+    outputs: Readonly<Record<string, (value: unknown) => unknown>>,
+    directives: readonly AngularDirectiveNode[],
+  ): void {
+    this.descriptorSource.set({ inputs, outputs, directives });
+    this.directiveSource.set(directives);
+    this.componentRef.changeDetectorRef.detectChanges();
+  }
+
+  destroy(): void {
+    this.applicationRef.detachView(this.componentRef.hostView);
+    this.componentRef.destroy();
+  }
+}
+
+function sameDirectives(
+  left: readonly AngularDirectiveNode[],
+  right: readonly AngularDirectiveNode[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((directive, index) => directive.type === right[index]?.type)
+  );
+}
+
+function insertBefore(
+  renderer: Renderer2,
+  parent: NativeParent,
+  node: NativeNode,
+  before: NativeNode | null,
+): void {
+  renderer.insertBefore(parent, node, before);
+}
+
+function removeNode(renderer: Renderer2, node: NativeNode): void {
+  const parent = node.parentNode;
+  if (parent) {
+    renderer.removeChild(parent, node);
+  }
+}
+
+function patchRenderedChildren(
+  parent: NativeParent,
+  rendered: RenderedNode[],
+  children: CraftNodeChildren,
+  before: NativeNode | null,
+  context: RenderContext,
+): RenderedNode[] {
+  const nextNodes = normalizeChildren(children);
+  const sharedLength = Math.min(rendered.length, nextNodes.length);
+
+  for (let index = 0; index < sharedLength; index += 1) {
+    const current = rendered[index];
+    const next = nextNodes[index];
+
+    if (!current.patch(next)) {
+      const replacement = mountNode(next, parent, current.firstNode(), context);
+      current.destroy();
+      rendered[index] = replacement;
+    }
+  }
+
+  while (rendered.length > nextNodes.length) {
+    rendered.pop()?.destroy();
+  }
+
+  for (let index = rendered.length; index < nextNodes.length; index += 1) {
+    rendered.push(mountNode(nextNodes[index], parent, before, context));
+  }
+
+  return rendered;
+}
+
+class TextRenderedNode implements RenderedNode {
+  readonly kind = 'text';
+
+  constructor(
+    private node: Text,
+    private value: string,
+    private renderer: Renderer2,
+  ) {}
+
+  firstNode(): NativeNode {
+    return this.node;
+  }
+
+  lastNode(): NativeNode {
+    return this.node;
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'text') {
+      return false;
+    }
+
+    if (node.value !== this.value) {
+      this.renderer.setValue(this.node, node.value);
+      this.value = node.value;
+    }
+    return true;
+  }
+
+  destroy(): void {
+    removeNode(this.renderer, this.node);
+  }
+}
+
+const EVENT_NAMES = new Set([
+  'abort',
+  'blur',
+  'change',
+  'click',
+  'contextmenu',
+  'dblclick',
+  'error',
+  'focus',
+  'input',
+  'keydown',
+  'keypress',
+  'keyup',
+  'load',
+  'mousedown',
+  'mouseenter',
+  'mouseleave',
+  'mousemove',
+  'mouseout',
+  'mouseover',
+  'mouseup',
+  'pointerdown',
+  'pointerenter',
+  'pointerleave',
+  'pointermove',
+  'pointerup',
+  'reset',
+  'scroll',
+  'submit',
+  'touchend',
+  'touchmove',
+  'touchstart',
+]);
+
+const PROPERTY_NAMES = new Set([
+  'checked',
+  'disabled',
+  'multiple',
+  'selected',
+  'value',
+]);
+
+function eventNameFor(key: string, value: unknown): string | undefined {
+  if (typeof value !== 'function') {
+    return undefined;
+  }
+  if (EVENT_NAMES.has(key)) {
+    return key;
+  }
+  if (/^on[A-Z]/.test(key)) {
+    return `${key[2].toLowerCase()}${key.slice(3)}`;
+  }
+  return undefined;
+}
+
+function className(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join(' ');
+  }
+  if (typeof value === 'object' && value !== null) {
+    return Object.entries(value)
+      .filter(([, enabled]) => enabled)
+      .map(([name]) => name)
+      .join(' ');
+  }
+  return value == null ? '' : String(value);
+}
+
+function setStyleValue(
+  renderer: Renderer2,
+  element: Element,
+  key: string,
+  value: unknown,
+): void {
+  if (value === null || value === undefined || value === false) {
+    renderer.removeStyle(element, key);
+  } else {
+    renderer.setStyle(element, key, String(value));
+  }
+}
+
+function applyStyles(
+  renderer: Renderer2,
+  element: Element,
+  previous: unknown,
+  next: unknown,
+): void {
+  if (typeof previous === 'object' && previous !== null) {
+    for (const key of Object.keys(previous)) {
+      if (
+        typeof next !== 'object' ||
+        next === null ||
+        !(key in next)
+      ) {
+        renderer.removeStyle(element, key);
+      }
+    }
+  } else if (typeof previous === 'string' && previous !== next) {
+    renderer.removeAttribute(element, 'style');
+  }
+
+  if (typeof next === 'string') {
+    renderer.setAttribute(element, 'style', next);
+  } else if (typeof next === 'object' && next !== null) {
+    for (const [key, value] of Object.entries(next)) {
+      setStyleValue(renderer, element, key, value);
+    }
+  } else {
+    renderer.removeAttribute(element, 'style');
+  }
+}
+
+function flattenAttributes(
+  props: Readonly<Record<string, unknown>>,
+): Map<string, unknown> {
+  const attributes = new Map<string, unknown>();
+  for (const [key, value] of Object.entries(props)) {
+    if (key === 'attrs' && typeof value === 'object' && value !== null) {
+      for (const [attribute, attributeValue] of Object.entries(value)) {
+        attributes.set(attribute, attributeValue);
+      }
+    } else if (
+      key !== 'class' &&
+      key !== 'style' &&
+      key !== 'directives' &&
+      !eventNameFor(key, value)
+    ) {
+      attributes.set(key, value);
+    }
+  }
+  return attributes;
+}
+
+function applyAttribute(
+  renderer: Renderer2,
+  element: Element,
+  key: string,
+  value: unknown,
+): void {
+  if (PROPERTY_NAMES.has(key)) {
+    renderer.setProperty(element, key, value ?? false);
+    if (value === null || value === undefined || value === false) {
+      renderer.removeAttribute(element, key);
+    }
+    return;
+  }
+
+  if (value === null || value === undefined || value === false) {
+    renderer.removeAttribute(element, key);
+  } else {
+    renderer.setAttribute(element, key, value === true ? '' : String(value));
+  }
+}
+
+class ElementRenderedNode implements RenderedNode {
+  readonly kind = 'element';
+  private children: RenderedNode[] = [];
+  private props: Readonly<Record<string, unknown>> = {};
+  private readonly listeners = new Map<string, () => void>();
+  private angularDirectiveMount: AngularMount | undefined;
+  private directiveTypes: readonly AngularDirectiveNode[] = [];
+
+  constructor(
+    private readonly node: Element,
+    private tag: string,
+    private readonly context: RenderContext,
+    initial: ElementNode,
+  ) {
+    this.patchProperties(initial.props);
+    this.children = patchRenderedChildren(
+      this.node,
+      this.children,
+      initial.children,
+      null,
+      context,
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.node;
+  }
+
+  lastNode(): NativeNode {
+    return this.node;
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'element' || node.tag !== this.tag) {
+      return false;
+    }
+
+    this.patchProperties(node.props);
+    this.children = patchRenderedChildren(
+      this.node,
+      this.children,
+      node.children,
+      null,
+      this.context,
+    );
+    return true;
+  }
+
+  private patchProperties(next: Readonly<Record<string, unknown>>): void {
+    const renderer = this.context.renderer;
+    const previousAttributes = flattenAttributes(this.props);
+    const nextAttributes = flattenAttributes(next);
+
+    for (const key of previousAttributes.keys()) {
+      if (!nextAttributes.has(key)) {
+        applyAttribute(renderer, this.node, key, null);
+      }
+    }
+    for (const [key, value] of nextAttributes) {
+      if (!Object.is(previousAttributes.get(key), value)) {
+        applyAttribute(renderer, this.node, key, value);
+      }
+    }
+
+    if (!Object.is(this.props['class'], next['class'])) {
+      const value = className(next['class']);
+      if (value) {
+        renderer.setAttribute(this.node, 'class', value);
+      } else {
+        renderer.removeAttribute(this.node, 'class');
+      }
+    }
+
+    if (!Object.is(this.props['style'], next['style'])) {
+      applyStyles(
+        renderer,
+        this.node,
+        this.props['style'],
+        next['style'],
+      );
+    }
+
+    const nextEvents = new Map<string, EventListener>();
+    for (const [key, value] of Object.entries(next)) {
+      const eventName = eventNameFor(key, value);
+      if (eventName) {
+        nextEvents.set(eventName, value as EventListener);
+      }
+    }
+
+    for (const [eventName, dispose] of this.listeners) {
+      const previousValue = Object.entries(this.props).find(
+        ([key, value]) => eventNameFor(key, value) === eventName,
+      )?.[1];
+      if (!Object.is(previousValue, nextEvents.get(eventName))) {
+        dispose();
+        this.listeners.delete(eventName);
+      }
+    }
+
+    for (const [eventName, listener] of nextEvents) {
+      if (!this.listeners.has(eventName)) {
+        this.listeners.set(
+          eventName,
+          renderer.listen(this.node, eventName, listener),
+        );
+      }
+    }
+
+    const directives = Array.isArray(next['directives'])
+      ? (next['directives'] as readonly AngularDirectiveNode[])
+      : [];
+    if (!sameDirectives(this.directiveTypes, directives)) {
+      this.angularDirectiveMount?.destroy();
+      this.angularDirectiveMount = directives.length
+        ? new AngularMount(
+            CraftAngularDirectiveHost,
+            this.node,
+            {},
+            {},
+            directives,
+            this.context,
+          )
+        : undefined;
+    } else {
+      this.angularDirectiveMount?.update({}, {}, directives);
+    }
+    this.directiveTypes = directives;
+
+    this.props = next;
+  }
+
+  destroy(): void {
+    this.listeners.forEach((dispose) => dispose());
+    this.listeners.clear();
+    this.angularDirectiveMount?.destroy();
+    this.children.forEach((child) => child.destroy());
+    removeNode(this.context.renderer, this.node);
+  }
+}
+
+class FragmentRenderedNode implements RenderedNode {
+  readonly kind = 'fragment';
+  private children: RenderedNode[] = [];
+
+  constructor(
+    private readonly parent: NativeParent,
+    private readonly start: Comment,
+    private readonly end: Comment,
+    private readonly context: RenderContext,
+    initialChildren: CraftNodeChildren,
+  ) {
+    this.children = patchRenderedChildren(
+      parent,
+      this.children,
+      initialChildren,
+      end,
+      context,
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.start;
+  }
+
+  lastNode(): NativeNode {
+    return this.end;
+  }
+
+  patch(_node: CraftNode): boolean {
+    return false;
+  }
+
+  patchChildren(children: CraftNodeChildren): void {
+    this.children = patchRenderedChildren(
+      this.parent,
+      this.children,
+      children,
+      this.end,
+      this.context,
+    );
+  }
+
+  moveBefore(before: NativeNode): void {
+    let current: NativeNode | null = this.start;
+    const nodes: NativeNode[] = [];
+    while (current) {
+      nodes.push(current);
+      if (current === this.end) {
+        break;
+      }
+      current = current.nextSibling;
+    }
+    nodes.forEach((node) =>
+      insertBefore(this.context.renderer, this.parent, node, before),
+    );
+  }
+
+  destroy(): void {
+    this.children.forEach((child) => child.destroy());
+    removeNode(this.context.renderer, this.start);
+    removeNode(this.context.renderer, this.end);
+  }
+}
+
+function createFragment(
+  parent: NativeParent,
+  before: NativeNode | null,
+  context: RenderContext,
+  children: CraftNodeChildren,
+  label: string,
+): FragmentRenderedNode {
+  const start = context.renderer.createComment(`${label}:start`) as Comment;
+  const end = context.renderer.createComment(`${label}:end`) as Comment;
+  insertBefore(context.renderer, parent, start, before);
+  insertBefore(context.renderer, parent, end, before);
+  return new FragmentRenderedNode(parent, start, end, context, children);
+}
+
+class EachRenderedNode implements RenderedNode {
+  readonly kind = 'each';
+  private entries = new Map<unknown, FragmentRenderedNode>();
+  private ordered: FragmentRenderedNode[] = [];
+  private emptyView: FragmentRenderedNode | undefined;
+
+  constructor(
+    private node: EachNode<unknown, unknown>,
+    private readonly parent: NativeParent,
+    private readonly start: Comment,
+    private readonly end: Comment,
+    private readonly context: RenderContext,
+  ) {
+    this.reconcile();
+  }
+
+  firstNode(): NativeNode {
+    return this.start;
+  }
+
+  lastNode(): NativeNode {
+    return this.end;
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'each') {
+      return false;
+    }
+    this.node = node;
+    this.reconcile();
+    return true;
+  }
+
+  private reconcile(): void {
+    const items =
+      typeof this.node.source === 'function'
+        ? this.node.source()
+        : this.node.source;
+
+    if (items.length === 0) {
+      this.entries.forEach((entry) => entry.destroy());
+      this.entries.clear();
+      this.ordered = [];
+
+      if (this.node.empty) {
+        if (this.emptyView) {
+          this.emptyView.patchChildren(this.node.empty());
+        } else {
+          this.emptyView = createFragment(
+            this.parent,
+            this.end,
+            this.context,
+            this.node.empty(),
+            'craft-empty',
+          );
+        }
+      } else {
+        this.emptyView?.destroy();
+        this.emptyView = undefined;
+      }
+      return;
+    }
+
+    this.emptyView?.destroy();
+    this.emptyView = undefined;
+
+    const previous = this.entries;
+    const next = new Map<unknown, FragmentRenderedNode>();
+    const nextOrdered: FragmentRenderedNode[] = [];
+
+    items.forEach((item, index) => {
+      const key = this.node.track(item, index);
+      if (next.has(key)) {
+        throw new Error(`each() received the duplicate key "${String(key)}".`);
+      }
+
+      let entry = previous.get(key);
+      if (entry) {
+        entry.patchChildren(this.node.itemTemplate(item, index));
+      } else {
+        entry = createFragment(
+          this.parent,
+          this.end,
+          this.context,
+          this.node.itemTemplate(item, index),
+          `craft-each:${String(key)}`,
+        );
+      }
+
+      next.set(key, entry);
+      nextOrdered.push(entry);
+    });
+
+    previous.forEach((entry, key) => {
+      if (!next.has(key)) {
+        entry.destroy();
+      }
+    });
+
+    let before: NativeNode = this.end;
+    for (let index = nextOrdered.length - 1; index >= 0; index -= 1) {
+      const entry = nextOrdered[index];
+      entry.moveBefore(before);
+      before = entry.firstNode();
+    }
+
+    this.entries = next;
+    this.ordered = nextOrdered;
+  }
+
+  destroy(): void {
+    this.entries.forEach((entry) => entry.destroy());
+    this.emptyView?.destroy();
+    removeNode(this.context.renderer, this.start);
+    removeNode(this.context.renderer, this.end);
+  }
+}
+
+class AngularRenderedNode implements RenderedNode {
+  readonly kind = 'angular';
+  private readonly hostElement: Element;
+  private readonly mount: AngularMount;
+  private node: AngularComponentNode;
+
+  constructor(
+    node: AngularComponentNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    private readonly context: RenderContext,
+  ) {
+    this.node = node;
+    const selector = reflectComponentType(node.component)?.selector;
+    const tag =
+      selector && /^[a-z][a-z0-9-]*$/i.test(selector) ? selector : 'div';
+    this.hostElement = context.renderer.createElement(tag) as Element;
+    insertBefore(context.renderer, parent, this.hostElement, before);
+    this.mount = new AngularMount(
+      node.component,
+      this.hostElement,
+      node.inputs,
+      node.outputs,
+      node.directives,
+      context,
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.hostElement;
+  }
+
+  lastNode(): NativeNode {
+    return this.hostElement;
+  }
+
+  patch(node: CraftNode): boolean {
+    if (
+      node.kind !== 'angular' ||
+      node.component !== this.node.component ||
+      !sameDirectives(node.directives, this.node.directives)
+    ) {
+      return false;
+    }
+    this.node = node;
+    this.mount.update(node.inputs, node.outputs, node.directives);
+    return true;
+  }
+
+  destroy(): void {
+    this.mount.destroy();
+    removeNode(this.context.renderer, this.hostElement);
+  }
+}
+
+class ComponentRenderedNode implements RenderedNode {
+  readonly kind = 'component';
+  private readonly environmentInjector: EnvironmentInjector;
+  private readonly propKeys: string[];
+  private readonly propSources: ReturnType<typeof signal<unknown>>[];
+  private readonly view: FragmentRenderedNode;
+  private readonly effectRef: EffectRef;
+
+  constructor(
+    private component: CraftComponent<object>,
+    props: object,
+    parent: NativeParent,
+    before: NativeNode | null,
+    private readonly context: RenderContext,
+    hostTarget?: Element,
+  ) {
+    const definition = component[CRAFT_COMPONENT];
+    const parentEnvironment = context.injector.get(EnvironmentInjector);
+    const componentElement =
+      hostTarget ??
+      (parent instanceof Element ? parent : parent.parentElement);
+    this.environmentInjector = createEnvironmentInjector(
+      [
+        ...(definition.meta.providers ?? []),
+        {
+          provide: ElementRef,
+          useValue: new ElementRef(componentElement),
+        },
+      ],
+      parentEnvironment,
+      'CraftComponent',
+    );
+    this.propKeys = Object.keys(props);
+    this.propSources = this.propKeys.map((key) =>
+      signal((props as Record<string, unknown>)[key]),
+    );
+
+    const args = this.propSources.map((source) => {
+      return (...callbackArgs: unknown[]) => {
+        const current = source();
+        if (typeof current === 'function') {
+          return current(...callbackArgs);
+        }
+        if (callbackArgs.length > 0) {
+          throw new Error(
+            'An Input<T> component prop was invoked as an Output callback.',
+          );
+        }
+        return current;
+      };
+    });
+
+    const factoryContext = executeCraftComponentFactory(
+      definition.factory,
+      args,
+      this.environmentInjector,
+    );
+    if (
+      typeof factoryContext === 'object' &&
+      factoryContext !== null &&
+      'then' in factoryContext
+    ) {
+      throw new Error(
+        'Async component factories are not renderable directly. Move asynchronous work behind defer().',
+      );
+    }
+
+    this.view = createFragment(parent, before, {
+      renderer: context.renderer,
+      injector: this.environmentInjector,
+    }, [], 'craft-component');
+
+    if (hostTarget && definition.meta.host) {
+      applyHostProperties(
+        context.renderer,
+        hostTarget,
+        definition.meta.host,
+      );
+    }
+
+    this.effectRef = untracked(() =>
+      runInInjectionContext(this.environmentInjector, () =>
+        craftEffect('component-render', () => {
+          const styles =
+            typeof definition.meta.styles === 'string'
+              ? [definition.meta.styles]
+              : definition.meta.styles ?? [];
+          this.view.patchChildren([
+            ...styles.map(
+              (css): ElementNode => ({
+                kind: 'element',
+                tag: 'style',
+                props: {},
+                children: css,
+              }),
+            ),
+            definition.template(factoryContext),
+          ]);
+        }),
+      ),
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (
+      node.kind !== 'component' ||
+      node.component !== this.component
+    ) {
+      return false;
+    }
+
+    const props = node.props as Record<string, unknown>;
+    this.propKeys.forEach((key, index) => {
+      this.propSources[index].set(props[key]);
+    });
+    return true;
+  }
+
+  updateProps(props: object): void {
+    this.patch({
+      kind: 'component',
+      component: this.component,
+      props,
+    });
+  }
+
+  destroy(): void {
+    this.effectRef.destroy();
+    this.view.destroy();
+    this.environmentInjector.destroy();
+  }
+}
+
+class DeferRenderedNode implements RenderedNode {
+  readonly kind = 'defer';
+  private view: FragmentRenderedNode;
+  private state: 'placeholder' | 'loading' | 'loaded' | 'error' =
+    'placeholder';
+  private destroyed = false;
+  private triggerCleanup: (() => void) | undefined;
+  private loadedValue: unknown;
+  private loadError: unknown;
+
+  constructor(
+    private node: DeferNode<unknown>,
+    private readonly parent: NativeParent,
+    before: NativeNode | null,
+    private readonly context: RenderContext,
+  ) {
+    this.view = createFragment(
+      parent,
+      before,
+      context,
+      node.placeholder?.() ?? [],
+      'craft-defer',
+    );
+    this.installTrigger();
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'defer' || node.loader !== this.node.loader) {
+      return false;
+    }
+    this.node = node;
+    if (this.state === 'loaded') {
+      this.view.patchChildren(this.node.resolve(this.loadedValue));
+    } else if (this.state === 'error') {
+      this.view.patchChildren(this.node.error?.(this.loadError) ?? []);
+    } else if (this.state === 'loading') {
+      this.view.patchChildren(
+        this.node.loading?.() ?? this.node.placeholder?.() ?? [],
+      );
+    } else {
+      this.view.patchChildren(this.node.placeholder?.() ?? []);
+    }
+    return true;
+  }
+
+  private installTrigger(): void {
+    if (this.node.trigger === 'immediate') {
+      this.startLoad();
+      return;
+    }
+
+    if (this.node.trigger === 'idle') {
+      const windowRef = this.parent.ownerDocument?.defaultView;
+      const idleWindow = windowRef as
+        | (Window & {
+            requestIdleCallback?: (callback: () => void) => number;
+            cancelIdleCallback?: (handle: number) => void;
+          })
+        | undefined;
+      if (idleWindow?.requestIdleCallback) {
+        const handle = idleWindow.requestIdleCallback(() => this.startLoad());
+        this.triggerCleanup = () => idleWindow.cancelIdleCallback?.(handle);
+      } else {
+        const handle = setTimeout(() => this.startLoad(), 0);
+        this.triggerCleanup = () => clearTimeout(handle);
+      }
+      return;
+    }
+
+    if (
+      this.node.trigger === 'viewport' &&
+      typeof IntersectionObserver !== 'undefined'
+    ) {
+      const target = this.firstElementInView();
+      if (target) {
+        const observer = new IntersectionObserver((entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            observer.disconnect();
+            this.startLoad();
+          }
+        });
+        observer.observe(target);
+        this.triggerCleanup = () => observer.disconnect();
+        return;
+      }
+    }
+
+    if (this.node.trigger === 'interaction') {
+      const target = this.firstElementInView() ?? this.parent;
+      const start = () => this.startLoad();
+      const clickCleanup = this.context.renderer.listen(target, 'click', start);
+      const keyCleanup = this.context.renderer.listen(target, 'keydown', start);
+      this.triggerCleanup = () => {
+        clickCleanup();
+        keyCleanup();
+      };
+      return;
+    }
+
+    const handle = setTimeout(() => this.startLoad(), 0);
+    this.triggerCleanup = () => clearTimeout(handle);
+  }
+
+  private firstElementInView(): Element | undefined {
+    let current = this.view.firstNode().nextSibling;
+    while (current && current !== this.view.lastNode()) {
+      if (current.nodeType === Node.ELEMENT_NODE) {
+        return current as Element;
+      }
+      current = current.nextSibling;
+    }
+    return undefined;
+  }
+
+  private startLoad(): void {
+    if (this.state !== 'placeholder' || this.destroyed) {
+      return;
+    }
+    this.state = 'loading';
+    this.triggerCleanup?.();
+    this.triggerCleanup = undefined;
+    this.view.patchChildren(
+      this.node.loading?.() ?? this.node.placeholder?.() ?? [],
+    );
+
+    const loader = this.node.loader;
+    executeCraftComponentFactoryAsync(
+      function* () {
+        return yield* craftLazy(() => loader());
+      },
+      [],
+      this.context.injector,
+    )
+      .then((settled) => {
+        if (this.destroyed) {
+          return;
+        }
+        if (settled.kind === 'shortCircuit') {
+          this.state = 'error';
+          this.loadError = settled.exception;
+          this.view.patchChildren(
+            this.node.error?.(settled.exception) ?? [],
+          );
+          return;
+        }
+
+        this.state = 'loaded';
+        this.loadedValue = settled.value;
+        this.view.patchChildren(this.node.resolve(settled.value));
+      })
+      .catch((error: unknown) => {
+        if (!this.destroyed) {
+          this.state = 'error';
+          this.loadError = error;
+          this.view.patchChildren(this.node.error?.(error) ?? []);
+        }
+      });
+  }
+
+  destroy(): void {
+    this.destroyed = true;
+    this.triggerCleanup?.();
+    this.view.destroy();
+  }
+}
+
+function mountNode(
+  node: CraftNode,
+  parent: NativeParent,
+  before: NativeNode | null,
+  context: RenderContext,
+): RenderedNode {
+  switch (node.kind) {
+    case 'text': {
+      const text = context.renderer.createText(node.value) as Text;
+      insertBefore(context.renderer, parent, text, before);
+      return new TextRenderedNode(text, node.value, context.renderer);
+    }
+    case 'element': {
+      const element = context.renderer.createElement(node.tag) as Element;
+      insertBefore(context.renderer, parent, element, before);
+      return new ElementRenderedNode(
+        element,
+        node.tag,
+        context,
+        node,
+      );
+    }
+    case 'component':
+      return new ComponentRenderedNode(
+        node.component,
+        node.props,
+        parent,
+        before,
+        context,
+      );
+    case 'angular':
+      return new AngularRenderedNode(node, parent, before, context);
+    case 'each': {
+      const start = context.renderer.createComment('craft-each:start') as Comment;
+      const end = context.renderer.createComment('craft-each:end') as Comment;
+      insertBefore(context.renderer, parent, start, before);
+      insertBefore(context.renderer, parent, end, before);
+      return new EachRenderedNode(node, parent, start, end, context);
+    }
+    case 'defer':
+      return new DeferRenderedNode(node, parent, before, context);
+  }
+}
+
+function applyHostProperties(
+  renderer: Renderer2,
+  host: Element,
+  props: Readonly<Record<string, unknown>>,
+): void {
+  const attributes = flattenAttributes(props);
+  attributes.forEach((value, key) => applyAttribute(renderer, host, key, value));
+  const classes = className(props['class']);
+  if (classes) {
+    renderer.setAttribute(host, 'class', classes);
+  }
+  applyStyles(renderer, host, undefined, props['style']);
+}
+
+export interface MountedCraftComponent<Props extends object> {
+  updateProps(props: Props): void;
+  destroy(): void;
+}
+
+export function mountInterpretedComponent<Props extends object>(
+  component: CraftComponent<Props>,
+  host: Element,
+  injector: Injector,
+  props: Props,
+): MountedCraftComponent<Props> {
+  const renderer = injector
+    .get(RendererFactory2)
+    .createRenderer(host, null);
+  const instance = new ComponentRenderedNode(
+    component as unknown as CraftComponent<object>,
+    props,
+    host,
+    null,
+    { renderer, injector },
+    host,
+  );
+
+  return {
+    updateProps(nextProps) {
+      instance.updateProps(nextProps);
+    },
+    destroy() {
+      instance.destroy();
+    },
+  };
+}

@@ -1,24 +1,29 @@
-import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { computed } from '@angular/core';
 import {
-  craftUse,
+  button,
+  component,
+  div,
+  each,
+  h,
+  h2,
+  option,
+  select,
+  span,
+} from '@craft-ng/component';
+import {
   componentMonitoring,
   craftMethod,
+  craftPipe,
   craftService,
+  craftUse,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   provideHostName,
-  craftPipe,
   query,
   queryParams,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
-} from '../../../ui/status.component';
+import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
 const { injectUserList, provideUserList, UserListToYield } = craftService(
@@ -30,32 +35,31 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
           state: {
             page: {
               fallbackValue: 1,
-              parse: (value) => parseInt(value, 10),
-              serialize: (value) => String(value),
+              parse: (value) => Number(value),
+              serialize: String,
             },
             pageSize: {
               fallbackValue: 4,
-              parse: (value) => parseInt(value, 10),
-              serialize: (value) => String(value),
+              parse: (value) => Number(value),
+              serialize: String,
             },
           },
         },
         ({ patch, state }) => ({
           nextPage: () => patch({ page: state().page + 1 }),
           previousPage: () => patch({ page: state().page - 1 }),
-          updatePageSize: (newPageSize: number) =>
-            patch({ pageSize: newPageSize, page: 1 }),
+          updatePageSize: (pageSize: number) =>
+            patch({ pageSize, page: 1 }),
         }),
       ),
     );
-
     const users = craftUse(
       query(
         {
           params: pagination,
-          identifier: (params) => `${params.page}-${params.pageSize}`,
-          loader: function* ({ params: pagination }) {
-            return yield* ApiServiceToYield.getDataList(pagination);
+          identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+          loader: function* ({ params }) {
+            return yield* ApiServiceToYield.getDataList(params);
           },
         },
         (context) =>
@@ -74,135 +78,88 @@ const { injectUserList, provideUserList, UserListToYield } = craftService(
           ),
       ),
     );
-
     return { pagination, users };
   },
 );
 
-@Component({
-  selector: 'app-list-with-pagination',
-  imports: [CommonModule, StatusComponent],
-  template: `
-    <div class="container">
-      <main class="content">
-        <div class="content-wrapper">
-          <div class="card">
-            <h2 class="card-title">
-              User Management:
-              <app-status [status]="store.users.currentPageStatus()" />
-              <span class="current-page"
-                >{{ store.users.total() }} on page</span
-              >
-            </h2>
+const ListWithPaginationCraft = component(
+  {
+    providers: [
+      provideUserList(),
+      provideHostName('component:ListWithPaginationCraft'),
+    ],
+  },
+  () => {
+    componentMonitoring();
+    const store = injectUserList();
+    const updatePageSize = craftMethod(
+      'updatePageSize',
+      function* (event: Event) {
+        (yield* UserListToYield()).pagination.updatePageSize(
+          Number((event.target as HTMLSelectElement).value),
+        );
+      },
+    );
+    return { store, updatePageSize };
+  },
+  ({ store, updatePageSize }) =>
+    div([
+      h2([
+        'User Management: ',
+        StatusComponent({
+          status: () => store.users.currentPageStatus(),
+        }),
+        span(` ${store.users.total()} on page`),
+      ]),
+      h('table', [
+        h('thead', h('tr', [h('th', 'ID'), h('th', 'Name')])),
+        h(
+          'tbody',
+          each(
+            () => store.users.currentPageData() ?? [],
+            {
+              track: (user) => user.id,
+              empty: () =>
+                h(
+                  'tr',
+                  h(
+                    'td',
+                    { colSpan: 2 },
+                    store.users.currentPageStatus() === 'resolved'
+                      ? 'No users found'
+                      : 'Loading…',
+                  ),
+                ),
+            },
+            (user) =>
+              h('tr', [h('td', String(user.id)), h('td', user.name)]),
+          ),
+        ),
+      ]),
+      div([
+        select(
+          {
+            value: String(store.pagination().pageSize),
+            change: (event) => void updatePageSize(event),
+          },
+          [2, 4, 8, 16].map((size) =>
+            option({ value: String(size) }, String(size)),
+          ),
+        ),
+        button({ click: store.pagination.previousPage }, 'Previous'),
+        span(String(store.pagination().page)),
+        button({ click: store.pagination.nextPage }, 'Next'),
+      ]),
+    ]),
+);
 
-            <div class="table-container">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @if (store.users.currentPageData()) {
-                    @for (
-                      user of store.users.currentPageData();
-                      track user.id
-                    ) {
-                      <tr>
-                        <td>{{ user.id }}</td>
-
-                        <td>{{ user.name }}</td>
-                      </tr>
-                    } @empty {
-                      @if (store.users.currentPageStatus() === 'resolved') {
-                        <tr>
-                          <td
-                            colspan="4"
-                            style="text-align: center; padding: 32px"
-                          >
-                            No users found
-                          </td>
-                        </tr>
-                      } @else {
-                        <tr>
-                          <td
-                            colspan="4"
-                            style="text-align: center; padding: 32px"
-                          >
-                            Loading...
-                          </td>
-                        </tr>
-                      }
-                    }
-                  }
-                </tbody>
-              </table>
-            </div>
-
-            <div class="pagination">
-              <select
-                [value]="store.pagination().pageSize"
-                (change)="updatePageSize($event)"
-                style="margin-right: 8px"
-              >
-                <option [value]="2">2</option>
-                <option [value]="4">4</option>
-                <option [value]="8">8</option>
-                <option [value]="16">16</option>
-              </select>
-              <button class="btn" (click)="store.pagination.previousPage()">
-                Previous
-              </button>
-              <span class="current-page">
-                {{ store.pagination().page }}
-              </span>
-              <button class="btn" (click)="store.pagination.nextPage()">
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  `,
-  styleUrls: ['./list-with-pagination.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    provideUserList(),
-    provideHostName('component:ListWithPaginationCraft'),
-  ],
-})
-export default class ListWithPaginationCraft {
-  private readonly _monitoring = componentMonitoring();
-  protected readonly store = injectUserList();
-
-  protected updatePageSize = craftMethod(
-    'updatePageSize',
-    function* (event: Event) {
-      const value = Number((event.target as HTMLSelectElement).value);
-      const store = yield* UserListToYield();
-      store.pagination.updatePageSize(value);
-      return;
-    },
-  );
-}
-
+export default ListWithPaginationCraft;
 export type GenDeps_ListWithPaginationCraft = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    _monitoring: ExtractDeps<ListWithPaginationCraft['_monitoring']>;
-    store: {
-      UserList: ExtractDeps<typeof injectUserList>['UserList'];
-    };
-    updatePageSize: ExtractDeps<ListWithPaginationCraft['updatePageSize']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     UserList: ReturnType<typeof provideUserList>;
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<ListWithPaginationCraft>;
+  publicProperties: Record<never, never>;
 }>;

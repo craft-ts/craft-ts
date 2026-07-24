@@ -50,7 +50,15 @@ export * from './lib/take-app-snapshot';
 export * from './lib/component-monitoring';
 export * from './lib/component-register';
 export * from './lib/fn-wrapper';
-export { executeGeneratorCompatibleFactory } from './lib/craft-generator-runtime';
+export {
+  executeGeneratorCompatibleFactory,
+  type ResolveGeneratorResult,
+} from './lib/craft-generator-runtime';
+export {
+  driveCraftProgramAsync,
+  executeGeneratorCompatibleFactoryAsync,
+  type CraftProgramSettledStep,
+} from './lib/craft-program-runtime';
 export * from './lib/host-tag';
 export * from './lib/source$';
 export * from './lib/from-event-to-source$';

@@ -27,6 +27,13 @@ import {
   type CanRun,
   type RouteExceptionComponentCheckedDI,
 } from '@craft-ng/core';
+import {
+  CraftGlobalErrorComponentHost,
+  CraftRouteLoadErrorComponentHost,
+  provideCraftRootComponent,
+  provideCraftGlobalErrorComponent,
+  provideCraftRouteLoadErrorComponent,
+} from '@craft-ng/component';
 import { demoRoutes } from './app.routes';
 import {
   FUNCTION_REGISTRY_BRIDGE_URL,
@@ -43,6 +50,7 @@ import {
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
+import { App } from './app';
 
 export const appConfig = craftAppConfig({
   appStart: {
@@ -51,6 +59,9 @@ export const appConfig = craftAppConfig({
   routingDeps: demoRoutes.META_DATA,
   providers: [
     provideBrowserGlobalErrorListeners(),
+    provideCraftRootComponent(App),
+    provideCraftGlobalErrorComponent(MyGlobalErrorScreen),
+    provideCraftRouteLoadErrorComponent(MyRouteLoadErrorScreen),
     provideAppInitializer(() => {
       // Bootstrap boundary: the bridge lifetime follows the application injector.
       // eslint-disable-next-line craft-ng/no-angular-inject
@@ -77,12 +88,12 @@ export const appConfig = craftAppConfig({
       // Showcased by the `view-transitions` demo (tile → skeleton → detail hero).
       withCraftViewTransitions(),
       withErrorComponent({
-        component: MyGlobalErrorScreen,
+        component: CraftGlobalErrorComponentHost,
         componentDeps:
           {} as import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,
       }),
       withRouteLoadError({
-        component: MyRouteLoadErrorScreen,
+        component: CraftRouteLoadErrorComponentHost,
         componentDeps:
           {} as import('./my-route-load-error-screen').GenDeps_MyRouteLoadErrorScreen,
         retry: {

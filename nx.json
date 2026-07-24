@@ -82,7 +82,7 @@
     }
   },
   "release": {
-    "projects": ["ng-craft-core", "dev-tools"],
+    "projects": ["ng-craft-core", "ng-craft-component", "dev-tools"],
     "projectsRelationship": "fixed",
     "releaseTag": {
       "pattern": "v{version}"

@@ -1,259 +1,179 @@
-import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component } from '@angular/core';
 import {
-  craftUse,
+  button,
+  component,
+  div,
+  each,
+  h,
+  h2,
+  option,
+  select,
+} from '@craft-ng/component';
+import {
   componentMonitoring,
   craftMethod,
+  craftPipe,
   craftService,
+  craftUse,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
-  craftPipe,
   mutation,
   provideHostName,
   query,
   queryParams,
-  type ExtractDeps,
   type GetDeps,
-  type GetPublicComponentProperties,
 } from '@craft-ng/core';
-import {
-  StatusComponent,
-  type GenDeps_StatusComponent,
-} from '../../../ui/status.component';
+import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
 const {
   injectGranularMutation,
   provideGranularMutation,
   GranularMutationToYield,
-} = craftService({ name: 'GranularMutation', scope: 'toProvide' }, () => {
-  const pagination = craftUse(
-    queryParams(
-      {
-        state: {
-          page: {
-            fallbackValue: 1,
-            parse: (value) => parseInt(value, 10),
-            serialize: (value) => String(value),
-          },
-          pageSize: {
-            fallbackValue: 4,
-            parse: (value) => parseInt(value, 10),
-            serialize: (value) => String(value),
+} = craftService(
+  { name: 'GranularMutation', scope: 'toProvide' },
+  () => {
+    const pagination = craftUse(
+      queryParams(
+        {
+          state: {
+            page: { fallbackValue: 1, parse: Number, serialize: String },
+            pageSize: { fallbackValue: 4, parse: Number, serialize: String },
           },
         },
-      },
-      ({ patch, state }) => ({
-        nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: state().page - 1 }),
-        updatePageSize: (newPageSize: number) =>
-          patch({ pageSize: newPageSize, page: 1 }),
-      }),
-    ),
-  );
-
-  const updateUserName = craftUse(
-    mutation({
-      method: (payload: User) => ({
-        ...payload,
-        name: payload.name + '-',
-      }),
-      identifier: ({ id }) => id,
-      loader: function* ({ params: user }) {
-        return yield* ApiServiceToYield.updateItem(user);
-      },
-    }),
-  );
-
-  const users = craftUse(
-    query(
-      {
-        params: pagination,
-        identifier: (params) => `${params.page}-${params.pageSize}`,
-        loader: function* ({ params: pagination }) {
-          return yield* ApiServiceToYield.getDataList(pagination);
+        ({ patch, state }) => ({
+          nextPage: () => patch({ page: state().page + 1 }),
+          previousPage: () => patch({ page: state().page - 1 }),
+          updatePageSize: (pageSize: number) =>
+            patch({ pageSize, page: 1 }),
+        }),
+      ),
+    );
+    const updateUserName = craftUse(
+      mutation({
+        method: (user: User) => ({ ...user, name: `${user.name}-` }),
+        identifier: ({ id }) => id,
+        loader: function* ({ params }) {
+          return yield* ApiServiceToYield.updateItem(params);
         },
+      }),
+    );
+    const users = craftUse(
+      query(
+        {
+          params: pagination,
+          identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+          loader: function* ({ params }) {
+            return yield* ApiServiceToYield.getDataList(params);
+          },
+        },
+        (context) =>
+          craftPipe(
+            context,
+            insertLocalStoragePersister({
+              storeName: 'demo-app-craft',
+              key: 'granular',
+            }),
+            insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+            insertReactOnMutation(updateUserName, {
+              filter: ({ mutationIdentifier, queryResource }) =>
+                queryResource
+                  .safeValue()
+                  ?.some(({ id }) => id === mutationIdentifier) ?? false,
+              optimisticUpdate: ({
+                queryResource,
+                mutationIdentifier,
+                mutationParams,
+              }) =>
+                queryResource
+                  .value()
+                  ?.map((user) =>
+                    user.id === mutationIdentifier ? mutationParams : user,
+                  ),
+            }),
+          ),
+      ),
+    );
+    return { pagination, users, updateUserName };
+  },
+);
+
+const GranularMutationCraft = component(
+  {
+    providers: [
+      provideGranularMutation(),
+      provideHostName('component:GranularMutationCraft'),
+    ],
+  },
+  () => {
+    componentMonitoring();
+    const store = injectGranularMutation();
+    const updatePageSize = craftMethod(
+      'updatePageSize',
+      function* (event: Event) {
+        (yield* GranularMutationToYield()).pagination.updatePageSize(
+          Number((event.target as HTMLSelectElement).value),
+        );
       },
-      (context) =>
-        craftPipe(
-          context,
-          insertLocalStoragePersister({
-            storeName: 'demo-app-craft',
-            key: 'granular',
-          }),
-          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-          insertReactOnMutation(updateUserName, {
-            filter: ({ mutationIdentifier, queryResource }) =>
-              queryResource
-                .safeValue()
-                ?.some((item) => item.id === mutationIdentifier) ?? false,
-            optimisticUpdate: ({
-              queryResource,
-              mutationIdentifier,
-              mutationParams,
-            }) => {
-              return queryResource.value()?.map((item) => {
-                return item.id === mutationIdentifier ? mutationParams : item;
-              });
-            },
-          }),
+    );
+    return { store, updatePageSize };
+  },
+  ({ store, updatePageSize }) =>
+    div([
+      h2([
+        'User Management: ',
+        StatusComponent({
+          status: () => store.users.currentPageStatus(),
+        }),
+      ]),
+      h(
+        'table',
+        h(
+          'tbody',
+          each(
+            () => store.users.currentPageData() ?? [],
+            { track: (user) => user.id },
+            (user) =>
+              h('tr', [
+                h('td', String(user.id)),
+                h('td', user.name),
+                h(
+                  'td',
+                  button(
+                    {
+                      disabled:
+                        store.updateUserName.select(user.id)?.isLoading() ??
+                        false,
+                      click: () => store.updateUserName.mutate(user),
+                    },
+                    'Update Name',
+                  ),
+                ),
+              ]),
+          ),
         ),
-    ),
-  );
+      ),
+      select(
+        {
+          value: String(store.pagination().pageSize),
+          change: (event) => void updatePageSize(event),
+        },
+        [2, 4, 8, 16].map((size) =>
+          option({ value: String(size) }, String(size)),
+        ),
+      ),
+      button({ click: store.pagination.previousPage }, 'Previous'),
+      button({ click: store.pagination.nextPage }, 'Next'),
+    ]),
+);
 
-  return { pagination, users, updateUserName };
-});
-
-@Component({
-  selector: 'app-granular-mutation',
-  imports: [CommonModule, StatusComponent],
-  template: `
-    <div class="container">
-      <main class="content">
-        <div class="content-wrapper">
-          <div class="card">
-            <h2 class="card-title">
-              User Management:
-              <app-status [status]="store.users.currentPageStatus()" />
-            </h2>
-
-            <div class="table-container">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @if (store.users.currentPageData()) {
-                    @for (
-                      user of store.users.currentPageData();
-                      track user.id
-                    ) {
-                      <tr>
-                        <td>{{ user.id }}</td>
-
-                        <td>{{ user.name }}</td>
-
-                        <td>
-                          <button
-                            class="action-btn"
-                            (click)="store.updateUserName.mutate(user)"
-                            [disabled]="
-                              store.updateUserName.select(user.id)?.isLoading()
-                            "
-                          >
-                            Update Name
-                            @if (
-                              store.updateUserName.select(user.id)?.status() &&
-                              store.updateUserName.select(user.id)?.status() !==
-                                'idle'
-                            ) {
-                              <app-status
-                                [status]="
-                                  store.updateUserName
-                                    .select(user.id)
-                                    ?.status() ?? 'idle'
-                                "
-                              ></app-status>
-                            }
-                          </button>
-                        </td>
-                      </tr>
-                    } @empty {
-                      @if (store.users.currentPageStatus() === 'resolved') {
-                        <tr>
-                          <td
-                            colspan="4"
-                            style="text-align: center; padding: 32px"
-                          >
-                            No users found
-                          </td>
-                        </tr>
-                      } @else {
-                        <tr>
-                          <td
-                            colspan="4"
-                            style="text-align: center; padding: 32px"
-                          >
-                            Loading...
-                          </td>
-                        </tr>
-                      }
-                    }
-                  }
-                </tbody>
-              </table>
-            </div>
-
-            <div class="pagination">
-              <select
-                [value]="store.pagination().pageSize"
-                (change)="updatePageSize($event)"
-                style="margin-right: 8px"
-              >
-                <option [value]="2">2</option>
-                <option [value]="4">4</option>
-                <option [value]="8">8</option>
-                <option [value]="16">16</option>
-              </select>
-              <button class="btn" (click)="store.pagination.previousPage()">
-                Previous
-              </button>
-              <span class="current-page">
-                {{ store.pagination().page }}
-              </span>
-              <button class="btn" (click)="store.pagination.nextPage()">
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  `,
-  styleUrls: ['./granular-mutation.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    provideGranularMutation(),
-    provideHostName('component:GranularMutationCraft'),
-  ],
-})
-export default class GranularMutationCraft {
-  private readonly _monitoring = componentMonitoring();
-  protected readonly store = injectGranularMutation();
-
-  protected updatePageSize = craftMethod(
-    'updatePageSize',
-    function* (event: Event) {
-      const value = Number((event.target as HTMLSelectElement).value);
-      const store = yield* GranularMutationToYield();
-      store.pagination.updatePageSize(value);
-      return;
-    },
-  );
-}
-
+export default GranularMutationCraft;
 export type GenDeps_GranularMutationCraft = GetDeps<{
-  deps: {
-    CommonModule: CommonModule;
-    GenDeps_StatusComponent: GenDeps_StatusComponent;
-  };
-  propertiesDeps: {
-    _monitoring: ExtractDeps<GranularMutationCraft['_monitoring']>;
-    store: {
-      GranularMutation: ExtractDeps<
-        typeof injectGranularMutation
-      >['GranularMutation'];
-    };
-    updatePageSize: ExtractDeps<GranularMutationCraft['updatePageSize']>;
-  };
+  deps: Record<never, never>;
+  propertiesDeps: Record<never, never>;
   provided: {
     GranularMutation: ReturnType<typeof provideGranularMutation>;
     HostName: ReturnType<typeof provideHostName>;
   };
-  publicProperties: GetPublicComponentProperties<GranularMutationCraft>;
+  publicProperties: Record<never, never>;
 }>;
