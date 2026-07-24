@@ -1,19 +1,42 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import { Injector, signal, type WritableSignal } from '@angular/core';
 import type { Router } from '@angular/router';
 import { craftException, type AnyCraftException } from './craft-exception';
-import { CraftGenShortCircuit, isCraftGenShortCircuit } from './craft-gen';
+import {
+  craftGen,
+  CraftGenShortCircuit,
+  isCraftGenShortCircuit,
+  type ExtractCraftGenExceptions,
+} from './craft-gen';
 import { isGuardAwaitRequest } from './craft-generator-runtime';
 import {
   runCraftRouteChainAsync,
   type CraftRouteExceptionHandlerMap,
 } from './craft-guard-runtime';
 import { catchTag } from './craft-program-operators';
+import { craftUse } from './craft-use';
+import { query } from './query';
 import {
   craftUntilDefined,
   craftUntilSettled,
   type ResourceLike,
 } from './craft-until-settled';
+
+type GeneratorYielded<Gen> = Gen extends Generator<
+  infer Yielded,
+  unknown,
+  unknown
+>
+  ? Yielded
+  : never;
+
+type GeneratorReturn<Gen> = Gen extends Generator<
+  unknown,
+  infer Return,
+  unknown
+>
+  ? Return
+  : never;
 
 // A stub Router — the chain driver only binds these three methods onto the
 // exception-handler context; the handlers below use the outcome constructors.
@@ -30,7 +53,6 @@ function stubRouter(): Router {
 function fakeHttpCall(
   resolved: unknown,
 ): Generator<unknown, PromiseLike<unknown>, unknown> {
-  // eslint-disable-next-line require-yield
   return (function* () {
     return Promise.resolve(resolved);
   })();
@@ -59,6 +81,50 @@ function makeResource(): {
     exceptions,
   };
 }
+
+describe('craftUntilSettled (query type channels)', () => {
+  it('returns only A and propagates exactly the query exceptions through E', () => {
+    type User = { id: string; name: string };
+
+    const loadUser = craftGen(function* (userId: string) {
+      if (userId === 'missing') {
+        return craftException({ code: 'USER_NOT_FOUND' }, { userId });
+      }
+
+      if (userId === 'forbidden') {
+        return craftException({ code: 'USER_FORBIDDEN' }, { userId });
+      }
+
+      return { id: userId, name: 'Jane' } satisfies User;
+    });
+
+    const _createProgram = () => {
+      const queryRef = craftUse(
+        query({
+          params: () =>
+            Math.random() > 0.5
+              ? 'user-1'
+              : craftException({ code: 'MISSING_USER_ID' }),
+          loader: function* ({ params }) {
+            return yield* loadUser(params);
+          },
+        }),
+      );
+
+      return craftUntilSettled(queryRef);
+    };
+
+    type Program = ReturnType<typeof _createProgram>;
+    type Success = GeneratorReturn<Program>;
+    type Exceptions = ExtractCraftGenExceptions<GeneratorYielded<Program>>;
+
+    expectTypeOf<Success>().toEqualTypeOf<User>();
+    expectTypeOf<Exceptions['code']>().toEqualTypeOf<
+      'MISSING_USER_ID' | 'USER_NOT_FOUND' | 'USER_FORBIDDEN'
+    >();
+    expectTypeOf<Extract<Success, AnyCraftException>>().toEqualTypeOf<never>();
+  });
+});
 
 // Exercises `craftUntilSettled`'s async HTTP-await path end-to-end, driven by the live
 // non-blocking route chain (`runCraftRouteChainAsync`): a suspended guard resumes
