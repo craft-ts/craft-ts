@@ -4,6 +4,8 @@
   "license": "MIT",
   "scripts": {
     "registry:mcp": "npm run start --workspace @ng-craft/function-registry-mcp",
+    "logs:server": "npm run start --workspace @ng-craft/log-server",
+    "logs:mcp": "npm run start --workspace @ng-craft/log-mcp",
     "release:check": "node --test tools/release.test.mjs tools/release-local.test.mjs",
     "release:local": "node tools/release-local.mjs"
   },
@@ -56,6 +58,7 @@
     "vitest": "^4.0.8"
   },
   "workspaces": [
+    "apps/log-server",
     "packages/*",
     "libs/test-type",
     "tools/generators"

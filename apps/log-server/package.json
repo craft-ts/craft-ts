@@ -1,0 +1,19 @@
+{
+  "name": "@ng-craft/log-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ng-craft-log-server": "dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build && node dist/main.js",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.9",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  }
+}

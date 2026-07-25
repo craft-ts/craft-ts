@@ -48,6 +48,7 @@ import {
   registerFunctionEntry,
   registerResourceEntry,
 } from './function-registry';
+import { provideLogForwarding } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
@@ -62,6 +63,10 @@ export const appConfig = craftAppConfig({
   routingDeps: demoRoutes.META_PATHS,
   providers: [
     provideBrowserGlobalErrorListeners(),
+    // Overrides the craft ConsoleService: every Console.* call keeps printing
+    // in the browser and is also shipped to the local log server, where the
+    // logs MCP server can read it back.
+    provideLogForwarding(),
     provideCraftRootComponent(App),
     provideCraftGlobalErrorComponent(MyGlobalErrorScreen),
     provideCraftRouteLoadErrorComponent(MyRouteLoadErrorScreen),
