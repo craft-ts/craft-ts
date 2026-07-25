@@ -10,19 +10,16 @@ import {
   craftUntilSettled,
   viewTransitionPayload,
   type CanRun,
+  type ComponentDepsOf,
   type ParentRoutes,
   type RouteCheckedDI,
-  type ValidateCascadeRoutesFile,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
 import {
   CraftPendingComponentHost,
-  CraftRoutedComponentHost,
-  provideCraftComponent,
+  loadCraftComponent,
   provideCraftPendingComponent,
 } from '@craft-ng/component';
-import Gallery from './gallery';
-import PhotoDetail from './photo-detail';
 import PhotoSkeleton from './photo-skeleton';
 
 // --- View Transitions demo (gallery → detail, shared-element morph) ----------
@@ -69,21 +66,22 @@ export const {
 } = craftRoutes('viewTransitions', [
   {
     path: '',
-    componentDeps:
-      {} as import('./gallery').GenDeps_ViewTransitionsGalleryComponent,
-    component: CraftRoutedComponentHost,
-    providers: [provideCraftComponent(Gallery)],
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./gallery')).then(
+        ({ default: component }) => component,
+      ),
+    ),
   },
   craftRoute(
     ':photoId',
     {
-      componentDeps:
-        {} as import('./photo-detail').GenDeps_ViewTransitionsDetailComponent,
-      component: CraftRoutedComponentHost,
-      providers: [
-        provideCraftComponent(PhotoDetail),
-        provideCraftPendingComponent(PhotoSkeleton),
-      ],
+      ...loadCraftComponent(
+        ({ withRetry }) =>
+          withRetry(import('./photo-detail')).then(
+            ({ default: component }) => component,
+          ),
+        [provideCraftPendingComponent(PhotoSkeleton)],
+      ),
       // The route DECLARES the shared-element payload shape (mirrors how
       // `queryParams` declares query-params shape): every link/navigation must pass
       // `viewTransition: { name; image } | null`, and the skeleton reads it via the
@@ -112,28 +110,31 @@ export const {
 // Required-handler safety net for routes authored with the 2-arg `craftRoute()` form.
 assertExhaustiveRouteExceptions(viewTransitionsRoutes);
 
-// Cascade DI safety for THIS lazy child collection. Like slow-page: the parent
-// `app.routes` cascade does not descend into `loadChildren`, so we re-establish
-// the check here with the same parent context (app-level `Router`).
-//
-// Two checks. The TARGET component (`photo-detail`) via the aggregated cascade…
-type _CheckViewTransitionsDI = ValidateCascadeRoutesFile<
+// O(1) component DI checks for this lazy collection. They use the contracts
+// inferred directly from the SFCs without expanding the slow guard graph.
+type _CheckViewTransitionsGalleryDI = RouteCheckedDI<
+  ComponentDepsOf<(typeof import('./gallery'))['default']>,
   never,
   Router,
-  typeof viewTransitionsRoutes
+  'component: view-transitions gallery'
 >;
-type _CanRunViewTransitions = CanRun<_CheckViewTransitionsDI>;
+type _CanRunViewTransitionsGallery = CanRun<_CheckViewTransitionsGalleryDI>;
 
-// …and the PENDING skeleton (`photo-skeleton`) via the per-component, O(1)
-// `RouteCheckedDI` (setup.md "Escape hatch"). The cascade does not see the
-// pending component, so we verify it directly here. The route auto-provides the
-// `:photoId` param and the typed view-transition payload (listed as available);
-// `Router` is the app-level provided value. This block is generated/refreshed
-// from `pendingComponent` by the `require-pending-component-di-check` ESLint rule.
+type _CheckViewTransitionsDetailDI = RouteCheckedDI<
+  ComponentDepsOf<(typeof import('./photo-detail'))['default']>,
+  never,
+  Router,
+  'component: view-transitions/:photoId',
+  'photoId'
+>;
+type _CanRunViewTransitionsDetail = CanRun<_CheckViewTransitionsDetailDI>;
+
+// The pending skeleton receives both values from the route host.
 type _CheckViewTransitionsPendingDI = RouteCheckedDI<
-  import('./photo-skeleton').GenDeps_ViewTransitionsSkeletonComponent,
+  ComponentDepsOf<typeof PhotoSkeleton>,
   'ViewTransitionsPhotoIdParams' | 'ViewTransitionsPhotoIdViewTransition',
   Router,
-  'pending component: view-transitions/:photoId'
+  'pending component: view-transitions/:photoId',
+  'photoId' | 'viewTransition'
 >;
 type _CanRunViewTransitionsPending = CanRun<_CheckViewTransitionsPendingDI>;

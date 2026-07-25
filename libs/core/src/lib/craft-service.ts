@@ -922,6 +922,12 @@ export type ServiceDependencyMapFromYielded<Yielded> = BuildDependencyMap<
   DependencyRequests<Yielded>
 >;
 
+export type CompleteServiceDependencyMapFromYielded<Yielded> =
+  MergeDependencyNodeMaps<
+    ServiceDependencyMapFromYielded<Yielded>,
+    TrackedDepsMapFromYielded<Yielded>
+  >;
+
 type DependencyDefinition<Request> = ResolveServiceTrackingMetadata<
   DependencyMetadata<Request>
 >;

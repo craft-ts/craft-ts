@@ -12,9 +12,12 @@ import type {
  * brittle (TS2589).
  *
  * Where `AppCheckedDI` iterates over every route to build a global proof, this
- * type performs a **local** check: given a component's `GenDeps` and the set
- * of provider names (and optionally provided value types) reachable from this
- * route's ancestors, it returns either `true` or the list of error messages.
+ * type performs a **local** check: given a component dependency contract and
+ * the set of provider names (and optionally provided value types) reachable
+ * from this route's ancestors, it returns either `true` or the list of error
+ * messages. Functional components expose that contract through
+ * `ComponentDepsOf<typeof MyComponent>`; decorated Angular components can
+ * still pass their legacy generated `GenDeps_*` alias.
  *
  * Recommended placement (used by the type-stress generator): the check lives
  * **in the route file** — i.e. alongside the `craftRoutes(...)` call that
@@ -205,9 +208,15 @@ export type RouteCheckedDI<
   AvailableProviderNames extends string,
   ProvidedValues = never,
   Context extends string = 'this component',
+  AvailableInputNames extends string = never,
 > = [
   ...InputErrorMessagesFromNames<
-    UnionToTuple<Extract<keyof PublicPropertiesMap<ComponentDeps>, string>>,
+    UnionToTuple<
+      Exclude<
+        Extract<keyof PublicPropertiesMap<ComponentDeps>, string>,
+        AvailableInputNames
+      >
+    >,
     Context
   >,
   ...InjectedErrorMessagesFromNames<
@@ -235,11 +244,13 @@ export type RouteExceptionComponentCheckedDI<
   AvailableProviderNames extends string,
   ProvidedValues = never,
   Context extends string = 'exception component',
+  AvailableInputNames extends string = never,
 > = RouteCheckedDI<
   ComponentDeps,
   AvailableProviderNames,
   ProvidedValues,
-  Context
+  Context,
+  AvailableInputNames
 >;
 
 /**
@@ -304,13 +315,15 @@ type RouteProvidedServiceNamesFromEntry<Entry> =
 type CascadeRouteEntryError<
   ParentNames extends string,
   ParentValues,
+  ParentInputNames extends string,
   RouteMeta,
 > = RouteMeta extends { path: infer Path extends string }
   ? RouteCheckedDI<
       RouteMeta,
       ParentNames,
       ParentValues,
-      `path: "${Path}"`
+      `path: "${Path}"`,
+      ParentInputNames
     > extends infer Result
     ? Result extends true
       ? []
@@ -327,6 +340,7 @@ type AggregateCascadeErrorsByIndex<
   ParentNames extends string,
   ParentValues,
   RoutesMeta extends readonly unknown[],
+  ParentInputNames extends string = never,
   Traversed extends readonly unknown[] = readonly [],
 > = number extends RoutesMeta['length']
   ? []
@@ -337,6 +351,7 @@ type AggregateCascadeErrorsByIndex<
           ...CascadeRouteEntryError<
             ParentNames,
             ParentValues,
+            ParentInputNames,
             RoutesMeta[Traversed['length']]
           >,
         ]
@@ -345,11 +360,13 @@ type AggregateCascadeErrorsByIndex<
             ...CascadeRouteEntryError<
               ParentNames,
               ParentValues,
+              ParentInputNames,
               RoutesMeta[Traversed['length']]
             >,
             ...CascadeRouteEntryError<
               ParentNames,
               ParentValues,
+              ParentInputNames,
               RoutesMeta[[...Traversed, unknown]['length']]
             >,
           ]
@@ -357,27 +374,32 @@ type AggregateCascadeErrorsByIndex<
             ...CascadeRouteEntryError<
               ParentNames,
               ParentValues,
+              ParentInputNames,
               RoutesMeta[Traversed['length']]
             >,
             ...CascadeRouteEntryError<
               ParentNames,
               ParentValues,
+              ParentInputNames,
               RoutesMeta[[...Traversed, unknown]['length']]
             >,
             ...CascadeRouteEntryError<
               ParentNames,
               ParentValues,
+              ParentInputNames,
               RoutesMeta[[...Traversed, unknown, unknown]['length']]
             >,
             ...CascadeRouteEntryError<
               ParentNames,
               ParentValues,
+              ParentInputNames,
               RoutesMeta[[...Traversed, unknown, unknown, unknown]['length']]
             >,
             ...AggregateCascadeErrorsByIndex<
               ParentNames,
               ParentValues,
               RoutesMeta,
+              ParentInputNames,
               [...Traversed, unknown, unknown, unknown, unknown]
             >,
           ];
@@ -414,13 +436,15 @@ export type ValidateCascadeRoutesFile<
   ParentNames extends string,
   ParentValues,
   RoutesApp,
+  ParentInputNames extends string = never,
 > = RoutesApp extends {
   META_DATA: infer Meta extends readonly unknown[];
 }
   ? AggregateCascadeErrorsByIndex<
       ParentNames,
       ParentValues,
-      Meta
+      Meta,
+      ParentInputNames
     > extends infer Errors extends readonly string[]
     ? Errors extends readonly []
       ? true

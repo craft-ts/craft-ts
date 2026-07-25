@@ -1,4 +1,5 @@
 import type { Provider } from '@angular/core';
+import type { ComponentDepsCarrier } from '@craft-ng/core';
 import type { CraftNodeChildren, ComponentNode } from './render/vnode';
 
 declare const INPUT_BRAND: unique symbol;
@@ -30,8 +31,10 @@ export type PropsFromContext<Context> = Simplify<{
 
 export const CRAFT_COMPONENT = Symbol('craft-component');
 
-export interface ComponentMeta {
-  readonly providers?: readonly Provider[];
+export interface ComponentMeta<
+  Providers extends readonly Provider[] = readonly Provider[],
+> {
+  readonly providers?: Providers;
   readonly host?: Readonly<Record<string, unknown>>;
   readonly styles?: string | readonly string[];
 }
@@ -50,13 +53,16 @@ type ComponentCall<Props extends object> = keyof Props extends never
 
 export type CraftComponent<
   Props extends object = Record<never, never>,
+  ComponentDeps extends object = Record<never, never>,
 > = ComponentCall<Props> & {
   readonly [CRAFT_COMPONENT]: ComponentDefinition<unknown>;
-};
+} & ComponentDepsCarrier<ComponentDeps>;
 
 export type PropsOf<Component> =
-  Component extends CraftComponent<infer Props> ? Props : never;
+  Component extends CraftComponent<infer Props, any> ? Props : never;
 
-export function isCraftComponent(value: unknown): value is CraftComponent<object> {
+export function isCraftComponent(
+  value: unknown,
+): value is CraftComponent<object> {
   return typeof value === 'function' && CRAFT_COMPONENT in value;
 }

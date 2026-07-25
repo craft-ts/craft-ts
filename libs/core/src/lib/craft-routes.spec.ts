@@ -868,19 +868,15 @@ describe('craftRoutes', () => {
     ]);
   });
 
-  it('should throw when componentDeps is missing', () => {
-    const createRoutes = () =>
-      craftRoutes('test', [
-        // @ts-expect-error componentDeps is required on route definitions
-        {
-          path: 'query/:userId',
-          loadComponent: async () => null as unknown as Type<unknown>,
-        },
-      ]);
+  it('should accept a component route without legacy componentDeps', () => {
+    const { testRoutes } = craftRoutes('test', [
+      {
+        path: 'query/:userId',
+        loadComponent: async () => null as unknown as Type<unknown>,
+      },
+    ]);
 
-    expect(createRoutes).toThrow(
-      'Route "query/:userId" must define "componentDeps" as an object.',
-    );
+    expect(testRoutes.META_DATA).toEqual([{ path: 'query/:userId' }]);
   });
 
   it('should keep lazy child inject helpers scoped to the lazy module result', () => {
@@ -2176,12 +2172,12 @@ describe('craftRoutes', () => {
       return selectedRoute.loadComponent?.();
     }
 
-    await expect(
-      selectDashboardComponent({ kind: 'admin' }),
-    ).resolves.toBe(AdminDashboardComponent);
-    await expect(
-      selectDashboardComponent({ kind: 'user' }),
-    ).resolves.toBe(UserDashboardComponent);
+    await expect(selectDashboardComponent({ kind: 'admin' })).resolves.toBe(
+      AdminDashboardComponent,
+    );
+    await expect(selectDashboardComponent({ kind: 'user' })).resolves.toBe(
+      UserDashboardComponent,
+    );
   });
 
   // The legacy blocking-guard describes ('craftCanActivate' / 'craftCanMatch')

@@ -32,7 +32,11 @@ import {
   map,
   take,
 } from 'rxjs';
-import type { ExtractDeps } from './branded-component/branded-component';
+import type {
+  CRAFT_COMPONENT_DEPS,
+  ComponentDepsOf,
+  ExtractDeps,
+} from './branded-component/branded-component';
 import { type AnyCraftException } from './craft-exception';
 import { type ExtractCraftGenExceptions } from './craft-gen';
 import {
@@ -62,7 +66,11 @@ import type {
   ServiceTrackingMetadata,
   ServiceYieldRequest,
 } from './craft-service';
-import type { MergeObjectUnion, Simplify } from './craft-service.shared';
+import {
+  CRAFT_SERVICE_PROVIDER_BRAND,
+  type MergeObjectUnion,
+  type Simplify,
+} from './craft-service.shared';
 import { provideHostName } from './host-tag';
 import {
   loadRouteWithRetry,
@@ -92,7 +100,13 @@ type ComponentDepsMap<RouteDefinition> = RouteDefinition extends {
   componentDeps: infer ComponentDeps extends object;
 }
   ? ComponentDeps
-  : {};
+  : typeof CRAFT_COMPONENT_DEPS extends keyof RouteDefinition
+    ? ComponentDepsOf<RouteDefinition>
+    : RouteDefinition extends { component: infer Component }
+      ? typeof CRAFT_COMPONENT_DEPS extends keyof Component
+        ? ComponentDepsOf<Component>
+        : {}
+      : {};
 type DepsMap<ComponentDeps> = ComponentDeps extends {
   deps: infer Deps extends object;
 }
@@ -634,10 +648,12 @@ type MapRoutePublicPropertiesToErrors<
     };
 
 type RouteProvidedServiceNamesFromEntry<Entry> =
-  Entry extends BrandedServiceProvider<infer Name, any, any, any>
-    ? Name
-    : Entry extends readonly unknown[]
-      ? RouteProvidedServiceNames<Entry>
+  Entry extends readonly unknown[]
+    ? RouteProvidedServiceNames<Entry>
+    : typeof CRAFT_SERVICE_PROVIDER_BRAND extends keyof Entry
+      ? Entry extends BrandedServiceProvider<infer Name, any, any, any>
+        ? Name
+        : never
       : never;
 
 // Resolves the providers array for both the plain-array form and the callback
@@ -659,8 +675,10 @@ type RouteProvidedServiceNames<Providers> =
 // provider's tracked `Yielded`), surfaced as a dependency map for the cascade.
 type RouteProvidersYielded<Providers> =
   RouteProvidersArray<Providers> extends readonly (infer Entry)[]
-    ? Entry extends BrandedServiceProvider<any, any, any, infer Yielded>
-      ? Yielded
+    ? typeof CRAFT_SERVICE_PROVIDER_BRAND extends keyof Entry
+      ? Entry extends BrandedServiceProvider<any, any, any, infer Yielded>
+        ? Yielded
+        : never
       : never
     : never;
 
@@ -1279,7 +1297,9 @@ type CraftRouteComponentTarget =
 type CraftRouteLoadChildrenCallback<
   Routes extends readonly AnyCraftRouteDefinition[],
   Name extends string = string,
-> = (helpers: CraftRouteLazyLoadHelpers) =>
+> = (
+  helpers: CraftRouteLazyLoadHelpers,
+) =>
   | CraftRoutesApp<Routes, Name>
   | Promise<CraftRoutesApp<Routes, Name>>
   | Route[]
@@ -1298,7 +1318,9 @@ type CraftRouteOptionalLoadChildrenTarget<
 
 type CraftRouteLazyLoaderContext = {
   loadComponent?: CraftLoadComponent;
-  loadChildren?: CraftRouteLoadChildrenCallback<readonly AnyCraftRouteDefinition[]>;
+  loadChildren?: CraftRouteLoadChildrenCallback<
+    readonly AnyCraftRouteDefinition[]
+  >;
 };
 
 export type CraftRouteDefinition<
@@ -1312,7 +1334,8 @@ export type CraftRouteDefinition<
   CraftRouteSharedFields<Path, RouteData, Providers> &
     CraftRouteComponentTarget &
     CraftRouteOptionalLoadChildrenTarget<ChildRoutes> & {
-      componentDeps: ComponentDeps;
+      /** @deprecated Functional components carry this metadata themselves. */
+      componentDeps?: ComponentDeps;
     }
 >;
 
@@ -1339,12 +1362,11 @@ type AnyCraftComponentRouteDefinition = Simplify<
           loadChildren?: never;
         }
       | {
-          loadChildren: (
-            helpers: CraftRouteLazyLoadHelpers,
-          ) => unknown;
+          loadChildren: (helpers: CraftRouteLazyLoadHelpers) => unknown;
         }
     ) & {
-      componentDeps: unknown;
+      /** @deprecated Functional components carry this metadata themselves. */
+      componentDeps?: unknown;
     }
 >;
 
@@ -1415,22 +1437,25 @@ type CraftParentMountMismatch<
  * mount path different from this route's own `path`, surface a mismatch error.
  * Unpinned children (`ParentMount` = `string`) and non-lazy routes → `never`.
  */
-type ChildRouteMountError<RouteDefinition> = RouteDefinition extends {
-  loadChildren: (...args: any[]) => infer Output;
-  path: infer Path extends string;
-}
-  ? Awaited<Output> extends CraftRoutesApp<
-      readonly AnyCraftRouteDefinition[],
-      string,
-      infer Mount
-    >
-    ? string extends Mount
-      ? never // unpinned child → mountable anywhere
-      : [Mount] extends [Path]
-        ? never
-        : CraftParentMountMismatch<Mount, Path>
-    : never
-  : never;
+type ChildRouteMountError<RouteDefinition> =
+  'loadChildren' extends keyof RouteDefinition
+    ? RouteDefinition extends {
+        loadChildren: (...args: any[]) => infer Output;
+        path: infer Path extends string;
+      }
+      ? Awaited<Output> extends CraftRoutesApp<
+          readonly AnyCraftRouteDefinition[],
+          string,
+          infer Mount
+        >
+        ? string extends Mount
+          ? never // unpinned child → mountable anywhere
+          : [Mount] extends [Path]
+            ? never
+            : CraftParentMountMismatch<Mount, Path>
+        : never
+      : never
+    : never;
 
 type CollectChildRouteMountErrors<Routes> = Routes extends readonly unknown[]
   ? { [Index in keyof Routes]: ChildRouteMountError<Routes[Index]> }[number]
@@ -2509,13 +2534,16 @@ function provideRouteValueService(
 function getRouteComponentDeps(
   route: AnyCraftComponentRouteDefinition,
 ): Record<string, unknown> {
+  if (route.componentDeps === undefined) {
+    return {};
+  }
+
   if (
-    !route.componentDeps ||
     typeof route.componentDeps !== 'object' ||
     Array.isArray(route.componentDeps)
   ) {
     throw new Error(
-      `Route "${route.path}" must define "componentDeps" as an object.`,
+      `Route "${route.path}" must define "componentDeps" as an object when it is provided.`,
     );
   }
 
@@ -2690,7 +2718,8 @@ function createAngularGuard<
         args,
         invalidYieldErrorMessage: ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE,
         multipleAppStartErrorMessage: ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
-        onAppStartNotSupportedErrorMessage: ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
+        onAppStartNotSupportedErrorMessage:
+          ANGULAR_GUARD_APP_START_ERROR_MESSAGE,
       });
 
       return normalizeAngularGuardResult(

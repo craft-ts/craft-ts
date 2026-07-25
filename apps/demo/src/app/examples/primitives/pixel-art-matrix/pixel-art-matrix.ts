@@ -9,13 +9,13 @@ import {
   p,
   section,
 } from '@craft-ng/component';
-import {
-  componentMonitoring,
-  provideHostName,
-  type GetDeps,
-} from '@craft-ng/core';
+import { componentMonitoring, provideHostName } from '@craft-ng/core';
 
-type Cell = { readonly id: number; readonly color: string; readonly count: number };
+type Cell = {
+  readonly id: number;
+  readonly color: string;
+  readonly count: number;
+};
 const SIZE = 16;
 const EMPTY = '#f8fafc';
 const COLORS = ['#0f172a', '#ef4444', '#22c55e', '#3b82f6', '#eab308'];
@@ -113,19 +113,16 @@ const PixelArtMatrix = component(
           { track: (row) => row[0]?.id ?? row.length },
           (row, rowIndex) =>
             div({ class: 'matrix-row' }, [
-              each(
-                row,
-                { track: (cell) => cell.id },
-                (cell, columnIndex) =>
-                  button({
-                    class: 'matrix-cell',
-                    style: { backgroundColor: cell.color },
-                    click: () => paint(rowIndex, columnIndex),
-                    contextmenu: (event) => {
-                      event.preventDefault();
-                      paintRow(rowIndex, cell.color);
-                    },
-                  }),
+              each(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
+                button({
+                  class: 'matrix-cell',
+                  style: { backgroundColor: cell.color },
+                  click: () => paint(rowIndex, columnIndex),
+                  contextmenu: (event) => {
+                    event.preventDefault();
+                    paintRow(rowIndex, cell.color);
+                  },
+                }),
               ),
               button({ click: () => addCell(rowIndex) }, '+'),
             ]),
@@ -136,11 +133,3 @@ const PixelArtMatrix = component(
 );
 
 export default PixelArtMatrix;
-export type GenDeps_PixelArtMatrix = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

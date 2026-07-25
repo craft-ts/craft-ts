@@ -13,11 +13,9 @@ import {
 } from '@craft-ng/component';
 import {
   componentMonitoring,
-  craftUse,
   mutation,
   provideHostName,
   query,
-  type GetDeps,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 
@@ -34,36 +32,30 @@ const FullDemo = component(
     styles:
       '.full-demo{display:grid;gap:1rem;max-width:640px}.full-demo li{display:flex;gap:.75rem;align-items:center}.full-demo li span{flex:1}',
   },
-  () => {
+  function* () {
     componentMonitoring();
     const refresh = signal(0);
-    const todos = craftUse(
-      query({
-        params: refresh,
-        loader: async () => [...records],
-      }),
-    );
-    const addTodo = craftUse(
-      mutation({
-        method: (title: string) => title,
-        loader: async ({ params: title }) => {
-          const todo = { id: nextId++, title };
-          records = [...records, todo];
-          refresh.update((value) => value + 1);
-          return todo;
-        },
-      }),
-    );
-    const removeTodo = craftUse(
-      mutation({
-        method: (id: number) => id,
-        loader: async ({ params: id }) => {
-          records = records.filter((todo) => todo.id !== id);
-          refresh.update((value) => value + 1);
-          return id;
-        },
-      }),
-    );
+    const todos = yield* query({
+      params: refresh,
+      loader: async () => [...records],
+    });
+    const addTodo = yield* mutation({
+      method: (title: string) => title,
+      loader: async ({ params: title }) => {
+        const todo = { id: nextId++, title };
+        records = [...records, todo];
+        refresh.update((value) => value + 1);
+        return todo;
+      },
+    });
+    const removeTodo = yield* mutation({
+      method: (id: number) => id,
+      loader: async ({ params: id }) => {
+        records = records.filter((todo) => todo.id !== id);
+        refresh.update((value) => value + 1);
+        return id;
+      },
+    });
     return { todos, addTodo, removeTodo };
   },
   ({ todos, addTodo, removeTodo }) => {
@@ -113,11 +105,3 @@ const FullDemo = component(
 );
 
 export default FullDemo;
-export type GenDeps_FullDemo = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

@@ -12,14 +12,11 @@ import {
   retry,
   craftUntilSettled,
   type CanRun,
-  type ValidateCascadeRoutesFile,
+  type ComponentDepsOf,
+  type RouteCheckedDI,
 } from '@craft-ng/core';
 import type { Router } from '@angular/router';
-import {
-  CraftRoutedComponentHost,
-  provideCraftComponent,
-} from '@craft-ng/component';
-import SlowPageComponent from './slow-page';
+import { loadCraftComponent } from '@craft-ng/component';
 
 // --- Slow guard + slow resolve demo (non-blocking outlet) -------------------
 // Two deliberately slow async steps (~1.5s each) used to showcase
@@ -88,9 +85,11 @@ export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
     craftRoute(
       '',
       {
-        componentDeps: {} as import('./slow-page').GenDeps_SlowPageComponent,
-        component: CraftRoutedComponentHost,
-        providers: [provideCraftComponent(SlowPageComponent)],
+        ...loadCraftComponent(({ withRetry }) =>
+          withRetry(import('./slow-page')).then(
+            ({ default: component }) => component,
+          ),
+        ),
         // Slow (~1.5s) — the outlet shows the pending component until it settles.
         // `retry` replays the whole guard program on failure (E unchanged, so
         // NOT_AUTHENTICATED still routes through `handleExceptions`).
@@ -123,19 +122,13 @@ export const { slowPageRoutes, injectSlowPageRootResolvedData } = craftRoutes(
 // Required-handler safety net for routes authored with the 2-arg `craftRoute()` form.
 assertExhaustiveRouteExceptions(slowPageRoutes);
 
-// Cascade DI safety for THIS lazy child collection.
-//
-// `ValidateCascadeRoutesFile` in `app.routes.ts` validates only `demoRoutes`'
-// own `META_DATA` — it does NOT descend into `loadChildren`. So a lazy child
-// collection would otherwise ship with ZERO compile-time DI checking. We restore
-// it here, scoped to the child collection, with the same parent context the
-// parent route runs under (app-level `Router` by value; no extra named
-// providers). Any service a child route component injects but that is not
-// provided (app-level, route-level, or by the outlet for resolved data) becomes
-// a TypeScript error here — exactly like the main file's check.
-type _CheckSlowPageDI = ValidateCascadeRoutesFile<
+// O(1) component DI check for this lazy collection. Keeping the check local
+// avoids expanding the already-deep guard/resolve dependency graph a second
+// time while still validating the component contract inferred from the SFC.
+type _CheckSlowPageDI = RouteCheckedDI<
+  ComponentDepsOf<(typeof import('./slow-page'))['default']>,
   never,
   Router,
-  typeof slowPageRoutes
+  'component: slow-page'
 >;
 type _CanRunSlowPage = CanRun<_CheckSlowPageDI>;

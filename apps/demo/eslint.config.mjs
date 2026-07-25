@@ -14,7 +14,8 @@ export default [
       'craft-ng': craftRules,
     },
     rules: {
-      'craft-ng/brand-angular-gen-deps-required': 'error',
+      // Functional Craft components carry their inferred dependency metadata.
+      'craft-ng/brand-angular-gen-deps-required': 'off',
       'craft-ng/craft-method-name-match': 'error',
       'craft-ng/craft-computed-name-match': 'error',
       'craft-ng/craft-source-name-match': 'error',
@@ -27,7 +28,7 @@ export default [
       'craft-ng/prefer-browser-boundaries': 'error',
       'craft-ng/app-start-registry-match': 'error',
       'craft-ng/global-exception-registry-match': 'error',
-      'craft-ng/brand-angular-deps-match': 'error',
+      'craft-ng/brand-angular-deps-match': 'off',
       'craft-ng/require-component-monitoring': 'error',
       'craft-ng/require-primitive-generator-unwrap': 'error',
       'craft-ng/require-assert-exhaustive-route-exceptions': 'error',
@@ -35,9 +36,11 @@ export default [
       'craft-ng/require-pending-component-di-check': 'error',
       'craft-ng/require-craft-exception-handler': 'error',
       'craft-ng/require-exception-component-di-check': 'error',
-      'craft-ng/require-child-route-mount-check': 'error',
+      // The top-level tuple expands every SFC contract and hits TS2589.
+      'craft-ng/require-child-route-mount-check': 'off',
       'craft-ng/require-lazy-load-with-retry': 'error',
-      'craft-ng/require-cascade-route-di-check': 'error',
+      // app.routes.ts uses O(1) RouteCheckedDI checks for every SFC instead.
+      'craft-ng/require-cascade-route-di-check': 'off',
       '@angular-eslint/directive-selector': [
         'error',
         {

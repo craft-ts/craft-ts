@@ -14,15 +14,12 @@ import {
   craftMethod,
   CraftRouterToYield,
   provideHostName,
-  type GetDeps,
 } from '@craft-ng/core';
 import { PHOTOS } from './photos';
 
 const ViewTransitionsGalleryComponent = component(
   {
-    providers: [
-      provideHostName('component:ViewTransitionsGalleryComponent'),
-    ],
+    providers: [provideHostName('component:ViewTransitionsGalleryComponent')],
     styles: `
       .vt-intro{margin-bottom:1.75rem}.vt-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.25rem}
       .vt-tile{display:grid;gap:.75rem;text-decoration:none;color:inherit}.vt-art{display:grid;place-items:center;aspect-ratio:4/3;border-radius:16px;box-shadow:0 12px 30px #0f172a2e}
@@ -31,10 +28,9 @@ const ViewTransitionsGalleryComponent = component(
   },
   function* () {
     componentMonitoring();
-    const router = yield* CraftRouterToYield(
-      undefined,
-      ({ navigate }) => ({ navigate }),
-    );
+    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+      navigate,
+    }));
     const open = (photoId: string) =>
       craftMethod('open', function* () {
         void router.navigate({
@@ -87,11 +83,3 @@ const ViewTransitionsGalleryComponent = component(
 );
 
 export default ViewTransitionsGalleryComponent;
-export type GenDeps_ViewTransitionsGalleryComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

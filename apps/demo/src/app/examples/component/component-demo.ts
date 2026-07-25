@@ -12,7 +12,6 @@ import {
   type Input,
   type Output,
 } from '@craft-ng/component';
-import type { GetDeps } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -24,10 +23,10 @@ const loadLazyMessage = () =>
 
 const userCard = component(
   {},
-  (
-    user: Input<DemoUser>,
-    onRemove: Output<(user: DemoUser) => void>,
-  ) => ({ user, onRemove }),
+  (user: Input<DemoUser>, onRemove: Output<(user: DemoUser) => void>) => ({
+    user,
+    onRemove,
+  }),
   ({ user, onRemove }) =>
     div({ class: 'component-demo__user', 'data-user-id': user().id }, [
       span(user().name),
@@ -70,9 +69,7 @@ export const componentDemo = component(
   ({ users, addUser, removeUser }) =>
     section({ class: 'component-demo' }, [
       h2('Composants fonctionnels SFC'),
-      p(
-        'Rendu runtime, signaux inline, liste keyée et enfant selectorless.',
-      ),
+      p('Rendu runtime, signaux inline, liste keyée et enfant selectorless.'),
       button(
         {
           class: 'component-demo__add',
@@ -88,10 +85,7 @@ export const componentDemo = component(
           {
             track: (user) => user.id,
             empty: () =>
-              p(
-                { class: 'component-demo__empty' },
-                'Aucun utilisateur',
-              ),
+              p({ class: 'component-demo__empty' }, 'Aucun utilisateur'),
           },
           (user) =>
             userCard({
@@ -112,17 +106,7 @@ export const componentDemo = component(
           ),
         loading: () => p('Chargement…'),
         error: () =>
-          p(
-            { class: 'component-demo__error' },
-            'Le chargement a échoué.',
-          ),
+          p({ class: 'component-demo__error' }, 'Le chargement a échoué.'),
       }),
     ]),
 );
-
-export type GenDeps_ComponentDemo = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: Record<never, never>;
-  publicProperties: Record<never, never>;
-}>;

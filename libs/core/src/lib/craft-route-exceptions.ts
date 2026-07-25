@@ -53,14 +53,16 @@ export type CraftExceptionComponentDescriptor<ComponentDeps = object> =
   | {
       readonly component: Type<unknown>;
       readonly loadComponent?: never;
-      readonly componentDeps: ComponentDeps;
+      /** @deprecated Functional components carry this metadata themselves. */
+      readonly componentDeps?: ComponentDeps;
     }
   | {
       readonly component?: never;
       readonly loadComponent: () => Promise<
         Type<unknown> | { default: Type<unknown> }
       >;
-      readonly componentDeps: ComponentDeps;
+      /** @deprecated Functional components carry this metadata themselves. */
+      readonly componentDeps?: ComponentDeps;
     };
 
 export type CraftExceptionComponentInput = CraftExceptionComponentDescriptor;
@@ -470,7 +472,9 @@ const craftGlobalErrorService = toCraftService({
   name: 'CraftGlobalError',
   scope: 'global',
   inject: (): Signal<CraftGlobalHandledException> =>
-    inject(CRAFT_GLOBAL_ERROR) as unknown as Signal<CraftGlobalHandledException>,
+    inject(
+      CRAFT_GLOBAL_ERROR,
+    ) as unknown as Signal<CraftGlobalHandledException>,
 });
 
 /**

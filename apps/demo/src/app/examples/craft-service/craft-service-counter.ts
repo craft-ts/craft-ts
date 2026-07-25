@@ -1,19 +1,12 @@
-import {
-  button,
-  component,
-  div,
-  h2,
-  p,
-} from '@craft-ng/component';
+import { button, component, div, h2, p } from '@craft-ng/component';
 import {
   componentMonitoring,
   craftService,
   provideHostName,
   state,
-  type GetDeps,
 } from '@craft-ng/core';
 
-const { injectCounter, provideCounter } = craftService(
+const { CounterToYield, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
   () =>
     state(0, ({ update, set }) => ({
@@ -36,9 +29,9 @@ const CraftServiceCounterComponent = component(
       .counter-demo button{padding:8px 20px;font-size:1.2rem;cursor:pointer;border:1px solid #ccc;border-radius:6px;background:#fff}
     `,
   },
-  () => {
+  function* () {
     componentMonitoring();
-    return { counter: injectCounter() };
+    return { counter: yield* CounterToYield() };
   },
   ({ counter }) =>
     div({ class: 'counter-demo' }, [
@@ -53,13 +46,3 @@ const CraftServiceCounterComponent = component(
 );
 
 export default CraftServiceCounterComponent;
-
-export type GenDeps_CraftServiceCounterComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    Counter: ReturnType<typeof provideCounter>;
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

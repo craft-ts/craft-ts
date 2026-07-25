@@ -11,19 +11,17 @@ import {
 import {
   componentMonitoring,
   craftException,
-  craftUse,
   provideHostName,
   queryParams,
   toCraftService,
-  type GetDeps,
 } from '@craft-ng/core';
 
-const { injectActivatedRoute } = toCraftService({
+const { ActivatedRouteToYield } = toCraftService({
   name: 'ActivatedRoute',
   scope: 'global',
   token: ActivatedRoute,
 });
-const { injectRouter } = toCraftService({
+const { RouterToYield } = toCraftService({
   name: 'Router',
   scope: 'global',
   token: Router,
@@ -31,27 +29,27 @@ const { injectRouter } = toCraftService({
 
 const ExceptionQueryParamsComponent = component(
   { providers: [provideHostName('component:ExceptionQueryParamsComponent')] },
-  () => {
+  function* () {
     componentMonitoring();
-    const router = injectRouter(undefined, ({ navigate }) => ({ navigate }));
-    const activatedRoute = injectActivatedRoute();
-    const modeQueryParams = craftUse(
-      queryParams({
-        state: {
-          mode: {
-            fallbackValue: 'fallbackValue' as const,
-            parse: (value: string) =>
-              value === 'success'
-                ? ('success' as const)
-                : craftException(
-                    { code: 'InvalidModeFromUrl' },
-                    { received: value },
-                  ),
-            serialize: String,
-          },
+    const router = yield* RouterToYield(undefined, ({ navigate }) => ({
+      navigate,
+    }));
+    const activatedRoute = yield* ActivatedRouteToYield();
+    const modeQueryParams = yield* queryParams({
+      state: {
+        mode: {
+          fallbackValue: 'fallbackValue' as const,
+          parse: (value: string) =>
+            value === 'success'
+              ? ('success' as const)
+              : craftException(
+                  { code: 'InvalidModeFromUrl' },
+                  { received: value },
+                ),
+          serialize: String,
         },
-      }),
-    );
+      },
+    });
     const navigate = (mode: string) =>
       void router.navigate([], {
         relativeTo: activatedRoute,
@@ -80,15 +78,3 @@ const ExceptionQueryParamsComponent = component(
 );
 
 export default ExceptionQueryParamsComponent;
-export type GenDeps_ExceptionQueryParamsComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-  missingProvider: {
-    Router: Router;
-    ActivatedRoute: ActivatedRoute;
-  };
-}>;

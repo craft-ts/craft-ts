@@ -9,7 +9,6 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  craftUse,
   componentMonitoring,
   craftMethod,
   craftService,
@@ -18,7 +17,6 @@ import {
   mutation,
   provideHostName,
   query,
-  type GetDeps,
 } from '@craft-ng/core';
 
 // -- Types --
@@ -75,59 +73,51 @@ const { ApiServiceToYield } = craftService(
 
 // -- Playground service: composes query + mutation --
 
-const { injectPlayground, PlaygroundToYield } = craftService(
+const { PlaygroundToYield } = craftService(
   { name: 'Playground', scope: 'function' },
-  () => {
-    const addTodo = craftUse(
-      mutation({
-        method: (title: string) => title,
-        loader: function* ({ params: title }) {
-          return yield* ApiServiceToYield.addTodo(title);
-        },
-      }),
-    );
+  function* () {
+    const addTodo = yield* mutation({
+      method: (title: string) => title,
+      loader: function* ({ params: title }) {
+        return yield* ApiServiceToYield.addTodo(title);
+      },
+    });
 
-    const toggleTodo = craftUse(
-      mutation({
-        method: (id: number) => id,
-        loader: function* ({ params: id }) {
-          return yield* ApiServiceToYield.toggleTodo(id);
-        },
-      }),
-    );
+    const toggleTodo = yield* mutation({
+      method: (id: number) => id,
+      loader: function* ({ params: id }) {
+        return yield* ApiServiceToYield.toggleTodo(id);
+      },
+    });
 
-    const deleteTodo = craftUse(
-      mutation({
-        method: (id: number) => id,
-        loader: function* ({ params: id }) {
-          return yield* ApiServiceToYield.deleteTodo(id);
-        },
-      }),
-    );
+    const deleteTodo = yield* mutation({
+      method: (id: number) => id,
+      loader: function* ({ params: id }) {
+        return yield* ApiServiceToYield.deleteTodo(id);
+      },
+    });
 
-    const todos = craftUse(
-      query(
-        {
-          params: () => 'all' as const,
-          loader: function* () {
-            const getTodos = yield* ApiServiceToYield.getTodos();
-            return getTodos();
-          },
+    const todos = yield* query(
+      {
+        params: () => 'all' as const,
+        loader: function* () {
+          const getTodos = yield* ApiServiceToYield.getTodos();
+          return getTodos();
         },
-        (context) =>
-          craftPipe(
-            context,
-            insertReactOnMutation(addTodo, {
-              reload: { onMutationResolved: true },
-            }),
-            insertReactOnMutation(toggleTodo, {
-              reload: { onMutationResolved: true },
-            }),
-            insertReactOnMutation(deleteTodo, {
-              reload: { onMutationResolved: true },
-            }),
-          ),
-      ),
+      },
+      (context) =>
+        craftPipe(
+          context,
+          insertReactOnMutation(addTodo, {
+            reload: { onMutationResolved: true },
+          }),
+          insertReactOnMutation(toggleTodo, {
+            reload: { onMutationResolved: true },
+          }),
+          insertReactOnMutation(deleteTodo, {
+            reload: { onMutationResolved: true },
+          }),
+        ),
     );
 
     return { todos, addTodo, toggleTodo, deleteTodo };
@@ -221,9 +211,9 @@ const PlaygroundComponent = component(
     }
     `,
   },
-  () => {
+  function* () {
     componentMonitoring();
-    const pg = injectPlayground();
+    const pg = yield* PlaygroundToYield();
     const add = craftMethod('add', function* (input: HTMLInputElement) {
       const title = input.value.trim();
       if (!title) return;
@@ -269,10 +259,7 @@ const PlaygroundComponent = component(
                 todo.completed ? '✅' : '⬜',
               ),
               span({ class: 'title' }, todo.title),
-              button(
-                { click: () => pg.deleteTodo.mutate(todo.id) },
-                '🗑️',
-              ),
+              button({ click: () => pg.deleteTodo.mutate(todo.id) }, '🗑️'),
             ]),
         ),
       ),
@@ -281,12 +268,3 @@ const PlaygroundComponent = component(
 );
 
 export default PlaygroundComponent;
-
-export type GenDeps_PlaygroundComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

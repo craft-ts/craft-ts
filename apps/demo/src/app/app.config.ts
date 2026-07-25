@@ -25,6 +25,7 @@ import {
   withRouteLoadError,
   withTransitionTimings,
   type CanRun,
+  type ComponentDepsOf,
   type RouteExceptionComponentCheckedDI,
 } from '@craft-ng/core';
 import {
@@ -56,7 +57,9 @@ export const appConfig = craftAppConfig({
   appStart: {
     AppStartLog: injectAppStartLog,
   },
-  routingDeps: demoRoutes.META_DATA,
+  // Component DI is checked from each SFC contract; the app config only needs
+  // the slim path registry and avoids re-expanding every component graph.
+  routingDeps: demoRoutes.META_PATHS,
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideCraftRootComponent(App),
@@ -71,6 +74,7 @@ export const appConfig = craftAppConfig({
         injector: inject(Injector),
         // eslint-disable-next-line craft-ng/no-angular-inject
         url: inject(FUNCTION_REGISTRY_BRIDGE_URL),
+        // eslint-disable-next-line craft-ng/no-angular-inject
         clientId: inject(FUNCTION_REGISTRY_CLIENT_ID),
       });
       destroyRef.onDestroy(stopBridge);
@@ -89,13 +93,9 @@ export const appConfig = craftAppConfig({
       withCraftViewTransitions(),
       withErrorComponent({
         component: CraftGlobalErrorComponentHost,
-        componentDeps:
-          {} as import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,
       }),
       withRouteLoadError({
         component: CraftRouteLoadErrorComponentHost,
-        componentDeps:
-          {} as import('./my-route-load-error-screen').GenDeps_MyRouteLoadErrorScreen,
         retry: {
           attempts: 2,
           delayMs: 250,
@@ -234,7 +234,7 @@ function ensureResourceRegistryEntry(
 }
 
 type _CheckGlobalErrorDI = RouteExceptionComponentCheckedDI<
-  import('./my-global-error-screen').GenDeps_MyGlobalErrorScreen,
+  ComponentDepsOf<typeof MyGlobalErrorScreen>,
   'CraftGlobalError',
   never,
   'global error component'
@@ -242,7 +242,7 @@ type _CheckGlobalErrorDI = RouteExceptionComponentCheckedDI<
 type _CanRunGlobalError = CanRun<_CheckGlobalErrorDI>;
 
 type _CheckGlobalRouteLoadErrorDI = RouteExceptionComponentCheckedDI<
-  import('./my-route-load-error-screen').GenDeps_MyRouteLoadErrorScreen,
+  ComponentDepsOf<typeof MyRouteLoadErrorScreen>,
   'CraftRouteLoadError' | 'CraftRouteLoadRecovery',
   never,
   'global route load error component'

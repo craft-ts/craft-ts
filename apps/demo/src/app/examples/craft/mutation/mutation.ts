@@ -8,7 +8,6 @@ import {
   type Input,
 } from '@craft-ng/component';
 import {
-  craftUse,
   CraftRouterToYield,
   componentMonitoring,
   craftMethod,
@@ -19,55 +18,49 @@ import {
   mutation,
   provideHostName,
   query,
-  type GetDeps,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
-const { injectUserMutation, provideUserMutation, UserMutationToYield } =
-  craftService(
-    { name: 'UserMutation', scope: 'toProvide' },
-    (inputs: { userId: () => string | undefined }) => {
-      const updateUserName = craftUse(
-        mutation({
-          method: (payload: { userName: string; user: User }) => ({
-            ...payload.user,
-            name: payload.userName,
+const { provideUserMutation, UserMutationToYield } = craftService(
+  { name: 'UserMutation', scope: 'toProvide' },
+  function* (inputs: { userId: () => string | undefined }) {
+    const updateUserName = yield* mutation({
+      method: (payload: { userName: string; user: User }) => ({
+        ...payload.user,
+        name: payload.userName,
+      }),
+      loader: function* ({ params: user }) {
+        return yield* ApiServiceToYield.updateItem(user);
+      },
+    });
+
+    const user = yield* query(
+      {
+        params: inputs.userId,
+        loader: function* ({ params: userId }) {
+          return yield* ApiServiceToYield.getItemById(userId);
+        },
+        preservePreviousValue: () => true,
+      },
+      (context) =>
+        craftPipe(
+          context,
+          insertLocalStoragePersister({
+            storeName: 'demo-app-craft',
+            key: 'mutation',
           }),
-          loader: function* ({ params: user }) {
-            return yield* ApiServiceToYield.updateItem(user);
-          },
-        }),
-      );
-
-      const user = craftUse(
-        query(
-          {
-            params: inputs.userId,
-            loader: function* ({ params: userId }) {
-              return yield* ApiServiceToYield.getItemById(userId);
+          insertReactOnMutation(updateUserName, {
+            optimisticPatch: {
+              name: ({ mutationParams: { name } }) => name,
             },
-            preservePreviousValue: () => true,
-          },
-          (context) =>
-            craftPipe(
-              context,
-              insertLocalStoragePersister({
-                storeName: 'demo-app-craft',
-                key: 'mutation',
-              }),
-              insertReactOnMutation(updateUserName, {
-                optimisticPatch: {
-                  name: ({ mutationParams: { name } }) => name,
-                },
-              }),
-            ),
+          }),
         ),
-      );
+    );
 
-      return { user, updateUserName };
-    },
-  );
+    return { user, updateUserName };
+  },
+);
 
 const MutationCraft = component(
   {
@@ -76,9 +69,9 @@ const MutationCraft = component(
       provideHostName('component:MutationCraft'),
     ],
   },
-  (userId: Input<string | undefined>) => {
+  function* (userId: Input<string | undefined>) {
     componentMonitoring();
-    const store = injectUserMutation({ userId: () => userId() });
+    const store = yield* UserMutationToYield({ userId: () => userId() });
     const updateUserNameFn = craftMethod(
       'updateUserNameFn',
       function* (newName: string) {
@@ -97,10 +90,9 @@ const MutationCraft = component(
     );
     const navigate = (offset: number) =>
       craftMethod('navigate', function* () {
-        const router = yield* CraftRouterToYield(
-          undefined,
-          ({ navigate }) => ({ navigate }),
-        );
+        const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+          navigate,
+        }));
         void router.navigate({
           to: 'craft/mutation/:userId',
           params: { userId: String(Number(userId() ?? '0') + offset) },
@@ -145,13 +137,3 @@ const MutationCraft = component(
 );
 
 export default MutationCraft;
-
-export type GenDeps_MutationCraft = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    UserMutation: ReturnType<typeof provideUserMutation>;
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

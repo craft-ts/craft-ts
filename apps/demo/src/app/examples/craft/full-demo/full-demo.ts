@@ -14,11 +14,9 @@ import {
 import {
   componentMonitoring,
   craftService,
-  craftUse,
   mutation,
   provideHostName,
   query,
-  type GetDeps,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 
@@ -29,53 +27,44 @@ let records: Todo[] = [
   { id: 2, title: 'Expose query and mutations' },
 ];
 
-const { injectTodoStore, provideTodoStore } = craftService(
+const { provideTodoStore, TodoStoreToYield } = craftService(
   { name: 'TodoStore', scope: 'toProvide' },
-  () => {
+  function* () {
     const refresh = signal(0);
-    const todos = craftUse(
-      query({
-        params: refresh,
-        loader: async () => [...records],
-      }),
-    );
-    const add = craftUse(
-      mutation({
-        method: (title: string) => title,
-        loader: async ({ params: title }) => {
-          const todo = { id: nextId++, title };
-          records = [...records, todo];
-          refresh.update((value) => value + 1);
-          return todo;
-        },
-      }),
-    );
-    const remove = craftUse(
-      mutation({
-        method: (id: number) => id,
-        loader: async ({ params: id }) => {
-          records = records.filter((todo) => todo.id !== id);
-          refresh.update((value) => value + 1);
-          return id;
-        },
-      }),
-    );
+    const todos = yield* query({
+      params: refresh,
+      loader: async () => [...records],
+    });
+    const add = yield* mutation({
+      method: (title: string) => title,
+      loader: async ({ params: title }) => {
+        const todo = { id: nextId++, title };
+        records = [...records, todo];
+        refresh.update((value) => value + 1);
+        return todo;
+      },
+    });
+    const remove = yield* mutation({
+      method: (id: number) => id,
+      loader: async ({ params: id }) => {
+        records = records.filter((todo) => todo.id !== id);
+        refresh.update((value) => value + 1);
+        return id;
+      },
+    });
     return { todos, add, remove };
   },
 );
 
 const FullDemoCraft = component(
   {
-    providers: [
-      provideTodoStore(),
-      provideHostName('component:FullDemoCraft'),
-    ],
+    providers: [provideTodoStore(), provideHostName('component:FullDemoCraft')],
     styles:
       '.craft-full-demo{display:grid;gap:1rem;max-width:640px}.craft-full-demo li{display:flex;gap:.75rem}.craft-full-demo li span{flex:1}',
   },
-  () => {
+  function* () {
     componentMonitoring();
-    return { store: injectTodoStore() };
+    return { store: yield* TodoStoreToYield() };
   },
   ({ store }) => {
     let title = '';
@@ -109,10 +98,7 @@ const FullDemoCraft = component(
           (todo) =>
             li([
               span(todo.title),
-              button(
-                { click: () => store.remove.mutate(todo.id) },
-                'Remove',
-              ),
+              button({ click: () => store.remove.mutate(todo.id) }, 'Remove'),
             ]),
         ),
       ),
@@ -121,12 +107,3 @@ const FullDemoCraft = component(
 );
 
 export default FullDemoCraft;
-export type GenDeps_FullDemoCraft = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    TodoStore: ReturnType<typeof provideTodoStore>;
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

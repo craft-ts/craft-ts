@@ -389,7 +389,8 @@ export type CraftRouterToYieldHelper = WithInternalHelperDependencies<
  * provideCraftRouter(
  *   demoRoutes.toRoutes(),
  *   withComponentInputBinding(),
- *   withErrorComponent({ component: MyGlobalErrorScreen, componentDeps: {} as GenDeps_MyGlobalErrorScreen }),
+ *   // The functional error SFC is checked separately through ComponentDepsOf.
+ *   withErrorComponent({ component: CraftGlobalErrorComponentHost }),
  *   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
  * )
  * ```

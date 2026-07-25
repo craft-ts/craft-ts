@@ -22,9 +22,16 @@ import {
 import { craftException, isCraftException } from './craft-exception';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 import {
-  craftLoadingFeature,
-  type CraftLoadingFeature,
-} from './craft-pending';
+  toCraftService,
+  type SERVICE_DEPENDENCY_ACCESS_MARKER,
+  type SERVICE_EXPOSURE_TOKEN_MARKER,
+  type SERVICE_HELPER_DEPENDENCIES,
+  type SERVICE_META_DATA_TYPE,
+  type SERVICE_RUNTIME_META,
+  type SERVICE_YIELD_METADATA,
+  type SERVICE_YIELD_REQUEST_MARKER,
+} from './craft-service';
+import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import {
   createCraftLoadRetry,
   createRetryLazyLoadHelpers,
@@ -83,11 +90,13 @@ export type CraftRouteLoadRetryOptions =
 export type CraftRouteLoadRetryConfig =
   CraftLoadRetryConfig<CraftRouteLoadRetryContext>;
 
-export const CRAFT_ROUTE_LOAD_RETRY =
-  new InjectionToken<CraftRouteLoadRetry>('CRAFT_ROUTE_LOAD_RETRY', {
+export const CRAFT_ROUTE_LOAD_RETRY = new InjectionToken<CraftRouteLoadRetry>(
+  'CRAFT_ROUTE_LOAD_RETRY',
+  {
     providedIn: 'root',
     factory: () => createRouteLoadRetry(),
-  });
+  },
+);
 
 export const CRAFT_ROUTE_LOAD_ERROR_COMPONENT =
   new InjectionToken<CraftExceptionComponentDescriptor | null>(
@@ -148,15 +157,30 @@ export function injectCraftRouteLoadRecovery(): CraftRouteLoadRecovery {
   return inject(CRAFT_ROUTE_LOAD_RECOVERY);
 }
 
+const craftRouteLoadErrorService = toCraftService({
+  name: 'CraftRouteLoadError',
+  scope: 'global',
+  inject: injectCraftRouteLoadError,
+});
+
+const craftRouteLoadRecoveryService = toCraftService({
+  name: 'CraftRouteLoadRecovery',
+  scope: 'global',
+  inject: injectCraftRouteLoadRecovery,
+});
+
+export const CraftRouteLoadErrorToYield =
+  craftRouteLoadErrorService.CraftRouteLoadErrorToYield;
+export const CraftRouteLoadRecoveryToYield =
+  craftRouteLoadRecoveryService.CraftRouteLoadRecoveryToYield;
+
 export function provideRouteLoadErrorComponent(
   component: CraftExceptionComponentDescriptor,
 ) {
   return { provide: CRAFT_ROUTE_LOAD_ERROR_COMPONENT, useValue: component };
 }
 
-export function provideRouteLoadRetry(
-  retry: CraftRouteLoadRetryConfig,
-) {
+export function provideRouteLoadRetry(retry: CraftRouteLoadRetryConfig) {
   return routeLoadRetryProvider(retry);
 }
 
@@ -166,9 +190,7 @@ export function createRouteLoadRetry(
   return createCraftLoadRetry<CraftRouteLoadRetryContext>(options);
 }
 
-function routeLoadRetryProvider(
-  retry: CraftRouteLoadRetryConfig,
-):
+function routeLoadRetryProvider(retry: CraftRouteLoadRetryConfig):
   | ValueProvider
   | {
       provide: typeof CRAFT_ROUTE_LOAD_RETRY;
@@ -218,9 +240,7 @@ export function withRouteLoadError(
   return feature;
 }
 
-export function createRouteLoadError(
-  payload: CraftRouteLoadErrorPayload,
-) {
+export function createRouteLoadError(payload: CraftRouteLoadErrorPayload) {
   return craftException(
     { code: CRAFT_ROUTE_LOAD_ERROR_CODE, scope: 'router' },
     payload,
@@ -230,9 +250,7 @@ export function createRouteLoadError(
 export function isCraftRouteLoadError(
   value: unknown,
 ): value is CraftRouteLoadError {
-  return (
-    isCraftException(value) && value.code === CRAFT_ROUTE_LOAD_ERROR_CODE
-  );
+  return isCraftException(value) && value.code === CRAFT_ROUTE_LOAD_ERROR_CODE;
 }
 
 export function loadRouteWithRetry<T>(

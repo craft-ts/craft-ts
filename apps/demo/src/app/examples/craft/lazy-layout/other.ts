@@ -6,15 +6,11 @@ import {
   craftService,
   provideHostName,
   query,
-  type GetDeps,
 } from '@craft-ng/core';
 import type { User } from '../query/api.service';
-import {
-  injectOtherService,
-  provideOtherService,
-} from './to-provide.service';
+import { OtherServiceToYield, provideOtherService } from './to-provide.service';
 
-const { injectUsersApiOnError } = craftService(
+const { UsersApiOnErrorToYield } = craftService(
   { name: 'UsersApiOnError', scope: 'global' },
   function* () {
     const users = yield* CraftHttpClient.get(({ response }) => ({
@@ -46,7 +42,7 @@ const { injectUsersApiOnError } = craftService(
   },
 );
 
-const { injectTest2 } = craftService(
+const { Test2ToYield } = craftService(
   { name: 'test2', scope: 'global' },
   () => ({}),
 );
@@ -58,27 +54,14 @@ export const OtherComponent = component(
       provideHostName('component:OtherComponent'),
     ],
   },
-  () => {
+  function* () {
     componentMonitoring();
     return {
-      other: injectOtherService(),
-      users: injectUsersApiOnError(),
-      test: injectTest2(),
+      other: yield* OtherServiceToYield(),
+      users: yield* UsersApiOnErrorToYield(),
+      test: yield* Test2ToYield(),
     };
   },
   ({ other, users }) =>
-    div([
-      p(other.getValue()),
-      p(`Query status: ${users.query.status()}`),
-    ]),
+    div([p(other.getValue()), p(`Query status: ${users.query.status()}`)]),
 );
-
-export type GenDeps_OtherComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    OtherService: ReturnType<typeof provideOtherService>;
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

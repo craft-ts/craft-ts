@@ -1,19 +1,10 @@
 import { signal } from '@angular/core';
-import {
-  button,
-  component,
-  div,
-  h3,
-  p,
-  strong,
-} from '@craft-ng/component';
+import { button, component, div, h3, p, strong } from '@craft-ng/component';
 import {
   componentMonitoring,
   craftException,
-  craftUse,
   provideHostName,
   query,
-  type GetDeps,
 } from '@craft-ng/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
@@ -24,36 +15,34 @@ const ExceptionsComponent = component(
     styles:
       '.exception-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.exception-actions button{padding:8px 16px}',
   },
-  () => {
+  function* () {
     componentMonitoring();
     const scenario = signal<Scenario>('success');
-    const userQuery = craftUse(
-      query({
-        params: scenario,
-        loader: async ({ params }) => {
-          await new Promise((resolve) => setTimeout(resolve, 600));
-          if (params === 'not-found') {
-            return craftException(
-              { code: 'UserNotFoundException' },
-              { message: 'User does not exist' as const },
-            );
-          }
-          if (params === 'consent-missing') {
-            return craftException(
-              { code: 'UserConsentMissingException' },
-              { message: 'User consent is required' as const },
-            );
-          }
-          if (params === 'forbidden') {
-            return craftException(
-              { code: 'UserAccessForbiddenException' },
-              { message: 'Access forbidden' as const },
-            );
-          }
-          return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
-        },
-      }),
-    );
+    const userQuery = yield* query({
+      params: scenario,
+      loader: async ({ params }) => {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        if (params === 'not-found') {
+          return craftException(
+            { code: 'UserNotFoundException' },
+            { message: 'User does not exist' as const },
+          );
+        }
+        if (params === 'consent-missing') {
+          return craftException(
+            { code: 'UserConsentMissingException' },
+            { message: 'User consent is required' as const },
+          );
+        }
+        if (params === 'forbidden') {
+          return craftException(
+            { code: 'UserAccessForbiddenException' },
+            { message: 'Access forbidden' as const },
+          );
+        }
+        return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
+      },
+    });
     return { scenario, userQuery };
   },
   ({ scenario, userQuery }) => {
@@ -84,11 +73,3 @@ const ExceptionsComponent = component(
 );
 
 export default ExceptionsComponent;
-export type GenDeps_ExceptionsComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

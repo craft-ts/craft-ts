@@ -8,57 +8,51 @@ import {
   type Input,
 } from '@craft-ng/component';
 import {
+  CraftRouterToYield,
   componentMonitoring,
   craftPipe,
-  craftUse,
-  injectCraftRouter,
   insertLocalStoragePersister,
   insertReactOnMutation,
   mutation,
   provideHostName,
   query,
-  type GetDeps,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { injectApiService, type User } from './api.service';
+import { ApiServiceToYield, type User } from './api.service';
 
 const MutationDemoComponent = component(
   { providers: [provideHostName('component:MutationDemoComponent')] },
-  (userId: Input<string | undefined>) => {
+  function* (userId: Input<string | undefined>) {
     componentMonitoring();
-    const api = injectApiService();
-    const updateUserName = craftUse(
-      mutation({
-        method: (payload: { userName: string; user: User }) => ({
-          ...payload.user,
-          name: payload.userName,
-        }),
-        loader: ({ params: user }) => api.updateItem(user),
+    const api = yield* ApiServiceToYield();
+    const updateUserName = yield* mutation({
+      method: (payload: { userName: string; user: User }) => ({
+        ...payload.user,
+        name: payload.userName,
       }),
+      loader: ({ params: user }) => api.updateItem(user),
+    });
+    const userQuery = yield* query(
+      {
+        params: userId,
+        loader: ({ params }) => api.getItemById(params),
+        preservePreviousValue: () => true,
+      },
+      (context) =>
+        craftPipe(
+          context,
+          insertLocalStoragePersister({
+            storeName: 'demo-app',
+            key: 'mutation',
+          }),
+          insertReactOnMutation(updateUserName, {
+            optimisticPatch: {
+              name: ({ mutationParams: { name } }) => name,
+            },
+          }),
+        ),
     );
-    const userQuery = craftUse(
-      query(
-        {
-          params: userId,
-          loader: ({ params }) => api.getItemById(params),
-          preservePreviousValue: () => true,
-        },
-        (context) =>
-          craftPipe(
-            context,
-            insertLocalStoragePersister({
-              storeName: 'demo-app',
-              key: 'mutation',
-            }),
-            insertReactOnMutation(updateUserName, {
-              optimisticPatch: {
-                name: ({ mutationParams: { name } }) => name,
-              },
-            }),
-          ),
-      ),
-    );
-    const router = injectCraftRouter(undefined, ({ navigate }) => ({
+    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
       navigate,
     }));
     const navigate = (offset: number) =>
@@ -112,15 +106,3 @@ const MutationDemoComponent = component(
 );
 
 export default MutationDemoComponent;
-export type GenDeps_GlobalQuery = GenDeps_MutationDemoComponent;
-export type GenDeps_MutationDemoComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-  missingProvider: {
-    CraftRouter: ReturnType<typeof injectCraftRouter>;
-  };
-}>;

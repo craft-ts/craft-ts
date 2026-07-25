@@ -1,33 +1,31 @@
 import type { Router } from '@angular/router';
-import {
-  CraftRoutedComponentHost,
-  provideCraftComponent,
-} from '@craft-ng/component';
+import { loadCraftComponent } from '@craft-ng/component';
 import {
   assertExhaustiveRouteExceptions,
   craftRoutes,
   type CanRun,
+  type ComponentDepsOf,
   type ParentRoutes,
-  type ValidateCascadeRoutesFile,
+  type RouteCheckedDI,
 } from '@craft-ng/core';
-import LazyLayoutChild from './lazy-layout-child';
 
 export const { lazyLayoutRoutes } = craftRoutes('lazyLayout', [
   {
     path: 'users/:userId',
-    component: CraftRoutedComponentHost,
-    providers: [provideCraftComponent(LazyLayoutChild)],
-    componentDeps:
-      {} as import('./lazy-layout-child').GenDeps_LazyLayoutChildComponent,
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./lazy-layout-child')).then(
+        ({ default: component }) => component,
+      ),
+    ),
   },
 ]).withParent<ParentRoutes<'craft/lazy-layout/:teamId'>>();
 assertExhaustiveRouteExceptions(lazyLayoutRoutes);
 
-type _CheckLazyLayoutDI = ValidateCascadeRoutesFile<
-  'DemoCraftLazyLayoutTeamIdData' | 'DemoTeamIdParams',
+type _CheckLazyLayoutDI = RouteCheckedDI<
+  ComponentDepsOf<(typeof import('./lazy-layout-child'))['default']>,
+  never,
   Router,
-  typeof lazyLayoutRoutes
+  'component: craft/lazy-layout/:teamId/users/:userId',
+  'teamId' | 'someParentRouteData'
 >;
 type _CanRunLazyLayout = CanRun<_CheckLazyLayoutDI>;
-
-export type LazyLayoutRoutesAppDeps = typeof lazyLayoutRoutes.META_DATA;

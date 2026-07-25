@@ -1,15 +1,8 @@
+import { button, component, div, h2, p } from '@craft-ng/component';
 import {
-  button,
-  component,
-  div,
-  h2,
-  p,
-} from '@craft-ng/component';
-import {
-  injectCraftRouteLoadError,
-  injectCraftRouteLoadRecovery,
+  CraftRouteLoadErrorToYield,
+  CraftRouteLoadRecoveryToYield,
   provideHostName,
-  type GetDeps,
 } from '@craft-ng/core';
 
 export const MyRouteLoadErrorScreen = component(
@@ -20,10 +13,12 @@ export const MyRouteLoadErrorScreen = component(
       .route-load-error .actions{display:flex;gap:.75rem;margin-top:1rem}
     `,
   },
-  () => ({
-    error: injectCraftRouteLoadError(),
-    recovery: injectCraftRouteLoadRecovery(),
-  }),
+  function* () {
+    return {
+      error: yield* CraftRouteLoadErrorToYield(),
+      recovery: yield* CraftRouteLoadRecoveryToYield(),
+    };
+  },
   ({ error, recovery }) => {
     const current = error();
     const message = current
@@ -39,16 +34,3 @@ export const MyRouteLoadErrorScreen = component(
     ]);
   },
 );
-
-export type GenDeps_MyRouteLoadErrorScreen = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-  missingProvider: {
-    CraftRouteLoadError: ReturnType<typeof injectCraftRouteLoadError>;
-    CraftRouteLoadRecovery: ReturnType<typeof injectCraftRouteLoadRecovery>;
-  };
-}>;

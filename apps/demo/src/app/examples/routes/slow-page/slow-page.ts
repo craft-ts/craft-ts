@@ -1,10 +1,5 @@
-import {
-  component,
-  div,
-  h2,
-  p,
-} from '@craft-ng/component';
-import { provideHostName, type GetDeps } from '@craft-ng/core';
+import { component, div, h2, p } from '@craft-ng/component';
+import { provideHostName } from '@craft-ng/core';
 
 const SlowPageComponent = component(
   {
@@ -27,7 +22,12 @@ const SlowPageComponent = component(
         tag: 'dl',
         props: {},
         children: [
-          { kind: 'element', tag: 'dt', props: {}, children: 'Report generated at' },
+          {
+            kind: 'element',
+            tag: 'dt',
+            props: {},
+            children: 'Report generated at',
+          },
           { kind: 'element', tag: 'dd', props: {}, children: 'resolved' },
           { kind: 'element', tag: 'dt', props: {}, children: 'Total users' },
           { kind: 'element', tag: 'dd', props: {}, children: '1234' },
@@ -37,11 +37,3 @@ const SlowPageComponent = component(
 );
 
 export default SlowPageComponent;
-export type GenDeps_SlowPageComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

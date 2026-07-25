@@ -1,4 +1,3 @@
-import type { Router } from '@angular/router';
 import {
   angular,
   article,
@@ -17,7 +16,6 @@ import {
   componentMonitoring,
   CraftRouterOutlet,
   provideHostName,
-  type GetDeps,
 } from '@craft-ng/core';
 
 const LazyLayoutComponent = component(
@@ -26,10 +24,7 @@ const LazyLayoutComponent = component(
     styles:
       '.lazy-layout{display:grid;gap:1.5rem}.lazy-hero{padding:1.75rem;border-radius:24px;color:#f8fafc;background:linear-gradient(135deg,#0f172a,#0f766e)}.lazy-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:1.25rem}',
   },
-  (
-    teamId: Input<string>,
-    someParentRouteData: Input<string>,
-  ) => {
+  (teamId: Input<string>, someParentRouteData: Input<string>) => {
     componentMonitoring();
     return { teamId, someParentRouteData };
   },
@@ -53,12 +48,3 @@ const LazyLayoutComponent = component(
 );
 
 export default LazyLayoutComponent;
-export type GenDeps_LazyLayoutComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-  missingProvider: { Router: Router };
-}>;

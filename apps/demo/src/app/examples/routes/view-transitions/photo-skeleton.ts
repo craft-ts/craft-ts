@@ -6,30 +6,24 @@ import {
   span,
   type Input,
 } from '@craft-ng/component';
-import {
-  componentMonitoring,
-  provideHostName,
-  type GetDeps,
-} from '@craft-ng/core';
+import { componentMonitoring, provideHostName } from '@craft-ng/core';
 import { findPhoto } from './photos';
 
-type TransitionPayload = { readonly name: string; readonly image: string | null };
+type TransitionPayload = {
+  readonly name: string;
+  readonly image: string | null;
+};
 
 const ViewTransitionsSkeletonComponent = component(
   {
-    providers: [
-      provideHostName('component:ViewTransitionsSkeletonComponent'),
-    ],
+    providers: [provideHostName('component:ViewTransitionsSkeletonComponent')],
     styles: `
       .vt-detail{display:grid;gap:1.75rem}.vt-hero{display:grid;place-items:center;aspect-ratio:4/3;border-radius:24px;background:#e2e8f0;overflow:hidden}
       .vt-hero-image{width:100%;height:100%;object-fit:cover}.vt-emoji{font-size:6rem}.vt-body{display:grid;gap:.85rem}.vt-bar{height:1rem;border-radius:.5rem;background:#e2e8f0}
       @media(min-width:720px){.vt-detail{grid-template-columns:minmax(0,380px) 1fr;align-items:center}}
     `,
   },
-  (
-    photoId: Input<string>,
-    viewTransition: Input<TransitionPayload | null>,
-  ) => {
+  (photoId: Input<string>, viewTransition: Input<TransitionPayload | null>) => {
     componentMonitoring();
     return { photoId, viewTransition };
   },
@@ -62,11 +56,3 @@ const ViewTransitionsSkeletonComponent = component(
 );
 
 export default ViewTransitionsSkeletonComponent;
-export type GenDeps_ViewTransitionsSkeletonComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

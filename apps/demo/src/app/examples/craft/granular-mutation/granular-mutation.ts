@@ -13,7 +13,6 @@ import {
   craftMethod,
   craftPipe,
   craftService,
-  craftUse,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
@@ -21,78 +20,66 @@ import {
   provideHostName,
   query,
   queryParams,
-  type GetDeps,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
-const {
-  injectGranularMutation,
-  provideGranularMutation,
-  GranularMutationToYield,
-} = craftService(
+const { provideGranularMutation, GranularMutationToYield } = craftService(
   { name: 'GranularMutation', scope: 'toProvide' },
-  () => {
-    const pagination = craftUse(
-      queryParams(
-        {
-          state: {
-            page: { fallbackValue: 1, parse: Number, serialize: String },
-            pageSize: { fallbackValue: 4, parse: Number, serialize: String },
-          },
+  function* () {
+    const pagination = yield* queryParams(
+      {
+        state: {
+          page: { fallbackValue: 1, parse: Number, serialize: String },
+          pageSize: { fallbackValue: 4, parse: Number, serialize: String },
         },
-        ({ patch, state }) => ({
-          nextPage: () => patch({ page: state().page + 1 }),
-          previousPage: () => patch({ page: state().page - 1 }),
-          updatePageSize: (pageSize: number) =>
-            patch({ pageSize, page: 1 }),
-        }),
-      ),
-    );
-    const updateUserName = craftUse(
-      mutation({
-        method: (user: User) => ({ ...user, name: `${user.name}-` }),
-        identifier: ({ id }) => id,
-        loader: function* ({ params }) {
-          return yield* ApiServiceToYield.updateItem(params);
-        },
+      },
+      ({ patch, state }) => ({
+        nextPage: () => patch({ page: state().page + 1 }),
+        previousPage: () => patch({ page: state().page - 1 }),
+        updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
-    const users = craftUse(
-      query(
-        {
-          params: pagination,
-          identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
-          loader: function* ({ params }) {
-            return yield* ApiServiceToYield.getDataList(params);
-          },
+    const updateUserName = yield* mutation({
+      method: (user: User) => ({ ...user, name: `${user.name}-` }),
+      identifier: ({ id }) => id,
+      loader: function* ({ params }) {
+        return yield* ApiServiceToYield.updateItem(params);
+      },
+    });
+    const users = yield* query(
+      {
+        params: pagination,
+        identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+        loader: function* ({ params }) {
+          return yield* ApiServiceToYield.getDataList(params);
         },
-        (context) =>
-          craftPipe(
-            context,
-            insertLocalStoragePersister({
-              storeName: 'demo-app-craft',
-              key: 'granular',
-            }),
-            insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-            insertReactOnMutation(updateUserName, {
-              filter: ({ mutationIdentifier, queryResource }) =>
-                queryResource
-                  .safeValue()
-                  ?.some(({ id }) => id === mutationIdentifier) ?? false,
-              optimisticUpdate: ({
-                queryResource,
-                mutationIdentifier,
-                mutationParams,
-              }) =>
-                queryResource
-                  .value()
-                  ?.map((user) =>
-                    user.id === mutationIdentifier ? mutationParams : user,
-                  ),
-            }),
-          ),
-      ),
+      },
+      (context) =>
+        craftPipe(
+          context,
+          insertLocalStoragePersister({
+            storeName: 'demo-app-craft',
+            key: 'granular',
+          }),
+          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+          insertReactOnMutation(updateUserName, {
+            filter: ({ mutationIdentifier, queryResource }) =>
+              queryResource
+                .safeValue()
+                ?.some(({ id }) => id === mutationIdentifier) ?? false,
+            optimisticUpdate: ({
+              queryResource,
+              mutationIdentifier,
+              mutationParams,
+            }) =>
+              queryResource
+                .value()
+                ?.map((user) =>
+                  user.id === mutationIdentifier ? mutationParams : user,
+                ),
+          }),
+        ),
     );
     return { pagination, users, updateUserName };
   },
@@ -105,9 +92,9 @@ const GranularMutationCraft = component(
       provideHostName('component:GranularMutationCraft'),
     ],
   },
-  () => {
+  function* () {
     componentMonitoring();
-    const store = injectGranularMutation();
+    const store = yield* GranularMutationToYield();
     const updatePageSize = craftMethod(
       'updatePageSize',
       function* (event: Event) {
@@ -168,12 +155,3 @@ const GranularMutationCraft = component(
 );
 
 export default GranularMutationCraft;
-export type GenDeps_GranularMutationCraft = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    GranularMutation: ReturnType<typeof provideGranularMutation>;
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

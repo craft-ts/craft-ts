@@ -1,4 +1,3 @@
-import type { Router } from '@angular/router';
 import {
   a,
   angular,
@@ -17,7 +16,6 @@ import {
   CraftRouterOutlet,
   GlobalPersisterHandlerServiceToYield,
   provideHostName,
-  type GetDeps,
 } from '@craft-ng/core';
 
 const LINKS = [
@@ -72,10 +70,8 @@ export const App = component(
     div({ class: 'app-container' }, [
       nav(
         { class: 'tabs' },
-        each(
-          LINKS,
-          { track: ([, href]) => href },
-          ([label, href]) => a({ href }, label),
+        each(LINKS, { track: ([, href]) => href }, ([label, href]) =>
+          a({ href }, label),
         ),
       ),
       main({ class: 'content' }, angular(CraftRouterOutlet)),
@@ -85,13 +81,3 @@ export const App = component(
       ),
     ]),
 );
-
-export type GenDeps_App = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-  missingProvider: { Router: Router };
-}>;

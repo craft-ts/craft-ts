@@ -10,20 +10,22 @@ import {
   type OnDestroy,
   type OnInit,
   type SimpleChanges,
+  type Type,
   type ValueProvider,
 } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, type Route } from '@angular/router';
+import type {
+  ComponentDepsCarrier,
+  ComponentDepsOf,
+  CraftRouteLazyLoadHelpers,
+} from '@craft-ng/core';
 import {
   mountInterpretedComponent,
   type MountedCraftComponent,
 } from './render/interpreter';
-import type {
-  CraftComponent,
-  PropsOf,
-} from './types';
+import type { CraftComponent, PropsOf } from './types';
 
-export type CraftMountRef<Props extends object> =
-  MountedCraftComponent<Props>;
+export type CraftMountRef<Props extends object> = MountedCraftComponent<Props>;
 
 export function mountCraftComponent<Component extends CraftComponent<any>>(
   component: Component,
@@ -31,12 +33,7 @@ export function mountCraftComponent<Component extends CraftComponent<any>>(
   injector: Injector,
   props: PropsOf<Component> = {} as PropsOf<Component>,
 ): CraftMountRef<PropsOf<Component>> {
-  return mountInterpretedComponent(
-    component,
-    hostElement,
-    injector,
-    props,
-  );
+  return mountInterpretedComponent(component, hostElement, injector, props);
 }
 
 @Directive({
@@ -136,6 +133,42 @@ export function provideCraftComponent(
   };
 }
 
+export function loadCraftComponent<Component extends CraftComponent<any>>(
+  loader: (helpers: CraftRouteLazyLoadHelpers) => Promise<Component>,
+  additionalProviders: NonNullable<Route['providers']> = [],
+): {
+  loadComponent: (
+    helpers: CraftRouteLazyLoadHelpers,
+  ) => Promise<Type<CraftRoutedComponentHost>>;
+  providers: NonNullable<Route['providers']>;
+} & ComponentDepsCarrier<ComponentDepsOf<Component>> {
+  let loadedComponent: Component | undefined;
+
+  const fragment = {
+    loadComponent: async (helpers: CraftRouteLazyLoadHelpers) => {
+      loadedComponent = await loader(helpers);
+      return CraftRoutedComponentHost;
+    },
+    providers: [
+      {
+        provide: CRAFT_ROUTED_COMPONENT,
+        useFactory: () => {
+          if (!loadedComponent) {
+            throw new Error(
+              'loadCraftComponent() must finish loading before the route host is created.',
+            );
+          }
+          return loadedComponent;
+        },
+      },
+      ...additionalProviders,
+    ],
+  };
+
+  return fragment as typeof fragment &
+    ComponentDepsCarrier<ComponentDepsOf<Component>>;
+}
+
 export function craftComponentRouteData(
   component: CraftComponent<any>,
 ): Readonly<Record<string, unknown>> {
@@ -184,16 +217,12 @@ function createCraftHost(
   elementRef: ElementRef<Element>,
   injector: Injector,
 ): CraftMountRef<object> {
-  return mountCraftComponent(
-    component,
-    elementRef.nativeElement,
-    injector,
-    {},
-  );
+  return mountCraftComponent(component, elementRef.nativeElement, injector, {});
 }
 
-export const CRAFT_GLOBAL_ERROR_COMPONENT =
-  new InjectionToken<CraftComponent<any>>('CRAFT_GLOBAL_ERROR_COMPONENT');
+export const CRAFT_GLOBAL_ERROR_COMPONENT = new InjectionToken<
+  CraftComponent<any>
+>('CRAFT_GLOBAL_ERROR_COMPONENT');
 
 @Component({
   selector: 'craft-global-error-component-host',
@@ -205,10 +234,10 @@ export class CraftGlobalErrorComponentHost implements OnDestroy {
   private readonly injector = inject(Injector);
   private readonly component = inject(CRAFT_GLOBAL_ERROR_COMPONENT);
   private readonly mounted = createCraftHost(
-      this.component,
-      this.elementRef,
-      this.injector,
-    );
+    this.component,
+    this.elementRef,
+    this.injector,
+  );
 
   ngOnDestroy(): void {
     this.mounted?.destroy();
@@ -224,10 +253,9 @@ export function provideCraftGlobalErrorComponent(
   };
 }
 
-export const CRAFT_ROUTE_LOAD_ERROR_COMPONENT =
-  new InjectionToken<CraftComponent<any>>(
-    'CRAFT_ROUTE_LOAD_ERROR_COMPONENT',
-  );
+export const CRAFT_ROUTE_LOAD_ERROR_COMPONENT = new InjectionToken<
+  CraftComponent<any>
+>('CRAFT_ROUTE_LOAD_ERROR_COMPONENT');
 
 @Component({
   selector: 'craft-route-load-error-component-host',
@@ -239,10 +267,10 @@ export class CraftRouteLoadErrorComponentHost implements OnDestroy {
   private readonly injector = inject(Injector);
   private readonly component = inject(CRAFT_ROUTE_LOAD_ERROR_COMPONENT);
   private readonly mounted = createCraftHost(
-      this.component,
-      this.elementRef,
-      this.injector,
-    );
+    this.component,
+    this.elementRef,
+    this.injector,
+  );
 
   ngOnDestroy(): void {
     this.mounted?.destroy();
@@ -258,8 +286,9 @@ export function provideCraftRouteLoadErrorComponent(
   };
 }
 
-export const CRAFT_PENDING_COMPONENT =
-  new InjectionToken<CraftComponent<any>>('CRAFT_PENDING_COMPONENT');
+export const CRAFT_PENDING_COMPONENT = new InjectionToken<CraftComponent<any>>(
+  'CRAFT_PENDING_COMPONENT',
+);
 
 @Component({
   selector: 'craft-pending-component-host',

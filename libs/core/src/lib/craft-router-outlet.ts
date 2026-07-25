@@ -156,7 +156,7 @@ export class CraftRouterOutlet
 
   // --- Activation bookkeeping ---
   private _activatedRoute: ActivatedRoute | null = null;
-  private _activeRouteInjector: EnvironmentInjector | null = null;
+  private _activeRouteInjector: Injector | null = null;
   private _meta: CraftRouteMeta | null = null;
   private _navId = 0;
   private _stayTimer: ReturnType<typeof setTimeout> | null = null;
@@ -248,7 +248,17 @@ export class CraftRouterOutlet
     this._pendingDeactivation = false;
     this.teardown();
     this._activatedRoute = activatedRoute;
-    this._activeRouteInjector = environmentInjector ?? this.rootInjector;
+    this._activeRouteInjector = Injector.create({
+      providers: [
+        { provide: ActivatedRoute, useValue: activatedRoute },
+        {
+          provide: ChildrenOutletContexts,
+          useValue: this.parentContexts.getOrCreateContext(this.name).children,
+        },
+      ],
+      parent: environmentInjector ?? this.rootInjector,
+      name: 'CraftRouterOutlet',
+    });
 
     // Republish this navigation's view-transition payload before mounting
     // anything, so the pending skeleton and the target both read it.

@@ -1,9 +1,5 @@
-import {
-  component,
-  div,
-  each,
-} from '@craft-ng/component';
-import { provideHostName, type GetDeps } from '@craft-ng/core';
+import { component, div, each } from '@craft-ng/component';
+import { provideHostName } from '@craft-ng/core';
 import { SendContextCounterComponent } from './counter';
 
 const DemoSendContextComponent = component(
@@ -12,20 +8,10 @@ const DemoSendContextComponent = component(
   ({ counters }) =>
     div([
       'Demo',
-      each(
-        counters,
-        { track: (index) => index },
-        () => SendContextCounterComponent({ initialValue: () => 1 }),
+      each(counters, { track: (index) => index }, () =>
+        SendContextCounterComponent({ initialValue: () => 1 }),
       ),
     ]),
 );
 
 export default DemoSendContextComponent;
-export type GenDeps_DemoSendContextComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

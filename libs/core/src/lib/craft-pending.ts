@@ -259,7 +259,8 @@ export function withErrorComponent(
  *   withTransitionTimings({ stayMs: 300, blankMs: 300, pendingMinMs: 500 }),
  *   withLoadingText(() => computed(() => translate('common.loading'))),
  *   withPendingComponent(MyBrandedSpinner),
- *   withErrorComponent({ component: MyGlobalErrorScreen, componentDeps: {} as GenDeps_MyGlobalErrorScreen }),
+ *   // Check the functional error SFC separately through ComponentDepsOf.
+ *   withErrorComponent({ component: CraftGlobalErrorComponentHost }),
  * )
  * ```
  */

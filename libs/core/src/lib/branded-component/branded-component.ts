@@ -1,9 +1,12 @@
 import type { InputSignalWithTransform } from '@angular/core';
 import type {
+  BrandedServiceProvider,
+  CompleteServiceDependencyMapFromYielded,
   ExtractServiceHelperDependencyMap,
   SERVICE_HELPER_DEPENDENCIES,
 } from '../craft-service';
 import type {
+  CRAFT_SERVICE_PROVIDER_BRAND,
   MergeObjectUnion,
   RequirementScope,
   Simplify,
@@ -14,6 +17,24 @@ export type AngularBrandDeps = {
   importDeps?: readonly unknown[];
   providers?: readonly unknown[];
 };
+
+/**
+ * Type-only dependency metadata carried by functional Craft components and
+ * route fragments. The optional property never needs to exist at runtime.
+ */
+export declare const CRAFT_COMPONENT_DEPS: unique symbol;
+
+export type ComponentDepsCarrier<ComponentDeps extends object = object> = {
+  readonly [CRAFT_COMPONENT_DEPS]?: ComponentDeps;
+};
+
+export type ComponentDepsOf<Value> = Value extends object
+  ? typeof CRAFT_COMPONENT_DEPS extends keyof Value
+    ? Value extends ComponentDepsCarrier<infer ComponentDeps extends object>
+      ? ComponentDeps
+      : {}
+    : {}
+  : {};
 
 type ExtractPublicInstance<Component> = Component extends abstract new (
   ...args: unknown[]
@@ -135,6 +156,60 @@ type NormalizeExtractedDeps<Value> = [
   : ExtractServiceHelperDependencyMap<Value>;
 
 export type ExtractDeps<Value> = Simplify<NormalizeExtractedDeps<Value>>;
+
+type ComponentProviderNames<Providers> =
+  Providers extends readonly (infer Provider)[]
+    ? ComponentProviderNames<Provider>
+    : typeof CRAFT_SERVICE_PROVIDER_BRAND extends keyof Providers
+      ? Providers extends BrandedServiceProvider<infer Name, any, any, any>
+        ? Name
+        : never
+      : never;
+
+type ComponentProvidedMap<Providers> = {
+  [Name in ComponentProviderNames<Providers>]: true;
+};
+
+type ComponentTrackedContextValue<Context extends object> = {
+  [Key in keyof Context]: Context[Key] extends object
+    ? typeof SERVICE_HELPER_DEPENDENCIES extends keyof Context[Key]
+      ? Context[Key]
+      : never
+    : never;
+}[keyof Context];
+
+type ComponentContextDeps<Context> = Context extends object
+  ? MergeObjectUnion<
+      ExtractDeps<ComponentTrackedContextValue<Context>>
+    > extends infer Dependencies extends object
+    ? string extends keyof Dependencies
+      ? {}
+      : Dependencies
+    : {}
+  : {};
+
+/**
+ * Builds the complete dependency contract of a functional component from its
+ * yielded requests, the tracked helpers returned in its context, its local
+ * providers, and its public input/output properties.
+ */
+export type CraftComponentDependencies<
+  Yielded,
+  Context,
+  Providers,
+  PublicProperties extends object,
+> = GetDeps<{
+  deps: Simplify<
+    CompleteServiceDependencyMapFromYielded<Yielded> &
+      Omit<
+        ComponentContextDeps<Context>,
+        keyof CompleteServiceDependencyMapFromYielded<Yielded>
+      >
+  >;
+  propertiesDeps: {};
+  provided: ComponentProvidedMap<Providers>;
+  publicProperties: PublicProperties;
+}>;
 
 type ComponentMissingProviderRecord<Dependency> =
   IsComponentGenDepsDependency<Dependency> extends true

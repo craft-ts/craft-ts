@@ -4,6 +4,7 @@ import {
   Component,
   Directive,
   EventEmitter,
+  EnvironmentInjector,
   HostBinding,
   inject,
   InjectionToken,
@@ -13,6 +14,10 @@ import {
   signal,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import {
+  ActivatedRoute,
+  provideRouter,
+} from '@angular/router';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
@@ -26,10 +31,12 @@ import {
   vi,
 } from 'vitest';
 import {
+  CraftRouterOutlet,
   craftService,
 } from '@craft-ng/core';
 import {
   CraftRoutedComponentHost,
+  loadCraftComponent,
   mountCraftComponent,
   provideCraftComponent,
 } from '../bridge';
@@ -407,5 +414,65 @@ describe('functional component interpreter', () => {
     expect(
       fixture.nativeElement.querySelector('.routed-functional')?.textContent,
     ).toBe('Routed');
+  });
+
+  it('passes the activated route params to a routed functional component', () => {
+    const routed = component(
+      {},
+      (userId: Input<string>) => ({ userId }),
+      ({ userId }) => p({ class: 'route-user-id' }, userId()),
+    );
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideCraftComponent(routed)],
+    });
+    const fixture = TestBed.createComponent(CraftRouterOutlet);
+    const activatedRoute = {
+      component: CraftRoutedComponentHost,
+      snapshot: {
+        component: CraftRoutedComponentHost,
+        data: {},
+        params: { userId: '42' },
+        queryParams: {},
+        routeConfig: { component: CraftRoutedComponentHost },
+      },
+    } as unknown as ActivatedRoute;
+
+    fixture.componentInstance.activateWith(
+      activatedRoute,
+      TestBed.inject(EnvironmentInjector),
+    );
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(
+      fixture.nativeElement.querySelector('.route-user-id')?.textContent,
+    ).toBe('42');
+  });
+
+  it('mounts a lazily loaded functional component without an eager provider', async () => {
+    const routeMarker = new InjectionToken<string>('LAZY_ROUTE_MARKER');
+    const routed = component(
+      {},
+      () => ({ routeMarker: inject(routeMarker) }),
+      ({ routeMarker }) => p({ class: 'lazy-routed-functional' }, routeMarker),
+    );
+    const loader = vi.fn(async () => routed);
+
+    const lazyRoute = loadCraftComponent(loader, [
+      { provide: routeMarker, useValue: 'Lazy routed' },
+    ]);
+    const LazyCraftComponentHost = await lazyRoute.loadComponent(
+      {} as Parameters<typeof lazyRoute.loadComponent>[0],
+    );
+    TestBed.configureTestingModule({ providers: lazyRoute.providers });
+    const fixture = TestBed.createComponent(LazyCraftComponentHost);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(loader).toHaveBeenCalledOnce();
+    expect(
+      fixture.nativeElement.querySelector('.lazy-routed-functional')
+        ?.textContent,
+    ).toBe('Lazy routed');
   });
 });

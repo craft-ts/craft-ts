@@ -1,10 +1,6 @@
 import type { ResourceStatus } from '@angular/core';
-import {
-  component,
-  span,
-  type Input,
-} from '@craft-ng/component';
-import { provideHostName, type GetDeps } from '@craft-ng/core';
+import { component, span, type Input } from '@craft-ng/component';
+import { provideHostName } from '@craft-ng/core';
 
 const STATUS_VIEW = {
   idle: ['🛌', 'Idle', 'gray'],
@@ -41,11 +37,3 @@ export const StatusComponent = component(
 );
 
 export type StatusComponent = typeof StatusComponent;
-export type GenDeps_StatusComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

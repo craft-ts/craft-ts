@@ -1,14 +1,5 @@
-import {
-  component,
-  div,
-  h2,
-  p,
-} from '@craft-ng/component';
-import {
-  injectCraftGlobalError,
-  provideHostName,
-  type GetDeps,
-} from '@craft-ng/core';
+import { component, div, h2, p } from '@craft-ng/component';
+import { CraftGlobalErrorToYield, provideHostName } from '@craft-ng/core';
 
 export const MyGlobalErrorScreen = component(
   {
@@ -16,7 +7,9 @@ export const MyGlobalErrorScreen = component(
     styles:
       '.global-error{padding:2rem;border:1px solid #fca5a5;border-radius:8px;background:#fef2f2;color:#991b1b}',
   },
-  () => ({ error: injectCraftGlobalError() }),
+  function* () {
+    return { error: yield* CraftGlobalErrorToYield() };
+  },
   ({ error }) => {
     const disabled = error()?.code === 'USER_DISABLED';
     return div({ class: 'global-error' }, [
@@ -29,15 +22,3 @@ export const MyGlobalErrorScreen = component(
     ]);
   },
 );
-
-export type GenDeps_MyGlobalErrorScreen = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-  missingProvider: {
-    CraftGlobalError: ReturnType<typeof injectCraftGlobalError>;
-  };
-}>;

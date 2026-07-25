@@ -1,22 +1,12 @@
 import { signal } from '@angular/core';
-import {
-  component,
-  div,
-  h,
-  h2,
-  option,
-  p,
-  select,
-} from '@craft-ng/component';
+import { component, div, h, h2, option, p, select } from '@craft-ng/component';
 import {
   componentMonitoring,
   craftService,
-  craftUse,
   provideHostName,
   query,
   state,
   toValue,
-  type GetDeps,
   type MaybeSignal,
 } from '@craft-ng/core';
 
@@ -42,7 +32,7 @@ const { UsersApiToYield } = craftService(
   }),
 );
 
-const { injectUser, provideUser } = craftService(
+const { provideUser, UserToYield } = craftService(
   { name: 'User', scope: 'toProvide' },
   function* (inputs: { userId: MaybeSignal<string> }) {
     const api = yield* UsersApiToYield();
@@ -63,12 +53,10 @@ const CraftServiceUserDetailComponent = component(
       provideHostName('component:CraftServiceUserDetailComponent'),
     ],
   },
-  () => {
+  function* () {
     componentMonitoring();
-    const userId = craftUse(
-      state(signal('1'), ({ set }) => ({ setUserId: set })),
-    );
-    return { userId, user: injectUser({ userId }) };
+    const userId = yield* state(signal('1'), ({ set }) => ({ setUserId: set }));
+    return { userId, user: yield* UserToYield({ userId }) };
   },
   ({ userId, user }) => {
     const value = user.safeValue();
@@ -80,9 +68,7 @@ const CraftServiceUserDetailComponent = component(
           change: (event) =>
             userId.setUserId((event.target as HTMLSelectElement).value),
         },
-        user.userIds.map((id) =>
-          option({ value: id }, `User ${id}`),
-        ),
+        user.userIds.map((id) => option({ value: id }, `User ${id}`)),
       ),
       value
         ? h('dl', [
@@ -103,12 +89,3 @@ const CraftServiceUserDetailComponent = component(
 );
 
 export default CraftServiceUserDetailComponent;
-export type GenDeps_CraftServiceUserDetailComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    User: ReturnType<typeof provideUser>;
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

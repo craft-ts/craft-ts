@@ -12,55 +12,48 @@ import {
 import {
   componentMonitoring,
   craftPipe,
-  craftUse,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   provideHostName,
   query,
   queryParams,
-  type GetDeps,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { injectApiService, type User } from './api.service';
+import { ApiServiceToYield, type User } from './api.service';
 
 const ListWithPagination = component(
   { providers: [provideHostName('component:ListWithPagination')] },
-  () => {
+  function* () {
     componentMonitoring();
-    const pagination = craftUse(
-      queryParams(
-        {
-          state: {
-            page: { fallbackValue: 1, parse: Number, serialize: String },
-            pageSize: { fallbackValue: 4, parse: Number, serialize: String },
-          },
+    const pagination = yield* queryParams(
+      {
+        state: {
+          page: { fallbackValue: 1, parse: Number, serialize: String },
+          pageSize: { fallbackValue: 4, parse: Number, serialize: String },
         },
-        ({ patch, state }) => ({
-          nextPage: () => patch({ page: state().page + 1 }),
-          previousPage: () => patch({ page: state().page - 1 }),
-          updatePageSize: (pageSize: number) =>
-            patch({ pageSize, page: 1 }),
-        }),
-      ),
+      },
+      ({ patch, state }) => ({
+        nextPage: () => patch({ page: state().page + 1 }),
+        previousPage: () => patch({ page: state().page - 1 }),
+        updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
+      }),
     );
-    const api = injectApiService();
-    const usersQuery = craftUse(
-      query(
-        {
-          params: pagination,
-          identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
-          loader: ({ params }) => api.getDataList(params),
-        },
-        (context) =>
-          craftPipe(
-            context,
-            insertLocalStoragePersister({
-              storeName: 'demo-app',
-              key: 'list-with-pagination',
-            }),
-            insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-          ),
-      ),
+    const api = yield* ApiServiceToYield();
+    const usersQuery = yield* query(
+      {
+        params: pagination,
+        identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+        loader: ({ params }) => api.getDataList(params),
+      },
+      (context) =>
+        craftPipe(
+          context,
+          insertLocalStoragePersister({
+            storeName: 'demo-app',
+            key: 'list-with-pagination',
+          }),
+          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+        ),
     );
     return { pagination, usersQuery };
   },
@@ -91,8 +84,7 @@ const ListWithPagination = component(
                   ),
                 ),
             },
-            (user) =>
-              h('tr', [h('td', String(user.id)), h('td', user.name)]),
+            (user) => h('tr', [h('td', String(user.id)), h('td', user.name)]),
           ),
         ),
       ),
@@ -117,11 +109,3 @@ const ListWithPagination = component(
 );
 
 export default ListWithPagination;
-export type GenDeps_ListWithPagination = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

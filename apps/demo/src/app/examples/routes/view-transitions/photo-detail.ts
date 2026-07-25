@@ -13,15 +13,12 @@ import {
   craftMethod,
   CraftRouterToYield,
   provideHostName,
-  type GetDeps,
 } from '@craft-ng/core';
 import { findPhoto } from './photos';
 
 const ViewTransitionsDetailComponent = component(
   {
-    providers: [
-      provideHostName('component:ViewTransitionsDetailComponent'),
-    ],
+    providers: [provideHostName('component:ViewTransitionsDetailComponent')],
     styles: `
       .vt-back{display:inline-block;margin-bottom:1.5rem;color:#2563eb;text-decoration:none;font-weight:600}.vt-detail{display:grid;gap:1.75rem}
       .vt-hero{display:grid;place-items:center;aspect-ratio:4/3;border-radius:24px;box-shadow:0 24px 60px #0f172a40}.vt-hero .emoji{font-size:6rem}
@@ -30,10 +27,9 @@ const ViewTransitionsDetailComponent = component(
   },
   function* (photoId: Input<string>) {
     componentMonitoring();
-    const router = yield* CraftRouterToYield(
-      undefined,
-      ({ navigate }) => ({ navigate }),
-    );
+    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+      navigate,
+    }));
     const back = craftMethod('back', function* () {
       void router.navigate({ to: 'view-transitions' });
     });
@@ -65,11 +61,7 @@ const ViewTransitionsDetailComponent = component(
               },
               span({ class: 'emoji' }, photo.emoji),
             ),
-            div([
-              p(photo.subtitle),
-              h2(photo.title),
-              p(photo.description),
-            ]),
+            div([p(photo.subtitle), h2(photo.title), p(photo.description)]),
           ])
         : p(`No artwork matches “${photoId()}”.`),
     ];
@@ -77,11 +69,3 @@ const ViewTransitionsDetailComponent = component(
 );
 
 export default ViewTransitionsDetailComponent;
-export type GenDeps_ViewTransitionsDetailComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;

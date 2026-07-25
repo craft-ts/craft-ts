@@ -9,11 +9,7 @@ import {
   label,
   p,
 } from '@craft-ng/component';
-import {
-  componentMonitoring,
-  provideHostName,
-  type GetDeps,
-} from '@craft-ng/core';
+import { componentMonitoring, provideHostName } from '@craft-ng/core';
 
 const LoginFormComponent = component(
   {
@@ -77,11 +73,3 @@ const LoginFormComponent = component(
 );
 
 export default LoginFormComponent;
-export type GenDeps_LoginFormComponent = GetDeps<{
-  deps: Record<never, never>;
-  propertiesDeps: Record<never, never>;
-  provided: {
-    HostName: ReturnType<typeof provideHostName>;
-  };
-  publicProperties: Record<never, never>;
-}>;
