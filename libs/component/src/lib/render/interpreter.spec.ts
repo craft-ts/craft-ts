@@ -23,42 +23,23 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import {
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BehaviorSubject } from 'rxjs';
-import {
-  craftService,
-} from '@craft-ng/core';
+import { craftService } from '@craft-ng/core';
 import {
   CraftRoutedComponentHost,
   loadCraftComponent,
   mountCraftComponent,
   provideCraftComponent,
 } from '../bridge';
-import {
-  angular,
-  directive,
-} from '../angular';
+import { angular, directive } from '../angular';
 import { component } from '../component';
 import { CraftRouterOutlet } from '../craft-router-outlet';
+import { craftDirective } from '../directive';
 import { defer } from '../defer';
 import { each } from '../each';
-import {
-  button,
-  div,
-  p,
-  span,
-} from '../hyperscript';
-import type {
-  Input,
-  Output,
-} from '../types';
+import { button, div, h2, p, span } from '../hyperscript';
+import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
 
 beforeAll(() => {
   try {
@@ -170,6 +151,192 @@ describe('functional component interpreter', () => {
     mounted.destroy();
   });
 
+  it('merges host classes supplied at a component call site', () => {
+    const statusComponent = component(
+      { host: { class: 'status-base' } },
+      (status: Input<string>) => ({ status }),
+      ({ status }) => span(status()),
+    );
+    const page = component(
+      {},
+      () => ({}),
+      () =>
+        h2([
+          'Full craftService demo ',
+          statusComponent({
+            status: () => 'ready',
+            class: 'newClassAdded',
+          }),
+        ]),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      page,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.querySelector('span')?.className).toBe(
+      'status-base newClassAdded',
+    );
+    mounted.destroy();
+  });
+
+  it('merges reactive host classes supplied by a craft directive', () => {
+    const canEdit = signal(true);
+    const onlyEditable = craftDirective(
+      (
+        baseLogic: HostRequiredLogic<{
+          permissions: { canEdit: () => boolean };
+        }>,
+      ) => baseLogic,
+      (
+        baseTemplate: HostTemplate<{
+          permissions: { canEdit: () => boolean };
+        }>,
+      ) =>
+        (context) =>
+          baseTemplate(context, {
+            class: () => (context.permissions.canEdit() ? 'visible' : 'hidden'),
+          }),
+    );
+    const statusComponent = component(
+      { host: { class: 'status-base' } },
+      () => ({ permissions: { canEdit: () => canEdit() } }),
+      () => span('ready'),
+    ).pipe(onlyEditable);
+    const page = component(
+      {},
+      () => ({}),
+      () => statusComponent({ class: 'caller-class' }),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      page,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    expect(element.querySelector('span')?.className).toBe(
+      'status-base visible caller-class',
+    );
+
+    canEdit.set(false);
+    TestBed.tick();
+    expect(element.querySelector('span')?.className).toBe(
+      'status-base hidden caller-class',
+    );
+    mounted.destroy();
+  });
+
+  it('composes a configurable directive around the component logic and template', () => {
+    const allowed = signal(true);
+    const guard = craftDirective(
+      (baseLogic: HostRequiredLogic<{ user: Input<string> }>) =>
+        (user: Input<string>) => ({
+          ...baseLogic(user),
+          allowed,
+        }),
+      (
+        baseTemplate: HostTemplate<{
+          user: Input<string>;
+          allowed: () => boolean;
+        }>,
+      ) =>
+        (context) => (context.allowed() ? baseTemplate(context) : []),
+    );
+    const guarded = component(
+      {},
+      (user: Input<string>) => ({ user }),
+      ({ user }) => p(user()),
+    ).pipe(guard);
+    const element = host();
+    const mounted = mountCraftComponent(
+      guarded,
+      element,
+      TestBed.inject(Injector),
+      { user: () => 'visible' },
+    );
+    TestBed.tick();
+
+    expect(element.textContent).toBe('visible');
+    allowed.set(false);
+    TestBed.tick();
+    expect(element.textContent).toBe('');
+
+    mounted.destroy();
+  });
+
+  it('passes public inputs added by a directive to the final factory', () => {
+    const withPermission = craftDirective(
+      (baseLogic: HostRequiredLogic<{ user: Input<string> }>) =>
+        (user: Input<string>, permission: Input<string>) => ({
+          ...baseLogic(user),
+          permission,
+        }),
+      (
+        baseTemplate: HostTemplate<{
+          user: Input<string>;
+          permission: Input<string>;
+        }>,
+      ) =>
+        (context) =>
+          baseTemplate(context),
+    );
+    const card = component(
+      {},
+      (user: Input<string>) => ({ user }),
+      ({ user }) => p(user()),
+    ).pipe(withPermission);
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      card,
+      element,
+      TestBed.inject(Injector),
+      {
+        user: () => 'Ada',
+        permission: () => 'edit',
+      },
+    );
+    TestBed.tick();
+
+    expect(element.textContent).toBe('Ada');
+    mounted.destroy();
+  });
+
+  it('applies a structural directive piped directly on a hyperscript node', () => {
+    const visible = signal(true);
+    const when = craftDirective(
+      (baseLogic: HostRequiredLogic<{ visible: Input<boolean> }>) => baseLogic,
+      (baseTemplate: HostTemplate<{ visible: Input<boolean> }>) => (context) =>
+        context.visible() ? baseTemplate(context) : [],
+    );
+    const panel = component(
+      {},
+      (visible: Input<boolean>) => ({ visible }),
+      () => p('conditional').pipe(when),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      panel,
+      element,
+      TestBed.inject(Injector),
+      { visible },
+    );
+    TestBed.tick();
+
+    expect(element.textContent).toBe('conditional');
+    visible.set(false);
+    TestBed.tick();
+    expect(element.textContent).toBe('');
+
+    mounted.destroy();
+  });
+
   it('resolves yield* craftService dependencies in the child injector', () => {
     const PREFIX = new InjectionToken<string>('component-prefix');
     const { GreetingToYield } = craftService(
@@ -187,12 +354,9 @@ describe('functional component interpreter', () => {
     );
 
     const element = host();
-    mountCraftComponent(
-      greeting,
-      element,
-      TestBed.inject(Injector),
-      { name: () => 'Ada' },
-    );
+    mountCraftComponent(greeting, element, TestBed.inject(Injector), {
+      name: () => 'Ada',
+    });
     TestBed.tick();
 
     expect(element.textContent).toBe('Bonjour Ada');
@@ -221,12 +385,11 @@ describe('functional component interpreter', () => {
     const picked = vi.fn();
     const userCard = component(
       {},
-      (
-        name: Input<string>,
-        onPick: Output<(name: string) => void>,
-      ) => ({ name, onPick }),
-      ({ name, onPick }) =>
-        button({ click: () => onPick(name()) }, name()),
+      (name: Input<string>, onPick: Output<(name: string) => void>) => ({
+        name,
+        onPick,
+      }),
+      ({ name, onPick }) => button({ click: () => onPick(name()) }, name()),
     );
     const parent = component(
       {},
@@ -357,8 +520,7 @@ describe('functional component interpreter', () => {
         defer(() => Promise.resolve('Interacted'), {
           trigger: 'interaction',
           resolve: (value) => p({ class: 'interaction-loaded' }, value),
-          placeholder: () =>
-            button({ class: 'interaction-trigger' }, 'Start'),
+          placeholder: () => button({ class: 'interaction-trigger' }, 'Start'),
         }),
     );
     const element = host();
@@ -372,9 +534,9 @@ describe('functional component interpreter', () => {
 
     element.querySelector<HTMLButtonElement>('.interaction-trigger')?.click();
     await vi.waitFor(() => {
-      expect(
-        element.querySelector('.interaction-loaded')?.textContent,
-      ).toBe('Interacted');
+      expect(element.querySelector('.interaction-loaded')?.textContent).toBe(
+        'Interacted',
+      );
     });
   });
 
@@ -447,11 +609,7 @@ describe('functional component interpreter', () => {
       providers: [provideRouter([]), provideCraftComponent(routed)],
     });
     const element = host();
-    mountCraftComponent(
-      CraftRouterOutlet,
-      element,
-      TestBed.inject(Injector),
-    );
+    mountCraftComponent(CraftRouterOutlet, element, TestBed.inject(Injector));
     TestBed.tick();
     const params = new BehaviorSubject({ userId: '42' });
     const queryParams = new BehaviorSubject({});
@@ -470,25 +628,19 @@ describe('functional component interpreter', () => {
       },
     } as unknown as ActivatedRoute;
 
-    const outlet =
-      TestBed.inject(ChildrenOutletContexts).getContext('primary')?.outlet;
+    const outlet = TestBed.inject(ChildrenOutletContexts).getContext(
+      'primary',
+    )?.outlet;
     expect(outlet).toBeDefined();
-    outlet?.activateWith(
-      activatedRoute,
-      TestBed.inject(EnvironmentInjector),
-    );
+    outlet?.activateWith(activatedRoute, TestBed.inject(EnvironmentInjector));
     TestBed.tick();
 
-    expect(
-      element.querySelector('.route-user-id')?.textContent,
-    ).toBe('42');
+    expect(element.querySelector('.route-user-id')?.textContent).toBe('42');
 
     params.next({ userId: '43' });
     TestBed.tick();
 
-    expect(
-      element.querySelector('.route-user-id')?.textContent,
-    ).toBe('43');
+    expect(element.querySelector('.route-user-id')?.textContent).toBe('43');
   });
 
   it('activates a functional outlet from an inherited child route context', () => {
@@ -521,9 +673,7 @@ describe('functional component interpreter', () => {
     );
     childContexts.getOrCreateContext('primary').route = activatedRoute;
     const nestedRouteInjector = Injector.create({
-      providers: [
-        { provide: ChildrenOutletContexts, useValue: childContexts },
-      ],
+      providers: [{ provide: ChildrenOutletContexts, useValue: childContexts }],
       parent: TestBed.inject(EnvironmentInjector),
     });
     const element = host();
@@ -531,9 +681,9 @@ describe('functional component interpreter', () => {
     mountCraftComponent(CraftRouterOutlet, element, nestedRouteInjector);
     TestBed.tick();
 
-    expect(
-      element.querySelector('.nested-route-user-id')?.textContent,
-    ).toBe('84');
+    expect(element.querySelector('.nested-route-user-id')?.textContent).toBe(
+      '84',
+    );
   });
 
   it('mounts a lazily loaded functional component without an eager provider', async () => {

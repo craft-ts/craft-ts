@@ -19,20 +19,20 @@ import {
   type EffectRef,
   type Type,
 } from '@angular/core';
-import {
-  craftEffect,
-  craftLazy,
-} from '@craft-ng/core';
+import { craftEffect, craftLazy } from '@craft-ng/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import { CraftAngularDirectiveHost } from '../angular-host';
 import {
   CRAFT_COMPONENT,
+  CRAFT_DIRECTIVE,
   type CraftComponent,
 } from '../types';
 import {
   normalizeChildren,
+  mergeHostProps,
   type AngularComponentNode,
   type AngularDirectiveNode,
+  type CraftDirectiveNode,
   type CraftNode,
   type CraftNodeChildren,
   type DeferNode,
@@ -47,6 +47,7 @@ type NativeParent = Node;
 interface RenderContext {
   readonly renderer: Renderer2;
   readonly injector: Injector;
+  readonly componentContext?: unknown;
 }
 
 interface RenderedNode {
@@ -58,6 +59,10 @@ interface RenderedNode {
 }
 
 function resolveAngularValue(value: unknown): unknown {
+  return typeof value === 'function' ? value() : value;
+}
+
+function resolveHostValue(value: unknown): unknown {
   return typeof value === 'function' ? value() : value;
 }
 
@@ -146,6 +151,16 @@ function sameDirectives(
   );
 }
 
+function sameCraftDirectives(
+  left: readonly CraftDirectiveNode['directives'][number][],
+  right: readonly CraftDirectiveNode['directives'][number][],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((directive, index) => directive === right[index])
+  );
+}
+
 function insertBefore(
   renderer: Renderer2,
   parent: NativeParent,
@@ -228,6 +243,64 @@ class TextRenderedNode implements RenderedNode {
   }
 }
 
+function renderCraftDirectiveNode(
+  node: CraftDirectiveNode,
+  context: RenderContext,
+): CraftNodeChildren {
+  let template = (_componentContext: unknown): CraftNodeChildren => [node.node];
+
+  for (const directive of node.directives) {
+    template = directive[CRAFT_DIRECTIVE].template(template);
+  }
+
+  return template(context.componentContext);
+}
+
+class CraftDirectiveRenderedNode implements RenderedNode {
+  readonly kind = 'directive';
+  private readonly view: FragmentRenderedNode;
+
+  constructor(
+    private node: CraftDirectiveNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    private readonly context: RenderContext,
+  ) {
+    this.view = createFragment(
+      parent,
+      before,
+      context,
+      renderCraftDirectiveNode(node, context),
+      'craft-directive',
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (
+      node.kind !== 'directive' ||
+      !sameCraftDirectives(this.node.directives, node.directives)
+    ) {
+      return false;
+    }
+
+    this.node = node;
+    this.view.patchChildren(renderCraftDirectiveNode(node, this.context));
+    return true;
+  }
+
+  destroy(): void {
+    this.view.destroy();
+  }
+}
+
 const EVENT_NAMES = new Set([
   'abort',
   'blur',
@@ -283,9 +356,57 @@ function eventNameFor(key: string, value: unknown): string | undefined {
   return undefined;
 }
 
+const HOST_PROPERTY_NAMES = new Set([
+  'accessKey',
+  'autocapitalize',
+  'autofocus',
+  'class',
+  'contentEditable',
+  'dir',
+  'draggable',
+  'hidden',
+  'id',
+  'inert',
+  'lang',
+  'nonce',
+  'slot',
+  'spellcheck',
+  'style',
+  'tabIndex',
+  'title',
+  'translate',
+  'attrs',
+  'directives',
+]);
+
+function isHostProperty(key: string): boolean {
+  return (
+    HOST_PROPERTY_NAMES.has(key) ||
+    key.startsWith('data-') ||
+    key.startsWith('aria-') ||
+    EVENT_NAMES.has(key) ||
+    (/^on[A-Z]/.test(key) &&
+      EVENT_NAMES.has(`${key[2].toLowerCase()}${key.slice(3)}`))
+  );
+}
+
+function hostPropsFromComponentProps(
+  props: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>> {
+  return Object.fromEntries(
+    Object.entries(props).filter(([key]) => isHostProperty(key)),
+  );
+}
+
 function className(value: unknown): string {
+  if (typeof value === 'function') {
+    return className(value());
+  }
   if (Array.isArray(value)) {
-    return value.filter(Boolean).join(' ');
+    return value
+      .flatMap((item) => className(item))
+      .filter(Boolean)
+      .join(' ');
   }
   if (typeof value === 'object' && value !== null) {
     return Object.entries(value)
@@ -315,13 +436,11 @@ function applyStyles(
   previous: unknown,
   next: unknown,
 ): void {
+  previous = resolveHostValue(previous);
+  next = resolveHostValue(next);
   if (typeof previous === 'object' && previous !== null) {
     for (const key of Object.keys(previous)) {
-      if (
-        typeof next !== 'object' ||
-        next === null ||
-        !(key in next)
-      ) {
+      if (typeof next !== 'object' || next === null || !(key in next)) {
         renderer.removeStyle(element, key);
       }
     }
@@ -456,12 +575,7 @@ class ElementRenderedNode implements RenderedNode {
     }
 
     if (!Object.is(this.props['style'], next['style'])) {
-      applyStyles(
-        renderer,
-        this.node,
-        this.props['style'],
-        next['style'],
-      );
+      applyStyles(renderer, this.node, this.props['style'], next['style']);
     }
 
     const nextEvents = new Map<string, EventListener>();
@@ -782,6 +896,7 @@ class ComponentRenderedNode implements RenderedNode {
   private readonly environmentInjector: EnvironmentInjector;
   private readonly propKeys: string[];
   private readonly propSources: ReturnType<typeof signal<unknown>>[];
+  private readonly hostPropsSource;
   private readonly view: FragmentRenderedNode;
   private readonly effectRef: EffectRef;
 
@@ -795,8 +910,7 @@ class ComponentRenderedNode implements RenderedNode {
   ) {
     const definition = component[CRAFT_COMPONENT];
     const componentElement =
-      hostTarget ??
-      (parent instanceof Element ? parent : parent.parentElement);
+      hostTarget ?? (parent instanceof Element ? parent : parent.parentElement);
     // Angular's runtime accepts any Injector as the R3Injector parent even
     // though the public helper narrows the type to EnvironmentInjector. Keep
     // the immediate parent here: unwrapping it through
@@ -814,9 +928,12 @@ class ComponentRenderedNode implements RenderedNode {
       parentInjector,
       'CraftComponent',
     );
-    this.propKeys = Object.keys(props);
+    this.propKeys = Object.keys(props).filter((key) => !isHostProperty(key));
     this.propSources = this.propKeys.map((key) =>
       signal((props as Record<string, unknown>)[key]),
+    );
+    this.hostPropsSource = signal(
+      hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
     );
 
     const args = this.propSources.map((source) => {
@@ -849,26 +966,29 @@ class ComponentRenderedNode implements RenderedNode {
       );
     }
 
-    this.view = createFragment(parent, before, {
-      renderer: context.renderer,
-      injector: this.environmentInjector,
-    }, [], 'craft-component');
-
-    if (hostTarget && definition.meta.host) {
-      applyHostProperties(
-        context.renderer,
-        hostTarget,
-        definition.meta.host,
-      );
-    }
+    this.view = createFragment(
+      parent,
+      before,
+      {
+        renderer: context.renderer,
+        injector: this.environmentInjector,
+        componentContext: factoryContext,
+      },
+      [],
+      'craft-component',
+    );
 
     this.effectRef = untracked(() =>
       runInInjectionContext(this.environmentInjector, () =>
         craftEffect('component-render', () => {
+          const hostProps = mergeHostProps(
+            definition.meta.host ?? {},
+            this.hostPropsSource(),
+          );
           const styles =
             typeof definition.meta.styles === 'string'
               ? [definition.meta.styles]
-              : definition.meta.styles ?? [];
+              : (definition.meta.styles ?? []);
           this.view.patchChildren([
             ...styles.map(
               (css): ElementNode => ({
@@ -876,10 +996,20 @@ class ComponentRenderedNode implements RenderedNode {
                 tag: 'style',
                 props: {},
                 children: css,
+                pipe: (() => {
+                  throw new Error('Style nodes cannot be piped.');
+                }) as ElementNode['pipe'],
               }),
             ),
-            definition.template(factoryContext),
+            definition.template(factoryContext, hostProps),
           ]);
+          if (hostTarget) {
+            applyHostProperties(
+              context.renderer,
+              hostTarget,
+              hostProps,
+            );
+          }
         }),
       ),
     );
@@ -894,10 +1024,7 @@ class ComponentRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (
-      node.kind !== 'component' ||
-      node.component !== this.component
-    ) {
+    if (node.kind !== 'component' || node.component !== this.component) {
       return false;
     }
 
@@ -905,6 +1032,9 @@ class ComponentRenderedNode implements RenderedNode {
     this.propKeys.forEach((key, index) => {
       this.propSources[index].set(props[key]);
     });
+    this.hostPropsSource.set(
+      hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
+    );
     return true;
   }
 
@@ -926,8 +1056,7 @@ class ComponentRenderedNode implements RenderedNode {
 class DeferRenderedNode implements RenderedNode {
   readonly kind = 'defer';
   private view: FragmentRenderedNode;
-  private state: 'placeholder' | 'loading' | 'loaded' | 'error' =
-    'placeholder';
+  private state: 'placeholder' | 'loading' | 'loaded' | 'error' = 'placeholder';
   private destroyed = false;
   private triggerCleanup: (() => void) | undefined;
   private loadedValue: unknown;
@@ -1071,9 +1200,7 @@ class DeferRenderedNode implements RenderedNode {
         if (settled.kind === 'shortCircuit') {
           this.state = 'error';
           this.loadError = settled.exception;
-          this.view.patchChildren(
-            this.node.error?.(settled.exception) ?? [],
-          );
+          this.view.patchChildren(this.node.error?.(settled.exception) ?? []);
           return;
         }
 
@@ -1112,12 +1239,7 @@ function mountNode(
     case 'element': {
       const element = context.renderer.createElement(node.tag) as Element;
       insertBefore(context.renderer, parent, element, before);
-      return new ElementRenderedNode(
-        element,
-        node.tag,
-        context,
-        node,
-      );
+      return new ElementRenderedNode(element, node.tag, context, node);
     }
     case 'component':
       return new ComponentRenderedNode(
@@ -1129,8 +1251,12 @@ function mountNode(
       );
     case 'angular':
       return new AngularRenderedNode(node, parent, before, context);
+    case 'directive':
+      return new CraftDirectiveRenderedNode(node, parent, before, context);
     case 'each': {
-      const start = context.renderer.createComment('craft-each:start') as Comment;
+      const start = context.renderer.createComment(
+        'craft-each:start',
+      ) as Comment;
       const end = context.renderer.createComment('craft-each:end') as Comment;
       insertBefore(context.renderer, parent, start, before);
       insertBefore(context.renderer, parent, end, before);
@@ -1147,7 +1273,9 @@ function applyHostProperties(
   props: Readonly<Record<string, unknown>>,
 ): void {
   const attributes = flattenAttributes(props);
-  attributes.forEach((value, key) => applyAttribute(renderer, host, key, value));
+  attributes.forEach((value, key) =>
+    applyAttribute(renderer, host, key, value),
+  );
   const classes = className(props['class']);
   if (classes) {
     renderer.setAttribute(host, 'class', classes);
@@ -1166,9 +1294,7 @@ export function mountInterpretedComponent<Props extends object>(
   injector: Injector,
   props: Props,
 ): MountedCraftComponent<Props> {
-  const renderer = injector
-    .get(RendererFactory2)
-    .createRenderer(host, null);
+  const renderer = injector.get(RendererFactory2).createRenderer(host, null);
   const instance = new ComponentRenderedNode(
     component as unknown as CraftComponent<object>,
     props,

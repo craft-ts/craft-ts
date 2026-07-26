@@ -8,8 +8,15 @@ import {
 } from '@craft-ng/core';
 import { loadCraftComponent } from './bridge';
 import { component } from './component';
+import { craftDirective } from './directive';
 import { p } from './hyperscript';
-import type { Input, Output, PropsOf } from './types';
+import type {
+  HostRequiredLogic,
+  HostTemplate,
+  Input,
+  Output,
+  PropsOf,
+} from './types';
 
 interface User {
   readonly id: number;
@@ -151,4 +158,35 @@ it('does not infer component dependencies from an unbranded value', () => {
   expectTypeOf<
     ComponentDepsOf<{ readonly value: string }>
   >().toEqualTypeOf<{}>();
+});
+
+it('infers public inputs added by a piped directive', () => {
+  const withPermission = craftDirective(
+    (baseLogic: HostRequiredLogic<{ user: Input<User> }>) =>
+      (user: Input<User>, permission: Input<string>) => ({
+        ...baseLogic(user),
+        permission,
+      }),
+    (
+      baseTemplate: HostTemplate<{
+        user: Input<User>;
+        permission: Input<string>;
+      }>,
+    ) => baseTemplate,
+  );
+
+  const card = component(
+    {},
+    (user: Input<User>) => ({ user }),
+    ({ user }) => p(user().name),
+  ).pipe(withPermission);
+
+  expectTypeOf<PropsOf<typeof card>>().toEqualTypeOf<{
+    user: () => User;
+    permission: () => string;
+  }>();
+  card({
+    user: () => ({ id: 1, name: 'Ada' }),
+    permission: () => 'edit',
+  });
 });

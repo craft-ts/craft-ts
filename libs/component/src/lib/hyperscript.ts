@@ -3,18 +3,22 @@ import type {
   CraftNodeChildren,
   ElementNode,
 } from './render/vnode';
+import { pipeCraftNode } from './render/vnode';
 
 export type ClassValue =
   | string
-  | readonly (string | null | undefined | false)[]
+  | (() => ClassValue | null | undefined | false)
+  | readonly (ClassValue | null | undefined | false)[]
   | Readonly<Record<string, boolean | null | undefined>>;
 
 export type StyleValue =
   | string
-  | Readonly<
-      Partial<Record<keyof CSSStyleDeclaration, string | number | null>>
-    >
+  | (() => StyleValue | null | undefined | false)
+  | Readonly<Partial<Record<keyof CSSStyleDeclaration, string | number | null>>>
   | Readonly<Record<`--${string}`, string | number | null>>;
+
+/** Properties that can be supplied to a component's host element. */
+export type HostProps = ElementProps<'div'>;
 
 type DomEvents = {
   [EventName in keyof GlobalEventHandlersEventMap]?: (
@@ -40,7 +44,10 @@ type PrimitivePropertyKeys<Element> = {
 }[keyof Element];
 
 export type ElementProps<Tag extends keyof HTMLElementTagNameMap> = Partial<
-  Pick<HTMLElementTagNameMap[Tag], PrimitivePropertyKeys<HTMLElementTagNameMap[Tag]>>
+  Pick<
+    HTMLElementTagNameMap[Tag],
+    PrimitivePropertyKeys<HTMLElementTagNameMap[Tag]>
+  >
 > &
   DomEvents &
   OnDomEvents & {
@@ -58,8 +65,7 @@ function looksLikeChildren(value: unknown): boolean {
     value === undefined ||
     Array.isArray(value) ||
     typeof value !== 'object' ||
-    ('kind' in value &&
-      typeof (value as { kind?: unknown }).kind === 'string')
+    ('kind' in value && typeof (value as { kind?: unknown }).kind === 'string')
   );
 }
 
@@ -75,20 +81,24 @@ export function h<Tag extends keyof HTMLElementTagNameMap>(
     ? (propsOrChildren as CraftNodeChildren)
     : maybeChildren;
 
-  return {
+  const node = {
     kind: 'element',
     tag,
     props: props as Readonly<Record<string, unknown>>,
     children: children ?? [],
-  };
+  } as ElementNode;
+
+  Object.defineProperty(node, 'pipe', {
+    value: (directive: unknown) => pipeCraftNode(node, directive as never),
+    enumerable: false,
+  });
+
+  return node;
 }
 
 export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
   (children?: CraftNodeChildren): ElementNode;
-  (
-    props: ElementProps<Tag> | null,
-    children?: CraftNodeChildren,
-  ): ElementNode;
+  (props: ElementProps<Tag> | null, children?: CraftNodeChildren): ElementNode;
 }
 
 function tagHelper<Tag extends keyof HTMLElementTagNameMap>(
