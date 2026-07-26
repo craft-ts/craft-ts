@@ -3,6 +3,7 @@ import {
   button,
   component,
   CraftRouterOutlet,
+  directive,
   div,
   each,
   main,
@@ -51,6 +52,11 @@ const LINKS = [
   ['Guard demo', { to: 'guard-demo' }],
 ] as const satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
+const craftRouterLink = ({ link }: { link: CraftRouterLinkInput }) =>
+  directive(CraftRouterLink, {
+    inputs: { craftRouterLink: link },
+  });
+
 export const App = component(
   {
     providers: [provideHostName('component:App')],
@@ -78,7 +84,7 @@ export const App = component(
       nav(
         { class: 'tabs' },
         each(LINKS, { track: ([, link]) => link.to }, ([label, link]) =>
-          a({ craftRouterLink: link }, label).pipe(CraftRouterLink),
+            a({}, label).pipe(craftRouterLink({ link })),
         ),
       ),
       main({ class: 'content' }, CraftRouterOutlet()),

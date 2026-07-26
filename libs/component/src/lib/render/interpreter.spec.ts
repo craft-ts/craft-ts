@@ -552,8 +552,10 @@ describe('functional component interpreter', () => {
             inputs: { label },
             outputs: { selected },
           }),
-          p({ craftTestMarker: () => 'active' }, 'Marked').pipe(
-            TestMarkerDirective,
+          p('Marked').pipe(
+            directive(TestMarkerDirective, {
+              inputs: { craftTestMarker: () => 'active' },
+            }),
           ),
         ]),
     );

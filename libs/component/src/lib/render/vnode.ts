@@ -18,6 +18,7 @@ export interface ElementNode extends ElementNodeBase {
 
 export type CraftNodePipe = {
   <Directive extends CraftDirective>(directive: Directive): CraftDirectiveNode;
+  (directive: AngularDirectiveNode): CraftNode;
   (directive: Type<unknown>): CraftNode;
 };
 
@@ -116,12 +117,21 @@ function withPipe(
 ): ElementNode | CraftDirectiveNode {
   return {
     ...node,
-    pipe: ((directive: CraftDirective | Type<unknown>) =>
+    pipe: ((directive: CraftDirective | AngularDirectiveNode | Type<unknown>) =>
       pipeCraftNode(
         node as ElementNode | CraftDirectiveNode,
         directive,
       )) as CraftNodePipe,
   } as ElementNode | CraftDirectiveNode;
+}
+
+function isAngularDirectiveNode(value: unknown): value is AngularDirectiveNode {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'type' in value &&
+    typeof (value as { type?: unknown }).type === 'function'
+  );
 }
 
 type AngularDirectiveWithDefinition = Type<unknown> & {
@@ -154,16 +164,32 @@ function applyAngularDirective(
     ? props['directives']
     : [];
 
+  return appendAngularDirective(
+    node,
+    {
+      type: directive,
+      ...(Object.keys(inputs).length ? { inputs } : {}),
+    },
+    props,
+  );
+}
+
+function appendAngularDirective(
+  node: ElementNode,
+  directive: AngularDirectiveNode,
+  props: Readonly<Record<string, unknown>> = node.props,
+): ElementNode {
+  const directives = Array.isArray(props['directives'])
+    ? props['directives']
+    : [];
+
   return withPipe({
     ...node,
     props: {
       ...props,
       directives: [
         ...(directives as readonly AngularDirectiveNode[]),
-        {
-          type: directive,
-          ...(Object.keys(inputs).length ? { inputs } : {}),
-        },
+        directive,
       ],
     },
   });
@@ -171,7 +197,7 @@ function applyAngularDirective(
 
 export function pipeCraftNode(
   node: ElementNode | CraftDirectiveNode,
-  directive: CraftDirective | Type<unknown>,
+  directive: CraftDirective | AngularDirectiveNode | Type<unknown>,
 ): CraftNode {
   if (!isCraftDirective(directive)) {
     if (node.kind === 'directive') {
@@ -181,7 +207,9 @@ export function pipeCraftNode(
       });
     }
 
-    return applyAngularDirective(node, directive);
+    return isAngularDirectiveNode(directive)
+      ? appendAngularDirective(node, directive)
+      : applyAngularDirective(node, directive);
   }
 
   if (node.kind === 'directive') {
