@@ -1112,7 +1112,8 @@ type CraftRouteUxFields = {
   pendingMinMs?: number;
   reactiveGuards?: boolean;
   /**
-   * Opt this route into the {@link CraftRouterOutlet}-driven view transition by
+   * Opt this route into the {@link CraftRouterOutletController}-driven view
+   * transition by
    * declaring the shared-element payload shape via `viewTransitionPayload<T>()`.
    * It makes a typed `viewTransition: T | null` payload REQUIRED on every
    * `craftRouterLink` / `navigate` targeting this route (surfaced via the slim

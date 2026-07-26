@@ -4,7 +4,6 @@ import {
   Component,
   EnvironmentInjector,
   signal,
-  type Type,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
@@ -27,7 +26,8 @@ import { CRAFT_GLOBAL_ERROR } from './craft-route-exceptions';
 import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
 import {
   CRAFT_ROUTE_CHAIN_RUNNER,
-  CraftRouterOutlet,
+  createCraftRouterOutletController,
+  type CraftRouterOutletController,
   resolveComponentInput,
 } from './craft-router-outlet';
 import {
@@ -107,7 +107,10 @@ describe('CraftRouterOutlet', () => {
   };
   let runner: ReturnType<typeof vi.fn>;
 
-  function setup(): { outlet: CraftRouterOutlet; router: Router } {
+  function setup(): {
+    outlet: CraftRouterOutletController;
+    router: Router;
+  } {
     let resolve!: (outcome: RouteChainOutcome) => void;
     const promise = new Promise<RouteChainOutcome>((r) => (resolve = r));
     deferred = { promise, resolve };
@@ -120,16 +123,16 @@ describe('CraftRouterOutlet', () => {
       ],
     });
 
-    const fixture = TestBed.createComponent(CraftRouterOutlet);
-    fixture.detectChanges();
     return {
-      outlet: fixture.componentInstance,
+      outlet: TestBed.runInInjectionContext(() =>
+        createCraftRouterOutletController(),
+      ),
       router: TestBed.inject(Router),
     };
   }
 
   function activate(
-    outlet: CraftRouterOutlet,
+    outlet: CraftRouterOutletController,
     meta: CraftRouteMeta | undefined,
   ) {
     outlet.activateWith(makeRoute(meta), TestBed.inject(EnvironmentInjector));
@@ -391,7 +394,7 @@ describe('CraftRouterOutlet (view transitions)', () => {
   let vtCalls: Array<() => void>;
 
   function setup(opts: { skipBlank?: boolean } = {}): {
-    outlet: CraftRouterOutlet;
+    outlet: CraftRouterOutletController;
   } {
     let resolve!: (outcome: RouteChainOutcome) => void;
     const promise = new Promise<RouteChainOutcome>((r) => (resolve = r));
@@ -418,12 +421,14 @@ describe('CraftRouterOutlet (view transitions)', () => {
       ],
     });
 
-    const fixture = TestBed.createComponent(CraftRouterOutlet);
-    fixture.detectChanges();
-    return { outlet: fixture.componentInstance };
+    return {
+      outlet: TestBed.runInInjectionContext(() =>
+        createCraftRouterOutletController(),
+      ),
+    };
   }
 
-  function activate(outlet: CraftRouterOutlet, meta: CraftRouteMeta) {
+  function activate(outlet: CraftRouterOutletController, meta: CraftRouteMeta) {
     outlet.activateWith(makeRoute(meta), TestBed.inject(EnvironmentInjector));
   }
 

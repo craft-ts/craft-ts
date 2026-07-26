@@ -1,8 +1,9 @@
 import {
   a,
-  angular,
   button,
   component,
+  CraftRouterOutlet,
+  directive,
   div,
   each,
   main,
@@ -13,36 +14,46 @@ import {
   BrowserWindow,
   componentMonitoring,
   craftMethod,
-  CraftRouterOutlet,
+  CraftRouterLink,
   GlobalPersisterHandlerServiceToYield,
   provideHostName,
+  type CraftRouterLinkInput,
 } from '@craft-ng/core';
 
 const LINKS = [
-  ['Functional Components', '/'],
-  ['Query', '/query/1'],
-  ['Slow Page', '/slow-page'],
-  ['View Transitions', '/view-transitions'],
-  ['Mutation', '/mutation/1'],
-  ['List with Pagination', '/list-with-pagination'],
-  ['Granular Mutation', '/granular-mutation'],
-  ['Full Demo', '/full-demo'],
-  ['Pixel Art', '/pixel-art'],
-  ['Pixel Art Matrix', '/pixel-art-matrix'],
-  ['Exceptions', '/exceptions'],
-  ['Login Form', '/login-form'],
-  ['Exception QueryParams', '/exception-query-params'],
-  ['Craft Query', '/craft/query/1'],
-  ['Craft Mutation', '/craft/mutation/1'],
-  ['Craft List Pagination', '/craft/list-with-pagination'],
-  ['Craft Granular Mutation', '/craft/granular-mutation'],
-  ['Craft Full Demo', '/craft/full-demo'],
-  ['Craft Lazy Layout', '/craft/lazy-layout/100/users/42'],
-  ['craftService Counter', '/craft-service/counter'],
-  ['craftService User Detail', '/craft-service/user-detail'],
-  ['Demo Send Context', '/demo-send-context'],
-  ['Guard demo', '/guard-demo'],
-] as const;
+  ['Functional Components', { to: '' }],
+  ['Query', { to: 'query/:userId', params: { userId: '1' } }],
+  ['Slow Page', { to: 'slow-page' }],
+  ['View Transitions', { to: 'view-transitions' }],
+  ['Mutation', { to: 'mutation/:userId', params: { userId: '1' } }],
+  ['List with Pagination', { to: 'list-with-pagination' }],
+  ['Granular Mutation', { to: 'granular-mutation' }],
+  ['Full Demo', { to: 'full-demo' }],
+  ['Pixel Art', { to: 'pixel-art' }],
+  ['Pixel Art Matrix', { to: 'pixel-art-matrix' }],
+  ['Exceptions', { to: 'exceptions' }],
+  ['Login Form', { to: 'login-form' }],
+  ['Exception QueryParams', { to: 'exception-query-params' }],
+  ['Craft Query', { to: 'craft/query/:userId', params: { userId: '1' } }],
+  [
+    'Craft Mutation',
+    { to: 'craft/mutation/:userId', params: { userId: '1' } },
+  ],
+  ['Craft List Pagination', { to: 'craft/list-with-pagination' }],
+  ['Craft Granular Mutation', { to: 'craft/granular-mutation' }],
+  ['Craft Full Demo', { to: 'craft/full-demo' }],
+  [
+    'Craft Lazy Layout',
+    {
+      to: 'craft/lazy-layout/:teamId/users/:userId',
+      params: { teamId: '100', userId: '42' },
+    },
+  ],
+  ['craftService Counter', { to: 'craft-service/counter' }],
+  ['craftService User Detail', { to: 'craft-service/user-detail' }],
+  ['Demo Send Context', { to: 'demo-send-context' }],
+  ['Guard demo', { to: 'guard-demo' }],
+] as const satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
 export const App = component(
   {
@@ -70,11 +81,23 @@ export const App = component(
     div({ class: 'app-container' }, [
       nav(
         { class: 'tabs' },
-        each(LINKS, { track: ([, href]) => href }, ([label, href]) =>
-          a({ href }, label),
+        each(
+          LINKS,
+          { track: ([, link]) => link.to },
+          ([label, link]) =>
+            a(
+              {
+                directives: [
+                  directive(CraftRouterLink, {
+                    inputs: { craftRouterLink: link },
+                  }),
+                ],
+              },
+              label,
+            ),
         ),
       ),
-      main({ class: 'content' }, angular(CraftRouterOutlet)),
+      main({ class: 'content' }, CraftRouterOutlet()),
       button(
         { class: 'clear-cache-btn', click: () => void clearCache() },
         '🗑️ Clear Cache',

@@ -1,6 +1,7 @@
 import { button, component, div, h, p, type Input } from '@craft-ng/component';
 import {
   componentMonitoring,
+  Console,
   craftMethod,
   CraftRouterToYield,
   insertLocalStoragePersister,
@@ -16,11 +17,22 @@ const GlobalQuery = component(
   },
   function* (userId: Input<string | undefined>) {
     componentMonitoring();
+    yield* Console.info('[query-demo] route input received', {
+      userId: userId(),
+    });
     const userQuery = yield* query(
       {
         params: userId,
         loader: function* ({ params }) {
-          return yield* ApiServiceToYield.getItemById(params);
+          yield* Console.info('[query-demo] loader started', {
+            inputUserId: userId(),
+            params,
+          });
+          const userPromise = yield* ApiServiceToYield.getItemById(params);
+          yield* Console.info('[query-demo] loader request created', {
+            params,
+          });
+          return userPromise;
         },
       },
       insertLocalStoragePersister({
@@ -28,15 +40,22 @@ const GlobalQuery = component(
         key: 'user-query',
       }),
     );
-    const navigate = (offset: number) =>
-      craftMethod('navigate', function* () {
-        yield* CraftRouterToYield.navigate({
-          to: 'query/:userId',
-          params: {
-            userId: String(Number(userId() ?? '0') + offset),
-          },
-        });
-      })();
+    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+      navigate,
+    }));
+    const navigate = craftMethod('navigate', function* (offset: number) {
+      const currentUserId = userId();
+      const targetUserId = String(Number(currentUserId ?? '0') + offset);
+      yield* Console.info('[query-demo] navigation requested', {
+        currentUserId,
+        offset,
+        targetUserId,
+      });
+      void router.navigate({
+        to: 'query/:userId',
+        params: { userId: targetUserId },
+      });
+    });
     return { userQuery, navigate };
   },
   ({ userQuery, navigate }) => [

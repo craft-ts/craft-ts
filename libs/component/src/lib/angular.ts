@@ -1,10 +1,11 @@
-import type { Type } from '@angular/core';
+import type { Injector, Type } from '@angular/core';
 import type {
   AngularComponentNode,
   AngularDirectiveNode,
 } from './render/vnode';
 
 export interface AngularMountOptions {
+  readonly injector?: Injector;
   readonly inputs?: Readonly<Record<string, unknown>>;
   readonly outputs?: Readonly<Record<string, (value: unknown) => unknown>>;
   readonly directives?: readonly AngularDirectiveNode[];
@@ -17,6 +18,7 @@ export function angular(
   return {
     kind: 'angular',
     component,
+    injector: options.injector,
     inputs: options.inputs ?? {},
     outputs: options.outputs ?? {},
     directives: options.directives ?? [],

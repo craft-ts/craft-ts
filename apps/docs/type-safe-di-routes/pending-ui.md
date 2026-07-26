@@ -1,22 +1,22 @@
 # Non-blocking Navigation & Pending UI
 
-`CraftRouterOutlet` replaces `<router-outlet>` with **non-blocking** navigation :
+`CraftRouterOutlet()` replaces `<router-outlet>` with **non-blocking** navigation :
 the URL commits immediately, a pending component appears only if the guard/resolve chain is slow,
 and the target component is mounted **only on success** — never while an exception is being
 resolved.
 
 ## Setup
 
-Use the outlet wherever you would use `<router-outlet>`:
+Call the outlet inside a Craft component tree:
 
 ```ts
-import { CraftRouterOutlet } from '@craft-ng/core';
+import { component, CraftRouterOutlet, main } from '@craft-ng/component';
 
-@Component({
-  imports: [CraftRouterOutlet /* … */],
-  template: `<craft-router-outlet></craft-router-outlet>`,
-})
-export class App {}
+export const App = component(
+  {},
+  () => ({}),
+  () => main(CraftRouterOutlet()),
+);
 ```
 
 Routes with no craft guard/resolve render immediately, exactly like `<router-outlet>`.

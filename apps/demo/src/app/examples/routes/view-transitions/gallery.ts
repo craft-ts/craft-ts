@@ -30,15 +30,14 @@ const ViewTransitionsGalleryComponent = component(
     componentMonitoring();
     const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
       navigate,
-    }));
-    const open = (photoId: string) =>
-      craftMethod('open', function* () {
-        void router.navigate({
-          to: 'view-transitions/:photoId',
-          params: { photoId },
-          viewTransition: { name: `photo-${photoId}`, image: null },
-        });
-      })();
+    })); // todo move directly on open
+    const open = craftMethod('open', function* (photoId: string) {
+      void router.navigate({
+        to: 'view-transitions/:photoId',
+        params: { photoId },
+        viewTransition: { name: `photo-${photoId}`, image: null },
+      });
+    });
     return { open };
   },
   ({ open }) => [

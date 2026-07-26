@@ -128,7 +128,8 @@ function defaultStartViewTransition(cb: () => void): void {
 }
 
 /**
- * Hands the {@link CraftRouterOutlet} control of the browser View Transitions
+ * Hands the {@link CraftRouterOutletController} control of the browser View
+ * Transitions
  * API. Unlike Angular's `withViewTransitions()` — which brackets only the
  * synchronous URL commit — this drives `document.startViewTransition()` around
  * the outlet's *own* swaps (`previous page → skeleton → target`), so a

@@ -9,7 +9,8 @@ import type { StripCraftException } from './craft-exception';
  *
  * Like the guards, it carries no inline exception handling — any `craftException`
  * it produces flows into the route's exhaustive `handleExceptions` map, and the
- * non-blocking {@link CraftRouterOutlet} drives it after the URL commits (so the
+ * non-blocking {@link CraftRouterOutletController} drives it after the URL
+ * commits (so the
  * target is rendered only once the data resolves).
  *
  * ```ts

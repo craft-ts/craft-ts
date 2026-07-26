@@ -12,7 +12,8 @@ import {
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 
 /**
- * The non-blocking router outlet ({@link CraftRouterOutlet}) commits the URL
+ * The non-blocking router outlet ({@link CraftRouterOutletController}) commits
+ * the URL
  * immediately, then runs the route's guard/resolve chain through three phases
  * while it is in flight:
  *
@@ -252,7 +253,7 @@ export function withErrorComponent(
 }
 
 /**
- * Configures the {@link CraftRouterOutlet} pending/error surface.
+ * Configures the {@link CraftRouterOutletController} pending/error surface.
  *
  * ```ts
  * provideCraftLoading(

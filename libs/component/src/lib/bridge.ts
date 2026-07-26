@@ -24,6 +24,7 @@ import {
   type MountedCraftComponent,
 } from './render/interpreter';
 import type { CraftComponent, PropsOf } from './types';
+import { combineLatest, type Subscription } from 'rxjs';
 
 export type CraftMountRef<Props extends object> = MountedCraftComponent<Props>;
 
@@ -91,6 +92,7 @@ export class CraftRoutedComponentHost implements OnDestroy {
   });
   private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly mounted: CraftMountRef<object>;
+  private readonly routeSubscription: Subscription | undefined;
 
   constructor() {
     const component =
@@ -113,9 +115,23 @@ export class CraftRoutedComponentHost implements OnDestroy {
         ...this.route?.snapshot.data,
       },
     );
+    this.routeSubscription = this.route
+      ? combineLatest([
+          this.route.params,
+          this.route.queryParams,
+          this.route.data,
+        ]).subscribe(([params, queryParams, data]) => {
+          this.mounted.updateProps({
+            ...params,
+            ...queryParams,
+            ...data,
+          });
+        })
+      : undefined;
   }
 
   ngOnDestroy(): void {
+    this.routeSubscription?.unsubscribe();
     this.mounted?.destroy();
   }
 }

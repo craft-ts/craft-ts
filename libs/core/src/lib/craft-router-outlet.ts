@@ -1,8 +1,6 @@
-import { NgComponentOutlet } from '@angular/common';
 import {
   ApplicationRef,
-  ChangeDetectionStrategy,
-  Component,
+  DestroyRef,
   effect,
   EnvironmentInjector,
   inject,
@@ -11,8 +9,6 @@ import {
   runInInjectionContext,
   signal,
   type EffectRef,
-  type OnDestroy,
-  type OnInit,
   type Signal,
   type Type,
   type WritableSignal,
@@ -94,29 +90,13 @@ export const CRAFT_ROUTE_CHAIN_RUNNER = new InjectionToken<
  * global error component / stay / noop), and keeps `canActivate` under reactive
  * observation while active (live guards).
  *
- * A single `ngComponentOutlet` bound to {@link displayedComponent} drives the
- * view: during `'stay'` it is left pointing at the previous page's live instance,
- * so that instance is preserved (not re-created) across the transition.
+ * A renderer bound to {@link displayedComponent} drives the view: during
+ * `'stay'` it is left pointing at the previous page's live instance, so that
+ * instance is preserved (not re-created) across the transition.
  *
  * Routes without craft meta render immediately, exactly like `<router-outlet>`.
  */
-@Component({
-  selector: 'craft-router-outlet',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet],
-  template: `
-    @if (displayedComponent()) {
-      <ng-container
-        [ngComponentOutlet]="displayedComponent()"
-        [ngComponentOutletInjector]="displayedInjector()"
-      />
-    }
-  `,
-})
-export class CraftRouterOutlet
-  implements RouterOutletContract, OnInit, OnDestroy
-{
+export class CraftRouterOutletController implements RouterOutletContract {
   /** Outlet name (matches `<router-outlet name>`); default `'primary'`. */
   name = 'primary';
 
@@ -124,6 +104,7 @@ export class CraftRouterOutlet
   private readonly rootInjector = inject(EnvironmentInjector);
   private readonly router = inject(Router);
   private readonly appRef = inject(ApplicationRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly defaultPendingComponent = inject(CRAFT_PENDING_COMPONENT);
   private readonly defaultErrorComponent = inject(CRAFT_ERROR_COMPONENT);
@@ -190,7 +171,7 @@ export class CraftRouterOutlet
     return this._activatedRoute?.snapshot.data ?? {};
   }
 
-  ngOnInit(): void {
+  constructor() {
     this.parentContexts.onChildOutletCreated(this.name, this);
 
     // The route may already be activated (outlet created after navigation).
@@ -198,9 +179,11 @@ export class CraftRouterOutlet
     if (context?.route) {
       this.activateWith(context.route, context.injector);
     }
+
+    this.destroyRef.onDestroy(() => this.destroy());
   }
 
-  ngOnDestroy(): void {
+  destroy(): void {
     this.teardown();
     this.parentContexts.onChildOutletDestroyed(this.name);
   }
@@ -639,6 +622,14 @@ export class CraftRouterOutlet
   }
 }
 
+/**
+ * Creates and registers the non-blocking outlet controller in the current
+ * injection context. Its lifetime follows that context through `DestroyRef`.
+ */
+export function createCraftRouterOutletController(): CraftRouterOutletController {
+  return new CraftRouterOutletController();
+}
+
 // --- pure helpers (testable, no Angular) ---
 
 /** Resolves an eager or lazy exception component descriptor. */
@@ -675,7 +666,7 @@ function isLazyPendingComponent(
 
 /** Reads the current outlet render state (used by tooling/tests). */
 export function craftOutletStateOf(
-  outlet: CraftRouterOutlet,
+  outlet: CraftRouterOutletController,
 ): Signal<CraftOutletState> {
   return outlet.state;
 }

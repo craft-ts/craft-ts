@@ -1,4 +1,4 @@
-import type { Type } from '@angular/core';
+import type { Injector, Type } from '@angular/core';
 import type { CraftComponent } from '../types';
 
 export type CraftTextValue = string | number | bigint | boolean;
@@ -31,6 +31,7 @@ export interface AngularDirectiveNode {
 export interface AngularComponentNode {
   readonly kind: 'angular';
   readonly component: Type<unknown>;
+  readonly injector?: Injector;
   readonly inputs: Readonly<Record<string, unknown>>;
   readonly outputs: Readonly<Record<string, (value: unknown) => unknown>>;
   readonly directives: readonly AngularDirectiveNode[];

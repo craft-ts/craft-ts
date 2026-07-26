@@ -90,6 +90,15 @@ export default defineConfig({
         items: [{ text: 'Overview', link: '/forms/index' }],
       },
       {
+        text: 'Component',
+        items: [
+          {
+            text: 'Directives et .pipe(...)',
+            link: '/component/directives',
+          },
+        ],
+      },
+      {
         text: 'Service',
         items: [
           { text: 'craftService', link: '/store/craft-service' },

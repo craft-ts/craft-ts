@@ -11,7 +11,8 @@ import type {
 
 /**
  * Symbol key under which `craftRoutes` stashes a route's craft-only execution
- * metadata onto the Angular `Route.data`. The {@link CraftRouterOutlet} reads it
+ * metadata onto the Angular `Route.data`. The
+ * {@link CraftRouterOutletController} reads it
  * to drive the route's guard/resolve chain *after* the URL commits; it is never
  * a real `data` value the component sees.
  */

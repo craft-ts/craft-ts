@@ -36,18 +36,17 @@ const GlobalQuery = component(
   function* (userId: Input<string | undefined>) {
     componentMonitoring();
     const user = yield* UserQueryToYield({ userId: () => userId() });
-    const navigate = (offset: number) =>
-      craftMethod('navigate', function* () {
-        const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
-          navigate,
-        }));
-        void router.navigate({
-          to: 'craft/query/:userId',
-          params: {
-            userId: String(Number(userId() ?? '0') + offset),
-          },
-        });
-      })();
+    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+      navigate,
+    }));
+    const navigate = craftMethod('navigate', function* (offset: number) {
+      void router.navigate({
+        to: 'craft/query/:userId',
+        params: {
+          userId: String(Number(userId() ?? '0') + offset),
+        },
+      });
+    });
     return { user, navigate };
   },
   ({ user, navigate }) => [

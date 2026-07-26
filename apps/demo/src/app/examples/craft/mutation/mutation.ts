@@ -88,16 +88,15 @@ const MutationCraft = component(
         }
       },
     );
-    const navigate = (offset: number) =>
-      craftMethod('navigate', function* () {
-        const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
-          navigate,
-        }));
-        void router.navigate({
-          to: 'craft/mutation/:userId',
-          params: { userId: String(Number(userId() ?? '0') + offset) },
-        });
-      })();
+    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+      navigate,
+    }));
+    const navigate = craftMethod('navigate', function* (offset: number) {
+      void router.navigate({
+        to: 'craft/mutation/:userId',
+        params: { userId: String(Number(userId() ?? '0') + offset) },
+      });
+    });
     return { store, updateUserNameFn, navigate };
   },
   ({ store, updateUserNameFn, navigate }) => {

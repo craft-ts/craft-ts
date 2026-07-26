@@ -127,7 +127,8 @@ Notes:
 - `appRoutes.toRoutes()` gives Angular the real runtime routes.
 - `appRoutes.META_DATA` gives `craftAppConfig(...)` the compile-time route dependency graph.
 - For **non-blocking navigation** (immediate URL commit, pending UI, centralised exception
-  handling), render `<craft-router-outlet>` instead of `<router-outlet>` and use
+  handling), render `CraftRouterOutlet()` from `@craft-ng/component` inside a
+  Craft component tree instead of `<router-outlet>`, and use
   `provideCraftRouter(...)` instead of `provideRouter(...)` — it accepts Angular router features
   **and** craft loading features (`withErrorComponent`, `withRouteLoadError`,
   `withTransitionTimings`, …) in one call,

@@ -16,6 +16,7 @@ import {
 import { TestBed } from '@angular/core/testing';
 import {
   ActivatedRoute,
+  ChildrenOutletContexts,
   provideRouter,
 } from '@angular/router';
 import {
@@ -30,8 +31,8 @@ import {
   it,
   vi,
 } from 'vitest';
+import { BehaviorSubject } from 'rxjs';
 import {
-  CraftRouterOutlet,
   craftService,
 } from '@craft-ng/core';
 import {
@@ -45,6 +46,7 @@ import {
   directive,
 } from '../angular';
 import { component } from '../component';
+import { CraftRouterOutlet } from '../craft-router-outlet';
 import { defer } from '../defer';
 import { each } from '../each';
 import {
@@ -194,6 +196,25 @@ describe('functional component interpreter', () => {
     TestBed.tick();
 
     expect(element.textContent).toBe('Bonjour Ada');
+  });
+
+  it('preserves an intermediate parent injector for nested Craft components', () => {
+    const routeMarker = new InjectionToken<string>('route-marker');
+    const routed = component(
+      {},
+      () => ({ routeMarker: inject(routeMarker) }),
+      ({ routeMarker }) => p(routeMarker),
+    );
+    const routeInjector = Injector.create({
+      providers: [{ provide: routeMarker, useValue: 'nested route' }],
+      parent: TestBed.inject(EnvironmentInjector),
+    });
+    const element = host();
+
+    mountCraftComponent(routed, element, routeInjector);
+    TestBed.tick();
+
+    expect(element.textContent).toBe('nested route');
   });
 
   it('mounts selectorless children by lexical component reference', () => {
@@ -425,9 +446,21 @@ describe('functional component interpreter', () => {
     TestBed.configureTestingModule({
       providers: [provideRouter([]), provideCraftComponent(routed)],
     });
-    const fixture = TestBed.createComponent(CraftRouterOutlet);
+    const element = host();
+    mountCraftComponent(
+      CraftRouterOutlet,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    const params = new BehaviorSubject({ userId: '42' });
+    const queryParams = new BehaviorSubject({});
+    const data = new BehaviorSubject({});
     const activatedRoute = {
       component: CraftRoutedComponentHost,
+      data,
+      params,
+      queryParams,
       snapshot: {
         component: CraftRoutedComponentHost,
         data: {},
@@ -437,16 +470,70 @@ describe('functional component interpreter', () => {
       },
     } as unknown as ActivatedRoute;
 
-    fixture.componentInstance.activateWith(
+    const outlet =
+      TestBed.inject(ChildrenOutletContexts).getContext('primary')?.outlet;
+    expect(outlet).toBeDefined();
+    outlet?.activateWith(
       activatedRoute,
       TestBed.inject(EnvironmentInjector),
     );
-    fixture.detectChanges();
     TestBed.tick();
 
     expect(
-      fixture.nativeElement.querySelector('.route-user-id')?.textContent,
+      element.querySelector('.route-user-id')?.textContent,
     ).toBe('42');
+
+    params.next({ userId: '43' });
+    TestBed.tick();
+
+    expect(
+      element.querySelector('.route-user-id')?.textContent,
+    ).toBe('43');
+  });
+
+  it('activates a functional outlet from an inherited child route context', () => {
+    const routed = component(
+      {},
+      (userId: Input<string>) => ({ userId }),
+      ({ userId }) => p({ class: 'nested-route-user-id' }, userId()),
+    );
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideCraftComponent(routed)],
+    });
+    const data = new BehaviorSubject({});
+    const params = new BehaviorSubject({ userId: '84' });
+    const queryParams = new BehaviorSubject({});
+    const activatedRoute = {
+      component: CraftRoutedComponentHost,
+      data,
+      params,
+      queryParams,
+      snapshot: {
+        component: CraftRoutedComponentHost,
+        data: {},
+        params: { userId: '84' },
+        queryParams: {},
+        routeConfig: { component: CraftRoutedComponentHost },
+      },
+    } as unknown as ActivatedRoute;
+    const childContexts = new ChildrenOutletContexts(
+      TestBed.inject(EnvironmentInjector),
+    );
+    childContexts.getOrCreateContext('primary').route = activatedRoute;
+    const nestedRouteInjector = Injector.create({
+      providers: [
+        { provide: ChildrenOutletContexts, useValue: childContexts },
+      ],
+      parent: TestBed.inject(EnvironmentInjector),
+    });
+    const element = host();
+
+    mountCraftComponent(CraftRouterOutlet, element, nestedRouteInjector);
+    TestBed.tick();
+
+    expect(
+      element.querySelector('.nested-route-user-id')?.textContent,
+    ).toBe('84');
   });
 
   it('mounts a lazily loaded functional component without an eager provider', async () => {

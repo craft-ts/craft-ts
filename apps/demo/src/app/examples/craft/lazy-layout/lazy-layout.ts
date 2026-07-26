@@ -1,7 +1,7 @@
 import {
-  angular,
   article,
   component,
+  CraftRouterOutlet,
   div,
   h1,
   h2,
@@ -14,7 +14,6 @@ import {
 } from '@craft-ng/component';
 import {
   componentMonitoring,
-  CraftRouterOutlet,
   provideHostName,
 } from '@craft-ng/core';
 
@@ -42,7 +41,7 @@ const LazyLayoutComponent = component(
           p([strong('Parent route input: '), teamId()]),
           p([strong('Parent route data: '), someParentRouteData()]),
         ]),
-        angular(CraftRouterOutlet),
+        CraftRouterOutlet(),
       ]),
     ]),
 );

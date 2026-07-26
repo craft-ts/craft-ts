@@ -96,17 +96,19 @@ class AngularMount {
   constructor(
     component: Type<unknown>,
     hostElement: Element,
+    injector: Injector | undefined,
     inputs: Readonly<Record<string, unknown>>,
     outputs: Readonly<Record<string, (value: unknown) => unknown>>,
     directives: readonly AngularDirectiveNode[],
     context: RenderContext,
   ) {
+    const elementInjector = injector ?? context.injector;
     this.descriptorSource = signal({ inputs, outputs, directives });
     this.directiveSource = signal(directives);
     this.applicationRef = context.injector.get(ApplicationRef);
     this.componentRef = createComponent(component, {
-      environmentInjector: context.injector.get(EnvironmentInjector),
-      elementInjector: context.injector,
+      environmentInjector: elementInjector.get(EnvironmentInjector),
+      elementInjector,
       hostElement,
       bindings: angularBindings(
         () => this.descriptorSource().inputs,
@@ -498,6 +500,7 @@ class ElementRenderedNode implements RenderedNode {
         ? new AngularMount(
             CraftAngularDirectiveHost,
             this.node,
+            undefined,
             {},
             {},
             directives,
@@ -738,6 +741,7 @@ class AngularRenderedNode implements RenderedNode {
     this.mount = new AngularMount(
       node.component,
       this.hostElement,
+      node.injector,
       node.inputs,
       node.outputs,
       node.directives,
@@ -757,6 +761,7 @@ class AngularRenderedNode implements RenderedNode {
     if (
       node.kind !== 'angular' ||
       node.component !== this.node.component ||
+      node.injector !== this.node.injector ||
       !sameDirectives(node.directives, this.node.directives)
     ) {
       return false;
@@ -789,10 +794,15 @@ class ComponentRenderedNode implements RenderedNode {
     hostTarget?: Element,
   ) {
     const definition = component[CRAFT_COMPONENT];
-    const parentEnvironment = context.injector.get(EnvironmentInjector);
     const componentElement =
       hostTarget ??
       (parent instanceof Element ? parent : parent.parentElement);
+    // Angular's runtime accepts any Injector as the R3Injector parent even
+    // though the public helper narrows the type to EnvironmentInjector. Keep
+    // the immediate parent here: unwrapping it through
+    // `get(EnvironmentInjector)` would skip route-scoped providers such as
+    // ActivatedRoute and ChildrenOutletContexts.
+    const parentInjector = context.injector as EnvironmentInjector;
     this.environmentInjector = createEnvironmentInjector(
       [
         ...(definition.meta.providers ?? []),
@@ -801,7 +811,7 @@ class ComponentRenderedNode implements RenderedNode {
           useValue: new ElementRef(componentElement),
         },
       ],
-      parentEnvironment,
+      parentInjector,
       'CraftComponent',
     );
     this.propKeys = Object.keys(props);
