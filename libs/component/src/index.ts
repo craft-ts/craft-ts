@@ -7,6 +7,7 @@ export * from './lib/defer';
 export * from './lib/each';
 export * from './lib/hyperscript';
 export * from './lib/render/style-registry';
+export * from './lib/testing';
 export type {
   ComponentFactory,
   ComponentTemplate,
@@ -22,6 +23,7 @@ export type {
   TemplateDecorator,
   ComponentMeta,
   DirectiveMeta,
+  CraftDirectiveTemplateDependencies,
 } from './lib/types';
 export type {
   CraftNode,

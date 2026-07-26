@@ -19,7 +19,11 @@ import {
   type EffectRef,
   type Type,
 } from '@angular/core';
-import { craftEffect, craftLazy } from '@craft-ng/core';
+import {
+  craftEffect,
+  craftLazy,
+  type CraftServiceProvider,
+} from '@craft-ng/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import { CraftAngularDirectiveHost } from '../angular-host';
 import {
@@ -981,6 +985,8 @@ class ComponentRenderedNode implements RenderedNode {
   private readonly view: FragmentRenderedNode;
   private readonly effectRef: EffectRef;
   private readonly styleReleases: (() => void)[];
+  private readonly templateOnly: boolean;
+  private factoryContext: unknown;
 
   constructor(
     private component: CraftComponent<object>,
@@ -989,7 +995,10 @@ class ComponentRenderedNode implements RenderedNode {
     before: NativeNode | null,
     private readonly context: RenderContext,
     hostTarget?: Element,
+    templateContext?: { readonly value: unknown },
+    additionalProviders: readonly CraftServiceProvider[] = [],
   ) {
+    this.templateOnly = templateContext !== undefined;
     const definition = component[CRAFT_COMPONENT];
     const ownScope = scopeIdFor(definition.scopeDefinition, definition.name);
     this.styleReleases = acquireStyles(
@@ -1016,11 +1025,14 @@ class ComponentRenderedNode implements RenderedNode {
           provide: ElementRef,
           useValue: new ElementRef(componentElement),
         },
+        ...additionalProviders,
       ],
       parentInjector,
       'CraftComponent',
     );
-    this.propKeys = Object.keys(props).filter((key) => !isHostProperty(key));
+    this.propKeys = this.templateOnly
+      ? []
+      : Object.keys(props).filter((key) => !isHostProperty(key));
     this.propSources = this.propKeys.map((key) =>
       signal((props as Record<string, unknown>)[key]),
     );
@@ -1043,12 +1055,15 @@ class ComponentRenderedNode implements RenderedNode {
       };
     });
 
-    const factoryContext = executeCraftComponentFactory(
-      definition.factory,
-      args,
-      this.environmentInjector,
-    );
+    const factoryContext = this.templateOnly
+      ? templateContext?.value
+      : executeCraftComponentFactory(
+          definition.factory,
+          args,
+          this.environmentInjector,
+        );
     if (
+      !this.templateOnly &&
       typeof factoryContext === 'object' &&
       factoryContext !== null &&
       'then' in factoryContext
@@ -1057,6 +1072,7 @@ class ComponentRenderedNode implements RenderedNode {
         'Async component factories are not renderable directly. Move asynchronous work behind defer().',
       );
     }
+    this.factoryContext = factoryContext;
 
     this.view = createFragment(
       parent,
@@ -1077,7 +1093,7 @@ class ComponentRenderedNode implements RenderedNode {
             this.hostPropsSource(),
           );
           this.view.patchChildren(
-            definition.template(factoryContext, hostProps),
+            definition.template(this.factoryContext, hostProps),
           );
           if (hostTarget) {
             applyHostProperties(context.renderer, hostTarget, hostProps);
@@ -1111,11 +1127,29 @@ class ComponentRenderedNode implements RenderedNode {
   }
 
   updateProps(props: object): void {
+    if (this.templateOnly) {
+      return;
+    }
+
     this.patch({
       kind: 'component',
       component: this.component,
       props,
     });
+  }
+
+  updateContext(context: unknown): void {
+    if (!this.templateOnly) {
+      throw new Error('Cannot update the context of a logic-backed component.');
+    }
+
+    this.factoryContext = context;
+    const definition = this.component[CRAFT_COMPONENT];
+    const hostProps = mergeHostProps(
+      definition.meta.host ?? {},
+      this.hostPropsSource(),
+    );
+    this.view.patchChildren(definition.template(context, hostProps));
   }
 
   destroy(): void {
@@ -1368,6 +1402,11 @@ export interface MountedCraftComponent<Props extends object> {
   destroy(): void;
 }
 
+export interface MountedCraftTemplate<Context> {
+  updateContext(context: Context): void;
+  destroy(): void;
+}
+
 export function mountInterpretedComponent<Props extends object>(
   component: CraftComponent<Props>,
   host: Element,
@@ -1394,6 +1433,42 @@ export function mountInterpretedComponent<Props extends object>(
   return {
     updateProps(nextProps) {
       instance.updateProps(nextProps);
+    },
+    destroy() {
+      instance.destroy();
+    },
+  };
+}
+
+export function mountInterpretedComponentTemplate<Context>(
+  component: CraftComponent<any>,
+  host: Element,
+  injector: Injector,
+  context: Context,
+  additionalProviders: readonly CraftServiceProvider[] = [],
+): MountedCraftTemplate<Context> {
+  const renderer = injector.get(RendererFactory2).createRenderer(host, null);
+  const rootNode = host.getRootNode();
+  const styleRoot: Document | ShadowRoot =
+    (typeof Document !== 'undefined' && rootNode instanceof Document) ||
+    (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
+      ? (rootNode as Document | ShadowRoot)
+      : (host.ownerDocument ?? document);
+  const styles = injector.get(CraftStyleRegistry, ɵfallbackCraftStyleRegistry);
+  const instance = new ComponentRenderedNode(
+    component as CraftComponent<object>,
+    {},
+    host,
+    null,
+    { renderer, injector, styleRoot, styles },
+    host,
+    { value: context },
+    additionalProviders,
+  );
+
+  return {
+    updateContext(nextContext) {
+      instance.updateContext(nextContext);
     },
     destroy() {
       instance.destroy();

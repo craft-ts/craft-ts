@@ -92,3 +92,5 @@ export * from './lib/craft-router-outlet';
 export * from './lib/craft-until-settled';
 export * from './lib/mock-http-request-for-route';
 export * from './lib/send-context-to-ai';
+export { CRAFT_SERVICE_PROVIDER_BRAND } from './lib/craft-service.shared';
+export type { FlattenDependencyTree } from './lib/craft-service.shared';
