@@ -27,7 +27,7 @@ import {
 import { craftException, isCraftException } from './craft-exception';
 import {
   craftService,
-  type GetInjectedServiceDependencies,
+  type GetServiceDependencies,
   type GetServiceOutput,
 } from './craft-service';
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';
@@ -74,7 +74,7 @@ describe('CraftHttpClient', () => {
   it('should return a promise of the success type for GET requests with fixed params', async () => {
     type User = { id: string; email: string };
 
-    const { injectUsersApi } = craftService(
+    const { UsersApi } = craftService(
       { name: 'UsersApi', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -92,7 +92,7 @@ describe('CraftHttpClient', () => {
       },
     );
 
-    type UsersApi = GetServiceOutput<typeof injectUsersApi>;
+    type UsersApi = GetServiceOutput<typeof UsersApi>;
     type GetUsersResult = Awaited<ReturnType<UsersApi['getUsers']>>;
 
     expectTypeOf<GetUsersResult>().toEqualTypeOf<
@@ -102,7 +102,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = injectUsersApi();
+      const usersApi = UsersApi();
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne(
@@ -134,7 +134,7 @@ describe('CraftHttpClient', () => {
     type User = { id: string; email: string };
     const createdAfter = new Date('2026-01-01T00:00:00.000Z');
 
-    const { injectUsersFilterApi } = craftService(
+    const { UsersFilterApi } = craftService(
       { name: 'UsersFilterApi', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -160,7 +160,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = injectUsersFilterApi();
+      const usersApi = UsersFilterApi();
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne((pendingRequest) => {
@@ -188,7 +188,7 @@ describe('CraftHttpClient', () => {
   it('should pass a provided HttpParams instance through unchanged', async () => {
     type User = { id: string; email: string };
 
-    const { injectUsersHttpParamsApi } = craftService(
+    const { UsersHttpParamsApi } = craftService(
       { name: 'UsersHttpParamsApi', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -206,7 +206,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = injectUsersHttpParamsApi();
+      const usersApi = UsersHttpParamsApi();
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne(
@@ -226,7 +226,7 @@ describe('CraftHttpClient', () => {
     type User = { id: string; email: string };
     const createdAfter = new Date('2026-01-01T00:00:00.000Z');
 
-    const { injectUsersParamsIdentityApi } = craftService(
+    const { UsersParamsIdentityApi } = craftService(
       { name: 'UsersParamsIdentityApi', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -246,7 +246,7 @@ describe('CraftHttpClient', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const usersApi = injectUsersParamsIdentityApi();
+      const usersApi = UsersParamsIdentityApi();
 
       expect(usersApi.getUsers.params).toEqual({
         search: 'john',
@@ -271,7 +271,7 @@ describe('CraftHttpClient', () => {
       );
     type UsersNotFound = ReturnType<typeof usersNotFound>;
 
-    const { injectUsersApiOnCustomError } = craftService(
+    const { UsersApiOnCustomError } = craftService(
       { name: 'UsersApiOnCustomError', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -294,7 +294,7 @@ describe('CraftHttpClient', () => {
       },
     );
 
-    type UsersApi = GetServiceOutput<typeof injectUsersApiOnCustomError>;
+    type UsersApi = GetServiceOutput<typeof UsersApiOnCustomError>;
     type GetUsersResult = Awaited<ReturnType<UsersApi['getUsers']>>;
     type UsersNotFoundFromHttpResult = Extract<
       GetUsersResult,
@@ -316,7 +316,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = injectUsersApiOnCustomError();
+      const usersApi = UsersApiOnCustomError();
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne('/api/users');
@@ -340,7 +340,7 @@ describe('CraftHttpClient', () => {
   it('should convert unmapped HttpClient failures to CraftHttpClientError', async () => {
     type User = { id: string; email: string };
 
-    const { injectUsersApiOnError } = craftService(
+    const { UsersApiOnError } = craftService(
       { name: 'UsersApiOnError', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -363,7 +363,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = injectUsersApiOnError();
+      const usersApi = UsersApiOnError();
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne('/api/users');
@@ -415,7 +415,7 @@ describe('CraftHttpClient', () => {
       );
     type PasswordRequired = ReturnType<typeof passwordRequired>;
 
-    const { injectAuthApi } = craftService(
+    const { AuthApi } = craftService(
       { name: 'AuthApi', scope: 'global' },
       function* () {
         const login = yield* CraftHttpClient.post(({ response }) => ({
@@ -449,7 +449,7 @@ describe('CraftHttpClient', () => {
       },
     );
 
-    type AuthApi = GetServiceOutput<typeof injectAuthApi>;
+    type AuthApi = GetServiceOutput<typeof AuthApi>;
     type LoginResultUnion = Awaited<ReturnType<AuthApi['login']>>;
     type PasswordRequiredFromHttpResult = Extract<
       LoginResultUnion,
@@ -483,7 +483,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const authApi = injectAuthApi();
+      const authApi = AuthApi();
       const resultPromise = authApi.login();
 
       const request = httpTesting.expectOne('/api/login');
@@ -518,7 +518,7 @@ describe('CraftHttpClient', () => {
         },
       );
 
-    const { injectAuthApiOnBodyRule } = craftService(
+    const { AuthApiOnBodyRule } = craftService(
       { name: 'AuthApiOnBodyRule', scope: 'global' },
       function* () {
         const login = yield* CraftHttpClient.post(({ response }) => ({
@@ -553,7 +553,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const authApi = injectAuthApiOnBodyRule();
+      const authApi = AuthApiOnBodyRule();
       const resultPromise = authApi.login();
 
       const request = httpTesting.expectOne('/api/login');
@@ -586,7 +586,7 @@ describe('CraftHttpClient', () => {
         scope: 'AuthApi',
       });
 
-    const { injectAuthApiOnHeaderRule } = craftService(
+    const { AuthApiOnHeaderRule } = craftService(
       { name: 'AuthApiOnHeaderRule', scope: 'global' },
       function* () {
         const login = yield* CraftHttpClient.post(({ response }) => ({
@@ -619,7 +619,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const authApi = injectAuthApiOnHeaderRule();
+      const authApi = AuthApiOnHeaderRule();
       const resultPromise = authApi.login();
 
       const request = httpTesting.expectOne('/api/login');
@@ -655,7 +655,7 @@ describe('CraftHttpClient', () => {
         scope: 'AuthApi',
       });
 
-    const { injectAuthApiOnRulePriority } = craftService(
+    const { AuthApiOnRulePriority } = craftService(
       { name: 'AuthApiOnRulePriority', scope: 'global' },
       function* () {
         const login = yield* CraftHttpClient.post(({ response }) => ({
@@ -695,7 +695,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const authApi = injectAuthApiOnRulePriority();
+      const authApi = AuthApiOnRulePriority();
       const resultPromise = authApi.login();
 
       const request = httpTesting.expectOne('/api/login');
@@ -719,7 +719,7 @@ describe('CraftHttpClient', () => {
   it('should return a promise of the success type for POST requests with a fixed payload', async () => {
     type User = { id: string; email: string };
 
-    const { injectUsersApiPost } = craftService(
+    const { UsersApiPost } = craftService(
       { name: 'UsersApiPost', scope: 'global' },
       function* () {
         const createUser = yield* CraftHttpClient.post(({ response }) => ({
@@ -739,7 +739,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = injectUsersApiPost();
+      const usersApi = UsersApiPost();
       const resultPromise = usersApi.createUser();
 
       const request = httpTesting.expectOne('/api/users');
@@ -777,7 +777,7 @@ describe('CraftHttpClient', () => {
         );
       type UsersNotFound = ReturnType<typeof usersNotFound>;
 
-      const { injectUsersFeature } = craftService(
+      const { UsersFeature } = craftService(
         { name: 'UsersFeature', scope: 'global' },
         function* () {
           const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -801,8 +801,8 @@ describe('CraftHttpClient', () => {
         },
       );
 
-      type UsersFeatureDependencies = GetInjectedServiceDependencies<
-        typeof injectUsersFeature
+      type UsersFeatureDependencies = GetServiceDependencies<
+        typeof UsersFeature
       >;
       type HttpDependency =
         UsersFeatureDependencies['dependencies']['CraftHttpClient'];
@@ -842,7 +842,7 @@ describe('CraftHttpClient', () => {
   it('should allow mocking CraftHttpClient through a minimal $self override', async () => {
     type User = { id: string; email: string };
 
-    const { injectUsersFeatureForMocks: UsersFeature } = craftService(
+    const { UsersFeatureForMocks: UsersFeature } = craftService(
       { name: 'UsersFeatureForMocks', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -887,7 +887,7 @@ describe('CraftHttpClient', () => {
   it('should expose exception dependencies metadata for each rule', () => {
     type User = { id: string; email: string };
 
-    const { injectUsersFeatureForDependencies } = craftService(
+    const { UsersFeatureForDependencies } = craftService(
       { name: 'UsersFeatureForDependencies', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -942,7 +942,7 @@ describe('CraftHttpClient', () => {
     );
 
     type UsersFeatureForDependencies = GetServiceOutput<
-      typeof injectUsersFeatureForDependencies
+      typeof UsersFeatureForDependencies
     >;
     type GetUsersDependenciesResult = Awaited<
       ReturnType<UsersFeatureForDependencies['getUsers']>
@@ -973,7 +973,7 @@ describe('CraftHttpClient', () => {
     >();
 
     TestBed.runInInjectionContext(() => {
-      const usersFeature = injectUsersFeatureForDependencies();
+      const usersFeature = UsersFeatureForDependencies();
 
       expect(
         getCraftHttpRequestExceptionDependencies(usersFeature.getUsers),

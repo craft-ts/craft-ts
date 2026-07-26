@@ -15,7 +15,7 @@ import {
   componentMonitoring,
   craftMethod,
   CraftRouterLink,
-  GlobalPersisterHandlerServiceToYield,
+  GlobalPersisterHandlerService,
   provideHostName,
   type CraftRouterLinkInput,
 } from '@craft-ng/core';
@@ -70,7 +70,7 @@ export const App = craftComponent(
   () => {
     componentMonitoring();
     const clearCache = craftMethod('clearCache', function* () {
-      const persister = yield* GlobalPersisterHandlerServiceToYield(
+      const persister = yield* GlobalPersisterHandlerService(
         undefined,
         ({ clearAllCache }) => ({ clearAllCache }),
       );

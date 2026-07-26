@@ -19,7 +19,7 @@ import { craftComputed } from './craft-computed';
 import {
   craftService,
   onAppStart,
-  type GetToYieldServiceDependencies,
+  type GetServiceDependencies,
 } from './craft-service';
 
 beforeAll(() => {
@@ -66,7 +66,7 @@ describe('craftComputed', () => {
   });
 
   it('should work with a generator factory that resolves DI deps once', () => {
-    const { MultiplierToYield } = craftService(
+    const { Multiplier } = craftService(
       { name: 'Multiplier', scope: 'function' },
       () => ({ factor: 3 }),
     );
@@ -77,7 +77,7 @@ describe('craftComputed', () => {
       // The host form binds `this` inside the generator (and the computation
       // it returns) to the component instance.
       readonly tripled = craftComputed('tripled', this, function* () {
-        const multiplier = yield* MultiplierToYield();
+        const multiplier = yield* Multiplier();
         return () => this.count() * multiplier.factor;
       });
     }
@@ -107,7 +107,7 @@ describe('craftComputed', () => {
   });
 
   it('should preserve Signal<T> type from plain computation', () => {
-    const { Multiplier4ToYield } = craftService(
+    const { Multiplier4 } = craftService(
       { name: 'Multiplier4', scope: 'function' },
       () => ({ factor: 2 }),
     );
@@ -116,7 +116,7 @@ describe('craftComputed', () => {
       readonly count = signal(0);
       readonly doubled = craftComputed('doubled', () => this.count() * 2);
       readonly tripled = craftComputed('tripled', this, function* () {
-        const m = yield* Multiplier4ToYield();
+        const m = yield* Multiplier4();
         return () => this.count() * m.factor;
       });
     }
@@ -130,7 +130,7 @@ describe('craftComputed', () => {
   });
 
   it('should expose craftComputed dependencies through ExtractDeps', () => {
-    const { Multiplier5ToYield } = craftService(
+    const { Multiplier5 } = craftService(
       { name: 'Multiplier5', scope: 'function' },
       () => ({ factor: 5 }),
     );
@@ -138,13 +138,13 @@ describe('craftComputed', () => {
     class Component {
       readonly count = signal(0);
       readonly value = craftComputed('value', this, function* () {
-        const m = yield* Multiplier5ToYield();
+        const m = yield* Multiplier5();
         return () => this.count() * m.factor;
       });
     }
 
     type ExpectedDeps = {
-      Multiplier5: GetToYieldServiceDependencies<typeof Multiplier5ToYield>;
+      Multiplier5: GetServiceDependencies<typeof Multiplier5>;
     };
     type _Deps = Expect<Equal<ExtractDeps<Component['value']>, ExpectedDeps>>;
   });

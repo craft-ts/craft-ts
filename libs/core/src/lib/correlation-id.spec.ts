@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CORRELATION_ID_SERVICE,
-  CorrelationIdToYield,
+  CorrelationId,
   createCorrelationIdService,
   getCurrentStartCorrelationId,
   injectCorrelationIdService,
@@ -96,7 +96,7 @@ describe('setCurrentStartCorrelationId / getCurrentStartCorrelationId', () => {
   });
 });
 
-describe('CorrelationIdToYield', () => {
+describe('CorrelationId', () => {
   afterEach(() => {
     setCurrentStartCorrelationId(null);
   });
@@ -110,7 +110,7 @@ describe('CorrelationIdToYield', () => {
 
     setCurrentStartCorrelationId('nav-forward:start');
 
-    const iterator = CorrelationIdToYield();
+    const iterator = CorrelationId();
     const first = iterator.next();
     expect(first.done).toBe(false);
     const yielded = first.value as CorrelationIdYield;
@@ -129,7 +129,7 @@ describe('CorrelationIdToYield', () => {
 
   it('resolves with nulls when no correlation id service is registered', () => {
     const injector = Injector.create({ providers: [] });
-    const iterator = CorrelationIdToYield();
+    const iterator = CorrelationId();
     const first = iterator.next();
     const yielded = first.value as CorrelationIdYield;
     const resolved = yielded.resolve(injector, 'function');

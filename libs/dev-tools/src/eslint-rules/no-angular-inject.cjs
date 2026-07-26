@@ -76,7 +76,7 @@ module.exports = {
           context.report({
             node: specifier,
             message:
-              'Angular inject() is forbidden. Import and use the injectX helper exposed by a craftService/toCraftService adapter instead.',
+              'Angular inject() is forbidden. Import and use the X service helper exposed by a craftService/toCraftService adapter instead.',
           });
         }
       },
@@ -113,7 +113,7 @@ function getAngularInjectCallee(
 
 function createInjectMessage(tokenText, helperName) {
   if (!helperName) {
-    return 'Angular inject() is forbidden. Use the injectX helper exposed by a craftService/toCraftService adapter instead.';
+    return 'Angular inject() is forbidden. Use the service helper exposed by a craftService/toCraftService adapter instead.';
   }
 
   return `Angular inject(${tokenText}) is forbidden. Use ${helperName} from a craftService/toCraftService adapter instead.`;
@@ -133,7 +133,7 @@ function getRecommendedInjectorName(argument) {
     return undefined;
   }
 
-  return `inject${toPascalCase(tokenName)}`;
+  return toPascalCase(tokenName);
 }
 
 function getTokenName(argument) {

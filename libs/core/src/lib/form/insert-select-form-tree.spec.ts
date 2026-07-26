@@ -465,7 +465,7 @@ describe('selectFormTree', () => {
 
 describe('insertSelectFormTree with generator insertions', () => {
   it('should resolve generator insertion on object form tree', () => {
-    const { ObjFormLoggerToYield } = craftService(
+    const { ObjFormLogger } = craftService(
       { name: 'ObjFormLogger', scope: 'global' },
       () => {
         const calls: string[] = [];
@@ -482,7 +482,7 @@ describe('insertSelectFormTree with generator insertions', () => {
           } satisfies ProfileFormValue,
           insertForm(
             insertSelectFormTree('credentials', function* ({ update }) {
-              const logger = yield* ObjFormLoggerToYield();
+              const logger = yield* ObjFormLogger();
               return {
                 clearPassword: () => {
                   logger.log('clearPassword');
@@ -503,7 +503,7 @@ describe('insertSelectFormTree with generator insertions', () => {
   });
 
   it('should resolve generator insertion on array form tree items', () => {
-    const { ArrFormLoggerToYield } = craftService(
+    const { ArrFormLogger } = craftService(
       { name: 'ArrFormLogger', scope: 'global' },
       () => {
         const calls: string[] = [];
@@ -523,7 +523,7 @@ describe('insertSelectFormTree with generator insertions', () => {
                 context,
                 insertNoopTypingAnchor,
                 insertSelectFormTree('item', function* ({ update }) {
-                  const logger = yield* ArrFormLoggerToYield();
+                  const logger = yield* ArrFormLogger();
                   return {
                     updateCity: (city: string) => {
                       logger.log(`updateCity:${city}`);

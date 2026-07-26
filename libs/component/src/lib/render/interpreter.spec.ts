@@ -421,7 +421,7 @@ describe('functional component interpreter', () => {
 
   it('resolves yield* craftService dependencies in the child injector', () => {
     const PREFIX = new InjectionToken<string>('component-prefix');
-    const { GreetingToYield } = craftService(
+    const { Greeting } = craftService(
       { name: 'Greeting', scope: 'function' },
       () => ({ prefix: inject(PREFIX) }),
     );
@@ -430,7 +430,7 @@ describe('functional component interpreter', () => {
       'greeting',
       { providers: [{ provide: PREFIX, useValue: 'Bonjour' }] },
       function* (name: Input<string>) {
-        const service = yield* GreetingToYield();
+        const service = yield* Greeting();
         return { name, service };
       },
       ({ name, service }) => p(`${service.prefix} ${name()}`),

@@ -228,7 +228,7 @@ type CraftRouterInputExtras = CraftRouterInputWithOptionalQueryParams &
 // (`SIGNAL`, `[iterator]`, `[unscopables]`) that ng-packagr cannot serialize to
 // `.d.ts` (TS4023/TS4118). Cast through `unknown` and re-shape the destructured
 // locals as opaque `Function` so declaration emit only sees a serializable
-// shape. The exported `injectCraftRouter`/`CraftRouterToYield` below re-cast
+// shape. The exported `CraftRouter` below re-casts
 // through `as unknown as ...`, so the lost typing here doesn't reach consumers.
 const _routerService = toCraftService(
   {
@@ -239,14 +239,13 @@ const _routerService = toCraftService(
   },
   (router): Router => createCraftRouter(router),
 ) as unknown as {
-  injectCraftRouter: Function & CraftRouterTrackedHelper;
   provideCraftRouter: Function;
-  CraftRouterToYield: Function & CraftRouterTrackedHelper;
+  CraftRouter: Function & CraftRouterTrackedHelper;
 };
 
 // Serializable stand-in for the tracked metadata the `Function` erasure above
 // would otherwise lose — without it, `GetServiceYields` / dependency tracking
-// (`ExtractDeps` through `yield* CraftRouterToYield()`) collapse to `never`.
+// (`ExtractDeps` through `yield* CraftRouter()`) collapse to `never`.
 // Mirrors exactly what `toCraftService` infers for this definition.
 type CraftRouterTrackingMetadata = ServiceTrackingMetadata<
   'CraftRouter',
@@ -263,17 +262,16 @@ type CraftRouterTrackedHelper = {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: CraftRouterTrackingMetadata;
 };
 
-const injectCraftRouterInternal = _routerService.injectCraftRouter;
 const provideCraftRouterInternal = _routerService.provideCraftRouter;
-const CraftRouterToYieldInternal = _routerService.CraftRouterToYield;
+const CraftRouterInternal = _routerService.CraftRouter;
 
-// We can't reach the request type via `ReturnType<typeof CraftRouterToYieldInternal>`
+// We can't reach the request type via `ReturnType<typeof CraftRouterInternal>`
 // because it picks the LAST overload (`<Exposed, Yielded>(...)`), whose
 // generator's yield collapses to `unknown` when the generics are unbound.
 // `GetServiceYields` extracts the proper `ServiceYieldRequest<...>` (and
 // `ExposureYield<...>`) union from the helper's tracked metadata directly.
 export type CraftRouterYieldRequest = GetServiceYields<
-  typeof CraftRouterToYieldInternal
+  typeof CraftRouterInternal
 >;
 
 type StructuralRouteParamsField<Path extends string> = [
@@ -356,18 +354,8 @@ type CraftRouterPropertyShortcuts = CraftRouterCraftMethodShortcuts & {
   >]: RouterPropertyShortcut<Router[Key]>;
 };
 
-export type CraftRouterInjectHelper = WithInternalHelperDependencies<
-  typeof injectCraftRouterInternal
-> & {
-  (): CraftRouter;
-  <Exposed extends object>(
-    bindings: undefined,
-    expose: (router: CraftRouter) => Exposed,
-  ): Exposed;
-};
-
-export type CraftRouterToYieldHelper = WithInternalHelperDependencies<
-  typeof CraftRouterToYieldInternal
+export type CraftRouterHelper = WithInternalHelperDependencies<
+  typeof CraftRouterInternal
 > &
   CraftRouterPropertyShortcuts & {
     (): Generator<CraftRouterYieldRequest, CraftRouter, unknown>;
@@ -428,16 +416,13 @@ export function provideCraftRouter(
   ];
 }
 
-export const injectCraftRouter =
-  injectCraftRouterInternal as unknown as CraftRouterInjectHelper;
-
 /**
  * Yields the `CraftRouter` inside a generator. Two equivalent forms.
  *
  * # Derived shortcut — recommended
  *
  * ```ts
- * yield* CraftRouterToYield.navigate({
+ * yield* CraftRouter.navigate({
  *   to: 'query/:userId',          // validated against the registry
  *   params: { userId: '1' },      // validated against the path's :params
  * });
@@ -450,7 +435,7 @@ export const injectCraftRouter =
  * # Full router access
  *
  * ```ts
- * const router = yield* CraftRouterToYield();
+ * const router = yield* CraftRouter();
  * router.events.subscribe(...);
  * ```
  *
@@ -475,8 +460,7 @@ export const injectCraftRouter =
  * that needs the full per-route component dependencies (e.g. an e2e test
  * runner that mocks every endpoint a route can reach).
  */
-export const CraftRouterToYield =
-  CraftRouterToYieldInternal as unknown as CraftRouterToYieldHelper;
+export const CraftRouter = CraftRouterInternal as unknown as CraftRouterHelper;
 
 @Directive({
   selector: '[craftRouterLink]',

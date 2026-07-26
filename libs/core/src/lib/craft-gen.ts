@@ -160,9 +160,7 @@ export function isCraftGenShortCircuit(
   value: unknown,
 ): value is CraftGenShortCircuit {
   return (
-    !!value &&
-    typeof value === 'object' &&
-    CRAFT_GEN_SHORT_CIRCUIT in value
+    !!value && typeof value === 'object' && CRAFT_GEN_SHORT_CIRCUIT in value
   );
 }
 
@@ -220,7 +218,7 @@ export function ɵcreateCraftProgram(
  *
  * `craftGen(generatorFn)` returns a factory `(...args) => CraftGenInvocation`
  * that is composable with `yield*`. The inner generator's dependency yields
- * (`CraftAuthToYield`, `CraftRouterToYield`, …) flow up to the enclosing driver
+ * (`CraftAuth`, `CraftRouter`, …) flow up to the enclosing driver
  * unchanged, while the union of `craftException` it may return is tracked on the
  * invocation's `Yielded` (type-level only).
  *
@@ -233,7 +231,7 @@ export function ɵcreateCraftProgram(
  * @example
  * ```ts
  * export const roleGuard = craftGen(function* (...roles: Role[]) {
- *   const { user } = yield* CraftAuthToYield(undefined, ({ user }) => ({ user }));
+ *   const { user } = yield* CraftAuth(undefined, ({ user }) => ({ user }));
  *   if (!user()) return craftException({ code: 'NOT_AUTHENTICATED' });
  *   return roles.includes(user()!.role)
  *     ? true

@@ -546,14 +546,18 @@ function migrateSimpleClass(
       : `${yields.length > 0 || hasTrackedPrimitive ? 'function*' : 'function'} () {\n${[...yields, ...declarations].map((line) => `  ${line}`).join('\n')}\n  return { ${exposed.join(', ')} };\n}`;
   const helpers =
     descriptor.scope === 'abstract'
-      ? `${descriptor.name}Requirement, inject${descriptor.name}, provide${descriptor.name}`
-      : `inject${descriptor.name}, ${descriptor.name}ToYield${isProviderCapableScope(descriptor.scope) ? `, provide${descriptor.name}` : ''}`;
-  const typeAlias = `\nexport type ${descriptor.symbol} = ReturnType<typeof inject${descriptor.name}>;`;
+      ? `${descriptor.name}Requirement, ${descriptor.name}, provide${descriptor.name}`
+      : `${descriptor.name}${isProviderCapableScope(descriptor.scope) ? `, provide${descriptor.name}` : ''}`;
+  const typeAlias =
+    descriptor.scope === 'abstract'
+      ? `\nexport type ${descriptor.symbol} = ${contract};`
+      : `\nexport type ${descriptor.symbol} = GetServiceOutput<typeof ${descriptor.name}>;`;
   value.replaceWithText(
     `export const { ${helpers} } = craftService({ name: '${descriptor.name}', scope: '${descriptor.scope}' }, ${factory});${typeAlias}`,
   );
   ensureCoreImports(file, [
     'craftService',
+    ...(descriptor.scope === 'abstract' ? [] : ['GetServiceOutput']),
     ...(descriptor.scope === 'abstract' ? ['abstract'] : []),
   ]);
   removeDecoratorImport(file, 'Injectable');
@@ -773,8 +777,8 @@ function makeYield(
 ): string {
   const dependency = all.find((item) => item.symbol === token);
   if (token === 'Router') {
-    ensureCoreImports(owner.sourceFile, ['CraftRouterToYield']);
-    return `const ${localName} = yield* CraftRouterToYield();`;
+    ensureCoreImports(owner.sourceFile, ['CraftRouter']);
+    return `const ${localName} = yield* CraftRouter();`;
   }
   if (!dependency) {
     if (token === 'HttpClient') {
@@ -785,7 +789,7 @@ function makeYield(
         'Les appels HttpClient impératifs restants doivent être migrés vers mutation/CraftHttpClient.',
       );
       ensureExternalAdapter(owner, token);
-      return `const ${localName} = yield* ${token}ToYield(); // HTTP_CLIENT_REWRITE_REQUIRED`;
+      return `const ${localName} = yield* ${token}(); // HTTP_CLIENT_REWRITE_REQUIRED`;
     }
     diagnose(
       diagnostics,
@@ -794,26 +798,26 @@ function makeYield(
       `${token} requiert un adapter toCraftService avec scope CRAFT_SCOPE_REQUIRED.`,
     );
     ensureExternalAdapter(owner, token);
-    return `const ${localName} = yield* ${token}ToYield(); // CRAFT_SCOPE_REQUIRED`;
+    return `const ${localName} = yield* ${token}(); // CRAFT_SCOPE_REQUIRED`;
   }
   ensureRelativeImport(
     owner.sourceFile,
     dependency,
-    `${dependency.name}ToYield`,
+    dependency.name,
   );
-  return `const ${localName} = yield* ${dependency.name}ToYield();`;
+  return `const ${localName} = yield* ${dependency.name}();`;
 }
 
 function ensureExternalAdapter(owner: ServiceDescriptor, token: string): void {
   const file = owner.sourceFile;
   if (
-    file.getFullText().includes(`const { ${token}ToYield } = toCraftService(`)
+    file.getFullText().includes(`const { ${token} } = toCraftService(`)
   )
     return;
   const statementIndex = file.getStatements().indexOf(owner.classDeclaration);
   file.insertStatements(
     Math.max(0, statementIndex),
-    `const { ${token}ToYield } = toCraftService({ name: '${token}', scope: 'global', token: ${token} }); // HTTP_CLIENT_REWRITE_REQUIRED`,
+    `const { ${token} } = toCraftService({ name: '${token}', scope: 'global', token: ${token} }); // HTTP_CLIENT_REWRITE_REQUIRED`,
   );
   ensureCoreImports(file, ['toCraftService']);
 }
@@ -828,7 +832,7 @@ function createCompanion(
   const module = `./${basename(originalPath, extname(originalPath))}`;
   const companionScope =
     descriptor.scope === 'abstract' ? 'toProvide' : descriptor.scope;
-  const helpers = `inject${descriptor.name}, ${descriptor.name}ToYield${isProviderCapableScope(companionScope) ? `, provide${descriptor.name}` : ''}`;
+  const helpers = `${descriptor.name}${isProviderCapableScope(companionScope) ? `, provide${descriptor.name}` : ''}`;
   const provide =
     isProviderCapableScope(companionScope)
       ? `  provide: () => [${descriptor.symbol}],\n`
@@ -929,8 +933,7 @@ function rewriteHttpOperationSubscribers(
           printMutationCall(mutationName, operationCall),
         );
         ensureCoreImports(file, ['mutation']);
-        ensureRelativeImport(file, service, `${service.name}ToYield`);
-        ensureRelativeImport(file, service, `inject${service.name}`);
+        ensureRelativeImport(file, service, service.name);
         touched.add(file);
       }
     }
@@ -1028,7 +1031,7 @@ function ensureLocalMutationProperty(
   const baseName = `${operation.methodName}Mutation`;
   const mutationName = uniqueClassPropertyName(classDeclaration, baseName);
   if (classDeclaration.getProperty(mutationName)) return mutationName;
-  const paramsType = `Parameters<ReturnType<typeof inject${service.name}>['${operation.methodName}']>`;
+  const paramsType = `Parameters<GetServiceOutput<typeof ${service.name}>['${operation.methodName}']>`;
   const method =
     operation.parameterCount === 1
       ? `(params: ${paramsType}[0]) => params`
@@ -1043,7 +1046,7 @@ function ensureLocalMutationProperty(
     initializer: `mutation({
   method: ${method},
   loader: function* ({ params }) {
-    const ${toLocalServiceName(service.name)} = yield* ${service.name}ToYield();
+    const ${toLocalServiceName(service.name)} = yield* ${service.name}();
     return yield* ${call};
   },
 })`,

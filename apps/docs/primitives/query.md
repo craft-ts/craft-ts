@@ -96,15 +96,15 @@ console.log(query.select('2').value()); // User 2 data
 const query = query(
   {
     params: function* () {
-      return yield* UserServiceToYield.userId();
+      return yield* UserService.userId();
     },
     loader: function* ({ params: userId }) {
-      return yield* UserApiServiceToYield.get(userId);
+      return yield* UserApiService.get(userId);
     },
   },
   //insertions can also be generator functions to yield dependencies
   function* () {
-    const queryTools = yield* QueryToolsToYield();
+    const queryTools = yield* QueryTools();
     return {
       queryKey: `${queryTools.prefix()}:details`,
     };
@@ -119,10 +119,10 @@ const query = query(
   {
     providers: [provideUserService(), provideUserApiService()],
     params: function* () {
-      return yield* UserServiceToYield.userId();
+      return yield* UserService.userId();
     },
     loader: function* ({ params: userId }) {
-      return yield* UserApiServiceToYield.get(userId);
+      return yield* UserApiService.get(userId);
     },
   },
 );

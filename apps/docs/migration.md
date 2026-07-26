@@ -101,8 +101,9 @@ particular, complete the following work before considering the migration done:
 - Resolve every `CRAFT_IMPLEMENTATION_REQUIRED` companion service.
 - Review generated service scopes and move `provideX(...)` close to the route or
   feature that owns the instance.
-- Replace remaining direct Angular `inject(...)` calls with generated
-  `injectX()` or `XToYield(...)` helpers.
+- Replace remaining direct Angular `inject(...)` calls with `toCraftService(...)`
+  adapters, then consume their generated `X()` helpers with `yield*`. The former
+  `injectX` and `XToYield` helpers are no longer part of the API.
 - Resolve imperative workflow diagnostics instead of only removing their
   comments.
 - Migrate guards, dynamic redirects, nested route collections, inherited route

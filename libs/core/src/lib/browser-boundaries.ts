@@ -34,7 +34,7 @@ type BrowserBoundaryDsl<Service extends object, Yielded = unknown> = {
     : never;
 };
 
-type BrowserBoundaryToYield<Service extends object> = (
+type BrowserBoundary<Service extends object> = (
   bindings?: undefined,
   expose?: (service: Service) => unknown,
 ) => Generator<any, any, any>;
@@ -64,7 +64,7 @@ type ConsoleBoundaryYield =
       BrowserBoundaryService<
         'ConsoleService',
         ConsoleServiceApi
-      >['ConsoleServiceToYield']
+      >['ConsoleService']
     >
   | ConsoleMetaYield;
 
@@ -72,7 +72,7 @@ type BrowserCryptoYield = GetServiceYields<
   BrowserBoundaryService<
     'BrowserCryptoService',
     BrowserCryptoServiceApi
-  >['BrowserCryptoServiceToYield']
+  >['BrowserCryptoService']
 >;
 
 type StorageLike = Pick<
@@ -204,16 +204,15 @@ export interface BrowserWindowServiceApi {
 
 function createBoundaryCall<
   Service extends object,
-  ToYield extends
-    BrowserBoundaryToYield<Service> = BrowserBoundaryToYield<Service>,
->(toYield: ToYield) {
-  type Yielded = GetServiceYields<ToYield>;
+  ServiceHelper extends BrowserBoundary<Service> = BrowserBoundary<Service>,
+>(serviceHelper: ServiceHelper) {
+  type Yielded = GetServiceYields<ServiceHelper>;
 
   return function <Key extends keyof Service & string>(key: Key) {
     return function* (
       ...args: MethodArgs<Service[Key]>
     ): Generator<Yielded, MethodResult<Service[Key]>, unknown> {
-      const exposed = (yield* toYield(undefined, (service) => ({
+      const exposed = (yield* serviceHelper(undefined, (service) => ({
         method: service[key],
       }))) as {
         method: Service[Key];
@@ -290,16 +289,24 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
     MethodResult<ConsoleServiceApi[Key]>,
     unknown
   > {
-    const consoleService = yield* ConsoleServiceToYield();
-    const { from, tags, correlation: correlationMeta } = (yield {
+    const consoleService = yield* ConsoleService();
+    const {
+      from,
+      tags,
+      correlation: correlationMeta,
+    } = (yield {
       [SERVICE_YIELD_REQUEST_MARKER]: true,
       scope: 'function' as const,
       resolve: (injector: Injector): ConsoleMetaContext => ({
         from: injector.get(ɵHOST_TAG_LIST),
         tags: injector.get(ɵTRACK_TAGS_LIST),
         correlation: {
-          lastCorrelationId: injector.get(CORRELATION_ID_SERVICE, null)?.lastCorrelationId() ?? null,
-          mayCorrelatedIds: injector.get(CORRELATION_ID_SERVICE, null)?.mayCorrelatedIds() ?? [],
+          lastCorrelationId:
+            injector.get(CORRELATION_ID_SERVICE, null)?.lastCorrelationId() ??
+            null,
+          mayCorrelatedIds:
+            injector.get(CORRELATION_ID_SERVICE, null)?.mayCorrelatedIds() ??
+            [],
           startCorrelationId: getCurrentStartCorrelationId(),
         },
       }),
@@ -549,14 +556,10 @@ const consoleService: BrowserBoundaryService<
     timeEnd: (label) => globalThis.console.timeEnd(label),
   }),
 );
-export const injectConsoleService: BrowserBoundaryService<
+export const ConsoleService: BrowserBoundaryService<
   'ConsoleService',
   ConsoleServiceApi
->['injectConsoleService'] = consoleService.injectConsoleService;
-export const ConsoleServiceToYield: BrowserBoundaryService<
-  'ConsoleService',
-  ConsoleServiceApi
->['ConsoleServiceToYield'] = consoleService.ConsoleServiceToYield;
+>['ConsoleService'] = consoleService.ConsoleService;
 export const CONSOLE_SERVICE_META_DATA: BrowserBoundaryService<
   'ConsoleService',
   ConsoleServiceApi
@@ -580,15 +583,10 @@ const localStorageService: BrowserBoundaryService<
     length: () => getBrowserLocalStorage().length,
   }),
 );
-export const injectLocalStorageService: BrowserBoundaryService<
+export const LocalStorageService: BrowserBoundaryService<
   'LocalStorageService',
   StorageServiceApi
->['injectLocalStorageService'] = localStorageService.injectLocalStorageService;
-export const LocalStorageServiceToYield: BrowserBoundaryService<
-  'LocalStorageService',
-  StorageServiceApi
->['LocalStorageServiceToYield'] =
-  localStorageService.LocalStorageServiceToYield;
+>['LocalStorageService'] = localStorageService.LocalStorageService;
 export const LOCAL_STORAGE_SERVICE_META_DATA: BrowserBoundaryService<
   'LocalStorageService',
   StorageServiceApi
@@ -613,16 +611,10 @@ const sessionStorageService: BrowserBoundaryService<
     length: () => getBrowserSessionStorage().length,
   }),
 );
-export const injectSessionStorageService: BrowserBoundaryService<
+export const SessionStorageService: BrowserBoundaryService<
   'SessionStorageService',
   StorageServiceApi
->['injectSessionStorageService'] =
-  sessionStorageService.injectSessionStorageService;
-export const SessionStorageServiceToYield: BrowserBoundaryService<
-  'SessionStorageService',
-  StorageServiceApi
->['SessionStorageServiceToYield'] =
-  sessionStorageService.SessionStorageServiceToYield;
+>['SessionStorageService'] = sessionStorageService.SessionStorageService;
 export const SESSION_STORAGE_SERVICE_META_DATA: BrowserBoundaryService<
   'SessionStorageService',
   StorageServiceApi
@@ -646,14 +638,10 @@ const cookiesService: BrowserBoundaryService<
     has: (name) => Object.prototype.hasOwnProperty.call(buildCookieMap(), name),
   }),
 );
-export const injectCookiesService: BrowserBoundaryService<
+export const CookiesService: BrowserBoundaryService<
   'CookiesService',
   CookiesServiceApi
->['injectCookiesService'] = cookiesService.injectCookiesService;
-export const CookiesServiceToYield: BrowserBoundaryService<
-  'CookiesService',
-  CookiesServiceApi
->['CookiesServiceToYield'] = cookiesService.CookiesServiceToYield;
+>['CookiesService'] = cookiesService.CookiesService;
 export const COOKIES_SERVICE_META_DATA: BrowserBoundaryService<
   'CookiesService',
   CookiesServiceApi
@@ -683,16 +671,10 @@ const browserLocationService: BrowserBoundaryService<
     reload: () => getBrowserLocation().reload(),
   }),
 );
-export const injectBrowserLocationService: BrowserBoundaryService<
+export const BrowserLocationService: BrowserBoundaryService<
   'BrowserLocationService',
   BrowserLocationServiceApi
->['injectBrowserLocationService'] =
-  browserLocationService.injectBrowserLocationService;
-export const BrowserLocationServiceToYield: BrowserBoundaryService<
-  'BrowserLocationService',
-  BrowserLocationServiceApi
->['BrowserLocationServiceToYield'] =
-  browserLocationService.BrowserLocationServiceToYield;
+>['BrowserLocationService'] = browserLocationService.BrowserLocationService;
 export const BROWSER_LOCATION_SERVICE_META_DATA: BrowserBoundaryService<
   'BrowserLocationService',
   BrowserLocationServiceApi
@@ -720,16 +702,10 @@ const browserHistoryService: BrowserBoundaryService<
       getBrowserHistory().replaceState(data, unused, url),
   }),
 );
-export const injectBrowserHistoryService: BrowserBoundaryService<
+export const BrowserHistoryService: BrowserBoundaryService<
   'BrowserHistoryService',
   BrowserHistoryServiceApi
->['injectBrowserHistoryService'] =
-  browserHistoryService.injectBrowserHistoryService;
-export const BrowserHistoryServiceToYield: BrowserBoundaryService<
-  'BrowserHistoryService',
-  BrowserHistoryServiceApi
->['BrowserHistoryServiceToYield'] =
-  browserHistoryService.BrowserHistoryServiceToYield;
+>['BrowserHistoryService'] = browserHistoryService.BrowserHistoryService;
 export const BROWSER_HISTORY_SERVICE_META_DATA: BrowserBoundaryService<
   'BrowserHistoryService',
   BrowserHistoryServiceApi
@@ -755,16 +731,10 @@ const browserNavigatorService: BrowserBoundaryService<
     share: (data) => getBrowserNavigator().share(data),
   }),
 );
-export const injectBrowserNavigatorService: BrowserBoundaryService<
+export const BrowserNavigatorService: BrowserBoundaryService<
   'BrowserNavigatorService',
   BrowserNavigatorServiceApi
->['injectBrowserNavigatorService'] =
-  browserNavigatorService.injectBrowserNavigatorService;
-export const BrowserNavigatorServiceToYield: BrowserBoundaryService<
-  'BrowserNavigatorService',
-  BrowserNavigatorServiceApi
->['BrowserNavigatorServiceToYield'] =
-  browserNavigatorService.BrowserNavigatorServiceToYield;
+>['BrowserNavigatorService'] = browserNavigatorService.BrowserNavigatorService;
 export const BROWSER_NAVIGATOR_SERVICE_META_DATA: BrowserBoundaryService<
   'BrowserNavigatorService',
   BrowserNavigatorServiceApi
@@ -806,16 +776,11 @@ const browserPerformanceService: BrowserBoundaryService<
       getBrowserPerformance().clearMeasures(measureName),
   }),
 );
-export const injectBrowserPerformanceService: BrowserBoundaryService<
+export const BrowserPerformanceService: BrowserBoundaryService<
   'BrowserPerformanceService',
   BrowserPerformanceServiceApi
->['injectBrowserPerformanceService'] =
-  browserPerformanceService.injectBrowserPerformanceService;
-export const BrowserPerformanceServiceToYield: BrowserBoundaryService<
-  'BrowserPerformanceService',
-  BrowserPerformanceServiceApi
->['BrowserPerformanceServiceToYield'] =
-  browserPerformanceService.BrowserPerformanceServiceToYield;
+>['BrowserPerformanceService'] =
+  browserPerformanceService.BrowserPerformanceService;
 export const BROWSER_PERFORMANCE_SERVICE_META_DATA: BrowserBoundaryService<
   'BrowserPerformanceService',
   BrowserPerformanceServiceApi
@@ -840,16 +805,10 @@ const browserCryptoService: BrowserBoundaryService<
       getBrowserCrypto().subtle.digest(algorithm, data),
   }),
 );
-export const injectBrowserCryptoService: BrowserBoundaryService<
+export const BrowserCryptoService: BrowserBoundaryService<
   'BrowserCryptoService',
   BrowserCryptoServiceApi
->['injectBrowserCryptoService'] =
-  browserCryptoService.injectBrowserCryptoService;
-export const BrowserCryptoServiceToYield: BrowserBoundaryService<
-  'BrowserCryptoService',
-  BrowserCryptoServiceApi
->['BrowserCryptoServiceToYield'] =
-  browserCryptoService.BrowserCryptoServiceToYield;
+>['BrowserCryptoService'] = browserCryptoService.BrowserCryptoService;
 export const BROWSER_CRYPTO_SERVICE_META_DATA: BrowserBoundaryService<
   'BrowserCryptoService',
   BrowserCryptoServiceApi
@@ -874,16 +833,10 @@ const browserDocumentService: BrowserBoundaryService<
     hasFocus: () => getBrowserDocument().hasFocus(),
   }),
 );
-export const injectBrowserDocumentService: BrowserBoundaryService<
+export const BrowserDocumentService: BrowserBoundaryService<
   'BrowserDocumentService',
   BrowserDocumentServiceApi
->['injectBrowserDocumentService'] =
-  browserDocumentService.injectBrowserDocumentService;
-export const BrowserDocumentServiceToYield: BrowserBoundaryService<
-  'BrowserDocumentService',
-  BrowserDocumentServiceApi
->['BrowserDocumentServiceToYield'] =
-  browserDocumentService.BrowserDocumentServiceToYield;
+>['BrowserDocumentService'] = browserDocumentService.BrowserDocumentService;
 export const BROWSER_DOCUMENT_SERVICE_META_DATA: BrowserBoundaryService<
   'BrowserDocumentService',
   BrowserDocumentServiceApi
@@ -916,16 +869,10 @@ const browserWindowService: BrowserBoundaryService<
     confirm: (message) => getBrowserWindow().confirm(message),
   }),
 );
-export const injectBrowserWindowService: BrowserBoundaryService<
+export const BrowserWindowService: BrowserBoundaryService<
   'BrowserWindowService',
   BrowserWindowServiceApi
->['injectBrowserWindowService'] =
-  browserWindowService.injectBrowserWindowService;
-export const BrowserWindowServiceToYield: BrowserBoundaryService<
-  'BrowserWindowService',
-  BrowserWindowServiceApi
->['BrowserWindowServiceToYield'] =
-  browserWindowService.BrowserWindowServiceToYield;
+>['BrowserWindowService'] = browserWindowService.BrowserWindowService;
 export const BROWSER_WINDOW_SERVICE_META_DATA: BrowserBoundaryService<
   'BrowserWindowService',
   BrowserWindowServiceApi
@@ -934,48 +881,48 @@ export const BROWSER_WINDOW_SERVICE_META_DATA: BrowserBoundaryService<
 
 const callRawConsole = createBoundaryCall<
   ConsoleServiceApi,
-  typeof ConsoleServiceToYield
->(ConsoleServiceToYield);
+  typeof ConsoleService
+>(ConsoleService);
 const callLocalStorage = createBoundaryCall<
   StorageServiceApi,
-  typeof LocalStorageServiceToYield
->(LocalStorageServiceToYield);
+  typeof LocalStorageService
+>(LocalStorageService);
 const callSessionStorage = createBoundaryCall<
   StorageServiceApi,
-  typeof SessionStorageServiceToYield
->(SessionStorageServiceToYield);
+  typeof SessionStorageService
+>(SessionStorageService);
 const callCookies = createBoundaryCall<
   CookiesServiceApi,
-  typeof CookiesServiceToYield
->(CookiesServiceToYield);
+  typeof CookiesService
+>(CookiesService);
 const callBrowserLocation = createBoundaryCall<
   BrowserLocationServiceApi,
-  typeof BrowserLocationServiceToYield
->(BrowserLocationServiceToYield);
+  typeof BrowserLocationService
+>(BrowserLocationService);
 const callBrowserHistory = createBoundaryCall<
   BrowserHistoryServiceApi,
-  typeof BrowserHistoryServiceToYield
->(BrowserHistoryServiceToYield);
+  typeof BrowserHistoryService
+>(BrowserHistoryService);
 const callBrowserNavigator = createBoundaryCall<
   BrowserNavigatorServiceApi,
-  typeof BrowserNavigatorServiceToYield
->(BrowserNavigatorServiceToYield);
+  typeof BrowserNavigatorService
+>(BrowserNavigatorService);
 const callBrowserPerformance = createBoundaryCall<
   BrowserPerformanceServiceApi,
-  typeof BrowserPerformanceServiceToYield
->(BrowserPerformanceServiceToYield);
+  typeof BrowserPerformanceService
+>(BrowserPerformanceService);
 const callBrowserCrypto = createBoundaryCall<
   BrowserCryptoServiceApi,
-  typeof BrowserCryptoServiceToYield
->(BrowserCryptoServiceToYield);
+  typeof BrowserCryptoService
+>(BrowserCryptoService);
 const callBrowserDocument = createBoundaryCall<
   BrowserDocumentServiceApi,
-  typeof BrowserDocumentServiceToYield
->(BrowserDocumentServiceToYield);
+  typeof BrowserDocumentService
+>(BrowserDocumentService);
 const callBrowserWindow = createBoundaryCall<
   BrowserWindowServiceApi,
-  typeof BrowserWindowServiceToYield
->(BrowserWindowServiceToYield);
+  typeof BrowserWindowService
+>(BrowserWindowService);
 
 export const Console: BrowserBoundaryDsl<
   ConsoleServiceApi,
@@ -996,7 +943,7 @@ export const Console: BrowserBoundaryDsl<
 
 export const LocalStorage: BrowserBoundaryDsl<
   StorageServiceApi,
-  GetServiceYields<typeof LocalStorageServiceToYield>
+  GetServiceYields<typeof LocalStorageService>
 > = {
   getItem: callLocalStorage('getItem'),
   setItem: callLocalStorage('setItem'),
@@ -1008,7 +955,7 @@ export const LocalStorage: BrowserBoundaryDsl<
 
 export const SessionStorage: BrowserBoundaryDsl<
   StorageServiceApi,
-  GetServiceYields<typeof SessionStorageServiceToYield>
+  GetServiceYields<typeof SessionStorageService>
 > = {
   getItem: callSessionStorage('getItem'),
   setItem: callSessionStorage('setItem'),
@@ -1020,7 +967,7 @@ export const SessionStorage: BrowserBoundaryDsl<
 
 export const Cookies: BrowserBoundaryDsl<
   CookiesServiceApi,
-  GetServiceYields<typeof CookiesServiceToYield>
+  GetServiceYields<typeof CookiesService>
 > = {
   get: callCookies('get'),
   getAll: callCookies('getAll'),
@@ -1031,7 +978,7 @@ export const Cookies: BrowserBoundaryDsl<
 
 export const BrowserLocation: BrowserBoundaryDsl<
   BrowserLocationServiceApi,
-  GetServiceYields<typeof BrowserLocationServiceToYield>
+  GetServiceYields<typeof BrowserLocationService>
 > = {
   href: callBrowserLocation('href'),
   origin: callBrowserLocation('origin'),
@@ -1049,7 +996,7 @@ export const BrowserLocation: BrowserBoundaryDsl<
 
 export const BrowserHistory: BrowserBoundaryDsl<
   BrowserHistoryServiceApi,
-  GetServiceYields<typeof BrowserHistoryServiceToYield>
+  GetServiceYields<typeof BrowserHistoryService>
 > = {
   length: callBrowserHistory('length'),
   state: callBrowserHistory('state'),
@@ -1062,7 +1009,7 @@ export const BrowserHistory: BrowserBoundaryDsl<
 
 export const BrowserNavigator: BrowserBoundaryDsl<
   BrowserNavigatorServiceApi,
-  GetServiceYields<typeof BrowserNavigatorServiceToYield>
+  GetServiceYields<typeof BrowserNavigatorService>
 > = {
   userAgent: callBrowserNavigator('userAgent'),
   language: callBrowserNavigator('language'),
@@ -1075,7 +1022,7 @@ export const BrowserNavigator: BrowserBoundaryDsl<
 
 export const BrowserPerformance: BrowserBoundaryDsl<
   BrowserPerformanceServiceApi,
-  GetServiceYields<typeof BrowserPerformanceServiceToYield>
+  GetServiceYields<typeof BrowserPerformanceService>
 > = {
   now: callBrowserPerformance('now'),
   mark: callBrowserPerformance('mark'),
@@ -1092,7 +1039,7 @@ export const BrowserCrypto: BrowserBoundaryDsl<
   getRandomValues: function* <TypedArray extends ArrayBufferView>(
     typedArray: TypedArray,
   ): Generator<BrowserCryptoYield, TypedArray, unknown> {
-    const cryptoService = yield* BrowserCryptoServiceToYield();
+    const cryptoService = yield* BrowserCryptoService();
 
     return cryptoService.getRandomValues(typedArray);
   },
@@ -1101,7 +1048,7 @@ export const BrowserCrypto: BrowserBoundaryDsl<
 
 export const BrowserDocument: BrowserBoundaryDsl<
   BrowserDocumentServiceApi,
-  GetServiceYields<typeof BrowserDocumentServiceToYield>
+  GetServiceYields<typeof BrowserDocumentService>
 > = {
   title: callBrowserDocument('title'),
   setTitle: callBrowserDocument('setTitle'),
@@ -1111,7 +1058,7 @@ export const BrowserDocument: BrowserBoundaryDsl<
 
 export const BrowserWindow: BrowserBoundaryDsl<
   BrowserWindowServiceApi,
-  GetServiceYields<typeof BrowserWindowServiceToYield>
+  GetServiceYields<typeof BrowserWindowService>
 > = {
   innerWidth: callBrowserWindow('innerWidth'),
   innerHeight: callBrowserWindow('innerHeight'),

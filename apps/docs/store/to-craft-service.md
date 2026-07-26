@@ -18,7 +18,11 @@ It is useful for dependencies like:
 - `InjectionToken` values
 - external callable objects returned by factories
 
-The generated API follows the same conventions as crafted services (`injectX`, `XToYield`, optional `provideX`, optional `XToProvide`) and participates in typed dependency tracking.
+The generated API follows the same conventions as crafted services (`X`, optional `provideX`, optional `XToProvide`) and participates in typed dependency tracking.
+
+`toCraftService` does not export `injectX`, and it no longer exports the former
+`XToYield` helper. Consume the generated `X()` helper from a craft generator,
+typically with `yield* X()`.
 
 ## Supported Scopes
 
@@ -60,16 +64,16 @@ class RouterLike {
   }
 }
 
-const { RouterLikeToYield } = toCraftService({
+const { RouterLike } = toCraftService({
   name: 'RouterLike',
   scope: 'global',
   token: RouterLike,
 });
 
-const { injectNavigation } = craftService(
+const { Navigation } = craftService(
   { name: 'Navigation', scope: 'global' },
   function* () {
-    const router = yield* RouterLikeToYield(undefined, ({ navigateByUrl }) => ({
+    const router = yield* RouterLike(undefined, ({ navigateByUrl }) => ({
       navigateByUrl,
     }));
 
@@ -88,7 +92,7 @@ import { toCraftService } from '@craft-ng/core';
 
 const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
 
-const { injectCurrentRoute } = toCraftService({
+const { CurrentRoute } = toCraftService({
   name: 'CurrentRoute',
   scope: 'global',
   inject: () => inject(CURRENT_ROUTE),
@@ -110,7 +114,7 @@ class CounterDriver {
   }
 }
 
-const { injectCounterDriver, provideCounterDriver } = toCraftService({
+const { CounterDriver, provideCounterDriver } = toCraftService({
   name: 'CounterDriver',
   scope: 'toProvide',
   token: CounterDriver,
@@ -128,7 +132,7 @@ const { injectCounterDriver, provideCounterDriver } = toCraftService({
 For `toProvide` and `manuallyProvidedAtRoot`, the adaptation factory can consume `$provided` internally while public bindings remain clean.
 
 ```typescript
-const { injectCatalog, provideCatalog } = toCraftService(
+const { Catalog, provideCatalog } = toCraftService(
   {
     name: 'Catalog',
     scope: 'toProvide',
@@ -155,16 +159,16 @@ import { craftService, toCraftService } from '@craft-ng/core';
 
 type User = { id: string; email: string };
 
-const { HttpClientToYield } = toCraftService({
+const { HttpClient } = toCraftService({
   name: 'HttpClient',
   scope: 'global',
   token: HttpClient,
 });
 
-const { injectUsersApi } = craftService(
+const { UsersApi } = craftService(
   { name: 'UsersApi', scope: 'global' },
   function* () {
-    const http = yield* HttpClientToYield(undefined, ({ get, post }) => ({
+    const http = yield* HttpClient(undefined, ({ get, post }) => ({
       get,
       post,
     }));

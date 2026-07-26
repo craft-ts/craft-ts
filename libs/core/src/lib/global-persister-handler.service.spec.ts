@@ -4,8 +4,8 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { injectLocalStorageService } from './browser-boundaries';
-import { injectGlobalPersisterHandlerService } from './global-persister-handler.service';
+import { LocalStorageService } from './browser-boundaries';
+import { GlobalPersisterHandlerService } from './global-persister-handler.service';
 
 beforeAll(() => {
   try {
@@ -26,14 +26,14 @@ describe('global persister handler service', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     TestBed.runInInjectionContext(() => {
-      injectLocalStorageService().clear();
+      LocalStorageService().clear();
     });
   });
 
   it('clears only @craft-ng persisted entries', () => {
     TestBed.runInInjectionContext(() => {
-      const storage = injectLocalStorageService();
-      const persisterHandler = injectGlobalPersisterHandlerService();
+      const storage = LocalStorageService();
+      const persisterHandler = GlobalPersisterHandlerService();
 
       storage.setItem('ng-craft-query-resource-user', 'query');
       storage.setItem('ng-craft-mutation-resource-user', 'mutation');

@@ -74,7 +74,7 @@ type InputErrorMessage<
 type InjectedErrorMessage<
   Name extends string,
   Context extends string,
-> = `Injected ${Name} is not provided in ${Context} (or you may scope this properties as protected/private)`;
+> = `The ${Name} service is not provided in ${Context}`;
 
 type InputErrorMessagesFromNames<
   Names extends readonly unknown[],
@@ -141,18 +141,32 @@ type RoutesErrorMessagesByIndex<
             ...RouteErrorMessages<Routes[Traversed['length']]>,
             ...RouteErrorMessages<Routes[[...Traversed, unknown]['length']]>,
           ]
-        : [...Traversed, unknown, unknown, unknown]['length'] extends Routes['length']
+        : [
+              ...Traversed,
+              unknown,
+              unknown,
+              unknown,
+            ]['length'] extends Routes['length']
           ? [
               ...RouteErrorMessages<Routes[Traversed['length']]>,
               ...RouteErrorMessages<Routes[[...Traversed, unknown]['length']]>,
-              ...RouteErrorMessages<Routes[[...Traversed, unknown, unknown]['length']]>,
+              ...RouteErrorMessages<
+                Routes[[...Traversed, unknown, unknown]['length']]
+              >,
             ]
           : [
               ...RouteErrorMessages<Routes[Traversed['length']]>,
               ...RouteErrorMessages<Routes[[...Traversed, unknown]['length']]>,
-              ...RouteErrorMessages<Routes[[...Traversed, unknown, unknown]['length']]>,
-              ...RouteErrorMessages<Routes[[...Traversed, unknown, unknown, unknown]['length']]>,
-              ...RoutesErrorMessagesByIndex<Routes, [...Traversed, unknown, unknown, unknown, unknown]>,
+              ...RouteErrorMessages<
+                Routes[[...Traversed, unknown, unknown]['length']]
+              >,
+              ...RouteErrorMessages<
+                Routes[[...Traversed, unknown, unknown, unknown]['length']]
+              >,
+              ...RoutesErrorMessagesByIndex<
+                Routes,
+                [...Traversed, unknown, unknown, unknown, unknown]
+              >,
             ];
 
 type RoutesErrorMessages<Routes extends readonly unknown[]> =

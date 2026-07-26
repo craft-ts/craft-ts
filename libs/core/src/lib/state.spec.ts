@@ -163,13 +163,13 @@ describe('state', () => {
   });
 
   it('typing: tracks generator dependencies from state config and insertions', () => {
-    const { CounterReaderToYield } = craftService(
+    const { CounterReader } = craftService(
       { name: 'CounterReader', scope: 'global' },
       () => ({
         read: (): number => 2,
       }),
     );
-    const { CounterStepToYield } = craftService(
+    const { CounterStep } = craftService(
       { name: 'CounterStep', scope: 'global' },
       () => ({
         step: (): number => 3,
@@ -180,7 +180,7 @@ describe('state', () => {
       const myState = craftUse(
         state(
           function* () {
-            const counter = yield* CounterReaderToYield(
+            const counter = yield* CounterReader(
               undefined,
               ({ read }) => ({
                 read,
@@ -190,7 +190,7 @@ describe('state', () => {
             return counter.read();
           },
           function* ({ update }) {
-            const counterStep = yield* CounterStepToYield();
+            const counterStep = yield* CounterStep();
 
             return {
               increment: () =>
@@ -225,13 +225,13 @@ describe('state', () => {
   });
 
   it('should resolve generator state config and generator insertions', () => {
-    const { CounterReaderRuntimeToYield } = craftService(
+    const { CounterReaderRuntime } = craftService(
       { name: 'CounterReaderRuntime', scope: 'global' },
       () => ({
         read: (): number => 2,
       }),
     );
-    const { CounterStepRuntimeToYield } = craftService(
+    const { CounterStepRuntime } = craftService(
       { name: 'CounterStepRuntime', scope: 'global' },
       () => ({
         step: (): number => 3,
@@ -242,7 +242,7 @@ describe('state', () => {
       const myState = craftUse(
         state(
           function* () {
-            const counter = yield* CounterReaderRuntimeToYield(
+            const counter = yield* CounterReaderRuntime(
               undefined,
               ({ read }) => ({
                 read,
@@ -252,7 +252,7 @@ describe('state', () => {
             return counter.read();
           },
           function* ({ update }) {
-            const counterStep = yield* CounterStepRuntimeToYield();
+            const counterStep = yield* CounterStepRuntime();
 
             return {
               increment: () =>
@@ -551,7 +551,7 @@ describe('state — $self config with providers', () => {
   });
 
   it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', () => {
-    const { LocalCounterToYield, provideLocalCounter } = craftService(
+    const { LocalCounter, provideLocalCounter } = craftService(
       { name: 'LocalCounter', scope: 'toProvide' },
       () => ({ value: () => 1 }),
     );
@@ -559,7 +559,7 @@ describe('state — $self config with providers', () => {
     runInInjectionContext(() => {
       const withoutProviders = craftUse(
         state(function* () {
-          const counter = yield* LocalCounterToYield();
+          const counter = yield* LocalCounter();
           return counter.value();
         }),
       );
@@ -571,7 +571,7 @@ describe('state — $self config with providers', () => {
       const withProviders = craftUse(
         state({
           $self: function* () {
-            const counter = yield* LocalCounterToYield();
+            const counter = yield* LocalCounter();
             return counter.value();
           },
           providers: [provideLocalCounter()],

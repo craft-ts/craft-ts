@@ -27,7 +27,7 @@ const USERS: User[] = [
   { id: '5', name: 'Lucie', email: 'lucie@craft.dev' },
 ];
 
-const { UsersApiToYield } = craftService(
+const { UsersApi } = craftService(
   { name: 'UsersApi', scope: 'global' },
   () => ({
     getUser: async (id: string) => {
@@ -40,10 +40,10 @@ const { UsersApiToYield } = craftService(
   }),
 );
 
-const { provideUser, UserToYield } = craftService(
+const { provideUser, User } = craftService(
   { name: 'User', scope: 'toProvide' },
   function* (inputs: { userId: MaybeSignal<string> }) {
-    const api = yield* UsersApiToYield();
+    const api = yield* UsersApi();
     return {
       ...(yield* query({
         params: () => toValue(inputs.userId),
@@ -65,7 +65,7 @@ const CraftServiceUserDetailComponent = craftComponent(
   function* () {
     componentMonitoring();
     const userId = yield* state(signal('1'), ({ set }) => ({ setUserId: set }));
-    return { userId, user: yield* UserToYield({ userId }) };
+    return { userId, user: yield* User({ userId }) };
   },
   ({ userId, user }) => {
     const value = user.safeValue();

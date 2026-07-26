@@ -11,7 +11,7 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { HOST_TAG_LIST, injectHostName, provideHostName } from './host-tag';
+import { HOST_TAG_LIST, HostName, provideHostName } from './host-tag';
 
 beforeAll(() => {
   try {
@@ -39,7 +39,7 @@ describe('host tags', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      expect(injectHostName()).toBe('A');
+      expect(HostName()).toBe('A');
       expect(inject(HOST_TAG_LIST)).toEqual(['A#1']);
     });
   });
@@ -57,7 +57,7 @@ describe('host tags', () => {
       );
 
       runInInjectionContext(childInjector, () => {
-        expect(injectHostName()).toBe('B');
+        expect(HostName()).toBe('B');
         expect(inject(HOST_TAG_LIST)).toEqual(['A#1', 'B#2']);
       });
     });

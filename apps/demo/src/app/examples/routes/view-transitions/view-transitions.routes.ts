@@ -38,7 +38,7 @@ import PhotoSkeleton from './photo-skeleton';
 // can't capture a hero that isn't in the DOM yet — instead you see the pending
 // UI. Cached global query, so the FIRST detail visit is slow and a revisit is
 // instant; use the 🗑️ Clear Cache button to replay the pending state.
-const { ViewTransitionAccessToYield } = craftService(
+const { ViewTransitionAccess } = craftService(
   { name: 'ViewTransitionAccess', scope: 'global' },
   () =>
     query({
@@ -51,7 +51,7 @@ const { ViewTransitionAccessToYield } = craftService(
 );
 
 const slowDetailGuard = craftGen(function* () {
-  const accessRef = yield* ViewTransitionAccessToYield();
+  const accessRef = yield* ViewTransitionAccess();
   const access = yield* craftUntilSettled(accessRef);
   // Always allowed here — the `craftException` branch only exists so the guard
   // carries a typed exception code (a guard with no exception branch collapses

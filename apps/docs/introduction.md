@@ -157,7 +157,7 @@ Compose named services that package primitives and Angular dependencies behind a
 ```typescript
 type User = { id: string; email: string };
 
-const { UserApiToYield } = craftService(
+const { UserApi } = craftService(
   { name: 'UserApi', scope: 'function' },
   function* () {
     const http = yield* CraftHttpClient;
@@ -177,7 +177,7 @@ const { UserApiToYield } = craftService(
   },
 );
 
-const { injectUserProfile } = craftService(
+const { UserProfile } = craftService(
   { name: 'UserProfile', scope: 'global' },
   function* () {
     const userId = state('5', ({ set }) => ({ set }));
@@ -214,10 +214,15 @@ const { injectUserProfile } = craftService(
   },
 );
 
-const profile = injectUserProfile();
-profile.userId.set('42');
-profile.updateEmail.mutate({ id: '42', email: 'new@email.com' });
-console.log(profile.user.value().email);
+const { ProfileConsumer } = craftService(
+  { name: 'ProfileConsumer', scope: 'global' },
+  function* () {
+    const profile = yield* UserProfile();
+    profile.userId.set('42');
+    profile.updateEmail.mutate({ id: '42', email: 'new@email.com' });
+    return profile;
+  },
+);
 ```
 
 `craftService` composes the primitives you author. `toCraftService` adapts existing Angular dependencies so they can participate in the same typed composition and testing workflow.

@@ -10,7 +10,7 @@ import { craftEffect } from '@craft-ng/core';
 
 ```typescript
 craftEffect('myEffect', function* () {
-  const counter = yield* CounterToYield();
+  const counter = yield* Counter();
   // do some stuff
 });
 ```

@@ -107,7 +107,7 @@ export type CorrelationIdYield = Readonly<{
   ) => CorrelationIdMetadata;
 }>;
 
-export function* CorrelationIdToYield(): Generator<
+export function* CorrelationId(): Generator<
   CorrelationIdYield,
   CorrelationIdMetadata,
   unknown

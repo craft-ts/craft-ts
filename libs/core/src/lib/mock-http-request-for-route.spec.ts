@@ -5,7 +5,7 @@ import { GetDeps } from './branded-component/branded-component';
 import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
 import { craftException } from './craft-exception';
 import { craftRoutes } from './craft-routes';
-import { craftService, type GetInjectedServiceDependencies } from './craft-service';
+import { craftService, type GetServiceDependencies } from './craft-service';
 import {
   matchMockHttpRequestForRoute,
   mockHttpRequestForRoute,
@@ -54,7 +54,7 @@ const teapot = () =>
     scope: 'RouteHttpMockAuthApi',
   });
 
-const { injectRouteHttpMockUsersApi } = craftService(
+const { RouteHttpMockUsersApi } = craftService(
   { name: 'RouteHttpMockUsersApi', scope: 'global' },
   function* () {
     const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -68,7 +68,7 @@ const { injectRouteHttpMockUsersApi } = craftService(
   },
 );
 
-const { injectRouteHttpMockAuthApi } = craftService(
+const { RouteHttpMockAuthApi } = craftService(
   { name: 'RouteHttpMockAuthApi', scope: 'global' },
   function* () {
     const login = yield* CraftHttpClient.post(({ response }) => ({
@@ -149,13 +149,13 @@ type DashboardRouteDeps = GetDeps<{
   deps: {};
   propertiesDeps: {
     usersApi: {
-      RouteHttpMockUsersApi: GetInjectedServiceDependencies<
-        typeof injectRouteHttpMockUsersApi
+      RouteHttpMockUsersApi: GetServiceDependencies<
+        typeof RouteHttpMockUsersApi
       >;
     };
     authApi: {
-      RouteHttpMockAuthApi: GetInjectedServiceDependencies<
-        typeof injectRouteHttpMockAuthApi
+      RouteHttpMockAuthApi: GetServiceDependencies<
+        typeof RouteHttpMockAuthApi
       >;
     };
   };

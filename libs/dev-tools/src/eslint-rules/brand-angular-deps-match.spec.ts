@@ -112,7 +112,7 @@ describe('brand-angular-deps-match', () => {
           export type DerivedService<T, U> = T & U;
           export type ExtractDeps<T> = T;
           export type GetDeps<T> = T;
-          export type GetInjectedServiceDependencies<T> = T;
+          export type GetServiceDependencies<T> = T;
           export type GetPublicComponentProperties<T> = T;
           export type GetServiceOutput<T> = T;
         }
@@ -584,7 +584,7 @@ function baseFixtureFiles(): Record<string, string> {
         export type DerivedService<T, U> = T & U;
         export type ExtractDeps<T> = T;
         export type GetDeps<T> = T;
-        export type GetInjectedServiceDependencies<T> = T;
+        export type GetServiceDependencies<T> = T;
         export type GetPublicComponentProperties<T> = T;
         export type GetServiceOutput<T> = T;
       }

@@ -43,7 +43,7 @@ describe('brand-angular-deps/no-angular-inject', () => {
     });
 
     expect(messages).toEqual([
-      'Angular inject(Router) is forbidden. Use injectRouter from a craftService/toCraftService adapter instead.',
+      'Angular inject(Router) is forbidden. Use Router from a craftService/toCraftService adapter instead.',
     ]);
   });
 
@@ -57,7 +57,7 @@ describe('brand-angular-deps/no-angular-inject', () => {
     });
 
     expect(messages).toEqual([
-      'Angular inject(Router) is forbidden. Use injectRouter from a craftService/toCraftService adapter instead.',
+      'Angular inject(Router) is forbidden. Use Router from a craftService/toCraftService adapter instead.',
     ]);
   });
 
@@ -71,7 +71,7 @@ describe('brand-angular-deps/no-angular-inject', () => {
     });
 
     expect(messages).toEqual([
-      'Angular inject(Router) is forbidden. Use injectRouter from a craftService/toCraftService adapter instead.',
+      'Angular inject(Router) is forbidden. Use Router from a craftService/toCraftService adapter instead.',
     ]);
   });
 
@@ -80,16 +80,16 @@ describe('brand-angular-deps/no-angular-inject', () => {
       'src/app/demo.ts': `
         import { inject } from '@angular/core';
 
-        const router = injectRouter();
+        const router = 1;
       `,
     });
 
     expect(messages).toEqual([
-      'Angular inject() is forbidden. Import and use the injectX helper exposed by a craftService/toCraftService adapter instead.',
+      'Angular inject() is forbidden. Import and use the X service helper exposed by a craftService/toCraftService adapter instead.',
     ]);
   });
 
-  it('recommends inject helpers from injection token constants', async () => {
+  it('recommends service helpers from injection token constants', async () => {
     const messages = await lintFixture({
       'src/app/demo.ts': `
         import { inject } from '@angular/core';
@@ -99,11 +99,11 @@ describe('brand-angular-deps/no-angular-inject', () => {
     });
 
     expect(messages).toEqual([
-      'Angular inject(CURRENT_ROUTE) is forbidden. Use injectCurrentRoute from a craftService/toCraftService adapter instead.',
+      'Angular inject(CURRENT_ROUTE) is forbidden. Use CurrentRoute from a craftService/toCraftService adapter instead.',
     ]);
   });
 
-  it('recommends inject helpers from member expression tokens', async () => {
+  it('recommends service helpers from member expression tokens', async () => {
     const messages = await lintFixture({
       'src/app/demo.ts': `
         import * as ngCore from '@angular/core';
@@ -113,7 +113,7 @@ describe('brand-angular-deps/no-angular-inject', () => {
     });
 
     expect(messages).toEqual([
-      'Angular inject(AppTokens.Router) is forbidden. Use injectRouter from a craftService/toCraftService adapter instead.',
+      'Angular inject(AppTokens.Router) is forbidden. Use Router from a craftService/toCraftService adapter instead.',
     ]);
   });
 
@@ -143,7 +143,7 @@ describe('brand-angular-deps/no-angular-inject', () => {
       'Insert a temporary eslint-disable-next-line comment with a migration note.',
     );
     expect(messages[0]?.suggestions?.[0]?.fix?.text).toContain(
-      '// eslint-disable-next-line craft-ng/no-angular-inject -- replace this Angular inject(Router) call with injectRouter from a craftService/toCraftService adapter\n',
+      '// eslint-disable-next-line craft-ng/no-angular-inject -- replace this Angular inject(Router) call with Router from a craftService/toCraftService adapter\n',
     );
   });
 });

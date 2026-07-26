@@ -113,16 +113,16 @@ queryParams(
       page: {
         fallbackValue: 1,
         parse: function* (value: string) {
-          return yield* ParsePageToYield.parsePage(value);
+          return yield* ParsePage.parsePage(value);
         },
         serialize: function* (value: number) {
-          return yield* SerializePageToYield.serializePage(value);
+          return yield* SerializePage.serializePage(value);
         },
       },
     },
   },
   function* ({ patch, state }) {
-    const maxPage = yield* PaginationRulesToYield.maxPage();
+    const maxPage = yield* PaginationRules.maxPage();
     return {
       nextPage: () => {
         if (state().page >= maxPage()) {

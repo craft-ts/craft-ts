@@ -15,12 +15,11 @@ import { Console } from './browser-boundaries';
 import { craftMethod } from './craft-method';
 import {
   CraftRouterLink,
-  CraftRouterToYield,
-  injectCraftRouter,
+  CraftRouter,
   provideCraftRouter,
 } from './craft-router';
 import { craftRoutes } from './craft-routes';
-import type { GetToYieldServiceDependencies } from './craft-service';
+import type { GetServiceDependencies } from './craft-service';
 import { queryParams } from './query-params';
 import { viewTransitionPayload } from './craft-view-transition';
 
@@ -160,7 +159,7 @@ describe('CraftRouter', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const router = injectCraftRouter();
+      const router = CraftRouter();
 
       if (false) {
         router.createUrlTree({ to: '' });
@@ -242,7 +241,7 @@ describe('CraftRouter', () => {
 
     const angularRouter = TestBed.inject(Router);
     const craftRouter = TestBed.runInInjectionContext(() =>
-      injectCraftRouter(),
+      CraftRouter(),
     );
 
     const userTree = craftRouter.createUrlTree({
@@ -310,22 +309,22 @@ describe('CraftRouter', () => {
     expect(TestBed.inject(Router).url).toBe('/users/42');
   });
 
-  it('should expose CraftRouter dependency through ExtractDeps when a craftMethod yields CraftRouterToYield', () => {
+  it('should expose CraftRouter dependency through ExtractDeps when a craftMethod yields CraftRouter', () => {
     // Regression test for a bug where `CraftRouterYieldRequest` was extracted
-    // via `ReturnType<typeof CraftRouterToYieldInternal>` — `ReturnType` picks
+    // via `ReturnType<typeof CraftRouterInternal>` — `ReturnType` picks
     // the *last* overload, whose generator's yield collapsed to `unknown` once
     // the generic params were unbound. The result was that any craftMethod
-    // delegating to `CraftRouterToYield` had `Yielded = unknown`, so
+    // delegating to `CraftRouter` had `Yielded = unknown`, so
     // `ExtractDeps<...>` returned `{}` instead of `{ CraftRouter: ... }`.
     class GoToHome {
       readonly navigate = craftMethod('navigate', this, function* () {
-        const router = yield* CraftRouterToYield();
+        const router = yield* CraftRouter();
         return router.navigate({ to: '' });
       });
     }
 
     type ExpectedDeps = {
-      CraftRouter: GetToYieldServiceDependencies<typeof CraftRouterToYield>;
+      CraftRouter: GetServiceDependencies<typeof CraftRouter>;
     };
     type _Check = Expect<Equal<ExtractDeps<GoToHome['navigate']>, ExpectedDeps>>;
   });
@@ -354,7 +353,7 @@ describe('CraftRouter', () => {
 
     if (false) {
       TestBed.runInInjectionContext(() => {
-        const router = injectCraftRouter();
+        const router = CraftRouter();
         // Joined path resolves at the type level
         router.navigate({
           to: 'parent/:teamId/child/:userId',
@@ -370,19 +369,19 @@ describe('CraftRouter', () => {
         // @ts-expect-error typo in joined path
         router.navigate({ to: 'parent/:teamId/childz/:userId' });
 
-        CraftRouterToYield.createUrlTree({
+        CraftRouter.createUrlTree({
           to: 'parent/:teamId/child/:userId',
           params: { teamId: '1', userId: '42' },
         });
-        CraftRouterToYield.navigate({
+        CraftRouter.navigate({
           to: 'parent/:teamId/child/:userId',
           params: { teamId: '1', userId: '42' },
         });
-        CraftRouterToYield.navigateByUrl({
+        CraftRouter.navigateByUrl({
           to: 'parent/:teamId/child/:userId',
           params: { teamId: '1', userId: '42' },
         });
-        CraftRouterToYield.createUrlTree({
+        CraftRouter.createUrlTree({
           to: 'auth/login',
         });
 
@@ -406,13 +405,13 @@ describe('CraftRouter', () => {
           // @ts-expect-error viewTransition payload requires a `name`
           viewTransition: { image: null },
         });
-        CraftRouterToYield.createUrlTree({
+        CraftRouter.createUrlTree({
           to: 'media/:mediaId',
           params: { mediaId: '1' },
           viewTransition: { name: 'photo-1', image: null },
         });
         // @ts-expect-error viewTransition is required for a view-transition route
-        CraftRouterToYield.createUrlTree({
+        CraftRouter.createUrlTree({
           to: 'media/:mediaId',
           params: { mediaId: '1' },
         });
@@ -423,7 +422,7 @@ describe('CraftRouter', () => {
   it('should keep per-service deps when a craftMethod yields multiple services alongside raw injector helpers', () => {
     // Regression test for a bug in `DependencyRecord` where raw yield helpers
     // (e.g. the ones inside `Console.*` boundary methods that use
-    // `HostTagToYield` / `TrackTagsToYield`) structurally matched
+    // `HostTag` / `TrackTags`) structurally matched
     // `ServiceYieldRequest<any, any, any>` despite carrying no explicit
     // metadata — so `Name` widened to `string` and `[Key in Name]` collapsed
     // the merged deps map to a `{ [x: string]: ... }` index signature instead
@@ -431,7 +430,7 @@ describe('CraftRouter', () => {
     class MultiYield {
       readonly run = craftMethod('run', this, function* () {
         yield* Console.log('navigating');
-        yield* CraftRouterToYield();
+        yield* CraftRouter();
       });
     }
 
@@ -442,7 +441,7 @@ describe('CraftRouter', () => {
         browserBoundary: true;
         appStart: false;
       };
-      CraftRouter: GetToYieldServiceDependencies<typeof CraftRouterToYield>;
+      CraftRouter: GetServiceDependencies<typeof CraftRouter>;
     };
     type _Check = Expect<Equal<ExtractDeps<MultiYield['run']>, ExpectedDeps>>;
   });

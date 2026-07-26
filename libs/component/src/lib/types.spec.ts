@@ -81,7 +81,7 @@ it('does not expose ordinary context callbacks as component outputs', () => {
 });
 
 it('carries inferred dependencies from the component through the lazy route fragment', () => {
-  const { TypeSpecServiceToYield } = craftService(
+  const { TypeSpecService } = craftService(
     { name: 'TypeSpecService', scope: 'toProvide' },
     () => ({ value: 'tracked' }),
   );
@@ -90,7 +90,7 @@ it('carries inferred dependencies from the component through the lazy route frag
     'trackedComponent',
     {},
     function* (label: Input<string>) {
-      const service = yield* TypeSpecServiceToYield();
+      const service = yield* TypeSpecService();
       return { label, service };
     },
     ({ label, service }) => p(`${label()}: ${service.value}`),
@@ -141,7 +141,7 @@ it('carries inferred dependencies from the component through the lazy route frag
         'label'
       >,
       [
-        'Injected TypeSpecService is not provided in this component (or you may scope this properties as protected/private)',
+        'The TypeSpecService service is not provided in this component',
       ]
     >
   >;
@@ -167,7 +167,7 @@ it('does not infer component dependencies from an unbranded value', () => {
 });
 
 it('does not treat unbranded Angular providers as Craft service providers', () => {
-  const { MissingProviderToYield } = craftService(
+  const { MissingProvider } = craftService(
     { name: 'MissingProvider', scope: 'toProvide' },
     () => ({ value: 'missing' }),
   );
@@ -176,7 +176,7 @@ it('does not treat unbranded Angular providers as Craft service providers', () =
     'unbrandedProviderComponent',
     { providers: [provideHostName('component:unbrandedProviderComponent')] },
     function* () {
-      const service = yield* MissingProviderToYield();
+      const service = yield* MissingProvider();
       return { service };
     },
     ({ service }) => p(service.value),
@@ -190,14 +190,14 @@ it('does not treat unbranded Angular providers as Craft service providers', () =
     Equal<
       RouteCheckedDI<ComponentDependencies, never, never, 'this component'>,
       [
-        'Injected MissingProvider is not provided in this component (or you may scope this properties as protected/private)',
+        'The MissingProvider service is not provided in this component',
       ]
     >
   >;
 });
 
 it('includes dependencies of Craft components rendered in nested templates', () => {
-  const { TemplateDependencyToYield } = craftService(
+  const { TemplateDependency } = craftService(
     { name: 'TemplateDependency', scope: 'toProvide' },
     () => ({ value: 'template' }),
   );
@@ -206,7 +206,7 @@ it('includes dependencies of Craft components rendered in nested templates', () 
     'templateDependencyChild',
     {},
     function* () {
-      const service = yield* TemplateDependencyToYield();
+      const service = yield* TemplateDependency();
       return { service };
     },
     ({ service }) => p(service.value),
@@ -268,7 +268,7 @@ it('infers public inputs added by a piped directive', () => {
 });
 
 it('preserves template dependencies when Craft directives are applied', () => {
-  const { DirectiveTemplateDependencyToYield } = craftService(
+  const { DirectiveTemplateDependency } = craftService(
     { name: 'DirectiveTemplateDependency', scope: 'toProvide' },
     () => ({ value: 'directive-template' }),
   );
@@ -277,7 +277,7 @@ it('preserves template dependencies when Craft directives are applied', () => {
     'directiveTemplateDependencyChild',
     {},
     function* () {
-      const service = yield* DirectiveTemplateDependencyToYield();
+      const service = yield* DirectiveTemplateDependency();
       return { service };
     },
     ({ service }) => p(service.value),

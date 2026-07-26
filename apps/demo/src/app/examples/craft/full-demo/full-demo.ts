@@ -27,7 +27,7 @@ let records: Todo[] = [
   { id: 2, title: 'Expose query and mutations' },
 ];
 
-const { provideTodoStore, TodoStoreToYield } = craftService(
+const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', scope: 'toProvide' },
   function* () {
     const refresh = signal(0);
@@ -65,7 +65,7 @@ const FullDemoCraft = craftComponent(
   },
   function* () {
     componentMonitoring();
-    return { store: yield* TodoStoreToYield() };
+    return { store: yield* TodoStore() };
   },
   ({ store }) => {
     let title = ''; // todoR bizzare

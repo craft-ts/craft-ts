@@ -165,7 +165,7 @@ describe('insertForm compatibility with query', () => {
   });
 
   it('exposes a working form at runtime over the resolved resource state', async () => {
-    const { injectUserStore } = craftService(
+    const { UserStore } = craftService(
       { name: 'UserStore', scope: 'global' },
       function* () {
         return {
@@ -185,7 +185,7 @@ describe('insertForm compatibility with query', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const store = injectUserStore();
+      const store = UserStore();
       expect(store.user.form).toBeDefined();
 
       await vi.runAllTimersAsync();

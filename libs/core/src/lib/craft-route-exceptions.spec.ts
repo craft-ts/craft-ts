@@ -12,7 +12,7 @@ import {
   CRAFT_GLOBAL_ERROR,
   craftExceptionHandler,
   craftExceptionOutcomeApi,
-  injectCraftGlobalError,
+  CraftGlobalError,
   type CraftExceptionHandler,
   type HandledExceptionsForUnion,
   type NoExtraExceptionHandlers,
@@ -144,7 +144,7 @@ describe('craft-route-exceptions (types)', () => {
   it('accepts a generator handler that yields before its outcome', () => {
     const handler: CraftExceptionHandler<Ex<'A'>> = craftExceptionHandler(
       function* ({ redirectUrl }) {
-        // a real handler could `yield* SomeConfigToYield()` here
+        // a real handler could `yield* SomeConfig()` here
         return redirectUrl('/from-generator');
       },
     );
@@ -189,11 +189,11 @@ describe('craft-route-exceptions (runtime)', () => {
     });
   });
 
-  it('injectCraftGlobalError reads the CRAFT_GLOBAL_ERROR signal', () => {
+  it('CraftGlobalError reads the CRAFT_GLOBAL_ERROR signal', () => {
     TestBed.configureTestingModule({});
     const { sink, read } = TestBed.runInInjectionContext(() => ({
       sink: inject(CRAFT_GLOBAL_ERROR),
-      read: injectCraftGlobalError(),
+      read: CraftGlobalError(),
     }));
 
     expect(sink()).toBeNull();

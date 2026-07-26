@@ -95,7 +95,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * @example
  * Basic source for user actions
  * ```ts
- * const { injectUserStore } = craftService(
+ * const { UserStore } = craftService(
  *   { name: 'UserStore', scope: 'toProvide' },
  *   function* () {
  *     const loadUser = signalSource<string>('loadUser');
@@ -112,7 +112,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   },
  * );
  *
- * const store = injectUserStore();
+ * const store = UserStore();
  *
  * // Query executes automatically when source emits
  * store.loadUser.set('user-123');
@@ -128,7 +128,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * ```ts
  * type FormData = { name: string; email: string };
  *
- * const { injectFormStore } = craftService(
+ * const { FormStore } = craftService(
  *   { name: 'FormStore', scope: 'toProvide' },
  *   function* () {
  *     const submitForm = signalSource<FormData>('submitForm');
@@ -148,7 +148,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   },
  * );
  *
- * const store = injectFormStore();
+ * const store = FormStore();
  *
  * // In component template:
  * // <form (submit)="onSubmit()">
@@ -167,7 +167,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * @example
  * Source for reload/refresh actions
  * ```ts
- * const { injectDataStore } = craftService(
+ * const { DataStore } = craftService(
  *   { name: 'DataStore', scope: 'toProvide' },
  *   function* () {
  *     const reload = signalSource<void>('reload');
@@ -184,7 +184,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   },
  * );
  *
- * const store = injectDataStore();
+ * const store = DataStore();
  *
  * // Trigger reload from anywhere
  * store.reload.set();
@@ -198,7 +198,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * @example
  * Multiple sources for different actions
  * ```ts
- * const { injectTodoStore } = craftService(
+ * const { TodoStore } = craftService(
  *   { name: 'TodoStore', scope: 'toProvide' },
  *   function* () {
  *     const addTodo = signalSource<{ text: string }>('addTodo');
@@ -238,7 +238,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   },
  * );
  *
- * const store = injectTodoStore();
+ * const store = TodoStore();
  *
  * // Different actions trigger different mutations
  * store.addTodo.set({ text: 'Buy milk' });
@@ -299,7 +299,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * Source for coordinating multiple components
  * ```ts
  * // Root-provided coordinator service, injected wherever the shared source is needed
- * const { injectRefreshCoordinator } = craftService(
+ * const { RefreshCoordinator } = craftService(
  *   { name: 'RefreshCoordinator', scope: 'root' },
  *   () => {
  *     const refreshAllSource = signalSource<void>('refreshAllSource');
@@ -308,10 +308,10 @@ export type SignalSource<T> = Signal<T | undefined> & {
  * );
  *
  * // Component A's store
- * const { injectDataViewStore, provideDataViewStore } = craftService(
+ * const { DataViewStore, provideDataViewStore } = craftService(
  *   { name: 'DataViewStore', scope: 'toProvide' },
  *   function* () {
- *     const { refreshAllSource } = injectRefreshCoordinator();
+ *     const { refreshAllSource } = RefreshCoordinator();
  *
  *     const data = yield* query({
  *       method: afterRecomputation(refreshAllSource, () => ({})),
@@ -331,7 +331,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   providers: [provideDataViewStore()],
  * })
  * export class DataViewComponent {
- *   store = injectDataViewStore();
+ *   store = DataViewStore();
  * }
  *
  * // Component B
@@ -340,7 +340,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   template: '<button (click)="refresh()">Refresh All</button>',
  * })
  * export class RefreshButtonComponent {
- *   private readonly coordinator = injectRefreshCoordinator();
+ *   private readonly coordinator = RefreshCoordinator();
  *
  *   refresh() {
  *     // Triggers refresh in every store listening to this source
@@ -358,7 +358,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   page: number;
  * };
  *
- * const { injectSearchStore } = craftService(
+ * const { SearchStore } = craftService(
  *   { name: 'SearchStore', scope: 'toProvide' },
  *   function* () {
  *     const search = signalSource<SearchParams>('search');
@@ -380,7 +380,7 @@ export type SignalSource<T> = Signal<T | undefined> & {
  *   },
  * );
  *
- * const store = injectSearchStore();
+ * const store = SearchStore();
  *
  * // Emit complex search parameters
  * store.search.set({
@@ -398,7 +398,10 @@ export function signalSource<T>(
 ): SignalSource<T> {
   assertInInjectionContext(signalSource);
   const injector = inject(Injector);
-  const sourceInjector = ɵcreateHostTaggedInjector(injector, `signal-source:${name}`);
+  const sourceInjector = ɵcreateHostTaggedInjector(
+    injector,
+    `signal-source:${name}`,
+  );
   const destroyRef = inject(DestroyRef);
 
   const sourceState = signal<T | undefined>(undefined, {
@@ -433,15 +436,23 @@ export function signalSource<T>(
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
   if (registry) {
     const from = sourceInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    registry.triggerSnapshot$.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
-      let stateSnapshot: unknown;
-      try {
-        stateSnapshot = result();
-      } catch (error) {
-        stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
-      }
-      registry.allSnapShot$.next({ source: name, from, state: stateSnapshot });
-    });
+    registry.triggerSnapshot$
+      .pipe(takeUntilDestroyed(destroyRef))
+      .subscribe(() => {
+        let stateSnapshot: unknown;
+        try {
+          stateSnapshot = result();
+        } catch (error) {
+          stateSnapshot = {
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+        registry.allSnapShot$.next({
+          source: name,
+          from,
+          state: stateSnapshot,
+        });
+      });
   }
 
   return Object.assign(

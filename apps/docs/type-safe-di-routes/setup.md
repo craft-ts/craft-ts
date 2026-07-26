@@ -43,7 +43,7 @@ the route does not supply, `_CanRunApp` turns that mismatch into a TypeScript er
 
 Typical errors look like:
 
-- `Injected Counter is not provided in path: "some-path"`
+- `The Counter service is not provided in path: "some-path"`
 - `Input "userId" is not provided in path: "some-path"`
 
 ## 2. Define routes with `craftRoute` and collect them with `craftRoutes`
@@ -208,7 +208,7 @@ A missing provider in the child collection now surfaces as a TypeScript error **
 exactly like the main one:
 
 ```
-Injected SomeService is not provided in path: ""
+The SomeService service is not provided in path: ""
 ```
 
 If a single feature is itself large, repeat the split, or break one big collection into several
@@ -405,7 +405,7 @@ This is the step that creates the initial `GenDeps_*` aliases in your component 
 export type GenDeps_TestComponent = GetDeps<{
   deps: {
     CommonModule: CommonModule;
-    Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+    Counter: GetServiceDependencies<typeof Counter>;
   };
   provided: {};
   publicProperties: GetPublicComponentProperties<TestComponent>;

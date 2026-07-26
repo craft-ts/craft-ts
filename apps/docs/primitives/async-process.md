@@ -118,11 +118,11 @@ console.log(debouncedById2?.value()); // data2 once resolved
 const loadProfile = asyncProcess({
   providers: [provideAsyncLogger(), provideProfileGateway()],
   method: function* (userId: string) {
-    yield* AsyncLoggerToYield.log(`load:${userId}`);
+    yield* AsyncLogger.log(`load:${userId}`);
     return userId;
   },
   loader: function* ({ params }) {
-    return yield* ProfileGatewayToYield.load(params);
+    return yield* ProfileGateway.load(params);
   },
 });
 ```

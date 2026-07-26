@@ -19,7 +19,7 @@ type HasDependency<
 
 describe('primitive dependency tracking', () => {
   it('detects a dependency used only inside loaders when the primitive is yielded', () => {
-    const { injectAuth } = craftService(
+    const { Auth } = craftService(
       { name: 'Auth', scope: 'global', appStart: true },
       function* () {
         const register = yield* mutation({
@@ -58,14 +58,14 @@ describe('primitive dependency tracking', () => {
       },
     );
 
-    type AuthDeps = ExtractServiceHelperDependencies<typeof injectAuth>;
+    type AuthDeps = ExtractServiceHelperDependencies<typeof Auth>;
     type _Detected = Expect<HasDependency<AuthDeps, 'CraftHttpClient'>>;
 
-    expect(typeof injectAuth).toBe('function');
+    expect(typeof Auth).toBe('function');
   });
 
   it('detects a loader dependency without any explicit track wrapper', () => {
-    const { injectAuthUntracked } = craftService(
+    const { AuthUntracked } = craftService(
       { name: 'AuthUntracked', scope: 'global' },
       function* () {
         const register = yield* mutation({
@@ -82,11 +82,11 @@ describe('primitive dependency tracking', () => {
       },
     );
 
-    type Deps = ExtractServiceHelperDependencies<typeof injectAuthUntracked>;
+    type Deps = ExtractServiceHelperDependencies<typeof AuthUntracked>;
     // The primitive generator surfaces its dependency map through `yield*`,
     // no explicit track wrapper needed.
     type _Detected = Expect<HasDependency<Deps, 'CraftHttpClient'>>;
 
-    expect(typeof injectAuthUntracked).toBe('function');
+    expect(typeof AuthUntracked).toBe('function');
   });
 });

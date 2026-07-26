@@ -22,9 +22,9 @@ import {
   queryParams,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiServiceToYield, type User } from './api.service';
+import { ApiService, type User } from './api.service';
 
-const { provideGranularMutation, GranularMutationToYield } = craftService(
+const { provideGranularMutation, GranularMutation } = craftService(
   { name: 'GranularMutation', scope: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
@@ -44,7 +44,7 @@ const { provideGranularMutation, GranularMutationToYield } = craftService(
       method: (user: User) => ({ ...user, name: `${user.name}-` }),
       identifier: ({ id }) => id,
       loader: function* ({ params }) {
-        return yield* ApiServiceToYield.updateItem(params);
+        return yield* ApiService.updateItem(params);
       },
     });
     const users = yield* query(
@@ -52,7 +52,7 @@ const { provideGranularMutation, GranularMutationToYield } = craftService(
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
         loader: function* ({ params }) {
-          return yield* ApiServiceToYield.getDataList(params);
+          return yield* ApiService.getDataList(params);
         },
       },
       (context) =>
@@ -95,11 +95,11 @@ const GranularMutationCraft = craftComponent(
   },
   function* () {
     componentMonitoring();
-    const store = yield* GranularMutationToYield();
+    const store = yield* GranularMutation();
     const updatePageSize = craftMethod(
       'updatePageSize',
       function* (event: Event) {
-        (yield* GranularMutationToYield()).pagination.updatePageSize(
+        (yield* GranularMutation()).pagination.updatePageSize(
           Number((event.target as HTMLSelectElement).value),
         );
       },

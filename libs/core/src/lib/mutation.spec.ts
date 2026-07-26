@@ -13,7 +13,7 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
-import type { GetToYieldServiceDependencies } from './craft-service';
+import type { GetServiceDependencies } from './craft-service';
 import {
   provideFnWrapObserver,
   provideFnWrapper,
@@ -178,20 +178,20 @@ describe('mutation', () => {
   });
 
   it('typing: tracks generator dependencies from method, loader and insertions', () => {
-    const { MutationParamsToYield } = craftService(
+    const { MutationParams } = craftService(
       { name: 'MutationParams', scope: 'global' },
       () => ({
         mapUserId: (userId: string): string => userId.trim(),
       }),
     );
-    const { MutationApiToYield } = craftService(
+    const { MutationApi } = craftService(
       { name: 'MutationApi', scope: 'global' },
       () => ({
         save: (userId: string): Promise<{ userId: string }> =>
           Promise.resolve({ userId }),
       }),
     );
-    const { MutationToolsToYield } = craftService(
+    const { MutationTools } = craftService(
       { name: 'MutationTools', scope: 'global' },
       () => ({
         label: (): string => 'save-user',
@@ -203,16 +203,16 @@ describe('mutation', () => {
         mutation(
           {
             method: function* (userId: string) {
-              const paramsMapper = yield* MutationParamsToYield();
+              const paramsMapper = yield* MutationParams();
               return paramsMapper.mapUserId(userId);
             },
             loader: function* ({ params }) {
-              const api = yield* MutationApiToYield();
+              const api = yield* MutationApi();
               return api.save(params);
             },
           },
           function* () {
-            const tools = yield* MutationToolsToYield();
+            const tools = yield* MutationTools();
             return {
               mutationLabel: tools.label(),
             };
@@ -221,12 +221,12 @@ describe('mutation', () => {
       );
 
       expectTypeOf<ExtractDeps<typeof mutationRef>>().toEqualTypeOf<{
-        MutationParams: GetToYieldServiceDependencies<
-          typeof MutationParamsToYield
+        MutationParams: GetServiceDependencies<
+          typeof MutationParams
         >;
-        MutationApi: GetToYieldServiceDependencies<typeof MutationApiToYield>;
-        MutationTools: GetToYieldServiceDependencies<
-          typeof MutationToolsToYield
+        MutationApi: GetServiceDependencies<typeof MutationApi>;
+        MutationTools: GetServiceDependencies<
+          typeof MutationTools
         >;
       }>();
     });
@@ -234,7 +234,7 @@ describe('mutation', () => {
 
   it('should resolve generator method, loader and insertions', async () => {
     const logs: string[] = [];
-    const { MutationLoggerRuntimeToYield } = craftService(
+    const { MutationLoggerRuntime } = craftService(
       { name: 'MutationLoggerRuntime', scope: 'global' },
       () => ({
         log: (message: string) => {
@@ -242,7 +242,7 @@ describe('mutation', () => {
         },
       }),
     );
-    const { MutationApiRuntimeToYield } = craftService(
+    const { MutationApiRuntime } = craftService(
       { name: 'MutationApiRuntime', scope: 'global' },
       () => ({
         save: async (userId: string): Promise<{ userId: string }> => ({
@@ -256,17 +256,17 @@ describe('mutation', () => {
         mutation(
           {
             method: function* (userId: string) {
-              const logger = yield* MutationLoggerRuntimeToYield();
+              const logger = yield* MutationLoggerRuntime();
               logger.log(`mutate:${userId}`);
               return userId;
             },
             loader: function* ({ params }) {
-              const api = yield* MutationApiRuntimeToYield();
+              const api = yield* MutationApiRuntime();
               return api.save(params);
             },
           },
           function* () {
-            const logger = yield* MutationLoggerRuntimeToYield();
+            const logger = yield* MutationLoggerRuntime();
             logger.log('insert:init');
             return {
               initialized: true,
@@ -288,7 +288,7 @@ describe('mutation', () => {
 describe('mutation types without identifier', () => {
   it('should infer correctly the types of mutation', () => {
     TestBed.runInInjectionContext(() => {
-      const { injectMutations } = craftService(
+      const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
           const searchChange = craftUse(
@@ -354,7 +354,7 @@ describe('mutation types without identifier', () => {
         },
       );
 
-      const mutationsOutput = injectMutations();
+      const mutationsOutput = Mutations();
       expect(mutationsOutput.props.searchChange.kind).toBe('mutation');
 
       type props = (typeof mutationsOutput)['props'];
@@ -437,7 +437,7 @@ describe('mutation types without identifier', () => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
       );
-      const { injectMutations } = craftService(
+      const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
           const searchChange = craftUse(
@@ -486,7 +486,7 @@ describe('mutation types without identifier', () => {
         },
       );
 
-      const mutationsOutput = injectMutations();
+      const mutationsOutput = Mutations();
       expect(mutationsOutput.props.filterChange.kind).toBe('mutation');
 
       type props = (typeof mutationsOutput)['props'];
@@ -637,7 +637,7 @@ describe('mutation types without identifier', () => {
 describe('mutation types with identifier', () => {
   it('should infer correctly the types of mutation', () => {
     TestBed.runInInjectionContext(() => {
-      const { injectMutations } = craftService(
+      const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
           const searchChange = craftUse(
@@ -704,7 +704,7 @@ describe('mutation types with identifier', () => {
         },
       );
 
-      const mutationsOutput = injectMutations();
+      const mutationsOutput = Mutations();
       expect(mutationsOutput.props.searchChange.kind).toBe('mutation');
 
       type props = (typeof mutationsOutput)['props'];
@@ -787,7 +787,7 @@ describe('mutation types with identifier', () => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
       );
-      const { injectMutations } = craftService(
+      const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
           const searchChange = craftUse(
@@ -837,7 +837,7 @@ describe('mutation types with identifier', () => {
         },
       );
 
-      const mutationsOutput = injectMutations();
+      const mutationsOutput = Mutations();
 
       type props = (typeof mutationsOutput)['props'];
       const search = mutationsOutput.props.searchChange.select('test');
@@ -1548,7 +1548,7 @@ describe('mutation — providers', () => {
   });
 
   it('typing: mutation accepts BrandedServiceProvider in providers without type errors', () => {
-    const { MethodServiceToYield, provideMethodService } = craftService(
+    const { MethodService, provideMethodService } = craftService(
       { name: 'MethodService', scope: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
@@ -1557,7 +1557,7 @@ describe('mutation — providers', () => {
       const withoutProviders = craftUse(
         mutation({
           params: function* () {
-            yield* MethodServiceToYield();
+            yield* MethodService();
             return 'user-1';
           },
           loader: async ({ params }) => ({ id: params }),

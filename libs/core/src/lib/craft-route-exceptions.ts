@@ -10,7 +10,7 @@ import type { Router, UrlTree } from '@angular/router';
 import type { AnyCraftException } from './craft-exception';
 import type { ExtractCraftGenExceptions } from './craft-gen';
 import {
-  CraftRouterToYield,
+  CraftRouter,
   type CraftRouterUrlTreeInput,
   type CraftRouterYieldRequest,
   type NavigableRoutePath,
@@ -18,7 +18,7 @@ import {
 import {
   toCraftService,
   // These marker symbols are imported type-only so the generated
-  // `CraftGlobalErrorToYield` helper's inferred type is nameable in this
+  // `CraftGlobalError` helper's inferred type is nameable in this
   // module's `.d.ts` (otherwise TS4023 — same recipe as `craft-router.ts`).
   type SERVICE_DEPENDENCY_ACCESS_MARKER,
   type SERVICE_EXPOSURE_TOKEN_MARKER,
@@ -189,7 +189,7 @@ export const craftExceptionOutcomeApi = {
     CraftExceptionOutcomeOf<'redirect'>,
     unknown
   > {
-    const target = yield* CraftRouterToYield.createUrlTree(input as never);
+    const target = yield* CraftRouter.createUrlTree(input as never);
     return { kind: 'redirect', target };
   },
   renderComponent: (
@@ -464,7 +464,7 @@ export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
 /**
  * Adapts the same {@link CRAFT_GLOBAL_ERROR} token as a craft dependency named
  * `CraftGlobalError`, so the global exception can be read from a generator body
- * the way a `toCraftService` dependency is — see {@link CraftGlobalErrorToYield}.
+ * the way a `toCraftService` dependency is — see {@link CraftGlobalError}.
  * Typed as the exhaustive {@link CraftGlobalHandledException} view, matching
  * {@link injectCraftGlobalError}.
  */
@@ -482,7 +482,7 @@ const craftGlobalErrorService = toCraftService({
  * routed to the global error component from inside a `function*` body:
  *
  * ```ts
- * const error = yield* CraftGlobalErrorToYield();
+ * const error = yield* CraftGlobalError();
  * // switch (error().code) { case 'USER_DISABLED': … }
  * ```
  *
@@ -490,5 +490,4 @@ const craftGlobalErrorService = toCraftService({
  * recorded in {@link CraftGlobalExceptionRegistry} — and it tracks as a
  * `CraftGlobalError` dependency, exactly like the property form.
  */
-export const CraftGlobalErrorToYield =
-  craftGlobalErrorService.CraftGlobalErrorToYield;
+export const CraftGlobalError = craftGlobalErrorService.CraftGlobalError;

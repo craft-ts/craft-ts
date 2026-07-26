@@ -22,7 +22,7 @@ import {
   toCraftService,
 } from './craft-service';
 import type {
-  GetInjectedServiceDependencies,
+  GetServiceDependencies,
   GetServiceOutput,
   GetServiceReferenceMeta,
   GetServiceTrackingMetadata,
@@ -68,16 +68,16 @@ describe('toCraftService', () => {
       }
     }
 
-    const { RouterLikeToYield } = toCraftService({
+    const { RouterLike } = toCraftService({
       name: 'RouterLike',
       scope: 'global',
       token: RouterLike,
     });
 
-    const { injectNavigation } = craftService(
+    const { Navigation } = craftService(
       { name: 'Navigation', scope: 'global' },
       function* () {
-        const routerLike = yield* RouterLikeToYield(
+        const routerLike = yield* RouterLike(
           undefined,
           ({ navigateByUrl }) => ({
             navigateByUrl,
@@ -91,7 +91,7 @@ describe('toCraftService', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const navigation = injectNavigation();
+      const navigation = Navigation();
       const routerLike = inject(RouterLike);
 
       await navigation.goToCheckout();
@@ -113,19 +113,19 @@ describe('toCraftService', () => {
       }
     }
 
-    const { RouterLikeShortcutToYield } = toCraftService({
+    const { RouterLikeShortcut } = toCraftService({
       name: 'RouterLikeShortcut',
       scope: 'global',
       token: RouterLikeShortcut,
     });
 
-    const { injectShortcutNavigation } = craftService(
+    const { ShortcutNavigation } = craftService(
       { name: 'ShortcutNavigation', scope: 'global' },
       function* () {
-        const navigateByUrl = yield* RouterLikeShortcutToYield.navigateByUrl();
+        const navigateByUrl = yield* RouterLikeShortcut.navigateByUrl();
 
         expectTypeOf(navigateByUrl).toEqualTypeOf<
-          GetServiceOutput<typeof RouterLikeShortcutToYield>['navigateByUrl']
+          GetServiceOutput<typeof RouterLikeShortcut>['navigateByUrl']
         >();
 
         return {
@@ -135,11 +135,11 @@ describe('toCraftService', () => {
     );
 
     expect(
-      getServiceMetaData(RouterLikeShortcutToYield.navigateByUrl).name,
+      getServiceMetaData(RouterLikeShortcut.navigateByUrl).name,
     ).toBe('RouterLikeShortcut');
 
     await TestBed.runInInjectionContext(async () => {
-      const navigation = injectShortcutNavigation();
+      const navigation = ShortcutNavigation();
       const routerLike = inject(RouterLikeShortcut);
 
       await navigation.goToCheckout();
@@ -161,22 +161,22 @@ describe('toCraftService', () => {
       }
     }
 
-    const { RouterLikeDirectShortcutToYield } = toCraftService({
+    const { RouterLikeDirectShortcut } = toCraftService({
       name: 'RouterLikeDirectShortcut',
       scope: 'global',
       token: RouterLikeDirectShortcut,
     });
 
-    const { injectDirectShortcutNavigation } = craftService(
+    const { DirectShortcutNavigation } = craftService(
       { name: 'DirectShortcutNavigation', scope: 'global' },
       function* () {
         const result =
-          yield* RouterLikeDirectShortcutToYield.navigateByUrl('/checkout');
+          yield* RouterLikeDirectShortcut.navigateByUrl('/checkout');
 
         expectTypeOf(result).toEqualTypeOf<
           ReturnType<
             GetServiceOutput<
-              typeof RouterLikeDirectShortcutToYield
+              typeof RouterLikeDirectShortcut
             >['navigateByUrl']
           >
         >();
@@ -188,7 +188,7 @@ describe('toCraftService', () => {
     await TestBed.runInInjectionContext(async () => {
       const routerLike = inject(RouterLikeDirectShortcut);
 
-      await expect(injectDirectShortcutNavigation()).resolves.toBe(true);
+      await expect(DirectShortcutNavigation()).resolves.toBe(true);
       expect(routerLike.currentUrl()).toBe('/checkout');
     });
   });
@@ -207,14 +207,14 @@ describe('toCraftService', () => {
       ],
     });
 
-    const { injectCurrentRoute } = toCraftService({
+    const { CurrentRoute } = toCraftService({
       name: 'CurrentRoute',
       scope: 'global',
       inject: () => inject(CURRENT_ROUTE),
     });
 
     TestBed.runInInjectionContext(() => {
-      expect(injectCurrentRoute().path).toBe('/checkout');
+      expect(CurrentRoute().path).toBe('/checkout');
     });
   });
 
@@ -232,7 +232,7 @@ describe('toCraftService', () => {
       ],
     });
 
-    const { injectBrowserRoute, BrowserRouteToYield, BROWSER_ROUTE_META_DATA } =
+    const { BrowserRoute, BROWSER_ROUTE_META_DATA } =
       toCraftService({
         name: 'BrowserRoute',
         scope: 'global',
@@ -248,17 +248,17 @@ describe('toCraftService', () => {
 
     expect(BROWSER_ROUTE_META_DATA.browserBoundary).toBe(true);
     expect(DEFAULT_ROUTE_META_DATA.browserBoundary).toBe(false);
-    expect(getServiceMetaData(injectBrowserRoute).browserBoundary).toBe(true);
+    expect(getServiceMetaData(BrowserRoute).browserBoundary).toBe(true);
 
     expectTypeOf(BROWSER_ROUTE_META_DATA.browserBoundary).toEqualTypeOf<true>();
     expectTypeOf(
       DEFAULT_ROUTE_META_DATA.browserBoundary,
     ).toEqualTypeOf<false>();
     expectTypeOf<
-      GetServiceReferenceMeta<typeof injectBrowserRoute>['browserBoundary']
+      GetServiceReferenceMeta<typeof BrowserRoute>['browserBoundary']
     >().toEqualTypeOf<true>();
     expectTypeOf<
-      GetServiceTrackingMetadata<typeof BrowserRouteToYield>['browserBoundary']
+      GetServiceTrackingMetadata<typeof BrowserRoute>['browserBoundary']
     >().toEqualTypeOf<true>();
   });
 
@@ -284,17 +284,17 @@ describe('toCraftService', () => {
       ],
     });
 
-    const { CounterToYield, COUNTER_META_DATA } = toCraftService({
+    const { Counter, COUNTER_META_DATA } = toCraftService({
       name: 'Counter',
       scope: 'global',
       token: COUNTER,
       browserBoundary: true,
     });
 
-    const { injectCounterFacade } = craftService(
+    const { CounterFacade } = craftService(
       { name: 'CounterFacade', scope: 'global' },
       function* () {
-        return yield* CounterToYield(undefined, ({ $self, increment }) => ({
+        return yield* Counter(undefined, ({ $self, increment }) => ({
           $self,
           incrementCounter: increment,
         }));
@@ -302,7 +302,7 @@ describe('toCraftService', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterFacade = injectCounterFacade();
+      const counterFacade = CounterFacade();
 
       expect(counterFacade()).toBe(10);
       counterFacade.incrementCounter();
@@ -323,7 +323,7 @@ describe('toCraftService', () => {
       }
     }
 
-    const { injectCounterDriver, provideCounterDriver } = toCraftService({
+    const { CounterDriver, provideCounterDriver } = toCraftService({
       name: 'CounterDriver',
       scope: 'toProvide',
       token: CounterDriver,
@@ -340,7 +340,7 @@ describe('toCraftService', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterDriver = injectCounterDriver();
+      const counterDriver = CounterDriver();
 
       expect(counterDriver.total()).toBe(0);
       counterDriver.increment();
@@ -360,7 +360,7 @@ describe('toCraftService', () => {
       }
     }
 
-    const { injectCatalog, provideCatalog } = toCraftService({
+    const { Catalog, provideCatalog } = toCraftService({
       name: 'Catalog',
       scope: 'toProvide',
       token: CatalogDriver,
@@ -380,7 +380,7 @@ describe('toCraftService', () => {
       provideCatalog({ apiBaseUrl: '/api' });
 
       //@ts-expect-error $provided should not be a public inject binding for raw dependencies
-      injectCatalog({
+      Catalog({
         $provided: { apiBaseUrl: '/override' },
       });
     }
@@ -390,7 +390,7 @@ describe('toCraftService', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      expect(injectCatalog().fetchProducts()).toBe('/api/products');
+      expect(Catalog().fetchProducts()).toBe('/api/products');
     });
   });
 
@@ -406,7 +406,7 @@ describe('toCraftService', () => {
       }
     }
 
-    const { injectCatalog, CatalogToYield, provideCatalog } = toCraftService(
+    const { Catalog, provideCatalog } = toCraftService(
       {
         name: 'Catalog',
         scope: 'toProvide',
@@ -439,7 +439,7 @@ describe('toCraftService', () => {
 
     if (false) {
       //@ts-expect-error $provided should not be a public inject binding for toCraftService
-      injectCatalog({
+      Catalog({
         prefix: 'catalog',
         $provided: { apiBaseUrl: '/override' },
       });
@@ -447,14 +447,14 @@ describe('toCraftService', () => {
 
     if (false) {
       //@ts-expect-error $provided should not be a public yield binding for toCraftService
-      CatalogToYield({
+      Catalog({
         prefix: 'catalog',
         $provided: { apiBaseUrl: '/override' },
       });
     }
 
     TestBed.runInInjectionContext(() => {
-      const catalog = injectCatalog({ prefix: 'catalog' });
+      const catalog = Catalog({ prefix: 'catalog' });
 
       expect(catalog.readDriverBaseUrl()).toBe('/api');
       expect(catalog.readProvidedBaseUrl()).toBe('/api');
@@ -473,7 +473,7 @@ describe('toCraftService', () => {
     }
 
     const {
-      injectCounterDriver,
+      CounterDriver,
       provideCounterDriver,
       CounterDriverToProvide,
     } = toCraftService({
@@ -493,7 +493,7 @@ describe('toCraftService', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterDriver = injectCounterDriver();
+      const counterDriver = CounterDriver();
       const providedCounterDriver = inject(CounterDriverToProvide);
 
       expect(counterDriver).toBe(providedCounterDriver);
@@ -503,7 +503,7 @@ describe('toCraftService', () => {
   });
 
   it('should forward provider rest arguments and expose both Router tokens for manuallyProvidedAtRoot dependencies', () => {
-    const { injectCraftRouter, provideCraftRouter, CraftRouterToProvide } =
+    const { CraftRouter, provideCraftRouter, CraftRouterToProvide } =
       toCraftService({
         name: 'CraftRouter',
         scope: 'manuallyProvidedAtRoot',
@@ -524,7 +524,7 @@ describe('toCraftService', () => {
       const angularRouter = inject(Router);
       const craftRouter = inject(CraftRouterToProvide);
 
-      expect(injectCraftRouter().url).toBe(angularRouter.url);
+      expect(CraftRouter().url).toBe(angularRouter.url);
       expect(craftRouter.url).toBe(angularRouter.url);
       expect(typeof craftRouter.navigateByUrl).toBe('function');
     });
@@ -542,7 +542,7 @@ describe('toCraftService', () => {
       }
     }
 
-    const { injectCatalog, provideCatalog, CatalogToProvide } = toCraftService({
+    const { Catalog, provideCatalog, CatalogToProvide } = toCraftService({
       name: 'Catalog',
       scope: 'manuallyProvidedAtRoot',
       token: CatalogDriver,
@@ -562,7 +562,7 @@ describe('toCraftService', () => {
       provideCatalog({ apiBaseUrl: '/api' });
 
       //@ts-expect-error $provided should not be a public inject binding for raw dependencies
-      injectCatalog({
+      Catalog({
         $provided: { apiBaseUrl: '/override' },
       });
     }
@@ -572,7 +572,7 @@ describe('toCraftService', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const catalog = injectCatalog();
+      const catalog = Catalog();
       const providedCatalog = inject(CatalogToProvide);
 
       expect(catalog).toBe(providedCatalog);
@@ -603,17 +603,17 @@ describe('toCraftService', () => {
       ],
     });
 
-    const { CounterToYield, COUNTER_META_DATA } = toCraftService({
+    const { Counter, COUNTER_META_DATA } = toCraftService({
       name: 'Counter',
       scope: 'global',
       inject: () => inject(COUNTER),
       browserBoundary: true,
     });
 
-    const { injectCounterFacade } = craftService(
+    const { CounterFacade } = craftService(
       { name: 'CounterFacade', scope: 'global' },
       function* () {
-        return yield* CounterToYield(
+        return yield* Counter(
           undefined,
           function* ({ $self, increment, decrement }) {
             yield* decrement();
@@ -627,13 +627,13 @@ describe('toCraftService', () => {
       },
     );
 
-    type CounterFacadeDependencies = GetInjectedServiceDependencies<
-      typeof injectCounterFacade
+    type CounterFacadeDependencies = GetServiceDependencies<
+      typeof CounterFacade
     >;
 
     expectTypeOf(COUNTER_META_DATA.browserBoundary).toEqualTypeOf<true>();
     expectTypeOf<
-      GetServiceTrackingMetadata<typeof CounterToYield>['browserBoundary']
+      GetServiceTrackingMetadata<typeof Counter>['browserBoundary']
     >().toEqualTypeOf<true>();
     expectTypeOf<
       CounterFacadeDependencies['scope']
@@ -650,15 +650,15 @@ describe('toCraftService', () => {
     expectTypeOf<
       CounterFacadeDependencies['dependencies']['Counter']['derivedPropertiesUsed']
     >().toEqualTypeOf<{
-      $self: GetServiceOutput<typeof CounterToYield>;
-      increment: GetServiceOutput<typeof CounterToYield>['increment'];
-      decrement: GetServiceOutput<typeof CounterToYield>['decrement'];
+      $self: GetServiceOutput<typeof Counter>;
+      increment: GetServiceOutput<typeof Counter>['increment'];
+      decrement: GetServiceOutput<typeof Counter>['decrement'];
     }>();
     expectTypeOf<
       CounterFacadeDependencies['dependencies']['Counter']['derivedPropertiesExposed']
     >().toEqualTypeOf<{
-      $self: GetServiceOutput<typeof CounterToYield>;
-      incrementCounter: GetServiceOutput<typeof CounterToYield>['increment'];
+      $self: GetServiceOutput<typeof Counter>;
+      incrementCounter: GetServiceOutput<typeof Counter>['increment'];
     }>();
   });
 });

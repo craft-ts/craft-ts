@@ -481,7 +481,7 @@ describe('insertSelect', () => {
 
 describe('insertSelect with generator insertions', () => {
   it('should resolve generator insertion on object states', () => {
-    const { ObjLoggerToYield } = craftService(
+    const { ObjLogger } = craftService(
       { name: 'ObjLogger', scope: 'global' },
       () => {
         const calls: string[] = [];
@@ -497,7 +497,7 @@ describe('insertSelect with generator insertions', () => {
         state(
           { cell: { color: 'white', paintCount: 0 } },
           insertSelect('cell', function* ({ update }) {
-            const logger = yield* ObjLoggerToYield();
+            const logger = yield* ObjLogger();
             return {
               paint: () => {
                 logger.log('paint');
@@ -522,7 +522,7 @@ describe('insertSelect with generator insertions', () => {
   });
 
   it('should resolve generator insertion on array states', () => {
-    const { ArrLoggerToYield } = craftService(
+    const { ArrLogger } = craftService(
       { name: 'ArrLogger', scope: 'global' },
       () => {
         const calls: string[] = [];
@@ -538,7 +538,7 @@ describe('insertSelect with generator insertions', () => {
         state(
           [{ color: 'white', paintCount: 0 }],
           insertSelect('cell', function* ({ update }) {
-            const logger = yield* ArrLoggerToYield();
+            const logger = yield* ArrLogger();
             return {
               paint: (color: string) => {
                 logger.log(`paint:${color}`);

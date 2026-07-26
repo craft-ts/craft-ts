@@ -61,7 +61,7 @@ Use this form when the computed needs crafted dependencies.
 import { signal } from '@angular/core';
 import { craftComputed, craftService } from '@craft-ng/core';
 
-const { MultiplierToYield } = craftService(
+const { Multiplier } = craftService(
   { name: 'Multiplier', scope: 'function' },
   () => ({ factor: 3 }),
 );
@@ -70,7 +70,7 @@ class CounterComponent {
   readonly count = signal(0);
 
   readonly tripled = craftComputed('tripled', function* () {
-    const multiplier = yield* MultiplierToYield();
+    const multiplier = yield* Multiplier();
     return () => this.count() * multiplier.factor;
   });
 }

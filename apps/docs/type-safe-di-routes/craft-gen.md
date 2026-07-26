@@ -46,7 +46,7 @@ and evolve".
 import { craftException, craftGen } from '@craft-ng/core';
 
 export const roleGuard = craftGen(function* (...roles: Role[]) {
-  const { user } = yield* AuthToYield(undefined, ({ user }) => ({ user }));
+  const { user } = yield* Auth(undefined, ({ user }) => ({ user }));
 
   if (!user()) {
     return craftException({ code: 'NOT_AUTHENTICATED' });
@@ -58,7 +58,7 @@ export const roleGuard = craftGen(function* (...roles: Role[]) {
 });
 
 export const noPizzeriaGuard = craftGen(function* () {
-  const { pizzeria } = yield* AuthToYield(undefined, ({ pizzeria }) => ({ pizzeria }));
+  const { pizzeria } = yield* Auth(undefined, ({ pizzeria }) => ({ pizzeria }));
 
   return pizzeria() ? craftException({ code: 'HAS_PIZZERIA' }) : true;
 });
@@ -87,4 +87,4 @@ canActivate: function* () {
   retry a program locally
 - [`Route Guards`](/type-safe-di-routes/guards)
 - [`Exception Handling`](/type-safe-di-routes/exception-handling)
-- [`craftService`](/store/craft-service) if you want to expose `AuthToYield`-style helpers
+- [`craftService`](/store/craft-service) if you want to expose `Auth`-style helpers

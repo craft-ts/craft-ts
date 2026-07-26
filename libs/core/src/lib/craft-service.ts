@@ -92,11 +92,8 @@ type ExtractTrackedMetadata<Helper> = Helper extends {
   ? Metadata
   : never;
 
-export type GetInjectedServiceDependencies<InjectService> =
-  ResolveServiceTrackingMetadata<ExtractTrackedMetadata<InjectService>>;
-
-export type GetToYieldServiceDependencies<ToYieldService> =
-  ResolveServiceTrackingMetadata<ExtractTrackedMetadata<ToYieldService>>;
+export type GetServiceDependencies<ServiceHelper> =
+  ResolveServiceTrackingMetadata<ExtractTrackedMetadata<ServiceHelper>>;
 
 export type GetServiceOutput<ServiceHelper> =
   ExtractTrackedMetadata<ServiceHelper> extends ServiceTrackingMetadata<
@@ -943,7 +940,7 @@ type DependencyRecord<Request> =
     any,
     any
   >
-    ? // Some yield requests (e.g. raw injector helpers like `HostTagToYield`)
+    ? // Some yield requests (e.g. raw injector helpers like `HostTag`)
       // are structurally compatible with `ServiceYieldRequest<any, any, any>`
       // but carry no explicit metadata, so `Name` widens to `string`. Without
       // this guard, `[Key in string]` would emit an index signature that
@@ -1705,7 +1702,7 @@ type YieldHelper<
   ProvidedInput = ServiceProvidedInput<Inputs>,
   ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
 > = {
-  [Key in `${Capitalize<Name>}ToYield`]: WithTrackedDependencies<
+  [Key in Capitalize<Name>]: WithTrackedDependencies<
     WithServiceRuntimeMeta<
       {
         (): Generator<
@@ -1877,8 +1874,7 @@ type ConcreteServiceApi<
   Output,
   Metadata extends AnyServiceTrackingMetadata,
   AppStart extends boolean = false,
-> = InjectHelper<Name, Scope, Inputs, Output, Metadata, AppStart> &
-  YieldHelper<Name, Scope, Inputs, Output, Metadata, AppStart> &
+> = YieldHelper<Name, Scope, Inputs, Output, Metadata, AppStart> &
   ServiceMetaDataHelper<Name, Scope, Inputs, Output, Metadata, AppStart> &
   (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
     ? ProvideHelper<
@@ -1923,8 +1919,8 @@ type AbstractProvideHelper<Name extends string, Contract> = {
   >;
 };
 
-type AbstractToYieldHelper<Name extends string, Contract> = {
-  [Key in `${Capitalize<Name>}ToYield`]: () => Generator<
+type AbstractHelper<Name extends string, Contract> = {
+  [Key in Capitalize<Name>]: () => Generator<
     ServiceYieldRequest<
       'toProvide',
       Contract,
@@ -1935,11 +1931,12 @@ type AbstractToYieldHelper<Name extends string, Contract> = {
   >;
 };
 
-type AbstractServiceApi<Name extends string, Contract> = {
-  [Key in `inject${Capitalize<Name>}`]: () => Contract;
-} & RequirementHelper<Name, Contract> &
+type AbstractServiceApi<Name extends string, Contract> = RequirementHelper<
+  Name,
+  Contract
+> &
   AbstractProvideHelper<Name, Contract> &
-  AbstractToYieldHelper<Name, Contract>;
+  AbstractHelper<Name, Contract>;
 
 type DependencySourceToken<Output> = Type<Output> | InjectionToken<Output>;
 type DependencySourceOutput<Token> =
@@ -1962,7 +1959,7 @@ export type DependencyApi<
   >,
   ProvidedInput = ServiceProvidedInput<Inputs>,
   ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
-> = InjectHelper<
+> = YieldHelper<
   Name,
   Scope,
   Inputs,
@@ -1972,16 +1969,6 @@ export type DependencyApi<
   ProvidedInput,
   ProvideArgs
 > &
-  YieldHelper<
-    Name,
-    Scope,
-    Inputs,
-    Output,
-    Metadata,
-    false,
-    ProvidedInput,
-    ProvideArgs
-  > &
   ServiceMetaDataHelper<
     Name,
     Scope,
@@ -2264,9 +2251,9 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * `ActivatedRoute`, custom `InjectionToken`s, or any dependency resolved through
  * `inject(...)` that you want to:
  *
- * - expose through generated helpers like `injectRouter()` and `RouterToYield()`
+ * - expose through the generated `Router()` helper
  * - derive partially with the same opaque exposure tokens as `craftService`
- * - track as a leaf dependency in `GetInjectedServiceDependencies`
+ * - track as a leaf dependency in `GetServiceDependencies`
  * - reuse in `setupCraftServiceTest(...)`
  *
  * External instance methods are automatically bound to their source instance so
@@ -2282,7 +2269,7 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * import { Router } from '@angular/router';
  * import { toCraftService } from '@craft-ng/core';
  *
- * const { injectRouter, RouterToYield } = toCraftService({
+ * const { Router } = toCraftService({
  *   name: 'Router',
  *   scope: 'global',
  *   token: Router,
@@ -2297,7 +2284,7 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  *
  * const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
  *
- * const { injectCurrentRoute } = toCraftService({
+ * const { CurrentRoute } = toCraftService({
  *   name: 'CurrentRoute',
  *   scope: 'global',
  *   inject: () => inject(CURRENT_ROUTE),
@@ -2698,9 +2685,8 @@ export function toCraftService(
         )
   ) as Record<string, unknown>;
 
-  const injectName = `inject${capitalize(options.name)}`;
   const internalMetaData = getServiceMetaData(
-    api[injectName],
+    api[capitalize(options.name)],
   ) as InternalServiceMetaData;
   const runtimeDefinition = internalMetaData[SERVICE_RUNTIME_DEFINITION];
 
@@ -2728,7 +2714,7 @@ export function toCraftService(
 }
 
 /**
- * Creates a named Angular-friendly service boundary with generated inject, yield,
+ * Creates a named Angular-friendly service boundary with generated service,
  * provider, and metadata helpers.
  *
  * `craftService` is designed for composing reactive features through explicit
@@ -2736,8 +2722,7 @@ export function toCraftService(
  * crafted service receives a stable name and scope, which are then reflected in
  * helpers such as:
  *
- * - `injectCounter(...)`
- * - `CounterToYield(...)`
+ * - `Counter(...)`
  * - `provideCounter()` for provider-capable scopes
  * - `CounterToProvide` for `manuallyProvidedAtRoot`
  * - `COUNTER_META_DATA`
@@ -2779,7 +2764,7 @@ export function toCraftService(
  * ```ts
  * import { craftService, state } from '@craft-ng/core';
  *
- * const { injectCounter } = craftService(
+ * const { Counter } = craftService(
  *   { name: 'Counter', scope: 'global' },
  *   () =>
  *     state(0, ({ update }) => ({
@@ -2791,7 +2776,7 @@ export function toCraftService(
  * @example
  * Compose another service through `yield*`
  * ```ts
- * const { CounterToYield } = craftService(
+ * const { Counter } = craftService(
  *   { name: 'Counter', scope: 'global' },
  *   () =>
  *     state(0, ({ update }) => ({
@@ -2799,10 +2784,10 @@ export function toCraftService(
  *     })),
  * );
  *
- * const { injectCounterFacade } = craftService(
+ * const { CounterFacade } = craftService(
  *   { name: 'CounterFacade', scope: 'global' },
  *   function* () {
- *     const counter = yield* CounterToYield();
+ *     const counter = yield* Counter();
  *
  *     return {
  *       read: () => counter(),
@@ -2815,7 +2800,7 @@ export function toCraftService(
  * @example
  * Expose only part of a dependency through opaque tokens
  * ```ts
- * const { CounterToYield } = craftService(
+ * const { Counter } = craftService(
  *   { name: 'Counter', scope: 'toProvide' },
  *   () =>
  *     state(0, ({ update }) => ({
@@ -2824,10 +2809,10 @@ export function toCraftService(
  *     })),
  * );
  *
- * const { injectCounterExtended } = craftService(
+ * const { CounterExtended } = craftService(
  *   { name: 'CounterExtended', scope: 'toProvide' },
  *   function* () {
- *     return yield* CounterToYield(undefined, ({ $self, increment }) => ({
+ *     return yield* Counter(undefined, ({ $self, increment }) => ({
  *       $self,
  *       incrementCounter: increment,
  *     }));
@@ -2838,12 +2823,12 @@ export function toCraftService(
  * @example
  * Build a global utility around a browser boundary dependency
  * ```ts
- * import { LocalStorageServiceToYield, craftService } from '@craft-ng/core';
+ * import { LocalStorageService, craftService } from '@craft-ng/core';
  *
- * const { injectGlobalPersisterHandlerService } = craftService(
+ * const { GlobalPersisterHandlerService } = craftService(
  *   { name: 'GlobalPersisterHandlerService', scope: 'global' },
  *   function* () {
- *     const storage = yield* LocalStorageServiceToYield(
+ *     const storage = yield* LocalStorageService(
  *       undefined,
  *       ({ key, length, removeItem }) => ({
  *         key,
@@ -2990,9 +2975,8 @@ export function craftService(
   factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
 ): unknown {
   const capitalizedName = capitalize(options.name);
-  const injectName = `inject${capitalizedName}`;
   const provideName = `provide${capitalizedName}`;
-  const toYieldName = `${capitalizedName}ToYield`;
+  const serviceName = capitalizedName;
   const requirementName = `${capitalizedName}Requirement`;
   const toProvideName = `${capitalizedName}ToProvide`;
   const metaDataName = toMetaDataPropertyName(options.name);
@@ -3002,7 +2986,7 @@ export function craftService(
     const token = new InjectionToken(`${capitalizedName}AbstractServiceToken`);
     const requirement = createServiceRequirement(options.name, token);
 
-    // A minimal definition so `XToYield()` resolves the requirement token (the
+    // A minimal definition so `X()` resolves the requirement token (the
     // concrete implementation bound through `provideX`) via the injector. The
     // factory is never invoked: scope is not `function`, so resolution goes
     // straight to `injector.get(token)` (or a registered test override by name).
@@ -3026,14 +3010,13 @@ export function craftService(
       assertInInjectionContext(abstractInject);
       return inject(token);
     };
-    const abstractToYieldHelper = createToYieldHelper(
+    const abstractHelper = createHelper(
       abstractYieldDefinition,
       () => abstractMetaData,
     );
 
     const abstractApi: Record<string, unknown> = {
-      [injectName]: abstractInjectHelper,
-      [toYieldName]: abstractToYieldHelper,
+      [serviceName]: abstractHelper,
       [requirementName]: requirement,
       [provideName]: (factory: AnyFactory) => {
         const abstractRuntimeDefinition: ConcreteRuntimeDefinition = {
@@ -3061,8 +3044,7 @@ export function craftService(
     });
     abstractApi[metaDataName] = abstractMetaData;
 
-    attachServiceRuntimeMeta(abstractInjectHelper, abstractMetaData);
-    attachServiceRuntimeMeta(abstractToYieldHelper, abstractMetaData);
+    attachServiceRuntimeMeta(abstractHelper, abstractMetaData);
 
     REGISTERED_SERVICES.set(
       options.name,
@@ -3107,16 +3089,14 @@ export function craftService(
   let serviceMetaData: InternalServiceMetaData;
 
   const api: Record<string, unknown> = {
-    [injectName]: createInjectHelper(
-      runtimeDefinition,
-      () => serviceMetaData,
-      concreteInject,
-    ),
-    [toYieldName]: createToYieldHelper(
-      runtimeDefinition,
-      () => serviceMetaData,
-    ),
+    [serviceName]: createHelper(runtimeDefinition, () => serviceMetaData),
   };
+
+  const injectHelper = createInjectHelper(
+    runtimeDefinition,
+    () => serviceMetaData,
+    concreteInject,
+  );
 
   if (
     options.scope === 'toProvide' ||
@@ -3133,7 +3113,7 @@ export function craftService(
   serviceMetaData = createServiceMetaData({
     name: options.name,
     scope: options.scope,
-    inject: api[injectName] as (...args: any[]) => unknown,
+    inject: injectHelper,
     provide:
       options.scope === 'toProvide' ||
       options.scope === 'manuallyProvidedAtRoot'
@@ -3149,18 +3129,18 @@ export function craftService(
   });
   api[metaDataName] = serviceMetaData;
 
-  attachServiceRuntimeMeta(api[injectName], serviceMetaData);
-  attachServiceRuntimeMeta(api[toYieldName], serviceMetaData);
+  attachServiceRuntimeMeta(injectHelper, serviceMetaData);
+  attachServiceRuntimeMeta(api[serviceName], serviceMetaData);
 
   REGISTERED_SERVICES.set(
     runtimeDefinition.name,
-    api[injectName] as ServiceReference,
+    injectHelper as ServiceReference,
   );
 
   if (runtimeDefinition.appStart) {
     REGISTERED_APP_START_SERVICES.set(
       runtimeDefinition.name,
-      api[injectName] as ServiceReference,
+      injectHelper as ServiceReference,
     );
   }
 
@@ -3280,7 +3260,7 @@ function createInjectHelper(
   return outerProxy;
 }
 
-function createToYieldHelper(
+function createHelper(
   definition: ConcreteRuntimeDefinition,
   getMetaData: () => InternalServiceMetaData | undefined,
 ) {
@@ -3470,7 +3450,7 @@ export function getServiceMetaData(target: unknown): AnyServiceMetaData {
   }
 
   throw new Error(
-    'Expected a craftService/toCraftService inject helper or a service metadata object.',
+    'Expected a craftService/toCraftService service helper or a service metadata object.',
   );
 }
 
@@ -4162,8 +4142,8 @@ const hostNameApi = craftService(
   (inputs: { $provided: string }) => inputs.$provided,
 );
 
-export const ɵinjectHostName = hostNameApi.injectHostName;
-export const ɵHostNameToYield = hostNameApi.HostNameToYield;
+export const ɵinjectHostName = hostNameApi.HOST_NAME_META_DATA.inject;
+export const ɵHostName = hostNameApi.HostName;
 export const ɵHostNameToProvide = hostNameApi.HostNameToProvide;
 export const ɵHOST_NAME_META_DATA = hostNameApi.HOST_NAME_META_DATA;
 
@@ -4221,7 +4201,7 @@ export type ɵHostTagYield = Readonly<{
   ) => readonly string[];
 }>;
 
-export function* ɵHostTagToYield(): Generator<
+export function* ɵHostTag(): Generator<
   ɵHostTagYield,
   readonly string[],
   unknown
@@ -4242,7 +4222,7 @@ export type ɵTrackTagsYield = Readonly<{
   ) => readonly TrackTag[];
 }>;
 
-export function* ɵTrackTagsToYield(): Generator<
+export function* ɵTrackTags(): Generator<
   ɵTrackTagsYield,
   readonly TrackTag[],
   unknown

@@ -16,7 +16,7 @@ feed it into a provider that the routed component injects.
 ## The solution: `craftRoute(...).withProviders(...)`
 
 `craftRoute(path, definition)` authors a single route and returns a builder with a `.withProviders(...)`
-method. The callback receives **route-scoped `ToYield` generators**, one per auto-provisioned token
+method. The callback receives **route-scoped service generators**, one per auto-provisioned token
 that exists on the route, and returns a normal Angular providers array.
 
 ```ts
@@ -37,7 +37,7 @@ const { UserRequirement, provideUser } = craftService(
 );
 
 // 2. A guard that resolves the user.
-const { AuthToYield } = craftService({ name: 'Auth', scope: 'global' }, () =>
+const { Auth } = craftService({ name: 'Auth', scope: 'global' }, () =>
   query({
     params: () => true,
     loader: async () => ({}) as User,
@@ -49,24 +49,24 @@ export const { demoRoutes } = craftRoutes('demo', [
     componentDeps: {} as import('./query').GenDeps_GlobalQuery,
     loadComponent: ({ withRetry }) => withRetry(import('./query')),
     canActivate: function* () {
-      const user = yield* AuthToYield();
+      const user = yield* Auth();
       const safeUser = user.safeValue();
       if (!safeUser) {
         return false;
       }
       return safeUser; // becomes the route's guarded data
     },
-  }).withProviders(({ GuardedDataToYield }) => [
+  }).withProviders(({ GuardedData }) => [
     provideUser(function* () {
-      const guarded = yield* GuardedDataToYield(); // Signal<User>
+      const guarded = yield* GuardedData(); // Signal<User>
       return guarded();
     }),
   ]),
 ]);
 ```
 
-The routed component can now `injectUser()` and receive the value that the guard resolved — without
-ever touching the fully-qualified `injectDemoQueryUserIdGuardedData` helper.
+The routed component can now yield `User()` from its Craft component factory and receive the value
+that the guard resolved — without ever touching the fully-qualified route helper.
 
 ## The helpers object
 
@@ -75,22 +75,22 @@ auto-provisioned token present on the route:
 
 | Helper                       | Present when…                | Yields                                  |
 | ---------------------------- | ---------------------------- | --------------------------------------- |
-| `GuardedDataToYield`         | the route has `canActivate`  | `Signal<GuardData>`                     |
-| `<Param>ParamsToYield`       | per path param               | `Signal<string>` (e.g. `UserIdParamsToYield`) |
-| `QueryParamsToYield`         | the route has `queryParams`  | the query-params state                  |
-| `DataToYield`                | the route has `data`         | `Signal<RouteData>`                     |
+| `GuardedData`         | the route has `canActivate`  | `Signal<GuardData>`                     |
+| `<Param>Params`       | per path param               | `Signal<string>` (e.g. `UserIdParams`) |
+| `QueryParams`         | the route has `queryParams`  | the query-params state                  |
+| `Data`                | the route has `data`         | `Signal<RouteData>`                     |
 
 Names are **scoped to the single route**, so the collection prefix and route path are dropped:
-`GuardedDataToYield`, not `DemoQueryUserIdGuardedDataToYield`. The path-param name is kept to keep
-multiple params distinct (`UserIdParamsToYield`, `TeamIdParamsToYield`, …).
+`GuardedData`, not `DemoQueryUserIdGuardedData`. The path-param name is kept to keep
+multiple params distinct (`UserIdParams`, `TeamIdParams`, …).
 
-Each helper is a generator you consume with `yield*`, exactly like a service's `XToYield()`:
+Each helper is a generator you consume with `yield*`, exactly like a service's `X()`:
 
 ```ts
-.withProviders(({ UserIdParamsToYield, QueryParamsToYield }) => [
+.withProviders(({ UserIdParams, QueryParams }) => [
   provideSomething(function* () {
-    const userId = yield* UserIdParamsToYield();   // Signal<string>
-    const qp = yield* QueryParamsToYield();        // query-params state
+    const userId = yield* UserIdParams();   // Signal<string>
+    const qp = yield* QueryParams();        // query-params state
     return { userId, qp };
   }),
 ])
@@ -106,20 +106,20 @@ everything it yields, and binds the result to the requirement token. See
 [craftService → Abstract Providers](/store/craft-service#abstract-providers).
 
 ```ts
-const { injectUser, provideUser } = craftService(
+const { User, provideUser } = craftService(
   { name: 'User', scope: 'abstract' },
   abstract<User>(),
 );
 
 // In a route:
-.withProviders(({ GuardedDataToYield }) => [
+.withProviders(({ GuardedData }) => [
   provideUser(function* () {
-    return (yield* GuardedDataToYield())();
+    return (yield* GuardedData())();
   }),
 ])
 
-// In the routed component:
-const user = injectUser(); // User
+// In the routed component factory:
+const user = yield* User(); // User
 ```
 
 ## Dependency tracking & cascade DI
@@ -133,7 +133,7 @@ route's dependency graph used by [`ValidateCascadeRoutesFile`](/type-safe-di-rou
   surfaces as a missing-provider error, e.g.:
 
   ```
-  Injected SomeService is not provided in path: "query/:userId"
+  The SomeService service is not provided in path: "query/:userId"
   ```
 
 - The provider's own name (`User` above) is registered as **self-provided**, so a component on that
@@ -153,7 +153,7 @@ craftRoute('admin', {
   componentDeps: {} as import('./admin').GenDeps_Admin,
   loadComponent: ({ withRetry }) => withRetry(import('./admin')),
   providers: [SomeAngularProvider], // plain array, untyped helpers
-}).withProviders(({ DataToYield }) => [
+}).withProviders(({ Data }) => [
   /* factory-built providers with tracking */
 ]);
 ```

@@ -18,7 +18,7 @@ carries the primitive's dependency map. Consume it where you create it:
   automatically:
 
   ```typescript
-  const { injectCounter } = craftService(
+  const { Counter } = craftService(
     { name: 'Counter', scope: 'global' },
     function* () {
       const counter = yield* state(0);
@@ -174,13 +174,13 @@ const counter = craftUse(
   state(
     {
       $self: function* () {
-        return yield* CounterPreferencesToYield.initialValue();
+        return yield* CounterPreferences.initialValue();
       },
       providers: [provideCounterPreferences(), provideCounterAnalytics()],
     },
     ({ update }) => ({
       increment: function* () {
-        yield* CounterAnalyticsToYield.track('increment');
+        yield* CounterAnalytics.track('increment');
         update((value) => value + 1);
       },
     }),

@@ -8,9 +8,9 @@ import {
   query,
 } from '@craft-ng/core';
 import type { User } from '../query/api.service';
-import { OtherServiceToYield, provideOtherService } from './to-provide.service';
+import { OtherService, provideOtherService } from './to-provide.service';
 
-const { UsersApiOnErrorToYield } = craftService(
+const { UsersApiOnError } = craftService(
   { name: 'UsersApiOnError', scope: 'global' },
   function* () {
     const users = yield* CraftHttpClient.get(({ response }) => ({
@@ -42,7 +42,7 @@ const { UsersApiOnErrorToYield } = craftService(
   },
 );
 
-const { Test2ToYield } = craftService(
+const { Test2 } = craftService(
   { name: 'test2', scope: 'global' },
   () => ({}),
 );
@@ -58,9 +58,9 @@ export const OtherComponent = craftComponent(
   function* () {
     componentMonitoring();
     return {
-      other: yield* OtherServiceToYield(),
-      users: yield* UsersApiOnErrorToYield(),
-      test: yield* Test2ToYield(),
+      other: yield* OtherService(),
+      users: yield* UsersApiOnError(),
+      test: yield* Test2(),
     };
   },
   ({ other, users }) =>

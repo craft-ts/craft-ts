@@ -30,7 +30,7 @@ import { loadCraftComponent } from '@craft-ng/component';
 // cascade DI check (`ValidateCascadeRoutesFile`) is already at TypeScript's
 // instantiation-depth ceiling, and `loadChildren` collections are not folded
 // into the parent's budget.
-const { SlowAccessToYield } = craftService(
+const { SlowAccess } = craftService(
   { name: 'SlowAccess', scope: 'global' },
   () =>
     query({
@@ -42,7 +42,7 @@ const { SlowAccessToYield } = craftService(
     }),
 );
 
-const { SlowReportToYield } = craftService(
+const { SlowReport } = craftService(
   { name: 'SlowReport', scope: 'global' },
   () =>
     query({
@@ -61,7 +61,7 @@ const { SlowReportToYield } = craftService(
 // allows navigation or short-circuits with a typed NOT_AUTHENTICATED exception
 // routed through `handleExceptions`.
 const slowAccessGuard = craftGen(function* () {
-  const accessRef = yield* SlowAccessToYield();
+  const accessRef = yield* SlowAccess();
   const access = yield* craftUntilSettled(accessRef);
   return access.allowed
     ? access
@@ -72,7 +72,7 @@ const slowAccessGuard = craftGen(function* () {
 // typed REPORT_EMPTY exception — recovered locally below through `catchTag`).
 // The resolved value is consumed via `injectSlowPageRootResolvedData()`.
 const loadSlowReport = craftGen(function* () {
-  const reportRef = yield* SlowReportToYield();
+  const reportRef = yield* SlowReport();
   const report = yield* craftUntilSettled(reportRef);
   return report.totalUsers === 0
     ? craftException({ code: 'REPORT_EMPTY' })

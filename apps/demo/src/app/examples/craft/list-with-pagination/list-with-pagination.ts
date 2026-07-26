@@ -22,9 +22,9 @@ import {
   queryParams,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiServiceToYield, type User } from './api.service';
+import { ApiService, type User } from './api.service';
 
-const { provideUserList, UserListToYield } = craftService(
+const { provideUserList, UserList } = craftService(
   { name: 'UserList', scope: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
@@ -53,7 +53,7 @@ const { provideUserList, UserListToYield } = craftService(
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
         loader: function* ({ params }) {
-          return yield* ApiServiceToYield.getDataList(params);
+          return yield* ApiService.getDataList(params);
         },
       },
       (context) =>
@@ -85,11 +85,11 @@ const ListWithPaginationCraft = craftComponent(
   },
   function* () {
     componentMonitoring();
-    const store = yield* UserListToYield();
+    const store = yield* UserList();
     const updatePageSize = craftMethod(
       'updatePageSize',
       function* (event: Event) {
-        (yield* UserListToYield()).pagination.updatePageSize(
+        (yield* UserList()).pagination.updatePageSize(
           Number((event.target as HTMLSelectElement).value),
         );
       },

@@ -17,7 +17,7 @@ The method runs inside the injection context captured when `craftMethod(...)` is
 That makes it useful when a component method needs to:
 
 - call Browser Boundaries with `yield*`
-- compose crafted services through `yield* SomeServiceToYield()`
+- compose crafted services through `yield* SomeService()`
 - keep the handler colocated with component-local signals
 
 **All dependencies are cached, which helps to detect missing providers at compile time.**
@@ -123,7 +123,7 @@ export class CounterComponent {
     'increment',
     this,
     function* (value: number) {
-      return yield* CounterWorkerToYield.set(value);
+      return yield* CounterWorker.set(value);
     },
   );
 }

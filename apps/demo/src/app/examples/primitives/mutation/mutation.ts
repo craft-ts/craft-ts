@@ -8,7 +8,7 @@ import {
   type Input,
 } from '@craft-ng/component';
 import {
-  CraftRouterToYield,
+  CraftRouter,
   componentMonitoring,
   craftPipe,
   insertLocalStoragePersister,
@@ -18,14 +18,14 @@ import {
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiServiceToYield, type User } from './api.service';
+import { ApiService, type User } from './api.service';
 
 const MutationDemoComponent = craftComponent(
   'MutationDemoComponent',
   { providers: [provideHostName('component:MutationDemoComponent')] },
   function* (userId: Input<string | undefined>) {
     componentMonitoring();
-    const api = yield* ApiServiceToYield();
+    const api = yield* ApiService();
     const updateUserName = yield* mutation({
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
@@ -53,7 +53,7 @@ const MutationDemoComponent = craftComponent(
           }),
         ),
     );
-    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
     const navigate = (offset: number) =>

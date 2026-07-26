@@ -11,7 +11,7 @@ import {
 import {
   componentMonitoring,
   craftMethod,
-  CraftRouterToYield,
+  CraftRouter,
   provideHostName,
 } from '@craft-ng/core';
 import { findPhoto } from './photos';
@@ -28,7 +28,7 @@ const ViewTransitionsDetailComponent = craftComponent(
   },
   function* (photoId: Input<string>) {
     componentMonitoring();
-    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
     const back = craftMethod('back', function* () {

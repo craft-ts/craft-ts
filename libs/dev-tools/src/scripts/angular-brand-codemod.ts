@@ -1162,7 +1162,11 @@ export function extractInjectCallDeps(
   )) {
     const expression = callExpression.getExpression();
     const injectMethodName = getInjectMethodName(expression);
-    if (!injectMethodName?.startsWith('inject')) {
+    if (
+      !injectMethodName ||
+      (injectMethodName !== 'inject' &&
+        !resolveTrackedInjectHelper(expression))
+    ) {
       continue;
     }
 
@@ -1228,7 +1232,11 @@ function extractPropertyDependencies(
       const expression = initializer.getExpression();
       const injectMethodName = getInjectMethodName(expression);
 
-      if (injectMethodName?.startsWith('inject')) {
+      if (
+        injectMethodName &&
+        (injectMethodName === 'inject' ||
+          resolveTrackedInjectHelper(expression))
+      ) {
         const dependencyText =
           injectMethodName === 'inject'
             ? getAngularInjectCallDependency(initializer)
@@ -1933,14 +1941,9 @@ function extractHelperYieldedProperties(
 
 function createGeneratedDependencyKey(dependencyText: string): string {
   const lastSegment = dependencyText.split('.').pop() ?? dependencyText;
-  const helperMatch = /^(inject|provide)([A-Z].*)$/.exec(lastSegment);
+  const helperMatch = /^(provide)([A-Z].*)$/.exec(lastSegment);
   if (helperMatch) {
     return helperMatch[2];
-  }
-
-  const toYieldMatch = /^(.*)ToYield$/.exec(lastSegment);
-  if (toYieldMatch?.[1]) {
-    return toYieldMatch[1];
   }
 
   return lastSegment;
@@ -1969,7 +1972,7 @@ function createGeneratedDependencyTypeText(
 function isHelperLikeDependency(dependencyText: string): boolean {
   const lastSegment = dependencyText.split('.').pop() ?? dependencyText;
   return (
-    /^(inject|provide)[A-Z].*/.test(lastSegment) || /ToYield$/.test(lastSegment)
+    /^provide[A-Z].*/.test(lastSegment)
   );
 }
 
@@ -3605,7 +3608,7 @@ function getHelperImportSafety(
   const warnings = [
     'DerivedService',
     'GetDeps',
-    'GetInjectedServiceDependencies',
+    'GetServiceDependencies',
     'GetPublicComponentProperties',
     'GetServiceOutput',
   ]

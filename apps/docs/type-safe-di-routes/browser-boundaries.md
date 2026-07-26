@@ -32,24 +32,23 @@ When you need to derive methods for later reuse, each boundary also exposes the 
 
 ```typescript
 import {
-  ConsoleServiceToYield,
-  injectConsoleService,
+  ConsoleService,
   CONSOLE_SERVICE_META_DATA,
 } from '@craft-ng/core';
 ```
 
 The same pattern exists for the other boundaries:
 
-- `LocalStorageServiceToYield`
-- `SessionStorageServiceToYield`
-- `CookiesServiceToYield`
-- `BrowserLocationServiceToYield`
-- `BrowserHistoryServiceToYield`
-- `BrowserNavigatorServiceToYield`
-- `BrowserPerformanceServiceToYield`
-- `BrowserCryptoServiceToYield`
-- `BrowserDocumentServiceToYield`
-- `BrowserWindowServiceToYield`
+- `LocalStorageService`
+- `SessionStorageService`
+- `CookiesService`
+- `BrowserLocationService`
+- `BrowserHistoryService`
+- `BrowserNavigatorService`
+- `BrowserPerformanceService`
+- `BrowserCryptoService`
+- `BrowserDocumentService`
+- `BrowserWindowService`
 
 ## Motivation
 
@@ -58,7 +57,7 @@ Direct browser access inside a service hides dependencies inside business logic 
 Browser boundaries solve that in two complementary ways:
 
 - use `yield* X.method(...)` when the browser interaction should happen directly inside the generator
-- use `XServiceToYield(...)` when you want to derive bound browser helpers and reuse them inside returned callbacks
+- use `XService(...)` when you want to derive bound browser helpers and reuse them inside returned callbacks
 
 ## Mental Model
 
@@ -71,7 +70,7 @@ Use the DSL when the browser interaction belongs to the generator itself.
 ```typescript
 import { Console, craftService } from '@craft-ng/core';
 
-const { injectBootLogger } = craftService(
+const { BootLogger } = craftService(
   { name: 'BootLogger', scope: 'global' },
   function* () {
     yield* Console.log('boot');
@@ -86,15 +85,15 @@ const { injectBootLogger } = craftService(
 
 ### Derived Service Helper
 
-Use `XServiceToYield(...)` when the browser method needs to stay callable later from a returned method.
+Use `XService(...)` when the browser method needs to stay callable later from a returned method.
 
 ```typescript
-import { ConsoleServiceToYield, craftService } from '@craft-ng/core';
+import { ConsoleService, craftService } from '@craft-ng/core';
 
-const { injectAuditTrail } = craftService(
+const { AuditTrail } = craftService(
   { name: 'AuditTrail', scope: 'global' },
   function* () {
-    const consoleService = yield* ConsoleServiceToYield(
+    const consoleService = yield* ConsoleService(
       undefined,
       ({ log, error }) => ({
         log,
@@ -227,8 +226,8 @@ Methods:
 
 Generated helpers:
 
-- `injectConsoleService`
-- `ConsoleServiceToYield`
+- `ConsoleService`
+- `ConsoleService`
 - `CONSOLE_SERVICE_META_DATA`
 
 ### `LocalStorage` and `LocalStorageService`

@@ -20,7 +20,7 @@ import { Console } from './browser-boundaries';
 import { craftMethod } from './craft-method';
 import {
   craftService,
-  type GetToYieldServiceDependencies,
+  type GetServiceDependencies,
   onAppStart,
 } from './craft-service';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
@@ -134,8 +134,8 @@ describe('craftMethod', () => {
     expect(component.counter()).toBe(4);
   });
 
-  it('should compose craftService dependencies through XToYield()', () => {
-    const { CounterWorkerToYield } = craftService(
+  it('should compose craftService dependencies through X()', () => {
+    const { CounterWorker } = craftService(
       { name: 'CounterWorker', scope: 'function' },
       () => ({
         increment: (value: number, step: number) => value + step,
@@ -149,7 +149,7 @@ describe('craftMethod', () => {
         'increment',
         this,
         function* (step: number = 1) {
-          const worker = yield* CounterWorkerToYield();
+          const worker = yield* CounterWorker();
           this.counter.set(worker.increment(this.counter(), step));
           return this.counter();
         },
@@ -213,7 +213,7 @@ describe('craftMethod', () => {
   });
 
   it('should expose craftMethod dependencies through ExtractDeps', () => {
-    const { CounterWorkerToYield } = craftService(
+    const { CounterWorker } = craftService(
       { name: 'CounterWorker', scope: 'function' },
       () => ({
         increment: (value: number, step: number) => value + step,
@@ -227,7 +227,7 @@ describe('craftMethod', () => {
         'increment',
         this,
         function* (step: number = 1) {
-          const worker = yield* CounterWorkerToYield();
+          const worker = yield* CounterWorker();
           this.counter.set(worker.increment(this.counter(), step));
           return this.counter();
         },
@@ -235,7 +235,7 @@ describe('craftMethod', () => {
     }
 
     type ExpectedDeps = {
-      CounterWorker: GetToYieldServiceDependencies<typeof CounterWorkerToYield>;
+      CounterWorker: GetServiceDependencies<typeof CounterWorker>;
     };
     type _Deps = Expect<
       Equal<ExtractDeps<CounterComponent['increment']>, ExpectedDeps>
@@ -317,14 +317,14 @@ describe('craftMethod — object config with providers', () => {
   });
 
   it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', () => {
-    const { MethodWorkerToYield, provideMethodWorker } = craftService(
+    const { MethodWorker, provideMethodWorker } = craftService(
       { name: 'MethodWorker', scope: 'toProvide' },
       () => ({ compute: (x: number) => x * 2 }),
     );
 
     TestBed.runInInjectionContext(() => {
       const withoutProviders = craftMethod('compute', function* (x: number) {
-        const worker = yield* MethodWorkerToYield();
+        const worker = yield* MethodWorker();
         return worker.compute(x);
       });
       type WithoutDeps = ExtractDeps<typeof withoutProviders>;
@@ -335,7 +335,7 @@ describe('craftMethod — object config with providers', () => {
       const withProviders = craftMethod(
         { name: 'compute', providers: [provideMethodWorker()] },
         function* (x: number) {
-          const worker = yield* MethodWorkerToYield();
+          const worker = yield* MethodWorker();
           return worker.compute(x);
         },
       );

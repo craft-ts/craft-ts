@@ -1,7 +1,7 @@
 import { button, craftComponent, div, h2, p } from '@craft-ng/component';
 import {
-  CraftRouteLoadErrorToYield,
-  CraftRouteLoadRecoveryToYield,
+  CraftRouteLoadError,
+  CraftRouteLoadRecovery,
   provideHostName,
 } from '@craft-ng/core';
 
@@ -16,8 +16,8 @@ export const MyRouteLoadErrorScreen = craftComponent(
   },
   function* () {
     return {
-      error: yield* CraftRouteLoadErrorToYield(),
-      recovery: yield* CraftRouteLoadRecoveryToYield(),
+      error: yield* CraftRouteLoadError(),
+      recovery: yield* CraftRouteLoadRecovery(),
     };
   },
   ({ error, recovery }) => {

@@ -64,11 +64,11 @@ craftRoute(
     loadComponent: ({ withRetry }) => withRetry(import('./user-detail')),
     componentDeps: {} as import('./user-detail').GenDeps_UserDetail,
     canMatch: function* () {
-      const ff = yield* FeatureFlagsToYield();
+      const ff = yield* FeatureFlags();
       return ff.userPageEnabled ? true : craftException({ code: 'FEATURE_OFF' });
     },
     canActivate: function* () {
-      const user = yield* AuthToYield();
+      const user = yield* Auth();
       return user.safeValue() ?? craftException({ code: 'NOT_AUTHENTICATED' });
     },
     resolve: craftResolve(function* () {
@@ -204,7 +204,7 @@ The descriptor is checked independently with the O(1)
 ```ts
 {
   FORBIDDEN_ROLE: craftExceptionHandler(function* ({ redirectUrl }) {
-    const config = yield* RedirectConfigToYield();
+    const config = yield* RedirectConfig();
     return redirectUrl(config.unauthorizedUrl);
   }),
 }

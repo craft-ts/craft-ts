@@ -97,7 +97,7 @@ export type PaginationBuildContext<PageState> =
  *     params: pagination,
  *     identifier: (params) => `${params.page}-${params.pageSize}`,
  *     loader: function* ({ params }) {
- *       return yield* ApiServiceToYield.getDataList(params);
+ *       return yield* ApiService.getDataList(params);
  *     },
  *   },
  *   insertPaginationPlaceholderData(
@@ -141,14 +141,19 @@ export function insertPaginationPlaceholderData<
       PreviousInsertionsOutputs
     >,
   ): PaginationBaseOutputs<PageState> & ExtraOutputs => {
-    const { resourceById, resourceParamsSrc, identifier, hasException, exceptions } =
-      context as unknown as InsertionByIdParams<
-        string,
-        PageState & object,
-        unknown,
-        ResourceExceptionConstraints,
-        {}
-      >;
+    const {
+      resourceById,
+      resourceParamsSrc,
+      identifier,
+      hasException,
+      exceptions,
+    } = context as unknown as InsertionByIdParams<
+      string,
+      PageState & object,
+      unknown,
+      ResourceExceptionConstraints,
+      {}
+    >;
 
     let previousPageKey: string | undefined;
     const showPlaceHolderData = computed(() => {
@@ -188,7 +193,8 @@ export function insertPaginationPlaceholderData<
       previousPageKey = pageKey;
       // keep a real value returned by the loader (e.g. []); only undefined falls back
       return (
-        (currentResource?.value() as PageState | undefined) ?? config.initialValue
+        (currentResource?.value() as PageState | undefined) ??
+        config.initialValue
       );
     });
 
@@ -248,7 +254,8 @@ export function insertPaginationPlaceholderData<
       patchFn: (current: PageState) => Partial<PageState>,
     ): PageState =>
       update(
-        (current) => ({ ...(current as object), ...patchFn(current) }) as PageState,
+        (current) =>
+          ({ ...(current as object), ...patchFn(current) }) as PageState,
       );
 
     const extra = build({

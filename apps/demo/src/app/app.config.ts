@@ -11,7 +11,7 @@ import {
   craftAppConfig,
   executeGeneratorCompatibleFactory,
   HOST_TAG_LIST,
-  HostTagToYield,
+  HostTag,
   injectPrimitiveMethodRuntimeContext,
   provideCorrelationIdTracking,
   provideCraftRouter,
@@ -51,12 +51,12 @@ import {
 import { provideLogForwarding } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
-import { injectAppStartLog } from './run-on-app-start/run-on-app-start';
+import { AppStartLog } from './run-on-app-start/run-on-app-start';
 import { App } from './app';
 
 export const appConfig = craftAppConfig({
   appStart: {
-    AppStartLog: injectAppStartLog,
+    AppStartLog,
   },
   // Component DI is checked from each SFC contract; the app config only needs
   // the slim path registry and avoids re-expanding every component graph.
@@ -130,7 +130,7 @@ export const appConfig = craftAppConfig({
         try {
           return yield* factory.apply(thisArg, args);
         } finally {
-          const name = yield* HostTagToYield();
+          const name = yield* HostTag();
           // eslint-disable-next-line craft-ng/prefer-browser-boundaries
           console.log(`$${name} took ${performance.now() - start}ms`);
         }

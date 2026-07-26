@@ -10,13 +10,13 @@ import {
   componentMonitoring,
   Console,
   craftMethod,
-  CraftRouterToYield,
+  CraftRouter,
   insertLocalStoragePersister,
   provideHostName,
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiServiceToYield } from './api.service';
+import { ApiService } from './api.service';
 
 const GlobalQuery = craftComponent(
   'GlobalQuery',
@@ -36,7 +36,7 @@ const GlobalQuery = craftComponent(
             inputUserId: userId(),
             params,
           });
-          const userPromise = yield* ApiServiceToYield.getItemById(params);
+          const userPromise = yield* ApiService.getItemById(params);
           yield* Console.info('[query-demo] loader request created', {
             params,
           });
@@ -48,7 +48,7 @@ const GlobalQuery = craftComponent(
         key: 'user-query',
       }),
     );
-    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
     const navigate = craftMethod('navigate', function* (offset: number) {

@@ -56,12 +56,12 @@ import type {
   CraftExceptionHandler,
   RouteExceptionUnion,
 } from './craft-route-exceptions';
-import { craftService } from './craft-service';
+import { craftService, getServiceMetaData } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   BrandedServiceProvider,
   CraftServiceApi,
-  GetInjectedServiceDependencies,
+  GetServiceDependencies,
   ServiceDependencyMapFromYielded,
   ServiceTrackingMetadata,
   ServiceYieldRequest,
@@ -803,14 +803,14 @@ type HasGeneratorGuard<RouteDefinition> = true extends
   ? true
   : false;
 
-type GuardServiceDependencies<Output, Yielded> = GetInjectedServiceDependencies<
+type GuardServiceDependencies<Output, Yielded> = GetServiceDependencies<
   CraftServiceApi<
     'craftRouteGuard',
     'function',
     {},
     Output,
     ServiceTrackingMetadata<'craftRouteGuard', 'function', Output, Yielded>
-  >['injectCraftRouteGuard']
+  >['CraftRouteGuard']
 >;
 
 type GuardDependenciesFromReturn<Result> = [Result] extends [never]
@@ -1870,13 +1870,13 @@ type ExceptionInjectHelpers<
   >
 >;
 
-// A route-scoped `ToYield` generator handed to the `withProviders` callback. It
+// A route-scoped service generator handed to the `withProviders` callback. It
 // yields the route value service identified by `Name`, the route-BASE service name
 // (collection-less, e.g. `QueryUserIdGuardedData`), so the enclosing provider
 // factory tracks it as a dependency. The cascade strips that base name per route
 // via `RouteSelfProvidedBaseNames`; any non-route yield (e.g. a global service)
 // keeps its own name and surfaces as a missing provider.
-type CraftRouteToYieldHelper<Name extends string, Output> = () => Generator<
+type CraftRouteHelper<Name extends string, Output> = () => Generator<
   ServiceYieldRequest<
     'toProvide',
     Output,
@@ -1893,7 +1893,7 @@ type RouteParamBaseServiceName<ParamName extends string> =
 type RouteParamProviderHelpers<RouteDefinition> = {
   [ParamName in PathParamNames<
     RoutePath<RouteDefinition>
-  > as `${ParamServiceName<ParamName>}ParamsToYield`]: CraftRouteToYieldHelper<
+  > as `${ParamServiceName<ParamName>}Params`]: CraftRouteHelper<
     RouteParamBaseServiceName<ParamName>,
     ParamOutputForRoute<RouteDefinition, ParamName>
   >;
@@ -1904,7 +1904,7 @@ type RouteGuardedDataProviderHelper<RouteDefinition> = [
 ] extends [never]
   ? {}
   : {
-      GuardedDataToYield: CraftRouteToYieldHelper<
+      GuardedData: CraftRouteHelper<
         RouteGuardedDataServiceName<RoutePath<RouteDefinition>>,
         RouteGuardedDataOutput<RouteDefinition>
       >;
@@ -1914,7 +1914,7 @@ type RouteDataProviderHelper<RouteDefinition> = RouteDefinition extends {
   data: Data;
 }
   ? {
-      DataToYield: CraftRouteToYieldHelper<
+      Data: CraftRouteHelper<
         RouteDataServiceName<RoutePath<RouteDefinition>>,
         RouteDataOutput<RouteDefinition>
       >;
@@ -1925,7 +1925,7 @@ type RouteQueryParamsProviderHelper<RouteDefinition> = RouteDefinition extends {
   queryParams: RouteQueryParamsFactory;
 }
   ? {
-      QueryParamsToYield: CraftRouteToYieldHelper<
+      QueryParams: CraftRouteHelper<
         RouteQueryParamsServiceName<RoutePath<RouteDefinition>>,
         RouteQueryParamsOutput<RouteDefinition>
       >;
@@ -1933,7 +1933,7 @@ type RouteQueryParamsProviderHelper<RouteDefinition> = RouteDefinition extends {
   : {};
 
 // The object handed to a route's `withProviders` callback: route-local short-named
-// `ToYield` helpers for every auto-provisioned token that exists on the route.
+// service helpers for every auto-provisioned token that exists on the route.
 type RouteProviderHelpers<RouteDefinition> = Simplify<
   RouteParamProviderHelpers<RouteDefinition> &
     RouteGuardedDataProviderHelper<RouteDefinition> &
@@ -2754,8 +2754,8 @@ function createAngularGuard<
 }
 
 // Authors a single route with fully-typed, route-scoped provider helpers.
-// `craftRoute('query/:userId', { canActivate, ... }).withProviders(({ GuardedDataToYield }) => [...])`
-// — the `.withProviders` callback receives `ToYield` generators for the route's
+// `craftRoute('query/:userId', { canActivate, ... }).withProviders(({ GuardedData }) => [...])`
+// — the `.withProviders` callback receives service generators for the route's
 // auto-provisioned tokens (guarded data, path params, query params, data), so a
 // route-level provider can be built from them with full dependency tracking.
 //
@@ -2981,8 +2981,9 @@ export function craftRoutes<
     const serviceApi = createRouteValueService(serviceName);
     routeValueServices.set(serviceName, serviceApi);
 
-    const injectKey = `inject${serviceName}`;
-    helpers[helperName] = serviceApi[injectKey as InjectHelperName<string>];
+    helpers[helperName] = getServiceMetaData(
+      (serviceApi as Record<string, unknown>)[serviceName],
+    ).inject;
   }
 
   function toAngularRoute(
@@ -3264,28 +3265,28 @@ export function craftRoutes<
       const routeService = routeValueServices.get(serviceName);
       if (routeService) {
         helpers[helperKey] = (routeService as Record<string, unknown>)[
-          `${serviceName}ToYield`
+          serviceName
         ];
       }
     };
 
     for (const paramName of extractRouteParamNames(route.path)) {
       addHelper(
-        `${toParamServiceName(paramName)}ParamsToYield`,
+        `${toParamServiceName(paramName)}Params`,
         toRouteParamServiceName(routeCollectionName, paramName),
       );
     }
 
     if (route.data !== undefined) {
       addHelper(
-        'DataToYield',
+        'Data',
         toRouteCollectionDataServiceName(routeCollectionName, route.path),
       );
     }
 
     if (route.queryParams !== undefined) {
       addHelper(
-        'QueryParamsToYield',
+        'QueryParams',
         toRouteCollectionQueryParamsServiceName(
           routeCollectionName,
           route.path,
@@ -3295,7 +3296,7 @@ export function craftRoutes<
 
     if (route.canActivate !== undefined) {
       addHelper(
-        'GuardedDataToYield',
+        'GuardedData',
         toRouteCollectionGuardedDataServiceName(
           routeCollectionName,
           route.path,

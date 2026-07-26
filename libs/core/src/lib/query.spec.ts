@@ -11,7 +11,7 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
-import type { GetToYieldServiceDependencies } from './craft-service';
+import type { GetServiceDependencies } from './craft-service';
 import {
   provideFnWrapObserver,
   provideFnWrapper,
@@ -136,13 +136,13 @@ describe('query', () => {
   });
 
   it('typing: tracks generator dependencies from params, loader and insertions', () => {
-    const { UserIdServiceToYield } = craftService(
+    const { UserIdService } = craftService(
       { name: 'UserIdService', scope: 'global' },
       () => ({
         read: (): string => 'user-1',
       }),
     );
-    const { UserApiServiceToYield } = craftService(
+    const { UserApiService } = craftService(
       { name: 'UserApiService', scope: 'global' },
       () => ({
         get: (userId: string): Promise<User> =>
@@ -153,7 +153,7 @@ describe('query', () => {
           }),
       }),
     );
-    const { QueryToolsToYield } = craftService(
+    const { QueryTools } = craftService(
       { name: 'QueryTools', scope: 'global' },
       () => ({
         prefix: (): string => 'user',
@@ -165,15 +165,15 @@ describe('query', () => {
         query(
           {
             params: function* () {
-              const userIdService = yield* UserIdServiceToYield();
+              const userIdService = yield* UserIdService();
               return userIdService.read();
             },
             loader: function* ({ params }) {
-              return yield* UserApiServiceToYield.get(params);
+              return yield* UserApiService.get(params);
             },
           },
           function* () {
-            const queryTools = yield* QueryToolsToYield();
+            const queryTools = yield* QueryTools();
 
             return {
               queryKey: `${queryTools.prefix()}:details`,
@@ -214,13 +214,13 @@ describe('query', () => {
 
   it('should resolve generator params, method, loader and insertions', async () => {
     const logs: string[] = [];
-    const { UserIdRuntimeToYield } = craftService(
+    const { UserIdRuntime } = craftService(
       { name: 'UserIdRuntime', scope: 'global' },
       () => ({
         read: (): string => 'user-2',
       }),
     );
-    const { QueryLoggerRuntimeToYield } = craftService(
+    const { QueryLoggerRuntime } = craftService(
       { name: 'QueryLoggerRuntime', scope: 'global' },
       () => ({
         log: (message: string) => {
@@ -228,7 +228,7 @@ describe('query', () => {
         },
       }),
     );
-    const { UserApiRuntimeToYield } = craftService(
+    const { UserApiRuntime } = craftService(
       { name: 'UserApiRuntime', scope: 'global' },
       () => ({
         get: async (userId: string): Promise<User> => ({
@@ -244,16 +244,16 @@ describe('query', () => {
         query(
           {
             params: function* () {
-              const userId = yield* UserIdRuntimeToYield();
+              const userId = yield* UserIdRuntime();
               return userId.read();
             },
             loader: function* ({ params }) {
-              const userApi = yield* UserApiRuntimeToYield();
+              const userApi = yield* UserApiRuntime();
               return userApi.get(params);
             },
           },
           function* () {
-            const logger = yield* QueryLoggerRuntimeToYield();
+            const logger = yield* QueryLoggerRuntime();
             logger.log('auto:init');
 
             return {
@@ -266,12 +266,12 @@ describe('query', () => {
       const manualQuery = craftUse(
         query({
           method: function* (userId: string) {
-            const logger = yield* QueryLoggerRuntimeToYield();
+            const logger = yield* QueryLoggerRuntime();
             logger.log(`manual:${userId}`);
             return userId;
           },
           loader: function* ({ params }) {
-            const userApi = yield* UserApiRuntimeToYield();
+            const userApi = yield* UserApiRuntime();
             return userApi.get(params);
           },
         }),
@@ -332,7 +332,7 @@ describe('query with identifier>', () => {
 
 describe('craftService using query', () => {
   it('1- Should expose a query resource', () => {
-    const { injectQueryStore } = craftService(
+    const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
         return {
@@ -351,7 +351,7 @@ describe('craftService using query', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const store = injectQueryStore();
+      const store = QueryStore();
 
       expect(store.user).toBeDefined();
     });
@@ -360,7 +360,7 @@ describe('craftService using query', () => {
 
 describe('query Insertions output', () => {
   it('should accept an Insertions output, that appear in the store', () => {
-    const { injectQueryStore } = craftService(
+    const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
         return {
@@ -385,14 +385,14 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectQueryStore();
+      const store = QueryStore();
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
   it('should accept an Insertion, with the correct resource infer', () => {
-    const { injectQueryStore } = craftService(
+    const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
         return {
@@ -430,14 +430,14 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectQueryStore();
+      const store = QueryStore();
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
   it('should accept an Insertion, with the correct resourceById infer', () => {
-    const { injectQueryStore } = craftService(
+    const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
         return {
@@ -477,14 +477,14 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectQueryStore();
+      const store = QueryStore();
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
   });
 
   it('should accept an insertion output, that appear in the store', () => {
-    const { injectQueryStore } = craftService(
+    const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
         return {
@@ -512,7 +512,7 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectQueryStore();
+      const store = QueryStore();
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
       }>();
@@ -520,7 +520,7 @@ describe('query Insertions output', () => {
     });
   });
   it('should accept multiple insertions, that appear in the store', () => {
-    const { injectQueryStore } = craftService(
+    const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
         return {
@@ -563,7 +563,7 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectQueryStore();
+      const store = QueryStore();
       //insert 1
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
@@ -576,7 +576,7 @@ describe('query Insertions output', () => {
     });
   });
   it('should accept seven insertions, all outputs appear in the store', () => {
-    const { injectQueryStore } = craftService(
+    const { QueryStore } = craftService(
       { name: 'QueryStore', scope: 'global' },
       function* () {
         return {
@@ -614,7 +614,7 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = injectQueryStore();
+      const store = QueryStore();
       expectTypeOf(store.user.ext1).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext2).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext3).toEqualTypeOf<number>();
@@ -1430,7 +1430,7 @@ describe('query — providers', () => {
   });
 
   it('typing: query accepts BrandedServiceProvider in providers without type errors', () => {
-    const { QueryServiceToYield, provideQueryService } = craftService(
+    const { QueryService, provideQueryService } = craftService(
       { name: 'QueryService', scope: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
@@ -1440,7 +1440,7 @@ describe('query — providers', () => {
         query({
           params: () => 'user-1',
           loader: function* ({ params }) {
-            yield* QueryServiceToYield();
+            yield* QueryService();
             return Promise.resolve({ id: params });
           },
         }),

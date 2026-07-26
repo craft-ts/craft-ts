@@ -186,13 +186,13 @@ describe('craftPipe with state', () => {
   });
 
   it('resolves generator members and tracks their dependencies (types + runtime)', () => {
-    const { PipeCounterReaderToYield } = craftService(
+    const { PipeCounterReader } = craftService(
       { name: 'PipeCounterReader', scope: 'global' },
       () => ({
         read: (): number => 2,
       }),
     );
-    const { PipeCounterStepToYield } = craftService(
+    const { PipeCounterStep } = craftService(
       { name: 'PipeCounterStep', scope: 'global' },
       () => ({
         step: (): number => 3,
@@ -203,7 +203,7 @@ describe('craftPipe with state', () => {
       const myState = craftUse(
         state(
           function* () {
-            const counter = yield* PipeCounterReaderToYield(
+            const counter = yield* PipeCounterReader(
               undefined,
               ({ read }) => ({ read }),
             );
@@ -213,7 +213,7 @@ describe('craftPipe with state', () => {
             craftPipe(
               context,
               function* ({ update }) {
-                const counterStep = yield* PipeCounterStepToYield();
+                const counterStep = yield* PipeCounterStep();
                 return {
                   increment: () =>
                     update((current) => current + counterStep.step()),
@@ -264,7 +264,7 @@ describe('craftPipe with query', () => {
   });
 
   it('exposes all piped insertion outputs on the store', () => {
-    const { injectQueryPipeStore } = craftService(
+    const { QueryPipeStore } = craftService(
       { name: 'QueryPipeStore', scope: 'global' },
       function* () {
         return {
@@ -307,7 +307,7 @@ describe('craftPipe with query', () => {
       },
     );
     runInInjectionContext(() => {
-      const store = injectQueryPipeStore();
+      const store = QueryPipeStore();
       // insert 1
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
@@ -321,7 +321,7 @@ describe('craftPipe with query', () => {
   });
 
   it('accepts seven members, all outputs appear in the store', () => {
-    const { injectQueryPipeSevenStore } = craftService(
+    const { QueryPipeSevenStore } = craftService(
       { name: 'QueryPipeSevenStore', scope: 'global' },
       function* () {
         return {
@@ -352,7 +352,7 @@ describe('craftPipe with query', () => {
       },
     );
     runInInjectionContext(() => {
-      const store = injectQueryPipeSevenStore();
+      const store = QueryPipeSevenStore();
       expectTypeOf(store.user.ext1).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext7).toEqualTypeOf<number>();
       expect(store.user.ext1).toBe(1);
@@ -431,19 +431,19 @@ describe('craftPipe with query', () => {
   });
 
   it('typing: tracks generator dependencies of piped members', () => {
-    const { PipeUserIdServiceToYield } = craftService(
+    const { PipeUserIdService } = craftService(
       { name: 'PipeUserIdService', scope: 'global' },
       () => ({
         read: (): string => 'user-1',
       }),
     );
-    const { PipeQueryToolsToYield } = craftService(
+    const { PipeQueryTools } = craftService(
       { name: 'PipeQueryTools', scope: 'global' },
       () => ({
         prefix: (): string => 'user',
       }),
     );
-    const { PipeQueryTools2ToYield } = craftService(
+    const { PipeQueryTools2 } = craftService(
       { name: 'PipeQueryTools2', scope: 'global' },
       () => ({
         suffix: (): string => 'details',
@@ -455,7 +455,7 @@ describe('craftPipe with query', () => {
         query(
           {
             params: function* () {
-              const userIdService = yield* PipeUserIdServiceToYield();
+              const userIdService = yield* PipeUserIdService();
               return userIdService.read();
             },
             loader: async ({ params }) =>
@@ -469,13 +469,13 @@ describe('craftPipe with query', () => {
             craftPipe(
               context,
               function* () {
-                const queryTools = yield* PipeQueryToolsToYield();
+                const queryTools = yield* PipeQueryTools();
                 return {
                   queryKey: `${queryTools.prefix()}:details`,
                 };
               },
               function* () {
-                const queryTools2 = yield* PipeQueryTools2ToYield();
+                const queryTools2 = yield* PipeQueryTools2();
                 return {
                   querySuffix: queryTools2.suffix(),
                 };

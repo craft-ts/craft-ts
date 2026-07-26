@@ -18,7 +18,7 @@ import { source$ } from './source$';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { signalSource } from './signal-source';
 
-describe('injectService2', () => {
+describe('Service2', () => {
   beforeAll(() => {
     try {
       TestBed.initTestEnvironment(

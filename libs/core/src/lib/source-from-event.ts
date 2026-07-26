@@ -79,12 +79,12 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *   providers: [provideClickTrackerStore()],
  * })
  * export class ClickerComponent {
- *   store = injectClickTrackerStore();
+ *   store = ClickTrackerStore();
  *
  *   // Mutation executes automatically on click
  * }
  *
- * const { injectClickTrackerStore, provideClickTrackerStore } = craftService(
+ * const { ClickTrackerStore, provideClickTrackerStore } = craftService(
  *   { name: 'ClickTrackerStore', scope: 'toProvide' },
  *   function* () {
  *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
@@ -118,10 +118,10 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *   providers: [provideInfiniteScrollStore()],
  * })
  * export class InfiniteScrollComponent {
- *   store = injectInfiniteScrollStore();
+ *   store = InfiniteScrollStore();
  * }
  *
- * const { injectInfiniteScrollStore, provideInfiniteScrollStore } = craftService(
+ * const { InfiniteScrollStore, provideInfiniteScrollStore } = craftService(
  *   { name: 'InfiniteScrollStore', scope: 'toProvide' },
  *   function* () {
  *     const scrollSource = sourceFromEvent(window, 'scroll', {
@@ -162,12 +162,12 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *   providers: [provideSearchStore()],
  * })
  * export class SearchComponent {
- *   store = injectSearchStore();
+ *   store = SearchStore();
  *
  *   // Query executes on input changes
  * }
  *
- * const { injectSearchStore, provideSearchStore } = craftService(
+ * const { SearchStore, provideSearchStore } = craftService(
  *   { name: 'SearchStore', scope: 'toProvide' },
  *   function* () {
  *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
@@ -230,7 +230,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * })
  * export class CustomEventsComponent {
  *   private readonly _elementRef = inject(ElementRef<HTMLElement>);
- *   store = injectCustomEventsStore();
+ *   store = CustomEventsStore();
  *
  *   triggerCustomEvent() {
  *     const event = new CustomEvent('custom-event', {
@@ -240,7 +240,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *   }
  * }
  *
- * const { injectCustomEventsStore, provideCustomEventsStore } = craftService(
+ * const { CustomEventsStore, provideCustomEventsStore } = craftService(
  *   { name: 'CustomEventsStore', scope: 'toProvide' },
  *   function* () {
  *     const hostElement = inject(ElementRef<HTMLElement>).nativeElement;
@@ -303,10 +303,10 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  *   providers: [provideShortcutsStore()],
  * })
  * export class ShortcutsComponent {
- *   store = injectShortcutsStore();
+ *   store = ShortcutsStore();
  * }
  *
- * const { injectShortcutsStore, provideShortcutsStore } = craftService(
+ * const { ShortcutsStore, provideShortcutsStore } = craftService(
  *   { name: 'ShortcutsStore', scope: 'toProvide' },
  *   function* () {
  *     const keydownSource = sourceFromEvent(document, 'keydown', {

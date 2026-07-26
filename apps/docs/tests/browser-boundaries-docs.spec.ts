@@ -48,12 +48,24 @@ describe('docs sidebar', () => {
           link: '/type-safe-di-routes/craft-gen',
         },
         {
+          text: 'Program Operators (.pipe)',
+          link: '/type-safe-di-routes/program-operators',
+        },
+        {
+          text: 'Pattern Matching (craftMatch)',
+          link: '/type-safe-di-routes/pattern-matching',
+        },
+        {
           text: 'Route Guards',
           link: '/type-safe-di-routes/guards',
         },
         {
           text: 'Route Load Errors',
           link: '/type-safe-di-routes/route-load-errors',
+        },
+        {
+          text: 'Lazy Services (craftLazy)',
+          link: '/type-safe-di-routes/lazy-services',
         },
         {
           text: 'Browser Boundaries',
@@ -242,7 +254,7 @@ describe('Browser Boundaries doc page', () => {
     expect(content).toContain(
       'Every boundary on this page is backed by a global crafted service marked with `browserBoundary: true`.',
     );
-    expect(content).toContain('ConsoleServiceToYield');
+    expect(content).toContain('ConsoleService');
     expect(content).toContain(
       'That second form is what preserves derivability',
     );
@@ -324,7 +336,7 @@ describe('craftMethod doc page', () => {
     expect(content).toContain("yield* Console.log('increment is called');");
     expect(content).toContain('function* (this: CounterComponent, step = 1) {');
     expect(content).toContain('this: CounterComponent,');
-    expect(content).toContain('return yield* CounterWorkerToYield.set(value);');
+    expect(content).toContain('return yield* CounterWorker.set(value);');
     expect(content).toContain('[`craftService`](/store/craft-service)');
   });
 
@@ -368,7 +380,7 @@ describe('craftComputed doc page', () => {
   });
 
   it('documents yield usage, dependency tracking and onAppStart restriction', () => {
-    expect(content).toContain('const multiplier = yield* MultiplierToYield();');
+    expect(content).toContain('const multiplier = yield* Multiplier();');
     expect(content).toContain(
       '`onAppStart(...)` is not supported inside `craftComputed(...)`.',
     );
@@ -391,9 +403,9 @@ describe('toCraftService doc page', () => {
       "import { HttpClient } from '@angular/common/http';",
     );
     expect(content).toContain("name: 'HttpClient'");
-    expect(content).toContain('const { HttpClientToYield } = toCraftService({');
+    expect(content).toContain('const { HttpClient } = toCraftService({');
     expect(content).toContain(
-      'const http = yield* HttpClientToYield(undefined, ({ get, post }) => ({',
+      'const http = yield* HttpClient(undefined, ({ get, post }) => ({',
     );
     expect(content).toContain(
       "listUsers: () => http.get<User[]>('/api/users'),",

@@ -19,7 +19,7 @@ import {
   queryParams,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiServiceToYield, type User } from './api.service';
+import { ApiService, type User } from './api.service';
 
 const ListWithPagination = craftComponent(
   'ListWithPagination',
@@ -39,7 +39,7 @@ const ListWithPagination = craftComponent(
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
-    const api = yield* ApiServiceToYield();
+    const api = yield* ApiService();
     const usersQuery = yield* query(
       {
         params: pagination,

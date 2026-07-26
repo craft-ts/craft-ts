@@ -92,8 +92,8 @@ cannot be inferred safely. Preserve unrelated user changes.
 
 - Author application/domain services with `craftService`.
 - Adapt Angular, framework, and third-party tokens once with `toCraftService`.
-- Use `injectX()` in components and `yield* XToYield(...)` in generators.
-- Use `CraftRouterToYield` directly instead of wrapping Angular Router.
+- Use the generated `X()` helper in components and `yield* X(...)` in generators.
+- Use `CraftRouter` directly instead of wrapping Angular Router.
 - Prefer `scope: 'function'` for a dependency used by one function and
   `scope: 'toProvide'` for feature-owned services.
 - Place `provideX(...)` near the route or feature owning the instance.

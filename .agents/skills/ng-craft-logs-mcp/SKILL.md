@@ -36,7 +36,7 @@ When the user wants logs across a feature rather than at one call site, do **not
 provideFnWrapper(
   'Warning: dependency injection here is not type-safe and may fail at runtime',
   function* (factory, thisArg, args) {
-    const from = yield* HostTagToYield();
+    const from = yield* HostTag();
     const host = from[from.length - 1] ?? 'unknown';
     yield* Console.log('enter', host);
     try {
@@ -49,11 +49,11 @@ provideFnWrapper(
 ),
 ```
 
-`HostTagToYield()` returns the **host tag ancestry array**, not a single name — the same value that lands in the `from` field of a stored entry. Its last element is the current host, for example `["route:list#1", "component:List#2"]`. Use it to know where the wrapper is running: log only the hosts a feature owns, put the tag in the message, or branch on the ancestry.
+`HostTag()` returns the **host tag ancestry array**, not a single name — the same value that lands in the `from` field of a stored entry. Its last element is the current host, for example `["route:list#1", "component:List#2"]`. Use it to know where the wrapper is running: log only the hosts a feature owns, put the tag in the message, or branch on the ancestry.
 
 Two things to get right:
 
-- Inside a wrapper, `yield* Console.*` already resolves `from`, `correlationId`, `route`, and `trace` from the injector on its own. You need `HostTagToYield()` only to *read* the tag yourself — for filtering which factories you log, or for putting it in the message. It is not required to make `from` searchable.
+- Inside a wrapper, `yield* Console.*` already resolves `from`, `correlationId`, `route`, and `trace` from the injector on its own. You need `HostTag()` only to *read* the tag yourself — for filtering which factories you log, or for putting it in the message. It is not required to make `from` searchable.
 - The wrapper must log through `yield* Console.*`, never raw `console.log`. The timing wrapper already in `app.config.ts` uses raw `console.log`, so its measurements never reach the store; converting it to `Console.log` makes the whole application's timings queryable through `logs.search`.
 
 Register the wrapper, ask the user to reload, then investigate with `from` and `correlationId` as usual. Wrappers are cheap to add and cheap to remove — prefer one broad wrapper for an investigation over edits scattered across feature files, and remove it once the question is answered.

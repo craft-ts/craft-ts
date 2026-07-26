@@ -4,7 +4,7 @@ type User = {
   name: string;
 };
 
-const { AuthToYield } = craftService(
+const { Auth } = craftService(
   { name: 'Auth', scope: 'global' },
   function* () {
     return yield* query({
@@ -15,7 +15,7 @@ const { AuthToYield } = craftService(
 );
 
 export const authGuard = craftGen(function* () {
-  const user = yield* AuthToYield();
+  const user = yield* Auth();
   const userSafeValue = user.safeValue();
 
   if (!userSafeValue) return craftException({ code: 'NOT_AUTHENTICATED' });

@@ -6,7 +6,7 @@ import {
   state,
 } from '@craft-ng/core';
 
-const { CounterToYield, provideCounter } = craftService(
+const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
   () =>
     state(0, ({ update, set }) => ({
@@ -32,7 +32,7 @@ const CraftServiceCounterComponent = craftComponent(
   },
   function* () {
     componentMonitoring();
-    return { counter: yield* CounterToYield() };
+    return { counter: yield* Counter() };
   },
   ({ counter }) =>
     div([

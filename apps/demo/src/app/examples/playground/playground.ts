@@ -42,7 +42,7 @@ function delay<T>(value: T, ms = 500): Promise<T> {
 
 // -- ApiService: global craftService with CRUD endpoints --
 
-const { ApiServiceToYield } = craftService(
+const { ApiService } = craftService(
   { name: 'ApiService', scope: 'global' },
   () => ({
     getTodos: () => delay([...TODOS]),
@@ -73,27 +73,27 @@ const { ApiServiceToYield } = craftService(
 
 // -- Playground service: composes query + mutation --
 
-const { PlaygroundToYield } = craftService(
+const { Playground } = craftService(
   { name: 'Playground', scope: 'function' },
   function* () {
     const addTodo = yield* mutation({
       method: (title: string) => title,
       loader: function* ({ params: title }) {
-        return yield* ApiServiceToYield.addTodo(title);
+        return yield* ApiService.addTodo(title);
       },
     });
 
     const toggleTodo = yield* mutation({
       method: (id: number) => id,
       loader: function* ({ params: id }) {
-        return yield* ApiServiceToYield.toggleTodo(id);
+        return yield* ApiService.toggleTodo(id);
       },
     });
 
     const deleteTodo = yield* mutation({
       method: (id: number) => id,
       loader: function* ({ params: id }) {
-        return yield* ApiServiceToYield.deleteTodo(id);
+        return yield* ApiService.deleteTodo(id);
       },
     });
 
@@ -101,7 +101,7 @@ const { PlaygroundToYield } = craftService(
       {
         params: () => 'all' as const,
         loader: function* () {
-          const getTodos = yield* ApiServiceToYield.getTodos();
+          const getTodos = yield* ApiService.getTodos();
           return getTodos();
         },
       },
@@ -214,11 +214,11 @@ const PlaygroundComponent = craftComponent(
   },
   function* () {
     componentMonitoring();
-    const pg = yield* PlaygroundToYield();
+    const pg = yield* Playground();
     const add = craftMethod('add', function* (input: HTMLInputElement) {
       const title = input.value.trim();
       if (!title) return;
-      (yield* PlaygroundToYield()).addTodo.mutate(title);
+      (yield* Playground()).addTodo.mutate(title);
       input.value = '';
       return {};
     });

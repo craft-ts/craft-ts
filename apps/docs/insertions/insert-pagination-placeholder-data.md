@@ -68,7 +68,7 @@ const usersQuery = query(
     params: this.pagination,
     identifier: (params) => `${params.page}-${params.pageSize}`,
     loader: function* ({ params }) {
-      return yield* ApiServiceToYield.getDataList(params);
+      return yield* ApiService.getDataList(params);
     },
   },
   insertPaginationPlaceholderData(

@@ -1,4 +1,4 @@
-import { LocalStorageServiceToYield } from './browser-boundaries';
+import { LocalStorageService } from './browser-boundaries';
 import {
   craftService,
   type CraftServiceApi,
@@ -23,7 +23,7 @@ type GlobalPersisterHandlerServiceCraftApi = CraftServiceApi<
 >;
 
 /**
- * Injects the global craft service responsible for clearing persisted `@craft-ng`
+ * Yields the global craft service responsible for clearing persisted `@craft-ng`
  * cache entries from `localStorage`.
  *
  * This helper returns a singleton service created with `craftService({ scope: 'global' })`.
@@ -32,10 +32,10 @@ type GlobalPersisterHandlerServiceCraftApi = CraftServiceApi<
  *
  * @example
  * ```ts
- * import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
+ * import { GlobalPersisterHandlerService } from '@craft-ng/core';
  *
  * export class AppComponent {
- *   private readonly persisterHandler = injectGlobalPersisterHandlerService();
+ *   // Consume GlobalPersisterHandlerService inside a craft generator.
  *
  *   logout() {
  *     // Clear all @craft-ng cached data from localStorage.
@@ -51,7 +51,7 @@ const globalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi =
       scope: 'global',
     },
     function* () {
-      const storage = yield* LocalStorageServiceToYield(
+      const storage = yield* LocalStorageService(
         undefined,
         ({ key, length, removeItem }) => ({
           key,
@@ -78,9 +78,7 @@ const globalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi =
     },
   );
 
-export const injectGlobalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi['injectGlobalPersisterHandlerService'] =
-  globalPersisterHandlerService.injectGlobalPersisterHandlerService;
-export const GlobalPersisterHandlerServiceToYield: GlobalPersisterHandlerServiceCraftApi['GlobalPersisterHandlerServiceToYield'] =
-  globalPersisterHandlerService.GlobalPersisterHandlerServiceToYield;
+export const GlobalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi['GlobalPersisterHandlerService'] =
+  globalPersisterHandlerService.GlobalPersisterHandlerService;
 export const GLOBAL_PERSISTER_HANDLER_SERVICE_META_DATA: GlobalPersisterHandlerServiceCraftApi['GLOBAL_PERSISTER_HANDLER_SERVICE_META_DATA'] =
   globalPersisterHandlerService.GLOBAL_PERSISTER_HANDLER_SERVICE_META_DATA;

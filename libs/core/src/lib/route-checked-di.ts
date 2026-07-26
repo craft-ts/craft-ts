@@ -112,7 +112,7 @@ type InputErrorMessage<
 type InjectedErrorMessage<
   Name extends string,
   Context extends string,
-> = `Injected ${Name} is not provided in ${Context} (or you may scope this properties as protected/private)`;
+> = `The ${Name} service is not provided in ${Context}`;
 
 type InputErrorMessagesFromNames<
   Names extends readonly unknown[],

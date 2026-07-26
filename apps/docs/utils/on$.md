@@ -169,7 +169,7 @@ console.log(filters()); // []
 import { craftService, state, source$ } from '@craft-ng/core';
 import { on$ } from '@craft-ng/core';
 
-const { injectFilters } = craftService(
+const { Filters } = craftService(
   { name: 'Filters', scope: 'global' },
   () => {
     const reset = source$<void>();
@@ -192,7 +192,7 @@ const { injectFilters } = craftService(
   },
 );
 
-const filters = injectFilters();
+const filters = Filters();
 
 filters.search.set('angular');
 filters.category.set('frameworks');

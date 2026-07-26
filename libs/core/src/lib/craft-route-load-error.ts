@@ -169,10 +169,10 @@ const craftRouteLoadRecoveryService = toCraftService({
   inject: injectCraftRouteLoadRecovery,
 });
 
-export const CraftRouteLoadErrorToYield =
-  craftRouteLoadErrorService.CraftRouteLoadErrorToYield;
-export const CraftRouteLoadRecoveryToYield =
-  craftRouteLoadRecoveryService.CraftRouteLoadRecoveryToYield;
+export const CraftRouteLoadError =
+  craftRouteLoadErrorService.CraftRouteLoadError;
+export const CraftRouteLoadRecovery =
+  craftRouteLoadRecoveryService.CraftRouteLoadRecovery;
 
 export function provideRouteLoadErrorComponent(
   component: CraftExceptionComponentDescriptor,

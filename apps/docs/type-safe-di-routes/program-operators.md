@@ -53,7 +53,7 @@ programs, `craftUntilSettled`) are relayed to the driver, so its dependencies st
 
 ```typescript
 const loadSlowReport = craftGen(function* () {
-  const reportRef = yield* SlowReportToYield();
+  const reportRef = yield* SlowReport();
   const report = yield* craftUntilSettled(reportRef);
   return report.totalUsers === 0
     ? craftException({ code: 'REPORT_EMPTY' })
@@ -83,7 +83,7 @@ code is added to `E`):
 
 ```typescript
 catchTag('HTTP_TIMEOUT', function* (exception) {
-  const flags = yield* FeatureFlagsToYield();
+  const flags = yield* FeatureFlags();
   return flags.offlineMode()
     ? cachedFallback
     : craftException({ code: 'SERVICE_UNAVAILABLE' });
@@ -103,7 +103,7 @@ const user = yield* loadUser(userId).pipe(
       return GUEST_USER;
     },
     FORBIDDEN: function* () {
-      const audit = yield* AuditToYield();
+      const audit = yield* Audit();
       audit.report('forbidden-user-access');
       return GUEST_USER;
     },
@@ -181,7 +181,7 @@ loaders can suspend on `craftUntilSettled` and compose programs:
 const userQuery = query({
   params: () => userId(),
   loader: function* ({ params }) {
-    const api = yield* UserApiToYield();
+    const api = yield* UserApi();
     return yield* loadUser(params).pipe(
       retry({ times: 3, backoff: 'exponential', delayMs: 200 }),
     );

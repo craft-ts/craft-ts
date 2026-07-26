@@ -65,7 +65,7 @@ console.log(cells.selectCell(0)?.paintCount); // 1
 
 ```typescript
 insertSelect('cell', function* ({ patch }) {
-  const color = yield* ColorServiceToYield();
+  const color = yield* ColorService();
   return {
     paint: () =>
       patch(() => ({

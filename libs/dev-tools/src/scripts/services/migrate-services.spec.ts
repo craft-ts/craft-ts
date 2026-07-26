@@ -143,7 +143,7 @@ describe('services migration', () => {
     expect(output).not.toContain('toCraftService');
   });
 
-  it('imports ToYield helpers for dependencies migrated from other files', async () => {
+  it('imports service helpers for dependencies migrated from other files', async () => {
     const root = await fixture({
       'tsconfig.json': JSON.stringify({
         compilerOptions: { experimentalDecorators: true },
@@ -177,10 +177,10 @@ describe('services migration', () => {
 
     const output = await readFile(join(root, 'checkout/wizard.ts'), 'utf8');
     expect(output).toContain(
-      "import { CartStoreToYield } from '../cart'",
+      "import { CartStore } from '../cart'",
     );
     expect(output).toContain(
-      'const _cartStore = yield* CartStoreToYield();',
+      'const _cartStore = yield* CartStore();',
     );
     expect(output).not.toContain('import { CartStore }');
   });
@@ -379,7 +379,7 @@ describe('services migration', () => {
     expect(service).toContain('provideCheckoutWizard');
   });
 
-  it('uses the built-in CraftRouterToYield helper for Angular Router dependencies', async () => {
+  it('uses the built-in CraftRouter helper for Angular Router dependencies', async () => {
     const root = await fixture({
       'tsconfig.json': JSON.stringify({
         compilerOptions: { experimentalDecorators: true },
@@ -409,11 +409,11 @@ describe('services migration', () => {
 
     const output = await readFile(join(root, 'wizard.ts'), 'utf8');
     expect(result.diagnostics).toEqual([]);
-    expect(output).toContain('CraftRouterToYield');
-    expect(output).toContain('const _router = yield* CraftRouterToYield();');
+    expect(output).toContain('CraftRouter');
+    expect(output).toContain('const _router = yield* CraftRouter();');
     expect(output).toContain("_router.navigate(['/checkout', _activeStep()])");
-    expect(output).not.toContain('const { RouterToYield }');
-    expect(output).not.toContain('yield* RouterToYield');
+    expect(output).not.toContain('const { Router }');
+    expect(output).not.toContain('yield* Router');
     expect(output).not.toContain('toCraftService');
     expect(output).not.toContain("from '@angular/router'");
   });
@@ -619,7 +619,7 @@ describe('services migration', () => {
     expect(output).toContain('yield* CraftHttpClient.post');
     expect(output).toContain("url: '/api/orders'");
     expect(output).toContain('payload: data');
-    expect(output).not.toContain('HttpClientToYield');
+    expect(output).not.toContain('HttpClient');
     expect(output).not.toContain('inject(HttpClient)');
   });
 
@@ -664,7 +664,7 @@ describe('services migration', () => {
 
     const page = await readFile(join(root, 'page.ts'), 'utf8');
     expect(page).toContain('createOrderMutation = mutation({');
-    expect(page).toContain('const orderApi = yield* OrderApiToYield();');
+    expect(page).toContain('const orderApi = yield* OrderApi();');
     expect(page).toContain('return yield* orderApi.createOrder(params);');
     expect(page).toContain('this.createOrderMutation.mutate(data)');
     expect(page).toContain("from '@craft-ng/core'");

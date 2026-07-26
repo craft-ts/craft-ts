@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { craftService, GetInjectedServiceDependencies } from './craft-service';
+import { craftService, GetServiceDependencies } from './craft-service';
 import { GetDeps } from './branded-component/branded-component';
 import type { AppCheckedDI, CanRun } from './app-checked-di';
 import { craftAppConfig } from './craft-app-config';
@@ -52,7 +52,7 @@ describe('AppCheckedDI', () => {
       publicProperties: {};
     }>;
 
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -63,7 +63,7 @@ describe('AppCheckedDI', () => {
         deps: {};
         provided: {};
         missingProvider: {
-          Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+          Counter: GetServiceDependencies<typeof Counter>;
         };
         publicProperties: {};
       },
@@ -80,7 +80,7 @@ describe('AppCheckedDI', () => {
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
       [
-        'Injected Counter is not provided in path: "some-path" (or you may scope this properties as protected/private)',
+        'The Counter service is not provided in path: "some-path"',
       ]
     >();
   });
@@ -93,7 +93,7 @@ describe('AppCheckedDI', () => {
       publicProperties: {};
     }>;
 
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -159,7 +159,7 @@ describe('AppCheckedDI', () => {
   });
 
   it('should return combined errors', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -187,7 +187,7 @@ describe('AppCheckedDI', () => {
         path: 'query/:userId';
         deps: {};
         missingProvider: {
-          Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+          Counter: GetServiceDependencies<typeof Counter>;
         };
         provided: {};
         publicProperties: {};
@@ -200,13 +200,13 @@ describe('AppCheckedDI', () => {
       [
         'Input "userId" is not provided in AppComponent',
         'Input "userId" is not provided in path: "some-path"',
-        'Injected Counter is not provided in path: "query/:userId" (or you may scope this properties as protected/private)',
+        'The Counter service is not provided in path: "query/:userId"',
       ]
     >();
   });
 
   it('should report composed lazy child paths for missing inputs and providers', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -227,7 +227,7 @@ describe('AppCheckedDI', () => {
         deps: {};
         provided: {};
         missingProvider: {
-          Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+          Counter: GetServiceDependencies<typeof Counter>;
         };
         publicProperties: {
           userId: () => string;
@@ -240,20 +240,20 @@ describe('AppCheckedDI', () => {
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
       [
         'Input "userId" is not provided in path: "lazy-parent/child"',
-        'Injected Counter is not provided in path: "lazy-parent/child" (or you may scope this properties as protected/private)',
+        'The Counter service is not provided in path: "lazy-parent/child"',
       ]
     >();
   });
 
   it('should treat app root providers from APP_CONFIG_META_DATA as provided in AppComponent', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
     type GenDeps_AppComponent = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {};
@@ -281,7 +281,7 @@ describe('AppCheckedDI', () => {
       publicProperties: {};
     }>;
 
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -295,7 +295,7 @@ describe('AppCheckedDI', () => {
         deps: {};
         provided: {};
         missingProvider: {
-          Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+          Counter: GetServiceDependencies<typeof Counter>;
         };
         publicProperties: {};
       },
@@ -313,7 +313,7 @@ describe('AppCheckedDI', () => {
 
     expectTypeOf<APP_CHECKED_DI>().toEqualTypeOf<
       [
-        'Injected Counter is not provided in path: "lazy-parent/child" (or you may scope this properties as protected/private)',
+        'The Counter service is not provided in path: "lazy-parent/child"',
       ]
     >();
   });
@@ -353,7 +353,7 @@ describe('AppCheckedDI', () => {
 
     expectTypeOf<DEMO_APP_CHECKED_DI>().toEqualTypeOf<
       [
-        'Injected DemoUserIdParams is not provided in path: "craft/lazy-layout/:teamId/users/:userId" (or you may scope this properties as protected/private)',
+        'The DemoUserIdParams service is not provided in path: "craft/lazy-layout/:teamId/users/:userId"',
       ]
     >();
   });

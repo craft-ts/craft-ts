@@ -12,13 +12,13 @@ import { craftAppConfig, toApplicationConfig } from './craft-app-config';
 import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
 import {
   appStartCalls,
-  injectAppStartCounter,
+  AppStartCounter,
   requiredAppStart,
 } from './craft-app-config.app-start.fixture';
 import { craftRoutes } from './craft-routes';
 import {
   craftService,
-  GetInjectedServiceDependencies,
+  GetServiceDependencies,
   onAppStart,
   runServiceAppStart,
   toCraftService,
@@ -41,14 +41,14 @@ beforeAll(() => {
 
 describe('craftAppConfig', () => {
   it('should expose APP_CONFIG_META_DATA with computed missing providers', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
     type CounterRouteDeps = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {};
@@ -75,12 +75,12 @@ describe('craftAppConfig', () => {
         {
           path: 'counter';
           deps: {
-            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+            Counter: GetServiceDependencies<typeof Counter>;
           };
           provided: {};
           publicProperties: {};
           missingProvider: {
-            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+            Counter: GetServiceDependencies<typeof Counter>;
           };
         },
       ]
@@ -88,14 +88,14 @@ describe('craftAppConfig', () => {
   });
 
   it('should remove app providers from APP_CONFIG_META_DATA', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
     type CounterRouteDeps = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {};
@@ -128,14 +128,14 @@ describe('craftAppConfig', () => {
   });
 
   it('should make app providers available to AppCheckedDI for AppComponent', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
     type AppComponentDeps = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {};
@@ -156,14 +156,14 @@ describe('craftAppConfig', () => {
   });
 
   it('should remove app providers from lazy child routes in APP_CONFIG_META_DATA', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
     type ChildRouteDeps = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {};
@@ -211,7 +211,7 @@ describe('craftAppConfig', () => {
       }
     }
 
-    const { injectCraftRouter, provideCraftRouter } = toCraftService({
+    const { CraftRouter, provideCraftRouter } = toCraftService({
       name: 'CraftRouter',
       scope: 'manuallyProvidedAtRoot',
       token: RouterLike,
@@ -228,7 +228,7 @@ describe('craftAppConfig', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        Router: ReturnType<typeof injectCraftRouter>;
+        Router: ReturnType<typeof CraftRouter>;
       };
     }>;
 
@@ -259,7 +259,7 @@ describe('craftAppConfig', () => {
   });
 
   it('should include generator guard missing providers in APP_CONFIG_META_DATA', () => {
-    const { injectCounter, CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -275,7 +275,7 @@ describe('craftAppConfig', () => {
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {} as GuardRouteDeps,
         canActivate: function* () {
-          yield* CounterToYield();
+          yield* Counter();
           return true;
         },
       },
@@ -291,12 +291,12 @@ describe('craftAppConfig', () => {
         {
           path: 'counter';
           deps: {
-            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+            Counter: GetServiceDependencies<typeof Counter>;
           };
           provided: {};
           publicProperties: {};
           missingProvider: {
-            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+            Counter: GetServiceDependencies<typeof Counter>;
           };
         },
       ]
@@ -306,7 +306,7 @@ describe('craftAppConfig', () => {
   it('should preserve route httpDeps in APP_CONFIG_META_DATA', () => {
     type User = { id: string };
 
-    const { injectUsersApi } = craftService(
+    const { UsersApi } = craftService(
       { name: 'UsersApi', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -324,7 +324,7 @@ describe('craftAppConfig', () => {
       deps: {};
       propertiesDeps: {
         usersApi: {
-          UsersApi: GetInjectedServiceDependencies<typeof injectUsersApi>;
+          UsersApi: GetServiceDependencies<typeof UsersApi>;
         };
       };
       provided: {};
@@ -389,8 +389,8 @@ describe('craftAppConfig appStart', () => {
   it('should treat appStart services as provided at app root in APP_CONFIG_META_DATA', () => {
     type CounterRouteDeps = GetDeps<{
       deps: {
-        AppStartCounter: GetInjectedServiceDependencies<
-          typeof injectAppStartCounter
+        AppStartCounter: GetServiceDependencies<
+          typeof AppStartCounter
         >;
       };
       provided: {};
@@ -484,7 +484,7 @@ describe('craftAppConfig appStart', () => {
   });
 
   it('should reject nested onAppStart declarations inside generator callbacks', () => {
-    const { injectNestedAppStart } = craftService(
+    const { NestedAppStart } = craftService(
       {
         name: 'NestedAppStart',
         scope: 'global',
@@ -502,9 +502,9 @@ describe('craftAppConfig appStart', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const service = injectNestedAppStart();
+      const service = NestedAppStart();
 
-      expect(() => runServiceAppStart(injectNestedAppStart, service)).toThrow(
+      expect(() => runServiceAppStart(NestedAppStart, service)).toThrow(
         'onAppStart(...) generator callbacks cannot declare onAppStart(...) recursively.',
       );
     });

@@ -8,7 +8,7 @@ import {
   type Input,
 } from '@craft-ng/component';
 import {
-  CraftRouterToYield,
+  CraftRouter,
   componentMonitoring,
   craftMethod,
   craftService,
@@ -20,9 +20,9 @@ import {
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiServiceToYield, type User } from './api.service';
+import { ApiService, type User } from './api.service';
 
-const { provideUserMutation, UserMutationToYield } = craftService(
+const { provideUserMutation, UserMutation } = craftService(
   { name: 'UserMutation', scope: 'toProvide' },
   function* (inputs: { userId: () => string | undefined }) {
     const updateUserName = yield* mutation({
@@ -31,7 +31,7 @@ const { provideUserMutation, UserMutationToYield } = craftService(
         name: payload.userName,
       }),
       loader: function* ({ params: user }) {
-        return yield* ApiServiceToYield.updateItem(user);
+        return yield* ApiService.updateItem(user);
       },
     });
 
@@ -39,7 +39,7 @@ const { provideUserMutation, UserMutationToYield } = craftService(
       {
         params: inputs.userId,
         loader: function* ({ params: userId }) {
-          return yield* ApiServiceToYield.getItemById(userId);
+          return yield* ApiService.getItemById(userId);
         },
         preservePreviousValue: () => true,
       },
@@ -72,11 +72,11 @@ const MutationCraft = craftComponent(
   },
   function* (userId: Input<string | undefined>) {
     componentMonitoring();
-    const store = yield* UserMutationToYield({ userId: () => userId() });
+    const store = yield* UserMutation({ userId: () => userId() });
     const updateUserNameFn = craftMethod(
       'updateUserNameFn',
       function* (newName: string) {
-        const { user, updateUserName } = yield* UserMutationToYield(
+        const { user, updateUserName } = yield* UserMutation(
           undefined,
           ({ user, updateUserName }) => ({ user, updateUserName }),
         );
@@ -89,7 +89,7 @@ const MutationCraft = craftComponent(
         }
       },
     );
-    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
     const navigate = craftMethod('navigate', function* (offset: number) {

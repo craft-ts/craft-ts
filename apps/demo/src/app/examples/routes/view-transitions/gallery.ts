@@ -12,7 +12,7 @@ import {
 import {
   componentMonitoring,
   craftMethod,
-  CraftRouterToYield,
+  CraftRouter,
   provideHostName,
 } from '@craft-ng/core';
 import { PHOTOS } from './photos';
@@ -29,7 +29,7 @@ const ViewTransitionsGalleryComponent = craftComponent(
   },
   function* () {
     componentMonitoring();
-    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     })); // todo move directly on open
     const open = craftMethod('open', function* (photoId: string) {

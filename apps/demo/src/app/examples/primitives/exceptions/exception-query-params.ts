@@ -1,4 +1,7 @@
-import { ActivatedRoute, Router } from '@angular/router';
+import {
+  ActivatedRoute as ActivatedRouteToken,
+  Router as RouterToken,
+} from '@angular/router';
 import {
   button,
   craftComponent,
@@ -16,15 +19,15 @@ import {
   toCraftService,
 } from '@craft-ng/core';
 
-const { ActivatedRouteToYield } = toCraftService({
+const { ActivatedRoute } = toCraftService({
   name: 'ActivatedRoute',
   scope: 'global',
-  token: ActivatedRoute,
+  token: ActivatedRouteToken,
 });
-const { RouterToYield } = toCraftService({
+const { Router } = toCraftService({
   name: 'Router',
   scope: 'global',
-  token: Router,
+  token: RouterToken,
 });
 
 const ExceptionQueryParamsComponent = craftComponent(
@@ -32,10 +35,10 @@ const ExceptionQueryParamsComponent = craftComponent(
   { providers: [provideHostName('component:ExceptionQueryParamsComponent')] },
   function* () {
     componentMonitoring();
-    const router = yield* RouterToYield(undefined, ({ navigate }) => ({
+    const router = yield* Router(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const activatedRoute = yield* ActivatedRouteToYield();
+    const activatedRoute = yield* ActivatedRoute();
     const modeQueryParams = yield* queryParams({
       state: {
         mode: {

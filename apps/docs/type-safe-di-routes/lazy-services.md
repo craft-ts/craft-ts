@@ -133,7 +133,7 @@ import {
   on$,
 } from '@craft-ng/core';
 
-const { injectSearch } = craftService(
+const { Search } = craftService(
   { name: 'Search', scope: 'component' },
   () => {
     // prefetch the module at the first emission of the source

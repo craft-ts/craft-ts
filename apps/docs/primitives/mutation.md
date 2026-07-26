@@ -148,17 +148,17 @@ console.log(deleteUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
 const mutationRef = mutation(
   {
     method: function* (userId: string) {
-      const logger = yield* MutationLoggerRuntimeToYield.log(
+      const logger = yield* MutationLoggerRuntime.log(
         `mutate:${userId}`,
       );
       return userId;
     },
     loader: function* ({ params }) {
-      return yield* MutationApiRuntimeToYield.save(params);
+      return yield* MutationApiRuntime.save(params);
     },
   },
   function* () {
-    const logger = yield* MutationLoggerRuntimeToYield.log('insert:init');
+    const logger = yield* MutationLoggerRuntime.log('insert:init');
     return {
       initialized: true,
     };
@@ -172,11 +172,11 @@ const mutationRef = mutation(
 const saveUser = mutation({
   providers: [provideMutationLogger(), provideUserApiService()],
   method: function* (user: { id: string; name: string }) {
-    yield* MutationLoggerToYield.log(`mutate:${user.id}`);
+    yield* MutationLogger.log(`mutate:${user.id}`);
     return user;
   },
   loader: function* ({ params }) {
-    return yield* UserApiServiceToYield.save(params);
+    return yield* UserApiService.save(params);
   },
 });
 ```
@@ -195,11 +195,11 @@ const userFeature = craft(
     saveUser: mutation({
       providers: [provideMutationLogger(), provideUserApiService()],
       method: function* (user: { id: string; name: string }) {
-        yield* MutationLoggerToYield.log(`mutate:${user.id}`);
+        yield* MutationLogger.log(`mutate:${user.id}`);
         return user;
       },
       loader: function* ({ params }) {
-        return yield* UserApiServiceToYield.save(params);
+        return yield* UserApiService.save(params);
       },
     }),
   })),

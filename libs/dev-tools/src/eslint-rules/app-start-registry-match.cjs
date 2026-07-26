@@ -147,14 +147,14 @@ function collectRequiredRegistrations(sourceFile) {
     }
 
     const tag = readCraftServiceName(initializer);
-    const injectReference = readInjectReferenceName(declaration);
-    if (!tag || !injectReference || registrations.has(tag)) {
+    const serviceReference = readServiceReferenceName(declaration, tag);
+    if (!tag || !serviceReference || registrations.has(tag)) {
       continue;
     }
 
     registrations.set(tag, {
       tag,
-      injectReference,
+      serviceReference,
       reportNode: initializer,
     });
   }
@@ -204,7 +204,7 @@ function readCraftServiceName(callExpression) {
   return initializer.getLiteralText();
 }
 
-function readInjectReferenceName(declaration) {
+function readServiceReferenceName(declaration, serviceName) {
   const nameNode = declaration.getNameNode();
   if (!Node.isObjectBindingPattern(nameNode)) {
     return undefined;
@@ -213,9 +213,7 @@ function readInjectReferenceName(declaration) {
   const bindingElement =
     nameNode
       .getElements()
-      .find((element) =>
-        element.getNameNode().getText().startsWith('inject'),
-      ) ??
+      .find((element) => element.getNameNode().getText() === serviceName) ??
     (nameNode.getElements().length === 1
       ? nameNode.getElements()[0]
       : undefined);
@@ -246,7 +244,7 @@ function analyzeRegistryState(sourceFile, requiredRegistrations) {
 
     const currentType = normalizeText(property.getTypeNode()?.getText() ?? '');
     const expectedType = normalizeText(
-      `typeof ${registration.injectReference}`,
+      `typeof ${registration.serviceReference}`,
     );
     if (currentType !== expectedType) {
       outOfDate.push(registration.tag);
@@ -302,7 +300,7 @@ function ensureRegistryEntries(sourceFile, requiredRegistrations) {
   );
 
   for (const registration of requiredRegistrations) {
-    const expectedType = `typeof ${registration.injectReference}`;
+    const expectedType = `typeof ${registration.serviceReference}`;
     const property = propertiesByName.get(registration.tag);
     if (!property) {
       registryInterface.addProperty({

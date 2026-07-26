@@ -67,7 +67,7 @@ Use `provideFnWrapper` mostly for **side effects** — logging, metrics, snapsho
 import {
   craftAppConfig,
   provideFnWrapper,
-  HostTagToYield,
+  HostTag,
 } from '@craft-ng/core';
 
 provideFnWrapper(
@@ -77,7 +77,7 @@ provideFnWrapper(
     try {
       return yield* factory.apply(thisArg, args);
     } finally {
-      const name = yield* HostTagToYield();
+      const name = yield* HostTag();
       console.log(`${name} took ${performance.now() - start}ms`);
     }
   },

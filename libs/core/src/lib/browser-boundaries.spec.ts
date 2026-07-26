@@ -13,14 +13,13 @@ import {
   BrowserPerformance,
   BrowserWindow,
   Console,
-  ConsoleServiceToYield,
+  ConsoleService,
   Cookies,
   LocalStorage,
   SessionStorage,
-  injectBrowserLocationService,
-  injectConsoleService,
-  injectLocalStorageService,
-  injectSessionStorageService,
+  BrowserLocationService,
+  LocalStorageService,
+  SessionStorageService,
 } from './browser-boundaries';
 import { craftService, getServiceMetaData } from './craft-service';
 
@@ -55,8 +54,8 @@ describe('browser boundaries', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     TestBed.runInInjectionContext(() => {
-      injectLocalStorageService().clear();
-      injectSessionStorageService().clear();
+      LocalStorageService().clear();
+      SessionStorageService().clear();
     });
     clearCookies();
     document.title = 'Spec';
@@ -67,12 +66,12 @@ describe('browser boundaries', () => {
   it('should expose browserBoundary metadata and support Console DSL plus derivation', () => {
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const { injectBootLogger } = craftService(
+    const { BootLogger } = craftService(
       { name: 'BootLogger', scope: 'global' },
       function* () {
         yield* Console.log('boot', { ready: true });
 
-        const consoleService = yield* ConsoleServiceToYield(
+        const consoleService = yield* ConsoleService(
           undefined,
           ({ log }) => ({
             log,
@@ -85,17 +84,17 @@ describe('browser boundaries', () => {
       },
     );
 
-    expect(getServiceMetaData(injectConsoleService).browserBoundary).toBe(true);
+    expect(getServiceMetaData(ConsoleService).browserBoundary).toBe(true);
     expect(
-      getServiceMetaData(injectBrowserLocationService).browserBoundary,
+      getServiceMetaData(BrowserLocationService).browserBoundary,
     ).toBe(true);
 
     expectTypeOf(
-      getServiceMetaData(injectConsoleService).browserBoundary,
+      getServiceMetaData(ConsoleService).browserBoundary,
     ).toEqualTypeOf<boolean>();
 
     TestBed.runInInjectionContext(() => {
-      const bootLogger = injectBootLogger();
+      const bootLogger = BootLogger();
 
       bootLogger.track('runtime');
     });
@@ -113,7 +112,7 @@ describe('browser boundaries', () => {
   });
 
   it('should support LocalStorage, SessionStorage, and Cookies through the DSL', () => {
-    const { injectBrowserPersistence } = craftService(
+    const { BrowserPersistence } = craftService(
       { name: 'BrowserPersistence', scope: 'global' },
       function* () {
         yield* LocalStorage.setItem('token', 'abc');
@@ -145,7 +144,7 @@ describe('browser boundaries', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(injectBrowserPersistence()).toEqual({
+      expect(BrowserPersistence()).toEqual({
         token: 'abc',
         localLength: 1,
         tab: 'settings',
@@ -166,7 +165,7 @@ describe('browser boundaries', () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    const { injectBrowserSnapshot } = craftService(
+    const { BrowserSnapshot } = craftService(
       { name: 'BrowserSnapshot', scope: 'global' },
       function* () {
         yield* BrowserHistory.replaceState(
@@ -201,7 +200,7 @@ describe('browser boundaries', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(injectBrowserSnapshot()).toEqual({
+      expect(BrowserSnapshot()).toEqual({
         href: window.location.href,
         pathname: '/checkout',
         search: '?step=2',
@@ -233,7 +232,7 @@ describe('browser boundaries', () => {
   it('should propagate false from BrowserWindow.confirm', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
-    const { injectLeavePageFlow } = craftService(
+    const { LeavePageFlow } = craftService(
       { name: 'LeavePageFlow', scope: 'global' },
       function* () {
         return yield* BrowserWindow.confirm('Stay on page?');
@@ -241,7 +240,7 @@ describe('browser boundaries', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(injectLeavePageFlow()).toBe(false);
+      expect(LeavePageFlow()).toBe(false);
     });
 
     expect(confirmSpy).toHaveBeenCalledWith('Stay on page?');
@@ -256,7 +255,7 @@ describe('browser boundaries', () => {
       .mockReturnValue('123e4567-e89b-12d3-a456-426614174000');
     const payload = new TextEncoder().encode('craft');
 
-    const { injectBrowserDiagnostics } = craftService(
+    const { BrowserDiagnostics } = craftService(
       { name: 'BrowserDiagnostics', scope: 'global' },
       function* () {
         const bytes = yield* BrowserCrypto.getRandomValues(new Uint8Array(8));
@@ -270,7 +269,7 @@ describe('browser boundaries', () => {
       },
     );
     await TestBed.runInInjectionContext(async () => {
-      const diagnostics = injectBrowserDiagnostics();
+      const diagnostics = BrowserDiagnostics();
       const digest = await diagnostics.digest;
 
       expect(diagnostics.now).toBe(42.5);

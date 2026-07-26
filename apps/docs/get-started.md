@@ -92,7 +92,7 @@ interface Todo {
   completed: boolean;
 }
 
-const { injectTodos } = craftService({ name: 'Todos', scope: 'global' }, () =>
+const { Todos } = craftService({ name: 'Todos', scope: 'global' }, () =>
   state([] as Todo[], ({ state, set }) => ({
     add: (title: string) => {
       const trimmedTitle = title.trim();
@@ -153,7 +153,7 @@ const { injectTodos } = craftService({ name: 'Todos', scope: 'global' }, () =>
   `,
 })
 export class TodosComponent {
-  readonly todos = injectTodos();
+  // In a Craft component factory: `const todos = yield* Todos();`
 }
 ```
 
@@ -162,7 +162,7 @@ export class TodosComponent {
 If your service depends on other services, use `yield` to inject them:
 
 ```typescript
-const { UserApiToYield } = craftService(
+const { UserApi } = craftService(
   { name: 'UserApi', scope: 'function' },
   function* (userId: string) {
     return yield* CraftHttpClient.get(({ response }) => ({
@@ -177,7 +177,7 @@ class UsersComponent {
   protected readonly users = query({
     params: this.userId,
     loader: function* () {
-      return yield* UserApiToYield(this.userId());
+      return yield* UserApi(this.userId());
     },
   });
 }

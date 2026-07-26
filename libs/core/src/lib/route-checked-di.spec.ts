@@ -1,18 +1,18 @@
-import { craftService, GetInjectedServiceDependencies } from './craft-service';
+import { craftService, GetServiceDependencies } from './craft-service';
 import { GetDeps } from './branded-component/branded-component';
 import type { CanRun } from './app-checked-di';
 import type { RouteCheckedDI } from './route-checked-di';
 
 describe('RouteCheckedDI', () => {
   it('should return true if all deps are provided via AvailableProviderNames', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
     type GenDeps_MyComp = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {};
@@ -26,14 +26,14 @@ describe('RouteCheckedDI', () => {
   });
 
   it('should report a missing injected service when not in AvailableProviderNames', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
     type GenDeps_MyComp = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {};
@@ -44,7 +44,7 @@ describe('RouteCheckedDI', () => {
 
     expectTypeOf<CHECK>().toEqualTypeOf<
       [
-        'Injected Counter is not provided in this component (or you may scope this properties as protected/private)',
+        'The Counter service is not provided in this component',
       ]
     >();
   });
@@ -66,12 +66,12 @@ describe('RouteCheckedDI', () => {
   });
 
   it('should resolve a missing service when a structurally matching ProvidedValue is supplied', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
-    type CounterDep = GetInjectedServiceDependencies<typeof injectCounter>;
+    type CounterDep = GetServiceDependencies<typeof Counter>;
 
     type GenDeps_MyComp = GetDeps<{
       deps: {
@@ -88,14 +88,14 @@ describe('RouteCheckedDI', () => {
   });
 
   it('should accept a custom Context for clearer error messages', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
     type GenDeps_MyComp = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {};
@@ -105,7 +105,7 @@ describe('RouteCheckedDI', () => {
 
     expectTypeOf<CHECK>().toEqualTypeOf<
       [
-        'Injected Counter is not provided in MyComponent (or you may scope this properties as protected/private)',
+        'The Counter service is not provided in MyComponent',
       ]
     >();
   });
@@ -117,15 +117,15 @@ describe('RouteCheckedDI', () => {
     // dropped from `@Component.providers` AND the `brand-angular-deps-match`
     // ESLint rule has synced `GenDeps.provided` (i.e. the service is removed
     // from `provided`), the cascade check must surface the error.
-    const { injectGlobalSvc } = craftService(
+    const { GlobalSvc } = craftService(
       { name: 'GlobalSvc', scope: 'global' },
       () => 1,
     );
-    const { injectRouteSvc } = craftService(
+    const { RouteSvc } = craftService(
       { name: 'RouteSvc', scope: 'toProvide' },
       () => 2,
     );
-    const { injectCompSvc } = craftService(
+    const { CompSvc } = craftService(
       { name: 'CompSvc', scope: 'toProvide' },
       () => 3,
     );
@@ -135,9 +135,9 @@ describe('RouteCheckedDI', () => {
     // ----- Case A: component PROPERLY provides CompSvc — cascade passes. -----
     type GenDeps_Ok = GetDeps<{
       deps: {
-        GlobalSvc: GetInjectedServiceDependencies<typeof injectGlobalSvc>;
-        RouteSvc: GetInjectedServiceDependencies<typeof injectRouteSvc>;
-        CompSvc: GetInjectedServiceDependencies<typeof injectCompSvc>;
+        GlobalSvc: GetServiceDependencies<typeof GlobalSvc>;
+        RouteSvc: GetServiceDependencies<typeof RouteSvc>;
+        CompSvc: GetServiceDependencies<typeof CompSvc>;
       };
       provided: {
         CompSvc: { tag: 'CompSvcProvider' };
@@ -157,9 +157,9 @@ describe('RouteCheckedDI', () => {
     // GenDeps). The cascade check must now report CompSvc as missing.
     type GenDeps_Broken = GetDeps<{
       deps: {
-        GlobalSvc: GetInjectedServiceDependencies<typeof injectGlobalSvc>;
-        RouteSvc: GetInjectedServiceDependencies<typeof injectRouteSvc>;
-        CompSvc: GetInjectedServiceDependencies<typeof injectCompSvc>;
+        GlobalSvc: GetServiceDependencies<typeof GlobalSvc>;
+        RouteSvc: GetServiceDependencies<typeof RouteSvc>;
+        CompSvc: GetServiceDependencies<typeof CompSvc>;
       };
       provided: {}; // ← CompSvc gone from provided
       publicProperties: {};
@@ -177,7 +177,7 @@ describe('RouteCheckedDI', () => {
 
     expectTypeOf<CHECK_BROKEN>().toEqualTypeOf<
       [
-        'Injected CompSvc is not provided in BrokenComp (or you may scope this properties as protected/private)',
+        'The CompSvc service is not provided in BrokenComp',
       ]
     >();
     // @ts-expect-error — CanRun rejects non-true CHECK_BROKEN at its
@@ -192,13 +192,13 @@ describe('RouteCheckedDI', () => {
     // a route list, so the type instantiation depth stays constant regardless
     // of how many checks coexist. This test asserts that >50 distinct checks
     // type-check cleanly (the global AppCheckedDI would TS2589 well before).
-    const { injectS } = craftService(
+    const { S } = craftService(
       { name: 'S', scope: 'toProvide' },
       () => 1,
     );
 
     type Deps = GetDeps<{
-      deps: { S: GetInjectedServiceDependencies<typeof injectS> };
+      deps: { S: GetServiceDependencies<typeof S> };
       provided: {};
       publicProperties: {};
     }>;

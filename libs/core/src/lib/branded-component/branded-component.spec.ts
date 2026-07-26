@@ -5,7 +5,7 @@ import { describe, expectTypeOf, it } from 'vitest';
 import {
   craftService,
   type ExtractServiceHelperDependencies,
-  type GetInjectedServiceDependencies,
+  type GetServiceDependencies,
   type GetServiceOutput,
 } from '../craft-service';
 import type {
@@ -17,15 +17,15 @@ import type {
 
 describe('GetDeps', () => {
   it('computes missing providers from requirement-scoped service deps', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
     );
 
-    type CounterDependency = GetInjectedServiceDependencies<
-      typeof injectCounter
+    type CounterDependency = GetServiceDependencies<
+      typeof Counter
     >;
     type ComponentDeps = GetDeps<{
       deps: {
@@ -46,7 +46,7 @@ describe('GetDeps', () => {
   });
 
   it('removes provided keys from derived service missing providers', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => ({
         increment: () => 1,
@@ -55,14 +55,14 @@ describe('GetDeps', () => {
     );
 
     type CounterDependency = DerivedService<
-      GetInjectedServiceDependencies<typeof injectCounter>,
+      GetServiceDependencies<typeof Counter>,
       {
         derivedPropertiesUsed: {
-          increment: GetServiceOutput<typeof injectCounter>['increment'];
-          decrement: GetServiceOutput<typeof injectCounter>['decrement'];
+          increment: GetServiceOutput<typeof Counter>['increment'];
+          decrement: GetServiceOutput<typeof Counter>['decrement'];
         };
         derivedPropertiesExposed: {
-          increment: GetServiceOutput<typeof injectCounter>['increment'];
+          increment: GetServiceOutput<typeof Counter>['increment'];
         };
       }
     >;
@@ -105,7 +105,7 @@ describe('GetDeps', () => {
   });
 
   it('ignores child component GenDeps when their missingProvider map is empty', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => ({
         increment: () => 1,
@@ -120,8 +120,8 @@ describe('GetDeps', () => {
 
     class HttpClient {}
 
-    type CounterDependency = GetInjectedServiceDependencies<
-      typeof injectCounter
+    type CounterDependency = GetServiceDependencies<
+      typeof Counter
     >;
     type StatusDeps = GetDeps<{
       deps: {
@@ -151,7 +151,7 @@ describe('GetDeps', () => {
   });
 
   it('flattens child component missing providers into the parent map', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => ({
         increment: () => 1,
@@ -166,8 +166,8 @@ describe('GetDeps', () => {
 
     class HttpClient {}
 
-    type CounterDependency = GetInjectedServiceDependencies<
-      typeof injectCounter
+    type CounterDependency = GetServiceDependencies<
+      typeof Counter
     >;
     type StatusDeps = GetDeps<{
       deps: {
@@ -195,17 +195,17 @@ describe('GetDeps', () => {
   });
 
   it('keeps transitive service missing providers flat at the top level', () => {
-    const { CounterToYield, injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
-        yield* CounterToYield();
+        yield* Counter();
 
         return {
           increment: () => 2,
@@ -213,11 +213,11 @@ describe('GetDeps', () => {
       },
     );
 
-    type CounterDependency = GetInjectedServiceDependencies<
-      typeof injectCounter
+    type CounterDependency = GetServiceDependencies<
+      typeof Counter
     >;
-    type CounterExtendedDependency = GetInjectedServiceDependencies<
-      typeof injectCounterExtended
+    type CounterExtendedDependency = GetServiceDependencies<
+      typeof CounterExtended
     >;
     type ComponentDeps = GetDeps<{
       deps: {
@@ -233,30 +233,30 @@ describe('GetDeps', () => {
   });
 
   it('extracts tracked helper dependencies through ExtractDeps', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
     );
 
-    expectTypeOf<ExtractDeps<typeof injectCounter>>().toEqualTypeOf<{
-      Counter: ExtractServiceHelperDependencies<typeof injectCounter>;
+    expectTypeOf<ExtractDeps<typeof Counter>>().toEqualTypeOf<{
+      Counter: ExtractServiceHelperDependencies<typeof Counter>;
     }>();
   });
 
   it('merges propertiesDeps into missingProvider computation', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => ({
         increment: () => 1,
       }),
     );
 
-    type CounterDependency = GetInjectedServiceDependencies<
-      typeof injectCounter
+    type CounterDependency = GetServiceDependencies<
+      typeof Counter
     >;
-    type CounterDependencyMap = ExtractDeps<typeof injectCounter>;
+    type CounterDependencyMap = ExtractDeps<typeof Counter>;
     type ComponentDeps = GetDeps<{
       deps: {
         CommonModule: CommonModule;
@@ -285,17 +285,17 @@ describe('GetDeps', () => {
   });
 
   it('keeps transitive missing providers from function-scoped property deps', () => {
-    const { BToYield, injectB } = craftService(
+    const { B } = craftService(
       { name: 'B', scope: 'toProvide' },
       () => ({
         read: () => 'service-b',
       }),
     );
 
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
       function* () {
-        const b = yield* BToYield();
+        const b = yield* B();
 
         return {
           read: () => b.read(),
@@ -303,13 +303,13 @@ describe('GetDeps', () => {
       },
     );
 
-    type BDependency = GetInjectedServiceDependencies<typeof injectB>;
+    type BDependency = GetServiceDependencies<typeof B>;
     type ComponentDeps = GetDeps<{
       deps: {
         CommonModule: CommonModule;
       };
       propertiesDeps: {
-        counter: ExtractDeps<typeof injectCounter>;
+        counter: ExtractDeps<typeof Counter>;
       };
       provided: {};
     }>;

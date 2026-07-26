@@ -46,7 +46,7 @@ import {
 } from '@craft-ng/core';
 import { vi } from 'vitest';
 
-const { CounterToYield } = craftService(
+const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
   () =>
     state(10, ({ update }) => ({
@@ -54,10 +54,10 @@ const { CounterToYield } = craftService(
     })),
 );
 
-const { injectCounterConsumer, provideCounterConsumer } = craftService(
+const { CounterConsumer, provideCounterConsumer } = craftService(
   { name: 'CounterConsumer', scope: 'toProvide' },
   function* () {
-    const counter = yield* CounterToYield();
+    const counter = yield* Counter();
 
     return {
       read: () => counter(),
@@ -67,7 +67,7 @@ const { injectCounterConsumer, provideCounterConsumer } = craftService(
 );
 
 const { sut, mocks } = await setupCraftServiceTestingByRegister(
-  injectCounterConsumer,
+  CounterConsumer,
   {
     CounterConsumer: provideCounterConsumer(),
     Counter: {
@@ -89,7 +89,7 @@ expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
 Use `'real'` for reachable non-provider scopes such as `global` or `function`.
 
 ```typescript
-await setupCraftServiceTestingByRegister(injectCounterConsumer, {
+await setupCraftServiceTestingByRegister(CounterConsumer, {
   CounterConsumer: provideCounterConsumer(),
   Counter: 'real',
 });
@@ -100,7 +100,7 @@ await setupCraftServiceTestingByRegister(injectCounterConsumer, {
 Use the provider returned by `provideX(...)` for `toProvide` or `manuallyProvidedAtRoot` services.
 
 ```typescript
-await setupCraftServiceTestingByRegister(injectRootCounter, {
+await setupCraftServiceTestingByRegister(RootCounter, {
   RootCounter: provideRootCounter(),
   ParentCounter: provideParentCounter(),
   ChildCounter: provideChildCounter(),
@@ -112,7 +112,7 @@ await setupCraftServiceTestingByRegister(injectRootCounter, {
 Use a plain object when you want to override the public service shape.
 
 ```typescript
-await setupCraftServiceTestingByRegister(injectCounterConsumer, {
+await setupCraftServiceTestingByRegister(CounterConsumer, {
   CounterConsumer: provideCounterConsumer(),
   Counter: {
     $self: vi.fn(() => 12),
@@ -126,7 +126,7 @@ await setupCraftServiceTestingByRegister(injectCounterConsumer, {
 Use `'notReached'` only when the service is on a branch fully pruned by an ancestor mock.
 
 ```typescript
-await setupCraftServiceTestingByRegister(injectRootCounter, {
+await setupCraftServiceTestingByRegister(RootCounter, {
   RootCounter: provideRootCounter(),
   ParentCounter: {
     incrementParent: vi.fn(),
@@ -150,7 +150,7 @@ Reachable real services declared with `appStart: true` must be acknowledged expl
 
 ```typescript
 const { sut } = await setupCraftServiceTestingByRegister(
-  injectDashboard,
+  Dashboard,
   {
     Dashboard: provideDashboard(),
     AuthSession: 'real',
@@ -174,7 +174,7 @@ when the test should mock only browser or platform edges.
 
 ```typescript
 const { sut, mocks } = await setupCraftServiceTestingByRegister.boundaryOnly(
-  injectDashboard,
+  Dashboard,
   {
     toProvideRegister: {
       Dashboard: provideDashboard(),
@@ -229,7 +229,7 @@ When the graph depends on real Angular infrastructure, append providers through 
 
 ```typescript
 const { sut } = await setupCraftServiceTestingByRegister(
-  injectNavigation,
+  Navigation,
   register,
   {
     providers: [provideRouter([])],

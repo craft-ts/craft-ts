@@ -12,7 +12,7 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import type { ExtractDeps } from './branded-component/branded-component';
-import type { GetToYieldServiceDependencies } from './craft-service';
+import type { GetServiceDependencies } from './craft-service';
 import {
   provideFnWrapObserver,
   provideFnWrapper,
@@ -173,20 +173,20 @@ describe('AsyncProcess', () => {
   });
 
   it('typing: tracks generator dependencies from method, loader and insertions', () => {
-    const { AsyncParamsToYield } = craftService(
+    const { AsyncParams } = craftService(
       { name: 'AsyncParams', scope: 'global' },
       () => ({
         normalize: (userId: string): string => userId.trim(),
       }),
     );
-    const { AsyncApiToYield } = craftService(
+    const { AsyncApi } = craftService(
       { name: 'AsyncApi', scope: 'global' },
       () => ({
         load: (userId: string): Promise<{ userId: string }> =>
           Promise.resolve({ userId }),
       }),
     );
-    const { AsyncToolsToYield } = craftService(
+    const { AsyncTools } = craftService(
       { name: 'AsyncTools', scope: 'global' },
       () => ({
         key: (): string => 'async-user',
@@ -198,16 +198,16 @@ describe('AsyncProcess', () => {
         asyncProcess(
           {
             method: function* (userId: string) {
-              const params = yield* AsyncParamsToYield();
+              const params = yield* AsyncParams();
               return params.normalize(userId);
             },
             loader: function* ({ params }) {
-              const api = yield* AsyncApiToYield();
+              const api = yield* AsyncApi();
               return api.load(params);
             },
           },
           function* () {
-            const tools = yield* AsyncToolsToYield();
+            const tools = yield* AsyncTools();
             return {
               processKey: tools.key(),
             };
@@ -216,16 +216,16 @@ describe('AsyncProcess', () => {
       );
 
       expectTypeOf<ExtractDeps<typeof asyncRef>>().toEqualTypeOf<{
-        AsyncParams: GetToYieldServiceDependencies<typeof AsyncParamsToYield>;
-        AsyncApi: GetToYieldServiceDependencies<typeof AsyncApiToYield>;
-        AsyncTools: GetToYieldServiceDependencies<typeof AsyncToolsToYield>;
+        AsyncParams: GetServiceDependencies<typeof AsyncParams>;
+        AsyncApi: GetServiceDependencies<typeof AsyncApi>;
+        AsyncTools: GetServiceDependencies<typeof AsyncTools>;
       }>();
     });
   });
 
   it('should resolve generator method, loader and insertions', async () => {
     const logs: string[] = [];
-    const { AsyncLoggerRuntimeToYield } = craftService(
+    const { AsyncLoggerRuntime } = craftService(
       { name: 'AsyncLoggerRuntime', scope: 'global' },
       () => ({
         log: (message: string) => {
@@ -233,7 +233,7 @@ describe('AsyncProcess', () => {
         },
       }),
     );
-    const { AsyncApiRuntimeToYield } = craftService(
+    const { AsyncApiRuntime } = craftService(
       { name: 'AsyncApiRuntime', scope: 'global' },
       () => ({
         load: async (userId: string): Promise<{ userId: string }> => ({
@@ -247,17 +247,17 @@ describe('AsyncProcess', () => {
         asyncProcess(
           {
             method: function* (userId: string) {
-              const logger = yield* AsyncLoggerRuntimeToYield();
+              const logger = yield* AsyncLoggerRuntime();
               logger.log(`async:${userId}`);
               return userId;
             },
             loader: function* ({ params }) {
-              const api = yield* AsyncApiRuntimeToYield();
+              const api = yield* AsyncApiRuntime();
               return api.load(params);
             },
           },
           function* () {
-            const logger = yield* AsyncLoggerRuntimeToYield();
+            const logger = yield* AsyncLoggerRuntime();
             logger.log('insert:init');
             return {
               initialized: true,
@@ -279,7 +279,7 @@ describe('AsyncProcess', () => {
 describe('AsyncProcess types without identifier', () => {
   it('should infer correctly the types of AsyncProcess', () => {
     TestBed.runInInjectionContext(() => {
-      const { injectAsyncProcessOutput } = craftService(
+      const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
           const searchChange = craftUse(
@@ -341,7 +341,7 @@ describe('AsyncProcess types without identifier', () => {
         },
       );
 
-      const AsyncProcessOutput = injectAsyncProcessOutput();
+      const AsyncProcessOutput = AsyncProcessOutput();
       expect(AsyncProcessOutput.props.searchChange.hasException()).toBe(false);
 
       type props = (typeof AsyncProcessOutput)['props'];
@@ -421,7 +421,7 @@ describe('AsyncProcess types without identifier', () => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
       );
-      const { injectAsyncProcessOutput } = craftService(
+      const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
           const searchChange = craftUse(
@@ -468,7 +468,7 @@ describe('AsyncProcess types without identifier', () => {
         },
       );
 
-      const AsyncProcessOutput = injectAsyncProcessOutput();
+      const AsyncProcessOutput = AsyncProcessOutput();
       expect(AsyncProcessOutput.props.filterChange.status()).toBe('idle');
 
       type props = (typeof AsyncProcessOutput)['props'];
@@ -629,7 +629,7 @@ describe('AsyncProcess types without identifier', () => {
 describe('AsyncProcess types with identifier', () => {
   it('should infer correctly the types of AsyncProcess', () => {
     TestBed.runInInjectionContext(() => {
-      const { injectAsyncProcessOutput } = craftService(
+      const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
           const searchChange = craftUse(
@@ -692,7 +692,7 @@ describe('AsyncProcess types with identifier', () => {
         },
       );
 
-      const AsyncProcessOutput = injectAsyncProcessOutput();
+      const AsyncProcessOutput = AsyncProcessOutput();
       expect(AsyncProcessOutput.props.searchChange.hasException()).toBe(false);
 
       type props = (typeof AsyncProcessOutput)['props'];
@@ -774,7 +774,7 @@ describe('AsyncProcess types with identifier', () => {
       const searchSource = signalSource<{ searchChangeText: string }>(
         'searchSource',
       );
-      const { injectAsyncProcessOutput } = craftService(
+      const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
           const searchChange = craftUse(
@@ -822,7 +822,7 @@ describe('AsyncProcess types with identifier', () => {
         },
       );
 
-      const AsyncProcessOutput = injectAsyncProcessOutput();
+      const AsyncProcessOutput = AsyncProcessOutput();
       expect(AsyncProcessOutput.props.filterChange.status()).toBe('idle');
 
       try {
@@ -1688,7 +1688,7 @@ describe('asyncProcess — providers', () => {
   });
 
   it('typing: asyncProcess accepts BrandedServiceProvider in providers without type errors', () => {
-    const { AsyncServiceToYield, provideAsyncService } = craftService(
+    const { AsyncService, provideAsyncService } = craftService(
       { name: 'AsyncService', scope: 'toProvide' },
       () => ({ getValue: () => 42 }),
     );
@@ -1698,7 +1698,7 @@ describe('asyncProcess — providers', () => {
         asyncProcess({
           method: (id: string) => id,
           loader: function* ({ params }) {
-            yield* AsyncServiceToYield();
+            yield* AsyncService();
             return Promise.resolve({ id: params });
           },
         }),

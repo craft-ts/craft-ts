@@ -8,7 +8,7 @@ import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
 import type {
   BrandedServiceProvider,
   CraftServiceProvider,
-  GetInjectedServiceDependencies,
+  GetServiceDependencies,
   GetServiceReferenceOutput,
   ResolvedServiceOutput,
   ServiceBindings,
@@ -41,7 +41,7 @@ type GetServiceDependenciesTree<Target extends ServiceReference> =
     boolean
   >
     ? Dependencies
-    : GetInjectedServiceDependencies<Target>;
+    : GetServiceDependencies<Target>;
 
 type ServiceDependencyChildren<Target extends ServiceReference> =
   GetServiceDependenciesTree<Target> extends {

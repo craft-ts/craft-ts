@@ -1,6 +1,6 @@
 # craftService
 
-Creates a named Angular-friendly service boundary with generated inject, yield, provider, and metadata helpers.
+Creates a named Angular-friendly service boundary with generated service, provider, and metadata helpers.
 
 ::: warning
 I will try to align this API with others (make it yieldable in order to track source$ as a dependency).
@@ -19,21 +19,26 @@ import { craftService } from '@craft-ng/core';
 It lets you:
 
 - define a service once with a stable name and scope
-- inject it through a generated `injectX()` helper
-- compose it into another service through `yield* XToYield()`
+- consume it through a generated `X()` generator
+- compose it into another service through `yield* X()`
 - expose only part of a dependency through derived bindings
 - generate typed provider helpers for provider-capable scopes
 - keep the full dependency graph available for testing utilities
 
 Unlike ad-hoc `inject(...)` calls spread across services, `craftService` makes dependencies explicit and type-visible.
 
+### Current API (breaking change)
+
+The generated service helper is the service name itself: `X`. `craftService` no longer
+exports `injectX`, and the former `XToYield` helper has been removed. Use `X()` in a craft generator and
+compose it with `yield* X()`.
+
 ## Generated Helpers
 
 For a service named `Counter`, `craftService` can generate:
 
-- `injectCounter(...)` to resolve the service in components/directives
-- `CounterToYield(...)` to compose it inside another `craftService`
-- `CounterToYield.someProperty(...)` to derive one public property directly
+- `Counter(...)` to consume or compose the service inside a craft generator
+- `Counter.someProperty(...)` to derive one public property directly
 - `provideCounter(...)` for provider-capable scopes
 - `COUNTER_META_DATA` for metadata-driven tooling
 - `CounterRequirement` for `abstract` services
@@ -88,7 +93,7 @@ The callback can be a plain function or a generator function. Use the generator 
 ```typescript
 import { Console, craftService, onAppStart } from '@craft-ng/core';
 
-const { injectAppStartLog } = craftService(
+const { AppStartLog } = craftService(
   {
     name: 'AppStartLog',
     scope: 'global',
@@ -108,14 +113,14 @@ const { injectAppStartLog } = craftService(
 // it is auto-generated when used with the craft-ng ESLint plugin
 declare module '@craft-ng/core' {
   interface CraftAppStartRegistry {
-    AppStartLog: typeof injectAppStartLog;
+    AppStartLog: typeof AppStartLog;
   }
 }
 
 // inside craftAppConfig
 export const appConfig = craftAppConfig({
   appStart: {
-    AppStartLog: injectAppStartLog, // an error is thrown if AppStartLog is not injected here
+    AppStartLog,
   },
 });
 ```
@@ -127,7 +132,7 @@ Dependencies used only inside that callback are still tracked on the parent serv
 ```typescript
 import { craftService, state } from '@craft-ng/core';
 
-const { injectCounter } = craftService(
+const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
   () =>
     state(0, ({ update }) => ({
@@ -136,9 +141,14 @@ const { injectCounter } = craftService(
     })),
 );
 
-const counter = injectCounter();
-counter.increment();
-console.log(counter());
+const { CounterConsumer } = craftService(
+  { name: 'CounterConsumer', scope: 'global' },
+  function* () {
+    const counter = yield* Counter();
+    counter.increment();
+    return counter;
+  },
+);
 ```
 
 ## Add providers to craftService
@@ -146,15 +156,15 @@ console.log(counter());
 Use `providers` in the service config when the service factory itself needs locally-scoped dependencies:
 
 ```typescript
-const { injectUserFacade } = craftService(
+const { UserFacade } = craftService(
   {
     name: 'UserFacade',
     scope: 'global',
     providers: [provideUserApi(), provideUserLogger()],
   },
   function* () {
-    const api = yield* UserApiToYield();
-    const logger = yield* UserLoggerToYield();
+    const api = yield* UserApi();
+    const logger = yield* UserLogger();
 
     return {
       rename: (user: { id: string; name: string }, name: string) => {
@@ -171,7 +181,7 @@ This is separate from `provideUserFacade()`, which is only generated for provide
 ## Composition With `yield*`
 
 ```typescript
-const { CounterToYield } = craftService(
+const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
   () =>
     state(0, ({ update }) => ({
@@ -179,10 +189,10 @@ const { CounterToYield } = craftService(
     })),
 );
 
-const { injectCounterFacade } = craftService(
+const { CounterFacade } = craftService(
   { name: 'CounterFacade', scope: 'global' },
   function* () {
-    const counter = yield* CounterToYield();
+    const counter = yield* Counter();
 
     return {
       read: () => counter(),
@@ -194,11 +204,11 @@ const { injectCounterFacade } = craftService(
 
 ## Single Property Shortcut
 
-When only one public property is needed, `XToYield.property()` is a shortcut for
+When only one public property is needed, `X.property()` is a shortcut for
 a one-property derivation.
 
 ```typescript
-const { UsersApiToYield } = craftService(
+const { UsersApi } = craftService(
   { name: 'UsersApi', scope: 'global' },
   () => ({
     updateUser: (user: { id: string; name: string }) => Promise.resolve(user),
@@ -206,10 +216,10 @@ const { UsersApiToYield } = craftService(
   }),
 );
 
-const { injectUserUpdater } = craftService(
+const { UserUpdater } = craftService(
   { name: 'UserUpdater', scope: 'global' },
   function* () {
-    const updateUser = yield* UsersApiToYield.updateUser();
+    const updateUser = yield* UsersApi.updateUser();
 
     return {
       rename: (user: { id: string; name: string }, name: string) =>
@@ -223,27 +233,26 @@ For method properties on services without public inputs, the shortcut can call
 the method directly:
 
 ```typescript
-return yield * UsersApiToYield.updateUser({ id: '1', name: 'Romain' });
+return yield * UsersApi.updateUser({ id: '1', name: 'Romain' });
 ```
 
-The shortcut accepts the same bindings as `XToYield(...)`:
+The shortcut accepts the same bindings as `X(...)`:
 
 ```typescript
-const increment = yield * CounterToYield.increment({ initialValue: 0 });
+const increment = yield * Counter.increment({ initialValue: 0 });
 ```
 
-Use the full `XToYield(bindings, expose)` form when deriving several
+Use the full `X(bindings, expose)` form when deriving several
 properties, creating aliases, exposing `$self`, using symbol keys, or when a
 service property collides with a native function property such as `name`.
 
-## Inject Single Property Shortcut
+## Property Shortcut
 
-The same shortcut notation is available on the `injectX` helper in components
-and directives. Instead of selecting a single property through a selector
-function, use `injectX.property()`:
+The same shortcut notation is available on the generated `X` helper. Use it
+inside a craft generator when only one property is needed:
 
 ```typescript
-const { injectUsersApi } = craftService(
+const { UsersApi } = craftService(
   { name: 'UsersApi', scope: 'global' },
   () => ({
     updateUser: (user: { id: string; name: string }) => {},
@@ -251,30 +260,31 @@ const { injectUsersApi } = craftService(
   }),
 );
 
-@Component({ ... })
-class UserComponent {
-  // equivalent to injectUsersApi(undefined, ({ currentUser }) => ({ currentUser })).currentUser
-  readonly currentUser = injectUsersApi.currentUser();
-}
+const { CurrentUser } = craftService(
+  { name: 'CurrentUser', scope: 'global' },
+  function* () {
+    return yield* UsersApi.currentUser();
+  },
+);
 ```
 
-The result carries the same dependency tracking as any other inject shortcut,
-so testing utilities see exactly which property was accessed.
+The result carries the same dependency tracking as `yield* UsersApi()`, so
+testing utilities see exactly which property was accessed.
 
 For method properties on services without public inputs, the shortcut calls the
 method directly:
 
 ```typescript
-protected readonly update = injectUsersApi.updateUser({ id: '1', name: 'New' });
+const update = yield* UsersApi.updateUser({ id: '1', name: 'New' });
 ```
 
 ## Nested Property Shortcuts
 
 When only a sub-property of a service output is needed, add a second `.property`
-before calling, for both `injectX` and `XToYield`:
+before calling:
 
 ```typescript
-const { injectSearchApi, SearchApiToYield } = craftService(
+const { SearchApi } = craftService(
   { name: 'SearchApi', scope: 'global' },
   () => ({
     usersQuery: {
@@ -284,17 +294,10 @@ const { injectSearchApi, SearchApiToYield } = craftService(
   }),
 );
 
-// In a component
-@Component({ ... })
-class SearchComponent {
-  readonly isLoading = injectSearchApi.usersQuery.isLoading();
-}
-
-// In a service
-const { injectSearchFacade } = craftService(
+const { SearchFacade } = craftService(
   { name: 'SearchFacade', scope: 'global' },
   function* () {
-    const isLoading = yield* SearchApiToYield.usersQuery.isLoading();
+    const isLoading = yield* SearchApi.usersQuery.isLoading();
     return { isLoading };
   },
 );
@@ -305,9 +308,8 @@ The dependency graph records only the accessed nested property
 `usersQuery` object. Testing utilities therefore only require the used
 sub-property in mock objects.
 
-The result of `injectX.parent.child()` carries `WithTrackedDependencies` just
-like any other inject helper result, so `ExtractDeps` on a component field built
-from it will correctly surface the service dependency.
+The result of `yield* X.parent.child()` carries the same tracked dependency
+metadata, so `ExtractDeps` correctly surfaces the service dependency.
 
 ## OmitInputs
 
@@ -316,7 +318,7 @@ intentionally disabled at the type level, because calling without bindings would
 silently use default values and mask a missing dependency:
 
 ```typescript
-const { injectCounter, CounterToYield } = craftService(
+const { Counter } = craftService(
   { name: 'Counter', scope: 'function' },
   (inputs: { initialValue?: MaybeSignal<number> }) => ({
     count: toValue(inputs.initialValue) ?? 0,
@@ -324,18 +326,18 @@ const { injectCounter, CounterToYield } = craftService(
 );
 
 // Fine — bindings are explicit
-const count = injectCounter.count({ initialValue: signal(5) });
+const count = yield* Counter.count({ initialValue: signal(5) });
 
 // Type error — no-arg call is forbidden when inputs exist
-// injectCounter.count();
+// Counter.count();
 ```
 
-Use `injectX.OmitInputs.property()` or `XToYield.OmitInputs.property()` to
+Use `X.OmitInputs.property()` to
 explicitly opt out of input bindings and use the defaults:
 
 ```typescript
-const count = injectCounter.OmitInputs.count();
-const count2 = yield * CounterToYield.OmitInputs.count();
+const count = yield* Counter.OmitInputs.count();
+const count2 = yield * Counter.OmitInputs.count();
 ```
 
 `OmitInputs` is purely a type-level gate — at runtime it is transparent.
@@ -343,15 +345,15 @@ const count2 = yield * CounterToYield.OmitInputs.count();
 `OmitInputs` composes with nested shortcuts:
 
 ```typescript
-const isLoading = injectCounter.OmitInputs.userQuery.isLoading();
+const isLoading = yield* Counter.OmitInputs.userQuery.isLoading();
 ```
 
 ## Partial Exposure
 
-`yield* XToYield()` can expose only the part of a dependency that should remain public.
+`yield* X()` can expose only the part of a dependency that should remain public.
 
 ```typescript
-const { CounterToYield } = craftService(
+const { Counter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
   () =>
     state(0, ({ update }) => ({
@@ -360,10 +362,10 @@ const { CounterToYield } = craftService(
     })),
 );
 
-const { injectCounterExtended, provideCounterExtended } = craftService(
+const { CounterExtended, provideCounterExtended } = craftService(
   { name: 'CounterExtended', scope: 'toProvide' },
   function* () {
-    return yield* CounterToYield(undefined, ({ $self, increment }) => ({
+    return yield* Counter(undefined, ({ $self, increment }) => ({
       $self,
       incrementCounter: increment,
     }));
@@ -405,7 +407,7 @@ import { abstract, craftService } from '@craft-ng/core';
 
 type User = { name: string };
 
-const { injectUser, provideUser } = craftService(
+const { User, provideUser } = craftService(
   { name: 'User', scope: 'abstract' },
   abstract<User>(),
 );
@@ -413,22 +415,22 @@ const { injectUser, provideUser } = craftService(
 // Implement the contract inline:
 const providers = [provideUser(() => ({ name: 'Ada' }))];
 
-// Anywhere downstream:
-const user = injectUser(); // User
+// Anywhere downstream, inside a craft generator:
+const user = yield* User();
 ```
 
 The factory can be a **generator** that yields other services. Everything it yields is tracked, so
 the resulting provider participates in the cascade DI check just like a regular service:
 
 ```typescript
-const { GreetingToYield } = craftService(
+const { Greeting } = craftService(
   { name: 'Greeting', scope: 'global' },
   () => ({ prefix: 'Hello' }),
 );
 
 const providers = [
   provideUser(function* () {
-    const greeting = yield* GreetingToYield();
+    const greeting = yield* Greeting();
     return { name: `${greeting.prefix} Ada` };
   }),
 ];

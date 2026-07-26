@@ -10,7 +10,7 @@ import { afterRecomputation } from './after-recomputation';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
 import type { ExtractDeps } from './branded-component/branded-component';
-import type { GetToYieldServiceDependencies } from './craft-service';
+import type { GetServiceDependencies } from './craft-service';
 import {
   provideFnWrapObserver,
   provideFnWrapper,
@@ -241,19 +241,19 @@ describe('queryParams', () => {
   });
 
   it('typing: tracks generator dependencies from parse, serialize and insertions', () => {
-    const { ParsePageToYield } = craftService(
+    const { ParsePage } = craftService(
       { name: 'ParsePage', scope: 'global' },
       () => ({
         parsePage: (value: string) => parseInt(value, 10),
       }),
     );
-    const { SerializePageToYield } = craftService(
+    const { SerializePage } = craftService(
       { name: 'SerializePage', scope: 'global' },
       () => ({
         serializePage: (value: number) => String(value),
       }),
     );
-    const { PaginationRulesToYield } = craftService(
+    const { PaginationRules } = craftService(
       { name: 'PaginationRules', scope: 'global' },
       () => ({
         maxPage: () => 3,
@@ -268,16 +268,16 @@ describe('queryParams', () => {
               page: {
                 fallbackValue: 1,
                 parse: function* (value: string) {
-                  return yield* ParsePageToYield.parsePage(value);
+                  return yield* ParsePage.parsePage(value);
                 },
                 serialize: function* (value: number) {
-                  return yield* SerializePageToYield.serializePage(value);
+                  return yield* SerializePage.serializePage(value);
                 },
               },
             },
           },
           function* ({ patch, state }) {
-            const maxPage = yield* PaginationRulesToYield.maxPage();
+            const maxPage = yield* PaginationRules.maxPage();
             return {
               nextPage: () => {
                 if (state().page >= maxPage()) {
@@ -341,7 +341,7 @@ describe('queryParams', () => {
   });
 
   it('typing: tracks dependencies used by generator insertions', () => {
-    const { PaginationRulesDepsToYield } = craftService(
+    const { PaginationRulesDeps } = craftService(
       { name: 'PaginationRulesDeps', scope: 'global' },
       () => ({
         maxPage: () => 3,
@@ -361,7 +361,7 @@ describe('queryParams', () => {
             },
           },
           function* ({ patch, state }) {
-            const rules = yield* PaginationRulesDepsToYield();
+            const rules = yield* PaginationRulesDeps();
 
             return {
               nextPage: () => {
@@ -385,8 +385,8 @@ describe('queryParams', () => {
           browserBoundary: false;
           appStart: false;
         };
-        PaginationRulesDeps: GetToYieldServiceDependencies<
-          typeof PaginationRulesDepsToYield
+        PaginationRulesDeps: GetServiceDependencies<
+          typeof PaginationRulesDeps
         >;
       }>();
     });
@@ -625,7 +625,7 @@ describe('queryParams', () => {
     const parseCalls: string[] = [];
     const serializeCalls: number[] = [];
 
-    const { ParsePageRuntimeToYield } = craftService(
+    const { ParsePageRuntime } = craftService(
       { name: 'ParsePageRuntime', scope: 'global' },
       () => ({
         parsePage: (value: string) => {
@@ -634,7 +634,7 @@ describe('queryParams', () => {
         },
       }),
     );
-    const { SerializePageRuntimeToYield } = craftService(
+    const { SerializePageRuntime } = craftService(
       { name: 'SerializePageRuntime', scope: 'global' },
       () => ({
         serializePage: (value: number) => {
@@ -643,7 +643,7 @@ describe('queryParams', () => {
         },
       }),
     );
-    const { PaginationRulesRuntimeToYield } = craftService(
+    const { PaginationRulesRuntime } = craftService(
       { name: 'PaginationRulesRuntime', scope: 'global' },
       () => ({
         maxPage: () => 3,
@@ -660,7 +660,7 @@ describe('queryParams', () => {
               page: {
                 fallbackValue: 1,
                 parse: function* (value: string) {
-                  const parser = yield* ParsePageRuntimeToYield(
+                  const parser = yield* ParsePageRuntime(
                     undefined,
                     ({ parsePage }) => ({
                       parsePage,
@@ -670,7 +670,7 @@ describe('queryParams', () => {
                   return parser.parsePage(value);
                 },
                 serialize: function* (value: number) {
-                  const serializer = yield* SerializePageRuntimeToYield(
+                  const serializer = yield* SerializePageRuntime(
                     undefined,
                     ({ serializePage }) => ({
                       serializePage,
@@ -683,7 +683,7 @@ describe('queryParams', () => {
             },
           },
           function* ({ patch, state }) {
-            const rules = yield* PaginationRulesRuntimeToYield(
+            const rules = yield* PaginationRulesRuntime(
               undefined,
               ({ maxPage }) => ({
                 maxPage,

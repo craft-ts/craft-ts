@@ -13,7 +13,7 @@ import { craftEffect } from './craft-effect';
 import {
   craftService,
   onAppStart,
-  type GetToYieldServiceDependencies,
+  type GetServiceDependencies,
 } from './craft-service';
 import {
   APP_SNAPSHOT_REGISTRY,
@@ -70,7 +70,7 @@ describe('craftEffect', () => {
   });
 
   it('should run a generator factory that resolves DI deps once and returns the effect body', () => {
-    const { EffectMultiplierToYield } = craftService(
+    const { EffectMultiplier } = craftService(
       { name: 'EffectMultiplier', scope: 'function' },
       () => ({ factor: 3 }),
     );
@@ -82,7 +82,7 @@ describe('craftEffect', () => {
       // The host form binds `this` inside the generator (and the effect body
       // it returns) to the component instance.
       readonly fx = craftEffect('compute', this, function* () {
-        const m = yield* EffectMultiplierToYield();
+        const m = yield* EffectMultiplier();
         return () => {
           this.seen.push(this.count() * m.factor);
         };
@@ -161,7 +161,7 @@ describe('craftEffect', () => {
   });
 
   it('should expose craftEffect dependencies through ExtractDeps', () => {
-    const { EffectMultiplierDepsToYield } = craftService(
+    const { EffectMultiplierDeps } = craftService(
       { name: 'EffectMultiplierDeps', scope: 'function' },
       () => ({ factor: 5 }),
     );
@@ -169,7 +169,7 @@ describe('craftEffect', () => {
     class Component {
       readonly count = signal(0);
       readonly fx = craftEffect('with-deps', this, function* () {
-        const m = yield* EffectMultiplierDepsToYield();
+        const m = yield* EffectMultiplierDeps();
         return () => {
           void (this.count() * m.factor);
         };
@@ -177,8 +177,8 @@ describe('craftEffect', () => {
     }
 
     type ExpectedDeps = {
-      EffectMultiplierDeps: GetToYieldServiceDependencies<
-        typeof EffectMultiplierDepsToYield
+      EffectMultiplierDeps: GetServiceDependencies<
+        typeof EffectMultiplierDeps
       >;
     };
     type _Deps = Expect<Equal<ExtractDeps<Component['fx']>, ExpectedDeps>>;

@@ -3,7 +3,7 @@ import { craftService, onAppStart } from './craft-service';
 
 export const appStartCalls: string[] = [];
 
-export const { injectAppStartCounter } = craftService(
+const { AppStartCounter: AppStartCounterInternal } = craftService(
   {
     name: 'AppStartCounter',
     scope: 'toProvide',
@@ -18,12 +18,14 @@ export const { injectAppStartCounter } = craftService(
   },
 );
 
+export const AppStartCounter: any = AppStartCounterInternal;
+
 declare module './craft-app-config' {
   interface CraftAppStartRegistry {
-    MustRunOnStart: typeof injectAppStartCounter;
+    MustRunOnStart: typeof AppStartCounter;
   }
 }
 
 export const requiredAppStart = {
-  MustRunOnStart: injectAppStartCounter,
+  MustRunOnStart: AppStartCounter,
 } satisfies CraftAppStartRegistry;

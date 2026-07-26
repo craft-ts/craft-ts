@@ -44,7 +44,7 @@ Use a plain callback when startup logic does not need to `yield*` crafted depend
 ```typescript
 import { craftService, onAppStart } from '@craft-ng/core';
 
-export const { injectStartupFlag } = craftService(
+export const { StartupFlag } = craftService(
   {
     name: 'StartupFlag',
     scope: 'global',
@@ -68,7 +68,7 @@ Use a generator callback when startup logic needs to `yield*` crafted dependenci
 ```typescript
 import { Console, craftService, onAppStart } from '@craft-ng/core';
 
-export const { injectAppStartLog } = craftService(
+export const { AppStartLog } = craftService(
   {
     name: 'AppStartLog',
     scope: 'toProvide',
@@ -87,7 +87,7 @@ export const { injectAppStartLog } = craftService(
 
 The callback generator supports the same dependency-yield semantics as a normal crafted generator for:
 
-- `yield* XToYield(...)`
+- `yield* X(...)`
 - `yield*` exposure tokens returned by derivation callbacks
 - browser boundaries such as `yield* Console.log(...)`
 
@@ -101,7 +101,7 @@ If the callback only uses `Console`, the owning service dependency graph include
 
 This means startup-only dependencies are still visible to:
 
-- `GetInjectedServiceDependencies<typeof injectX>`
+- `GetServiceDependencies<typeof X>`
 - route/app DI checks built on top of service metadata
 - test helpers that inspect crafted dependency graphs
 

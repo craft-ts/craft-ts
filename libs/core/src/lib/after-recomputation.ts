@@ -52,7 +52,7 @@ import { SourceBranded } from './util/util';
  * @example
  * Binding a query to a source for automatic execution
  * ```ts
- * const { injectUserStore } = craftService(
+ * const { UserStore } = craftService(
  *   { name: 'UserStore', scope: 'toProvide' },
  *   function* () {
  *     const userIdChange = signalSource<string>('userIdChange');
@@ -69,7 +69,7 @@ import { SourceBranded } from './util/util';
  *   },
  * );
  *
- * const store = injectUserStore();
+ * const store = UserStore();
  *
  * // Query executes automatically when source emits
  * store.userIdChange.set('user-123');
@@ -82,7 +82,7 @@ import { SourceBranded } from './util/util';
  * @example
  * Binding a mutation to a source
  * ```ts
- * const { injectFormStore } = craftService(
+ * const { FormStore } = craftService(
  *   { name: 'FormStore', scope: 'toProvide' },
  *   function* () {
  *     const submitForm = signalSource<{ name: string; email: string }>('submitForm');
@@ -102,7 +102,7 @@ import { SourceBranded } from './util/util';
  *   },
  * );
  *
- * const store = injectFormStore();
+ * const store = FormStore();
  *
  * // Mutation executes automatically when source emits
  * store.submitForm.set({ name: 'John', email: 'john@example.com' });
@@ -113,7 +113,7 @@ import { SourceBranded } from './util/util';
  * @example
  * Binding an async process to a source
  * ```ts
- * const { injectSearchStore } = craftService(
+ * const { SearchStore } = craftService(
  *   { name: 'SearchStore', scope: 'toProvide' },
  *   function* () {
  *     const searchInput = signalSource<string>('searchInput');
@@ -131,7 +131,7 @@ import { SourceBranded } from './util/util';
  *   },
  * );
  *
- * const store = injectSearchStore();
+ * const store = SearchStore();
  *
  * // Async process executes automatically
  * store.searchInput.set('query');
@@ -146,7 +146,7 @@ import { SourceBranded } from './util/util';
  *   address: { city: string };
  * };
  *
- * const { injectUserFormStore } = craftService(
+ * const { UserFormStore } = craftService(
  *   { name: 'UserFormStore', scope: 'toProvide' },
  *   function* () {
  *     const formSubmit = signalSource<FormData>('formSubmit');
@@ -167,7 +167,7 @@ import { SourceBranded } from './util/util';
  *   },
  * );
  *
- * const store = injectUserFormStore();
+ * const store = UserFormStore();
  *
  * // Only user data is passed to the mutation
  * store.formSubmit.set({
@@ -180,7 +180,7 @@ import { SourceBranded } from './util/util';
  * @example
  * Transforming data before execution
  * ```ts
- * const { injectResultsStore } = craftService(
+ * const { ResultsStore } = craftService(
  *   { name: 'ResultsStore', scope: 'toProvide' },
  *   function* () {
  *     const searchParams = signalSource<{ query: string; filters: string[] }>('searchParams');
@@ -201,7 +201,7 @@ import { SourceBranded } from './util/util';
  *   },
  * );
  *
- * const store = injectResultsStore();
+ * const store = ResultsStore();
  *
  * // Data is transformed before query execution
  * store.searchParams.set({
@@ -214,7 +214,7 @@ import { SourceBranded } from './util/util';
  * @example
  * Validation and type narrowing
  * ```ts
- * const { injectValidationStore } = craftService(
+ * const { ValidationStore } = craftService(
  *   { name: 'ValidationStore', scope: 'toProvide' },
  *   function* () {
  *     const inputChange = signalSource<string>('inputChange');
@@ -241,7 +241,7 @@ import { SourceBranded } from './util/util';
  *   },
  * );
  *
- * const store = injectValidationStore();
+ * const store = ValidationStore();
  *
  * // Invalid input throws error in the callback
  * store.inputChange.set('ab'); // Error: Input too short
@@ -253,7 +253,7 @@ import { SourceBranded } from './util/util';
  * @example
  * Multiple sources with different transformations
  * ```ts
- * const { injectSearchResultsStore } = craftService(
+ * const { SearchResultsStore } = craftService(
  *   { name: 'SearchResultsStore', scope: 'toProvide' },
  *   function* () {
  *     const quickSearch = signalSource<string>('quickSearch');
@@ -278,7 +278,7 @@ import { SourceBranded } from './util/util';
  *   },
  * );
  *
- * const store = injectSearchResultsStore();
+ * const store = SearchResultsStore();
  *
  * // Quick search with a simple string
  * store.quickSearch.set('angular');
@@ -288,7 +288,7 @@ import { SourceBranded } from './util/util';
  * @example
  * Identity transformation (pass-through)
  * ```ts
- * const { injectDataStore } = craftService(
+ * const { DataStore } = craftService(
  *   { name: 'DataStore', scope: 'toProvide' },
  *   function* () {
  *     const dataUpdate = signalSource<{ id: string; payload: unknown }>('dataUpdate');
@@ -309,7 +309,7 @@ import { SourceBranded } from './util/util';
  *   },
  * );
  *
- * const store = injectDataStore();
+ * const store = DataStore();
  *
  * // Data passed through unchanged
  * store.dataUpdate.set({ id: 'item-1', payload: { value: 123 } });

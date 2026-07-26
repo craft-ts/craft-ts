@@ -374,7 +374,7 @@ describe('route handleExceptions (third argument)', () => {
   });
 
   it('preserves handler yields for route DI extraction', () => {
-    const { HandlerConfigToYield } = craftService(
+    const { HandlerConfig } = craftService(
       { name: 'HandlerConfig', scope: 'toProvide' },
       () => ({ target: '/login' }),
     );
@@ -389,7 +389,7 @@ describe('route handleExceptions (third argument)', () => {
       },
       {
         NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
-          const config = yield* HandlerConfigToYield();
+          const config = yield* HandlerConfig();
           return redirectUrl(config.target);
         }),
       },

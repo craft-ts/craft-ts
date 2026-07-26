@@ -25,7 +25,7 @@ describe('app-start-registry-match', () => {
       'src/app/demo.ts': `
         import { craftService, onAppStart } from '@craft-ng/core';
 
-        export const { injectAppStartLog } = craftService(
+        export const { AppStartLog } = craftService(
           {
             name: 'AppStartLog',
             scope: 'toProvide',
@@ -49,7 +49,7 @@ describe('app-start-registry-match', () => {
 
     expect(output).toContain("declare module '@craft-ng/core' {");
     expect(output).toContain('interface CraftAppStartRegistry {');
-    expect(output).toContain('AppStartLog: typeof injectAppStartLog;');
+    expect(output).toContain('AppStartLog: typeof AppStartLog;');
   });
 
   it('adds missing entries to an existing CraftAppStartRegistry interface', async () => {
@@ -57,7 +57,7 @@ describe('app-start-registry-match', () => {
       'src/app/demo.ts': `
         import { craftService, onAppStart } from '@craft-ng/core';
 
-        export const { injectAppStartLog } = craftService(
+        export const { AppStartLog } = craftService(
           {
             name: 'AppStartLog',
             scope: 'toProvide',
@@ -71,7 +71,7 @@ describe('app-start-registry-match', () => {
 
         declare module '@craft-ng/core' {
           interface CraftAppStartRegistry {
-            ExistingEntry: typeof injectExistingEntry;
+            ExistingEntry: typeof ExistingEntry;
           }
         }
       `,
@@ -79,8 +79,8 @@ describe('app-start-registry-match', () => {
 
     const { output } = await lintFixture(fixture, { fix: true });
 
-    expect(output).toContain('ExistingEntry: typeof injectExistingEntry;');
-    expect(output).toContain('AppStartLog: typeof injectAppStartLog;');
+    expect(output).toContain('ExistingEntry: typeof ExistingEntry;');
+    expect(output).toContain('AppStartLog: typeof AppStartLog;');
   });
 
   it('updates stale CraftAppStartRegistry bindings', async () => {
@@ -88,7 +88,7 @@ describe('app-start-registry-match', () => {
       'src/app/demo.ts': `
         import { craftService, onAppStart } from '@craft-ng/core';
 
-        export const { injectAppStartLog } = craftService(
+        export const { AppStartLog } = craftService(
           {
             name: 'AppStartLog',
             scope: 'toProvide',
@@ -102,7 +102,7 @@ describe('app-start-registry-match', () => {
 
         declare module '@craft-ng/core' {
           interface CraftAppStartRegistry {
-            AppStartLog: typeof injectLegacyAppStartLog;
+            AppStartLog: typeof LegacyAppStartLog;
           }
         }
       `,
@@ -116,8 +116,8 @@ describe('app-start-registry-match', () => {
 
     const { output } = await lintFixture(fixture, { fix: true });
 
-    expect(output).toContain('AppStartLog: typeof injectAppStartLog;');
-    expect(output).not.toContain('injectLegacyAppStartLog');
+    expect(output).toContain('AppStartLog: typeof AppStartLog;');
+    expect(output).not.toContain('LegacyAppStartLog');
   });
 
   it('ignores craftService definitions without onAppStart', async () => {
@@ -125,7 +125,7 @@ describe('app-start-registry-match', () => {
       'src/app/demo.ts': `
         import { craftService } from '@craft-ng/core';
 
-        export const { injectAppStartLog } = craftService(
+        export const { AppStartLog } = craftService(
           {
             name: 'AppStartLog',
             scope: 'toProvide',

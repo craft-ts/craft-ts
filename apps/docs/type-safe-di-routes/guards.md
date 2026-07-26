@@ -17,14 +17,14 @@ generator and hand-roll each rejection by returning a `createUrlTree(...)`:
 
 ```ts
 canActivate: function* () {
-  const { user } = yield* CraftAuthToYield(undefined, ({ user }) => ({ user }));
+  const { user } = yield* CraftAuth(undefined, ({ user }) => ({ user }));
   if (!user()) {
     return createUrlTree(['/auth/login']); // not authenticated
   }
   if (user()!.role !== 'admin') {
     return createUrlTree(['/unauthorized']); // wrong role
   }
-  const { pizzeria } = yield* CraftAuthToYield(undefined, ({ pizzeria }) => ({ pizzeria }));
+  const { pizzeria } = yield* CraftAuth(undefined, ({ pizzeria }) => ({ pizzeria }));
   if (pizzeria()) {
     return createUrlTree(['/dashboard']); // already onboarded
   }
@@ -62,7 +62,7 @@ import {
 const roleGuard = craftGen(
   (...roles: Role[]) =>
     function* () {
-      const { user } = yield* CraftAuthToYield(undefined, ({ user }) => ({
+      const { user } = yield* CraftAuth(undefined, ({ user }) => ({
         user,
       }));
       if (!user()) return craftException({ code: 'NOT_AUTHENTICATED' });
@@ -75,7 +75,7 @@ const roleGuard = craftGen(
 const noPizzeriaGuard = craftGen(
   () =>
     function* () {
-      const { pizzeria } = yield* CraftAuthToYield(
+      const { pizzeria } = yield* CraftAuth(
         undefined,
         ({ pizzeria }) => ({ pizzeria }),
       );
@@ -156,7 +156,7 @@ never re-runs `resolve` (no new pending). Opt out per route with `reactiveGuards
 
 `craftGen(factory)` returns a factory you invoke and delegate to with `yield*`:
 
-- The guard's **dependency yields** (`CraftAuthToYield`, `CraftRouterToYield`, …) flow up to the
+- The guard's **dependency yields** (`CraftAuth`, `CraftRouter`, …) flow up to the
   route exactly as in a plain generator guard, so [cascade DI tracking](/type-safe-di-routes/setup)
   still sees them.
 - As soon as a composed guard produces a `craftException`, the enclosing generator
@@ -211,7 +211,7 @@ craftRoute(
   {
     // Generator handler — `RedirectConfig` becomes a tracked route dependency.
     FORBIDDEN_ROLE: craftExceptionHandler(function* ({ redirectUrl }) {
-      const { unauthorizedUrl } = yield* RedirectConfigToYield();
+      const { unauthorizedUrl } = yield* RedirectConfig();
       return redirectUrl(unauthorizedUrl);
     }),
   },
@@ -251,7 +251,7 @@ treated as data:
 const authGuard = craftGen(
   () =>
     function* () {
-      const user = yield* AuthToYield();
+      const user = yield* Auth();
       const safeUser = user.safeValue();
       return safeUser
         ? safeUser
@@ -273,9 +273,9 @@ craftRoute(
       return redirectUrl('/login-form');
     }),
   },
-).withProviders(({ GuardedDataToYield }) => [
+).withProviders(({ GuardedData }) => [
   provideUser(function* () {
-    return (yield* GuardedDataToYield())(); // Signal<User> → User
+    return (yield* GuardedData())(); // Signal<User> → User
   }),
 ]);
 ```
@@ -289,7 +289,7 @@ craftRoute(
 const featureFlagGuard = craftGen(
   (flag: string) =>
     function* () {
-      const { flags } = yield* CraftConfigToYield();
+      const { flags } = yield* CraftConfig();
       return flags[flag] ? true : craftException({ code: 'FLAG_DISABLED' });
     },
 );

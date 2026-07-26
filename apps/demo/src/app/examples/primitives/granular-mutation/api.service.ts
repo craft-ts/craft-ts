@@ -10,7 +10,7 @@ function delay<T>(value: T, ms: number): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
-export const { ApiServiceToYield, injectApiService } = craftService(
+export const { ApiService } = craftService(
   { name: 'ApiService', scope: 'global' },
   () => {
     const dataList = signal<User[]>([

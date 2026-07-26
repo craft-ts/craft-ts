@@ -35,7 +35,10 @@ import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
-import { createPrimitiveGen, type CraftPrimitiveGen } from './craft-primitive-gen';
+import {
+  createPrimitiveGen,
+  type CraftPrimitiveGen,
+} from './craft-primitive-gen';
 
 type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
@@ -199,7 +202,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  *
  * @example
  * // Inside a craftService generator factory
- * const { injectCounter } = craftService(
+ * const { Counter } = craftService(
  *   { name: 'Counter', scope: 'global' },
  *   function* () {
  *     const counter = yield* state(0);
@@ -297,7 +300,10 @@ export function state(stateConfig: any, ...insertions: any[]): any {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function createStateRef<StateType>(stateConfig: any, ...insertions: any[]): any {
+function createStateRef<StateType>(
+  stateConfig: any,
+  ...insertions: any[]
+): any {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const hasSelfConfig =
     typeof stateConfig === 'object' &&

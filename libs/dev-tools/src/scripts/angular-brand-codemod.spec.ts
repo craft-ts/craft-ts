@@ -207,7 +207,7 @@ describe('angular-brand-codemod', () => {
           export type DerivedService<T, U> = T & U;
           export type ExtractDeps<T> = T;
           export type GetDeps<T> = T;
-          export type GetInjectedServiceDependencies<T> = T;
+          export type GetServiceDependencies<T> = T;
           export type GetPublicComponentProperties<T> = T;
           export type GetServiceOutput<T> = T;
         }
@@ -215,7 +215,7 @@ describe('angular-brand-codemod', () => {
       'src/app/api.service.ts': `
         import { craftService } from '@craft-ng/core';
 
-        export const { injectApiService } = craftService(
+        export const { ApiService } = craftService(
           { name: 'ApiService', scope: 'global' },
           () => ({
             getItemById: async (userId: string) => ({ id: userId }),
@@ -225,10 +225,10 @@ describe('angular-brand-codemod', () => {
       'src/app/demo.ts': `
         import { Component, input } from '@angular/core';
         import { Router } from '@angular/router';
-        import { injectApiService } from './api.service';
+        import { ApiService } from './api.service';
         import { toCraftService } from '@craft-ng/core';
 
-        const { injectRouter } = toCraftService({
+        const { Router: RouterService } = toCraftService({
           name: 'Router',
           scope: 'global',
           token: Router,
@@ -240,8 +240,8 @@ describe('angular-brand-codemod', () => {
         })
         export class DemoComponent {
           readonly userId = input<string>();
-          private readonly apiService = injectApiService();
-          private readonly router = injectRouter(undefined, ({ navigate }) => ({
+          private readonly apiService = ApiService();
+          private readonly router = RouterService(undefined, ({ navigate }) => ({
             navigate,
           }));
         }
@@ -256,16 +256,16 @@ describe('angular-brand-codemod', () => {
     expect(output).toContain('userId: ExtractDeps<DemoComponent["userId"]>;');
     expect(output).toContain('apiService: {');
     expect(output).toContain(
-      'ApiService: ExtractDeps<typeof injectApiService>["ApiService"];',
+      'ApiService: ExtractDeps<typeof ApiService>["ApiService"];',
     );
     expect(output).toContain(
       'publicProperties: GetPublicComponentProperties<DemoComponent>;',
     );
     expect(output).toContain(
-      'Router: DerivedService<ExtractDeps<typeof injectRouter>["Router"], {',
+      'Router: DerivedService<ExtractDeps<typeof RouterService>["Router"], {',
     );
     expect(output).toContain(
-      `navigate: GetServiceOutput<typeof injectRouter>["navigate"];`,
+      `navigate: GetServiceOutput<typeof RouterService>["navigate"];`,
     );
     expect(output).not.toContain('missingProvider: {};');
   });

@@ -11,7 +11,7 @@ Use this skill when a task touches dependency injection, service architecture, o
 
 - Application/domain services are authored with `craftService(...)`.
 - Existing Angular tokens, framework services, third-party services, and `InjectionToken`s are adapted once with `toCraftService(...)`.
-- Components, route guards, resolvers, primitives, and other craft services consume `injectX` / `XToYield` helpers, not Angular `inject(Token)`.
+- Components, route guards, resolvers, primitives, and other craft services consume the generated `X()` helper, not Angular `inject(Token)`.
 - Direct Angular DI is treated as legacy at the app boundary. Do not add new direct `inject(...)` calls.
 - Route DI checks should rely on craft service provider names. Keep `ProvidedValues = never` unless supporting legacy direct Angular tokens is explicitly required.
 
@@ -29,12 +29,11 @@ Use this skill when a task touches dependency injection, service architecture, o
 
 3. Preserve the public interface deliberately:
    - Expose the smallest useful surface from adapters.
-   - Prefer yielding a narrowed method/property map: `yield* RouterToYield(undefined, ({ navigateByUrl }) => ({ navigateByUrl }))`.
+   - Prefer yielding a narrowed method/property map: `yield* Router(undefined, ({ navigateByUrl }) => ({ navigateByUrl }))`.
    - Avoid pass-through wrappers that expose the whole Angular service unless the service is intentionally an adapter.
 
 4. Replace consumption sites:
-   - In components/pages: use `injectX()` from the craft service.
-   - In craft service generators: use `yield* XToYield(...)`.
+   - In components/pages and craft service generators: use the generated `X()` helper, typically as `yield* X(...)`.
    - In guards/resolvers/route helpers: use craft helpers and keep thrown exceptions typed.
    - Remove direct Angular `inject(...)` and constructor injection from migrated code.
 
@@ -67,7 +66,7 @@ Use `ProvidedValues` only as a temporary legacy bridge for direct Angular tokens
 
 Ensure these rules are enabled for migrated projects:
 
-- `craft-ng/no-angular-inject`: blocks Angular `inject(...)` and points toward `injectX`.
+- `craft-ng/no-angular-inject`: blocks Angular `inject(...)` and points toward the generated `X()` service helper.
 - `craft-ng/prefer-craft-service`: blocks new `@Injectable` / `@Service` app services.
 - `craft-ng/prefer-craft-http-client`: keeps HTTP access inside craft-compatible APIs.
 - `craft-ng/brand-angular-gen-deps-required` and `craft-ng/brand-angular-deps-match`: keep `GenDeps_*` current.
@@ -78,7 +77,7 @@ Ensure these rules are enabled for migrated projects:
 - [ ] No new direct Angular `inject(...)` in app code.
 - [ ] No new app-authored `@Injectable` service where `craftService` fits.
 - [ ] Angular/framework tokens adapted exactly once with `toCraftService`.
-- [ ] Consumption sites use `injectX` or `XToYield`.
+- [ ] Consumption sites use the generated `X()` helper.
 - [ ] Route checks use provider names, with `ProvidedValues = never` after migration.
 - [ ] `GenDeps_*` aliases are regenerated after dependency changes.
 - [ ] Tests use craft service testing helpers instead of TestBed-only service wiring where possible.

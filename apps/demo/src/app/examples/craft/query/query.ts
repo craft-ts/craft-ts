@@ -10,16 +10,16 @@ import {
   componentMonitoring,
   Console,
   craftMethod,
-  CraftRouterToYield,
+  CraftRouter,
   craftService,
   insertLocalStoragePersister,
   provideHostName,
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { ApiServiceToYield } from './api.service';
+import { ApiService } from './api.service';
 
-const { UserQueryToYield } = craftService(
+const { UserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
   function* (inputs: { userId: () => string | undefined }) {
     return yield* query(
@@ -27,7 +27,7 @@ const { UserQueryToYield } = craftService(
         params: inputs.userId,
         loader: function* ({ params }) {
           yield* Console.log('Loading user with id:', params);
-          return yield* ApiServiceToYield.getItemById(params);
+          return yield* ApiService.getItemById(params);
         },
       },
       insertLocalStoragePersister({
@@ -43,11 +43,12 @@ const CraftGlobalQuery = craftComponent(
   { providers: [provideHostName('component:CraftGlobalQuery')] },
   function* (userId: Input<string | undefined>) {
     componentMonitoring();
-    const user = yield* UserQueryToYield({ userId: () => userId() });
-    const router = yield* CraftRouterToYield(undefined, ({ navigate }) => ({
+    const user = yield* UserQuery({ userId: () => userId() });
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
     const navigate = craftMethod('navigate', function* (offset: number) {
+      // todo yield le router ici directement
       void router.navigate({
         to: 'craft/query/:userId',
         params: {

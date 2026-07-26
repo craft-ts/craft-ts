@@ -50,13 +50,13 @@ import {
   it,
   vi,
 } from 'vitest';
-import { Console, injectConsoleService } from './browser-boundaries';
+import { Console, ConsoleService } from './browser-boundaries';
 import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 import { craftMethod } from './craft-method';
 import {
   abstract,
   craftService,
-  GetInjectedServiceDependencies,
+  GetServiceDependencies,
   SERVICE_RUNTIME_OVERRIDES,
   ɵcreateHostTaggedInjector,
   type CraftServiceApi,
@@ -74,7 +74,7 @@ import { craftGen } from './craft-gen';
 import { craftException } from './craft-exception';
 import { craftExceptionHandler } from './craft-route-exceptions';
 import { GetDeps } from './branded-component/branded-component';
-import { HOST_TAG_LIST, injectHostName, provideHostName } from './host-tag';
+import { HOST_TAG_LIST, HostName, provideHostName } from './host-tag';
 import { craftUse } from './craft-use';
 import { craftUntilSettled } from './craft-until-settled';
 
@@ -709,7 +709,7 @@ describe('craftRoutes', () => {
   });
 
   it('should support canActivate generator alongside plain Angular loadChildren', () => {
-    const { AuthToYield, provideAuth } = craftService(
+    const { Auth, provideAuth } = craftService(
       { name: 'Auth', scope: 'toProvide' },
       () => ({ currentUser: { id: 1 } }),
     );
@@ -720,7 +720,7 @@ describe('craftRoutes', () => {
         providers: [provideAuth()],
         loadChildren: () => plainRoutes,
         canActivate: function* () {
-          const auth = yield* AuthToYield();
+          const auth = yield* Auth();
           return !!auth.currentUser;
         },
       },
@@ -742,7 +742,7 @@ describe('craftRoutes', () => {
   });
 
   it('should support a redirectTo generator that yields tracked dependencies', () => {
-    const { AuthToYield, provideAuth } = craftService(
+    const { Auth, provideAuth } = craftService(
       { name: 'Auth', scope: 'toProvide' },
       () => ({ isAdmin: () => true }),
     );
@@ -752,7 +752,7 @@ describe('craftRoutes', () => {
         pathMatch: 'full',
         providers: [provideAuth()],
         redirectTo: function* () {
-          const auth = yield* AuthToYield();
+          const auth = yield* Auth();
           return auth.isAdmin() ? '/pizzerias/admin' : '/pizzerias';
         },
       },
@@ -1139,7 +1139,7 @@ describe('craftRoutes', () => {
   });
 
   it('should remove lazy child missing providers satisfied by the direct parent route providers', () => {
-    const { provideCounter, injectCounter } = craftService(
+    const { provideCounter, Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -1149,7 +1149,7 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        Counter: ReturnType<typeof injectCounter>;
+        Counter: ReturnType<typeof Counter>;
       };
     }>;
 
@@ -1187,7 +1187,7 @@ describe('craftRoutes', () => {
   });
 
   it('should not treat sibling route providers as covering lazy child missing providers', () => {
-    const { provideCounter, injectCounter } = craftService(
+    const { provideCounter, Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -1197,7 +1197,7 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        Counter: ReturnType<typeof injectCounter>;
+        Counter: ReturnType<typeof Counter>;
       };
     }>;
 
@@ -1237,17 +1237,17 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        Counter: ReturnType<typeof injectCounter>;
+        Counter: ReturnType<typeof Counter>;
       };
     }>();
   });
 
   it('should merge parent loadComponent missing providers with lazy child missing providers', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
-    const { injectPermissions } = craftService(
+    const { Permissions } = craftService(
       { name: 'Permissions', scope: 'toProvide' },
       () => ({
         allow: true,
@@ -1259,7 +1259,7 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
     }>;
 
@@ -1268,7 +1268,7 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        Permissions: GetInjectedServiceDependencies<typeof injectPermissions>;
+        Permissions: GetServiceDependencies<typeof Permissions>;
       };
     }>;
 
@@ -1297,7 +1297,7 @@ describe('craftRoutes', () => {
           provided: {};
           publicProperties: {};
           missingProvider: {
-            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+            Counter: GetServiceDependencies<typeof Counter>;
           };
         },
         {
@@ -1306,9 +1306,9 @@ describe('craftRoutes', () => {
           provided: {};
           publicProperties: {};
           missingProvider: {
-            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
-            Permissions: GetInjectedServiceDependencies<
-              typeof injectPermissions
+            Counter: GetServiceDependencies<typeof Counter>;
+            Permissions: GetServiceDependencies<
+              typeof Permissions
             >;
           };
         },
@@ -1317,11 +1317,11 @@ describe('craftRoutes', () => {
   });
 
   it('should place flattened lazy child metadata after the parent entry in mixed route tuples', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
-    const { injectPermissions } = craftService(
+    const { Permissions } = craftService(
       { name: 'Permissions', scope: 'toProvide' },
       () => ({
         allow: true,
@@ -1333,8 +1333,8 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
-        Permissions: GetInjectedServiceDependencies<typeof injectPermissions>;
+        Counter: GetServiceDependencies<typeof Counter>;
+        Permissions: GetServiceDependencies<typeof Permissions>;
       };
     }>;
 
@@ -1373,8 +1373,8 @@ describe('craftRoutes', () => {
       provided: {};
       publicProperties: {};
       missingProvider: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
-        Permissions: GetInjectedServiceDependencies<typeof injectPermissions>;
+        Counter: GetServiceDependencies<typeof Counter>;
+        Permissions: GetServiceDependencies<typeof Permissions>;
       };
     }>();
   });
@@ -1452,7 +1452,7 @@ describe('craftRoutes', () => {
   it('should expose httpDeps from component propertiesDeps', () => {
     type User = { id: string };
 
-    const { injectUsersApi } = craftService(
+    const { UsersApi } = craftService(
       { name: 'UsersApi', scope: 'global' },
       function* () {
         const getUsers = yield* CraftHttpClient.get(({ response }) => ({
@@ -1470,7 +1470,7 @@ describe('craftRoutes', () => {
       deps: {};
       propertiesDeps: {
         usersApi: {
-          UsersApi: GetInjectedServiceDependencies<typeof injectUsersApi>;
+          UsersApi: GetServiceDependencies<typeof UsersApi>;
         };
       };
       provided: {};
@@ -1511,7 +1511,7 @@ describe('craftRoutes', () => {
     type ChildResponse = { id: string };
     type ChildPayload = { id: string };
 
-    const { injectLayoutApi } = craftService(
+    const { LayoutApi } = craftService(
       { name: 'LayoutApi', scope: 'global' },
       function* () {
         const getLayout = yield* CraftHttpClient.get(({ response }) => ({
@@ -1525,7 +1525,7 @@ describe('craftRoutes', () => {
       },
     );
 
-    const { injectChildApi } = craftService(
+    const { ChildApi } = craftService(
       { name: 'ChildApi', scope: 'global' },
       function* () {
         const createUser = yield* CraftHttpClient.post(({ response }) => ({
@@ -1544,7 +1544,7 @@ describe('craftRoutes', () => {
       deps: {};
       propertiesDeps: {
         layoutApi: {
-          LayoutApi: GetInjectedServiceDependencies<typeof injectLayoutApi>;
+          LayoutApi: GetServiceDependencies<typeof LayoutApi>;
         };
       };
       provided: {};
@@ -1555,7 +1555,7 @@ describe('craftRoutes', () => {
       deps: {};
       propertiesDeps: {
         childApi: {
-          ChildApi: GetInjectedServiceDependencies<typeof injectChildApi>;
+          ChildApi: GetServiceDependencies<typeof ChildApi>;
         };
       };
       provided: {};
@@ -1781,7 +1781,7 @@ describe('craftRoutes', () => {
       activatedRoute.route,
     );
 
-    expect(runInInjectionContext(injector, () => injectHostName())).toBe(
+    expect(runInInjectionContext(injector, () => HostName())).toBe(
       'route:mutation/:userId',
     );
     expect(injector.get(HOST_TAG_LIST)).toEqual([
@@ -2044,13 +2044,13 @@ describe('craftRoutes', () => {
   it('should allow canActivate generators to yield multiple services and return an observable', async () => {
     const authAccess$ = new BehaviorSubject(true);
     const entityOperational$ = new BehaviorSubject(true);
-    const { AuthToYield, provideAuth } = craftService(
+    const { Auth, provideAuth } = craftService(
       { name: 'Auth', scope: 'toProvide' },
       () => ({
         canAccess$: authAccess$.asObservable(),
       }),
     );
-    const { EntityToYield, provideEntity } = craftService(
+    const { Entity, provideEntity } = craftService(
       { name: 'Entity', scope: 'toProvide' },
       () => ({
         isOperational$: entityOperational$.asObservable(),
@@ -2063,8 +2063,8 @@ describe('craftRoutes', () => {
         componentDeps: {},
         providers: [provideAuth(), provideEntity()],
         canActivate: function* () {
-          const auth = yield* AuthToYield();
-          const entity = yield* EntityToYield();
+          const auth = yield* Auth();
+          const entity = yield* Entity();
 
           return combineLatest([auth.canAccess$, entity.isOperational$]).pipe(
             map(([canAccess, isOperational]) => canAccess && isOperational),
@@ -2088,7 +2088,7 @@ describe('craftRoutes', () => {
   });
 
   it('should allow canMatch generators to yield services and return a synchronous result', () => {
-    const { PermissionsToYield, providePermissions } = craftService(
+    const { Permissions, providePermissions } = craftService(
       { name: 'Permissions', scope: 'toProvide' },
       () => ({
         allow: true,
@@ -2101,7 +2101,7 @@ describe('craftRoutes', () => {
         componentDeps: {},
         providers: [providePermissions()],
         canMatch: function* () {
-          const permissions = yield* PermissionsToYield();
+          const permissions = yield* Permissions();
 
           return permissions.allow;
         },
@@ -2253,8 +2253,8 @@ describe('craftRoutes', () => {
   describe('craftRoute().withProviders()', () => {
     type User = { id: number; name: string };
 
-    it('should build a route-level provider from typed route-scoped ToYield helpers', () => {
-      const { injectUser, provideUser } = craftService(
+    it('should build a route-level provider from typed route-scoped  helpers', () => {
+      const { User, provideUser } = craftService(
         { name: 'User', scope: 'abstract' },
         abstract<User>(),
       );
@@ -2264,9 +2264,9 @@ describe('craftRoutes', () => {
           loadComponent: async () => null as unknown as Type<unknown>,
           componentDeps: {},
           canActivate: (): User | false => ({ id: 9, name: 'Carol' }),
-        }).withProviders(({ GuardedDataToYield }) => [
+        }).withProviders(({ GuardedData }) => [
           provideUser(function* () {
-            const guarded = yield* GuardedDataToYield();
+            const guarded = yield* GuardedData();
             return guarded();
           }),
         ]),
@@ -2288,7 +2288,7 @@ describe('craftRoutes', () => {
       );
       expect(guardResult).toBe(true);
 
-      const user = runInInjectionContext(injector, () => injectUser());
+      const user = runInInjectionContext(injector, () => User());
       expect(user).toEqual({ id: 9, name: 'Carol' });
     });
 
@@ -2301,7 +2301,7 @@ describe('craftRoutes', () => {
 
       builder.withProviders((helpers) => {
         type GuardedReturn =
-          ReturnType<typeof helpers.GuardedDataToYield> extends Generator<
+          ReturnType<typeof helpers.GuardedData> extends Generator<
             any,
             infer R,
             any
@@ -2311,7 +2311,7 @@ describe('craftRoutes', () => {
         expectTypeOf<GuardedReturn>().toEqualTypeOf<Signal<User>>();
 
         type ParamReturn =
-          ReturnType<typeof helpers.UserIdParamsToYield> extends Generator<
+          ReturnType<typeof helpers.UserIdParams> extends Generator<
             any,
             infer R,
             any
@@ -2390,7 +2390,7 @@ describe('craftRoutes', () => {
     });
 
     it('should set guard data signal when generator guard yields services and returns an object', () => {
-      const { AuthToYield, provideAuth } = craftService(
+      const { Auth, provideAuth } = craftService(
         { name: 'Auth', scope: 'toProvide' },
         () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
       );
@@ -2402,7 +2402,7 @@ describe('craftRoutes', () => {
           componentDeps: {},
           providers: [provideAuth()],
           canActivate: function* () {
-            const auth = yield* AuthToYield();
+            const auth = yield* Auth();
             return auth.currentUser;
           },
         },
@@ -2583,7 +2583,7 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should remove matching params / inputs from publicProperties deps', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -2595,12 +2595,12 @@ describe('AppRoutes.META_DATA', () => {
     class UserComponent {
       userId = input.required<string>();
 
-      counter = injectCounter();
+      counter = Counter();
     }
 
     type GenDeps_UserComponent = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {
@@ -2631,7 +2631,7 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should not throw an error if a provider is missing,', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -2643,12 +2643,12 @@ describe('AppRoutes.META_DATA', () => {
     class UserComponent {
       userId = input.required<string>();
 
-      counter = injectCounter();
+      counter = Counter();
     }
 
     type GenDeps_UserComponent = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {
@@ -2693,19 +2693,19 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should include queryParams deps in META_DATA, including outer generator yields', () => {
-    const { ParsePageToYield } = craftService(
+    const { ParsePage } = craftService(
       { name: 'ParsePage', scope: 'global' },
       () => ({
         parsePage: (value: string) => parseInt(value, 10),
       }),
     );
-    const { SerializePageToYield } = craftService(
+    const { SerializePage } = craftService(
       { name: 'SerializePage', scope: 'global' },
       () => ({
         serializePage: (value: number) => String(value),
       }),
     );
-    const { PaginationRulesToYield } = craftService(
+    const { PaginationRules } = craftService(
       { name: 'PaginationRules', scope: 'global' },
       () => ({
         maxPage: () => 3,
@@ -2731,7 +2731,7 @@ describe('AppRoutes.META_DATA', () => {
                 page: {
                   fallbackValue: 1,
                   parse: function* (value: string) {
-                    const parser = yield* ParsePageToYield(
+                    const parser = yield* ParsePage(
                       undefined,
                       ({ parsePage }) => ({
                         parsePage,
@@ -2741,7 +2741,7 @@ describe('AppRoutes.META_DATA', () => {
                     return parser.parsePage(value);
                   },
                   serialize: function* (value: number) {
-                    const serializer = yield* SerializePageToYield(
+                    const serializer = yield* SerializePage(
                       undefined,
                       ({ serializePage }) => ({
                         serializePage,
@@ -2754,7 +2754,7 @@ describe('AppRoutes.META_DATA', () => {
               },
             },
             function* ({ patch, state }) {
-              const rules = yield* PaginationRulesToYield(
+              const rules = yield* PaginationRules(
                 undefined,
                 ({ maxPage }) => ({
                   maxPage,
@@ -2790,8 +2790,8 @@ describe('AppRoutes.META_DATA', () => {
               browserBoundary: false;
               appStart: false;
             };
-            ConsoleService: GetInjectedServiceDependencies<
-              typeof injectConsoleService
+            ConsoleService: GetServiceDependencies<
+              typeof ConsoleService
             >;
             ParsePage: {
               scope: 'global';
@@ -2838,7 +2838,7 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should remove queryParams deps when satisfied by route providers', () => {
-    const { CounterToYield, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -2855,7 +2855,7 @@ describe('AppRoutes.META_DATA', () => {
         componentDeps: {} as QueryParamsRouteDeps,
         providers: [provideCounter()],
         queryParams: function* () {
-          yield* CounterToYield();
+          yield* Counter();
 
           return yield* queryParams({
             state: {
@@ -2947,7 +2947,7 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should include generator guard deps in META_DATA', () => {
-    const { injectCounter, CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -2963,7 +2963,7 @@ describe('AppRoutes.META_DATA', () => {
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {} as GuardRouteDeps,
         canActivate: function* () {
-          yield* CounterToYield();
+          yield* Counter();
           return true;
         },
       },
@@ -2974,7 +2974,7 @@ describe('AppRoutes.META_DATA', () => {
         {
           path: 'counter';
           deps: {
-            Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+            Counter: GetServiceDependencies<typeof Counter>;
           };
           provided: {};
           publicProperties: {};
@@ -2984,7 +2984,7 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should remove generator guard deps when satisfied by route providers', () => {
-    const { CounterToYield, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
@@ -3001,7 +3001,7 @@ describe('AppRoutes.META_DATA', () => {
         componentDeps: {} as GuardRouteDeps,
         providers: [provideCounter()],
         canActivate: function* () {
-          yield* CounterToYield();
+          yield* Counter();
           return true;
         },
       },
@@ -3046,7 +3046,7 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should include canActivate generator handler deps in META_DATA', () => {
-    const { injectRedirectConfig, RedirectConfigToYield } = craftService(
+    const { RedirectConfig } = craftService(
       { name: 'RedirectConfig', scope: 'toProvide' },
       () => ({ loginUrl: '/login' }),
     );
@@ -3073,7 +3073,7 @@ describe('AppRoutes.META_DATA', () => {
         {
           // Generator handler — its yielded service is tracked as a route dep.
           NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
-            const config = yield* RedirectConfigToYield();
+            const config = yield* RedirectConfig();
             return redirectUrl(config.loginUrl);
           }),
         },
@@ -3085,8 +3085,8 @@ describe('AppRoutes.META_DATA', () => {
         {
           path: 'admin';
           deps: {
-            RedirectConfig: GetInjectedServiceDependencies<
-              typeof injectRedirectConfig
+            RedirectConfig: GetServiceDependencies<
+              typeof RedirectConfig
             >;
           };
           provided: {};
@@ -3097,7 +3097,7 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should strip canActivate handler deps satisfied by route providers', () => {
-    const { RedirectConfigToYield, provideRedirectConfig } = craftService(
+    const { RedirectConfig, provideRedirectConfig } = craftService(
       { name: 'RedirectConfig', scope: 'toProvide' },
       () => ({ loginUrl: '/login' }),
     );
@@ -3124,7 +3124,7 @@ describe('AppRoutes.META_DATA', () => {
         },
         {
           NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
-            const config = yield* RedirectConfigToYield();
+            const config = yield* RedirectConfig();
             return redirectUrl(config.loginUrl);
           }),
         },
@@ -3144,14 +3144,14 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should flatten lazy route metadata and inherit providers, params and data', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () => 1,
     );
 
     type ChildRouteDeps = GetDeps<{
       deps: {
-        Counter: GetInjectedServiceDependencies<typeof injectCounter>;
+        Counter: GetServiceDependencies<typeof Counter>;
       };
       provided: {};
       publicProperties: {

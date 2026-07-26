@@ -6,7 +6,7 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { Subject } from 'rxjs';
-import { Console, ConsoleServiceToYield } from './browser-boundaries';
+import { Console, ConsoleService } from './browser-boundaries';
 import {
   abstract,
   craftRequirement,
@@ -17,12 +17,11 @@ import {
   toValue,
 } from './craft-service';
 import type {
-  GetInjectedServiceDependencies,
+  GetServiceDependencies,
   GetServiceReferenceMeta,
   GetServiceOutput,
   GetServiceYields,
   GetServiceTrackingMetadata,
-  GetToYieldServiceDependencies,
   MaybeSignal,
 } from './craft-service';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
@@ -50,14 +49,14 @@ beforeAll(() => {
 
 describe('craftService', () => {
   it('should enable to create a craftService-like using craftService and inject it.', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter();
+      const counter = Counter();
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -66,8 +65,7 @@ describe('craftService', () => {
 
   it('should expose browserBoundary in runtime metadata and preserve literal typing', () => {
     const {
-      injectBrowserCounter,
-      BrowserCounterToYield,
+      BrowserCounter,
       BROWSER_COUNTER_META_DATA,
     } = craftService(
       {
@@ -78,15 +76,15 @@ describe('craftService', () => {
       () => state(0),
     );
 
-    const { injectDefaultCounter, DEFAULT_COUNTER_META_DATA } = craftService(
+    const { DefaultCounter, DEFAULT_COUNTER_META_DATA } = craftService(
       { name: 'DefaultCounter', scope: 'global' },
       () => state(0),
     );
 
     expect(BROWSER_COUNTER_META_DATA.browserBoundary).toBe(true);
     expect(DEFAULT_COUNTER_META_DATA.browserBoundary).toBe(false);
-    expect(getServiceMetaData(injectBrowserCounter).browserBoundary).toBe(true);
-    expect(getServiceMetaData(injectDefaultCounter).browserBoundary).toBe(
+    expect(getServiceMetaData(BrowserCounter).browserBoundary).toBe(true);
+    expect(getServiceMetaData(DefaultCounter).browserBoundary).toBe(
       false,
     );
 
@@ -97,11 +95,11 @@ describe('craftService', () => {
       DEFAULT_COUNTER_META_DATA.browserBoundary,
     ).toEqualTypeOf<false>();
     expectTypeOf<
-      GetServiceReferenceMeta<typeof injectBrowserCounter>['browserBoundary']
+      GetServiceReferenceMeta<typeof BrowserCounter>['browserBoundary']
     >().toEqualTypeOf<true>();
     expectTypeOf<
       GetServiceTrackingMetadata<
-        typeof BrowserCounterToYield
+        typeof BrowserCounter
       >['browserBoundary']
     >().toEqualTypeOf<true>();
   });
@@ -113,7 +111,7 @@ describe('craftService', () => {
     });
     const calls: string[] = [];
 
-    const { injectAppStartCounter, APP_START_COUNTER_META_DATA } = craftService(
+    const { AppStartCounter, APP_START_COUNTER_META_DATA } = craftService(
       {
         name: 'AppStartCounter',
         scope: 'global',
@@ -130,25 +128,25 @@ describe('craftService', () => {
     );
 
     expect(APP_START_COUNTER_META_DATA.appStart).toBe(true);
-    expect(getServiceMetaData(injectAppStartCounter).appStart).toBe(true);
+    expect(getServiceMetaData(AppStartCounter).appStart).toBe(true);
     expectTypeOf(APP_START_COUNTER_META_DATA.appStart).toEqualTypeOf<true>();
     expectTypeOf<
-      GetServiceReferenceMeta<typeof injectAppStartCounter>['appStart']
+      GetServiceReferenceMeta<typeof AppStartCounter>['appStart']
     >().toEqualTypeOf<true>();
     expectTypeOf<
-      GetServiceTrackingMetadata<typeof injectAppStartCounter>['appStart']
+      GetServiceTrackingMetadata<typeof AppStartCounter>['appStart']
     >().toEqualTypeOf<true>();
     expectTypeOf<
-      GetInjectedServiceDependencies<typeof injectAppStartCounter>['appStart']
+      GetServiceDependencies<typeof AppStartCounter>['appStart']
     >().toEqualTypeOf<true>();
 
     await TestBed.runInInjectionContext(async () => {
-      const service = injectAppStartCounter();
-      const pendingStart = runServiceAppStart(injectAppStartCounter, service);
+      const service = AppStartCounter();
+      const pendingStart = runServiceAppStart(AppStartCounter, service);
 
       expect(calls).toEqual(['started']);
       expect(
-        runServiceAppStart(injectAppStartCounter, service),
+        runServiceAppStart(AppStartCounter, service),
       ).toBeUndefined();
 
       resolveAppStart();
@@ -163,7 +161,7 @@ describe('craftService', () => {
     });
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const { injectAppStartLog } = craftService(
+    const { AppStartLog } = craftService(
       {
         name: 'AppStartLog',
         scope: 'global',
@@ -180,8 +178,8 @@ describe('craftService', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const service = injectAppStartLog();
-      const pendingStart = runServiceAppStart(injectAppStartLog, service);
+      const service = AppStartLog();
+      const pendingStart = runServiceAppStart(AppStartLog, service);
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
         'This is a log from the appStart callback',
@@ -227,10 +225,10 @@ describe('craftService', () => {
   it('should track dependencies yielded only inside onAppStart generator callbacks', () => {
     if (false) {
       type ConsoleAppStartYield = GetServiceYields<
-        typeof ConsoleServiceToYield
+        typeof ConsoleService
       >;
 
-      const { injectTypedAppStartLog } = craftService(
+      const { TypedAppStartLog } = craftService(
         {
           name: 'TypedAppStartLog',
           scope: 'toProvide',
@@ -242,7 +240,7 @@ describe('craftService', () => {
             undefined,
             unknown
           > {
-            const consoleService = yield* ConsoleServiceToYield();
+            const consoleService = yield* ConsoleService();
 
             consoleService.log('typed app start log');
 
@@ -253,8 +251,8 @@ describe('craftService', () => {
         },
       );
 
-      type AppStartLogDependencies = GetInjectedServiceDependencies<
-        typeof injectTypedAppStartLog
+      type AppStartLogDependencies = GetServiceDependencies<
+        typeof TypedAppStartLog
       >;
       type ConsoleDependency =
         AppStartLogDependencies['dependencies']['ConsoleService'];
@@ -276,7 +274,7 @@ describe('craftService', () => {
   });
 
   it('should fail at runtime when onAppStart is used without appStart: true', () => {
-    const { injectInvalidAppStart } = craftService(
+    const { InvalidAppStart } = craftService(
       { name: 'InvalidAppStart', scope: 'global' },
       function* () {
         yield* onAppStart(() => undefined);
@@ -285,23 +283,23 @@ describe('craftService', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(() => injectInvalidAppStart()).toThrow(
+      expect(() => InvalidAppStart()).toThrow(
         'craftService("InvalidAppStart") used onAppStart(...) without enabling appStart: true.',
       );
     });
   });
 
   it('should enable to yield another craftService', () => {
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        const counter = yield* CounterToYield();
+        const counter = yield* Counter();
 
         return Object.assign(counter, {
           incrementTwice: () => {
@@ -313,7 +311,7 @@ describe('craftService', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounterExtended();
+      const counter = CounterExtended();
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -326,14 +324,14 @@ describe('craftService', () => {
 });
 describe('scope', () => {
   it('should enable to create a global craftService by passing a name/scope', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter();
+      const counter = Counter();
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -342,7 +340,7 @@ describe('scope', () => {
 
   it('should not expose provideCounter for craftService with global scope', () => {
     //@ts-expect-error provideCounter should not be defined for global craftService because it is provided automatically, it should not be possible to provide it manually
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
@@ -354,14 +352,14 @@ describe('scope', () => {
   // todo global craftService should not expose provideService
 
   it('should enable to create a global craftService by passing a name/scope', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter();
+      const counter = Counter();
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -369,7 +367,7 @@ describe('scope', () => {
   });
 
   it('should enable to create a toProvide craftService by passing a name/scope', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
@@ -380,7 +378,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter();
+      const counter = Counter();
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -388,7 +386,7 @@ describe('scope', () => {
   });
 
   it('should expose provider config through $provided for a toProvide craftService while keeping public bindings separate', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       (inputs: { $provided: { initialValue: number }; step: number }) =>
         state(inputs.$provided.initialValue, ({ update }) => ({
@@ -403,7 +401,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter({ step: 2 });
+      const counter = Counter({ step: 2 });
 
       expect(counter()).toBe(10);
       expect(counter.readStep()).toBe(2);
@@ -417,7 +415,7 @@ describe('scope', () => {
   it('should enable to create a manuallyProvidedAtRoot craftService by passing a name/scope', () => {
     // for services that need to be provided at root but with some specific configuration (like inputs) that make it impossible to provide them with the provideService helper (or for external services like HttpClient)
     // the aim of this scope is to enable to inject it in global services while still exposing a public token for manual root providers
-    const { injectCounter, provideCounter, CounterToProvide } = craftService(
+    const { Counter, provideCounter, CounterToProvide } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
@@ -430,7 +428,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter();
+      const counter = Counter();
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -438,7 +436,7 @@ describe('scope', () => {
   });
 
   it('should expose provider config through $provided for a manuallyProvidedAtRoot craftService', () => {
-    const { injectCounter, provideCounter, CounterToProvide } = craftService(
+    const { Counter, provideCounter, CounterToProvide } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       (inputs: { $provided: { initialValue: number } }) =>
         state(inputs.$provided.initialValue, ({ update }) => ({
@@ -452,7 +450,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter();
+      const counter = Counter();
       const providedCounter = inject(CounterToProvide);
 
       expect(counter).toBe(providedCounter);
@@ -462,7 +460,7 @@ describe('scope', () => {
   });
 
   it('should enable to manually provide a manuallyProvidedAtRoot craftService through CounterToProvide', () => {
-    const { injectCounter, CounterToProvide } = craftService(
+    const { Counter, CounterToProvide } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
@@ -479,7 +477,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter();
+      const counter = Counter();
       expect(counter()).toBe(10);
       counter.increment();
       expect(counter()).toBe(11);
@@ -487,14 +485,14 @@ describe('scope', () => {
   });
 
   it('should enable to create a function craftService by passing a name/scope (mostly used for reusability and composition/inputs...)', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter();
+      const counter = Counter();
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -530,10 +528,10 @@ describe('scope', () => {
       { name: 'Counter', scope: 'abstract' },
       abstract<Counter>(), // todo create abstract helper that just return the type and do nothing else, to be used for abstract craftService
     );
-    const { injectCounter } = counterService;
+    const { Counter } = counterService;
 
-    expectTypeOf(injectCounter).toEqualTypeOf<() => Counter>();
-    expect(injectCounter).toBeDefined();
+    expectTypeOf(Counter).toEqualTypeOf<() => Counter>();
+    expect(Counter).toBeDefined();
 
     // An abstract craftService exposes provideCounter so its contract can be
     // implemented inline from a (possibly generator) factory.
@@ -545,7 +543,7 @@ describe('scope', () => {
     interface Counter {
       value: number;
     }
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'abstract' },
       abstract<Counter>(),
     );
@@ -555,16 +553,16 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      expect(injectCounter()).toEqual({ value: 42 });
+      expect(Counter()).toEqual({ value: 42 });
     });
   });
 
   it('should resolve services yielded inside an abstract provideX generator factory', () => {
-    const { SeedToYield } = craftService(
+    const { Seed } = craftService(
       { name: 'Seed', scope: 'global' },
       () => ({ base: 10 }),
     );
-    const { injectScore, provideScore } = craftService(
+    const { Score, provideScore } = craftService(
       { name: 'Score', scope: 'abstract' },
       abstract<{ total: number }>(),
     );
@@ -572,27 +570,27 @@ describe('scope', () => {
     TestBed.configureTestingModule({
       providers: [
         provideScore(function* () {
-          const seed = yield* SeedToYield();
+          const seed = yield* Seed();
           return { total: seed.base + 5 };
         }),
       ],
     });
 
     TestBed.runInInjectionContext(() => {
-      expect(injectScore()).toEqual({ total: 15 });
+      expect(Score()).toEqual({ total: 15 });
     });
   });
 
-  it('should expose XToYield on an abstract craftService so its contract can be composed into another craftService', () => {
-    const { provideUser, UserToYield } = craftService(
+  it('should expose X on an abstract craftService so its contract can be composed into another craftService', () => {
+    const { provideUser, User } = craftService(
       { name: 'User', scope: 'abstract' },
       abstract<{ name: string }>(),
     );
 
-    const { injectGreeting, provideGreeting } = craftService(
+    const { Greeting, provideGreeting } = craftService(
       { name: 'Greeting', scope: 'toProvide' },
       function* () {
-        const user = yield* UserToYield();
+        const user = yield* User();
         return { hello: `Hi ${user.name}` };
       },
     );
@@ -602,12 +600,12 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      expect(injectGreeting()).toEqual({ hello: 'Hi Ada' });
+      expect(Greeting()).toEqual({ hello: 'Hi Ada' });
     });
   });
 
   it('should enable to create a craftService from an abstract craftService through requirement (It should provide the implementation craftService and abstract craftService)', () => {
-    const { injectCounter, CounterRequirement } = craftService(
+    const { Counter, CounterRequirement } = craftService(
       { name: 'Counter', scope: 'abstract' },
       abstract<{
         (): number;
@@ -618,7 +616,7 @@ describe('scope', () => {
     // todo CounterRequirement should only be exposed when scope: 'abstract' is set
 
     // todo when creating from requirement: CounterRequirement it should not be possible to create a global (to force to provide it ?) non
-    const { injectCounterImpl, provideCounterImpl } = craftService(
+    const { CounterImpl, provideCounterImpl } = craftService(
       {
         name: 'CounterImpl',
         scope: 'toProvide',
@@ -635,12 +633,12 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter();
+      const counter = Counter();
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
 
-      const counterImpl = injectCounterImpl();
+      const counterImpl = CounterImpl();
       expect(counterImpl()).toBe(1);
     });
   });
@@ -651,7 +649,7 @@ describe('scope', () => {
       increment(): void;
     }
 
-    const { injectCounterImpl, provideCounterImpl } = craftService(
+    const { CounterImpl, provideCounterImpl } = craftService(
       {
         name: 'CounterImpl',
         scope: 'toProvide',
@@ -666,7 +664,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterImpl = injectCounterImpl();
+      const counterImpl = CounterImpl();
       expect(counterImpl()).toBe(0);
       counterImpl.increment();
       expect(counterImpl()).toBe(1);
@@ -679,7 +677,7 @@ describe('scope', () => {
     }
 
     const increment = vi.fn();
-    const { injectCounterImpl, provideCounterImpl } = craftService(
+    const { CounterImpl, provideCounterImpl } = craftService(
       {
         name: 'CounterImpl',
         scope: 'toProvide',
@@ -695,7 +693,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterImpl = injectCounterImpl();
+      const counterImpl = CounterImpl();
       counterImpl.increment();
       expect(increment).toHaveBeenCalledTimes(1);
     });
@@ -708,7 +706,7 @@ describe('scope', () => {
     }
 
     const CounterRequirement = craftRequirement<Counter>();
-    const { injectCounterImpl, provideCounterImpl } = craftService(
+    const { CounterImpl, provideCounterImpl } = craftService(
       {
         name: 'CounterImpl',
         scope: 'toProvide',
@@ -725,7 +723,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterImpl = injectCounterImpl();
+      const counterImpl = CounterImpl();
       const counter = inject(CounterRequirement.token);
 
       expect(counter).toBe(counterImpl);
@@ -810,7 +808,7 @@ describe('scope', () => {
   });
 
   it('should not enable to create a global craftService that depends on a toProvide craftService', () => {
-    const { injectCounter, provideCounter, CounterToYield } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
@@ -818,22 +816,22 @@ describe('scope', () => {
 
     //@ts-expect-error it should not be possible to create a global craftService that depends on a toProvide craftService because the dependency cannot be resolved, it should force to provide the craftService in the test or use manuallyProvidedAtRoot for the craftService that need to be yield in a global craftService
     craftService({ name: 'GlobalCounter', scope: 'global' }, function* () {
-      const counter = yield* CounterToYield();
+      const counter = yield* Counter();
       return counter;
     });
   });
 
   it('should enable to create a global craftService that depends on a manuallyProvidedAtRoot craftService', () => {
-    const { provideCounter, CounterToYield } = craftService(
+    const { provideCounter, Counter } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       () =>
         state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
     );
 
-    const { injectGlobalCounter } = craftService(
+    const { GlobalCounter } = craftService(
       { name: 'GlobalCounter', scope: 'global' },
       function* () {
-        const counter = yield* CounterToYield();
+        const counter = yield* Counter();
         return counter;
       },
     );
@@ -843,7 +841,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectGlobalCounter();
+      const counter = GlobalCounter();
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -853,7 +851,7 @@ describe('scope', () => {
 
 describe('injectService should enable to binding inputs', () => {
   it('should keep $provided private from inject helpers and preserve the provider value at runtime', () => {
-    const { injectCounter, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       (inputs: { $provided: { initialValue: number }; step: number }) =>
         state(inputs.$provided.initialValue, ({ update }) => ({
@@ -867,14 +865,14 @@ describe('injectService should enable to binding inputs', () => {
 
     if (false) {
       //@ts-expect-error $provided should not be a public inject binding
-      injectCounter({
+      Counter({
         step: 2,
         $provided: { initialValue: 99 },
       });
     }
 
     TestBed.runInInjectionContext(() => {
-      const counter = Reflect.apply(injectCounter, undefined, [
+      const counter = Reflect.apply(Counter, undefined, [
         {
           step: 2,
           $provided: { initialValue: 99 },
@@ -888,7 +886,7 @@ describe('injectService should enable to binding inputs', () => {
   });
 
   it('should enable to bind a signal input', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
@@ -902,7 +900,7 @@ describe('injectService should enable to binding inputs', () => {
 
     TestBed.runInInjectionContext(() => {
       // todo make a test that force to pass an input, and if it's not passed, throw an error
-      const counter = injectCounter({ initialValue: 0 });
+      const counter = Counter({ initialValue: 0 });
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -910,7 +908,7 @@ describe('injectService should enable to binding inputs', () => {
   });
 
   it('should enable to bind an optional signal input and not bind an optional input', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
@@ -925,7 +923,7 @@ describe('injectService should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounter({ initialValue: 0, optionalProperty1: 0 });
+      const counter = Counter({ initialValue: 0, optionalProperty1: 0 });
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -934,7 +932,7 @@ describe('injectService should enable to binding inputs', () => {
 
   it('should enable to bind a signal input', () => {
     // todoBefore mettre inputs/method ? pour simpliéfier le binding ? et permet de rajouter un provide plus tard
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
@@ -947,7 +945,7 @@ describe('injectService should enable to binding inputs', () => {
     TestBed.runInInjectionContext(() => {
       const initialValue = signal(0);
       // todo make a test that force to pass an input, and if it's not passed, throw an error
-      const counter = injectCounter({ initialValue });
+      const counter = Counter({ initialValue });
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -955,7 +953,7 @@ describe('injectService should enable to binding inputs', () => {
   });
 
   it('should return a string as an error "Inputs Error, xxx is not provided" if an input is not provided', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
@@ -966,13 +964,13 @@ describe('injectService should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(() => injectCounter()).toThrow(
+      expect(() => Counter()).toThrow(
         'Inputs Error, initialValue is not provided',
       );
     });
   });
   it('should provide a string token to say that the input is already provided', () => {
-    const { injectCounter } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
@@ -985,7 +983,7 @@ describe('injectService should enable to binding inputs', () => {
     TestBed.runInInjectionContext(() => {
       const initialValue = signal(0);
       // todo make a test that force to pass an input, and if it's not passed, throw an error
-      const counter = injectCounter({ initialValue });
+      const counter = Counter({ initialValue });
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
@@ -993,7 +991,7 @@ describe('injectService should enable to binding inputs', () => {
 
     TestBed.runInInjectionContext(() => {
       // todo make a test that force to pass an input, and if it's not passed, throw an error
-      const counter = injectCounter({
+      const counter = Counter({
         initialValue: 'Provided elsewhere #warn-check-docs:inputs',
       });
       expect(counter()).toBe(1);
@@ -1004,9 +1002,9 @@ describe('injectService should enable to binding inputs', () => {
 });
 
 // todoBefore generatrice aussi
-describe('serviceToYield should enable to binding inputs', () => {
+describe('service should enable to binding inputs', () => {
   it('should keep $provided private from yield helpers', () => {
-    const { CounterToYield, provideCounter } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       (inputs: { $provided: { initialValue: number }; step: number }) =>
         state(inputs.$provided.initialValue, ({ update }) => ({
@@ -1014,10 +1012,10 @@ describe('serviceToYield should enable to binding inputs', () => {
         })),
     );
 
-    const { injectCounterExtended, provideCounterExtended } = craftService(
+    const { CounterExtended, provideCounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
-        const counter = yield* CounterToYield({ step: 2 });
+        const counter = yield* Counter({ step: 2 });
 
         return {
           read: () => counter(),
@@ -1028,8 +1026,8 @@ describe('serviceToYield should enable to binding inputs', () => {
 
     // eslint-disable-next-line no-constant-condition
     if (false) {
-      //@ts-expect-error $provided should not be a public CounterToYield binding
-      CounterToYield({
+      //@ts-expect-error $provided should not be a public Counter binding
+      Counter({
         step: 2,
         $provided: { initialValue: 99 },
       });
@@ -1043,7 +1041,7 @@ describe('serviceToYield should enable to binding inputs', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterExtended = injectCounterExtended();
+      const counterExtended = CounterExtended();
 
       expect(counterExtended.read()).toBe(10);
       counterExtended.increment();
@@ -1052,7 +1050,7 @@ describe('serviceToYield should enable to binding inputs', () => {
   });
 
   it('should enable to bind a raw input', () => {
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
@@ -1062,10 +1060,10 @@ describe('serviceToYield should enable to binding inputs', () => {
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        const counter = yield* CounterToYield({ initialValue: 10 });
+        const counter = yield* Counter({ initialValue: 10 });
 
         return Object.assign(counter, {
           incrementTwice: () => {
@@ -1077,7 +1075,7 @@ describe('serviceToYield should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounterExtended();
+      const counter = CounterExtended();
       expect(counter()).toBe(10);
       counter.increment();
       expect(counter()).toBe(11);
@@ -1087,7 +1085,7 @@ describe('serviceToYield should enable to binding inputs', () => {
   });
 
   it('should enable to bind a signal input', () => {
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
@@ -1097,10 +1095,10 @@ describe('serviceToYield should enable to binding inputs', () => {
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        const counter = yield* CounterToYield({ initialValue: signal(10) });
+        const counter = yield* Counter({ initialValue: signal(10) });
 
         return Object.assign(counter, {
           incrementTwice: () => {
@@ -1112,7 +1110,7 @@ describe('serviceToYield should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounterExtended();
+      const counter = CounterExtended();
       expect(counter()).toBe(10);
       counter.increment();
       expect(counter()).toBe(11);
@@ -1122,7 +1120,7 @@ describe('serviceToYield should enable to binding inputs', () => {
   });
 
   it('should enable to bind an optional input and not bind an optional input', () => {
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>;
@@ -1134,10 +1132,10 @@ describe('serviceToYield should enable to binding inputs', () => {
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        const counter = yield* CounterToYield({
+        const counter = yield* Counter({
           initialValue: signal(10),
           optionalProperty1: signal(20),
         });
@@ -1152,7 +1150,7 @@ describe('serviceToYield should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounterExtended();
+      const counter = CounterExtended();
       expect(counter()).toBe(10);
       counter.increment();
       expect(counter()).toBe(11);
@@ -1162,7 +1160,7 @@ describe('serviceToYield should enable to binding inputs', () => {
   });
 
   it('should return a string as an error "Inputs Error, xxx is not provided" if an input is not provided or blocks the yield', () => {
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
@@ -1172,21 +1170,21 @@ describe('serviceToYield should enable to binding inputs', () => {
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        return yield* CounterToYield();
+        return yield* Counter();
       },
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(() => injectCounterExtended()).toThrow(
+      expect(() => CounterExtended()).toThrow(
         'Inputs Error, initialValue is not provided',
       );
     });
   });
   it('should provide a string token to say that the input is already provided', () => {
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
@@ -1196,12 +1194,12 @@ describe('serviceToYield should enable to binding inputs', () => {
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        const counter1 = yield* CounterToYield({ initialValue: signal(10) });
+        const counter1 = yield* Counter({ initialValue: signal(10) });
         // todobefore it is possible to yield the same craftService twice ?
-        const counter2 = yield* CounterToYield({
+        const counter2 = yield* Counter({
           initialValue: 'Provided elsewhere #warn-check-docs:inputs',
         });
 
@@ -1216,7 +1214,7 @@ describe('serviceToYield should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = injectCounterExtended();
+      const counter = CounterExtended();
       expect(counter()).toBe(10);
       counter.increment();
       expect(counter()).toBe(11);
@@ -1226,7 +1224,7 @@ describe('serviceToYield should enable to binding inputs', () => {
   });
 
   it('should enable to yield a craftService with the scope function several times that will generate different instances', () => {
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -1234,13 +1232,13 @@ describe('serviceToYield should enable to binding inputs', () => {
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        const counter1 = yield* CounterToYield({
+        const counter1 = yield* Counter({
           initialValue: signal(10),
         });
-        const counter2 = yield* CounterToYield({
+        const counter2 = yield* Counter({
           initialValue: signal(20),
         });
 
@@ -1252,7 +1250,7 @@ describe('serviceToYield should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterHandler = injectCounterExtended();
+      const counterHandler = CounterExtended();
       expect(counterHandler.counter1()).toBe(10);
       counterHandler.counter1.increment();
       expect(counterHandler.counter1()).toBe(11);
@@ -1263,9 +1261,9 @@ describe('serviceToYield should enable to binding inputs', () => {
   });
 });
 
-describe('injectService/ServiceToYield should expose an optional parameter that can be used to only expose what is needed and yield* dep must be used to declare non exposed fields. “Any dependency that is used but not exposed must be yielded (with yield*) in order to be counted.”', () => {
-  it('should enable to explicitly re-expose the root callable when using injectCounter', () => {
-    const { injectCounter } = craftService(
+describe('injectService/Service should expose an optional parameter that can be used to only expose what is needed and yield* dep must be used to declare non exposed fields. “Any dependency that is used but not exposed must be yielded (with yield*) in order to be counted.”', () => {
+  it('should enable to explicitly re-expose the root callable when using Counter', () => {
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       () =>
         state(10, ({ update }) => ({
@@ -1275,7 +1273,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterHandler = injectCounter({}, ({ $self, increment }) => ({
+      const counterHandler = Counter({}, ({ $self, increment }) => ({
         $self,
         increment,
       }));
@@ -1294,8 +1292,8 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
-  it('should enable to track hidden dependencies when using injectCounter', () => {
-    const { injectCounter } = craftService(
+  it('should enable to track hidden dependencies when using Counter', () => {
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       () => {
         const counter = craftUse(
@@ -1315,7 +1313,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 
     TestBed.runInInjectionContext(() => {
       const triggerDecrementObservable = new Subject<void>();
-      const counterHandler = injectCounter(
+      const counterHandler = Counter(
         {},
         function* ({ state, increment, decrement }) {
           const decrementRef = yield* decrement();
@@ -1340,10 +1338,10 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
-  it('should enable to track hidden dependencies from ServiceToYield', () => {
+  it('should enable to track hidden dependencies from Service', () => {
     const triggerDecrementObservable = new Subject<void>();
 
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) => {
         const counter = craftUse(
@@ -1361,10 +1359,10 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       },
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        return yield* CounterToYield(
+        return yield* Counter(
           {
             initialValue: signal(10),
           },
@@ -1382,7 +1380,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterHandler = injectCounterExtended();
+      const counterHandler = CounterExtended();
 
       //@ts-expect-error decrement should not be accessible because it is not exposed
       expect(counterHandler.decrement).toBeUndefined();
@@ -1396,7 +1394,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
-  it('should enable ToYield single-property shortcuts to return a derived property', async () => {
+  it('should enable  single-property shortcuts to return a derived property', async () => {
     type User = {
       id: string;
       name: string;
@@ -1404,7 +1402,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 
     const users = signal<User[]>([{ id: '1', name: 'Romain' }]);
 
-    const { SinglePropertyShortcutApiToYield } = craftService(
+    const { SinglePropertyShortcutApi } = craftService(
       { name: 'SinglePropertyShortcutApi', scope: 'global' },
       () => ({
         users,
@@ -1419,14 +1417,14 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       }),
     );
 
-    const { injectSinglePropertyShortcutConsumer } = craftService(
+    const { SinglePropertyShortcutConsumer } = craftService(
       { name: 'SinglePropertyShortcutConsumer', scope: 'global' },
       function* () {
-        const updateItem = yield* SinglePropertyShortcutApiToYield.updateItem();
+        const updateItem = yield* SinglePropertyShortcutApi.updateItem();
 
         expectTypeOf(updateItem).toEqualTypeOf<
           GetServiceOutput<
-            typeof SinglePropertyShortcutApiToYield
+            typeof SinglePropertyShortcutApi
           >['updateItem']
         >();
 
@@ -1437,11 +1435,11 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     expect(
-      getServiceMetaData(SinglePropertyShortcutApiToYield.updateItem).name,
+      getServiceMetaData(SinglePropertyShortcutApi.updateItem).name,
     ).toBe('SinglePropertyShortcutApi');
 
-    type ConsumerDependencies = GetInjectedServiceDependencies<
-      typeof injectSinglePropertyShortcutConsumer
+    type ConsumerDependencies = GetServiceDependencies<
+      typeof SinglePropertyShortcutConsumer
     >;
 
     expectTypeOf<ConsumerDependencies>().toEqualTypeOf<{
@@ -1456,12 +1454,12 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
           dependencies: {};
           derivedPropertiesUsed: {
             updateItem: GetServiceOutput<
-              typeof SinglePropertyShortcutApiToYield
+              typeof SinglePropertyShortcutApi
             >['updateItem'];
           };
           derivedPropertiesExposed: {
             updateItem: GetServiceOutput<
-              typeof SinglePropertyShortcutApiToYield
+              typeof SinglePropertyShortcutApi
             >['updateItem'];
           };
         };
@@ -1469,7 +1467,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     }>();
 
     await TestBed.runInInjectionContext(async () => {
-      const consumer = injectSinglePropertyShortcutConsumer();
+      const consumer = SinglePropertyShortcutConsumer();
 
       await expect(
         consumer.updateItem({ id: '1', name: 'Geffrault' }),
@@ -1478,7 +1476,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
-  it('should enable ToYield method shortcuts to call a derived method directly when the service has no public inputs', async () => {
+  it('should enable  method shortcuts to call a derived method directly when the service has no public inputs', async () => {
     type User = {
       id: string;
       name: string;
@@ -1486,7 +1484,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 
     const users = signal<User[]>([{ id: '1', name: 'Romain' }]);
 
-    const { DirectMethodShortcutApiToYield } = craftService(
+    const { DirectMethodShortcutApi } = craftService(
       { name: 'DirectMethodShortcutApi', scope: 'global' },
       () => ({
         updateItem: async (updatedUser: User) => {
@@ -1500,10 +1498,10 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       }),
     );
 
-    const { injectDirectMethodShortcutConsumer } = craftService(
+    const { DirectMethodShortcutConsumer } = craftService(
       { name: 'DirectMethodShortcutConsumer', scope: 'global' },
       function* () {
-        const result = yield* DirectMethodShortcutApiToYield.updateItem({
+        const result = yield* DirectMethodShortcutApi.updateItem({
           id: '1',
           name: 'Geffrault',
         });
@@ -1511,7 +1509,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
         expectTypeOf(result).toEqualTypeOf<
           ReturnType<
             GetServiceOutput<
-              typeof DirectMethodShortcutApiToYield
+              typeof DirectMethodShortcutApi
             >['updateItem']
           >
         >();
@@ -1520,8 +1518,8 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       },
     );
 
-    type ConsumerDependencies = GetInjectedServiceDependencies<
-      typeof injectDirectMethodShortcutConsumer
+    type ConsumerDependencies = GetServiceDependencies<
+      typeof DirectMethodShortcutConsumer
     >;
 
     expectTypeOf<ConsumerDependencies>().toEqualTypeOf<{
@@ -1536,12 +1534,12 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
           dependencies: {};
           derivedPropertiesUsed: {
             updateItem: GetServiceOutput<
-              typeof DirectMethodShortcutApiToYield
+              typeof DirectMethodShortcutApi
             >['updateItem'];
           };
           derivedPropertiesExposed: {
             updateItem: GetServiceOutput<
-              typeof DirectMethodShortcutApiToYield
+              typeof DirectMethodShortcutApi
             >['updateItem'];
           };
         };
@@ -1549,7 +1547,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     }>();
 
     await TestBed.runInInjectionContext(async () => {
-      await expect(injectDirectMethodShortcutConsumer()).resolves.toEqual({
+      await expect(DirectMethodShortcutConsumer()).resolves.toEqual({
         id: '1',
         name: 'Geffrault',
       });
@@ -1557,25 +1555,25 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
-  it('should pass bindings to ToYield single-property shortcuts', () => {
+  it('should pass bindings to  single-property shortcuts', () => {
     const calls: number[] = [];
 
-    const { InputShortcutCounterToYield } = craftService(
+    const { InputShortcutCounter } = craftService(
       { name: 'InputShortcutCounter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) => ({
         increment: () => calls.push(toValue(inputs.initialValue) + 1),
       }),
     );
 
-    const { injectInputShortcutCounterConsumer } = craftService(
+    const { InputShortcutCounterConsumer } = craftService(
       { name: 'InputShortcutCounterConsumer', scope: 'global' },
       function* () {
-        const increment = yield* InputShortcutCounterToYield.increment({
+        const increment = yield* InputShortcutCounter.increment({
           initialValue: signal(10),
         });
 
         expectTypeOf(increment).toEqualTypeOf<
-          GetServiceOutput<typeof InputShortcutCounterToYield>['increment']
+          GetServiceOutput<typeof InputShortcutCounter>['increment']
         >();
 
         return {
@@ -1585,7 +1583,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const consumer = injectInputShortcutCounterConsumer();
+      const consumer = InputShortcutCounterConsumer();
 
       consumer.increment();
 
@@ -1601,7 +1599,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 
     const users = signal<User[]>([{ id: '1', name: 'Romain' }]);
 
-    const { injectSinglePropertyShortcutInjectApi } = craftService(
+    const { SinglePropertyShortcutInjectApi } = craftService(
       { name: 'SinglePropertyShortcutInjectApi', scope: 'global' },
       () => ({
         users,
@@ -1617,11 +1615,11 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     expect(
-      getServiceMetaData(injectSinglePropertyShortcutInjectApi.updateItem).name,
+      getServiceMetaData(SinglePropertyShortcutInjectApi.updateItem).name,
     ).toBe('SinglePropertyShortcutInjectApi');
 
-    type ShortcutDependencies = GetInjectedServiceDependencies<
-      typeof injectSinglePropertyShortcutInjectApi.updateItem
+    type ShortcutDependencies = GetServiceDependencies<
+      typeof SinglePropertyShortcutInjectApi.updateItem
     >;
 
     expectTypeOf<ShortcutDependencies>().toEqualTypeOf<{
@@ -1631,22 +1629,22 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       dependencies: {};
       derivedPropertiesUsed: {
         updateItem: GetServiceOutput<
-          typeof injectSinglePropertyShortcutInjectApi
+          typeof SinglePropertyShortcutInjectApi
         >['updateItem'];
       };
       derivedPropertiesExposed: {
         updateItem: GetServiceOutput<
-          typeof injectSinglePropertyShortcutInjectApi
+          typeof SinglePropertyShortcutInjectApi
         >['updateItem'];
       };
     }>();
 
     await TestBed.runInInjectionContext(async () => {
-      const updateItem = injectSinglePropertyShortcutInjectApi.updateItem();
+      const updateItem = SinglePropertyShortcutInjectApi.updateItem();
 
       expectTypeOf(updateItem).toEqualTypeOf<
         GetServiceOutput<
-          typeof injectSinglePropertyShortcutInjectApi
+          typeof SinglePropertyShortcutInjectApi
         >['updateItem']
       >();
 
@@ -1665,7 +1663,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 
     const users = signal<User[]>([{ id: '1', name: 'Romain' }]);
 
-    const { injectDirectMethodShortcutInjectApi } = craftService(
+    const { DirectMethodShortcutInjectApi } = craftService(
       { name: 'DirectMethodShortcutInjectApi', scope: 'global' },
       () => ({
         updateItem: async (updatedUser: User) => {
@@ -1679,8 +1677,8 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       }),
     );
 
-    type ShortcutDependencies = GetInjectedServiceDependencies<
-      typeof injectDirectMethodShortcutInjectApi.updateItem
+    type ShortcutDependencies = GetServiceDependencies<
+      typeof DirectMethodShortcutInjectApi.updateItem
     >;
 
     expectTypeOf<ShortcutDependencies>().toEqualTypeOf<{
@@ -1690,18 +1688,18 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       dependencies: {};
       derivedPropertiesUsed: {
         updateItem: GetServiceOutput<
-          typeof injectDirectMethodShortcutInjectApi
+          typeof DirectMethodShortcutInjectApi
         >['updateItem'];
       };
       derivedPropertiesExposed: {
         updateItem: GetServiceOutput<
-          typeof injectDirectMethodShortcutInjectApi
+          typeof DirectMethodShortcutInjectApi
         >['updateItem'];
       };
     }>();
 
     await TestBed.runInInjectionContext(async () => {
-      const result = injectDirectMethodShortcutInjectApi.updateItem({
+      const result = DirectMethodShortcutInjectApi.updateItem({
         id: '1',
         name: 'Geffrault',
       });
@@ -1709,7 +1707,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
       expectTypeOf(result).toEqualTypeOf<
         ReturnType<
           GetServiceOutput<
-            typeof injectDirectMethodShortcutInjectApi
+            typeof DirectMethodShortcutInjectApi
           >['updateItem']
         >
       >();
@@ -1722,7 +1720,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
   it('should pass bindings to inject single-property shortcuts', () => {
     const calls: number[] = [];
 
-    const { injectInputShortcutCounterInject } = craftService(
+    const { InputShortcutCounterInject } = craftService(
       { name: 'InputShortcutCounterInject', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) => ({
         increment: () => calls.push(toValue(inputs.initialValue) + 1),
@@ -1730,12 +1728,12 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const increment = injectInputShortcutCounterInject.increment({
+      const increment = InputShortcutCounterInject.increment({
         initialValue: signal(10),
       });
 
       expectTypeOf(increment).toEqualTypeOf<
-        GetServiceOutput<typeof injectInputShortcutCounterInject>['increment']
+        GetServiceOutput<typeof InputShortcutCounterInject>['increment']
       >();
 
       increment();
@@ -1747,15 +1745,15 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
   it('should enable inject nested-property shortcuts', () => {
     const isLoading = signal(false);
 
-    const { injectNestedPropShortcutService } = craftService(
+    const { NestedPropShortcutService } = craftService(
       { name: 'NestedPropShortcutService', scope: 'global' },
       () => ({
         userQuery: { isLoading, data: signal<string | null>(null) },
       }),
     );
 
-    type ShortcutDependencies = GetInjectedServiceDependencies<
-      typeof injectNestedPropShortcutService.userQuery.isLoading
+    type ShortcutDependencies = GetServiceDependencies<
+      typeof NestedPropShortcutService.userQuery.isLoading
     >;
 
     expectTypeOf<ShortcutDependencies>().toEqualTypeOf<{
@@ -1772,36 +1770,36 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     }>();
 
     TestBed.runInInjectionContext(() => {
-      const result = injectNestedPropShortcutService.userQuery.isLoading();
+      const result = NestedPropShortcutService.userQuery.isLoading();
       expectTypeOf(result).toMatchTypeOf<typeof isLoading>();
       expectTypeOf<
-        GetInjectedServiceDependencies<typeof result>
+        GetServiceDependencies<typeof result>
       >().toEqualTypeOf<ShortcutDependencies>();
       expect(result).toBe(isLoading);
     });
   });
 
-  it('should enable ToYield nested-property shortcuts', () => {
+  it('should enable  nested-property shortcuts', () => {
     const isLoading = signal(false);
 
-    const { NestedPropApiToYield } = craftService(
+    const { NestedPropApi } = craftService(
       { name: 'NestedPropApi', scope: 'global' },
       () => ({
         userQuery: { isLoading, data: signal<string | null>(null) },
       }),
     );
 
-    const { injectNestedPropConsumer } = craftService(
+    const { NestedPropConsumer } = craftService(
       { name: 'NestedPropConsumer', scope: 'global' },
       function* () {
-        const loadingSignal = yield* NestedPropApiToYield.userQuery.isLoading();
+        const loadingSignal = yield* NestedPropApi.userQuery.isLoading();
         expectTypeOf(loadingSignal).toEqualTypeOf<typeof isLoading>();
         return { isLoading: loadingSignal };
       },
     );
 
-    type ConsumerDependencies = GetInjectedServiceDependencies<
-      typeof injectNestedPropConsumer
+    type ConsumerDependencies = GetServiceDependencies<
+      typeof NestedPropConsumer
     >;
 
     expectTypeOf<ConsumerDependencies>().toEqualTypeOf<{
@@ -1825,13 +1823,13 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     }>();
 
     TestBed.runInInjectionContext(() => {
-      const consumer = injectNestedPropConsumer();
+      const consumer = NestedPropConsumer();
       expect(consumer.isLoading).toBe(isLoading);
     });
   });
 
   it('should require OmitInputs for no-arg property shortcuts when service has public inputs', () => {
-    const { injectOmitInputsInjectCounter } = craftService(
+    const { OmitInputsInjectCounter } = craftService(
       { name: 'OmitInputsInjectCounter', scope: 'function' },
       (inputs: { initialValue?: MaybeSignal<number> }) => ({
         count: toValue(inputs.initialValue) ?? 0,
@@ -1839,43 +1837,43 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const count = injectOmitInputsInjectCounter.OmitInputs.count();
+      const count = OmitInputsInjectCounter.OmitInputs.count();
       expectTypeOf(count).toEqualTypeOf<number>();
       expect(count).toBe(0);
 
-      const countWithBindings = injectOmitInputsInjectCounter.count({
+      const countWithBindings = OmitInputsInjectCounter.count({
         initialValue: signal(5),
       });
       expectTypeOf(countWithBindings).toEqualTypeOf<number>();
       expect(countWithBindings).toBe(5);
 
       // @ts-expect-error: no-arg without OmitInputs is a type error
-      injectOmitInputsInjectCounter.count();
+      OmitInputsInjectCounter.count();
     });
   });
 
-  it('should require OmitInputs for no-arg property shortcuts when ToYield service has public inputs', () => {
-    const { OmitInputsYieldCounterToYield } = craftService(
+  it('should require OmitInputs for no-arg property shortcuts when  service has public inputs', () => {
+    const { OmitInputsYieldCounter } = craftService(
       { name: 'OmitInputsYieldCounter', scope: 'function' },
       (inputs: { initialValue?: MaybeSignal<number> }) => ({
         count: toValue(inputs.initialValue) ?? 0,
       }),
     );
 
-    const { injectOmitInputsYieldConsumer } = craftService(
+    const { OmitInputsYieldConsumer } = craftService(
       { name: 'OmitInputsYieldConsumer', scope: 'global' },
       function* () {
-        const count = yield* OmitInputsYieldCounterToYield.OmitInputs.count();
+        const count = yield* OmitInputsYieldCounter.OmitInputs.count();
         expectTypeOf(count).toEqualTypeOf<number>();
         return { count };
       },
     );
 
     // @ts-expect-error: no-arg without OmitInputs is a type error
-    OmitInputsYieldCounterToYield.count();
+    OmitInputsYieldCounter.count();
 
     TestBed.runInInjectionContext(() => {
-      const consumer = injectOmitInputsYieldConsumer();
+      const consumer = OmitInputsYieldConsumer();
       expect(consumer.count).toBe(0);
     });
   });
@@ -1883,7 +1881,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
   it('should enable combined OmitInputs and nested shortcuts', () => {
     const isLoading = signal(true);
 
-    const { injectOmitInputsNestedService } = craftService(
+    const { OmitInputsNestedService } = craftService(
       { name: 'OmitInputsNestedService', scope: 'function' },
       (inputs: { userId?: string }) => ({
         userQuery: {
@@ -1895,14 +1893,14 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 
     TestBed.runInInjectionContext(() => {
       const result =
-        injectOmitInputsNestedService.OmitInputs.userQuery.isLoading();
+        OmitInputsNestedService.OmitInputs.userQuery.isLoading();
       expectTypeOf(result).toMatchTypeOf<typeof isLoading>();
       expect(result).toBe(isLoading);
     });
   });
 
-  it('should not keep the root callable implicitly when using CounterToYield without $self', () => {
-    const { CounterToYield } = craftService(
+  it('should not keep the root callable implicitly when using Counter without $self', () => {
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -1911,10 +1909,10 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        const partialCounter = yield* CounterToYield(
+        const partialCounter = yield* Counter(
           {
             initialValue: signal(10),
           },
@@ -1931,7 +1929,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterHandler = injectCounterExtended();
+      const counterHandler = CounterExtended();
 
       expect('decrement' in counterHandler).toBe(false);
       expect('incrementCounter' in counterHandler).toBe(true);
@@ -1943,8 +1941,8 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
-  it('should enable to explicitly re-expose the root callable when using CounterToYield', () => {
-    const { CounterToYield } = craftService(
+  it('should enable to explicitly re-expose the root callable when using Counter', () => {
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -1953,10 +1951,10 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        return yield* CounterToYield(
+        return yield* Counter(
           {
             initialValue: signal(10),
           },
@@ -1969,7 +1967,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterHandler = injectCounterExtended();
+      const counterHandler = CounterExtended();
 
       //@ts-expect-error $self should not be accessible because it is merged back at the root
       expect(counterHandler.$self).toBeUndefined();
@@ -1981,10 +1979,10 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     });
   });
 
-  it('should enable to track hidden root callable dependencies from ServiceToYield', () => {
+  it('should enable to track hidden root callable dependencies from Service', () => {
     const triggerDecrementObservable = new Subject<void>();
 
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -1993,10 +1991,10 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'global' },
       function* () {
-        return yield* CounterToYield(
+        return yield* Counter(
           {
             initialValue: signal(10),
           },
@@ -2019,7 +2017,7 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterHandler = injectCounterExtended();
+      const counterHandler = CounterExtended();
 
       expect(counterHandler()).toBe(10);
       counterHandler.incrementCounter();
@@ -2031,8 +2029,8 @@ describe('injectService/ServiceToYield should expose an optional parameter that 
 });
 
 describe('typing can track all dependencies (direct and child dependencies)', () => {
-  it('should enable to track injectCounter global scope', () => {
-    const { injectCounter } = craftService(
+  it('should enable to track Counter global scope', () => {
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -2041,8 +2039,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         })),
     );
 
-    type CounterDependencies = GetInjectedServiceDependencies<
-      typeof injectCounter
+    type CounterDependencies = GetServiceDependencies<
+      typeof Counter
     >;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
@@ -2053,8 +2051,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     }>();
   });
 
-  it('should enable to track injectCounter scope', () => {
-    const { injectCounter } = craftService(
+  it('should enable to track Counter scope', () => {
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -2063,8 +2061,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         })),
     );
 
-    type CounterDependencies = GetInjectedServiceDependencies<
-      typeof injectCounter
+    type CounterDependencies = GetServiceDependencies<
+      typeof Counter
     >;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
@@ -2076,7 +2074,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
   });
 
   it('should preserve browserBoundary on a dependency node', () => {
-    const { BrowserStorageToYield } = craftService(
+    const { BrowserStorage } = craftService(
       {
         name: 'BrowserStorage',
         scope: 'global',
@@ -2087,10 +2085,10 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       }),
     );
 
-    const { injectStorageConsumer } = craftService(
+    const { StorageConsumer } = craftService(
       { name: 'StorageConsumer', scope: 'global' },
       function* () {
-        const storage = yield* BrowserStorageToYield();
+        const storage = yield* BrowserStorage();
 
         return {
           read: () => storage.read(),
@@ -2098,8 +2096,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       },
     );
 
-    type StorageConsumerDependencies = GetInjectedServiceDependencies<
-      typeof injectStorageConsumer
+    type StorageConsumerDependencies = GetServiceDependencies<
+      typeof StorageConsumer
     >;
 
     expectTypeOf<StorageConsumerDependencies>().toEqualTypeOf<{
@@ -2117,8 +2115,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     }>();
   });
 
-  it('should enable to track injectCounterExtended dependencies', () => {
-    const { CounterToYield } = craftService(
+  it('should enable to track CounterExtended dependencies', () => {
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -2127,10 +2125,10 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
-        const partialCounter = yield* CounterToYield({
+        const partialCounter = yield* Counter({
           initialValue: signal(10),
         });
 
@@ -2138,8 +2136,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       },
     );
 
-    type CounterDependencies = GetInjectedServiceDependencies<
-      typeof injectCounterExtended
+    type CounterDependencies = GetServiceDependencies<
+      typeof CounterExtended
     >;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
@@ -2157,8 +2155,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     }>();
   });
 
-  it('should enable to track dependencies of a ServiceToYield', () => {
-    const { ManuallyProvidedAtRoot1ToYield } = craftService(
+  it('should enable to track dependencies of a Service', () => {
+    const { ManuallyProvidedAtRoot1 } = craftService(
       { name: 'ManuallyProvidedAtRoot1', scope: 'manuallyProvidedAtRoot' },
       () =>
         state(0, ({ update }) => ({
@@ -2167,10 +2165,10 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         })),
     );
 
-    type ManuallyProvidedAtRoot1ToYieldDependencies =
-      GetToYieldServiceDependencies<typeof ManuallyProvidedAtRoot1ToYield>;
+    type ManuallyProvidedAtRoot1Dependencies =
+      GetServiceDependencies<typeof ManuallyProvidedAtRoot1>;
 
-    expectTypeOf<ManuallyProvidedAtRoot1ToYieldDependencies>().toEqualTypeOf<{
+    expectTypeOf<ManuallyProvidedAtRoot1Dependencies>().toEqualTypeOf<{
       scope: 'manuallyProvidedAtRoot';
       browserBoundary: false;
       appStart: false;
@@ -2178,8 +2176,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     }>();
   });
 
-  it('should enable to track child dependencies of injectCounterExtended', () => {
-    const { ManuallyProvidedAtRoot1ToYield } = craftService(
+  it('should enable to track child dependencies of CounterExtended', () => {
+    const { ManuallyProvidedAtRoot1 } = craftService(
       { name: 'ManuallyProvidedAtRoot1', scope: 'manuallyProvidedAtRoot' },
       () =>
         state(0, ({ update }) => ({
@@ -2188,7 +2186,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         })),
     );
 
-    const { ManuallyProvidedAtRoot2ToYield } = craftService(
+    const { ManuallyProvidedAtRoot2 } = craftService(
       { name: 'ManuallyProvidedAtRoot2', scope: 'manuallyProvidedAtRoot' },
       () =>
         state(100, ({ update }) => ({
@@ -2197,7 +2195,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         })),
     );
 
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -2206,12 +2204,12 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
-        const manuallyProvidedAtRoot1 = yield* ManuallyProvidedAtRoot1ToYield();
-        const manuallyProvidedAtRoot2 = yield* ManuallyProvidedAtRoot2ToYield();
-        const partialCounter = yield* CounterToYield({
+        const manuallyProvidedAtRoot1 = yield* ManuallyProvidedAtRoot1();
+        const manuallyProvidedAtRoot2 = yield* ManuallyProvidedAtRoot2();
+        const partialCounter = yield* Counter({
           initialValue: signal(10),
         });
 
@@ -2223,8 +2221,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       },
     );
 
-    type CounterExtendedDependencies = GetInjectedServiceDependencies<
-      typeof injectCounterExtended
+    type CounterExtendedDependencies = GetServiceDependencies<
+      typeof CounterExtended
     >;
 
     expectTypeOf<CounterExtendedDependencies>().toEqualTypeOf<{
@@ -2257,8 +2255,8 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
 
 describe('typing can track all derived dependencies (only the properties that are derived/used) for direct and child dependencies', () => {
   // todo simuler un composant/directive pour le inject?
-  it('should enable to track injectCounter global scope', () => {
-    const { injectCounter } = craftService(
+  it('should enable to track Counter global scope', () => {
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -2267,8 +2265,8 @@ describe('typing can track all derived dependencies (only the properties that ar
         })),
     );
 
-    type CounterDependencies = GetInjectedServiceDependencies<
-      typeof injectCounter
+    type CounterDependencies = GetServiceDependencies<
+      typeof Counter
     >;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
@@ -2279,8 +2277,8 @@ describe('typing can track all derived dependencies (only the properties that ar
     }>();
   });
 
-  it('should enable to track derived properties from CounterToYield dependency (without internal reactions)', () => {
-    const { CounterToYield } = craftService(
+  it('should enable to track derived properties from Counter dependency (without internal reactions)', () => {
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -2289,10 +2287,10 @@ describe('typing can track all derived dependencies (only the properties that ar
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
-        const partialCounter = yield* CounterToYield(
+        const partialCounter = yield* Counter(
           {
             initialValue: signal(10),
           },
@@ -2306,8 +2304,8 @@ describe('typing can track all derived dependencies (only the properties that ar
       },
     );
 
-    type CounterDependencies = GetInjectedServiceDependencies<
-      typeof injectCounterExtended
+    type CounterDependencies = GetServiceDependencies<
+      typeof CounterExtended
     >;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
@@ -2321,13 +2319,13 @@ describe('typing can track all derived dependencies (only the properties that ar
           appStart: false;
           dependencies: {};
           derivedPropertiesUsed: {
-            $self: GetServiceOutput<typeof CounterToYield>;
-            increment: GetServiceOutput<typeof CounterToYield>['increment'];
+            $self: GetServiceOutput<typeof Counter>;
+            increment: GetServiceOutput<typeof Counter>['increment'];
           };
           derivedPropertiesExposed: {
-            $self: GetServiceOutput<typeof CounterToYield>;
+            $self: GetServiceOutput<typeof Counter>;
             incrementCounter: GetServiceOutput<
-              typeof CounterToYield
+              typeof Counter
             >['increment'];
           };
         };
@@ -2335,9 +2333,9 @@ describe('typing can track all derived dependencies (only the properties that ar
     }>();
   });
 
-  it('should enable to track derived properties from CounterToYield dependency (with internal reactions)', () => {
+  it('should enable to track derived properties from Counter dependency (with internal reactions)', () => {
     const triggerDecrementObservable = new Subject<void>();
-    const { CounterToYield } = craftService(
+    const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       (inputs: { initialValue: MaybeSignal<number> }) =>
         state(toValue(inputs.initialValue), ({ update }) => ({
@@ -2346,10 +2344,10 @@ describe('typing can track all derived dependencies (only the properties that ar
         })),
     );
 
-    const { injectCounterExtended } = craftService(
+    const { CounterExtended } = craftService(
       { name: 'CounterExtended', scope: 'toProvide' },
       function* () {
-        const partialCounter = yield* CounterToYield(
+        const partialCounter = yield* Counter(
           {
             initialValue: signal(10),
           },
@@ -2373,8 +2371,8 @@ describe('typing can track all derived dependencies (only the properties that ar
       },
     );
 
-    type CounterDependencies = GetInjectedServiceDependencies<
-      typeof injectCounterExtended
+    type CounterDependencies = GetServiceDependencies<
+      typeof CounterExtended
     >;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
@@ -2388,14 +2386,14 @@ describe('typing can track all derived dependencies (only the properties that ar
           appStart: false;
           dependencies: {};
           derivedPropertiesUsed: {
-            $self: GetServiceOutput<typeof CounterToYield>;
-            increment: GetServiceOutput<typeof CounterToYield>['increment'];
-            decrement: GetServiceOutput<typeof CounterToYield>['decrement'];
+            $self: GetServiceOutput<typeof Counter>;
+            increment: GetServiceOutput<typeof Counter>['increment'];
+            decrement: GetServiceOutput<typeof Counter>['decrement'];
           };
           derivedPropertiesExposed: {
-            $self: GetServiceOutput<typeof CounterToYield>;
+            $self: GetServiceOutput<typeof Counter>;
             incrementCounter: GetServiceOutput<
-              typeof CounterToYield
+              typeof Counter
             >['increment'];
           };
         };
@@ -2414,7 +2412,7 @@ describe('craftService — providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    const { injectTrackedService } = craftService(
+    const { TrackedService } = craftService(
       {
         name: 'TrackedService',
         scope: 'global',
@@ -2431,7 +2429,7 @@ describe('craftService — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      injectTrackedService();
+      TrackedService();
       expect(callLog).toEqual(['service-factory']);
     });
   });
@@ -2445,7 +2443,7 @@ describe('craftService — providers', () => {
       ).apply(thisArg as object, args);
     };
 
-    const { injectSiblingA } = craftService(
+    const { SiblingA } = craftService(
       {
         name: 'SiblingA',
         scope: 'global',
@@ -2460,7 +2458,7 @@ describe('craftService — providers', () => {
         return { value: () => 1 };
       },
     );
-    const { injectSiblingB } = craftService(
+    const { SiblingB } = craftService(
       { name: 'SiblingB', scope: 'global' },
       function* () {
         return { value: () => 2 };
@@ -2468,10 +2466,10 @@ describe('craftService — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      injectSiblingB();
+      SiblingB();
       expect(callLog).toEqual([]);
 
-      injectSiblingA();
+      SiblingA();
       expect(callLog).toEqual(['called']);
     });
   });
@@ -2495,6 +2493,6 @@ describe.todo('enable inject options'); // handle optional params to expose....
 // todo later queryparams, penser à des Symbol qui force à faire des merges, et pas à spread pour qu'on puisse les garder et les concaténer ?
 
 // todo later injectService.explicit + eslint pour connaître toutes les deps d'une injection déclarative ?
-// readonly counter = injectCounter.explicit({initialValueRef: this.initialValue}, ({initialValueRef}) => ({ inputs:  {initialValue: initialValueRef}}})); // with a type that force to handle all the deps, and if a new dep is added in the craftService, it will throw an error until it's handled in the explicit call
+// readonly counter = Counter.explicit({initialValueRef: this.initialValue}, ({initialValueRef}) => ({ inputs:  {initialValue: initialValueRef}}})); // with a type that force to handle all the deps, and if a new dep is added in the craftService, it will throw an error until it's handled in the explicit call
 
 // todo later with option like skipHost/optional

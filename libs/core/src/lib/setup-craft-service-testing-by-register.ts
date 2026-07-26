@@ -16,7 +16,7 @@ import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
 import type {
   BrandedServiceProvider,
   CraftServiceProvider,
-  GetInjectedServiceDependencies,
+  GetServiceDependencies,
   GetMergedServiceDependencyNodeMap,
   GetServiceReferenceMeta,
   GetServiceReferenceOutput,
@@ -104,7 +104,7 @@ type GetServiceDependenciesTree<Target extends ServiceReference> =
     boolean
   >
     ? Dependencies
-    : GetInjectedServiceDependencies<Target>;
+    : GetServiceDependencies<Target>;
 
 type RootServiceName<Target extends ServiceReference> = Extract<
   GetServiceReferenceMeta<Target>['name'],
@@ -1703,7 +1703,7 @@ function isObservableLike(value: unknown): value is {
  * @example
  * ```ts
  * const { sut, mocks } = await setupCraftServiceTestingByRegister(
- *   injectCounterConsumer,
+ *   CounterConsumer,
  *   {
  *     CounterConsumer: provideCounterConsumer(),
  *     Counter: {

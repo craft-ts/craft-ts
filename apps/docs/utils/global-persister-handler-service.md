@@ -4,7 +4,7 @@ A global craftService for managing cache persistence operations in @craft-ng.
 
 ## Overview
 
-`GlobalPersisterHandlerService` is exposed through the generated `injectGlobalPersisterHandlerService()` helper. It provides a centralized way to clear all cached data stored in `localStorage` by `@craft-ng`.
+`GlobalPersisterHandlerService` is exposed through the generated `GlobalPersisterHandlerService()` helper. It provides a centralized way to clear all cached data stored in `localStorage` by `@craft-ng`.
 
 This helper is useful when you need to completely remove persisted queries, mutations, and related cached data, for example during logout or when switching accounts.
 
@@ -13,7 +13,7 @@ This helper is useful when you need to completely remove persisted queries, muta
 The helper is automatically available when you install `@craft-ng/core`:
 
 ```typescript
-import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
+import { GlobalPersisterHandlerService } from '@craft-ng/core';
 ```
 
 ## How it works
@@ -30,81 +30,48 @@ The underlying global `craftService` scans all keys in `localStorage` and remove
 ### Clearing cache on user logout
 
 ```typescript
-import { Component, inject } from '@angular/core';
-import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
-import { Router } from '@angular/router';
+import { craftService, GlobalPersisterHandlerService } from '@craft-ng/core';
 
-@Component({
-  selector: 'app-header',
-  template: ` <button (click)="logout()">Logout</button> `,
-})
-export class HeaderComponent {
-  private readonly persisterHandler = injectGlobalPersisterHandlerService();
-  private readonly router = inject(Router);
+const { LogoutHandler } = craftService(
+  { name: 'LogoutHandler', scope: 'global' },
+  function* () {
+    const persister = yield* GlobalPersisterHandlerService();
 
-  logout() {
-    this.persisterHandler.clearAllCache();
-    localStorage.removeItem('auth_token');
-    this.router.navigate(['/login']);
-  }
-}
+    return {
+      logout: () => persister.clearAllCache(),
+    };
+  },
+);
 ```
 
 ### Force refresh all data
 
 ```typescript
-import { Component } from '@angular/core';
-import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
-
-@Component({
-  selector: 'app-settings',
-  template: ` <button (click)="clearCache()">Clear Cache & Refresh</button> `,
-})
-export class SettingsComponent {
-  private readonly persisterHandler = injectGlobalPersisterHandlerService();
-
-  clearCache() {
-    this.persisterHandler.clearAllCache();
-    window.location.reload();
-  }
-}
+const { CacheActions } = craftService(
+  { name: 'CacheActions', scope: 'global' },
+  function* () {
+    const persister = yield* GlobalPersisterHandlerService();
+    return { clearCache: () => persister.clearAllCache() };
+  },
+);
 ```
 
 ### Clear cache when switching accounts
 
 ```typescript
-import { Component } from '@angular/core';
-import { injectGlobalPersisterHandlerService } from '@craft-ng/core';
-
-@Component({
-  selector: 'app-account-switcher',
-  template: `
-    <select (change)="switchAccount($event)">
-      <option *ngFor="let account of accounts" [value]="account.id">
-        {{ account.name }}
-      </option>
-    </select>
-  `,
-})
-export class AccountSwitcherComponent {
-  private readonly persisterHandler = injectGlobalPersisterHandlerService();
-
-  accounts = [
-    { id: 1, name: 'Personal Account' },
-    { id: 2, name: 'Work Account' },
-  ];
-
-  switchAccount(event: Event) {
-    const accountId = (event.target as HTMLSelectElement).value;
-
-    this.persisterHandler.clearAllCache();
-    this.loadAccount(accountId);
-  }
-
-  loadAccount(accountId: string) {
-    // Implementation...
-  }
-}
+const { AccountSwitcher } = craftService(
+  { name: 'AccountSwitcher', scope: 'global' },
+  function* () {
+    const persister = yield* GlobalPersisterHandlerService();
+    return {
+      switchAccount: (accountId: string) => {
+        persister.clearAllCache();
+        // Load the selected account...
+        return accountId;
+      },
+    };
+  },
+);
 ```
 
 ## Use Cases
