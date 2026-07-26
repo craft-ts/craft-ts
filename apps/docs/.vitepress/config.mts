@@ -97,7 +97,7 @@ export default defineConfig({
             link: '/component/directives',
           },
           {
-            text: 'Personnaliser composants et directives',
+            text: 'Customize components and directives',
             link: '/component/customization',
           },
           {

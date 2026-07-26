@@ -1,13 +1,12 @@
-# Personnaliser les composants et les directives
+# Customizing components and directives
 
-Craft sépare la personnalisation du composant en trois niveaux : les
-propriétés de l’élément racine, les styles encapsulés et les directives
-composables.
+Craft separates component customization into three layers: root-element
+properties, encapsulated styles, and composable directives.
 
-## Personnaliser l’élément racine
+## Customizing the root element
 
-Les propriétés `host` de la meta définissent les valeurs par défaut de
-l’élément racine du composant. Le caller peut les compléter ou les remplacer :
+The component meta `host` properties define defaults for the component’s root
+element. The caller can extend or override them:
 
 ```ts
 const Card = craftComponent(
@@ -28,11 +27,10 @@ Card({
 });
 ```
 
-Les classes, attributs, styles et événements reconnus comme propriétés d’hôte
-sont appliqués sur la racine du composant. Les autres propriétés restent des
-props de la factory.
+Classes, attributes, styles, and events recognized as host properties are
+applied to the component root. Other properties remain factory props.
 
-Les valeurs peuvent être réactives :
+Values can be reactive:
 
 ```ts
 const active = state(false, ({ set }) => ({ set }));
@@ -43,10 +41,10 @@ Card({
 });
 ```
 
-## Personnaliser avec les styles
+## Customizing with styles
 
-Les styles déclarés dans `meta.styles` sont partagés entre les instances et
-encapsulés avec `@scope`. La racine du template s’écrit `:scope` :
+Styles declared in `meta.styles` are shared across instances and encapsulated
+with `@scope`. The template root is written as `:scope`:
 
 ```ts
 const Panel = craftComponent(
@@ -63,15 +61,14 @@ const Panel = craftComponent(
 );
 ```
 
-Les styles ne fuient pas dans les composants descendants. Les règles globales
-comme `@keyframes`, `@font-face` et `@import` sont conservées hors du bloc
-scopé ; les règles `@media`, `@supports` et `@container` restent composables
-dans le scope.
+Styles do not leak into descendant components. Global rules such as
+`@keyframes`, `@font-face`, and `@import` are kept outside the scoped block;
+`@media`, `@supports`, and `@container` remain composable inside the scope.
 
-## Ajouter une personnalisation réutilisable avec une directive
+## Adding reusable customization with a directive
 
-Une directive transforme la factory et le template d’un composant. Elle est
-appliquée avec `.pipe(...)`, de gauche à droite :
+A directive transforms a component’s factory and template. It is applied from
+left to right with `.pipe(...)`:
 
 ```ts
 const Highlight = craftDirective(
@@ -86,7 +83,7 @@ const Highlight = craftDirective(
 const HighlightedPanel = Panel.pipe(Highlight);
 ```
 
-Une directive peut aussi ajouter du contexte et des props publics :
+A directive can also add context and public props:
 
 ```ts
 const WithPermission = craftDirective(
@@ -103,43 +100,40 @@ const WithPermission = craftDirective(
 const EditablePanel = Panel.pipe(WithPermission);
 ```
 
-Les styles d’une directive sont enregistrés dans le scope du composant qui la
-porte. Une même directive utilisée par plusieurs composants reste donc
-composable sans introduire de wrapper HTML.
+Directive styles are registered in the scope of the component that owns them.
+The same directive can therefore be reused by several components without
+introducing an HTML wrapper.
 
-## Ce que Craft gère directement
+## What Craft handles directly
 
-Craft prend en charge des compositions qui ne correspondent pas à une
-propriété native d’un composant ou d’une directive Angular standard :
+Craft supports compositions that are not native properties of a standard
+Angular component or directive:
 
-- une directive Craft peut déclarer `meta.styles` et contribuer à la feuille
-  de styles du composant qui l’utilise ; Angular associe les styles à un
-  composant, pas à une directive `@Directive` ;
-- les styles d’une directive restent encapsulés avec `@scope`, sans réécrire
-  les sélecteurs et sans ajouter de wrapper ;
-- plusieurs directives peuvent composer leur logique, leur template, leurs
-  classes d’hôte et leurs styles avec `.pipe(...)` ;
-- les styles sont dédupliqués et refcomptés entre les instances, puis retirés
-  lorsque la dernière instance disparaît.
+- a Craft directive can declare `meta.styles` and contribute to the stylesheet
+  of the component using it; Angular associates styles with a component, not
+  with an `@Directive`;
+- directive styles remain encapsulated with `@scope`, without rewriting
+  selectors or adding a wrapper;
+- multiple directives can compose their logic, template, host classes, and
+  styles through `.pipe(...)`;
+- styles are deduplicated and reference-counted across instances, then removed
+  when the last instance is destroyed.
 
-Avec Angular standard, ce comportement demande généralement de déplacer les
-styles dans un composant, d’ajouter manuellement des classes sur l’hôte ou de
-gérer soi-même l’injection et le nettoyage d’une feuille de styles. Craft
-conserve ces responsabilités dans le runtime de la directive.
+With standard Angular, this usually requires moving styles into a component,
+manually adding classes to the host, or managing stylesheet injection and
+cleanup yourself. Craft keeps those responsibilities in the directive runtime.
 
-## Choisir le bon niveau
+## Choosing the right level
 
-- `host` : identité, attributs, classes ou comportement de la racine ;
-- `styles` : apparence locale et réutilisable du composant ; la feuille est
-  partagée entre les instances, mais ses règles restent limitées aux racines
-  du composant ;
-- `craftDirective` : comportement ou personnalisation réutilisable entre
-  plusieurs composants ;
-- la factory : état et dépendances propres au composant.
+- `host`: identity, attributes, classes, or behavior of the root element;
+- `styles`: local, reusable component appearance; the stylesheet is shared
+  across instances, while its rules remain limited to the component roots;
+- `craftDirective`: behavior or customization reusable across components;
+- the factory: component-specific state and dependencies.
 
-### Comprendre la portée (`scope`)
+### Understanding style scope
 
-Dans `meta.styles`, `:scope` désigne chaque racine produite par le template :
+Inside `meta.styles`, `:scope` targets every root produced by the template:
 
 ```ts
 const Card = craftComponent(
@@ -156,41 +150,40 @@ const Card = craftComponent(
 );
 ```
 
-Craft pose un token interne sur les racines et génère un scope équivalent à :
+Craft puts an internal token on the roots and generates a scope equivalent to:
 
 ```css
 @scope ([data-craft-root~="Card"]) to ([data-craft-root] *) {
-  /* règles de Card */
+  /* Card rules */
 }
 ```
 
-Concrètement :
+In practice:
 
-- `:scope` cible la racine elle-même ;
-- `.title` cible les descendants de `Card` ;
-- lorsqu’un composant Craft enfant ou un composant Angular est rencontré, son
-  hôte devient une frontière : les règles du parent peuvent atteindre l’hôte,
-  mais pas le DOM interne ;
-- les éléments ordinaires ne deviennent pas des frontières et ne reçoivent pas
-  de token supplémentaire ;
-- un template qui retourne plusieurs racines donne un scope à chacune, mais ne
-  permet pas d’exprimer une relation entre racines sœurs comme `header + main` ;
-- une racine qui est directement un autre composant Craft peut porter plusieurs
-  tokens. Le composant englobant peut alors atteindre l’intérieur du composant
-  enfant : c’est une limite connue du modèle actuel.
+- `:scope` targets the root itself;
+- `.title` targets `Card` descendants;
+- when a child Craft component or Angular component is encountered, its host
+  becomes a boundary: parent rules can reach the host, but not its internal
+  DOM;
+- ordinary elements do not become boundaries and do not receive an additional
+  token;
+- a template returning multiple roots scopes each root, but cannot express a
+  relationship between sibling roots such as `header + main`;
+- a root that is directly another Craft component can carry multiple tokens.
+  The containing component can then reach into the child component: this is a
+  known limitation of the current model.
 
-La portée est structurelle, pas basée sur une réécriture des sélecteurs : les
-sélecteurs modernes comme `:is()`, `:where()`, `&` ou les règles imbriquées ne
-sont pas transformés par Craft. `@media`, `@supports` et `@container` restent
-dans le scope ; les règles qui ne peuvent pas y être imbriquées, comme
-`@keyframes`, `@font-face`, `@import` et `@namespace`, sont hoistées hors du
-bloc `@scope`.
+Scoping is structural, not based on selector rewriting: modern selectors such
+as `:is()`, `:where()`, `&`, and nested rules are not transformed by Craft.
+`@media`, `@supports`, and `@container` remain inside the scope; rules that
+cannot be nested there, such as `@keyframes`, `@font-face`, `@import`, and
+`@namespace`, are hoisted outside the `@scope` block.
 
-Les styles d’une `craftDirective` utilisent la portée du composant qui la porte,
-car une directive n’introduit pas de nœud racine distinct. Une directive peut
-donc ajouter `.highlight` ou modifier `:scope`, mais `:scope` désigne alors les
-racines du composant hôte, pas un wrapper de directive.
+Directive styles use the scope of their owning component because a directive
+does not introduce a separate root node. A directive can add `.highlight` or
+modify `:scope`, but `:scope` then refers to the host component’s roots, not to
+a directive wrapper.
 
-Les noms passés à `craftComponent` et `craftDirective` doivent être uniques et
-correspondre au nom de leur déclaration. Les règles ESLint dédiées détectent
-les noms manquants ou incohérents.
+Names passed to `craftComponent` and `craftDirective` must be unique and match
+their declaration names. The dedicated ESLint rules detect missing or
+inconsistent names.
