@@ -130,10 +130,66 @@ conserve ces responsabilités dans le runtime de la directive.
 ## Choisir le bon niveau
 
 - `host` : identité, attributs, classes ou comportement de la racine ;
-- `styles` : apparence locale et réutilisable du composant ;
+- `styles` : apparence locale et réutilisable du composant ; la feuille est
+  partagée entre les instances, mais ses règles restent limitées aux racines
+  du composant ;
 - `craftDirective` : comportement ou personnalisation réutilisable entre
   plusieurs composants ;
 - la factory : état et dépendances propres au composant.
+
+### Comprendre la portée (`scope`)
+
+Dans `meta.styles`, `:scope` désigne chaque racine produite par le template :
+
+```ts
+const Card = craftComponent(
+  'Card',
+  {
+    styles: `
+      :scope { padding: 1rem; }
+      .title { color: navy; }
+      .title strong { font-weight: 700; }
+    `,
+  },
+  () => ({}),
+  () => div([h2({ class: 'title' }, [strong('Card')])]),
+);
+```
+
+Craft pose un token interne sur les racines et génère un scope équivalent à :
+
+```css
+@scope ([data-craft-root~="Card"]) to ([data-craft-root] *) {
+  /* règles de Card */
+}
+```
+
+Concrètement :
+
+- `:scope` cible la racine elle-même ;
+- `.title` cible les descendants de `Card` ;
+- lorsqu’un composant Craft enfant ou un composant Angular est rencontré, son
+  hôte devient une frontière : les règles du parent peuvent atteindre l’hôte,
+  mais pas le DOM interne ;
+- les éléments ordinaires ne deviennent pas des frontières et ne reçoivent pas
+  de token supplémentaire ;
+- un template qui retourne plusieurs racines donne un scope à chacune, mais ne
+  permet pas d’exprimer une relation entre racines sœurs comme `header + main` ;
+- une racine qui est directement un autre composant Craft peut porter plusieurs
+  tokens. Le composant englobant peut alors atteindre l’intérieur du composant
+  enfant : c’est une limite connue du modèle actuel.
+
+La portée est structurelle, pas basée sur une réécriture des sélecteurs : les
+sélecteurs modernes comme `:is()`, `:where()`, `&` ou les règles imbriquées ne
+sont pas transformés par Craft. `@media`, `@supports` et `@container` restent
+dans le scope ; les règles qui ne peuvent pas y être imbriquées, comme
+`@keyframes`, `@font-face`, `@import` et `@namespace`, sont hoistées hors du
+bloc `@scope`.
+
+Les styles d’une `craftDirective` utilisent la portée du composant qui la porte,
+car une directive n’introduit pas de nœud racine distinct. Une directive peut
+donc ajouter `.highlight` ou modifier `:scope`, mais `:scope` désigne alors les
+racines du composant hôte, pas un wrapper de directive.
 
 Les noms passés à `craftComponent` et `craftDirective` doivent être uniques et
 correspondre au nom de leur déclaration. Les règles ESLint dédiées détectent
