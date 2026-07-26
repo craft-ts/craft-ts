@@ -84,14 +84,17 @@ export const {
       ),
       // The route DECLARES the shared-element payload shape (mirrors how
       // `queryParams` declares query-params shape): every link/navigation must pass
-      // `viewTransition: { name; image } | null`, and the skeleton reads it via the
-      // generated `injectViewTransitionsPhotoIdViewTransition()` helper.
+      // `viewTransition: { name; image } | null`; the skeleton reads the
+      // shared payload from the Craft view-transition injection token.
       withLoaderViewTransitionImage: viewTransitionPayload<{
         name: string;
         image: string | null;
       }>(),
       pendingComponent: CraftPendingComponentHost,
-      canActivate: function* () {
+      // `resolve` is intentionally handled by CraftRouterOutlet after the URL
+      // commits. A slow Angular `canActivate` would block route activation and
+      // leave the pending component with no outlet to render into.
+      resolve: function* () {
         return yield* slowDetailGuard();
       },
     },

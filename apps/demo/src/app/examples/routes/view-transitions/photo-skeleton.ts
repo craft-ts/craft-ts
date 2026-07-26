@@ -1,3 +1,4 @@
+import type { Signal } from '@angular/core';
 import {
   article,
   craftComponent,
@@ -6,7 +7,11 @@ import {
   span,
   type Input,
 } from '@craft-ng/component';
-import { componentMonitoring, provideHostName } from '@craft-ng/core';
+import {
+  componentMonitoring,
+  injectCraftViewTransition,
+  provideHostName,
+} from '@craft-ng/core';
 import { findPhoto } from './photos';
 
 type TransitionPayload = {
@@ -24,13 +29,19 @@ const ViewTransitionsSkeletonComponent = craftComponent(
       @media(min-width:720px){.vt-detail{grid-template-columns:minmax(0,380px) 1fr;align-items:center}}
     `,
   },
-  (photoId: Input<string>, viewTransition: Input<TransitionPayload | null>) => {
+  (photoId: Input<string>) => {
     componentMonitoring();
+    const viewTransition = injectCraftViewTransition() as Signal<
+      TransitionPayload | null
+    >;
     return { photoId, viewTransition };
   },
   ({ photoId, viewTransition }) => {
     const photo = findPhoto(photoId());
     const image = viewTransition()?.image;
+    const heroContent = image
+      ? img({ class: 'vt-hero-image', src: image, alt: '' })
+      : span({ class: 'vt-emoji' }, photo?.emoji ?? '');
     return [
       span('← Back to gallery'),
       article({ class: 'vt-detail' }, [
@@ -42,9 +53,7 @@ const ViewTransitionsSkeletonComponent = craftComponent(
               viewTransitionName: `photo-${photoId()}`,
             },
           },
-          image
-            ? img({ class: 'vt-hero-image', src: image, alt: '' })
-            : span({ class: 'vt-emoji' }, photo?.emoji ?? ''),
+          [heroContent],
         ),
         div({ class: 'vt-body' }, [
           span({ class: 'vt-bar' }),

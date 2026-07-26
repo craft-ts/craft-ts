@@ -68,20 +68,24 @@ type PrimitiveElementProps<Element> = {
     | YieldableRenderCallback<Element[Key]>;
 };
 
+type ElementPropsContext<Tag extends keyof HTMLElementTagNameMap> =
+  DomEvents &
+  OnDomEvents & {
+    readonly class?: ClassValue;
+    readonly style?: StyleValue;
+    readonly attrs?: Readonly<
+      Record<string, string | number | boolean | null>
+    >;
+    readonly directives?: readonly AngularDirectiveNode[];
+    readonly [dataAttribute: `data-${string}`]: unknown;
+    readonly [ariaAttribute: `aria-${string}`]: unknown;
+  };
+
 export type ElementProps<Tag extends keyof HTMLElementTagNameMap> =
   PrimitiveElementProps<HTMLElementTagNameMap[Tag]> &
-    DomEvents &
-    OnDomEvents & {
-      readonly class?: ClassValue;
-      readonly style?: StyleValue;
-      readonly attrs?: Readonly<
-        Record<string, string | number | boolean | null>
-      >;
-      readonly directives?: readonly AngularDirectiveNode[];
-      readonly [property: string]: unknown;
-      readonly [dataAttribute: `data-${string}`]: unknown;
-      readonly [ariaAttribute: `aria-${string}`]: unknown;
-    };
+  ElementPropsContext<Tag> & {
+    readonly [property: string]: unknown;
+  };
 
 function looksLikeChildren(value: unknown): boolean {
   return (
@@ -97,13 +101,13 @@ type HChildren<
   Tag extends keyof HTMLElementTagNameMap,
   PropsOrChildren,
   MaybeChildren,
-> = (PropsOrChildren extends ElementProps<Tag>
+> = (PropsOrChildren extends ElementPropsContext<Tag>
   ? MaybeChildren
   : PropsOrChildren) &
   CraftNodeChildren;
 
 type HProps<PropsOrChildren> = PropsOrChildren extends object
-  ? PropsOrChildren extends ElementProps<any>
+  ? PropsOrChildren extends ElementPropsContext<any>
     ? PropsOrChildren
     : Readonly<Record<never, never>>
   : Readonly<Record<never, never>>;
@@ -111,7 +115,7 @@ type HProps<PropsOrChildren> = PropsOrChildren extends object
 export function h<
   Tag extends keyof HTMLElementTagNameMap,
   PropsOrChildren extends
-    | ElementProps<Tag>
+    | ElementPropsContext<Tag>
     | CraftNodeChildren = CraftNodeChildren,
   MaybeChildren extends CraftNodeChildren = CraftNodeChildren,
 >(
@@ -157,21 +161,28 @@ export function h<
 export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
   <Children extends CraftNodeChildren = CraftNodeChildren>(
     children?: Children & CraftNodeChildren,
-  ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, {}, Children>;
-  <
-    Props extends ElementProps<Tag>,
-    Children extends CraftNodeChildren = CraftNodeChildren,
-  >(
-    props: Props | null,
+  ): ElementNode<
+    CraftNodeChildrenDependencies<Children>,
+    Tag,
+    {},
+    Children
+  >;
+  <Props extends object, Children extends CraftNodeChildren = CraftNodeChildren>(
+    props: (Props & ElementPropsContext<Tag>) | null,
     children?: Children & CraftNodeChildren,
-  ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, Props, Children>;
+  ): ElementNode<
+    CraftNodeChildrenDependencies<Children>,
+    Tag,
+    Props,
+    Children
+  >;
 }
 
 function tagHelper<Tag extends keyof HTMLElementTagNameMap>(
   tag: Tag,
 ): TagHelper<Tag> {
   return ((
-    propsOrChildren?: ElementProps<Tag> | CraftNodeChildren | null,
+    propsOrChildren?: ElementPropsContext<Tag> | CraftNodeChildren | null,
     children?: CraftNodeChildren,
   ) =>
     h<Tag, never, never>(

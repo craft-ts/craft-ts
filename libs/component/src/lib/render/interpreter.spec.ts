@@ -203,6 +203,34 @@ describe('functional component interpreter', () => {
     mounted.destroy();
   });
 
+  it('keeps branded methods callable from ordinary template callbacks', () => {
+    const count = signal(0);
+    const component = craftComponent(
+      'ordinaryBrandedCallback',
+      {},
+      () => ({
+        increment: craftMethod('increment', function* () {
+          count.update((value) => value + 1);
+        }),
+      }),
+      ({ increment }) =>
+        button({ click: () => void increment() }, String(count())),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    element.querySelector('button')?.click();
+    TestBed.tick();
+
+    expect(element.querySelector('button')?.textContent).toBe('1');
+    mounted.destroy();
+  });
+
   it('projects craftComputed state insertions as yieldable template properties', () => {
     const component = craftComponent(
       'yieldableComputedProperty',
@@ -235,6 +263,28 @@ describe('functional component interpreter', () => {
     expect((element.querySelector('button') as HTMLButtonElement).disabled).toBe(
       true,
     );
+    mounted.destroy();
+  });
+
+  it('projects cyclic arrays in the template context without overflowing the stack', () => {
+    const items: unknown[] = [];
+    items.push(items);
+    const component = craftComponent(
+      'cyclicTemplateContext',
+      {},
+      () => ({ items }),
+      () => p('ready'),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.textContent).toContain('ready');
     mounted.destroy();
   });
 

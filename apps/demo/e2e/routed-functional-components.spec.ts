@@ -42,3 +42,21 @@ test('updates routed functional component inputs when Angular reuses the route',
   await expect(page).toHaveURL(/\/query\/2$/);
   await expect(page.locator('main pre')).toContainText('"id": "2"');
 });
+
+test('shows the view-transition skeleton while the detail chain is pending', async ({
+  page,
+}) => {
+  await page.goto('/view-transitions');
+
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: '🗑️ Clear Cache' }).click();
+  await page.waitForLoadState('domcontentloaded');
+
+  await page.locator('a[href="/view-transitions/aurora"]').click();
+
+  await expect(page).toHaveURL(/\/view-transitions\/aurora$/);
+  await expect(page.locator('.vt-bar')).toHaveCount(3, { timeout: 1500 });
+  await expect(page.getByRole('heading', { name: 'Aurora' })).toBeVisible({
+    timeout: 4500,
+  });
+});

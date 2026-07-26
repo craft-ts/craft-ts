@@ -23,6 +23,7 @@ import {
   craftEffect,
   craftLazy,
   executeYieldable,
+  isGeneratorFunction,
   isYieldableMethod,
   toYieldable,
   type CraftServiceProvider,
@@ -67,6 +68,8 @@ interface RenderContext {
   readonly styleRoot?: Document | ShadowRoot;
   readonly styles?: CraftStyleRegistry;
 }
+
+let templateGeneratorDepth = 0;
 
 function childContext(
   context: RenderContext,
@@ -134,7 +137,13 @@ function executeTemplateCallback(
   args: any[],
   context: RenderContext,
 ): unknown {
-  return executeYieldable(callback, args, context.injector);
+  const isGeneratorCallback = isGeneratorFunction(callback);
+  if (isGeneratorCallback) templateGeneratorDepth++;
+  try {
+    return executeYieldable(callback, args, context.injector);
+  } finally {
+    if (isGeneratorCallback) templateGeneratorDepth--;
+  }
 }
 
 function resolveTemplateValue(value: unknown, context: RenderContext): unknown {
@@ -149,7 +158,11 @@ function projectYieldableTemplateContext(
 ): unknown {
   if (typeof value === 'function') {
     if (isYieldableMethod(value)) {
-      return toYieldable(value as (...args: any[]) => any);
+      return (...args: any[]) => {
+        const result = Reflect.apply(value, undefined, args);
+        if (templateGeneratorDepth === 0) return result;
+        return toYieldable(() => result)();
+      };
     }
 
     // State and resource refs are callable objects with exposed insertions
@@ -172,10 +185,11 @@ function projectYieldableTemplateContext(
   if (typeof value !== 'object' || value === null) return value;
   if (seen.has(value)) return seen.get(value);
   if (Array.isArray(value)) {
-    const result = value.map((item) =>
-      projectYieldableTemplateContext(item, seen),
-    );
+    const result: unknown[] = [];
     seen.set(value, result);
+    for (const item of value) {
+      result.push(projectYieldableTemplateContext(item, seen));
+    }
     return result;
   }
   if ('asReadonly' in value || 'set' in value || 'update' in value) {
