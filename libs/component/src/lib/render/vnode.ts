@@ -1,32 +1,81 @@
 import type { Injector, Type } from '@angular/core';
-import type { CraftComponent } from '../types';
+import type {
+  CraftComponent,
+  CraftDirectiveTemplateDependencies,
+} from '../types';
 import { isCraftDirective, type CraftDirective } from '../types';
+
+export declare const CRAFT_NODE_DEPS: unique symbol;
+
+export type CraftNodeDepsCarrier<Dependencies extends object = {}> = {
+  readonly [CRAFT_NODE_DEPS]?: Dependencies;
+};
+
+type IsAny<Value> = 0 extends 1 & Value ? true : false;
+
+type UnionToIntersection<Union> = (
+  Union extends any ? (value: Union) => void : never
+) extends (value: infer Intersection) => void
+  ? Intersection
+  : never;
+
+type CraftNodeChildrenDependenciesOf<Value> =
+  IsAny<Value> extends true
+    ? {}
+    : string extends Value
+      ? {}
+      : Value extends readonly (infer Child)[]
+        ? CraftNodeChildrenDependenciesOf<Child>
+        : Value extends object
+          ? typeof CRAFT_NODE_DEPS extends keyof Value
+            ? Value extends CraftNodeDepsCarrier<
+                infer Dependencies extends object
+              >
+              ? IsAny<Dependencies> extends true
+                ? {}
+                : Dependencies
+              : {}
+            : {}
+          : {};
+
+export type CraftNodeChildrenDependencies<Value> = {
+  [Key in keyof UnionToIntersection<
+    CraftNodeChildrenDependenciesOf<Value>
+  >]: UnionToIntersection<CraftNodeChildrenDependenciesOf<Value>>[Key];
+} & {};
 
 export type CraftTextValue = string | number | bigint | boolean;
 export type CraftTextBinding = () => CraftTextValue | null | undefined;
 
-export interface ElementNodeBase {
+export interface ElementNodeBase<Dependencies extends object = {}>
+  extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'element';
   readonly tag: keyof HTMLElementTagNameMap | string;
   readonly props: Readonly<Record<string, unknown>>;
   readonly children: CraftNodeChildren;
 }
 
-export interface ElementNode extends ElementNodeBase {
-  readonly pipe: CraftNodePipe;
+export interface ElementNode<Dependencies extends object = {}>
+  extends ElementNodeBase<Dependencies> {
+  readonly pipe: CraftNodePipe<Dependencies>;
 }
 
-export type CraftNodePipe = {
-  <Directive extends CraftDirective>(directive: Directive): CraftDirectiveNode;
+export type CraftNodePipe<Dependencies extends object = {}> = {
+  <Directive extends CraftDirective>(
+    directive: Directive,
+  ): CraftDirectiveNode<
+    Dependencies | CraftDirectiveTemplateDependencies<Directive>
+  >;
   (directive: AngularDirectiveNode): CraftNode;
   (directive: Type<unknown>): CraftNode;
 };
 
-export interface CraftDirectiveNode {
+export interface CraftDirectiveNode<Dependencies extends object = {}>
+  extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'directive';
   readonly node: CraftNode;
   readonly directives: readonly CraftDirective[];
-  readonly pipe: CraftNodePipe;
+  readonly pipe: CraftNodePipe<Dependencies>;
 }
 
 export interface TextNode {
@@ -34,9 +83,12 @@ export interface TextNode {
   readonly value: string;
 }
 
-export interface ComponentNode<Props extends object = object> {
+export interface ComponentNode<
+  Props extends object = object,
+  ComponentDeps extends object = {},
+> extends CraftNodeDepsCarrier<ComponentDeps> {
   readonly kind: 'component';
-  readonly component: CraftComponent<Props>;
+  readonly component: CraftComponent<Props, ComponentDeps>;
   readonly props: Props;
 }
 
@@ -55,7 +107,11 @@ export interface AngularComponentNode {
   readonly directives: readonly AngularDirectiveNode[];
 }
 
-export interface EachNode<Item = unknown, Key = unknown> {
+export interface EachNode<
+  Item = unknown,
+  Key = unknown,
+  Dependencies extends object = {},
+> extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'each';
   readonly source: readonly Item[] | (() => readonly Item[]);
   readonly track: (item: Item, index: number) => Key;
@@ -65,7 +121,8 @@ export interface EachNode<Item = unknown, Key = unknown> {
 
 export type DeferTrigger = 'immediate' | 'idle' | 'viewport' | 'interaction';
 
-export interface DeferNode<Loaded = unknown> {
+export interface DeferNode<Loaded = unknown, Dependencies extends object = {}>
+  extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'defer';
   readonly loader: () => Promise<Loaded>;
   readonly resolve: (loaded: Loaded) => CraftNodeChildren;
@@ -76,11 +133,11 @@ export interface DeferNode<Loaded = unknown> {
 }
 
 export type CraftNode =
-  | ElementNodeBase
+  | ElementNodeBase<any>
   | TextNode
-  | ComponentNode<any>
+  | ComponentNode<any, any>
   | AngularComponentNode
-  | CraftDirectiveNode
+  | CraftDirectiveNode<any>
   | EachNode<any, any>
   | DeferNode<any>;
 

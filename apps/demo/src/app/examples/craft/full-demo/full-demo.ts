@@ -68,7 +68,7 @@ const FullDemoCraft = craftComponent(
     return { store: yield* TodoStoreToYield() };
   },
   ({ store }) => {
-    let title = '';
+    let title = ''; // todoR bizzare
     return div([
       h2([
         'Full craftService demo ',

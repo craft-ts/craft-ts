@@ -1,8 +1,7 @@
+import type { CraftComponent, PropsOf } from './types';
+import type { ComponentDepsOf } from '@craft-ng/core';
 import type {
-  CraftComponent,
-  PropsOf,
-} from './types';
-import type {
+  CraftNodeChildrenDependencies,
   CraftNodeChildren,
   DeferNode,
   DeferTrigger,
@@ -16,21 +15,56 @@ export interface DeferOptions<Loaded> {
   readonly error?: (error: unknown) => CraftNodeChildren;
 }
 
-export function defer<Loaded>(
-  loader: () => Promise<Loaded>,
-  options: DeferOptions<Loaded> & {
+type CallbackDependencies<Callback> = Callback extends (
+  ...args: any[]
+) => infer Output
+  ? CraftNodeChildrenDependencies<Output>
+  : {};
+
+type DeferOptionsDependencies<Options> = Options extends object
+  ?
+      | CallbackDependencies<
+          Options extends { resolve?: infer Resolve } ? Resolve : never
+        >
+      | CallbackDependencies<
+          Options extends { placeholder?: infer Placeholder }
+            ? Placeholder
+            : never
+        >
+      | CallbackDependencies<
+          Options extends { loading?: infer Loading } ? Loading : never
+        >
+      | CallbackDependencies<
+          Options extends { error?: infer Error } ? Error : never
+        >
+  : {};
+
+export function defer<
+  Loaded,
+  Options extends DeferOptions<Loaded> & {
     readonly resolve: (loaded: Loaded) => CraftNodeChildren;
   },
-): DeferNode<Loaded>;
-export function defer<Component extends CraftComponent<any>>(
-  loader: () => Promise<Component>,
-  options?: Omit<DeferOptions<Component>, 'resolve'> & {
+>(
+  loader: () => Promise<Loaded>,
+  options: Options,
+): DeferNode<Loaded, DeferOptionsDependencies<Options>>;
+export function defer<
+  Component extends CraftComponent<any>,
+  Options extends Omit<DeferOptions<Component>, 'resolve'> & {
+    readonly props?: PropsOf<Component>;
+  } = Omit<DeferOptions<Component>, 'resolve'> & {
     readonly props?: PropsOf<Component>;
   },
-): DeferNode<Component>;
+>(
+  loader: () => Promise<Component>,
+  options?: Options,
+): DeferNode<
+  Component,
+  ComponentDepsOf<Component> | DeferOptionsDependencies<Options>
+>;
 export function defer<Loaded>(
   loader: () => Promise<Loaded>,
-  options: (DeferOptions<Loaded> & { readonly props?: object }) = {},
+  options: DeferOptions<Loaded> & { readonly props?: object } = {},
 ): DeferNode<Loaded> {
   const resolve =
     options.resolve ??
@@ -39,9 +73,9 @@ export function defer<Loaded>(
         return loaded as CraftNodeChildren;
       }
 
-      return (
-        loaded as unknown as (props?: object) => CraftNodeChildren
-      )(options.props);
+      return (loaded as unknown as (props?: object) => CraftNodeChildren)(
+        options.props,
+      );
     });
 
   return {

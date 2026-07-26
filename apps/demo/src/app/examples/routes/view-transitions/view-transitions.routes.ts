@@ -114,7 +114,7 @@ assertExhaustiveRouteExceptions(viewTransitionsRoutes);
 // inferred directly from the SFCs without expanding the slow guard graph.
 type _CheckViewTransitionsGalleryDI = RouteCheckedDI<
   ComponentDepsOf<(typeof import('./gallery'))['default']>,
-  never,
+  'CraftRouter',
   Router,
   'component: view-transitions gallery'
 >;
@@ -122,7 +122,7 @@ type _CanRunViewTransitionsGallery = CanRun<_CheckViewTransitionsGalleryDI>;
 
 type _CheckViewTransitionsDetailDI = RouteCheckedDI<
   ComponentDepsOf<(typeof import('./photo-detail'))['default']>,
-  never,
+  'CraftRouter',
   Router,
   'component: view-transitions/:photoId',
   'photoId'

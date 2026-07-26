@@ -3,8 +3,15 @@ import {
   type CraftDirective,
   type DirectiveMeta,
   type LogicDecorator,
+  type TemplateDependencies,
   type TemplateDecorator,
 } from './types';
+
+type DirectiveTemplateDependencies<Template> = Template extends (
+  ...args: any[]
+) => infer DecoratedTemplate
+  ? TemplateDependencies<DecoratedTemplate>
+  : {};
 
 /**
  * Decorates a Craft component's factory and template as one reusable unit.
@@ -14,16 +21,17 @@ export function craftDirective<
   const Name extends string,
   const Meta extends DirectiveMeta,
   Logic extends LogicDecorator,
-  Template extends TemplateDecorator,
+  const Template extends TemplateDecorator,
 >(
   name: Name,
   meta: Meta,
   logic: Logic,
   template: Template,
-): CraftDirective<Logic, Template> {
+): CraftDirective<Logic, Template, DirectiveTemplateDependencies<Template>> {
   const directive = (() => undefined) as unknown as CraftDirective<
     Logic,
-    Template
+    Template,
+    DirectiveTemplateDependencies<Template>
   >;
 
   const definition = { name, meta, logic, template };

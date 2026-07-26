@@ -10,6 +10,7 @@ import {
   type FactoryYielded,
   type PropsFromContext,
   type StyleOwner,
+  type TemplateDependencies,
 } from './types';
 import type { HostProps } from './hyperscript';
 import type { ComponentNode } from './render/vnode';
@@ -25,23 +26,27 @@ export function craftComponent<
   const Name extends string,
   const Meta extends ComponentMeta,
   Factory extends ComponentFactory,
+  Template extends ComponentTemplate<FactoryContext<Factory>>,
 >(
   name: Name,
   meta: Meta,
   factory: Factory,
-  template: ComponentTemplate<FactoryContext<Factory>>,
+  template: Template,
 ): CraftComponent<
   PropsFromContext<FactoryContext<Factory>>,
   CraftComponentDependencies<
     FactoryYielded<Factory>,
     FactoryContext<Factory>,
     ProvidersFromMeta<Meta>,
-    PropsFromContext<FactoryContext<Factory>>
+    PropsFromContext<FactoryContext<Factory>>,
+    TemplateDependencies<Template>
   >,
   Factory,
-  Meta
+  Meta,
+  Factory,
+  TemplateDependencies<Template>
 > {
-  return createCraftComponent({
+  return createCraftComponent<Meta, Factory, Template>({
     name,
     meta,
     factory,
@@ -54,11 +59,12 @@ export function craftComponent<
 function createCraftComponent<
   const Meta extends ComponentMeta,
   Factory extends ComponentFactory,
+  Template extends ComponentTemplate<FactoryContext<Factory>>,
 >(definition: {
   readonly name: string;
   readonly meta: Meta;
   readonly factory: Factory;
-  readonly template: ComponentTemplate<FactoryContext<Factory>>;
+  readonly template: Template;
   readonly styleOwners: readonly StyleOwner[];
   readonly scopeDefinition: object | undefined;
 }): CraftComponent<
@@ -67,17 +73,21 @@ function createCraftComponent<
     FactoryYielded<Factory>,
     FactoryContext<Factory>,
     ProvidersFromMeta<Meta>,
-    PropsFromContext<FactoryContext<Factory>>
+    PropsFromContext<FactoryContext<Factory>>,
+    TemplateDependencies<Template>
   >,
   Factory,
-  Meta
+  Meta,
+  Factory,
+  TemplateDependencies<Template>
 > {
   type Props = PropsFromContext<FactoryContext<Factory>>;
   type ComponentDeps = CraftComponentDependencies<
     FactoryYielded<Factory>,
     FactoryContext<Factory>,
     ProvidersFromMeta<Meta>,
-    Props
+    Props,
+    TemplateDependencies<Template>
   >;
 
   // Keep host props in the template pipeline. This lets a directive pass
@@ -99,7 +109,7 @@ function createCraftComponent<
 
   const craftComponent = ((
     props: Props & HostProps = {} as Props & HostProps,
-  ): ComponentNode<Props & HostProps> => ({
+  ): ComponentNode<Props & HostProps, ComponentDeps> => ({
     kind: 'component',
     component: craftComponent,
     props,
@@ -133,7 +143,7 @@ function createCraftComponent<
         ) => ComponentTemplate<any>;
       };
     }) =>
-      createCraftComponent({
+      createCraftComponent<any, any, any>({
         name: definition.name,
         meta: definition.meta,
         factory: directive[CRAFT_DIRECTIVE].logic(definition.factory),

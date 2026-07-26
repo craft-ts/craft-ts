@@ -3,13 +3,14 @@ import type { Equal, Expect } from 'test-type';
 import {
   craftRoutes,
   craftService,
+  provideHostName,
   type ComponentDepsOf,
   type RouteCheckedDI,
 } from '@craft-ng/core';
 import { loadCraftComponent } from './bridge';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
-import { p } from './hyperscript';
+import { div, p } from './hyperscript';
 import type {
   HostRequiredLogic,
   HostTemplate,
@@ -18,6 +19,7 @@ import type {
   PropsOf,
 } from './types';
 import type { CraftNodeChild } from './render/vnode';
+import type { CraftNodeChildrenDependencies } from './render/vnode';
 
 interface User {
   readonly id: number;
@@ -164,6 +166,73 @@ it('does not infer component dependencies from an unbranded value', () => {
   >().toEqualTypeOf<{}>();
 });
 
+it('does not treat unbranded Angular providers as Craft service providers', () => {
+  const { MissingProviderToYield } = craftService(
+    { name: 'MissingProvider', scope: 'toProvide' },
+    () => ({ value: 'missing' }),
+  );
+
+  const component = craftComponent(
+    'unbrandedProviderComponent',
+    { providers: [provideHostName('component:unbrandedProviderComponent')] },
+    function* () {
+      const service = yield* MissingProviderToYield();
+      return { service };
+    },
+    ({ service }) => p(service.value),
+  );
+
+  type ComponentDependencies = ComponentDepsOf<typeof component>;
+  type _MissingProviderWasPreserved = Expect<
+    Equal<keyof ComponentDependencies['missingProvider'], 'MissingProvider'>
+  >;
+  type _MissingProviderFailsRouteCheck = Expect<
+    Equal<
+      RouteCheckedDI<ComponentDependencies, never, never, 'this component'>,
+      [
+        'Injected MissingProvider is not provided in this component (or you may scope this properties as protected/private)',
+      ]
+    >
+  >;
+});
+
+it('includes dependencies of Craft components rendered in nested templates', () => {
+  const { TemplateDependencyToYield } = craftService(
+    { name: 'TemplateDependency', scope: 'toProvide' },
+    () => ({ value: 'template' }),
+  );
+
+  const child = craftComponent(
+    'templateDependencyChild',
+    {},
+    function* () {
+      const service = yield* TemplateDependencyToYield();
+      return { service };
+    },
+    ({ service }) => p(service.value),
+  );
+
+  const nestedNode = div([p('before'), child({}), p('after')]);
+  type NestedNodeDependencies = CraftNodeChildrenDependencies<
+    typeof nestedNode
+  >;
+  type _NestedNodeDependencyWasPreserved = Expect<
+    Equal<keyof NestedNodeDependencies['missingProvider'], 'TemplateDependency'>
+  >;
+
+  const parent = craftComponent(
+    'templateDependencyParent',
+    {},
+    () => ({}),
+    () => nestedNode,
+  );
+
+  type ParentDependencies = ComponentDepsOf<typeof parent>;
+  type _ChildDependencyWasPropagated = Expect<
+    Equal<keyof ParentDependencies['missingProvider'], 'TemplateDependency'>
+  >;
+});
+
 it('infers public inputs added by a piped directive', () => {
   const withPermission = craftDirective(
     'withPermission',
@@ -196,6 +265,59 @@ it('infers public inputs added by a piped directive', () => {
     user: () => ({ id: 1, name: 'Ada' }),
     permission: () => 'edit',
   });
+});
+
+it('preserves template dependencies when Craft directives are applied', () => {
+  const { DirectiveTemplateDependencyToYield } = craftService(
+    { name: 'DirectiveTemplateDependency', scope: 'toProvide' },
+    () => ({ value: 'directive-template' }),
+  );
+
+  const child = craftComponent(
+    'directiveTemplateDependencyChild',
+    {},
+    function* () {
+      const service = yield* DirectiveTemplateDependencyToYield();
+      return { service };
+    },
+    ({ service }) => p(service.value),
+  );
+
+  const withTemplate = craftDirective(
+    'withTemplate',
+    {},
+    (baseLogic) => baseLogic,
+    (baseTemplate) => (context) => baseTemplate(context),
+  );
+
+  const piped = craftComponent(
+    'directiveTemplateDependencyParent',
+    {},
+    () => ({}),
+    () => div([child({})]),
+  ).pipe(withTemplate);
+
+  const nodePiped = craftComponent(
+    'nodeDirectiveTemplateDependencyParent',
+    {},
+    () => ({}),
+    () => div([child({})]).pipe(withTemplate),
+  );
+
+  type PipedDependencies = ComponentDepsOf<typeof piped>;
+  type NodePipedDependencies = ComponentDepsOf<typeof nodePiped>;
+  type _PipedDependencyWasPropagated = Expect<
+    Equal<
+      keyof PipedDependencies['missingProvider'],
+      'DirectiveTemplateDependency'
+    >
+  >;
+  type _NodePipedDependencyWasPropagated = Expect<
+    Equal<
+      keyof NodePipedDependencies['missingProvider'],
+      'DirectiveTemplateDependency'
+    >
+  >;
 });
 
 it('accepts manually described element children without a pipe method', () => {

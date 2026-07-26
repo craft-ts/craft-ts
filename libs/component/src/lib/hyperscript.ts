@@ -1,5 +1,6 @@
 import type {
   AngularDirectiveNode,
+  CraftNodeChildrenDependencies,
   CraftNodeChildren,
   ElementNode,
 } from './render/vnode';
@@ -70,11 +71,25 @@ function looksLikeChildren(value: unknown): boolean {
   );
 }
 
-export function h<Tag extends keyof HTMLElementTagNameMap>(
+type HChildren<
+  Tag extends keyof HTMLElementTagNameMap,
+  PropsOrChildren,
+  MaybeChildren,
+> = PropsOrChildren extends ElementProps<Tag> ? MaybeChildren : PropsOrChildren;
+
+export function h<
+  Tag extends keyof HTMLElementTagNameMap,
+  PropsOrChildren extends
+    | ElementProps<Tag>
+    | CraftNodeChildren = CraftNodeChildren,
+  MaybeChildren extends CraftNodeChildren = CraftNodeChildren,
+>(
   tag: Tag,
-  propsOrChildren?: ElementProps<Tag> | CraftNodeChildren,
-  maybeChildren?: CraftNodeChildren,
-): ElementNode {
+  propsOrChildren?: PropsOrChildren,
+  maybeChildren?: MaybeChildren,
+): ElementNode<
+  CraftNodeChildrenDependencies<HChildren<Tag, PropsOrChildren, MaybeChildren>>
+> {
   const props = looksLikeChildren(propsOrChildren)
     ? {}
     : (propsOrChildren as ElementProps<Tag>);
@@ -87,7 +102,11 @@ export function h<Tag extends keyof HTMLElementTagNameMap>(
     tag,
     props: props as Readonly<Record<string, unknown>>,
     children: children ?? [],
-  } as ElementNode;
+  } as ElementNode<
+    CraftNodeChildrenDependencies<
+      HChildren<Tag, PropsOrChildren, MaybeChildren>
+    >
+  >;
 
   Object.defineProperty(node, 'pipe', {
     value: (directive: unknown) => pipeCraftNode(node, directive as never),
@@ -98,8 +117,13 @@ export function h<Tag extends keyof HTMLElementTagNameMap>(
 }
 
 export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
-  (children?: CraftNodeChildren): ElementNode;
-  (props: ElementProps<Tag> | null, children?: CraftNodeChildren): ElementNode;
+  <Children = CraftNodeChildren>(
+    children?: Children & CraftNodeChildren,
+  ): ElementNode<CraftNodeChildrenDependencies<Children>>;
+  <Props extends ElementProps<Tag>, Children = CraftNodeChildren>(
+    props: Props | null,
+    children?: Children & CraftNodeChildren,
+  ): ElementNode<CraftNodeChildrenDependencies<Children>>;
 }
 
 function tagHelper<Tag extends keyof HTMLElementTagNameMap>(
@@ -108,7 +132,12 @@ function tagHelper<Tag extends keyof HTMLElementTagNameMap>(
   return ((
     propsOrChildren?: ElementProps<Tag> | CraftNodeChildren | null,
     children?: CraftNodeChildren,
-  ) => h(tag, propsOrChildren, children)) as TagHelper<Tag>;
+  ) =>
+    h<Tag, never, never>(
+      tag,
+      propsOrChildren as never,
+      children as never,
+    )) as TagHelper<Tag>;
 }
 
 export const a = tagHelper('a');

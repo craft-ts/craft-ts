@@ -160,8 +160,10 @@ export type ExtractDeps<Value> = Simplify<NormalizeExtractedDeps<Value>>;
 type ComponentProviderNames<Providers> =
   Providers extends readonly (infer Provider)[]
     ? ComponentProviderNames<Provider>
-    : typeof CRAFT_SERVICE_PROVIDER_BRAND extends keyof Providers
-      ? Providers extends BrandedServiceProvider<infer Name, any, any, any>
+    : Providers extends {
+          readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: infer Metadata;
+        }
+      ? Metadata extends { name: infer Name extends string }
         ? Name
         : never
       : never;
@@ -198,6 +200,7 @@ export type CraftComponentDependencies<
   Context,
   Providers,
   PublicProperties extends object,
+  TemplateDependencies extends object = never,
 > = GetDeps<{
   deps: Simplify<
     CompleteServiceDependencyMapFromYielded<Yielded> &
@@ -209,6 +212,11 @@ export type CraftComponentDependencies<
   propertiesDeps: {};
   provided: ComponentProvidedMap<Providers>;
   publicProperties: PublicProperties;
+  missingProvider: [TemplateDependencies] extends [never]
+    ? {}
+    : MissingProvidersFromDepsMap<{
+        readonly __craft_template_dependencies__: TemplateDependencies;
+      }>;
 }>;
 
 type ComponentMissingProviderRecord<Dependency> =
