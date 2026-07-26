@@ -17,6 +17,7 @@ import type {
   Output,
   PropsOf,
 } from './types';
+import type { CraftNodeChild } from './render/vnode';
 
 interface User {
   readonly id: number;
@@ -189,4 +190,22 @@ it('infers public inputs added by a piped directive', () => {
     user: () => ({ id: 1, name: 'Ada' }),
     permission: () => 'edit',
   });
+});
+
+it('accepts manually described element children without a pipe method', () => {
+  const descriptor: CraftNodeChild = {
+    kind: 'element',
+    tag: 'dl',
+    props: {},
+    children: [
+      {
+        kind: 'element',
+        tag: 'dt',
+        props: {},
+        children: 'Report generated at',
+      },
+    ],
+  };
+
+  expectTypeOf(descriptor).toMatchTypeOf<CraftNodeChild>();
 });

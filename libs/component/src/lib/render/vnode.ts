@@ -5,11 +5,14 @@ import { isCraftDirective, type CraftDirective } from '../types';
 export type CraftTextValue = string | number | bigint | boolean;
 export type CraftTextBinding = () => CraftTextValue | null | undefined;
 
-export interface ElementNode {
+export interface ElementNodeBase {
   readonly kind: 'element';
   readonly tag: keyof HTMLElementTagNameMap | string;
   readonly props: Readonly<Record<string, unknown>>;
   readonly children: CraftNodeChildren;
+}
+
+export interface ElementNode extends ElementNodeBase {
   readonly pipe: CraftNodePipe;
 }
 
@@ -72,7 +75,7 @@ export interface DeferNode<Loaded = unknown> {
 }
 
 export type CraftNode =
-  | ElementNode
+  | ElementNodeBase
   | TextNode
   | ComponentNode<any>
   | AngularComponentNode
@@ -106,7 +109,7 @@ export function isCraftNode(value: unknown): value is CraftNode {
   );
 }
 
-function withPipe(node: Omit<ElementNode, 'pipe'>): ElementNode;
+function withPipe(node: ElementNodeBase): ElementNode;
 function withPipe(node: Omit<CraftDirectiveNode, 'pipe'>): CraftDirectiveNode;
 function withPipe(
   node: Omit<ElementNode, 'pipe'> | Omit<CraftDirectiveNode, 'pipe'>,

@@ -37,7 +37,7 @@ import {
   type CraftNodeChildren,
   type DeferNode,
   type EachNode,
-  type ElementNode,
+  type ElementNodeBase,
 } from './vnode';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
 
@@ -513,7 +513,7 @@ class ElementRenderedNode implements RenderedNode {
     private readonly node: Element,
     private tag: string,
     private readonly context: RenderContext,
-    initial: ElementNode,
+    initial: ElementNodeBase,
   ) {
     this.patchProperties(initial.props);
     this.children = patchRenderedChildren(
@@ -991,14 +991,11 @@ class ComponentRenderedNode implements RenderedNode {
               : (definition.meta.styles ?? []);
           this.view.patchChildren([
             ...styles.map(
-              (css): ElementNode => ({
+              (css): ElementNodeBase => ({
                 kind: 'element',
                 tag: 'style',
                 props: {},
                 children: css,
-                pipe: (() => {
-                  throw new Error('Style nodes cannot be piped.');
-                }) as ElementNode['pipe'],
               }),
             ),
             definition.template(factoryContext, hostProps),
