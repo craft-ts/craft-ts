@@ -107,6 +107,26 @@ Les styles d’une directive sont enregistrés dans le scope du composant qui la
 porte. Une même directive utilisée par plusieurs composants reste donc
 composable sans introduire de wrapper HTML.
 
+## Ce que Craft gère directement
+
+Craft prend en charge des compositions qui ne correspondent pas à une
+propriété native d’un composant ou d’une directive Angular standard :
+
+- une directive Craft peut déclarer `meta.styles` et contribuer à la feuille
+  de styles du composant qui l’utilise ; Angular associe les styles à un
+  composant, pas à une directive `@Directive` ;
+- les styles d’une directive restent encapsulés avec `@scope`, sans réécrire
+  les sélecteurs et sans ajouter de wrapper ;
+- plusieurs directives peuvent composer leur logique, leur template, leurs
+  classes d’hôte et leurs styles avec `.pipe(...)` ;
+- les styles sont dédupliqués et refcomptés entre les instances, puis retirés
+  lorsque la dernière instance disparaît.
+
+Avec Angular standard, ce comportement demande généralement de déplacer les
+styles dans un composant, d’ajouter manuellement des classes sur l’hôte ou de
+gérer soi-même l’injection et le nettoyage d’une feuille de styles. Craft
+conserve ces responsabilités dans le runtime de la directive.
+
 ## Choisir le bon niveau
 
 - `host` : identité, attributs, classes ou comportement de la racine ;
