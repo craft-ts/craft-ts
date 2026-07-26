@@ -3,7 +3,6 @@ import {
   button,
   component,
   CraftRouterOutlet,
-  directive,
   div,
   each,
   main,
@@ -35,10 +34,7 @@ const LINKS = [
   ['Login Form', { to: 'login-form' }],
   ['Exception QueryParams', { to: 'exception-query-params' }],
   ['Craft Query', { to: 'craft/query/:userId', params: { userId: '1' } }],
-  [
-    'Craft Mutation',
-    { to: 'craft/mutation/:userId', params: { userId: '1' } },
-  ],
+  ['Craft Mutation', { to: 'craft/mutation/:userId', params: { userId: '1' } }],
   ['Craft List Pagination', { to: 'craft/list-with-pagination' }],
   ['Craft Granular Mutation', { to: 'craft/granular-mutation' }],
   ['Craft Full Demo', { to: 'craft/full-demo' }],
@@ -81,20 +77,8 @@ export const App = component(
     div({ class: 'app-container' }, [
       nav(
         { class: 'tabs' },
-        each(
-          LINKS,
-          { track: ([, link]) => link.to },
-          ([label, link]) =>
-            a(
-              {
-                directives: [
-                  directive(CraftRouterLink, {
-                    inputs: { craftRouterLink: link },
-                  }),
-                ],
-              },
-              label,
-            ),
+        each(LINKS, { track: ([, link]) => link.to }, ([label, link]) =>
+          a({ craftRouterLink: link }, label).pipe(CraftRouterLink),
         ),
       ),
       main({ class: 'content' }, CraftRouterOutlet()),

@@ -55,6 +55,7 @@ export type ElementProps<Tag extends keyof HTMLElementTagNameMap> = Partial<
     readonly style?: StyleValue;
     readonly attrs?: Readonly<Record<string, string | number | boolean | null>>;
     readonly directives?: readonly AngularDirectiveNode[];
+    readonly [property: string]: unknown;
     readonly [dataAttribute: `data-${string}`]: unknown;
     readonly [ariaAttribute: `aria-${string}`]: unknown;
   };

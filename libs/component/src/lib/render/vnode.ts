@@ -124,6 +124,51 @@ function withPipe(
   } as ElementNode | CraftDirectiveNode;
 }
 
+type AngularDirectiveWithDefinition = Type<unknown> & {
+  readonly ɵdir?: {
+    readonly inputs?: Readonly<Record<string, unknown>>;
+  };
+};
+
+function angularDirectiveInputNames(
+  directive: Type<unknown>,
+): readonly string[] {
+  return Object.keys(
+    (directive as AngularDirectiveWithDefinition).ɵdir?.inputs ?? {},
+  );
+}
+
+function applyAngularDirective(
+  node: ElementNode,
+  directive: Type<unknown>,
+): ElementNode {
+  const inputNames = angularDirectiveInputNames(directive);
+  const inputs = Object.fromEntries(
+    inputNames
+      .filter((name) => name in node.props)
+      .map((name) => [name, node.props[name]]),
+  );
+  const props = { ...node.props };
+  inputNames.forEach((name) => delete props[name]);
+  const directives = Array.isArray(props['directives'])
+    ? props['directives']
+    : [];
+
+  return withPipe({
+    ...node,
+    props: {
+      ...props,
+      directives: [
+        ...(directives as readonly AngularDirectiveNode[]),
+        {
+          type: directive,
+          ...(Object.keys(inputs).length ? { inputs } : {}),
+        },
+      ],
+    },
+  });
+}
+
 export function pipeCraftNode(
   node: ElementNode | CraftDirectiveNode,
   directive: CraftDirective | Type<unknown>,
@@ -136,19 +181,7 @@ export function pipeCraftNode(
       });
     }
 
-    const directives = Array.isArray(node.props['directives'])
-      ? node.props['directives']
-      : [];
-    return withPipe({
-      ...node,
-      props: {
-        ...node.props,
-        directives: [
-          ...(directives as readonly AngularDirectiveNode[]),
-          { type: directive },
-        ],
-      },
-    });
+    return applyAngularDirective(node, directive);
   }
 
   if (node.kind === 'directive') {
