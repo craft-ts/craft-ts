@@ -1,16 +1,34 @@
 import { expectTypeOf, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import {
+  craftMethod,
+  craftComputed,
   craftRoutes,
   craftService,
   provideHostName,
+  state,
   type ComponentDepsOf,
   type RouteCheckedDI,
 } from '@craft-ng/core';
 import { loadCraftComponent } from './bridge';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
-import { div, p } from './hyperscript';
+import { defer } from './defer';
+import { angular } from './angular';
+import { button, div, p } from './hyperscript';
+import type { ComponentNode } from './render/vnode';
+import type { ComponentTemplateOf } from './types';
+import type {
+  SetupTestComponentTemplate,
+  TemplateHasElement,
+  TemplateHasElementWithProps,
+  TemplateHasEvent,
+  TemplateHasOutput,
+  TemplateHasProperty,
+  TemplateHasYieldableEvent,
+  TemplateDelegatesToContext,
+  TemplateUsesComponent,
+} from './template-contract';
 import type {
   HostRequiredLogic,
   HostTemplate,
@@ -140,9 +158,7 @@ it('carries inferred dependencies from the component through the lazy route frag
         'this component',
         'label'
       >,
-      [
-        'The TypeSpecService service is not provided in this component',
-      ]
+      ['The TypeSpecService service is not provided in this component']
     >
   >;
   type _ProvidedDependencyPasses = Expect<
@@ -189,9 +205,7 @@ it('does not treat unbranded Angular providers as Craft service providers', () =
   type _MissingProviderFailsRouteCheck = Expect<
     Equal<
       RouteCheckedDI<ComponentDependencies, never, never, 'this component'>,
-      [
-        'The MissingProvider service is not provided in this component',
-      ]
+      ['The MissingProvider service is not provided in this component']
     >
   >;
 });
@@ -336,4 +350,388 @@ it('accepts manually described element children without a pipe method', () => {
   };
 
   expectTypeOf(descriptor).toMatchTypeOf<CraftNodeChild>();
+});
+
+it('resolves registered child templates without a runtime test harness', () => {
+  const icon = craftComponent(
+    'contractIcon',
+    {},
+    () => ({}),
+    () => p('icon'),
+  );
+  const parent = craftComponent(
+    'contractParent',
+    {},
+    () => ({}),
+    () => div([icon()]),
+  );
+
+  type Contract = SetupTestComponentTemplate<typeof parent, [typeof icon]>;
+  type _ContractIsValid = Expect<Equal<Contract['valid'], true>>;
+  type _RootElementIsFound = Expect<
+    Equal<
+      TemplateHasElement<ReturnType<ComponentTemplateOf<typeof parent>>, 'div'>,
+      true
+    >
+  >;
+});
+
+it('reports a missing child component in the type-only template contract', () => {
+  const missing = craftComponent(
+    'contractMissing',
+    {},
+    () => ({}),
+    () => p('missing'),
+  );
+  const parent = craftComponent(
+    'contractMissingParent',
+    {},
+    () => ({}),
+    () => div([missing()]),
+  );
+
+  type Contract = SetupTestComponentTemplate<typeof parent, []>;
+  type _MissingComponentIsDiagnosed = Expect<
+    Contract extends { readonly error: string } ? true : false
+  >;
+});
+
+it('keeps exact child component references and validates their props', () => {
+  const child = craftComponent(
+    'contractPropsChild',
+    {},
+    (value: Input<number>) => ({ value }),
+    ({ value }) => p(String(value())),
+  );
+  const node = child({ value: () => 1 });
+  const parent = craftComponent(
+    'contractPropsParent',
+    {},
+    () => ({}),
+    () => node,
+  );
+
+  type _ReferenceIsExact = Expect<
+    Equal<(typeof node)['component'], typeof child>
+  >;
+  type Contract = SetupTestComponentTemplate<typeof parent, [typeof child]>;
+  type _ContractIsValid = Expect<Equal<Contract['valid'], true>>;
+  type _UsesExactChild = Expect<
+    Equal<
+      TemplateUsesComponent<
+        ReturnType<ComponentTemplateOf<typeof parent>>,
+        typeof child
+      >,
+      true
+    >
+  >;
+
+  const exactPropsNode = div({ class: 'contract' }, 'content');
+  type _ExactProps = Expect<
+    Equal<
+      TemplateHasElementWithProps<
+        typeof exactPropsNode,
+        'div',
+        { class: string }
+      >,
+      true
+    >
+  >;
+
+  const invalidNode = {
+    kind: 'component',
+    component: child,
+    props: {},
+  } as ComponentNode<{}, {}, typeof child>;
+  const invalidParent = craftComponent(
+    'contractInvalidPropsParent',
+    {},
+    () => ({}),
+    () => invalidNode,
+  );
+  type InvalidContract = SetupTestComponentTemplate<
+    typeof invalidParent,
+    [typeof child]
+  >;
+  type _InvalidPropsAreDiagnosed = Expect<
+    InvalidContract extends { readonly error: string } ? true : false
+  >;
+});
+
+it('keeps event arguments and yieldable callback shapes in template assertions', () => {
+  function* click(event: MouseEvent) {
+    return event.clientX;
+  }
+
+  const node = div({ click }, 'click');
+  type _EventSignature = Expect<
+    Equal<TemplateHasEvent<typeof node, 'div', 'click', typeof click>, true>
+  >;
+  type _YieldableEventSignature = Expect<
+    Equal<
+      TemplateHasYieldableEvent<typeof node, 'div', 'click', [MouseEvent]>,
+      true
+    >
+  >;
+});
+
+it('keeps yieldable primitive properties in template VNodes', () => {
+  const component = craftComponent(
+    'contextPropertyBinding',
+    {},
+    () => ({
+      disabled: craftMethod('disabled', function* () {
+        return true;
+      }),
+      enabled: craftMethod('enabled', function* () {
+        return true;
+      }),
+    }),
+    ({ disabled }) =>
+      button(
+        {
+          *disabled() {
+            return yield* disabled();
+          },
+        },
+        '+',
+      ),
+  );
+
+  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type _PropertyDelegatesToContext = Expect<
+    Equal<
+      TemplateDelegatesToContext<Template, 'button', 'disabled', 'disabled'>,
+      true
+    >
+  >;
+  type _PropertyDoesNotDelegateToAnotherMember = Expect<
+    Equal<
+      TemplateDelegatesToContext<Template, 'button', 'disabled', 'enabled'>,
+      false
+    >
+  >;
+
+  const nestedComponent = craftComponent(
+    'nestedContextPropertyBinding',
+    {},
+    () => ({
+      counter: {
+        disabled: craftMethod('disabled', function* () {
+          return true;
+        }),
+      },
+    }),
+    ({ counter }) =>
+      button(
+        {
+          *disabled() {
+            return yield* counter.disabled();
+          },
+        },
+        '+',
+      ),
+  );
+  type NestedTemplate = ReturnType<ComponentTemplateOf<typeof nestedComponent>>;
+  type _NestedPropertyDelegatesToContext = Expect<
+    Equal<
+      TemplateDelegatesToContext<
+        NestedTemplate,
+        'button',
+        'disabled',
+        'counter.disabled'
+      >,
+      true
+    >
+  >;
+
+  const derivedStateComponent = craftComponent(
+    'derivedStatePropertyBinding',
+    {},
+    function* () {
+      const counter = yield* state(0, ({ state }) => ({
+        disabled: craftComputed('disabled', () => state() % 2 === 0),
+      }));
+      return { counter };
+    },
+    ({ counter }) =>
+      button(
+        {
+          *disabled() {
+            return yield* counter.disabled();
+          },
+        },
+        '+',
+      ),
+  );
+  type DerivedTemplate = ReturnType<
+    ComponentTemplateOf<typeof derivedStateComponent>
+  >;
+  type _DerivedStateUsesContextValue = Expect<
+    Equal<
+      TemplateDelegatesToContext<
+        DerivedTemplate,
+        'button',
+        'disabled',
+        'counter.disabled'
+      >,
+      true
+    >
+  >;
+});
+
+it('diagnoses imperative callbacks when the template contract is requested', () => {
+  const imperative = div({ click: () => undefined }, 'click');
+  const parent = craftComponent(
+    'contractImperativeCallbackParent',
+    {},
+    () => ({}),
+    () => imperative,
+  );
+
+  type Contract = SetupTestComponentTemplate<typeof parent>;
+  type _ImperativeCallbackIsDiagnosed = Expect<
+    Contract extends { readonly error: string } ? true : false
+  >;
+});
+
+it('checks output callback arguments on a child component', () => {
+  const child = craftComponent(
+    'contractOutputChild',
+    {},
+    (onSelected: Output<(id: number) => void>) => ({ onSelected }),
+    ({ onSelected }) => p('child'),
+  );
+  const onSelected = function* (id: number) {
+    return id;
+  };
+  const parent = craftComponent(
+    'contractOutputParent',
+    {},
+    () => ({}),
+    () => child({ onSelected }),
+  );
+
+  type _OutputSignature = Expect<
+    Equal<
+      TemplateHasOutput<
+        ReturnType<ComponentTemplateOf<typeof parent>>,
+        typeof child,
+        'onSelected',
+        typeof onSelected
+      >,
+      true
+    >
+  >;
+});
+
+it('diagnoses imperative output callbacks in the template contract', () => {
+  const child = craftComponent(
+    'contractImperativeOutputChild',
+    {},
+    (onSelected: Output<(id: number) => void>) => ({ onSelected }),
+    () => p('child'),
+  );
+  const parent = craftComponent(
+    'contractImperativeOutputParent',
+    {},
+    () => ({}),
+    () => child({ onSelected: (id: number) => id }),
+  );
+
+  type Contract = SetupTestComponentTemplate<typeof parent, [typeof child]>;
+  type _ImperativeOutputIsDiagnosed = Expect<
+    Contract extends { readonly error: string } ? true : false
+  >;
+});
+
+it('resolves the component loaded by defer in the type-only contract', () => {
+  const child = craftComponent(
+    'contractDeferredChild',
+    {},
+    () => ({}),
+    () => p('deferred'),
+  );
+  const deferred = defer(async () => child);
+  const parent = craftComponent(
+    'contractDeferredParent',
+    {},
+    () => ({}),
+    () => deferred,
+  );
+
+  type Missing = SetupTestComponentTemplate<typeof parent>;
+  type _DeferredChildIsDiagnosed = Expect<
+    Missing extends { readonly error: string } ? true : false
+  >;
+  type Registered = SetupTestComponentTemplate<typeof parent, [typeof child]>;
+  type _RegisteredDeferredChildIsValid = Expect<
+    Equal<Registered['valid'], true>
+  >;
+});
+
+it('reports dynamic component unions and conditional branch failures', () => {
+  const first = craftComponent(
+    'contractDynamicFirst',
+    {},
+    () => ({}),
+    () => p('first'),
+  );
+  const second = craftComponent(
+    'contractDynamicSecond',
+    {},
+    () => ({}),
+    () => p('second'),
+  );
+  const dynamic = {
+    kind: 'component',
+    component: (true ? first : second) as typeof first | typeof second,
+    props: {},
+  } as ComponentNode<{}, {}, typeof first | typeof second>;
+  const dynamicParent = craftComponent(
+    'contractDynamicParent',
+    {},
+    () => ({}),
+    () => dynamic,
+  );
+
+  type DynamicContract = SetupTestComponentTemplate<
+    typeof dynamicParent,
+    [typeof first, typeof second]
+  >;
+  type _DynamicComponentIsDiagnosed = Expect<
+    DynamicContract extends { readonly error: string } ? true : false
+  >;
+
+  const missingBranch = craftComponent(
+    'contractBranchMissing',
+    {},
+    () => ({}),
+    () => p('missing branch'),
+  );
+  const branchParent = craftComponent(
+    'contractBranchParent',
+    {},
+    () => ({}),
+    () => (true ? p('ok') : missingBranch()),
+  );
+  type BranchContract = SetupTestComponentTemplate<typeof branchParent>;
+  type _BranchFailureIsDiagnosed = Expect<
+    BranchContract extends { readonly error: string } ? true : false
+  >;
+});
+
+it('reports Angular component boundaries instead of introspecting them', () => {
+  class ExternalAngularComponent {}
+  const parent = craftComponent(
+    'contractAngularBoundaryParent',
+    {},
+    () => ({}),
+    () => angular(ExternalAngularComponent),
+  );
+
+  type Contract = SetupTestComponentTemplate<typeof parent>;
+  type _AngularBoundaryIsDiagnosed = Expect<
+    Contract extends { readonly error: string } ? true : false
+  >;
 });

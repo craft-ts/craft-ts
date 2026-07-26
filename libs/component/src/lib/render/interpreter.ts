@@ -22,6 +22,9 @@ import {
 import {
   craftEffect,
   craftLazy,
+  executeYieldable,
+  isYieldableMethod,
+  toYieldable,
   type CraftServiceProvider,
 } from '@craft-ng/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
@@ -126,28 +129,93 @@ function resolveHostValue(value: unknown): unknown {
   return typeof value === 'function' ? value() : value;
 }
 
+function executeTemplateCallback(
+  callback: (...args: any[]) => unknown,
+  args: any[],
+  context: RenderContext,
+): unknown {
+  return executeYieldable(callback, args, context.injector);
+}
+
+function resolveTemplateValue(value: unknown, context: RenderContext): unknown {
+  return typeof value === 'function'
+    ? executeTemplateCallback(value as (...args: any[]) => unknown, [], context)
+    : value;
+}
+
+function projectYieldableTemplateContext(
+  value: unknown,
+  seen = new WeakMap<object, unknown>(),
+): unknown {
+  if (typeof value === 'function') {
+    if (isYieldableMethod(value)) {
+      return toYieldable(value as (...args: any[]) => any);
+    }
+
+    // State and resource refs are callable objects with exposed insertions
+    // (for example `counter.disabled`). Keep the callable ref intact while
+    // projecting its nested yieldable members into the template context.
+    if (Object.keys(value).length === 0) return value;
+    if (seen.has(value)) return seen.get(value);
+
+    const projected = new Proxy(value, {
+      get(target, property, receiver) {
+        return projectYieldableTemplateContext(
+          Reflect.get(target, property, receiver),
+          seen,
+        );
+      },
+    });
+    seen.set(value, projected);
+    return projected;
+  }
+  if (typeof value !== 'object' || value === null) return value;
+  if (seen.has(value)) return seen.get(value);
+  if (Array.isArray(value)) {
+    const result = value.map((item) =>
+      projectYieldableTemplateContext(item, seen),
+    );
+    seen.set(value, result);
+    return result;
+  }
+  if ('asReadonly' in value || 'set' in value || 'update' in value) {
+    return value;
+  }
+  const result: Record<string, unknown> = {};
+  seen.set(value, result);
+  for (const [key, child] of Object.entries(value)) {
+    result[key] = projectYieldableTemplateContext(child, seen);
+  }
+  return result;
+}
+
 function angularBindings(
   getInputs: () => Readonly<Record<string, unknown>>,
   getOutputs: () => Readonly<Record<string, (value: unknown) => unknown>>,
+  context: RenderContext,
 ): Binding[] {
   return [
     ...Object.keys(getInputs()).map((name) =>
       inputBinding(name, () => resolveAngularValue(getInputs()[name])),
     ),
     ...Object.keys(getOutputs()).map((name) =>
-      outputBinding(name, (value) => getOutputs()[name]?.(value)),
+      outputBinding(name, (value) =>
+        executeTemplateCallback(getOutputs()[name]!, [value], context),
+      ),
     ),
   ];
 }
 
 function angularDirectives(
   source: ReturnType<typeof signal<readonly AngularDirectiveNode[]>>,
+  context: RenderContext,
 ): DirectiveWithBindings<unknown>[] {
   return source().map((descriptor, index) => ({
     type: descriptor.type,
     bindings: angularBindings(
       () => source()[index]?.inputs ?? {},
       () => source()[index]?.outputs ?? {},
+      context,
     ),
   }));
 }
@@ -178,8 +246,9 @@ class AngularMount {
       bindings: angularBindings(
         () => this.descriptorSource().inputs,
         () => this.descriptorSource().outputs,
+        context,
       ),
-      directives: angularDirectives(this.directiveSource),
+      directives: angularDirectives(this.directiveSource, context),
     });
     this.applicationRef.attachView(this.componentRef.hostView);
     this.componentRef.changeDetectorRef.detectChanges();
@@ -307,7 +376,7 @@ function renderCraftDirectiveNode(
   node: CraftDirectiveNode,
   context: RenderContext,
 ): CraftNodeChildren {
-  let template = (_componentContext: unknown): CraftNodeChildren => [node.node];
+  let template = (_componentContext: any): CraftNodeChildren => [node.node];
 
   for (const directive of node.directives) {
     template = directive[CRAFT_DIRECTIVE].template(template);
@@ -470,13 +539,13 @@ function hostPropsFromComponentProps(
   );
 }
 
-function className(value: unknown): string {
+function className(value: unknown, context: RenderContext): string {
   if (typeof value === 'function') {
-    return className(value());
+    return className(resolveTemplateValue(value, context), context);
   }
   if (Array.isArray(value)) {
     return value
-      .flatMap((item) => className(item))
+      .flatMap((item) => className(item, context))
       .filter(Boolean)
       .join(' ');
   }
@@ -494,7 +563,9 @@ function setStyleValue(
   element: Element,
   key: string,
   value: unknown,
+  context: RenderContext,
 ): void {
+  value = resolveTemplateValue(value, context);
   if (value === null || value === undefined || value === false) {
     renderer.removeStyle(element, key);
   } else {
@@ -507,9 +578,10 @@ function applyStyles(
   element: Element,
   previous: unknown,
   next: unknown,
+  context: RenderContext,
 ): void {
-  previous = resolveHostValue(previous);
-  next = resolveHostValue(next);
+  previous = resolveTemplateValue(previous, context);
+  next = resolveTemplateValue(next, context);
   if (typeof previous === 'object' && previous !== null) {
     for (const key of Object.keys(previous)) {
       if (typeof next !== 'object' || next === null || !(key in next)) {
@@ -524,7 +596,7 @@ function applyStyles(
     renderer.setAttribute(element, 'style', next);
   } else if (typeof next === 'object' && next !== null) {
     for (const [key, value] of Object.entries(next)) {
-      setStyleValue(renderer, element, key, value);
+      setStyleValue(renderer, element, key, value, context);
     }
   } else {
     renderer.removeAttribute(element, 'style');
@@ -557,7 +629,9 @@ function applyAttribute(
   element: Element,
   key: string,
   value: unknown,
+  context: RenderContext,
 ): void {
+  value = resolveTemplateValue(value, context);
   if (key.startsWith('data-craft-')) {
     const dev = typeof ngDevMode === 'undefined' || ngDevMode;
     if (dev) {
@@ -636,17 +710,23 @@ class ElementRenderedNode implements RenderedNode {
 
     for (const key of previousAttributes.keys()) {
       if (!nextAttributes.has(key)) {
-        applyAttribute(renderer, this.node, key, null);
+        applyAttribute(renderer, this.node, key, null, this.context);
       }
     }
     for (const [key, value] of nextAttributes) {
-      if (!Object.is(previousAttributes.get(key), value)) {
-        applyAttribute(renderer, this.node, key, value);
+      if (
+        !Object.is(previousAttributes.get(key), value) ||
+        typeof value === 'function'
+      ) {
+        applyAttribute(renderer, this.node, key, value, this.context);
       }
     }
 
-    if (!Object.is(this.props['class'], next['class'])) {
-      const value = className(next['class']);
+    if (
+      !Object.is(this.props['class'], next['class']) ||
+      typeof next['class'] === 'function'
+    ) {
+      const value = className(next['class'], this.context);
       if (value) {
         renderer.setAttribute(this.node, 'class', value);
       } else {
@@ -654,8 +734,17 @@ class ElementRenderedNode implements RenderedNode {
       }
     }
 
-    if (!Object.is(this.props['style'], next['style'])) {
-      applyStyles(renderer, this.node, this.props['style'], next['style']);
+    if (
+      !Object.is(this.props['style'], next['style']) ||
+      typeof next['style'] === 'function'
+    ) {
+      applyStyles(
+        renderer,
+        this.node,
+        this.props['style'],
+        next['style'],
+        this.context,
+      );
     }
 
     const nextEvents = new Map<string, EventListener>();
@@ -680,7 +769,10 @@ class ElementRenderedNode implements RenderedNode {
       if (!this.listeners.has(eventName)) {
         this.listeners.set(
           eventName,
-          renderer.listen(this.node, eventName, listener),
+          renderer.listen(this.node, eventName, (event: Event) => {
+            executeTemplateCallback(listener, [event], this.context);
+            return undefined;
+          }),
         );
       }
     }
@@ -1044,6 +1136,11 @@ class ComponentRenderedNode implements RenderedNode {
       return (...callbackArgs: unknown[]) => {
         const current = source();
         if (typeof current === 'function') {
+          if (callbackArgs.length > 0) {
+            return toYieldable((...args: unknown[]) =>
+              (current as (...innerArgs: unknown[]) => unknown)(...args),
+            )(...callbackArgs);
+          }
           return current(...callbackArgs);
         }
         if (callbackArgs.length > 0) {
@@ -1093,10 +1190,18 @@ class ComponentRenderedNode implements RenderedNode {
             this.hostPropsSource(),
           );
           this.view.patchChildren(
-            definition.template(this.factoryContext, hostProps),
+            definition.template(
+              projectYieldableTemplateContext(this.factoryContext) as never,
+              hostProps,
+            ),
           );
           if (hostTarget) {
-            applyHostProperties(context.renderer, hostTarget, hostProps);
+            applyHostProperties(
+              context.renderer,
+              hostTarget,
+              hostProps,
+              context,
+            );
           }
         }),
       ),
@@ -1149,7 +1254,12 @@ class ComponentRenderedNode implements RenderedNode {
       definition.meta.host ?? {},
       this.hostPropsSource(),
     );
-    this.view.patchChildren(definition.template(context, hostProps));
+    this.view.patchChildren(
+      definition.template(
+        projectYieldableTemplateContext(context) as never,
+        hostProps,
+      ),
+    );
   }
 
   destroy(): void {
@@ -1385,16 +1495,17 @@ function applyHostProperties(
   renderer: Renderer2,
   host: Element,
   props: Readonly<Record<string, unknown>>,
+  context: RenderContext,
 ): void {
   const attributes = flattenAttributes(props);
   attributes.forEach((value, key) =>
-    applyAttribute(renderer, host, key, value),
+    applyAttribute(renderer, host, key, value, context),
   );
-  const classes = className(props['class']);
+  const classes = className(props['class'], context);
   if (classes) {
     renderer.setAttribute(host, 'class', classes);
   }
-  applyStyles(renderer, host, undefined, props['style']);
+  applyStyles(renderer, host, undefined, props['style'], context);
 }
 
 export interface MountedCraftComponent<Props extends object> {

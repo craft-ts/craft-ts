@@ -21,6 +21,7 @@ import {
   onAppStart,
   type GetServiceDependencies,
 } from './craft-service';
+import { isYieldableMethod, type YieldableMethod } from './yieldable';
 
 beforeAll(() => {
   try {
@@ -127,6 +128,15 @@ describe('craftComputed', () => {
 
     expectTypeOf(component.doubled).toMatchTypeOf<Signal<number>>();
     expectTypeOf(component.tripled).toMatchTypeOf<Signal<number>>();
+    expect(isYieldableMethod(component.doubled)).toBe(true);
+    expect(isYieldableMethod(component.tripled)).toBe(true);
+
+    type _PlainComputedIsYieldable = Expect<
+      Component['doubled'] extends YieldableMethod<[], number> ? true : false
+    >;
+    type _GeneratorComputedIsYieldable = Expect<
+      Component['tripled'] extends YieldableMethod<[], number> ? true : false
+    >;
   });
 
   it('should expose craftComputed dependencies through ExtractDeps', () => {

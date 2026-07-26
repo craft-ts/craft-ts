@@ -50,6 +50,7 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
+import { markYieldableMethod } from './yieldable';
 
 export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -58,15 +59,12 @@ export interface QueryParamsNavigationOptions {
   skipLocationChange?: boolean;
 }
 
-type ResolveGeneratorResult<Result> = Result extends Generator<
-  any,
-  infer Output,
-  unknown
->
-  ? Output
-  : Result;
+type ResolveGeneratorResult<Result> =
+  Result extends Generator<any, infer Output, unknown> ? Output : Result;
 
-type ResolveFactoryResult<Factory> = Factory extends (...args: any[]) => infer Result
+type ResolveFactoryResult<Factory> = Factory extends (
+  ...args: any[]
+) => infer Result
   ? ResolveGeneratorResult<Result>
   : never;
 
@@ -84,20 +82,32 @@ type QueryParamsSingleConfigYielded<Config> = Config extends {
   : never;
 
 type QueryParamsConfigYielded<QueryParamsType> = {
-  [K in keyof QueryParamsType]: QueryParamsSingleConfigYielded<QueryParamsType[K]>;
+  [K in keyof QueryParamsType]: QueryParamsSingleConfigYielded<
+    QueryParamsType[K]
+  >;
 }[keyof QueryParamsType];
 
 type RouterQueryParamsYield = ServiceYieldRequest<
   'global',
   Router,
-  ServiceTrackingMetadata<'Router', 'global', Router, never, undefined, never, false>
+  ServiceTrackingMetadata<
+    'Router',
+    'global',
+    Router,
+    never,
+    undefined,
+    never,
+    false
+  >
 >;
 
 type QueryParamsTrackedDependencies<
   QueryParamsType,
   InsertionsYielded = never,
 > = ServiceDependencyMapFromYielded<
-  RouterQueryParamsYield | QueryParamsConfigYielded<QueryParamsType> | InsertionsYielded
+  | RouterQueryParamsYield
+  | QueryParamsConfigYielded<QueryParamsType>
+  | InsertionsYielded
 >;
 
 type AnyQueryParamsConfig = QueryParamsConfig<any>;
@@ -105,7 +115,9 @@ type AnyQueryParamsConfig = QueryParamsConfig<any>;
 export type QueryParamsToState<QueryParamsConfigs> = {
   [K in keyof QueryParamsConfigs]: 'parse' extends keyof QueryParamsConfigs[K]
     ? QueryParamsConfigs[K]['parse'] extends (...args: any[]) => unknown
-      ? StripCraftException<ResolveFactoryResult<QueryParamsConfigs[K]['parse']>>
+      ? StripCraftException<
+          ResolveFactoryResult<QueryParamsConfigs[K]['parse']>
+        >
       : 'Error1: QueryParamsToState'
     : 'Error2: QueryParamsToState';
 };
@@ -114,7 +126,9 @@ type QueryParamsParseExceptionsByKey<QueryParamsType> =
   QueryParamsType extends Record<string, AnyQueryParamsConfig>
     ? {
         [K in keyof QueryParamsType]: InsertMetaInCraftExceptionIfExists<
-          ExtractCraftException<ResolveFactoryResult<QueryParamsType[K]['parse']>>,
+          ExtractCraftException<
+            ResolveFactoryResult<QueryParamsType[K]['parse']>
+          >,
           'parse',
           K & string
         >;
@@ -134,24 +148,23 @@ export type QueryParamsOutput<
   Insertions,
   QueryParamsState,
   Dependencies = QueryParamsTrackedDependencies<QueryParamsType>,
-> =
-  Signal<QueryParamsState> &
-    MergeObjects<
-      [
-        {
-          [K in keyof QueryParamsState]: Signal<QueryParamsState[K]>;
-        },
-        IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
-        {
-          hasException: Signal<boolean>;
-          exceptions: Signal<QueryParamsExceptions<QueryParamsType>>;
-        },
-        {
-          _config: QueryParamsType;
-          readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
-        },
-      ]
-    >;
+> = Signal<QueryParamsState> &
+  MergeObjects<
+    [
+      {
+        [K in keyof QueryParamsState]: Signal<QueryParamsState[K]>;
+      },
+      IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+      {
+        hasException: Signal<boolean>;
+        exceptions: Signal<QueryParamsExceptions<QueryParamsType>>;
+      },
+      {
+        _config: QueryParamsType;
+        readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
+      },
+    ]
+  >;
 
 function enrichQueryParamsParseException(
   exception: AnyCraftException,
@@ -372,7 +385,10 @@ function createQueryParamsRef<
 
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const injector = ɵcreateHostTaggedInjector(inject(Injector), 'queryParams', [
-    { provide: INSERTION_SNAPSHOT_REGISTRY, useValue: insertionSnapshotRegistry },
+    {
+      provide: INSERTION_SNAPSHOT_REGISTRY,
+      useValue: insertionSnapshotRegistry,
+    },
   ]);
   const router = inject(Router);
   const activatedRoute = inject(ActivatedRoute);
@@ -609,19 +625,20 @@ function createQueryParamsRef<
                   {
                     state: queryParamsState.asReadonly(),
                     set: (next) =>
-                      methods.set(
-                        next as QueryParamsToState<QueryParamsType>,
-                      ),
+                      methods.set(next as QueryParamsToState<QueryParamsType>),
                     update: (updater) =>
                       methods.update(
                         (current) =>
-                          updater(current) as QueryParamsToState<QueryParamsType>,
+                          updater(
+                            current,
+                          ) as QueryParamsToState<QueryParamsType>,
                       ),
                     patch: (patchFn) =>
-                      methods.patch((current) =>
-                        patchFn(
-                          current,
-                        ) as Partial<QueryParamsToState<QueryParamsType>>,
+                      methods.patch(
+                        (current) =>
+                          patchFn(current) as Partial<
+                            QueryParamsToState<QueryParamsType>
+                          >,
                       ),
                   },
                   value as (...args: never[]) => unknown,
@@ -631,7 +648,7 @@ function createQueryParamsRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = (...args: unknown[]) =>
+            wrappedAcc[key] = markYieldableMethod((...args: unknown[]) =>
               runInInjectionContext(methodInjector, () => {
                 const result = (wrappedFn as (...a: unknown[]) => unknown)(
                   ...args,
@@ -650,7 +667,8 @@ function createQueryParamsRef<
                   }).value;
                 }
                 return result;
-              });
+              }),
+            );
             return wrappedAcc;
           },
           {} as Record<string, unknown>,
@@ -680,7 +698,9 @@ function createQueryParamsRef<
     snapshotRegistry.triggerSnapshot$
       .pipe(takeUntilDestroyed(destroyRefParam))
       .subscribe(() => {
-        const insertionSnapshots = triggerAndCollectInsertions(insertionSnapshotRegistry);
+        const insertionSnapshots = triggerAndCollectInsertions(
+          insertionSnapshotRegistry,
+        );
         let stateSnapshot: unknown;
         try {
           stateSnapshot = {
@@ -688,7 +708,9 @@ function createQueryParamsRef<
             ...(insertionSnapshots ? { insertions: insertionSnapshots } : {}),
           };
         } catch (error) {
-          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
+          stateSnapshot = {
+            error: error instanceof Error ? error.message : String(error),
+          };
         }
         snapshotRegistry.allSnapShot$.next({
           source: 'queryParams',

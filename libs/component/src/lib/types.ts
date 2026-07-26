@@ -3,7 +3,10 @@ import type {
   ComponentDepsCarrier,
   CraftComponentDependencies,
   ResolveGeneratorResult,
+  YieldableMethod,
+  Yieldable,
 } from '@craft-ng/core';
+import type { Signal } from '@angular/core';
 import type { HostProps } from './hyperscript';
 import type {
   CraftNodeChildren,
@@ -13,6 +16,7 @@ import type {
 
 declare const INPUT_BRAND: unique symbol;
 declare const OUTPUT_BRAND: unique symbol;
+declare const TEMPLATE_METHOD_USE: unique symbol;
 
 export type Input<T> = (() => T) & {
   readonly [INPUT_BRAND]: T;
@@ -20,6 +24,72 @@ export type Input<T> = (() => T) & {
 
 export type Output<Handler extends (...args: any[]) => unknown> = Handler & {
   readonly [OUTPUT_BRAND]: Handler;
+};
+
+/** A callback that a Craft template may delegate with `yield*`. */
+export type YieldableTemplateCallback<
+  Args extends unknown[] = unknown[],
+  Result = unknown,
+  Yielded = unknown,
+  ContextMethod extends string = never,
+> = (
+  ...args: Args
+) => Generator<Yielded | TemplateMethodUse<ContextMethod>, Result, unknown>;
+
+export type TemplateMethodUse<ContextMethod extends string> = {
+  readonly [TEMPLATE_METHOD_USE]: ContextMethod;
+};
+
+/**
+ * Projects branded Craft methods and outputs to generator callbacks only while
+ * a template is type-checked. Inputs and render-time functions stay unchanged.
+ */
+type ContextPathKey<
+  Prefix extends string,
+  Key extends PropertyKey,
+> = Key extends string | number
+  ? Prefix extends ''
+    ? `${Key}`
+    : `${Prefix}.${Key}`
+  : Prefix;
+
+type ProjectTemplateObject<Value extends object, ContextMethod extends string> = {
+  [Key in keyof Value]: ProjectTemplateValue<
+    Value[Key],
+    ContextPathKey<ContextMethod, Key>
+  >;
+};
+
+type ProjectTemplateValue<Value, ContextMethod extends string> =
+  Value extends YieldableMethod<infer Args, infer Result, infer Yielded>
+    ? YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
+    : Value extends {
+          readonly [OUTPUT_BRAND]: infer Handler extends (
+            ...args: any[]
+          ) => unknown;
+        }
+      ? YieldableTemplateCallback<
+          Parameters<Handler>,
+          ReturnType<Handler>,
+          unknown,
+          ContextMethod
+        >
+      : Value extends Signal<infer State>
+        ? (() => State & TemplateMethodUse<ContextMethod>) &
+            ProjectTemplateObject<Value, ContextMethod>
+        : Value extends readonly (infer Item)[]
+          ? readonly ProjectTemplateValue<Item, ContextMethod>[]
+          : Value extends (...args: any[]) => any
+            ? Value
+            : Value extends object
+              ? ProjectTemplateObject<Value, ContextMethod>
+              : Value;
+
+export type YieldableTemplateContext<Context> = {
+  [Key in keyof Context]: ProjectTemplateValue<
+    Context[Key],
+    ContextPathKey<'', Key>
+  >;
 };
 
 export type InputValue<T> = () => T;
@@ -38,7 +108,10 @@ export type FactoryYielded<Factory extends ComponentFactory> =
 export type ComponentTemplate<
   Context = unknown,
   Output extends CraftNodeChildren = CraftNodeChildren,
-> = (context: Context, hostProps?: HostProps) => Output;
+> = (
+  context: YieldableTemplateContext<Context>,
+  hostProps?: HostProps,
+) => Output;
 
 export type TemplateDependencies<Template> = Template extends (
   ...args: any[]
@@ -131,17 +204,6 @@ export interface ComponentDefinition<Context = unknown> {
 
 type ComponentCallProps<Props extends object> = Props & HostProps;
 
-type ComponentCall<
-  Props extends object,
-  ComponentDeps extends object,
-> = keyof Props extends never
-  ? (
-      props?: ComponentCallProps<Props>,
-    ) => ComponentNode<ComponentCallProps<Props>, ComponentDeps>
-  : (
-      props: ComponentCallProps<Props>,
-    ) => ComponentNode<ComponentCallProps<Props>, ComponentDeps>;
-
 type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
   readonly providers: infer Providers;
 }
@@ -182,6 +244,9 @@ type PipedComponent<
   RootFactory extends ComponentFactory,
   ExistingComponentDeps extends object,
   TemplateDependencies extends object,
+  Template extends ComponentTemplate<
+    FactoryContext<Factory>
+  > = ComponentTemplate<FactoryContext<Factory>>,
 > =
   AppliedDirectiveFactory<Factory, Directive> extends infer NextFactory extends
     ComponentFactory
@@ -200,19 +265,44 @@ type PipedComponent<
         NextFactory,
         Meta,
         RootFactory,
-        TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>
+        TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>,
+        Template
       >
     : never;
 
-export type CraftComponent<
+export interface CraftComponent<
   Props extends object = Record<never, never>,
   ComponentDeps extends object = Record<never, never>,
   Factory extends ComponentFactory = ComponentFactory,
   Meta extends ComponentMeta = ComponentMeta,
   RootFactory extends ComponentFactory = Factory,
   TemplateDependencies extends object = never,
-> = ComponentCall<Props, ComponentDeps> & {
-  readonly [CRAFT_COMPONENT]: ComponentDefinition<unknown>;
+  Template extends ComponentTemplate<
+    FactoryContext<Factory>
+  > = ComponentTemplate<FactoryContext<Factory>>,
+  Name extends string = string,
+> extends ComponentDepsCarrier<ComponentDeps> {
+  <CallProps extends ComponentCallProps<Props> = ComponentCallProps<Props>>(
+    ...args: keyof Props extends never
+      ? [props?: CallProps]
+      : [props: CallProps]
+  ): ComponentNode<
+    CallProps,
+    ComponentDeps,
+    CraftComponent<
+      Props,
+      ComponentDeps,
+      Factory,
+      Meta,
+      RootFactory,
+      TemplateDependencies,
+      Template,
+      Name
+    >
+  >;
+  readonly [CRAFT_COMPONENT]: ComponentDefinition<unknown> & {
+    readonly name: Name;
+  };
   readonly pipe: <Directive extends CraftDirective>(
     directive: Directive,
   ) => PipedComponent<
@@ -221,9 +311,23 @@ export type CraftComponent<
     Directive,
     RootFactory,
     ComponentDeps,
-    TemplateDependencies
+    TemplateDependencies,
+    Template
   >;
-} & ComponentDepsCarrier<ComponentDeps>;
+}
+
+export type ComponentTemplateOf<Component> =
+  Component extends CraftComponent<
+    any,
+    any,
+    any,
+    any,
+    any,
+    any,
+    infer Template extends ComponentTemplate<any>
+  >
+    ? Template
+    : never;
 
 export type PropsOf<Component> =
   Component extends CraftComponent<infer Props, any> ? Props : never;

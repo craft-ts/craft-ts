@@ -44,9 +44,11 @@ export function craftComponent<
   Factory,
   Meta,
   Factory,
-  TemplateDependencies<Template>
+  TemplateDependencies<Template>,
+  Template,
+  Name
 > {
-  return createCraftComponent<Meta, Factory, Template>({
+  return createCraftComponent<Name, Meta, Factory, Template>({
     name,
     meta,
     factory,
@@ -57,11 +59,12 @@ export function craftComponent<
 }
 
 function createCraftComponent<
+  const Name extends string,
   const Meta extends ComponentMeta,
   Factory extends ComponentFactory,
   Template extends ComponentTemplate<FactoryContext<Factory>>,
 >(definition: {
-  readonly name: string;
+  readonly name: Name;
   readonly meta: Meta;
   readonly factory: Factory;
   readonly template: Template;
@@ -79,7 +82,9 @@ function createCraftComponent<
   Factory,
   Meta,
   Factory,
-  TemplateDependencies<Template>
+  TemplateDependencies<Template>,
+  Template,
+  Name
 > {
   type Props = PropsFromContext<FactoryContext<Factory>>;
   type ComponentDeps = CraftComponentDependencies<
@@ -113,7 +118,16 @@ function createCraftComponent<
     kind: 'component',
     component: craftComponent,
     props,
-  })) as CraftComponent<Props, ComponentDeps, Factory, Meta>;
+  })) as CraftComponent<
+    Props,
+    ComponentDeps,
+    Factory,
+    Meta,
+    Factory,
+    TemplateDependencies<Template>,
+    Template,
+    Name
+  >;
 
   const scopeDefinition = definition.scopeDefinition ?? {};
   const styleOwners = definition.styleOwners.map((owner, index) =>
@@ -143,7 +157,7 @@ function createCraftComponent<
         ) => ComponentTemplate<any>;
       };
     }) =>
-      createCraftComponent<any, any, any>({
+      createCraftComponent<any, any, any, any>({
         name: definition.name,
         meta: definition.meta,
         factory: directive[CRAFT_DIRECTIVE].logic(definition.factory),

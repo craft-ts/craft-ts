@@ -39,6 +39,7 @@ import {
   createPrimitiveGen,
   type CraftPrimitiveGen,
 } from './craft-primitive-gen';
+import { markYieldableMethod } from './yieldable';
 
 type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
@@ -397,7 +398,7 @@ function createStateRef<StateType>(
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            exposedAcc[key] = (...args: unknown[]) =>
+            exposedAcc[key] = markYieldableMethod((...args: unknown[]) =>
               runInInjectionContext(methodInjector, () => {
                 const result = (wrappedFn as (...a: unknown[]) => unknown)(
                   ...args,
@@ -414,7 +415,8 @@ function createStateRef<StateType>(
                   }).value;
                 }
                 return result;
-              });
+              }),
+            );
           } else {
             exposedAcc[key] = value;
           }

@@ -1,6 +1,6 @@
-# Tester les components et directives Craft
+# Testing Craft Components and Directives
 
-Les utilitaires de test sont disponibles dans le sous-module dédié :
+The testing utilities are available from the dedicated submodule:
 
 ```ts
 import {
@@ -11,11 +11,11 @@ import {
 } from '@craft-ng/component/testing';
 ```
 
-Ils complètent le setup Angular existant et séparent volontairement la factory
-du rendu. Chaque utilitaire expose aussi la forme `.byRegister(...)`, qui rend
-explicite l'enregistrement des services utilisés par la partie testée.
+They complement the existing Angular setup and deliberately separate the
+factory from rendering. Each utility also exposes a `.byRegister(...)` form,
+which makes the services used by the tested code explicit.
 
-Le package réexporte également les setups historiques par registre :
+The package also re-exports the legacy registry-based setups:
 
 ```ts
 import {
@@ -24,13 +24,13 @@ import {
 } from '@craft-ng/component/testing';
 ```
 
-Ils restent compatibles avec le setup de test existant et peuvent être utilisés
-dans le même fichier que les utilitaires logic/template.
+They remain compatible with the existing test setup and can be used in the
+same file as the logic/template utilities.
 
-## Logic d'un component
+## Component logic
 
-Le test de logic exécute uniquement la factory et retourne son contexte ainsi
-que les mocks installés :
+The logic test executes only the factory and returns its context together with
+the installed mocks:
 
 ```ts
 const { context, mocks, destroy } =
@@ -50,8 +50,8 @@ expect(mocks.TodoStore).toBeDefined();
 destroy();
 ```
 
-Les arguments de factory peuvent être fournis avec `args` lorsque le component
-déclare des inputs :
+Factory arguments can be provided through `args` when the component declares
+inputs:
 
 ```ts
 await setupCraftComponentLogicTest.byRegister(StatusComponent, {
@@ -60,10 +60,10 @@ await setupCraftComponentLogicTest.byRegister(StatusComponent, {
 });
 ```
 
-## Template d'un component
+## Component template
 
-Le test de template reçoit le contexte déjà construit. La logic du component
-n'est donc pas exécutée :
+The template test receives an already-built context. The component logic is not
+executed:
 
 ```ts
 const test = await setupCraftComponentTemplateTest.byRegister(StatusComponent, {
@@ -78,14 +78,90 @@ expect(test.nativeElement.textContent).toContain('Error');
 test.destroy();
 ```
 
-Le retour expose `nativeElement`, `element`, `mocks`, `detectChanges`,
-`updateContext` et `destroy`. Les styles Craft, les components enfants, les
-directives Craft et la réactivité sont rendus par le renderer normal.
+The result exposes `nativeElement`, `element`, `mocks`, `detectChanges`,
+`updateContext`, and `destroy`. Craft styles, child components, Craft
+directives, and reactivity are rendered by the normal renderer.
 
-## Contexte et dépendances de service
+To verify that a DOM property is connected to the correct context member, add a
+contract assertion next to the template test:
 
-Le `context` est une valeur de la factory et ne constitue pas une dépendance
-de registre. Dans cet exemple, `store` est fourni directement au template :
+```ts
+import { craftComputed, state } from '@craft-ng/core';
+import { craftComponent, button } from '@craft-ng/component';
+import type {
+  ComponentTemplateOf,
+  TemplateDelegatesToContext,
+} from '@craft-ng/component';
+import type { Equal, Expect } from 'test-type';
+
+const Counter = craftComponent(
+  'Counter',
+  {},
+  function* () {
+    const counter = yield* state(0, ({ state, update }) => ({
+      disabled: craftComputed(
+        'disabled',
+        () => state() % 2 === 0,
+      ),
+      increment: () => update((value) => value + 1),
+    }));
+
+    return { counter };
+  },
+  ({ counter }) =>
+    button(
+      {
+        *disabled() {
+          return yield* counter.disabled();
+        },
+        *click() {
+          yield* counter.increment();
+        },
+      },
+      '+',
+    ),
+);
+
+it('tests the derived disabled state', async () => {
+  const { context, destroy } =
+    await setupCraftComponentLogicTest.byRegister(Counter, {
+      register: {},
+    });
+
+  try {
+    expect(context.counter.disabled()).toBe(true);
+
+    context.counter.increment();
+
+    expect(context.counter()).toBe(1);
+    expect(context.counter.disabled()).toBe(false);
+  } finally {
+    destroy();
+  }
+});
+
+type _DisabledBindingIsCorrect = Expect<
+  Equal<
+    TemplateDelegatesToContext<
+      ReturnType<ComponentTemplateOf<typeof Counter>>,
+      'button',
+      'disabled',
+      'counter.disabled'
+    >,
+    true
+  >
+>;
+```
+
+TypeScript performs this check. It fails if the `button.disabled` callback
+delegates to another member or no longer delegates to `counter.disabled`. It
+does not replace the rendering test; it verifies the exact template wiring
+without a DOM.
+
+## Context and service dependencies
+
+The `context` is a factory value and is not a registry dependency. In this
+example, `store` is provided directly to the template:
 
 ```ts
 await setupCraftComponentTemplateTest.byRegister(FullDemoCraft, {
@@ -94,9 +170,9 @@ await setupCraftComponentTemplateTest.byRegister(FullDemoCraft, {
 });
 ```
 
-À l'inverse, si `StatusComponent` ou un component enfant utilise un
-`FormatterService`, le registre template contient `FormatterService`, jamais
-le component enfant :
+Conversely, if `StatusComponent` or a child component uses a
+`FormatterService`, the template registry contains `FormatterService`, never
+the child component:
 
 ```ts
 register: {
@@ -104,23 +180,23 @@ register: {
 }
 ```
 
-Les projections `CraftComponentLogicDepsOf<Component>` et
-`CraftComponentTemplateDepsOf<Component>` gardent ces deux graphes séparés.
-Un registre template n'accepte donc que des services ; les components enfants
-ne sont jamais des entrées de `register`.
+The `CraftComponentLogicDepsOf<Component>` and
+`CraftComponentTemplateDepsOf<Component>` projections keep these two graphs
+separate. A template registry therefore accepts only services; child components
+are never entries in `register`.
 
-## Valeurs du registre et providers
+## Registry values and providers
 
-Les règles de résolution sont les mêmes que pour les tests de services :
+Resolution follows the same rules as service tests:
 
-- un objet est un mock et est disponible dans `mocks` ;
-- `'real'` conserve le service réel ;
-- `'notReached'` documente une branche supprimée par un mock parent ;
-- `'provided'` demande la valeur fournie par l'injecteur parent ;
-- un provider `provideX(...)` permet de configurer explicitement un service.
+- an object is a mock and is available in `mocks`;
+- `'real'` keeps the real service;
+- `'notReached'` documents a branch removed by a parent mock;
+- `'provided'` requests the value provided by the parent injector;
+- a `provideX(...)` provider explicitly configures a service.
 
-Les providers déclarés dans `meta.providers` sont disponibles dans le scope du
-component. Les providers amont se placent dans `providers` :
+Providers declared in `meta.providers` are available in the component scope.
+Upstream providers go in `providers`:
 
 ```ts
 await setupCraftComponentLogicTest.byRegister(Component, {
@@ -131,12 +207,12 @@ await setupCraftComponentLogicTest.byRegister(Component, {
 });
 ```
 
-Les décisions `appStart` (`'run'` ou `'ignore'`) sont disponibles dans les
-options lorsque le graphe testé contient un service avec `appStart: true`.
+`appStart` decisions (`'run'` or `'ignore'`) are available in the options when
+the tested graph contains a service with `appStart: true`.
 
-## Tester une directive
+## Testing a directive
 
-La logic d'une directive reçoit explicitement sa `baseLogic` et ses arguments :
+Directive logic receives its `baseLogic` and arguments explicitly:
 
 ```ts
 const { context } = await setupCraftDirectiveLogicTest.byRegister(
@@ -149,7 +225,7 @@ const { context } = await setupCraftDirectiveLogicTest.byRegister(
 );
 ```
 
-Pour le template, fournissez `baseTemplate` et le contexte final :
+For the template, provide `baseTemplate` and the final context:
 
 ```ts
 const test = await setupCraftDirectiveTemplateTest.byRegister(whenDirective, {
@@ -162,6 +238,122 @@ test.updateContext({ when: () => false, message: () => 'hidden' });
 test.destroy();
 ```
 
-Les directives structurelles suivent le même chemin et peuvent vérifier le
-remplacement du rendu par `[]`. Le nettoyage de `destroy()` supprime les vues,
-les injecteurs, les listeners et les feuilles de style acquises.
+Structural directives follow the same path and can verify that rendering is
+replaced with `[]`. Calling `destroy()` cleans up views, injectors, listeners,
+and acquired styles.
+
+## Type-level template contract
+
+`SetupTestComponentTemplate` resolves the template without `TestBed`, a DOM,
+the factory, or runtime providers. The component tuple contains the references
+allowed for children:
+
+```ts
+type CounterTemplateTest = SetupTestComponentTemplate<
+  typeof Counter,
+  [typeof CounterButton, typeof PlusIcon]
+>;
+```
+
+The resolver traverses elements, directives, `each`, `defer`, and child
+components. A component reference missing from the tuple becomes a type
+diagnostic. Visited components are tracked so recursive templates do not create
+a resolution loop.
+
+The contract also checks the required public props of `ComponentNode` and keeps
+the concrete child component reference. Dynamic component unions produce a
+dedicated diagnostic; split them into static branches so they can be checked at
+the type level. External Angular components form an explicit boundary and
+should be tested with their Angular harness.
+
+The available assertions can verify elements, their props, event arguments,
+generator callbacks, and outputs:
+
+```ts
+type HasButton = TemplateHasElementWithProps<
+  ReturnType<ComponentTemplateOf<typeof Counter>>,
+  'button',
+  { readonly class: string }
+>;
+
+type HasClick = TemplateHasYieldableEvent<
+  ReturnType<ComponentTemplateOf<typeof Counter>>,
+  'button',
+  'click',
+  [MouseEvent]
+>;
+
+type HasDisabledBinding = TemplateDelegatesToContext<
+  ReturnType<ComponentTemplateOf<typeof Counter>>,
+  'button',
+  'disabled'
+>;
+
+type HasNestedDisabledBinding = TemplateDelegatesToContext<
+  ReturnType<ComponentTemplateOf<typeof Counter>>,
+  'button',
+  'disabled',
+  'counter.disabled'
+>;
+```
+
+Primitive properties follow the same contract as events. For derived state, use
+`craftComputed` in the `state` insertion:
+
+```ts
+const counter = yield* state(0, ({ state }) => ({
+  disabled: craftComputed('disabled', () => state() % 2 === 0),
+}));
+
+button(
+  {
+    *disabled() {
+      return yield* context.counter.disabled();
+    },
+  },
+  '+',
+);
+```
+
+The callback is executed by the Craft driver before the DOM property is
+written. The following assertion verifies the exact binding source without a
+fixture or DOM:
+
+```ts
+type HasDerivedDisabledBinding = TemplateDelegatesToContext<
+  ReturnType<ComponentTemplateOf<typeof Counter>>,
+  'button',
+  'disabled',
+  'counter.disabled'
+>;
+
+type _HasDerivedDisabledBinding = Expect<
+  Equal<HasDerivedDisabledBinding, true>
+>;
+```
+
+`craftComputed` remains a synchronous signal when called directly
+(`counter.disabled()`). In a template context, it is projected to a yieldable
+callback so it can be consumed with `yield*`.
+
+Templates supplied to `each` and `defer` are also resolved. When a `defer`
+directly loads a Craft component, that component must appear in the registry.
+Under this contract, DOM and output callbacks must be generators or branded
+Craft methods; ordinary imperative callbacks produce a diagnostic.
+
+Branded Craft methods are projected into the template context as yieldable
+callbacks:
+
+```ts
+button(
+  {
+    *click() {
+      yield* context.counter.increment(2);
+    },
+  },
+  '+',
+);
+```
+
+The renderer executes these callbacks with the Craft driver. Render callbacks
+(text, classes, styles, `each`, `defer`) remain synchronous.

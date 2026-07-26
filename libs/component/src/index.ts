@@ -8,6 +8,7 @@ export * from './lib/each';
 export * from './lib/hyperscript';
 export * from './lib/render/style-registry';
 export * from './lib/testing';
+export * from './lib/template-contract';
 export type {
   ComponentFactory,
   ComponentTemplate,
@@ -24,6 +25,10 @@ export type {
   ComponentMeta,
   DirectiveMeta,
   CraftDirectiveTemplateDependencies,
+  ComponentTemplateOf,
+  YieldableTemplateCallback,
+  YieldableTemplateContext,
+  TemplateMethodUse,
 } from './lib/types';
 export type {
   CraftNode,

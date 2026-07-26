@@ -19,14 +19,17 @@ import {
   runCraftGenerator,
 } from './craft-generator-runtime';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import { markYieldableMethod } from './yieldable';
+import type { YieldableMethod } from './yieldable';
 
 type CraftComputedGenerator<This, Yielded, T> = (
   this: This,
 ) => Generator<Yielded, () => T, unknown>;
 
-type TrackedCraftComputed<S, Yielded> = S & {
-  readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
-};
+type TrackedCraftComputed<T, Yielded> = Signal<T> &
+  YieldableMethod<[], T, Yielded> & {
+    readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
+  };
 
 // Host-bound forms — `craftComputed('name', this, function* () { ... })` — bind
 // `this` inside the factory (and the computation it returns) to the given host,
@@ -40,23 +43,23 @@ export function craftComputed<Name extends string, This, Yielded, T>(
   host: This,
   factory: CraftComputedGenerator<This, Yielded, T>,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<Signal<T>, Yielded>;
+): TrackedCraftComputed<T, Yielded>;
 export function craftComputed<Name extends string, Yielded, T>(
   name: Name,
   factory: CraftComputedGenerator<void, Yielded, T>,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<Signal<T>, Yielded>;
+): TrackedCraftComputed<T, Yielded>;
 export function craftComputed<Name extends string, This, T>(
   name: Name,
   host: This,
   computation: (this: This) => T,
   options?: CreateComputedOptions<T>,
-): Signal<T>;
+): TrackedCraftComputed<T, never>;
 export function craftComputed<Name extends string, T>(
   name: Name,
   computation: () => T,
   options?: CreateComputedOptions<T>,
-): Signal<T>;
+): TrackedCraftComputed<T, never>;
 export function craftComputed<T>(
   name: string,
   hostOrComputation: unknown,
@@ -115,17 +118,28 @@ export function craftComputed<T>(
     const from = computedInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     const destroyRef = computedInjector.get(DestroyRef, null);
     if (destroyRef) {
-      registry.triggerSnapshot$.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
-        let stateSnapshot: unknown;
-        try {
-          stateSnapshot = sig();
-        } catch (error) {
-          stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
-        }
-        registry.allSnapShot$.next({ source: name, from, state: stateSnapshot });
-      });
+      registry.triggerSnapshot$
+        .pipe(takeUntilDestroyed(destroyRef))
+        .subscribe(() => {
+          let stateSnapshot: unknown;
+          try {
+            stateSnapshot = sig();
+          } catch (error) {
+            stateSnapshot = {
+              error: error instanceof Error ? error.message : String(error),
+            };
+          }
+          registry.allSnapShot$.next({
+            source: name,
+            from,
+            state: stateSnapshot,
+          });
+        });
     }
   }
 
-  return result;
+  return markYieldableMethod(result) as unknown as TrackedCraftComputed<
+    T,
+    never
+  >;
 }

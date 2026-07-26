@@ -47,16 +47,24 @@ export type CraftNodeChildrenDependencies<Value> = {
 export type CraftTextValue = string | number | bigint | boolean;
 export type CraftTextBinding = () => CraftTextValue | null | undefined;
 
-export interface ElementNodeBase<Dependencies extends object = {}>
-  extends CraftNodeDepsCarrier<Dependencies> {
+export interface ElementNodeBase<
+  Dependencies extends object = {},
+  Tag extends string = string,
+  Props extends object = Readonly<Record<string, unknown>>,
+  Children extends CraftNodeChildren = CraftNodeChildren,
+> extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'element';
-  readonly tag: keyof HTMLElementTagNameMap | string;
-  readonly props: Readonly<Record<string, unknown>>;
-  readonly children: CraftNodeChildren;
+  readonly tag: Tag;
+  readonly props: Props;
+  readonly children: Children;
 }
 
-export interface ElementNode<Dependencies extends object = {}>
-  extends ElementNodeBase<Dependencies> {
+export interface ElementNode<
+  Dependencies extends object = {},
+  Tag extends string = string,
+  Props extends object = Readonly<Record<string, unknown>>,
+  Children extends CraftNodeChildren = CraftNodeChildren,
+> extends ElementNodeBase<Dependencies, Tag, Props, Children> {
   readonly pipe: CraftNodePipe<Dependencies>;
 }
 
@@ -86,9 +94,13 @@ export interface TextNode {
 export interface ComponentNode<
   Props extends object = object,
   ComponentDeps extends object = {},
+  Component extends CraftComponent<any, ComponentDeps> = CraftComponent<
+    any,
+    ComponentDeps
+  >,
 > extends CraftNodeDepsCarrier<ComponentDeps> {
   readonly kind: 'component';
-  readonly component: CraftComponent<Props, ComponentDeps>;
+  readonly component: Component;
   readonly props: Props;
 }
 

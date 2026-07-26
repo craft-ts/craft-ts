@@ -4,22 +4,39 @@ import type {
   CraftNodeChildren,
   ElementNode,
 } from './render/vnode';
+import type { Yieldable } from '@craft-ng/core';
 import { pipeCraftNode } from './render/vnode';
 
-export type ClassValue =
+type ClassValueResult =
   | string
-  | (() => ClassValue | null | undefined | false)
-  | readonly (ClassValue | null | undefined | false)[]
+  | null
+  | undefined
+  | false
+  | readonly ClassValueResult[]
   | Readonly<Record<string, boolean | null | undefined>>;
-
-export type StyleValue =
-  | string
-  | (() => StyleValue | null | undefined | false)
-  | Readonly<Partial<Record<keyof CSSStyleDeclaration, string | number | null>>>
-  | Readonly<Record<`--${string}`, string | number | null>>;
 
 /** Properties that can be supplied to a component's host element. */
 export type HostProps = ElementProps<'div'>;
+
+export type YieldableRenderCallback<Value> = Yieldable<[], Value, unknown>;
+
+export type ClassValue =
+  | ClassValueResult
+  | (() => ClassValueResult)
+  | YieldableRenderCallback<ClassValueResult>;
+
+type StyleValueResult =
+  | string
+  | false
+  | null
+  | undefined
+  | Readonly<Partial<Record<keyof CSSStyleDeclaration, string | number | null>>>
+  | Readonly<Record<`--${string}`, string | number | null>>;
+
+export type StyleValue =
+  | StyleValueResult
+  | (() => StyleValueResult)
+  | YieldableRenderCallback<StyleValueResult>;
 
 type DomEvents = {
   [EventName in keyof GlobalEventHandlersEventMap]?: (
@@ -44,22 +61,27 @@ type PrimitivePropertyKeys<Element> = {
     : never;
 }[keyof Element];
 
-export type ElementProps<Tag extends keyof HTMLElementTagNameMap> = Partial<
-  Pick<
-    HTMLElementTagNameMap[Tag],
-    PrimitivePropertyKeys<HTMLElementTagNameMap[Tag]>
-  >
-> &
-  DomEvents &
-  OnDomEvents & {
-    readonly class?: ClassValue;
-    readonly style?: StyleValue;
-    readonly attrs?: Readonly<Record<string, string | number | boolean | null>>;
-    readonly directives?: readonly AngularDirectiveNode[];
-    readonly [property: string]: unknown;
-    readonly [dataAttribute: `data-${string}`]: unknown;
-    readonly [ariaAttribute: `aria-${string}`]: unknown;
-  };
+type PrimitiveElementProps<Element> = {
+  [Key in PrimitivePropertyKeys<Element>]?:
+    | Element[Key]
+    | (() => Element[Key])
+    | YieldableRenderCallback<Element[Key]>;
+};
+
+export type ElementProps<Tag extends keyof HTMLElementTagNameMap> =
+  PrimitiveElementProps<HTMLElementTagNameMap[Tag]> &
+    DomEvents &
+    OnDomEvents & {
+      readonly class?: ClassValue;
+      readonly style?: StyleValue;
+      readonly attrs?: Readonly<
+        Record<string, string | number | boolean | null>
+      >;
+      readonly directives?: readonly AngularDirectiveNode[];
+      readonly [property: string]: unknown;
+      readonly [dataAttribute: `data-${string}`]: unknown;
+      readonly [ariaAttribute: `aria-${string}`]: unknown;
+    };
 
 function looksLikeChildren(value: unknown): boolean {
   return (
@@ -75,7 +97,16 @@ type HChildren<
   Tag extends keyof HTMLElementTagNameMap,
   PropsOrChildren,
   MaybeChildren,
-> = PropsOrChildren extends ElementProps<Tag> ? MaybeChildren : PropsOrChildren;
+> = (PropsOrChildren extends ElementProps<Tag>
+  ? MaybeChildren
+  : PropsOrChildren) &
+  CraftNodeChildren;
+
+type HProps<PropsOrChildren> = PropsOrChildren extends object
+  ? PropsOrChildren extends ElementProps<any>
+    ? PropsOrChildren
+    : Readonly<Record<never, never>>
+  : Readonly<Record<never, never>>;
 
 export function h<
   Tag extends keyof HTMLElementTagNameMap,
@@ -88,7 +119,10 @@ export function h<
   propsOrChildren?: PropsOrChildren,
   maybeChildren?: MaybeChildren,
 ): ElementNode<
-  CraftNodeChildrenDependencies<HChildren<Tag, PropsOrChildren, MaybeChildren>>
+  CraftNodeChildrenDependencies<HChildren<Tag, PropsOrChildren, MaybeChildren>>,
+  Tag,
+  HProps<PropsOrChildren>,
+  HChildren<Tag, PropsOrChildren, MaybeChildren>
 > {
   const props = looksLikeChildren(propsOrChildren)
     ? {}
@@ -105,11 +139,15 @@ export function h<
   } as ElementNode<
     CraftNodeChildrenDependencies<
       HChildren<Tag, PropsOrChildren, MaybeChildren>
-    >
+    >,
+    Tag,
+    HProps<PropsOrChildren>,
+    HChildren<Tag, PropsOrChildren, MaybeChildren>
   >;
 
   Object.defineProperty(node, 'pipe', {
-    value: (directive: unknown) => pipeCraftNode(node, directive as never),
+    value: (directive: unknown) =>
+      pipeCraftNode(node as unknown as ElementNode, directive as never),
     enumerable: false,
   });
 
@@ -117,13 +155,16 @@ export function h<
 }
 
 export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
-  <Children = CraftNodeChildren>(
+  <Children extends CraftNodeChildren = CraftNodeChildren>(
     children?: Children & CraftNodeChildren,
-  ): ElementNode<CraftNodeChildrenDependencies<Children>>;
-  <Props extends ElementProps<Tag>, Children = CraftNodeChildren>(
+  ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, {}, Children>;
+  <
+    Props extends ElementProps<Tag>,
+    Children extends CraftNodeChildren = CraftNodeChildren,
+  >(
     props: Props | null,
     children?: Children & CraftNodeChildren,
-  ): ElementNode<CraftNodeChildrenDependencies<Children>>;
+  ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, Props, Children>;
 }
 
 function tagHelper<Tag extends keyof HTMLElementTagNameMap>(

@@ -25,7 +25,12 @@ import {
 } from '@angular/platform-browser/testing';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BehaviorSubject } from 'rxjs';
-import { craftService } from '@craft-ng/core';
+import {
+  craftComputed,
+  craftMethod,
+  craftService,
+  state,
+} from '@craft-ng/core';
 import {
   CraftRoutedComponentHost,
   loadCraftComponent,
@@ -120,6 +125,117 @@ describe('functional component interpreter', () => {
 
     mounted.destroy();
     expect(element.textContent).toBe('');
+  });
+
+  it('drives generator DOM callbacks and branded Craft methods', () => {
+    const count = signal(0);
+    const counter = craftComponent(
+      'yieldableCounter',
+      {},
+      () => ({
+        count,
+        increment: craftMethod('increment', function* () {
+          count.update((value) => value + 1);
+        }),
+      }),
+      ({ count, increment }) =>
+        div([
+          p(() => String(count())),
+          button(
+            {
+              *click() {
+                yield* increment();
+              },
+            },
+            '+',
+          ),
+        ]),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      counter,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    element.querySelector('button')?.click();
+    TestBed.tick();
+
+    expect(element.querySelector('p')?.textContent).toBe('1');
+    mounted.destroy();
+  });
+
+  it('drives generator callbacks assigned to primitive DOM properties', () => {
+    const component = craftComponent(
+      'yieldableProperty',
+      {},
+      () => ({
+        disabled: craftMethod('disabled', function* () {
+          return true;
+        }),
+      }),
+      ({ disabled }) =>
+        button(
+          {
+            *disabled() {
+              return yield* disabled();
+            },
+          },
+          '+',
+        ),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.querySelector('button')?.hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(
+      (element.querySelector('button') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    mounted.destroy();
+  });
+
+  it('projects craftComputed state insertions as yieldable template properties', () => {
+    const component = craftComponent(
+      'yieldableComputedProperty',
+      {},
+      function* () {
+        const counter = yield* state(0, ({ state }) => ({
+          disabled: craftComputed('disabled', () => state() % 2 === 0),
+        }));
+        return { counter };
+      },
+      ({ counter }) =>
+        button(
+          {
+            *disabled() {
+              return yield* counter.disabled();
+            },
+          },
+          '+',
+        ),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect((element.querySelector('button') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    mounted.destroy();
   });
 
   it('marks component roots without leaking the marker into descendants', () => {

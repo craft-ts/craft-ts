@@ -79,6 +79,7 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
+import { markYieldableMethod } from './yieldable';
 
 type MutationConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -1207,7 +1208,8 @@ function createMutationRef<
               getInjector,
               args: [loaderParam],
               invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-              appStartNotSupportedErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+              appStartNotSupportedErrorMessage:
+                MUTATION_APP_START_ERROR_MESSAGE,
             });
 
             if (step.kind === 'shortCircuit') {
@@ -1532,7 +1534,7 @@ function createMutationRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = (...args: unknown[]) =>
+            wrappedAcc[key] = markYieldableMethod((...args: unknown[]) =>
               runInInjectionContext(methodInjector, () => {
                 const result = (wrappedFn as (...a: unknown[]) => unknown)(
                   ...args,
@@ -1551,7 +1553,8 @@ function createMutationRef<
                   }).value;
                 }
                 return result;
-              });
+              }),
+            );
           } else {
             wrappedAcc[key] = value;
           }

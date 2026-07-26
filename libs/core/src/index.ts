@@ -44,6 +44,7 @@ export * from './lib/craft-effect';
 export * from './lib/craft-service';
 export * from './lib/craft-primitive-gen';
 export * from './lib/craft-use';
+export * from './lib/yieldable';
 export * from './lib/correlation-id';
 export * from './lib/correlation-id-plugin';
 export * from './lib/take-app-snapshot';

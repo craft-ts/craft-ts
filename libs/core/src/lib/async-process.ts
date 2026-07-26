@@ -76,6 +76,7 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
+import { markYieldableMethod } from './yieldable';
 
 type AsyncProcessConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -715,7 +716,10 @@ export function asyncProcess<
   >
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function asyncProcess(AsyncProcessConfig: any, ...insertions: any[]): any {
+export function asyncProcess(
+  AsyncProcessConfig: any,
+  ...insertions: any[]
+): any {
   return createPrimitiveGen(
     createAsyncProcessRef(AsyncProcessConfig, ...insertions),
   );
@@ -1269,7 +1273,7 @@ function createAsyncProcessRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = (...args: unknown[]) =>
+            wrappedAcc[key] = markYieldableMethod((...args: unknown[]) =>
               runInInjectionContext(methodInjector, () => {
                 const result = (wrappedFn as (...a: unknown[]) => unknown)(
                   ...args,
@@ -1288,7 +1292,8 @@ function createAsyncProcessRef<
                   }).value;
                 }
                 return result;
-              });
+              }),
+            );
           } else {
             wrappedAcc[key] = value;
           }

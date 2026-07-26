@@ -12,6 +12,11 @@ import { craftMethod } from '@craft-ng/core';
 
 `craftMethod` is designed for component methods such as click handlers, submit handlers, and small UI orchestration callbacks.
 
+The returned method carries the yieldable-method contract. When it is consumed
+from a Craft component template, its template view can delegate it with
+`yield*`; the component renderer drives the callback with the Craft generator
+runtime while preserving the method's injector and wrappers.
+
 The method runs inside the injection context captured when `craftMethod(...)` is created.
 
 That makes it useful when a component method needs to:

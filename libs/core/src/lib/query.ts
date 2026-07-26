@@ -79,6 +79,7 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
+import { markYieldableMethod } from './yieldable';
 
 type QueryConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -1279,8 +1280,9 @@ function createQueryRef<
   // status computed would read itself and form a computation cycle).
   // (`as unknown` because the raw Angular ref view — `error` included — is no
   // longer part of the CraftResourceRef surface.)
-  const rawResourceStatus = (resourceTarget as unknown as ResourceRef<QueryState>)
-    .status;
+  const rawResourceStatus = (
+    resourceTarget as unknown as ResourceRef<QueryState>
+  ).status;
 
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
@@ -1460,7 +1462,7 @@ function createQueryRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = (...args: unknown[]) =>
+            wrappedAcc[key] = markYieldableMethod((...args: unknown[]) =>
               runInInjectionContext(methodInjector, () => {
                 const result = (wrappedFn as (...a: unknown[]) => unknown)(
                   ...args,
@@ -1477,7 +1479,8 @@ function createQueryRef<
                   }).value;
                 }
                 return result;
-              });
+              }),
+            );
           } else {
             wrappedAcc[key] = value;
           }
