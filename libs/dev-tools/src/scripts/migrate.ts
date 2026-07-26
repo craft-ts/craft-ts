@@ -12,6 +12,10 @@ import {
   runServicesMigration,
   type MigrateServicesResult,
 } from './services/migrate-services.js';
+import {
+  runComponentsMigration,
+  type MigrateComponentsResult,
+} from './components/migrate-components.js';
 
 export type MigrateOptions = {
   rootDir?: string;
@@ -34,11 +38,13 @@ export type MigrateResult = {
   primitives: MigratePrimitivesResult;
   services: MigrateServicesResult;
   routes: MigrateRoutesResult;
+  components: MigrateComponentsResult;
   changedFiles: string[];
   diagnostics: {
     primitives: MigratePrimitivesResult['diagnostics'];
     services: MigrateServicesResult['diagnostics'];
     routes: MigrateRoutesResult['diagnostics'];
+    components: MigrateComponentsResult['diagnostics'];
   };
   exitCode: number;
 };
@@ -58,20 +64,20 @@ export async function runMigration(
     log: stepLog,
   };
 
-  if (!options.json) log('1/3 Migrating primitives and Signal Forms...');
+  if (!options.json) log('1/4 Migrating primitives and Signal Forms...');
   const primitives = await runPrimitivesMigration({
     ...shared,
     eslint: options.eslint,
   });
 
-  if (!options.json) log('2/3 Migrating Angular services...');
+  if (!options.json) log('2/4 Migrating Angular services...');
   const services = await runServicesMigration({
     ...shared,
     configFilePath: options.configFilePath,
     eslint: options.eslint,
   });
 
-  if (!options.json) log('3/3 Migrating Angular routes...');
+  if (!options.json) log('3/4 Migrating Angular routes...');
   const routes = await runRoutesMigration({
     ...shared,
     collectionName: options.collectionName,
@@ -79,26 +85,36 @@ export async function runMigration(
     parentNames: options.parentNames,
   });
 
+  if (!options.json) log('4/4 Migrating Craft components and directives...');
+  const components = await runComponentsMigration({
+    ...shared,
+    eslint: options.eslint,
+  });
+
   const result: MigrateResult = {
     primitives,
     services,
     routes,
+    components,
     changedFiles: [
       ...new Set([
         ...primitives.changedFiles,
         ...services.changedFiles,
         ...routes.changedFiles,
+        ...components.changedFiles,
       ]),
     ],
     diagnostics: {
       primitives: primitives.diagnostics,
       services: services.diagnostics,
       routes: routes.diagnostics,
+      components: components.diagnostics,
     },
     exitCode: Math.max(
       primitives.exitCode,
       services.exitCode,
       routes.exitCode,
+      components.exitCode,
     ),
   };
 
@@ -113,7 +129,8 @@ export async function runMigration(
     const manualCount =
       primitives.diagnostics.length +
       services.diagnostics.length +
-      routes.diagnostics.length;
+      routes.diagnostics.length +
+      components.diagnostics.length;
     log(
       `Migration complete: ${result.changedFiles.length} changed file(s), ${manualCount} manual diagnostic(s).`,
     );

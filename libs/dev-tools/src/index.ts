@@ -9,3 +9,5 @@ export * from './scripts/routes/route-command';
 export * from './scripts/services/config';
 export * from './scripts/services/migrate-services';
 export * from './scripts/services/migration-diagnostic';
+export * from './scripts/components/migrate-components';
+export * from './scripts/components/migration-diagnostic';

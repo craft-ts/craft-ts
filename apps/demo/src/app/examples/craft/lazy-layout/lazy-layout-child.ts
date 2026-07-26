@@ -1,6 +1,6 @@
 import {
   article,
-  component,
+  craftComponent,
   h,
   h2,
   p,
@@ -10,18 +10,19 @@ import {
 import { componentMonitoring, provideHostName } from '@craft-ng/core';
 import { OtherComponent } from './other';
 
-const LazyLayoutChildComponent = component(
+const LazyLayoutChildComponent = craftComponent(
+  'LazyLayoutChildComponent',
   {
     providers: [provideHostName('component:LazyLayoutChildComponent')],
     styles:
-      '.lazy-child{display:grid;gap:.875rem;padding:1.5rem;border-radius:20px;background:#f0fdfa;border:1px solid #99f6e4}',
+      ':scope{display:grid;gap:.875rem;padding:1.5rem;border-radius:20px;background:#f0fdfa;border:1px solid #99f6e4}',
   },
   (teamId: Input<string>, someParentRouteData: Input<string>) => {
     componentMonitoring();
     return { teamId, someParentRouteData };
   },
   ({ teamId, someParentRouteData }) => [
-    article({ class: 'lazy-child' }, [
+    article([
       span('Child component'),
       h2('Input binding inside a lazy feature'),
       p('The inherited parent values are available as typed SFC inputs.'),

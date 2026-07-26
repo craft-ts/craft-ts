@@ -40,6 +40,13 @@ import {
   type ElementNodeBase,
 } from './vnode';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
+import {
+  CraftStyleRegistry,
+  ɵfallbackCraftStyleRegistry,
+} from './style-registry';
+import { scopeCss, scopeIdFor } from './style-scope';
+
+declare const ngDevMode: boolean | undefined;
 
 type NativeNode = Node;
 type NativeParent = Node;
@@ -48,6 +55,55 @@ interface RenderContext {
   readonly renderer: Renderer2;
   readonly injector: Injector;
   readonly componentContext?: unknown;
+  readonly ownerScope?: string;
+  readonly rootScope?: string;
+  readonly styleRoot?: Document | ShadowRoot;
+  readonly styles?: CraftStyleRegistry;
+}
+
+function childContext(
+  context: RenderContext,
+  overrides: Partial<RenderContext> = {},
+): RenderContext {
+  return { ...context, ...overrides };
+}
+
+function scopeTokens(parent: string | undefined, own: string): string {
+  return [parent, own].filter(Boolean).join(' ');
+}
+
+function styleValues(
+  styles: string | readonly string[] | undefined,
+): readonly string[] {
+  return typeof styles === 'string' ? [styles] : (styles ?? []);
+}
+
+function acquireStyles(
+  context: RenderContext,
+  owners: readonly {
+    readonly name: string;
+    readonly styles?: string | readonly string[];
+    readonly definition?: object;
+  }[],
+  ownerScope: string,
+): (() => void)[] {
+  if (!context.styleRoot || !context.styles) return [];
+  const registry = context.styles;
+  const releases: (() => void)[] = [];
+  owners.forEach((owner, index) => {
+    const scope = scopeIdFor(owner.definition ?? {}, owner.name);
+    const css = styleValues(owner.styles);
+    if (!css.length) return;
+    releases.push(
+      registry.acquire(
+        context.styleRoot!,
+        `craft:${ownerScope}:${scope}`,
+        scopeCss(ownerScope, css.join('\n')),
+        index,
+      ),
+    );
+  });
+  return releases;
 }
 
 interface RenderedNode {
@@ -259,6 +315,7 @@ function renderCraftDirectiveNode(
 class CraftDirectiveRenderedNode implements RenderedNode {
   readonly kind = 'directive';
   private readonly view: FragmentRenderedNode;
+  private readonly styleReleases: (() => void)[];
 
   constructor(
     private node: CraftDirectiveNode,
@@ -266,6 +323,16 @@ class CraftDirectiveRenderedNode implements RenderedNode {
     before: NativeNode | null,
     private readonly context: RenderContext,
   ) {
+    const owners = node.directives.map((directive) => ({
+      name: directive[CRAFT_DIRECTIVE].name,
+      styles: directive[CRAFT_DIRECTIVE].meta.styles,
+      definition: directive[CRAFT_DIRECTIVE],
+    }));
+    this.styleReleases = acquireStyles(
+      context,
+      owners,
+      context.ownerScope ?? '',
+    );
     this.view = createFragment(
       parent,
       before,
@@ -298,6 +365,7 @@ class CraftDirectiveRenderedNode implements RenderedNode {
 
   destroy(): void {
     this.view.destroy();
+    this.styleReleases.forEach((release) => release());
   }
 }
 
@@ -486,6 +554,14 @@ function applyAttribute(
   key: string,
   value: unknown,
 ): void {
+  if (key.startsWith('data-craft-')) {
+    const dev = typeof ngDevMode === 'undefined' || ngDevMode;
+    if (dev) {
+      throw new Error(
+        'data-craft-* attributes are reserved for the Craft renderer.',
+      );
+    }
+  }
   if (PROPERTY_NAMES.has(key)) {
     renderer.setProperty(element, key, value ?? false);
     if (value === null || value === undefined || value === false) {
@@ -521,7 +597,7 @@ class ElementRenderedNode implements RenderedNode {
       this.children,
       initial.children,
       null,
-      context,
+      childContext(context, { rootScope: undefined }),
     );
   }
 
@@ -544,7 +620,7 @@ class ElementRenderedNode implements RenderedNode {
       this.children,
       node.children,
       null,
-      this.context,
+      childContext(this.context, { rootScope: undefined }),
     );
     return true;
   }
@@ -851,6 +927,11 @@ class AngularRenderedNode implements RenderedNode {
     const tag =
       selector && /^[a-z][a-z0-9-]*$/i.test(selector) ? selector : 'div';
     this.hostElement = context.renderer.createElement(tag) as Element;
+    context.renderer.setAttribute(
+      this.hostElement,
+      'data-craft-root',
+      scopeTokens(context.rootScope, `angular:${tag}`),
+    );
     insertBefore(context.renderer, parent, this.hostElement, before);
     this.mount = new AngularMount(
       node.component,
@@ -899,6 +980,7 @@ class ComponentRenderedNode implements RenderedNode {
   private readonly hostPropsSource;
   private readonly view: FragmentRenderedNode;
   private readonly effectRef: EffectRef;
+  private readonly styleReleases: (() => void)[];
 
   constructor(
     private component: CraftComponent<object>,
@@ -909,6 +991,16 @@ class ComponentRenderedNode implements RenderedNode {
     hostTarget?: Element,
   ) {
     const definition = component[CRAFT_COMPONENT];
+    const ownScope = scopeIdFor(definition.scopeDefinition, definition.name);
+    this.styleReleases = acquireStyles(
+      context,
+      definition.styleOwners,
+      ownScope,
+    );
+    const componentRenderContext = childContext(context, {
+      ownerScope: ownScope,
+      rootScope: scopeTokens(context.rootScope, ownScope),
+    });
     const componentElement =
       hostTarget ?? (parent instanceof Element ? parent : parent.parentElement);
     // Angular's runtime accepts any Injector as the R3Injector parent even
@@ -969,11 +1061,10 @@ class ComponentRenderedNode implements RenderedNode {
     this.view = createFragment(
       parent,
       before,
-      {
-        renderer: context.renderer,
+      childContext(componentRenderContext, {
         injector: this.environmentInjector,
         componentContext: factoryContext,
-      },
+      }),
       [],
       'craft-component',
     );
@@ -985,27 +1076,11 @@ class ComponentRenderedNode implements RenderedNode {
             definition.meta.host ?? {},
             this.hostPropsSource(),
           );
-          const styles =
-            typeof definition.meta.styles === 'string'
-              ? [definition.meta.styles]
-              : (definition.meta.styles ?? []);
-          this.view.patchChildren([
-            ...styles.map(
-              (css): ElementNodeBase => ({
-                kind: 'element',
-                tag: 'style',
-                props: {},
-                children: css,
-              }),
-            ),
+          this.view.patchChildren(
             definition.template(factoryContext, hostProps),
-          ]);
+          );
           if (hostTarget) {
-            applyHostProperties(
-              context.renderer,
-              hostTarget,
-              hostProps,
-            );
+            applyHostProperties(context.renderer, hostTarget, hostProps);
           }
         }),
       ),
@@ -1046,6 +1121,7 @@ class ComponentRenderedNode implements RenderedNode {
   destroy(): void {
     this.effectRef.destroy();
     this.view.destroy();
+    this.styleReleases.forEach((release) => release());
     this.environmentInjector.destroy();
   }
 }
@@ -1235,6 +1311,13 @@ function mountNode(
     }
     case 'element': {
       const element = context.renderer.createElement(node.tag) as Element;
+      if (context.rootScope) {
+        context.renderer.setAttribute(
+          element,
+          'data-craft-root',
+          context.rootScope,
+        );
+      }
       insertBefore(context.renderer, parent, element, before);
       return new ElementRenderedNode(element, node.tag, context, node);
     }
@@ -1292,12 +1375,19 @@ export function mountInterpretedComponent<Props extends object>(
   props: Props,
 ): MountedCraftComponent<Props> {
   const renderer = injector.get(RendererFactory2).createRenderer(host, null);
+  const rootNode = host.getRootNode();
+  const styleRoot: Document | ShadowRoot =
+    (typeof Document !== 'undefined' && rootNode instanceof Document) ||
+    (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
+      ? (rootNode as Document | ShadowRoot)
+      : (host.ownerDocument ?? document);
+  const styles = injector.get(CraftStyleRegistry, ɵfallbackCraftStyleRegistry);
   const instance = new ComponentRenderedNode(
     component as unknown as CraftComponent<object>,
     props,
     host,
     null,
-    { renderer, injector },
+    { renderer, injector, styleRoot, styles },
     host,
   );
 

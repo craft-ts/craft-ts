@@ -1,9 +1,7 @@
-import {
-  component,
-  p,
-} from '@craft-ng/component';
+import { craftComponent, p } from '@craft-ng/component';
 
-export const lazyMessage = component(
+export const lazyMessage = craftComponent(
+  'lazyMessage',
   {},
   () => ({}),
   () =>

@@ -1,7 +1,8 @@
-import { button, component, h2, p, type Input } from '@craft-ng/component';
+import { button, craftComponent, h2, p, type Input } from '@craft-ng/component';
 import { provideHostName, state } from '@craft-ng/core';
 
-export const SendContextCounterComponent = component(
+export const SendContextCounterComponent = craftComponent(
+  'SendContextCounterComponent',
   { providers: [provideHostName('component:SendContextCounterComponent')] },
   function* (initialValue: Input<number>) {
     const counter = yield* state(initialValue(), ({ update }) => ({

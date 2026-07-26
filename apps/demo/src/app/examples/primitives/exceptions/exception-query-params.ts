@@ -1,7 +1,7 @@
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   button,
-  component,
+  craftComponent,
   div,
   h,
   p,
@@ -27,7 +27,8 @@ const { RouterToYield } = toCraftService({
   token: Router,
 });
 
-const ExceptionQueryParamsComponent = component(
+const ExceptionQueryParamsComponent = craftComponent(
+  'ExceptionQueryParamsComponent',
   { providers: [provideHostName('component:ExceptionQueryParamsComponent')] },
   function* () {
     componentMonitoring();

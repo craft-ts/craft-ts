@@ -9,7 +9,7 @@ Directives are applied from left to right.
 ```ts
 import {
   button,
-  component,
+  craftComponent,
   craftDirective,
   div,
   p,
@@ -37,6 +37,8 @@ type ProvidesPermissions = RequiresUser & {
 };
 
 const InteractivePermissions = craftDirective(
+  'InteractivePermissions',
+  {},
   (baseLogic: HostRequiredLogic<RequiresUser>) => (user: Input<User>) => {
     const context = baseLogic(user);
 
@@ -58,7 +60,8 @@ const InteractivePermissions = craftDirective(
 A directive transforms the existing logic and template:
 
 ```ts
-const Card = component(
+const Card = craftComponent(
+  'Card',
   {},
   (user: Input<User>) => ({ user }),
   ({ user }) => div(user().name),
@@ -87,6 +90,8 @@ A fixed configuration can be supplied when the directive is created:
 ```ts
 const hasPermission = (permission: Permission) =>
   craftDirective(
+    'hasPermission',
+    {},
     (baseLogic: HostRequiredLogic<RequiresUser>) => (user: Input<User>) => {
       const context = baseLogic(user);
 
@@ -102,7 +107,8 @@ const hasPermission = (permission: Permission) =>
       context.permissions.canAccess() ? baseTemplate(context) : [],
   );
 
-const Card = component(
+const Card = craftComponent(
+  'Card',
   {},
   (user: Input<User>) => ({ user }),
   ({ user }) => div(user().name),
@@ -117,6 +123,8 @@ A directive can also add a public input to the component:
 
 ```ts
 const hasPermissionInput = craftDirective(
+  'hasPermissionInput',
+  {},
   (baseLogic: HostRequiredLogic<RequiresUser>) =>
     (user: Input<User>, permission: Input<Permission>) => {
       const context = baseLogic(user);
@@ -142,7 +150,8 @@ const hasPermissionInput = craftDirective(
     (context) => (context.permissions.canAccess() ? baseTemplate(context) : []),
 );
 
-const Card = component(
+const Card = craftComponent(
+  'Card',
   {},
   (user: Input<User>) => ({ user }),
   ({ user }) => div(user().name),
@@ -164,6 +173,8 @@ A structural directive decides whether the template produces nodes:
 
 ```ts
 const whenDirective = craftDirective(
+  'whenDirective',
+  {},
   (
     baseLogic: HostRequiredLogic<{
       when: Input<boolean>;
@@ -178,7 +189,8 @@ const whenDirective = craftDirective(
     (context) => (context.when() ? baseTemplate(context) : []),
 );
 
-const Panel = component(
+const Panel = craftComponent(
+  'Panel',
   {},
   (when: Input<boolean>) => ({ when }),
   () => div(p('Conditional content')),
@@ -196,6 +208,8 @@ A structural directive can consume context added by a previous directive:
 
 ```ts
 const onlyEditable = craftDirective(
+  'onlyEditable',
+  {},
   (
     baseLogic: HostRequiredLogic<{
       permissions: {
@@ -214,7 +228,8 @@ const onlyEditable = craftDirective(
     (context) => (context.permissions.canEdit() ? baseTemplate(context) : []),
 );
 
-const EditableCard = component(
+const EditableCard = craftComponent(
+  'EditableCard',
   {},
   (user: Input<User>) => ({ user }),
   ({ user }) => div(user().name),

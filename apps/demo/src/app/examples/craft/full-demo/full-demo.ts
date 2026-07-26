@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   h2,
@@ -56,11 +56,12 @@ const { provideTodoStore, TodoStoreToYield } = craftService(
   },
 );
 
-const FullDemoCraft = component(
+const FullDemoCraft = craftComponent(
+  'FullDemoCraft',
   {
     providers: [provideTodoStore(), provideHostName('component:FullDemoCraft')],
     styles:
-      '.craft-full-demo{display:grid;gap:1rem;max-width:640px}.craft-full-demo li{display:flex;gap:.75rem}.craft-full-demo li span{flex:1}',
+      ':scope{display:grid;gap:1rem;max-width:640px}li{display:flex;gap:.75rem}li span{flex:1}',
   },
   function* () {
     componentMonitoring();
@@ -68,7 +69,7 @@ const FullDemoCraft = component(
   },
   ({ store }) => {
     let title = '';
-    return div({ class: 'craft-full-demo' }, [
+    return div([
       h2([
         'Full craftService demo ',
         StatusComponent({ status: () => store.todos.status() }),

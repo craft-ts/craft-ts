@@ -55,6 +55,8 @@ export interface CraftDirective<
   Template extends TemplateDecorator = TemplateDecorator,
 > {
   readonly [CRAFT_DIRECTIVE]: {
+    readonly name: string;
+    readonly meta: DirectiveMeta;
     readonly logic: Logic;
     readonly template: Template;
   };
@@ -88,10 +90,23 @@ export interface ComponentMeta<
   readonly styles?: string | readonly string[];
 }
 
+export interface DirectiveMeta {
+  readonly styles?: string | readonly string[];
+}
+
+export interface StyleOwner {
+  readonly name: string;
+  readonly styles?: string | readonly string[];
+  readonly definition?: object;
+}
+
 export interface ComponentDefinition<Context = unknown> {
+  readonly name: string;
   readonly meta: ComponentMeta;
   readonly factory: ComponentFactory;
   readonly template: ComponentTemplate<Context>;
+  readonly styleOwners: readonly StyleOwner[];
+  readonly scopeDefinition: object;
 }
 
 type ComponentCallProps<Props extends object> = Props & HostProps;

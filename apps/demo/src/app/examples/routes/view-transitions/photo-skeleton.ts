@@ -1,6 +1,6 @@
 import {
   article,
-  component,
+  craftComponent,
   div,
   img,
   span,
@@ -14,7 +14,8 @@ type TransitionPayload = {
   readonly image: string | null;
 };
 
-const ViewTransitionsSkeletonComponent = component(
+const ViewTransitionsSkeletonComponent = craftComponent(
+  'ViewTransitionsSkeletonComponent',
   {
     providers: [provideHostName('component:ViewTransitionsSkeletonComponent')],
     styles: `

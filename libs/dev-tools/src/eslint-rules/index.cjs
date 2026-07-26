@@ -26,6 +26,8 @@ const requireExceptionComponentDiCheck = require('./require-exception-component-
 const requireChildRouteMountCheck = require('./require-child-route-mount-check.cjs');
 const requireLazyLoadWithRetry = require('./require-lazy-load-with-retry.cjs');
 const requireCascadeRouteDiCheck = require('./require-cascade-route-di-check.cjs');
+const craftComponentNameMatch = require('./craft-component-name-match.cjs');
+const craftDirectiveNameMatch = require('./craft-directive-name-match.cjs');
 
 module.exports = {
   rules: {
@@ -58,5 +60,7 @@ module.exports = {
     'require-child-route-mount-check': requireChildRouteMountCheck,
     'require-lazy-load-with-retry': requireLazyLoadWithRetry,
     'require-cascade-route-di-check': requireCascadeRouteDiCheck,
+    'craft-component-name-match': craftComponentNameMatch,
+    'craft-directive-name-match': craftDirectiveNameMatch,
   },
 };

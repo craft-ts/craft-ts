@@ -1,4 +1,11 @@
-import { button, component, div, h, p, type Input } from '@craft-ng/component';
+import {
+  button,
+  craftComponent,
+  div,
+  h,
+  p,
+  type Input,
+} from '@craft-ng/component';
 import {
   componentMonitoring,
   Console,
@@ -31,8 +38,9 @@ const { UserQueryToYield } = craftService(
   },
 );
 
-const GlobalQuery = component(
-  { providers: [provideHostName('component:GlobalQuery')] },
+const CraftGlobalQuery = craftComponent(
+  'CraftGlobalQuery',
+  { providers: [provideHostName('component:CraftGlobalQuery')] },
   function* (userId: Input<string | undefined>) {
     componentMonitoring();
     const user = yield* UserQueryToYield({ userId: () => userId() });
@@ -61,4 +69,4 @@ const GlobalQuery = component(
   ],
 );
 
-export default GlobalQuery;
+export default CraftGlobalQuery;

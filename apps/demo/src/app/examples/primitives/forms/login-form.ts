@@ -1,7 +1,7 @@
 import { computed, signal } from '@angular/core';
 import {
   button,
-  component,
+  craftComponent,
   div,
   form,
   h2,
@@ -11,11 +11,12 @@ import {
 } from '@craft-ng/component';
 import { componentMonitoring, provideHostName } from '@craft-ng/core';
 
-const LoginFormComponent = component(
+const LoginFormComponent = craftComponent(
+  'LoginFormComponent',
   {
     providers: [provideHostName('component:LoginFormComponent')],
     styles: `
-      .login-form{max-width:420px;display:grid;gap:1rem;padding:2rem;border:1px solid #e2e8f0;border-radius:12px}.login-field{display:grid;gap:.35rem}.login-form input{padding:.75rem;border:1px solid #cbd5e1;border-radius:6px}.login-error{color:#b91c1c}
+      :scope{max-width:420px;display:grid;gap:1rem;padding:2rem;border:1px solid #e2e8f0;border-radius:12px}.login-field{display:grid;gap:.35rem}input{padding:.75rem;border:1px solid #cbd5e1;border-radius:6px}.login-error{color:#b91c1c}
     `,
   },
   () => {
@@ -32,7 +33,6 @@ const LoginFormComponent = component(
   ({ email, password, submitted, valid, submit }) =>
     form(
       {
-        class: 'login-form',
         submit: (event) => {
           event.preventDefault();
           submit();

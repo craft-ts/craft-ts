@@ -1,6 +1,6 @@
 import {
   button,
-  component,
+  craftComponent,
   div,
   h,
   input,
@@ -20,7 +20,8 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
-const MutationDemoComponent = component(
+const MutationDemoComponent = craftComponent(
+  'MutationDemoComponent',
   { providers: [provideHostName('component:MutationDemoComponent')] },
   function* (userId: Input<string | undefined>) {
     componentMonitoring();

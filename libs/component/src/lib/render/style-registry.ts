@@ -1,0 +1,101 @@
+import { Injectable } from '@angular/core';
+
+type StyleRoot = Document | ShadowRoot;
+
+type StyleEntry = {
+  refs: number;
+  css: string;
+  order: number;
+  sheet?: CSSStyleSheet;
+  element?: HTMLStyleElement;
+};
+
+const supportsAdoptedStyleSheets =
+  typeof CSSStyleSheet === 'function' &&
+  typeof Document !== 'undefined' &&
+  'adoptedStyleSheets' in Document.prototype &&
+  'replaceSync' in CSSStyleSheet.prototype;
+
+@Injectable({ providedIn: 'root' })
+export class CraftStyleRegistry {
+  private readonly roots = new WeakMap<StyleRoot, Map<string, StyleEntry>>();
+
+  acquire(
+    root: StyleRoot,
+    key: string,
+    css: string,
+    order: number,
+  ): () => void {
+    let entries = this.roots.get(root);
+    if (!entries) {
+      entries = new Map();
+      this.roots.set(root, entries);
+    }
+
+    const existing = entries.get(key);
+    if (existing) {
+      existing.refs += 1;
+      return () => this.release(root, key, existing);
+    }
+
+    const entry: StyleEntry = { refs: 1, css, order };
+    if (supportsAdoptedStyleSheets) {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(css);
+      entry.sheet = sheet;
+    } else {
+      const document = root instanceof Document ? root : root.ownerDocument;
+      const element = document!.createElement('style');
+      element.setAttribute('data-craft-sheet', key);
+      element.textContent = css;
+      if (root instanceof Document) {
+        (root.head ?? root.documentElement).appendChild(element);
+      } else {
+        root.appendChild(element);
+      }
+      entry.element = element;
+    }
+    entries.set(key, entry);
+    this.sync(root, entries);
+    return () => this.release(root, key, entry);
+  }
+
+  private release(root: StyleRoot, key: string, entry: StyleEntry): void {
+    if (entry.refs === 0) return;
+    entry.refs -= 1;
+    if (entry.refs > 0) return;
+
+    entry.element?.remove();
+    const entries = this.roots.get(root);
+    entries?.delete(key);
+    if (entries) this.sync(root, entries);
+  }
+
+  private sync(root: StyleRoot, entries: Map<string, StyleEntry>): void {
+    if (!supportsAdoptedStyleSheets) {
+      const parent =
+        root instanceof Document ? (root.head ?? root.documentElement) : root;
+      [...entries.values()]
+        .sort((left, right) => left.order - right.order)
+        .forEach((entry) => {
+          if (entry.element) parent.appendChild(entry.element);
+        });
+      return;
+    }
+    const registered = new Set(
+      [...entries.values()]
+        .map((entry) => entry.sheet)
+        .filter((sheet): sheet is CSSStyleSheet => Boolean(sheet)),
+    );
+    const current = [...root.adoptedStyleSheets].filter(
+      (sheet) => !registered.has(sheet),
+    );
+    const craftSheets = [...entries.values()]
+      .sort((left, right) => left.order - right.order)
+      .map((entry) => entry.sheet)
+      .filter((sheet): sheet is CSSStyleSheet => Boolean(sheet));
+    root.adoptedStyleSheets = [...current, ...craftSheets];
+  }
+}
+
+export const ɵfallbackCraftStyleRegistry = new CraftStyleRegistry();

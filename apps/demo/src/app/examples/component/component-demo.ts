@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import {
   button,
-  component,
+  craftComponent,
   defer,
   div,
   each,
@@ -21,7 +21,8 @@ interface DemoUser {
 const loadLazyMessage = () =>
   import('./lazy-message').then((module) => module.lazyMessage);
 
-const userCard = component(
+const userCard = craftComponent(
+  'userCard',
   {},
   (user: Input<DemoUser>, onRemove: Output<(user: DemoUser) => void>) => ({
     user,
@@ -41,7 +42,8 @@ const userCard = component(
     ]),
 );
 
-export const componentDemo = component(
+export const componentDemo = craftComponent(
+  'componentDemo',
   { host: { class: 'component-demo-host' } },
   () => {
     const users = signal<DemoUser[]>([

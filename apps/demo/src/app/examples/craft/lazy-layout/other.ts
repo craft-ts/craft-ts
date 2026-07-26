@@ -1,4 +1,4 @@
-import { component, div, p } from '@craft-ng/component';
+import { craftComponent, div, p } from '@craft-ng/component';
 import {
   componentMonitoring,
   craftException,
@@ -47,7 +47,8 @@ const { Test2ToYield } = craftService(
   () => ({}),
 );
 
-export const OtherComponent = component(
+export const OtherComponent = craftComponent(
+  'OtherComponent',
   {
     providers: [
       provideOtherService(),

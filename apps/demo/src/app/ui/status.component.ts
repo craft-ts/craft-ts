@@ -1,5 +1,5 @@
 import type { ResourceStatus } from '@angular/core';
-import { component, span, type Input } from '@craft-ng/component';
+import { craftComponent, span, type Input } from '@craft-ng/component';
 import { provideHostName } from '@craft-ng/core';
 
 const STATUS_VIEW = {
@@ -12,7 +12,8 @@ const STATUS_VIEW = {
   exception: ['⚠️', 'Exception', 'red'],
 } as const;
 
-export const StatusComponent = component(
+export const StatusComponent = craftComponent(
+  'StatusComponent',
   {
     providers: [provideHostName('component:StatusComponent')],
     styles: `

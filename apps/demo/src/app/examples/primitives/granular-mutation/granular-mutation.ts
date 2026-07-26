@@ -1,6 +1,6 @@
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   h,
@@ -23,7 +23,8 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
-const GranularMutation = component(
+const GranularMutation = craftComponent(
+  'GranularMutation',
   { providers: [provideHostName('component:GranularMutation')] },
   function* () {
     componentMonitoring();

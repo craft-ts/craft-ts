@@ -1,7 +1,7 @@
 import { computed } from '@angular/core';
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   h1,
@@ -24,7 +24,8 @@ const EMPTY_COLOR = '#f8fafc';
 const COLORS = ['#0f172a', '#ef4444', '#22c55e', '#3b82f6', '#eab308'];
 const INDEXES = Array.from({ length: GRID_SIZE ** 2 }, (_, index) => index);
 
-const PixelArt = component(
+const PixelArt = craftComponent(
+  'PixelArt',
   {
     providers: [provideHostName('component:PixelArt')],
     styles: `

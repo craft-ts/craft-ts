@@ -96,6 +96,14 @@ export default defineConfig({
             text: 'Directives et .pipe(...)',
             link: '/component/directives',
           },
+          {
+            text: 'Personnaliser composants et directives',
+            link: '/component/customization',
+          },
+          {
+            text: 'Styles encapsulés',
+            link: '/component/styles',
+          },
         ],
       },
       {

@@ -1,4 +1,4 @@
-import { button, component, div, h2, p } from '@craft-ng/component';
+import { button, craftComponent, div, h2, p } from '@craft-ng/component';
 import {
   componentMonitoring,
   craftService,
@@ -16,17 +16,18 @@ const { CounterToYield, provideCounter } = craftService(
     })),
 );
 
-const CraftServiceCounterComponent = component(
+const CraftServiceCounterComponent = craftComponent(
+  'CraftServiceCounterComponent',
   {
     providers: [
       provideCounter(),
       provideHostName('component:CraftServiceCounterComponent'),
     ],
     styles: `
-      .counter-demo{display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px;font-family:sans-serif}
-      .counter-demo .value{font-size:3rem;font-weight:bold;margin:0}
-      .counter-demo .actions{display:flex;gap:8px}
-      .counter-demo button{padding:8px 20px;font-size:1.2rem;cursor:pointer;border:1px solid #ccc;border-radius:6px;background:#fff}
+      :scope{display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px;font-family:sans-serif}
+      .value{font-size:3rem;font-weight:bold;margin:0}
+      .actions{display:flex;gap:8px}
+      button{padding:8px 20px;font-size:1.2rem;cursor:pointer;border:1px solid #ccc;border-radius:6px;background:#fff}
     `,
   },
   function* () {
@@ -34,7 +35,7 @@ const CraftServiceCounterComponent = component(
     return { counter: yield* CounterToYield() };
   },
   ({ counter }) =>
-    div({ class: 'counter-demo' }, [
+    div([
       h2('craftService Counter (toProvide scope)'),
       p({ class: 'value' }, counter()),
       div({ class: 'actions' }, [

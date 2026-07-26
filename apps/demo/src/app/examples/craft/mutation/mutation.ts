@@ -1,6 +1,6 @@
 import {
   button,
-  component,
+  craftComponent,
   div,
   h,
   input,
@@ -62,7 +62,8 @@ const { provideUserMutation, UserMutationToYield } = craftService(
   },
 );
 
-const MutationCraft = component(
+const MutationCraft = craftComponent(
+  'MutationCraft',
   {
     providers: [
       provideUserMutation(),

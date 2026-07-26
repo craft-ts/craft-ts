@@ -1,7 +1,7 @@
 import {
   a,
   button,
-  component,
+  craftComponent,
   CraftRouterOutlet,
   directive,
   div,
@@ -57,11 +57,12 @@ const craftRouterLink = ({ link }: { link: CraftRouterLinkInput }) =>
     inputs: { craftRouterLink: link },
   });
 
-export const App = component(
+export const App = craftComponent(
+  'App',
   {
     providers: [provideHostName('component:App')],
     styles: `
-      .app-container{display:flex;flex-direction:column;height:100vh;background:#fafafa}.tabs{display:flex;gap:.25rem;background:#fff;padding:1rem 1.5rem 0;border-bottom:1px solid #e5e7eb;overflow-x:auto}
+      :scope{display:flex;flex-direction:column;height:100vh;background:#fafafa}.tabs{display:flex;gap:.25rem;background:#fff;padding:1rem 1.5rem 0;border-bottom:1px solid #e5e7eb;overflow-x:auto}
       .tabs a{padding:.875rem 1.25rem;text-decoration:none;color:#6b7280;white-space:nowrap;font-weight:600}.tabs a:hover{color:#111827;background:#f9fafb}
       .content{flex:1;overflow:auto;padding:2rem;background:#fff;margin:1.5rem;border-radius:8px}.clear-cache-btn{position:fixed;bottom:2rem;right:2rem;padding:1rem 1.5rem;background:#374151;color:#fff;border:0;border-radius:50px;cursor:pointer}
     `,
@@ -80,11 +81,11 @@ export const App = component(
     return { clearCache };
   },
   ({ clearCache }) =>
-    div({ class: 'app-container' }, [
+    div([
       nav(
         { class: 'tabs' },
         each(LINKS, { track: ([, link]) => link.to }, ([label, link]) =>
-            a({}, label).pipe(craftRouterLink({ link })),
+          a({}, label).pipe(craftRouterLink({ link })),
         ),
       ),
       main({ class: 'content' }, CraftRouterOutlet()),

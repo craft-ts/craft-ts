@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   h2,
@@ -26,11 +26,12 @@ let records: Todo[] = [
   { id: 2, title: 'Build functional components' },
 ];
 
-const FullDemo = component(
+const FullDemo = craftComponent(
+  'FullDemo',
   {
     providers: [provideHostName('component:FullDemo')],
     styles:
-      '.full-demo{display:grid;gap:1rem;max-width:640px}.full-demo li{display:flex;gap:.75rem;align-items:center}.full-demo li span{flex:1}',
+      ':scope{display:grid;gap:1rem;max-width:640px}li{display:flex;gap:.75rem;align-items:center}li span{flex:1}',
   },
   function* () {
     componentMonitoring();
@@ -60,7 +61,7 @@ const FullDemo = component(
   },
   ({ todos, addTodo, removeTodo }) => {
     let title = '';
-    return div({ class: 'full-demo' }, [
+    return div([
       h2([
         'Full primitives demo ',
         StatusComponent({ status: () => todos.status() }),

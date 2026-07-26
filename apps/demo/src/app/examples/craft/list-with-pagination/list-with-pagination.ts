@@ -1,7 +1,7 @@
 import { computed } from '@angular/core';
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   h,
@@ -75,7 +75,8 @@ const { provideUserList, UserListToYield } = craftService(
   },
 );
 
-const ListWithPaginationCraft = component(
+const ListWithPaginationCraft = craftComponent(
+  'ListWithPaginationCraft',
   {
     providers: [
       provideUserList(),

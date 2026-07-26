@@ -1,6 +1,6 @@
 import { createCraftRouterOutletController } from '@craft-ng/core';
 import { angular } from './angular';
-import { component } from './component';
+import { craftComponent } from './component';
 
 /**
  * Functional non-blocking router outlet.
@@ -9,7 +9,8 @@ import { component } from './component';
  * render lifetime and mounts the active Angular route target with the
  * route-scoped injector supplied by the controller.
  */
-export const CraftRouterOutlet = component(
+export const CraftRouterOutlet = craftComponent(
+  'CraftRouterOutlet',
   {},
   () => ({ outlet: createCraftRouterOutletController() }),
   ({ outlet }) => {

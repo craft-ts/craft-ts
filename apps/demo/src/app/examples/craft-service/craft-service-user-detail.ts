@@ -1,5 +1,13 @@
 import { signal } from '@angular/core';
-import { component, div, h, h2, option, p, select } from '@craft-ng/component';
+import {
+  craftComponent,
+  div,
+  h,
+  h2,
+  option,
+  p,
+  select,
+} from '@craft-ng/component';
 import {
   componentMonitoring,
   craftService,
@@ -46,7 +54,8 @@ const { provideUser, UserToYield } = craftService(
   },
 );
 
-const CraftServiceUserDetailComponent = component(
+const CraftServiceUserDetailComponent = craftComponent(
+  'CraftServiceUserDetailComponent',
   {
     providers: [
       provideUser(),

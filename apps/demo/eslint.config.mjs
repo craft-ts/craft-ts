@@ -20,6 +20,8 @@ export default [
       'craft-ng/craft-computed-name-match': 'error',
       'craft-ng/craft-source-name-match': 'error',
       'craft-ng/craft-signal-source-name-match': 'error',
+      'craft-ng/craft-component-name-match': 'error',
+      'craft-ng/craft-directive-name-match': 'error',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/no-angular-signal-forms': 'error',
       'craft-ng/provide-host-name-match-component': 'error',

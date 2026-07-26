@@ -1,6 +1,6 @@
 import {
   article,
-  component,
+  craftComponent,
   CraftRouterOutlet,
   div,
   h1,
@@ -12,23 +12,21 @@ import {
   strong,
   type Input,
 } from '@craft-ng/component';
-import {
-  componentMonitoring,
-  provideHostName,
-} from '@craft-ng/core';
+import { componentMonitoring, provideHostName } from '@craft-ng/core';
 
-const LazyLayoutComponent = component(
+const LazyLayoutComponent = craftComponent(
+  'LazyLayoutComponent',
   {
     providers: [provideHostName('component:LazyLayoutComponent')],
     styles:
-      '.lazy-layout{display:grid;gap:1.5rem}.lazy-hero{padding:1.75rem;border-radius:24px;color:#f8fafc;background:linear-gradient(135deg,#0f172a,#0f766e)}.lazy-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:1.25rem}',
+      ':scope{display:grid;gap:1.5rem}.lazy-hero{padding:1.75rem;border-radius:24px;color:#f8fafc;background:linear-gradient(135deg,#0f172a,#0f766e)}.lazy-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:1.25rem}',
   },
   (teamId: Input<string>, someParentRouteData: Input<string>) => {
     componentMonitoring();
     return { teamId, someParentRouteData };
   },
   ({ teamId, someParentRouteData }) =>
-    section({ class: 'lazy-layout' }, [
+    section([
       header({ class: 'lazy-hero' }, [
         span('Inherited parent bindings'),
         h1('Parent route values inside a lazy feature'),

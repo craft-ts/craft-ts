@@ -1,4 +1,11 @@
-import { button, component, div, h, p, type Input } from '@craft-ng/component';
+import {
+  button,
+  craftComponent,
+  div,
+  h,
+  p,
+  type Input,
+} from '@craft-ng/component';
 import {
   componentMonitoring,
   Console,
@@ -11,7 +18,8 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield } from './api.service';
 
-const GlobalQuery = component(
+const GlobalQuery = craftComponent(
+  'GlobalQuery',
   {
     providers: [provideHostName('component:GlobalQuery')],
   },

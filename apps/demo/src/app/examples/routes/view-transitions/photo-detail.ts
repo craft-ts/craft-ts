@@ -1,7 +1,7 @@
 import {
   a,
   article,
-  component,
+  craftComponent,
   div,
   h2,
   p,
@@ -16,7 +16,8 @@ import {
 } from '@craft-ng/core';
 import { findPhoto } from './photos';
 
-const ViewTransitionsDetailComponent = component(
+const ViewTransitionsDetailComponent = craftComponent(
+  'ViewTransitionsDetailComponent',
   {
     providers: [provideHostName('component:ViewTransitionsDetailComponent')],
     styles: `

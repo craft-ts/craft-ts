@@ -6,6 +6,7 @@ export * from './lib/craft-router-outlet';
 export * from './lib/defer';
 export * from './lib/each';
 export * from './lib/hyperscript';
+export * from './lib/render/style-registry';
 export type {
   ComponentFactory,
   ComponentTemplate,
@@ -19,6 +20,8 @@ export type {
   Output,
   PropsOf,
   TemplateDecorator,
+  ComponentMeta,
+  DirectiveMeta,
 } from './lib/types';
 export type {
   CraftNode,

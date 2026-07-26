@@ -1,6 +1,6 @@
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   h,
@@ -85,7 +85,8 @@ const { provideGranularMutation, GranularMutationToYield } = craftService(
   },
 );
 
-const GranularMutationCraft = component(
+const GranularMutationCraft = craftComponent(
+  'GranularMutationCraft',
   {
     providers: [
       provideGranularMutation(),

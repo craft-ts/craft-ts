@@ -1,6 +1,6 @@
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   h,
@@ -21,7 +21,8 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiServiceToYield, type User } from './api.service';
 
-const QpListWithPagination = component(
+const QpListWithPagination = craftComponent(
+  'QpListWithPagination',
   { providers: [provideHostName('component:QpListWithPagination')] },
   function* () {
     componentMonitoring();

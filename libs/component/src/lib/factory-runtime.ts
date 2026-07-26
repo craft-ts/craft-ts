@@ -11,11 +11,11 @@ import {
 import type { ComponentFactory } from './types';
 
 const INVALID_YIELD =
-  'component() factories can only yield craftService dependencies.';
+  'craftComponent() factories can only yield craftService dependencies.';
 const MULTIPLE_APP_START =
-  'component() factories cannot declare onAppStart(...) more than once.';
+  'craftComponent() factories cannot declare onAppStart(...) more than once.';
 const APP_START_NOT_SUPPORTED =
-  'component() does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.';
+  'craftComponent() does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.';
 
 export function executeCraftComponentFactory<Factory extends ComponentFactory>(
   factory: Factory,

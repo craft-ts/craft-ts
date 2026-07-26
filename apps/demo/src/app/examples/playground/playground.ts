@@ -1,6 +1,6 @@
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   h2,
@@ -126,7 +126,8 @@ const { PlaygroundToYield } = craftService(
 
 // -- Component --
 
-const PlaygroundComponent = component(
+const PlaygroundComponent = craftComponent(
+  'PlaygroundComponent',
   {
     providers: [provideHostName('component:PlaygroundComponent')],
     styles: `

@@ -1,5 +1,12 @@
 import { signal } from '@angular/core';
-import { button, component, div, h3, p, strong } from '@craft-ng/component';
+import {
+  button,
+  craftComponent,
+  div,
+  h3,
+  p,
+  strong,
+} from '@craft-ng/component';
 import {
   componentMonitoring,
   craftException,
@@ -9,7 +16,8 @@ import {
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 
-const ExceptionsComponent = component(
+const ExceptionsComponent = craftComponent(
+  'ExceptionsComponent',
   {
     providers: [provideHostName('component:ExceptionsComponent')],
     styles:

@@ -7,7 +7,7 @@ import {
   type RouteCheckedDI,
 } from '@craft-ng/core';
 import { loadCraftComponent } from './bridge';
-import { component } from './component';
+import { craftComponent } from './component';
 import { craftDirective } from './directive';
 import { p } from './hyperscript';
 import type {
@@ -25,7 +25,8 @@ interface User {
 }
 
 it('infers component input and output props from the branded context', () => {
-  const userCard = component(
+  const userCard = craftComponent(
+    'userCard',
     {},
     (user: Input<User>, onPick: Output<(user: User) => void>) => ({
       user,
@@ -58,7 +59,8 @@ it('infers component input and output props from the branded context', () => {
 });
 
 it('does not expose ordinary context callbacks as component outputs', () => {
-  const internalAction = component(
+  const internalAction = craftComponent(
+    'internalAction',
     {},
     (name: Input<string>) => ({
       name,
@@ -82,7 +84,8 @@ it('carries inferred dependencies from the component through the lazy route frag
     () => ({ value: 'tracked' }),
   );
 
-  const trackedComponent = component(
+  const trackedComponent = craftComponent(
+    'trackedComponent',
     {},
     function* (label: Input<string>) {
       const service = yield* TypeSpecServiceToYield();
@@ -163,6 +166,8 @@ it('does not infer component dependencies from an unbranded value', () => {
 
 it('infers public inputs added by a piped directive', () => {
   const withPermission = craftDirective(
+    'withPermission',
+    {},
     (baseLogic: HostRequiredLogic<{ user: Input<User> }>) =>
       (user: Input<User>, permission: Input<string>) => ({
         ...baseLogic(user),
@@ -176,7 +181,8 @@ it('infers public inputs added by a piped directive', () => {
     ) => baseTemplate,
   );
 
-  const card = component(
+  const card = craftComponent(
+    'card',
     {},
     (user: Input<User>) => ({ user }),
     ({ user }) => p(user().name),

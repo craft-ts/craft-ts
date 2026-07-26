@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   h1,
@@ -30,7 +30,8 @@ const makeGrid = (): Cell[][] =>
     })),
   );
 
-const PixelArtMatrix = component(
+const PixelArtMatrix = craftComponent(
+  'PixelArtMatrix',
   {
     providers: [provideHostName('component:PixelArtMatrix')],
     styles: `
