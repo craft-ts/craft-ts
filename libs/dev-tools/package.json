@@ -1,6 +1,6 @@
 {
   "name": "@craft-ng/dev-tools",
-  "version": "0.6.0-beta.4",
+  "version": "0.6.0-beta.5",
   "description": "Development tools for ng-craft: ESLint configs, ESLint rules, and codemods",
   "repository": {
     "type": "git",

@@ -1,3 +1,27 @@
+## 0.6.0-beta.5 (2026-07-27)
+
+### 🚀 Features
+
+- add yieldable template contracts ([da8ebf1](https://github.com/ng-angular-stack/ng-craft/commit/da8ebf1))
+- **component:** merge component host properties ([099883b](https://github.com/ng-angular-stack/ng-craft/commit/099883b))
+- **component:** infer Angular directive inputs from node props ([50546af](https://github.com/ng-angular-stack/ng-craft/commit/50546af))
+- **component:** support configured Angular directive pipes ([e1076eb](https://github.com/ng-angular-stack/ng-craft/commit/e1076eb))
+- **component:** add scoped style registry and customization docs ([55f6432](https://github.com/ng-angular-stack/ng-craft/commit/55f6432))
+- **core:** add craftLazy for lazy service imports; rename untilSettled → craftUntilSettled ([c23c616](https://github.com/ng-angular-stack/ng-craft/commit/c23c616))
+- **core:** add craftMatch for exhaustive literal-union pattern matching ([1b2197c](https://github.com/ng-angular-stack/ng-craft/commit/1b2197c))
+- **release:** actionable git sync errors with fix commands ([e5892e6](https://github.com/ng-angular-stack/ng-craft/commit/e5892e6))
+- **tooling:** add local log server and logs MCP server ([70849b6](https://github.com/ng-angular-stack/ng-craft/commit/70849b6))
+
+### 🩹 Fixes
+
+- **component:** accept literal element nodes ([28c7520](https://github.com/ng-angular-stack/ng-craft/commit/28c7520))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 4.8
+- Romain
+
 ## 0.6.0-beta.4 (2026-07-23)
 
 ### 🚀 Features
