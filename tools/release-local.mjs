@@ -71,6 +71,7 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
 
   targetManifest.dependencies ??= {};
   targetManifest.dependencies['@craft-ng/core'] = version;
+  targetManifest.dependencies['@craft-ng/component'] = version;
   targetManifest.dependencies['@craft-ng/dev-tools'] = version;
   writeJson(targetManifestPath, targetManifest);
 
@@ -294,6 +295,7 @@ async function main(args) {
     'build',
     '-p',
     'ng-craft-core',
+    'ng-craft-component',
     'dev-tools',
   ]);
   run('npx', ['nx', 'build', 'docs']);
@@ -321,6 +323,7 @@ async function main(args) {
     'build',
     '-p',
     'ng-craft-core',
+    'ng-craft-component',
     'dev-tools',
   ]);
   run('npx', ['nx', 'build', 'docs']);
@@ -370,6 +373,9 @@ async function main(args) {
   if (plan.core === 'publish') {
     publishPackage('dist/libs/core', release.channel);
   }
+  if (plan.component === 'publish') {
+    publishPackage('dist/libs/component', release.channel);
+  }
   if (plan.dev_tools === 'publish')
     publishPackage('dist/libs/dev-tools', release.channel);
 
@@ -385,7 +391,11 @@ async function main(args) {
       { capture: true },
     ),
   );
-  if (verification.core !== 'skip' || verification.dev_tools !== 'skip') {
+  if (
+    verification.core !== 'skip' ||
+    verification.component !== 'skip' ||
+    verification.dev_tools !== 'skip'
+  ) {
     throw new Error('npm registry verification failed after publication.');
   }
 

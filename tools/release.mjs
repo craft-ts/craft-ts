@@ -15,6 +15,13 @@ export const releasePackages = [
     distRoot: 'dist/libs/core',
   },
   {
+    key: 'component',
+    name: '@craft-ng/component',
+    project: 'ng-craft-component',
+    sourceManifest: 'libs/component/package.json',
+    distRoot: 'dist/libs/component',
+  },
+  {
     key: 'dev_tools',
     name: '@craft-ng/dev-tools',
     project: 'dev-tools',
@@ -173,6 +180,7 @@ function npmViewJson(spec, field) {
 function publishedReleaseVersions() {
   return releasePackages.flatMap((pkg) => {
     const versions = npmViewJson(pkg.name, 'versions');
+    if (versions === null) return [];
     if (!Array.isArray(versions) || versions.length === 0) {
       throw new Error(`No published versions were found for ${pkg.name}.`);
     }
@@ -185,6 +193,7 @@ function assertTargetVersion(version, allowExisting = false) {
 
   for (const pkg of releasePackages) {
     const versions = npmViewJson(pkg.name, 'versions');
+    if (versions === null) continue;
     if (!Array.isArray(versions) || versions.length === 0) {
       throw new Error(`No published versions were found for ${pkg.name}.`);
     }
@@ -201,8 +210,9 @@ function assertTargetVersion(version, allowExisting = false) {
       }
     });
     const latest = supportedVersions.sort(compareReleaseVersions).at(-1);
-    const order = latest ? compareReleaseVersions(version, latest) : -1;
-    if (!latest || order < 0 || (!allowExisting && order === 0)) {
+    if (!latest) continue;
+    const order = compareReleaseVersions(version, latest);
+    if (order < 0 || (!allowExisting && order === 0)) {
       throw new Error(
         `${version} must be greater than the latest ${pkg.name} version (${latest ?? 'unknown'}).`,
       );

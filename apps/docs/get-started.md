@@ -5,7 +5,7 @@
 ### Using npm
 
 ```shell
-npm i @craft-ng/core@latest @craft-ng/dev-tools@latest
+npm i @craft-ng/core@latest @craft-ng/component@latest @craft-ng/dev-tools@latest
 ```
 
 :::warning

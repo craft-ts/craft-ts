@@ -133,6 +133,7 @@ test('extracts exactly one changelog entry', () => {
 test('release PRs are limited to manifests and changelog', () => {
   assert.deepEqual(releaseTrackedFiles, [
     'CHANGELOG.md',
+    'libs/component/package.json',
     'libs/core/package.json',
     'libs/dev-tools/package.json',
   ]);

@@ -123,6 +123,7 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
         name: 'ng-craft-demo',
         dependencies: {
           '@craft-ng/core': '^0.5.0-beta.1',
+          '@craft-ng/component': '^0.5.0-beta.1',
           '@craft-ng/dev-tools': '^0.5.0-beta.1',
         },
       }),
@@ -147,6 +148,7 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
       readFileSync(join(target, 'package.json'), 'utf8'),
     );
     assert.equal(manifest.dependencies['@craft-ng/core'], '0.6.0');
+    assert.equal(manifest.dependencies['@craft-ng/component'], '0.6.0');
     assert.equal(manifest.dependencies['@craft-ng/dev-tools'], '0.6.0');
     assert.equal(
       readFileSync(join(target, '.gitignore'), 'utf8')
