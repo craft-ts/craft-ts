@@ -61,6 +61,9 @@ export const SERVICE_EXPOSURE_TOKEN_MARKER = Symbol(
   'service-exposure-token-marker',
 );
 export const SERVICE_RUNTIME_META = Symbol('service-runtime-meta');
+const SERVICE_RUNTIME_META_GLOBAL = Symbol.for(
+  '@craft-ng/core/service-runtime-meta',
+);
 const SERVICE_RUNTIME_DEFINITION = Symbol('service-runtime-definition');
 const REGISTERED_SERVICES = new Map<string, ServiceReference>();
 const REGISTERED_APP_START_SERVICES = new Map<string, ServiceReference>();
@@ -3469,6 +3472,12 @@ function createServiceMetaData(config: {
     configurable: false,
   });
 
+  Object.defineProperty(metaData, SERVICE_RUNTIME_META_GLOBAL, {
+    value: metaData,
+    enumerable: false,
+    configurable: false,
+  });
+
   return metaData as InternalServiceMetaData;
 }
 
@@ -3485,6 +3494,12 @@ function attachServiceRuntimeMeta(
     enumerable: false,
     configurable: false,
   });
+
+  Object.defineProperty(helper, SERVICE_RUNTIME_META_GLOBAL, {
+    value: metaData,
+    enumerable: false,
+    configurable: false,
+  });
 }
 
 export function getServiceMetaData(target: unknown): AnyServiceMetaData {
@@ -3493,7 +3508,8 @@ export function getServiceMetaData(target: unknown): AnyServiceMetaData {
   }
 
   if (typeof target === 'object' || typeof target === 'function') {
-    const runtimeMeta = Reflect.get(target as object, SERVICE_RUNTIME_META) as
+    const runtimeMeta = (Reflect.get(target as object, SERVICE_RUNTIME_META) ??
+      Reflect.get(target as object, SERVICE_RUNTIME_META_GLOBAL)) as
       | InternalServiceMetaData
       | undefined;
 

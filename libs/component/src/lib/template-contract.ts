@@ -6,7 +6,11 @@ import type {
   PropsOf,
   TemplateMethodUse,
 } from './types';
-import type { Yieldable, YieldableMethod } from '@craft-ng/core';
+import type {
+  NamedYieldableValue,
+  Yieldable,
+  YieldableMethod,
+} from '@craft-ng/core';
 import type {
   AngularComponentNode,
   ComponentNode,
@@ -717,6 +721,377 @@ type VisibilityMatches<
           : false
         : false;
     }[keyof Expected];
+
+type StateMarkerMatches<Value, StateName extends string> =
+  Value extends NamedYieldableValue<infer ActualName extends string, any>
+    ? ActualName extends StateName
+      ? true
+      : false
+    : Value extends TemplateMethodUse<StateName>
+      ? true
+      : false;
+
+type ValueUsesState<Value, StateName extends string> =
+  IsAny<Value> extends true
+    ? false
+    : StateMarkerMatches<Value, StateName> extends true
+      ? true
+      : Value extends (
+            ...args: any[]
+          ) => Generator<infer Yielded, infer Returned, any>
+        ? TemplateMethodUse<StateName> extends Yielded | Returned
+          ? true
+          : false
+        : Value extends (...args: any[]) => infer Returned
+          ? Returned extends TemplateMethodUse<StateName>
+            ? true
+            : false
+          : Value extends readonly (infer Item)[]
+            ? ValueUsesState<Item, StateName>
+            : Value extends object
+              ? true extends {
+                  [Key in keyof Value]: ValueUsesState<Value[Key], StateName>;
+                }[keyof Value]
+                ? true
+                : false
+              : false;
+
+type RenderPropsUseState<Props, StateName extends string> = true extends {
+  [Key in keyof Props & string]: Key extends DomEventKey
+    ? false
+    : Key extends `on${Capitalize<DomEventKey>}`
+      ? false
+      : ValueUsesState<Props[Key], StateName>;
+}[keyof Props & string]
+  ? true
+  : false;
+
+type VisitRenderedState<
+  Children,
+  StateName extends string,
+  Expected extends Visibility,
+  Current extends Visibility = {},
+  Seen extends readonly unknown[] = [],
+  Depth extends readonly unknown[] = [],
+> = Depth['length'] extends 8
+  ? false
+  : Children extends readonly (infer Child)[]
+    ? VisitRenderedState<
+        Child,
+        StateName,
+        Expected,
+        Current,
+        Seen,
+        [...Depth, unknown]
+      >
+    : Children extends ElementNodeBase<any, any, infer Props, infer Nested>
+      ?
+          | (RenderPropsUseState<Props, StateName> extends true
+              ? VisibilityMatches<Current, Expected>
+              : false)
+          | VisitRenderedState<
+              Nested,
+              StateName,
+              Expected,
+              Current,
+              Seen,
+              [...Depth, unknown]
+            >
+      : Children extends CraftDirectiveNode<any>
+        ? VisitRenderedState<
+            Children['node'],
+            StateName,
+            Expected,
+            Current,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends ComponentNode<any, any, infer Component>
+          ? Component extends Seen[number]
+            ? false
+            : VisitRenderedState<
+                ReturnType<ComponentTemplateOf<Component>>,
+                StateName,
+                Expected,
+                Current,
+                [...Seen, Component],
+                [...Depth, unknown]
+              >
+          : Children extends EachNode<
+                any,
+                any,
+                any,
+                infer SourceName,
+                infer Item,
+                infer Empty
+              >
+            ?
+                | VisitRenderedState<
+                    Item,
+                    StateName,
+                    Expected,
+                    Extract<SourceName, string> extends never
+                      ? Current
+                      : AddVisibility<
+                          Current,
+                          Extract<SourceName, string>,
+                          'nonEmpty'
+                        >,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                | VisitRenderedState<
+                    Empty,
+                    StateName,
+                    Expected,
+                    Extract<SourceName, string> extends never
+                      ? Current
+                      : AddVisibility<
+                          Current,
+                          Extract<SourceName, string>,
+                          'empty'
+                        >,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+            : Children extends IfBlockNode<
+                  infer ConditionName,
+                  any,
+                  infer True,
+                  infer False
+                >
+              ?
+                  | VisitRenderedState<
+                      True,
+                      StateName,
+                      Expected,
+                      AddVisibility<Current, ConditionName, true>,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  | VisitRenderedState<
+                      False,
+                      StateName,
+                      Expected,
+                      AddVisibility<Current, ConditionName, false>,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+              : Children extends DeferNode<infer Loaded>
+                ? VisitRenderedState<
+                    Loaded extends CraftComponent<any, any>
+                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      : ReturnType<Children['resolve']>,
+                    StateName,
+                    Expected,
+                    Current,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                : Children extends AngularComponentNode
+                  ? false
+                  : ValueUsesState<Children, StateName> extends true
+                    ? VisibilityMatches<Current, Expected>
+                    : false;
+
+type RenderedStateResult<Result> =
+  true extends Extract<Result, true> ? true : false;
+
+/** Checks that a named reactive value is used by a rendered binding. */
+export type TemplateRendersStateWhen<
+  Children,
+  StateName extends string,
+  Conditions extends { readonly when?: Visibility } = {},
+> = RenderedStateResult<
+  VisitRenderedState<
+    Children,
+    StateName,
+    Conditions extends { readonly when: infer When extends Visibility }
+      ? When
+      : {}
+  >
+>;
+
+type ActionHandlerAvailable<Handler> = IsTemplateCallback<Handler>;
+
+type ActionElementMatches<
+  Props,
+  LocalName,
+  EventName extends string,
+  ExpectedLocalName extends string,
+> = LocalName extends ExpectedLocalName
+  ? ExpectedLocalName extends LocalName
+    ? EventHandlerOf<Props, EventName> extends infer Handler
+      ? ActionHandlerAvailable<Handler>
+      : false
+    : false
+  : false;
+
+type VisitAvailableAction<
+  Children,
+  EventName extends string,
+  LocalName extends string,
+  Expected extends Visibility,
+  Current extends Visibility = {},
+  Seen extends readonly unknown[] = [],
+  Depth extends readonly unknown[] = [],
+> = Depth['length'] extends 8
+  ? false
+  : Children extends readonly (infer Child)[]
+    ? VisitAvailableAction<
+        Child,
+        EventName,
+        LocalName,
+        Expected,
+        Current,
+        Seen,
+        [...Depth, unknown]
+      >
+    : Children extends ElementNodeBase<
+          any,
+          any,
+          infer Props,
+          infer Nested,
+          infer ActualLocalName
+        >
+      ?
+          | (ActionElementMatches<
+              Props,
+              ActualLocalName,
+              EventName,
+              LocalName
+            > extends true
+              ? VisibilityMatches<Current, Expected>
+              : false)
+          | VisitAvailableAction<
+              Nested,
+              EventName,
+              LocalName,
+              Expected,
+              Current,
+              Seen,
+              [...Depth, unknown]
+            >
+      : Children extends CraftDirectiveNode<any>
+        ? VisitAvailableAction<
+            Children['node'],
+            EventName,
+            LocalName,
+            Expected,
+            Current,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends ComponentNode<any, any, infer Component>
+          ? Component extends Seen[number]
+            ? false
+            : VisitAvailableAction<
+                ReturnType<ComponentTemplateOf<Component>>,
+                EventName,
+                LocalName,
+                Expected,
+                Current,
+                [...Seen, Component],
+                [...Depth, unknown]
+              >
+          : Children extends EachNode<
+                any,
+                any,
+                any,
+                infer SourceName,
+                infer Item,
+                infer Empty
+              >
+            ?
+                | VisitAvailableAction<
+                    Item,
+                    EventName,
+                    LocalName,
+                    Expected,
+                    Extract<SourceName, string> extends never
+                      ? Current
+                      : AddVisibility<
+                          Current,
+                          Extract<SourceName, string>,
+                          'nonEmpty'
+                        >,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                | VisitAvailableAction<
+                    Empty,
+                    EventName,
+                    LocalName,
+                    Expected,
+                    Extract<SourceName, string> extends never
+                      ? Current
+                      : AddVisibility<
+                          Current,
+                          Extract<SourceName, string>,
+                          'empty'
+                        >,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+            : Children extends IfBlockNode<
+                  infer ConditionName,
+                  any,
+                  infer True,
+                  infer False
+                >
+              ?
+                  | VisitAvailableAction<
+                      True,
+                      EventName,
+                      LocalName,
+                      Expected,
+                      AddVisibility<Current, ConditionName, true>,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  | VisitAvailableAction<
+                      False,
+                      EventName,
+                      LocalName,
+                      Expected,
+                      AddVisibility<Current, ConditionName, false>,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+              : Children extends DeferNode<infer Loaded>
+                ? VisitAvailableAction<
+                    Loaded extends CraftComponent<any, any>
+                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      : ReturnType<Children['resolve']>,
+                    EventName,
+                    LocalName,
+                    Expected,
+                    Current,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                : false;
+
+type AvailableActionResult<Result> =
+  true extends Extract<Result, true> ? true : false;
+
+/** Checks an event action on a named element and its visibility path. */
+export type TemplateRenderAvailableActionWhen<
+  Children,
+  ActionKey extends `${string}:${string}`,
+  Conditions extends { readonly when?: Visibility } = {},
+> = ActionKey extends `${infer EventName}:${infer LocalName}`
+  ? AvailableActionResult<
+      VisitAvailableAction<
+        Children,
+        EventName,
+        LocalName,
+        Conditions extends { readonly when: infer When extends Visibility }
+          ? When
+          : {}
+      >
+    >
+  : false;
 
 type AddVisibility<
   Current extends Visibility,

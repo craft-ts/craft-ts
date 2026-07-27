@@ -32,7 +32,11 @@ export type {
   YieldableTemplateContext,
   TemplateMethodUse,
 } from './lib/types';
-export type { TemplateRendersNamedElementWhen } from './lib/template-contract';
+export type {
+  TemplateRenderAvailableActionWhen,
+  TemplateRendersNamedElementWhen,
+  TemplateRendersStateWhen,
+} from './lib/template-contract';
 export type {
   CraftNode,
   CraftNodeChild,

@@ -54,7 +54,7 @@
       "inputs": ["production", "^production"]
     },
     "@nx/angular:unit-test": {
-      "cache": true,
+      "cache": false,
       "inputs": ["default", "^production"]
     },
     "@nx/eslint:lint": {
@@ -77,7 +77,7 @@
       "inputs": ["production", "^production"]
     },
     "@angular/build:unit-test": {
-      "cache": true,
+      "cache": false,
       "inputs": ["default", "^production"]
     }
   },

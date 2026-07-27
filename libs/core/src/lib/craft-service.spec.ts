@@ -1000,9 +1000,7 @@ describe('injectService should enable to binding inputs', () => {
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
-      function* (inputs: {
-        initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) {
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
         const { counter } = yield* state(
           'counter',
           toValue(inputs.initialValue),
@@ -1011,7 +1009,7 @@ describe('injectService should enable to binding inputs', () => {
           }),
         );
         return counter;
-      }, // todo create toValue helper
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -1029,9 +1027,9 @@ describe('injectService should enable to binding inputs', () => {
       // ! inputs can only be set in the first params
 
       function* (inputs: {
-        initialValue: MaybeSignal<number>; // todo create MaybeSignal
-        optionalProperty1?: MaybeSignal<number>; // todo create MaybeSignal
-        optionalProperty2?: MaybeSignal<number>; // todo create MaybeSignal
+        initialValue: MaybeSignal<number>;
+        optionalProperty1?: MaybeSignal<number>;
+        optionalProperty2?: MaybeSignal<number>;
       }) {
         const { counter } = yield* state(
           'counter',
@@ -1041,7 +1039,7 @@ describe('injectService should enable to binding inputs', () => {
           }),
         );
         return counter;
-      }, // todo create toValue helper
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -1207,9 +1205,7 @@ describe('service should enable to binding inputs', () => {
   it('should enable to bind a raw input', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      function* (inputs: {
-        initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) {
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
         const { counter } = yield* state(
           'counter',
           toValue(inputs.initialValue),
@@ -1248,9 +1244,7 @@ describe('service should enable to binding inputs', () => {
   it('should enable to bind a signal input', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      function* (inputs: {
-        initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) {
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
         const { counter } = yield* state(
           'counter',
           toValue(inputs.initialValue),
@@ -1291,8 +1285,8 @@ describe('service should enable to binding inputs', () => {
       { name: 'Counter', scope: 'global' },
       function* (inputs: {
         initialValue: MaybeSignal<number>;
-        optionalProperty1?: MaybeSignal<number>; // todo create MaybeSignal
-        optionalProperty2?: MaybeSignal<number>; // todo create MaybeSignal
+        optionalProperty1?: MaybeSignal<number>;
+        optionalProperty2?: MaybeSignal<number>;
       }) {
         const { counter } = yield* state(
           'counter',
@@ -1335,9 +1329,7 @@ describe('service should enable to binding inputs', () => {
   it('should return a string as an error "Inputs Error, xxx is not provided" if an input is not provided or blocks the yield', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      function* (inputs: {
-        initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) {
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
         const { counter } = yield* state(
           'counter',
           toValue(inputs.initialValue),
@@ -1365,9 +1357,7 @@ describe('service should enable to binding inputs', () => {
   it('should provide a string token to say that the input is already provided', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      function* (inputs: {
-        initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) {
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
         const { counter } = yield* state(
           'counter',
           toValue(inputs.initialValue),
