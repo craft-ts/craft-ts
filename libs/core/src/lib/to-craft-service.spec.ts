@@ -59,7 +59,7 @@ describe('toCraftService', () => {
     @Injectable({
       providedIn: 'root',
     })
-    class RouterLike {
+    class RouterLikeSource {
       readonly currentUrl = signal('/');
 
       navigateByUrl(url: string) {
@@ -71,7 +71,7 @@ describe('toCraftService', () => {
     const { RouterLike } = toCraftService({
       name: 'RouterLike',
       scope: 'global',
-      token: RouterLike,
+      token: RouterLikeSource,
     });
 
     const { Navigation } = craftService(
@@ -91,8 +91,8 @@ describe('toCraftService', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const navigation = Navigation();
-      const routerLike = inject(RouterLike);
+      const navigation = craftUse(Navigation());
+      const routerLike = inject(RouterLikeSource);
 
       await navigation.goToCheckout();
 
@@ -104,7 +104,7 @@ describe('toCraftService', () => {
     @Injectable({
       providedIn: 'root',
     })
-    class RouterLikeShortcut {
+    class RouterLikeShortcutSource {
       readonly currentUrl = signal('/');
 
       navigateByUrl(url: string) {
@@ -116,7 +116,7 @@ describe('toCraftService', () => {
     const { RouterLikeShortcut } = toCraftService({
       name: 'RouterLikeShortcut',
       scope: 'global',
-      token: RouterLikeShortcut,
+      token: RouterLikeShortcutSource,
     });
 
     const { ShortcutNavigation } = craftService(
@@ -139,8 +139,8 @@ describe('toCraftService', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const navigation = ShortcutNavigation();
-      const routerLike = inject(RouterLikeShortcut);
+      const navigation = craftUse(ShortcutNavigation());
+      const routerLike = inject(RouterLikeShortcutSource);
 
       await navigation.goToCheckout();
 
@@ -152,7 +152,7 @@ describe('toCraftService', () => {
     @Injectable({
       providedIn: 'root',
     })
-    class RouterLikeDirectShortcut {
+    class RouterLikeDirectShortcutSource {
       readonly currentUrl = signal('/');
 
       navigateByUrl(url: string) {
@@ -164,7 +164,7 @@ describe('toCraftService', () => {
     const { RouterLikeDirectShortcut } = toCraftService({
       name: 'RouterLikeDirectShortcut',
       scope: 'global',
-      token: RouterLikeDirectShortcut,
+      token: RouterLikeDirectShortcutSource,
     });
 
     const { DirectShortcutNavigation } = craftService(
@@ -184,9 +184,9 @@ describe('toCraftService', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const routerLike = inject(RouterLikeDirectShortcut);
+      const routerLike = inject(RouterLikeDirectShortcutSource);
 
-      await expect(DirectShortcutNavigation()).resolves.toBe(true);
+      await expect(craftUse(DirectShortcutNavigation())).resolves.toBe(true);
       expect(routerLike.currentUrl()).toBe('/checkout');
     });
   });
@@ -212,7 +212,7 @@ describe('toCraftService', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      expect(CurrentRoute().path).toBe('/checkout');
+      expect(craftUse(CurrentRoute()).path).toBe('/checkout');
     });
   });
 
@@ -299,7 +299,7 @@ describe('toCraftService', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterFacade = CounterFacade();
+      const counterFacade = craftUse(CounterFacade());
 
       expect(counterFacade()).toBe(10);
       counterFacade.incrementCounter();
@@ -312,7 +312,7 @@ describe('toCraftService', () => {
 
   it('should expose provideX for toProvide dependencies and compose external providers', () => {
     @Injectable()
-    class CounterDriver {
+    class CounterDriverSource {
       readonly total = signal(0);
 
       increment() {
@@ -323,11 +323,11 @@ describe('toCraftService', () => {
     const { CounterDriver, provideCounterDriver } = toCraftService({
       name: 'CounterDriver',
       scope: 'toProvide',
-      token: CounterDriver,
+      token: CounterDriverSource,
       provide: () => [
         {
-          provide: CounterDriver,
-          useClass: CounterDriver,
+          provide: CounterDriverSource,
+          useClass: CounterDriverSource,
         },
       ],
     });
@@ -337,7 +337,7 @@ describe('toCraftService', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterDriver = CounterDriver();
+      const counterDriver = craftUse(CounterDriver());
 
       expect(counterDriver.total()).toBe(0);
       counterDriver.increment();
@@ -349,7 +349,7 @@ describe('toCraftService', () => {
     const API_BASE_URL = new InjectionToken<string>('ApiBaseUrl');
 
     @Injectable()
-    class CatalogDriver {
+    class CatalogDriverSource {
       readonly baseUrl = inject(API_BASE_URL);
 
       fetchProducts() {
@@ -360,15 +360,15 @@ describe('toCraftService', () => {
     const { Catalog, provideCatalog } = toCraftService({
       name: 'Catalog',
       scope: 'toProvide',
-      token: CatalogDriver,
+      token: CatalogDriverSource,
       provide: (provided: { apiBaseUrl: string }) => [
         {
           provide: API_BASE_URL,
           useValue: provided.apiBaseUrl,
         },
         {
-          provide: CatalogDriver,
-          useClass: CatalogDriver,
+          provide: CatalogDriverSource,
+          useClass: CatalogDriverSource,
         },
       ],
     });
@@ -376,10 +376,12 @@ describe('toCraftService', () => {
     if (false) {
       provideCatalog({ apiBaseUrl: '/api' });
 
-      //@ts-expect-error $provided should not be a public inject binding for raw dependencies
-      Catalog({
-        $provided: { apiBaseUrl: '/override' },
-      });
+      craftUse(
+        // @ts-expect-error $provided should not be a public inject binding for raw dependencies
+        Catalog({
+          $provided: { apiBaseUrl: '/override' },
+        }),
+      );
     }
 
     TestBed.configureTestingModule({
@@ -387,7 +389,7 @@ describe('toCraftService', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      expect(Catalog().fetchProducts()).toBe('/api/products');
+      expect(craftUse(Catalog()).fetchProducts()).toBe('/api/products');
     });
   });
 
@@ -451,7 +453,7 @@ describe('toCraftService', () => {
     }
 
     TestBed.runInInjectionContext(() => {
-      const catalog = Catalog({ prefix: 'catalog' });
+      const catalog = craftUse(Catalog({ prefix: 'catalog' }));
 
       expect(catalog.readDriverBaseUrl()).toBe('/api');
       expect(catalog.readProvidedBaseUrl()).toBe('/api');
@@ -461,7 +463,7 @@ describe('toCraftService', () => {
 
   it('should expose XToProvide and provideX for manuallyProvidedAtRoot dependencies', () => {
     @Injectable()
-    class CounterDriver {
+    class CounterDriverSource {
       readonly total = signal(0);
 
       increment() {
@@ -473,11 +475,11 @@ describe('toCraftService', () => {
       toCraftService({
         name: 'CounterDriver',
         scope: 'manuallyProvidedAtRoot',
-        token: CounterDriver,
+        token: CounterDriverSource,
         provide: () => [
           {
-            provide: CounterDriver,
-            useClass: CounterDriver,
+            provide: CounterDriverSource,
+            useClass: CounterDriverSource,
           },
         ],
       });
@@ -487,7 +489,7 @@ describe('toCraftService', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterDriver = CounterDriver();
+      const counterDriver = craftUse(CounterDriver());
       const providedCounterDriver = inject(CounterDriverToProvide);
 
       expect(counterDriver).toBe(providedCounterDriver);
@@ -518,7 +520,7 @@ describe('toCraftService', () => {
       const angularRouter = inject(Router);
       const craftRouter = inject(CraftRouterToProvide);
 
-      expect(CraftRouter().url).toBe(angularRouter.url);
+      expect(craftUse(CraftRouter()).url).toBe(angularRouter.url);
       expect(craftRouter.url).toBe(angularRouter.url);
       expect(typeof craftRouter.navigateByUrl).toBe('function');
     });
@@ -555,10 +557,12 @@ describe('toCraftService', () => {
     if (false) {
       provideCatalog({ apiBaseUrl: '/api' });
 
-      //@ts-expect-error $provided should not be a public inject binding for raw dependencies
-      Catalog({
-        $provided: { apiBaseUrl: '/override' },
-      });
+      craftUse(
+        // @ts-expect-error $provided should not be a public inject binding for raw dependencies
+        Catalog({
+          $provided: { apiBaseUrl: '/override' },
+        }),
+      );
     }
 
     TestBed.configureTestingModule({
@@ -566,7 +570,7 @@ describe('toCraftService', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const catalog = Catalog();
+      const catalog = craftUse(Catalog());
       const providedCatalog = inject(CatalogToProvide);
 
       expect(catalog).toBe(providedCatalog);

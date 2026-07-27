@@ -344,10 +344,10 @@ describe('AsyncProcess types without identifier', () => {
         },
       );
 
-      const AsyncProcessOutput = AsyncProcessOutput();
-      expect(AsyncProcessOutput.props.searchChange.hasException()).toBe(false);
+      const asyncProcessOutput = craftUse(AsyncProcessOutput());
+      expect(asyncProcessOutput.props.searchChange.hasException()).toBe(false);
 
-      type props = (typeof AsyncProcessOutput)['props'];
+      type props = (typeof asyncProcessOutput)['props'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
           readonly value: Signal<
@@ -400,22 +400,19 @@ describe('AsyncProcess types without identifier', () => {
         };
       }>();
 
-      type methods = (typeof AsyncProcessOutput)['methods'];
-      expectTypeOf<methods>().branded.toEqualTypeOf<
-        {
-          setSearchChange: (args: {
-            timeToWait: number;
-            searchChange: string;
-          }) => {
-            timeToWait: number;
-            searchChange: string;
-          };
-        } & {
-          setFilterChange: (args: { filter: string }) => {
-            filter: string;
-          };
-        }
-      >();
+      type methods = (typeof asyncProcessOutput)['methods'];
+      expectTypeOf<methods>().toEqualTypeOf<{
+        setSearchChange: (args: {
+          timeToWait: number;
+          searchChange: string;
+        }) => {
+          timeToWait: number;
+          searchChange: string;
+        };
+        setFilterChange: (args: { filter: string }) => {
+          filter: string;
+        };
+      }>();
     });
   });
 
@@ -472,10 +469,10 @@ describe('AsyncProcess types without identifier', () => {
         },
       );
 
-      const AsyncProcessOutput = AsyncProcessOutput();
-      expect(AsyncProcessOutput.props.filterChange.status()).toBe('idle');
+      const asyncProcessOutput = craftUse(AsyncProcessOutput());
+      expect(asyncProcessOutput.props.filterChange.status()).toBe('idle');
 
-      type props = (typeof AsyncProcessOutput)['props'];
+      type props = (typeof asyncProcessOutput)['props'];
       expectTypeOf<props>().toEqualTypeOf<{
         searchChange: {
           readonly value: Signal<
@@ -531,7 +528,7 @@ describe('AsyncProcess types without identifier', () => {
         };
       }>();
 
-      type methods = (typeof AsyncProcessOutput)['methods'];
+      type methods = (typeof asyncProcessOutput)['methods'];
       //   ^?
       expectTypeOf<methods>().toEqualTypeOf<{
         setFilterChange: (args: { filter: string }) => {
@@ -697,10 +694,10 @@ describe('AsyncProcess types with identifier', () => {
         },
       );
 
-      const AsyncProcessOutput = AsyncProcessOutput();
-      expect(AsyncProcessOutput.props.searchChange.hasException()).toBe(false);
+      const asyncProcessOutput = craftUse(AsyncProcessOutput());
+      expect(asyncProcessOutput.props.searchChange.hasException()).toBe(false);
 
-      type props = (typeof AsyncProcessOutput)['props'];
+      type props = (typeof asyncProcessOutput)['props'];
       type s = props['searchChange'];
 
       const search = {} as ReturnType<s['select']>;
@@ -755,22 +752,19 @@ describe('AsyncProcess types with identifier', () => {
         }>;
       }>();
 
-      type methods = (typeof AsyncProcessOutput)['methods'];
-      expectTypeOf<methods>().branded.toEqualTypeOf<
-        {
-          setSearchChange: (args: {
-            timeToWait: number;
-            searchChange: string;
-          }) => {
-            timeToWait: number;
-            searchChange: string;
-          };
-        } & {
-          setFilterChange: (args: { filter: string }) => {
-            filter: string;
-          };
-        }
-      >();
+      type methods = (typeof asyncProcessOutput)['methods'];
+      expectTypeOf<methods>().toEqualTypeOf<{
+        setSearchChange: (args: {
+          timeToWait: number;
+          searchChange: string;
+        }) => {
+          timeToWait: number;
+          searchChange: string;
+        };
+        setFilterChange: (args: { filter: string }) => {
+          filter: string;
+        };
+      }>();
     });
   });
 
@@ -828,11 +822,11 @@ describe('AsyncProcess types with identifier', () => {
         },
       );
 
-      const AsyncProcessOutput = AsyncProcessOutput();
-      expect(AsyncProcessOutput.props.filterChange.status()).toBe('idle');
+      const asyncProcessOutput = craftUse(AsyncProcessOutput());
+      expect(asyncProcessOutput.props.filterChange.status()).toBe('idle');
 
       try {
-        const search = AsyncProcessOutput.props.searchChange.select('test');
+        const search = asyncProcessOutput.props.searchChange.select('test');
         expectTypeOf(search).toEqualTypeOf<
           | ({
               readonly value: Signal<
@@ -854,7 +848,7 @@ describe('AsyncProcess types with identifier', () => {
           | undefined
         >();
 
-        const filter = AsyncProcessOutput.props.filterChange;
+        const filter = asyncProcessOutput.props.filterChange;
         expectTypeOf(filter).toEqualTypeOf<{
           readonly value: Signal<
             | {
@@ -881,7 +875,7 @@ describe('AsyncProcess types with identifier', () => {
           }>;
         }>();
 
-        type methods = (typeof AsyncProcessOutput)['methods'];
+        type methods = (typeof asyncProcessOutput)['methods'];
         //   ^?
         expectTypeOf<methods>().toEqualTypeOf<{
           setFilterChange: (args: { filter: string }) => {

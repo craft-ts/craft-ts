@@ -116,18 +116,18 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
 > {
   assertInInjectionContext(craftMethod);
   const injector = inject(Injector);
-  const wrapFn = injectFnWrapper();
   const resolvedName = resolveCraftMethodName(nameOrConfig);
   const extraProviders = resolveCraftMethodProviders(nameOrConfig);
+  const methodInjector = ɵcreateHostTaggedInjector(
+    injector,
+    `method:${resolvedName}`,
+    extraProviders,
+  );
+  const wrapFn = runInInjectionContext(methodInjector, () => injectFnWrapper());
 
   if (maybeFactory) {
     const self = selfOrFactory as This;
     const factory = wrapFn(maybeFactory);
-    const methodInjector = ɵcreateHostTaggedInjector(
-      injector,
-      `method:${resolvedName}`,
-      extraProviders,
-    );
 
     return {
       [resolvedName]: markYieldableMethod(((...args: Args) =>
@@ -145,11 +145,6 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
 
   const factory = wrapFn(
     selfOrFactory as CraftMethodGenerator<This, Args, Yielded, Result>,
-  );
-  const methodInjector = ɵcreateHostTaggedInjector(
-    injector,
-    `method:${resolvedName}`,
-    extraProviders,
   );
 
   return {

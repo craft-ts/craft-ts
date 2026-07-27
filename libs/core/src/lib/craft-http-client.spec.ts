@@ -1,3 +1,4 @@
+import { craftUse } from './craft-use';
 import '@angular/compiler';
 import {
   HttpErrorResponse,
@@ -102,7 +103,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = UsersApi();
+      const usersApi = craftUse(UsersApi());
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne(
@@ -160,7 +161,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = UsersFilterApi();
+      const usersApi = craftUse(UsersFilterApi());
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne((pendingRequest) => {
@@ -206,7 +207,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = UsersHttpParamsApi();
+      const usersApi = craftUse(UsersHttpParamsApi());
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne(
@@ -246,7 +247,7 @@ describe('CraftHttpClient', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const usersApi = UsersParamsIdentityApi();
+      const usersApi = craftUse(UsersParamsIdentityApi());
 
       expect(usersApi.getUsers.params).toEqual({
         search: 'john',
@@ -316,7 +317,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = UsersApiOnCustomError();
+      const usersApi = craftUse(UsersApiOnCustomError());
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne('/api/users');
@@ -363,7 +364,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = UsersApiOnError();
+      const usersApi = craftUse(UsersApiOnError());
       const resultPromise = usersApi.getUsers();
 
       const request = httpTesting.expectOne('/api/users');
@@ -483,7 +484,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const authApi = AuthApi();
+      const authApi = craftUse(AuthApi());
       const resultPromise = authApi.login();
 
       const request = httpTesting.expectOne('/api/login');
@@ -553,7 +554,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const authApi = AuthApiOnBodyRule();
+      const authApi = craftUse(AuthApiOnBodyRule());
       const resultPromise = authApi.login();
 
       const request = httpTesting.expectOne('/api/login');
@@ -619,7 +620,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const authApi = AuthApiOnHeaderRule();
+      const authApi = craftUse(AuthApiOnHeaderRule());
       const resultPromise = authApi.login();
 
       const request = httpTesting.expectOne('/api/login');
@@ -695,7 +696,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const authApi = AuthApiOnRulePriority();
+      const authApi = craftUse(AuthApiOnRulePriority());
       const resultPromise = authApi.login();
 
       const request = httpTesting.expectOne('/api/login');
@@ -739,7 +740,7 @@ describe('CraftHttpClient', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
 
     await TestBed.runInInjectionContext(async () => {
-      const usersApi = UsersApiPost();
+      const usersApi = craftUse(UsersApiPost());
       const resultPromise = usersApi.createUser();
 
       const request = httpTesting.expectOne('/api/users');
@@ -973,7 +974,7 @@ describe('CraftHttpClient', () => {
     >();
 
     TestBed.runInInjectionContext(() => {
-      const usersFeature = UsersFeatureForDependencies();
+      const usersFeature = craftUse(UsersFeatureForDependencies());
 
       expect(
         getCraftHttpRequestExceptionDependencies(usersFeature.getUsers),

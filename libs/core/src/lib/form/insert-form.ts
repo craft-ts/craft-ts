@@ -100,9 +100,8 @@ function buildSimpleForm<Model>(
     asReadonly: () => context.state,
   });
 
-  const { rawInsertionsOutput, exposedInsertionsOutput } = executeFormInsertions(
-    formInsertions,
-    {
+  const { rawInsertionsOutput, exposedInsertionsOutput } =
+    executeFormInsertions(formInsertions, {
       field,
       state: context.state,
       submission,
@@ -113,8 +112,7 @@ function buildSimpleForm<Model>(
       inheritedInsertions,
       injector,
       formIdentifier,
-    },
-  );
+    });
 
   const formExceptions = createFormExceptions(
     rawInsertionsOutput,
@@ -138,12 +136,19 @@ function buildSimpleForm<Model>(
   const merged = wrapFieldWithExtras<Model>(field, {
     ...exposedInsertionsOutput,
     ...formExceptions,
+    reset: () => {
+      submission.reset();
+      field.reset();
+    },
     hasAttemptedSubmit: submission.hasAttemptedSubmit,
     submitting: submission.submitting,
     validatedFormValue,
   });
 
-  return merged as unknown as FormWithInsertions<Model, Record<string, unknown>>;
+  return merged as unknown as FormWithInsertions<
+    Model,
+    Record<string, unknown>
+  >;
 }
 
 /**
@@ -783,7 +788,9 @@ export function insertForm(...args: any[]): any {
       return nextItem;
     };
 
-    const getOrCreateEntry = (formIdentifier: string | number): ParallelEntry => {
+    const getOrCreateEntry = (
+      formIdentifier: string | number,
+    ): ParallelEntry => {
       const existing = formsByIdentifier.get(formIdentifier);
       if (existing) return existing;
 

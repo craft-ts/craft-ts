@@ -5,7 +5,7 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftResource } from './craft-resource';
 
 beforeAll(() => {
@@ -26,6 +26,7 @@ beforeAll(() => {
 describe('craftResource', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
+    vi.useRealTimers();
   });
 
   function createResource() {
@@ -40,7 +41,6 @@ describe('craftResource', () => {
 
   it('resolves the loader result on value/state/safeValue', async () => {
     const resource = createResource();
-    await TestBed.tick();
     await vi_waitForResolved(resource);
 
     expect(resource.hasValue()).toBe(true);
@@ -49,7 +49,7 @@ describe('craftResource', () => {
     expect(resource.safeValue()).toEqual({ id: 1, name: 'item-1' });
     expect(resource.status()).toBe('resolved');
     expect(resource.isLoading()).toBe(false);
-  });
+  }, 30_000);
 
   it('safeValue and state are undefined while there is no value yet', () => {
     const resource = createResource();
@@ -79,11 +79,12 @@ describe('craftResource', () => {
       }),
     );
     await vi_waitForSettled(resource);
-    const internalError = (resource as unknown as { error: () => unknown })
-      .error();
+    const internalError = (
+      resource as unknown as { error: () => unknown }
+    ).error();
     expect(internalError).toBeInstanceOf(Error);
     expect(resource.hasValue()).toBe(false);
-  });
+  }, 30_000);
 
   it('bound methods (reload, destroy, update, set, asReadonly) operate without a `this` receiver', async () => {
     const resource = createResource();
@@ -93,13 +94,16 @@ describe('craftResource', () => {
     set({ id: 99, name: 'manual' });
     expect(resource.value()).toEqual({ id: 99, name: 'manual' });
 
-    update((current) => ({ ...(current as { id: number; name: string }), name: 'updated' }));
+    update((current) => ({
+      ...(current as { id: number; name: string }),
+      name: 'updated',
+    }));
     expect(resource.value()).toEqual({ id: 99, name: 'updated' });
 
     expect(asReadonly()).toBeTruthy();
     expect(() => reload()).not.toThrow();
     expect(() => destroy()).not.toThrow();
-  });
+  }, 30_000);
 });
 
 async function vi_waitForResolved(resource: {
@@ -107,7 +111,6 @@ async function vi_waitForResolved(resource: {
 }): Promise<void> {
   for (let i = 0; i < 50 && resource.status() !== 'resolved'; i++) {
     await new Promise((r) => setTimeout(r, 0));
-    TestBed.tick();
   }
 }
 
@@ -120,6 +123,5 @@ async function vi_waitForSettled(resource: {
     i++
   ) {
     await new Promise((r) => setTimeout(r, 0));
-    TestBed.tick();
   }
 }

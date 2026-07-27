@@ -15,7 +15,10 @@ export type SourceBranded = {
  * Works for Source and ReadonlySource
  */
 export function isSource(value: any): boolean {
-  return value && SourceBrand in value;
+  return (typeof value === 'object' && value !== null) ||
+    typeof value === 'function'
+    ? SourceBrand in value
+    : false;
 }
 
 export type SourceBrand = typeof SourceBrand;

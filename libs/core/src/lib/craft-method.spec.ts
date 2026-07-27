@@ -84,7 +84,7 @@ describe('craftMethod', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith(
       'increment',
       expect.objectContaining({
-        from: ['increment'],
+        from: ['method:increment'],
         trace: expect.any(String),
       }),
     );

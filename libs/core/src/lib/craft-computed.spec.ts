@@ -134,10 +134,14 @@ describe('craftComputed', () => {
     expect(isYieldableMethod(component.tripled)).toBe(true);
 
     type _PlainComputedIsYieldable = Expect<
-      Component['doubled'] extends YieldableMethod<[], number> ? true : false
+      CounterComponent['doubled'] extends YieldableMethod<[], number>
+        ? true
+        : false
     >;
     type _GeneratorComputedIsYieldable = Expect<
-      Component['tripled'] extends YieldableMethod<[], number> ? true : false
+      CounterComponent['tripled'] extends YieldableMethod<[], number>
+        ? true
+        : false
     >;
   });
 

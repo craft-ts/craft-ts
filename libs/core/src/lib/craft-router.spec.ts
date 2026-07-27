@@ -2,13 +2,14 @@
 import '@angular/compiler';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { craftUse } from './craft-use';
 import { By } from '@angular/platform-browser';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { Router, RouterLinkActive } from '@angular/router';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';
 import { Console } from './browser-boundaries';
@@ -152,6 +153,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   TestBed.resetTestingModule();
+  vi.useRealTimers();
 });
 
 describe('CraftRouter', () => {
@@ -161,7 +163,7 @@ describe('CraftRouter', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const router = CraftRouter();
+      const router = craftUse(CraftRouter());
 
       if (false) {
         router.createUrlTree({ to: '' });
@@ -234,7 +236,7 @@ describe('CraftRouter', () => {
         router.navigateByUrl({ to: '**' });
       }
     });
-  });
+  }, 30_000);
 
   it('should create and navigate to typed absolute urls', async () => {
     await TestBed.configureTestingModule({
@@ -242,7 +244,9 @@ describe('CraftRouter', () => {
     }).compileComponents();
 
     const angularRouter = TestBed.inject(Router);
-    const craftRouter = TestBed.runInInjectionContext(() => CraftRouter());
+    const craftRouter = TestBed.runInInjectionContext(() =>
+      craftUse(CraftRouter()),
+    );
 
     const userTree = craftRouter.createUrlTree({
       to: 'users/:userId',
@@ -307,7 +311,7 @@ describe('CraftRouter', () => {
     fixture.detectChanges();
 
     expect(TestBed.inject(Router).url).toBe('/users/42');
-  });
+  }, 30_000);
 
   it('should expose CraftRouter dependency through ExtractDeps when a craftMethod yields CraftRouter', () => {
     // Regression test for a bug where `CraftRouterYieldRequest` was extracted
@@ -355,7 +359,7 @@ describe('CraftRouter', () => {
 
     if (false) {
       TestBed.runInInjectionContext(() => {
-        const router = CraftRouter();
+        const router = craftUse(CraftRouter());
         // Joined path resolves at the type level
         router.navigate({
           to: 'parent/:teamId/child/:userId',

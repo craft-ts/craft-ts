@@ -1,3 +1,4 @@
+import { craftUse } from './craft-use';
 import '@angular/compiler';
 import { TestBed } from '@angular/core/testing';
 import {
@@ -54,8 +55,8 @@ describe('browser boundaries', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     TestBed.runInInjectionContext(() => {
-      LocalStorageService().clear();
-      SessionStorageService().clear();
+      craftUse(LocalStorageService()).clear();
+      craftUse(SessionStorageService()).clear();
     });
     clearCookies();
     document.title = 'Spec';
@@ -71,12 +72,9 @@ describe('browser boundaries', () => {
       function* () {
         yield* Console.log('boot', { ready: true });
 
-        const consoleService = yield* ConsoleService(
-          undefined,
-          ({ log }) => ({
-            log,
-          }),
-        );
+        const consoleService = yield* ConsoleService(undefined, ({ log }) => ({
+          log,
+        }));
 
         return {
           track: (message: string) => consoleService.log(message),
@@ -85,16 +83,16 @@ describe('browser boundaries', () => {
     );
 
     expect(getServiceMetaData(ConsoleService).browserBoundary).toBe(true);
-    expect(
-      getServiceMetaData(BrowserLocationService).browserBoundary,
-    ).toBe(true);
+    expect(getServiceMetaData(BrowserLocationService).browserBoundary).toBe(
+      true,
+    );
 
     expectTypeOf(
       getServiceMetaData(ConsoleService).browserBoundary,
     ).toEqualTypeOf<boolean>();
 
     TestBed.runInInjectionContext(() => {
-      const bootLogger = BootLogger();
+      const bootLogger = craftUse(BootLogger());
 
       bootLogger.track('runtime');
     });
@@ -104,7 +102,7 @@ describe('browser boundaries', () => {
       'boot',
       { ready: true },
       expect.objectContaining({
-        from: ['BootLogger'],
+        from: ['service:BootLogger'],
         trace: expect.any(String),
       }),
     );
@@ -144,7 +142,7 @@ describe('browser boundaries', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(BrowserPersistence()).toEqual({
+      expect(craftUse(BrowserPersistence())).toEqual({
         token: 'abc',
         localLength: 1,
         tab: 'settings',
@@ -200,7 +198,7 @@ describe('browser boundaries', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(BrowserSnapshot()).toEqual({
+      expect(craftUse(BrowserSnapshot())).toEqual({
         href: window.location.href,
         pathname: '/checkout',
         search: '?step=2',
@@ -240,7 +238,7 @@ describe('browser boundaries', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(LeavePageFlow()).toBe(false);
+      expect(craftUse(LeavePageFlow())).toBe(false);
     });
 
     expect(confirmSpy).toHaveBeenCalledWith('Stay on page?');
@@ -269,7 +267,7 @@ describe('browser boundaries', () => {
       },
     );
     await TestBed.runInInjectionContext(async () => {
-      const diagnostics = BrowserDiagnostics();
+      const diagnostics = craftUse(BrowserDiagnostics());
       const digest = await diagnostics.digest;
 
       expect(diagnostics.now).toBe(42.5);

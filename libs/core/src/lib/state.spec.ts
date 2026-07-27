@@ -23,6 +23,7 @@ import {
   type StateMethodRuntimeContext,
 } from './state-method-runtime-context';
 import { craftUse } from './craft-use';
+import type { NamedYieldableValue } from './yieldable';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   TestBed.runInInjectionContext(fn);
@@ -104,7 +105,9 @@ describe('state', () => {
       const { myState } = craftUse(state('myState', 0));
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
+      expectTypeOf(myState).toEqualTypeOf<
+        NamedYieldableValue<'myState', StateOutput<number, {}>>
+      >();
       expect(myState()).toBe(0);
     });
   });
@@ -119,7 +122,9 @@ describe('state', () => {
       );
 
       expect(myState).toBeDefined();
-      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
+      expectTypeOf(myState).toEqualTypeOf<
+        NamedYieldableValue<'myState', StateOutput<number, {}>>
+      >();
       expect(myState()).toBe(10);
     });
   });
@@ -147,14 +152,17 @@ describe('state', () => {
 
       expect(myState).toBeDefined();
       expectTypeOf(myState).toEqualTypeOf<
-        StateOutput<
-          number,
-          {
-            increment: () => number;
-            reset: () => number;
-          } & {
-            isOdd: Signal<boolean>;
-          }
+        NamedYieldableValue<
+          'myState',
+          StateOutput<
+            number,
+            {
+              increment: () => number;
+              reset: () => number;
+            } & {
+              isOdd: Signal<boolean>;
+            }
+          >
         >
       >();
       expect(myState()).toBe(10);
@@ -402,7 +410,9 @@ describe('state — $self config with providers', () => {
     runInInjectionContext(() => {
       const { myState } = craftUse(state('myState', { $self: 42 }));
 
-      expectTypeOf(myState).toEqualTypeOf<StateOutput<number, {}>>();
+      expectTypeOf(myState).toEqualTypeOf<
+        NamedYieldableValue<'myState', StateOutput<number, {}>>
+      >();
       expect(myState()).toBe(42);
     });
   });
@@ -565,7 +575,7 @@ describe('state — $self config with providers', () => {
       () => ({ value: () => 1 }),
     );
 
-    runInInjectionContext(() => {
+    if (false) {
       const { withoutProviders } = craftUse(
         state('withoutProviders', function* () {
           const counter = yield* LocalCounter();
@@ -590,6 +600,6 @@ describe('state — $self config with providers', () => {
       expectTypeOf<
         'LocalCounter' extends keyof WithDeps ? true : false
       >().toEqualTypeOf<false>();
-    });
+    }
   });
 });

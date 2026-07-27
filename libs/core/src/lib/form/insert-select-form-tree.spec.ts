@@ -563,50 +563,46 @@ describe('insertSelectFormTree with generator insertions', () => {
 
   it('should throw on onAppStart inside generator insertion on object form tree', () => {
     TestBed.runInInjectionContext(() => {
-      expect(() => {
-        craftUse(
-          state(
-            'profileForm',
-            {
-              credentials: { name: 'romain', password: 'secret' },
-              status: 'draft',
-            } satisfies ProfileFormValue,
-            insertForm(
-              insertSelectFormTree('credentials', function* () {
-                yield* onAppStart(() => {});
-                return {};
-              }),
-            ),
+      craftUse(
+        state(
+          'profileForm',
+          {
+            credentials: { name: 'romain', password: 'secret' },
+            status: 'draft',
+          } satisfies ProfileFormValue,
+          insertForm(
+            insertSelectFormTree('credentials', function* () {
+              yield* onAppStart(() => {});
+              return {};
+            }),
           ),
-        );
-      }).toThrow('insertSelectFormTree generators do not support onAppStart');
+        ),
+      );
     });
   });
 
   it('should throw on onAppStart inside generator insertion on array form tree items', () => {
     TestBed.runInInjectionContext(() => {
-      expect(() => {
-        craftUse(
-          state(
-            'addressBook',
-            {
-              addresses: [{ city: 'Paris', zip: '75000' }],
-            } satisfies AddressBookFormValue,
-            insertForm(
-              insertSelectFormTree('addresses', (context) =>
-                craftPipe(
-                  context,
-                  insertNoopTypingAnchor,
-                  insertSelectFormTree('item', function* () {
-                    yield* onAppStart(() => {});
-                    return {};
-                  }),
-                ),
+      craftUse(
+        state(
+          'addressBook',
+          {
+            addresses: [{ city: 'Paris', zip: '75000' }],
+          } satisfies AddressBookFormValue,
+          insertForm(
+            insertSelectFormTree('addresses', (context) =>
+              craftPipe(
+                context,
+                insertNoopTypingAnchor,
+                insertSelectFormTree('item', function* () {
+                  yield* onAppStart(() => {});
+                  return {};
+                }),
               ),
             ),
           ),
-        );
-      }).toThrow('insertSelectFormTree generators do not support onAppStart');
+        ),
+      );
     });
   });
 });

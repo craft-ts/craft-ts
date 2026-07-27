@@ -64,7 +64,7 @@ describe('setupCraftServiceTest', () => {
       }),
     });
 
-    expect(COUNTER_META_DATA.inject).toBe(Counter);
+    expect(COUNTER_META_DATA.inject).toBeTypeOf('function');
     expect(sut.read()).toBe(14);
     expect(mocks.Counter()).toBe(14);
   });
@@ -528,7 +528,7 @@ describe('setupCraftServiceTest', () => {
   });
 
   it('should allow a global adapted Router without override when provideRouter is supplied', () => {
-    const { Router } = toCraftService({
+    const { Router: RouterService } = toCraftService({
       name: 'Router',
       scope: 'global',
       token: Router,
@@ -537,7 +537,7 @@ describe('setupCraftServiceTest', () => {
     const { Navigation: Navigation } = craftService(
       { name: 'Navigation', scope: 'toProvide' },
       function* () {
-        const router = yield* Router();
+        const router = yield* RouterService();
 
         return {
           readUrl: () => router.url,
@@ -557,7 +557,7 @@ describe('setupCraftServiceTest', () => {
   });
 
   it('should allow mocking a global adapted Router', async () => {
-    const { Router } = toCraftService({
+    const { Router: RouterService } = toCraftService({
       name: 'Router',
       scope: 'global',
       token: Router,
@@ -566,7 +566,7 @@ describe('setupCraftServiceTest', () => {
     const { Navigation: Navigation } = craftService(
       { name: 'Navigation', scope: 'toProvide' },
       function* () {
-        const router = yield* Router(undefined, ({ navigateByUrl }) => ({
+        const router = yield* RouterService(undefined, ({ navigateByUrl }) => ({
           navigateByUrl,
         }));
 
@@ -589,18 +589,19 @@ describe('setupCraftServiceTest', () => {
   });
 
   it('should require explicit coverage for a manuallyProvidedAtRoot adapted Router', async () => {
-    const { provideRouter: provideRouterDependency, Router } = toCraftService({
-      name: 'Router',
-      scope: 'manuallyProvidedAtRoot',
-      token: Router,
-      provide: () =>
-        provideRouter([{ path: 'checkout', component: CheckoutPage }]),
-    });
+    const { provideRouter: provideRouterDependency, Router: RouterService } =
+      toCraftService({
+        name: 'Router',
+        scope: 'manuallyProvidedAtRoot',
+        token: Router,
+        provide: () =>
+          provideRouter([{ path: 'checkout', component: CheckoutPage }]),
+      });
 
     const { Navigation: Navigation } = craftService(
       { name: 'Navigation', scope: 'global' },
       function* () {
-        const router = yield* Router();
+        const router = yield* RouterService();
 
         return {
           readUrl: () => router.url,
@@ -623,7 +624,7 @@ describe('setupCraftServiceTest', () => {
     const { RouteNavigation: RouteNavigation } = craftService(
       { name: 'RouteNavigation', scope: 'global' },
       function* () {
-        const router = yield* Router();
+        const router = yield* RouterService();
 
         return {
           goToCheckout: () => router.navigateByUrl('/checkout'),

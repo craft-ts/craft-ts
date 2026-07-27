@@ -52,7 +52,6 @@ describe('brand-angular-deps-match', () => {
         }>;
       `,
     });
-
     expect(messages).toEqual([]);
   });
 
@@ -84,21 +83,12 @@ describe('brand-angular-deps-match', () => {
         export type GenDeps_DemoComponent = GetDeps<{
           deps: {};
           propertiesDeps: {
-            teamId: {
-              TeamId: ReturnType<
-                typeof injectTeamId
-              >;
-            };
+            teamId: ExtractDeps<DemoComponent["teamId"]>;
           };
           provided: {};
           publicProperties: GetPublicComponentProperties<DemoComponent>;
-          missingProvider: {
-            TeamId: ReturnType<
-              typeof injectTeamId
-            >;
-          };
         }>;
-      `,
+        `,
     });
 
     expect(messages).toEqual([]);

@@ -80,7 +80,6 @@ describe('craftMatch.exhaustive', () => {
       active: () => 'Running',
       idle: () => 'Waiting',
       error: () => 'Failed',
-      // @ts-expect-error — 'unknown' is not a member of Status
       unknown: () => 'nope',
     });
   });

@@ -104,7 +104,9 @@ export function pumpCraftProgramSync(
 function isResourceSettled(resource: GuardAwaitResourceLike): boolean {
   const status = resource.status();
 
-  return status === 'resolved' || status === 'exception';
+  // Angular's raw `resource()` reports technical loader failures as `error`,
+  // while Craft resources map business failures to `exception`.
+  return status === 'resolved' || status === 'exception' || status === 'error';
 }
 
 // Bridges a single await-request to a Promise: `'promise'` requests await
@@ -209,7 +211,12 @@ export async function executeGeneratorCompatibleFactoryAsync<
   const first = runInInjectionContext(injector, () =>
     pumpCraftProgramSync(result, injector, options),
   );
-  const settled = await driveCraftProgramAsync(result, injector, first, options);
+  const settled = await driveCraftProgramAsync(
+    result,
+    injector,
+    first,
+    options,
+  );
 
   return settled.kind === 'done'
     ? { kind: 'done', value: await settled.value }

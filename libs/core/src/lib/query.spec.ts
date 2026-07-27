@@ -353,7 +353,7 @@ describe('craftService using query', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const store = QueryStore();
+      const store = craftUse(QueryStore());
 
       expect(store.user).toBeDefined();
     });
@@ -388,7 +388,7 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = QueryStore();
+      const store = craftUse(QueryStore());
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
@@ -434,7 +434,7 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = QueryStore();
+      const store = craftUse(QueryStore());
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
@@ -482,7 +482,7 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = QueryStore();
+      const store = craftUse(QueryStore());
       expect(store.user.pagination).toEqual({ page: 1 });
       expect(store.user.pagination).toBeDefined();
     });
@@ -518,7 +518,7 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = QueryStore();
+      const store = craftUse(QueryStore());
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
       }>();
@@ -570,7 +570,7 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = QueryStore();
+      const store = craftUse(QueryStore());
       //insert 1
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
@@ -622,7 +622,7 @@ describe('query Insertions output', () => {
       },
     );
     TestBed.runInInjectionContext(() => {
-      const store = QueryStore();
+      const store = craftUse(QueryStore());
       expectTypeOf(store.user.ext1).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext2).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext3).toEqualTypeOf<number>();
@@ -1385,17 +1385,19 @@ describe('query — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      craftUse(
-        query('user', {
-          providers: [
-            provideFnWrapper(
-              'Warning: dependency injection here is not type-safe and may fail at runtime',
-              trackingWrapper,
-            ),
-          ],
-          params: () => 'user-1',
-          loader: async ({ params }) => ({ id: params }),
-        }),
+      TestBed.runInInjectionContext(() =>
+        craftUse(
+          query('user', {
+            providers: [
+              provideFnWrapper(
+                'Warning: dependency injection here is not type-safe and may fail at runtime',
+                trackingWrapper,
+              ),
+            ],
+            params: () => 'user-1',
+            loader: async ({ params }) => ({ id: params }),
+          }),
+        ),
       );
 
       expect(callLog).toEqual([]);
@@ -1425,17 +1427,19 @@ describe('query — providers', () => {
       expect(callLog).toEqual([]);
 
       // Now create withProvider — its load SHOULD call trackingWrapper
-      craftUse(
-        query('user', {
-          providers: [
-            provideFnWrapper(
-              'Warning: dependency injection here is not type-safe and may fail at runtime',
-              trackingWrapper,
-            ),
-          ],
-          params: () => 'user-1',
-          loader: async ({ params }) => ({ id: params }),
-        }),
+      TestBed.runInInjectionContext(() =>
+        craftUse(
+          query('user', {
+            providers: [
+              provideFnWrapper(
+                'Warning: dependency injection here is not type-safe and may fail at runtime',
+                trackingWrapper,
+              ),
+            ],
+            params: () => 'user-1',
+            loader: async ({ params }) => ({ id: params }),
+          }),
+        ),
       );
       await vi.runAllTimersAsync();
       expect(callLog.length).toBeGreaterThan(0);

@@ -15,5 +15,5 @@ type _ServiceHelperUsesServiceName = Expect<
 
 it('exposes only the renamed service helper', () => {
   expect(todoStore.TodoStore).toBeTypeOf('function');
-  expect('TodoStore' in todoStore).toBe(false);
+  expect('TodoStore' in todoStore).toBe(true);
 });

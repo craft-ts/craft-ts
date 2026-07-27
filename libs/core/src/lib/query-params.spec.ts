@@ -296,7 +296,7 @@ describe('queryParams', () => {
       );
 
       expectTypeOf(myQueryParams.page()).toEqualTypeOf<number>();
-      expectTypeOf<ExtractDeps<typeof queryParams>>().toEqualTypeOf<{
+      expectTypeOf<ExtractDeps<typeof myQueryParams>>().toEqualTypeOf<{
         ParsePage: {
           scope: 'global';
           dependencies: {};
@@ -382,7 +382,7 @@ describe('queryParams', () => {
         ),
       );
 
-      expectTypeOf<ExtractDeps<typeof queryParams>>().toEqualTypeOf<{
+      expectTypeOf<ExtractDeps<typeof myQueryParams>>().toEqualTypeOf<{
         Router: {
           scope: 'global';
           dependencies: {};

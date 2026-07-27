@@ -19,6 +19,7 @@ import {
   type RouteExceptionUnion,
 } from './craft-route-exceptions';
 import type { AnyCraftException } from './craft-exception';
+import { craftUse } from './craft-use';
 
 beforeAll(() => {
   try {
@@ -193,7 +194,7 @@ describe('craft-route-exceptions (runtime)', () => {
     TestBed.configureTestingModule({});
     const { sink, read } = TestBed.runInInjectionContext(() => ({
       sink: inject(CRAFT_GLOBAL_ERROR),
-      read: CraftGlobalError(),
+      read: craftUse(CraftGlobalError()),
     }));
 
     expect(sink()).toBeNull();

@@ -18,7 +18,7 @@ const { AppStartCounter: AppStartCounterInternal } = craftService(
   },
 );
 
-export const AppStartCounter: any = AppStartCounterInternal;
+export const AppStartCounter = AppStartCounterInternal;
 
 declare module './craft-app-config' {
   interface CraftAppStartRegistry {

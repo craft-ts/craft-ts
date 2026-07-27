@@ -231,7 +231,7 @@ describe('insertFormAttributes', () => {
         expect(
           (fieldForm.form.lastRightFailedValidation() as { code: string })
             ?.code,
-        ).toBe('required');
+        ).toBe('TOO_SHORT');
 
         // "ab" -> hasAtSign + minLen5 fail
         fieldState.set('ab');

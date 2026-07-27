@@ -23,6 +23,7 @@ import {
   runServiceAppStart,
   toCraftService,
 } from './craft-service';
+import { craftUse } from './craft-use';
 
 beforeAll(() => {
   try {
@@ -389,9 +390,7 @@ describe('craftAppConfig appStart', () => {
   it('should treat appStart services as provided at app root in APP_CONFIG_META_DATA', () => {
     type CounterRouteDeps = GetDeps<{
       deps: {
-        AppStartCounter: GetServiceDependencies<
-          typeof AppStartCounter
-        >;
+        AppStartCounter: GetServiceDependencies<typeof AppStartCounter>;
       };
       provided: {};
       publicProperties: {};
@@ -502,7 +501,7 @@ describe('craftAppConfig appStart', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const service = NestedAppStart();
+      const service = craftUse(NestedAppStart());
 
       expect(() => runServiceAppStart(NestedAppStart, service)).toThrow(
         'onAppStart(...) generator callbacks cannot declare onAppStart(...) recursively.',

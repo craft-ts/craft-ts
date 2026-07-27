@@ -234,7 +234,9 @@ type ToSubmitExceptions<
       FormIdentifier
     >
   | InsertMetaInCraftExceptionIfKnown<
-      Config extends { exception: (...args: any[]) => infer ExceptionExceptions }
+      Config extends {
+        exception: (...args: any[]) => infer ExceptionExceptions;
+      }
         ? ExceptionExceptions
         : never,
       'insertFormSubmitError',
@@ -330,30 +332,27 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
     formIdentifier: unknown;
     validatedFormValue: Signal<ValidatedFormValue<unknown>>;
   }) => {
-    const submitCraftResourceTarget = computed(() =>
-      formIdentifier !== undefined
-        ? (
-            submitCraftResource as ResourceByIdLikeMutationRef<
-              unknown,
-              unknown,
-              true,
-              unknown,
-              unknown,
-              unknown,
-              unknown,
-              ResourceExceptionConstraints
-            >
-          ).select(formIdentifier as never)
-        : (submitCraftResource as ResourceLikeMutationRef<
+    const submitCraftResourceTarget = computed(() => {
+      if (
+        formIdentifier !== undefined &&
+        typeof submitCraftResource?.select === 'function'
+      ) {
+        return (
+          submitCraftResource as ResourceByIdLikeMutationRef<
             unknown,
             unknown,
             true,
             unknown,
             unknown,
             unknown,
+            unknown,
             ResourceExceptionConstraints
-          >),
-    );
+          >
+        ).select(formIdentifier as never);
+      }
+
+      return submitCraftResource as any;
+    });
 
     effect(() => {
       const target = submitCraftResourceTarget();

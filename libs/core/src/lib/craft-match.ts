@@ -51,10 +51,15 @@ interface CraftMatch {
    * compile error, and each handler receives its own narrowed literal. The
    * result is the union of the handlers' return types.
    */
-  exhaustive: <Value extends string | number, R>(
+  exhaustive: <
+    Value extends string | number,
+    Handlers extends {
+      [K in Value]: (value: K) => unknown;
+    },
+  >(
     value: Value,
-    handlers: CraftMatchHandlers<Value, R>,
-  ) => R;
+    handlers: Handlers,
+  ) => ReturnType<Handlers[Value]>;
 }
 
 function craftMatchImpl<Value extends string | number, Case extends Value, R>(
@@ -65,11 +70,16 @@ function craftMatchImpl<Value extends string | number, Case extends Value, R>(
   return value === matchCase ? handler(value as Case) : undefined;
 }
 
-function craftMatchExhaustiveImpl<Value extends string | number, R>(
+function craftMatchExhaustiveImpl<
+  Value extends string | number,
+  Handlers extends CraftMatchHandlers<Value, any>,
+>(
   value: Value,
-  handlers: CraftMatchHandlers<Value, R>,
-): R {
-  const handler = handlers[value] as (value: Value) => R;
+  handlers: Handlers,
+): ReturnType<Handlers[Value]> {
+  const handler = handlers[value] as (
+    value: Value,
+  ) => ReturnType<Handlers[Value]>;
   return handler(value);
 }
 

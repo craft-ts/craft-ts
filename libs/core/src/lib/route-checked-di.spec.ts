@@ -1,3 +1,4 @@
+import { craftUse } from './craft-use';
 import { craftService, GetServiceDependencies } from './craft-service';
 import { GetDeps } from './branded-component/branded-component';
 import type { CanRun } from './app-checked-di';
@@ -43,9 +44,7 @@ describe('RouteCheckedDI', () => {
     type CHECK = RouteCheckedDI<GenDeps_MyComp, never>;
 
     expectTypeOf<CHECK>().toEqualTypeOf<
-      [
-        'The Counter service is not provided in this component',
-      ]
+      ['The Counter service is not provided in this component']
     >();
   });
 
@@ -104,9 +103,7 @@ describe('RouteCheckedDI', () => {
     type CHECK = RouteCheckedDI<GenDeps_MyComp, never, never, 'MyComponent'>;
 
     expectTypeOf<CHECK>().toEqualTypeOf<
-      [
-        'The Counter service is not provided in MyComponent',
-      ]
+      ['The Counter service is not provided in MyComponent']
     >();
   });
 
@@ -148,7 +145,12 @@ describe('RouteCheckedDI', () => {
     type OkProvidedNames =
       | RouteProvidedNames
       | Extract<keyof GenDeps_Ok['provided'], string>;
-    type CHECK_OK = RouteCheckedDI<GenDeps_Ok, OkProvidedNames, never, 'OkComp'>;
+    type CHECK_OK = RouteCheckedDI<
+      GenDeps_Ok,
+      OkProvidedNames,
+      never,
+      'OkComp'
+    >;
     expectTypeOf<CHECK_OK>().toEqualTypeOf<true>();
     expectTypeOf<CanRun<CHECK_OK>>().toEqualTypeOf<true>();
 
@@ -176,9 +178,7 @@ describe('RouteCheckedDI', () => {
     >;
 
     expectTypeOf<CHECK_BROKEN>().toEqualTypeOf<
-      [
-        'The CompSvc service is not provided in BrokenComp',
-      ]
+      ['The CompSvc service is not provided in BrokenComp']
     >();
     // @ts-expect-error — CanRun rejects non-true CHECK_BROKEN at its
     // `extends true` constraint. This compile-time error is exactly what the
@@ -192,10 +192,7 @@ describe('RouteCheckedDI', () => {
     // a route list, so the type instantiation depth stays constant regardless
     // of how many checks coexist. This test asserts that >50 distinct checks
     // type-check cleanly (the global AppCheckedDI would TS2589 well before).
-    const { S } = craftService(
-      { name: 'S', scope: 'toProvide' },
-      () => 1,
-    );
+    const { S } = craftService({ name: 'S', scope: 'toProvide' }, () => 1);
 
     type Deps = GetDeps<{
       deps: { S: GetServiceDependencies<typeof S> };

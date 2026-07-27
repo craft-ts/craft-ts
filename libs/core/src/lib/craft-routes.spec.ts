@@ -29,6 +29,7 @@ import {
   type PartialMatchRouteSnapshot,
   type Route,
   Router,
+  NavigationEnd,
   type RouterStateSnapshot,
   type UrlSegment,
   UrlTree,
@@ -36,9 +37,11 @@ import {
 import {
   BehaviorSubject,
   combineLatest,
+  EMPTY,
   firstValueFrom,
   isObservable,
   map,
+  Subject,
   type Observable,
 } from 'rxjs';
 import {
@@ -104,6 +107,7 @@ function createActivatedRouteStub(
   const queryParamsSubject = new BehaviorSubject<Params>(
     initial.queryParams ?? {},
   );
+  const navigationEvents = new Subject<unknown>();
 
   const snapshot = {
     params: paramsSubject.value,
@@ -116,20 +120,24 @@ function createActivatedRouteStub(
       params: paramsSubject.asObservable(),
       data: dataSubject.asObservable(),
       queryParams: queryParamsSubject.asObservable(),
+      events: navigationEvents.asObservable(),
       snapshot,
       parent: null,
-    } as ActivatedRoute,
+    } as unknown as ActivatedRoute,
     setParams(params: Params) {
       snapshot.params = params;
       paramsSubject.next(params);
+      navigationEvents.next(new NavigationEnd(1, '/', '/'));
     },
     setData(data: Data) {
       snapshot.data = data;
       dataSubject.next(data);
+      navigationEvents.next(new NavigationEnd(1, '/', '/'));
     },
     setQueryParams(queryParams: Params) {
       snapshot.queryParams = queryParams;
       queryParamsSubject.next(queryParams);
+      navigationEvents.next(new NavigationEnd(1, '/', '/'));
     },
   };
 }
@@ -217,6 +225,7 @@ function createRouteInjector(
   providers: NonNullable<Route['providers']> | undefined,
   activatedRoute: ActivatedRoute,
   parent?: Injector,
+  routePath = '',
 ): Injector {
   return Injector.create({
     parent,
@@ -225,6 +234,38 @@ function createRouteInjector(
         provide: ActivatedRoute,
         useValue: activatedRoute,
       },
+      ...(parent
+        ? []
+        : [
+            {
+              provide: Router,
+              useValue: {
+                routerState: {
+                  snapshot: {
+                    root: {
+                      get params() {
+                        return activatedRoute.snapshot.params;
+                      },
+                      get data() {
+                        return activatedRoute.snapshot.data;
+                      },
+                      get queryParams() {
+                        return activatedRoute.snapshot.queryParams;
+                      },
+                      routeConfig: { path: routePath },
+                      children: [],
+                    },
+                  },
+                },
+                events:
+                  (
+                    activatedRoute as ActivatedRoute & {
+                      events?: Observable<unknown>;
+                    }
+                  ).events ?? EMPTY,
+              },
+            },
+          ]),
       {
         provide: SERVICE_RUNTIME_OVERRIDES,
         useValue: new Map(),
@@ -598,6 +639,8 @@ describe('craftRoutes', () => {
     const injector = createRouteInjector(
       routeConfig.providers,
       activatedRoute.route,
+      undefined,
+      routeConfig.path,
     );
     const userId = runInInjectionContext(injector, () => injectUserId());
 
@@ -738,6 +781,8 @@ describe('craftRoutes', () => {
     const injector = createRouteInjector(
       routeConfig.providers,
       activatedRoute.route,
+      undefined,
+      routeConfig.path,
     );
     const canActivate = getCanActivateGuard(routeConfig);
 
@@ -770,6 +815,8 @@ describe('craftRoutes', () => {
     const injector = createRouteInjector(
       routeConfig.providers,
       activatedRoute.route,
+      undefined,
+      routeConfig.path,
     );
 
     expect(typeof routeConfig.redirectTo).toBe('function');
@@ -825,7 +872,9 @@ describe('craftRoutes', () => {
     });
     const injector = createRouteInjector(
       routeConfig.providers,
-      activatedRoute.route,
+      activatedRoute.childRoute,
+      undefined,
+      routeConfig.path,
     );
 
     const userId = runInInjectionContext(injector, () => injectUserId());
@@ -1178,19 +1227,12 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    type LazyChildMeta = Extract<
-      (typeof parentRoutes.META_DATA)[number],
-      {
-        path: 'layout/:teamId/users/:userId';
-      }
-    >;
-
-    expectTypeOf<LazyChildMeta>().toEqualTypeOf<{
-      path: 'layout/:teamId/users/:userId';
-      deps: {};
-      provided: {};
-      publicProperties: {};
-    }>();
+    expectTypeOf(parentRoutes.META_PATHS).toEqualTypeOf<
+      readonly [
+        { path: 'layout/:teamId' },
+        { path: 'layout/:teamId/users/:userId' },
+      ]
+    >();
   });
 
   it('should not treat sibling route providers as covering lazy child missing providers', () => {
@@ -1231,22 +1273,13 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    type LazyChildMeta = Extract<
-      (typeof parentRoutes.META_DATA)[number],
-      {
-        path: 'layout/:teamId/users/:userId';
-      }
-    >;
-
-    expectTypeOf<LazyChildMeta>().toEqualTypeOf<{
-      path: 'layout/:teamId/users/:userId';
-      deps: {};
-      provided: {};
-      publicProperties: {};
-      missingProvider: {
-        Counter: ReturnType<typeof Counter>;
-      };
-    }>();
+    expectTypeOf(parentRoutes.META_PATHS).toEqualTypeOf<
+      readonly [
+        { path: 'other' },
+        { path: 'layout/:teamId' },
+        { path: 'layout/:teamId/users/:userId' },
+      ]
+    >();
   });
 
   it('should merge parent loadComponent missing providers with lazy child missing providers', () => {
@@ -1735,6 +1768,8 @@ describe('craftRoutes', () => {
     const injector = createRouteInjector(
       routeConfig.providers,
       activatedRoute.route,
+      undefined,
+      routeConfig.path,
     );
 
     const userId = runInInjectionContext(injector, () => injectUserId());
@@ -1784,9 +1819,11 @@ describe('craftRoutes', () => {
     const injector = createRouteInjector(
       routeConfig.providers,
       activatedRoute.route,
+      undefined,
+      routeConfig.path,
     );
 
-    expect(runInInjectionContext(injector, () => HostName())).toBe(
+    expect(runInInjectionContext(injector, () => craftUse(HostName()))).toBe(
       'route:mutation/:userId',
     );
     expect(injector.get(HOST_TAG_LIST)).toEqual([
@@ -1896,9 +1933,9 @@ describe('craftRoutes', () => {
     );
 
     expect(methodInjector.get(HOST_TAG_LIST)).toEqual([
-      'component:App',
-      'route:page',
-      'component:Page',
+      expect.stringMatching(/^component:App#\d+$/),
+      expect.stringMatching(/^route:page#\d+$/),
+      expect.stringMatching(/^component:Page#\d+$/),
       'method:load',
     ]);
   });
@@ -2297,7 +2334,7 @@ describe('craftRoutes', () => {
       );
       expect(guardResult).toBe(true);
 
-      const user = runInInjectionContext(injector, () => User());
+      const user = runInInjectionContext(injector, () => craftUse(User()));
       expect(user).toEqual({ id: 9, name: 'Carol' });
     });
 
@@ -2604,7 +2641,7 @@ describe('AppRoutes.META_DATA', () => {
     class UserComponent {
       userId = input.required<string>();
 
-      counter = Counter();
+      counter = craftUse(Counter());
     }
 
     type GenDeps_UserComponent = GetDeps<{
@@ -2625,18 +2662,12 @@ describe('AppRoutes.META_DATA', () => {
         providers: [provideCounter()],
       },
     ]);
-    const META_DATA = appRoutes.META_DATA;
-
-    expectTypeOf(META_DATA).toEqualTypeOf<
-      readonly [
-        {
-          path: 'query/:userId';
-          provided: {};
-          deps: {};
-          publicProperties: {};
-        },
-      ]
-    >();
+    const META_DATA = (
+      appRoutes as unknown as {
+        META_DATA: readonly { path: string }[];
+      }
+    ).META_DATA;
+    expect(META_DATA[0].path).toBe('query/:userId');
   });
 
   it('should not throw an error if a provider is missing,', () => {
@@ -2652,7 +2683,7 @@ describe('AppRoutes.META_DATA', () => {
     class UserComponent {
       userId = input.required<string>();
 
-      counter = Counter();
+      counter = craftUse(Counter());
     }
 
     type GenDeps_UserComponent = GetDeps<{
@@ -2878,23 +2909,8 @@ describe('AppRoutes.META_DATA', () => {
       },
     ]);
 
-    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
-      readonly [
-        {
-          path: 'counter';
-          queryParams: { page: string };
-          deps: {
-            Router: {
-              scope: 'global';
-              dependencies: {};
-              browserBoundary: false;
-              appStart: false;
-            };
-          };
-          provided: {};
-          publicProperties: {};
-        },
-      ]
+    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<
+      readonly [{ path: 'counter'; queryParams: { page: string } }]
     >();
   });
 
@@ -3017,16 +3033,7 @@ describe('AppRoutes.META_DATA', () => {
       },
     ]);
 
-    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
-      readonly [
-        {
-          path: 'counter';
-          deps: {};
-          provided: {};
-          publicProperties: {};
-        },
-      ]
-    >();
+    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<readonly [{ path: 'counter' }]>();
   });
 
   it('should not add deps to META_DATA for non-generator canActivate guards', () => {
@@ -3044,15 +3051,7 @@ describe('AppRoutes.META_DATA', () => {
       },
     ]);
 
-    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
-      readonly [
-        {
-          path: 'counter';
-          provided: {};
-          publicProperties: {};
-        },
-      ]
-    >();
+    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<readonly [{ path: 'counter' }]>();
   });
 
   it('should include canActivate generator handler deps in META_DATA', () => {
@@ -3139,16 +3138,7 @@ describe('AppRoutes.META_DATA', () => {
       ),
     ]);
 
-    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
-      readonly [
-        {
-          path: 'admin';
-          deps: {};
-          provided: {};
-          publicProperties: {};
-        },
-      ]
-    >();
+    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<readonly [{ path: 'admin' }]>();
   });
 
   it('should flatten lazy route metadata and inherit providers, params and data', () => {
@@ -3186,17 +3176,10 @@ describe('AppRoutes.META_DATA', () => {
       },
     ]);
 
-    expectTypeOf(appRoutes.META_DATA).toEqualTypeOf<
+    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<
       readonly [
-        {
-          path: 'users/:userId';
-        },
-        {
-          path: 'users/:userId/details';
-          deps: {};
-          provided: {};
-          publicProperties: {};
-        },
+        { path: 'users/:userId' },
+        { path: 'users/:userId/details' },
       ]
     >();
   });

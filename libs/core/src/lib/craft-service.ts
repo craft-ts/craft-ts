@@ -453,9 +453,8 @@ type MissingInputsMessage<Inputs extends object, Config> = [
   ? never
   : `Inputs Error, ${MissingInputKeys<Inputs, Config> & string} is not provided`;
 
-type BrandServiceProperties<Output> = Output extends Signal<any>
-  ? Output
-  : BrandReactiveProperties<Output>;
+type BrandServiceProperties<Output> =
+  Output extends Signal<any> ? Output : BrandReactiveProperties<Output>;
 
 type MaybeErrorOutput<Inputs extends object, Config, Output> =
   MissingInputsMessage<Inputs, Config> extends never
@@ -1501,18 +1500,19 @@ type YieldPropertyShortcut<
   Output extends object,
   Metadata extends AnyServiceTrackingMetadata,
   Key extends OutputDependencyKeys<Output>,
-> = (keyof PublicServiceInputs<Inputs> extends never
-  ? {
-      (): SinglePropertyShortcutGenerator<
-        Scope,
-        Inputs,
-        Output,
-        Metadata,
-        undefined,
-        Key
-      >;
-    }
-  : {}) & {
+> = WithTrackedDependencies<
+  (keyof PublicServiceInputs<Inputs> extends never
+    ? {
+        (): SinglePropertyShortcutGenerator<
+          Scope,
+          Inputs,
+          Output,
+          Metadata,
+          undefined,
+          Key
+        >;
+      }
+    : {}) & {
   <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
     bindings: StrictBindings<
       Partial<PublicInputBindings<Inputs, Scope>>,
@@ -1526,7 +1526,7 @@ type YieldPropertyShortcut<
     Config,
     Key
   >;
-} & (keyof PublicServiceInputs<Inputs> extends never
+    } & (keyof PublicServiceInputs<Inputs> extends never
     ? Output[Key] extends (...args: infer Args) => infer Result
       ? Args extends []
         ? {}
@@ -1543,7 +1543,9 @@ type YieldPropertyShortcut<
           >
       : {}
     : {}) &
-  NestedYieldPropertyShortcuts<Scope, Inputs, Output, Metadata, Key>;
+    NestedYieldPropertyShortcuts<Scope, Inputs, Output, Metadata, Key>,
+  WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+>;
 
 type NestedYieldPropertyShortcut<
   Scope extends ConcreteServiceScope,
@@ -2125,6 +2127,29 @@ type ConcreteRuntimeDefinition = {
   appStartHooks: Map<unknown, () => AppStartResult>;
   startedAppStartServices: Set<unknown>;
 };
+
+const OMIT_INPUTS_BINDINGS = Symbol('ng-craft.omit-inputs-bindings');
+type ConcreteServiceBindings =
+  | Record<string, unknown>
+  | typeof OMIT_INPUTS_BINDINGS;
+
+function wrapOmitInputsHelper(value: unknown): unknown {
+  if (typeof value !== 'function') {
+    return value;
+  }
+
+  return new Proxy(value as (...args: unknown[]) => unknown, {
+    get(target, property, receiver) {
+      const nested = Reflect.get(target, property, receiver);
+      return typeof nested === 'function'
+        ? wrapOmitInputsHelper(nested)
+        : nested;
+    },
+    apply(target, thisArg, args) {
+      return Reflect.apply(target, thisArg, [OMIT_INPUTS_BINDINGS, ...args]);
+    },
+  });
+}
 
 export type ServiceReference<
   Name extends string = string,
@@ -3190,7 +3215,9 @@ function createInjectHelper(
         if (!omitInputsProxy) {
           omitInputsProxy = new Proxy({} as object, {
             get(_, subProp, subReceiver) {
-              return Reflect.get(outerProxy, subProp, subReceiver);
+              return wrapOmitInputsHelper(
+                Reflect.get(outerProxy, subProp, subReceiver),
+              );
             },
           });
         }
@@ -3202,12 +3229,19 @@ function createInjectHelper(
 
         const propertyHelperFn = (...args: unknown[]) => {
           assertInInjectionContext(injectMarker);
-          const isDirectCall = args.length > 0 && !definition.hasPublicInput;
+          const omitInputs = args[0] === OMIT_INPUTS_BINDINGS;
+          const callArgs = omitInputs ? args.slice(1) : args;
+          const isDirectCall =
+            callArgs.length > 0 && !definition.hasPublicInput;
           const injector = inject(Injector);
           const serviceValue = resolveConcreteService(
             definition,
             injector,
-            isDirectCall ? undefined : (args[0] as Record<string, unknown>),
+            omitInputs
+              ? OMIT_INPUTS_BINDINGS
+              : isDirectCall
+                ? undefined
+                : (callArgs[0] as Record<string, unknown>),
           );
           const propertyValue = Reflect.get(Object(serviceValue), property);
 
@@ -3218,7 +3252,7 @@ function createInjectHelper(
           return Reflect.apply(
             propertyValue as (...args: unknown[]) => unknown,
             Object(serviceValue),
-            args,
+            callArgs,
           );
         };
 
@@ -3239,7 +3273,9 @@ function createInjectHelper(
                   const serviceValue = resolveConcreteService(
                     definition,
                     injector,
-                    nestedArgs[0] as Record<string, unknown>,
+                    nestedArgs[0] === OMIT_INPUTS_BINDINGS
+                      ? OMIT_INPUTS_BINDINGS
+                      : (nestedArgs[0] as Record<string, unknown>),
                   );
                   const propValue = Reflect.get(Object(serviceValue), property);
                   return Reflect.get(Object(propValue), nestedProperty);
@@ -3303,7 +3339,9 @@ function createHelper(
         if (!omitInputsProxy) {
           omitInputsProxy = new Proxy({} as object, {
             get(_, subProp, subReceiver) {
-              return Reflect.get(outerProxy, subProp, subReceiver);
+              return wrapOmitInputsHelper(
+                Reflect.get(outerProxy, subProp, subReceiver),
+              );
             },
           });
         }
@@ -3314,10 +3352,17 @@ function createHelper(
         const nestedPropertyHelpers = new Map<string, unknown>();
 
         const propertyHelperFn = function* (...args: unknown[]) {
-          const isDirectCall = args.length > 0 && !definition.hasPublicInput;
+          const omitInputs = args[0] === OMIT_INPUTS_BINDINGS;
+          const callArgs = omitInputs ? args.slice(1) : args;
+          const isDirectCall =
+            callArgs.length > 0 && !definition.hasPublicInput;
           const serviceValue = (yield createYieldRequest(
             definition,
-            isDirectCall ? undefined : (args[0] as Record<string, unknown>),
+            omitInputs
+              ? OMIT_INPUTS_BINDINGS
+              : isDirectCall
+                ? undefined
+                : (callArgs[0] as Record<string, unknown>),
           )) as unknown;
           const propertyValue = Reflect.get(Object(serviceValue), property);
 
@@ -3328,7 +3373,7 @@ function createHelper(
           return Reflect.apply(
             propertyValue as (...args: unknown[]) => unknown,
             Object(serviceValue),
-            args,
+            callArgs,
           );
         };
 
@@ -3346,7 +3391,9 @@ function createHelper(
                 function* (...nestedArgs: unknown[]) {
                   const serviceValue = (yield createYieldRequest(
                     definition,
-                    nestedArgs[0] as Record<string, unknown>,
+                    nestedArgs[0] === OMIT_INPUTS_BINDINGS
+                      ? OMIT_INPUTS_BINDINGS
+                      : (nestedArgs[0] as Record<string, unknown>),
                   )) as unknown;
                   const propValue = Reflect.get(Object(serviceValue), property);
                   return Reflect.get(Object(propValue), nestedProperty);
@@ -3574,7 +3621,7 @@ function adaptExternalDependencyValue<Value>(value: Value): Value {
 
 function createYieldRequest(
   definition: ConcreteRuntimeDefinition,
-  bindings?: Record<string, unknown>,
+  bindings?: ConcreteServiceBindings,
 ): ServiceYieldRequest<ConcreteServiceScope, unknown> {
   return {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
@@ -3589,7 +3636,7 @@ function createYieldRequest(
 function resolveConcreteService(
   definition: ConcreteRuntimeDefinition,
   injector: Injector,
-  bindings?: Record<string, unknown>,
+  bindings?: ConcreteServiceBindings,
 ): unknown {
   const serviceOverride = getServiceRuntimeOverride(injector, definition.name);
 
@@ -3598,7 +3645,11 @@ function resolveConcreteService(
       return markNamedReactiveProperties(serviceOverride.value);
     }
 
-    if (bindings !== undefined && definition.initialBindings === undefined) {
+    if (
+      bindings !== undefined &&
+      bindings !== OMIT_INPUTS_BINDINGS &&
+      definition.initialBindings === undefined
+    ) {
       definition.initialBindings = bindings;
     }
 
@@ -3620,7 +3671,11 @@ function resolveConcreteService(
     );
   }
 
-  if (bindings !== undefined && definition.initialBindings === undefined) {
+  if (
+    bindings !== undefined &&
+    bindings !== OMIT_INPUTS_BINDINGS &&
+    definition.initialBindings === undefined
+  ) {
     definition.initialBindings = bindings;
   }
 
@@ -3637,7 +3692,7 @@ function getServiceRuntimeOverride(
 function createConcreteServiceInstance(
   definition: ConcreteRuntimeDefinition,
   injector: Injector,
-  bindingsOverride?: Record<string, unknown>,
+  bindingsOverride?: ConcreteServiceBindings,
   providedConfig?: unknown,
 ): unknown {
   const scopedInjector = ɵcreateHostTaggedInjector(
@@ -3647,8 +3702,11 @@ function createConcreteServiceInstance(
   );
 
   return runInInjectionContext(scopedInjector, () => {
-    const bindings = bindingsOverride ?? definition.initialBindings ?? {};
-    const inputs = createInputProxy(bindings, providedConfig);
+    const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
+    const bindings = omitInputs
+      ? {}
+      : (bindingsOverride ?? definition.initialBindings ?? {});
+    const inputs = createInputProxy(bindings, providedConfig, omitInputs);
     const wrappedFactory = injectFnWrapper()(definition.factory);
     const result =
       definition.factory.length > 0 ? wrappedFactory(inputs) : wrappedFactory();
@@ -3710,6 +3768,7 @@ function runAppStartCallback(
 function createInputProxy(
   bindings: Record<string, unknown>,
   providedConfig?: unknown,
+  allowMissing = false,
 ): Record<string, unknown> {
   const resolvedBindings =
     providedConfig === undefined
@@ -3726,6 +3785,9 @@ function createInputProxy(
       }
 
       if (!Object.prototype.hasOwnProperty.call(resolvedBindings, property)) {
+        if (allowMissing) {
+          return undefined;
+        }
         throw new Error(`Inputs Error, ${property} is not provided`);
       }
 

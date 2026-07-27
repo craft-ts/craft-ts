@@ -51,7 +51,7 @@ describe('method re-trigger (nonce)', () => {
       const loader = vi.fn(async () => undefined);
       const { logout } = craftUse(
         mutation('logout', {
-          method: () => undefined,
+          method: (_value: undefined) => undefined,
           loader,
         }),
       );
@@ -119,10 +119,10 @@ describe('method re-trigger (nonce)', () => {
 
   it('query: `() => undefined` re-runs the loader on every call', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const loader = vi.fn(async () => 'ok');
+      const loader = vi.fn(async () => ({ value: 'ok' }));
       const { q } = craftUse(
         query('q', {
-          method: () => undefined,
+          method: (_value: undefined) => undefined,
           loader,
         }),
       );
@@ -145,7 +145,7 @@ describe('method re-trigger (nonce)', () => {
       const loader = vi.fn(async () => undefined);
       const { p } = craftUse(
         asyncProcess('p', {
-          method: () => undefined,
+          method: (_value: undefined) => undefined,
           loader,
         }),
       );

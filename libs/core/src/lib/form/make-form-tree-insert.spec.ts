@@ -34,7 +34,7 @@ describe('makeFormTreeInsert', () => {
       const userForm = (
         parent.form as unknown as {
           selectUser: () => {
-            name: { value: () => string; setValue: (v: string) => void };
+            name: { value: () => string; set: (v: string) => void };
             upperName: () => string;
           };
         }
@@ -43,7 +43,7 @@ describe('makeFormTreeInsert', () => {
       expect(userForm.name.value()).toBe('romain');
       expect(userForm.upperName()).toBe('ROMAIN');
 
-      userForm.name.setValue('alice');
+      userForm.name.set('alice');
       TestBed.tick();
       expect(parent().user.name).toBe('alice');
       expect(userForm.upperName()).toBe('ALICE');

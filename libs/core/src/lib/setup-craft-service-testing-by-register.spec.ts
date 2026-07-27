@@ -1,3 +1,4 @@
+import { craftUse } from './craft-use';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
@@ -1369,7 +1370,7 @@ describe('setupCraftComponentTestingByRegister', () => {
       template: '',
     })
     class ComponentRunStartupHost {
-      startup = ComponentRunStartup();
+      startup = craftUse(ComponentRunStartup());
 
       ngDoCheck() {
         order.push('detectChanges');
@@ -1435,7 +1436,7 @@ describe('setupCraftComponentTestingByRegister', () => {
       template: '',
     })
     class ComponentIgnoredStartupHost {
-      startup = ComponentIgnoredStartup();
+      startup = craftUse(ComponentIgnoredStartup());
     }
 
     type GenDeps_ComponentIgnoredStartupHost = GetDeps<{
@@ -1489,7 +1490,7 @@ describe('setupCraftComponentTestingByRegister', () => {
       template: '',
     })
     class ComponentMockedStartupHost {
-      startup = ComponentMockedStartup();
+      startup = craftUse(ComponentMockedStartup());
     }
 
     type GenDeps_ComponentMockedStartupHost = GetDeps<{
@@ -1534,7 +1535,9 @@ describe('setupCraftComponentTestingByRegister', () => {
       template: '',
     })
     class NestedShortcutQueryComponent {
-      readonly isLoading = NestedShortcutQueryApi.userQuery.isLoading();
+      readonly isLoading = craftUse(
+        NestedShortcutQueryApi.userQuery.isLoading(),
+      );
     }
 
     type GenDeps_NestedShortcutQueryComponent = GetDeps<{
@@ -1595,7 +1598,7 @@ describe('setupCraftComponentTestingByRegister', () => {
       template: '',
     })
     class ComponentNotReachedStartupHost {
-      parent = ComponentNotReachedParent();
+      parent = craftUse(ComponentNotReachedParent());
     }
 
     type GenDeps_ComponentNotReachedStartupHost = GetDeps<{
@@ -1652,7 +1655,7 @@ describe('setupCraftComponentTestingByRegister.boundaryOnly', () => {
       template: '{{ domain.read() }}',
     })
     class ComponentBoundaryOnlyHost {
-      domain = ComponentBoundaryOnlyDomain();
+      domain = craftUse(ComponentBoundaryOnlyDomain());
     }
 
     type GenDeps_ComponentBoundaryOnlyHost = GetDeps<{
@@ -1711,7 +1714,7 @@ describe('setupCraftComponentTestingByRegister.boundaryOnly', () => {
       template: '{{ domain.read() }}',
     })
     class ComponentBoundaryOnlyConfigHost {
-      domain = ComponentBoundaryOnlyConfig();
+      domain = craftUse(ComponentBoundaryOnlyConfig());
     }
 
     type GenDeps_ComponentBoundaryOnlyConfigHost = GetDeps<{
@@ -1773,7 +1776,7 @@ describe('setupCraftComponentTestingByRegister.boundaryOnly', () => {
       template: '{{ startup.read() }}',
     })
     class ComponentBoundaryOnlyStartupHost {
-      startup = ComponentBoundaryOnlyStartup();
+      startup = craftUse(ComponentBoundaryOnlyStartup());
 
       ngDoCheck() {
         order.push('detectChanges');

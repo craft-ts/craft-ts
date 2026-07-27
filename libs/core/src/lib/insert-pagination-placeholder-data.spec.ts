@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { query } from './query';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { craftUse } from './craft-use';
+import type { NamedYieldableValue } from './yieldable';
 
 describe('insertPaginationPlaceholderData', () => {
   it('should return the data of the currentPage', () => {
@@ -30,20 +31,20 @@ describe('insertPaginationPlaceholderData', () => {
 
       // initialValue drives the type: currentPageData is never undefined
       expectTypeOf(finalResult.currentPageData).toEqualTypeOf<
-        Signal<{
+        NamedYieldableValue<'currentPageData', Signal<{
           id: string;
           name: string;
-        }>
+        }>>
       >();
       expectTypeOf(finalResult.currentPageStatus).toEqualTypeOf<
-        Signal<ResourceStatus>
+        NamedYieldableValue<'currentPageStatus', Signal<ResourceStatus>>
       >();
       expectTypeOf(finalResult.isPlaceHolderData).toEqualTypeOf<
-        Signal<boolean>
+        NamedYieldableValue<'isPlaceHolderData', Signal<boolean>>
       >();
 
       expectTypeOf(finalResult.currentIdentifier).toEqualTypeOf<
-        Signal<string>
+        NamedYieldableValue<'currentIdentifier', Signal<string>>
       >();
     });
   });
@@ -125,7 +126,9 @@ describe('insertPaginationPlaceholderData', () => {
       );
 
       // computed output is typed and a Signal
-      expectTypeOf(userQuery.uncompletedCount).toEqualTypeOf<Signal<number>>();
+      expectTypeOf(userQuery.uncompletedCount).toEqualTypeOf<
+        NamedYieldableValue<'uncompletedCount', Signal<number>>
+      >();
 
       // load page 1
       await vi.advanceTimersByTimeAsync(2000);

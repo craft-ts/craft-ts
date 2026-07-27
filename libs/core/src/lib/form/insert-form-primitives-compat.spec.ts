@@ -190,7 +190,7 @@ describe('insertForm compatibility with query', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const store = UserStore();
+      const store = craftUse(UserStore());
       expect(store.user.form).toBeDefined();
 
       await vi.runAllTimersAsync();

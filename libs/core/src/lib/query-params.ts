@@ -719,8 +719,16 @@ function createQueryParamsRef<
       {} as Record<string, unknown>,
     ) || {};
 
+  const readonlyQueryParamsState = queryParamsState.asReadonly();
+  const queryParamsCallable = (() =>
+    readonlyQueryParamsState()) as typeof readonlyQueryParamsState;
+  Object.defineProperty(queryParamsCallable, 'name', {
+    configurable: true,
+    writable: true,
+    value: undefined,
+  });
   const queryParamsOutput = Object.assign(
-    queryParamsState.asReadonly(),
+    queryParamsCallable,
     props,
     insertionResults,
     { hasException, exceptions, _config: config },

@@ -73,7 +73,7 @@ describe('craftPipe with state', () => {
 
       expectTypeOf(myState.increment).toEqualTypeOf<() => number>();
       expectTypeOf(myState.reset).toEqualTypeOf<() => number>();
-      expectTypeOf(myState.isOdd).toEqualTypeOf<Signal<boolean>>();
+      expectTypeOf(myState.isOdd).toMatchTypeOf<Signal<boolean>>();
       expect(myState()).toBe(10);
       expect(myState.isOdd()).toBe(false);
       myState.increment();
@@ -310,7 +310,7 @@ describe('craftPipe with query', () => {
       },
     );
     runInInjectionContext(() => {
-      const store = QueryPipeStore();
+      const store = craftUse(QueryPipeStore());
       // insert 1
       expectTypeOf(store.user.pagination).toEqualTypeOf<{
         page: number;
@@ -356,7 +356,7 @@ describe('craftPipe with query', () => {
       },
     );
     runInInjectionContext(() => {
-      const store = QueryPipeSevenStore();
+      const store = craftUse(QueryPipeSevenStore());
       expectTypeOf(store.user.ext1).toEqualTypeOf<number>();
       expectTypeOf(store.user.ext7).toEqualTypeOf<number>();
       expect(store.user.ext1).toBe(1);

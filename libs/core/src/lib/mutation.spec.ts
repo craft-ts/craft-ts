@@ -353,7 +353,7 @@ describe('mutation types without identifier', () => {
         },
       );
 
-      const mutationsOutput = Mutations();
+      const mutationsOutput = craftUse(Mutations());
       expect(mutationsOutput.props.searchChange.kind).toBe('mutation');
 
       type props = (typeof mutationsOutput)['props'];
@@ -486,7 +486,7 @@ describe('mutation types without identifier', () => {
         },
       );
 
-      const mutationsOutput = Mutations();
+      const mutationsOutput = craftUse(Mutations());
       expect(mutationsOutput.props.filterChange.kind).toBe('mutation');
 
       type props = (typeof mutationsOutput)['props'];
@@ -705,7 +705,7 @@ describe('mutation types with identifier', () => {
         },
       );
 
-      const mutationsOutput = Mutations();
+      const mutationsOutput = craftUse(Mutations());
       expect(mutationsOutput.props.searchChange.kind).toBe('mutation');
 
       type props = (typeof mutationsOutput)['props'];
@@ -839,7 +839,7 @@ describe('mutation types with identifier', () => {
         },
       );
 
-      const mutationsOutput = Mutations();
+      const mutationsOutput = craftUse(Mutations());
 
       type props = (typeof mutationsOutput)['props'];
       const search = mutationsOutput.props.searchChange.select('test');

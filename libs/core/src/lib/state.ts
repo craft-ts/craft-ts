@@ -345,10 +345,16 @@ function createStateRef<StateType>(
     '$self' in stateConfig;
   const extraProviders = hasSelfConfig ? (stateConfig.providers ?? []) : [];
   const rawConfig = hasSelfConfig ? stateConfig.$self : stateConfig;
+  let baseInjector: Injector | undefined;
+  const getBaseInjector = () =>
+    (baseInjector ??= (() => {
+      assertInInjectionContext(state);
+      return inject(Injector);
+    })());
   let injector: Injector | undefined;
   const getInjector = () => {
     assertInInjectionContext(state);
-    injector ??= ɵcreateHostTaggedInjector(inject(Injector), `state:${name}`, [
+    injector ??= ɵcreateHostTaggedInjector(getBaseInjector(), `state:${name}`, [
       {
         provide: INSERTION_SNAPSHOT_REGISTRY,
         useValue: insertionSnapshotRegistry,
@@ -391,7 +397,7 @@ function createStateRef<StateType>(
       const nextRawInsertions = executeStateFactory(
         insert,
         undefined,
-        getInjector,
+        getBaseInjector,
         insertionContext,
       ) as Record<string, unknown>;
 

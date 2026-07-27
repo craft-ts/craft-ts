@@ -181,8 +181,7 @@ describe('angular-brand-codemod', () => {
     const output = sourceFile.getFullText();
 
     expect(output).toContain('propertiesDeps: {');
-    expect(output).toContain('store: {');
-    expect(output).toContain('UserStore: ReturnType<typeof injectUserStore>;');
+    expect(output).toContain('store: ExtractDeps<DemoComponent["store"]>;');
     expect(output).toContain('UserStore: ReturnType<typeof provideUserStore>;');
     expect(output).not.toContain('missingProvider: {};');
   });

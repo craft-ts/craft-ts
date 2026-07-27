@@ -176,13 +176,8 @@ describe('services migration', () => {
     });
 
     const output = await readFile(join(root, 'checkout/wizard.ts'), 'utf8');
-    expect(output).toContain(
-      "import { CartStore } from '../cart'",
-    );
-    expect(output).toContain(
-      'const _cartStore = yield* CartStore();',
-    );
-    expect(output).not.toContain('import { CartStore }');
+    expect(output).toContain("import { CartStore } from '../cart'");
+    expect(output).toContain('const _cartStore = yield* CartStore();');
   });
 
   it('preserves imperative state comments while rebuilding service properties', async () => {
@@ -619,7 +614,8 @@ describe('services migration', () => {
     expect(output).toContain('yield* CraftHttpClient.post');
     expect(output).toContain("url: '/api/orders'");
     expect(output).toContain('payload: data');
-    expect(output).not.toContain('HttpClient');
+    expect(output).not.toContain('import { HttpClient');
+    expect(output).not.toContain("from '@angular/common/http'");
     expect(output).not.toContain('inject(HttpClient)');
   });
 

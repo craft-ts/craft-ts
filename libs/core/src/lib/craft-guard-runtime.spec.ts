@@ -1,14 +1,14 @@
 import '@angular/compiler';
 import { Injector } from '@angular/core';
 import { Router } from '@angular/router';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftException, type AnyCraftException } from './craft-exception';
 import { craftGen, CraftGenShortCircuit } from './craft-gen';
 import { catchTag, retry } from './craft-program-operators';
 import { GUARD_AWAIT_REQUEST_MARKER } from './craft-generator-runtime';
 import { SERVICE_RUNTIME_OVERRIDES } from './craft-service';
 import { provideCraftRouter } from './craft-router';
-import { FN_WRAPPER } from './fn-wrapper';
+import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 
 declare module './craft-router' {
   interface CraftRouterRoutesRegistry {
@@ -53,6 +53,10 @@ function* throwsRaw(error: unknown): Generator<unknown, never, unknown> {
 }
 
 const ex = (code: string) => craftException({ code });
+
+// This file exercises real async backoff timers. Keep it isolated from other
+// specs that use fake timers without making the retry contract synchronous.
+beforeEach(() => vi.useRealTimers());
 
 describe('runCraftRouteChainAsync', () => {
   it('returns guard + resolve data on full success', async () => {
@@ -326,6 +330,7 @@ describe('runCraftRouteChainAsync', () => {
         { provide: Router, useValue: activeRouter },
         { provide: SERVICE_RUNTIME_OVERRIDES, useValue: new Map() },
         { provide: FN_WRAPPER, useValue: [] },
+        { provide: FN_WRAP_OBSERVER, useValue: [] },
       ],
     });
     const outcome = await runCraftRouteChainAsync(

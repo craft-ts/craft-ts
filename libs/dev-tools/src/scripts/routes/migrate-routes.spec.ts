@@ -94,9 +94,9 @@ describe('routes migration', () => {
 
     migrateRoutesSourceFile(sourceFile);
 
-    expect(project.getSourceFileOrThrow('/src/detail.ts').getFullText()).toContain(
-      'export type GenDeps_DetailPage',
-    );
+    expect(
+      project.getSourceFileOrThrow('/src/detail.ts').getFullText(),
+    ).toContain('export type GenDeps_DetailPage');
     expect(sourceFile.getFullText()).toMatch(
       /componentDeps: \{\} as import\(["']\.\/detail["']\)\.GenDeps_DetailPage/,
     );
@@ -128,7 +128,9 @@ describe('routes migration', () => {
         routePath: 'checkout',
       },
     ]);
-    expect(sourceFile.getFullText()).toContain('canMatch: [authGuard, cartNotEmptyGuard]');
+    expect(sourceFile.getFullText()).toContain(
+      'canMatch: [authGuard, cartNotEmptyGuard]',
+    );
     expect(sourceFile.getFullText()).not.toContain(`craftRoute('checkout'`);
     expect(sourceFile.getFullText()).toContain('appRoutes: Routes');
   });
@@ -154,9 +156,7 @@ describe('routes migration', () => {
     });
     const output = sourceFile.getFullText();
 
-    expect(output).toMatch(
-      /\.withParent<ParentRoutes<["']profile["']>>\(\)/,
-    );
+    expect(output).toMatch(/\.withParent<ParentRoutes<["']profile["']>>\(\)/);
     expect(output).toMatch(
       /ValidateCascadeRoutesFile<["']AuthenticatedUser["'], Router, typeof adminRoutes>/,
     );
@@ -260,5 +260,5 @@ describe('routes migration', () => {
     expect(eslint).toContain(
       "'@typescript-eslint/explicit-function-return-type': 'off'",
     );
-  });
+  }, 30_000);
 });
