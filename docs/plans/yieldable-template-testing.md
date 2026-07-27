@@ -119,3 +119,101 @@ Traiter explicitement :
 - Ajouter les tests de type et les tests runtime du driver.
 - Documenter les méthodes yieldables et `SetupTestComponentTemplate`.
 - Valider TypeScript, les tests des packages et les builds Angular.
+
+## Extension : visibilité conditionnelle et éléments nommés
+
+### Branding des valeurs réactives
+
+Les valeurs réactives exposées par les primitives doivent être brandées avec
+le nom de leur propriété, comme les méthodes déjà yieldables :
+
+```ts
+const { counter } = yield* state(0, ({ state, update }) => ({
+  disabled: computed(() => state() % 2 === 0),
+  increment: () => update((value) => value + 1),
+}));
+```
+
+`counter.disabled` doit conserver le nom `disabled`, rester un signal
+appelable directement et devenir consommable avec `yield*` dans un template.
+Le même mécanisme doit être partagé par `state`, `query`, `mutation`,
+`asyncProcess` et `queryParams`. Les valeurs déjà brandées par `craftComputed`
+doivent conserver leur branding sans être marquées deux fois.
+
+Les valeurs comme `isAuth` et `isManager` arrivent déjà brandées depuis leur
+service. C’est `ifBlock(...)` qui les transforme en dépendances conditionnelles
+du template ; l’utilisateur ne construit pas directement un
+`ConditionBranded`.
+
+### Blocs conditionnels
+
+Ajouter une primitive :
+
+```ts
+ifBlock(condition, whenTrue, whenFalse?);
+```
+
+La condition doit être une valeur Craft nommée et yieldable. Le `IfBlockNode`
+conserve le nom de la condition et les deux branches afin que le resolver de
+template puisse accumuler les dépendances de visibilité.
+
+### Éléments nommés
+
+Les helpers HTML acceptent un nom local :
+
+```ts
+button('increment', props, '+');
+```
+
+Le nom est conservé dans le VNode et rendu dans le DOM avec un attribut stable,
+par exemple `data-craft-name="increment"`. Le `hostTag` reste réservé au
+tracking runtime et n’est pas utilisé comme identifiant DOM.
+
+L’identité complète d’un élément est :
+
+```text
+ComponentName:tag:localName
+```
+
+Exemple d’assertion :
+
+```ts
+type AManagerLoggedInCanIncrementTheCounter = Expect<
+  Equal<
+    TemplateRendersNamedElementWhen<
+      CounterTemplate,
+      'Counter:button:increment',
+      {
+        when: {
+          isAuth: true;
+          isManager: true;
+        };
+      }
+    >,
+    true
+  >
+>;
+```
+
+Le nom du composant distingue les éléments homonymes de composants enfants.
+
+### État des listes
+
+Une liste issue d’une primitive conserve également son nom. `each` ajoute au
+chemin de visibilité :
+
+- `counterList: 'nonEmpty'` pour le template d’un item ;
+- `counterList: 'empty'` pour le template vide.
+
+Un élément dans un `each` peut donc être vérifié avec les conditions combinées
+des blocs parents et l’état de la liste.
+
+### Règles ESLint
+
+Ajouter `craft-ng/template-element-name-unique` afin d’interdire deux
+déclarations ayant la même clé `tag:localName` dans le template d’un même
+composant. Les templates de composants enfants ont leur propre namespace.
+
+La règle doit inspecter les branches conditionnelles et exiger un nom littéral
+statiquement déterminable. Une seule déclaration dans le template d’un `each`
+reste valide, même si elle est rendue plusieurs fois à l’exécution.

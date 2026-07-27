@@ -68,14 +68,11 @@ type PrimitiveElementProps<Element> = {
     | YieldableRenderCallback<Element[Key]>;
 };
 
-type ElementPropsContext<Tag extends keyof HTMLElementTagNameMap> =
-  DomEvents &
+type ElementPropsContext<Tag extends keyof HTMLElementTagNameMap> = DomEvents &
   OnDomEvents & {
     readonly class?: ClassValue;
     readonly style?: StyleValue;
-    readonly attrs?: Readonly<
-      Record<string, string | number | boolean | null>
-    >;
+    readonly attrs?: Readonly<Record<string, string | number | boolean | null>>;
     readonly directives?: readonly AngularDirectiveNode[];
     readonly [dataAttribute: `data-${string}`]: unknown;
     readonly [ariaAttribute: `aria-${string}`]: unknown;
@@ -83,9 +80,9 @@ type ElementPropsContext<Tag extends keyof HTMLElementTagNameMap> =
 
 export type ElementProps<Tag extends keyof HTMLElementTagNameMap> =
   PrimitiveElementProps<HTMLElementTagNameMap[Tag]> &
-  ElementPropsContext<Tag> & {
-    readonly [property: string]: unknown;
-  };
+    ElementPropsContext<Tag> & {
+      readonly [property: string]: unknown;
+    };
 
 function looksLikeChildren(value: unknown): boolean {
   return (
@@ -158,23 +155,63 @@ export function h<
   return node;
 }
 
+function hNamed<
+  Tag extends keyof HTMLElementTagNameMap,
+  Name extends string,
+  Props extends object,
+  Children extends CraftNodeChildren,
+>(
+  tag: Tag,
+  name: Name,
+  props: Props | null,
+  children?: Children,
+): ElementNode<
+  CraftNodeChildrenDependencies<Children>,
+  Tag,
+  Props,
+  Children,
+  Name
+> {
+  const node = h<Tag, Props & ElementPropsContext<Tag>, Children>(
+    tag,
+    props as Props & ElementPropsContext<Tag>,
+    children,
+  ) as unknown as ElementNode<
+    CraftNodeChildrenDependencies<Children>,
+    Tag,
+    Props,
+    Children,
+    Name
+  >;
+  (node as { localName?: Name }).localName = name;
+  return node;
+}
+
 export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
   <Children extends CraftNodeChildren = CraftNodeChildren>(
     children?: Children & CraftNodeChildren,
-  ): ElementNode<
-    CraftNodeChildrenDependencies<Children>,
-    Tag,
-    {},
-    Children
-  >;
-  <Props extends object, Children extends CraftNodeChildren = CraftNodeChildren>(
+  ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, {}, Children>;
+  <
+    Props extends object,
+    Children extends CraftNodeChildren = CraftNodeChildren,
+  >(
+    props: (Props & ElementPropsContext<Tag>) | null,
+    children?: Children & CraftNodeChildren,
+  ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, Props, Children>;
+  <
+    Name extends string,
+    Props extends object,
+    Children extends CraftNodeChildren = CraftNodeChildren,
+  >(
+    name: Name,
     props: (Props & ElementPropsContext<Tag>) | null,
     children?: Children & CraftNodeChildren,
   ): ElementNode<
     CraftNodeChildrenDependencies<Children>,
     Tag,
     Props,
-    Children
+    Children,
+    Name
   >;
 }
 
@@ -182,14 +219,22 @@ function tagHelper<Tag extends keyof HTMLElementTagNameMap>(
   tag: Tag,
 ): TagHelper<Tag> {
   return ((
-    propsOrChildren?: ElementPropsContext<Tag> | CraftNodeChildren | null,
-    children?: CraftNodeChildren,
-  ) =>
-    h<Tag, never, never>(
-      tag,
-      propsOrChildren as never,
-      children as never,
-    )) as TagHelper<Tag>;
+    first?: string | ElementPropsContext<Tag> | CraftNodeChildren | null,
+    second?: ElementPropsContext<Tag> | CraftNodeChildren | null,
+    third?: CraftNodeChildren,
+  ) => {
+    if (
+      typeof first === 'string' &&
+      (second === null ||
+        (typeof second === 'object' &&
+          !Array.isArray(second) &&
+          !('kind' in second)))
+    ) {
+      return hNamed(tag, first, second, third);
+    }
+
+    return h<Tag, never, never>(tag, first as never, second as never);
+  }) as TagHelper<Tag>;
 }
 
 export const a = tagHelper('a');

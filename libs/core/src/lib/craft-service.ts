@@ -49,6 +49,8 @@ import type {
   UnionToTuple,
 } from './craft-service.shared';
 import type { ServiceTrackedDepsRequest } from './craft-primitive-gen';
+import { markNamedReactiveProperties } from './yieldable';
+import type { BrandReactiveProperties } from './yieldable';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 export declare const SERVICE_YIELD_METADATA: unique symbol;
@@ -451,9 +453,13 @@ type MissingInputsMessage<Inputs extends object, Config> = [
   ? never
   : `Inputs Error, ${MissingInputKeys<Inputs, Config> & string} is not provided`;
 
+type BrandServiceProperties<Output> = Output extends Signal<any>
+  ? Output
+  : BrandReactiveProperties<Output>;
+
 type MaybeErrorOutput<Inputs extends object, Config, Output> =
   MissingInputsMessage<Inputs, Config> extends never
-    ? Output
+    ? BrandServiceProperties<Output>
     : MissingInputsMessage<Inputs, Config>;
 
 type InputBindings<
@@ -486,7 +492,7 @@ type SelectableOutput<Inputs extends object, Config, Output> =
     : never;
 
 type PublicExposedOutput<Exposed> = Exposed extends object
-  ? Omit<Exposed, RootExposureKey>
+  ? BrandReactiveProperties<Omit<Exposed, RootExposureKey>>
   : Exposed;
 
 type ExposedOutput<Output, Exposed> = Output extends (...args: any[]) => any
@@ -3589,7 +3595,7 @@ function resolveConcreteService(
 
   if (serviceOverride) {
     if (serviceOverride.kind === 'useValue') {
-      return serviceOverride.value;
+      return markNamedReactiveProperties(serviceOverride.value);
     }
 
     if (bindings !== undefined && definition.initialBindings === undefined) {
@@ -3605,18 +3611,20 @@ function resolveConcreteService(
       );
     }
 
-    return serviceOverride.instance;
+    return markNamedReactiveProperties(serviceOverride.instance);
   }
 
   if (definition.scope === 'function') {
-    return createConcreteServiceInstance(definition, injector, bindings);
+    return markNamedReactiveProperties(
+      createConcreteServiceInstance(definition, injector, bindings),
+    );
   }
 
   if (bindings !== undefined && definition.initialBindings === undefined) {
     definition.initialBindings = bindings;
   }
 
-  return injector.get(definition.token!);
+  return markNamedReactiveProperties(injector.get(definition.token!));
 }
 
 function getServiceRuntimeOverride(
@@ -3900,6 +3908,7 @@ type RuntimeMaterializedExposure = {
 
 export function createExposedServiceValue(exposedValue: unknown): unknown {
   const materializedExposure = materializeExposedValue(exposedValue);
+  markNamedReactiveProperties(materializedExposure.value);
 
   if (!materializedExposure.rootCallable) {
     return materializedExposure.value;

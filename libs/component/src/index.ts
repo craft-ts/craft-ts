@@ -5,6 +5,7 @@ export * from './lib/directive';
 export * from './lib/craft-router-outlet';
 export * from './lib/defer';
 export * from './lib/each';
+export * from './lib/if-block';
 export * from './lib/hyperscript';
 export * from './lib/render/style-registry';
 export * from './lib/testing';
@@ -26,12 +27,15 @@ export type {
   DirectiveMeta,
   CraftDirectiveTemplateDependencies,
   ComponentTemplateOf,
+  ComponentTemplateNameOf,
   YieldableTemplateCallback,
   YieldableTemplateContext,
   TemplateMethodUse,
 } from './lib/types';
+export type { TemplateRendersNamedElementWhen } from './lib/template-contract';
 export type {
   CraftNode,
   CraftNodeChild,
   CraftNodeChildren,
+  IfBlockNode,
 } from './lib/render/vnode';

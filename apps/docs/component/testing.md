@@ -469,3 +469,52 @@ button(
 
 The renderer executes these callbacks with the Craft driver. Render callbacks
 (text, classes, styles, `each`, `defer`) remain synchronous.
+
+## Conditional visibility and named elements
+
+Reactive values exposed by Craft primitives and services keep their property
+name in the template type. They remain synchronously readable in templates,
+while their name brand is available to `ifBlock` and the visibility contract.
+Use `ifBlock` to retain the condition and its branches in the VNode contract:
+
+```ts
+import { craftComputed } from '@craft-ng/core';
+import { button, craftComponent, ifBlock } from '@craft-ng/component';
+
+const Counter = craftComponent(
+  'Counter',
+  {},
+  () => ({ isAuth: craftComputed('isAuth', () => true).isAuth }),
+  ({ isAuth }) =>
+    ifBlock(
+      isAuth,
+      () => button('increment', { click: function* () {} }, '+'),
+      () => [],
+    ),
+);
+```
+
+The local name is rendered as `data-craft-name`; `data-craft-root` remains an
+internal tracking attribute. A named element can be asserted with its full
+component identity and visibility path:
+
+```ts
+type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
+
+type CanIncrement = Expect<
+  Equal<
+    TemplateRendersNamedElementWhen<
+      CounterTemplate,
+      'Counter:button:increment',
+      { when: { isAuth: true } }
+    >,
+    true
+  >
+>;
+```
+
+`each` adds `<listName>: 'nonEmpty'` for its item template and
+`<listName>: 'empty'` for its empty template. The
+`craft-ng/template-element-name-unique` ESLint rule checks that each component
+template declares a literal `tag:localName` at most once, including across
+conditional branches.

@@ -41,6 +41,7 @@ import {
   type NamedPrimitive,
 } from './craft-primitive-gen';
 import { markYieldableMethod } from './yieldable';
+import type { BrandReactiveProperties } from './yieldable';
 
 type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
@@ -69,7 +70,7 @@ export type ExposedStateInsertions<Insertions> = MergeObject<
 export type StateOutput<StateType, Insertions, Dependencies = {}> = MergeObject<
   Signal<StateType>,
   MergeObject<
-    ExposedStateInsertions<Insertions>,
+    BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
     {
       readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
     }

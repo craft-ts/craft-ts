@@ -52,9 +52,11 @@ export interface ElementNodeBase<
   Tag extends string = string,
   Props extends object = Readonly<Record<string, unknown>>,
   Children extends CraftNodeChildren = CraftNodeChildren,
+  LocalName extends string | undefined = string | undefined,
 > extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'element';
   readonly tag: Tag;
+  readonly localName?: LocalName;
   readonly props: Props;
   readonly children: Children;
 }
@@ -64,7 +66,8 @@ export interface ElementNode<
   Tag extends string = string,
   Props extends object = Readonly<Record<string, unknown>>,
   Children extends CraftNodeChildren = CraftNodeChildren,
-> extends ElementNodeBase<Dependencies, Tag, Props, Children> {
+  LocalName extends string | undefined = string | undefined,
+> extends ElementNodeBase<Dependencies, Tag, Props, Children, LocalName> {
   readonly pipe: CraftNodePipe<Dependencies>;
 }
 
@@ -123,12 +126,32 @@ export interface EachNode<
   Item = unknown,
   Key = unknown,
   Dependencies extends object = {},
+  SourceName extends string | undefined = string | undefined,
+  ItemChildren extends CraftNodeChildren = CraftNodeChildren,
+  EmptyChildren extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'each';
-  readonly source: readonly Item[] | (() => readonly Item[]);
+  readonly source:
+    | readonly Item[]
+    | (() => readonly Item[])
+    | (() => Generator<unknown, readonly Item[], unknown>);
+  readonly sourceName?: SourceName;
   readonly track: (item: Item, index: number) => Key;
-  readonly empty?: () => CraftNodeChildren;
-  readonly itemTemplate: (item: Item, index: number) => CraftNodeChildren;
+  readonly empty?: () => EmptyChildren;
+  readonly itemTemplate: (item: Item, index: number) => ItemChildren;
+}
+
+export interface IfBlockNode<
+  ConditionName extends string = string,
+  Dependencies extends object = {},
+  TrueChildren extends CraftNodeChildren = CraftNodeChildren,
+  FalseChildren extends CraftNodeChildren = CraftNodeChildren,
+> extends CraftNodeDepsCarrier<Dependencies> {
+  readonly kind: 'if';
+  readonly condition: () => boolean;
+  readonly conditionName: ConditionName;
+  readonly whenTrue: () => TrueChildren;
+  readonly whenFalse?: () => FalseChildren;
 }
 
 export type DeferTrigger = 'immediate' | 'idle' | 'viewport' | 'interaction';
@@ -151,6 +174,7 @@ export type CraftNode =
   | AngularComponentNode
   | CraftDirectiveNode<any>
   | EachNode<any, any>
+  | IfBlockNode<any, any>
   | DeferNode<any>;
 
 export type CraftNodeChild =
@@ -175,6 +199,7 @@ export function isCraftNode(value: unknown): value is CraftNode {
     value.kind === 'angular' ||
     value.kind === 'directive' ||
     value.kind === 'each' ||
+    value.kind === 'if' ||
     value.kind === 'defer'
   );
 }

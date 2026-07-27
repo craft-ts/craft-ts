@@ -5,7 +5,9 @@ import type {
   ResolveGeneratorResult,
   YieldableMethod,
   Yieldable,
+  NamedYieldableValue,
 } from '@craft-ng/core';
+import type { YIELDABLE_VALUE } from '@craft-ng/core';
 import type { Signal } from '@angular/core';
 import type { HostProps } from './hyperscript';
 import type {
@@ -17,6 +19,7 @@ import type {
 declare const INPUT_BRAND: unique symbol;
 declare const OUTPUT_BRAND: unique symbol;
 declare const TEMPLATE_METHOD_USE: unique symbol;
+declare const COMPONENT_TEMPLATE_NAME: unique symbol;
 
 export type Input<T> = (() => T) & {
   readonly [INPUT_BRAND]: T;
@@ -53,8 +56,27 @@ type ContextPathKey<
     : `${Prefix}.${Key}`
   : Prefix;
 
-type ProjectTemplateObject<Value extends object, ContextMethod extends string> = {
-  [Key in keyof Value]: ProjectTemplateValue<
+type ProjectTemplateObject<
+  Value extends object,
+  ContextMethod extends string,
+> = {
+  [Key in keyof Value as Key extends typeof YIELDABLE_VALUE
+    ? never
+    : Key]: ProjectTemplateValue<
+    Value[Key],
+    ContextPathKey<ContextMethod, Key>
+  >;
+};
+
+type ProjectTemplateSignalProperties<
+  Value extends object,
+  ContextMethod extends string,
+> = {
+  [Key in keyof Value as Key extends typeof YIELDABLE_VALUE
+    ? never
+    : Key extends keyof Signal<any>
+      ? never
+      : Key]: ProjectTemplateValue<
     Value[Key],
     ContextPathKey<ContextMethod, Key>
   >;
@@ -62,28 +84,46 @@ type ProjectTemplateObject<Value extends object, ContextMethod extends string> =
 
 type ProjectTemplateValue<Value, ContextMethod extends string> =
   Value extends YieldableMethod<infer Args, infer Result, infer Yielded>
-    ? YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
-    : Value extends {
-          readonly [OUTPUT_BRAND]: infer Handler extends (
-            ...args: any[]
-          ) => unknown;
-        }
-      ? YieldableTemplateCallback<
-          Parameters<Handler>,
-          ReturnType<Handler>,
-          unknown,
-          ContextMethod
+    ? Value extends NamedYieldableValue<
+        infer _Name extends string,
+        infer _Value
+      >
+      ? NamedYieldableValue<
+          ContextMethod,
+          YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
         >
-      : Value extends Signal<infer State>
-        ? (() => State & TemplateMethodUse<ContextMethod>) &
-            ProjectTemplateObject<Value, ContextMethod>
-        : Value extends readonly (infer Item)[]
-          ? readonly ProjectTemplateValue<Item, ContextMethod>[]
-          : Value extends (...args: any[]) => any
-            ? Value
-            : Value extends object
-              ? ProjectTemplateObject<Value, ContextMethod>
-              : Value;
+      : YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
+    : Value extends NamedYieldableValue<
+          infer _Name extends string,
+          infer _Value
+        >
+      ? Value extends Signal<infer State>
+        ? NamedYieldableValue<ContextMethod, () => State> &
+            ProjectTemplateSignalProperties<Value & object, ContextMethod>
+        : Value extends object
+          ? ProjectTemplateObject<Value & object, ContextMethod>
+          : Value
+      : Value extends {
+            readonly [OUTPUT_BRAND]: infer Handler extends (
+              ...args: any[]
+            ) => unknown;
+          }
+        ? YieldableTemplateCallback<
+            Parameters<Handler>,
+            ReturnType<Handler>,
+            unknown,
+            ContextMethod
+          >
+        : Value extends Signal<infer State>
+          ? (() => State & TemplateMethodUse<ContextMethod>) &
+              ProjectTemplateObject<Value, ContextMethod>
+          : Value extends readonly (infer Item)[]
+            ? readonly ProjectTemplateValue<Item, ContextMethod>[]
+            : Value extends (...args: any[]) => any
+              ? Value
+              : Value extends object
+                ? ProjectTemplateObject<Value, ContextMethod>
+                : Value;
 
 export type YieldableTemplateContext<Context> = {
   [Key in keyof Context]: ProjectTemplateValue<
@@ -112,6 +152,16 @@ export type ComponentTemplate<
   context: YieldableTemplateContext<Context>,
   hostProps?: HostProps,
 ) => Output;
+
+type NamedComponentTemplate<Template, Name extends string> = Template & {
+  readonly [COMPONENT_TEMPLATE_NAME]?: Name;
+};
+
+export type ComponentTemplateNameOf<Template> = Template extends {
+  readonly [COMPONENT_TEMPLATE_NAME]?: infer Name extends string;
+}
+  ? Name
+  : string;
 
 export type TemplateDependencies<Template> = Template extends (
   ...args: any[]
@@ -324,9 +374,10 @@ export type ComponentTemplateOf<Component> =
     any,
     any,
     any,
-    infer Template extends ComponentTemplate<any>
+    infer Template extends ComponentTemplate<any>,
+    infer Name extends string
   >
-    ? Template
+    ? NamedComponentTemplate<Template, Name>
     : never;
 
 export type PropsOf<Component> =

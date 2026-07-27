@@ -24,9 +24,12 @@ import {
   craftLazy,
   executeYieldable,
   isGeneratorFunction,
+  markYieldableValue,
+  isYieldableValue,
   isYieldableMethod,
   toYieldable,
   type CraftServiceProvider,
+  YIELDABLE_VALUE,
 } from '@craft-ng/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import { CraftAngularDirectiveHost } from '../angular-host';
@@ -45,6 +48,7 @@ import {
   type CraftNodeChildren,
   type DeferNode,
   type EachNode,
+  type IfBlockNode,
   type ElementNodeBase,
 } from './vnode';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
@@ -156,6 +160,36 @@ function projectYieldableTemplateContext(
   value: unknown,
   seen = new WeakMap<object, unknown>(),
 ): unknown {
+  if (isYieldableValue(value)) {
+    const projected = (...args: any[]) => {
+      const result = Reflect.apply(
+        value as unknown as (...args: any[]) => unknown,
+        undefined,
+        args,
+      );
+      if (templateGeneratorDepth === 0) return result;
+      return toYieldable(() => result)();
+    };
+
+    const namedProjected = markYieldableValue(
+      projected,
+      value[YIELDABLE_VALUE] as string,
+    );
+
+    if (typeof value === 'function' && Object.keys(value).length > 0) {
+      return new Proxy(namedProjected, {
+        get(_target, property) {
+          return projectYieldableTemplateContext(
+            Reflect.get(value, property),
+            seen,
+          );
+        },
+      });
+    }
+
+    return namedProjected;
+  }
+
   if (typeof value === 'function') {
     if (isYieldableMethod(value)) {
       return (...args: any[]) => {
@@ -676,6 +710,7 @@ class ElementRenderedNode implements RenderedNode {
   private readonly listeners = new Map<string, () => void>();
   private angularDirectiveMount: AngularMount | undefined;
   private directiveTypes: readonly AngularDirectiveNode[] = [];
+  private localName: string | undefined;
 
   constructor(
     private readonly node: Element,
@@ -683,7 +718,7 @@ class ElementRenderedNode implements RenderedNode {
     private readonly context: RenderContext,
     initial: ElementNodeBase,
   ) {
-    this.patchProperties(initial.props);
+    this.patchProperties(initial);
     this.children = patchRenderedChildren(
       this.node,
       this.children,
@@ -702,11 +737,15 @@ class ElementRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (node.kind !== 'element' || node.tag !== this.tag) {
+    if (
+      node.kind !== 'element' ||
+      node.tag !== this.tag ||
+      node.localName !== this.localName
+    ) {
       return false;
     }
 
-    this.patchProperties(node.props);
+    this.patchProperties(node);
     this.children = patchRenderedChildren(
       this.node,
       this.children,
@@ -717,7 +756,8 @@ class ElementRenderedNode implements RenderedNode {
     return true;
   }
 
-  private patchProperties(next: Readonly<Record<string, unknown>>): void {
+  private patchProperties(nextNode: ElementNodeBase): void {
+    const next = nextNode.props;
     const renderer = this.context.renderer;
     const previousAttributes = flattenAttributes(this.props);
     const nextAttributes = flattenAttributes(next);
@@ -811,6 +851,15 @@ class ElementRenderedNode implements RenderedNode {
       this.angularDirectiveMount?.update({}, {}, directives);
     }
     this.directiveTypes = directives;
+
+    if (this.localName !== nextNode.localName) {
+      if (nextNode.localName === undefined) {
+        renderer.removeAttribute(this.node, 'data-craft-name');
+      } else {
+        renderer.setAttribute(this.node, 'data-craft-name', nextNode.localName);
+      }
+      this.localName = nextNode.localName;
+    }
 
     this.props = next;
   }
@@ -936,10 +985,11 @@ class EachRenderedNode implements RenderedNode {
   }
 
   private reconcile(): void {
-    const items =
+    const items = (
       typeof this.node.source === 'function'
         ? this.node.source()
-        : this.node.source;
+        : this.node.source
+    ) as readonly unknown[];
 
     if (items.length === 0) {
       this.entries.forEach((entry) => entry.destroy());
@@ -1017,6 +1067,63 @@ class EachRenderedNode implements RenderedNode {
     this.emptyView?.destroy();
     removeNode(this.context.renderer, this.start);
     removeNode(this.context.renderer, this.end);
+  }
+}
+
+class IfBlockRenderedNode implements RenderedNode {
+  readonly kind = 'if';
+  private readonly view: FragmentRenderedNode;
+  private active: boolean;
+
+  constructor(
+    private node: IfBlockNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    private readonly context: RenderContext,
+  ) {
+    this.active = this.isTrue();
+    this.view = createFragment(
+      parent,
+      before,
+      context,
+      this.children(),
+      `craft-if:${node.conditionName}`,
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'if' || node.conditionName !== this.node.conditionName) {
+      return false;
+    }
+    this.node = node;
+    const nextActive = this.isTrue();
+    if (nextActive !== this.active) {
+      this.active = nextActive;
+      this.view.patchChildren(this.children());
+    } else {
+      this.view.patchChildren(this.children());
+    }
+    return true;
+  }
+
+  private isTrue(): boolean {
+    return Boolean(resolveTemplateValue(this.node.condition, this.context));
+  }
+
+  private children(): CraftNodeChildren {
+    return this.active ? this.node.whenTrue() : (this.node.whenFalse?.() ?? []);
+  }
+
+  destroy(): void {
+    this.view.destroy();
   }
 }
 
@@ -1499,6 +1606,9 @@ function mountNode(
       insertBefore(context.renderer, parent, start, before);
       insertBefore(context.renderer, parent, end, before);
       return new EachRenderedNode(node, parent, start, end, context);
+    }
+    case 'if': {
+      return new IfBlockRenderedNode(node, parent, before, context);
     }
     case 'defer':
       return new DeferRenderedNode(node, parent, before, context);

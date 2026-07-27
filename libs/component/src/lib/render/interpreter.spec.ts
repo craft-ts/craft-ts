@@ -43,6 +43,7 @@ import { CraftRouterOutlet } from '../craft-router-outlet';
 import { craftDirective } from '../directive';
 import { defer } from '../defer';
 import { each } from '../each';
+import { ifBlock } from '../if-block';
 import { button, div, h2, p, span } from '../hyperscript';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
 
@@ -263,6 +264,40 @@ describe('functional component interpreter', () => {
     expect(
       (element.querySelector('button') as HTMLButtonElement).disabled,
     ).toBe(true);
+    mounted.destroy();
+  });
+
+  it('renders named conditional elements and updates their visibility', () => {
+    const component = craftComponent(
+      'namedConditional',
+      {},
+      function* () {
+        return {
+          enabled: craftComputed('enabled', () => true).enabled,
+        };
+      },
+      ({ enabled }) =>
+        ifBlock(
+          enabled,
+          () => button('increment', { click: function* () {} }, '+'),
+          () => p('hidden'),
+        ),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(
+      element.querySelector('[data-craft-name="increment"]'),
+    ).not.toBeNull();
+    expect(
+      element.querySelector('[data-craft-name="increment"]')?.tagName,
+    ).toBe('BUTTON');
     mounted.destroy();
   });
 

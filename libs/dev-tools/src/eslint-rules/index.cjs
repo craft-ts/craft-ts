@@ -28,6 +28,7 @@ const requireLazyLoadWithRetry = require('./require-lazy-load-with-retry.cjs');
 const requireCascadeRouteDiCheck = require('./require-cascade-route-di-check.cjs');
 const craftComponentNameMatch = require('./craft-component-name-match.cjs');
 const craftDirectiveNameMatch = require('./craft-directive-name-match.cjs');
+const templateElementNameUnique = require('./template-element-name-unique.cjs');
 
 module.exports = {
   rules: {
@@ -62,5 +63,6 @@ module.exports = {
     'require-cascade-route-di-check': requireCascadeRouteDiCheck,
     'craft-component-name-match': craftComponentNameMatch,
     'craft-directive-name-match': craftDirectiveNameMatch,
+    'template-element-name-unique': templateElementNameUnique,
   },
 };

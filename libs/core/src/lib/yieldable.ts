@@ -1,4 +1,4 @@
-import type { Injector } from '@angular/core';
+import { isSignal, type Injector, type Signal } from '@angular/core';
 import {
   executeGeneratorCompatibleFactory,
   isGenerator,
@@ -7,6 +7,39 @@ import {
 
 /** Shared brand used by Craft methods that are safe to delegate with `yield*`. */
 export const YIELDABLE_METHOD = Symbol('craft-yieldable-method');
+
+/** Runtime/type brand carried by named reactive values exposed to templates. */
+export const YIELDABLE_VALUE = Symbol('craft-yieldable-value');
+
+export type NamedYieldableValue<
+  Name extends string = string,
+  Value = unknown,
+> = Value & {
+  readonly [YIELDABLE_VALUE]: Name;
+};
+
+/** A signal whose template projection can be consumed with `yield*`. */
+export type YieldableSignal<Name extends string, Value> = NamedYieldableValue<
+  Name,
+  Signal<Value>
+>;
+
+type BrandReactiveProperty<Key extends PropertyKey, Value> = Value extends {
+  readonly [YIELDABLE_VALUE]: string;
+}
+  ? Value
+  : Value extends Signal<infer State>
+    ? Value & YieldableSignal<Key extends string ? Key : string, State>
+    : Value;
+
+/** Brands direct signal properties while leaving methods and plain values intact. */
+export type BrandReactiveProperties<Shape> = [Shape] extends [object]
+  ? {
+      [Key in keyof Shape as Shape[Key] extends Signal<any>
+        ? Key
+        : never]: BrandReactiveProperty<Key, Shape[Key]>;
+    } & Shape
+  : Shape;
 
 export type Yieldable<
   Args extends unknown[] = unknown[],
@@ -48,6 +81,47 @@ export function markYieldableMethod<Fn extends (...args: any[]) => any>(
 ): Fn & { readonly [YIELDABLE_METHOD]: true } {
   Object.defineProperty(fn, YIELDABLE_METHOD, { value: true });
   return fn as Fn & { readonly [YIELDABLE_METHOD]: true };
+}
+
+export function markYieldableValue<Name extends string, Value>(
+  value: Value,
+  name: Name,
+): NamedYieldableValue<Name, Value> {
+  if (!isYieldableValue(value)) {
+    Object.defineProperty(value as object, YIELDABLE_VALUE, {
+      value: name,
+      enumerable: false,
+    });
+  }
+  return value as NamedYieldableValue<Name, Value>;
+}
+
+export function isYieldableValue(value: unknown): value is NamedYieldableValue {
+  return (
+    (typeof value === 'function' ||
+      (typeof value === 'object' && value !== null)) &&
+    YIELDABLE_VALUE in value
+  );
+}
+
+/** Brands direct reactive members of a runtime value with their property names. */
+export function markNamedReactiveProperties<Value>(value: Value): Value {
+  if (typeof value !== 'object' && typeof value !== 'function') {
+    return value;
+  }
+
+  for (const key of Reflect.ownKeys(value as object)) {
+    const child = Reflect.get(value as object, key);
+    if (typeof child !== 'function') continue;
+
+    if (isSignal(child)) {
+      if (!isYieldableValue(child)) {
+        markYieldableValue(child, String(key));
+      }
+    }
+  }
+
+  return value;
 }
 
 export function isYieldableMethod(value: unknown): boolean {

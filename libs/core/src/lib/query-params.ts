@@ -52,6 +52,7 @@ import {
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 import { markYieldableMethod } from './yieldable';
+import type { BrandReactiveProperties } from './yieldable';
 
 export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -149,23 +150,25 @@ export type QueryParamsOutput<
   Insertions,
   QueryParamsState,
   Dependencies = QueryParamsTrackedDependencies<QueryParamsType>,
-> = Signal<QueryParamsState> &
-  MergeObjects<
-    [
-      {
-        [K in keyof QueryParamsState]: Signal<QueryParamsState[K]>;
-      },
-      IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
-      {
-        hasException: Signal<boolean>;
-        exceptions: Signal<QueryParamsExceptions<QueryParamsType>>;
-      },
-      {
-        _config: QueryParamsType;
-        readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
-      },
-    ]
-  >;
+> = BrandReactiveProperties<
+  Signal<QueryParamsState> &
+    MergeObjects<
+      [
+        {
+          [K in keyof QueryParamsState]: Signal<QueryParamsState[K]>;
+        },
+        IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+        {
+          hasException: Signal<boolean>;
+          exceptions: Signal<QueryParamsExceptions<QueryParamsType>>;
+        },
+        {
+          _config: QueryParamsType;
+          readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
+        },
+      ]
+    >
+>;
 
 function enrichQueryParamsParseException(
   exception: AnyCraftException,

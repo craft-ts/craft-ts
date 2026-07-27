@@ -1,7 +1,12 @@
-import type { Injector } from '@angular/core';
+import { isSignal, type Injector, type Signal } from '@angular/core';
 import { SERVICE_TRACKED_DEPS_REQUEST_MARKER } from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import type { SERVICE_HELPER_DEPENDENCIES } from './craft-service';
+import {
+  markNamedReactiveProperties,
+  markYieldableValue,
+  type NamedYieldableValue,
+} from './yieldable';
 
 /**
  * Dependency map carried by a primitive (`mutation`, `query`, `asyncProcess`,
@@ -68,7 +73,9 @@ export type CraftPrimitiveGen<Ref> = Generator<
  * dependencies into its own tree.
  */
 export type NamedPrimitive<Name extends string, Ref> = {
-  readonly [K in Name]: Ref;
+  readonly [K in Name]: Ref extends Signal<any>
+    ? NamedYieldableValue<Name, Ref>
+    : Ref;
 } & {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: HelperDependencyMap<Ref>;
 };
@@ -92,7 +99,11 @@ export function createNamedPrimitiveGen<Name extends string, Ref>(
   name: Name,
   ref: Ref,
 ): CraftPrimitiveGen<NamedPrimitive<Name, Ref>> {
-  return createPrimitiveGen({ [name]: ref } as NamedPrimitive<Name, Ref>);
+  markNamedReactiveProperties(ref);
+  const namedRef = isSignal(ref) ? markYieldableValue(ref, name) : ref;
+  return createPrimitiveGen({
+    [name]: namedRef,
+  } as NamedPrimitive<Name, Ref>);
 }
 
 const CRAFT_PRIMITIVE_GEN_MARKER = Symbol('craft-primitive-gen-marker');

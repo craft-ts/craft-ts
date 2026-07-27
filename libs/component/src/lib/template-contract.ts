@@ -14,6 +14,7 @@ import type {
   CraftNodeChildren,
   DeferNode,
   EachNode,
+  IfBlockNode,
   ElementNodeBase,
 } from './render/vnode';
 
@@ -272,15 +273,22 @@ type FindElement<
               Tag,
               Props
             >
-          : Children extends DeferNode<infer Loaded>
-            ? FindElement<
-                Loaded extends CraftComponent<any, any>
-                  ? ReturnType<ComponentTemplateOf<Loaded>>
-                  : ReturnType<Children['resolve']>,
-                Tag,
-                Props
+          : Children extends IfBlockNode<
+                infer ConditionName,
+                any,
+                infer True,
+                infer False
               >
-            : false;
+            ? FindElement<True | False, Tag, Props>
+            : Children extends DeferNode<infer Loaded>
+              ? FindElement<
+                  Loaded extends CraftComponent<any, any>
+                    ? ReturnType<ComponentTemplateOf<Loaded>>
+                    : ReturnType<Children['resolve']>,
+                  Tag,
+                  Props
+                >
+              : false;
 
 export type TemplateHasElement<
   Children extends CraftNodeChildren,
@@ -683,3 +691,223 @@ export type TemplateUsesComponent<
                   Component
                 >
             : false;
+
+type VisibilityValue = boolean | 'nonEmpty' | 'empty';
+type Visibility = Readonly<Record<string, VisibilityValue>>;
+
+type VisibilityMatches<
+  Actual extends Visibility,
+  Expected extends Visibility,
+> = {
+  [Key in keyof Expected]: Key extends keyof Actual
+    ? Actual[Key] extends Expected[Key]
+      ? Expected[Key] extends Actual[Key]
+        ? never
+        : false
+      : false
+    : false;
+}[keyof Expected] extends never
+  ? true
+  : {
+      [Key in keyof Expected]: Key extends keyof Actual
+        ? Actual[Key] extends Expected[Key]
+          ? Expected[Key] extends Actual[Key]
+            ? never
+            : false
+          : false
+        : false;
+    }[keyof Expected];
+
+type AddVisibility<
+  Current extends Visibility,
+  Key extends string,
+  Value extends VisibilityValue,
+> = Current & { readonly [K in Key]: Value };
+
+type NamedElementMatches<
+  Owner extends string,
+  Identity extends string,
+  Tag extends string,
+  LocalName,
+> = LocalName extends string
+  ? Identity extends `${infer IdentityOwner}:${infer IdentityTag}:${infer IdentityLocal}`
+    ? (
+        [Owner] extends [never]
+          ? true
+          : Owner extends IdentityOwner
+            ? true
+            : false
+      ) extends true
+      ? [Tag, LocalName] extends [IdentityTag, IdentityLocal]
+        ? true
+        : false
+      : false
+    : false
+  : false;
+
+type VisitNamedElement<
+  Children,
+  Identity extends string,
+  Expected extends Visibility,
+  Owner extends string = never,
+  Current extends Visibility = {},
+  Seen extends readonly unknown[] = [],
+  Depth extends readonly unknown[] = [],
+> = Depth['length'] extends 8
+  ? false
+  : Children extends readonly (infer Child)[]
+    ? VisitNamedElement<
+        Child,
+        Identity,
+        Expected,
+        Owner,
+        Current,
+        Seen,
+        [...Depth, unknown]
+      >
+    : Children extends ElementNodeBase<
+          any,
+          infer Tag,
+          any,
+          infer Nested,
+          infer LocalName
+        >
+      ?
+          | (NamedElementMatches<
+              Owner,
+              Identity,
+              Tag,
+              Extract<LocalName, string>
+            > extends true
+              ? VisibilityMatches<Current, Expected>
+              : false)
+          | VisitNamedElement<
+              Nested,
+              Identity,
+              Expected,
+              Owner,
+              Current,
+              Seen,
+              [...Depth, unknown]
+            >
+      : Children extends CraftDirectiveNode<any>
+        ? VisitNamedElement<
+            Children['node'],
+            Identity,
+            Expected,
+            Owner,
+            Current,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends ComponentNode<any, any, infer Component>
+          ? Component extends Seen[number]
+            ? false
+            : VisitNamedElement<
+                ReturnType<ComponentTemplateOf<Component>>,
+                Identity,
+                Expected,
+                ComponentName<Component>,
+                Current,
+                [...Seen, Component],
+                [...Depth, unknown]
+              >
+          : Children extends EachNode<
+                any,
+                any,
+                any,
+                infer SourceName,
+                infer Item,
+                infer Empty
+              >
+            ?
+                | VisitNamedElement<
+                    Item,
+                    Identity,
+                    Expected,
+                    Owner,
+                    Extract<SourceName, string> extends never
+                      ? Current
+                      : AddVisibility<
+                          Current,
+                          Extract<SourceName, string>,
+                          'nonEmpty'
+                        >,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                | VisitNamedElement<
+                    Empty,
+                    Identity,
+                    Expected,
+                    Owner,
+                    Extract<SourceName, string> extends never
+                      ? Current
+                      : AddVisibility<
+                          Current,
+                          Extract<SourceName, string>,
+                          'empty'
+                        >,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+            : Children extends IfBlockNode<
+                  infer ConditionName,
+                  any,
+                  infer True,
+                  infer False
+                >
+              ?
+                  | VisitNamedElement<
+                      True,
+                      Identity,
+                      Expected,
+                      Owner,
+                      AddVisibility<Current, ConditionName, true>,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  | VisitNamedElement<
+                      False,
+                      Identity,
+                      Expected,
+                      Owner,
+                      AddVisibility<Current, ConditionName, false>,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+              : Children extends DeferNode<infer Loaded>
+                ? VisitNamedElement<
+                    Loaded extends CraftComponent<any, any>
+                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      : ReturnType<Children['resolve']>,
+                    Identity,
+                    Expected,
+                    Owner,
+                    Current,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                : false;
+
+type NamedElementResult<Result> =
+  true extends Extract<Result, true>
+    ? true
+    : Extract<Result, TemplateContractError<string>> extends never
+      ? false
+      : Extract<Result, TemplateContractError<string>>;
+
+/** Checks a named element and the visibility path that renders it. */
+export type TemplateRendersNamedElementWhen<
+  Children,
+  Identity extends string,
+  Conditions extends { readonly when?: Visibility } = {},
+> = NamedElementResult<
+  VisitNamedElement<
+    Children,
+    Identity,
+    Conditions extends { readonly when: infer When extends Visibility }
+      ? When
+      : {}
+  >
+>;

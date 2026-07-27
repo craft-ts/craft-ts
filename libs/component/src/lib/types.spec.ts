@@ -15,7 +15,9 @@ import { craftComponent } from './component';
 import { craftDirective } from './directive';
 import { defer } from './defer';
 import { angular } from './angular';
-import { button, div, p } from './hyperscript';
+import { ifBlock } from './if-block';
+import { each } from './each';
+import { button, div, p, span } from './hyperscript';
 import type { ComponentNode } from './render/vnode';
 import type { ComponentTemplateOf } from './types';
 import type {
@@ -28,6 +30,7 @@ import type {
   TemplateHasYieldableEvent,
   TemplateDelegatesToContext,
   TemplateUsesComponent,
+  TemplateRendersNamedElementWhen,
 } from './template-contract';
 import type {
   HostRequiredLogic,
@@ -734,4 +737,103 @@ it('reports Angular component boundaries instead of introspecting them', () => {
   type _AngularBoundaryIsDiagnosed = Expect<
     Contract extends { readonly error: string } ? true : false
   >;
+});
+
+it('tracks named elements through conditional template branches', () => {
+  const component = craftComponent(
+    'namedContractComponent',
+    {},
+    function* () {
+      return { isAuth: craftComputed('isAuth', () => true).isAuth };
+    },
+    ({ isAuth }) =>
+      ifBlock(
+        isAuth,
+        () => button('increment', { click: function* () {} }, '+'),
+        () => p('signed out'),
+      ),
+  );
+
+  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type _VisibleElement = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        Template,
+        'namedContractComponent:button:increment'
+      >,
+      true
+    >
+  >;
+  type _WrongVisibilityDoesNotMatch = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        Template,
+        'namedContractComponent:button:increment',
+        { when: { isAuth: false } }
+      >,
+      false
+    >
+  >;
+});
+
+it('tracks list visibility paths for named elements', () => {
+  const component = craftComponent(
+    'namedListContractComponent',
+    {},
+    function* () {
+      const { counterList } = yield* state('counterList', [1, 2]);
+      return { counterList };
+    },
+    ({ counterList }) =>
+      each(
+        counterList,
+        { track: (item) => item, empty: () => p('empty') },
+        () => button('item', {}, 'item'),
+      ),
+  );
+
+  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type _ItemVisibility = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        Template,
+        'namedListContractComponent:button:item',
+        { when: { counterList: 'nonEmpty' } }
+      >,
+      true
+    >
+  >;
+  type _EmptyVisibilityDoesNotMatch = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        Template,
+        'namedListContractComponent:button:item',
+        { when: { counterList: 'empty' } }
+      >,
+      false
+    >
+  >;
+});
+
+it('keeps reactive signal reads synchronous and infers each items', () => {
+  const component = craftComponent(
+    'synchronousReactiveTemplateReads',
+    {},
+    function* () {
+      const { users } = yield* state('users', [
+        { id: 1, name: 'Ada' },
+      ]);
+      return { users };
+    },
+    ({ users }) => [
+      span(String(users().length)),
+      each(
+        () => users(),
+        { track: (user) => user.id },
+        (user) => p(user.name),
+      ),
+    ],
+  );
+
+  void component;
 });

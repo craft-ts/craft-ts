@@ -78,6 +78,7 @@ import {
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 import { markYieldableMethod } from './yieldable';
+import type { BrandReactiveProperties } from './yieldable';
 
 type AsyncProcessConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -406,7 +407,7 @@ export type AsyncProcessOutput<
   StripCraftException<State>,
   ArgParams,
   StripCraftException<Params>,
-  Insertions,
+  BrandReactiveProperties<Insertions>,
   [unknown] extends [ArgParams]
     ? [unknown] extends [SourceParams]
       ? 'params'

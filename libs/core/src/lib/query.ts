@@ -81,6 +81,7 @@ import {
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 import { markYieldableMethod } from './yieldable';
+import type { BrandReactiveProperties } from './yieldable';
 
 type QueryConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -537,7 +538,7 @@ export type QueryOutput<
   State,
   Params,
   ArgParams,
-  Insertions,
+  BrandReactiveProperties<Insertions>,
   [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
   GroupIdentifier,
