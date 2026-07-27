@@ -86,11 +86,12 @@ To verify that a DOM property is connected to the correct context member, add a
 contract assertion next to the template test:
 
 ```ts
-import { craftComputed, state } from '@craft-ng/core';
+import { computed } from '@angular/core';
+import { state } from '@craft-ng/core';
 import { craftComponent, button } from '@craft-ng/component';
 import type {
   ComponentTemplateOf,
-  TemplateDelegatesToContext,
+  TemplateRendersStateWhen,
 } from '@craft-ng/component';
 import type { Equal, Expect } from 'test-type';
 
@@ -99,7 +100,7 @@ const Counter = craftComponent(
   {},
   function* () {
     const { counter } = yield* state('counter', 0, ({ state, update }) => ({
-      disabled: craftComputed('disabled', () => state() % 2 === 0).disabled,
+      disabled: computed(() => state() % 2 === 0),
       increment: () => update((value) => value + 1),
     }));
 
@@ -108,9 +109,7 @@ const Counter = craftComponent(
   ({ counter }) =>
     button(
       {
-        *disabled() {
-          return yield* counter.disabled();
-        },
+        disabled: () => counter.disabled(),
         *click() {
           yield* counter.increment();
         },
@@ -141,10 +140,8 @@ it('tests the derived disabled state', async () => {
 
 type _DisabledBindingIsCorrect = Expect<
   Equal<
-    TemplateDelegatesToContext<
+    TemplateRendersStateWhen<
       ReturnType<ComponentTemplateOf<typeof Counter>>,
-      'button',
-      'disabled',
       'counter.disabled'
     >,
     true
@@ -152,10 +149,9 @@ type _DisabledBindingIsCorrect = Expect<
 >;
 ```
 
-TypeScript performs this check. It fails if the `button.disabled` callback
-delegates to another member or no longer delegates to `counter.disabled`. It
-does not replace the rendering test; it verifies the exact template wiring
-without a DOM.
+TypeScript performs this check. It fails if the branded `counter.disabled` read
+is no longer exposed by the rendered template. It does not replace the
+rendering test; it verifies the template contract without a DOM.
 
 ## Context and service dependencies
 
@@ -270,11 +266,12 @@ arguments, generator callbacks, and outputs. For example, start with a
 component whose `disabled` property is nested inside the `counter` state:
 
 ```ts
-import { craftComputed, state } from '@craft-ng/core';
+import { computed } from '@angular/core';
+import { state } from '@craft-ng/core';
 import { button, craftComponent, div } from '@craft-ng/component';
 import type {
   ComponentTemplateOf,
-  TemplateDelegatesToContext,
+  TemplateRendersStateWhen,
   TemplateHasElement,
   TemplateHasElementWithProps,
   TemplateHasYieldableEvent,
@@ -286,7 +283,7 @@ const Counter = craftComponent(
   {},
   function* () {
     const { counter } = yield* state('counter', 0, ({ state, update }) => ({
-      disabled: craftComputed('disabled', () => state() === 0).disabled,
+      disabled: computed(() => state() === 0),
       increment: () => update((value) => value + 1),
     }));
 
@@ -297,9 +294,7 @@ const Counter = craftComponent(
       { class: 'counter' },
       button(
         {
-          *disabled() {
-            return yield* counter.disabled();
-          },
+          disabled: () => counter.disabled(),
           *click(_event: MouseEvent) {
             yield* counter.increment();
           },
@@ -339,39 +334,16 @@ type HasClick = Expect<
   >
 >;
 
-// The default path is "disabled". This is false because the template uses
-// the nested member "counter.disabled" instead.
-type HasTopLevelDisabledBinding = Expect<
-  Equal<
-    TemplateDelegatesToContext<CounterTemplate, 'button', 'disabled'>,
-    false
-  >
->;
-
 type HasNestedDisabledBinding = Expect<
   Equal<
-    TemplateDelegatesToContext<
+    TemplateRendersStateWhen<
       CounterTemplate,
-      'button',
-      'disabled',
       'counter.disabled'
     >,
     true
   >
 >;
 
-// This becomes false if the template is accidentally wired to another member.
-type DoesNotUseEnabled = Expect<
-  Equal<
-    TemplateDelegatesToContext<
-      CounterTemplate,
-      'button',
-      'disabled',
-      'counter.enabled'
-    >,
-    false
-  >
->;
 ```
 
 These checks detect different regressions at compile time. Removing the
@@ -381,7 +353,7 @@ member makes the corresponding assertion fail. The `TemplateHasElementWithProps`
 check also catches an unexpected extra, missing, or differently typed prop.
 
 Primitive properties follow the same contract as events. For derived state, use
-`craftComputed` in the `state` insertion:
+`computed` in the `state` insertion:
 
 ```ts
 const Counter = craftComponent(
@@ -389,7 +361,7 @@ const Counter = craftComponent(
   {},
   function* () {
     const { counter } = yield* state('counter', 0, ({ state }) => ({
-      disabled: craftComputed('disabled', () => state() % 2 === 0).disabled,
+      disabled: computed(() => state() % 2 === 0),
     }));
 
     return { counter };
@@ -397,9 +369,7 @@ const Counter = craftComponent(
   (context) =>
     button(
       {
-        *disabled() {
-          return yield* context.counter.disabled();
-        },
+        disabled: () => context.counter.disabled(),
       },
       '+',
     ),
@@ -407,14 +377,13 @@ const Counter = craftComponent(
 ```
 
 Here, `counter` is created by the component factory and returned in its
-context. The template receives that context, so `context.counter.disabled()`
-is the exact binding that the type assertion checks:
+context. The template receives that context, and the branded
+`context.counter.disabled()` read is the binding that the type assertion
+checks:
 
 ```ts
-type HasDerivedDisabledBinding = TemplateDelegatesToContext<
+type HasDerivedDisabledBinding = TemplateRendersStateWhen<
   ReturnType<ComponentTemplateOf<typeof Counter>>,
-  'button',
-  'disabled',
   'counter.disabled'
 >;
 
@@ -429,10 +398,8 @@ assertion would fail:
 ```ts
 type UsesWrongBinding = Expect<
   Equal<
-    TemplateDelegatesToContext<
+    TemplateRendersStateWhen<
       ReturnType<ComponentTemplateOf<typeof Counter>>,
-      'button',
-      'disabled',
       'counter.enabled'
     >,
     false
@@ -444,9 +411,8 @@ The callback is executed by the Craft driver before the DOM property is
 written. The assertion verifies the exact binding source without a fixture or
 DOM.
 
-`craftComputed` remains a synchronous signal when called directly
-(`counter.disabled()`). In a template context, it is projected to a yieldable
-callback so it can be consumed with `yield*`.
+`computed` remains a synchronous signal when called directly
+(`counter.disabled()`) and in a template context.
 
 Templates supplied to `each` and `defer` are also resolved. When a `defer`
 directly loads a Craft component, that component must appear in the registry.
@@ -478,13 +444,17 @@ while their name brand is available to `ifBlock` and the visibility contract.
 Use `ifBlock` to retain the condition and its branches in the VNode contract:
 
 ```ts
-import { craftComputed } from '@craft-ng/core';
+import { computed } from '@angular/core';
+import { state } from '@craft-ng/core';
 import { button, craftComponent, ifBlock } from '@craft-ng/component';
 
 const Counter = craftComponent(
   'Counter',
   {},
-  () => ({ isAuth: craftComputed('isAuth', () => true).isAuth }),
+  function* () {
+    const { isAuth } = yield* state('isAuth', computed(() => true));
+    return { isAuth };
+  },
   ({ isAuth }) =>
     ifBlock(
       isAuth,
@@ -512,6 +482,137 @@ type CanIncrement = Expect<
   >
 >;
 ```
+
+The same contract covers a translated value exposed by an `insertSelect`
+insertion for every non-empty list item:
+
+```ts
+import { computed } from '@angular/core';
+import { insertSelect, state } from '@craft-ng/core';
+import { craftComponent, each, span } from '@craft-ng/component';
+import type {
+  ComponentTemplateOf,
+  TemplateRendersNamedElementWhen,
+  TemplateRendersStateWhen,
+} from '@craft-ng/component';
+import type { Equal, Expect } from 'test-type';
+
+const ItemList = craftComponent(
+  'ItemList',
+  {},
+  function* () {
+    const { items } = yield* state(
+      'items',
+      [{ key: 'first' }, { key: 'second' }],
+      insertSelect('item', ({ state: selectedItem }) => ({
+        translatedLabel: computed(
+          () => `translated:${selectedItem().key}`,
+        ),
+      })),
+    );
+    return { items };
+  },
+  ({ items }) =>
+    each(
+      items,
+      { track: (item) => item.key },
+      (_item, index) =>
+        span(
+          'itemLabel',
+          { 'aria-label': items.selectItem(index)?.translatedLabel },
+          () => items.selectItem(index)?.translatedLabel() ?? '',
+        ),
+    ),
+);
+
+type ItemListTemplate = ReturnType<ComponentTemplateOf<typeof ItemList>>;
+
+type HasTranslatedLabel = Expect<
+  Equal<
+    TemplateRendersNamedElementWhen<
+      ItemListTemplate,
+      'ItemList:span:itemLabel',
+      { when: { items: 'nonEmpty' } }
+    >,
+    true
+  >
+>;
+
+type RendersTranslatedLabel = Expect<
+  Equal<
+    TemplateRendersStateWhen<
+      ItemListTemplate,
+      'items.selectItem.translatedLabel',
+      { when: { items: 'nonEmpty' } }
+    >,
+    true
+  >
+>;
+```
+
+The same visibility paths can verify that a state is used by a rendered
+binding, or that a yieldable action is available on a named element:
+
+```ts
+import { craftMethod, state } from '@craft-ng/core';
+import { button, craftComponent, ifBlock } from '@craft-ng/component';
+import type {
+  ComponentTemplateOf,
+  TemplateRenderAvailableActionWhen,
+  TemplateRendersStateWhen,
+} from '@craft-ng/component';
+import type { Equal, Expect } from 'test-type';
+
+const Counter = craftComponent(
+  'Counter',
+  {},
+  function* () {
+    const { isAuth } = yield* state('isAuth', true);
+    const { isAdult } = yield* state('isAdult', true);
+    const increment = craftMethod('increment', function* () {
+      return undefined;
+    }).increment;
+
+    return { isAuth, isAdult, increment };
+  },
+  ({ isAuth, isAdult, increment }) =>
+    ifBlock(
+      isAuth,
+      () => button('increment', { click: increment }, () => isAdult()),
+      () => [],
+    ),
+);
+
+type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
+
+type RendersAdultState = Expect<
+  Equal<
+    TemplateRendersStateWhen<
+      CounterTemplate,
+      'isAdult',
+      { when: { isAuth: true } }
+    >,
+    true
+  >
+>;
+
+// The key is `${event}:${localName}`.
+type CanIncrementWhenAuthenticated = Expect<
+  Equal<
+    TemplateRenderAvailableActionWhen<
+      CounterTemplate,
+      'click:increment',
+      { when: { isAuth: true } }
+    >,
+    true
+  >
+>;
+```
+
+`TemplateRendersStateWhen` recognizes branded reads that contribute to visible
+text or other render bindings such as `class` and `style`. Both assertions
+return `false` when the state or action exists only under a visibility branch
+that is incompatible with `when`.
 
 `each` adds `<listName>: 'nonEmpty'` for its item template and
 `<listName>: 'empty'` for its empty template. The

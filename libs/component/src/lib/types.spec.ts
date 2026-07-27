@@ -1,10 +1,11 @@
 import { expectTypeOf, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
+import { computed } from '@angular/core';
 import {
   craftMethod,
-  craftComputed,
   craftRoutes,
   craftService,
+  insertSelect,
   provideHostName,
   state,
   type ComponentDepsOf,
@@ -31,6 +32,8 @@ import type {
   TemplateDelegatesToContext,
   TemplateUsesComponent,
   TemplateRendersNamedElementWhen,
+  TemplateRendersStateWhen,
+  TemplateRenderAvailableActionWhen,
 } from './template-contract';
 import type {
   HostRequiredLogic,
@@ -553,16 +556,14 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     {},
     function* () {
       const { counter } = yield* state('counter', 0, ({ state }) => ({
-        disabled: craftComputed('disabled', () => state() % 2 === 0).disabled,
+        disabled: computed(() => state() % 2 === 0),
       }));
       return { counter };
     },
     ({ counter }) =>
       button(
         {
-          *disabled() {
-            return yield* counter.disabled();
-          },
+          disabled: () => counter.disabled(),
         },
         '+',
       ),
@@ -572,10 +573,8 @@ it('keeps yieldable primitive properties in template VNodes', () => {
   >;
   type _DerivedStateUsesContextValue = Expect<
     Equal<
-      TemplateDelegatesToContext<
+      TemplateRendersStateWhen<
         DerivedTemplate,
-        'button',
-        'disabled',
         'counter.disabled'
       >,
       true
@@ -744,7 +743,8 @@ it('tracks named elements through conditional template branches', () => {
     'namedContractComponent',
     {},
     function* () {
-      return { isAuth: craftComputed('isAuth', () => true).isAuth };
+      const { isAuth } = yield* state('isAuth', computed(() => true));
+      return { isAuth };
     },
     ({ isAuth }) =>
       ifBlock(
@@ -769,6 +769,42 @@ it('tracks named elements through conditional template branches', () => {
       TemplateRendersNamedElementWhen<
         Template,
         'namedContractComponent:button:increment',
+        { when: { isAuth: false } }
+      >,
+      false
+    >
+  >;
+});
+
+it('tracks rendered state reads through conditional template branches', () => {
+  const component = craftComponent(
+    'renderedStateContractComponent',
+    {},
+    function* () {
+      const { isAdult } = yield* state('isAdult', true);
+      const { isAuth } = yield* state('isAuth', true);
+      return { isAdult, isAuth };
+    },
+    ({ isAdult, isAuth }) =>
+      ifBlock(
+        isAuth,
+        () => button('increment', {}, () => isAdult()),
+        () => p('signed out'),
+      ),
+  );
+
+  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type _RenderedState = Expect<
+    Equal<
+      TemplateRendersStateWhen<Template, 'isAdult', { when: { isAuth: true } }>,
+      true
+    >
+  >;
+  type _IncompatibleVisibilityDoesNotMatch = Expect<
+    Equal<
+      TemplateRendersStateWhen<
+        Template,
+        'isAdult',
         { when: { isAuth: false } }
       >,
       false
@@ -815,14 +851,113 @@ it('tracks list visibility paths for named elements', () => {
   >;
 });
 
+it('tracks translated labels exposed from nested insertSelect state', () => {
+  const component = craftComponent(
+    'nestedTranslatedLabelsContractComponent',
+    {},
+    function* () {
+      const { items } = yield* state(
+        'items',
+        [{ key: 'first' }, { key: 'second' }],
+        insertSelect('item', ({ state: selectedItem }) => ({
+          translatedLabel: computed(
+            () => `translated:${selectedItem().key}`,
+          ),
+        })),
+      );
+      return { items };
+    },
+    ({ items }) =>
+      each(
+        items,
+        { track: (item) => item.key },
+        (_item, index) =>
+          span(
+            'itemLabel',
+            {
+              'aria-label': items.selectItem(index)?.translatedLabel,
+            },
+            () => items.selectItem(index)?.translatedLabel() ?? '',
+          ),
+      ),
+  );
+
+  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type _TranslatedLabelIsRenderedForNonEmptyItems = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        Template,
+        'nestedTranslatedLabelsContractComponent:span:itemLabel',
+        { when: { items: 'nonEmpty' } }
+      >,
+      true
+    >
+  >;
+  type _TranslatedLabelStateIsRenderedForNonEmptyItems = Expect<
+    Equal<
+      TemplateRendersStateWhen<
+        Template,
+        'items.selectItem.translatedLabel',
+        { when: { items: 'nonEmpty' } }
+      >,
+      true
+    >
+  >;
+});
+
+it('tracks available actions through conditional template branches', () => {
+  const component = craftComponent(
+    'availableActionContractComponent',
+    {},
+    function* () {
+      const { isAuth } = yield* state('isAuth', computed(() => true));
+      return {
+        isAuth,
+        increment: craftMethod('increment', function* () {
+          return undefined;
+        }).increment,
+      };
+    },
+    ({ isAuth, increment }) =>
+      ifBlock(
+        isAuth,
+        () => button('increment', { click: increment }, '+'),
+        () => p('signed out'),
+      ),
+  );
+
+  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type _AvailableAction = Expect<
+    Equal<
+      TemplateRenderAvailableActionWhen<
+        Template,
+        'click:increment',
+        { when: { isAuth: true } }
+      >,
+      true
+    >
+  >;
+  type _IncompatibleVisibilityDoesNotMatch = Expect<
+    Equal<
+      TemplateRenderAvailableActionWhen<
+        Template,
+        'click:increment',
+        { when: { isAuth: false } }
+      >,
+      false
+    >
+  >;
+  type _DifferentLocalNameDoesNotMatch = Expect<
+    Equal<TemplateRenderAvailableActionWhen<Template, 'click:reset'>, false>
+  >;
+});
+
 it('keeps reactive signal reads synchronous and infers each items', () => {
   const component = craftComponent(
     'synchronousReactiveTemplateReads',
     {},
     function* () {
-      const { users } = yield* state('users', [
-        { id: 1, name: 'Ada' },
-      ]);
+      const { users } = yield* state('users', [{ id: 1, name: 'Ada' }]);
       return { users };
     },
     ({ users }) => [

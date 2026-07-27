@@ -4,7 +4,6 @@ import type {
   CraftComponentDependencies,
   ResolveGeneratorResult,
   YieldableMethod,
-  Yieldable,
   NamedYieldableValue,
 } from '@craft-ng/core';
 import type { YIELDABLE_VALUE } from '@craft-ng/core';
@@ -98,7 +97,10 @@ type ProjectTemplateValue<Value, ContextMethod extends string> =
           infer _Value
         >
       ? Value extends Signal<infer State>
-        ? NamedYieldableValue<ContextMethod, () => State> &
+        ? NamedYieldableValue<
+            ContextMethod,
+            () => State & TemplateMethodUse<ContextMethod>
+          > &
             ProjectTemplateSignalProperties<Value & object, ContextMethod>
         : Value extends object
           ? ProjectTemplateObject<Value & object, ContextMethod>
@@ -119,11 +121,13 @@ type ProjectTemplateValue<Value, ContextMethod extends string> =
               ProjectTemplateObject<Value, ContextMethod>
           : Value extends readonly (infer Item)[]
             ? readonly ProjectTemplateValue<Item, ContextMethod>[]
-            : Value extends (...args: any[]) => any
-              ? Value
-              : Value extends object
-                ? ProjectTemplateObject<Value, ContextMethod>
-                : Value;
+              : Value extends (
+                    ...args: infer Args
+                  ) => infer Result
+                ? (...args: Args) => ProjectTemplateValue<Result, ContextMethod>
+                : Value extends object
+                  ? ProjectTemplateObject<Value, ContextMethod>
+                  : Value;
 
 export type YieldableTemplateContext<Context> = {
   [Key in keyof Context]: ProjectTemplateValue<
