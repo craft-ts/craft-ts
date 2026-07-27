@@ -111,8 +111,8 @@ import {
     @if (error(); as routeLoadError) {
       <h1>Route could not be loaded</h1>
       <p>
-        Failed to load {{ routeLoadError.payload.phase }}
-        for {{ routeLoadError.payload.routePath }}.
+        Failed to load {{ routeLoadError.payload.phase }} for
+        {{ routeLoadError.payload.routePath }}.
       </p>
 
       <button type="button" (click)="retry()">Retry</button>

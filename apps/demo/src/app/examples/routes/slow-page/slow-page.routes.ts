@@ -32,20 +32,22 @@ import { loadCraftComponent } from '@craft-ng/component';
 // into the parent's budget.
 const { SlowAccess } = craftService(
   { name: 'SlowAccess', scope: 'global' },
-  () =>
-    query({
+  function* () {
+    const { slowAccess } = yield* query('slowAccess', {
       params: () => true,
       loader: async () => {
         await new Promise((resolve) => setTimeout(resolve, 1500));
         return { allowed: true } as const;
       },
-    }),
+    });
+    return slowAccess;
+  },
 );
 
 const { SlowReport } = craftService(
   { name: 'SlowReport', scope: 'global' },
-  () =>
-    query({
+  function* () {
+    const { slowReport } = yield* query('slowReport', {
       params: () => true,
       loader: async () => {
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -54,7 +56,9 @@ const { SlowReport } = craftService(
           totalUsers: 1234,
         };
       },
-    }),
+    });
+    return slowReport;
+  },
 );
 
 // Slow canActivate: suspends ~1.5s until the access check settles, then either

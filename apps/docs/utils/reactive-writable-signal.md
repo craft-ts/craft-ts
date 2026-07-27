@@ -56,65 +56,68 @@ sync(source, callback, { onInitToo: true });
 ## Complete Example
 
 ```typescript
-protected readonly selectedRows = state(
-  reactiveWritableSignal([] as string[], (sync) => ({
-    resetWhenCurrentPageIsResolved: sync(
-      this.usersQuery.currentPageStatus, // Signal<ResourceStatus>
-      ({ params, current }) => (params === 'resolved' ? [] : current),
-    ),
-    resetWhenBulkDeleteIsResolved: sync(
-      this.bulkDelete.status, // Signal<ResourceStatus>
-      ({ params, current }) => (params === 'resolved' ? [] : current),
-    ),
-    removeDeletedItemsWhenDeleteUserIsResolved: sync(
-      this.delayUserDeletion.changes.resolved, // Signal<string[]>
-      ({ params: resolvedIds, current }) =>
-        resolvedIds.length > 0
-          ? removeMany({
-              entities: current,
-              ids: resolvedIds,
-            })
-          : current,
-    ),
-  })),
-  ({ update, set, state: selectedRows }) => {
-    const isAllSelected = computed(
-      () =>
-        this.usersQuery.currentPageData()?.length &&
-        this.usersQuery
-          .currentPageData()
-          ?.every((user) => selectedRows().includes(user.id)),
-    );
-    return {
-      toggleSelection: (id: string) =>
-        update((current) =>
-          current.includes(id)
-            ? current.filter((item) => item !== id)
-            : [...current, id],
-        ),
-      isSelected: (id: string) => {
-        return selectedRows().includes(id);
-      },
-      isAllSelected,
-      isSomeSelected: computed(
+protected readonly selectedRows = craftUse(
+  state(
+    'selectedRows',
+    reactiveWritableSignal([] as string[], (sync) => ({
+      resetWhenCurrentPageIsResolved: sync(
+        this.usersQuery.currentPageStatus, // Signal<ResourceStatus>
+        ({ params, current }) => (params === 'resolved' ? [] : current),
+      ),
+      resetWhenBulkDeleteIsResolved: sync(
+        this.bulkDelete.status, // Signal<ResourceStatus>
+        ({ params, current }) => (params === 'resolved' ? [] : current),
+      ),
+      removeDeletedItemsWhenDeleteUserIsResolved: sync(
+        this.delayUserDeletion.changes.resolved, // Signal<string[]>
+        ({ params: resolvedIds, current }) =>
+          resolvedIds.length > 0
+            ? removeMany({
+                entities: current,
+                ids: resolvedIds,
+              })
+            : current,
+      ),
+    })),
+    ({ update, set, state: selectedRows }) => {
+      const isAllSelected = computed(
         () =>
+          this.usersQuery.currentPageData()?.length &&
           this.usersQuery
             .currentPageData()
-            ?.some((user) => selectedRows().includes(user.id)) &&
-          !isAllSelected(),
-      ),
-      toggleAllSelection: () => {
-        if (isAllSelected()) {
-          set([]);
-        } else {
-          const allIds =
-            this.usersQuery.currentPageData()?.map((user) => user.id) || [];
-          set(allIds);
-        }
-      },
-    };
-  },
-);
+            ?.every((user) => selectedRows().includes(user.id)),
+      );
+      return {
+        toggleSelection: (id: string) =>
+          update((current) =>
+            current.includes(id)
+              ? current.filter((item) => item !== id)
+              : [...current, id],
+          ),
+        isSelected: (id: string) => {
+          return selectedRows().includes(id);
+        },
+        isAllSelected,
+        isSomeSelected: computed(
+          () =>
+            this.usersQuery
+              .currentPageData()
+              ?.some((user) => selectedRows().includes(user.id)) &&
+            !isAllSelected(),
+        ),
+        toggleAllSelection: () => {
+          if (isAllSelected()) {
+            set([]);
+          } else {
+            const allIds =
+              this.usersQuery.currentPageData()?.map((user) => user.id) || [];
+            set(allIds);
+          }
+        },
+      };
+    },
+  ),
+).selectedRows;
 ```
 
 ## How It Works

@@ -37,7 +37,7 @@ function on$<State, SourceType>(
 Create internal reactive methods in state insertions that respond to sources without being exposed:
 
 ```typescript
-const myState = state(0, ({ set }) => ({
+const { myState } = state('myState', 0, ({ set }) => ({
   // Exposed method
   increment: () => set((v) => v + 1),
   // Internal reactive method (not exposed)
@@ -69,7 +69,7 @@ import { on$ } from '@craft-ng/core';
 
 const resetSource = source$<void>();
 
-const counter = state(0, ({ set, update }) => ({
+const { counter } = state('counter', 0, ({ set, update }) => ({
   // Exposed methods
   increment: () => update((v) => v + 1),
   decrement: () => update((v) => v - 1),
@@ -100,12 +100,16 @@ interface User {
 
 const userUpdateSource = source$<User>();
 
-const currentUser = state(null as User | null, ({ set }) => ({
-  // Exposed method
-  clear: () => set(null),
-  // Internal: updates when source emits
-  syncFromSource: on$(userUpdateSource, (user) => set(user)),
-}));
+const { currentUser } = state(
+  'currentUser',
+  null as User | null,
+  ({ set }) => ({
+    // Exposed method
+    clear: () => set(null),
+    // Internal: updates when source emits
+    syncFromSource: on$(userUpdateSource, (user) => set(user)),
+  }),
+);
 
 console.log(currentUser()); // null
 
@@ -124,21 +128,21 @@ import { on$ } from '@craft-ng/core';
 
 const resetAllSource = source$<void>();
 
-const search = state('', ({ set, update }) => ({
+const { search } = state('search', '', ({ set, update }) => ({
   set,
   clear: () => set(''),
   // Reset when resetAllSource emits
   resetOnSignal: on$(resetAllSource, () => set('')),
 }));
 
-const page = state(1, ({ set, update }) => ({
+const { page } = state('page', 1, ({ set, update }) => ({
   next: () => update((v) => v + 1),
   previous: () => update((v) => Math.max(1, v - 1)),
   // Reset when resetAllSource emits
   resetOnSignal: on$(resetAllSource, () => set(1)),
 }));
 
-const filters = state([] as string[], ({ set }) => ({
+const { filters } = state('filters', [] as string[], ({ set }) => ({
   add: (filter: string) => set((current) => [...current, filter]),
   // Reset when resetAllSource emits
   resetOnSignal: on$(resetAllSource, () => set([])),
@@ -169,28 +173,25 @@ console.log(filters()); // []
 import { craftService, state, source$ } from '@craft-ng/core';
 import { on$ } from '@craft-ng/core';
 
-const { Filters } = craftService(
-  { name: 'Filters', scope: 'global' },
-  () => {
-    const reset = source$<void>();
-    const search = state('', ({ set }) => ({
-      set,
-      // Internal: reset on source emission
-      handleReset: on$(reset, () => set('')),
-    }));
-    const category = state('all', ({ set }) => ({
-      set,
-      // Internal: reset on source emission
-      handleReset: on$(reset, () => set('all')),
-    }));
+const { Filters } = craftService({ name: 'Filters', scope: 'global' }, () => {
+  const reset = source$<void>();
+  const { search } = state('search', '', ({ set }) => ({
+    set,
+    // Internal: reset on source emission
+    handleReset: on$(reset, () => set('')),
+  }));
+  const category = state('all', ({ set }) => ({
+    set,
+    // Internal: reset on source emission
+    handleReset: on$(reset, () => set('all')),
+  }));
 
-    return {
-      search,
-      category,
-      resetFilters: () => reset.emit(),
-    };
-  },
-);
+  return {
+    search,
+    category,
+    resetFilters: () => reset.emit(),
+  };
+});
 
 const filters = Filters();
 
@@ -220,7 +221,7 @@ interface DataUpdate {
 
 const dataSource = source$<DataUpdate>();
 
-const data = state(0, ({ state, set }) => ({
+const { data } = state('data', 0, ({ state, set }) => ({
   // Exposed methods
   setValue: (value: number) => set(value),
   // Internal: conditionally update based on source data
@@ -261,16 +262,20 @@ interface ApiResponse {
 
 const apiResponseSource = source$<ApiResponse>();
 
-const items = state([] as Array<{ id: string; value: number }>, ({ set }) => ({
-  add: (item: { id: string; value: number }) =>
-    set((current) => [...current, item]),
-  // Internal: extract and set items from API response
-  handleApiResponse: on$(apiResponseSource, (response) => {
-    set(response.data.items);
+const { items } = state(
+  'items',
+  [] as Array<{ id: string; value: number }>,
+  ({ set }) => ({
+    add: (item: { id: string; value: number }) =>
+      set((current) => [...current, item]),
+    // Internal: extract and set items from API response
+    handleApiResponse: on$(apiResponseSource, (response) => {
+      set(response.data.items);
+    }),
   }),
-}));
+);
 
-const totalCount = state(0, ({ set }) => ({
+const { totalCount } = state('totalCount', 0, ({ set }) => ({
   // Internal: extract and set total from API response
   handleApiResponse: on$(apiResponseSource, (response) => {
     set(response.metadata.total);
@@ -302,11 +307,15 @@ import { on$ } from '@craft-ng/core';
 
 const clickEmitter = new EventEmitter<{ x: number; y: number }>();
 
-const lastClick = state(null as { x: number; y: number } | null, ({ set }) => ({
-  clear: () => set(null),
-  // Internal: update on emitter events
-  handleClick: on$(clickEmitter, (position) => set(position)),
-}));
+const { lastClick } = state(
+  'lastClick',
+  null as { x: number; y: number } | null,
+  ({ set }) => ({
+    clear: () => set(null),
+    // Internal: update on emitter events
+    handleClick: on$(clickEmitter, (position) => set(position)),
+  }),
+);
 
 clickEmitter.emit({ x: 100, y: 200 });
 console.log(lastClick()); // { x: 100, y: 200 }

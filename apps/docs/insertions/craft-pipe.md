@@ -20,7 +20,8 @@ import {
   query,
 } from '@craft-ng/core';
 
-const users = query(
+const { users } = query(
+  'users',
   {
     params: pagination,
     identifier: (params) => `${params.page}-${params.pageSize}`,
@@ -37,7 +38,10 @@ const users = query(
         filter: ({ mutationIdentifier, queryResource }) =>
           !!queryResource.safeValue()?.some((u) => u.id === mutationIdentifier),
         optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-          removeOne({ entities: queryResource.value(), id: mutationIdentifier }),
+          removeOne({
+            entities: queryResource.value(),
+            id: mutationIdentifier,
+          }),
       }),
     ),
 );
@@ -47,20 +51,18 @@ The same `craftPipe` works with `state`, `mutation`, `asyncProcess` and
 `queryParams`:
 
 ```typescript
-const counter = state(
-  0,
-  (context) =>
-    craftPipe(
-      context,
-      ({ update, set }) => ({
-        increment: () => update((c) => c + 1),
-        reset: () => set(0),
-      }),
-      ({ state, insertions }) => ({
-        // `insertions` is typed with the previous members' outputs
-        isOdd: computed(() => state() % 2 === 1),
-      }),
-    ),
+const { counter } = state('counter', 0, (context) =>
+  craftPipe(
+    context,
+    ({ update, set }) => ({
+      increment: () => update((c) => c + 1),
+      reset: () => set(0),
+    }),
+    ({ state, insertions }) => ({
+      // `insertions` is typed with the previous members' outputs
+      isOdd: computed(() => state() % 2 === 1),
+    }),
+  ),
 );
 ```
 
@@ -93,7 +95,8 @@ the primitive's `Exceptions` inference is never degraded.
 Pipes nest freely — each level re-passes its own context:
 
 ```typescript
-const board = state(
+const { board } = state(
+  'board',
   { ui: { activeColor: 'black' }, grid: createInitialGrid() },
   (context) =>
     craftPipe(
@@ -120,6 +123,6 @@ A **single** insertion never needs a pipe — pass it directly:
 
 ```typescript
 // single insertion: no pipe
-const user = query(config, insertLocalStoragePersister({ ... }));
-const cells = state(initial, insertSelect('cell', ({ update }) => ({ ... })));
+const { user } = query('user', config, insertLocalStoragePersister({ ... }));
+const { cells } = state('cells', initial, insertSelect('cell', ({ update }) => ({ ... })));
 ```

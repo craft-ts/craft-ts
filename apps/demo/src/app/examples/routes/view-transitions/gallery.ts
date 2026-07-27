@@ -32,7 +32,7 @@ const ViewTransitionsGalleryComponent = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     })); // todo move directly on open
-    const open = craftMethod('open', function* (photoId: string) {
+    const { open } = craftMethod('open', function* (photoId: string) {
       void router.navigate({
         to: 'view-transitions/:photoId',
         params: { photoId },

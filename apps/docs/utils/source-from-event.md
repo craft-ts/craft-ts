@@ -22,7 +22,7 @@ const clickSource = sourceFromEvent(
   () => (count: number) => count + 1,
 );
 
-const clickCount = state(0, {
+const { clickCount } = state('clickCount', 0, {
   sources: [clickSource],
 });
 ```
@@ -52,7 +52,7 @@ function sourceFromEvent<T, E extends Event>(
 export class ClickerComponent {
   @ViewChild('btn', { static: true }) button!: ElementRef<HTMLButtonElement>;
 
-  clicks = state(0);
+  clicks = craftUse(state('clicks', 0)).clicks;
 
   ngAfterViewInit() {
     const clickSource = sourceFromEvent(
@@ -62,9 +62,11 @@ export class ClickerComponent {
     );
 
     // Connect source to state
-    this.clicks = state(0, {
-      sources: [clickSource],
-    });
+    this.clicks = craftUse(
+      state('clicks', 0, {
+        sources: [clickSource],
+      }),
+    ).clicks;
   }
 }
 ```
@@ -80,7 +82,7 @@ const inputSource = sourceFromEvent(
   (event: Event) => () => (event.target as HTMLInputElement).value,
 );
 
-const inputValue = state('', {
+const { inputValue } = state('inputValue', '', {
   sources: [inputSource],
 });
 ```
@@ -102,7 +104,8 @@ const mouseMoveSource = sourceFromEvent(
   }),
 );
 
-const mousePosition = state<Position>(
+const { mousePosition } = state<Position>(
+  'mousePosition',
   { x: 0, y: 0 },
   {
     sources: [mouseMoveSource],
@@ -119,7 +122,7 @@ const keySource = sourceFromEvent(
   (event: KeyboardEvent) => (keys: string[]) => [...keys, event.key],
 );
 
-const pressedKeys = state<string[]>([], {
+const { pressedKeys } = state<string[]>('pressedKeys', [], {
   sources: [keySource],
 });
 ```
@@ -133,7 +136,7 @@ const scrollSource = sourceFromEvent(
   () => () => window.scrollY,
 );
 
-const scrollPosition = state(0, {
+const { scrollPosition } = state('scrollPosition', 0, {
   sources: [scrollSource],
 });
 ```
@@ -158,7 +161,8 @@ const submitSource = sourceFromEvent(form, 'submit', (event: Event) => {
   });
 });
 
-const formState = state<FormData>(
+const { formState } = state<FormData>(
+  'formState',
   { name: '', email: '' },
   {
     sources: [submitSource],
@@ -179,7 +183,8 @@ const resizeSource = sourceFromEvent(window, 'resize', () => () => ({
   height: window.innerHeight,
 }));
 
-const windowSize = state<WindowSize>(
+const { windowSize } = state<WindowSize>(
+  'windowSize',
   { width: window.innerWidth, height: window.innerHeight },
   {
     sources: [resizeSource],
@@ -201,7 +206,7 @@ const debouncedInputSource = sourceFromEvent(
   (event: Event) => () => (event.target as HTMLInputElement).value,
 ).pipe(debounceTime(300));
 
-const searchQuery = state('', {
+const { searchQuery } = state('searchQuery', '', {
   sources: [debouncedInputSource],
 });
 ```

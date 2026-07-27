@@ -27,6 +27,7 @@ type User = { id: string; name: string };
 class ParallelSelectedFieldBindingsComponent {
   protected readonly usersForm = craftUse(
     state(
+      'usersForm',
       [
         {
           id: '1',
@@ -40,7 +41,7 @@ class ParallelSelectedFieldBindingsComponent {
         insertSelectFormTree('name', insertNoopTypingAnchor),
       ),
     ),
-  );
+  ).usersForm;
 }
 
 @Component({
@@ -64,14 +65,15 @@ class ParallelLazySubFormComponent {
   //   - insertFormAttributes registers validators (signal writes via plain arrays)
   // Both must construct without throwing.
   private readonly updateUser = craftUse(
-    mutation({
+    mutation('updateUser', {
       method: (validated: ValidatedFormValue<User>) => validated,
       loader: async ({ params }) => params,
     }),
-  );
+  ).updateUser;
 
   protected readonly usersForm = craftUse(
     state(
+      'usersForm',
       [
         { id: '1', name: 'Alpha' },
         { id: '2', name: 'Beta' },
@@ -90,7 +92,7 @@ class ParallelLazySubFormComponent {
         ),
       ),
     ),
-  );
+  ).usersForm;
 }
 
 describe('parallel form DOM bindings', () => {

@@ -98,11 +98,8 @@ const Counter = craftComponent(
   'Counter',
   {},
   function* () {
-    const counter = yield* state(0, ({ state, update }) => ({
-      disabled: craftComputed(
-        'disabled',
-        () => state() % 2 === 0,
-      ),
+    const { counter } = yield* state('counter', 0, ({ state, update }) => ({
+      disabled: craftComputed('disabled', () => state() % 2 === 0).disabled,
       increment: () => update((value) => value + 1),
     }));
 
@@ -123,10 +120,12 @@ const Counter = craftComponent(
 );
 
 it('tests the derived disabled state', async () => {
-  const { context, destroy } =
-    await setupCraftComponentLogicTest.byRegister(Counter, {
+  const { context, destroy } = await setupCraftComponentLogicTest.byRegister(
+    Counter,
+    {
       register: {},
-    });
+    },
+  );
 
   try {
     expect(context.counter.disabled()).toBe(true);
@@ -266,58 +265,150 @@ dedicated diagnostic; split them into static branches so they can be checked at
 the type level. External Angular components form an explicit boundary and
 should be tested with their Angular harness.
 
-The available assertions can verify elements, their props, event arguments,
-generator callbacks, and outputs:
+The available assertions can verify elements, their exact props, event
+arguments, generator callbacks, and outputs. For example, start with a
+component whose `disabled` property is nested inside the `counter` state:
 
 ```ts
-type HasButton = TemplateHasElementWithProps<
-  ReturnType<ComponentTemplateOf<typeof Counter>>,
-  'button',
-  { readonly class: string }
+import { craftComputed, state } from '@craft-ng/core';
+import { button, craftComponent, div } from '@craft-ng/component';
+import type {
+  ComponentTemplateOf,
+  TemplateDelegatesToContext,
+  TemplateHasElement,
+  TemplateHasElementWithProps,
+  TemplateHasYieldableEvent,
+} from '@craft-ng/component';
+import type { Equal, Expect } from 'test-type';
+
+const Counter = craftComponent(
+  'Counter',
+  {},
+  function* () {
+    const { counter } = yield* state('counter', 0, ({ state, update }) => ({
+      disabled: craftComputed('disabled', () => state() === 0).disabled,
+      increment: () => update((value) => value + 1),
+    }));
+
+    return { counter };
+  },
+  ({ counter }) =>
+    div(
+      { class: 'counter' },
+      button(
+        {
+          *disabled() {
+            return yield* counter.disabled();
+          },
+          *click(_event: MouseEvent) {
+            yield* counter.increment();
+          },
+        },
+        '+',
+      ),
+    ),
+);
+```
+
+The type assertions inspect the template returned by `Counter`; they do not
+instantiate the component or render a DOM fixture:
+
+```ts
+type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
+
+type HasButton = Expect<
+  Equal<TemplateHasElement<CounterTemplate, 'button'>, true>
 >;
 
-type HasClick = TemplateHasYieldableEvent<
-  ReturnType<ComponentTemplateOf<typeof Counter>>,
-  'button',
-  'click',
-  [MouseEvent]
+// TemplateHasElementWithProps checks the exact prop set of the matching node.
+type HasCounterClass = Expect<
+  Equal<
+    TemplateHasElementWithProps<
+      CounterTemplate,
+      'div',
+      { readonly class: string }
+    >,
+    true
+  >
 >;
 
-type HasDisabledBinding = TemplateDelegatesToContext<
-  ReturnType<ComponentTemplateOf<typeof Counter>>,
-  'button',
-  'disabled'
+type HasClick = Expect<
+  Equal<
+    TemplateHasYieldableEvent<CounterTemplate, 'button', 'click', [MouseEvent]>,
+    true
+  >
 >;
 
-type HasNestedDisabledBinding = TemplateDelegatesToContext<
-  ReturnType<ComponentTemplateOf<typeof Counter>>,
-  'button',
-  'disabled',
-  'counter.disabled'
+// The default path is "disabled". This is false because the template uses
+// the nested member "counter.disabled" instead.
+type HasTopLevelDisabledBinding = Expect<
+  Equal<
+    TemplateDelegatesToContext<CounterTemplate, 'button', 'disabled'>,
+    false
+  >
+>;
+
+type HasNestedDisabledBinding = Expect<
+  Equal<
+    TemplateDelegatesToContext<
+      CounterTemplate,
+      'button',
+      'disabled',
+      'counter.disabled'
+    >,
+    true
+  >
+>;
+
+// This becomes false if the template is accidentally wired to another member.
+type DoesNotUseEnabled = Expect<
+  Equal<
+    TemplateDelegatesToContext<
+      CounterTemplate,
+      'button',
+      'disabled',
+      'counter.enabled'
+    >,
+    false
+  >
 >;
 ```
+
+These checks detect different regressions at compile time. Removing the
+`button`, changing the `click` callback to an imperative function, changing
+its event arguments, or replacing `counter.disabled` with another context
+member makes the corresponding assertion fail. The `TemplateHasElementWithProps`
+check also catches an unexpected extra, missing, or differently typed prop.
 
 Primitive properties follow the same contract as events. For derived state, use
 `craftComputed` in the `state` insertion:
 
 ```ts
-const counter = yield* state(0, ({ state }) => ({
-  disabled: craftComputed('disabled', () => state() % 2 === 0),
-}));
+const Counter = craftComponent(
+  'Counter',
+  {},
+  function* () {
+    const { counter } = yield* state('counter', 0, ({ state }) => ({
+      disabled: craftComputed('disabled', () => state() % 2 === 0).disabled,
+    }));
 
-button(
-  {
-    *disabled() {
-      return yield* context.counter.disabled();
-    },
+    return { counter };
   },
-  '+',
+  (context) =>
+    button(
+      {
+        *disabled() {
+          return yield* context.counter.disabled();
+        },
+      },
+      '+',
+    ),
 );
 ```
 
-The callback is executed by the Craft driver before the DOM property is
-written. The following assertion verifies the exact binding source without a
-fixture or DOM:
+Here, `counter` is created by the component factory and returned in its
+context. The template receives that context, so `context.counter.disabled()`
+is the exact binding that the type assertion checks:
 
 ```ts
 type HasDerivedDisabledBinding = TemplateDelegatesToContext<
@@ -331,6 +422,27 @@ type _HasDerivedDisabledBinding = Expect<
   Equal<HasDerivedDisabledBinding, true>
 >;
 ```
+
+If the template were accidentally changed to use another member, the
+assertion would fail:
+
+```ts
+type UsesWrongBinding = Expect<
+  Equal<
+    TemplateDelegatesToContext<
+      ReturnType<ComponentTemplateOf<typeof Counter>>,
+      'button',
+      'disabled',
+      'counter.enabled'
+    >,
+    false
+  >
+>;
+```
+
+The callback is executed by the Craft driver before the DOM property is
+written. The assertion verifies the exact binding source without a fixture or
+DOM.
 
 `craftComputed` remains a synchronous signal when called directly
 (`counter.disabled()`). In a template context, it is projected to a yieldable

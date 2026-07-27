@@ -45,7 +45,7 @@ describe('craftComputed', () => {
 
   it('should require an injection context', () => {
     class OutsideInjectionContext {
-      readonly total = craftComputed('total', () => 42);
+      readonly total = craftComputed('total', () => 42).total;
     }
 
     expect(() => new OutsideInjectionContext()).toThrow();
@@ -54,7 +54,8 @@ describe('craftComputed', () => {
   it('should work with a plain computation function', () => {
     class CounterComponent {
       readonly count = signal(0);
-      readonly doubled = craftComputed('doubled', () => this.count() * 2);
+      readonly doubled = craftComputed('doubled', () => this.count() * 2)
+        .doubled;
     }
 
     const component = TestBed.runInInjectionContext(
@@ -80,7 +81,7 @@ describe('craftComputed', () => {
       readonly tripled = craftComputed('tripled', this, function* () {
         const multiplier = yield* Multiplier();
         return () => this.count() * multiplier.factor;
-      });
+      }).tripled;
     }
 
     const component = TestBed.runInInjectionContext(
@@ -97,7 +98,7 @@ describe('craftComputed', () => {
       readonly value = craftComputed('value', function* () {
         yield* onAppStart(() => undefined);
         return () => 42;
-      });
+      }).value;
     }
 
     expect(() =>
@@ -115,11 +116,12 @@ describe('craftComputed', () => {
 
     class CounterComponent {
       readonly count = signal(0);
-      readonly doubled = craftComputed('doubled', () => this.count() * 2);
+      readonly doubled = craftComputed('doubled', () => this.count() * 2)
+        .doubled;
       readonly tripled = craftComputed('tripled', this, function* () {
         const m = yield* Multiplier4();
         return () => this.count() * m.factor;
-      });
+      }).tripled;
     }
 
     const component = TestBed.runInInjectionContext(
@@ -150,7 +152,7 @@ describe('craftComputed', () => {
       readonly value = craftComputed('value', this, function* () {
         const m = yield* Multiplier5();
         return () => this.count() * m.factor;
-      });
+      }).value;
     }
 
     type ExpectedDeps = {

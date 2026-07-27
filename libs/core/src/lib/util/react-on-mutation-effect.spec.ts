@@ -14,8 +14,8 @@ describe('reactOnMutation', () => {
   });
   it('should enable to a query to react to a mutation change', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const queryRef = craftUse(
-        query({
+      const { queryRef } = craftUse(
+        query('queryRef', {
           params: () => '5',
           loader: async ({ params }) => {
             return {
@@ -26,8 +26,8 @@ describe('reactOnMutation', () => {
           },
         }),
       );
-      const mutationRef = craftUse(
-        mutation({
+      const { mutationRef } = craftUse(
+        mutation('mutationRef', {
           method: (payload: { id: string; name: string; email: string }) =>
             payload,
           loader: async ({ params }) => {
@@ -63,8 +63,8 @@ describe('reactOnMutation', () => {
 
   it('should enable to a query with identifier to react to a mutation change', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const queryRef = craftUse(
-        query({
+      const { queryRef } = craftUse(
+        query('queryRef', {
           params: () => '5',
           identifier: (params) => params,
           loader: async ({ params }) => {
@@ -76,8 +76,8 @@ describe('reactOnMutation', () => {
           },
         }),
       );
-      const mutationRef = craftUse(
-        mutation({
+      const { mutationRef } = craftUse(
+        mutation('mutationRef', {
           method: (payload: { id: string; name: string; email: string }) =>
             payload,
           loader: async ({ params }) => {
@@ -135,8 +135,8 @@ describe('reactOnMutation', () => {
           defaultValue: { id: '2', name: 'Jane Doe2', email: '' },
         });
 
-        const mutationRef = craftUse(
-          mutation({
+        const { mutationRef } = craftUse(
+          mutation('mutationRef', {
             fromResourceById: resourceByIdRef,
             params: (resource) => {
               if (!resource) {
@@ -152,8 +152,8 @@ describe('reactOnMutation', () => {
           }),
         );
 
-        const queryRef = craftUse(
-          query({
+        const { queryRef } = craftUse(
+          query('queryRef', {
             params: () => '1',
             identifier: (params) => params,
             loader: async ({ params }) => {

@@ -56,8 +56,9 @@ import {
 } from './resource-exception';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
 import {
-  createPrimitiveGen,
+  createNamedPrimitiveGen,
   type CraftPrimitiveGen,
+  type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
 import {
   APP_SNAPSHOT_REGISTRY,
@@ -623,6 +624,7 @@ export type MutationOutput<
 >;
 
 export function mutation<
+  Name extends string,
   MutationState,
   MutationParams,
   MutationArgsParams,
@@ -648,6 +650,7 @@ export function mutation<
       | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
+  name: Name,
   mutationConfig: MutationConfig<
     MutationState,
     MutationParams,
@@ -663,7 +666,8 @@ export function mutation<
     StreamYielded
   > &
     Config,
-): CraftPrimitiveGen<
+): NamedCraftPrimitiveGen<
+  Name,
   MutationOutput<
     StripCraftException<MutationState>,
     StripCraftException<MutationParams>,
@@ -683,6 +687,7 @@ export function mutation<
   >
 >;
 export function mutation<
+  Name extends string,
   MutationState extends object | undefined,
   MutationParams,
   MutationArgsParams,
@@ -710,6 +715,7 @@ export function mutation<
       | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
+  name: Name,
   mutationConfig: MutationConfig<
     MutationState,
     MutationParams,
@@ -734,7 +740,8 @@ export function mutation<
     {},
     Insertion1Yielded
   >,
-): CraftPrimitiveGen<
+): NamedCraftPrimitiveGen<
+  Name,
   MutationOutput<
     StripCraftException<MutationState>,
     StripCraftException<MutationParams>,
@@ -775,6 +782,10 @@ export function mutation<
  * **With Identifier:**
  * When an `identifier` function is provided, mutations are grouped by ID. Use `select(id)` to access individual mutation instances.
  *
+ * @param name - The mutation name. Used to key the returned record
+ *   (`const { updateUser } = yield* mutation('updateUser', config)`) and as the
+ *   injector host tag (`mutation:updateUser`), so the mutation is precisely
+ *   locatable in snapshots and logs.
  * @param config - Configuration object containing:
  *   - `method`: Function that takes args and returns params, or a `ReadonlySource` for automatic execution
  *   - `loader`: Async function that performs the mutation and returns a Promise of the result
@@ -786,10 +797,11 @@ export function mutation<
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the mutation.
  *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`).
  *   To attach several insertions, compose them with `craftPipe`:
- *   `mutation(config, (context) => craftPipe(context, insertion1, insertion2))` —
+ *   `mutation('name', config, (context) => craftPipe(context, insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
- * @returns A mutation reference object with:
+ * @returns A single-use primitive generator resolving to a record keyed by
+ *   `name`, whose value is a mutation reference object with:
  *   - `value`: Signal containing the mutation result (undefined if not yet executed)
  *   - `status`: Signal with the craft status ('idle' | 'loading' | 'reloading' | 'resolved' | 'local' | 'exception')
  *   - `exception`: Signal with the primary `craftException` (or undefined)
@@ -802,10 +814,13 @@ export function mutation<
  *   - `select(id)`: Method to access a specific mutation instance by ID (only when identifier is provided)
  *   - Custom methods from insertions (excluding methods bound to sources)
  *
+ *   Consume it with `yield*` inside a generator host (craftService factory,
+ *   craftGen, …) or with `craftUse(...)` elsewhere (typically a component field).
+ *
  * @example
  * Basic method-based mutation
  * ```ts
- * const updateUser = craftUse(mutation({
+ * const { updateUser } = craftUse(mutation('updateUser', {
  *   method: (userId: string) => ({ userId }),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}`, { method: 'PATCH' });
@@ -832,7 +847,7 @@ export function mutation<
  *  todo change example for mutation
  * const updateUserSource = source<{ userId: string, email: string }>();
  *
- *  const updateUser = craftUse(mutation({
+ *  const { updateUser } = craftUse(mutation('updateUser', {
  *   method:  afterRecomputation(updateUserSource, (params) => params),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}`, { method: 'PATCH' });
@@ -850,7 +865,7 @@ export function mutation<
  * ```ts
  * import { craftException, mutation } from '@craft-ng/core';
  *
- * const updateUser = craftUse(mutation({
+ * const { updateUser } = craftUse(mutation('updateUser', {
  *   method: (value: string) =>
  *     value.length < 3
  *       ? craftException(
@@ -878,7 +893,7 @@ export function mutation<
  * @example
  * Mutation with identifier for grouping
  * ```ts
- * const deleteItem = craftUse(mutation({
+ * const { deleteItem } = craftUse(mutation('deleteItem', {
  *   method: (itemId: string) => ({ itemId }),
  *   identifier: (params) => params.itemId,
  *   loader: async ({ params }) => {
@@ -900,7 +915,8 @@ export function mutation<
  * @example
  * With custom methods via insertions
  * ```ts
- * const createPost = craftUse(mutation(
+ * const { createPost } = craftUse(mutation(
+ *   'createPost',
  *   {
  *     method: (data: { title: string; content: string }) => data,
  *     loader: async ({ params }) => {
@@ -927,7 +943,7 @@ export function mutation<
  * Binding to another ResourceByIdRef
  * ```ts
  * // First, create a source mutation by ID
- * const fetchUsers = craftUse(mutation({
+ * const { fetchUsers } = craftUse(mutation('fetchUsers', {
  *   method: (userId: string) => ({ userId }),
  *   identifier: (params) => params.userId,
  *   loader: async ({ params }) => {
@@ -937,7 +953,7 @@ export function mutation<
  * }));
  *
  * // Then create a derived mutation that processes the results
- * const processedUsers = craftUse(mutation({
+ * const { processedUsers } = craftUse(mutation('processedUsers', {
  *   fromResourceById: fetchUsers,
  *   params: ({ value, status }) => {
  *     // Only process when the source is resolved
@@ -964,8 +980,18 @@ export function mutation<
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mutation(mutationConfig: any, ...insertions: any[]): any {
-  return createPrimitiveGen(createMutationRef(mutationConfig, ...insertions));
+export function mutation(
+  name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mutationConfig: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...insertions: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  return createNamedPrimitiveGen(
+    name,
+    createMutationRef(name, mutationConfig, ...insertions),
+  );
 }
 
 function createMutationRef<
@@ -994,6 +1020,7 @@ function createMutationRef<
       | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
+  name: string,
   mutationConfig: MutationConfig<
     MutationState,
     MutationParams,
@@ -1040,7 +1067,7 @@ function createMutationRef<
     assertInInjectionContext(mutation);
     injector = ɵcreateHostTaggedInjector(
       inject(Injector),
-      'mutation',
+      `mutation:${name}`,
       mutationExtraProviders,
     );
   }
@@ -1050,7 +1077,7 @@ function createMutationRef<
       assertInInjectionContext(mutation);
       injector = ɵcreateHostTaggedInjector(
         inject(Injector),
-        'mutation',
+        `mutation:${name}`,
         mutationExtraProviders,
       );
     }

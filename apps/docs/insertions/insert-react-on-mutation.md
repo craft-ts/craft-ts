@@ -16,7 +16,8 @@ A query accepts a single insertion; compose several `insertReactOnMutation`
 real-world use case for the pipe:
 
 ```typescript
-const users = query(
+const { users } = query(
+  'users',
   {
     params: pagination,
     identifier: (params) => `${params.page}-${params.pageSize}`,
@@ -32,7 +33,10 @@ const users = query(
         filter: ({ mutationIdentifier, queryResource }) =>
           !!queryResource.safeValue()?.some((u) => u.id === mutationIdentifier),
         optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-          removeOne({ entities: queryResource.value(), id: mutationIdentifier }),
+          removeOne({
+            entities: queryResource.value(),
+            id: mutationIdentifier,
+          }),
         reload: { onMutationException: true },
       }),
       insertReactOnMutation(deleteUser, {
@@ -41,7 +45,8 @@ const users = query(
         reload: { onMutationResolved: true },
       }),
       insertReactOnMutation(bulkDelete, {
-        filter: ({ queryResource }) => (queryResource.safeValue()?.length ?? 0) > 0,
+        filter: ({ queryResource }) =>
+          (queryResource.safeValue()?.length ?? 0) > 0,
         optimisticUpdate: ({ queryResource, mutationParams }) =>
           removeMany({ entities: queryResource.value(), ids: mutationParams }),
       }),
@@ -52,7 +57,7 @@ const users = query(
 ## Basic Usage
 
 ```typescript
-const updateUser = mutation({
+const { updateUser } = mutation('updateUser', {
   method: (user: User) => user,
   loader: function* ({ params: user }) {
     return yield* CraftHttpClient.patch(({ response }) => ({
@@ -64,7 +69,8 @@ const updateUser = mutation({
   },
 });
 
-const queryRef = query(
+const { queryRef } = query(
+  'queryRef',
   {
     params: () => '5',
     loader: async ({ params }) => ({
@@ -81,7 +87,7 @@ const queryRef = query(
 ```
 
 ```typescript
-const updateUser = mutation({
+const { updateUser } = mutation('updateUser', {
   method: (user: User) => user,
   loader: function* ({ params: user }) {
     return yield* CraftHttpClient.patch(({ response }) => ({
@@ -94,7 +100,8 @@ const updateUser = mutation({
 });
 
 // parallel query
-const queryRef = query(
+const { queryRef } = query(
+  'queryRef',
   {
     params: userId,
     identifier: (userId) => userId,

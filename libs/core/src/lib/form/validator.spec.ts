@@ -38,8 +38,9 @@ describe('validator', () => {
   it('reports cRequired as a craft exception', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           model,
           insertForm(
             insertFormAttributes(() => ({
@@ -66,8 +67,9 @@ describe('validator', () => {
   it('honors `when` to skip validation', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           model,
           insertForm(
             insertFormAttributes(() => ({
@@ -86,8 +88,9 @@ describe('validator', () => {
   it('reports cEmail when value does not match', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           model,
           insertForm(
             insertFormAttributes(() => ({
@@ -122,8 +125,9 @@ describe('validator', () => {
   it('reports cMin and cMax when value is outside range', () => {
     TestBed.runInInjectionContext(() => {
       const minModel = signal('2');
-      const minForm = craftUse(
+      const { minForm } = craftUse(
         state(
+          'minForm',
           minModel,
           insertForm(
             insertFormAttributes(() => ({
@@ -146,8 +150,9 @@ describe('validator', () => {
       });
 
       const maxModel = signal('11');
-      const maxForm = craftUse(
+      const { maxForm } = craftUse(
         state(
+          'maxForm',
           maxModel,
           insertForm(
             insertFormAttributes(() => ({
@@ -166,8 +171,9 @@ describe('validator', () => {
   it('reports cMinLength on an empty array', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal<string[]>([]);
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           model,
           insertForm(
             insertFormAttributes(() => ({
@@ -193,8 +199,9 @@ describe('validator', () => {
 
   it('reports cMinLength, cMaxLength and cPattern errors', () => {
     TestBed.runInInjectionContext(() => {
-      const minLenForm = craftUse(
+      const { minLenForm } = craftUse(
         state(
+          'minLenForm',
           signal('ab'),
           insertForm(
             insertFormAttributes(() => ({
@@ -207,8 +214,9 @@ describe('validator', () => {
         cMinLength: expectedException('cMinLength', 'minLength', 3),
       });
 
-      const maxLenForm = craftUse(
+      const { maxLenForm } = craftUse(
         state(
+          'maxLenForm',
           signal('abcd'),
           insertForm(
             insertFormAttributes(() => ({
@@ -221,8 +229,9 @@ describe('validator', () => {
         cMaxLength: expectedException('cMaxLength', 'maxLength', 3),
       });
 
-      const patternForm = craftUse(
+      const { patternForm } = craftUse(
         state(
+          'patternForm',
           signal('abc'),
           insertForm(
             insertFormAttributes(() => ({
@@ -240,8 +249,9 @@ describe('validator', () => {
   it('supports custom sync validators with cValidate', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal('');
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           fieldState,
           insertForm(
             insertFormAttributes(() => ({
@@ -287,15 +297,16 @@ describe('validator', () => {
     try {
       await TestBed.runInInjectionContext(async () => {
         const model = signal('');
-        const usernameQuery = craftUse(
-          query({
+        const { usernameQuery } = craftUse(
+          query('usernameQuery', {
             method: (username: string) => username,
             loader: async ({ params }) => ({ available: params !== 'taken' }),
           }),
         );
 
-        const fieldForm = craftUse(
+        const { fieldForm } = craftUse(
           state(
+            'fieldForm',
             model,
             insertForm(
               insertFormAttributes(() => ({

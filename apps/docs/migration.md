@@ -87,7 +87,7 @@ npx craft-migrate-routes --project tsconfig.app.json --root src --write
 Search the generated report and source code for migration diagnostics. In
 particular, complete the following work before considering the migration done:
 
-- Rewrite Angular Signal Forms as `state(..., insertForm(...))`.
+- Rewrite Angular Signal Forms as `state(name, ..., insertForm(...))`.
 - Consume every primitive invocation (`state`, `query`, `mutation`,
   `asyncProcess`, `queryParams`): `yield*` inside a generator factory,
   `craftUse(...)` in a component field. The

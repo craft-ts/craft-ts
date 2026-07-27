@@ -56,8 +56,9 @@ import {
 } from './resource-exception';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
 import {
-  createPrimitiveGen,
+  createNamedPrimitiveGen,
   type CraftPrimitiveGen,
+  type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
 import {
   APP_SNAPSHOT_REGISTRY,
@@ -545,6 +546,7 @@ export type QueryOutput<
 >;
 
 export function query<
+  Name extends string,
   QueryState extends object | undefined,
   QueryParams,
   QueryArgsParams,
@@ -570,6 +572,7 @@ export function query<
       | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
+  name: Name,
   queryConfig: QueryConfig<
     QueryState,
     QueryParams,
@@ -585,7 +588,8 @@ export function query<
     StreamYielded
   > &
     Config,
-): CraftPrimitiveGen<
+): NamedCraftPrimitiveGen<
+  Name,
   QueryOutput<
     StripCraftException<QueryState>,
     StripCraftException<QueryParams>,
@@ -605,6 +609,7 @@ export function query<
   >
 >;
 export function query<
+  Name extends string,
   QueryState extends object | undefined,
   QueryParams,
   QueryArgsParams,
@@ -632,6 +637,7 @@ export function query<
       | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
+  name: Name,
   queryConfig: QueryConfig<
     QueryState,
     QueryParams,
@@ -656,7 +662,8 @@ export function query<
     {},
     Insertion1Yielded
   >,
-): CraftPrimitiveGen<
+): NamedCraftPrimitiveGen<
+  Name,
   QueryOutput<
     StripCraftException<QueryState>,
     StripCraftException<QueryParams>,
@@ -703,6 +710,10 @@ export function query<
  * - Use `preservePreviousValue: () => true` to prevent flickering by keeping previous data while loading
  * - Use `equalParams` to control when queries should re-execute based on params comparison
  *
+ * @param name - The query name. Used to key the returned record
+ *   (`const { userQuery } = yield* query('userQuery', config)`) and as the
+ *   injector host tag (`query:userQuery`), so the query is precisely locatable
+ *   in snapshots and logs.
  * @param config - Configuration object containing:
  *   - `params`: Function that returns params for automatic execution, or undefined for method-based queries
  *   - `method`: Function that takes args and returns params for manual execution, or a `ReadonlySource` for reactive execution
@@ -716,9 +727,10 @@ export function query<
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query.
  *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`).
  *   To attach several insertions, compose them with `craftPipe`:
- *   `query(config, (context) => craftPipe(context, insertion1, insertion2))` —
+ *   `query('name', config, (context) => craftPipe(context, insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
- * @returns A query reference object with:
+ * @returns A single-use primitive generator resolving to a record keyed by
+ *   `name`, whose value is a query reference object with:
  *   - `value`: Signal containing the query result (undefined if not yet executed)
  *   - `status`: Signal with the craft status ('idle' | 'loading' | 'reloading' | 'resolved' | 'local' | 'exception')
  *   - `exception`: Signal with the primary `craftException` (or undefined)
@@ -732,12 +744,15 @@ export function query<
  *   - `resourceParamsSrc`: The underlying params signal
  *   - Custom methods from insertions
  *
+ *   Consume it with `yield*` inside a generator host (craftService factory,
+ *   craftGen, …) or with `craftUse(...)` elsewhere (typically a component field).
+ *
  * @example
  * Basic params-based automatic query
  * ```ts
  * const userIdSignal = signal('user-123');
  *
- * const userQuery = craftUse(query({
+ * const { userQuery } = craftUse(query('userQuery', {
  *   params: () => userIdSignal(),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params}`);
@@ -758,7 +773,7 @@ export function query<
  * @example
  * Method-based manual query
  * ```ts
- * const searchQuery = craftUse(query({
+ * const { searchQuery } = craftUse(query('searchQuery', {
  *   method: (searchTerm: string) => ({ term: searchTerm }),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/search?q=${params.term}`);
@@ -779,7 +794,7 @@ export function query<
  * ```ts
  * import { craftException, query } from '@craft-ng/core';
  *
- * const userQuery = craftUse(query({
+ * const { userQuery } = craftUse(query('userQuery', {
  *   method: (value: string) =>
  *     value.length < 3
  *       ? craftException(
@@ -807,7 +822,7 @@ export function query<
  * @example
  * Query with identifier for parallel execution
  * ```ts
- * const userDetailsQuery = craftUse(query({
+ * const { userDetailsQuery } = craftUse(query('userDetailsQuery', {
  *   params: () => currentUserId(),
  *   identifier: (userId) => userId,
  *   loader: async ({ params }) => {
@@ -829,7 +844,8 @@ export function query<
  * @example
  * With custom methods via insertions
  * ```ts
- * const todosQuery = craftUse(query(
+ * const { todosQuery } = craftUse(query(
+ *   'todosQuery',
  *   {
  *     params: () => ({ completed: showCompleted() }),
  *     loader: async ({ params }) => {
@@ -850,7 +866,7 @@ export function query<
  * @example
  * Streaming query
  * ```ts
- * const liveDataQuery = craftUse(query({
+ * const { liveDataQuery } = craftUse(query('liveDataQuery', {
  *   params: () => ({ channel: currentChannel() }),
  *   stream: async ({ params }) => {
  *     const response = await fetch(`/api/stream/${params.channel}`);
@@ -870,7 +886,7 @@ export function query<
  * Derived query from another ResourceByIdRef
  * ```ts
  * // First query fetches basic user data
- * const usersQuery = craftUse(query({
+ * const { usersQuery } = craftUse(query('usersQuery', {
  *   params: () => currentUserId(),
  *   identifier: (userId) => userId,
  *   loader: async ({ params }) => {
@@ -880,7 +896,7 @@ export function query<
  * }));
  *
  * // Derived query enriches user data with additional info
- * const enrichedUsersQuery = craftUse(query({
+ * const { enrichedUsersQuery } = craftUse(query('enrichedUsersQuery', {
  *   fromResourceById: usersQuery,
  *   params: ({ value, status }) => {
  *     // Only process when source is resolved
@@ -901,8 +917,18 @@ export function query<
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function query(queryConfig: any, ...insertions: any[]): any {
-  return createPrimitiveGen(createQueryRef(queryConfig, ...insertions));
+export function query(
+  name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  queryConfig: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...insertions: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  return createNamedPrimitiveGen(
+    name,
+    createQueryRef(name, queryConfig, ...insertions),
+  );
 }
 
 function createQueryRef<
@@ -919,6 +945,7 @@ function createQueryRef<
   LoaderYielded = never,
   StreamYielded = never,
 >(
+  name: string,
   queryConfig: QueryConfig<
     QueryState,
     QueryParams,
@@ -964,7 +991,7 @@ function createQueryRef<
     assertInInjectionContext(query);
     injector = ɵcreateHostTaggedInjector(
       inject(Injector),
-      'query',
+      `query:${name}`,
       queryExtraProviders,
     );
   } else {
@@ -983,7 +1010,7 @@ function createQueryRef<
     try {
       injector = ɵcreateHostTaggedInjector(
         inject(Injector),
-        'query',
+        `query:${name}`,
         queryExtraProviders,
       );
     } catch {
@@ -996,7 +1023,7 @@ function createQueryRef<
       assertInInjectionContext(query);
       injector = ɵcreateHostTaggedInjector(
         inject(Injector),
-        'query',
+        `query:${name}`,
         queryExtraProviders,
       );
     }

@@ -136,7 +136,7 @@ describe('functional component interpreter', () => {
         count,
         increment: craftMethod('increment', function* () {
           count.update((value) => value + 1);
-        }),
+        }).increment,
       }),
       ({ count, increment }) =>
         div([
@@ -173,7 +173,7 @@ describe('functional component interpreter', () => {
       () => ({
         disabled: craftMethod('disabled', function* () {
           return true;
-        }),
+        }).disabled,
       }),
       ({ disabled }) =>
         button(
@@ -211,7 +211,7 @@ describe('functional component interpreter', () => {
       () => ({
         increment: craftMethod('increment', function* () {
           count.update((value) => value + 1);
-        }),
+        }).increment,
       }),
       ({ increment }) =>
         button({ click: () => void increment() }, String(count())),
@@ -236,8 +236,8 @@ describe('functional component interpreter', () => {
       'yieldableComputedProperty',
       {},
       function* () {
-        const counter = yield* state(0, ({ state }) => ({
-          disabled: craftComputed('disabled', () => state() % 2 === 0),
+        const { counter } = yield* state('counter', 0, ({ state }) => ({
+          disabled: craftComputed('disabled', () => state() % 2 === 0).disabled,
         }));
         return { counter };
       },
@@ -260,9 +260,9 @@ describe('functional component interpreter', () => {
     );
     TestBed.tick();
 
-    expect((element.querySelector('button') as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (element.querySelector('button') as HTMLButtonElement).disabled,
+    ).toBe(true);
     mounted.destroy();
   });
 

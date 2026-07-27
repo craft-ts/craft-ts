@@ -34,7 +34,7 @@ const PixelArt = craftComponent(
   },
   function* () {
     componentMonitoring();
-    const ui = yield* state({ activeColor: COLORS[0] }, (context) =>
+    const { ui } = yield* state('ui', { activeColor: COLORS[0] }, (context) =>
       craftPipe(
         context,
         ({ update }) => ({
@@ -47,7 +47,8 @@ const PixelArt = craftComponent(
         }),
       ),
     );
-    const cells = yield* state(
+    const { cells } = yield* state(
+      'cells',
       INDEXES.map((index) => ({
         index,
         color: EMPTY_COLOR,

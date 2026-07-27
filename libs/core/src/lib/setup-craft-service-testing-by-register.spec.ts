@@ -39,10 +39,16 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should return the real sut, keep only explicit mocks and allow notReached descendants', async () => {
     const { ChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        })),
+      function* () {
+        const { childCounter } = yield* state(
+          'childCounter',
+          0,
+          ({ update }) => ({
+            increment: () => update((value) => value + 1),
+          }),
+        );
+        return childCounter;
+      },
     );
 
     const { ParentCounter } = craftService(
@@ -97,10 +103,12 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should use the real implementation for a global dependency marked as real', async () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(10, ({ update }) => ({
+      function* () {
+        const { counter } = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
-        })),
+        }));
+        return counter;
+      },
     );
 
     const { CounterConsumer, provideCounterConsumer } = craftService(
@@ -132,10 +140,12 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should allow mocking a global dependency with a raw object', async () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(10, ({ update }) => ({
+      function* () {
+        const { counter } = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
-        })),
+        }));
+        return counter;
+      },
     );
 
     const { CounterConsumer, provideCounterConsumer } = craftService(
@@ -173,11 +183,13 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should allow a minimal mock when a dependency is only used through derivations', async () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(0, ({ update }) => ({
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
-        })),
+        }));
+        return counter;
+      },
     );
 
     const { CounterFeature, provideCounterFeature } = craftService(
@@ -267,15 +279,14 @@ describe('setupCraftServiceTestingByRegister', () => {
       }),
     );
 
-    const { QueryMultiConsumer, provideQueryMultiConsumer } =
-      craftService(
-        { name: 'QueryMultiConsumer', scope: 'toProvide' },
-        function* () {
-          const isLoading = yield* QueryApiMulti.userQuery.isLoading();
-          const data = yield* QueryApiMulti.userQuery.data();
-          return { isLoading, data };
-        },
-      );
+    const { QueryMultiConsumer, provideQueryMultiConsumer } = craftService(
+      { name: 'QueryMultiConsumer', scope: 'toProvide' },
+      function* () {
+        const isLoading = yield* QueryApiMulti.userQuery.isLoading();
+        const data = yield* QueryApiMulti.userQuery.data();
+        return { isLoading, data };
+      },
+    );
 
     const mockLoading = signal(true);
     const mockData = signal<string | null>('hello');
@@ -307,11 +318,13 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should keep a full-service mock public shape without exposing $self', async () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(0, ({ update }) => ({
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
-        })),
+        }));
+        return counter;
+      },
     );
 
     const { CounterConsumer, provideCounterConsumer } = craftService(
@@ -365,10 +378,12 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should require a provider for manuallyProvidedAtRoot dependencies', async () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
-      () =>
-        state(7, ({ update }) => ({
+      function* () {
+        const { counter } = yield* state('counter', 7, ({ update }) => ({
           increment: () => update((value) => value + 1),
-        })),
+        }));
+        return counter;
+      },
     );
 
     const { CounterConsumer, provideCounterConsumer } = craftService(
@@ -383,13 +398,10 @@ describe('setupCraftServiceTestingByRegister', () => {
       },
     );
 
-    const { sut } = await setupCraftServiceTestingByRegister(
-      CounterConsumer,
-      {
-        CounterConsumer: provideCounterConsumer(),
-        Counter: provideCounter(),
-      },
-    );
+    const { sut } = await setupCraftServiceTestingByRegister(CounterConsumer, {
+      CounterConsumer: provideCounterConsumer(),
+      Counter: provideCounter(),
+    });
 
     expect(sut.read()).toBe(7);
     sut.increment();
@@ -399,10 +411,16 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should keep a shared descendant reachable through a real sibling branch when another branch is mocked', async () => {
     const { SharedCounter, provideSharedCounter } = craftService(
       { name: 'SharedCounter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        })),
+      function* () {
+        const { sharedCounter } = yield* state(
+          'sharedCounter',
+          0,
+          ({ update }) => ({
+            increment: () => update((value) => value + 1),
+          }),
+        );
+        return sharedCounter;
+      },
     );
 
     const { LeftCounter } = craftService(
@@ -468,10 +486,16 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should allow pruning a deep sub-branch while keeping the same descendant real through another path', async () => {
     const { ChildCounter, provideChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        })),
+      function* () {
+        const { childCounter } = yield* state(
+          'childCounter',
+          0,
+          ({ update }) => ({
+            increment: () => update((value) => value + 1),
+          }),
+        );
+        return childCounter;
+      },
     );
 
     const { MidCounter } = craftService(
@@ -536,10 +560,16 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should allow notReached once an entire branch is fully pruned', async () => {
     const { SharedCounter } = craftService(
       { name: 'SharedCounter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        })),
+      function* () {
+        const { sharedCounter } = yield* state(
+          'sharedCounter',
+          0,
+          ({ update }) => ({
+            increment: () => update((value) => value + 1),
+          }),
+        );
+        return sharedCounter;
+      },
     );
 
     const { LeftCounter } = craftService(
@@ -555,10 +585,16 @@ describe('setupCraftServiceTestingByRegister', () => {
 
     const { RightCounter, provideRightCounter } = craftService(
       { name: 'RightCounter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          incrementRight: () => update((value) => value + 1),
-        })),
+      function* () {
+        const { rightCounter } = yield* state(
+          'rightCounter',
+          0,
+          ({ update }) => ({
+            incrementRight: () => update((value) => value + 1),
+          }),
+        );
+        return rightCounter;
+      },
     );
 
     const { RootCounter, provideRootCounter } = craftService(
@@ -616,17 +652,16 @@ describe('setupCraftServiceTestingByRegister', () => {
       },
     );
 
-    const { AppStartRequiredHost, provideAppStartRequiredHost } =
-      craftService(
-        { name: 'AppStartRequiredHost', scope: 'toProvide' },
-        function* () {
-          const startup = yield* AppStartRequired();
+    const { AppStartRequiredHost, provideAppStartRequiredHost } = craftService(
+      { name: 'AppStartRequiredHost', scope: 'toProvide' },
+      function* () {
+        const startup = yield* AppStartRequired();
 
-          return {
-            read: () => startup,
-          };
-        },
-      );
+        return {
+          read: () => startup,
+        };
+      },
+    );
 
     if (false) {
       //@ts-expect-error reachable real appStart services must be declared as run or ignore
@@ -716,13 +751,12 @@ describe('setupCraftServiceTestingByRegister', () => {
       },
     );
 
-    const { IgnoredRegisterHost, provideIgnoredRegisterHost } =
-      craftService(
-        { name: 'IgnoredRegisterHost', scope: 'toProvide' },
-        function* () {
-          return yield* IgnoredRegisterStartup();
-        },
-      );
+    const { IgnoredRegisterHost, provideIgnoredRegisterHost } = craftService(
+      { name: 'IgnoredRegisterHost', scope: 'toProvide' },
+      function* () {
+        return yield* IgnoredRegisterStartup();
+      },
+    );
 
     await setupCraftServiceTestingByRegister(
       IgnoredRegisterHost,
@@ -760,17 +794,16 @@ describe('setupCraftServiceTestingByRegister', () => {
       },
     );
 
-    const { MockedRegisterHost, provideMockedRegisterHost } =
-      craftService(
-        { name: 'MockedRegisterHost', scope: 'toProvide' },
-        function* () {
-          const startup = yield* MockedRegisterStartup();
+    const { MockedRegisterHost, provideMockedRegisterHost } = craftService(
+      { name: 'MockedRegisterHost', scope: 'toProvide' },
+      function* () {
+        const startup = yield* MockedRegisterStartup();
 
-          return {
-            read: startup.read,
-          };
-        },
-      );
+        return {
+          read: startup.read,
+        };
+      },
+    );
 
     const { sut } = await setupCraftServiceTestingByRegister(
       MockedRegisterHost,
@@ -837,10 +870,16 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should reject invalid register combinations at typing time', () => {
     const { ChildCounter, provideChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-        })),
+      function* () {
+        const { childCounter } = yield* state(
+          'childCounter',
+          0,
+          ({ update }) => ({
+            increment: () => update((value) => value + 1),
+          }),
+        );
+        return childCounter;
+      },
     );
 
     const { ParentCounter } = craftService(
@@ -871,10 +910,12 @@ describe('setupCraftServiceTestingByRegister', () => {
 
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
-      () =>
-        state(0, ({ update }) => ({
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
-        })),
+        }));
+        return counter;
+      },
     );
 
     const { CounterConsumer, provideCounterConsumer } = craftService(
@@ -908,19 +949,16 @@ describe('setupCraftServiceTestingByRegister', () => {
     );
 
     if (false) {
-      const _mockedRoot = setupCraftServiceTestingByRegister(
-        RootCounter,
-        {
-          RootCounter: {
-            //@ts-expect-error the root cannot be mocked
-            incrementRoot: vi.fn(),
-          },
-          ParentCounter: {
-            incrementParent: vi.fn(),
-          },
-          ChildCounter: 'notReached',
+      const _mockedRoot = setupCraftServiceTestingByRegister(RootCounter, {
+        RootCounter: {
+          //@ts-expect-error the root cannot be mocked
+          incrementRoot: vi.fn(),
         },
-      );
+        ParentCounter: {
+          incrementParent: vi.fn(),
+        },
+        ChildCounter: 'notReached',
+      });
 
       const _realRoot = setupCraftServiceTestingByRegister(RootCounter, {
         //@ts-expect-error the root cannot be marked as real for a toProvide sut
@@ -931,17 +969,14 @@ describe('setupCraftServiceTestingByRegister', () => {
         ChildCounter: 'notReached',
       });
 
-      const _unreachedRoot = setupCraftServiceTestingByRegister(
-        RootCounter,
-        {
-          //@ts-expect-error the root cannot be marked as notReached
-          RootCounter: 'notReached',
-          ParentCounter: {
-            incrementParent: vi.fn(),
-          },
-          ChildCounter: 'notReached',
+      const _unreachedRoot = setupCraftServiceTestingByRegister(RootCounter, {
+        //@ts-expect-error the root cannot be marked as notReached
+        RootCounter: 'notReached',
+        ParentCounter: {
+          incrementParent: vi.fn(),
         },
-      );
+        ChildCounter: 'notReached',
+      });
 
       const _sharedChild = setupCraftServiceTestingByRegister(
         RootCounter,
@@ -955,23 +990,17 @@ describe('setupCraftServiceTestingByRegister', () => {
         },
       );
 
-      const _realManual = setupCraftServiceTestingByRegister(
-        CounterConsumer,
-        {
-          CounterConsumer: provideCounterConsumer(),
-          //@ts-expect-error `real` is not valid for manuallyProvidedAtRoot
-          Counter: 'real',
-        },
-      );
+      const _realManual = setupCraftServiceTestingByRegister(CounterConsumer, {
+        CounterConsumer: provideCounterConsumer(),
+        //@ts-expect-error `real` is not valid for manuallyProvidedAtRoot
+        Counter: 'real',
+      });
 
-      const _providerGlobal = setupCraftServiceTestingByRegister(
-        Navigation,
-        {
-          Navigation: provideNavigation(),
-          //@ts-expect-error providers are not valid for globals
-          Router: provideNavigation(),
-        },
-      );
+      const _providerGlobal = setupCraftServiceTestingByRegister(Navigation, {
+        Navigation: provideNavigation(),
+        //@ts-expect-error providers are not valid for globals
+        Router: provideNavigation(),
+      });
 
       const _reachableChild = setupCraftServiceTestingByRegister(
         CounterConsumer,
@@ -1031,19 +1060,16 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
     );
 
     const { sut, mocks } =
-      await setupCraftServiceTestingByRegister.boundaryOnly(
-        BoundaryOnlyRoot,
-        {
-          toProvideRegister: {
-            BoundaryOnlyRoot: provideBoundaryOnlyRoot(),
-          },
-          boundaryRegister: {
-            BoundaryOnlyStorage: {
-              read: () => 'mock-storage',
-            },
+      await setupCraftServiceTestingByRegister.boundaryOnly(BoundaryOnlyRoot, {
+        toProvideRegister: {
+          BoundaryOnlyRoot: provideBoundaryOnlyRoot(),
+        },
+        boundaryRegister: {
+          BoundaryOnlyStorage: {
+            read: () => 'mock-storage',
           },
         },
-      );
+      });
 
     expect(sut.read()).toBe('domain:mock-storage');
     expect(mocks.BoundaryOnlyStorage.read()).toBe('mock-storage');
@@ -1092,10 +1118,12 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
   });
 
   it('should require providers for reachable provider-scoped real services', async () => {
-    const { BoundaryOnlyConfig, provideBoundaryOnlyConfig } =
-      craftService({ name: 'BoundaryOnlyConfig', scope: 'toProvide' }, () => ({
+    const { BoundaryOnlyConfig, provideBoundaryOnlyConfig } = craftService(
+      { name: 'BoundaryOnlyConfig', scope: 'toProvide' },
+      () => ({
         read: (): string => 'provided-config',
-      }));
+      }),
+    );
 
     const { BoundaryOnlyConfigHost, provideBoundaryOnlyConfigHost } =
       craftService(
@@ -1288,17 +1316,14 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
     );
 
     if (false) {
-      setupCraftServiceTestingByRegister.boundaryOnly(
-        BoundaryOnlyRuntimeHost,
-        {
-          //@ts-expect-error non-boundary services cannot be listed in boundaryRegister
-          boundaryRegister: {
-            BoundaryOnlyRuntimeDomain: {
-              read: () => 'mock-domain',
-            },
+      setupCraftServiceTestingByRegister.boundaryOnly(BoundaryOnlyRuntimeHost, {
+        //@ts-expect-error non-boundary services cannot be listed in boundaryRegister
+        boundaryRegister: {
+          BoundaryOnlyRuntimeDomain: {
+            read: () => 'mock-domain',
           },
         },
-      );
+      });
     }
 
     await expect(
@@ -1353,9 +1378,7 @@ describe('setupCraftComponentTestingByRegister', () => {
 
     type GenDeps_ComponentRunStartupHost = GetDeps<{
       deps: {
-        ComponentRunStartup: GetServiceDependencies<
-          typeof ComponentRunStartup
-        >;
+        ComponentRunStartup: GetServiceDependencies<typeof ComponentRunStartup>;
       };
       provided: {};
       publicProperties: GetPublicComponentProperties<ComponentRunStartupHost>;
@@ -1675,15 +1698,13 @@ describe('setupCraftComponentTestingByRegister.boundaryOnly', () => {
   });
 
   it('should require providers for component dependencies that stay real', async () => {
-    const {
-      ComponentBoundaryOnlyConfig,
-      provideComponentBoundaryOnlyConfig,
-    } = craftService(
-      { name: 'ComponentBoundaryOnlyConfig', scope: 'toProvide' },
-      () => ({
-        read: (): string => 'provided-config',
-      }),
-    );
+    const { ComponentBoundaryOnlyConfig, provideComponentBoundaryOnlyConfig } =
+      craftService(
+        { name: 'ComponentBoundaryOnlyConfig', scope: 'toProvide' },
+        () => ({
+          read: (): string => 'provided-config',
+        }),
+      );
 
     @Component({
       standalone: true,

@@ -11,7 +11,8 @@ import { insertLocalStoragePersister } from '@craft-ng/core';
 ## Basic Usage
 
 ```typescript
-const myState = state(
+const { myState } = state(
+  'myState',
   0,
   insertLocalStoragePersister({
     storeName: 'myApp',
@@ -19,7 +20,8 @@ const myState = state(
   }),
 );
 
-const myQuery = query(
+const { myQuery } = query(
+  'myQuery',
   {
     params: () => 'test',
     loader: async () => {
@@ -35,21 +37,21 @@ const myQuery = query(
 
 ## Options
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `storeName` | `string` | — | Prefix for localStorage keys, used to namespace this store |
-| `key` | `string` | — | Key identifying the specific data within the store |
-| `cacheTime` | `number` | `300000` | Time in ms after which cached data is deleted from localStorage (garbage collection). Set to `0` to disable expiration. |
-| `staleTime` | `number` | `undefined` | Time in ms after which cached data is considered stale. The cached value is still restored immediately, but a background `reload()` is triggered (SWR pattern). Must be less than `cacheTime`. |
-| `validate` | `(value: unknown) => boolean` | `undefined` | Called on the deserialized value before restoring it. Return `false` to discard the entry and load fresh. Useful when the data model has changed. |
-| `waitForParamsSrcToBeEqualToPreviousValue` | `boolean` | `true` | If `true`, waits for the params signal to stabilize before trying to restore the cache. Useful when params start as `undefined`. Not applicable to `state()`. |
+| Option                                     | Type                          | Default     | Description                                                                                                                                                                                    |
+| ------------------------------------------ | ----------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storeName`                                | `string`                      | —           | Prefix for localStorage keys, used to namespace this store                                                                                                                                     |
+| `key`                                      | `string`                      | —           | Key identifying the specific data within the store                                                                                                                                             |
+| `cacheTime`                                | `number`                      | `300000`    | Time in ms after which cached data is deleted from localStorage (garbage collection). Set to `0` to disable expiration.                                                                        |
+| `staleTime`                                | `number`                      | `undefined` | Time in ms after which cached data is considered stale. The cached value is still restored immediately, but a background `reload()` is triggered (SWR pattern). Must be less than `cacheTime`. |
+| `validate`                                 | `(value: unknown) => boolean` | `undefined` | Called on the deserialized value before restoring it. Return `false` to discard the entry and load fresh. Useful when the data model has changed.                                              |
+| `waitForParamsSrcToBeEqualToPreviousValue` | `boolean`                     | `true`      | If `true`, waits for the params signal to stabilize before trying to restore the cache. Useful when params start as `undefined`. Not applicable to `state()`.                                  |
 
 ## cacheTime vs staleTime
 
-| | Data deleted? | Reload triggered? |
-|---|---|---|
-| **`cacheTime`** exceeded | Yes — entry removed from localStorage | No |
-| **`staleTime`** exceeded | No — data is still restored | Yes — `reload()` in background |
+|                          | Data deleted?                         | Reload triggered?              |
+| ------------------------ | ------------------------------------- | ------------------------------ |
+| **`cacheTime`** exceeded | Yes — entry removed from localStorage | No                             |
+| **`staleTime`** exceeded | No — data is still restored           | Yes — `reload()` in background |
 
 `cacheTime` always takes priority: if `cacheTime` is exceeded, the entry is discarded entirely, regardless of `staleTime`.
 
@@ -58,7 +60,8 @@ const myQuery = query(
 Use `staleTime` to display cached data immediately while silently refreshing in the background — the same pattern used by SWR and TanStack Query.
 
 ```typescript
-const userQuery = query(
+const { userQuery } = query(
+  'userQuery',
   {
     params: () => currentUserId(),
     loader: async ({ params }) => fetchUser(params),
@@ -67,7 +70,7 @@ const userQuery = query(
     storeName: 'myApp',
     key: 'user',
     cacheTime: 10 * 60_000, // delete from localStorage after 10 min
-    staleTime: 60_000,      // show cached + reload in background after 1 min
+    staleTime: 60_000, // show cached + reload in background after 1 min
   }),
 );
 
@@ -87,7 +90,8 @@ import { z } from 'zod';
 const UserSchema = z.object({ id: z.string(), name: z.string() });
 type User = z.infer<typeof UserSchema>;
 
-const userQuery = query(
+const { userQuery } = query(
+  'userQuery',
   {
     params: () => currentUserId(),
     loader: async ({ params }) => fetchUser(params),
@@ -107,10 +111,11 @@ const userQuery = query(
 
 Works with: `query()`, `mutation()`, `asyncProcess()`, and `state()`.
 
-Also works with `query({ identifier })` — each resource instance is cached individually by its identifier.
+Also works with `query(name, { identifier })` — each resource instance is cached individually by its identifier.
 
 ```typescript
-const postsQuery = query(
+const { postsQuery } = query(
+  'postsQuery',
   {
     params: () => currentPostId(),
     identifier: (id) => id,

@@ -134,11 +134,13 @@ import { craftService, state } from '@craft-ng/core';
 
 const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
-  () =>
-    state(0, ({ update }) => ({
+  function* () {
+    const { counter } = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
-    })),
+    }));
+    return counter;
+  },
 );
 
 const { CounterConsumer } = craftService(
@@ -183,10 +185,12 @@ This is separate from `provideUserFacade()`, which is only generated for provide
 ```typescript
 const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
-  () =>
-    state(0, ({ update }) => ({
+  function* () {
+    const { counter } = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
-    })),
+    }));
+    return counter;
+  },
 );
 
 const { CounterFacade } = craftService(
@@ -275,7 +279,7 @@ For method properties on services without public inputs, the shortcut calls the
 method directly:
 
 ```typescript
-const update = yield* UsersApi.updateUser({ id: '1', name: 'New' });
+const update = yield * UsersApi.updateUser({ id: '1', name: 'New' });
 ```
 
 ## Nested Property Shortcuts
@@ -326,7 +330,7 @@ const { Counter } = craftService(
 );
 
 // Fine — bindings are explicit
-const count = yield* Counter.count({ initialValue: signal(5) });
+const count = yield * Counter.count({ initialValue: signal(5) });
 
 // Type error — no-arg call is forbidden when inputs exist
 // Counter.count();
@@ -336,7 +340,7 @@ Use `X.OmitInputs.property()` to
 explicitly opt out of input bindings and use the defaults:
 
 ```typescript
-const count = yield* Counter.OmitInputs.count();
+const count = yield * Counter.OmitInputs.count();
 const count2 = yield * Counter.OmitInputs.count();
 ```
 
@@ -345,7 +349,7 @@ const count2 = yield * Counter.OmitInputs.count();
 `OmitInputs` composes with nested shortcuts:
 
 ```typescript
-const isLoading = yield* Counter.OmitInputs.userQuery.isLoading();
+const isLoading = yield * Counter.OmitInputs.userQuery.isLoading();
 ```
 
 ## Partial Exposure
@@ -355,11 +359,13 @@ const isLoading = yield* Counter.OmitInputs.userQuery.isLoading();
 ```typescript
 const { Counter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
-  () =>
-    state(0, ({ update }) => ({
+  function* () {
+    const { counter } = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
-    })),
+    }));
+    return counter;
+  },
 );
 
 const { CounterExtended, provideCounterExtended } = craftService(
@@ -416,7 +422,7 @@ const { User, provideUser } = craftService(
 const providers = [provideUser(() => ({ name: 'Ada' }))];
 
 // Anywhere downstream, inside a craft generator:
-const user = yield* User();
+const user = yield * User();
 ```
 
 The factory can be a **generator** that yields other services. Everything it yields is tracked, so

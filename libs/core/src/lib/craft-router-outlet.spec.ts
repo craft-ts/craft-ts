@@ -1,10 +1,6 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import {
-  Component,
-  EnvironmentInjector,
-  signal,
-} from '@angular/core';
+import { Component, EnvironmentInjector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
@@ -277,46 +273,52 @@ describe('CraftRouterOutlet', () => {
     expect(outlet.state()).toBe('loaded');
   });
 
-  it.fails('keeps pending visible for pendingMinMs before a final error', async () => {
-    const { outlet } = setup();
-    const exception = craftException({ code: 'LOAD_FAILED' });
-    activate(
-      outlet,
-      makeMeta({
-        stayMs: 300,
-        blankMs: 300,
-        pendingMinMs: 400,
-        errorComponent: { component: ErrCmp, componentDeps: {} },
-      }),
-    );
+  it.fails(
+    'keeps pending visible for pendingMinMs before a final error',
+    async () => {
+      const { outlet } = setup();
+      const exception = craftException({ code: 'LOAD_FAILED' });
+      activate(
+        outlet,
+        makeMeta({
+          stayMs: 300,
+          blankMs: 300,
+          pendingMinMs: 400,
+          errorComponent: { component: ErrCmp, componentDeps: {} },
+        }),
+      );
 
-    vi.advanceTimersByTime(650);
-    deferred.resolve({ kind: 'global', exception });
-    await flush();
+      vi.advanceTimersByTime(650);
+      deferred.resolve({ kind: 'global', exception });
+      await flush();
 
-    expect(outlet.state()).toBe('pending');
-    vi.advanceTimersByTime(350);
-    await flush();
-    expect(outlet.state()).toBe('error');
-  });
+      expect(outlet.state()).toBe('pending');
+      vi.advanceTimersByTime(350);
+      await flush();
+      expect(outlet.state()).toBe('error');
+    },
+  );
 
-  it.fails('ignores a late chain resolution after navigation cancellation', async () => {
-    const { outlet } = setup();
-    activate(outlet, makeMeta({ stayMs: 300, blankMs: 300 }));
-    outlet.deactivate();
-    await flush();
+  it.fails(
+    'ignores a late chain resolution after navigation cancellation',
+    async () => {
+      const { outlet } = setup();
+      activate(outlet, makeMeta({ stayMs: 300, blankMs: 300 }));
+      outlet.deactivate();
+      await flush();
 
-    deferred.resolve({
-      kind: 'data',
-      guardData: undefined,
-      resolveData: undefined,
-    });
-    await flush();
+      deferred.resolve({
+        kind: 'data',
+        guardData: undefined,
+        resolveData: undefined,
+      });
+      await flush();
 
-    expect(outlet.state()).toBe('idle');
-    expect(outlet.targetComponent()).toBeNull();
-    expect(outlet.displayedComponent()).toBeNull();
-  });
+      expect(outlet.state()).toBe('idle');
+      expect(outlet.targetComponent()).toBeNull();
+      expect(outlet.displayedComponent()).toBeNull();
+    },
+  );
 
   it('redirect outcome navigates and never renders the target', async () => {
     const { outlet, router } = setup();

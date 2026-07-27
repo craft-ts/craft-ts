@@ -26,7 +26,7 @@ const ExceptionsComponent = craftComponent(
   function* () {
     componentMonitoring();
     const scenario = signal<Scenario>('success');
-    const userQuery = yield* query({
+    const { userQuery } = yield* query('userQuery', {
       params: scenario,
       loader: async ({ params }) => {
         await new Promise((resolve) => setTimeout(resolve, 600));

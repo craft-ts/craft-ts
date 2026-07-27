@@ -53,8 +53,9 @@ describe('craftPipe with state', () => {
   it('merges outputs on the state ref, identically to the direct form', () => {
     runInInjectionContext(() => {
       const origin = signal(5);
-      const myState = craftUse(
+      const { myState } = craftUse(
         state(
+          'myState',
           computed(() => origin() * 2),
           (context) =>
             craftPipe(
@@ -86,8 +87,8 @@ describe('craftPipe with state', () => {
   it('runs members left to right and threads previous outputs through context.insertions', () => {
     runInInjectionContext(() => {
       const executionOrder: string[] = [];
-      const myState = craftUse(
-        state(0, (context) =>
+      const { myState } = craftUse(
+        state('myState', 0, (context) =>
           craftPipe(
             context,
             () => {
@@ -116,8 +117,8 @@ describe('craftPipe with state', () => {
 
   it('supports insertSelect as a member', () => {
     runInInjectionContext(() => {
-      const counter = craftUse(
-        state({ value: 0, nestedValue: 'hello' }, (context) =>
+      const { counter } = craftUse(
+        state('counter', { value: 0, nestedValue: 'hello' }, (context) =>
           craftPipe(
             context,
             insertSelect('value', ({ state: st, update }) => ({
@@ -144,8 +145,9 @@ describe('craftPipe with state', () => {
 
   it('supports a pipe INSIDE insertSelect (each level re-passes its context)', () => {
     runInInjectionContext(() => {
-      const board = craftUse(
+      const { board } = craftUse(
         state(
+          'board',
           { cell: { style: { color: 'white', paintCount: 0 } } },
           (context) =>
             craftPipe(
@@ -200,13 +202,13 @@ describe('craftPipe with state', () => {
     );
 
     runInInjectionContext(() => {
-      const myState = craftUse(
+      const { myState } = craftUse(
         state(
+          'myState',
           function* () {
-            const counter = yield* PipeCounterReader(
-              undefined,
-              ({ read }) => ({ read }),
-            );
+            const counter = yield* PipeCounterReader(undefined, ({ read }) => ({
+              read,
+            }));
             return counter.read();
           },
           (context) =>
@@ -268,7 +270,8 @@ describe('craftPipe with query', () => {
       { name: 'QueryPipeStore', scope: 'global' },
       function* () {
         return {
-          user: yield* query(
+          user: (yield* query(
+            'user',
             {
               params: () => '5',
               loader: async ({ params }) => {
@@ -302,7 +305,7 @@ describe('craftPipe with query', () => {
                   };
                 },
               ),
-          ),
+          )).user,
         };
       },
     );
@@ -325,7 +328,8 @@ describe('craftPipe with query', () => {
       { name: 'QueryPipeSevenStore', scope: 'global' },
       function* () {
         return {
-          user: yield* query(
+          user: (yield* query(
+            'user',
             {
               params: () => '5',
               loader: async ({ params }) => {
@@ -347,7 +351,7 @@ describe('craftPipe with query', () => {
                 ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
                 ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
               ),
-          ),
+          )).user,
         };
       },
     );
@@ -369,8 +373,8 @@ describe('craftPipe with query', () => {
     runInInjectionContext(() => {
       const shouldFail = signal(true);
 
-      const del = craftUse(
-        mutation({
+      const { del } = craftUse(
+        mutation('del', {
           method: (id: string) => id,
           identifier: (id) => id,
           loader: async ({ params }) =>
@@ -378,8 +382,9 @@ describe('craftPipe with query', () => {
         }),
       );
 
-      const q = craftUse(
+      const { q } = craftUse(
         query(
+          'q',
           {
             params: () =>
               shouldFail()
@@ -451,8 +456,9 @@ describe('craftPipe with query', () => {
     );
 
     runInInjectionContext(() => {
-      const queryRef = craftUse(
+      const { queryRef } = craftUse(
         query(
+          'queryRef',
           {
             params: function* () {
               const userIdService = yield* PipeUserIdService();
@@ -512,8 +518,9 @@ describe('craftPipe with query', () => {
 
   it('craftPipe works with mutation too (universal pipe)', () => {
     runInInjectionContext(() => {
-      const save = craftUse(
+      const { save } = craftUse(
         mutation(
+          'save',
           {
             method: (user: User) => user,
             loader: async ({ params }) => params,
@@ -564,7 +571,7 @@ describe('craftPipe — fn-wrapper interaction', () => {
       ],
     });
     runInInjectionContext(() =>
-      craftUse(state(0, (context) => craftPipe(context, m1, m2))),
+      craftUse(state('counter', 0, (context) => craftPipe(context, m1, m2))),
     );
     expect(wrappedFactories.filter((n) => n === 'm1').length).toBe(1);
     expect(wrappedFactories.filter((n) => n === 'm2').length).toBe(1);
@@ -586,26 +593,27 @@ describe('craftPipe — fn-wrapper interaction', () => {
         ),
       ],
     });
-    const myState = runInInjectionContext(() =>
-      craftUse(
-        state(0, (context) =>
-          craftPipe(
-            context,
-            (memberContext) =>
-              (function* () {
-                return {
-                  inc: () => memberContext.update((current) => current + 1),
-                };
-              })(),
-            ({ insertions }) => ({
-              incTwice: () => {
-                insertions.inc();
-                return insertions.inc();
-              },
-            }),
+    const myState = runInInjectionContext(
+      () =>
+        craftUse(
+          state('myState', 0, (context) =>
+            craftPipe(
+              context,
+              (memberContext) =>
+                (function* () {
+                  return {
+                    inc: () => memberContext.update((current) => current + 1),
+                  };
+                })(),
+              ({ insertions }) => ({
+                incTwice: () => {
+                  insertions.inc();
+                  return insertions.inc();
+                },
+              }),
+            ),
           ),
-        ),
-      ),
+        ).myState,
     );
 
     expect(typeof myState.inc).toBe('function');
@@ -635,7 +643,7 @@ describe('craftPipe — fn-wrapper interaction', () => {
     expect(() =>
       runInInjectionContext(() =>
         craftUse(
-          state(0, (context) =>
+          state('counter', 0, (context) =>
             craftPipe(
               context,
               () => ({ ok: () => 1 }),
@@ -655,7 +663,7 @@ describe('craftPipe — injector capture timing', () => {
   it('outside an injection context, construction throws like the direct forms', () => {
     expect(() =>
       craftUse(
-        state(0, (context) =>
+        state('counter', 0, (context) =>
           craftPipe(
             context,
             function* ({ update }) {
@@ -669,18 +677,19 @@ describe('craftPipe — injector capture timing', () => {
   });
 
   it('constructed inside a context, insertion methods stay callable outside any context', () => {
-    const s = runInInjectionContext(() =>
-      craftUse(
-        state(0, (context) =>
-          craftPipe(
-            context,
-            function* ({ update }) {
-              return { inc: () => update((c) => c + 1) };
-            },
-            ({ state: st }) => ({ double: computed(() => st() * 2) }),
+    const s = runInInjectionContext(
+      () =>
+        craftUse(
+          state('s', 0, (context) =>
+            craftPipe(
+              context,
+              function* ({ update }) {
+                return { inc: () => update((c) => c + 1) };
+              },
+              ({ state: st }) => ({ double: computed(() => st() * 2) }),
+            ),
           ),
-        ),
-      ),
+        ).s,
     );
     // outside any injection context now
     s.inc();

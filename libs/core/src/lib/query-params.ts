@@ -30,8 +30,9 @@ import {
 } from './craft-exception';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import {
-  createPrimitiveGen,
+  createNamedPrimitiveGen,
   type CraftPrimitiveGen,
+  type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -238,6 +239,10 @@ export interface QueryParamsConfig<
  * **Important:** This function must be called within an injection context.
  * If called outside an injection context, it will only return an object containing the configuration under `_config`.
  *
+ * @param name - The query params manager name. Used to key the returned record
+ *   (`const { pagination } = yield* queryParams('pagination', config)`) and as the
+ *   injector host tag (`queryParams:pagination`), so the primitive is precisely
+ *   locatable in snapshots and logs.
  * @param config - Configuration object containing:
  *   - `state`: Record of query parameter configurations, each with `fallbackValue`, `parse`, and `serialize`
  *   - `queryParamsHandling` (optional): How to handle existing query params ('merge' | 'preserve' | '')
@@ -247,18 +252,24 @@ export interface QueryParamsConfig<
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query param manager.
  *   The insertion receives a context with `state`, `config`, `set`, `update`, `patch` and `reset`.
  *   To attach several insertions, compose them with `craftPipe`:
- *   `queryParams(config, (context) => craftPipe(context, insertion1, insertion2))` —
+ *   `queryParams('name', config, (context) => craftPipe(context, insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
- * @returns A signal that returns the current query parameter state, extended with:
- *   - Individual signals for each query parameter (e.g., `queryParams.page()`)
+ * @returns A single-use primitive generator resolving to a record keyed by
+ *   `name`, whose value is a signal returning the current query parameter state,
+ *   extended with:
+ *   - Individual signals for each query parameter (e.g., `pagination.page()`)
  *   - Custom methods from insertions (excluding methods bound to sources)
  *   - `_config`: The original configuration
+ *
+ *   Consume it with `yield*` inside a generator host (craftService factory,
+ *   craftGen, …) or with `craftUse(...)` elsewhere (typically a component field).
  *
  * @example
  * Basic usage
  * ```ts
- * const myQueryParams = craftUse(queryParams(
+ * const { myQueryParams } = craftUse(queryParams(
+ *   'myQueryParams',
  *   {
  *     state: {
  *       page: {
@@ -290,7 +301,8 @@ export interface QueryParamsConfig<
  * @example
  * With custom methods via insertions
  * ```ts
- * const myQueryParams = craftUse(queryParams(
+ * const { myQueryParams } = craftUse(queryParams(
+ *   'myQueryParams',
  *   {
  *     state: {
  *       page: { fallbackValue: 1, parse: parseInt, serialize: String },
@@ -311,7 +323,7 @@ export interface QueryParamsConfig<
  * ```ts
  * import { craftException, queryParams } from '@craft-ng/core';
  *
- * const mode = craftUse(queryParams({
+ * const { mode } = craftUse(queryParams('mode', {
  *   state: {
  *     mode: {
  *       fallbackValue: 'success' as const,
@@ -333,17 +345,24 @@ export interface QueryParamsConfig<
  * ```
  */
 export function queryParams<
+  Name extends string,
   QueryParamsType extends Record<string, AnyQueryParamsConfig>,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
+  name: Name,
   config: { state: QueryParamsType } & QueryParamsNavigationOptions,
-): CraftPrimitiveGen<QueryParamsOutput<QueryParamsType, {}, QueryParamsState>>;
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryParamsOutput<QueryParamsType, {}, QueryParamsState>
+>;
 export function queryParams<
+  Name extends string,
   QueryParamsType extends Record<string, AnyQueryParamsConfig>,
   Insertion1,
   Insertion1Yielded = never,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
+  name: Name,
   config: { state: QueryParamsType } & QueryParamsNavigationOptions,
   insertion1: InsertionsQueryParamsFactory<
     NoInfer<QueryParamsType>,
@@ -351,7 +370,8 @@ export function queryParams<
     {},
     Insertion1Yielded
   >,
-): CraftPrimitiveGen<
+): NamedCraftPrimitiveGen<
+  Name,
   QueryParamsOutput<
     QueryParamsType,
     Insertion1,
@@ -360,8 +380,18 @@ export function queryParams<
   >
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function queryParams(config: any, ...insertions: any[]): any {
-  return createPrimitiveGen(createQueryParamsRef(config, ...insertions));
+export function queryParams(
+  name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  config: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...insertions: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  return createNamedPrimitiveGen(
+    name,
+    createQueryParamsRef(name, config, ...insertions),
+  );
 }
 
 /**
@@ -372,6 +402,7 @@ function createQueryParamsRef<
   QueryParamsType extends Record<string, AnyQueryParamsConfig>,
   QueryParamsState = Prettify<QueryParamsToState<QueryParamsType>>,
 >(
+  name: string,
   config: { state: QueryParamsType } & QueryParamsNavigationOptions,
   ...insertions: any[]
 ): QueryParamsOutput<QueryParamsType, {}, QueryParamsState> {
@@ -384,12 +415,16 @@ function createQueryParamsRef<
   }
 
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
-  const injector = ɵcreateHostTaggedInjector(inject(Injector), 'queryParams', [
-    {
-      provide: INSERTION_SNAPSHOT_REGISTRY,
-      useValue: insertionSnapshotRegistry,
-    },
-  ]);
+  const injector = ɵcreateHostTaggedInjector(
+    inject(Injector),
+    `queryParams:${name}`,
+    [
+      {
+        provide: INSERTION_SNAPSHOT_REGISTRY,
+        useValue: insertionSnapshotRegistry,
+      },
+    ],
+  );
   const router = inject(Router);
   const activatedRoute = inject(ActivatedRoute);
 

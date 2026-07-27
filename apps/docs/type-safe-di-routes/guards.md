@@ -75,15 +75,14 @@ const roleGuard = craftGen(
 const noPizzeriaGuard = craftGen(
   () =>
     function* () {
-      const { pizzeria } = yield* CraftAuth(
-        undefined,
-        ({ pizzeria }) => ({ pizzeria }),
-      );
+      const { pizzeria } = yield* CraftAuth(undefined, ({ pizzeria }) => ({
+        pizzeria,
+      }));
       return pizzeria() ? craftException({ code: 'HAS_PIZZERIA' }) : true;
     },
 );
 
-const pizzeriaDraftQuery = query({
+const { pizzeriaDraftQuery } = query('pizzeriaDraftQuery', {
   params: () => true,
   loader: function* () {
     return yield* CraftHttpClient.get(({ response }) => ({
@@ -368,14 +367,17 @@ craftRoute(
 );
 ```
 
-The **resource** form is identical — pass the ref (an inline `query(...)` works, though it is
+The **resource** form is identical — pass the ref (an inline `query(name, ...)` works, though it is
 reactive; prefer the HTTP form for one-shots):
 
 ```ts
 const user =
   yield *
   craftUntilSettled(
-    query({ params: () => userId, loader: ({ params }) => fetchUser(params) }),
+    query('user', {
+      params: () => userId,
+      loader: ({ params }) => fetchUser(params),
+    }).user,
   );
 ```
 

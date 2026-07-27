@@ -25,7 +25,7 @@ import { ApiService, type User } from './api.service';
 const { provideUserMutation, UserMutation } = craftService(
   { name: 'UserMutation', scope: 'toProvide' },
   function* (inputs: { userId: () => string | undefined }) {
-    const updateUserName = yield* mutation({
+    const { updateUserName } = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
         name: payload.userName,
@@ -35,7 +35,8 @@ const { provideUserMutation, UserMutation } = craftService(
       },
     });
 
-    const user = yield* query(
+    const { user } = yield* query(
+      'user',
       {
         params: inputs.userId,
         loader: function* ({ params: userId }) {
@@ -73,7 +74,7 @@ const MutationCraft = craftComponent(
   function* (userId: Input<string | undefined>) {
     componentMonitoring();
     const store = yield* UserMutation({ userId: () => userId() });
-    const updateUserNameFn = craftMethod(
+    const { updateUserNameFn } = craftMethod(
       'updateUserNameFn',
       function* (newName: string) {
         const { user, updateUserName } = yield* UserMutation(
@@ -92,7 +93,7 @@ const MutationCraft = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const navigate = craftMethod('navigate', function* (offset: number) {
+    const { navigate } = craftMethod('navigate', function* (offset: number) {
       void router.navigate({
         to: 'craft/mutation/:userId',
         params: { userId: String(Number(userId() ?? '0') + offset) },

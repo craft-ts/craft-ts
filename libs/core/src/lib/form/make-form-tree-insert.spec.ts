@@ -23,8 +23,9 @@ describe('makeFormTreeInsert', () => {
         })),
       );
 
-      const parent = craftUse(
+      const { parent } = craftUse(
         state(
+          'parent',
           { user: { name: 'romain', age: 30 }, orderId: 'abc' },
           insertForm(insertUserFormTree()),
         ),
@@ -59,8 +60,9 @@ describe('makeFormTreeInsert', () => {
         }),
       );
 
-      const parent = craftUse(
+      const { parent } = craftUse(
         state(
+          'parent',
           { user: { name: 'romain', age: 30 } },
           insertForm(insertUserFormTree()),
         ),
@@ -93,8 +95,9 @@ describe('makeFormTreeInsert', () => {
           ),
       );
 
-      const parent = craftUse(
+      const { parent } = craftUse(
         state(
+          'parent',
           { user: { name: 'romain', age: 30 } },
           insertForm(insertUserFormTree()),
         ),
@@ -119,6 +122,7 @@ describe('makeFormTreeInsert', () => {
 
       craftUse(
         state(
+          'order',
           { orderId: 'abc' as const },
           // @ts-expect-error parent state has no `user` field, so it does
           //  not satisfy `formTreeNeed<UserShape>()`.

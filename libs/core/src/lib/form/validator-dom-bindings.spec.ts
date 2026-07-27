@@ -26,6 +26,7 @@ import { craftUse } from '../craft-use';
 class EmailFieldValidatorBindingsComponent {
   protected readonly loginForm = craftUse(
     state(
+      'loginForm',
       { email: '' },
       insertForm(
         insertSelectFormTree('email', (context) =>
@@ -45,7 +46,7 @@ class EmailFieldValidatorBindingsComponent {
         ),
       ),
     ),
-  );
+  ).loginForm;
 }
 
 @Component({
@@ -56,6 +57,7 @@ class EmailFieldValidatorBindingsComponent {
 class NumberFieldValidatorBindingsComponent {
   protected readonly numberForm = craftUse(
     state(
+      'numberForm',
       { age: 0 },
       insertForm(
         insertSelectFormTree('age', (context) =>
@@ -69,7 +71,7 @@ class NumberFieldValidatorBindingsComponent {
         ),
       ),
     ),
-  );
+  ).numberForm;
 }
 
 describe('validator DOM bindings', () => {

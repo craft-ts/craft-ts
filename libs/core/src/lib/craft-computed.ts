@@ -20,6 +20,7 @@ import {
 } from './craft-generator-runtime';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 import { markYieldableMethod } from './yieldable';
+import type { NamedPrimitive } from './craft-primitive-gen';
 import type { YieldableMethod } from './yieldable';
 
 type CraftComputedGenerator<This, Yielded, T> = (
@@ -43,29 +44,29 @@ export function craftComputed<Name extends string, This, Yielded, T>(
   host: This,
   factory: CraftComputedGenerator<This, Yielded, T>,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<T, Yielded>;
+): NamedPrimitive<Name, TrackedCraftComputed<T, Yielded>>;
 export function craftComputed<Name extends string, Yielded, T>(
   name: Name,
   factory: CraftComputedGenerator<void, Yielded, T>,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<T, Yielded>;
+): NamedPrimitive<Name, TrackedCraftComputed<T, Yielded>>;
 export function craftComputed<Name extends string, This, T>(
   name: Name,
   host: This,
   computation: (this: This) => T,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<T, never>;
+): NamedPrimitive<Name, TrackedCraftComputed<T, never>>;
 export function craftComputed<Name extends string, T>(
   name: Name,
   computation: () => T,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<T, never>;
+): NamedPrimitive<Name, TrackedCraftComputed<T, never>>;
 export function craftComputed<T>(
   name: string,
   hostOrComputation: unknown,
   factoryOrOptions?: unknown,
   maybeOptions?: CreateComputedOptions<T>,
-): Signal<T> {
+): Record<string, Signal<T>> {
   // The host form is recognized by its 3rd argument being the factory —
   // `options` is never a function.
   const hasHost = typeof factoryOrOptions === 'function';
@@ -138,8 +139,8 @@ export function craftComputed<T>(
     }
   }
 
-  return markYieldableMethod(result) as unknown as TrackedCraftComputed<
-    T,
-    never
+  return { [name]: markYieldableMethod(result) } as unknown as Record<
+    string,
+    Signal<T>
   >;
 }

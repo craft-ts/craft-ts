@@ -33,7 +33,7 @@ applied to the component root. Other properties remain factory props.
 Values can be reactive:
 
 ```ts
-const active = state(false, ({ set }) => ({ set }));
+const { active } = state('active', false, ({ set }) => ({ set }));
 
 Card({
   class: () => (active() ? 'is-active' : 'is-idle'),

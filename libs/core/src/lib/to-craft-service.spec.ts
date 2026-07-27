@@ -134,9 +134,9 @@ describe('toCraftService', () => {
       },
     );
 
-    expect(
-      getServiceMetaData(RouterLikeShortcut.navigateByUrl).name,
-    ).toBe('RouterLikeShortcut');
+    expect(getServiceMetaData(RouterLikeShortcut.navigateByUrl).name).toBe(
+      'RouterLikeShortcut',
+    );
 
     await TestBed.runInInjectionContext(async () => {
       const navigation = ShortcutNavigation();
@@ -175,9 +175,7 @@ describe('toCraftService', () => {
 
         expectTypeOf(result).toEqualTypeOf<
           ReturnType<
-            GetServiceOutput<
-              typeof RouterLikeDirectShortcut
-            >['navigateByUrl']
+            GetServiceOutput<typeof RouterLikeDirectShortcut>['navigateByUrl']
           >
         >();
 
@@ -232,13 +230,12 @@ describe('toCraftService', () => {
       ],
     });
 
-    const { BrowserRoute, BROWSER_ROUTE_META_DATA } =
-      toCraftService({
-        name: 'BrowserRoute',
-        scope: 'global',
-        inject: () => inject(ROUTE),
-        browserBoundary: true,
-      });
+    const { BrowserRoute, BROWSER_ROUTE_META_DATA } = toCraftService({
+      name: 'BrowserRoute',
+      scope: 'global',
+      inject: () => inject(ROUTE),
+      browserBoundary: true,
+    });
 
     const { DEFAULT_ROUTE_META_DATA } = toCraftService({
       name: 'DefaultRoute',
@@ -265,10 +262,10 @@ describe('toCraftService', () => {
   it('should support $self derivation for callable external dependencies', () => {
     function createCounter() {
       return craftUse(
-        state(10, ({ update }) => ({
+        state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         })),
-      );
+      ).counter;
     }
 
     const COUNTER = new InjectionToken<ReturnType<typeof createCounter>>(
@@ -472,21 +469,18 @@ describe('toCraftService', () => {
       }
     }
 
-    const {
-      CounterDriver,
-      provideCounterDriver,
-      CounterDriverToProvide,
-    } = toCraftService({
-      name: 'CounterDriver',
-      scope: 'manuallyProvidedAtRoot',
-      token: CounterDriver,
-      provide: () => [
-        {
-          provide: CounterDriver,
-          useClass: CounterDriver,
-        },
-      ],
-    });
+    const { CounterDriver, provideCounterDriver, CounterDriverToProvide } =
+      toCraftService({
+        name: 'CounterDriver',
+        scope: 'manuallyProvidedAtRoot',
+        token: CounterDriver,
+        provide: () => [
+          {
+            provide: CounterDriver,
+            useClass: CounterDriver,
+          },
+        ],
+      });
 
     TestBed.configureTestingModule({
       providers: [provideCounterDriver()],
@@ -583,11 +577,11 @@ describe('toCraftService', () => {
   it('should track derived properties like a craftService leaf dependency', () => {
     function createCounter() {
       return craftUse(
-        state(10, ({ update }) => ({
+        state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
         })),
-      );
+      ).counter;
     }
 
     const COUNTER = new InjectionToken<ReturnType<typeof createCounter>>(

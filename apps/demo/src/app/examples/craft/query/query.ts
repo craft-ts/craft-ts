@@ -22,7 +22,8 @@ import { ApiService } from './api.service';
 const { UserQuery } = craftService(
   { name: 'UserQuery', scope: 'global' },
   function* (inputs: { userId: () => string | undefined }) {
-    return yield* query(
+    return (yield* query(
+      'userQuery',
       {
         params: inputs.userId,
         loader: function* ({ params }) {
@@ -34,7 +35,7 @@ const { UserQuery } = craftService(
         storeName: 'demo-app-craft',
         key: 'user-query',
       }),
-    );
+    )).userQuery;
   },
 );
 
@@ -47,7 +48,7 @@ const CraftGlobalQuery = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const navigate = craftMethod('navigate', function* (offset: number) {
+    const { navigate } = craftMethod('navigate', function* (offset: number) {
       // todo yield le router ici directement
       void router.navigate({
         to: 'craft/query/:userId',

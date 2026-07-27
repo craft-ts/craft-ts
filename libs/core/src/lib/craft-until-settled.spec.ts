@@ -22,21 +22,11 @@ import {
   type ResourceLike,
 } from './craft-until-settled';
 
-type GeneratorYielded<Gen> = Gen extends Generator<
-  infer Yielded,
-  unknown,
-  unknown
->
-  ? Yielded
-  : never;
+type GeneratorYielded<Gen> =
+  Gen extends Generator<infer Yielded, unknown, unknown> ? Yielded : never;
 
-type GeneratorReturn<Gen> = Gen extends Generator<
-  unknown,
-  infer Return,
-  unknown
->
-  ? Return
-  : never;
+type GeneratorReturn<Gen> =
+  Gen extends Generator<unknown, infer Return, unknown> ? Return : never;
 
 // A stub Router — the chain driver only binds these three methods onto the
 // exception-handler context; the handlers below use the outcome constructors.
@@ -70,7 +60,9 @@ function makeResource(): {
   const safeValue = signal<unknown>(undefined);
   const error = signal<Error | undefined>(undefined);
   const hasException = signal(false);
-  const exceptions = signal<{ list: readonly AnyCraftException[] }>({ list: [] });
+  const exceptions = signal<{ list: readonly AnyCraftException[] }>({
+    list: [],
+  });
 
   return {
     resource: { status, safeValue, error, hasException, exceptions },
@@ -99,8 +91,8 @@ describe('craftUntilSettled (query type channels)', () => {
     });
 
     const _createProgram = () => {
-      const queryRef = craftUse(
-        query({
+      const { queryRef } = craftUse(
+        query('queryRef', {
           params: () =>
             Math.random() > 0.5
               ? 'user-1'
@@ -246,7 +238,11 @@ describe('craftUntilSettled (HTTP await path)', () => {
 describe('craftUntilSettled (resource branch)', () => {
   it('yields a settle await-request, then returns the resolved value', () => {
     const { resource, status, safeValue } = makeResource();
-    const iterator = craftUntilSettled(resource) as Generator<unknown, unknown, unknown>;
+    const iterator = craftUntilSettled(resource) as Generator<
+      unknown,
+      unknown,
+      unknown
+    >;
 
     const first = iterator.next();
     expect(first.done).toBe(false);
@@ -262,7 +258,11 @@ describe('craftUntilSettled (resource branch)', () => {
 
   it('short-circuits with the loader exception when the resource has one', () => {
     const { resource, status, hasException, exceptions } = makeResource();
-    const iterator = craftUntilSettled(resource) as Generator<unknown, unknown, unknown>;
+    const iterator = craftUntilSettled(resource) as Generator<
+      unknown,
+      unknown,
+      unknown
+    >;
 
     iterator.next();
     hasException.set(true);
@@ -278,13 +278,19 @@ describe('craftUntilSettled (resource branch)', () => {
       expect.unreachable('expected a CraftGenShortCircuit to be thrown');
     } catch (error) {
       expect(isCraftGenShortCircuit(error)).toBe(true);
-      expect((error as CraftGenShortCircuit).exception.code).toBe('NOT_ALLOWED');
+      expect((error as CraftGenShortCircuit).exception.code).toBe(
+        'NOT_ALLOWED',
+      );
     }
   });
 
   it('rethrows the loader error when the resource settled to an exception', () => {
     const { resource, status, error } = makeResource();
-    const iterator = craftUntilSettled(resource) as Generator<unknown, unknown, unknown>;
+    const iterator = craftUntilSettled(resource) as Generator<
+      unknown,
+      unknown,
+      unknown
+    >;
 
     iterator.next();
     error.set(new Error('boom'));

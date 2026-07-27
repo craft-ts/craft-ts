@@ -118,9 +118,7 @@ const { CounterDriver, provideCounterDriver } = toCraftService({
   name: 'CounterDriver',
   scope: 'toProvide',
   token: CounterDriver,
-  provide: () => [
-    CounterDriver,
-  ],
+  provide: () => [CounterDriver],
 });
 
 // In tests or module providers:

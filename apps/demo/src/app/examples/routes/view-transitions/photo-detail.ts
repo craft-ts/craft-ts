@@ -31,7 +31,7 @@ const ViewTransitionsDetailComponent = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const back = craftMethod('back', function* () {
+    const { back } = craftMethod('back', function* () {
       void router.navigate({ to: 'view-transitions' });
     });
     return { photoId, back };

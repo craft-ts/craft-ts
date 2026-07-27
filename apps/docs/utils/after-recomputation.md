@@ -69,7 +69,7 @@ This pattern makes queries/mutations execute automatically when the source emits
 import { afterRecomputation, query, source$ } from '@craft-ng/core';
 
 const userIdChange = source$<string>();
-const user = query({
+const { user } = query('user', {
   method: afterRecomputation(userIdChange, (userId) => userId),
   loader: async ({ params }) => {
     const response = await fetch(`/api/users/${params}`);
@@ -91,7 +91,7 @@ userIdChange.emit('user-456');
 import { afterRecomputation, mutation, source$ } from '@craft-ng/core';
 
 const submitForm = source$<{ name: string; email: string }>();
-const submit = mutation({
+const { submit } = mutation('submit', {
   method: afterRecomputation(submitForm, (formData) => formData),
   loader: async ({ params }) => {
     const response = await fetch('/api/submit', {
@@ -114,7 +114,7 @@ submitForm.emit({ name: 'John', email: 'john@example.com' });
 import { afterRecomputation, asyncProcess, source$ } from '@craft-ng/core';
 
 const searchInput = source$<string>();
-const search = asyncProcess({
+const { search } = asyncProcess('search', {
   method: afterRecomputation(searchInput, (term) => term),
   loader: async ({ params }) => {
     // Debounce at source level before setting
@@ -139,7 +139,7 @@ type FormData = {
 import { afterRecomputation, mutation, source$ } from '@craft-ng/core';
 
 const formSubmit = source$<FormData>();
-const updateUser = mutation({
+const { updateUser } = mutation('updateUser', {
   // Extract only user data
   method: afterRecomputation(formSubmit, (data) => data.user),
   loader: async ({ params }) => {
@@ -165,7 +165,7 @@ formSubmit.emit({
 import { afterRecomputation, query, source$ } from '@craft-ng/core';
 
 const searchParams = source$<{ query: string; filters: string[] }>();
-const results = query({
+const { results } = query('results', {
   method: afterRecomputation(searchParams, (params) => ({
     q: params.query.trim().toLowerCase(),
     f: params.filters.join(','),
@@ -191,7 +191,7 @@ searchParams.emit({
 import { afterRecomputation, asyncProcess, source$ } from '@craft-ng/core';
 
 const inputChange = source$<string>();
-const validate = asyncProcess({
+const { validate } = asyncProcess('validate', {
   method: afterRecomputation(inputChange, (input) => {
     // Only proceed if input is valid
     const trimmed = input.trim();
@@ -224,7 +224,7 @@ import { afterRecomputation, query, source$ } from '@craft-ng/core';
 const quickSearch = source$<string>();
 const advancedSearch = source$<{ query: string; options: unknown }>();
 
-const quickResults = query({
+const { quickResults } = query('quickResults', {
   method: afterRecomputation(quickSearch, (term) => ({
     query: term,
     mode: 'quick',
@@ -238,7 +238,7 @@ const quickResults = query({
   },
 });
 
-const advancedResults = query({
+const { advancedResults } = query('advancedResults', {
   method: afterRecomputation(advancedSearch, ({ query, options }) => ({
     query,
     options,
@@ -270,7 +270,7 @@ advancedSearch.emit({
 import { afterRecomputation, mutation, source$ } from '@craft-ng/core';
 
 const dataUpdate = source$<{ id: string; payload: unknown }>();
-const update = mutation({
+const { update } = mutation('update', {
   // Pass data through unchanged
   method: afterRecomputation(dataUpdate, (data) => data),
   loader: async ({ params }) => {

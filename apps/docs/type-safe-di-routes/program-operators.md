@@ -22,12 +22,14 @@ typed channels:
 Invocations now expose `.pipe(...)`, which applies **program operators** left-to-right:
 
 ```typescript
-const report = yield* loadSlowReport().pipe(
-  catchTag('REPORT_EMPTY', function* () {
-    return { generatedAt: 'n/a', totalUsers: 0 };
-  }),
-  retry({ times: 2, backoff: 'exponential', delayMs: 200 }),
-);
+const report =
+  yield *
+  loadSlowReport().pipe(
+    catchTag('REPORT_EMPTY', function* () {
+      return { generatedAt: 'n/a', totalUsers: 0 };
+    }),
+    retry({ times: 2, backoff: 'exponential', delayMs: 200 }),
+  );
 ```
 
 Existing code is untouched: `yield* myProgram(args)` without `.pipe` works exactly as before.
@@ -97,18 +99,20 @@ exactly — a missing code or a handler for an unreachable code is a **compile e
 `.pipe` application site. Afterwards `E = never`.
 
 ```typescript
-const user = yield* loadUser(userId).pipe(
-  catchTag.exhaustive({
-    NOT_FOUND: function* () {
-      return GUEST_USER;
-    },
-    FORBIDDEN: function* () {
-      const audit = yield* Audit();
-      audit.report('forbidden-user-access');
-      return GUEST_USER;
-    },
-  }),
-);
+const user =
+  yield *
+  loadUser(userId).pipe(
+    catchTag.exhaustive({
+      NOT_FOUND: function* () {
+        return GUEST_USER;
+      },
+      FORBIDDEN: function* () {
+        const audit = yield* Audit();
+        audit.report('forbidden-user-access');
+        return GUEST_USER;
+      },
+    }),
+  );
 // `user` can no longer fail: E = never
 ```
 
@@ -125,9 +129,15 @@ loadUser(userId).pipe(
 // ⛔ compile error — 'TEAPOT' is not a reachable code
 loadUser(userId).pipe(
   catchTag.exhaustive({
-    NOT_FOUND: function* () { return GUEST_USER; },
-    FORBIDDEN: function* () { return GUEST_USER; },
-    TEAPOT: function* () { return GUEST_USER; },
+    NOT_FOUND: function* () {
+      return GUEST_USER;
+    },
+    FORBIDDEN: function* () {
+      return GUEST_USER;
+    },
+    TEAPOT: function* () {
+      return GUEST_USER;
+    },
   }),
 );
 ```
@@ -178,7 +188,7 @@ The three primitives drive their generator loaders with the same async pump as r
 loaders can suspend on `craftUntilSettled` and compose programs:
 
 ```typescript
-const userQuery = query({
+const { userQuery } = query('userQuery', {
   params: () => userId(),
   loader: function* ({ params }) {
     const api = yield* UserApi();

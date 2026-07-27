@@ -39,7 +39,7 @@ const ExceptionQueryParamsComponent = craftComponent(
       navigate,
     }));
     const activatedRoute = yield* ActivatedRoute();
-    const modeQueryParams = yield* queryParams({
+    const { modeQueryParams } = yield* queryParams('modeQueryParams', {
       state: {
         mode: {
           fallbackValue: 'fallbackValue' as const,

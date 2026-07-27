@@ -71,7 +71,7 @@ export class CounterComponent {
   readonly increment = craftMethod('increment', this, function* (step = 1) {
     yield* Console.log('increment is called');
     this.counter.update((value) => value + step);
-  });
+  }).increment;
 }
 ```
 
@@ -108,7 +108,7 @@ export class CounterComponent {
       this.counter.update((value) => value + step);
       return this.counter();
     },
-  );
+  ).increment;
 }
 ```
 
@@ -130,7 +130,7 @@ export class CounterComponent {
     function* (value: number) {
       return yield* CounterWorker.set(value);
     },
-  );
+  ).increment;
 }
 ```
 

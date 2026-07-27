@@ -64,11 +64,7 @@ Use `provideFnWrapper` mostly for **side effects** — logging, metrics, snapsho
 ### Example: timing every craft function
 
 ```ts
-import {
-  craftAppConfig,
-  provideFnWrapper,
-  HostTag,
-} from '@craft-ng/core';
+import { craftAppConfig, provideFnWrapper, HostTag } from '@craft-ng/core';
 
 provideFnWrapper(
   'Warning: dependency injection here is not type-safe and may fail at runtime',

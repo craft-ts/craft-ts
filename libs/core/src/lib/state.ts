@@ -36,8 +36,9 @@ import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
 import {
-  createPrimitiveGen,
+  createNamedPrimitiveGen,
   type CraftPrimitiveGen,
+  type NamedPrimitive,
 } from './craft-primitive-gen';
 import { markYieldableMethod } from './yieldable';
 
@@ -183,22 +184,26 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * The `state` function allows you to create a Signal-based state that can be extended with custom
  * methods and properties through an insertion. The insertion receives a context object with
  * `state`, `set` and `update` methods. Compose several insertions with `craftPipe`:
- * `state(value, (context) => craftPipe(context, insertion1, insertion2))`.
+ * `state('name', value, (context) => craftPipe(context, insertion1, insertion2))`.
  *
  * @remarks
  * For the best TypeScript inference, pass Angular `Signal` values (e.g. `signal`, `linkedSignal`)
  * rather than manually widening to `WritableSignal`. This avoids some overload inference limits.
  *
+ * @param name - The state name. Used to key the returned record
+ * (`const { counter } = yield* state('counter', 0)`) and as the injector host
+ * tag (`state:counter`), so the state is precisely locatable in snapshots and logs.
  * @param stateConfig - The initial state value or a Signal (e.g., linkedSignal)
  * @param insertion1 - Optional single insertion factory to extend the state with methods and properties
- * @returns A single-use primitive generator resolving to the state Signal,
- * merged with all insertion properties and methods. Consume it with `yield*`
+ * @returns A single-use primitive generator resolving to a record keyed by
+ * `name`, whose value is the state Signal merged with all insertion properties
+ * and methods. Consume it with `yield*`
  * inside a generator host (craftService factory, craftGen, …) or with
  * `craftUse(...)` elsewhere (typically a component field).
  *
  * @example
  * // Simple state with a primitive value (component field)
- * const counter = craftUse(state(0));
+ * const { counter } = craftUse(state('counter', 0));
  * console.log(counter()); // 0
  *
  * @example
@@ -206,7 +211,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * const { Counter } = craftService(
  *   { name: 'Counter', scope: 'global' },
  *   function* () {
- *     const counter = yield* state(0);
+ *     const { counter } = yield* state('counter', 0);
  *     return { counter };
  *   },
  * );
@@ -214,13 +219,14 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * @example
  * // State with a computed
  * const origin = signal(5);
- * const doubled = craftUse(state(computed(() => origin() * 2)));
+ * const { doubled } = craftUse(state('doubled', computed(() => origin() * 2)));
  * console.log(doubled()); // 10
  *
  * @example
  * // State with insertions to add methods (Method-based)
  * const origin = signal(5);
- * const counter = craftUse(state(
+ * const { counter } = craftUse(state(
+ *   'counter',
  *   computed(() => origin() * 2),
  *   ({ update, set }) => ({
  *     increment: () => update((current) => current + 1),
@@ -236,7 +242,8 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * @example
  * // State with multiple insertions, composed with craftPipe
  * const origin = signal(5);
- * const counterDouble = craftUse(state(
+ * const { counterDouble } = craftUse(state(
+ *   'counterDouble',
  *   computed(() => origin() * 2),
  *   (context) =>
  *     craftPipe(
@@ -260,7 +267,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * // State with source binding (Event-based)
  * const increment = source$<void>('increment');
  * const reset = source$<void>('reset');
- * const myState = craftUse(state(0, ({ update, set }) => ({
+ * const { myState } = craftUse(state('myState', 0, ({ update, set }) => ({
  *   setValue: on$(increment, () => update(value => value + 1)),
  *   reset: () => on$(reset, () => set(0)),
  * })));
@@ -271,16 +278,26 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * reset.emit();
  * console.log(myState()); // 0
  */
-export function state<StateInput>(
+export function state<Name extends string, StateInput>(
+  name: Name,
   stateConfig: StateInput,
 ): CraftPrimitiveGen<
-  StateOutput<
-    ResolvedStateType<StateInput>,
-    {},
-    StateTrackedDependencies<StateInput>
+  NamedPrimitive<
+    Name,
+    StateOutput<
+      ResolvedStateType<StateInput>,
+      {},
+      StateTrackedDependencies<StateInput>
+    >
   >
 >;
-export function state<StateInput, Insertion1, Insertion1Yielded = never>(
+export function state<
+  Name extends string,
+  StateInput,
+  Insertion1,
+  Insertion1Yielded = never,
+>(
+  name: Name,
   stateConfig: StateInput,
   insertion1: InsertionsStateFactory<
     NoInfer<ResolvedStateType<StateInput>>,
@@ -289,21 +306,36 @@ export function state<StateInput, Insertion1, Insertion1Yielded = never>(
     Insertion1Yielded
   >,
 ): CraftPrimitiveGen<
-  StateOutput<
-    ResolvedStateType<StateInput>,
-    Insertion1,
-    StateTrackedDependencies<StateInput, Insertion1Yielded>
+  NamedPrimitive<
+    Name,
+    StateOutput<
+      ResolvedStateType<StateInput>,
+      Insertion1,
+      StateTrackedDependencies<StateInput, Insertion1Yielded>
+    >
   >
 >;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function state(stateConfig: any, ...insertions: any[]): any {
-  return createPrimitiveGen(createStateRef(stateConfig, ...insertions));
+export function state(
+  name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stateConfig: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...insertions: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  return createNamedPrimitiveGen(
+    name,
+    createStateRef(name, stateConfig, ...insertions),
+  );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createStateRef<StateType>(
+  name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stateConfig: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...insertions: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const hasSelfConfig =
@@ -315,7 +347,7 @@ function createStateRef<StateType>(
   let injector: Injector | undefined;
   const getInjector = () => {
     assertInInjectionContext(state);
-    injector ??= ɵcreateHostTaggedInjector(inject(Injector), 'state', [
+    injector ??= ɵcreateHostTaggedInjector(inject(Injector), `state:${name}`, [
       {
         provide: INSERTION_SNAPSHOT_REGISTRY,
         useValue: insertionSnapshotRegistry,

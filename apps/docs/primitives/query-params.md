@@ -10,17 +10,32 @@ import { queryParams, craftUse } from '@craft-ng/core';
 
 ## Consuming the primitive
 
-Calling `queryParams(...)` (like every craft primitive) returns a **generator**
-that carries the primitive's dependency map. Consume it where you create it:
+Every craft primitive takes its **name** as first argument and resolves to a
+single-key record, so you always consume it by destructuring:
 
 - inside a generator host (a `craftService` factory, `craftGen`, …) with
-  `yield* queryParams({...})` — the dependencies fold into the enclosing service
-  tree automatically;
+  `const { pagination } = yield* queryParams('pagination', {...})` — the dependencies fold into
+  the enclosing service tree automatically;
 - anywhere else (typically a component field) with
-  `craftUse(queryParams({...}))`.
+  `const { pagination } = craftUse(queryParams('pagination', {...}))`.
 
-A factory arrow that returns the primitive directly stays valid — the runtime
-drives the generator for you: `craftService({...}, () => queryParams({...}))`.
+The name is more than a label: it tags the primitive's injector
+(`queryParams:pagination`), so it identifies the primitive in snapshots, logs and
+observability.
+
+A factory arrow that returns the primitive directly now resolves to the
+**record**, not the ref. Drive the primitive yourself when the service should
+expose the ref:
+
+```typescript
+craftService({ name: 'MyService', scope: 'global' }, function* () {
+  const { pagination } = yield* queryParams('pagination', {
+    /* ... */
+  });
+  return pagination;
+});
+```
+
 The generator is single-use: consume each invocation exactly once.
 
 For brevity, the examples below focus on the configuration and omit the
@@ -31,7 +46,8 @@ For brevity, the examples below focus on the configuration and omit the
 ### Basic usage with pagination
 
 ```typescript
-const myQueryParams = queryParams(
+const { myQueryParams } = queryParams(
+  'myQueryParams',
   {
     state: {
       page: {
@@ -63,7 +79,8 @@ myQueryParams.reset();
 ### With custom methods via insertions
 
 ```typescript
-const myQueryParams = queryParams(
+const { myQueryParams } = queryParams(
+  'myQueryParams',
   {
     state: {
       page: { fallbackValue: 1, parse: parseInt, serialize: String },
@@ -84,7 +101,7 @@ myQueryParams.goTo(5); // Custom method from insertion
 ```typescript
 import { craftException, queryParams } from '@craft-ng/core';
 
-const mode = queryParams({
+const { mode } = queryParams('mode', {
   state: {
     mode: {
       fallbackValue: 'success' as const,
@@ -108,6 +125,7 @@ if (mode.hasException()) {
 
 ```typescript
 queryParams(
+  'pagination',
   {
     state: {
       page: {
@@ -155,8 +173,9 @@ export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
             './examples/routes/list-with-pagination/qp-list-with-pagination'
           ),
         ),
-      queryParams: () =>
-        queryParams(
+      queryParams: function* () {
+        const { pagination } = yield* queryParams(
+          'pagination',
           {
             state: {
               page: {
@@ -177,7 +196,9 @@ export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
             updatePageSize: (newPageSize: number) =>
               patch({ pageSize: newPageSize, page: 1 }),
           }),
-        ),
+        );
+        return pagination;
+      },
     },
   ],
 );
@@ -198,7 +219,7 @@ Demo source:
 ### Search filters
 
 ```typescript
-const filters = queryParams({
+const { filters } = queryParams('filters', {
   state: {
     q: { fallbackValue: '', parse: String, serialize: String },
     category: { fallbackValue: 'all', parse: String, serialize: String },
@@ -210,7 +231,7 @@ const filters = queryParams({
 ### Array parameters
 
 ```typescript
-const filters = queryParams({
+const { filters } = queryParams('filters', {
   state: {
     tags: {
       fallbackValue: [],
@@ -224,7 +245,7 @@ const filters = queryParams({
 ### Boolean parameters
 
 ```typescript
-const options = queryParams({
+const { options } = queryParams('options', {
   state: {
     showArchived: {
       fallbackValue: false,

@@ -36,11 +36,11 @@ const FullDemo = craftComponent(
   function* () {
     componentMonitoring();
     const refresh = signal(0);
-    const todos = yield* query({
+    const { todos } = yield* query('todos', {
       params: refresh,
       loader: async () => [...records],
     });
-    const addTodo = yield* mutation({
+    const { addTodo } = yield* mutation('addTodo', {
       method: (title: string) => title,
       loader: async ({ params: title }) => {
         const todo = { id: nextId++, title };
@@ -49,7 +49,7 @@ const FullDemo = craftComponent(
         return todo;
       },
     });
-    const removeTodo = yield* mutation({
+    const { removeTodo } = yield* mutation('removeTodo', {
       method: (id: number) => id,
       loader: async ({ params: id }) => {
         records = records.filter((todo) => todo.id !== id);

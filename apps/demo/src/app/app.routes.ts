@@ -212,8 +212,9 @@ export const { demoRoutes } = craftRoutes('demo', [
         ),
       ).then(({ default: component }) => component),
     ),
-    queryParams: () =>
-      queryParams(
+    queryParams: function* () {
+      const { pagination } = yield* queryParams(
+        'pagination',
         {
           state: {
             page: { fallbackValue: 1, parse: Number, serialize: String },
@@ -225,7 +226,9 @@ export const { demoRoutes } = craftRoutes('demo', [
           previousPage: () => patch({ page: state().page - 1 }),
           updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
         }),
-      ),
+      );
+      return pagination;
+    },
   },
   craftRoute(
     'guard-demo',

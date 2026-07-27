@@ -53,7 +53,7 @@ Create granular state and derive its public API directly from it:
 import { computed } from '@angular/core';
 import { state } from '@craft-ng/core';
 
-const counter = state(0, ({ state, update, set }) => ({
+const { counter } = state('counter', 0, ({ state, update, set }) => ({
   increment: () => update((value) => value + 1),
   reset: () => set(0),
   doubled: computed(() => state() * 2),
@@ -72,10 +72,12 @@ import { craftService, state } from '@craft-ng/core';
 
 const { injectCounter } = craftService(
   { name: 'Counter', scope: 'global' },
-  () =>
-    state(0, ({ update }) => ({
+  function* () {
+    const { counter } = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
-    })),
+    }));
+    return counter;
+  },
 );
 
 const counter = injectCounter();

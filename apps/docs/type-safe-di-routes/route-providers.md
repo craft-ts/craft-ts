@@ -37,12 +37,13 @@ const { UserRequirement, provideUser } = craftService(
 );
 
 // 2. A guard that resolves the user.
-const { Auth } = craftService({ name: 'Auth', scope: 'global' }, () =>
-  query({
+const { Auth } = craftService({ name: 'Auth', scope: 'global' }, function* () {
+  const { auth } = yield* query('auth', {
     params: () => true,
     loader: async () => ({}) as User,
-  }),
-);
+  });
+  return auth;
+});
 
 export const { demoRoutes } = craftRoutes('demo', [
   craftRoute('query/:userId', {
@@ -73,12 +74,12 @@ that the guard resolved — without ever touching the fully-qualified route help
 The `.withProviders(...)` callback receives an object with **route-local short names** for every
 auto-provisioned token present on the route:
 
-| Helper                       | Present when…                | Yields                                  |
-| ---------------------------- | ---------------------------- | --------------------------------------- |
-| `GuardedData`         | the route has `canActivate`  | `Signal<GuardData>`                     |
-| `<Param>Params`       | per path param               | `Signal<string>` (e.g. `UserIdParams`) |
-| `QueryParams`         | the route has `queryParams`  | the query-params state                  |
-| `Data`                | the route has `data`         | `Signal<RouteData>`                     |
+| Helper          | Present when…               | Yields                                 |
+| --------------- | --------------------------- | -------------------------------------- |
+| `GuardedData`   | the route has `canActivate` | `Signal<GuardData>`                    |
+| `<Param>Params` | per path param              | `Signal<string>` (e.g. `UserIdParams`) |
+| `QueryParams`   | the route has `queryParams` | the query-params state                 |
+| `Data`          | the route has `data`        | `Signal<RouteData>`                    |
 
 Names are **scoped to the single route**, so the collection prefix and route path are dropped:
 `GuardedData`, not `DemoQueryUserIdGuardedData`. The path-param name is kept to keep

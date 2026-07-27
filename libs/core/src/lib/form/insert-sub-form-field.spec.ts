@@ -11,8 +11,9 @@ import { craftUse } from '../craft-use';
 describe('insertSubFormField', () => {
   it('exposes a derived sub-field that reads from the parent', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(
+      const { form } = craftUse(
         state(
+          'form',
           '2026-05-10 12:00',
           insertForm(insertSubFormField('date', splitLens(' ', 0))),
         ),
@@ -25,8 +26,9 @@ describe('insertSubFormField', () => {
 
   it('writes back to the parent through the lens.write function', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(
+      const { form } = craftUse(
         state(
+          'form',
           '2026-05-10 12:00',
           insertForm(
             insertSubFormField('date', splitLens(' ', 0)),
@@ -47,8 +49,9 @@ describe('insertSubFormField', () => {
 
   it('reflects external parent updates in the sub-field value', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(
+      const { form } = craftUse(
         state(
+          'form',
           '2026-05-10 12:00',
           insertForm(insertSubFormField('date', splitLens(' ', 0))),
         ),
@@ -65,8 +68,9 @@ describe('insertSubFormField', () => {
 
   it('runs validators registered via nested insertFormAttributes', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(
+      const { form } = craftUse(
         state(
+          'form',
           ' 12:00',
           insertForm(
             insertSubFormField(
@@ -89,8 +93,9 @@ describe('insertSubFormField', () => {
 
   it('marks the parent dirty when the sub-field is edited', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(
+      const { form } = craftUse(
         state(
+          'form',
           '2026-05-10 12:00',
           insertForm(insertSubFormField('date', splitLens(' ', 0))),
         ),
@@ -105,8 +110,9 @@ describe('insertSubFormField', () => {
 
   it('round-trips through splitLens (read → set → read)', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(
+      const { form } = craftUse(
         state(
+          'form',
           '2026-05-10 12:00',
           insertForm(
             insertSubFormField('date', splitLens(' ', 0)),
@@ -127,8 +133,9 @@ describe('insertSubFormField', () => {
 
   it('supports two derived sub-fields on the same parent without collision', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(
+      const { form } = craftUse(
         state(
+          'form',
           '2026-05-10 12:00',
           insertForm(
             insertSubFormField('date', splitLens(' ', 0)),
@@ -144,8 +151,9 @@ describe('insertSubFormField', () => {
 
   it('caches the derived form so repeated calls return the same instance', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(
+      const { form } = craftUse(
         state(
+          'form',
           '2026-05-10 12:00',
           insertForm(insertSubFormField('date', splitLens(' ', 0))),
         ),
@@ -159,8 +167,9 @@ describe('insertSubFormField', () => {
 
   it('mapLens converts string ↔ number for nested numeric editing', () => {
     TestBed.runInInjectionContext(() => {
-      const form = craftUse(
+      const { form } = craftUse(
         state(
+          'form',
           { ageStr: '42' },
           insertForm(
             insertSelectFormTree(

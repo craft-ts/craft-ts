@@ -32,7 +32,8 @@ import {
   cEmail,
 } from '@craft-ng/core';
 
-const userFormState = state(
+const { userFormState } = state(
+  'userFormState',
   { name: '', email: '' },
   insertForm(
     insertSelectFormTree(
@@ -66,7 +67,8 @@ const emailField = form.selectEmail();
 Adds attributes and validators to a form field.
 
 ```ts
-const formState = state(
+const { formState } = state(
+  'formState',
   { email: '' },
   insertForm(
     insertSelectFormTree(
@@ -93,7 +95,7 @@ const emailError = emailField()().exceptions.byValidator['cEmail'];
 Connects form submission to a mutation.
 
 ```ts
-const updateUserMutation = mutation({
+const { updateUserMutation } = mutation('updateUserMutation', {
   method: (data: ValidatedFormValue<UserForm>) => data,
   loader: function* ({ params: user }) {
     return yield* CraftHttpClient.patch(({ response, status }) => ({
@@ -116,7 +118,8 @@ const updateUserMutation = mutation({
   },
 });
 
-const userFormState = state(
+const { userFormState } = state(
+  'userFormState',
   { name: '', email: '' },
   insertForm(
     insertSelectFormTree(
@@ -207,7 +210,8 @@ interface ProductForm {
   }>;
 }
 
-const productFormState = state(
+const { productFormState } = state(
+  'productFormState',
   { name: '', variants: [] } as ProductForm,
   insertForm(
     insertSelectFormTree(
@@ -240,7 +244,8 @@ import {
   cRequired,
 } from '@craft-ng/core';
 
-const appointmentFormState = state(
+const { appointmentFormState } = state(
+  'appointmentFormState',
   '2026-05-10 12:00',
   insertForm(
     insertSubFormField(
@@ -370,7 +375,7 @@ It is not working yet. We are still working on it. The API is not final and may 
 :::
 
 ```ts
-const checkEmailQuery = query({
+const { checkEmailQuery } = query('checkEmailQuery', {
   params: () => ({ email: emailInput() }),
   loader: async ({ params }) => {
     const response = await fetch(`/api/check-email?email=${params.email}`);
@@ -437,7 +442,7 @@ interface User {
   age: number;
 }
 
-const createUserMutation = mutation({
+const { createUserMutation } = mutation('createUserMutation', {
   method: (data: ValidatedFormValue<User>) => data,
   loader: function* ({ params: user }) {
     return yield* CraftHttpClient.update(({ response }) => ({
@@ -448,7 +453,8 @@ const createUserMutation = mutation({
   },
 });
 
-const userFormState = state(
+const { userFormState } = state(
+  'userFormState',
   { name: '', email: '', age: 0 } satisfies User,
   insertForm(
     insertSelectFormTree(
@@ -492,7 +498,8 @@ interface User {
   addresses: Address[];
 }
 
-const userFormState = state(
+const { userFormState } = state(
+  'userFormState',
   {
     name: '',
     email: '',

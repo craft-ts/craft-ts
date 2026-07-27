@@ -482,10 +482,10 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     () => ({
       disabled: craftMethod('disabled', function* () {
         return true;
-      }),
+      }).disabled,
       enabled: craftMethod('enabled', function* () {
         return true;
-      }),
+      }).enabled,
     }),
     ({ disabled }) =>
       button(
@@ -519,7 +519,7 @@ it('keeps yieldable primitive properties in template VNodes', () => {
       counter: {
         disabled: craftMethod('disabled', function* () {
           return true;
-        }),
+        }).disabled,
       },
     }),
     ({ counter }) =>
@@ -549,8 +549,8 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     'derivedStatePropertyBinding',
     {},
     function* () {
-      const counter = yield* state(0, ({ state }) => ({
-        disabled: craftComputed('disabled', () => state() % 2 === 0),
+      const { counter } = yield* state('counter', 0, ({ state }) => ({
+        disabled: craftComputed('disabled', () => state() % 2 === 0).disabled,
       }));
       return { counter };
     },

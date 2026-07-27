@@ -10,17 +10,32 @@ import { query, craftUse } from '@craft-ng/core';
 
 ## Consuming the primitive
 
-Calling `query(...)` (like every craft primitive) returns a **generator**
-that carries the primitive's dependency map. Consume it where you create it:
+Every craft primitive takes its **name** as first argument and resolves to a
+single-key record, so you always consume it by destructuring:
 
 - inside a generator host (a `craftService` factory, `craftGen`, …) with
-  `yield* query({...})` — the dependencies fold into the enclosing service
-  tree automatically;
+  `const { userQuery } = yield* query('userQuery', {...})` — the dependencies fold into
+  the enclosing service tree automatically;
 - anywhere else (typically a component field) with
-  `craftUse(query({...}))`.
+  `const { userQuery } = craftUse(query('userQuery', {...}))`.
 
-A factory arrow that returns the primitive directly stays valid — the runtime
-drives the generator for you: `craftService({...}, () => query({...}))`.
+The name is more than a label: it tags the primitive's injector
+(`query:userQuery`), so it identifies the primitive in snapshots, logs and
+observability.
+
+A factory arrow that returns the primitive directly now resolves to the
+**record**, not the ref. Drive the primitive yourself when the service should
+expose the ref:
+
+```typescript
+craftService({ name: 'MyService', scope: 'global' }, function* () {
+  const { userQuery } = yield* query('userQuery', {
+    /* ... */
+  });
+  return userQuery;
+});
+```
+
 The generator is single-use: consume each invocation exactly once.
 
 For brevity, the examples below focus on the configuration and omit the
@@ -32,7 +47,7 @@ For brevity, the examples below focus on the configuration and omit the
 
 ```typescript
 const id = signal(1);
-const myQuery = query({
+const { myQuery } = query('myQuery', {
   params: id,
   loader: function* ({ params: userId }) {
     return yield* CraftHttpClient.get(({ response }) => ({
@@ -53,7 +68,7 @@ console.log(myQuery.status()); // 'idle' | 'loading' | 'resolved' | 'exception'
 ### Method-based query
 
 ```typescript
-const searchQuery = query({
+const { searchQuery } = query('searchQuery', {
   method: (term: string) => term,
   loader: function* ({ params: term }) {
     return yield* CraftHttpClient.get(({ response }) => ({
@@ -70,7 +85,7 @@ searchQuery.call('angular');
 
 ```typescript
 const userId = signal<number | undefined>(undefined);
-const query = query({
+const { userQuery } = query('userQuery', {
   params: userId,
   identifier: (id) => id,
   loader: function* ({ params: userId }) {
@@ -86,14 +101,15 @@ userId.set(1);
 // later
 userId.set(2);
 // Once all queries are resolved
-console.log(query.select('1').value()); // User 1 data
-console.log(query.select('2').value()); // User 2 data
+console.log(userQuery.select('1').value()); // User 1 data
+console.log(userQuery.select('2').value()); // User 2 data
 ```
 
 ### Dependency-based query
 
 ```typescript
-const query = query(
+const { userQuery } = query(
+  'userQuery',
   {
     params: function* () {
       return yield* UserService.userId();
@@ -114,18 +130,16 @@ const query = query(
 
 ### Add providers to query
 
-````typescript
-const query = query(
-  {
-    providers: [provideUserService(), provideUserApiService()],
-    params: function* () {
-      return yield* UserService.userId();
-    },
-    loader: function* ({ params: userId }) {
-      return yield* UserApiService.get(userId);
-    },
+```typescript
+const { userQuery } = query('userQuery', {
+  providers: [provideUserService(), provideUserApiService()],
+  params: function* () {
+    return yield* UserService.userId();
   },
-);
+  loader: function* ({ params: userId }) {
+    return yield* UserApiService.get(userId);
+  },
+});
 ```
 
 ### React to mutation with insertReactOnMutation and persist in local storage
@@ -133,7 +147,7 @@ const query = query(
 ```typescript
 import { craftPipe, insertReactOnMutation } from '@craft-ng/core';
 
-const updateUserMutation = mutation({
+const { updateUserMutation } = mutation('updateUserMutation', {
   method: (data: { id: string; name: string; email: string }) => data,
   loader: function* ({ params }) {
     return yield* CraftHttpClient.post(({ response }) => ({
@@ -144,7 +158,8 @@ const updateUserMutation = mutation({
   },
 });
 
-const userQuery = query(
+const { userQuery } = query(
+  'userQuery',
   {
     params: () => ({ userId: currentUserId() }),
     loader: function* ({ params }) {
@@ -159,11 +174,11 @@ const userQuery = query(
     craftPipe(
       context,
       insertReactOnMutation(updateUserMutation, {
-      // Optimistically update while mutation is loading
-      optimisticPatch: {
-        name: ({ mutationParams }) => mutationParams.name,
-        email: ({ mutationParams }) => mutationParams.email,
-      },
+        // Optimistically update while mutation is loading
+        optimisticPatch: {
+          name: ({ mutationParams }) => mutationParams.name,
+          email: ({ mutationParams }) => mutationParams.email,
+        },
         // Reload the query if updateUserMutation failed
         reload: { onMutationException: true },
       }),
@@ -183,14 +198,14 @@ updateUserMutation.mutate({
 // userQuery.value() is updated optimistically
 
 // When mutation completes, patch confirms the change
-````
+```
 
 ### Query exceptions (`hasException` / `exceptions()`)
 
 ```typescript
 import { craftException, query } from '@craft-ng/core';
 
-const userQuery = query({
+const { userQuery } = query('userQuery', {
   method: (value: string) =>
     value.length < 3
       ? craftException(
@@ -215,7 +230,7 @@ console.log(userQuery.exceptions().loader?.USER_ACCESS_FORBIDDEN);
 ### Query with http exceptions
 
 ```typescript
-const userQuery = query({
+const { userQuery } = query('userQuery', {
   params: () => ({ userId: currentUserId() }),
   loader: function* ({ params: userId }) {
     return yield* CraftHttpClient.get(({ response }) => ({
@@ -275,7 +290,8 @@ Demo source:
 ## Query with insertions for custom methods
 
 ```typescript
-const todosQuery = query(
+const { todosQuery } = query(
+  'todosQuery',
   {
     params: () => ({ completed: showCompleted() }),
     loader: async ({ params }) => {
@@ -297,7 +313,7 @@ console.log(todosQuery.isEmpty()); // true/false
 ### Preserve previous value to avoid flickering
 
 ```typescript
-const postsQuery = query({
+const { postsQuery } = query('postsQuery', {
   params: () => ({ page: currentPage() }),
   preservePreviousValue: () => true, // Keep showing old data while loading
   loader: async ({ params }) => {

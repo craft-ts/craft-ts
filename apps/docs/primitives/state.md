@@ -10,42 +10,41 @@ import { state, craftUse } from '@craft-ng/core';
 
 ## Consuming the primitive
 
-Calling `state(...)` (like every craft primitive) returns a **generator** that
-carries the primitive's dependency map. Consume it where you create it:
+Every craft primitive takes its **name** as first argument and resolves to a
+single-key record, so you always consume it by destructuring:
 
 - inside a generator host (a `craftService` factory, `craftGen`, …) with
-  `yield*` — the dependencies fold into the enclosing service tree
-  automatically:
+  `const { counter } = yield* state('counter', 0)` — the dependencies fold into
+  the enclosing service tree automatically;
+- anywhere else (typically a component field) with
+  `const { counter } = craftUse(state('counter', 0))`.
 
-  ```typescript
-  const { Counter } = craftService(
-    { name: 'Counter', scope: 'global' },
-    function* () {
-      const counter = yield* state(0);
-      return { counter };
-    },
-  );
-  ```
+The name is more than a label: it tags the primitive's injector
+(`state:counter`), so it identifies the primitive in snapshots, logs and
+observability.
 
-- anywhere else (typically a component field) with `craftUse(...)`:
+A factory arrow that returns the primitive directly now resolves to the
+**record**, not the ref. Drive the primitive yourself when the service should
+expose the ref:
 
-  ```typescript
-  export class CounterComponent {
-    readonly counter = craftUse(state(0));
-  }
-  ```
-
-A factory arrow that returns the primitive directly stays valid — the runtime
-drives the generator for you: `craftService({...}, () => state(0))`.
+```typescript
+craftService({ name: 'MyService', scope: 'global' }, function* () {
+  const { counter } = yield* state('counter', 0);
+  return counter;
+});
+```
 
 The generator is single-use: consume each invocation exactly once.
+
+For brevity, the examples below focus on the configuration and omit the
+`yield*` / `craftUse` wrapper.
 
 ## Basic Examples
 
 ### Simple state with a primitive value
 
 ```typescript
-const counter = craftUse(state(0));
+const { counter } = craftUse(state('counter', 0));
 console.log(counter()); // 0
 ```
 
@@ -55,7 +54,12 @@ console.log(counter()); // 0
 import { signal, computed } from '@angular/core';
 
 const origin = signal(5);
-const doubled = craftUse(state(computed(() => origin() * 2)));
+const { doubled } = craftUse(
+  state(
+    'doubled',
+    computed(() => origin() * 2),
+  ),
+);
 console.log(doubled()); // 10
 ```
 
@@ -65,8 +69,9 @@ console.log(doubled()); // 10
 import { signal, computed } from '@angular/core';
 
 const origin = signal(5);
-const counter = craftUse(
+const { counter } = craftUse(
   state(
+    'counter',
     computed(() => origin() * 2),
     ({ update, set }) => ({
       increment: () => update((current) => current + 1),
@@ -88,8 +93,9 @@ Compose several insertions into one with [craftPipe](/insertions/craft-pipe):
 
 ```typescript
 const origin = signal(5);
-const counter = craftUse(
+const { counter } = craftUse(
   state(
+    'counter',
     computed(() => origin() * 2),
     (context) =>
       craftPipe(
@@ -119,8 +125,8 @@ Methods bound to sources using `on$` are not exposed on the state, they only wor
 ```typescript
 const increment = source$<void>();
 const reset = source$<void>();
-const myState = craftUse(
-  state(0, ({ update, set }) => ({
+const { myState } = craftUse(
+  state('myState', 0, ({ update, set }) => ({
     setValue: on$(increment, () => update((v) => v + 1)),
     reset: () => on$(reset, () => set(0)),
   })),
@@ -138,27 +144,25 @@ console.log(myState()); // 0
 
 ```typescript
 craftUse(
-  state(
-    0,
-    (context) =>
-      craftPipe(
-        context,
-        ({ update }, { logger = inject(Logger) }) => ({
-          increment: () => {
-            logger.log('Incrementing state');
-            update((v) => v + 1);
-          },
-        }),
-        // log each time the state value changes
-        function* ({ state }) {
-          const log = yield* Console.log;
-
-          effect(() => {
-            log(`State value changed: ${state()}`);
-          });
-          return {};
+  state('counter', 0, (context) =>
+    craftPipe(
+      context,
+      ({ update }, { logger = inject(Logger) }) => ({
+        increment: () => {
+          logger.log('Incrementing state');
+          update((v) => v + 1);
         },
-      ),
+      }),
+      // log each time the state value changes
+      function* ({ state }) {
+        const log = yield* Console.log;
+
+        effect(() => {
+          log(`State value changed: ${state()}`);
+        });
+        return {};
+      },
+    ),
   ),
 );
 ```
@@ -170,8 +174,9 @@ Instead of using `inject`, craft-ng provides Services to yield. This allows you 
 Use the object form with `$self` when you want to scope providers to a single state:
 
 ```typescript
-const counter = craftUse(
+const { counter } = craftUse(
   state(
+    'counter',
     {
       $self: function* () {
         return yield* CounterPreferences.initialValue();

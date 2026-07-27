@@ -10,17 +10,32 @@ import { asyncProcess, craftUse } from '@craft-ng/core';
 
 ## Consuming the primitive
 
-Calling `asyncProcess(...)` (like every craft primitive) returns a **generator**
-that carries the primitive's dependency map. Consume it where you create it:
+Every craft primitive takes its **name** as first argument and resolves to a
+single-key record, so you always consume it by destructuring:
 
 - inside a generator host (a `craftService` factory, `craftGen`, …) with
-  `yield* asyncProcess({...})` — the dependencies fold into the enclosing service
-  tree automatically;
+  `const { shareContent } = yield* asyncProcess('shareContent', {...})` — the dependencies fold into
+  the enclosing service tree automatically;
 - anywhere else (typically a component field) with
-  `craftUse(asyncProcess({...}))`.
+  `const { shareContent } = craftUse(asyncProcess('shareContent', {...}))`.
 
-A factory arrow that returns the primitive directly stays valid — the runtime
-drives the generator for you: `craftService({...}, () => asyncProcess({...}))`.
+The name is more than a label: it tags the primitive's injector
+(`asyncProcess:shareContent`), so it identifies the primitive in snapshots, logs and
+observability.
+
+A factory arrow that returns the primitive directly now resolves to the
+**record**, not the ref. Drive the primitive yourself when the service should
+expose the ref:
+
+```typescript
+craftService({ name: 'MyService', scope: 'global' }, function* () {
+  const { shareContent } = yield* asyncProcess('shareContent', {
+    /* ... */
+  });
+  return shareContent;
+});
+```
+
 The generator is single-use: consume each invocation exactly once.
 
 For brevity, the examples below focus on the configuration and omit the
@@ -31,7 +46,7 @@ For brevity, the examples below focus on the configuration and omit the
 ### Basic method-based async method
 
 ```typescript
-const delay = asyncProcess({
+const { delay } = asyncProcess('delay', {
   method: (successResult: string) => successResult,
   loader: async ({ params: successResult }) => {
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -63,7 +78,7 @@ The method based always needs one parameter.
 import { source$, on$ } from '@craft-ng/core';
 
 const searchSource = source$<void>();
-const delayedSearch = asyncProcess({
+const { delayedSearch } = asyncProcess('delayedSearch', {
   method: on$(searchSource, (term) => term),
   loader: async ({ params: term }) => {
     // Debounce at source level
@@ -84,7 +99,7 @@ console.log(delayedSearch.status()); // Current state
 ### Async method with identifier for parallel operations
 
 ```typescript
-const debouncedById = asyncProcess({
+const { debouncedById } = asyncProcess('debouncedById', {
   method: (payload: { successResult: string; id: string }) => payload,
   identifier: ({ id }) => id,
   loader: async ({ params: { successResult } }) => {
@@ -115,7 +130,7 @@ console.log(debouncedById2?.value()); // data2 once resolved
 ### Add providers to asyncProcess
 
 ```typescript
-const loadProfile = asyncProcess({
+const { loadProfile } = asyncProcess('loadProfile', {
   providers: [provideAsyncLogger(), provideProfileGateway()],
   method: function* (userId: string) {
     yield* AsyncLogger.log(`load:${userId}`);
@@ -132,7 +147,7 @@ const loadProfile = asyncProcess({
 ```typescript
 import { asyncProcess, craftException } from '@craft-ng/core';
 
-const loadUser = asyncProcess({
+const { loadUser } = asyncProcess('loadUser', {
   method: (value: string) =>
     value.length < 3
       ? craftException(
@@ -157,7 +172,8 @@ console.log(loadUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
 ## Track async native JS api status
 
 ```typescript
-const shareContent = asyncProcess(
+const { shareContent } = asyncProcess(
+  'shareContent',
   {
     method: (payload: { title: string; url: string }) => payload,
     loader: function* ({ params }) {

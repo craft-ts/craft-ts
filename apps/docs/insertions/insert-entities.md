@@ -102,7 +102,8 @@ import {
   removeOne,
 } from '@craft-ng/core';
 
-const tags = state(
+const { tags } = state(
+  'tags',
   [] as string[],
   insertEntities({
     methods: [addOne, addMany, removeOne],
@@ -139,7 +140,8 @@ interface Product {
   price: number;
 }
 
-const products = state(
+const { products } = state(
+  'products',
   [] as Product[],
   insertEntities({
     methods: [addOne, setOne, removeOne],
@@ -174,7 +176,8 @@ interface User {
   email: string;
 }
 
-const users = state(
+const { users } = state(
+  'users',
   [] as User[],
   insertEntities({
     methods: [setOne, removeOne],
@@ -207,7 +210,8 @@ interface Catalog {
   products: Array<{ id: string; name: string }>;
 }
 
-const catalog = state(
+const { catalog } = state(
+  'catalog',
   {
     total: 0,
     products: [],
@@ -247,7 +251,8 @@ interface State {
   };
 }
 
-const store = state(
+const { store } = state(
+  'store',
   {
     catalog: {
       featured: {
@@ -280,7 +285,8 @@ interface Product {
   name: string;
 }
 
-const productsQuery = query(
+const { productsQuery } = query(
+  'productsQuery',
   {
     params: () => 'all',
     loader: async () => {
@@ -310,7 +316,8 @@ productsQuery.removeOne({ id: 'temp-1' });
 ```typescript
 import { query, insertEntities, addOne } from '@craft-ng/core';
 
-const userQuery = query(
+const { userQuery } = query(
+  'userQuery',
   {
     params: () => 'userId',
     identifier: (params) => params, // Track multiple query instances
@@ -342,7 +349,8 @@ interface Todo {
   completed: boolean;
 }
 
-const todos = state(
+const { todos } = state(
+  'todos',
   [
     { id: '1', title: 'Learn Angular', completed: false },
     { id: '2', title: 'Build app', completed: false },
@@ -381,7 +389,8 @@ interface Settings {
   value: string;
 }
 
-const settings = state(
+const { settings } = state(
+  'settings',
   [{ key: 'theme', value: 'dark' }] as Settings[],
   insertEntities({
     methods: [upsertOne, upsertMany],
@@ -431,7 +440,8 @@ interface Task {
   priority: 'low' | 'medium' | 'high';
 }
 
-const tasks = state(
+const { tasks } = state(
+  'tasks',
   [] as Task[],
   insertEntities({
     methods: [addOne, setOne, updateOne, removeOne, setAll],
@@ -484,7 +494,8 @@ tasks.setAll({
 ```typescript
 import { queryParams, insertEntities, addOne, removeOne } from '@craft-ng/core';
 
-const filters = queryParams(
+const { filters } = queryParams(
+  'filters',
   {
     state: {
       selectedIds: {
@@ -534,7 +545,8 @@ interface Product {
   price: number;
 }
 
-const products = state(
+const { products } = state(
+  'products',
   [] as Product[],
   insertEntities({
     methods: [addOne, updateOne],

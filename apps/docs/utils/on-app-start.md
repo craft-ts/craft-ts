@@ -124,7 +124,7 @@ Generator callbacks preserve the same waiting behavior. The generator itself res
 ### Missing `appStart: true`
 
 ```typescript
-yield* onAppStart(() => undefined);
+yield * onAppStart(() => undefined);
 ```
 
 This throws at runtime if the owning service was not declared with `appStart: true`.
@@ -132,10 +132,11 @@ This throws at runtime if the owning service was not declared with `appStart: tr
 ### Nested `onAppStart(...)`
 
 ```typescript
-yield* onAppStart(function* () {
-  yield* onAppStart(() => undefined); // unsupported
-  return undefined;
-});
+yield *
+  onAppStart(function* () {
+    yield* onAppStart(() => undefined); // unsupported
+    return undefined;
+  });
 ```
 
 Nested declarations are rejected at runtime.

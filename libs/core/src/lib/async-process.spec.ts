@@ -67,8 +67,8 @@ describe('AsyncProcess', () => {
   });
   it('should enable to define async method and be called with a method', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = craftUse(
-        asyncProcess({
+      const { myAsyncProcess } = craftUse(
+        asyncProcess('myAsyncProcess', {
           method: ({
             timeToWait,
             searchChange,
@@ -108,8 +108,8 @@ describe('AsyncProcess', () => {
         searchChange: string;
         timeToWait: number;
       }>('searchSource');
-      const myAsyncProcess = craftUse(
-        asyncProcess({
+      const { myAsyncProcess } = craftUse(
+        asyncProcess('myAsyncProcess', {
           method: afterRecomputation(
             searchSource,
             (searchConfig) => searchConfig,
@@ -145,8 +145,8 @@ describe('AsyncProcess', () => {
 
   it('should return undefined with safeValue when status is error', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = craftUse(
-        asyncProcess({
+      const { myAsyncProcess } = craftUse(
+        asyncProcess('myAsyncProcess', {
           method: (shouldFail: boolean) => shouldFail,
           loader: async ({ params: shouldFail }) => {
             if (shouldFail) {
@@ -194,8 +194,9 @@ describe('AsyncProcess', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const asyncRef = craftUse(
+      const { asyncRef } = craftUse(
         asyncProcess(
+          'asyncRef',
           {
             method: function* (userId: string) {
               const params = yield* AsyncParams();
@@ -243,8 +244,9 @@ describe('AsyncProcess', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const asyncRef = craftUse(
+      const { asyncRef } = craftUse(
         asyncProcess(
+          'asyncRef',
           {
             method: function* (userId: string) {
               const logger = yield* AsyncLoggerRuntime();
@@ -282,8 +284,8 @@ describe('AsyncProcess types without identifier', () => {
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
-          const searchChange = craftUse(
-            asyncProcess({
+          const { searchChange } = craftUse(
+            asyncProcess('searchChange', {
               method: ({
                 timeToWait,
                 searchChange,
@@ -302,8 +304,9 @@ describe('AsyncProcess types without identifier', () => {
               },
             }),
           );
-          const filterChange = craftUse(
+          const { filterChange } = craftUse(
             asyncProcess(
+              'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
                   filter,
@@ -424,8 +427,8 @@ describe('AsyncProcess types without identifier', () => {
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
-          const searchChange = craftUse(
-            asyncProcess({
+          const { searchChange } = craftUse(
+            asyncProcess('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
                 return searchChange;
               }),
@@ -436,8 +439,9 @@ describe('AsyncProcess types without identifier', () => {
               },
             }),
           );
-          const filterChange = craftUse(
+          const { filterChange } = craftUse(
             asyncProcess(
+              'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
                   filter,
@@ -539,8 +543,8 @@ describe('AsyncProcess types without identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _AsyncProcessOutput = craftUse(
-        asyncProcess({
+      const { _AsyncProcessOutput } = craftUse(
+        asyncProcess('_AsyncProcessOutput', {
           method: (searchChange: string) => {
             return searchChange;
           },
@@ -584,8 +588,8 @@ describe('AsyncProcess types without identifier', () => {
         'searchSource',
       );
 
-      const _AsyncProcessOutput = craftUse(
-        asyncProcess({
+      const { _AsyncProcessOutput } = craftUse(
+        asyncProcess('_AsyncProcessOutput', {
           method: afterRecomputation(searchSource, (searchChange) => {
             return searchChange;
           }),
@@ -632,8 +636,8 @@ describe('AsyncProcess types with identifier', () => {
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
-          const searchChange = craftUse(
-            asyncProcess({
+          const { searchChange } = craftUse(
+            asyncProcess('searchChange', {
               method: ({
                 timeToWait,
                 searchChange,
@@ -653,8 +657,9 @@ describe('AsyncProcess types with identifier', () => {
               },
             }),
           );
-          const filterChange = craftUse(
+          const { filterChange } = craftUse(
             asyncProcess(
+              'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
                   filter,
@@ -777,8 +782,8 @@ describe('AsyncProcess types with identifier', () => {
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', scope: 'function' },
         () => {
-          const searchChange = craftUse(
-            asyncProcess({
+          const { searchChange } = craftUse(
+            asyncProcess('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
                 return searchChange;
               }),
@@ -790,8 +795,9 @@ describe('AsyncProcess types with identifier', () => {
               },
             }),
           );
-          const filterChange = craftUse(
+          const { filterChange } = craftUse(
             asyncProcess(
+              'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
                   filter,
@@ -890,8 +896,8 @@ describe('AsyncProcess types with identifier', () => {
 
   it('should infer correctly the AsyncProcess bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const _AsyncProcessOutput = craftUse(
-        asyncProcess({
+      const { _AsyncProcessOutput } = craftUse(
+        asyncProcess('_AsyncProcessOutput', {
           method: (searchChange: string) => {
             return searchChange;
           },
@@ -932,8 +938,8 @@ describe('AsyncProcess types with identifier', () => {
         'searchSource',
       );
 
-      const _AsyncProcessOutput = craftUse(
-        asyncProcess({
+      const { _AsyncProcessOutput } = craftUse(
+        asyncProcess('_AsyncProcessOutput', {
           method: afterRecomputation(searchSource, (searchChange) => {
             return searchChange;
           }),
@@ -966,6 +972,7 @@ describe('asyncProcess exceptions', () => {
 
       craftUse(
         asyncProcess(
+          'process',
           {
             method: (value: string) =>
               shouldFail()
@@ -1052,8 +1059,8 @@ describe('asyncProcess exceptions', () => {
   it('typing: captures exception returned by method and loader', async () => {
     await TestBed.runInInjectionContext(async () => {
       const shouldFail = signal(true);
-      const asyncProcessRef = craftUse(
-        asyncProcess({
+      const { asyncProcessRef } = craftUse(
+        asyncProcess('asyncProcessRef', {
           method: (value: string) =>
             shouldFail()
               ? craftException(
@@ -1105,8 +1112,8 @@ describe('asyncProcess exceptions', () => {
       const shouldFailMethod = signal(true);
       const shouldFailLoader = signal(true);
 
-      const asyncProcessRef = craftUse(
-        asyncProcess({
+      const { asyncProcessRef } = craftUse(
+        asyncProcess('asyncProcessRef', {
           method: (value: string) =>
             shouldFailMethod()
               ? craftException(
@@ -1188,8 +1195,8 @@ describe('asyncProcess exceptions', () => {
 
   it('typing with identifier: return select exceptions for an identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const asyncProcessRef = craftUse(
-        asyncProcess({
+      const { asyncProcessRef } = craftUse(
+        asyncProcess('asyncProcessRef', {
           method: (value: string) => value,
           identifier: (id) => id,
           loader: async () =>
@@ -1244,8 +1251,8 @@ describe('asyncProcess exceptions', () => {
   it('typing with identifier: supports union of loader exceptions', async () => {
     await TestBed.runInInjectionContext(async () => {
       const failed = signal(true);
-      const asyncProcessRef = craftUse(
-        asyncProcess({
+      const { asyncProcessRef } = craftUse(
+        asyncProcess('asyncProcessRef', {
           method: (value: string) => value,
           identifier: (id) => id,
           loader: async () =>
@@ -1308,8 +1315,8 @@ describe('asyncProcess exceptions', () => {
         id: params,
       }));
 
-      const asyncProcessRef = craftUse(
-        asyncProcess({
+      const { asyncProcessRef } = craftUse(
+        asyncProcess('asyncProcessRef', {
           method: (value: string) =>
             value.length < 3
               ? craftException(
@@ -1337,8 +1344,8 @@ describe('asyncProcess exceptions', () => {
 
   it('captures exception returned by loader without exposing it in safeValue', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const asyncProcessRef = craftUse(
-        asyncProcess({
+      const { asyncProcessRef } = craftUse(
+        asyncProcess('asyncProcessRef', {
           method: (value: string) => value,
           loader: async () =>
             craftException(
@@ -1361,8 +1368,8 @@ describe('asyncProcess exceptions', () => {
 
   it('keeps method exceptions global in parallel asyncProcess', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const asyncProcessRef = craftUse(
-        asyncProcess({
+      const { asyncProcessRef } = craftUse(
+        asyncProcess('asyncProcessRef', {
           method: (id: 'A' | 'B') =>
             craftException({ code: 'INVALID_ID' }, { params: id }),
           identifier: (id) => id,
@@ -1391,8 +1398,8 @@ describe('AsyncProcess with params config', () => {
 
   it('should accept params config and auto-trigger loader', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = craftUse(
-        asyncProcess({
+      const { myAsyncProcess } = craftUse(
+        asyncProcess('myAsyncProcess', {
           params: () => '5',
           loader: async ({ params }) => {
             return {
@@ -1416,8 +1423,8 @@ describe('AsyncProcess with params config', () => {
 
   it('should accept params config with identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const myAsyncProcess = craftUse(
-        asyncProcess({
+      const { myAsyncProcess } = craftUse(
+        asyncProcess('myAsyncProcess', {
           params: () => '5',
           identifier: (params) => params,
           loader: async ({ params }) => {
@@ -1445,8 +1452,8 @@ describe('AsyncProcess with params config', () => {
 describe('AsyncProcess types with params config', () => {
   it('should infer correctly the types of asyncProcess with params (no identifier)', () => {
     TestBed.runInInjectionContext(() => {
-      const _asyncProcessOutput = craftUse(
-        asyncProcess({
+      const { _asyncProcessOutput } = craftUse(
+        asyncProcess('_asyncProcessOutput', {
           params: () => '5',
           loader: async ({ params }) => {
             return {
@@ -1492,8 +1499,8 @@ describe('AsyncProcess types with params config', () => {
 
   it('should infer correctly the types of asyncProcess with params and identifier', () => {
     TestBed.runInInjectionContext(() => {
-      const _asyncProcessOutput = craftUse(
-        asyncProcess({
+      const { _asyncProcessOutput } = craftUse(
+        asyncProcess('_asyncProcessOutput', {
           params: () => '5',
           identifier: (params) => params,
           loader: async ({ params }) => {
@@ -1556,8 +1563,9 @@ describe('asyncProcess — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const processRef = craftUse(
+      const { processRef } = craftUse(
         asyncProcess(
+          'processRef',
           {
             providers: [
               runtimeContextWrapper,
@@ -1591,8 +1599,8 @@ describe('asyncProcess — providers', () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
     TestBed.runInInjectionContext(() => {
-      const processRef = craftUse(
-        asyncProcess({
+      const { processRef } = craftUse(
+        asyncProcess('processRef', {
           providers: [
             providePrimitiveResourceRuntimeObserver((context) => {
               resourceContext = context;
@@ -1622,8 +1630,8 @@ describe('asyncProcess — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const processRef = craftUse(
-        asyncProcess({
+      const { processRef } = craftUse(
+        asyncProcess('processRef', {
           providers: [
             provideFnWrapper(
               'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -1654,8 +1662,8 @@ describe('asyncProcess — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const withProvider = craftUse(
-        asyncProcess({
+      const { withProvider } = craftUse(
+        asyncProcess('withProvider', {
           providers: [
             provideFnWrapper(
               'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -1668,8 +1676,8 @@ describe('asyncProcess — providers', () => {
           loader: async ({ params }) => ({ id: params }),
         }),
       );
-      const withoutProvider = craftUse(
-        asyncProcess({
+      const { withoutProvider } = craftUse(
+        asyncProcess('withoutProvider', {
           method: function* (id: string) {
             return id;
           },
@@ -1694,8 +1702,8 @@ describe('asyncProcess — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const withoutProviders = craftUse(
-        asyncProcess({
+      const { withoutProviders } = craftUse(
+        asyncProcess('withoutProviders', {
           method: (id: string) => id,
           loader: function* ({ params }) {
             yield* AsyncService();
@@ -1708,8 +1716,8 @@ describe('asyncProcess — providers', () => {
         'AsyncService' extends keyof WithoutDeps ? true : false
       >().toEqualTypeOf<true>();
 
-      const withProviders = craftUse(
-        asyncProcess({
+      const { withProviders } = craftUse(
+        asyncProcess('withProviders', {
           providers: [provideAsyncService()],
           method: (id: string) => id,
           loader: async ({ params }) => ({ id: params }),

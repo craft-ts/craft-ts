@@ -31,11 +31,11 @@ const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', scope: 'toProvide' },
   function* () {
     const refresh = signal(0);
-    const todos = yield* query({
+    const { todos } = yield* query('todos', {
       params: refresh,
       loader: async () => [...records],
     });
-    const add = yield* mutation({
+    const { add } = yield* mutation('add', {
       method: (title: string) => title,
       loader: async ({ params: title }) => {
         const todo = { id: nextId++, title };
@@ -44,7 +44,7 @@ const { provideTodoStore, TodoStore } = craftService(
         return todo;
       },
     });
-    const remove = yield* mutation({
+    const { remove } = yield* mutation('remove', {
       method: (id: number) => id,
       loader: async ({ params: id }) => {
         records = records.filter((todo) => todo.id !== id);

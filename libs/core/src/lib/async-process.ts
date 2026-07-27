@@ -48,8 +48,9 @@ import {
 } from './craft-exception';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
 import {
-  createPrimitiveGen,
+  createNamedPrimitiveGen,
   type CraftPrimitiveGen,
+  type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -460,13 +461,18 @@ export type AsyncProcessOutput<
  * @template SourceParams - The type emitted by the source (for source-based methods)
  * @template GroupIdentifier - The type of identifier for parallel execution
  *
+ * @param name - The async process name. Used to key the returned record
+ *   (`const { loadUser } = yield* asyncProcess('loadUser', config)`) and as the
+ *   injector host tag (`asyncProcess:loadUser`), so the primitive is precisely
+ *   locatable in snapshots and logs.
  * @param AsyncProcessConfig - Configuration object:
  *   - `method`: Function returning params OR source for automatic triggering
  *   - `loader`: Async function that performs the operation (mutually exclusive with `stream`)
  *   - `stream`: Streaming loader for progressive updates (mutually exclusive with `loader`)
  *   - `identifier`: Optional function to derive unique ID for parallel execution
  *
- * @returns An async method reference with:
+ * @returns A single-use primitive generator resolving to a record keyed by
+ *   `name`, whose value is an async method reference with:
  *   - `value`: Signal containing the result (or undefined)
  *   - `status`: Signal with the craft state ('idle' | 'loading' | 'reloading' | 'resolved' | 'local' | 'exception')
  *   - `exception`: Signal with the primary `craftException` (or undefined)
@@ -478,10 +484,13 @@ export type AsyncProcessOutput<
  *   - `source`: (source-based only) Readonly source for automatic triggering
  *   - `select(id)`: (with identifier) Access individual instance by ID
  *
+ *   Consume it with `yield*` inside a generator host (craftService factory,
+ *   craftGen, …) or with `craftUse(...)` elsewhere (typically a component field).
+ *
  * @example
  * Basic method-based async method
  * ```ts
- * const delay = craftUse(asyncProcess({
+ * const { delay } = craftUse(asyncProcess('delay', {
  *   method: (delay: number) => delay,
  *   loader: async ({ params }) => {
  *     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
@@ -507,7 +516,7 @@ export type AsyncProcessOutput<
  * ```ts
  * const delaySource = source<number>();
  *
- * const delay = craftUse(asyncProcess({
+ * const { delay } = craftUse(asyncProcess('delay', {
  *   method: afterRecomputation(delaySource, (term) => term),
  *   loader: async ({ params }) => {
  *     // Debounce at source level
@@ -530,7 +539,7 @@ export type AsyncProcessOutput<
  * ```ts
  * import { asyncProcess, craftException } from '@craft-ng/core';
  *
- * const loadUser = craftUse(asyncProcess({
+ * const { loadUser } = craftUse(asyncProcess('loadUser', {
  *   method: (value: string) =>
  *     value.length < 3
  *       ? craftException(
@@ -558,7 +567,7 @@ export type AsyncProcessOutput<
  * @example
  * Async method with identifier for parallel operations
  * ```ts
- * const delayById = craftUse(asyncProcess({
+ * const { delayById } = craftUse(asyncProcess('delayById', {
  *   method: (id: string) => id,
  *   identifier: (id) => id,
  *   loader: async () => {
@@ -583,7 +592,7 @@ export type AsyncProcessOutput<
  * @example
  * Calling async js native API
  * ```ts
- * const shareContent = craftUse(asyncProcess({
+ * const { shareContent } = craftUse(asyncProcess('shareContent', {
  *   method: (payload: { title: string, url: string }) => payload,
  *   loader: async ({ params }) => {
  *      return navigator.share(params);
@@ -597,6 +606,7 @@ export type AsyncProcessOutput<
  * ```
  */
 export function asyncProcess<
+  Name extends string,
   AsyncProcesstate extends object | undefined,
   AsyncProcessParams,
   AsyncProcessArgsParams,
@@ -619,6 +629,7 @@ export function asyncProcess<
       | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
+  name: Name,
   AsyncProcessConfig: AsyncProcessConfig<
     AsyncProcesstate,
     AsyncProcessParams,
@@ -631,7 +642,8 @@ export function asyncProcess<
     StreamYielded
   > &
     Config,
-): CraftPrimitiveGen<
+): NamedCraftPrimitiveGen<
+  Name,
   AsyncProcessOutput<
     StripCraftException<AsyncProcesstate>,
     StripCraftException<AsyncProcessParams>,
@@ -651,6 +663,7 @@ export function asyncProcess<
   >
 >;
 export function asyncProcess<
+  Name extends string,
   AsyncProcesstate extends object | undefined,
   AsyncProcessParams,
   AsyncProcessArgsParams,
@@ -675,6 +688,7 @@ export function asyncProcess<
       | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
+  name: Name,
   AsyncProcessConfig: AsyncProcessConfig<
     AsyncProcesstate,
     AsyncProcessParams,
@@ -696,7 +710,8 @@ export function asyncProcess<
     {},
     Insertion1Yielded
   >,
-): CraftPrimitiveGen<
+): NamedCraftPrimitiveGen<
+  Name,
   AsyncProcessOutput<
     StripCraftException<AsyncProcesstate>,
     StripCraftException<AsyncProcessParams>,
@@ -717,11 +732,16 @@ export function asyncProcess<
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function asyncProcess(
+  name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   AsyncProcessConfig: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...insertions: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
-  return createPrimitiveGen(
-    createAsyncProcessRef(AsyncProcessConfig, ...insertions),
+  return createNamedPrimitiveGen(
+    name,
+    createAsyncProcessRef(name, AsyncProcessConfig, ...insertions),
   );
 }
 
@@ -748,6 +768,7 @@ function createAsyncProcessRef<
       | Extract<ExtractCraftGenExceptions<LoaderYielded>, AnyCraftException>;
   },
 >(
+  name: string,
   AsyncProcessConfig: AsyncProcessConfig<
     AsyncProcesstate,
     AsyncProcessParams,
@@ -790,7 +811,7 @@ function createAsyncProcessRef<
     assertInInjectionContext(asyncProcess);
     injector = ɵcreateHostTaggedInjector(
       inject(Injector),
-      'asyncProcess',
+      `asyncProcess:${name}`,
       asyncExtraProviders,
     );
   }
@@ -800,7 +821,7 @@ function createAsyncProcessRef<
       assertInInjectionContext(asyncProcess);
       injector = ɵcreateHostTaggedInjector(
         inject(Injector),
-        'asyncProcess',
+        `asyncProcess:${name}`,
         asyncExtraProviders,
       );
     }

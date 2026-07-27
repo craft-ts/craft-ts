@@ -28,7 +28,8 @@ const GlobalQuery = craftComponent(
     yield* Console.info('[query-demo] route input received', {
       userId: userId(),
     });
-    const userQuery = yield* query(
+    const { userQuery } = yield* query(
+      'userQuery',
       {
         params: userId,
         loader: function* ({ params }) {
@@ -51,7 +52,7 @@ const GlobalQuery = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const navigate = craftMethod('navigate', function* (offset: number) {
+    const { navigate } = craftMethod('navigate', function* (offset: number) {
       const currentUserId = userId();
       const targetUserId = String(Number(currentUserId ?? '0') + offset);
       yield* Console.info('[query-demo] navigation requested', {

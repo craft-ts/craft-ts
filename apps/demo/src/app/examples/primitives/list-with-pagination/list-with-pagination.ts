@@ -26,7 +26,8 @@ const ListWithPagination = craftComponent(
   { providers: [provideHostName('component:ListWithPagination')] },
   function* () {
     componentMonitoring();
-    const pagination = yield* queryParams(
+    const { pagination } = yield* queryParams(
+      'pagination',
       {
         state: {
           page: { fallbackValue: 1, parse: Number, serialize: String },
@@ -40,7 +41,8 @@ const ListWithPagination = craftComponent(
       }),
     );
     const api = yield* ApiService();
-    const usersQuery = yield* query(
+    const { usersQuery } = yield* query(
+      'usersQuery',
       {
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,

@@ -35,7 +35,7 @@ import { state } from '@craft-ng/core';
   `,
 })
 export class CounterComponent {
-  protected readonly counter = state(0);
+  protected readonly counter = craftUse(state('counter', 0)).counter;
 }
 ```
 
@@ -68,7 +68,7 @@ You can add methods and computed properties to your state using a second inserti
 })
 export class CounterComponent {
   protected readonly counter = craftUse(
-    state(0, ({ update, state }) => ({
+    state('counter', 0, ({ update, state }) => ({
       // methods
       increment: () => update((current) => current + 1),
       decrement: () => update((current) => current - 1),
@@ -77,7 +77,7 @@ export class CounterComponent {
       double: computed(() => state() * 2),
       isPositive: computed(() => state() > 0),
     })),
-  );
+  ).counter;
 }
 ```
 
@@ -92,34 +92,40 @@ interface Todo {
   completed: boolean;
 }
 
-const { Todos } = craftService({ name: 'Todos', scope: 'global' }, () =>
-  state([] as Todo[], ({ state, set }) => ({
-    add: (title: string) => {
-      const trimmedTitle = title.trim();
-      if (!trimmedTitle) {
-        return;
-      }
+const { Todos } = craftService(
+  { name: 'Todos', scope: 'global' },
+  function* () {
+    const { todos } = yield* state('todos', [] as Todo[], ({ state, set }) => ({
+      add: (title: string) => {
+        const trimmedTitle = title.trim();
+        if (!trimmedTitle) {
+          return;
+        }
 
-      set([
-        ...state(),
-        {
-          id: crypto.randomUUID(),
-          title: trimmedTitle,
-          completed: false,
-        },
-      ]);
-    },
-    toggle: (id: string) => {
-      set(
-        state().map((todo) =>
-          todo.id === id ? { ...todo, completed: !todo.completed } : todo,
-        ),
-      );
-    },
-    remove: (id: string) => set(state().filter((todo) => todo.id !== id)),
-    total: computed(() => state().length),
-    remaining: computed(() => state().filter((todo) => !todo.completed).length),
-  })),
+        set([
+          ...state(),
+          {
+            id: crypto.randomUUID(),
+            title: trimmedTitle,
+            completed: false,
+          },
+        ]);
+      },
+      toggle: (id: string) => {
+        set(
+          state().map((todo) =>
+            todo.id === id ? { ...todo, completed: !todo.completed } : todo,
+          ),
+        );
+      },
+      remove: (id: string) => set(state().filter((todo) => todo.id !== id)),
+      total: computed(() => state().length),
+      remaining: computed(
+        () => state().filter((todo) => !todo.completed).length,
+      ),
+    }));
+    return todos;
+  },
 );
 
 @Component({
@@ -174,12 +180,14 @@ const { UserApi } = craftService(
 
 class UsersComponent {
   public readonly userId = input.required<string>();
-  protected readonly users = query({
-    params: this.userId,
-    loader: function* () {
-      return yield* UserApi(this.userId());
-    },
-  });
+  protected readonly users = craftUse(
+    query('users', {
+      params: this.userId,
+      loader: function* () {
+        return yield* UserApi(this.userId());
+      },
+    }),
+  ).users;
 }
 ```
 

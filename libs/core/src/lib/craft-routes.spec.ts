@@ -339,6 +339,7 @@ describe('craftRoutes', () => {
     const listQueryParams = () =>
       craftUse(
         queryParams(
+          'listQueryParams',
           {
             state: {
               page: {
@@ -360,7 +361,7 @@ describe('craftRoutes', () => {
             reset,
           }),
         ),
-      );
+      ).listQueryParams;
 
     const routes = craftRoutes('player', [
       {
@@ -389,8 +390,9 @@ describe('craftRoutes', () => {
             path: 'list',
             loadComponent: async () => null as unknown as Type<unknown>,
             componentDeps: {},
-            queryParams: () =>
-              queryParams(
+            queryParams: function* () {
+              const { pagination } = yield* queryParams(
+                'pagination',
                 {
                   state: {
                     page: {
@@ -411,7 +413,9 @@ describe('craftRoutes', () => {
                   patch,
                   reset,
                 }),
-              ),
+              );
+              return pagination;
+            },
           },
         ]);
       const angularRoutes = appRoutes.toRoutes();
@@ -500,8 +504,9 @@ describe('craftRoutes', () => {
         [
           {
             path: 'layout',
-            queryParams: () =>
-              queryParams(
+            queryParams: function* () {
+              const { pagination } = yield* queryParams(
+                'pagination',
                 {
                   state: {
                     page: {
@@ -514,7 +519,9 @@ describe('craftRoutes', () => {
                 ({ patch }) => ({
                   patch,
                 }),
-              ),
+              );
+              return pagination;
+            },
             loadChildren: () => childRoutes.childRoutes,
           },
         ],
@@ -1307,9 +1314,7 @@ describe('craftRoutes', () => {
           publicProperties: {};
           missingProvider: {
             Counter: GetServiceDependencies<typeof Counter>;
-            Permissions: GetServiceDependencies<
-              typeof Permissions
-            >;
+            Permissions: GetServiceDependencies<typeof Permissions>;
           };
         },
       ]
@@ -1824,10 +1829,12 @@ describe('craftRoutes', () => {
       );
 
       class PageComponent {
-        readonly load = runInInjectionContext(injector, () =>
-          craftMethod('load', this, function* () {
-            yield* Console.log('loading');
-          }),
+        readonly load = runInInjectionContext(
+          injector,
+          () =>
+            craftMethod('load', this, function* () {
+              yield* Console.log('loading');
+            }).load,
         );
       }
 
@@ -1924,8 +1931,8 @@ describe('craftRoutes', () => {
             TestListQueryParams: unknown;
           };
         },
-        queryParams: () =>
-          queryParams({
+        queryParams: function* () {
+          const { pagination } = yield* queryParams('pagination', {
             state: {
               page: {
                 fallbackValue: 1,
@@ -1933,7 +1940,9 @@ describe('craftRoutes', () => {
                 serialize: (value: number) => String(value),
               },
             },
-          }),
+          });
+          return pagination;
+        },
       },
     ]);
   });
@@ -2725,7 +2734,8 @@ describe('AppRoutes.META_DATA', () => {
         queryParams: function* () {
           yield* Console.log('init list queryParams');
 
-          return yield* queryParams(
+          return (yield* queryParams(
+            'queryParams',
             {
               state: {
                 page: {
@@ -2773,7 +2783,7 @@ describe('AppRoutes.META_DATA', () => {
                 },
               };
             },
-          );
+          )).queryParams;
         },
       },
     ]);
@@ -2790,9 +2800,7 @@ describe('AppRoutes.META_DATA', () => {
               browserBoundary: false;
               appStart: false;
             };
-            ConsoleService: GetServiceDependencies<
-              typeof ConsoleService
-            >;
+            ConsoleService: GetServiceDependencies<typeof ConsoleService>;
             ParsePage: {
               scope: 'global';
               dependencies: {};
@@ -2857,7 +2865,7 @@ describe('AppRoutes.META_DATA', () => {
         queryParams: function* () {
           yield* Counter();
 
-          return yield* queryParams({
+          return (yield* queryParams('queryParams', {
             state: {
               page: {
                 fallbackValue: 1,
@@ -2865,7 +2873,7 @@ describe('AppRoutes.META_DATA', () => {
                 serialize: (value: number) => String(value),
               },
             },
-          });
+          })).queryParams;
         },
       },
     ]);
@@ -2909,8 +2917,8 @@ describe('AppRoutes.META_DATA', () => {
     const { parentRoutes } = craftRoutes('parent', [
       {
         path: 'layout',
-        queryParams: () =>
-          queryParams({
+        queryParams: function* () {
+          const { pagination } = yield* queryParams('pagination', {
             state: {
               page: {
                 fallbackValue: 1,
@@ -2918,7 +2926,9 @@ describe('AppRoutes.META_DATA', () => {
                 serialize: (value: number) => String(value),
               },
             },
-          }),
+          });
+          return pagination;
+        },
         loadChildren: () => childRoutes.childRoutes,
       },
     ]);
@@ -3085,9 +3095,7 @@ describe('AppRoutes.META_DATA', () => {
         {
           path: 'admin';
           deps: {
-            RedirectConfig: GetServiceDependencies<
-              typeof RedirectConfig
-            >;
+            RedirectConfig: GetServiceDependencies<typeof RedirectConfig>;
           };
           provided: {};
           publicProperties: {};

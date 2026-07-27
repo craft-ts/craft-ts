@@ -48,6 +48,7 @@ describe('insertForm compatibility with queryParams', () => {
     TestBed.runInInjectionContext(() => {
       craftUse(
         queryParams(
+          'filters',
           {
             state: {
               name: {
@@ -76,8 +77,9 @@ describe('insertForm compatibility with queryParams', () => {
 
   it('exposes a working form at runtime over the query param state', () => {
     TestBed.runInInjectionContext(() => {
-      const params = craftUse(
+      const { params } = craftUse(
         queryParams(
+          'params',
           {
             state: {
               name: {
@@ -105,8 +107,9 @@ describe('insertForm compatibility with queryParams', () => {
 
   it('runs chained insertions inside a queryParams context', () => {
     TestBed.runInInjectionContext(() => {
-      const params = craftUse(
+      const { params } = craftUse(
         queryParams(
+          'params',
           {
             state: {
               name: {
@@ -144,7 +147,8 @@ describe('insertForm compatibility with query', () => {
   it('infers the field tree type from the resource state (not unknown)', () => {
     craftService({ name: 'UserStoreTyping', scope: 'global' }, function* () {
       return {
-        user: yield* query(
+        user: (yield* query(
+          'user',
           {
             params: () => '5',
             loader: async ({ params }): Promise<User> => ({
@@ -159,7 +163,7 @@ describe('insertForm compatibility with query', () => {
             expectTypeOf(field.id.value()).toEqualTypeOf<string>();
             return {};
           }),
-        ),
+        )).user,
       };
     });
   });
@@ -169,7 +173,8 @@ describe('insertForm compatibility with query', () => {
       { name: 'UserStore', scope: 'global' },
       function* () {
         return {
-          user: yield* query(
+          user: (yield* query(
+            'user',
             {
               params: () => '5',
               loader: async ({ params }): Promise<User> => ({
@@ -179,7 +184,7 @@ describe('insertForm compatibility with query', () => {
               }),
             },
             insertForm(),
-          ),
+          )).user,
         };
       },
     );
@@ -199,8 +204,9 @@ describe('insertForm compatibility with query', () => {
 describe('insertForm regression with state primitive', () => {
   it('still infers the field tree type and works over a plain state', () => {
     TestBed.runInInjectionContext(() => {
-      const loginForm = craftUse(
+      const { loginForm } = craftUse(
         state(
+          'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(({ field }) => {
             expectTypeOf(field.name.value()).toEqualTypeOf<string>();

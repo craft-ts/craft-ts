@@ -53,8 +53,9 @@ describe('insertSelect', () => {
     });
 
     runInInjectionContext(() => {
-      const counter = craftUse(
+      const { counter } = craftUse(
         state(
+          'counter',
           { value: 0 },
           insertSelect('value', ({ update }) => ({
             increment: () => update((current) => current + 1),
@@ -80,8 +81,9 @@ describe('insertSelect', () => {
         paintCount: number;
       };
 
-      const matrix = craftUse(
+      const { matrix } = craftUse(
         state(
+          'matrix',
           {
             grid: [
               [
@@ -140,8 +142,9 @@ describe('insertSelect', () => {
 
   it('should work on object states', () => {
     runInInjectionContext(() => {
-      const board = craftUse(
+      const { board } = craftUse(
         state(
+          'board',
           {
             cell: {
               index: 0,
@@ -178,8 +181,9 @@ describe('insertSelect', () => {
 
   it('should tag object select insertions with the select name', () => {
     runInInjectionContext(() => {
-      const board = craftUse(
+      const { board } = craftUse(
         state(
+          'board',
           {
             cell: {
               index: 0,
@@ -198,8 +202,9 @@ describe('insertSelect', () => {
 
   it('should work on array states', () => {
     runInInjectionContext(() => {
-      const cells = craftUse(
+      const { cells } = craftUse(
         state(
+          'cells',
           [{ index: 0, color: 'white', paintCount: 0 }],
           insertSelect('cell', ({ state, update }) => ({
             paint: () =>
@@ -231,8 +236,9 @@ describe('insertSelect', () => {
 
   it('should tag array select insertions with the select name and selected identifier', () => {
     runInInjectionContext(() => {
-      const cells = craftUse(
+      const { cells } = craftUse(
         state(
+          'cells',
           [
             { index: 0, color: 'white' },
             { index: 1, color: 'black' },
@@ -252,8 +258,9 @@ describe('insertSelect', () => {
 
   it('should support mixed nesting item + property via insertSelect', () => {
     runInInjectionContext(() => {
-      const matrix = craftUse(
+      const { matrix } = craftUse(
         state(
+          'matrix',
           [
             {
               cell: {
@@ -301,8 +308,9 @@ describe('insertSelect', () => {
 
   it('should allow first insertSelect insertion to access previous state insertions on object states', () => {
     runInInjectionContext(() => {
-      const board = craftUse(
+      const { board } = craftUse(
         state(
+          'board',
           {
             cell: {
               index: 0,
@@ -359,8 +367,8 @@ describe('insertSelect', () => {
 
   it('should allow first insertSelect insertion to access previous state insertions on array states', () => {
     runInInjectionContext(() => {
-      const cells = craftUse(
-        state([{ index: 0, paintCount: 0 }], (context) =>
+      const { cells } = craftUse(
+        state('cells', [{ index: 0, paintCount: 0 }], (context) =>
           craftPipe(
             context,
             () => {
@@ -413,8 +421,9 @@ describe('insertSelect', () => {
 
   it('should expose cross-layer source$ from nested insertions', () => {
     runInInjectionContext(() => {
-      const cells = craftUse(
+      const { cells } = craftUse(
         state(
+          'cells',
           [{ index: 0, paintCount: 0, color: 'white' }],
           insertSelect('cell', (cellContext) =>
             craftPipe(
@@ -443,8 +452,9 @@ describe('insertSelect', () => {
   });
   it('should expose cross-layer source$ from nested insertions', () => {
     runInInjectionContext(() => {
-      const cells = craftUse(
+      const { cells } = craftUse(
         state(
+          'cells',
           { data: [{ index: 0, paintCount: 0, color: 'white' }] },
           insertSelect('data', (dataContext) =>
             craftPipe(
@@ -493,8 +503,9 @@ describe('insertSelect with generator insertions', () => {
     );
 
     runInInjectionContext(() => {
-      const board = craftUse(
+      const { board } = craftUse(
         state(
+          'board',
           { cell: { color: 'white', paintCount: 0 } },
           insertSelect('cell', function* ({ update }) {
             const logger = yield* ObjLogger();
@@ -534,8 +545,9 @@ describe('insertSelect with generator insertions', () => {
     );
 
     runInInjectionContext(() => {
-      const cells = craftUse(
+      const { cells } = craftUse(
         state(
+          'cells',
           [{ color: 'white', paintCount: 0 }],
           insertSelect('cell', function* ({ update }) {
             const logger = yield* ArrLogger();
@@ -567,6 +579,7 @@ describe('insertSelect with generator insertions', () => {
       expect(() => {
         craftUse(
           state(
+            'grid',
             { cell: { color: 'white' } },
             insertSelect('cell', function* () {
               yield* onAppStart(() => {});
@@ -583,6 +596,7 @@ describe('insertSelect with generator insertions', () => {
       expect(() => {
         craftUse(
           state(
+            'grid',
             [{ color: 'white' }],
             insertSelect('cell', function* () {
               yield* onAppStart(() => {});
@@ -597,8 +611,9 @@ describe('insertSelect with generator insertions', () => {
 
 describe('previous regressions on insertSelect typings', () => {
   it('counter with derived values from insertSelect', () => {
-    const counter = craftUse(
+    const { counter } = craftUse(
       state(
+        'counter',
         { value: 0 },
         insertSelect('value', ({ state }) => ({
           isOdd: computed(() => state() % 2 === 1),

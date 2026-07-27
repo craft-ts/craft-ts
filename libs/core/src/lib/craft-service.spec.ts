@@ -51,8 +51,12 @@ describe('craftService', () => {
   it('should enable to create a craftService-like using craftService and inject it.', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -64,29 +68,30 @@ describe('craftService', () => {
   });
 
   it('should expose browserBoundary in runtime metadata and preserve literal typing', () => {
-    const {
-      BrowserCounter,
-      BROWSER_COUNTER_META_DATA,
-    } = craftService(
+    const { BrowserCounter, BROWSER_COUNTER_META_DATA } = craftService(
       {
         name: 'BrowserCounter',
         scope: 'global',
         browserBoundary: true,
       },
-      () => state(0),
+      function* () {
+        const { browserCounter } = yield* state('browserCounter', 0);
+        return browserCounter;
+      },
     );
 
     const { DefaultCounter, DEFAULT_COUNTER_META_DATA } = craftService(
       { name: 'DefaultCounter', scope: 'global' },
-      () => state(0),
+      function* () {
+        const { defaultCounter } = yield* state('defaultCounter', 0);
+        return defaultCounter;
+      },
     );
 
     expect(BROWSER_COUNTER_META_DATA.browserBoundary).toBe(true);
     expect(DEFAULT_COUNTER_META_DATA.browserBoundary).toBe(false);
     expect(getServiceMetaData(BrowserCounter).browserBoundary).toBe(true);
-    expect(getServiceMetaData(DefaultCounter).browserBoundary).toBe(
-      false,
-    );
+    expect(getServiceMetaData(DefaultCounter).browserBoundary).toBe(false);
 
     expectTypeOf(
       BROWSER_COUNTER_META_DATA.browserBoundary,
@@ -98,9 +103,7 @@ describe('craftService', () => {
       GetServiceReferenceMeta<typeof BrowserCounter>['browserBoundary']
     >().toEqualTypeOf<true>();
     expectTypeOf<
-      GetServiceTrackingMetadata<
-        typeof BrowserCounter
-      >['browserBoundary']
+      GetServiceTrackingMetadata<typeof BrowserCounter>['browserBoundary']
     >().toEqualTypeOf<true>();
   });
 
@@ -123,7 +126,7 @@ describe('craftService', () => {
           return waitXTime;
         });
 
-        return yield* state(0);
+        return (yield* state('appStartCounter', 0)).appStartCounter;
       },
     );
 
@@ -145,9 +148,7 @@ describe('craftService', () => {
       const pendingStart = runServiceAppStart(AppStartCounter, service);
 
       expect(calls).toEqual(['started']);
-      expect(
-        runServiceAppStart(AppStartCounter, service),
-      ).toBeUndefined();
+      expect(runServiceAppStart(AppStartCounter, service)).toBeUndefined();
 
       resolveAppStart();
       await pendingStart;
@@ -206,7 +207,7 @@ describe('craftService', () => {
         appStart: true,
       },
       function* () {
-        const userQuery = yield* query({
+        const { userQuery } = yield* query('userQuery', {
           method: (emptyPayload: string) => emptyPayload,
           loader: function* () {
             return yield* CraftHttpClient.get(({ response }) => ({
@@ -224,9 +225,7 @@ describe('craftService', () => {
 
   it('should track dependencies yielded only inside onAppStart generator callbacks', () => {
     if (false) {
-      type ConsoleAppStartYield = GetServiceYields<
-        typeof ConsoleService
-      >;
+      type ConsoleAppStartYield = GetServiceYields<typeof ConsoleService>;
 
       const { TypedAppStartLog } = craftService(
         {
@@ -292,8 +291,12 @@ describe('craftService', () => {
   it('should enable to yield another craftService', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -326,8 +329,12 @@ describe('scope', () => {
   it('should enable to create a global craftService by passing a name/scope', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -342,8 +349,12 @@ describe('scope', () => {
     //@ts-expect-error provideCounter should not be defined for global craftService because it is provided automatically, it should not be possible to provide it manually
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     expect(provideCounter).toBeUndefined();
@@ -354,8 +365,12 @@ describe('scope', () => {
   it('should enable to create a global craftService by passing a name/scope', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -369,8 +384,12 @@ describe('scope', () => {
   it('should enable to create a toProvide craftService by passing a name/scope', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     TestBed.configureTestingModule({
@@ -388,12 +407,21 @@ describe('scope', () => {
   it('should expose provider config through $provided for a toProvide craftService while keeping public bindings separate', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: { $provided: { initialValue: number }; step: number }) =>
-        state(inputs.$provided.initialValue, ({ update }) => ({
-          increment: () => update((value) => value + inputs.step),
-          readStep: () => inputs.step,
-          readProvidedInitialValue: () => inputs.$provided.initialValue,
-        })),
+      function* (inputs: {
+        $provided: { initialValue: number };
+        step: number;
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          inputs.$provided.initialValue,
+          ({ update }) => ({
+            increment: () => update((value) => value + inputs.step),
+            readStep: () => inputs.step,
+            readProvidedInitialValue: () => inputs.$provided.initialValue,
+          }),
+        );
+        return counter;
+      },
     );
 
     TestBed.configureTestingModule({
@@ -417,8 +445,12 @@ describe('scope', () => {
     // the aim of this scope is to enable to inject it in global services while still exposing a public token for manual root providers
     const { Counter, provideCounter, CounterToProvide } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     expect(CounterToProvide).toBeInstanceOf(InjectionToken);
@@ -438,11 +470,17 @@ describe('scope', () => {
   it('should expose provider config through $provided for a manuallyProvidedAtRoot craftService', () => {
     const { Counter, provideCounter, CounterToProvide } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
-      (inputs: { $provided: { initialValue: number } }) =>
-        state(inputs.$provided.initialValue, ({ update }) => ({
-          increment: () => update((value) => value + 1),
-          readProvidedInitialValue: () => inputs.$provided.initialValue,
-        })),
+      function* (inputs: { $provided: { initialValue: number } }) {
+        const { counter } = yield* state(
+          'counter',
+          inputs.$provided.initialValue,
+          ({ update }) => ({
+            increment: () => update((value) => value + 1),
+            readProvidedInitialValue: () => inputs.$provided.initialValue,
+          }),
+        );
+        return counter;
+      },
     );
 
     TestBed.configureTestingModule({
@@ -462,12 +500,16 @@ describe('scope', () => {
   it('should enable to manually provide a manuallyProvidedAtRoot craftService through CounterToProvide', () => {
     const { Counter, CounterToProvide } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
-    const manualCounter = craftUse(
-      state(10, ({ update }) => ({
+    const { manualCounter } = craftUse(
+      state('manualCounter', 10, ({ update }) => ({
         increment: () => update((v) => v + 1),
       })),
     );
@@ -487,8 +529,12 @@ describe('scope', () => {
   it('should enable to create a function craftService by passing a name/scope (mostly used for reusability and composition/inputs...)', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -504,8 +550,13 @@ describe('scope', () => {
       craftService(
         { name: 'Counter', scope: 'global' },
         //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
-        (inputs: { $provided: { initialValue: number } }) =>
-          state(inputs.$provided.initialValue),
+        function* (inputs: { $provided: { initialValue: number } }) {
+          const { counter } = yield* state(
+            'counter',
+            inputs.$provided.initialValue,
+          );
+          return counter;
+        },
       );
     }
 
@@ -513,8 +564,13 @@ describe('scope', () => {
       craftService(
         { name: 'Counter', scope: 'function' },
         //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
-        (inputs: { $provided: { initialValue: number } }) =>
-          state(inputs.$provided.initialValue),
+        function* (inputs: { $provided: { initialValue: number } }) {
+          const { counter } = yield* state(
+            'counter',
+            inputs.$provided.initialValue,
+          );
+          return counter;
+        },
       );
     }
   });
@@ -558,10 +614,9 @@ describe('scope', () => {
   });
 
   it('should resolve services yielded inside an abstract provideX generator factory', () => {
-    const { Seed } = craftService(
-      { name: 'Seed', scope: 'global' },
-      () => ({ base: 10 }),
-    );
+    const { Seed } = craftService({ name: 'Seed', scope: 'global' }, () => ({
+      base: 10,
+    }));
     const { Score, provideScore } = craftService(
       { name: 'Score', scope: 'abstract' },
       abstract<{ total: number }>(),
@@ -622,8 +677,14 @@ describe('scope', () => {
         scope: 'toProvide',
         requirement: CounterRequirement,
       },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counterImpl } = yield* state(
+          'counterImpl',
+          0,
+          ({ update }) => ({ increment: () => update((v) => v + 1) }),
+        );
+        return counterImpl;
+      },
     );
 
     // todo provideCounterImpl should provide CounterImpl and the source of CounterRequirement
@@ -655,8 +716,14 @@ describe('scope', () => {
         scope: 'toProvide',
         requirement: craftRequirement<Counter>(),
       },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counterImpl } = yield* state(
+          'counterImpl',
+          0,
+          ({ update }) => ({ increment: () => update((v) => v + 1) }),
+        );
+        return counterImpl;
+      },
     );
 
     TestBed.configureTestingModule({
@@ -712,8 +779,14 @@ describe('scope', () => {
         scope: 'toProvide',
         requirement: CounterRequirement,
       },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counterImpl } = yield* state(
+          'counterImpl',
+          0,
+          ({ update }) => ({ increment: () => update((v) => v + 1) }),
+        );
+        return counterImpl;
+      },
     );
 
     expect(CounterRequirement.token).toBeInstanceOf(InjectionToken);
@@ -748,8 +821,14 @@ describe('scope', () => {
         //@ts-expect-error it should not be possible to create a global craftService from an abstract craftService, it should force to provide an implementation
         requirement: CounterRequirement,
       },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counterImpl } = yield* state(
+          'counterImpl',
+          0,
+          ({ update }) => ({ increment: () => update((v) => v + 1) }),
+        );
+        return counterImpl;
+      },
     );
   });
 
@@ -769,7 +848,10 @@ describe('scope', () => {
         //@ts-expect-error it should not be possible to create a craftService if the requirement is not satisfied,
         requirement: CounterRequirement,
       },
-      () => state(0),
+      function* () {
+        const { counterImpl } = yield* state('counterImpl', 0);
+        return counterImpl;
+      },
     );
   });
 
@@ -802,7 +884,10 @@ describe('scope', () => {
             increment(): void;
           }>(),
         },
-        () => state(0),
+        function* () {
+          const { counterImpl } = yield* state('counterImpl', 0);
+          return counterImpl;
+        },
       );
     }
   });
@@ -810,8 +895,12 @@ describe('scope', () => {
   it('should not enable to create a global craftService that depends on a toProvide craftService', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     //@ts-expect-error it should not be possible to create a global craftService that depends on a toProvide craftService because the dependency cannot be resolved, it should force to provide the craftService in the test or use manuallyProvidedAtRoot for the craftService that need to be yield in a global craftService
@@ -824,8 +913,12 @@ describe('scope', () => {
   it('should enable to create a global craftService that depends on a manuallyProvidedAtRoot craftService', () => {
     const { provideCounter, Counter } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
-      () =>
-        state(0, ({ update }) => ({ increment: () => update((v) => v + 1) })),
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((v) => v + 1),
+        }));
+        return counter;
+      },
     );
 
     const { GlobalCounter } = craftService(
@@ -853,10 +946,19 @@ describe('injectService should enable to binding inputs', () => {
   it('should keep $provided private from inject helpers and preserve the provider value at runtime', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: { $provided: { initialValue: number }; step: number }) =>
-        state(inputs.$provided.initialValue, ({ update }) => ({
-          increment: () => update((value) => value + inputs.step),
-        })),
+      function* (inputs: {
+        $provided: { initialValue: number };
+        step: number;
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          inputs.$provided.initialValue,
+          ({ update }) => ({
+            increment: () => update((value) => value + inputs.step),
+          }),
+        );
+        return counter;
+      },
     );
 
     TestBed.configureTestingModule({
@@ -890,12 +992,18 @@ describe('injectService should enable to binding inputs', () => {
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
-      (inputs: {
+      function* (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })), // todo create toValue helper
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      }, // todo create toValue helper
     );
 
     TestBed.runInInjectionContext(() => {
@@ -912,14 +1020,20 @@ describe('injectService should enable to binding inputs', () => {
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
-      (inputs: {
+      function* (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
         optionalProperty1?: MaybeSignal<number>; // todo create MaybeSignal
         optionalProperty2?: MaybeSignal<number>; // todo create MaybeSignal
-      }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })), // todo create toValue helper
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      }, // todo create toValue helper
     );
 
     TestBed.runInInjectionContext(() => {
@@ -936,10 +1050,16 @@ describe('injectService should enable to binding inputs', () => {
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -957,10 +1077,16 @@ describe('injectService should enable to binding inputs', () => {
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -974,10 +1100,16 @@ describe('injectService should enable to binding inputs', () => {
       { name: 'Counter', scope: 'global' },
       // ! inputs can only be set in the first params
 
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -1006,10 +1138,19 @@ describe('service should enable to binding inputs', () => {
   it('should keep $provided private from yield helpers', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: { $provided: { initialValue: number }; step: number }) =>
-        state(inputs.$provided.initialValue, ({ update }) => ({
-          increment: () => update((value) => value + inputs.step),
-        })),
+      function* (inputs: {
+        $provided: { initialValue: number };
+        step: number;
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          inputs.$provided.initialValue,
+          ({ update }) => ({
+            increment: () => update((value) => value + inputs.step),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended, provideCounterExtended } = craftService(
@@ -1052,12 +1193,18 @@ describe('service should enable to binding inputs', () => {
   it('should enable to bind a raw input', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      (inputs: {
+      function* (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })),
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -1087,12 +1234,18 @@ describe('service should enable to binding inputs', () => {
   it('should enable to bind a signal input', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      (inputs: {
+      function* (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })),
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -1122,14 +1275,20 @@ describe('service should enable to binding inputs', () => {
   it('should enable to bind an optional input and not bind an optional input', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      (inputs: {
+      function* (inputs: {
         initialValue: MaybeSignal<number>;
         optionalProperty1?: MaybeSignal<number>; // todo create MaybeSignal
         optionalProperty2?: MaybeSignal<number>; // todo create MaybeSignal
-      }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })),
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -1162,12 +1321,18 @@ describe('service should enable to binding inputs', () => {
   it('should return a string as an error "Inputs Error, xxx is not provided" if an input is not provided or blocks the yield', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      (inputs: {
+      function* (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })),
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -1186,12 +1351,18 @@ describe('service should enable to binding inputs', () => {
   it('should provide a string token to say that the input is already provided', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      (inputs: {
+      function* (inputs: {
         initialValue: MaybeSignal<number>; // todo create MaybeSignal
-      }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })),
+      }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -1226,10 +1397,16 @@ describe('service should enable to binding inputs', () => {
   it('should enable to yield a craftService with the scope function several times that will generate different instances', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -1265,11 +1442,13 @@ describe('injectService/Service should expose an optional parameter that can be 
   it('should enable to explicitly re-expose the root callable when using Counter', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      () =>
-        state(10, ({ update }) => ({
+      function* () {
+        const { counter } = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((v) => v + 1),
           decrement: () => update((v) => v - 1),
-        })),
+        }));
+        return counter;
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -1296,8 +1475,8 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       () => {
-        const counter = craftUse(
-          state(10, ({ update }) => ({
+        const { counter } = craftUse(
+          state('counter', 10, ({ update }) => ({
             increment: () => update((v) => v + 1),
             decrement: () => update((v) => v - 1),
           })),
@@ -1344,8 +1523,8 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
       (inputs: { initialValue: MaybeSignal<number> }) => {
-        const counter = craftUse(
-          state(toValue(inputs.initialValue), ({ update }) => ({
+        const { counter } = craftUse(
+          state('counter', toValue(inputs.initialValue), ({ update }) => ({
             increment: () => update((v) => v + 1),
             decrement: () => update((v) => v - 1),
           })),
@@ -1423,9 +1602,7 @@ describe('injectService/Service should expose an optional parameter that can be 
         const updateItem = yield* SinglePropertyShortcutApi.updateItem();
 
         expectTypeOf(updateItem).toEqualTypeOf<
-          GetServiceOutput<
-            typeof SinglePropertyShortcutApi
-          >['updateItem']
+          GetServiceOutput<typeof SinglePropertyShortcutApi>['updateItem']
         >();
 
         return {
@@ -1434,9 +1611,9 @@ describe('injectService/Service should expose an optional parameter that can be 
       },
     );
 
-    expect(
-      getServiceMetaData(SinglePropertyShortcutApi.updateItem).name,
-    ).toBe('SinglePropertyShortcutApi');
+    expect(getServiceMetaData(SinglePropertyShortcutApi.updateItem).name).toBe(
+      'SinglePropertyShortcutApi',
+    );
 
     type ConsumerDependencies = GetServiceDependencies<
       typeof SinglePropertyShortcutConsumer
@@ -1508,9 +1685,7 @@ describe('injectService/Service should expose an optional parameter that can be 
 
         expectTypeOf(result).toEqualTypeOf<
           ReturnType<
-            GetServiceOutput<
-              typeof DirectMethodShortcutApi
-            >['updateItem']
+            GetServiceOutput<typeof DirectMethodShortcutApi>['updateItem']
           >
         >();
 
@@ -1643,9 +1818,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       const updateItem = SinglePropertyShortcutInjectApi.updateItem();
 
       expectTypeOf(updateItem).toEqualTypeOf<
-        GetServiceOutput<
-          typeof SinglePropertyShortcutInjectApi
-        >['updateItem']
+        GetServiceOutput<typeof SinglePropertyShortcutInjectApi>['updateItem']
       >();
 
       await expect(updateItem({ id: '1', name: 'Geffrault' })).resolves.toEqual(
@@ -1706,9 +1879,7 @@ describe('injectService/Service should expose an optional parameter that can be 
 
       expectTypeOf(result).toEqualTypeOf<
         ReturnType<
-          GetServiceOutput<
-            typeof DirectMethodShortcutInjectApi
-          >['updateItem']
+          GetServiceOutput<typeof DirectMethodShortcutInjectApi>['updateItem']
         >
       >();
 
@@ -1892,8 +2063,7 @@ describe('injectService/Service should expose an optional parameter that can be 
     );
 
     TestBed.runInInjectionContext(() => {
-      const result =
-        OmitInputsNestedService.OmitInputs.userQuery.isLoading();
+      const result = OmitInputsNestedService.OmitInputs.userQuery.isLoading();
       expectTypeOf(result).toMatchTypeOf<typeof isLoading>();
       expect(result).toBe(isLoading);
     });
@@ -1902,11 +2072,17 @@ describe('injectService/Service should expose an optional parameter that can be 
   it('should not keep the root callable implicitly when using Counter without $self', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -1944,11 +2120,17 @@ describe('injectService/Service should expose an optional parameter that can be 
   it('should enable to explicitly re-expose the root callable when using Counter', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -1984,11 +2166,17 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { Counter } = craftService(
       { name: 'Counter', scope: 'function' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -2032,16 +2220,20 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
   it('should enable to track Counter global scope', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
-    type CounterDependencies = GetServiceDependencies<
-      typeof Counter
-    >;
+    type CounterDependencies = GetServiceDependencies<typeof Counter>;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'global';
@@ -2054,16 +2246,20 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
   it('should enable to track Counter scope', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
-    type CounterDependencies = GetServiceDependencies<
-      typeof Counter
-    >;
+    type CounterDependencies = GetServiceDependencies<typeof Counter>;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
@@ -2118,11 +2314,17 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
   it('should enable to track CounterExtended dependencies', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -2136,9 +2338,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       },
     );
 
-    type CounterDependencies = GetServiceDependencies<
-      typeof CounterExtended
-    >;
+    type CounterDependencies = GetServiceDependencies<typeof CounterExtended>;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
@@ -2158,15 +2358,22 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
   it('should enable to track dependencies of a Service', () => {
     const { ManuallyProvidedAtRoot1 } = craftService(
       { name: 'ManuallyProvidedAtRoot1', scope: 'manuallyProvidedAtRoot' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* () {
+        const { manuallyProvidedAtRoot1 } = yield* state(
+          'manuallyProvidedAtRoot1',
+          0,
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return manuallyProvidedAtRoot1;
+      },
     );
 
-    type ManuallyProvidedAtRoot1Dependencies =
-      GetServiceDependencies<typeof ManuallyProvidedAtRoot1>;
+    type ManuallyProvidedAtRoot1Dependencies = GetServiceDependencies<
+      typeof ManuallyProvidedAtRoot1
+    >;
 
     expectTypeOf<ManuallyProvidedAtRoot1Dependencies>().toEqualTypeOf<{
       scope: 'manuallyProvidedAtRoot';
@@ -2179,29 +2386,47 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
   it('should enable to track child dependencies of CounterExtended', () => {
     const { ManuallyProvidedAtRoot1 } = craftService(
       { name: 'ManuallyProvidedAtRoot1', scope: 'manuallyProvidedAtRoot' },
-      () =>
-        state(0, ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* () {
+        const { manuallyProvidedAtRoot1 } = yield* state(
+          'manuallyProvidedAtRoot1',
+          0,
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return manuallyProvidedAtRoot1;
+      },
     );
 
     const { ManuallyProvidedAtRoot2 } = craftService(
       { name: 'ManuallyProvidedAtRoot2', scope: 'manuallyProvidedAtRoot' },
-      () =>
-        state(100, ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* () {
+        const { manuallyProvidedAtRoot2 } = yield* state(
+          'manuallyProvidedAtRoot2',
+          100,
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return manuallyProvidedAtRoot2;
+      },
     );
 
     const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -2258,16 +2483,20 @@ describe('typing can track all derived dependencies (only the properties that ar
   it('should enable to track Counter global scope', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
-    type CounterDependencies = GetServiceDependencies<
-      typeof Counter
-    >;
+    type CounterDependencies = GetServiceDependencies<typeof Counter>;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'global';
@@ -2280,11 +2509,17 @@ describe('typing can track all derived dependencies (only the properties that ar
   it('should enable to track derived properties from Counter dependency (without internal reactions)', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -2304,9 +2539,7 @@ describe('typing can track all derived dependencies (only the properties that ar
       },
     );
 
-    type CounterDependencies = GetServiceDependencies<
-      typeof CounterExtended
-    >;
+    type CounterDependencies = GetServiceDependencies<typeof CounterExtended>;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
@@ -2324,9 +2557,7 @@ describe('typing can track all derived dependencies (only the properties that ar
           };
           derivedPropertiesExposed: {
             $self: GetServiceOutput<typeof Counter>;
-            incrementCounter: GetServiceOutput<
-              typeof Counter
-            >['increment'];
+            incrementCounter: GetServiceOutput<typeof Counter>['increment'];
           };
         };
       };
@@ -2337,11 +2568,17 @@ describe('typing can track all derived dependencies (only the properties that ar
     const triggerDecrementObservable = new Subject<void>();
     const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
-      (inputs: { initialValue: MaybeSignal<number> }) =>
-        state(toValue(inputs.initialValue), ({ update }) => ({
-          increment: () => update((v) => v + 1),
-          decrement: () => update((v) => v - 1),
-        })),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        const { counter } = yield* state(
+          'counter',
+          toValue(inputs.initialValue),
+          ({ update }) => ({
+            increment: () => update((v) => v + 1),
+            decrement: () => update((v) => v - 1),
+          }),
+        );
+        return counter;
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -2371,9 +2608,7 @@ describe('typing can track all derived dependencies (only the properties that ar
       },
     );
 
-    type CounterDependencies = GetServiceDependencies<
-      typeof CounterExtended
-    >;
+    type CounterDependencies = GetServiceDependencies<typeof CounterExtended>;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
       scope: 'toProvide';
@@ -2392,9 +2627,7 @@ describe('typing can track all derived dependencies (only the properties that ar
           };
           derivedPropertiesExposed: {
             $self: GetServiceOutput<typeof Counter>;
-            incrementCounter: GetServiceOutput<
-              typeof Counter
-            >['increment'];
+            incrementCounter: GetServiceOutput<typeof Counter>['increment'];
           };
         };
       };

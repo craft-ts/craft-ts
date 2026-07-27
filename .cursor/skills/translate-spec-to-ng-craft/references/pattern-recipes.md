@@ -3,7 +3,7 @@
 > Composition rule: a primitive takes ONE insertion. When a recipe below lists
 > several insertions for the same primitive, compose them with `craftPipe`,
 > passing the context explicitly, e.g.
-> `query(cfg, (context) => craftPipe(context, insertLocalStoragePersister(...), insertReactOnMutation(...), insertReactOnMutation(...)))`.
+> `query(name, cfg, (context) => craftPipe(context, insertLocalStoragePersister(...), insertReactOnMutation(...), insertReactOnMutation(...)))`.
 > The same form works for the nested insertions of `insertSelect`:
 > `insertSelect('grid', (gridContext) => craftPipe(gridContext, ...))`.
 > Exception: the form-tree helpers stay variadic.

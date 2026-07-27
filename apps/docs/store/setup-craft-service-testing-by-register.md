@@ -48,10 +48,12 @@ import { vi } from 'vitest';
 
 const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
-  () =>
-    state(10, ({ update }) => ({
+  function* () {
+    const { counter } = yield* state('counter', 10, ({ update }) => ({
       increment: () => update((value) => value + 1),
-    })),
+    }));
+    return counter;
+  },
 );
 
 const { CounterConsumer, provideCounterConsumer } = craftService(
@@ -228,13 +230,9 @@ mock when the test needs deterministic platform behavior.
 When the graph depends on real Angular infrastructure, append providers through the third argument.
 
 ```typescript
-const { sut } = await setupCraftServiceTestingByRegister(
-  Navigation,
-  register,
-  {
-    providers: [provideRouter([])],
-  },
-);
+const { sut } = await setupCraftServiceTestingByRegister(Navigation, register, {
+  providers: [provideRouter([])],
+});
 ```
 
 ## Alias

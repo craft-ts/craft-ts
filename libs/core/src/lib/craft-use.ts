@@ -13,13 +13,13 @@ const GUARD_AWAIT_ERROR_MESSAGE =
  * returns its result — the imperative counterpart of `yield*`.
  *
  * Its main use is consuming a craft primitive (`state`, `query`, `mutation`,
- * `asyncProcess`, `queryParams`) in a component field, where no enclosing
- * generator exists:
+ * `asyncProcess`, `queryParams`) outside a generator host. Like `yield*`, it
+ * resolves to the single-key record named after the primitive's first
+ * argument, so destructure it:
  *
  * ```ts
- * export class UsersComponent {
- *   readonly users = craftUse(query({ loader: ... }));
- * }
+ * const { users } = craftUse(query('users', { loader: ... }));
+ * const { counter } = craftUse(state('counter', 0));
  * ```
  *
  * It also accepts a `craftGen` invocation, an inline generator, or an

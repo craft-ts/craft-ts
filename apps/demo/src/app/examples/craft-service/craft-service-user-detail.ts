@@ -44,11 +44,12 @@ const { provideUser, User } = craftService(
   { name: 'User', scope: 'toProvide' },
   function* (inputs: { userId: MaybeSignal<string> }) {
     const api = yield* UsersApi();
+    const { user } = yield* query('user', {
+      params: () => toValue(inputs.userId),
+      loader: ({ params }) => api.getUser(params),
+    });
     return {
-      ...(yield* query({
-        params: () => toValue(inputs.userId),
-        loader: ({ params }) => api.getUser(params),
-      })),
+      ...user,
       userIds: api.availableUserIds,
     };
   },
@@ -64,7 +65,9 @@ const CraftServiceUserDetailComponent = craftComponent(
   },
   function* () {
     componentMonitoring();
-    const userId = yield* state(signal('1'), ({ set }) => ({ setUserId: set }));
+    const { userId } = yield* state('userId', signal('1'), ({ set }) => ({
+      setUserId: set,
+    }));
     return { userId, user: yield* User({ userId }) };
   },
   ({ userId, user }) => {

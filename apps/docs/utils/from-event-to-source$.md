@@ -137,7 +137,7 @@ import { state, on$, fromEventToSource$ } from '@craft-ng/core';
 const button = document.querySelector('button')!;
 const click$ = fromEventToSource$<MouseEvent>(button, 'click');
 
-const counter = state(0, ({ update }) => ({
+const { counter } = state('counter', 0, ({ update }) => ({
   increment: on$(click$, () => update((count) => count + 1)),
 }));
 ```
@@ -163,9 +163,11 @@ export class ClickerComponent {
 
   click$ = fromEventToSource$<MouseEvent>(this.button.nativeElement, 'click');
 
-  clicks = state(0, ({ update }) => ({
-    increment: on$(this.click$, () => update((count) => count + 1)),
-  }));
+  clicks = craftUse(
+    state('clicks', 0, ({ update }) => ({
+      increment: on$(this.click$, () => update((count) => count + 1)),
+    })),
+  ).clicks;
 }
 ```
 
@@ -466,7 +468,7 @@ const input$ = fromEventToSource$(inputElement, 'input', {
   computedValue: (e: Event) => (e.target as HTMLInputElement).value,
 });
 
-const searchResults = state([], ({ set }) => ({
+const { searchResults } = state('searchResults', [], ({ set }) => ({
   search: on$(input$, async (term) => {
     const results = await api.search(term);
     set(results);

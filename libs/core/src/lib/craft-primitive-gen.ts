@@ -20,13 +20,14 @@ export type HelperDependencyMap<Helper> = Helper extends {
  * `craftService` folds it into its own dependency tree. At runtime it is a
  * no-op (see `runCraftGenerator`).
  */
-export type ServiceTrackedDepsRequest<DepMap extends object = object> = Readonly<{
-  [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true;
-  /** Phantom carrier — never read at runtime. */
-  readonly depMap?: DepMap;
-  scope: ConcreteServiceScope;
-  resolve: (injector: Injector, hostScope: ConcreteServiceScope) => unknown;
-}>;
+export type ServiceTrackedDepsRequest<DepMap extends object = object> =
+  Readonly<{
+    [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true;
+    /** Phantom carrier — never read at runtime. */
+    readonly depMap?: DepMap;
+    scope: ConcreteServiceScope;
+    resolve: (injector: Injector, hostScope: ConcreteServiceScope) => unknown;
+  }>;
 
 /**
  * The generator returned by the craft primitives (`state`, `query`, `mutation`,
@@ -52,6 +53,47 @@ export type CraftPrimitiveGen<Ref> = Generator<
   Ref,
   unknown
 >;
+
+/**
+ * The value a named craft primitive resolves to: a single-key record bound to
+ * the name passed as the primitive's first argument, so call sites read as
+ *
+ * ```ts
+ * const { counter } = yield* state('counter', 0);
+ * const { userQuery } = yield* query('userQuery', { ... });
+ * ```
+ *
+ * The phantom `[SERVICE_HELPER_DEPENDENCIES]` map is hoisted from the inner ref
+ * onto the wrapper so the enclosing `craftService` still folds the primitive's
+ * dependencies into its own tree.
+ */
+export type NamedPrimitive<Name extends string, Ref> = {
+  readonly [K in Name]: Ref;
+} & {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: HelperDependencyMap<Ref>;
+};
+
+/**
+ * Return type of the named craft primitives: a {@link CraftPrimitiveGen}
+ * resolving to `{ [name]: Ref }` (see {@link NamedPrimitive}).
+ */
+export type NamedCraftPrimitiveGen<
+  Name extends string,
+  Ref,
+> = CraftPrimitiveGen<NamedPrimitive<Name, Ref>>;
+
+/**
+ * Wraps a primitive ref under its declared `name` and surfaces it as a
+ * {@link CraftPrimitiveGen}. Counterpart of {@link createPrimitiveGen} for the
+ * named primitives (`state`, `query`, `mutation`, `asyncProcess`,
+ * `queryParams`).
+ */
+export function createNamedPrimitiveGen<Name extends string, Ref>(
+  name: Name,
+  ref: Ref,
+): CraftPrimitiveGen<NamedPrimitive<Name, Ref>> {
+  return createPrimitiveGen({ [name]: ref } as NamedPrimitive<Name, Ref>);
+}
 
 const CRAFT_PRIMITIVE_GEN_MARKER = Symbol('craft-primitive-gen-marker');
 

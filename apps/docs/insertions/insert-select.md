@@ -20,7 +20,8 @@ import { insertSelect, state } from '@craft-ng/core';
 ## Basic Usage (object)
 
 ```typescript
-const board = state(
+const { board } = state(
+  'board',
   {
     cell: {
       color: 'white',
@@ -45,7 +46,8 @@ console.log(board.selectCell().paintCountStr()); // "Painted 1 times"
 ## Basic Usage (array)
 
 ```typescript
-const cells = state(
+const { cells } = state(
+  'cells',
   [{ color: 'white', paintCount: 0 }],
   insertSelect('cell', ({ update }) => ({
     paint: () =>
@@ -104,6 +106,7 @@ attach several, re-pass the selected context through
 
 ```ts
 state(
+  'board',
   { grid: createInitialGrid() },
   insertSelect('grid', (gridContext) =>
     craftPipe(
@@ -122,16 +125,14 @@ state(
 `insertSelect` also composes as a **member** of a pipe:
 
 ```ts
-state(
-  initialCells,
-  (context) =>
-    craftPipe(
-      context,
-      insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
-      insertSelect('cell', ({ update }) => ({
-        paint: () => update((cell) => ({ ...cell, painted: true })),
-      })),
-    ),
+state('cells', initialCells, (context) =>
+  craftPipe(
+    context,
+    insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
+    insertSelect('cell', ({ update }) => ({
+      paint: () => update((cell) => ({ ...cell, painted: true })),
+    })),
+  ),
 );
 ```
 

@@ -8,12 +8,14 @@ import {
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
-  () =>
-    state(0, ({ update, set }) => ({
+  function* () {
+    const { counter } = yield* state('counter', 0, ({ update, set }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
       reset: () => set(0),
-    })),
+    }));
+    return counter;
+  },
 );
 
 const CraftServiceCounterComponent = craftComponent(

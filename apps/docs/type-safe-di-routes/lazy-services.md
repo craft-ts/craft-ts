@@ -24,13 +24,13 @@ async function runSearch(q: string) {
 
 `craftLazy` replaces that with a first-class craft program:
 
-| Concern | Manual `import()` | `craftLazy` |
-| --- | --- | --- |
-| Loading / resolved / exception state | you wire it by hand | inherited from the enclosing `asyncProcess` (`status()`) |
-| Stale-chunk retry after a redeploy | none | shared `withRetry` cache-busting engine |
-| Import failure | an unhandled rejection | a typed `CRAFT_LAZY_LOAD_ERROR` exception |
-| The module's own business exceptions | erased to `any` | preserved and propagated through the type system |
-| Recovery | manual `try/catch` | `.pipe(catchTag(...))` or route `handleExceptions` |
+| Concern                              | Manual `import()`      | `craftLazy`                                              |
+| ------------------------------------ | ---------------------- | -------------------------------------------------------- |
+| Loading / resolved / exception state | you wire it by hand    | inherited from the enclosing `asyncProcess` (`status()`) |
+| Stale-chunk retry after a redeploy   | none                   | shared `withRetry` cache-busting engine                  |
+| Import failure                       | an unhandled rejection | a typed `CRAFT_LAZY_LOAD_ERROR` exception                |
+| The module's own business exceptions | erased to `any`        | preserved and propagated through the type system         |
+| Recovery                             | manual `try/catch`     | `.pipe(catchTag(...))` or route `handleExceptions`       |
 
 ## Signature
 
@@ -56,7 +56,7 @@ interface CraftLazyLoadHelpers {
 `craftLazy` awaits its import through the async program pump, so it can only be `yield*`-ed from an
 **`asyncProcess` loader** or a **route guard/resolver**. It cannot be used inside a synchronous
 [`craftMethod`](../utils/craft-method.md) (that driver throws on an await request). A `craftMethod`
-may only *trigger* the enclosing `asyncProcess`.
+may only _trigger_ the enclosing `asyncProcess`.
 :::
 
 ## With `asyncProcess`
@@ -80,8 +80,8 @@ Load it from an `asyncProcess` loader. The simplest form triggers on demand with
 ```ts
 import { asyncProcess, craftLazy, craftUse } from '@craft-ng/core';
 
-const searchModule = craftUse(
-  asyncProcess({
+const { searchModule } = craftUse(
+  asyncProcess('searchModule', {
     method: () => undefined, // call searchModule.method() to start loading
     loader: function* () {
       return yield* craftLazy(({ withRetry }) => withRetry(import('./search')));
@@ -94,10 +94,8 @@ const searchModule = craftUse(
 `asyncProcess`, so the template can drive the UI:
 
 ```html
-@switch (searchModule.status()) {
-  @case ('loading')   { <spinner /> }
-  @case ('exception') { <button (click)="searchModule.reload()">Réessayer</button> }
-}
+@switch (searchModule.status()) { @case ('loading') { <spinner /> } @case
+('exception') { <button (click)="searchModule.reload()">Réessayer</button> } }
 ```
 
 To **prefetch** as soon as some event fires (the reactive equivalent of an eager
@@ -106,8 +104,8 @@ To **prefetch** as soon as some event fires (the reactive equivalent of an eager
 ```ts
 import { asyncProcess, craftLazy, craftUse, on$ } from '@craft-ng/core';
 
-const searchModule = craftUse(
-  asyncProcess({
+const { searchModule } = craftUse(
+  asyncProcess('searchModule', {
     // load at the first emission of the source (e.g. on focus of the search box)
     method: on$(searchFocused$, () => undefined),
     loader: function* () {
@@ -133,33 +131,32 @@ import {
   on$,
 } from '@craft-ng/core';
 
-const { Search } = craftService(
-  { name: 'Search', scope: 'component' },
-  () => {
-    // prefetch the module at the first emission of the source
-    const searchModule = craftUse(
-      asyncProcess({
-        method: on$(searchFocused$, () => undefined),
-        loader: function* () {
-          return yield* craftLazy(({ withRetry }) => withRetry(import('./search')));
-        },
-      }),
-    );
+const { Search } = craftService({ name: 'Search', scope: 'component' }, () => {
+  // prefetch the module at the first emission of the source
+  const { searchModule } = craftUse(
+    asyncProcess('searchModule', {
+      method: on$(searchFocused$, () => undefined),
+      loader: function* () {
+        return yield* craftLazy(({ withRetry }) =>
+          withRetry(import('./search')),
+        );
+      },
+    }),
+  );
 
-    // run a search on a user action — triggerSearch(q) sets the params
-    const searchResult = craftUse(
-      asyncProcess({
-        method: (q: string) => q,
-        loader: function* ({ params: q }) {
-          const { search } = yield* craftUntilSettled(searchModule); // wait for the chunk
-          return yield* search(q);
-        },
-      }),
-    );
+  // run a search on a user action — triggerSearch(q) sets the params
+  const { searchResult } = craftUse(
+    asyncProcess('searchResult', {
+      method: (q: string) => q,
+      loader: function* ({ params: q }) {
+        const { search } = yield* craftUntilSettled(searchModule); // wait for the chunk
+        return yield* search(q);
+      },
+    }),
+  );
 
-    return { searchModule, searchResult };
-  },
-);
+  return { searchModule, searchResult };
+});
 ```
 
 Exception propagation is fully typed, with **no** manual plumbing:
@@ -182,7 +179,9 @@ craftRoute(
   'search',
   {
     resolve: craftResolve(function* () {
-      const { search } = yield* craftLazy(({ withRetry }) => withRetry(import('./search')));
+      const { search } = yield* craftLazy(({ withRetry }) =>
+        withRetry(import('./search')),
+      );
       return yield* search('*');
     }),
   },
@@ -199,7 +198,7 @@ craftRoute(
 ```
 
 This is the code-splitting counterpart of a lazy `loadComponent`: instead of splitting the
-*component*, you split the *data-loading logic* it depends on, with the same retry + error screen
+_component_, you split the _data-loading logic_ it depends on, with the same retry + error screen
 guarantees as [Route Load Errors](./route-load-errors.md).
 
 ## Handling the load error
@@ -260,10 +259,10 @@ The dynamic `import(url)` used for cache-busting is itself overridable through `
 
 ## API
 
-| Export | Purpose |
-| --- | --- |
-| `craftLazy(load)` | Lazily import a module from an async craft driver. |
-| `CraftLazyLoadHelpers` | The `{ withRetry }` helpers passed to `load`. |
-| `CraftLazyLoadError` / `CRAFT_LAZY_LOAD_ERROR_CODE` | The exception (and its code) returned on a final import failure. |
-| `provideCraftLazyLoadRetry(config)` / `CRAFT_LAZY_LOAD_RETRY` | Configure the `craftLazy` retry policy. |
-| `CRAFT_DYNAMIC_IMPORT` | Override the dynamic `import(url)` (cache-busting / tests). |
+| Export                                                        | Purpose                                                          |
+| ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `craftLazy(load)`                                             | Lazily import a module from an async craft driver.               |
+| `CraftLazyLoadHelpers`                                        | The `{ withRetry }` helpers passed to `load`.                    |
+| `CraftLazyLoadError` / `CRAFT_LAZY_LOAD_ERROR_CODE`           | The exception (and its code) returned on a final import failure. |
+| `provideCraftLazyLoadRetry(config)` / `CRAFT_LAZY_LOAD_RETRY` | Configure the `craftLazy` retry policy.                          |
+| `CRAFT_DYNAMIC_IMPORT`                                        | Override the dynamic `import(url)` (cache-busting / tests).      |

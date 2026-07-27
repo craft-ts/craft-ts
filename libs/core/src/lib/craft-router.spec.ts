@@ -54,8 +54,8 @@ const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
     path: 'query-params',
     component: BlankComponent,
     componentDeps: {},
-    queryParams: () =>
-      queryParams({
+    queryParams: function* () {
+      const { pagination } = yield* queryParams('pagination', {
         state: {
           page: {
             fallbackValue: 1,
@@ -68,7 +68,9 @@ const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
             serialize: (value: number) => String(value),
           },
         },
-      }),
+      });
+      return pagination;
+    },
   },
   {
     path: '**',
@@ -240,9 +242,7 @@ describe('CraftRouter', () => {
     }).compileComponents();
 
     const angularRouter = TestBed.inject(Router);
-    const craftRouter = TestBed.runInInjectionContext(() =>
-      CraftRouter(),
-    );
+    const craftRouter = TestBed.runInInjectionContext(() => CraftRouter());
 
     const userTree = craftRouter.createUrlTree({
       to: 'users/:userId',
@@ -320,13 +320,15 @@ describe('CraftRouter', () => {
       readonly navigate = craftMethod('navigate', this, function* () {
         const router = yield* CraftRouter();
         return router.navigate({ to: '' });
-      });
+      }).navigate;
     }
 
     type ExpectedDeps = {
       CraftRouter: GetServiceDependencies<typeof CraftRouter>;
     };
-    type _Check = Expect<Equal<ExtractDeps<GoToHome['navigate']>, ExpectedDeps>>;
+    type _Check = Expect<
+      Equal<ExtractDeps<GoToHome['navigate']>, ExpectedDeps>
+    >;
   });
 
   it('should accept nested paths joined from loadChildren in craftRouterLink and navigate', () => {
@@ -431,7 +433,7 @@ describe('CraftRouter', () => {
       readonly run = craftMethod('run', this, function* () {
         yield* Console.log('navigating');
         yield* CraftRouter();
-      });
+      }).run;
     }
 
     type ExpectedDeps = {

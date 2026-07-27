@@ -76,28 +76,29 @@ const { ApiService } = craftService(
 const { Playground } = craftService(
   { name: 'Playground', scope: 'function' },
   function* () {
-    const addTodo = yield* mutation({
+    const { addTodo } = yield* mutation('addTodo', {
       method: (title: string) => title,
       loader: function* ({ params: title }) {
         return yield* ApiService.addTodo(title);
       },
     });
 
-    const toggleTodo = yield* mutation({
+    const { toggleTodo } = yield* mutation('toggleTodo', {
       method: (id: number) => id,
       loader: function* ({ params: id }) {
         return yield* ApiService.toggleTodo(id);
       },
     });
 
-    const deleteTodo = yield* mutation({
+    const { deleteTodo } = yield* mutation('deleteTodo', {
       method: (id: number) => id,
       loader: function* ({ params: id }) {
         return yield* ApiService.deleteTodo(id);
       },
     });
 
-    const todos = yield* query(
+    const { todos } = yield* query(
+      'todos',
       {
         params: () => 'all' as const,
         loader: function* () {
@@ -215,7 +216,7 @@ const PlaygroundComponent = craftComponent(
   function* () {
     componentMonitoring();
     const pg = yield* Playground();
-    const add = craftMethod('add', function* (input: HTMLInputElement) {
+    const { add } = craftMethod('add', function* (input: HTMLInputElement) {
       const title = input.value.trim();
       if (!title) return;
       (yield* Playground()).addTodo.mutate(title);

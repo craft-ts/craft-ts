@@ -41,7 +41,7 @@ outcome **after the URL has committed**, so a slow guard never freezes navigatio
 ## The shape
 
 ```ts
-const profileQuery = query({
+const { profileQuery } = query('profileQuery', {
   params: () => true,
   loader: function* () {
     return yield* CraftHttpClient.get(({ response }) => ({

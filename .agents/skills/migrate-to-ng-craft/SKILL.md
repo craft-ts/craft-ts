@@ -68,7 +68,8 @@ cannot be inferred safely. Preserve unrelated user changes.
 - Convert Signal Forms to:
 
   ```ts
-  state(
+  const { myForm } = state(
+    'myForm',
     initialValue,
     (context) =>
       craftPipe(

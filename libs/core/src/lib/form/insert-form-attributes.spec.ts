@@ -21,8 +21,9 @@ describe('insertFormAttributes', () => {
       const hidden = signal(false);
       const readonly = signal(false);
 
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           '' as string,
           insertForm(
             insertFormAttributes(() => ({
@@ -53,8 +54,9 @@ describe('insertFormAttributes', () => {
     TestBed.runInInjectionContext(() => {
       const hidden = signal(false);
 
-      const profileForm = craftUse(
+      const { profileForm } = craftUse(
         state(
+          'profileForm',
           {
             profile: {
               name: 'romain',
@@ -87,8 +89,9 @@ describe('insertFormAttributes', () => {
   it('aggregates sync validator exceptions into list and byValidator', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal<string>('');
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           fieldState,
           insertForm(
             insertFormAttributes(() => ({
@@ -147,8 +150,9 @@ describe('insertFormAttributes', () => {
 
     TestBed.runInInjectionContext(() => {
       const fieldState = signal<string>('');
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           fieldState,
           insertForm(
             insertFormAttributes(() => ({
@@ -169,8 +173,9 @@ describe('insertFormAttributes', () => {
 
   it('keeps exceptions hidden until the field is dirty or submit is attempted', () => {
     TestBed.runInInjectionContext(() => {
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           '' as string,
           insertForm(
             insertFormAttributes(() => ({
@@ -193,8 +198,9 @@ describe('insertFormAttributes', () => {
     it('exposes the first left and last right failing validator exceptions', () => {
       TestBed.runInInjectionContext(() => {
         const fieldState = signal<string>('');
-        const fieldForm = craftUse(
+        const { fieldForm } = craftUse(
           state(
+            'fieldForm',
             fieldState,
             insertForm(
               insertFormAttributes(() => ({
@@ -249,8 +255,9 @@ describe('insertFormAttributes', () => {
 
     it('visible variants stay undefined until dirty or submit attempted', () => {
       TestBed.runInInjectionContext(() => {
-        const fieldForm = craftUse(
+        const { fieldForm } = craftUse(
           state(
+            'fieldForm',
             '' as string,
             insertForm(
               insertFormAttributes(() => ({
@@ -279,8 +286,9 @@ describe('insertFormAttributes', () => {
   it('skips validators when the field is hidden, disabled, or readonly', () => {
     TestBed.runInInjectionContext(() => {
       const hidden = signal(false);
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           '' as string,
           insertForm(
             insertFormAttributes(() => ({
@@ -313,8 +321,9 @@ describe('insertFormAttributes', () => {
           submittingObservedInsideFactory?: boolean;
         } = {};
 
-        const profileForm = craftUse(
+        const { profileForm } = craftUse(
           state(
+            'profileForm',
             { email: 'romain@example.com' },
             insertForm(
               ({ state }) => ({
@@ -363,8 +372,9 @@ describe('insertFormAttributes', () => {
 
     it('chains insertion outputs through context.insertions', () => {
       TestBed.runInInjectionContext(() => {
-        const f = craftUse(
+        const { f } = craftUse(
           state(
+            'f',
             { name: 'romain' },
             insertForm(
               ({ field }) => ({
@@ -389,8 +399,9 @@ describe('insertFormAttributes', () => {
   describe('parallel forms', () => {
     it('registers independent validators per parallel entry', () => {
       TestBed.runInInjectionContext(() => {
-        const usersForm = craftUse(
+        const { usersForm } = craftUse(
           state(
+            'usersForm',
             [
               { id: 'a', email: '' },
               { id: 'b', email: 'b@bar.com' },
@@ -432,8 +443,9 @@ describe('insertFormAttributes', () => {
       TestBed.runInInjectionContext(() => {
         const seenIdentifiers: string[] = [];
 
-        const usersForm = craftUse(
+        const { usersForm } = craftUse(
           state(
+            'usersForm',
             [
               { id: 'a', email: 'a@a.com' },
               { id: 'b', email: 'b@b.com' },
@@ -471,8 +483,9 @@ describe('formAttributes', () => {
       const hidden = signal(false);
       const readonly = signal(false);
 
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           '' as string,
           insertForm((context) =>
             formAttributes(context, {
@@ -502,8 +515,9 @@ describe('formAttributes', () => {
   it('aggregates sync validator exceptions into list and byValidator', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal<string>('');
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           fieldState,
           insertForm((context) =>
             formAttributes(context, {
@@ -546,8 +560,9 @@ describe('formAttributes', () => {
     TestBed.runInInjectionContext(() => {
       type LoginData = { email: string; password: string };
 
-      const loginForm = craftUse(
+      const { loginForm } = craftUse(
         state(
+          'loginForm',
           { email: '', password: '' } satisfies LoginData,
           insertForm(
             (context) =>
@@ -604,8 +619,9 @@ describe('formAttributes', () => {
 
   it('keeps exceptions hidden until the field is dirty or submit is attempted', () => {
     TestBed.runInInjectionContext(() => {
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           '' as string,
           insertForm((context) =>
             formAttributes(context, { validators: [cRequired()] }),
@@ -626,8 +642,9 @@ describe('formAttributes', () => {
     TestBed.runInInjectionContext(() => {
       const seenIdentifiers: string[] = [];
 
-      const usersForm = craftUse(
+      const { usersForm } = craftUse(
         state(
+          'usersForm',
           [
             { id: 'a', email: 'a@a.com' },
             { id: 'b', email: 'b@b.com' },
@@ -651,8 +668,9 @@ describe('formAttributes', () => {
   it('exposes firstLeftFailedValidation and lastRightFailedValidation', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal<string>('');
-      const fieldForm = craftUse(
+      const { fieldForm } = craftUse(
         state(
+          'fieldForm',
           fieldState,
           insertForm((context) =>
             formAttributes(context, {

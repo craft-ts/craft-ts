@@ -31,10 +31,7 @@ import {
 When you need to derive methods for later reuse, each boundary also exposes the usual generated helpers:
 
 ```typescript
-import {
-  ConsoleService,
-  CONSOLE_SERVICE_META_DATA,
-} from '@craft-ng/core';
+import { ConsoleService, CONSOLE_SERVICE_META_DATA } from '@craft-ng/core';
 ```
 
 The same pattern exists for the other boundaries:

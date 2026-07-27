@@ -34,18 +34,15 @@ const { UsersApiOnError } = craftService(
     }));
     return {
       users,
-      query: yield* query({
+      query: (yield* query('query', {
         params: () => true,
         loader: () => users(),
-      }),
+      })).query,
     };
   },
 );
 
-const { Test2 } = craftService(
-  { name: 'test2', scope: 'global' },
-  () => ({}),
-);
+const { Test2 } = craftService({ name: 'test2', scope: 'global' }, () => ({}));
 
 export const OtherComponent = craftComponent(
   'OtherComponent',

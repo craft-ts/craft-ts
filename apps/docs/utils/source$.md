@@ -147,7 +147,7 @@ class DataService {
 ```typescript
 const resetTrigger$ = source$<void>('resetTrigger$');
 
-const counter = state(0, ({ set, update }) => ({
+const { counter } = state('counter', 0, ({ set, update }) => ({
   increment: () => update((v) => v + 1),
   decrement: () => update((v) => v - 1),
   // Reset when source emits
@@ -178,13 +178,15 @@ export class CounterComponent {
   reset$ = source$<void>('reset$');
 
   // Create state with automatic reset on source emission
-  counter = state(0, ({ set, update }) => ({
-    increment: () => update((v) => v + 1),
-    decrement: () => update((v) => v - 1),
-    // Internal method: listens to reset$ and sets counter to 0
-    // Not exposed on the state object (thanks to on$)
-    reset: on$(this.reset$, () => set(0)),
-  }));
+  counter = craftUse(
+    state('counter', 0, ({ set, update }) => ({
+      increment: () => update((v) => v + 1),
+      decrement: () => update((v) => v - 1),
+      // Internal method: listens to reset$ and sets counter to 0
+      // Not exposed on the state object (thanks to on$)
+      reset: on$(this.reset$, () => set(0)),
+    })),
+  ).counter;
 }
 ```
 
@@ -197,7 +199,7 @@ import { source$, state, on$ } from '@craft-ng/core';
 const userLogin$ = source$<User>('userLogin$');
 const userLogout$ = source$<void>('userLogout$');
 
-const authState = state<User | null>(null, ({ set }) => ({
+const { authState } = state<User | null>('authState', null, ({ set }) => ({
   // Respond to multiple sources
   onLogin: on$(userLogin$, (user) => set(user)),
   onLogout: on$(userLogout$, () => set(null)),

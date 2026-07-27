@@ -3,7 +3,15 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeAll,
+  beforeEach,
+  afterEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { mutation } from './mutation';
 import { query } from './query';
 import { asyncProcess } from './async-process';
@@ -41,8 +49,8 @@ describe('method re-trigger (nonce)', () => {
   it('mutation: `() => undefined` re-runs the loader on every mutate', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => undefined);
-      const logout = craftUse(
-        mutation({
+      const { logout } = craftUse(
+        mutation('logout', {
           method: () => undefined,
           loader,
         }),
@@ -69,8 +77,8 @@ describe('method re-trigger (nonce)', () => {
   it('mutation: calling with the same value twice re-runs the loader', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async ({ params }: { params: string }) => params);
-      const search = craftUse(
-        mutation({
+      const { search } = craftUse(
+        mutation('search', {
           method: (term: string) => term,
           loader,
         }),
@@ -89,8 +97,8 @@ describe('method re-trigger (nonce)', () => {
   it('mutation: loader receives raw params, never the nonce wrapper', async () => {
     await TestBed.runInInjectionContext(async () => {
       const seen: unknown[] = [];
-      const m = craftUse(
-        mutation({
+      const { m } = craftUse(
+        mutation('m', {
           method: (payload: { id: string }) => payload,
           loader: async ({ params }: { params: { id: string } }) => {
             seen.push(params);
@@ -112,8 +120,8 @@ describe('method re-trigger (nonce)', () => {
   it('query: `() => undefined` re-runs the loader on every call', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => 'ok');
-      const q = craftUse(
-        query({
+      const { q } = craftUse(
+        query('q', {
           method: () => undefined,
           loader,
         }),
@@ -135,8 +143,8 @@ describe('method re-trigger (nonce)', () => {
   it('asyncProcess: `() => undefined` re-runs the loader on every call', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => undefined);
-      const p = craftUse(
-        asyncProcess({
+      const { p } = craftUse(
+        asyncProcess('p', {
           method: () => undefined,
           loader,
         }),

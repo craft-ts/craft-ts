@@ -10,17 +10,32 @@ import { mutation, craftUse } from '@craft-ng/core';
 
 ## Consuming the primitive
 
-Calling `mutation(...)` (like every craft primitive) returns a **generator**
-that carries the primitive's dependency map. Consume it where you create it:
+Every craft primitive takes its **name** as first argument and resolves to a
+single-key record, so you always consume it by destructuring:
 
 - inside a generator host (a `craftService` factory, `craftGen`, …) with
-  `yield* mutation({...})` — the dependencies fold into the enclosing service
-  tree automatically;
+  `const { saveUser } = yield* mutation('saveUser', {...})` — the dependencies fold into
+  the enclosing service tree automatically;
 - anywhere else (typically a component field) with
-  `craftUse(mutation({...}))`.
+  `const { saveUser } = craftUse(mutation('saveUser', {...}))`.
 
-A factory arrow that returns the primitive directly stays valid — the runtime
-drives the generator for you: `craftService({...}, () => mutation({...}))`.
+The name is more than a label: it tags the primitive's injector
+(`mutation:saveUser`), so it identifies the primitive in snapshots, logs and
+observability.
+
+A factory arrow that returns the primitive directly now resolves to the
+**record**, not the ref. Drive the primitive yourself when the service should
+expose the ref:
+
+```typescript
+craftService({ name: 'MyService', scope: 'global' }, function* () {
+  const { saveUser } = yield* mutation('saveUser', {
+    /* ... */
+  });
+  return saveUser;
+});
+```
+
 The generator is single-use: consume each invocation exactly once.
 
 For brevity, the examples below focus on the configuration and omit the
@@ -31,7 +46,7 @@ For brevity, the examples below focus on the configuration and omit the
 ### Method-based mutation
 
 ```typescript
-const createUser = mutation({
+const { createUser } = mutation('createUser', {
   method: (payload: { name: string; email: string }) => payload,
   loader: function* ({ params: user }) {
     return yield* CraftHttpClient.post(({ response }) => ({
@@ -56,7 +71,7 @@ console.log(createUser.safeValue()); // Created user data (never throws)
 
 ```typescript
 const deleteUserSource = source$<{ name: string; email: string; id: string }>();
-const deleteUser = mutation({
+const { deleteUser } = mutation('deleteUser', {
   method: on$(deleteUserSource, (payload) => payload),
   loader: function* ({ params: user }) {
     return yield* CraftHttpClient.delete(({ response }) => ({
@@ -79,7 +94,7 @@ console.log(deleteUser.value()); // Created user data
 ### Parallel mutation
 
 ```typescript
-const deleteUser = mutation({
+const { deleteUser } = mutation('deleteUser', {
   method: (payload: { name: string; email: string; id: string }) => payload,
   identifier: ({ id }) => id,
   loader: function* ({ params: user }) {
@@ -104,7 +119,7 @@ console.log(deleteUser.select('5')?.value()); // Created user data
 ### Mutation exceptions (`hasException` / `exceptions()`)
 
 ```typescript
-const deleteUser = mutation({
+const { deleteUser } = mutation('deleteUser', {
   method: (payload: { userId: string }) =>
     payload.userId.length < 18
       ? craftException(
@@ -145,12 +160,11 @@ console.log(deleteUser.exceptions().loader?.USER_ACCESS_FORBIDDEN);
 ### Dependency-based mutation
 
 ```typescript
-const mutationRef = mutation(
+const { mutationRef } = mutation(
+  'mutationRef',
   {
     method: function* (userId: string) {
-      const logger = yield* MutationLoggerRuntime.log(
-        `mutate:${userId}`,
-      );
+      const logger = yield* MutationLoggerRuntime.log(`mutate:${userId}`);
       return userId;
     },
     loader: function* ({ params }) {
@@ -169,7 +183,7 @@ const mutationRef = mutation(
 ### Add providers to mutation
 
 ```typescript
-const saveUser = mutation({
+const { saveUser } = mutation('saveUser', {
   providers: [provideMutationLogger(), provideUserApiService()],
   method: function* (user: { id: string; name: string }) {
     yield* MutationLogger.log(`mutate:${user.id}`);
@@ -183,7 +197,7 @@ const saveUser = mutation({
 
 ### Add providers to a mutation inside `craftMutations`
 
-`providers` stays on each `mutation(...)` config, not on the `craftMutations(...)` wrapper:
+`providers` stays on each `mutation(name, ...)` config, not on the `craftMutations(...)` wrapper:
 
 ```typescript
 const userFeature = craft(
@@ -192,7 +206,7 @@ const userFeature = craft(
     providedIn: 'root',
   },
   craftMutations(() => ({
-    saveUser: mutation({
+    saveUser: mutation('saveUser', {
       providers: [provideMutationLogger(), provideUserApiService()],
       method: function* (user: { id: string; name: string }) {
         yield* MutationLogger.log(`mutate:${user.id}`);
@@ -201,7 +215,7 @@ const userFeature = craft(
       loader: function* ({ params }) {
         return yield* UserApiService.save(params);
       },
-    }),
+    }).saveUser,
   })),
 );
 ```

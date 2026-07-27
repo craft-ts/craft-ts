@@ -90,8 +90,8 @@ describe('queryParams', () => {
 
   it('should create a query params', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
-        queryParams({
+      const { myQueryParams } = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,
@@ -112,8 +112,9 @@ describe('queryParams', () => {
 
   it('should create a query params and can expose state and basic methods (set, update, patch)', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -171,8 +172,8 @@ describe('queryParams', () => {
     };
 
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
-        queryParams({
+      const { myQueryParams } = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,
@@ -214,8 +215,9 @@ describe('queryParams', () => {
     };
 
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -261,8 +263,9 @@ describe('queryParams', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -349,8 +352,9 @@ describe('queryParams', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -385,17 +389,15 @@ describe('queryParams', () => {
           browserBoundary: false;
           appStart: false;
         };
-        PaginationRulesDeps: GetServiceDependencies<
-          typeof PaginationRulesDeps
-        >;
+        PaginationRulesDeps: GetServiceDependencies<typeof PaginationRulesDeps>;
       }>();
     });
   });
 
   it('should create a query params and  basic methods (set, update, patch) should not be exposed implicitly', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
-        queryParams({
+      const { myQueryParams } = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,
@@ -423,8 +425,9 @@ describe('queryParams', () => {
 
   it('should create a query params and methods', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -458,8 +461,9 @@ describe('queryParams', () => {
 
   it('should expose basic methods in insertions', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -524,8 +528,9 @@ describe('queryParams', () => {
 
   it('should accept options and not loosing insertions inference', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -584,8 +589,9 @@ describe('queryParams', () => {
   it('should not expose methods bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const mySource = signalSource<number>('mySource');
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -653,8 +659,9 @@ describe('queryParams', () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
 
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -726,8 +733,9 @@ describe('queryParams', () => {
   it('should remove query params from URL when reset to fallback values', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const myQueryParams = craftUse(
+      const { myQueryParams } = craftUse(
         queryParams(
+          'myQueryParams',
           {
             state: {
               page: {
@@ -791,8 +799,8 @@ describe('queryParams exceptions', () => {
 
   it('typing: captures parse exception', () => {
     TestBed.runInInjectionContext(() => {
-      const myQueryParams = craftUse(
-        queryParams({
+      const { myQueryParams } = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,
@@ -842,6 +850,7 @@ describe('queryParams exceptions', () => {
     TestBed.runInInjectionContext(() => {
       craftUse(
         queryParams(
+          'pagination',
           {
             state: {
               page: {
@@ -894,8 +903,8 @@ describe('queryParams exceptions', () => {
   it('captures parse exception returned by parse function', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const myQueryParams = craftUse(
-        queryParams({
+      const { myQueryParams } = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,
@@ -926,8 +935,8 @@ describe('queryParams exceptions', () => {
   it('captures parse exception thrown by parse function', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const myQueryParams = craftUse(
-        queryParams({
+      const { myQueryParams } = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,
@@ -960,8 +969,8 @@ describe('queryParams exceptions', () => {
   it('does not expose non-craft parse errors in exceptions', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
-      const myQueryParams = craftUse(
-        queryParams({
+      const { myQueryParams } = craftUse(
+        queryParams('myQueryParams', {
           state: {
             page: {
               fallbackValue: 1,

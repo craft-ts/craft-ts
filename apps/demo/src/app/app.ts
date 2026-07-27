@@ -69,7 +69,7 @@ export const App = craftComponent(
   },
   () => {
     componentMonitoring();
-    const clearCache = craftMethod('clearCache', function* () {
+    const { clearCache } = craftMethod('clearCache', function* () {
       const persister = yield* GlobalPersisterHandlerService(
         undefined,
         ({ clearAllCache }) => ({ clearAllCache }),

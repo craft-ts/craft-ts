@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { migrateNamedPrimitives } from './migrate-named-primitives';
 import { runPrimitivesMigration } from './migrate-primitives';
 
 const temporaryDirectories: string[] = [];
@@ -94,9 +95,7 @@ describe('primitives migration', () => {
     );
     expect(output).not.toContain('state<WizardStep>');
     expect(output).not.toContain('state<Record<');
-    expect(
-      output.match(/CRAFT_IMPERATIVE_CODE_DETECTED/g),
-    ).toHaveLength(2);
+    expect(output.match(/CRAFT_IMPERATIVE_CODE_DETECTED/g)).toHaveLength(2);
   });
 
   it('annotates an imperative workflow in an already migrated craftService', async () => {
@@ -187,9 +186,7 @@ describe('primitives migration', () => {
     expect(output).toContain(
       'state(0, ({ set, update }) => ({ set, update }))',
     );
-    expect(output).toContain(
-      'state({ coupon: { code:',
-    );
+    expect(output).toContain('state({ coupon: { code:');
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       'SIGNAL_FORM_REQUIRES_INSERT_FORM',
       'ASYNC_VALIDATOR_REQUIRES_QUERY',
@@ -318,5 +315,124 @@ describe('primitives migration', () => {
     expect(
       output.match(/CRAFT_FORM_TREE_INSERT_EXTRACTION_REVIEW/g),
     ).toHaveLength(1);
+  });
+});
+
+describe('named primitives migration', () => {
+  it('names a primitive after the variable it is bound to', async () => {
+    const root = await fixture({
+      'users.ts': `
+        import { craftService, query } from '@craft-ng/core';
+        export const { injectUsers } = craftService({ name: 'Users' }, function* () {
+          const users = yield* query({ loader: () => Promise.resolve([]) });
+          return { users };
+        });
+      `,
+    });
+
+    const result = await migrateNamedPrimitives({
+      paths: [join(root, '**/*.ts')],
+      log: () => undefined,
+    });
+
+    const output = await readFile(join(root, 'users.ts'), 'utf8');
+    expect(result.unmigrated).toEqual([]);
+    expect(output).toContain(
+      "const { users } = yield* query('users', { loader: () => Promise.resolve([]) })",
+    );
+  });
+
+  it("names a route's queryParams field after the field itself", async () => {
+    const root = await fixture({
+      'app.routes.ts': `
+        import { queryParams } from '@craft-ng/core';
+        export const routes = [
+          {
+            path: 'list',
+            queryParams: () => queryParams({ state: { page: { fallbackValue: 1 } } }),
+          },
+        ];
+      `,
+    });
+
+    const result = await migrateNamedPrimitives({
+      paths: [join(root, '**/*.ts')],
+      log: () => undefined,
+    });
+
+    const output = await readFile(join(root, 'app.routes.ts'), 'utf8');
+    expect(result.unmigrated).toEqual([]);
+    // Destructuring the record here would shadow the `queryParams` primitive
+    // the expression itself calls, so the key is read off the record.
+    expect(output).toContain(
+      "return (yield* queryParams('queryParams', { state: { page: { fallbackValue: 1 } } })).queryParams;",
+    );
+    expect(output).toContain('queryParams: function* () {');
+  });
+
+  it('promotes an undriven craftService arrow factory to a generator', async () => {
+    const root = await fixture({
+      'counter.ts': `
+        import { craftService, state } from '@craft-ng/core';
+        export const { injectCounter } = craftService({ name: 'Counter' }, () => state(0));
+      `,
+    });
+
+    const result = await migrateNamedPrimitives({
+      paths: [join(root, '**/*.ts')],
+      log: () => undefined,
+    });
+
+    const output = await readFile(join(root, 'counter.ts'), 'utf8');
+    expect(result.unmigrated).toEqual([]);
+    expect(output).toContain("const { counter } = yield* state('counter', 0);");
+    expect(output).toContain('return counter;');
+  });
+
+  it('reports an inline call with no binding to derive a name from', async () => {
+    const root = await fixture({
+      'inline.ts': `
+        import { craftUse, state } from '@craft-ng/core';
+        export class Counter {
+          constructor() {
+            craftUse(state(0));
+          }
+        }
+      `,
+    });
+
+    const result = await migrateNamedPrimitives({
+      paths: [join(root, '**/*.ts')],
+      log: () => undefined,
+    });
+
+    expect(result.changedFiles).toEqual([]);
+    expect(result.unmigrated).toHaveLength(1);
+    expect(result.unmigrated[0]).toMatchObject({
+      primitive: 'state',
+      reason: 'no binding to derive a name from — name it by hand',
+    });
+  });
+
+  it('leaves an already named primitive untouched', async () => {
+    const root = await fixture({
+      'users.ts': `
+        import { craftService, query } from '@craft-ng/core';
+        export const { injectUsers } = craftService({ name: 'Users' }, function* () {
+          const { users } = yield* query('users', { loader: () => Promise.resolve([]) });
+          return { users };
+        });
+      `,
+    });
+
+    const result = await migrateNamedPrimitives({
+      paths: [join(root, '**/*.ts')],
+      log: () => undefined,
+    });
+
+    expect(result.changedFiles).toEqual([]);
+    expect(result.unmigrated).toMatchObject([
+      { primitive: 'query', reason: 'already takes a name argument' },
+    ]);
   });
 });

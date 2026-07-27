@@ -69,9 +69,7 @@ describe('craft-method-name-match', () => {
     ]);
 
     const { output } = await lintFixture(fixture, { fix: true });
-    expect(output).toContain(
-      "craftMethod('increment', this, function* ()",
-    );
+    expect(output).toContain("craftMethod('increment', this, function* ()");
     expect(output).not.toContain("'wrong'");
   });
 
@@ -94,9 +92,7 @@ describe('craft-method-name-match', () => {
     ]);
 
     const { output } = await lintFixture(fixture, { fix: true });
-    expect(output).toContain(
-      "craftMethod('increment', function* ()",
-    );
+    expect(output).toContain("craftMethod('increment', function* ()");
   });
 
   it('reports and autofixes when the name is missing (legacy this-binding form)', async () => {
@@ -113,9 +109,7 @@ describe('craft-method-name-match', () => {
     };
 
     const { output } = await lintFixture(fixture, { fix: true });
-    expect(output).toContain(
-      "craftMethod('increment', this, function* ()",
-    );
+    expect(output).toContain("craftMethod('increment', this, function* ()");
   });
 
   it('reports and autofixes a const declarator with a mismatch', async () => {

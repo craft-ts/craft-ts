@@ -36,8 +36,9 @@ type AddressBookFormValue = {
 describe('insertSelectFormTree', () => {
   it('selects a nested object form tree and exposes nested insertions', () => {
     TestBed.runInInjectionContext(() => {
-      const profileForm = craftUse(
+      const { profileForm } = craftUse(
         state(
+          'profileForm',
           {
             credentials: { name: 'romain', password: 'secret' },
             status: 'draft',
@@ -84,8 +85,9 @@ describe('insertSelectFormTree', () => {
 
   it('tags object form tree select insertions with the select name', () => {
     TestBed.runInInjectionContext(() => {
-      const profileForm = craftUse(
+      const { profileForm } = craftUse(
         state(
+          'profileForm',
           {
             credentials: { name: 'romain', password: 'secret' },
             status: 'draft',
@@ -108,8 +110,9 @@ describe('insertSelectFormTree', () => {
 
   it('selects a nested array form tree and adds insertions to its items', () => {
     TestBed.runInInjectionContext(() => {
-      const addressBookForm = craftUse(
+      const { addressBookForm } = craftUse(
         state(
+          'addressBookForm',
           {
             addresses: [{ city: 'Paris', zip: '75000' }],
           } satisfies AddressBookFormValue,
@@ -169,8 +172,9 @@ describe('insertSelectFormTree', () => {
 
   it('tags array form tree select insertions with the select name and selected identifier', () => {
     TestBed.runInInjectionContext(() => {
-      const addressBookForm = craftUse(
+      const { addressBookForm } = craftUse(
         state(
+          'addressBookForm',
           {
             addresses: [
               { city: 'Paris', zip: '75000' },
@@ -212,8 +216,9 @@ describe('insertSelectFormTree', () => {
 
   it('exposes scalar (non-object) child fields as selectable form trees', () => {
     TestBed.runInInjectionContext(() => {
-      const profileForm = craftUse(
+      const { profileForm } = craftUse(
         state(
+          'profileForm',
           {
             credentials: { name: 'romain', password: 'secret' },
             status: 'draft',
@@ -250,8 +255,9 @@ describe('selectFormTree', () => {
       // a parameter-less `insertFormAttributes(() => ({...}))` cannot infer
       // its `StateType` on its own (limitation shared with
       // `insertSelectFormTree`).
-      const loginForm = craftUse(
+      const { loginForm } = craftUse(
         state(
+          'loginForm',
           { email: '', password: '' } satisfies LoginData,
           insertForm(
             (context) =>
@@ -310,8 +316,9 @@ describe('selectFormTree', () => {
 
   it('selects a nested object form tree and exposes nested insertions', () => {
     TestBed.runInInjectionContext(() => {
-      const profileForm = craftUse(
+      const { profileForm } = craftUse(
         state(
+          'profileForm',
           {
             credentials: { name: 'romain', password: 'secret' },
             status: 'draft',
@@ -361,8 +368,9 @@ describe('selectFormTree', () => {
 
   it('selects a nested array form tree and adds insertions to its items', () => {
     TestBed.runInInjectionContext(() => {
-      const addressBookForm = craftUse(
+      const { addressBookForm } = craftUse(
         state(
+          'addressBookForm',
           {
             addresses: [{ city: 'Paris', zip: '75000' }],
           } satisfies AddressBookFormValue,
@@ -407,8 +415,9 @@ describe('selectFormTree', () => {
 
   it('tags object form tree select insertions with the property name', () => {
     TestBed.runInInjectionContext(() => {
-      const profileForm = craftUse(
+      const { profileForm } = craftUse(
         state(
+          'profileForm',
           {
             credentials: { name: 'romain', password: 'secret' },
             status: 'draft',
@@ -433,8 +442,9 @@ describe('selectFormTree', () => {
 
   it('exposes scalar (non-object) child fields as selectable form trees', () => {
     TestBed.runInInjectionContext(() => {
-      const profileForm = craftUse(
+      const { profileForm } = craftUse(
         state(
+          'profileForm',
           {
             credentials: { name: 'romain', password: 'secret' },
             status: 'draft',
@@ -474,8 +484,9 @@ describe('insertSelectFormTree with generator insertions', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const profileForm = craftUse(
+      const { profileForm } = craftUse(
         state(
+          'profileForm',
           {
             credentials: { name: 'romain', password: 'secret' },
             status: 'draft',
@@ -512,8 +523,9 @@ describe('insertSelectFormTree with generator insertions', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const addressBookForm = craftUse(
+      const { addressBookForm } = craftUse(
         state(
+          'addressBookForm',
           {
             addresses: [{ city: 'Paris', zip: '75000' }],
           } satisfies AddressBookFormValue,
@@ -554,6 +566,7 @@ describe('insertSelectFormTree with generator insertions', () => {
       expect(() => {
         craftUse(
           state(
+            'profileForm',
             {
               credentials: { name: 'romain', password: 'secret' },
               status: 'draft',
@@ -575,6 +588,7 @@ describe('insertSelectFormTree with generator insertions', () => {
       expect(() => {
         craftUse(
           state(
+            'addressBook',
             {
               addresses: [{ city: 'Paris', zip: '75000' }],
             } satisfies AddressBookFormValue,

@@ -40,14 +40,16 @@ import PhotoSkeleton from './photo-skeleton';
 // instant; use the 🗑️ Clear Cache button to replay the pending state.
 const { ViewTransitionAccess } = craftService(
   { name: 'ViewTransitionAccess', scope: 'global' },
-  () =>
-    query({
+  function* () {
+    const { viewTransitionAccess } = yield* query('viewTransitionAccess', {
       params: () => true,
       loader: async () => {
         await new Promise((resolve) => setTimeout(resolve, 3000));
         return { allowed: true } as const;
       },
-    }),
+    });
+    return viewTransitionAccess;
+  },
 );
 
 const slowDetailGuard = craftGen(function* () {

@@ -5,10 +5,14 @@ export const SendContextCounterComponent = craftComponent(
   'SendContextCounterComponent',
   { providers: [provideHostName('component:SendContextCounterComponent')] },
   function* (initialValue: Input<number>) {
-    const counter = yield* state(initialValue(), ({ update }) => ({
-      increment: () => update((value) => value + 1),
-      decrement: () => update((value) => value - 1),
-    }));
+    const { counter } = yield* state(
+      'counter',
+      initialValue(),
+      ({ update }) => ({
+        increment: () => update((value) => value + 1),
+        decrement: () => update((value) => value - 1),
+      }),
+    );
     return { initialValue, counter };
   },
   ({ counter }) => [

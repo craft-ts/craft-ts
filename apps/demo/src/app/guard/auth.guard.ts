@@ -4,15 +4,12 @@ type User = {
   name: string;
 };
 
-const { Auth } = craftService(
-  { name: 'Auth', scope: 'global' },
-  function* () {
-    return yield* query({
-      params: () => true,
-      loader: async () => ({}) as User,
-    });
-  },
-);
+const { Auth } = craftService({ name: 'Auth', scope: 'global' }, function* () {
+  return (yield* query('auth', {
+    params: () => true,
+    loader: async () => ({}) as User,
+  })).auth;
+});
 
 export const authGuard = craftGen(function* () {
   const user = yield* Auth();

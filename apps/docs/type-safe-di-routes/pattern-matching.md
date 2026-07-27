@@ -17,19 +17,21 @@ type Status = 'active' | 'idle' | 'error';
 
 function label(status: Status) {
   switch (status) {
-    case 'active': return 'Running';
-    case 'idle':   return 'Waiting';
+    case 'active':
+      return 'Running';
+    case 'idle':
+      return 'Waiting';
     // 'error' forgotten → no error, `label` silently returns undefined
   }
 }
 ```
 
-| Concern | `switch` / object lookup | `craftMatch.exhaustive` |
-| --- | --- | --- |
-| Missing a union member | silent `undefined` at runtime | **compile error** |
-| Handler for a non-member | silent dead code | **compile error** |
-| Value passed to each branch | widened to the whole union | narrowed to its own literal |
-| Return type | union incl. `undefined` unless you assert | exact union of the branch returns |
+| Concern                     | `switch` / object lookup                  | `craftMatch.exhaustive`           |
+| --------------------------- | ----------------------------------------- | --------------------------------- |
+| Missing a union member      | silent `undefined` at runtime             | **compile error**                 |
+| Handler for a non-member    | silent dead code                          | **compile error**                 |
+| Value passed to each branch | widened to the whole union                | narrowed to its own literal       |
+| Return type                 | union incl. `undefined` unless you assert | exact union of the branch returns |
 
 ## Signature
 
@@ -148,8 +150,8 @@ const title = (tab: Tab) =>
 
 ## API
 
-| Export | Purpose |
-| --- | --- |
-| `craftMatch(value, case, handler)` | Match a single literal; returns `R \| undefined`. |
+| Export                                   | Purpose                                                                           |
+| ---------------------------------------- | --------------------------------------------------------------------------------- |
+| `craftMatch(value, case, handler)`       | Match a single literal; returns `R \| undefined`.                                 |
 | `craftMatch.exhaustive(value, handlers)` | Match every member; compile-time exhaustive; returns the union of branch results. |
-| `CraftMatchHandlers<Value, R>` | The `{ [K in Value]: (value: K) => R }` handler-map type. |
+| `CraftMatchHandlers<Value, R>`           | The `{ [K in Value]: (value: K) => R }` handler-map type.                         |

@@ -27,7 +27,8 @@ import { ApiService, type User } from './api.service';
 const { provideGranularMutation, GranularMutation } = craftService(
   { name: 'GranularMutation', scope: 'toProvide' },
   function* () {
-    const pagination = yield* queryParams(
+    const { pagination } = yield* queryParams(
+      'pagination',
       {
         state: {
           page: { fallbackValue: 1, parse: Number, serialize: String },
@@ -40,14 +41,15 @@ const { provideGranularMutation, GranularMutation } = craftService(
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
-    const updateUserName = yield* mutation({
+    const { updateUserName } = yield* mutation('updateUserName', {
       method: (user: User) => ({ ...user, name: `${user.name}-` }),
       identifier: ({ id }) => id,
       loader: function* ({ params }) {
         return yield* ApiService.updateItem(params);
       },
     });
-    const users = yield* query(
+    const { users } = yield* query(
+      'users',
       {
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
@@ -96,7 +98,7 @@ const GranularMutationCraft = craftComponent(
   function* () {
     componentMonitoring();
     const store = yield* GranularMutation();
-    const updatePageSize = craftMethod(
+    const { updatePageSize } = craftMethod(
       'updatePageSize',
       function* (event: Event) {
         (yield* GranularMutation()).pagination.updatePageSize(

@@ -42,19 +42,17 @@ Stop wasting precious time on common application logic. @craft-ng/core provides 
 ### Compose all your reactive primitive logic
 
 ```typescript
-const myState = state(
-  0,
-  (context) =>
-    craftPipe(
-      context,
-      ({ update, set }) => ({
-        increment: () => update((current) => current + 1),
-        reset: () => set(0),
-      }),
-      ({ state }) => ({
-        isOdd: computed(() => state() % 2 === 1),
-      }),
-    ),
+const { myState } = state('myState', 0, (context) =>
+  craftPipe(
+    context,
+    ({ update, set }) => ({
+      increment: () => update((current) => current + 1),
+      reset: () => set(0),
+    }),
+    ({ state }) => ({
+      isOdd: computed(() => state() % 2 === 1),
+    }),
+  ),
 );
 
 myState(); // 0
@@ -78,7 +76,8 @@ Designed for logic composition and reuse:
 import { state, query, insertLocalStoragePersister } from '@craft-ng/core';
 
 // Compose state with localStorage sync
-const myState = state(
+const { myState } = state(
+  'myState',
   0,
   insertLocalStoragePersister({
     storeName: 'myStore',
@@ -86,7 +85,8 @@ const myState = state(
   }),
 );
 
-const myQuery = query(
+const { myQuery } = query(
+  'myQuery',
   {
     params: () => 1,
     loader: async ({ params }) => {
@@ -112,7 +112,7 @@ const myQuery = query(
 ```typescript
 const resetSource$ = source$<void>();
 
-const counter = state(0, ({ set, update }) => ({
+const { counter } = state('counter', 0, ({ set, update }) => ({
   // method-based
   increment: () => update((v) => v + 1),
   // source-based (reset, is not exposed)
@@ -127,14 +127,14 @@ Promotes creating **granular state** with declarative patterns, isolating each s
 ```typescript
 const resetSource$ = source$<void>();
 
-const search = state('', ({ set }) => ({
+const { search } = state('search', '', ({ set }) => ({
   // method-based
   set,
   // source-based (reset, is not exposed)
   reset: on$(resetSource$, (value) => set('')),
 }));
 
-const page = state(1, ({ set, update }) => ({
+const { page } = state('page', 1, ({ set, update }) => ({
   // method-based
   increment: () => update((v) => v + 1),
   // source-based (reset, is not exposed)
@@ -180,16 +180,17 @@ const { UserApi } = craftService(
 const { UserProfile } = craftService(
   { name: 'UserProfile', scope: 'global' },
   function* () {
-    const userId = state('5', ({ set }) => ({ set }));
+    const { userId } = state('userId', '5', ({ set }) => ({ set }));
 
-    const updateEmail = mutation({
+    const { updateEmail } = mutation('updateEmail', {
       method: (payload: { id: string; email: string }) => payload,
       loader: function* ({ params }) {
         return yield* api.updateEmail(params);
       },
     });
 
-    const user = query(
+    const { user } = query(
+      'user',
       {
         params: userId,
         loader: function* ({ params }) {

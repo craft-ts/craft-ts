@@ -27,7 +27,8 @@ import { ApiService, type User } from './api.service';
 const { provideUserList, UserList } = craftService(
   { name: 'UserList', scope: 'toProvide' },
   function* () {
-    const pagination = yield* queryParams(
+    const { pagination } = yield* queryParams(
+      'pagination',
       {
         state: {
           page: {
@@ -48,7 +49,8 @@ const { provideUserList, UserList } = craftService(
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
-    const users = yield* query(
+    const { users } = yield* query(
+      'users',
       {
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
@@ -86,7 +88,7 @@ const ListWithPaginationCraft = craftComponent(
   function* () {
     componentMonitoring();
     const store = yield* UserList();
-    const updatePageSize = craftMethod(
+    const { updatePageSize } = craftMethod(
       'updatePageSize',
       function* (event: Event) {
         (yield* UserList()).pagination.updatePageSize(

@@ -26,14 +26,15 @@ const MutationDemoComponent = craftComponent(
   function* (userId: Input<string | undefined>) {
     componentMonitoring();
     const api = yield* ApiService();
-    const updateUserName = yield* mutation({
+    const { updateUserName } = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
         name: payload.userName,
       }),
       loader: ({ params: user }) => api.updateItem(user),
     });
-    const userQuery = yield* query(
+    const { userQuery } = yield* query(
+      'userQuery',
       {
         params: userId,
         loader: ({ params }) => api.getItemById(params),
