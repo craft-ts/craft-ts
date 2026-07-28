@@ -18,7 +18,7 @@ import {
   provideFnWrapObserver,
   provideFnWrapper,
   providePrimitiveResourceRuntimeObserver,
-  provideSendContextToAi,
+
   provideTakeAppSnapshot,
   withCraftViewTransitions,
   withErrorComponent,
@@ -34,6 +34,7 @@ import {
   provideCraftRootComponent,
   provideCraftGlobalErrorComponent,
   provideCraftRouteLoadErrorComponent,
+  provideSendContextToAi,
 } from '@craft-ng/component';
 import { demoRoutes } from './app.routes';
 import {

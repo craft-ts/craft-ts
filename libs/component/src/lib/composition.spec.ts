@@ -14,7 +14,7 @@ import {
   expectTypeOf,
   it,
 } from 'vitest';
-import { abstract, craftException, craftService } from '@craft-ng/core';
+import { abstract, craftException, craftService, query } from '@craft-ng/core';
 import {
   catchTag,
   craftComponent,
@@ -54,6 +54,19 @@ describe('component composition', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+  });
+
+  it('narrows catchTag handler codes', () => {
+    catchTag.exhaustive({
+      NO_ACCESS: (exception) => {
+        expectTypeOf(exception.code).toEqualTypeOf<'NO_ACCESS'>();
+        return p('No access');
+      },
+    });
+
+    catchTag.exhaustive<'NO_ACCESS'>({
+      NO_ACCESS: () => p('No access'),
+    });
   });
 
   it('reactively recreates providers and transitions success → exception → success', () => {
@@ -134,5 +147,74 @@ describe('component composition', () => {
 
     // @ts-expect-error — NO_ACCESS must be handled before this component is emitted into the template.
     section([restricted({})]);
+  });
+
+  it('propagates query loader exceptions through a provided service', () => {
+    const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
+    const { provideTodoStoreWithQueryException, TodoStoreWithQueryException } =
+      craftService(
+        { name: 'todoStoreWithQueryException', scope: 'toProvide' },
+        function* () {
+          const refresh = signal(0);
+          const { todos } = yield* query('todos', {
+            params: refresh,
+            loader: async () => (refresh() < 0 ? failed : []),
+          });
+          return { todos };
+        },
+      );
+    const component = craftComponent(
+      'queryExceptionComponent',
+      { providers: [provideTodoStoreWithQueryException()] },
+      function* () {
+        return { store: yield* TodoStoreWithQueryException() };
+      },
+      () => p('Todos'),
+    );
+
+    expectTypeOf<
+      ComponentInitializationExceptionsOf<typeof component>
+    >().toEqualTypeOf<'FAILED_TO_LOAD'>();
+
+    // @ts-expect-error — the component's exception union cannot be handled by an empty map.
+    catchTag.exhaustive(component, {});
+
+    // @ts-expect-error — handlers for codes outside the component union are rejected.
+    component.pipe((current) =>
+      catchTag.exhaustive(current, {
+        FAILED_TO_LOAD: () => p('Unable to load todos'),
+        UNRELATED: () => p('Unexpected'),
+      }),
+    );
+
+    const caught = component.pipe((current) =>
+      catchTag.exhaustive(current, {
+        FAILED_TO_LOAD: () => p('Unable to load todos'),
+      }),
+    );
+    expectTypeOf<
+      ComponentInitializationExceptionsOf<typeof caught>
+    >().toEqualTypeOf<never>();
+  });
+
+  it('advertises direct query loader exceptions on a component', () => {
+    const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
+    const refresh = signal(0);
+    const component = craftComponent(
+      'directQueryExceptionComponent',
+      {},
+      function* () {
+        const { todos } = yield* query('todos', {
+          params: refresh,
+          loader: async () => (refresh() < 0 ? failed : []),
+        });
+        return { todos };
+      },
+      () => p('Todos'),
+    );
+
+    expectTypeOf<
+      ComponentInitializationExceptionsOf<typeof component>
+    >().toEqualTypeOf<'FAILED_TO_LOAD'>();
   });
 });

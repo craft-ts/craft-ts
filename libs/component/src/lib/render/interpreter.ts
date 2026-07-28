@@ -57,7 +57,10 @@ import {
   type EachNode,
   type IfBlockNode,
   type ElementNodeBase,
+  type CatchBlockNode,
+  type MatchBlockNode,
 } from './vnode';
+import { CraftUnhandledExceptionError } from '../block';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
 import {
   CraftStyleRegistry,
@@ -78,6 +81,8 @@ interface RenderContext {
   readonly rootScope?: string;
   readonly styleRoot?: Document | ShadowRoot;
   readonly styles?: CraftStyleRegistry;
+  readonly exceptionBoundary?: (exception: AnyCraftException) => boolean;
+  readonly exceptionBoundaryResolved?: () => void;
 }
 
 let templateGeneratorDepth = 0;
@@ -1189,6 +1194,174 @@ class IfBlockRenderedNode implements RenderedNode {
   }
 }
 
+class MatchBlockRenderedNode implements RenderedNode {
+  readonly kind = 'match-block';
+  private readonly view: FragmentRenderedNode;
+
+  constructor(
+    private node: MatchBlockNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    private readonly context: RenderContext,
+  ) {
+    this.view = createFragment(
+      parent,
+      before,
+      context,
+      this.children(),
+      'craft-match-block',
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'match-block' || node.key !== this.node.key) {
+      return false;
+    }
+    this.node = node;
+    this.view.patchChildren(this.children());
+    return true;
+  }
+
+  private children(): CraftNodeChildren {
+    const exception = this.node.source();
+    if (!exception) return [];
+    const handler =
+      this.node.handlers[
+        String((exception as Record<PropertyKey, unknown>)[this.node.key])
+      ];
+    if (!handler) {
+      throw new CraftUnhandledExceptionError(exception as AnyCraftException);
+    }
+    return handler(exception as AnyCraftException);
+  }
+
+  destroy(): void {
+    this.view.destroy();
+  }
+}
+
+class CatchBlockRenderedNode implements RenderedNode {
+  readonly kind = 'catch-block';
+  private readonly view: FragmentRenderedNode;
+  private handling = false;
+  private fallbackVisible = false;
+  private fallbackChildren: CraftNodeChildren = [];
+
+  constructor(
+    private node: CatchBlockNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    private readonly context: RenderContext,
+  ) {
+    this.view = createFragment(
+      parent,
+      before,
+      this.boundaryContext(),
+      [],
+      'craft-catch-block',
+    );
+    try {
+      this.view.patchChildren(this.layout(this.node.source));
+    } catch (error) {
+      if (!isCraftGenShortCircuit(error)) throw error;
+      this.handle(error.exception);
+    }
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'catch-block' || node.position !== this.node.position) {
+      return false;
+    }
+    this.node = node;
+    try {
+      this.view.patchChildren(this.layout(node.source));
+    } catch (error) {
+      if (!isCraftGenShortCircuit(error)) throw error;
+      this.handle(error.exception);
+    }
+    return true;
+  }
+
+  private boundaryContext(): RenderContext {
+    return childContext(this.context, {
+      exceptionBoundary: (exception) => this.handle(exception),
+      exceptionBoundaryResolved: () => this.resolved(),
+    });
+  }
+
+  private layout(source: CraftNode): CraftNodeChildren {
+    if (!this.fallbackVisible) return [source];
+    return this.node.position === 'before'
+      ? [this.fallback(), source]
+      : [source, this.fallback()];
+  }
+
+  private fallback(): CraftNodeChildren {
+    return this.fallbackChildren;
+  }
+
+  private handle(exception: AnyCraftException): boolean {
+    if (this.handling) {
+      return (
+        this.context.exceptionBoundary?.(exception) ?? this.unhandled(exception)
+      );
+    }
+
+    const handler = this.node.handlers[exception.code];
+    if (!handler) {
+      return (
+        this.context.exceptionBoundary?.(exception) ?? this.unhandled(exception)
+      );
+    }
+
+    this.handling = true;
+    this.fallbackVisible = true;
+    try {
+      this.fallbackChildren = handler(exception);
+      try {
+        this.view.patchChildren(this.layout(this.node.source));
+      } catch (error) {
+        if (!isCraftGenShortCircuit(error)) throw error;
+        this.view.patchChildren(this.fallbackChildren);
+      }
+    } finally {
+      this.handling = false;
+    }
+    return true;
+  }
+
+  private resolved(): void {
+    if (this.handling || !this.fallbackVisible) return;
+    this.fallbackVisible = false;
+    this.fallbackChildren = [];
+    this.view.patchChildren([this.node.source]);
+  }
+
+  private unhandled(exception: AnyCraftException): never {
+    throw new CraftUnhandledExceptionError(exception);
+  }
+
+  destroy(): void {
+    this.view.destroy();
+  }
+}
+
 class AngularRenderedNode implements RenderedNode {
   readonly kind = 'angular';
   private readonly hostElement: Element;
@@ -1393,25 +1566,39 @@ class ComponentRenderedNode implements RenderedNode {
                   );
                 }
               : () => {
-                  const hostProps = mergeHostProps(
-                    definition.meta.host ?? {},
-                    this.hostPropsSource(),
-                  );
-                  this.view.patchChildren(
-                    definition.template(
-                      projectYieldableTemplateContext(
-                        this.factoryContext,
-                      ) as never,
-                      hostProps,
-                    ),
-                  );
-                  if (hostTarget) {
-                    applyHostProperties(
-                      context.renderer,
-                      hostTarget,
-                      hostProps,
-                      context,
+                  try {
+                    const hostProps = mergeHostProps(
+                      definition.meta.host ?? {},
+                      this.hostPropsSource(),
                     );
+                    this.view.patchChildren(
+                      definition.template(
+                        projectYieldableTemplateContext(
+                          this.factoryContext,
+                        ) as never,
+                        hostProps,
+                      ),
+                    );
+                    if (hostTarget) {
+                      applyHostProperties(
+                        context.renderer,
+                        hostTarget,
+                        hostProps,
+                        context,
+                      );
+                    }
+                    context.exceptionBoundaryResolved?.();
+                  } catch (error) {
+                    if (
+                      isCraftGenShortCircuit(error) &&
+                      context.exceptionBoundary?.(error.exception)
+                    ) {
+                      return;
+                    }
+                    if (isCraftGenShortCircuit(error)) {
+                      throw new CraftUnhandledExceptionError(error.exception);
+                    }
+                    throw error;
                   }
                 },
           ),
@@ -1525,6 +1712,10 @@ class ComponentRenderedNode implements RenderedNode {
         throw error;
       }
 
+      if (this.context.exceptionBoundary?.(error.exception)) {
+        return;
+      }
+
       this.renderComposedException(
         definition,
         error.exception,
@@ -1565,6 +1756,7 @@ class ComponentRenderedNode implements RenderedNode {
     if (hostTarget) {
       applyHostProperties(context.renderer, hostTarget, hostProps, context);
     }
+    renderContext.exceptionBoundaryResolved?.();
   }
 
   private renderComposedException(
@@ -1577,7 +1769,10 @@ class ComponentRenderedNode implements RenderedNode {
   ): void {
     const handler = definition.composition?.catchHandlers?.[exception.code];
     if (!handler) {
-      throw new CraftGenShortCircuit(exception);
+      if (this.context.exceptionBoundary?.(exception)) {
+        return;
+      }
+      throw new CraftUnhandledExceptionError(exception);
     }
 
     this.factoryContext = undefined;
@@ -1872,6 +2067,12 @@ function mountNode(
     case 'if': {
       return new IfBlockRenderedNode(node, parent, before, context);
     }
+    case 'catch-block': {
+      return new CatchBlockRenderedNode(node, parent, before, context);
+    }
+    case 'match-block': {
+      return new MatchBlockRenderedNode(node, parent, before, context);
+    }
     case 'defer':
       return new DeferRenderedNode(node, parent, before, context);
   }
@@ -1918,14 +2119,22 @@ export function mountInterpretedComponent<Props extends object>(
       ? (rootNode as Document | ShadowRoot)
       : (host.ownerDocument ?? document);
   const styles = injector.get(CraftStyleRegistry, ɵfallbackCraftStyleRegistry);
-  const instance = new ComponentRenderedNode(
-    component as unknown as CraftComponent<object>,
-    props,
-    host,
-    null,
-    { renderer, injector, styleRoot, styles },
-    host,
-  );
+  let instance: ComponentRenderedNode;
+  try {
+    instance = new ComponentRenderedNode(
+      component as unknown as CraftComponent<object>,
+      props,
+      host,
+      null,
+      { renderer, injector, styleRoot, styles },
+      host,
+    );
+  } catch (error) {
+    if (isCraftGenShortCircuit(error)) {
+      throw new CraftUnhandledExceptionError(error.exception);
+    }
+    throw error;
+  }
 
   return {
     updateProps(nextProps) {
@@ -1952,16 +2161,24 @@ export function mountInterpretedComponentTemplate<Context>(
       ? (rootNode as Document | ShadowRoot)
       : (host.ownerDocument ?? document);
   const styles = injector.get(CraftStyleRegistry, ɵfallbackCraftStyleRegistry);
-  const instance = new ComponentRenderedNode(
-    component as CraftComponent<object>,
-    {},
-    host,
-    null,
-    { renderer, injector, styleRoot, styles },
-    host,
-    { value: context },
-    additionalProviders,
-  );
+  let instance: ComponentRenderedNode;
+  try {
+    instance = new ComponentRenderedNode(
+      component as CraftComponent<object>,
+      {},
+      host,
+      null,
+      { renderer, injector, styleRoot, styles },
+      host,
+      { value: context },
+      additionalProviders,
+    );
+  } catch (error) {
+    if (isCraftGenShortCircuit(error)) {
+      throw new CraftUnhandledExceptionError(error.exception);
+    }
+    throw error;
+  }
 
   return {
     updateContext(nextContext) {

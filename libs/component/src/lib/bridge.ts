@@ -17,13 +17,18 @@ import { ActivatedRoute, type Route } from '@angular/router';
 import type {
   ComponentDepsCarrier,
   ComponentDepsOf,
+  ComponentExceptionsCarrier,
   CraftRouteLazyLoadHelpers,
 } from '@craft-ng/core';
 import {
   mountInterpretedComponent,
   type MountedCraftComponent,
 } from './render/interpreter';
-import type { CraftComponent, PropsOf } from './types';
+import type {
+  ComponentInitializationExceptionsOf,
+  CraftComponent,
+  PropsOf,
+} from './types';
 import { combineLatest, type Subscription } from 'rxjs';
 
 export type CraftMountRef<Props extends object> = MountedCraftComponent<Props>;
@@ -157,7 +162,8 @@ export function loadCraftComponent<Component extends CraftComponent<any>>(
     helpers: CraftRouteLazyLoadHelpers,
   ) => Promise<Type<CraftRoutedComponentHost>>;
   providers: NonNullable<Route['providers']>;
-} & ComponentDepsCarrier<ComponentDepsOf<Component>> {
+} & ComponentDepsCarrier<ComponentDepsOf<Component>> &
+  ComponentExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> {
   let loadedComponent: Component | undefined;
 
   const fragment = {
@@ -181,8 +187,9 @@ export function loadCraftComponent<Component extends CraftComponent<any>>(
     ],
   };
 
-  return fragment as typeof fragment &
-    ComponentDepsCarrier<ComponentDepsOf<Component>>;
+  return fragment as unknown as typeof fragment &
+    ComponentDepsCarrier<ComponentDepsOf<Component>> &
+    ComponentExceptionsCarrier<ComponentInitializationExceptionsOf<Component>>;
 }
 
 export function craftComponentRouteData(

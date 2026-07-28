@@ -28,6 +28,27 @@ export type ComponentDepsCarrier<ComponentDeps extends object = object> = {
   readonly [CRAFT_COMPONENT_DEPS]?: ComponentDeps;
 };
 
+/** Type-only exception contract carried by functional components and routes. */
+export declare const CRAFT_COMPONENT_EXCEPTIONS: unique symbol;
+
+export type ComponentExceptionsCarrier<Exceptions extends string = string> = {
+  readonly [CRAFT_COMPONENT_EXCEPTIONS]?: Exceptions;
+};
+
+type NarrowComponentExceptions<Exceptions> = [Exceptions] extends [string]
+  ? string extends Exceptions
+    ? never
+    : Exceptions
+  : never;
+
+export type ComponentExceptionsOf<Value> = Value extends object
+  ? typeof CRAFT_COMPONENT_EXCEPTIONS extends keyof Value
+    ? Value extends ComponentExceptionsCarrier<infer Exceptions>
+      ? NarrowComponentExceptions<Exceptions>
+      : never
+    : never
+  : never;
+
 export type ComponentDepsOf<Value> = Value extends object
   ? typeof CRAFT_COMPONENT_DEPS extends keyof Value
     ? Value extends ComponentDepsCarrier<infer ComponentDeps extends object>

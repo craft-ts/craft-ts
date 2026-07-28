@@ -235,7 +235,7 @@ export type BrandedServiceProvider<
   Name extends string = string,
   Scope extends RequirementScope = RequirementScope,
   Output = unknown,
-  Yielded = never,
+  Yielded = unknown,
 > = Provider & {
   readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: {
     name: Name;
@@ -1864,15 +1864,30 @@ type YieldHelper<
   >;
 };
 
+type ExtractServiceTrackingYielded<Metadata> =
+  Metadata extends ServiceTrackingMetadata<
+    any,
+    any,
+    any,
+    infer Yielded,
+    any,
+    any,
+    any,
+    any
+  >
+    ? Yielded
+    : never;
+
 type ProvideHelper<
   Name extends string,
   Scope extends RealCapableScope,
   Output,
   ProvideArgs extends unknown[],
+  Yielded = never,
 > = {
   [Key in `provide${Capitalize<Name>}`]: (
     ...args: ProvideArgs
-  ) => BrandedServiceProvider<Name, Scope, Output>;
+  ) => BrandedServiceProvider<Name, Scope, Output, Yielded>;
 };
 
 type ToProvideTokenHelper<Name extends string, Output> = {
@@ -1933,7 +1948,8 @@ type ConcreteServiceApi<
         Name,
         Extract<Scope, RealCapableScope>,
         Output,
-        ProvideArguments<ServiceProvidedInput<Inputs>>
+        ProvideArguments<ServiceProvidedInput<Inputs>>,
+        ExtractServiceTrackingYielded<Metadata>
       >
     : {}) &
   (Scope extends 'manuallyProvidedAtRoot'
@@ -2032,7 +2048,13 @@ export type DependencyApi<
     ProvideArgs
   > &
   (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-    ? ProvideHelper<Name, Extract<Scope, RealCapableScope>, Output, ProvideArgs>
+    ? ProvideHelper<
+        Name,
+        Extract<Scope, RealCapableScope>,
+        Output,
+        ProvideArgs,
+        ExtractServiceTrackingYielded<Metadata>
+      >
     : {}) &
   (Scope extends 'manuallyProvidedAtRoot'
     ? ToProvideTokenHelper<Name, Output>

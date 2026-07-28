@@ -5,7 +5,14 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+} from 'vitest';
 import { craftException, type CraftException } from './craft-exception';
 import type { CraftGenExceptionMarker } from './craft-gen';
 import {
@@ -20,6 +27,7 @@ import {
 } from './craft-route-exceptions';
 import type { AnyCraftException } from './craft-exception';
 import { craftUse } from './craft-use';
+import type { ComponentExceptionsCarrier } from './branded-component/branded-component';
 
 beforeAll(() => {
   try {
@@ -73,6 +81,15 @@ type FakeRouteDef = {
 
 type FakeUnion = Extract<RouteExceptionUnion<FakeRouteDef>, AnyCraftException>;
 
+type FakeComponentRouteDef = {
+  path: 'component';
+} & ComponentExceptionsCarrier<'COMPONENT_FAILED'>;
+
+type FakeComponentUnion = Extract<
+  RouteExceptionUnion<FakeComponentRouteDef>,
+  AnyCraftException
+>;
+
 // Mirrors how the route definition site will type `handleExceptions`: exhaustive
 // over the union (missing key fails) and no-extra (extra key fails).
 // A real no-op (not `declare`, so it exists at runtime) whose signature mirrors
@@ -87,6 +104,12 @@ function handle<Handlers>(
 }
 
 describe('craft-route-exceptions (types)', () => {
+  it('includes residual component exceptions in the route union', () => {
+    expectTypeOf<
+      FakeComponentUnion['code']
+    >().toEqualTypeOf<'COMPONENT_FAILED'>();
+  });
+
   it('aggregates the union over canActivate ∪ canMatch ∪ resolve', () => {
     // A handler keyed on every reachable code (A, B, FLAG_OFF, C) compiles.
     handle({

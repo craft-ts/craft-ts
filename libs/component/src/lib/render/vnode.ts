@@ -1,11 +1,21 @@
 import type { Injector, Type } from '@angular/core';
-import type { CraftLazyLoadHelpers } from '@craft-ng/core';
+import type {
+  AnyCraftException,
+  CraftLazyLoadHelpers,
+  CatchTagExhaustiveCodesCheck,
+} from '@craft-ng/core';
 import type {
   CraftComponent,
   CraftDirectiveTemplateDependencies,
   ComponentInitializationExceptionsOf,
 } from '../types';
 import { isCraftDirective, type CraftDirective } from '../types';
+import {
+  CATCH_BLOCK_DIRECTIVE,
+  type CatchBlockDirective,
+  type CatchBlockHandlers,
+  type CatchBlockPosition,
+} from '../block';
 
 export declare const CRAFT_NODE_DEPS: unique symbol;
 declare const CRAFT_NODE_EXCEPTIONS: unique symbol;
@@ -16,8 +26,8 @@ export type CraftNodeDepsCarrier<Dependencies extends object = {}> = {
 
 type IsAny<Value> = 0 extends 1 & Value ? true : false;
 
-type CraftNodeExceptionsCarrier<Exceptions extends string = string> = {
-  readonly [CRAFT_NODE_EXCEPTIONS]: Exceptions;
+export type CraftNodeExceptionsCarrier<Exceptions extends string = string> = {
+  readonly [CRAFT_NODE_EXCEPTIONS]?: Exceptions;
 };
 
 type UnionToIntersection<Union> = (
@@ -60,7 +70,13 @@ export interface ElementNodeBase<
   Props extends object = Readonly<Record<string, unknown>>,
   Children extends CraftNodeChildren = CraftNodeChildren,
   LocalName extends string | undefined = string | undefined,
-> extends CraftNodeDepsCarrier<Dependencies> {
+  Exceptions extends string = string,
+> extends CraftNodeDepsCarrier<Dependencies>,
+    CraftNodeExceptionsCarrier<
+      string extends CraftNodeChildrenExceptions<Children>
+        ? Exceptions
+        : CraftNodeChildrenExceptions<Children>
+    > {
   readonly kind: 'element';
   readonly tag: Tag;
   readonly localName?: LocalName;
@@ -74,26 +90,71 @@ export interface ElementNode<
   Props extends object = Readonly<Record<string, unknown>>,
   Children extends CraftNodeChildren = CraftNodeChildren,
   LocalName extends string | undefined = string | undefined,
-> extends ElementNodeBase<Dependencies, Tag, Props, Children, LocalName> {
-  readonly pipe: CraftNodePipe<Dependencies>;
+  Exceptions extends string = string,
+> extends ElementNodeBase<
+    Dependencies,
+    Tag,
+    Props,
+    Children,
+    LocalName,
+    Exceptions
+  > {
+  readonly [CRAFT_NODE_EXCEPTIONS]: CraftNodeChildrenExceptions<Children>;
+  readonly pipe: CraftNodePipe<
+    Dependencies,
+    CraftNodeChildrenExceptions<Children>
+  >;
 }
 
-export type CraftNodePipe<Dependencies extends object = {}> = {
+type PipedNode<
+  Dependencies extends object,
+  Exceptions extends string,
+  Directive extends CraftDirective,
+> =
+  Directive extends CatchBlockDirective<
+    infer Handlers extends CatchBlockHandlers
+  >
+    ? CatchBlockNode<
+        Dependencies | CraftDirectiveTemplateDependencies<Directive>,
+        | Exclude<Exceptions, Extract<keyof Handlers, string>>
+        | CraftNodeChildrenExceptions<ReturnType<Handlers[keyof Handlers]>>,
+        Handlers,
+        Directive[typeof CATCH_BLOCK_DIRECTIVE]['position']
+      >
+    : CraftDirectiveNode<
+        Dependencies | CraftDirectiveTemplateDependencies<Directive>,
+        Exceptions
+      >;
+
+export type CraftNodePipe<
+  Dependencies extends object = {},
+  Exceptions extends string = string,
+> = {
   <Directive extends CraftDirective>(
-    directive: Directive,
-  ): CraftDirectiveNode<
-    Dependencies | CraftDirectiveTemplateDependencies<Directive>
-  >;
+    directive: Directive &
+      (Directive extends CatchBlockDirective<
+        infer Handlers extends CatchBlockHandlers
+      >
+        ? CatchTagExhaustiveCodesCheck<
+            Exceptions,
+            Record<Extract<keyof Handlers, string>, unknown>
+          >
+        : unknown),
+  ): PipedNode<Dependencies, Exceptions, Directive>;
   (directive: AngularDirectiveNode): CraftNode;
   (directive: Type<unknown>): CraftNode;
 };
 
-export interface CraftDirectiveNode<Dependencies extends object = {}>
-  extends CraftNodeDepsCarrier<Dependencies> {
+export interface CraftDirectiveNode<
+  Dependencies extends object = {},
+  Exceptions extends string = string,
+> extends CraftNodeDepsCarrier<Dependencies>,
+    CraftNodeExceptionsCarrier<Exceptions> {
+  readonly [CRAFT_NODE_EXCEPTIONS]: Exceptions;
   readonly kind: 'directive';
   readonly node: CraftNode;
   readonly directives: readonly CraftDirective[];
-  readonly pipe: CraftNodePipe<Dependencies>;
+  readonly pipe: CraftNodePipe<Dependencies, Exceptions>;
 }
 
 export interface TextNode {
@@ -120,6 +181,11 @@ export interface ComponentNode<
   readonly kind: 'component';
   readonly component: Component;
   readonly props: Props;
+  readonly [CRAFT_NODE_EXCEPTIONS]: ComponentInitializationExceptionsOf<Component>;
+  readonly pipe: CraftNodePipe<
+    ComponentDeps,
+    ComponentInitializationExceptionsOf<Component>
+  >;
 }
 
 export interface AngularDirectiveNode {
@@ -135,6 +201,30 @@ export interface AngularComponentNode {
   readonly inputs: Readonly<Record<string, unknown>>;
   readonly outputs: Readonly<Record<string, (value: unknown) => unknown>>;
   readonly directives: readonly AngularDirectiveNode[];
+}
+
+export interface CatchBlockNode<
+  Dependencies extends object = {},
+  Exceptions extends string = string,
+  Handlers extends CatchBlockHandlers = CatchBlockHandlers,
+  Position extends CatchBlockPosition = CatchBlockPosition,
+> extends CraftNodeDepsCarrier<Dependencies>,
+    CraftNodeExceptionsCarrier<Exceptions> {
+  readonly kind: 'catch-block';
+  readonly source: CraftNode;
+  readonly handlers: Handlers;
+  readonly position: Position;
+}
+
+export interface MatchBlockNode<
+  Dependencies extends object = {},
+  Source extends () => object | undefined = () => object | undefined,
+  Children extends CraftNodeChildren = CraftNodeChildren,
+> extends CraftNodeDepsCarrier<Dependencies> {
+  readonly kind: 'match-block';
+  readonly source: Source;
+  readonly key: PropertyKey;
+  readonly handlers: Record<string, (exception: AnyCraftException) => Children>;
 }
 
 export interface EachNode<
@@ -174,9 +264,7 @@ export type DeferTrigger = 'immediate' | 'idle' | 'viewport' | 'interaction';
 export interface DeferNode<Loaded = unknown, Dependencies extends object = {}>
   extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'defer';
-  readonly loader: (
-    helpers: CraftLazyLoadHelpers,
-  ) => Promise<Loaded>;
+  readonly loader: (helpers: CraftLazyLoadHelpers) => Promise<Loaded>;
   readonly resolve: (loaded: Loaded) => CraftNodeChildren;
   readonly trigger: DeferTrigger;
   readonly placeholder?: () => CraftNodeChildren;
@@ -192,7 +280,9 @@ export type CraftNode =
   | CraftDirectiveNode<any>
   | EachNode<any, any>
   | IfBlockNode<any, any>
-  | DeferNode<any>;
+  | DeferNode<any>
+  | CatchBlockNode<any, any>
+  | MatchBlockNode<any, any>;
 
 export type CraftNodeChild =
   | CraftNode
@@ -244,23 +334,18 @@ export function isCraftNode(value: unknown): value is CraftNode {
     value.kind === 'directive' ||
     value.kind === 'each' ||
     value.kind === 'if' ||
-    value.kind === 'defer'
+    value.kind === 'defer' ||
+    value.kind === 'catch-block' ||
+    value.kind === 'match-block'
   );
 }
 
-function withPipe(node: ElementNodeBase): ElementNode;
-function withPipe(node: Omit<CraftDirectiveNode, 'pipe'>): CraftDirectiveNode;
-function withPipe(
-  node: Omit<ElementNode, 'pipe'> | Omit<CraftDirectiveNode, 'pipe'>,
-): ElementNode | CraftDirectiveNode {
+function withPipe(node: any): any {
   return {
     ...node,
     pipe: ((directive: CraftDirective | AngularDirectiveNode | Type<unknown>) =>
-      pipeCraftNode(
-        node as ElementNode | CraftDirectiveNode,
-        directive,
-      )) as CraftNodePipe,
-  } as ElementNode | CraftDirectiveNode;
+      pipeCraftNode(node as CraftNode, directive)) as CraftNodePipe,
+  };
 }
 
 function isAngularDirectiveNode(value: unknown): value is AngularDirectiveNode {
@@ -334,20 +419,37 @@ function appendAngularDirective(
 }
 
 export function pipeCraftNode(
-  node: ElementNode | CraftDirectiveNode,
+  node: CraftNode,
   directive: CraftDirective | AngularDirectiveNode | Type<unknown>,
 ): CraftNode {
   if (!isCraftDirective(directive)) {
     if (node.kind === 'directive') {
       return withPipe({
         ...node,
-        node: pipeCraftNode(node.node as ElementNode, directive),
+        node: pipeCraftNode(node.node, directive),
       });
     }
 
+    if (node.kind !== 'element') return node;
     return isAngularDirectiveNode(directive)
-      ? appendAngularDirective(node, directive)
-      : applyAngularDirective(node, directive);
+      ? appendAngularDirective(node as ElementNode, directive)
+      : applyAngularDirective(node as ElementNode, directive);
+  }
+
+  const catchBlockDefinition = (
+    directive as Partial<Record<typeof CATCH_BLOCK_DIRECTIVE, unknown>>
+  )[CATCH_BLOCK_DIRECTIVE];
+  if (catchBlockDefinition) {
+    const definition = catchBlockDefinition as {
+      readonly handlers: CatchBlockHandlers;
+      readonly position: CatchBlockPosition;
+    };
+    return {
+      kind: 'catch-block',
+      source: node,
+      handlers: definition.handlers,
+      position: definition.position,
+    } as CatchBlockNode;
   }
 
   if (node.kind === 'directive') {

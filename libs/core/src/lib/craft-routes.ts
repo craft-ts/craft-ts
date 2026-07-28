@@ -34,6 +34,7 @@ import {
 } from 'rxjs';
 import type {
   CRAFT_COMPONENT_DEPS,
+  ComponentExceptionsCarrier,
   ComponentDepsOf,
   ExtractDeps,
 } from './branded-component/branded-component';
@@ -1357,6 +1358,7 @@ export type CraftLazyRouteDefinition<
 
 type AnyCraftComponentRouteDefinition = Simplify<
   AnyCraftRouteSharedFields &
+    ComponentExceptionsCarrier<any> &
     CraftRouteComponentTarget &
     (
       | {

@@ -7,8 +7,9 @@ import {
   type WritableSignal,
 } from '@angular/core';
 import type { Router, UrlTree } from '@angular/router';
-import type { AnyCraftException } from './craft-exception';
+import type { AnyCraftException, CraftException } from './craft-exception';
 import type { ExtractCraftGenExceptions } from './craft-gen';
+import type { ComponentExceptionsOf } from './branded-component/branded-component';
 import {
   CraftRouter,
   type CraftRouterUrlTreeInput,
@@ -227,12 +228,23 @@ type RouteFieldExceptions<Field> = ExtractCraftGenExceptions<
   RouteFieldYielded<Field>
 >;
 
+type ComponentRouteException<Code extends string> = CraftException<{
+  code: Code;
+  scope: undefined;
+}>;
+
+type RouteComponentExceptions<RouteDefinition> =
+  ComponentExceptionsOf<RouteDefinition> extends infer Codes extends string
+    ? ComponentRouteException<Codes>
+    : never;
+
 /**
- * The full union of `craftException`s reachable from a route's
+ * The full union of `craftException`s reachable from a route's component,
  * `canActivate ∪ canMatch ∪ resolve`. `handleExceptions` must resolve exactly
  * these codes.
  */
 export type RouteExceptionUnion<RouteDefinition> =
+  | RouteComponentExceptions<RouteDefinition>
   | (RouteDefinition extends { canActivate: infer Field }
       ? RouteFieldExceptions<Field>
       : never)
@@ -368,7 +380,8 @@ export type AssertRoutesExceptionsHandled<RoutesApp> = RoutesApp extends {
 
 /**
  * Asserts (at compile time) that every route's `handleExceptions` covers exactly
- * the exception codes reachable from its `canActivate` / `canMatch` / `resolve`.
+ * the exception codes reachable from its component and its
+ * `canActivate` / `canMatch` / `resolve`.
  * A missing or extra code makes `routes` un-assignable, surfacing the offending
  * route + codes in the error.
  *

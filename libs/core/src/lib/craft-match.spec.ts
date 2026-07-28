@@ -1,5 +1,6 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { craftMatch } from './craft-match';
+import { craftMatch, match } from './craft-match';
+import { craftException } from './craft-exception';
 
 type Status = 'active' | 'idle' | 'error';
 
@@ -82,5 +83,40 @@ describe('craftMatch.exhaustive', () => {
       error: () => 'Failed',
       unknown: () => 'nope',
     });
+  });
+});
+
+describe('match.exhaustive over discriminated exceptions', () => {
+  it('narrows the discriminant and preserves the payload', () => {
+    const denied = craftException({ code: 'DENIED' }, { reason: 'private' });
+    const unavailable = craftException(
+      { code: 'UNAVAILABLE' },
+      { retryAfter: 5 },
+    );
+    const exception = denied as typeof denied | typeof unavailable;
+
+    const message = match.exhaustive(exception, 'code', {
+      DENIED: (value) => {
+        expectTypeOf(value).toEqualTypeOf<typeof denied>();
+        expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
+        return value.payload.reason;
+      },
+      UNAVAILABLE: (value) => {
+        expectTypeOf(value).toEqualTypeOf<typeof unavailable>();
+        expectTypeOf(value.payload).toEqualTypeOf<{ retryAfter: number }>();
+        return String(value.payload.retryAfter);
+      },
+    });
+
+    expect(message).toBe('private');
+  });
+
+  it('returns undefined when the readable exception is absent', () => {
+    const exception = undefined as
+      | { code: 'DENIED'; payload: string }
+      | undefined;
+    expect(
+      match.exhaustive(exception, 'code', { DENIED: (value) => value.payload }),
+    ).toBeUndefined();
   });
 });

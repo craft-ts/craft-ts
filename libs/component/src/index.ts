@@ -1,7 +1,12 @@
+export * from './lib/ai/ai-context-menu';
+export * from './lib/ai/ai-send-dialog';
+export * from './lib/ai/send-context-to-ai';
 export * from './lib/angular';
 export * from './lib/bridge';
 export * from './lib/component';
 export * from './lib/composition';
+export * from './lib/block';
+export * from './lib/match-block';
 export * from './lib/directive';
 export * from './lib/craft-router-outlet';
 export * from './lib/defer';
@@ -45,4 +50,6 @@ export type {
   CraftNodeChild,
   CraftNodeChildren,
   IfBlockNode,
+  CatchBlockNode,
+  MatchBlockNode,
 } from './lib/render/vnode';

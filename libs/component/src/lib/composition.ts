@@ -4,6 +4,8 @@ import {
   COMPONENT_OPERATOR,
   type ComponentExceptionHandler,
   type ComponentOperator,
+  type ComponentInitializationExceptionsOf,
+  type CraftComponent,
 } from './types';
 import type { CraftNodeChildren } from './render/vnode';
 
@@ -27,32 +29,89 @@ export function withProviders<
   return operator;
 }
 
-type ComponentHandlers = Record<
-  string,
-  (exception: AnyCraftException) => CraftNodeChildren
->;
+export type CatchTagHandlers<Codes extends string> = {
+  readonly [Code in Codes]: (
+    exception: AnyCraftException & { readonly code: Code },
+  ) => CraftNodeChildren;
+};
 
 /** Component-template adapter for the core catchTag exhaustive algorithm. */
-export const catchTag = {
-  exhaustive<const Handlers extends ComponentHandlers>(
-    handlers: Handlers,
-  ): ComponentOperator<readonly [], Extract<keyof Handlers, string>> {
-    const operator = craftDirective(
-      'catchTag.exhaustive',
-      {},
-      (baseLogic) => baseLogic,
-      (baseTemplate) => baseTemplate,
-      { catchHandlers: handlers as Record<string, ComponentExceptionHandler> },
-    ) as unknown as ComponentOperator<
-      readonly [],
-      Extract<keyof Handlers, string>
-    >;
+interface CatchTag {
+  exhaustive<
+    Codes extends string,
+    const Handlers extends CatchTagHandlers<Codes> = CatchTagHandlers<Codes>,
+  >(
+    handlers: CatchTagHandlers<Codes> & Handlers,
+  ): ComponentOperator<readonly [], Extract<keyof Handlers, string>>;
+  exhaustive<
+    Component extends CraftComponent<any>,
+    const Handlers extends CatchTagHandlers<
+      ComponentInitializationExceptionsOf<NoInfer<Component>>
+    > = CatchTagHandlers<ComponentInitializationExceptionsOf<Component>>,
+  >(
+    component: Component,
+    handlers: CatchTagHandlers<
+      ComponentInitializationExceptionsOf<NoInfer<Component>>
+    > &
+      Handlers,
+  ): ComponentOperator<readonly [], Extract<keyof Handlers, string>>;
+}
 
-    Object.defineProperty(operator, COMPONENT_OPERATOR, {
-      value: { kind: 'catchTag', catchHandlers: handlers },
-      enumerable: false,
-    });
+function exhaustiveCatchTag<
+  Codes extends string,
+  const Handlers extends CatchTagHandlers<Codes>,
+>(
+  handlers: CatchTagHandlers<Codes> & Handlers,
+): ComponentOperator<readonly [], Extract<keyof Handlers, string>>;
+function exhaustiveCatchTag<
+  Component extends CraftComponent<any>,
+  const Handlers extends CatchTagHandlers<
+    ComponentInitializationExceptionsOf<NoInfer<Component>>
+  >,
+>(
+  component: Component,
+  handlers: CatchTagHandlers<
+    ComponentInitializationExceptionsOf<NoInfer<Component>>
+  > &
+    Handlers,
+): ComponentOperator<readonly [], Extract<keyof Handlers, string>>;
+function exhaustiveCatchTag(
+  componentOrHandlers: CraftComponent<any> | CatchTagHandlers<string>,
+  maybeHandlers?: CatchTagHandlers<string>,
+) {
+  return createCatchTagOperator(
+    maybeHandlers ?? (componentOrHandlers as CatchTagHandlers<string>),
+  );
+}
 
-    return operator;
-  },
+export const catchTag: CatchTag = {
+  exhaustive: exhaustiveCatchTag,
 };
+
+function createCatchTagOperator<
+  Codes extends string,
+  const Handlers extends CatchTagHandlers<Codes>,
+>(handlers: CatchTagHandlers<Codes> & Handlers) {
+  const operator = craftDirective(
+    'catchTag.exhaustive',
+    {},
+    (baseLogic) => baseLogic,
+    (baseTemplate) => baseTemplate,
+    {
+      catchHandlers: handlers as unknown as Record<
+        string,
+        ComponentExceptionHandler
+      >,
+    },
+  ) as unknown as ComponentOperator<
+    readonly [],
+    Extract<keyof Handlers, string>
+  >;
+
+  Object.defineProperty(operator, COMPONENT_OPERATOR, {
+    value: { kind: 'catchTag', catchHandlers: handlers },
+    enumerable: false,
+  });
+
+  return operator;
+}

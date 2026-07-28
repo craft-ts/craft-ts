@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import {
   button,
+  catchTag,
   craftComponent,
   div,
   each,
@@ -13,6 +14,7 @@ import {
 } from '@craft-ng/component';
 import {
   componentMonitoring,
+  craftException,
   craftService,
   mutation,
   provideHostName,
@@ -33,7 +35,12 @@ const { provideTodoStore, TodoStore } = craftService(
     const refresh = signal(0);
     const { todos } = yield* query('todos', {
       params: refresh,
-      loader: async () => [...records],
+      loader: async () => {
+        if (!records) {
+          return craftException({ code: 'FAILED_TO_LOAD' });
+        }
+        return [...records];
+      },
     });
     const { add } = yield* mutation('add', {
       method: (title: string) => title,
@@ -65,6 +72,12 @@ const FullDemoCraft = craftComponent(
   },
   function* () {
     componentMonitoring();
+    const { todos } = yield* query('todos', {
+      params: () => true,
+      loader: async () => {
+        return [...records];
+      },
+    });
     return { store: yield* TodoStore() };
   },
   ({ store }) => {
@@ -105,6 +118,7 @@ const FullDemoCraft = craftComponent(
       ),
     ]);
   },
+).pipe((component) =>
+  catchTag.exhaustive(component, { FAILED_TO_LOAD: () => [] }),
 );
-
 export default FullDemoCraft;

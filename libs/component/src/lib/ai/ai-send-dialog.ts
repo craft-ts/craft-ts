@@ -1,0 +1,291 @@
+import { signal } from '@angular/core';
+import { fromEventToSource$, type SendContextPayload } from '@craft-ng/core';
+import { craftComponent } from '../component';
+import {
+  button,
+  div,
+  footer,
+  header,
+  label,
+  section,
+  span,
+  strong,
+  textarea,
+} from '../hyperscript';
+import type { Input, Output } from '../types';
+
+function formatPrompt(
+  payload: SendContextPayload & { instruction: string },
+): string {
+  const snapshotJson = (() => {
+    try {
+      return JSON.stringify(payload.snapshot, null, 2);
+    } catch {
+      return '[unserializable snapshot]';
+    }
+  })();
+  return [
+    `# Instruction`,
+    payload.instruction,
+    ``,
+    `# Component clicked`,
+    `- hostName: ${payload.hostName}`,
+    `- tagList: ${JSON.stringify(payload.tagList)}`,
+    `- coords: (${payload.coords.x}, ${payload.coords.y})`,
+    ``,
+    `# Element outerHTML (truncated)`,
+    '```html',
+    payload.outerHTML,
+    '```',
+    ``,
+    `# App snapshot (${payload.snapshot.length} reports)`,
+    '```json',
+    snapshotJson,
+    '```',
+  ].join('\n');
+}
+
+/**
+ * Modal that collects an instruction and copies the formatted prompt, with the
+ * captured component context and app snapshot, to the clipboard.
+ */
+export const AiSendDialog = craftComponent(
+  'AiSendDialog',
+  {
+    styles: `
+      .craft-ai-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        font-size: 13px;
+        color: #111827;
+      }
+      .craft-ai-card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        width: min(560px, 100%);
+        max-height: 90vh;
+        overflow: auto;
+        padding: 16px 20px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .craft-ai-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 14px;
+      }
+      .craft-ai-close {
+        background: transparent;
+        border: none;
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+        color: #6b7280;
+      }
+      .craft-ai-context {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        display: grid;
+        gap: 4px;
+      }
+      .craft-ai-context .label {
+        color: #6b7280;
+        margin-right: 4px;
+      }
+      .craft-ai-label {
+        font-weight: 600;
+      }
+      .craft-ai-textarea {
+        width: 100%;
+        box-sizing: border-box;
+        font-family: inherit;
+        font-size: 13px;
+        padding: 8px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        resize: vertical;
+        min-height: 96px;
+      }
+      .craft-ai-textarea:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: -1px;
+      }
+      .craft-ai-success {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+        padding: 8px 10px;
+        border-radius: 6px;
+      }
+      .craft-ai-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .craft-ai-cancel {
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .craft-ai-copy {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #2563eb;
+        color: #ffffff;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.15s;
+      }
+      .craft-ai-copy--done {
+        background: #059669;
+      }
+      .craft-ai-copy:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    `,
+  },
+  (payload: Input<SendContextPayload>, onClose: Output<() => void>) => {
+    // This component ships in a published package, so its inferred type goes
+    // through declaration emit. Reactive values (craft `state()`, Angular
+    // signals) carry `unique symbol`s that the emitter cannot name (TS4023),
+    // so the signals stay local and the context exposes plain accessors only.
+    const instruction = signal('');
+    const copied = signal(false);
+
+    let copiedTimer: ReturnType<typeof setTimeout> | null = null;
+
+    fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
+      (event) => {
+        if (event.key === 'Escape') {
+          onClose();
+        }
+      },
+    );
+
+    const copy = () => {
+      const text = instruction().trim();
+      if (!text) return;
+
+      const content = formatPrompt({ ...payload(), instruction: text });
+      void navigator.clipboard.writeText(content).then(() => {
+        copied.set(true);
+        if (copiedTimer) clearTimeout(copiedTimer);
+        copiedTimer = setTimeout(() => copied.set(false), 2500);
+      });
+    };
+
+    return {
+      payload,
+      onClose,
+      instruction: (): string => instruction(),
+      writeInstruction: (value: string): void => instruction.set(value),
+      copied: (): boolean => copied(),
+      copy,
+    };
+  },
+  ({ payload, onClose, instruction, writeInstruction, copied, copy }) =>
+    div(
+      { class: 'craft-ai-overlay', click: () => onClose() },
+      div(
+        {
+          class: 'craft-ai-card',
+          click: (event: MouseEvent) => event.stopPropagation(),
+        },
+        [
+          header({ class: 'craft-ai-header' }, [
+            strong('Send context to AI'),
+            button(
+              {
+                type: 'button',
+                class: 'craft-ai-close',
+                'aria-label': 'Close',
+                click: () => onClose(),
+              },
+              '×',
+            ),
+          ]),
+
+          section({ class: 'craft-ai-context' }, [
+            div([
+              span({ class: 'label' }, 'Component:'),
+              () => payload().hostName,
+            ]),
+            div([
+              span({ class: 'label' }, 'Coords:'),
+              () => `(${payload().coords.x}, ${payload().coords.y})`,
+            ]),
+            div([
+              span({ class: 'label' }, 'Snapshot:'),
+              () => `${payload().snapshot.length} report(s)`,
+            ]),
+          ]),
+
+          label(
+            { class: 'craft-ai-label', htmlFor: 'craft-ai-instruction' },
+            'Instruction',
+          ),
+          textarea({
+            id: 'craft-ai-instruction',
+            class: 'craft-ai-textarea',
+            rows: 6,
+            value: instruction,
+            placeholder: 'Describe what you want the AI to do…',
+            input: (event: Event) =>
+              writeInstruction((event.target as HTMLTextAreaElement).value),
+          }),
+
+          // Toggled by style rather than `ifBlock`, which needs a *named* craft
+          // value and would leak the same internal symbols into the type.
+          div(
+            {
+              class: 'craft-ai-success',
+              style: () => (copied() ? null : { display: 'none' }),
+            },
+            'Copié dans le presse-papier ✓',
+          ),
+
+          footer({ class: 'craft-ai-footer' }, [
+            button(
+              { type: 'button', class: 'craft-ai-cancel', click: () => onClose() },
+              'Fermer',
+            ),
+            button(
+              {
+                type: 'button',
+                class: () => [
+                  'craft-ai-copy',
+                  copied() && 'craft-ai-copy--done',
+                ],
+                disabled: () => !instruction().trim(),
+                click: copy,
+              },
+              () => (copied() ? '✓ Copié' : '⧉ Copier'),
+            ),
+          ]),
+        ],
+      ),
+    ),
+);

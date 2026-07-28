@@ -8,6 +8,7 @@ import type {
   ResolveGeneratorResult,
   YieldableMethod,
   NamedYieldableValue,
+  CatchTagExhaustiveCodesCheck,
 } from '@craft-ng/core';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
 import type { YIELDABLE_VALUE } from '@craft-ng/core';
@@ -16,6 +17,7 @@ import type { HostProps } from './hyperscript';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
+  CraftNodeChildrenExceptions,
   ComponentNode,
 } from './render/vnode';
 
@@ -311,8 +313,9 @@ export type ProviderExceptions<Providers> =
           readonly yielded: infer Yielded;
           readonly output: infer Output;
         }
-        ? ExtractCraftGenExceptions<Yielded> |
-          Extract<Output, { readonly code: string }>
+        ?
+            | ExtractCraftGenExceptions<Yielded>
+            | Extract<Output, { readonly code: string }>
         : never
       : never;
 
@@ -354,26 +357,79 @@ type ComponentOperatorExceptionCodes<Operator> = ComponentExceptionCodes<
   ProviderExceptions<ComponentOperatorProviders<Operator>>
 >;
 
+type ComponentOperatorFallbackExceptionCodes<Operator> = Operator extends {
+  readonly [COMPONENT_OPERATOR]: {
+    readonly catchHandlers: infer Handlers extends Record<
+      string,
+      ComponentExceptionHandler
+    >;
+  };
+}
+  ? CraftNodeChildrenExceptions<ReturnType<Handlers[keyof Handlers]>>
+  : never;
+
+type ComponentExceptionsBeforeOperator<
+  Factory extends ComponentFactory,
+  Meta extends ComponentMeta,
+  Operator,
+  ExistingExceptions extends string,
+> =
+  | ExistingExceptions
+  | ComponentInitializationExceptionCodes<Factory, ProvidersFromMeta<Meta>>
+  | ComponentOperatorExceptionCodes<Operator>;
+
 type ComponentExceptionsAfterOperator<
   Factory extends ComponentFactory,
   Meta extends ComponentMeta,
   Operator,
   ExistingExceptions extends string = never,
 > = [ComponentOperatorHandlers<Operator>] extends [never]
-  ? ExistingExceptions |
-    ComponentInitializationExceptionCodes<Factory, ProvidersFromMeta<Meta>> |
-    ComponentOperatorExceptionCodes<Operator>
-  : never;
+  ? ComponentExceptionsBeforeOperator<
+      Factory,
+      Meta,
+      Operator,
+      ExistingExceptions
+    >
+  :
+      | Exclude<
+          ComponentExceptionsBeforeOperator<
+            Factory,
+            Meta,
+            Operator,
+            ExistingExceptions
+          >,
+          ComponentOperatorHandlers<Operator>
+        >
+      | ComponentOperatorFallbackExceptionCodes<Operator>;
+
+type ComponentOperatorExhaustiveCheck<
+  Factory extends ComponentFactory,
+  Meta extends ComponentMeta,
+  Operator,
+  ExistingExceptions extends string,
+> = [ComponentOperatorHandlers<Operator>] extends [never]
+  ? unknown
+  : CatchTagExhaustiveCodesCheck<
+      ComponentExceptionsBeforeOperator<
+        Factory,
+        Meta,
+        Operator,
+        ExistingExceptions
+      >,
+      Record<Extract<ComponentOperatorHandlers<Operator>, string>, unknown>
+    >;
 
 type AppliedDirectiveFactory<
   Factory extends ComponentFactory,
   Directive extends CraftDirective,
 > =
-  Directive extends CraftDirective<infer Logic, any>
-    ? ReturnType<Logic> extends ComponentFactory
-      ? ReturnType<Logic>
-      : Factory
-    : Factory;
+  Directive extends ComponentOperator<any, any>
+    ? Factory
+    : Directive extends CraftDirective<infer Logic, any>
+      ? ReturnType<Logic> extends ComponentFactory
+        ? ReturnType<Logic>
+        : Factory
+      : Factory;
 
 type MissingProviderMap<Dependencies> = Dependencies extends {
   missingProvider: infer Missing extends object;
@@ -429,7 +485,13 @@ type PipedComponent<
           Meta,
           Directive,
           ExistingExceptions
-        >
+        > &
+          ComponentOperatorExhaustiveCheck<
+            Factory,
+            Meta,
+            Directive,
+            ExistingExceptions
+          >
       >
     : never;
 
@@ -471,7 +533,43 @@ export interface CraftComponent<
   readonly [COMPONENT_INITIALIZATION_EXCEPTIONS]: InitializationExceptions;
   readonly pipe: {
     <Directive extends CraftDirective>(
-      directive: Directive,
+      directiveFactory: (
+        component: CraftComponent<
+          Props,
+          ComponentDeps,
+          Factory,
+          Meta,
+          RootFactory,
+          TemplateDependencies,
+          Template,
+          Name,
+          InitializationExceptions
+        >,
+      ) => Directive &
+        ComponentOperatorExhaustiveCheck<
+          Factory,
+          Meta,
+          Directive,
+          InitializationExceptions
+        >,
+    ): PipedComponent<
+      Factory,
+      Meta,
+      Directive,
+      RootFactory,
+      ComponentDeps,
+      InitializationExceptions,
+      TemplateDependencies,
+      Template
+    >;
+    <Directive extends CraftDirective>(
+      directive: Directive &
+        ComponentOperatorExhaustiveCheck<
+          Factory,
+          Meta,
+          Directive,
+          InitializationExceptions
+        >,
     ): PipedComponent<
       Factory,
       Meta,

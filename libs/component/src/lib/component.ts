@@ -16,7 +16,11 @@ import {
 } from './types';
 import type { HostProps } from './hyperscript';
 import type { ComponentNode } from './render/vnode';
-import { applyHostPropsToChildren, mergeHostProps } from './render/vnode';
+import {
+  applyHostPropsToChildren,
+  mergeHostProps,
+  pipeCraftNode,
+} from './render/vnode';
 
 type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
   readonly providers: infer Providers;
@@ -119,18 +123,21 @@ function createCraftComponent<
 
   const craftComponent = ((
     props: Props & HostProps = {} as Props & HostProps,
-  ): ComponentNode<Props & HostProps, ComponentDeps> =>
-    ({
+  ): ComponentNode<Props & HostProps, ComponentDeps> => {
+    const node = {
       kind: 'component',
       component: craftComponent as unknown as CraftComponent<
         any,
         ComponentDeps
       >,
       props,
-    }) as unknown as ComponentNode<
-      Props & HostProps,
-      ComponentDeps
-    >) as unknown as CraftComponent<
+    } as unknown as ComponentNode<Props & HostProps, ComponentDeps>;
+    Object.defineProperty(node, 'pipe', {
+      value: (directive: unknown) => pipeCraftNode(node, directive as never),
+      enumerable: false,
+    });
+    return node;
+  }) as unknown as CraftComponent<
     Props,
     ComponentDeps,
     Factory,
@@ -162,7 +169,7 @@ function createCraftComponent<
   Object.defineProperty(craftComponent, 'pipe', {
     value: (
       ...directives: {
-        readonly [CRAFT_DIRECTIVE]: {
+        readonly [CRAFT_DIRECTIVE]?: {
           readonly name: string;
           readonly meta: { readonly styles?: string | readonly string[] };
           readonly logic: (baseLogic: ComponentFactory) => ComponentFactory;
@@ -171,29 +178,46 @@ function createCraftComponent<
           ) => ComponentTemplate<any>;
           readonly componentOperator?: ComponentCompositionDefinition;
         };
+        (...args: any[]): unknown;
       }[]
     ) =>
       directives.reduce<unknown>((current, directive) => {
         const currentComponent = current as CraftComponent<any>;
+        const resolvedDirective = (
+          CRAFT_DIRECTIVE in directive ? directive : directive(currentComponent)
+        ) as {
+          readonly [CRAFT_DIRECTIVE]: {
+            readonly name: string;
+            readonly meta: { readonly styles?: string | readonly string[] };
+            readonly logic: (baseLogic: ComponentFactory) => ComponentFactory;
+            readonly template: (
+              baseTemplate: ComponentTemplate<any>,
+            ) => ComponentTemplate<any>;
+            readonly componentOperator?: ComponentCompositionDefinition;
+          };
+        };
         const currentDefinition = currentComponent[CRAFT_COMPONENT];
         const currentTemplate = currentDefinition.template;
         return createCraftComponent<any, any, any, any>({
           name: currentDefinition.name,
           meta: currentDefinition.meta,
-          factory: directive[CRAFT_DIRECTIVE].logic(currentDefinition.factory),
-          template: directive[CRAFT_DIRECTIVE].template(currentTemplate),
+          factory: resolvedDirective[CRAFT_DIRECTIVE].logic(
+            currentDefinition.factory,
+          ),
+          template:
+            resolvedDirective[CRAFT_DIRECTIVE].template(currentTemplate),
           styleOwners: [
             ...currentDefinition.styleOwners,
             {
-              name: directive[CRAFT_DIRECTIVE].name,
-              styles: directive[CRAFT_DIRECTIVE].meta.styles,
-              definition: directive[CRAFT_DIRECTIVE],
+              name: resolvedDirective[CRAFT_DIRECTIVE].name,
+              styles: resolvedDirective[CRAFT_DIRECTIVE].meta.styles,
+              definition: resolvedDirective[CRAFT_DIRECTIVE],
             },
           ],
           scopeDefinition: currentDefinition.scopeDefinition,
           composition: mergeComponentComposition(
             currentDefinition.composition,
-            directive[CRAFT_DIRECTIVE].componentOperator,
+            resolvedDirective[CRAFT_DIRECTIVE].componentOperator,
           ),
         });
       }, craftComponent),

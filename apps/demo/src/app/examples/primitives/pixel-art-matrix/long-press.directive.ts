@@ -1,63 +1,86 @@
 import {
-  Directive,
-  EventEmitter,
-  HostListener,
-  Input,
-  Output,
-} from '@angular/core';
-import { provideHostName, componentMonitoring } from '@craft-ng/core';
+  craftDirective,
+  type HostRequiredLogic,
+  type HostTemplate,
+  type Input,
+  type YieldableTemplateContext,
+} from '@craft-ng/component';
+import { componentMonitoring } from '@craft-ng/core';
 
-@Directive({
-  selector: '[appLongPress]',
-  standalone: true,
-  providers: [provideHostName('directive:LongPressDirective')],
-})
-export class LongPressDirective {
-  private readonly _monitoring = componentMonitoring();
-  @Input('appLongPress') duration = 450;
-  @Output() longPress = new EventEmitter<PointerEvent>();
+type PressHandlers = {
+  start: (event: PointerEvent) => void;
+  end: () => void;
+  click: (event: MouseEvent) => void;
+};
 
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private suppressClickOnce = false;
-  private longPressTriggered = false;
+type LongPressContext = {
+  longPressDuration: Input<number>;
+  onLongPress: Input<(event: PointerEvent) => void>;
+  press: PressHandlers;
+};
 
-  @HostListener('pointerdown', ['$event'])
-  onPointerDown(event: PointerEvent): void {
-    this.clearTimer();
-    this.longPressTriggered = false;
-    this.suppressClickOnce = false;
+/**
+ * Emits `onLongPress` when the host element is held down for
+ * `longPressDuration` ms, and swallows the click that ends the press so the
+ * host's own click handler does not fire on release.
+ */
+export const longPress = craftDirective(
+  'longPress',
+  {},
+  (baseLogic: HostRequiredLogic<Record<never, never>>) =>
+    (
+      longPressDuration: Input<number>,
+      onLongPress: Input<(event: PointerEvent) => void>,
+    ) => {
+      componentMonitoring();
 
-    this.timer = setTimeout(() => {
-      this.longPressTriggered = true;
-      this.suppressClickOnce = true;
-      this.longPress.emit(event);
-    }, this.duration);
-  }
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let suppressClickOnce = false;
+      let longPressTriggered = false;
 
-  @HostListener('pointerup')
-  @HostListener('pointercancel')
-  @HostListener('pointerleave')
-  onPointerEnd(): void {
-    this.clearTimer();
-  }
+      const end = () => {
+        if (timer === null) {
+          return;
+        }
+        clearTimeout(timer);
+        timer = null;
+      };
 
-  @HostListener('click', ['$event'])
-  onClick(event: MouseEvent): void {
-    if (!this.suppressClickOnce && !this.longPressTriggered) {
-      return;
-    }
+      const press: PressHandlers = {
+        start: (event) => {
+          end();
+          longPressTriggered = false;
+          suppressClickOnce = false;
 
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    this.suppressClickOnce = false;
-    this.longPressTriggered = false;
-  }
+          timer = setTimeout(() => {
+            longPressTriggered = true;
+            suppressClickOnce = true;
+            onLongPress()(event);
+          }, longPressDuration());
+        },
+        end,
+        click: (event) => {
+          if (!suppressClickOnce && !longPressTriggered) {
+            return;
+          }
 
-  private clearTimer(): void {
-    if (this.timer === null) {
-      return;
-    }
-    clearTimeout(this.timer);
-    this.timer = null;
-  }
-}
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          suppressClickOnce = false;
+          longPressTriggered = false;
+        },
+      };
+
+      return { ...baseLogic(), longPressDuration, onLongPress, press };
+    },
+
+  (baseTemplate: HostTemplate<LongPressContext>) =>
+    (context: YieldableTemplateContext<LongPressContext>) =>
+      baseTemplate(context, {
+        pointerdown: context.press.start,
+        pointerup: context.press.end,
+        pointercancel: context.press.end,
+        pointerleave: context.press.end,
+        click: context.press.click,
+      }),
+);

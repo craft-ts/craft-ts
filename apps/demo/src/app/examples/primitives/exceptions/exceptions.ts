@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import {
   button,
+  catchTag,
   craftComponent,
   div,
   h3,
@@ -78,6 +79,15 @@ const ExceptionsComponent = craftComponent(
           : p('Loading user…'),
     ];
   },
+).pipe(
+  catchTag.exhaustive({
+    UserNotFoundException: () =>
+      p('⚠️ User not found (handled by catchTag.exhaustive)'),
+    UserConsentMissingException: () =>
+      p('⚠️ User consent is required (handled by catchTag.exhaustive)'),
+    UserAccessForbiddenException: () =>
+      p('⚠️ Access forbidden (handled by catchTag.exhaustive)'),
+  }),
 );
 
 export default ExceptionsComponent;

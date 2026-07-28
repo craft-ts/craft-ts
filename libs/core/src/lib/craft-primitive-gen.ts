@@ -2,6 +2,7 @@ import { isSignal, type Injector, type Signal } from '@angular/core';
 import { SERVICE_TRACKED_DEPS_REQUEST_MARKER } from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import type { SERVICE_HELPER_DEPENDENCIES } from './craft-service';
+import type { CraftGenExceptionMarker } from './craft-gen';
 import {
   markNamedReactiveProperties,
   markYieldableValue,
@@ -53,8 +54,21 @@ export type ServiceTrackedDepsRequest<DepMap extends object = object> =
  * primitive ref. Like any generator it is single-use: driving it a second time
  * yields nothing and returns `undefined`.
  */
-export type CraftPrimitiveGen<Ref> = Generator<
-  ServiceTrackedDepsRequest<HelperDependencyMap<Ref>>,
+type PrimitiveExceptionUnion<Ref> = Ref extends {
+  readonly exception: Signal<infer Exception>;
+}
+  ? Extract<Exception, { readonly code: string }>
+  : never;
+
+type PrimitiveExceptionMarker<Ref> = [PrimitiveExceptionUnion<Ref>] extends [
+  never,
+]
+  ? never
+  : CraftGenExceptionMarker<PrimitiveExceptionUnion<Ref>>;
+
+export type CraftPrimitiveGen<Ref, ExceptionRef = Ref> = Generator<
+  | ServiceTrackedDepsRequest<HelperDependencyMap<Ref>>
+  | PrimitiveExceptionMarker<ExceptionRef>,
   Ref,
   unknown
 >;
@@ -87,7 +101,7 @@ export type NamedPrimitive<Name extends string, Ref> = {
 export type NamedCraftPrimitiveGen<
   Name extends string,
   Ref,
-> = CraftPrimitiveGen<NamedPrimitive<Name, Ref>>;
+> = CraftPrimitiveGen<NamedPrimitive<Name, Ref>, Ref>;
 
 /**
  * Wraps a primitive ref under its declared `name` and surfaces it as a
@@ -98,12 +112,15 @@ export type NamedCraftPrimitiveGen<
 export function createNamedPrimitiveGen<Name extends string, Ref>(
   name: Name,
   ref: Ref,
-): CraftPrimitiveGen<NamedPrimitive<Name, Ref>> {
+): CraftPrimitiveGen<NamedPrimitive<Name, Ref>, Ref> {
   markNamedReactiveProperties(ref);
   const namedRef = isSignal(ref) ? markYieldableValue(ref, name) : ref;
   return createPrimitiveGen({
     [name]: namedRef,
-  } as NamedPrimitive<Name, Ref>);
+  } as NamedPrimitive<Name, Ref>) as CraftPrimitiveGen<
+    NamedPrimitive<Name, Ref>,
+    Ref
+  >;
 }
 
 const CRAFT_PRIMITIVE_GEN_MARKER = Symbol('craft-primitive-gen-marker');
