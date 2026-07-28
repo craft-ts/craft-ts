@@ -1788,7 +1788,7 @@ class DeferRenderedNode implements RenderedNode {
     const loader = this.node.loader;
     executeCraftComponentFactoryAsync(
       function* () {
-        return yield* craftLazy(() => loader());
+        return yield* craftLazy(loader);
       },
       [],
       this.context.injector,

@@ -1,5 +1,8 @@
 import type { CraftComponent, PropsOf } from './types';
-import type { ComponentDepsOf } from '@craft-ng/core';
+import type {
+  ComponentDepsOf,
+  CraftLazyLoadHelpers,
+} from '@craft-ng/core';
 import type {
   CraftNodeChildrenDependencies,
   CraftNodeChildren,
@@ -14,6 +17,10 @@ export interface DeferOptions<Loaded> {
   readonly loading?: () => CraftNodeChildren;
   readonly error?: (error: unknown) => CraftNodeChildren;
 }
+
+export type DeferLoader<Loaded> = (
+  helpers: CraftLazyLoadHelpers,
+) => Promise<Loaded>;
 
 type CallbackDependencies<Callback> = Callback extends (
   ...args: any[]
@@ -45,7 +52,7 @@ export function defer<
     readonly resolve: (loaded: Loaded) => CraftNodeChildren;
   },
 >(
-  loader: () => Promise<Loaded>,
+  loader: DeferLoader<Loaded>,
   options: Options,
 ): DeferNode<Loaded, DeferOptionsDependencies<Options>>;
 export function defer<
@@ -56,14 +63,14 @@ export function defer<
     readonly props?: PropsOf<Component>;
   },
 >(
-  loader: () => Promise<Component>,
+  loader: DeferLoader<Component>,
   options?: Options,
 ): DeferNode<
   Component,
   ComponentDepsOf<Component> | DeferOptionsDependencies<Options>
 >;
 export function defer<Loaded>(
-  loader: () => Promise<Loaded>,
+  loader: DeferLoader<Loaded>,
   options: DeferOptions<Loaded> & { readonly props?: object } = {},
 ): DeferNode<Loaded> {
   const resolve =

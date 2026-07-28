@@ -29,6 +29,7 @@ import {
   craftComputed,
   craftMethod,
   craftService,
+  provideCraftLazyLoadRetry,
   state,
 } from '@craft-ng/core';
 import {
@@ -800,6 +801,41 @@ describe('functional component interpreter', () => {
         'CRAFT_LAZY_LOAD_ERROR',
       );
     });
+  });
+
+  it('passes withRetry to defer loaders and retries a failed lazy import', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideCraftLazyLoadRetry({ attempts: 1, delayMs: 0 })],
+    });
+
+    let calls = 0;
+    const component = craftComponent(
+      'deferRetry',
+      {},
+      () => ({}),
+      () =>
+        defer(
+          ({ withRetry }) =>
+            withRetry(
+              calls++ === 0
+                ? Promise.reject(new Error('offline'))
+                : Promise.resolve('Recovered'),
+            ),
+          {
+            trigger: 'immediate',
+            resolve: (value) => p({ class: 'loaded' }, value),
+          },
+        ),
+    );
+    const element = host();
+
+    mountCraftComponent(component, element, TestBed.inject(Injector));
+    TestBed.tick();
+
+    await vi.waitFor(() => {
+      expect(element.querySelector('.loaded')?.textContent).toBe('Recovered');
+    });
+    expect(calls).toBe(2);
   });
 
   it('keeps a defer placeholder until its interaction trigger fires', async () => {

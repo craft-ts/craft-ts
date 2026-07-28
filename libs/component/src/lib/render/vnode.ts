@@ -1,4 +1,5 @@
 import type { Injector, Type } from '@angular/core';
+import type { CraftLazyLoadHelpers } from '@craft-ng/core';
 import type {
   CraftComponent,
   CraftDirectiveTemplateDependencies,
@@ -173,7 +174,9 @@ export type DeferTrigger = 'immediate' | 'idle' | 'viewport' | 'interaction';
 export interface DeferNode<Loaded = unknown, Dependencies extends object = {}>
   extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'defer';
-  readonly loader: () => Promise<Loaded>;
+  readonly loader: (
+    helpers: CraftLazyLoadHelpers,
+  ) => Promise<Loaded>;
   readonly resolve: (loaded: Loaded) => CraftNodeChildren;
   readonly trigger: DeferTrigger;
   readonly placeholder?: () => CraftNodeChildren;

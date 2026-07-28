@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import type { CraftLazyLoadHelpers } from '@craft-ng/core';
 import {
   button,
   craftComponent,
@@ -17,9 +18,6 @@ interface DemoUser {
   readonly id: number;
   readonly name: string;
 }
-
-const loadLazyMessage = () =>
-  import('./lazy-message').then((module) => module.lazyMessage);
 
 const userCard = craftComponent(
   'userCard',
@@ -96,19 +94,25 @@ export const componentDemo = craftComponent(
             }),
         ),
       ),
-      defer(loadLazyMessage, {
-        trigger: 'interaction',
-        placeholder: () =>
-          button(
-            {
-              class: 'component-demo__defer-trigger',
-              'data-testid': 'load-deferred',
-            },
-            'Charger le composant différé',
+      defer(
+        ({ withRetry }) =>
+          withRetry(import('./lazy-message')).then(
+            (module) => module.lazyMessage,
           ),
-        loading: () => p('Chargement…'),
-        error: () =>
-          p({ class: 'component-demo__error' }, 'Le chargement a échoué.'),
-      }),
+        {
+          trigger: 'interaction',
+          placeholder: () =>
+            button(
+              {
+                class: 'component-demo__defer-trigger',
+                'data-testid': 'load-deferred',
+              },
+              'Charger le composant différé',
+            ),
+          loading: () => p('Chargement…'),
+          error: () =>
+            p({ class: 'component-demo__error' }, 'Le chargement a échoué.'),
+        },
+      ),
     ]),
 );
