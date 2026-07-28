@@ -927,6 +927,47 @@ export type ServiceDependencyMapFromYielded<Yielded> = BuildDependencyMap<
   DependencyRequests<Yielded>
 >;
 
+type DependencyMapFromValue<Value> = Value extends {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: infer Dependencies extends object;
+}
+  ? Dependencies
+  : {};
+
+type DependencyValues<Values> = Values extends object
+  ? Values[keyof Values]
+  : Values;
+
+type DependencyMapsFromValues<Values> = DependencyMapFromValue<
+  DependencyValues<Values>
+>;
+
+/**
+ * Extracts and merges dependency metadata carried by insertion outputs.
+ *
+ * `on$` uses this carrier because subscribing to a source is a consumer-side
+ * dependency, while emitting a source value is only a producer operation.
+ */
+export type ServiceDependencyMapFromValues<Values> = MergeAllDependencyNodeMaps<
+  [Values] extends [never]
+    ? []
+    : UnionToTuple<DependencyMapsFromValues<Values>> extends infer Tuple
+      ? Tuple extends object[]
+        ? Tuple
+        : []
+      : []
+>;
+
+export type MergeServiceDependencyMaps<
+  Left extends object,
+  Right extends object,
+> = MergeDependencyNodeMaps<Left, Right>;
+
+export type ServiceDependencyMapFromYieldedAndValues<Yielded, Values> =
+  MergeServiceDependencyMaps<
+    ServiceDependencyMapFromYielded<Yielded>,
+    ServiceDependencyMapFromValues<Values>
+  >;
+
 export type CompleteServiceDependencyMapFromYielded<Yielded> =
   MergeDependencyNodeMaps<
     ServiceDependencyMapFromYielded<Yielded>,

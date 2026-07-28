@@ -9,6 +9,7 @@ Subscribes to a source and executes a callback when it emits, with automatic cle
 - Listening to source emissions and executing callbacks
 - Automatically unsubscribing when the injection context is destroyed
 - Working with `source$`, `EventEmitter`, and any Observable
+- Accepting a source-returning `craftService` helper directly
 - Returning `SourceBranded` to prevent method exposure in state insertions
 - Providing a clean way to coordinate state updates with source events
 
@@ -16,10 +17,15 @@ Subscribes to a source and executes a callback when it emits, with automatic cle
 
 ```typescript
 function on$<State, SourceType>(
-  _source: {
+  source: {
     subscribe: EventEmitter<SourceType>['subscribe'];
   },
   callback: (source: SourceType) => State,
+): SourceBranded;
+
+function on$<State, SourceService>(
+  source: SourceService,
+  callback: (source: SourceServiceOutput) => State,
 ): SourceBranded;
 ```
 
@@ -31,6 +37,27 @@ function on$<State, SourceType>(
 ### Returns
 
 `SourceBranded` - A branded symbol indicating the method is not exposed on the state/store
+
+When `source` is a Craft service helper returning a `Source$`, `on$` resolves
+the helper in the current injection context and tracks that helper as a
+dependency of the containing primitive.
+
+```typescript
+const { Reset } = craftService(
+  { name: 'Reset', scope: 'global' },
+  function* () {
+    const { reset$ } = yield* source$<void>('reset$');
+    return reset$;
+  },
+);
+
+const { counter } = yield* state('counter', 0, ({ set }) => ({
+  reset: on$(Reset, () => set(0)),
+}));
+```
+
+`on$(Reset, ...)` is the dependency edge. `yield* Reset()` can then be used
+to expose the same source for producing events with `reset.emit()`.
 
 ## Primary Use Case
 

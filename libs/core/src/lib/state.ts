@@ -21,7 +21,9 @@ import { injectFnWrapper } from './fn-wrapper';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import type {
   BrandedServiceProvider,
+  MergeServiceDependencyMaps,
   SERVICE_HELPER_DEPENDENCIES,
+  ServiceDependencyMapFromValues,
   ServiceDependencyMapFromYielded,
 } from './craft-service';
 import {
@@ -114,15 +116,23 @@ type StateInputProviderNames<StateInput> = StateInput extends {
 type SatisfyDependencies<Deps, SatisfiedNames extends string> = {
   [K in keyof Deps as K extends SatisfiedNames ? never : K]: Deps[K];
 };
-type StateTrackedDependencies<StateInput = never, InsertionsYielded = never> = [
-  StateInputProviderNames<StateInput>,
-] extends [never]
-  ? ServiceDependencyMapFromYielded<
-      StateConfigYielded<StateInput> | InsertionsYielded
-    >
-  : SatisfyDependencies<
+type StateTrackedDependencies<
+  StateInput = never,
+  InsertionsYielded = never,
+  Insertions = never,
+> = [StateInputProviderNames<StateInput>] extends [never]
+  ? MergeServiceDependencyMaps<
       ServiceDependencyMapFromYielded<
         StateConfigYielded<StateInput> | InsertionsYielded
+      >,
+      ServiceDependencyMapFromValues<Insertions>
+    >
+  : SatisfyDependencies<
+      MergeServiceDependencyMaps<
+        ServiceDependencyMapFromYielded<
+          StateConfigYielded<StateInput> | InsertionsYielded
+        >,
+        ServiceDependencyMapFromValues<Insertions>
       >,
       StateInputProviderNames<StateInput>
     >;
@@ -312,7 +322,7 @@ export function state<
     StateOutput<
       ResolvedStateType<StateInput>,
       Insertion1,
-      StateTrackedDependencies<StateInput, Insertion1Yielded>
+      StateTrackedDependencies<StateInput, Insertion1Yielded, Insertion1>
     >
   >
 >;

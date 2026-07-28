@@ -43,7 +43,7 @@ describe('on$', () => {
       // Le readonly source ne devrait pas avoir de méthode emit
       expect(brandedSource).not.toHaveProperty('emit');
 
-      expectTypeOf(brandedSource).toEqualTypeOf<SourceBranded>();
+      expectTypeOf(brandedSource).toMatchTypeOf<SourceBranded>();
     });
   });
 

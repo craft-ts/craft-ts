@@ -2,10 +2,6 @@
 
 Converts DOM events to a readonly source stream with automatic cleanup and signal-based value tracking.
 
-::: warning
-I will try to align this API with others (make it yieldable in order to track source$ as a dependency).
-:::
-
 ## Overview
 
 `fromEventToSource$` bridges DOM events with craft-ng's reactive system by combining:
@@ -60,6 +56,17 @@ function fromEventToSource$<T, ComputedValue>(
 - **`value: Signal<T | undefined>`** - Read-only signal containing the last emitted value
 - **`dispose()`** - Method to manually remove the event listener
 
+The result is also a named yieldable primitive. The yielded source remains
+readonly and keeps `dispose()`:
+
+```typescript
+const clickSource = fromEventToSource$(button, 'click');
+const { click } = yield* clickSource;
+
+click.subscribe((event) => console.log(event));
+click.dispose();
+```
+
 ## Types
 
 ### FromEventToSource$
@@ -67,7 +74,12 @@ function fromEventToSource$<T, ComputedValue>(
 ```typescript
 type FromEventToSource$<T> = ReadonlySource$<T> & {
   dispose: () => void;
-};
+} & NamedCraftPrimitiveGen<
+    string,
+    ReadonlySource$<T> & {
+      dispose: () => void;
+    }
+  >;
 ```
 
 ### ReadonlySource$
@@ -80,6 +92,28 @@ type ReadonlySource$<T> = {
 ```
 
 ## Key Features
+
+### Source services and dependency tracking
+
+Expose the event source through a `craftService` when consumers should depend
+on the event handle:
+
+```typescript
+const { Click } = craftService(
+  { name: 'Click', scope: 'global' },
+  function* () {
+    const { click } = yield* fromEventToSource$(button, 'click');
+    return click;
+  },
+);
+
+const { counter } = yield* state('counter', 0, ({ set }) => ({
+  click: on$(Click, () => set(1)),
+}));
+```
+
+`on$(Click, ...)` tracks `Click`. Calling `dispose()` only removes the DOM
+listener and does not alter dependency metadata.
 
 ### Automatic Cleanup
 

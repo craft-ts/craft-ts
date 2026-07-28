@@ -1,10 +1,23 @@
 import { assertInInjectionContext, DestroyRef, inject } from '@angular/core';
 import { source$ } from './source$';
+import {
+  createNamedPrimitiveGen,
+  type NamedCraftPrimitiveGen,
+} from './craft-primitive-gen';
 import type { ReadonlySource$ } from './source$';
 
-export type FromEventToSource$<T> = ReadonlySource$<T> & {
+type FromEventToSourceInstance<
+  T,
+  Name extends string = string,
+> = ReadonlySource$<T, Name> & {
   dispose: () => void;
 };
+
+export type FromEventToSource$<
+  T,
+  Name extends string = string,
+> = FromEventToSourceInstance<T, Name> &
+  NamedCraftPrimitiveGen<Name, FromEventToSourceInstance<T, Name>>;
 
 /**
  * Converts DOM events to a ReadonlySource$ stream with automatic cleanup on component destruction.
@@ -200,22 +213,26 @@ export type FromEventToSource$<T> = ReadonlySource$<T> & {
  *
  * @see {@link https://ng-craft.dev/utils/from-event-to-source$ | fromEventToSource$ documentation}
  */
-export function fromEventToSource$<T>(
+export function fromEventToSource$<T, Name extends string = string>(
   target: EventTarget,
-  eventName: string,
+  eventName: Name,
   options?: {
     event?: boolean | AddEventListenerOptions;
     computedValue?: never;
   },
-): FromEventToSource$<T>;
-export function fromEventToSource$<T, ComputedValue>(
+): FromEventToSource$<T, Name>;
+export function fromEventToSource$<
+  T,
+  ComputedValue,
+  Name extends string = string,
+>(
   target: EventTarget,
-  eventName: string,
+  eventName: Name,
   options?: {
     event?: boolean | AddEventListenerOptions;
     computedValue: (event: T) => ComputedValue;
   },
-): FromEventToSource$<ComputedValue>;
+): FromEventToSource$<ComputedValue, Name>;
 export function fromEventToSource$(
   target: EventTarget,
   eventName: string,
@@ -249,7 +266,10 @@ export function fromEventToSource$(
     dispose();
   });
 
-  return Object.assign(eventSource$.asReadonly(), {
+  const source = Object.assign(eventSource$.asReadonly(), {
     dispose,
-  });
+  }) as ReadonlySource$<unknown> & { dispose: () => void };
+  const generator = createNamedPrimitiveGen(eventName, source);
+
+  return Object.assign(generator, source) as FromEventToSource$<unknown>;
 }

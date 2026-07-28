@@ -1,6 +1,7 @@
 # source$
 
-Creates an event emitter with automatic cleanup and signal-based value tracking.
+Creates an event source with automatic cleanup, signal-based value tracking and
+yieldable primitive semantics.
 
 ## Overview
 
@@ -30,7 +31,19 @@ function source$<T>(name: string): Source$<T>;
 
 ### Returns
 
-`Source$<T>` - An object with the following methods and properties:
+`Source$<T>` is directly usable as a source and can also be consumed with
+`yield*`:
+
+```typescript
+// Direct source API
+const source = source$<void>('reset$');
+source.emit();
+
+// Yieldable primitive API
+const { reset$ } = yield* source$<void>('reset$');
+```
+
+The yielded value is the source instance. Its source API is unchanged:
 
 - **`emit(value: T)`** - Emits a value to all subscribers and updates the internal signal
 - **`subscribe(callback: (value: T) => void)`** - Subscribes to emissions with a callback
@@ -43,7 +56,10 @@ function source$<T>(name: string): Source$<T>;
 ### Source$
 
 ```typescript
-type Source$<T> = {
+type Source$<T> = SourceInstance<T> &
+  NamedCraftPrimitiveGen<string, SourceInstance<T>>;
+
+type SourceInstance<T> = {
   emit: (value: T) => void;
   subscribe: (callback: (value: T) => void) => Subscription;
   value: Signal<T | undefined>;
@@ -60,6 +76,10 @@ type Source$<T> = {
 };
 ```
 
+The generator side yields `{ [name]: SourceInstance<T> }`. The source side
+keeps the existing `emit`, `subscribe`, `value`, `asReadonly` and
+`preserveLastValue` API.
+
 ### ReadonlySource$
 
 ```typescript
@@ -70,6 +90,37 @@ type ReadonlySource$<T> = {
 ```
 
 ## Key Features
+
+### Source services and dependency tracking
+
+Use a `craftService` as the dependency handle when a source is shared by
+multiple consumers:
+
+```typescript
+const { Reset } = craftService(
+  { name: 'Reset', scope: 'global' },
+  function* () {
+    const { reset$ } = yield* source$<void>('reset$');
+    return reset$;
+  },
+);
+
+const { Counter } = craftService(
+  { name: 'Counter', scope: 'global' },
+  function* () {
+    const { counter } = yield* state('counter', 0, ({ set }) => ({
+      reset: on$(Reset, () => set(0)),
+    }));
+
+    const reset = yield* Reset();
+    return { counter, reset };
+  },
+);
+```
+
+`on$(Reset, ...)` records `Reset` as a dependency of the primitive. Calling
+`reset.emit()` only publishes an event; it does not create or modify the
+dependency graph.
 
 ### Automatic Cleanup
 

@@ -70,7 +70,7 @@ import {
 import type {
   BrandedServiceProvider,
   SERVICE_HELPER_DEPENDENCIES,
-  ServiceDependencyMapFromYielded,
+  ServiceDependencyMapFromYieldedAndValues,
 } from './craft-service';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { injectFnWrapper } from './fn-wrapper';
@@ -101,21 +101,24 @@ type QueryTrackedDependencies<
   StreamYielded = never,
   InsertionsYielded = never,
   Providers = never,
+  Insertions = never,
 > = [QueryConfigProviderNames<Providers>] extends [never]
-  ? ServiceDependencyMapFromYielded<
+  ? ServiceDependencyMapFromYieldedAndValues<
       | ParamsYielded
       | MethodYielded
       | LoaderYielded
       | StreamYielded
-      | InsertionsYielded
+      | InsertionsYielded,
+      Insertions
     >
   : SatisfyDependencies<
-      ServiceDependencyMapFromYielded<
+      ServiceDependencyMapFromYieldedAndValues<
         | ParamsYielded
         | MethodYielded
         | LoaderYielded
         | StreamYielded
-        | InsertionsYielded
+        | InsertionsYielded,
+        Insertions
       >,
       QueryConfigProviderNames<Providers>
     >;
@@ -679,7 +682,8 @@ export function query<
       LoaderYielded,
       StreamYielded,
       Insertion1Yielded,
-      Providers
+      Providers,
+      Insertion1
     >
   >
 >;

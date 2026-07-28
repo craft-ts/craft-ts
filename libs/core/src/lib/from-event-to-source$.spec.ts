@@ -1,7 +1,17 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { fromEventToSource$, FromEventToSource$ } from './from-event-to-source$';
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
+import {
+  fromEventToSource$,
+  FromEventToSource$,
+} from './from-event-to-source$';
 import { TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
+import {
+  craftService,
+  craftUse,
+  GetServiceDependencies,
+  on$,
+  state,
+} from '../index';
 
 describe('fromEventToSource$', () => {
   let button: HTMLButtonElement;
@@ -124,7 +134,8 @@ describe('fromEventToSource$', () => {
     let eventSource$!: FromEventToSource$<string>;
     TestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$(button, 'click', {
-        computedValue: (event: MouseEvent) => `Clicked at ${event.clientX}, ${event.clientY}`,
+        computedValue: (event: MouseEvent) =>
+          `Clicked at ${event.clientX}, ${event.clientY}`,
       });
     });
 
@@ -195,5 +206,66 @@ describe('fromEventToSource$', () => {
     // that there's no emit method exposed
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((eventSource$ as any).emit).toBe(undefined);
+  });
+
+  it('should remain readonly while being consumable with yield*', () => {
+    let eventSource$!: FromEventToSource$<MouseEvent>;
+
+    TestBed.runInInjectionContext(() => {
+      eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
+      const yieldedSource$ = craftUse(eventSource$).click;
+
+      expect(yieldedSource$).not.toBe(eventSource$);
+      expect(yieldedSource$).toHaveProperty('dispose');
+      expect((yieldedSource$ as any).emit).toBe(undefined);
+
+      const clickEvent = new MouseEvent('click');
+      button.dispatchEvent(clickEvent);
+      expect(yieldedSource$.value()).toBe(clickEvent);
+    });
+  });
+
+  it('should be usable as a source service dependency', () => {
+    const { ClickEventSource: Click } = craftService(
+      { name: 'ClickEventSource', scope: 'global' },
+      function* () {
+        const { click } = yield* fromEventToSource$<MouseEvent>(
+          button,
+          'click',
+        );
+        return click;
+      },
+    );
+
+    const { ClickEventConsumer: Counter } = craftService(
+      { name: 'ClickEventConsumer', scope: 'global' },
+      function* () {
+        const { counter } = yield* state('counter', 0, ({ set }) => ({
+          increment: on$(Click, (event) => {
+            expectTypeOf(event).toEqualTypeOf<MouseEvent>();
+            return set(1);
+          }),
+        }));
+
+        return { counter };
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const counter = craftUse(Counter());
+      button.dispatchEvent(new MouseEvent('click'));
+      expect(counter.counter()).toBe(1);
+    });
+
+    type ConsumerDependencies = GetServiceDependencies<typeof Counter>;
+    type ClickDependency =
+      ConsumerDependencies['dependencies']['ClickEventSource'];
+
+    expectTypeOf<ClickDependency['dependencies']>().toMatchTypeOf<{
+      [key: string]: {
+        scope: 'function';
+        dependencies: {};
+      };
+    }>();
   });
 });

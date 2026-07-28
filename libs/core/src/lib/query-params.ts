@@ -36,7 +36,7 @@ import {
 } from './craft-primitive-gen';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
-  ServiceDependencyMapFromYielded,
+  ServiceDependencyMapFromYieldedAndValues,
   ServiceTrackingMetadata,
   ServiceYieldRequest,
 } from './craft-service';
@@ -106,10 +106,12 @@ type RouterQueryParamsYield = ServiceYieldRequest<
 type QueryParamsTrackedDependencies<
   QueryParamsType,
   InsertionsYielded = never,
-> = ServiceDependencyMapFromYielded<
+  Insertions = never,
+> = ServiceDependencyMapFromYieldedAndValues<
   | RouterQueryParamsYield
   | QueryParamsConfigYielded<QueryParamsType>
-  | InsertionsYielded
+  | InsertionsYielded,
+  Insertions
 >;
 
 type AnyQueryParamsConfig = QueryParamsConfig<any>;
@@ -379,7 +381,11 @@ export function queryParams<
     QueryParamsType,
     Insertion1,
     QueryParamsState,
-    QueryParamsTrackedDependencies<QueryParamsType, Insertion1Yielded>
+    QueryParamsTrackedDependencies<
+      QueryParamsType,
+      Insertion1Yielded,
+      Insertion1
+    >
   >
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

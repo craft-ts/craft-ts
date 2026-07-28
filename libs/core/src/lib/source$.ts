@@ -10,6 +10,22 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import type {
+  SERVICE_HELPER_DEPENDENCIES,
+  ServiceDependencies,
+} from './craft-service';
+import {
+  createNamedPrimitiveGen,
+  type NamedCraftPrimitiveGen,
+} from './craft-primitive-gen';
+
+export type SourceDependency<Name extends string> = {
+  [K in Name]: ServiceDependencies<'function', {}>;
+};
+
+type SourceDependencyCarrier<Name extends string> = {
+  readonly [SERVICE_HELPER_DEPENDENCIES]?: SourceDependency<Name>;
+};
 
 export type SourceSubscribe<T> = {
   subscribe: (
@@ -17,25 +33,36 @@ export type SourceSubscribe<T> = {
   ) => ReturnType<EventEmitter<T>['subscribe']>;
 };
 
-export type Source$<T> = {
+export type SourceInstance<
+  T,
+  Name extends string = string,
+> = SourceDependencyCarrier<Name> & {
   emit: (value: T) => void;
   subscribe: (
     callback: (value: T) => void,
   ) => ReturnType<EventEmitter<T>['subscribe']>;
-  asReadonly: () => ReadonlySource$<T>;
-  preserveLastValue: () => {
-    emit: (value: T) => void;
-    subscribe: (callback: (value: T) => void) => void;
-    asReadonly: () => {
-      subscribe: (callback: (value: T) => void) => void;
-      value: Signal<T | undefined>;
-    };
-    value: Signal<T | undefined>;
-  };
+  asReadonly: () => ReadonlySource$<T, Name>;
+  preserveLastValue: () => PreservedSource$<T, Name>;
   value: Signal<T | undefined>;
 };
 
-export type ReadonlySource$<T> = {
+export type Source$<T, Name extends string = string> = SourceInstance<T, Name> &
+  NamedCraftPrimitiveGen<Name, SourceInstance<T, Name>>;
+
+export type PreservedSource$<
+  T,
+  Name extends string = string,
+> = SourceDependencyCarrier<Name> & {
+  emit: (value: T) => void;
+  subscribe: (callback: (value: T) => void) => void;
+  asReadonly: () => ReadonlySource$<T, Name>;
+  value: Signal<T | undefined>;
+};
+
+export type ReadonlySource$<
+  T,
+  Name extends string = string,
+> = SourceDependencyCarrier<Name> & {
   subscribe: (
     callback: (value: T) => void,
   ) => ReturnType<EventEmitter<T>['subscribe']>;
@@ -53,12 +80,29 @@ export type ReadonlySource$<T> = {
  * @param name - Name matching the variable/property this source is assigned to (used for host
  * tagging and dev-tools snapshot reporting, consistent with `craftComputed`/`craftEffect`)
  *
- * @returns {Source$<T>} An object with the following methods and properties:
+ * @returns {Source$<T>} A source object that is also a named primitive
+ * generator. Use it directly with `emit()`/`subscribe()`, or consume it with
+ * `yield*` to obtain `{ [name]: source }` and propagate its dependency metadata.
  * - `emit(value: T)` - Emits a value to all subscribers and updates the internal signal
  * - `subscribe(callback: (value: T) => void)` - Subscribes to emissions with automatic cleanup
  * - `value: Signal<T | undefined>` - A read-only signal containing the last emitted value
  * - `asReadonly()` - Returns a read-only version (only `subscribe` and `value`)
  * - `preserveLastValue()` - Returns a variant that immediately emits the last value to new subscribers
+ *
+ * @example
+ * Yieldable source service
+ * ```typescript
+ * const { Reset } = craftService(
+ *   { name: 'Reset', scope: 'global' },
+ *   function* () {
+ *     const { reset$ } = yield* source$<void>('reset$');
+ *     return reset$;
+ *   },
+ * );
+ *
+ * const reset = yield* Reset();
+ * reset.emit();
+ * ```
  *
  * @example
  * Basic usage with state coordination
@@ -113,7 +157,9 @@ export type ReadonlySource$<T> = {
  *
  * @see {@link https://ng-craft.dev/utils/source$ | source$ documentation}
  */
-export function source$<T>(name: string): Source$<T> {
+export function source$<T, Name extends string = string>(
+  name: Name,
+): Source$<T, Name> {
   assertInInjectionContext(source$);
   const injector = inject(Injector);
   const sourceInjector = ɵcreateHostTaggedInjector(injector, `source:${name}`);
@@ -126,18 +172,26 @@ export function source$<T>(name: string): Source$<T> {
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
   if (registry) {
     const from = sourceInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    registry.triggerSnapshot$.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
-      let stateSnapshot: unknown;
-      try {
-        stateSnapshot = sourceAsSignal();
-      } catch (error) {
-        stateSnapshot = { error: error instanceof Error ? error.message : String(error) };
-      }
-      registry.allSnapShot$.next({ source: name, from, state: stateSnapshot });
-    });
+    registry.triggerSnapshot$
+      .pipe(takeUntilDestroyed(destroyRef))
+      .subscribe(() => {
+        let stateSnapshot: unknown;
+        try {
+          stateSnapshot = sourceAsSignal();
+        } catch (error) {
+          stateSnapshot = {
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+        registry.allSnapShot$.next({
+          source: name,
+          from,
+          state: stateSnapshot,
+        });
+      });
   }
 
-  return {
+  const source = {
     emit: (value: T) => {
       sourceRef$.emit(value);
       sourceAsSignal.set(value);
@@ -176,5 +230,9 @@ export function source$<T>(name: string): Source$<T> {
         sourceRef$.subscribe(callback),
       value: sourceAsSignal.asReadonly(),
     }),
-  };
+  } as SourceInstance<T, Name>;
+
+  const generator = createNamedPrimitiveGen(name, source);
+
+  return Object.assign(generator, source) as Source$<T, Name>;
 }

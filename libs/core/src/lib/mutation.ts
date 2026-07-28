@@ -70,7 +70,7 @@ import {
 import type {
   BrandedServiceProvider,
   SERVICE_HELPER_DEPENDENCIES,
-  ServiceDependencyMapFromYielded,
+  ServiceDependencyMapFromYieldedAndValues,
 } from './craft-service';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { injectFnWrapper } from './fn-wrapper';
@@ -101,21 +101,24 @@ type MutationTrackedDependencies<
   StreamYielded = never,
   InsertionsYielded = never,
   Providers = never,
+  Insertions = never,
 > = [MutationConfigProviderNames<Providers>] extends [never]
-  ? ServiceDependencyMapFromYielded<
+  ? ServiceDependencyMapFromYieldedAndValues<
       | ParamsYielded
       | MethodYielded
       | LoaderYielded
       | StreamYielded
-      | InsertionsYielded
+      | InsertionsYielded,
+      Insertions
     >
   : SatisfyDependencies<
-      ServiceDependencyMapFromYielded<
+      ServiceDependencyMapFromYieldedAndValues<
         | ParamsYielded
         | MethodYielded
         | LoaderYielded
         | StreamYielded
-        | InsertionsYielded
+        | InsertionsYielded,
+        Insertions
       >,
       MutationConfigProviderNames<Providers>
     >;
@@ -757,7 +760,8 @@ export function mutation<
       LoaderYielded,
       StreamYielded,
       Insertion1Yielded,
-      Providers
+      Providers,
+      Insertion1
     >
   >
 >;

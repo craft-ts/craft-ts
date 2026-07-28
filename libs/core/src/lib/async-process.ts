@@ -67,7 +67,7 @@ import {
 import type {
   BrandedServiceProvider,
   SERVICE_HELPER_DEPENDENCIES,
-  ServiceDependencyMapFromYielded,
+  ServiceDependencyMapFromYieldedAndValues,
 } from './craft-service';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { injectFnWrapper } from './fn-wrapper';
@@ -98,21 +98,24 @@ type AsyncProcessTrackedDependencies<
   StreamYielded = never,
   InsertionsYielded = never,
   Providers = never,
+  Insertions = never,
 > = [AsyncProcessConfigProviderNames<Providers>] extends [never]
-  ? ServiceDependencyMapFromYielded<
+  ? ServiceDependencyMapFromYieldedAndValues<
       | ParamsYielded
       | MethodYielded
       | LoaderYielded
       | StreamYielded
-      | InsertionsYielded
+      | InsertionsYielded,
+      Insertions
     >
   : SatisfyDependencies<
-      ServiceDependencyMapFromYielded<
+      ServiceDependencyMapFromYieldedAndValues<
         | ParamsYielded
         | MethodYielded
         | LoaderYielded
         | StreamYielded
-        | InsertionsYielded
+        | InsertionsYielded,
+        Insertions
       >,
       AsyncProcessConfigProviderNames<Providers>
     >;
@@ -727,7 +730,8 @@ export function asyncProcess<
       LoaderYielded,
       StreamYielded,
       Insertion1Yielded,
-      Providers
+      Providers,
+      Insertion1
     >
   >
 >;
