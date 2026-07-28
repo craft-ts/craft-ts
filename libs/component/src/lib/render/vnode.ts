@@ -2,16 +2,22 @@ import type { Injector, Type } from '@angular/core';
 import type {
   CraftComponent,
   CraftDirectiveTemplateDependencies,
+  ComponentInitializationExceptionsOf,
 } from '../types';
 import { isCraftDirective, type CraftDirective } from '../types';
 
 export declare const CRAFT_NODE_DEPS: unique symbol;
+declare const CRAFT_NODE_EXCEPTIONS: unique symbol;
 
 export type CraftNodeDepsCarrier<Dependencies extends object = {}> = {
   readonly [CRAFT_NODE_DEPS]?: Dependencies;
 };
 
 type IsAny<Value> = 0 extends 1 & Value ? true : false;
+
+type CraftNodeExceptionsCarrier<Exceptions extends string = string> = {
+  readonly [CRAFT_NODE_EXCEPTIONS]: Exceptions;
+};
 
 type UnionToIntersection<Union> = (
   Union extends any ? (value: Union) => void : never
@@ -97,11 +103,19 @@ export interface TextNode {
 export interface ComponentNode<
   Props extends object = object,
   ComponentDeps extends object = {},
-  Component extends CraftComponent<any, ComponentDeps> = CraftComponent<
+  Component extends CraftComponent<
     any,
-    ComponentDeps
-  >,
-> extends CraftNodeDepsCarrier<ComponentDeps> {
+    ComponentDeps,
+    any,
+    any,
+    any,
+    any,
+    any,
+    any,
+    any
+  > = CraftComponent<any, ComponentDeps, any, any, any, any, any, any, any>,
+> extends CraftNodeDepsCarrier<ComponentDeps>,
+    CraftNodeExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> {
   readonly kind: 'component';
   readonly component: Component;
   readonly props: Props;
@@ -186,6 +200,33 @@ export type CraftNodeChild =
   | readonly CraftNodeChild[];
 
 export type CraftNodeChildren = CraftNodeChild | readonly CraftNodeChild[];
+
+type CraftNodeDirectExceptions<Value> =
+  IsAny<Value> extends true
+    ? never
+    : Value extends CraftNodeExceptionsCarrier<infer Exceptions>
+      ? string extends Exceptions
+        ? never
+        : Exceptions
+      : never;
+
+export type CraftNodeChildrenExceptions<Value> = Value extends unknown
+  ? Value extends readonly (infer Child)[]
+    ? CraftNodeDirectExceptions<Child>
+    : CraftNodeDirectExceptions<Value>
+  : never;
+
+/** A template child is renderable only after its component exceptions are handled. */
+export type RequireCaughtComponentExceptions<
+  Children extends CraftNodeChildren,
+> =
+  IsAny<CraftNodeChildrenExceptions<Children>> extends true
+    ? unknown
+    : [CraftNodeChildrenExceptions<Children>] extends [never]
+      ? unknown
+      : {
+          'catchTag.exhaustive is required before rendering component exceptions': CraftNodeChildrenExceptions<Children>;
+        };
 
 export function isCraftNode(value: unknown): value is CraftNode {
   if (typeof value !== 'object' || value === null || !('kind' in value)) {

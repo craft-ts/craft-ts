@@ -127,23 +127,35 @@ function* catchWithLookup(
  * unreachable code. On violation the operator's program parameter collapses to
  * an impossible intersection whose property name spells out the problem.
  */
-type ExhaustiveHandlersCheck<Exception extends AnyCraftException, Handlers> = [
-  Exclude<Exception['code'], keyof Handlers>,
+/**
+ * Shared exact-code check used by program and component catchTag adapters.
+ *
+ * The handler value is intentionally not part of this type: each consumer
+ * has a different handler contract (generators for programs, template
+ * children for components), but the reachable-code rules are identical.
+ */
+export type CatchTagExhaustiveCodesCheck<Codes extends PropertyKey, Handlers> = [
+  Exclude<Codes, keyof Handlers>,
 ] extends [never]
-  ? [Exclude<keyof Handlers, Exception['code']>] extends [never]
+  ? [Exclude<keyof Handlers, Codes>] extends [never]
     ? unknown
     : {
         'catchTag.exhaustive has handlers for unreachable codes': Exclude<
           keyof Handlers,
-          Exception['code']
+          Codes
         >;
       }
   : {
       'catchTag.exhaustive is missing handlers for codes': Exclude<
-        Exception['code'],
+        Codes,
         keyof Handlers
       >;
     };
+
+export type CatchTagExhaustiveHandlersCheck<
+  Exception extends AnyCraftException,
+  Handlers,
+> = CatchTagExhaustiveCodesCheck<Exception['code'], Handlers>;
 
 type ExhaustiveHandlersYielded<Handlers> = {
   [K in keyof Handlers]: HandlerYielded<Handlers[K]>;
@@ -201,7 +213,7 @@ interface CatchTagOperator {
     handlers: Handlers,
   ) => <YIn, AIn>(
     program: Generator<YIn, AIn, unknown> &
-      ExhaustiveHandlersCheck<
+      CatchTagExhaustiveHandlersCheck<
         Extract<ExtractCraftGenExceptions<YIn>, AnyCraftException>,
         Handlers
       >,

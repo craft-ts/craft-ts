@@ -4,6 +4,8 @@ import {
   CRAFT_DIRECTIVE,
   type ComponentFactory,
   type ComponentMeta,
+  type ComponentCompositionDefinition,
+  type ComponentInitializationExceptionCodes,
   type ComponentTemplate,
   type CraftComponent,
   type FactoryContext,
@@ -46,7 +48,8 @@ export function craftComponent<
   Factory,
   TemplateDependencies<Template>,
   Template,
-  Name
+  Name,
+  ComponentInitializationExceptionCodes<Factory, ProvidersFromMeta<Meta>>
 > {
   return createCraftComponent<Name, Meta, Factory, Template>({
     name,
@@ -70,6 +73,7 @@ function createCraftComponent<
   readonly template: Template;
   readonly styleOwners: readonly StyleOwner[];
   readonly scopeDefinition: object | undefined;
+  readonly composition?: ComponentCompositionDefinition;
 }): CraftComponent<
   PropsFromContext<FactoryContext<Factory>>,
   CraftComponentDependencies<
@@ -84,7 +88,8 @@ function createCraftComponent<
   Factory,
   TemplateDependencies<Template>,
   Template,
-  Name
+  Name,
+  ComponentInitializationExceptionCodes<Factory, ProvidersFromMeta<Meta>>
 > {
   type Props = PropsFromContext<FactoryContext<Factory>>;
   type ComponentDeps = CraftComponentDependencies<
@@ -114,11 +119,18 @@ function createCraftComponent<
 
   const craftComponent = ((
     props: Props & HostProps = {} as Props & HostProps,
-  ): ComponentNode<Props & HostProps, ComponentDeps> => ({
-    kind: 'component',
-    component: craftComponent,
-    props,
-  })) as CraftComponent<
+  ): ComponentNode<Props & HostProps, ComponentDeps> =>
+    ({
+      kind: 'component',
+      component: craftComponent as unknown as CraftComponent<
+        any,
+        ComponentDeps
+      >,
+      props,
+    }) as unknown as ComponentNode<
+      Props & HostProps,
+      ComponentDeps
+    >) as unknown as CraftComponent<
     Props,
     ComponentDeps,
     Factory,
@@ -126,7 +138,8 @@ function createCraftComponent<
     Factory,
     TemplateDependencies<Template>,
     Template,
-    Name
+    Name,
+    ComponentInitializationExceptionCodes<Factory, ProvidersFromMeta<Meta>>
   >;
 
   const scopeDefinition = definition.scopeDefinition ?? {};
@@ -147,33 +160,65 @@ function createCraftComponent<
   });
 
   Object.defineProperty(craftComponent, 'pipe', {
-    value: (directive: {
-      readonly [CRAFT_DIRECTIVE]: {
-        readonly name: string;
-        readonly meta: { readonly styles?: string | readonly string[] };
-        readonly logic: (baseLogic: ComponentFactory) => ComponentFactory;
-        readonly template: (
-          baseTemplate: ComponentTemplate<any>,
-        ) => ComponentTemplate<any>;
-      };
-    }) =>
-      createCraftComponent<any, any, any, any>({
-        name: definition.name,
-        meta: definition.meta,
-        factory: directive[CRAFT_DIRECTIVE].logic(definition.factory),
-        template: directive[CRAFT_DIRECTIVE].template(hostAwareTemplate),
-        styleOwners: [
-          ...definition.styleOwners,
-          {
-            name: directive[CRAFT_DIRECTIVE].name,
-            styles: directive[CRAFT_DIRECTIVE].meta.styles,
-            definition: directive[CRAFT_DIRECTIVE],
-          },
-        ],
-        scopeDefinition,
-      }),
+    value: (
+      ...directives: {
+        readonly [CRAFT_DIRECTIVE]: {
+          readonly name: string;
+          readonly meta: { readonly styles?: string | readonly string[] };
+          readonly logic: (baseLogic: ComponentFactory) => ComponentFactory;
+          readonly template: (
+            baseTemplate: ComponentTemplate<any>,
+          ) => ComponentTemplate<any>;
+          readonly componentOperator?: ComponentCompositionDefinition;
+        };
+      }[]
+    ) =>
+      directives.reduce<unknown>((current, directive) => {
+        const currentComponent = current as CraftComponent<any>;
+        const currentDefinition = currentComponent[CRAFT_COMPONENT];
+        const currentTemplate = currentDefinition.template;
+        return createCraftComponent<any, any, any, any>({
+          name: currentDefinition.name,
+          meta: currentDefinition.meta,
+          factory: directive[CRAFT_DIRECTIVE].logic(currentDefinition.factory),
+          template: directive[CRAFT_DIRECTIVE].template(currentTemplate),
+          styleOwners: [
+            ...currentDefinition.styleOwners,
+            {
+              name: directive[CRAFT_DIRECTIVE].name,
+              styles: directive[CRAFT_DIRECTIVE].meta.styles,
+              definition: directive[CRAFT_DIRECTIVE],
+            },
+          ],
+          scopeDefinition: currentDefinition.scopeDefinition,
+          composition: mergeComponentComposition(
+            currentDefinition.composition,
+            directive[CRAFT_DIRECTIVE].componentOperator,
+          ),
+        });
+      }, craftComponent),
     enumerable: false,
   });
 
   return craftComponent;
+}
+
+function mergeComponentComposition(
+  existing: ComponentCompositionDefinition | undefined,
+  next: ComponentCompositionDefinition | undefined,
+): ComponentCompositionDefinition | undefined {
+  if (!existing && !next) {
+    return undefined;
+  }
+
+  const providers = [
+    ...(existing?.providers ?? []),
+    ...(next?.providers ?? []),
+  ];
+  const catchHandlers = next?.catchHandlers ?? existing?.catchHandlers;
+
+  return {
+    ...(providers.length ? { providers } : {}),
+    ...(catchHandlers ? { catchHandlers } : {}),
+  };
 }

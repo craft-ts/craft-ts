@@ -1,11 +1,15 @@
 import type { Provider } from '@angular/core';
 import type {
+  AnyCraftException,
   ComponentDepsCarrier,
   CraftComponentDependencies,
+  CraftServiceProvider,
+  ExtractCraftGenExceptions,
   ResolveGeneratorResult,
   YieldableMethod,
   NamedYieldableValue,
 } from '@craft-ng/core';
+import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
 import type { YIELDABLE_VALUE } from '@craft-ng/core';
 import type { Signal } from '@angular/core';
 import type { HostProps } from './hyperscript';
@@ -19,6 +23,9 @@ declare const INPUT_BRAND: unique symbol;
 declare const OUTPUT_BRAND: unique symbol;
 declare const TEMPLATE_METHOD_USE: unique symbol;
 declare const COMPONENT_TEMPLATE_NAME: unique symbol;
+declare const COMPONENT_INITIALIZATION_EXCEPTIONS: unique symbol;
+declare const COMPONENT_OPERATOR_PROVIDERS: unique symbol;
+declare const COMPONENT_OPERATOR_CODES: unique symbol;
 
 export type Input<T> = (() => T) & {
   readonly [INPUT_BRAND]: T;
@@ -121,13 +128,11 @@ type ProjectTemplateValue<Value, ContextMethod extends string> =
               ProjectTemplateObject<Value, ContextMethod>
           : Value extends readonly (infer Item)[]
             ? readonly ProjectTemplateValue<Item, ContextMethod>[]
-              : Value extends (
-                    ...args: infer Args
-                  ) => infer Result
-                ? (...args: Args) => ProjectTemplateValue<Result, ContextMethod>
-                : Value extends object
-                  ? ProjectTemplateObject<Value, ContextMethod>
-                  : Value;
+            : Value extends (...args: infer Args) => infer Result
+              ? (...args: Args) => ProjectTemplateValue<Result, ContextMethod>
+              : Value extends object
+                ? ProjectTemplateObject<Value, ContextMethod>
+                : Value;
 
 export type YieldableTemplateContext<Context> = {
   [Key in keyof Context]: ProjectTemplateValue<
@@ -200,6 +205,7 @@ export interface CraftDirective<
     readonly meta: DirectiveMeta;
     readonly logic: Logic;
     readonly template: Template;
+    readonly componentOperator?: ComponentOperatorDefinition;
   };
   readonly [CRAFT_DIRECTIVE_DEPS]?: TemplateDependencies;
 }
@@ -254,7 +260,38 @@ export interface ComponentDefinition<Context = unknown> {
   readonly template: ComponentTemplate<Context>;
   readonly styleOwners: readonly StyleOwner[];
   readonly scopeDefinition: object;
+  readonly composition?: ComponentCompositionDefinition;
 }
+
+export type ComponentExceptionHandler = (
+  exception: AnyCraftException,
+) => CraftNodeChildren;
+
+export type ComponentCompositionDefinition = {
+  readonly providers?: readonly CraftServiceProvider[];
+  readonly catchHandlers?: Readonly<Record<string, ComponentExceptionHandler>>;
+};
+
+export type ComponentOperatorDefinition = ComponentCompositionDefinition;
+
+/** Internal marker carried by operators that alter component composition. */
+export const COMPONENT_OPERATOR = Symbol('craft-component-operator');
+
+export type ComponentOperator<
+  Providers extends
+    readonly CraftServiceProvider[] = readonly CraftServiceProvider[],
+  Codes extends string = never,
+> = CraftDirective & {
+  readonly [COMPONENT_OPERATOR_PROVIDERS]: Providers;
+  readonly [COMPONENT_OPERATOR_CODES]: Codes;
+  readonly [COMPONENT_OPERATOR]: ComponentCompositionDefinition &
+    (Codes extends never
+      ? { readonly kind: 'providers'; readonly providers: Providers }
+      : {
+          readonly kind: 'catchTag';
+          readonly catchHandlers: Record<Codes, ComponentExceptionHandler>;
+        });
+};
 
 type ComponentCallProps<Props extends object> = Props & HostProps;
 
@@ -263,6 +300,70 @@ type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
 }
   ? Providers
   : readonly [];
+
+export type ProviderExceptions<Providers> =
+  Providers extends readonly (infer Provider)[]
+    ? ProviderExceptions<Provider>
+    : Providers extends {
+          readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: infer Metadata;
+        }
+      ? Metadata extends {
+          readonly yielded: infer Yielded;
+          readonly output: infer Output;
+        }
+        ? ExtractCraftGenExceptions<Yielded> |
+          Extract<Output, { readonly code: string }>
+        : never
+      : never;
+
+type ComponentFactoryExceptions<Factory extends ComponentFactory> =
+  | ExtractCraftGenExceptions<FactoryYielded<Factory>>
+  | Extract<FactoryContext<Factory>, { readonly code: string }>;
+
+export type ComponentInitializationExceptions<
+  Factory extends ComponentFactory,
+  Providers,
+> = ComponentFactoryExceptions<Factory> | ProviderExceptions<Providers>;
+
+type ComponentExceptionCodes<Exceptions> = Exceptions extends {
+  readonly code: infer Code extends string;
+}
+  ? Code
+  : never;
+
+export type ComponentInitializationExceptionCodes<
+  Factory extends ComponentFactory,
+  Providers,
+> = ComponentExceptionCodes<
+  ComponentInitializationExceptions<Factory, Providers>
+>;
+
+type ComponentOperatorProviders<Operator> = Operator extends {
+  readonly [COMPONENT_OPERATOR_PROVIDERS]: infer Providers;
+}
+  ? Providers
+  : readonly [];
+
+type ComponentOperatorHandlers<Operator> = Operator extends {
+  readonly [COMPONENT_OPERATOR_CODES]: infer Codes;
+}
+  ? Codes
+  : never;
+
+type ComponentOperatorExceptionCodes<Operator> = ComponentExceptionCodes<
+  ProviderExceptions<ComponentOperatorProviders<Operator>>
+>;
+
+type ComponentExceptionsAfterOperator<
+  Factory extends ComponentFactory,
+  Meta extends ComponentMeta,
+  Operator,
+  ExistingExceptions extends string = never,
+> = [ComponentOperatorHandlers<Operator>] extends [never]
+  ? ExistingExceptions |
+    ComponentInitializationExceptionCodes<Factory, ProvidersFromMeta<Meta>> |
+    ComponentOperatorExceptionCodes<Operator>
+  : never;
 
 type AppliedDirectiveFactory<
   Factory extends ComponentFactory,
@@ -297,6 +398,7 @@ type PipedComponent<
   Directive extends CraftDirective,
   RootFactory extends ComponentFactory,
   ExistingComponentDeps extends object,
+  ExistingExceptions extends string,
   TemplateDependencies extends object,
   Template extends ComponentTemplate<
     FactoryContext<Factory>
@@ -311,7 +413,7 @@ type PipedComponent<
           CraftComponentDependencies<
             FactoryYielded<RootFactory> | FactoryYielded<NextFactory>,
             FactoryContext<NextFactory>,
-            ProvidersFromMeta<Meta>,
+            ProvidersFromMeta<Meta> | ComponentOperatorProviders<Directive>,
             PropsFromContext<FactoryContext<NextFactory>>,
             TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>
           >
@@ -320,7 +422,14 @@ type PipedComponent<
         Meta,
         RootFactory,
         TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>,
-        Template
+        Template,
+        string,
+        ComponentExceptionsAfterOperator<
+          Factory,
+          Meta,
+          Directive,
+          ExistingExceptions
+        >
       >
     : never;
 
@@ -335,6 +444,7 @@ export interface CraftComponent<
     FactoryContext<Factory>
   > = ComponentTemplate<FactoryContext<Factory>>,
   Name extends string = string,
+  InitializationExceptions extends string = string,
 > extends ComponentDepsCarrier<ComponentDeps> {
   <CallProps extends ComponentCallProps<Props> = ComponentCallProps<Props>>(
     ...args: keyof Props extends never
@@ -351,24 +461,39 @@ export interface CraftComponent<
       RootFactory,
       TemplateDependencies,
       Template,
-      Name
+      Name,
+      InitializationExceptions
     >
   >;
   readonly [CRAFT_COMPONENT]: ComponentDefinition<unknown> & {
     readonly name: Name;
   };
-  readonly pipe: <Directive extends CraftDirective>(
-    directive: Directive,
-  ) => PipedComponent<
-    Factory,
-    Meta,
-    Directive,
-    RootFactory,
-    ComponentDeps,
-    TemplateDependencies,
-    Template
-  >;
+  readonly [COMPONENT_INITIALIZATION_EXCEPTIONS]: InitializationExceptions;
+  readonly pipe: {
+    <Directive extends CraftDirective>(
+      directive: Directive,
+    ): PipedComponent<
+      Factory,
+      Meta,
+      Directive,
+      RootFactory,
+      ComponentDeps,
+      InitializationExceptions,
+      TemplateDependencies,
+      Template
+    >;
+    (
+      ...directives: readonly [CraftDirective, CraftDirective]
+    ): CraftComponent<any, any>;
+  };
 }
+
+export type ComponentInitializationExceptionsOf<Component> = Component extends {
+  readonly [COMPONENT_INITIALIZATION_EXCEPTIONS]: infer Exceptions extends
+    string;
+}
+  ? Exceptions
+  : never;
 
 export type ComponentTemplateOf<Component> =
   Component extends CraftComponent<

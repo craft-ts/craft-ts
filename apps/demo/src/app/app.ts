@@ -22,6 +22,7 @@ import {
 
 const LINKS = [
   ['Functional Components', { to: '' }],
+  ['Reactive Component Composition', { to: 'component-composition' }],
   ['Query', { to: 'query/:userId', params: { userId: '1' } }],
   ['Slow Page', { to: 'slow-page' }],
   ['View Transitions', { to: 'view-transitions' }],

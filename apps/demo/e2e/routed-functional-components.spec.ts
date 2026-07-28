@@ -3,8 +3,9 @@ import { expect, test } from '@playwright/test';
 test('uses client-side routing for the application tabs', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => {
-    (window as Window & { craftNavigationMarker?: string })
-      .craftNavigationMarker = 'preserved';
+    (
+      window as Window & { craftNavigationMarker?: string }
+    ).craftNavigationMarker = 'preserved';
   });
 
   await page.getByRole('link', { name: 'Query', exact: true }).click();
@@ -19,6 +20,24 @@ test('uses client-side routing for the application tabs', async ({ page }) => {
       ),
     )
     .toBe('preserved');
+});
+
+test('navigates to the reactive component composition demo', async ({
+  page,
+}) => {
+  const pageErrors: Error[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error));
+
+  await page.goto('/');
+  await page
+    .getByRole('link', { name: 'Reactive Component Composition', exact: true })
+    .click();
+
+  await expect(page).toHaveURL(/\/component-composition$/);
+  await expect(
+    page.getByRole('heading', { name: 'Composition réactive avec providers' }),
+  ).toBeVisible();
+  expect(pageErrors).toEqual([]);
 });
 
 test('runs a routed functional component method after its factory has settled', async ({

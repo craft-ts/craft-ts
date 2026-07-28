@@ -1,5 +1,6 @@
 import {
   ApplicationRef,
+  computed,
   createComponent,
   createEnvironmentInjector,
   ElementRef,
@@ -17,18 +18,24 @@ import {
   type ComponentRef,
   type DirectiveWithBindings,
   type EffectRef,
+  type Provider,
   type Type,
 } from '@angular/core';
 import {
+  CraftGenShortCircuit,
+  CRAFT_SERVICE_PROVIDER_BRAND,
   craftEffect,
   craftLazy,
   executeYieldable,
+  isCraftException,
+  isCraftGenShortCircuit,
   isGeneratorFunction,
   markYieldableValue,
   isYieldableValue,
   isYieldableMethod,
   toYieldable,
   type CraftServiceProvider,
+  type AnyCraftException,
   YIELDABLE_VALUE,
 } from '@craft-ng/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
@@ -80,6 +87,57 @@ function childContext(
   overrides: Partial<RenderContext> = {},
 ): RenderContext {
   return { ...context, ...overrides };
+}
+
+function eagerlyResolveBrandedProviders(
+  providers: readonly CraftServiceProvider[],
+  injector: EnvironmentInjector,
+  branded = false,
+): {
+  readonly exception?: AnyCraftException;
+  readonly overrides: readonly Provider[];
+  readonly trackers: readonly (() => unknown)[];
+} {
+  const overrides: Provider[] = [];
+  const trackers: (() => unknown)[] = [];
+
+  for (const provider of providers) {
+    if (Array.isArray(provider)) {
+      const result = eagerlyResolveBrandedProviders(
+        provider,
+        injector,
+        branded || CRAFT_SERVICE_PROVIDER_BRAND in provider,
+      );
+      overrides.push(...result.overrides);
+      trackers.push(...result.trackers);
+      if (result.exception) {
+        return { exception: result.exception, overrides, trackers };
+      }
+      continue;
+    }
+
+    if (!branded || typeof provider !== 'object' || provider === null) {
+      continue;
+    }
+
+    const token = Reflect.get(provider, 'provide');
+    const useFactory = Reflect.get(provider, 'useFactory');
+    if (token !== undefined && branded && typeof useFactory === 'function') {
+      // Resolve Craft providers through a computed so signals read by their
+      // factories remain dependencies of the component render effect.
+      const resolved = computed(() =>
+        runInInjectionContext(injector, useFactory as () => unknown),
+      );
+      trackers.push(resolved);
+      const value = resolved();
+      if (isCraftException(value)) {
+        return { exception: value, overrides, trackers };
+      }
+      overrides.push({ provide: token, useValue: value });
+    }
+  }
+
+  return { overrides, trackers };
 }
 
 function scopeTokens(parent: string | undefined, own: string): string {
@@ -715,7 +773,7 @@ class ElementRenderedNode implements RenderedNode {
   constructor(
     private readonly node: Element,
     private tag: string,
-    private readonly context: RenderContext,
+    private context: RenderContext,
     initial: ElementNodeBase,
   ) {
     this.patchProperties(initial);
@@ -881,7 +939,7 @@ class FragmentRenderedNode implements RenderedNode {
     private readonly parent: NativeParent,
     private readonly start: Comment,
     private readonly end: Comment,
-    private readonly context: RenderContext,
+    private context: RenderContext,
     initialChildren: CraftNodeChildren,
   ) {
     this.children = patchRenderedChildren(
@@ -913,6 +971,10 @@ class FragmentRenderedNode implements RenderedNode {
       this.end,
       this.context,
     );
+  }
+
+  updateContext(context: RenderContext): void {
+    this.context = context;
   }
 
   moveBefore(before: NativeNode): void {
@@ -1191,13 +1253,14 @@ class AngularRenderedNode implements RenderedNode {
 
 class ComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
-  private readonly environmentInjector: EnvironmentInjector;
+  private environmentInjector: EnvironmentInjector | undefined;
   private readonly propKeys: string[];
   private readonly propSources: ReturnType<typeof signal<unknown>>[];
   private readonly hostPropsSource;
   private readonly view: FragmentRenderedNode;
   private readonly effectRef: EffectRef;
   private readonly styleReleases: (() => void)[];
+  private providerTrackers: readonly (() => unknown)[] = [];
   private readonly templateOnly: boolean;
   private factoryContext: unknown;
 
@@ -1213,6 +1276,7 @@ class ComponentRenderedNode implements RenderedNode {
   ) {
     this.templateOnly = templateContext !== undefined;
     const definition = component[CRAFT_COMPONENT];
+    const composition = definition.composition;
     const ownScope = scopeIdFor(definition.scopeDefinition, definition.name);
     this.styleReleases = acquireStyles(
       context,
@@ -1231,18 +1295,20 @@ class ComponentRenderedNode implements RenderedNode {
     // `get(EnvironmentInjector)` would skip route-scoped providers such as
     // ActivatedRoute and ChildrenOutletContexts.
     const parentInjector = context.injector as EnvironmentInjector;
-    this.environmentInjector = createEnvironmentInjector(
-      [
-        ...(definition.meta.providers ?? []),
-        {
-          provide: ElementRef,
-          useValue: new ElementRef(componentElement),
-        },
-        ...additionalProviders,
-      ],
-      parentInjector,
-      'CraftComponent',
-    );
+    if (!composition) {
+      this.environmentInjector = createEnvironmentInjector(
+        [
+          ...(definition.meta.providers ?? []),
+          {
+            provide: ElementRef,
+            useValue: new ElementRef(componentElement),
+          },
+          ...additionalProviders,
+        ],
+        parentInjector,
+        'CraftComponent',
+      );
+    }
     this.propKeys = this.templateOnly
       ? []
       : Object.keys(props).filter((key) => !isHostProperty(key));
@@ -1273,14 +1339,17 @@ class ComponentRenderedNode implements RenderedNode {
       };
     });
 
-    const factoryContext = this.templateOnly
-      ? templateContext?.value
-      : executeCraftComponentFactory(
-          definition.factory,
-          args,
-          this.environmentInjector,
-        );
+    const factoryContext = composition
+      ? undefined
+      : this.templateOnly
+        ? templateContext?.value
+        : executeCraftComponentFactory(
+            definition.factory,
+            args,
+            this.environmentInjector!,
+          );
     if (
+      !composition &&
       !this.templateOnly &&
       typeof factoryContext === 'object' &&
       factoryContext !== null &&
@@ -1296,41 +1365,234 @@ class ComponentRenderedNode implements RenderedNode {
       parent,
       before,
       childContext(componentRenderContext, {
-        injector: this.environmentInjector,
+        injector: composition ? parentInjector : this.environmentInjector,
         componentContext: factoryContext,
       }),
-      [],
+      composition ? [] : [],
       'craft-component',
     );
 
     this.effectRef = untracked(() =>
-      runInInjectionContext(this.environmentInjector, () =>
-        craftEffect('component-render', () => {
-          const hostProps = mergeHostProps(
-            definition.meta.host ?? {},
-            this.hostPropsSource(),
-          );
-          this.view.patchChildren(
-            definition.template(
-              projectYieldableTemplateContext(this.factoryContext) as never,
-              hostProps,
-            ),
-          );
-          if (hostTarget) {
-            applyHostProperties(
-              context.renderer,
-              hostTarget,
-              hostProps,
-              context,
-            );
-          }
-        }),
+      runInInjectionContext(
+        composition ? parentInjector : this.environmentInjector!,
+        () =>
+          craftEffect(
+            'component-render',
+            composition
+              ? (onCleanup: (cleanup: () => void) => void) => {
+                  this.refreshComposedComponent(
+                    definition,
+                    args,
+                    componentElement,
+                    parentInjector,
+                    additionalProviders,
+                    hostTarget,
+                    context,
+                    componentRenderContext,
+                    onCleanup,
+                  );
+                }
+              : () => {
+                  const hostProps = mergeHostProps(
+                    definition.meta.host ?? {},
+                    this.hostPropsSource(),
+                  );
+                  this.view.patchChildren(
+                    definition.template(
+                      projectYieldableTemplateContext(
+                        this.factoryContext,
+                      ) as never,
+                      hostProps,
+                    ),
+                  );
+                  if (hostTarget) {
+                    applyHostProperties(
+                      context.renderer,
+                      hostTarget,
+                      hostProps,
+                      context,
+                    );
+                  }
+                },
+          ),
       ),
     );
   }
 
   firstNode(): NativeNode {
     return this.view.firstNode();
+  }
+
+  private refreshComposedComponent(
+    definition: (typeof this.component)[typeof CRAFT_COMPONENT],
+    args: readonly ((...callbackArgs: unknown[]) => unknown)[],
+    componentElement: Element | null,
+    parentInjector: EnvironmentInjector,
+    additionalProviders: readonly CraftServiceProvider[],
+    hostTarget: Element | undefined,
+    context: RenderContext,
+    componentRenderContext: RenderContext,
+    onCleanup: (cleanup: () => void) => void,
+  ): void {
+    const composition = definition.composition;
+    if (!composition) {
+      return;
+    }
+
+    this.view.patchChildren([]);
+    this.environmentInjector = createEnvironmentInjector(
+      [
+        ...(definition.meta.providers ?? []),
+        ...(composition.providers ?? []),
+        {
+          provide: ElementRef,
+          useValue: new ElementRef(componentElement),
+        },
+        ...additionalProviders,
+      ],
+      parentInjector,
+      'CraftComponent',
+    );
+
+    const environmentInjector = this.environmentInjector;
+    let renderInjector = environmentInjector;
+    onCleanup(() => {
+      this.view.patchChildren([]);
+      renderInjector.destroy();
+      if (renderInjector !== environmentInjector) {
+        environmentInjector.destroy();
+      }
+      this.providerTrackers = [];
+      if (this.environmentInjector === renderInjector) {
+        this.environmentInjector = undefined;
+        this.factoryContext = undefined;
+      }
+    });
+
+    let factoryContext: unknown;
+    let renderContext = childContext(componentRenderContext, {
+      injector: environmentInjector,
+    });
+    try {
+      const providerResolution = eagerlyResolveBrandedProviders(
+        composition.providers ?? [],
+        environmentInjector,
+      );
+      this.providerTrackers = providerResolution.trackers;
+      if (providerResolution.exception) {
+        renderContext = childContext(componentRenderContext, {
+          injector: environmentInjector,
+        });
+        this.view.updateContext(renderContext);
+        this.renderComposedException(
+          definition,
+          providerResolution.exception,
+          environmentInjector,
+          renderContext,
+          context,
+          hostTarget,
+        );
+        return;
+      }
+      if (providerResolution.overrides.length > 0) {
+        renderInjector = createEnvironmentInjector(
+          [...providerResolution.overrides],
+          environmentInjector,
+          'CraftComponentProviders',
+        );
+        this.environmentInjector = renderInjector;
+      }
+      renderContext = childContext(componentRenderContext, {
+        injector: renderInjector,
+      });
+      this.view.updateContext(renderContext);
+      factoryContext = executeCraftComponentFactory(
+        definition.factory,
+        args as ((...callbackArgs: unknown[]) => unknown)[],
+        renderInjector,
+      );
+      if (
+        typeof factoryContext === 'object' &&
+        factoryContext !== null &&
+        'then' in factoryContext
+      ) {
+        throw new Error(
+          'Async component factories are not renderable directly. Move asynchronous work behind defer().',
+        );
+      }
+    } catch (error) {
+      if (!isCraftGenShortCircuit(error)) {
+        throw error;
+      }
+
+      this.renderComposedException(
+        definition,
+        error.exception,
+        renderInjector,
+        renderContext,
+        context,
+        hostTarget,
+      );
+      return;
+    }
+
+    if (isCraftException(factoryContext)) {
+      this.renderComposedException(
+        definition,
+        factoryContext,
+        renderInjector,
+        renderContext,
+        context,
+        hostTarget,
+      );
+      return;
+    }
+
+    this.factoryContext = factoryContext;
+    this.view.updateContext(
+      childContext(renderContext, { componentContext: factoryContext }),
+    );
+    const hostProps = mergeHostProps(
+      definition.meta.host ?? {},
+      this.hostPropsSource(),
+    );
+    this.view.patchChildren(
+      definition.template(
+        projectYieldableTemplateContext(factoryContext) as never,
+        hostProps,
+      ),
+    );
+    if (hostTarget) {
+      applyHostProperties(context.renderer, hostTarget, hostProps, context);
+    }
+  }
+
+  private renderComposedException(
+    definition: (typeof this.component)[typeof CRAFT_COMPONENT],
+    exception: AnyCraftException,
+    environmentInjector: EnvironmentInjector,
+    renderContext: RenderContext,
+    context: RenderContext,
+    hostTarget: Element | undefined,
+  ): void {
+    const handler = definition.composition?.catchHandlers?.[exception.code];
+    if (!handler) {
+      throw new CraftGenShortCircuit(exception);
+    }
+
+    this.factoryContext = undefined;
+    this.view.updateContext(renderContext);
+    const hostProps = mergeHostProps(
+      definition.meta.host ?? {},
+      this.hostPropsSource(),
+    );
+    const children = runInInjectionContext(environmentInjector, () =>
+      handler(exception),
+    );
+    this.view.patchChildren(children);
+    if (hostTarget) {
+      applyHostProperties(context.renderer, hostTarget, hostProps, context);
+    }
   }
 
   lastNode(): NativeNode {
@@ -1361,7 +1623,7 @@ class ComponentRenderedNode implements RenderedNode {
       kind: 'component',
       component: this.component,
       props,
-    });
+    } as unknown as CraftNode);
   }
 
   updateContext(context: unknown): void {
@@ -1387,7 +1649,7 @@ class ComponentRenderedNode implements RenderedNode {
     this.effectRef.destroy();
     this.view.destroy();
     this.styleReleases.forEach((release) => release());
-    this.environmentInjector.destroy();
+    this.environmentInjector?.destroy();
   }
 }
 

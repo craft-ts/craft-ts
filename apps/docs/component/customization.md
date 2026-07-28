@@ -104,6 +104,64 @@ Directive styles are registered in the scope of the component that owns them.
 The same directive can therefore be reused by several components without
 introducing an HTML wrapper.
 
+## Composing providers and exception templates
+
+`withProviders` configures the provider scope of a component before it is
+invoked. `catchTag.exhaustive` adapts the exception handlers to component
+templates: each handler returns `CraftNodeChildren`, so `p('No access')`
+renders a paragraph directly in place of the component.
+
+```ts
+import { abstract, craftException, craftService } from '@craft-ng/core';
+import {
+  catchTag,
+  craftComponent,
+  p,
+  withProviders,
+} from '@craft-ng/component';
+
+const noAccess = craftException({ code: 'NO_ACCESS' });
+const { RestrictedData, provideRestrictedData } = craftService(
+  { name: 'restrictedData', scope: 'abstract' },
+  abstract<string | typeof noAccess>(),
+);
+
+const MyRestrictedCraftComponent = craftComponent(
+  'MyRestrictedCraftComponent',
+  {},
+  function* () {
+    return { value: yield* RestrictedData() };
+  },
+  ({ value }) => p(`Private data: ${value}`),
+);
+
+const Restricted = MyRestrictedCraftComponent.pipe(
+  withProviders([
+    provideRestrictedData(() =>
+      currentUserCanRead() ? 'available' : noAccess,
+    ),
+  ]),
+  catchTag.exhaustive({
+    NO_ACCESS: () => p('No access'),
+  }),
+);
+
+Restricted();
+```
+
+Providers are evaluated before the component template. If a provider reads a
+signal, changing that signal recreates the composed rendering, including the
+provider scope. The exception handler is rendered for the exception state and
+the component template is restored when the provider succeeds again.
+
+The component adapter reuses the exhaustive `catchTag` rules from the core and
+the composed component carries the exception codes produced by its initializer
+and providers. The providers also participate in the normal Craft DI graph, so
+they can satisfy dependencies used by the component and its children. The
+variadic component `.pipe(...)` overload is currently kept permissive to avoid
+excessive TypeScript instantiation depth; runtime dispatch still rejects an
+unhandled exception code.
+
 ## What Craft handles directly
 
 Craft supports compositions that are not native properties of a standard

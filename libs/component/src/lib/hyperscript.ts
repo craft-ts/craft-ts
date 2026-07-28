@@ -3,6 +3,7 @@ import type {
   CraftNodeChildrenDependencies,
   CraftNodeChildren,
   ElementNode,
+  RequireCaughtComponentExceptions,
 } from './render/vnode';
 import type { Yieldable } from '@craft-ng/core';
 import { pipeCraftNode } from './render/vnode';
@@ -189,14 +190,18 @@ function hNamed<
 
 export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
   <Children extends CraftNodeChildren = CraftNodeChildren>(
-    children?: Children & CraftNodeChildren,
+    children?: Children &
+      CraftNodeChildren &
+      RequireCaughtComponentExceptions<NoInfer<Children>>,
   ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, {}, Children>;
   <
     Props extends object,
     Children extends CraftNodeChildren = CraftNodeChildren,
   >(
     props: (Props & ElementPropsContext<Tag>) | null,
-    children?: Children & CraftNodeChildren,
+    children?: Children &
+      CraftNodeChildren &
+      RequireCaughtComponentExceptions<NoInfer<Children>>,
   ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, Props, Children>;
   <
     Name extends string,
@@ -205,7 +210,9 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
   >(
     name: Name,
     props: (Props & ElementPropsContext<Tag>) | null,
-    children?: Children & CraftNodeChildren,
+    children?: Children &
+      CraftNodeChildren &
+      RequireCaughtComponentExceptions<NoInfer<Children>>,
   ): ElementNode<
     CraftNodeChildrenDependencies<Children>,
     Tag,

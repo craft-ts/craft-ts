@@ -1,6 +1,7 @@
 import {
   CRAFT_DIRECTIVE,
   type CraftDirective,
+  type ComponentOperatorDefinition,
   type DirectiveMeta,
   type LogicDecorator,
   type TemplateDependencies,
@@ -27,6 +28,7 @@ export function craftDirective<
   meta: Meta,
   logic: Logic,
   template: Template,
+  componentOperator?: ComponentOperatorDefinition,
 ): CraftDirective<Logic, Template, DirectiveTemplateDependencies<Template>> {
   const directive = (() => undefined) as unknown as CraftDirective<
     Logic,
@@ -34,7 +36,7 @@ export function craftDirective<
     DirectiveTemplateDependencies<Template>
   >;
 
-  const definition = { name, meta, logic, template };
+  const definition = { name, meta, logic, template, componentOperator };
   Object.defineProperty(directive, CRAFT_DIRECTIVE, {
     value: definition,
     enumerable: false,

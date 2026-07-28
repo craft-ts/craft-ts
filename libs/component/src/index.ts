@@ -1,6 +1,7 @@
 export * from './lib/angular';
 export * from './lib/bridge';
 export * from './lib/component';
+export * from './lib/composition';
 export * from './lib/directive';
 export * from './lib/craft-router-outlet';
 export * from './lib/defer';
@@ -31,6 +32,8 @@ export type {
   YieldableTemplateCallback,
   YieldableTemplateContext,
   TemplateMethodUse,
+  ComponentInitializationExceptionsOf,
+  ComponentInitializationExceptionCodes,
 } from './lib/types';
 export type {
   TemplateRenderAvailableActionWhen,

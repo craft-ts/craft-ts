@@ -45,6 +45,14 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
   {
+    path: 'component-composition',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/component/component-composition-demo')).then(
+        ({ componentCompositionDemo }) => componentCompositionDemo,
+      ),
+    ),
+  },
+  {
     path: 'mutation/:userId',
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./examples/primitives/mutation/mutation')).then(
