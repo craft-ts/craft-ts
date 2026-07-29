@@ -33,13 +33,17 @@ const { provideUserList, UserList } = craftService(
         state: {
           page: {
             fallbackValue: 1,
-            parse: (value) => Number(value),
-            serialize: String,
+            codec: {
+              decode: (value: string) => Number(value),
+              encode: (value: number) => String(value),
+            },
           },
           pageSize: {
             fallbackValue: 4,
-            parse: (value) => Number(value),
-            serialize: String,
+            codec: {
+              decode: (value: string) => Number(value),
+              encode: (value: number) => String(value),
+            },
           },
         },
       },

@@ -17,6 +17,7 @@ import {
   type ServiceTrackingMetadata,
   type ServiceYieldRequest,
 } from './craft-service';
+import type { CraftDecoder } from './craft-codec';
 
 declare const CRAFT_HTTP_CLIENT_SUCCESS_MARKER: unique symbol;
 declare const CRAFT_HTTP_CLIENT_EXCEPTIONS_MARKER: unique symbol;
@@ -85,6 +86,23 @@ export type CraftHttpClientError = CraftExceptionResult<
     identifier?: string;
   },
   CraftHttpClientErrorPayload
+>;
+
+export type CraftHttpResponseDecodeErrorPayload = {
+  method: string;
+  url: string;
+  response: unknown;
+  error: unknown;
+  issues?: unknown;
+};
+
+export type HttpResponseDecodeError = CraftExceptionResult<
+  {
+    code: 'HttpResponseDecodeError';
+    scope: 'HttpClient';
+    identifier?: string;
+  },
+  CraftHttpResponseDecodeErrorPayload
 >;
 
 type CraftHttpClientExceptionDependencyMode = 'read' | 'match';
@@ -315,6 +333,11 @@ type CraftHttpClientSuccessToken<Success> = {
   readonly [CRAFT_HTTP_CLIENT_SUCCESS_MARKER]?: Success;
 };
 
+type CraftHttpClientDecodedSuccessToken<Success> =
+  CraftHttpClientSuccessToken<Success> & {
+    readonly decoder: CraftDecoder<Success>;
+  };
+
 type CraftHttpClientBaseConfig = Omit<CraftHttpClientJsonOptions, 'params'> & {
   url: string;
   params?: CraftHttpClientParams;
@@ -347,6 +370,12 @@ type ExtractCraftHttpClientSuccess<Config> = Config extends {
   success: CraftHttpClientSuccessToken<infer Success>;
 }
   ? Success
+  : never;
+
+type ExtractCraftHttpClientResponseDecodeError<Config> = Config extends {
+  success: { readonly decoder: CraftDecoder<any> };
+}
+  ? HttpResponseDecodeError
   : never;
 
 type ExtractCraftHttpClientParams<Config> = Config extends {
@@ -387,12 +416,16 @@ type ExtractCraftHttpClientExceptions<Config> = Config extends {
 export type CraftHttpClientResolved<
   Success,
   CustomException extends AnyCraftException = never,
-> = Success | CustomException | CraftHttpClientError;
+  ResponseDecodeException extends AnyCraftException = never,
+> = Success | CustomException | ResponseDecodeException | CraftHttpClientError;
 
 export type CraftHttpClientResult<
   Success,
   CustomException extends AnyCraftException = never,
-> = Promise<CraftHttpClientResolved<Success, CustomException>>;
+  ResponseDecodeException extends AnyCraftException = never,
+> = Promise<
+  CraftHttpClientResolved<Success, CustomException, ResponseDecodeException>
+>;
 
 export type CraftHttpRequest<
   Method extends string = string,
@@ -401,8 +434,15 @@ export type CraftHttpRequest<
   Params = undefined,
   Payload = undefined,
   CustomException extends AnyCraftException = never,
-> = (() => CraftHttpClientResult<Success, CustomException>) &
-  Promise<CraftHttpClientResolved<Success, CustomException>> & {
+  ResponseDecodeException extends AnyCraftException = never,
+> = (() => CraftHttpClientResult<
+  Success,
+  CustomException,
+  ResponseDecodeException
+>) &
+  Promise<
+    CraftHttpClientResolved<Success, CustomException, ResponseDecodeException>
+  > & {
     readonly method: Method;
     readonly url: Url;
     readonly params: Params;
@@ -452,7 +492,8 @@ type CraftHttpRequestFromConfig<
   ExtractCraftHttpClientSuccess<Config>,
   ExtractCraftHttpClientParams<Config>,
   ExtractCraftHttpClientPayload<Config>,
-  ExtractCraftHttpClientExceptions<Config>
+  ExtractCraftHttpClientExceptions<Config>,
+  ExtractCraftHttpClientResponseDecodeError<Config>
 >;
 
 type CraftHttpRequestFromRequestConfig<
@@ -463,11 +504,12 @@ type CraftHttpRequestFromRequestConfig<
   ExtractCraftHttpClientSuccess<Config>,
   ExtractCraftHttpClientParams<Config>,
   ExtractCraftHttpClientPayload<Config>,
-  ExtractCraftHttpClientExceptions<Config>
+  ExtractCraftHttpClientExceptions<Config>,
+  ExtractCraftHttpClientResponseDecodeError<Config>
 >;
 
 type CraftHttpClientBuilderHelpers = {
-  response: <Success>() => CraftHttpClientSuccessToken<Success>;
+  response: typeof response;
 };
 
 type CraftHttpClientDsl = {
@@ -586,8 +628,14 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   },
 };
 
-export function response<Success>(): CraftHttpClientSuccessToken<Success> {
-  return undefined as unknown as CraftHttpClientSuccessToken<Success>;
+export function response<Success>(): CraftHttpClientSuccessToken<Success>;
+export function response<Success>(
+  decoder: CraftDecoder<Success>,
+): CraftHttpClientDecodedSuccessToken<Success>;
+export function response<Success>(decoder?: CraftDecoder<Success>) {
+  return decoder === undefined
+    ? (undefined as unknown as CraftHttpClientSuccessToken<Success>)
+    : { decoder };
 }
 
 export function getCraftHttpRequestExceptionDependencies(
@@ -647,16 +695,41 @@ function createCraftHttpRequest<
     createCraftHttpClientExceptionDependenciesMetadata(config.exceptions);
   const request = async (): CraftHttpClientResult<
     ExtractCraftHttpClientSuccess<Config>,
-    ExtractCraftHttpClientExceptions<Config>
+    ExtractCraftHttpClientExceptions<Config>,
+    ExtractCraftHttpClientResponseDecodeError<Config>
   > => {
     try {
-      return (await firstValueFrom(
-        http.request<ExtractCraftHttpClientSuccess<Config>>(
+      const responseBody = await firstValueFrom(
+        http.request<unknown>(
           normalizedMethod,
           config.url,
           toHttpClientRequestOptions(config),
         ),
-      )) as ExtractCraftHttpClientSuccess<Config>;
+      );
+
+      const decoder = (
+        config.success as
+          | (CraftHttpClientSuccessToken<unknown> & {
+              readonly decoder?: CraftDecoder<unknown>;
+            })
+          | undefined
+      )?.decoder;
+      if (!decoder) {
+        return responseBody as ExtractCraftHttpClientSuccess<Config>;
+      }
+
+      try {
+        return (await decoder.decode(
+          responseBody,
+        )) as ExtractCraftHttpClientSuccess<Config>;
+      } catch (error) {
+        return toHttpResponseDecodeError(
+          normalizedMethod,
+          config.url,
+          responseBody,
+          error,
+        ) as ExtractCraftHttpClientResponseDecodeError<Config>;
+      }
     } catch (error) {
       const normalizedError = normalizeHttpClientError(config.url, error);
       const customException = resolveCraftHttpClientException(
@@ -729,9 +802,10 @@ function createCraftHttpRequest<
   }) as CraftHttpRequestFromConfig<Uppercase<Method>, Config>;
 }
 
-function toHttpClientRequestOptions(
-  config: CraftHttpClientBaseConfig,
-): Omit<CraftHttpClientJsonOptions, 'params'> & {
+function toHttpClientRequestOptions(config: CraftHttpClientBaseConfig): Omit<
+  CraftHttpClientJsonOptions,
+  'params'
+> & {
   params?: HttpParams | Record<string, string | string[]>;
   body?: unknown | null;
 } {
@@ -1123,4 +1197,44 @@ function toCraftHttpClientError(
       url,
     },
   );
+}
+
+function toHttpResponseDecodeError(
+  method: string,
+  url: string,
+  response: unknown,
+  error: unknown,
+): HttpResponseDecodeError {
+  const issues = extractDecodeIssues(error);
+
+  return craftException(
+    {
+      code: 'HttpResponseDecodeError',
+      scope: 'HttpClient',
+      identifier: `${method} ${url}`,
+    },
+    {
+      method,
+      url,
+      response,
+      error,
+      ...(issues === undefined ? {} : { issues }),
+    },
+  );
+}
+
+function extractDecodeIssues(error: unknown): unknown {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  if ('issues' in error) {
+    return (error as { issues?: unknown }).issues;
+  }
+
+  if ('issue' in error && error.issue && typeof error.issue === 'object') {
+    return error.issue;
+  }
+
+  return undefined;
 }

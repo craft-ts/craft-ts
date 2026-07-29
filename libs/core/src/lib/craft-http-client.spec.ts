@@ -18,11 +18,13 @@ import {
 import { vi } from 'vitest';
 import {
   CraftHttpClient,
+  response,
   type CraftHttpClientBodyExceptionDependency,
   type CraftHttpClientError,
   type ExtractCraftHttpClientExceptionBodyType,
   type ExtractCraftHttpClientExceptionDependencies,
   type CraftHttpRequest,
+  type HttpResponseDecodeError,
   getCraftHttpRequestExceptionDependencies,
 } from './craft-http-client';
 import { craftException, isCraftException } from './craft-exception';
@@ -128,6 +130,127 @@ describe('CraftHttpClient', () => {
       ]);
     });
 
+    httpTesting.verify();
+  });
+
+  it('should decode successful HTTP responses at runtime and infer the decoded type', async () => {
+    type User = { id: string; email: string };
+    const decoder = {
+      decode: (input: unknown): User => {
+        if (
+          !input ||
+          typeof input !== 'object' ||
+          typeof (input as { id?: unknown }).id !== 'string' ||
+          typeof (input as { email?: unknown }).email !== 'string'
+        ) {
+          throw new Error('Invalid user');
+        }
+
+        return input as User;
+      },
+    };
+
+    const { UsersDecodedApi } = craftService(
+      { name: 'UsersDecodedApi', scope: 'global' },
+      function* () {
+        const getUser = yield* CraftHttpClient.get(() => ({
+          url: '/api/user',
+          success: response(decoder),
+        }));
+
+        return { getUser };
+      },
+    );
+
+    type UsersApi = GetServiceOutput<typeof UsersDecodedApi>;
+    type GetUserResult = Awaited<ReturnType<UsersApi['getUser']>>;
+    expectTypeOf<GetUserResult>().toEqualTypeOf<
+      User | HttpResponseDecodeError | CraftHttpClientError
+    >();
+
+    const httpTesting = TestBed.inject(HttpTestingController);
+    await TestBed.runInInjectionContext(async () => {
+      const usersApi = craftUse(UsersDecodedApi());
+      const resultPromise = usersApi.getUser();
+      const request = httpTesting.expectOne('/api/user');
+      request.flush({ id: '1', email: 'john@doe.com' });
+      await expect(resultPromise).resolves.toEqual({
+        id: '1',
+        email: 'john@doe.com',
+      });
+    });
+    httpTesting.verify();
+  });
+
+  it('should turn an invalid decoded response into HttpResponseDecodeError', async () => {
+    const nativeError = new Error('Invalid user');
+    const decoder = {
+      decode: () => {
+        throw nativeError;
+      },
+    };
+
+    const { InvalidDecodedApi } = craftService(
+      { name: 'InvalidDecodedApi', scope: 'global' },
+      function* () {
+        const getUser = yield* CraftHttpClient.get(() => ({
+          url: '/api/user',
+          success: response(decoder),
+        }));
+
+        return { getUser };
+      },
+    );
+
+    const httpTesting = TestBed.inject(HttpTestingController);
+    await TestBed.runInInjectionContext(async () => {
+      const api = craftUse(InvalidDecodedApi());
+      const resultPromise = api.getUser();
+      const request = httpTesting.expectOne('/api/user');
+      const rawResponse = { id: 1 };
+      request.flush(rawResponse);
+
+      const result = await resultPromise;
+      expect(isCraftException(result)).toBe(true);
+      if (!isCraftException(result)) {
+        throw new Error('Expected a decode exception');
+      }
+      expect(result.code).toBe('HttpResponseDecodeError');
+      expect(result.payload).toEqual({
+        method: 'GET',
+        url: '/api/user',
+        response: rawResponse,
+        error: nativeError,
+      });
+    });
+    httpTesting.verify();
+  });
+
+  it('should support asynchronous HTTP decoders', async () => {
+    const { AsyncDecodedApi } = craftService(
+      { name: 'AsyncDecodedApi', scope: 'global' },
+      function* () {
+        const getValue = yield* CraftHttpClient.get(() => ({
+          url: '/api/value',
+          success: response({
+            decode: async (input: unknown) => ({
+              value: (input as { value: number }).value,
+            }),
+          }),
+        }));
+
+        return { getValue };
+      },
+    );
+
+    const httpTesting = TestBed.inject(HttpTestingController);
+    await TestBed.runInInjectionContext(async () => {
+      const api = craftUse(AsyncDecodedApi());
+      const resultPromise = api.getValue();
+      const request = httpTesting.expectOne('/api/value');
+      request.flush({ value: 3 });
+      await expect(resultPromise).resolves.toEqual({ value: 3 });
+    });
     httpTesting.verify();
   });
 

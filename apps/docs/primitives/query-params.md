@@ -43,6 +43,49 @@ For brevity, the examples below focus on the configuration and omit the
 
 ## Basic Examples
 
+## Recommended: codecs
+
+`@craft-ng/core` stays independent from validation libraries. Provide a small
+synchronous bidirectional codec directly, or adapt any validation library to
+the `{ decode, encode }` contract:
+
+```typescript
+const numberCodec = {
+  decode: (value: string) => Number(value),
+  encode: (value: number) => String(value),
+};
+const booleanCodec = {
+  decode: (value: string) => value === 'true',
+  encode: (value: boolean) => String(value),
+};
+
+const { pagination } = queryParams(
+  'pagination',
+  {
+    state: {
+      page: {
+        fallbackValue: 1,
+        codec: numberCodec,
+      },
+      showArchived: {
+        fallbackValue: false,
+        codec: booleanCodec,
+      },
+    },
+  },
+  ({ set }) => ({ set }),
+);
+
+// URL "?page=3&showArchived=true" becomes typed application state.
+console.log(pagination()); // { page: 3, showArchived: true }
+pagination.set({ page: 4, showArchived: false }); // encodes before navigating
+```
+
+The codec's decoded type is the signal type and its encoded type is the URL
+representation. This also works for dates, enums, arrays, and JSON-encoded
+objects. Query parameter codecs are synchronous because they run inside the
+reactive URL calculation.
+
 ### Basic usage with pagination
 
 ```typescript
@@ -213,6 +256,24 @@ Demo source:
 ⚠️ **Injection Context**: This function must be called within an injection context. If called outside, it will only return an object containing the configuration under `_config`.
 
 ⚠️ **Methods bound to sources** using `on$` are not exposed in the output.
+
+### Legacy compatibility
+
+The original `parse` / `serialize` form remains supported, including
+generator-based parsers and serializers:
+
+```typescript
+page: {
+  fallbackValue: 1,
+  parse: (value) => parseInt(value, 10),
+  serialize: (value) => String(value),
+}
+```
+
+`codec` and `parse` / `serialize` are mutually exclusive. A codec decoding
+failure keeps the fallback value and is exposed as
+`exceptions().parse.<key>` with code `QueryParamDecodeError`. If encoding fails,
+`QueryParamEncodeError` is raised before router navigation starts.
 
 ## Common Patterns
 

@@ -23,6 +23,7 @@ import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
 import {
   AnyCraftException,
+  craftException,
   ExtractCraftException,
   InsertMetaInCraftExceptionIfExists,
   StripCraftException,
@@ -53,6 +54,7 @@ import {
 } from './primitive-resource-runtime-context';
 import { markYieldableMethod } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
+import type { CraftCodec } from './craft-codec';
 
 export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -114,26 +116,71 @@ type QueryParamsTrackedDependencies<
   Insertions
 >;
 
-type AnyQueryParamsConfig = QueryParamsConfig<any>;
+type AnyQueryParamsConfig =
+  | QueryParamsLegacyConfig<any>
+  | QueryParamsCodecConfig<any, any>;
 
 export type QueryParamsToState<QueryParamsConfigs> = {
-  [K in keyof QueryParamsConfigs]: 'parse' extends keyof QueryParamsConfigs[K]
-    ? QueryParamsConfigs[K]['parse'] extends (...args: any[]) => unknown
-      ? StripCraftException<
-          ResolveFactoryResult<QueryParamsConfigs[K]['parse']>
-        >
-      : 'Error1: QueryParamsToState'
-    : 'Error2: QueryParamsToState';
+  [K in keyof QueryParamsConfigs]: QueryParamsConfigs[K] extends {
+    codec: CraftCodec<any, infer Decoded>;
+  }
+    ? Decoded
+    : QueryParamsConfigs[K] extends { parse: infer Parse }
+      ? Parse extends (...args: any[]) => unknown
+        ? StripCraftException<ResolveFactoryResult<Parse>>
+        : never
+      : never;
 };
+
+export type QueryParamDecodeErrorPayload = {
+  key: string;
+  value: unknown;
+  error: unknown;
+};
+
+export type QueryParamDecodeError<Key extends string = string> =
+  import('./craft-exception').CraftExceptionResult<
+    {
+      code: 'QueryParamDecodeError';
+      scope: 'parse';
+      identifier: Key;
+    },
+    QueryParamDecodeErrorPayload & { key: Key }
+  >;
+
+export type QueryParamEncodeErrorPayload = {
+  key: string;
+  value: unknown;
+  error: unknown;
+};
+
+export type QueryParamEncodeError =
+  import('./craft-exception').CraftExceptionResult<
+    {
+      code: 'QueryParamEncodeError';
+      scope: 'serialize';
+    },
+    QueryParamEncodeErrorPayload
+  >;
+
+type QueryParamsParseExceptionForConfig<
+  Config,
+  Key extends string,
+> = Config extends { codec: CraftCodec<any, any> }
+  ? QueryParamDecodeError<Key>
+  : Config extends { parse: infer Parse }
+    ? InsertMetaInCraftExceptionIfExists<
+        ExtractCraftException<ResolveFactoryResult<Parse>>,
+        'parse',
+        Key
+      >
+    : never;
 
 type QueryParamsParseExceptionsByKey<QueryParamsType> =
   QueryParamsType extends Record<string, AnyQueryParamsConfig>
     ? {
-        [K in keyof QueryParamsType]: InsertMetaInCraftExceptionIfExists<
-          ExtractCraftException<
-            ResolveFactoryResult<QueryParamsType[K]['parse']>
-          >,
-          'parse',
+        [K in keyof QueryParamsType]: QueryParamsParseExceptionForConfig<
+          QueryParamsType[K],
           K & string
         >;
       }
@@ -184,6 +231,35 @@ function enrichQueryParamsParseException(
   };
 }
 
+function createQueryParamDecodeError(
+  key: string,
+  value: unknown,
+  error: unknown,
+): AnyCraftException {
+  return craftException(
+    {
+      code: 'QueryParamDecodeError',
+      scope: 'parse',
+      identifier: key,
+    },
+    { key, value, error },
+  );
+}
+
+function createQueryParamEncodeError(
+  key: string,
+  value: unknown,
+  error: unknown,
+): AnyCraftException {
+  return craftException(
+    {
+      code: 'QueryParamEncodeError',
+      scope: 'serialize',
+    },
+    { key, value, error },
+  );
+}
+
 const QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE =
   'queryParams generators can only yield craftService dependencies or exposed dependency helpers.';
 const QUERY_PARAM_APP_START_ERROR_MESSAGE =
@@ -213,6 +289,35 @@ function executeQueryParamsFactory<This, Args extends unknown[], Result>(
   });
 }
 
+function decodeQueryParamValue(
+  injector: Injector,
+  config: AnyQueryParamsConfig,
+  rawValue: unknown,
+): unknown {
+  if ('codec' in config && config.codec !== undefined) {
+    return config.codec.decode(rawValue);
+  }
+
+  return executeQueryParamsFactory(
+    injector,
+    config.parse,
+    config,
+    rawValue as string,
+  );
+}
+
+function encodeQueryParamValue(
+  injector: Injector,
+  config: AnyQueryParamsConfig,
+  value: unknown,
+): unknown {
+  if ('codec' in config && config.codec !== undefined) {
+    return config.codec.encode(value);
+  }
+
+  return executeQueryParamsFactory(injector, config.serialize, config, value);
+}
+
 export type QueryParamsParser<T = unknown> = (
   value: string,
 ) => T | Generator<unknown, T, unknown>;
@@ -221,7 +326,7 @@ export type QueryParamsSerializer<T = unknown> = (
   value: NoInfer<T>,
 ) => string | Generator<unknown, string, unknown>;
 
-export interface QueryParamsConfig<
+export interface QueryParamsLegacyConfig<
   T = unknown,
   Parse extends QueryParamsParser<T> = QueryParamsParser<T>,
   Serialize extends QueryParamsSerializer<T> = QueryParamsSerializer<T>,
@@ -229,7 +334,25 @@ export interface QueryParamsConfig<
   parse: Parse;
   fallbackValue: NoInfer<T>;
   serialize: Serialize;
+  codec?: never;
 }
+
+export interface QueryParamsCodecConfig<
+  T = unknown,
+  Encoded = unknown,
+  Codec extends CraftCodec<Encoded, T> = CraftCodec<Encoded, T>,
+> {
+  codec: Codec;
+  fallbackValue: NoInfer<T>;
+  parse?: never;
+  serialize?: never;
+}
+
+export type QueryParamsConfig<
+  T = unknown,
+  Parse extends QueryParamsParser<T> = QueryParamsParser<T>,
+  Serialize extends QueryParamsSerializer<T> = QueryParamsSerializer<T>,
+> = QueryParamsLegacyConfig<T, Parse, Serialize> | QueryParamsCodecConfig<T>;
 
 /**
  * Creates a reactive query parameter manager that synchronizes state with URL query parameters.
@@ -457,12 +580,7 @@ function createQueryParamsRef<
           return acc;
         }
         try {
-          const parsedValue = executeQueryParamsFactory(
-            injector,
-            config.parse,
-            config,
-            rawValue,
-          );
+          const parsedValue = decodeQueryParamValue(injector, config, rawValue);
           if (isCraftException(parsedValue)) {
             acc[key] = config.fallbackValue;
             return acc;
@@ -487,12 +605,7 @@ function createQueryParamsRef<
         }
 
         try {
-          const parsedValue = executeQueryParamsFactory(
-            injector,
-            config.parse,
-            config,
-            rawValue,
-          );
+          const parsedValue = decodeQueryParamValue(injector, config, rawValue);
           if (isCraftException(parsedValue)) {
             acc[key] = enrichQueryParamsParseException(parsedValue, key);
           }
@@ -500,6 +613,11 @@ function createQueryParamsRef<
         } catch (error) {
           if (isCraftException(error)) {
             acc[key] = enrichQueryParamsParseException(error, key);
+          } else if ('codec' in config && config.codec !== undefined) {
+            acc[key] = enrichQueryParamsParseException(
+              createQueryParamDecodeError(key, rawValue, error),
+              key,
+            );
           }
           return acc;
         }
@@ -536,28 +654,33 @@ function createQueryParamsRef<
     newState: QueryParamsToState<QueryParamsType>,
     navOptions?: QueryParamsNavigationOptions,
   ) => {
-    // Update the local state first using the original set method
-    originalSet(newState);
-
-    // Then navigate without triggering another update
-    const mergedOptions = { ...options, ...navOptions };
     // Only include params that differ from their fallback values (SEO optimization)
     const serializedParams = Object.entries(queryParamsConfig).reduce(
       (acc, [key, config]) => {
         const currentValue = newState[key];
         // Skip if value equals fallback value
         if (currentValue !== config.fallbackValue) {
-          acc[key] = executeQueryParamsFactory(
-            injector,
-            config.serialize,
-            config,
-            currentValue,
-          );
+          try {
+            acc[key] = encodeQueryParamValue(injector, config, currentValue) as
+              | string
+              | string[];
+          } catch (error) {
+            if ('codec' in config && config.codec !== undefined) {
+              throw createQueryParamEncodeError(key, currentValue, error);
+            }
+            throw error;
+          }
         }
         return acc;
       },
-      {} as Record<string, string>,
+      {} as Record<string, string | string[]>,
     );
+
+    // Update the local state only after all codecs have encoded successfully.
+    originalSet(newState);
+
+    // Then navigate without triggering another update
+    const mergedOptions = { ...options, ...navOptions };
 
     // Use queueMicrotask to avoid call stack issues
     queueMicrotask(() => {

@@ -995,3 +995,113 @@ describe('queryParams exceptions', () => {
     });
   });
 });
+
+describe('queryParams codecs', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    TestBed.configureTestingModule({
+      providers: [provideRouter([])],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('decodes and encodes values through a synchronous codec', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const router = TestBed.inject(Router);
+      const { filters } = craftUse(
+        queryParams(
+          'filters',
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                codec: {
+                  decode: (value: string) => Number(value),
+                  encode: (value: number) => String(value),
+                },
+              },
+            },
+          },
+          ({ set }) => ({ set }),
+        ),
+      );
+
+      expectTypeOf(filters.page()).toEqualTypeOf<number>();
+
+      await router.navigate([], { queryParams: { page: '4' } });
+      expect(filters.page()).toBe(4);
+
+      filters.set({ page: 5 });
+      await vi.runAllTimersAsync();
+      expect(router.url).toContain('page=5');
+    });
+  });
+
+  it('falls back and exposes native codec decode errors', async () => {
+    const nativeError = new Error('invalid page');
+
+    await TestBed.runInInjectionContext(async () => {
+      const router = TestBed.inject(Router);
+      const { filters } = craftUse(
+        queryParams('filters', {
+          state: {
+            page: {
+              fallbackValue: 1,
+              codec: {
+                decode: () => {
+                  throw nativeError;
+                },
+                encode: (value: number) => String(value),
+              },
+            },
+          },
+        }),
+      );
+
+      await router.navigate([], { queryParams: { page: 'invalid' } });
+
+      expect(filters.page()).toBe(1);
+      expect(filters.exceptions().parse.page?.code).toBe(
+        'QueryParamDecodeError',
+      );
+      expect(filters.exceptions().parse.page?.payload).toEqual({
+        key: 'page',
+        value: 'invalid',
+        error: nativeError,
+      });
+    });
+  });
+
+  it('throws a QueryParamEncodeError before navigation', () => {
+    TestBed.runInInjectionContext(() => {
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, 'navigate');
+      const { filters } = craftUse(
+        queryParams(
+          'filters',
+          {
+            state: {
+              page: {
+                fallbackValue: 1,
+                codec: {
+                  decode: (value: string) => Number(value),
+                  encode: () => {
+                    throw new Error('cannot encode');
+                  },
+                },
+              },
+            },
+          },
+          ({ set }) => ({ set }),
+        ),
+      );
+
+      expect(() => filters.set({ page: 2 })).toThrowError();
+      expect(navigate).not.toHaveBeenCalled();
+      expect(filters.page()).toBe(1);
+    });
+  });
+});

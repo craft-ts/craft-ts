@@ -30,8 +30,20 @@ const QpListWithPagination = craftComponent(
       'pagination',
       {
         state: {
-          page: { fallbackValue: 1, parse: Number, serialize: String },
-          pageSize: { fallbackValue: 4, parse: Number, serialize: String },
+          page: {
+            fallbackValue: 1,
+            codec: {
+              decode: (value: string) => Number(value),
+              encode: (value: number) => String(value),
+            },
+          },
+          pageSize: {
+            fallbackValue: 4,
+            codec: {
+              decode: (value: string) => Number(value),
+              encode: (value: number) => String(value),
+            },
+          },
         },
       },
       ({ patch, state }) => ({

@@ -52,7 +52,9 @@ const { createUser } = mutation('createUser', {
     return yield* CraftHttpClient.post(({ response }) => ({
       url: '/api/users',
       body: user,
-      success: response<User>(),
+      success: response({
+        decode: (input: unknown) => input as { id: string; name: string },
+      }),
     }));
   },
 });

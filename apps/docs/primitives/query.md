@@ -52,7 +52,9 @@ const { myQuery } = query('myQuery', {
   loader: function* ({ params: userId }) {
     return yield* CraftHttpClient.get(({ response }) => ({
       url: `/api/users/${userId}`,
-      success: response<User>(),
+      success: response({
+        decode: (input: unknown) => input as { id: string; email: string },
+      }),
     }));
   },
 });
@@ -73,7 +75,10 @@ const { searchQuery } = query('searchQuery', {
   loader: function* ({ params: term }) {
     return yield* CraftHttpClient.get(({ response }) => ({
       url: `/api/search?q=${term}`,
-      success: response<SearchResult[]>(),
+      success: response({
+        decode: (input: unknown) =>
+          input as Array<{ id: string; title: string }>,
+      }),
     }));
   },
 });
@@ -91,7 +96,9 @@ const { userQuery } = query('userQuery', {
   loader: function* ({ params: userId }) {
     return yield* CraftHttpClient.get(({ response }) => ({
       url: `/api/users/${userId}`,
-      success: response<User>(),
+      success: response({
+        decode: (input: unknown) => input as { id: string; email: string },
+      }),
     }));
   },
 });

@@ -5,6 +5,7 @@ export * from './lib/async-process';
 export * from './lib/browser-boundaries';
 export * from './lib/computed-source';
 export * from './lib/craft-http-client';
+export * from './lib/craft-codec';
 export * from './lib/craft-exception';
 export * from './lib/craft-gen';
 export * from './lib/craft-program-operators';
