@@ -1,5 +1,4 @@
 import {
-  ApplicationRef,
   DestroyRef,
   effect,
   EnvironmentInjector,
@@ -103,7 +102,6 @@ export class CraftRouterOutletController implements RouterOutletContract {
   private readonly parentContexts = inject(ChildrenOutletContexts);
   private readonly rootInjector = inject(EnvironmentInjector);
   private readonly router = inject(Router);
-  private readonly appRef = inject(ApplicationRef);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly defaultPendingComponent = inject(CRAFT_PENDING_COMPONENT);
@@ -419,16 +417,10 @@ export class CraftRouterOutletController implements RouterOutletContract {
       commit();
       // `document.startViewTransition` snapshots the NEW state as soon as this
       // callback returns. The swap only sets signals, so without a synchronous
-      // change-detection pass the new component is not painted yet and the
-      // browser captures the OLD DOM as "new" → no morph. Flush now so the
-      // target is in the DOM before the snapshot.
-      try {
-        this.appRef.tick();
-      } catch {
-        // Already inside a change-detection cycle (e.g. the initial mount during
-        // router activation) — the in-flight pass will render it; no morph is
-        // expected for that swap anyway.
-      }
+      // Angular's signal scheduler will render the new component after the
+      // callback. Do not force a nested ApplicationRef.tick here: when the
+      // browser invokes the callback during router activation, that nested tick
+      // can re-enter the outlet and create an unbounded navigation/render loop.
     });
   }
 

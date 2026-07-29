@@ -53,7 +53,7 @@ const { createUser } = mutation('createUser', {
       url: '/api/users',
       body: user,
       success: response({
-        decode: (input: unknown) => input as { id: string; name: string },
+        decode: (input: unknown) => input as { id: string; name: string }, // use a validator schema
       }),
     }));
   },

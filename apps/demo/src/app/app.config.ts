@@ -11,8 +11,8 @@ import {
   craftAppConfig,
   executeGeneratorCompatibleFactory,
   HOST_TAG_LIST,
-  HostTag,
   injectPrimitiveMethodRuntimeContext,
+  isCraftGenShortCircuit,
   provideCorrelationIdTracking,
   provideCraftRouter,
   provideFnWrapObserver,
@@ -117,23 +117,10 @@ export const appConfig = craftAppConfig({
         try {
           return yield* factory.apply(thisArg, args);
         } catch (error) {
-          yield* Console.error(error);
+          if (!isCraftGenShortCircuit(error)) {
+            yield* Console.error(error);
+          }
           throw error;
-        }
-      },
-    ),
-    // Timing
-    provideFnWrapper(
-      'Warning: dependency injection here is not type-safe and may fail at runtime',
-      function* (factory, thisArg, args) {
-        // eslint-disable-next-line craft-ng/prefer-browser-boundaries
-        const start = performance.now();
-        try {
-          return yield* factory.apply(thisArg, args);
-        } finally {
-          const name = yield* HostTag();
-          // eslint-disable-next-line craft-ng/prefer-browser-boundaries
-          console.log(`$${name} took ${performance.now() - start}ms`);
         }
       },
     ),

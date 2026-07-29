@@ -43,8 +43,10 @@ describe('insertEntities', () => {
             state: {
               selectedRows: {
                 fallbackValue: [] as string[],
-                parse: (value) => value.split(','),
-                serialize: (value) => (value as string[]).join(','),
+                codec: {
+                  decode: (value: string) => value.split(','),
+                  encode: (value: string[]) => value.join(','),
+                },
               },
             },
           },

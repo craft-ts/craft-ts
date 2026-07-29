@@ -526,11 +526,6 @@ function createStateRef<StateType>(
         }
       })();
 
-  console.log('destroyRef', destroyRef);
-  destroyRef?.onDestroy(() => {
-    console.log('State destroyed, cleaning up snapshot subscription');
-  });
-
   if (snapshotRegistry && destroyRef) {
     snapshotRegistry.triggerSnapshot$
       .pipe(takeUntilDestroyed(destroyRef))

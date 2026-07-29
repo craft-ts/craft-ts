@@ -7,7 +7,7 @@ type User = {
 const { Auth } = craftService({ name: 'Auth', scope: 'global' }, function* () {
   return (yield* query('auth', {
     params: () => true,
-    loader: async () => ({}) as User,
+    loader: async () => undefined as User | undefined,
   })).auth;
 });
 

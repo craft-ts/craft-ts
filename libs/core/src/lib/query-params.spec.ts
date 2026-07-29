@@ -7,7 +7,6 @@ import {
 } from '@angular/platform-browser/testing';
 import { signalSource } from './signal-source';
 import { afterRecomputation } from './after-recomputation';
-import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
 import type { ExtractDeps } from './branded-component/branded-component';
 import type { GetServiceDependencies } from './craft-service';
@@ -95,13 +94,17 @@ describe('queryParams', () => {
           state: {
             page: {
               fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+              codec: {
+                decode: (value: string) => parseInt(value, 10),
+                encode: (value: unknown) => String(value),
+              },
             },
             pageSize: {
               fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+              codec: {
+                decode: (value: string) => parseInt(value, 10),
+                encode: (value: unknown) => String(value),
+              },
             },
           },
         }),
@@ -119,13 +122,17 @@ describe('queryParams', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
               pageSize: {
                 fallbackValue: 10,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
             },
           },
@@ -177,13 +184,17 @@ describe('queryParams', () => {
           state: {
             page: {
               fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+              codec: {
+                decode: (value: string) => parseInt(value, 10),
+                encode: (value: unknown) => String(value),
+              },
             },
             pageSize: {
               fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+              codec: {
+                decode: (value: string) => parseInt(value, 10),
+                encode: (value: unknown) => String(value),
+              },
             },
           },
         }),
@@ -222,8 +233,10 @@ describe('queryParams', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
             },
           },
@@ -239,107 +252,6 @@ describe('queryParams', () => {
       expect(runtimeContext?.get()).toEqual({ page: 2 });
       runtimeContext?.patch(() => ({ page: 10 }));
       expect(myQueryParams.page()).toBe(10);
-    });
-  });
-
-  it('typing: tracks generator dependencies from parse, serialize and insertions', () => {
-    const { ParsePage } = craftService(
-      { name: 'ParsePage', scope: 'global' },
-      () => ({
-        parsePage: (value: string) => parseInt(value, 10),
-      }),
-    );
-    const { SerializePage } = craftService(
-      { name: 'SerializePage', scope: 'global' },
-      () => ({
-        serializePage: (value: number) => String(value),
-      }),
-    );
-    const { PaginationRules } = craftService(
-      { name: 'PaginationRules', scope: 'global' },
-      () => ({
-        maxPage: () => 3,
-      }),
-    );
-
-    TestBed.runInInjectionContext(() => {
-      const { myQueryParams } = craftUse(
-        queryParams(
-          'myQueryParams',
-          {
-            state: {
-              page: {
-                fallbackValue: 1,
-                parse: function* (value: string) {
-                  return yield* ParsePage.parsePage(value);
-                },
-                serialize: function* (value: number) {
-                  return yield* SerializePage.serializePage(value);
-                },
-              },
-            },
-          },
-          function* ({ patch, state }) {
-            const maxPage = yield* PaginationRules.maxPage();
-            return {
-              nextPage: () => {
-                if (state().page >= maxPage()) {
-                  return;
-                }
-                patch(({ page }) => ({
-                  page: page + 1,
-                }));
-              },
-            };
-          },
-        ),
-      );
-
-      expectTypeOf(myQueryParams.page()).toEqualTypeOf<number>();
-      expectTypeOf<ExtractDeps<typeof myQueryParams>>().toEqualTypeOf<{
-        ParsePage: {
-          scope: 'global';
-          dependencies: {};
-          browserBoundary: false;
-          appStart: false;
-          derivedPropertiesUsed: {
-            parsePage: (value: string) => number;
-          };
-          derivedPropertiesExposed: {
-            parsePage: (value: string) => number;
-          };
-        };
-        SerializePage: {
-          scope: 'global';
-          dependencies: {};
-          browserBoundary: false;
-          appStart: false;
-          derivedPropertiesUsed: {
-            serializePage: (value: number) => string;
-          };
-          derivedPropertiesExposed: {
-            serializePage: (value: number) => string;
-          };
-        };
-        PaginationRules: {
-          scope: 'global';
-          dependencies: {};
-          browserBoundary: false;
-          appStart: false;
-          derivedPropertiesUsed: {
-            maxPage: () => 3;
-          };
-          derivedPropertiesExposed: {
-            maxPage: () => 3;
-          };
-        };
-        Router: {
-          scope: 'global';
-          dependencies: {};
-          browserBoundary: false;
-          appStart: false;
-        };
-      }>();
     });
   });
 
@@ -359,8 +271,10 @@ describe('queryParams', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: number) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: number) => String(value),
+                },
               },
             },
           },
@@ -401,13 +315,17 @@ describe('queryParams', () => {
           state: {
             page: {
               fallbackValue: 1,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+              codec: {
+                decode: (value: string) => parseInt(value, 10),
+                encode: (value: unknown) => String(value),
+              },
             },
             pageSize: {
               fallbackValue: 10,
-              parse: (value: string) => parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
+              codec: {
+                decode: (value: string) => parseInt(value, 10),
+                encode: (value: unknown) => String(value),
+              },
             },
           },
         }),
@@ -432,13 +350,17 @@ describe('queryParams', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
               pageSize: {
                 fallbackValue: 10,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
             },
           },
@@ -468,13 +390,17 @@ describe('queryParams', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
               pageSize: {
                 fallbackValue: 10,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
             },
           },
@@ -535,13 +461,17 @@ describe('queryParams', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
               pageSize: {
                 fallbackValue: 10,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
             },
             queryParamsHandling: 'merge',
@@ -596,13 +526,17 @@ describe('queryParams', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
               pageSize: {
                 fallbackValue: 10,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
             },
           },
@@ -627,109 +561,6 @@ describe('queryParams', () => {
     });
   });
 
-  it('should support generator parse, serialize and insertions', async () => {
-    const parseCalls: string[] = [];
-    const serializeCalls: number[] = [];
-
-    const { ParsePageRuntime } = craftService(
-      { name: 'ParsePageRuntime', scope: 'global' },
-      () => ({
-        parsePage: (value: string) => {
-          parseCalls.push(value);
-          return parseInt(value, 10);
-        },
-      }),
-    );
-    const { SerializePageRuntime } = craftService(
-      { name: 'SerializePageRuntime', scope: 'global' },
-      () => ({
-        serializePage: (value: number) => {
-          serializeCalls.push(value);
-          return String(value);
-        },
-      }),
-    );
-    const { PaginationRulesRuntime } = craftService(
-      { name: 'PaginationRulesRuntime', scope: 'global' },
-      () => ({
-        maxPage: () => 3,
-      }),
-    );
-
-    await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
-
-      const { myQueryParams } = craftUse(
-        queryParams(
-          'myQueryParams',
-          {
-            state: {
-              page: {
-                fallbackValue: 1,
-                parse: function* (value: string) {
-                  const parser = yield* ParsePageRuntime(
-                    undefined,
-                    ({ parsePage }) => ({
-                      parsePage,
-                    }),
-                  );
-
-                  return parser.parsePage(value);
-                },
-                serialize: function* (value: number) {
-                  const serializer = yield* SerializePageRuntime(
-                    undefined,
-                    ({ serializePage }) => ({
-                      serializePage,
-                    }),
-                  );
-
-                  return serializer.serializePage(value);
-                },
-              },
-            },
-          },
-          function* ({ patch, state }) {
-            const rules = yield* PaginationRulesRuntime(
-              undefined,
-              ({ maxPage }) => ({
-                maxPage,
-              }),
-            );
-
-            return {
-              nextPage: () => {
-                if (state().page >= rules.maxPage()) {
-                  return;
-                }
-
-                patch(({ page }) => ({
-                  page: page + 1,
-                }));
-              },
-            };
-          },
-        ),
-      );
-
-      await router.navigate([], { queryParams: { page: '2' } });
-      await vi.runAllTimersAsync();
-
-      expect(myQueryParams.page()).toBe(2);
-      expect(parseCalls).toContain('2');
-
-      myQueryParams.nextPage();
-      await vi.runAllTimersAsync();
-
-      expect(myQueryParams.page()).toBe(3);
-      expect(router.url).toContain('page=3');
-      expect(serializeCalls).toContain(3);
-
-      myQueryParams.nextPage();
-      expect(myQueryParams.page()).toBe(3);
-    });
-  });
-
   it('should remove query params from URL when reset to fallback values', async () => {
     await TestBed.runInInjectionContext(async () => {
       const router = TestBed.inject(Router);
@@ -740,13 +571,17 @@ describe('queryParams', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
               pageSize: {
                 fallbackValue: 10,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
             },
           },
@@ -781,217 +616,6 @@ describe('queryParams', () => {
       // But state should still have fallback values
       expect(myQueryParams.page()).toBe(1);
       expect(myQueryParams.pageSize()).toBe(10);
-    });
-  });
-});
-
-describe('queryParams exceptions', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    TestBed.configureTestingModule({
-      providers: [provideRouter([])],
-    }).compileComponents();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('typing: captures parse exception', () => {
-    TestBed.runInInjectionContext(() => {
-      const { myQueryParams } = craftUse(
-        queryParams('myQueryParams', {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value) =>
-                value === 'invalid'
-                  ? craftException(
-                      { code: 'INVALID_PAGE' },
-                      { reason: 'NaN' as const },
-                    )
-                  : parseInt(value, 10),
-              serialize: (value) => String(value),
-            },
-          },
-        }),
-      );
-
-      expectTypeOf(myQueryParams.page()).toEqualTypeOf<number>();
-      expectTypeOf(myQueryParams.exceptions().list).toEqualTypeOf<
-        CraftExceptionResult<
-          {
-            code: 'INVALID_PAGE';
-            scope: 'parse';
-            identifier: 'page';
-          },
-          {
-            reason: 'NaN';
-          }
-        >[]
-      >();
-      expectTypeOf(myQueryParams.exceptions().parse.page).toEqualTypeOf<
-        | CraftExceptionResult<
-            {
-              code: 'INVALID_PAGE';
-              scope: 'parse';
-              identifier: 'page';
-            },
-            {
-              reason: 'NaN';
-            }
-          >
-        | undefined
-      >();
-    });
-  });
-
-  it('typing: exposes exceptions in insertions context', () => {
-    TestBed.runInInjectionContext(() => {
-      craftUse(
-        queryParams(
-          'pagination',
-          {
-            state: {
-              page: {
-                fallbackValue: 1,
-                parse: (value) =>
-                  value === 'invalid'
-                    ? craftException(
-                        { code: 'INVALID_PAGE' },
-                        { reason: 'NaN' as const },
-                      )
-                    : parseInt(value, 10),
-                serialize: (value) => String(value),
-              },
-            },
-          },
-          ({ exceptions, hasException }) => {
-            expectTypeOf(hasException()).toEqualTypeOf<boolean>();
-            expectTypeOf(exceptions().list).toEqualTypeOf<
-              CraftExceptionResult<
-                {
-                  code: 'INVALID_PAGE';
-                  scope: 'parse';
-                  identifier: 'page';
-                },
-                {
-                  reason: 'NaN';
-                }
-              >[]
-            >();
-            expectTypeOf(exceptions().parse.page).toEqualTypeOf<
-              | CraftExceptionResult<
-                  {
-                    code: 'INVALID_PAGE';
-                    scope: 'parse';
-                    identifier: 'page';
-                  },
-                  {
-                    reason: 'NaN';
-                  }
-                >
-              | undefined
-            >();
-            return {};
-          },
-        ),
-      );
-    });
-  });
-
-  it('captures parse exception returned by parse function', async () => {
-    await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
-      const { myQueryParams } = craftUse(
-        queryParams('myQueryParams', {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) =>
-                value === 'invalid'
-                  ? craftException(
-                      { code: 'INVALID_PAGE' },
-                      { reason: 'NaN' as const },
-                    )
-                  : parseInt(value, 10),
-              serialize: (value: unknown) => String(value),
-            },
-          },
-        }),
-      );
-
-      await router.navigate([], { queryParams: { page: 'invalid' } });
-      await vi.runAllTimersAsync();
-
-      expect(myQueryParams.page()).toBe(1);
-      expect(myQueryParams.hasException()).toBe(true);
-      expect(myQueryParams.exceptions().parse.page?.INVALID_PAGE).toEqual({
-        reason: 'NaN',
-      });
-    });
-  });
-
-  it('captures parse exception thrown by parse function', async () => {
-    await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
-      const { myQueryParams } = craftUse(
-        queryParams('myQueryParams', {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => {
-                if (value === 'invalid') {
-                  return craftException(
-                    { code: 'INVALID_PAGE' },
-                    { reason: 'throw' as const },
-                  );
-                }
-                return parseInt(value, 10);
-              },
-              serialize: (value: unknown) => String(value),
-            },
-          },
-        }),
-      );
-
-      await router.navigate([], { queryParams: { page: 'invalid' } });
-      await vi.runAllTimersAsync();
-
-      expect(myQueryParams.page()).toBe(1);
-      expect(myQueryParams.hasException()).toBe(true);
-      expect(myQueryParams.exceptions().parse.page?.INVALID_PAGE).toEqual({
-        reason: 'throw',
-      });
-    });
-  });
-
-  it('does not expose non-craft parse errors in exceptions', async () => {
-    await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(Router);
-      const { myQueryParams } = craftUse(
-        queryParams('myQueryParams', {
-          state: {
-            page: {
-              fallbackValue: 1,
-              parse: (value: string) => {
-                if (value === 'invalid') {
-                  throw new Error('Non-craft error');
-                }
-                return parseInt(value, 10);
-              },
-              serialize: (value: unknown) => String(value),
-            },
-          },
-        }),
-      );
-
-      await router.navigate([], { queryParams: { page: 'invalid' } });
-      await vi.runAllTimersAsync();
-
-      expect(myQueryParams.page()).toBe(1);
-      expect(myQueryParams.hasException()).toBe(false);
-      expect(myQueryParams.exceptions().parse).toEqual({});
     });
   });
 });

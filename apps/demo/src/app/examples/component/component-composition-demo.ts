@@ -17,6 +17,7 @@ const { RestrictedData, provideRestrictedData } = craftService(
 );
 
 const canReadRestrictedData = signal(false);
+const lastHandledException = signal('');
 
 const restrictedContent = craftComponent(
   'restrictedContent',
@@ -48,6 +49,7 @@ export const componentCompositionDemo = craftComponent(
         },
         'Changer les droits',
       ),
+      p(() => lastHandledException()),
       restrictedContent.pipe(
         withProviders([
           provideRestrictedData(() =>
@@ -55,8 +57,11 @@ export const componentCompositionDemo = craftComponent(
           ),
         ]),
         catchTag.exhaustive({
-          NO_ACCESS: () =>
-            p({ class: 'component-demo__access-denied' }, 'Accès refusé.'),
+          NO_ACCESS: function* () {
+            lastHandledException.set(
+              'NO_ACCESS géré par catchTag (la boundary ne rend pas de template).',
+            );
+          },
         }),
       )({}),
     ]),

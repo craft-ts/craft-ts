@@ -62,6 +62,17 @@ const CraftServiceUserDetailComponent = craftComponent(
       provideUser(),
       provideHostName('component:CraftServiceUserDetailComponent'),
     ],
+    styles: `
+      :scope{display:flex;flex-direction:column;align-items:center;gap:20px;padding:32px;font-family:sans-serif}
+      .controls{display:flex;gap:12px;align-items:center}
+      select{padding:6px 12px;font-size:1rem;border:1px solid #ccc;border-radius:6px}
+      .card{min-width:280px;padding:24px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa}
+      dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin:0}
+      dt{font-weight:600;color:#374151}
+      dd{margin:0;color:#6b7280}
+      .loading{color:#6b7280;font-style:italic}
+      .error{color:#dc2626}
+    `,
   },
   function* () {
     componentMonitoring();
@@ -74,28 +85,35 @@ const CraftServiceUserDetailComponent = craftComponent(
     const value = user.safeValue();
     return div([
       h2('craftService User Detail (query)'),
-      select(
-        {
-          value: userId(),
-          change: (event) =>
-            userId.setUserId((event.target as HTMLSelectElement).value),
-        },
-        user.userIds.map((id) => option({ value: id }, `User ${id}`)),
-      ),
-      value
-        ? h('dl', [
-            h('dt', 'ID'),
-            h('dd', value.id),
-            h('dt', 'Name'),
-            h('dd', value.name),
-            h('dt', 'Email'),
-            h('dd', value.email),
-          ])
-        : p(
-            user.status() === 'exception'
-              ? 'Failed to load user.'
-              : 'Loading user…',
-          ),
+      div({ class: 'controls' }, [
+        select(
+          {
+            value: userId(),
+            change: (event) =>
+              userId.setUserId((event.target as HTMLSelectElement).value),
+          },
+          user.userIds.map((id) => option({ value: id }, `User ${id}`)),
+        ),
+      ]),
+      div({ class: 'card' }, [
+        value
+          ? h('dl', [
+              h('dt', 'ID'),
+              h('dd', value.id),
+              h('dt', 'Name'),
+              h('dd', value.name),
+              h('dt', 'Email'),
+              h('dd', value.email),
+            ])
+          : p(
+              {
+                class: user.status() === 'exception' ? 'error' : 'loading',
+              },
+              user.status() === 'exception'
+                ? 'Failed to load user.'
+                : 'Loading user…',
+            ),
+      ]),
     ]);
   },
 );

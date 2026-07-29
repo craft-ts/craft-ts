@@ -1,6 +1,7 @@
 import type {
   AngularDirectiveNode,
   CraftNodeChildrenDependencies,
+  CraftNodeChildrenHandledExceptionCodes,
   CraftNodeChildren,
   ElementNode,
   RequireCaughtComponentExceptions,
@@ -124,7 +125,11 @@ export function h<
   CraftNodeChildrenDependencies<HChildren<Tag, PropsOrChildren, MaybeChildren>>,
   Tag,
   HProps<PropsOrChildren>,
-  HChildren<Tag, PropsOrChildren, MaybeChildren>
+  HChildren<Tag, PropsOrChildren, MaybeChildren>,
+  undefined,
+  CraftNodeChildrenHandledExceptionCodes<
+    HChildren<Tag, PropsOrChildren, MaybeChildren>
+  >
 > {
   const props = looksLikeChildren(propsOrChildren)
     ? {}
@@ -144,7 +149,11 @@ export function h<
     >,
     Tag,
     HProps<PropsOrChildren>,
-    HChildren<Tag, PropsOrChildren, MaybeChildren>
+    HChildren<Tag, PropsOrChildren, MaybeChildren>,
+    undefined,
+    CraftNodeChildrenHandledExceptionCodes<
+      HChildren<Tag, PropsOrChildren, MaybeChildren>
+    >
   >;
 
   Object.defineProperty(node, 'pipe', {
@@ -171,7 +180,9 @@ function hNamed<
   Tag,
   Props,
   Children,
-  Name
+  Name,
+  string,
+  CraftNodeChildrenHandledExceptionCodes<Children>
 > {
   const node = h<Tag, Props & ElementPropsContext<Tag>, Children>(
     tag,
@@ -182,7 +193,9 @@ function hNamed<
     Tag,
     Props,
     Children,
-    Name
+    Name,
+    string,
+    CraftNodeChildrenHandledExceptionCodes<Children>
   >;
   (node as { localName?: Name }).localName = name;
   return node;
@@ -193,7 +206,15 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     children?: Children &
       CraftNodeChildren &
       RequireCaughtComponentExceptions<NoInfer<Children>>,
-  ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, {}, Children>;
+  ): ElementNode<
+    CraftNodeChildrenDependencies<Children>,
+    Tag,
+    {},
+    Children,
+    string | undefined,
+    string,
+    CraftNodeChildrenHandledExceptionCodes<Children>
+  >;
   <
     Props extends object,
     Children extends CraftNodeChildren = CraftNodeChildren,
@@ -202,7 +223,15 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     children?: Children &
       CraftNodeChildren &
       RequireCaughtComponentExceptions<NoInfer<Children>>,
-  ): ElementNode<CraftNodeChildrenDependencies<Children>, Tag, Props, Children>;
+  ): ElementNode<
+    CraftNodeChildrenDependencies<Children>,
+    Tag,
+    Props,
+    Children,
+    string | undefined,
+    string,
+    CraftNodeChildrenHandledExceptionCodes<Children>
+  >;
   <
     Name extends string,
     Props extends object,
@@ -218,7 +247,9 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     Tag,
     Props,
     Children,
-    Name
+    Name,
+    string,
+    CraftNodeChildrenHandledExceptionCodes<Children>
   >;
 }
 

@@ -16,8 +16,10 @@ import {
 } from 'vitest';
 import { abstract, craftException, craftService, query } from '@craft-ng/core';
 import {
+  catchBlock,
   catchTag,
   craftComponent,
+  matchBlock,
   mountCraftComponent,
   p,
   section,
@@ -25,9 +27,13 @@ import {
 } from '../index';
 import type {
   ComponentInitializationExceptionsOf,
+  ComponentTemplateOf,
   ProviderExceptions,
 } from './types';
-import type { CraftNodeChildrenExceptions } from './render/vnode';
+import type {
+  CraftNodeChildrenExceptions,
+  CraftNodeChildrenHandledExceptionCodes,
+} from './render/vnode';
 
 beforeAll(() => {
   try {
@@ -58,21 +64,24 @@ describe('component composition', () => {
 
   it('narrows catchTag handler codes', () => {
     catchTag.exhaustive({
-      NO_ACCESS: (exception) => {
+      NO_ACCESS: function* (exception) {
         expectTypeOf(exception.code).toEqualTypeOf<'NO_ACCESS'>();
-        return p('No access');
       },
     });
 
     catchTag.exhaustive<'NO_ACCESS'>({
-      NO_ACCESS: () => p('No access'),
+      NO_ACCESS: function* () {},
     });
+
+    // @ts-expect-error — catchTag is a logic boundary; template children belong to catchBlock.
+    catchTag.exhaustive({ NO_ACCESS: () => p('No access') });
   });
 
   it('reactively recreates providers and transitions success → exception → success', () => {
     const state = signal<'ready' | 'denied'>('ready');
     let factoryCalls = 0;
     const noAccess = craftException({ code: 'NO_ACCESS' });
+    let handled = 0;
     const { Data, provideData } = craftService(
       { name: 'data', scope: 'abstract' },
       abstract<string | typeof noAccess>(),
@@ -92,7 +101,9 @@ describe('component composition', () => {
         provideData(() => (state() === 'ready' ? 'Content' : noAccess)),
       ]),
       catchTag.exhaustive({
-        NO_ACCESS: () => p('No access'),
+        NO_ACCESS: function* () {
+          handled += 1;
+        },
       }),
     );
     const element = host();
@@ -108,13 +119,149 @@ describe('component composition', () => {
 
     state.set('denied');
     TestBed.tick();
-    expect(element.textContent).toBe('No access');
+    expect(element.textContent).toBe('');
+    expect(handled).toBe(1);
     expect(factoryCalls).toBe(1);
 
     state.set('ready');
     TestBed.tick();
     expect(element.textContent).toBe('Content');
     expect(factoryCalls).toBe(2);
+
+    mounted.destroy();
+  });
+
+  it('does not register a style scope for a styleless operator recreated by a template', () => {
+    const renderVersion = signal(0);
+    const base = craftComponent(
+      'stylelessOperatorBase',
+      {},
+      () => ({}),
+      () => p('Content'),
+    );
+    const page = craftComponent(
+      'stylelessOperatorPage',
+      {},
+      () => ({}),
+      () => [
+        p(String(renderVersion())),
+        base.pipe(withProviders([]))({}),
+      ],
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      page,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    renderVersion.set(1);
+    expect(() => TestBed.tick()).not.toThrow();
+    expect(element.textContent).toContain('1Content');
+
+    mounted.destroy();
+  });
+
+  it('does not bubble a query exception already handled by matchBlock', async () => {
+    const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
+    let factoryRuns = 0;
+    const source = craftComponent(
+      'queryCatchBlockRuntime',
+      {},
+      function* () {
+        factoryRuns += 1;
+        const { value } = yield* query('value', {
+          params: () => 0,
+          loader: async () => failed,
+        });
+        return { value };
+      },
+      ({ value }) =>
+        section([
+          p('source'),
+          matchBlock.exhaustive(() => value.exceptions().loader, 'code', {
+            FAILED_TO_LOAD: () => p('match fallback'),
+          }),
+        ]),
+    );
+    expectTypeOf<
+      CraftNodeChildrenHandledExceptionCodes<
+        ReturnType<ComponentTemplateOf<typeof source>>
+      >
+    >().toEqualTypeOf<'FAILED_TO_LOAD'>();
+    const caughtWithSource = source.pipe(
+      // @ts-expect-error — FAILED_TO_LOAD is already consumed by matchBlock in the template.
+      catchBlock.exhaustive(
+        {
+          FAILED_TO_LOAD: {
+            render: () => p('query fallback'),
+            showSource: true,
+          },
+        },
+        { position: 'after' },
+      ),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      caughtWithSource,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    TestBed.tick();
+
+    expect(element.textContent).toContain('source');
+    expect(element.textContent).toContain('match fallback');
+    expect(element.textContent).not.toContain('query fallback');
+    expect(factoryRuns).toBe(1);
+    mounted.destroy();
+  });
+
+  it('does not treat an empty query exception bucket as an exception', async () => {
+    const failed = craftException({ code: 'FAILED_TO_LOAD' as const });
+    const shouldFail = signal(false);
+    const source = craftComponent(
+      'queryMatchBlockEmptyBucket',
+      {},
+      function* () {
+        const { value } = yield* query('value', {
+          params: shouldFail,
+          loader: async ({ params }) =>
+            params ? failed : { id: 'loaded' as const },
+        });
+        return { value };
+      },
+      ({ value }) =>
+        section([
+          p(() => value.safeValue()?.id ?? ''),
+          matchBlock.exhaustive(() => value.exceptions().loader, 'code', {
+            FAILED_TO_LOAD: () => p('fallback'),
+          }),
+        ]),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      source,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    TestBed.tick();
+
+    expect(element.textContent).toContain('loaded');
+    expect(element.textContent).not.toContain('fallback');
+
+    shouldFail.set(true);
+    TestBed.tick();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    TestBed.tick();
+    expect(element.textContent).toContain('fallback');
 
     mounted.destroy();
   });
@@ -182,14 +329,14 @@ describe('component composition', () => {
     // @ts-expect-error — handlers for codes outside the component union are rejected.
     component.pipe((current) =>
       catchTag.exhaustive(current, {
-        FAILED_TO_LOAD: () => p('Unable to load todos'),
-        UNRELATED: () => p('Unexpected'),
+        FAILED_TO_LOAD: function* () {},
+        UNRELATED: function* () {},
       }),
     );
 
     const caught = component.pipe((current) =>
       catchTag.exhaustive(current, {
-        FAILED_TO_LOAD: () => p('Unable to load todos'),
+        FAILED_TO_LOAD: function* () {},
       }),
     );
     expectTypeOf<

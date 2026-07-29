@@ -53,13 +53,17 @@ describe('insertForm compatibility with queryParams', () => {
             state: {
               name: {
                 fallbackValue: 'romain',
-                parse: (value: string) => value,
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => value,
+                  encode: (value: string) => String(value),
+                },
               },
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
             },
           },
@@ -84,13 +88,17 @@ describe('insertForm compatibility with queryParams', () => {
             state: {
               name: {
                 fallbackValue: 'romain',
-                parse: (value: string) => value,
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => value,
+                  encode: (value: string) => String(value),
+                },
               },
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: unknown) => String(value),
+                },
               },
             },
           },
@@ -114,8 +122,10 @@ describe('insertForm compatibility with queryParams', () => {
             state: {
               name: {
                 fallbackValue: 'romain',
-                parse: (value: string) => value,
-                serialize: (value: unknown) => String(value),
+                codec: {
+                  decode: (value: string) => value,
+                  encode: (value: string) => String(value),
+                },
               },
             },
           },

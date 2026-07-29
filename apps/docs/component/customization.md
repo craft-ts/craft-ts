@@ -104,12 +104,13 @@ Directive styles are registered in the scope of the component that owns them.
 The same directive can therefore be reused by several components without
 introducing an HTML wrapper.
 
-## Composing providers and exception templates
+## Composing providers and exception handlers
 
 `withProviders` configures the provider scope of a component before it is
-invoked. `catchTag.exhaustive` adapts the exception handlers to component
-templates: each handler returns `CraftNodeChildren`, so `p('No access')`
-renders a paragraph directly in place of the component.
+invoked. `catchTag.exhaustive` is a logic boundary: each handler is a
+generator that can call a service or perform another logic operation. It must
+not return template children. Use `catchBlock.exhaustive` or
+`matchBlock.exhaustive` when the exception should produce DOM.
 
 ```ts
 import { abstract, craftException, craftService } from '@craft-ng/core';
@@ -142,7 +143,9 @@ const Restricted = MyRestrictedCraftComponent.pipe(
     ),
   ]),
   catchTag.exhaustive({
-    NO_ACCESS: () => p('No access'),
+    NO_ACCESS: function* () {
+      // yield* ToastService.show(() => 'No access');
+    },
   }),
 );
 
@@ -151,8 +154,9 @@ Restricted();
 
 Providers are evaluated before the component template. If a provider reads a
 signal, changing that signal recreates the composed rendering, including the
-provider scope. The exception handler is rendered for the exception state and
-the component template is restored when the provider succeeds again.
+provider scope. The handler generator runs for the exception state. Since
+`catchTag` does not render a template, use `catchBlock` or `matchBlock` for a
+visual fallback.
 
 The component adapter reuses the exhaustive `catchTag` rules from the core and
 the composed component carries the exception codes produced by its initializer
@@ -161,6 +165,97 @@ they can satisfy dependencies used by the component and its children. The
 variadic component `.pipe(...)` overload is currently kept permissive to avoid
 excessive TypeScript instantiation depth; runtime dispatch still rejects an
 unhandled exception code.
+
+## Choosing an exception utility
+
+Craft exposes three complementary utilities. The important distinction is
+whether the exception is handled in logic or rendered in a template:
+
+- `catchTag.exhaustive` handles component initialization exceptions in logic;
+- `catchBlock.exhaustive` creates a template boundary and can insert a fallback
+  before or after its source block;
+- `matchBlock.exhaustive` renders a fallback from an exception value or signal.
+
+### `catchTag.exhaustive`: logic only
+
+Handlers are generator functions. They can call services and yield other Craft
+operations, but they cannot return `p(...)`, an element, or any other template
+children. A DOM fallback belongs to `catchBlock` or `matchBlock`.
+
+```ts
+const SafeComponent = MyRestrictedCraftComponent.pipe(
+  withProviders([
+    provideRestrictedData(() =>
+      currentUserCanRead() ? 'available' : noAccess,
+    ),
+  ]),
+  catchTag.exhaustive({
+    NO_ACCESS: function* (exception) {
+      yield* ToastService.show(() => `Access denied: ${exception.code}`);
+    },
+  }),
+);
+```
+
+### `catchBlock.exhaustive`: preserve a source block
+
+Apply it to a rendered VNode when the source subtree may throw. The source is
+kept and the fallback is inserted at the requested position. Applying it to a
+component in `.pipe(...)` also creates a residual component boundary and
+removes the handled codes from the component and route contracts.
+
+```ts
+const view = SourceComponent({}).pipe(
+  catchBlock.exhaustive(
+    {
+      UserNotFoundException: () => p('User not found'),
+    },
+    { position: 'after' },
+  ),
+);
+```
+
+For a template boundary, the source block remains visible by default. When
+`catchBlock` is piped onto a component and the exception comes from its
+composed scope, a function handler keeps the existing component behavior and
+replaces the source. A handler can keep that source visible by using the object
+form and setting `showSource: true`:
+
+```ts
+const view = SourceComponent({}).pipe(
+  catchBlock.exhaustive(
+    {
+      UserNotFoundException: {
+        render: () => p('User not found'),
+        showSource: true,
+        position: 'after',
+      },
+    },
+  ),
+);
+```
+
+With `showSource: true`, the source and fallback are both rendered. Use
+`showSource: false` to hide the source explicitly. `position` can be set on
+each handler (`before` or `after`); the second argument remains available as a
+default for handlers that do not specify their own position. Existing function
+handlers keep their previous behavior. If the component factory or a provider
+fails before the template is created, there is no source block to preserve, so
+the fallback is rendered alone.
+
+### `matchBlock.exhaustive`: render a resource exception
+
+Use it when a query, mutation, or another primitive exposes an exception as a
+signal instead of throwing from the template subtree. The block renders no
+children while the source is empty and switches reactively to the matching
+handler when an exception appears.
+
+```ts
+matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
+  UserNotFoundException: () => p('User not found'),
+  UserConsentMissingException: () => p('Consent is required'),
+});
+```
 
 ## What Craft handles directly
 

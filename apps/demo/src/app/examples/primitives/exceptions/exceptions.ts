@@ -5,6 +5,7 @@ import {
   craftComponent,
   div,
   h3,
+  matchBlock,
   p,
   strong,
 } from '@craft-ng/component';
@@ -55,7 +56,6 @@ const ExceptionsComponent = craftComponent(
     return { scenario, userQuery };
   },
   ({ scenario, userQuery }) => {
-    const exception = userQuery.exceptions().loader;
     const user = userQuery.safeValue();
     return [
       h3(`Query user with business exceptions (${userQuery.status()})`),
@@ -74,19 +74,28 @@ const ExceptionsComponent = craftComponent(
             p([strong('Name: '), user.name]),
             p([strong('Email: '), user.email]),
           ])
-        : exception
-          ? p(`⚠️ ${exception.code}`)
-          : p('Loading user…'),
+        : [
+            matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
+              UserNotFoundException: () =>
+                p('⚠️ User not found (rendered by matchBlock.exhaustive)'),
+              UserConsentMissingException: () =>
+                p(
+                  '⚠️ User consent is required (rendered by matchBlock.exhaustive)',
+                ),
+              UserAccessForbiddenException: () =>
+                p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
+            }),
+            userQuery.status() === 'loading' ? p('Loading user…') : undefined,
+          ],
     ];
   },
 ).pipe(
   catchTag.exhaustive({
-    UserNotFoundException: () =>
-      p('⚠️ User not found (handled by catchTag.exhaustive)'),
-    UserConsentMissingException: () =>
-      p('⚠️ User consent is required (handled by catchTag.exhaustive)'),
-    UserAccessForbiddenException: () =>
-      p('⚠️ Access forbidden (handled by catchTag.exhaustive)'),
+    // The query exposes these exceptions as a signal; template rendering is
+    // handled by matchBlock.exhaustive above.
+    UserNotFoundException: function* () {},
+    UserConsentMissingException: function* () {},
+    UserAccessForbiddenException: function* () {},
   }),
 );
 

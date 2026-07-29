@@ -223,7 +223,7 @@ Pourquoi avoir créé un `asyncProcess` alors qu'il y a déjà les resources d'A
 
 ### queryParam
 
-queryParam synchronise l'état avec l'URL, tout en restant type-safe (parse/serialize/fallback).
+queryParam synchronise l'état avec l'URL, tout en restant type-safe (codec/fallback).
 
 ```typescript
 import { queryParam } from '@craft-ng/core';
@@ -233,13 +233,14 @@ const tableParams = queryParam(
     state: {
       page: {
         fallbackValue: 1,
-        parse: (v) => parseInt(v, 10),
-        serialize: (v) => String(v),
+        codec: {
+          decode: (v) => parseInt(v, 10),
+          encode: (v) => String(v),
+        },
       },
       search: {
         fallbackValue: '',
-        parse: (v) => v,
-        serialize: (v) => v,
+        codec: { decode: (v) => v, encode: (v) => v },
       },
     },
   },

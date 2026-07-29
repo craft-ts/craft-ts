@@ -13,7 +13,6 @@ import {
 } from '@craft-ng/component';
 import {
   componentMonitoring,
-  craftException,
   provideHostName,
   queryParams,
   toCraftService,
@@ -43,14 +42,15 @@ const ExceptionQueryParamsComponent = craftComponent(
       state: {
         mode: {
           fallbackValue: 'fallbackValue' as const,
-          parse: (value: string) =>
-            value === 'success'
-              ? ('success' as const)
-              : craftException(
-                  { code: 'InvalidModeFromUrl' },
-                  { received: value },
-                ),
-          serialize: String,
+          codec: {
+            decode: (value: string) => {
+              if (value !== 'success') {
+                throw new Error(`Invalid mode: ${value}`);
+              }
+              return 'success' as const;
+            },
+            encode: String,
+          },
         },
       },
     });
@@ -65,7 +65,7 @@ const ExceptionQueryParamsComponent = craftComponent(
   ({ modeQueryParams, navigate }) => {
     const exception = modeQueryParams.exceptions().parse.mode;
     return section([
-      h('h4', 'QueryParams parse exception'),
+      h('h4', 'QueryParams decode exception'),
       div([
         button({ click: () => navigate('success') }, 'Navigate success'),
         button({ click: () => navigate('exception') }, 'Navigate exception'),
@@ -74,7 +74,7 @@ const ExceptionQueryParamsComponent = craftComponent(
       exception
         ? p([
             strong('Exception: '),
-            `${exception.code} (received: ${exception.payload.received})`,
+            `${exception.code}: ${String(exception.payload.error)}`,
           ])
         : p([strong('Exception: '), 'none']),
     ]);

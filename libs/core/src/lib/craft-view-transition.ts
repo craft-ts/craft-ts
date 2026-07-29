@@ -124,7 +124,42 @@ function defaultStartViewTransition(cb: () => void): void {
     return;
   }
 
-  doc.startViewTransition(cb);
+  // Chromium can expose the API while failing to invoke the update callback
+  // when a transition is started during router activation. Never leave the
+  // outlet waiting forever for that callback: the fallback still commits the
+  // new DOM, while the idempotent wrapper prevents a later native callback
+  // from committing twice.
+  let callbackCalled = false;
+  const runOnce = () => {
+    if (callbackCalled) {
+      return;
+    }
+    callbackCalled = true;
+    cb();
+  };
+
+  const transition = doc.startViewTransition(runOnce) as
+    | {
+        skipTransition?: () => void;
+        ready?: Promise<unknown>;
+        updateCallbackDone?: Promise<unknown>;
+        finished?: Promise<unknown>;
+      }
+    | undefined;
+  for (const promise of [
+    transition?.ready,
+    transition?.updateCallbackDone,
+    transition?.finished,
+  ]) {
+    void promise?.catch(() => undefined);
+  }
+  queueMicrotask(() => {
+    if (callbackCalled) {
+      return;
+    }
+    runOnce();
+    transition?.skipTransition?.();
+  });
 }
 
 /**

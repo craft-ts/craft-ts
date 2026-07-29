@@ -385,13 +385,17 @@ describe('craftRoutes', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: number) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: number) => String(value),
+                },
               },
               pageSize: {
                 fallbackValue: 10,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: number) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: number) => String(value),
+                },
               },
             },
           },
@@ -438,13 +442,17 @@ describe('craftRoutes', () => {
                   state: {
                     page: {
                       fallbackValue: 1,
-                      parse: (value: string) => parseInt(value, 10),
-                      serialize: (value: number) => String(value),
+                      codec: {
+                        decode: (value: string) => parseInt(value, 10),
+                        encode: (value: number) => String(value),
+                      },
                     },
                     pageSize: {
                       fallbackValue: 10,
-                      parse: (value: string) => parseInt(value, 10),
-                      serialize: (value: number) => String(value),
+                      codec: {
+                        decode: (value: string) => parseInt(value, 10),
+                        encode: (value: number) => String(value),
+                      },
                     },
                   },
                 },
@@ -552,8 +560,10 @@ describe('craftRoutes', () => {
                   state: {
                     page: {
                       fallbackValue: 1,
-                      parse: (value: string) => parseInt(value, 10),
-                      serialize: (value: number) => String(value),
+                      codec: {
+                        decode: (value: string) => parseInt(value, 10),
+                        encode: (value: number) => String(value),
+                      },
                     },
                   },
                 },
@@ -1973,8 +1983,10 @@ describe('craftRoutes', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: number) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: number) => String(value),
+                },
               },
             },
           });
@@ -2733,18 +2745,6 @@ describe('AppRoutes.META_DATA', () => {
   });
 
   it('should include queryParams deps in META_DATA, including outer generator yields', () => {
-    const { ParsePage } = craftService(
-      { name: 'ParsePage', scope: 'global' },
-      () => ({
-        parsePage: (value: string) => parseInt(value, 10),
-      }),
-    );
-    const { SerializePage } = craftService(
-      { name: 'SerializePage', scope: 'global' },
-      () => ({
-        serializePage: (value: number) => String(value),
-      }),
-    );
     const { PaginationRules } = craftService(
       { name: 'PaginationRules', scope: 'global' },
       () => ({
@@ -2771,25 +2771,9 @@ describe('AppRoutes.META_DATA', () => {
               state: {
                 page: {
                   fallbackValue: 1,
-                  parse: function* (value: string) {
-                    const parser = yield* ParsePage(
-                      undefined,
-                      ({ parsePage }) => ({
-                        parsePage,
-                      }),
-                    );
-
-                    return parser.parsePage(value);
-                  },
-                  serialize: function* (value: number) {
-                    const serializer = yield* SerializePage(
-                      undefined,
-                      ({ serializePage }) => ({
-                        serializePage,
-                      }),
-                    );
-
-                    return serializer.serializePage(value);
+                  codec: {
+                    decode: (value: string) => parseInt(value, 10),
+                    encode: (value: number) => String(value),
                   },
                 },
               },
@@ -2832,30 +2816,6 @@ describe('AppRoutes.META_DATA', () => {
               appStart: false;
             };
             ConsoleService: GetServiceDependencies<typeof ConsoleService>;
-            ParsePage: {
-              scope: 'global';
-              dependencies: {};
-              browserBoundary: false;
-              appStart: false;
-              derivedPropertiesUsed: {
-                parsePage: (value: string) => number;
-              };
-              derivedPropertiesExposed: {
-                parsePage: (value: string) => number;
-              };
-            };
-            SerializePage: {
-              scope: 'global';
-              dependencies: {};
-              browserBoundary: false;
-              appStart: false;
-              derivedPropertiesUsed: {
-                serializePage: (value: number) => string;
-              };
-              derivedPropertiesExposed: {
-                serializePage: (value: number) => string;
-              };
-            };
             PaginationRules: {
               scope: 'global';
               dependencies: {};
@@ -2900,8 +2860,10 @@ describe('AppRoutes.META_DATA', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: number) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: number) => String(value),
+                },
               },
             },
           })).queryParams;
@@ -2938,8 +2900,10 @@ describe('AppRoutes.META_DATA', () => {
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value: string) => parseInt(value, 10),
-                serialize: (value: number) => String(value),
+                codec: {
+                  decode: (value: string) => parseInt(value, 10),
+                  encode: (value: number) => String(value),
+                },
               },
             },
           });
@@ -3033,7 +2997,9 @@ describe('AppRoutes.META_DATA', () => {
       },
     ]);
 
-    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<readonly [{ path: 'counter' }]>();
+    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<
+      readonly [{ path: 'counter' }]
+    >();
   });
 
   it('should not add deps to META_DATA for non-generator canActivate guards', () => {
@@ -3051,7 +3017,9 @@ describe('AppRoutes.META_DATA', () => {
       },
     ]);
 
-    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<readonly [{ path: 'counter' }]>();
+    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<
+      readonly [{ path: 'counter' }]
+    >();
   });
 
   it('should include canActivate generator handler deps in META_DATA', () => {
@@ -3138,7 +3106,9 @@ describe('AppRoutes.META_DATA', () => {
       ),
     ]);
 
-    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<readonly [{ path: 'admin' }]>();
+    expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<
+      readonly [{ path: 'admin' }]
+    >();
   });
 
   it('should flatten lazy route metadata and inherit providers, params and data', () => {
@@ -3177,10 +3147,7 @@ describe('AppRoutes.META_DATA', () => {
     ]);
 
     expectTypeOf(appRoutes.META_PATHS).toEqualTypeOf<
-      readonly [
-        { path: 'users/:userId' },
-        { path: 'users/:userId/details' },
-      ]
+      readonly [{ path: 'users/:userId' }, { path: 'users/:userId/details' }]
     >();
   });
 });

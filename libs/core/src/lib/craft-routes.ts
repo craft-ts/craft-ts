@@ -39,7 +39,10 @@ import type {
   ExtractDeps,
 } from './branded-component/branded-component';
 import { type AnyCraftException } from './craft-exception';
-import { type ExtractCraftGenExceptions } from './craft-gen';
+import {
+  isCraftGenShortCircuit,
+  type ExtractCraftGenExceptions,
+} from './craft-gen';
 import {
   executeGeneratorCompatibleFactory,
   isGenerator,
@@ -2732,6 +2735,13 @@ function createAngularGuard<
         successDataSink,
       );
     } catch (error) {
+      // A craft exception is handled by the non-blocking Craft outlet after
+      // Angular commits the URL. Let that chain reach its typed route handler
+      // instead of exposing the internal short-circuit as a navigation error.
+      if (isCraftGenShortCircuit(error)) {
+        return true;
+      }
+
       if (
         !(error instanceof Error) ||
         error.message !== ANGULAR_GUARD_INVALID_YIELD_ERROR_MESSAGE

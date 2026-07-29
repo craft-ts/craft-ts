@@ -13,12 +13,14 @@ import { isCraftDirective, type CraftDirective } from '../types';
 import {
   CATCH_BLOCK_DIRECTIVE,
   type CatchBlockDirective,
+  type CatchBlockHandlerChildren,
   type CatchBlockHandlers,
   type CatchBlockPosition,
 } from '../block';
 
 export declare const CRAFT_NODE_DEPS: unique symbol;
 declare const CRAFT_NODE_EXCEPTIONS: unique symbol;
+declare const CRAFT_NODE_HANDLED_EXCEPTIONS: unique symbol;
 
 export type CraftNodeDepsCarrier<Dependencies extends object = {}> = {
   readonly [CRAFT_NODE_DEPS]?: Dependencies;
@@ -29,6 +31,11 @@ type IsAny<Value> = 0 extends 1 & Value ? true : false;
 export type CraftNodeExceptionsCarrier<Exceptions extends string = string> = {
   readonly [CRAFT_NODE_EXCEPTIONS]?: Exceptions;
 };
+
+export type CraftNodeHandledExceptionsCarrier<Codes extends string = string> = {
+  readonly [CRAFT_NODE_HANDLED_EXCEPTIONS]?: Codes;
+};
+
 
 type UnionToIntersection<Union> = (
   Union extends any ? (value: Union) => void : never
@@ -71,12 +78,14 @@ export interface ElementNodeBase<
   Children extends CraftNodeChildren = CraftNodeChildren,
   LocalName extends string | undefined = string | undefined,
   Exceptions extends string = string,
+  HandledExceptions extends string = string,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<
       string extends CraftNodeChildrenExceptions<Children>
         ? Exceptions
         : CraftNodeChildrenExceptions<Children>
-    > {
+    >,
+    CraftNodeHandledExceptionsCarrier<HandledExceptions> {
   readonly kind: 'element';
   readonly tag: Tag;
   readonly localName?: LocalName;
@@ -91,13 +100,15 @@ export interface ElementNode<
   Children extends CraftNodeChildren = CraftNodeChildren,
   LocalName extends string | undefined = string | undefined,
   Exceptions extends string = string,
+  HandledExceptions extends string = string,
 > extends ElementNodeBase<
     Dependencies,
     Tag,
     Props,
     Children,
     LocalName,
-    Exceptions
+    Exceptions,
+    HandledExceptions
   > {
   readonly [CRAFT_NODE_EXCEPTIONS]: CraftNodeChildrenExceptions<Children>;
   readonly pipe: CraftNodePipe<
@@ -117,7 +128,9 @@ type PipedNode<
     ? CatchBlockNode<
         Dependencies | CraftDirectiveTemplateDependencies<Directive>,
         | Exclude<Exceptions, Extract<keyof Handlers, string>>
-        | CraftNodeChildrenExceptions<ReturnType<Handlers[keyof Handlers]>>,
+        | CraftNodeChildrenExceptions<
+            CatchBlockHandlerChildren<Handlers[keyof Handlers]>
+          >,
         Handlers,
         Directive[typeof CATCH_BLOCK_DIRECTIVE]['position']
       >
@@ -209,7 +222,8 @@ export interface CatchBlockNode<
   Handlers extends CatchBlockHandlers = CatchBlockHandlers,
   Position extends CatchBlockPosition = CatchBlockPosition,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeExceptionsCarrier<Exceptions> {
+    CraftNodeExceptionsCarrier<Exceptions>,
+    CraftNodeHandledExceptionsCarrier<Extract<keyof Handlers, string>> {
   readonly kind: 'catch-block';
   readonly source: CraftNode;
   readonly handlers: Handlers;
@@ -220,11 +234,16 @@ export interface MatchBlockNode<
   Dependencies extends object = {},
   Source extends () => object | undefined = () => object | undefined,
   Children extends CraftNodeChildren = CraftNodeChildren,
-> extends CraftNodeDepsCarrier<Dependencies> {
+  HandledExceptions extends string = string,
+> extends CraftNodeDepsCarrier<Dependencies>,
+    CraftNodeHandledExceptionsCarrier<HandledExceptions> {
   readonly kind: 'match-block';
   readonly source: Source;
   readonly key: PropertyKey;
-  readonly handlers: Record<string, (exception: AnyCraftException) => Children>;
+  readonly handlers: Record<
+    string,
+    (exception: AnyCraftException) => Children
+  >;
 }
 
 export interface EachNode<
@@ -309,6 +328,23 @@ export type CraftNodeChildrenExceptions<Value> = Value extends unknown
     : CraftNodeDirectExceptions<Value>
   : never;
 
+type CraftNodeDirectHandledExceptionCodes<Value> =
+  IsAny<Value> extends true
+    ? never
+    : Value extends CraftNodeHandledExceptionsCarrier<
+          infer Codes extends string
+        >
+      ? string extends Codes
+        ? never
+        : Codes
+      : never;
+
+export type CraftNodeChildrenHandledExceptionCodes<Value> = Value extends unknown
+  ? Value extends readonly (infer Child)[]
+    ? CraftNodeDirectHandledExceptionCodes<Child>
+    : CraftNodeDirectHandledExceptionCodes<Value>
+  : never;
+
 /** A template child is renderable only after its component exceptions are handled. */
 export type RequireCaughtComponentExceptions<
   Children extends CraftNodeChildren,
@@ -318,7 +354,7 @@ export type RequireCaughtComponentExceptions<
     : [CraftNodeChildrenExceptions<Children>] extends [never]
       ? unknown
       : {
-          'catchTag.exhaustive is required before rendering component exceptions': CraftNodeChildrenExceptions<Children>;
+          'catchTag.exhaustive or catchBlock.exhaustive is required before rendering component exceptions': CraftNodeChildrenExceptions<Children>;
         };
 
 export function isCraftNode(value: unknown): value is CraftNode {

@@ -500,8 +500,10 @@ const { filters } = queryParams(
     state: {
       selectedIds: {
         fallbackValue: [] as string[],
-        parse: (value) => value.split(',').filter(Boolean),
-        serialize: (value) => (value as string[]).join(','),
+        codec: {
+          decode: (value) => value.split(',').filter(Boolean),
+          encode: (value) => (value as string[]).join(','),
+        },
       },
     },
   },

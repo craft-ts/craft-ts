@@ -60,13 +60,17 @@ const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
         state: {
           page: {
             fallbackValue: 1,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: number) => String(value),
+            codec: {
+              decode: (value: string) => parseInt(value, 10),
+              encode: (value: number) => String(value),
+            },
           },
           pageSize: {
             fallbackValue: 10,
-            parse: (value: string) => parseInt(value, 10),
-            serialize: (value: number) => String(value),
+            codec: {
+              decode: (value: string) => parseInt(value, 10),
+              encode: (value: number) => String(value),
+            },
           },
         },
       });

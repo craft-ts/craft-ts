@@ -5,7 +5,7 @@ import {
   type ComponentFactory,
   type ComponentMeta,
   type ComponentCompositionDefinition,
-  type ComponentInitializationExceptionCodes,
+  type ComponentInitializationExceptionCodesForTemplate,
   type ComponentTemplate,
   type CraftComponent,
   type FactoryContext,
@@ -53,7 +53,11 @@ export function craftComponent<
   TemplateDependencies<Template>,
   Template,
   Name,
-  ComponentInitializationExceptionCodes<Factory, ProvidersFromMeta<Meta>>
+  ComponentInitializationExceptionCodesForTemplate<
+    Factory,
+    ProvidersFromMeta<Meta>,
+    Template
+  >
 > {
   return createCraftComponent<Name, Meta, Factory, Template>({
     name,
@@ -93,7 +97,11 @@ function createCraftComponent<
   TemplateDependencies<Template>,
   Template,
   Name,
-  ComponentInitializationExceptionCodes<Factory, ProvidersFromMeta<Meta>>
+  ComponentInitializationExceptionCodesForTemplate<
+    Factory,
+    ProvidersFromMeta<Meta>,
+    Template
+  >
 > {
   type Props = PropsFromContext<FactoryContext<Factory>>;
   type ComponentDeps = CraftComponentDependencies<
@@ -146,7 +154,11 @@ function createCraftComponent<
     TemplateDependencies<Template>,
     Template,
     Name,
-    ComponentInitializationExceptionCodes<Factory, ProvidersFromMeta<Meta>>
+    ComponentInitializationExceptionCodesForTemplate<
+      Factory,
+      ProvidersFromMeta<Meta>,
+      Template
+    >
   >;
 
   const scopeDefinition = definition.scopeDefinition ?? {};
@@ -240,9 +252,14 @@ function mergeComponentComposition(
     ...(next?.providers ?? []),
   ];
   const catchHandlers = next?.catchHandlers ?? existing?.catchHandlers;
+  const catchTagHandlers = next?.catchTagHandlers ?? existing?.catchTagHandlers;
+  const catchBlockPosition =
+    next?.catchBlockPosition ?? existing?.catchBlockPosition;
 
   return {
     ...(providers.length ? { providers } : {}),
     ...(catchHandlers ? { catchHandlers } : {}),
+    ...(catchTagHandlers ? { catchTagHandlers } : {}),
+    ...(catchBlockPosition ? { catchBlockPosition } : {}),
   };
 }

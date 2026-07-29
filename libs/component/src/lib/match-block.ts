@@ -38,7 +38,8 @@ export const matchBlock = {
   ): MatchBlockNode<
     MatchBlockDependencies<Handlers>,
     () => Value | undefined,
-    ReturnType<Handlers[ExceptionCode<Value, Key>]>
+    ReturnType<Handlers[ExceptionCode<Value, Key>]>,
+    Extract<ExceptionCode<Value, Key>, string>
   > {
     const read = (): Value | undefined =>
       typeof source === 'function'
@@ -56,7 +57,8 @@ export const matchBlock = {
     } as MatchBlockNode<
       MatchBlockDependencies<Handlers>,
       () => Value | undefined,
-      ReturnType<Handlers[ExceptionCode<Value, Key>]>
+      ReturnType<Handlers[ExceptionCode<Value, Key>]>,
+      Extract<ExceptionCode<Value, Key>, string>
     >;
   },
 };

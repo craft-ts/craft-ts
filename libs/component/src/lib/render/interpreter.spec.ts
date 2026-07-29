@@ -27,9 +27,12 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BehaviorSubject } from 'rxjs';
 import {
   craftComputed,
+  craftException,
   craftMethod,
   craftService,
+  mutation,
   provideCraftLazyLoadRetry,
+  query,
   state,
 } from '@craft-ng/core';
 import {
@@ -45,7 +48,8 @@ import { craftDirective } from '../directive';
 import { defer } from '../defer';
 import { each } from '../each';
 import { ifBlock } from '../if-block';
-import { button, div, h2, p, span } from '../hyperscript';
+import { catchBlock } from '../block';
+import { button, div, h2, p, section, span } from '../hyperscript';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
 
 beforeAll(() => {
@@ -127,6 +131,103 @@ describe('functional component interpreter', () => {
 
     mounted.destroy();
     expect(element.textContent).toBe('');
+  });
+
+  it('constructs child component queries outside the parent render context', () => {
+    const child = craftComponent(
+      'queryChild',
+      {},
+      function* () {
+        const { value } = yield* query('value', {
+          params: () => true,
+          loader: async () => ({ status: 'ready' }),
+        });
+        return { value };
+      },
+      ({ value }) => p(value.safeValue()?.status ?? 'loading'),
+    );
+    const parent = craftComponent(
+      'queryParent',
+      {},
+      () => ({}),
+      () => div([child()]),
+    );
+    const element = host();
+
+    expect(() => {
+      const mounted = mountCraftComponent(
+        parent,
+        element,
+        TestBed.inject(Injector),
+      );
+      TestBed.tick();
+      mounted.destroy();
+    }).not.toThrow();
+  });
+
+  it('does not recreate a composed query component when its resource settles', async () => {
+    let factoryRuns = 0;
+    const component = craftComponent(
+      'composedQuery',
+      {},
+      function* () {
+        factoryRuns += 1;
+        const refresh = signal(0);
+        // Keep the unused local query from the full-demo shape in the repro.
+        yield* query('localTodos', {
+          params: () => true,
+          loader: async () => [],
+        });
+        const { todos } = yield* query('todos', {
+          params: refresh,
+          loader: async ({ params }) =>
+            params === 0
+              ? []
+              : craftException({ code: 'FAILED_TO_LOAD' }),
+        });
+        const { add } = yield* mutation('add', {
+          method: (title: string) => title,
+          loader: async () => {
+            refresh.update((value) => value + 1);
+            return 'added';
+          },
+        });
+        return { todos, add };
+      },
+      ({ todos, add }) =>
+        section([
+          p('source'),
+          p(() => todos.status()),
+          button({ click: () => add.mutate('new todo') }, 'Add'),
+        ]),
+    ).pipe(
+      catchBlock.exhaustive(
+        {
+          FAILED_TO_LOAD: {
+            render: () => p('failed'),
+            showSource: true,
+            position: 'after',
+          },
+        },
+      ),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    element.querySelector('button')?.click();
+    await vi.waitFor(() => expect(element.textContent).toContain('failed'));
+    TestBed.tick();
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(element.textContent).toContain('source');
+    expect(factoryRuns).toBeLessThanOrEqual(2);
+    mounted.destroy();
   });
 
   it('drives generator DOM callbacks and branded Craft methods', () => {

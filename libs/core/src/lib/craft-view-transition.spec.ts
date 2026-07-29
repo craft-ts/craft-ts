@@ -146,4 +146,21 @@ describe('CRAFT_START_VIEW_TRANSITION (default seam)', () => {
     expect(startViewTransition).not.toHaveBeenCalled();
     expect(cb).toHaveBeenCalledTimes(1);
   });
+
+  it('falls back when the browser does not invoke the update callback', async () => {
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as never;
+    const skipTransition = vi.fn();
+    const startViewTransition = vi.fn((_cb: () => void) => ({
+      skipTransition,
+    }));
+    docWithVt.startViewTransition = startViewTransition;
+
+    const cb = vi.fn();
+    start()(cb);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(startViewTransition).toHaveBeenCalledTimes(1);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(skipTransition).toHaveBeenCalledTimes(1);
+  });
 });

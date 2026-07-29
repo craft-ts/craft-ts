@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import {
   button,
-  catchTag,
+  catchBlock,
   craftComponent,
   div,
   each,
@@ -36,7 +36,8 @@ const { provideTodoStore, TodoStore } = craftService(
     const { todos } = yield* query('todos', {
       params: refresh,
       loader: async () => {
-        if (!records) {
+        if (false) {
+          // add an exception to the query signature, it will force this component or his host to handle this exception
           return craftException({ code: 'FAILED_TO_LOAD' });
         }
         return [...records];
@@ -72,12 +73,6 @@ const FullDemoCraft = craftComponent(
   },
   function* () {
     componentMonitoring();
-    const { todos } = yield* query('todos', {
-      params: () => true,
-      loader: async () => {
-        return [...records];
-      },
-    });
     return { store: yield* TodoStore() };
   },
   ({ store }) => {
@@ -118,7 +113,13 @@ const FullDemoCraft = craftComponent(
       ),
     ]);
   },
-).pipe((component) =>
-  catchTag.exhaustive(component, { FAILED_TO_LOAD: () => [] }),
+).pipe(
+  catchBlock.exhaustive({
+    FAILED_TO_LOAD: {
+      render: () => p('⚠️ FAILED_TO_LOAD (handled by catchBlock.exhaustive)'),
+      showSource: true,
+      position: 'after',
+    },
+  }),
 );
 export default FullDemoCraft;

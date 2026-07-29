@@ -21,14 +21,7 @@ import { Prettify } from './util/util.type';
 import { ActivatedRoute, Router } from '@angular/router';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
-import {
-  AnyCraftException,
-  craftException,
-  ExtractCraftException,
-  InsertMetaInCraftExceptionIfExists,
-  StripCraftException,
-  isCraftException,
-} from './craft-exception';
+import { AnyCraftException, craftException } from './craft-exception';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import {
   createNamedPrimitiveGen,
@@ -66,31 +59,6 @@ export interface QueryParamsNavigationOptions {
 type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
 
-type ResolveFactoryResult<Factory> = Factory extends (
-  ...args: any[]
-) => infer Result
-  ? ResolveGeneratorResult<Result>
-  : never;
-
-type ExtractFactoryYielded<Factory> = Factory extends (
-  ...args: any[]
-) => Generator<infer Yielded, any, unknown>
-  ? Yielded
-  : never;
-
-type QueryParamsSingleConfigYielded<Config> = Config extends {
-  parse: infer Parse;
-  serialize: infer Serialize;
-}
-  ? ExtractFactoryYielded<Parse> | ExtractFactoryYielded<Serialize>
-  : never;
-
-type QueryParamsConfigYielded<QueryParamsType> = {
-  [K in keyof QueryParamsType]: QueryParamsSingleConfigYielded<
-    QueryParamsType[K]
-  >;
-}[keyof QueryParamsType];
-
 type RouterQueryParamsYield = ServiceYieldRequest<
   'global',
   Router,
@@ -110,26 +78,21 @@ type QueryParamsTrackedDependencies<
   InsertionsYielded = never,
   Insertions = never,
 > = ServiceDependencyMapFromYieldedAndValues<
-  | RouterQueryParamsYield
-  | QueryParamsConfigYielded<QueryParamsType>
-  | InsertionsYielded,
+  RouterQueryParamsYield | InsertionsYielded,
   Insertions
 >;
 
-type AnyQueryParamsConfig =
-  | QueryParamsLegacyConfig<any>
-  | QueryParamsCodecConfig<any, any>;
+type AnyQueryParamsConfig = {
+  codec: CraftCodec<any, any>;
+  fallbackValue: any;
+};
 
 export type QueryParamsToState<QueryParamsConfigs> = {
   [K in keyof QueryParamsConfigs]: QueryParamsConfigs[K] extends {
-    codec: CraftCodec<any, infer Decoded>;
+    codec: { decode: (input: any) => infer Decoded };
   }
     ? Decoded
-    : QueryParamsConfigs[K] extends { parse: infer Parse }
-      ? Parse extends (...args: any[]) => unknown
-        ? StripCraftException<ResolveFactoryResult<Parse>>
-        : never
-      : never;
+    : never;
 };
 
 export type QueryParamDecodeErrorPayload = {
@@ -163,26 +126,10 @@ export type QueryParamEncodeError =
     QueryParamEncodeErrorPayload
   >;
 
-type QueryParamsParseExceptionForConfig<
-  Config,
-  Key extends string,
-> = Config extends { codec: CraftCodec<any, any> }
-  ? QueryParamDecodeError<Key>
-  : Config extends { parse: infer Parse }
-    ? InsertMetaInCraftExceptionIfExists<
-        ExtractCraftException<ResolveFactoryResult<Parse>>,
-        'parse',
-        Key
-      >
-    : never;
-
 type QueryParamsParseExceptionsByKey<QueryParamsType> =
   QueryParamsType extends Record<string, AnyQueryParamsConfig>
     ? {
-        [K in keyof QueryParamsType]: QueryParamsParseExceptionForConfig<
-          QueryParamsType[K],
-          K & string
-        >;
+        [K in keyof QueryParamsType]: QueryParamDecodeError<K & string>;
       }
     : Record<string, never>;
 
@@ -289,54 +236,6 @@ function executeQueryParamsFactory<This, Args extends unknown[], Result>(
   });
 }
 
-function decodeQueryParamValue(
-  injector: Injector,
-  config: AnyQueryParamsConfig,
-  rawValue: unknown,
-): unknown {
-  if ('codec' in config && config.codec !== undefined) {
-    return config.codec.decode(rawValue);
-  }
-
-  return executeQueryParamsFactory(
-    injector,
-    config.parse,
-    config,
-    rawValue as string,
-  );
-}
-
-function encodeQueryParamValue(
-  injector: Injector,
-  config: AnyQueryParamsConfig,
-  value: unknown,
-): unknown {
-  if ('codec' in config && config.codec !== undefined) {
-    return config.codec.encode(value);
-  }
-
-  return executeQueryParamsFactory(injector, config.serialize, config, value);
-}
-
-export type QueryParamsParser<T = unknown> = (
-  value: string,
-) => T | Generator<unknown, T, unknown>;
-
-export type QueryParamsSerializer<T = unknown> = (
-  value: NoInfer<T>,
-) => string | Generator<unknown, string, unknown>;
-
-export interface QueryParamsLegacyConfig<
-  T = unknown,
-  Parse extends QueryParamsParser<T> = QueryParamsParser<T>,
-  Serialize extends QueryParamsSerializer<T> = QueryParamsSerializer<T>,
-> {
-  parse: Parse;
-  fallbackValue: NoInfer<T>;
-  serialize: Serialize;
-  codec?: never;
-}
-
 export interface QueryParamsCodecConfig<
   T = unknown,
   Encoded = unknown,
@@ -344,23 +243,20 @@ export interface QueryParamsCodecConfig<
 > {
   codec: Codec;
   fallbackValue: NoInfer<T>;
-  parse?: never;
-  serialize?: never;
 }
 
 export type QueryParamsConfig<
   T = unknown,
-  Parse extends QueryParamsParser<T> = QueryParamsParser<T>,
-  Serialize extends QueryParamsSerializer<T> = QueryParamsSerializer<T>,
-> = QueryParamsLegacyConfig<T, Parse, Serialize> | QueryParamsCodecConfig<T>;
+  Encoded = unknown,
+> = QueryParamsCodecConfig<T, Encoded>;
 
 /**
  * Creates a reactive query parameter manager that synchronizes state with URL query parameters.
  *
  * This function manages query parameter state by:
  * - Reading initial values from the URL or using default values
- * - Parsing URL strings into typed values using the provided `parse` function
- * - Serializing typed values back to strings for URL updates using the `serialize` function
+ * - Decoding URL values into typed values using the provided `codec`
+ * - Encoding typed values back to URL values using the provided `codec`
  * - Providing reactive signals for each query parameter
  *
  * @remarks
@@ -372,7 +268,7 @@ export type QueryParamsConfig<
  *   injector host tag (`queryParams:pagination`), so the primitive is precisely
  *   locatable in snapshots and logs.
  * @param config - Configuration object containing:
- *   - `state`: Record of query parameter configurations, each with `fallbackValue`, `parse`, and `serialize`
+ *   - `state`: Record of query parameter configurations, each with `fallbackValue` and `codec`
  *   - `queryParamsHandling` (optional): How to handle existing query params ('merge' | 'preserve' | '')
  *   - `onSameUrlNavigation` (optional): Behavior on same URL navigation ('reload' | 'ignore')
  *   - `replaceUrl` (optional): Whether to replace the URL in browser history
@@ -402,13 +298,17 @@ export type QueryParamsConfig<
  *     state: {
  *       page: {
  *         fallbackValue: 1,
- *         parse: (value) => parseInt(value, 10),
- *         serialize: (value) => String(value),
+ *         codec: {
+ *           decode: (value) => parseInt(value, 10),
+ *           encode: (value) => String(value),
+ *         },
  *       },
  *       pageSize: {
  *         fallbackValue: 10,
- *         parse: (value) => parseInt(value, 10),
- *         serialize: (value) => String(value),
+ *         codec: {
+ *           decode: (value) => parseInt(value, 10),
+ *           encode: (value) => String(value),
+ *         },
  *       },
  *     },
  *   },
@@ -433,7 +333,10 @@ export type QueryParamsConfig<
  *   'myQueryParams',
  *   {
  *     state: {
- *       page: { fallbackValue: 1, parse: parseInt, serialize: String },
+ *       page: {
+ *         fallbackValue: 1,
+ *         codec: { decode: parseInt, encode: String },
+ *       },
  *     },
  *   },
  *   ({ state, set }) => ({
@@ -455,14 +358,15 @@ export type QueryParamsConfig<
  *   state: {
  *     mode: {
  *       fallbackValue: 'success' as const,
- *       parse: (value: string) =>
- *         value === 'success'
- *           ? ('success' as const)
- *           : craftException(
- *               { code: 'INVALID_MODE_FROM_URL' },
- *               { received: value },
- *             ),
- *       serialize: (value) => String(value),
+ *       codec: {
+ *         decode: (value: string) => {
+ *           if (value !== 'success') {
+ *             throw new Error(`Invalid mode: ${value}`);
+ *           }
+ *           return 'success' as const;
+ *         },
+ *         encode: (value) => String(value),
+ *       },
  *     },
  *   },
  * }));
@@ -580,12 +484,7 @@ function createQueryParamsRef<
           return acc;
         }
         try {
-          const parsedValue = decodeQueryParamValue(injector, config, rawValue);
-          if (isCraftException(parsedValue)) {
-            acc[key] = config.fallbackValue;
-            return acc;
-          }
-          acc[key] = parsedValue;
+          acc[key] = config.codec.decode(rawValue);
           return acc;
         } catch {
           acc[key] = config.fallbackValue;
@@ -605,20 +504,13 @@ function createQueryParamsRef<
         }
 
         try {
-          const parsedValue = decodeQueryParamValue(injector, config, rawValue);
-          if (isCraftException(parsedValue)) {
-            acc[key] = enrichQueryParamsParseException(parsedValue, key);
-          }
+          config.codec.decode(rawValue);
           return acc;
         } catch (error) {
-          if (isCraftException(error)) {
-            acc[key] = enrichQueryParamsParseException(error, key);
-          } else if ('codec' in config && config.codec !== undefined) {
-            acc[key] = enrichQueryParamsParseException(
-              createQueryParamDecodeError(key, rawValue, error),
-              key,
-            );
-          }
+          acc[key] = enrichQueryParamsParseException(
+            createQueryParamDecodeError(key, rawValue, error),
+            key,
+          );
           return acc;
         }
       },
@@ -661,14 +553,9 @@ function createQueryParamsRef<
         // Skip if value equals fallback value
         if (currentValue !== config.fallbackValue) {
           try {
-            acc[key] = encodeQueryParamValue(injector, config, currentValue) as
-              | string
-              | string[];
+            acc[key] = config.codec.encode(currentValue) as string | string[];
           } catch (error) {
-            if ('codec' in config && config.codec !== undefined) {
-              throw createQueryParamEncodeError(key, currentValue, error);
-            }
-            throw error;
+            throw createQueryParamEncodeError(key, currentValue, error);
           }
         }
         return acc;

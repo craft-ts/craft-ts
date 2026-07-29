@@ -18,6 +18,7 @@ import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
   CraftNodeChildrenExceptions,
+  CraftNodeChildrenHandledExceptionCodes,
   ComponentNode,
 } from './render/vnode';
 
@@ -269,15 +270,50 @@ export type ComponentExceptionHandler = (
   exception: AnyCraftException,
 ) => CraftNodeChildren;
 
+export type ComponentExceptionHandlerOptions = {
+  /** Keep the component template visible while rendering the fallback. */
+  readonly showSource?: boolean;
+  /** Place the fallback before or after the source block. */
+  readonly position?: 'before' | 'after';
+};
+
+export type ComponentExceptionHandlerDefinition =
+  ComponentExceptionHandlerOptions & {
+    readonly render: ComponentExceptionHandler;
+  };
+
+export type ComponentExceptionHandlerEntry =
+  | ComponentExceptionHandler
+  | ComponentExceptionHandlerDefinition;
+
+export type ComponentExceptionHandlerChildren<Handler> = Handler extends (
+  ...args: any[]
+) => infer Children
+  ? Children
+  : Handler extends { readonly render: (...args: any[]) => infer Children }
+    ? Children
+    : never;
+
+export type ComponentExceptionGenerator = (
+  exception: AnyCraftException,
+) => Generator<unknown, void, unknown>;
+
 export type ComponentCompositionDefinition = {
   readonly providers?: readonly CraftServiceProvider[];
-  readonly catchHandlers?: Readonly<Record<string, ComponentExceptionHandler>>;
+  readonly catchHandlers?: Readonly<
+    Record<string, ComponentExceptionHandlerEntry>
+  >;
+  readonly catchTagHandlers?: Readonly<
+    Record<string, ComponentExceptionGenerator>
+  >;
+  readonly catchBlockPosition?: 'before' | 'after';
 };
 
 export type ComponentOperatorDefinition = ComponentCompositionDefinition;
 
 /** Internal marker carried by operators that alter component composition. */
 export const COMPONENT_OPERATOR = Symbol('craft-component-operator');
+export const COMPONENT_CATCH_BLOCK = Symbol('craft-component-catch-block');
 
 export type ComponentOperator<
   Providers extends
@@ -289,10 +325,22 @@ export type ComponentOperator<
   readonly [COMPONENT_OPERATOR]: ComponentCompositionDefinition &
     (Codes extends never
       ? { readonly kind: 'providers'; readonly providers: Providers }
-      : {
-          readonly kind: 'catchTag';
-          readonly catchHandlers: Record<Codes, ComponentExceptionHandler>;
-        });
+      :
+          | {
+              readonly kind: 'catchTag';
+              readonly catchTagHandlers: Record<
+                Codes,
+                ComponentExceptionGenerator
+              >;
+            }
+          | {
+              readonly kind: 'catchBlock';
+              readonly catchHandlers: Record<
+                Codes,
+                ComponentExceptionHandlerEntry
+              >;
+              readonly catchBlockPosition?: 'before' | 'after';
+            });
 };
 
 type ComponentCallProps<Props extends object> = Props & HostProps;
@@ -341,6 +389,18 @@ export type ComponentInitializationExceptionCodes<
   ComponentInitializationExceptions<Factory, Providers>
 >;
 
+export type ComponentInitializationExceptionCodesForTemplate<
+  Factory extends ComponentFactory,
+  Providers,
+  Template extends ComponentTemplate<FactoryContext<Factory>>,
+> = Exclude<
+  ComponentInitializationExceptionCodes<Factory, Providers>,
+  Extract<
+    CraftNodeChildrenHandledExceptionCodes<ReturnType<Template>>,
+    string
+  >
+>;
+
 type ComponentOperatorProviders<Operator> = Operator extends {
   readonly [COMPONENT_OPERATOR_PROVIDERS]: infer Providers;
 }
@@ -361,11 +421,13 @@ type ComponentOperatorFallbackExceptionCodes<Operator> = Operator extends {
   readonly [COMPONENT_OPERATOR]: {
     readonly catchHandlers: infer Handlers extends Record<
       string,
-      ComponentExceptionHandler
+      ComponentExceptionHandlerEntry
     >;
   };
 }
-  ? CraftNodeChildrenExceptions<ReturnType<Handlers[keyof Handlers]>>
+  ? CraftNodeChildrenExceptions<
+      ComponentExceptionHandlerChildren<Handlers[keyof Handlers]>
+    >
   : never;
 
 type ComponentExceptionsBeforeOperator<
@@ -407,17 +469,40 @@ type ComponentOperatorExhaustiveCheck<
   Meta extends ComponentMeta,
   Operator,
   ExistingExceptions extends string,
+  HandledByTemplate extends string = never,
 > = [ComponentOperatorHandlers<Operator>] extends [never]
   ? unknown
   : CatchTagExhaustiveCodesCheck<
-      ComponentExceptionsBeforeOperator<
-        Factory,
-        Meta,
-        Operator,
-        ExistingExceptions
-      >,
-      Record<Extract<ComponentOperatorHandlers<Operator>, string>, unknown>
-    >;
+        ComponentExceptionsBeforeOperator<
+          Factory,
+          Meta,
+          Operator,
+          ExistingExceptions
+        >,
+        Record<Extract<ComponentOperatorHandlers<Operator>, string>, unknown>
+      > &
+      (Operator extends { readonly [COMPONENT_CATCH_BLOCK]: true }
+        ? [
+              Extract<
+                ComponentOperatorHandlers<Operator>,
+                HandledByTemplate
+              >,
+            ] extends [never]
+          ? unknown
+          : {
+              'catchBlock.exhaustive has handlers for codes already handled by the template': Extract<
+                ComponentOperatorHandlers<Operator>,
+                HandledByTemplate
+              >;
+        }
+          : unknown);
+
+type ComponentTemplateHandledExceptionCodes<
+  Template extends ComponentTemplate<any>,
+> = Extract<
+  CraftNodeChildrenHandledExceptionCodes<ReturnType<Template>>,
+  string
+>;
 
 type AppliedDirectiveFactory<
   Factory extends ComponentFactory,
@@ -545,12 +630,13 @@ export interface CraftComponent<
           Name,
           InitializationExceptions
         >,
-      ) => Directive &
+        ) => Directive &
         ComponentOperatorExhaustiveCheck<
           Factory,
           Meta,
           Directive,
-          InitializationExceptions
+          InitializationExceptions,
+          ComponentTemplateHandledExceptionCodes<Template>
         >,
     ): PipedComponent<
       Factory,
@@ -568,7 +654,8 @@ export interface CraftComponent<
           Factory,
           Meta,
           Directive,
-          InitializationExceptions
+          InitializationExceptions,
+          ComponentTemplateHandledExceptionCodes<Template>
         >,
     ): PipedComponent<
       Factory,

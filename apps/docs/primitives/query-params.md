@@ -95,13 +95,17 @@ const { myQueryParams } = queryParams(
     state: {
       page: {
         fallbackValue: 1,
-        parse: (value) => parseInt(value, 10),
-        serialize: (value) => String(value),
+        codec: {
+          decode: (value) => parseInt(value, 10),
+          encode: (value) => String(value),
+        },
       },
       pageSize: {
         fallbackValue: 10,
-        parse: (value) => parseInt(value, 10),
-        serialize: (value) => String(value),
+        codec: {
+          decode: (value) => parseInt(value, 10),
+          encode: (value) => String(value),
+        },
       },
     },
   },
@@ -126,7 +130,10 @@ const { myQueryParams } = queryParams(
   'myQueryParams',
   {
     state: {
-      page: { fallbackValue: 1, parse: parseInt, serialize: String },
+      page: {
+        fallbackValue: 1,
+        codec: { decode: parseInt, encode: String },
+      },
     },
   },
   ({ state, set }) => ({
@@ -139,20 +146,24 @@ const { myQueryParams } = queryParams(
 myQueryParams.goTo(5); // Custom method from insertion
 ```
 
-### Parse exceptions (`hasException` / `exceptions().parse`)
+### Decode exceptions (`hasException` / `exceptions().parse`)
 
 ```typescript
-import { craftException, queryParams } from '@craft-ng/core';
+import { queryParams } from '@craft-ng/core';
 
 const { mode } = queryParams('mode', {
   state: {
     mode: {
       fallbackValue: 'success' as const,
-      parse: (value: string) =>
-        value === 'success'
-          ? ('success' as const)
-          : craftException({ code: 'InvalidModeFromUrl' }, { received: value }),
-      serialize: (value) => String(value),
+      codec: {
+        decode: (value: string) => {
+          if (value !== 'success') {
+            throw new Error(`Invalid mode: ${value}`);
+          }
+          return 'success' as const;
+        },
+        encode: (value) => String(value),
+      },
     },
   },
 });
@@ -173,11 +184,9 @@ queryParams(
     state: {
       page: {
         fallbackValue: 1,
-        parse: function* (value: string) {
-          return yield* ParsePage.parsePage(value);
-        },
-        serialize: function* (value: number) {
-          return yield* SerializePage.serializePage(value);
+        codec: {
+          decode: (value: string) => parseInt(value, 10),
+          encode: (value: number) => String(value),
         },
       },
     },
@@ -223,13 +232,17 @@ export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
             state: {
               page: {
                 fallbackValue: 1,
-                parse: (value) => parseInt(value, 10),
-                serialize: (value) => String(value),
+                codec: {
+                  decode: (value) => parseInt(value, 10),
+                  encode: (value) => String(value),
+                },
               },
               pageSize: {
                 fallbackValue: 4,
-                parse: (value) => parseInt(value, 10),
-                serialize: (value) => String(value),
+                codec: {
+                  decode: (value) => parseInt(value, 10),
+                  encode: (value) => String(value),
+                },
               },
             },
           },
@@ -257,21 +270,8 @@ Demo source:
 
 ⚠️ **Methods bound to sources** using `on$` are not exposed in the output.
 
-### Legacy compatibility
-
-The original `parse` / `serialize` form remains supported, including
-generator-based parsers and serializers:
-
-```typescript
-page: {
-  fallbackValue: 1,
-  parse: (value) => parseInt(value, 10),
-  serialize: (value) => String(value),
-}
-```
-
-`codec` and `parse` / `serialize` are mutually exclusive. A codec decoding
-failure keeps the fallback value and is exposed as
+`codec` is required for every query parameter. A codec decoding failure keeps
+the fallback value and is exposed as
 `exceptions().parse.<key>` with code `QueryParamDecodeError`. If encoding fails,
 `QueryParamEncodeError` is raised before router navigation starts.
 
@@ -282,9 +282,15 @@ failure keeps the fallback value and is exposed as
 ```typescript
 const { filters } = queryParams('filters', {
   state: {
-    q: { fallbackValue: '', parse: String, serialize: String },
-    category: { fallbackValue: 'all', parse: String, serialize: String },
-    minPrice: { fallbackValue: 0, parse: parseInt, serialize: String },
+    q: { fallbackValue: '', codec: { decode: String, encode: String } },
+    category: {
+      fallbackValue: 'all',
+      codec: { decode: String, encode: String },
+    },
+    minPrice: {
+      fallbackValue: 0,
+      codec: { decode: (value: string) => parseInt(value, 10), encode: String },
+    },
   },
 });
 ```
@@ -296,8 +302,10 @@ const { filters } = queryParams('filters', {
   state: {
     tags: {
       fallbackValue: [],
-      parse: (value) => value.split(',').filter(Boolean),
-      serialize: (value) => value.join(','),
+      codec: {
+        decode: (value) => value.split(',').filter(Boolean),
+        encode: (value) => value.join(','),
+      },
     },
   },
 });
@@ -310,8 +318,10 @@ const { options } = queryParams('options', {
   state: {
     showArchived: {
       fallbackValue: false,
-      parse: (value) => value === 'true',
-      serialize: (value) => String(value),
+      codec: {
+        decode: (value: string) => value === 'true',
+        encode: (value: boolean) => String(value),
+      },
     },
   },
 });

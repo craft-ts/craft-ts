@@ -2,12 +2,11 @@ import type { AnyCraftException, CraftServiceProvider } from '@craft-ng/core';
 import { craftDirective } from './directive';
 import {
   COMPONENT_OPERATOR,
-  type ComponentExceptionHandler,
+  type ComponentExceptionGenerator,
   type ComponentOperator,
   type ComponentInitializationExceptionsOf,
   type CraftComponent,
 } from './types';
-import type { CraftNodeChildren } from './render/vnode';
 
 /** Adds a component-local provider scope to the component invocation. */
 export function withProviders<
@@ -32,10 +31,10 @@ export function withProviders<
 export type CatchTagHandlers<Codes extends string> = {
   readonly [Code in Codes]: (
     exception: AnyCraftException & { readonly code: Code },
-  ) => CraftNodeChildren;
+  ) => Generator<unknown, void, unknown>;
 };
 
-/** Component-template adapter for the core catchTag exhaustive algorithm. */
+/** Component-logic adapter for the core catchTag exhaustive algorithm. */
 interface CatchTag {
   exhaustive<
     Codes extends string,
@@ -98,9 +97,9 @@ function createCatchTagOperator<
     (baseLogic) => baseLogic,
     (baseTemplate) => baseTemplate,
     {
-      catchHandlers: handlers as unknown as Record<
+      catchTagHandlers: handlers as unknown as Record<
         string,
-        ComponentExceptionHandler
+        ComponentExceptionGenerator
       >,
     },
   ) as unknown as ComponentOperator<
@@ -109,7 +108,7 @@ function createCatchTagOperator<
   >;
 
   Object.defineProperty(operator, COMPONENT_OPERATOR, {
-    value: { kind: 'catchTag', catchHandlers: handlers },
+    value: { kind: 'catchTag', catchTagHandlers: handlers },
     enumerable: false,
   });
 

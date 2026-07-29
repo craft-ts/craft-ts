@@ -137,13 +137,14 @@ const tableParams = queryParam(
     state: {
       page: {
         fallbackValue: 1,
-        parse: (v) => parseInt(v, 10),
-        serialize: (v) => String(v),
+        codec: {
+          decode: (v) => parseInt(v, 10),
+          encode: (v) => String(v),
+        },
       },
       search: {
         fallbackValue: '',
-        parse: (v) => v,
-        serialize: (v) => v,
+        codec: { decode: (v) => v, encode: (v) => v },
       },
     },
   },

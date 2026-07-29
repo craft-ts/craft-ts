@@ -23,9 +23,11 @@ import {
   matchBlock,
   mountCraftComponent,
   p,
+  resolveCatchBlockHandler,
   section,
   withProviders,
 } from '../index';
+import type { CraftNodeChildrenExceptions } from './render/vnode';
 
 beforeAll(() => {
   try {
@@ -54,6 +56,32 @@ describe('template exception blocks', () => {
     document.body.replaceChildren();
   });
 
+  it('allows a handler to explicitly choose source visibility', () => {
+    const denied = craftException({ code: 'DENIED' });
+    const fallback = p('fallback');
+
+    expect(
+      resolveCatchBlockHandler(
+        { render: () => fallback, showSource: false, position: 'before' },
+        denied,
+        true,
+        'after',
+      ),
+    ).toMatchObject({
+      children: fallback,
+      showSource: false,
+      position: 'before',
+    });
+    expect(
+      resolveCatchBlockHandler(
+        { render: () => fallback, showSource: true },
+        denied,
+        false,
+        'after',
+      ),
+    ).toMatchObject({ children: fallback, showSource: true });
+  });
+
   it('catches a component exception and removes the fallback when the source recovers', () => {
     const state = signal<'ready' | 'denied'>('ready');
     const denied = craftException({ code: 'DENIED' }, { reason: 'private' });
@@ -73,6 +101,24 @@ describe('template exception blocks', () => {
         provideBlockData(() => (state() === 'ready' ? 'value' : denied)),
       ]),
     );
+    const caughtBefore = source({}).pipe(
+      catchBlock.exhaustive(
+        { DENIED: () => p('before fallback') },
+        { position: 'before' },
+      ),
+    );
+    const caughtAfter = source({}).pipe(
+      catchBlock.exhaustive(
+        { DENIED: () => p('after fallback') },
+        { position: 'after' },
+      ),
+    );
+    expectTypeOf<
+      CraftNodeChildrenExceptions<typeof caughtBefore>
+    >().toEqualTypeOf<never>();
+    expectTypeOf<
+      CraftNodeChildrenExceptions<typeof caughtAfter>
+    >().toEqualTypeOf<never>();
     const root = craftComponent(
       'blockRoot',
       {},

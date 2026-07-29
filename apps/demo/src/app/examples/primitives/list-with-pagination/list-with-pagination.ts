@@ -23,7 +23,21 @@ import { ApiService, type User } from './api.service';
 
 const ListWithPagination = craftComponent(
   'ListWithPagination',
-  { providers: [provideHostName('component:ListWithPagination')] },
+  {
+    providers: [provideHostName('component:ListWithPagination')],
+    styles: `
+      :scope{display:block;background:#f5f7fa;padding:24px;border-radius:12px}
+      .table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+      .table td{padding:16px;text-align:left;border-bottom:1px solid #edf2f7}
+      .table tr:last-child td{border-bottom:none}
+      .table tbody tr:hover{background:#f8fafc}
+      .pagination{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:20px}
+      .pagination select,.pagination button{padding:8px 16px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;color:#4a5568;font-weight:500;cursor:pointer}
+      .pagination button:hover{background:#f8fafc;border-color:#cbd5e0}
+      .pagination button:disabled{opacity:.5;cursor:not-allowed}
+      .pagination .current-page{font-weight:500;color:#4a5568}
+    `,
+  },
   function* () {
     componentMonitoring();
     const { pagination } = yield* queryParams(
@@ -82,6 +96,7 @@ const ListWithPagination = craftComponent(
       ]),
       h(
         'table',
+        { class: 'table' },
         h(
           'tbody',
           each(
@@ -103,7 +118,7 @@ const ListWithPagination = craftComponent(
           ),
         ),
       ),
-      div([
+      div({ class: 'pagination' }, [
         select(
           {
             value: String(pagination().pageSize),
@@ -117,7 +132,7 @@ const ListWithPagination = craftComponent(
           ),
         ),
         button({ click: pagination.previousPage }, 'Previous'),
-        span(String(pagination().page)),
+        span({ class: 'current-page' }, String(pagination().page)),
         button({ click: pagination.nextPage }, 'Next'),
       ]),
     ]),

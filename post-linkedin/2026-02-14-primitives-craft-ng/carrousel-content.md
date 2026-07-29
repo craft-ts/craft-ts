@@ -146,13 +146,14 @@ const filters = queryParam(
     state: {
       page: {
         fallbackValue: 1,
-        parse: (v) => parseInt(v, 10),
-        serialize: (v) => String(v),
+        codec: {
+          decode: (v) => parseInt(v, 10),
+          encode: (v) => String(v),
+        },
       },
       search: {
         fallbackValue: '',
-        parse: String,
-        serialize: String,
+        codec: { decode: String, encode: String },
       },
     },
   },
