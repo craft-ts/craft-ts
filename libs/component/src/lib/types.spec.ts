@@ -438,7 +438,7 @@ it('keeps exact child component references and validates their props', () => {
       TemplateHasElementWithProps<
         typeof exactPropsNode,
         'div',
-        { class: string }
+        { class: 'contract' }
       >,
       true
     >

@@ -72,6 +72,12 @@ import {
   ɵfallbackCraftStyleRegistry,
 } from './style-registry';
 import { scopeCss, scopeIdFor } from './style-scope';
+import {
+  CRAFT_LOCATOR_CONTENT_NAMES,
+  directCraftContentNames,
+  findCraftTemplateLocator,
+  type RuntimeLocatorCriteria,
+} from '../locator';
 
 declare const ngDevMode: boolean | undefined;
 
@@ -963,6 +969,17 @@ class ElementRenderedNode implements RenderedNode {
       this.localName = nextNode.localName;
     }
 
+    const contentNames = directCraftContentNames(nextNode.children);
+    if (contentNames.length > 0) {
+      (this.node as Element & {
+        [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
+      })[CRAFT_LOCATOR_CONTENT_NAMES] = contentNames;
+    } else {
+      delete (this.node as Element & {
+        [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
+      })[CRAFT_LOCATOR_CONTENT_NAMES];
+    }
+
     this.props = next;
   }
 
@@ -1505,6 +1522,7 @@ class ComponentRenderedNode implements RenderedNode {
   private providerTrackers: readonly (() => unknown)[] = [];
   private readonly templateOnly: boolean;
   private factoryContext: unknown;
+  private latestTemplate: CraftNodeChildren = [];
 
   constructor(
     private component: CraftComponent<object>,
@@ -1652,14 +1670,13 @@ class ComponentRenderedNode implements RenderedNode {
                       definition.meta.host ?? {},
                       this.hostPropsSource(),
                     );
-                    this.view.patchChildren(
-                      definition.template(
-                        projectYieldableTemplateContext(
-                          this.factoryContext,
-                        ) as never,
-                        hostProps,
-                      ),
+                    this.latestTemplate = definition.template(
+                      projectYieldableTemplateContext(
+                        this.factoryContext,
+                      ) as never,
+                      hostProps,
                     );
+                    this.view.patchChildren(this.latestTemplate);
                     if (hostTarget) {
                       applyHostProperties(
                         context.renderer,
@@ -1956,6 +1973,7 @@ class ComponentRenderedNode implements RenderedNode {
         factoryContext,
         renderContext,
       );
+      this.latestTemplate = rendered.children;
       this.view.patchChildren(rendered.children);
       if (hostTarget) {
         applyHostProperties(context.renderer, hostTarget, rendered.hostProps, context);
@@ -2128,11 +2146,19 @@ class ComponentRenderedNode implements RenderedNode {
       this.hostPropsSource(),
     );
     this.view.patchChildren(
-      definition.template(
+      (this.latestTemplate = definition.template(
         projectYieldableTemplateContext(context) as never,
         hostProps,
-      ),
+      )),
     );
+  }
+
+  locator(
+    host: Element,
+    tag: string,
+    criteria: RuntimeLocatorCriteria,
+  ): Element | undefined {
+    return findCraftTemplateLocator(host, this.latestTemplate, tag, criteria);
   }
 
   destroy(): void {
@@ -2397,6 +2423,10 @@ export interface MountedCraftComponent<Props extends object> {
 
 export interface MountedCraftTemplate<Context> {
   updateContext(context: Context): void;
+  locator(
+    tag: string,
+    criteria: RuntimeLocatorCriteria,
+  ): Element | undefined;
   destroy(): void;
 }
 
@@ -2478,6 +2508,9 @@ export function mountInterpretedComponentTemplate<Context>(
   return {
     updateContext(nextContext) {
       instance.updateContext(nextContext);
+    },
+    locator(tag, criteria) {
+      return instance.locator(host, tag, criteria);
     },
     destroy() {
       instance.destroy();

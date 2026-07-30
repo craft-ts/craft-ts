@@ -82,6 +82,142 @@ The result exposes `nativeElement`, `element`, `mocks`, `detectChanges`,
 `updateContext`, and `destroy`. Craft styles, child components, Craft
 directives, and reactivity are rendered by the normal renderer.
 
+### Explicit DOM locators
+
+Template tests also expose `locator(tag, criteria)`. The tag determines the
+DOM element type, while `class`, `data-*`, and `aria-*` criteria are matched
+against the rendered element:
+
+```ts
+import { button, craftComponent, div } from '@craft-ng/component';
+import { setupCraftComponentTemplateTest } from '@craft-ng/component/testing';
+
+const Editor = craftComponent(
+  'Editor',
+  {},
+  () => ({}),
+  () =>
+    div([
+      button(
+        'save',
+        {
+          class: 'save',
+          'data-testid': 'save',
+        },
+        'Save',
+      ),
+    ]),
+);
+
+it('finds the save button', async () => {
+  const test = await setupCraftComponentTemplateTest.byRegister(Editor, {
+    context: {},
+    register: {},
+  });
+
+  const saveButton = test.locator('button', {
+    class: 'save',
+    'data-testid': 'save',
+  });
+
+  expect(saveButton?.textContent).toBe('Save');
+  saveButton?.click();
+  test.destroy();
+});
+```
+
+The notation `tag('name', props, children)` is generic: `tag` means the HTML
+helper for the element you want. There is no separate `tag` function. For a
+button, write the three arguments explicitly:
+
+```ts
+const saveButton = button(
+  'save',                         // name: stable local name
+  { class: 'save' },              // props: DOM properties and attributes
+  'Save',                         // children: rendered content
+);
+```
+
+The same pattern works with every built-in helper:
+
+```ts
+import { input } from '@craft-ng/component';
+
+const searchInput = input(
+  'search',
+  { 'aria-label': 'Search' },
+  [],
+);
+```
+
+The name is rendered as `data-craft-name="save"` and can be used as a
+complementary named locator when a class is not sufficiently discriminating.
+
+### Locating branded content
+
+When an element directly renders a branded Craft value, use the brand name as
+the `content` criterion. The locator does not inspect the rendered value, so
+this also works for non-text values and remains independent of formatting:
+
+```ts
+import { signal } from '@angular/core';
+import { span, craftComponent } from '@craft-ng/component';
+import { markYieldableValue, state } from '@craft-ng/core';
+
+const Status = craftComponent(
+  'Status',
+  {},
+  function* () {
+    const { brandedStatus } = yield* state('brandedStatus', 'ready');
+    return { brandedStatus };
+  },
+  ({ brandedStatus }) => span(brandedStatus),
+);
+
+const brandedStatus = markYieldableValue(signal('ready'), 'brandedStatus');
+const test = await setupCraftComponentTemplateTest.byRegister(Status, {
+  context: { brandedStatus },
+  register: {},
+});
+
+const brandedStatusElement = test.locator('span', {
+  content: 'brandedStatus',
+});
+expect(brandedStatusElement.textContent).toBe('ready');
+test.destroy();
+```
+
+This template has no `ifBlock`, `each`, or `defer`, so
+`brandedStatusElement` is an `HTMLSpanElement`, never `undefined`; optional
+chaining is not needed here.
+
+The brand name is part of the template type. An unknown value such as
+`{ content: 'missing' }` is rejected by TypeScript. The return type is the
+inferred DOM type when the element is always rendered. Under `ifBlock`, `each`,
+or `defer`, it is `MaybeDefined<HTMLSpanElement>` (equivalent to
+`HTMLSpanElement | undefined`), so callers must handle the absent branch.
+
+Use static, discriminating markers for locators. A literal class or attribute
+declared in the template is a stable proof; a value produced by a binding is
+not. Attributes declared through `attrs` are queried using their rendered
+attribute name:
+
+```ts
+input({ attrs: { 'aria-label': 'Search' } });
+test.locator('input', { 'aria-label': 'Search' });
+```
+
+The locator searches the complete rendered subtree, including Craft child
+components. A branch that is currently absent returns `undefined`; a runtime
+result with more than one matching element throws an explicit cardinality
+error. Call the locator again after `updateContext` and `detectChanges` when a
+conditional branch changes.
+
+When a class is not sufficiently discriminating, keep using the existing
+named locators (`tag('name', props, children)`) and query their
+`data-craft-name` marker. A future collection API will cover repeated targets;
+the singular locator should remain reserved for one expected element.
+
 To verify that a DOM property is connected to the correct context member, add a
 contract assertion next to the template test:
 
@@ -444,21 +580,26 @@ while their name brand is available to `ifBlock` and the visibility contract.
 Use `ifBlock` to retain the condition and its branches in the VNode contract:
 
 ```ts
-import { computed } from '@angular/core';
-import { state } from '@craft-ng/core';
-import { button, craftComponent, ifBlock } from '@craft-ng/component';
+import { computed, signal } from '@angular/core';
+import { markYieldableValue, state } from '@craft-ng/core';
+import { button, craftComponent, div, ifBlock, span } from '@craft-ng/component';
 
 const Counter = craftComponent(
   'Counter',
   {},
   function* () {
     const { isAuth } = yield* state('isAuth', computed(() => true));
-    return { isAuth };
+    const { brandedStatus } = yield* state('brandedStatus', 'ready');
+    return { isAuth, brandedStatus };
   },
-  ({ isAuth }) =>
+  ({ isAuth, brandedStatus }) =>
     ifBlock(
       isAuth,
-      () => button('increment', { click: function* () {} }, '+'),
+      () =>
+        div([
+          button('increment', { click: function* () {} }, '+'),
+          span(brandedStatus),
+        ]),
       () => [],
     ),
 );
@@ -482,6 +623,43 @@ type CanIncrement = Expect<
   >
 >;
 ```
+
+The same visibility contract can identify an element through branded direct
+content. Here, `brandedStatus` is not selected by its text; its brand proves that the
+`span` renders that value in the authenticated branch:
+
+```ts
+type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
+
+type StatusIsRenderedWhenAuthenticated = Expect<
+  Equal<
+    TemplateRendersStateWhen<
+      CounterTemplate,
+      'brandedStatus',
+      { when: { isAuth: true } }
+    >,
+    true
+  >
+>;
+
+const test = await setupCraftComponentTemplateTest.byRegister(Counter, {
+  context: {
+    isAuth: markYieldableValue(signal(true), 'isAuth'),
+    brandedStatus: markYieldableValue(signal('ready'), 'brandedStatus'),
+  },
+  register: {},
+});
+
+const brandedStatusElement = test.locator('span', {
+  content: 'brandedStatus',
+});
+brandedStatusElement?.textContent;
+test.destroy();
+```
+
+Because the element is conditional, `brandedStatusElement` is typed as
+`HTMLSpanElement | undefined`. After `updateContext` and `detectChanges`, the
+same locator returns `undefined` while the branch is absent.
 
 The same contract covers a translated value exposed by an `insertSelect`
 insertion for every non-empty list item:

@@ -33,6 +33,7 @@ import {
   type FactoryYielded,
   type TemplateDependencies,
 } from './types';
+import type { CraftTemplateLocatorApi } from './locator';
 
 type IsAny<T> = 0 extends 1 & T ? true : false;
 
@@ -434,6 +435,25 @@ export const setupCraftComponentLogicTest = Object.assign(
   { byRegister: setupCraftComponentLogicTestImpl },
 );
 
+type TemplateTestResult<Component extends CraftComponent<any>, Context> =
+  CraftTemplateLocatorApi<Component> & {
+    nativeElement: HTMLDivElement;
+    element: HTMLDivElement;
+    mocks: Record<string, unknown>;
+    detectChanges(): void;
+    updateContext(context: Context): void;
+    destroy(): void;
+  };
+
+function setupCraftComponentTemplateTestImpl<
+  Component extends CraftComponent<any>,
+  const Contract extends CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
+  Context = unknown,
+>(
+  component: Component,
+  options: TemplateOptions<Context, Contract>,
+): Promise<TemplateTestResult<Component, Context>>;
+
 async function setupCraftComponentTemplateTestImpl<
   Component extends CraftComponent<any>,
   const Contract extends CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
@@ -454,6 +474,11 @@ async function setupCraftComponentTemplateTestImpl<
     detectChanges();
   }
 
+  const locator: CraftTemplateLocatorApi<Component>['locator'] = (
+    tag: keyof HTMLElementTagNameMap,
+    criteria: Readonly<Record<string, unknown>>,
+  ) => mounted.locator(tag, criteria as Readonly<Record<string, unknown>>) as never;
+
   return {
     nativeElement: host,
     element: host,
@@ -462,6 +487,7 @@ async function setupCraftComponentTemplateTestImpl<
     updateContext(context: Context) {
       mounted.updateContext(context);
     },
+    locator,
     destroy() {
       mounted.destroy();
       host.remove();

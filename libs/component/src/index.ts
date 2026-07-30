@@ -15,6 +15,16 @@ export * from './lib/if-block';
 export * from './lib/hyperscript';
 export * from './lib/render/style-registry';
 export * from './lib/testing';
+export type {
+  CraftLocatorResult,
+  CraftTemplateLocatorApi,
+  LocatorCriteria,
+  LocatorCriteriaFor,
+  LocatorContentNamesFor,
+  MaybeDefined,
+  StaticLocatorCriteria,
+  TemplateLocatorCandidates,
+} from './lib/locator';
 export * from './lib/template-contract';
 export type {
   ComponentFactory,

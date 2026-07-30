@@ -100,23 +100,24 @@ type HChildren<
   Tag extends keyof HTMLElementTagNameMap,
   PropsOrChildren,
   MaybeChildren,
-> = (PropsOrChildren extends ElementPropsContext<Tag>
-  ? MaybeChildren
-  : PropsOrChildren) &
-  CraftNodeChildren;
+> = (PropsOrChildren extends CraftNodeChildren
+  ? PropsOrChildren
+  : MaybeChildren) extends infer Children extends CraftNodeChildren
+  ? Children
+  : never;
 
 type HProps<PropsOrChildren> = PropsOrChildren extends object
-  ? PropsOrChildren extends ElementPropsContext<any>
-    ? PropsOrChildren
-    : Readonly<Record<never, never>>
+  ? PropsOrChildren extends CraftNodeChildren
+    ? Readonly<Record<never, never>>
+    : PropsOrChildren
   : Readonly<Record<never, never>>;
 
 export function h<
   Tag extends keyof HTMLElementTagNameMap,
-  PropsOrChildren extends
+  const PropsOrChildren extends
     | ElementPropsContext<Tag>
     | CraftNodeChildren = CraftNodeChildren,
-  MaybeChildren extends CraftNodeChildren = CraftNodeChildren,
+  const MaybeChildren extends CraftNodeChildren = CraftNodeChildren,
 >(
   tag: Tag,
   propsOrChildren?: PropsOrChildren,
@@ -167,9 +168,9 @@ export function h<
 
 function hNamed<
   Tag extends keyof HTMLElementTagNameMap,
-  Name extends string,
-  Props extends object,
-  Children extends CraftNodeChildren,
+  const Name extends string,
+  const Props extends object,
+  const Children extends CraftNodeChildren,
 >(
   tag: Tag,
   name: Name,
@@ -202,7 +203,7 @@ function hNamed<
 }
 
 export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
-  <Children extends CraftNodeChildren = CraftNodeChildren>(
+  <const Children extends CraftNodeChildren = CraftNodeChildren>(
     children?: Children &
       CraftNodeChildren &
       RequireCaughtComponentExceptions<NoInfer<Children>>,
@@ -216,8 +217,8 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     CraftNodeChildrenHandledExceptionCodes<Children>
   >;
   <
-    Props extends object,
-    Children extends CraftNodeChildren = CraftNodeChildren,
+    const Props extends object,
+    const Children extends CraftNodeChildren = CraftNodeChildren,
   >(
     props: (Props & ElementPropsContext<Tag>) | null,
     children?: Children &
@@ -233,9 +234,9 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     CraftNodeChildrenHandledExceptionCodes<Children>
   >;
   <
-    Name extends string,
-    Props extends object,
-    Children extends CraftNodeChildren = CraftNodeChildren,
+    const Name extends string,
+    const Props extends object,
+    const Children extends CraftNodeChildren = CraftNodeChildren,
   >(
     name: Name,
     props: (Props & ElementPropsContext<Tag>) | null,

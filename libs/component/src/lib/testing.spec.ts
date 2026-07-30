@@ -5,11 +5,15 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { TestBed } from '@angular/core/testing';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import { craftService } from '@craft-ng/core';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
-import { div, p, span } from './hyperscript';
+import { div, button, input, p, span } from './hyperscript';
+import { ifBlock } from './if-block';
+import { each } from './each';
+import { markYieldableValue } from '@craft-ng/core';
+import { signal } from '@angular/core';
 import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
@@ -17,6 +21,8 @@ import {
   setupCraftDirectiveTemplateTest,
 } from './testing';
 import type { HostRequiredLogic, HostTemplate, Input } from './types';
+import type { NamedYieldableValue } from '@craft-ng/core';
+import type { LocatorContentNamesFor } from './locator';
 
 beforeAll(() => {
   try {
@@ -93,7 +99,6 @@ describe('Craft component and directive testing utilities', () => {
         ChildDependency: { label: 'mock child' },
       },
     });
-
     expect(result.nativeElement.textContent).toContain('direct context');
     expect(result.nativeElement.textContent).toContain('mock child');
     expect(
@@ -103,6 +108,208 @@ describe('Craft component and directive testing utilities', () => {
     result.destroy();
     expect(result.nativeElement.textContent).toBe('');
     expect(document.querySelector('style[data-craft-sheet]')).toBeNull();
+  });
+
+  it('locates statically identified elements with inferred DOM types', async () => {
+    const child = craftComponent(
+      'locatorChild',
+      {},
+      () => ({}),
+      () => button({ class: 'child', 'data-testid': 'child' }, 'Child'),
+    );
+    const component = craftComponent(
+      'locatorComponent',
+      {},
+      () => ({}),
+      () =>
+        div([
+          button(
+            { class: 'save primary', 'data-testid': 'save' },
+            'Save',
+          ),
+          input({ attrs: { 'aria-label': 'Search' } }),
+          child(),
+        ]),
+    );
+
+    const result = await setupCraftComponentTemplateTest.byRegister(component, {
+      context: {},
+      register: {},
+    });
+
+    const save = result.locator('button', { class: 'save' });
+    const saveByAttribute = result.locator('button', {
+      'data-testid': 'save',
+    });
+    const search = result.locator('input', { 'aria-label': 'Search' });
+    const childButton = result.locator('button', { class: 'child' });
+    expectTypeOf(save).toEqualTypeOf<HTMLButtonElement>();
+    expectTypeOf(saveByAttribute).toEqualTypeOf<HTMLButtonElement>();
+    expectTypeOf(search).toEqualTypeOf<HTMLInputElement>();
+    expectTypeOf(childButton).toEqualTypeOf<HTMLButtonElement>();
+    expect(save.textContent).toBe('Save');
+    expect(search.getAttribute('aria-label')).toBe('Search');
+    expect(childButton.textContent).toBe('Child');
+
+    result.destroy();
+  });
+
+  it('locates an element by the brand of its direct rendered content', async () => {
+    const rawBrandedStatus = signal('Saved');
+    const brandedStatus = markYieldableValue(
+      rawBrandedStatus,
+      'brandedStatus',
+    ) as NamedYieldableValue<'brandedStatus', typeof rawBrandedStatus>;
+    const component = craftComponent(
+      'brandedContentLocatorComponent',
+      {},
+      () => ({ brandedStatus }),
+      ({ brandedStatus }) => div([span(brandedStatus)]),
+    );
+
+    const result = await setupCraftComponentTemplateTest.byRegister(component, {
+      context: { brandedStatus },
+      register: {},
+    });
+
+    expectTypeOf<typeof brandedStatus>().toMatchTypeOf<
+      NamedYieldableValue<'brandedStatus', unknown>
+    >();
+    expectTypeOf<LocatorContentNamesFor<typeof component, 'span'>>().toEqualTypeOf<
+      'brandedStatus'
+    >();
+    const brandedStatusElement = result.locator('span', {
+      content: 'brandedStatus',
+    });
+    expectTypeOf(brandedStatusElement).toEqualTypeOf<HTMLSpanElement>();
+    expect(brandedStatusElement.textContent).toBe('Saved');
+
+    brandedStatus.set('Updated');
+    result.updateContext({ brandedStatus });
+    result.detectChanges();
+    expect(result.locator('span', { content: 'brandedStatus' })).toBe(
+      brandedStatusElement,
+    );
+    expect(brandedStatusElement.textContent).toBe('Updated');
+
+    if (false) {
+      // @ts-expect-error the content brand is not rendered by this template
+      result.locator('span', { content: 'missing' });
+    }
+    result.destroy();
+  });
+
+  it('returns an optional branded-content locator under a condition', async () => {
+    const rawVisible = signal(true);
+    const rawBrandedStatus = signal('Visible');
+    const visible = markYieldableValue(
+      rawVisible,
+      'visible',
+    ) as NamedYieldableValue<'visible', typeof rawVisible>;
+    const brandedStatus = markYieldableValue(
+      rawBrandedStatus,
+      'brandedStatus',
+    ) as NamedYieldableValue<'brandedStatus', typeof rawBrandedStatus>;
+    const component = craftComponent(
+      'conditionalBrandedContentLocatorComponent',
+      {},
+      () => ({ visible, brandedStatus }),
+      ({ visible, brandedStatus }) =>
+        ifBlock(visible, () => span(brandedStatus), () => p('Hidden')),
+    );
+
+    const result = await setupCraftComponentTemplateTest.byRegister(component, {
+      context: { visible, brandedStatus },
+      register: {},
+    });
+    const visibleElement = result.locator('span', {
+      content: 'brandedStatus',
+    });
+    expectTypeOf(visibleElement).toEqualTypeOf<HTMLSpanElement | undefined>();
+    expect(visibleElement?.textContent).toBe('Visible');
+
+    visible.set(false);
+    result.updateContext({ visible, brandedStatus });
+    result.detectChanges();
+    expect(
+      result.locator('span', { content: 'brandedStatus' }),
+    ).toBeUndefined();
+    result.destroy();
+  });
+
+  it('returns an optional locator for conditional elements and refreshes it', async () => {
+    const initialVisible = markYieldableValue(signal(true), 'visible');
+    const component = craftComponent(
+      'conditionalLocatorComponent',
+      {},
+      () => ({ visible: initialVisible }),
+      ({ visible }: { visible: any }) =>
+        ifBlock(
+          visible,
+          () => button({ class: 'conditional' }, 'Conditional'),
+          () => p('Hidden'),
+        ),
+    );
+
+    const result = await setupCraftComponentTemplateTest.byRegister(component, {
+      context: { visible: initialVisible },
+      register: {},
+    });
+    const conditional = result.locator('button', { class: 'conditional' });
+    expect(conditional?.textContent).toBe('Conditional');
+
+    initialVisible.set(false);
+    result.updateContext({ visible: initialVisible });
+    result.detectChanges();
+    expect(result.locator('button', { class: 'conditional' })).toBeUndefined();
+    result.destroy();
+  });
+
+  it('rejects statically repeated targets in the singular locator API', async () => {
+    const component = craftComponent(
+      'ambiguousLocatorComponent',
+      {},
+      () => ({}),
+      () =>
+        div([
+          button({ class: 'duplicate' }, 'One'),
+          button({ class: 'duplicate' }, 'Two'),
+        ]),
+    );
+    const result = await setupCraftComponentTemplateTest.byRegister(component, {
+      context: {},
+      register: {},
+    });
+
+    expect(() =>
+      (result.locator as (...args: any[]) => unknown)('button', {
+        class: 'duplicate',
+      }),
+    ).toThrow(/exactly one/);
+    result.destroy();
+  });
+
+  it('rejects targets rendered by each as potentially repeated', async () => {
+    const component = craftComponent(
+      'eachLocatorComponent',
+      {},
+      () => ({}),
+      () =>
+        each(
+          [{ id: 1 }, { id: 2 }],
+          { track: (item: { id: number }) => item.id },
+          () => button({ class: 'row' }, 'Row'),
+        ),
+    );
+
+    const result = await setupCraftComponentTemplateTest.byRegister(component, {
+      context: {},
+      register: {},
+    });
+    expect(() => result.locator('button', { class: 'row' })).toThrow(
+      /exactly one/,
+    );
+    result.destroy();
   });
 
   it('tests directive logic separately from its base logic', async () => {

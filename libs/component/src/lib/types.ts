@@ -175,6 +175,7 @@ export type ComponentTemplateNameOf<Template> = Template extends {
   ? Name
   : string;
 
+
 export type TemplateDependencies<Template> = Template extends (
   ...args: any[]
 ) => infer Output
