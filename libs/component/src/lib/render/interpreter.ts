@@ -60,6 +60,9 @@ import {
   type ElementNodeBase,
   type CatchBlockNode,
   type MatchBlockNode,
+  type ProjectionNode,
+  type TemplateNode,
+  withCraftRenderContext,
 } from './vnode';
 import {
   CraftUnhandledExceptionError,
@@ -95,6 +98,8 @@ interface RenderContext {
   readonly exceptionBoundary?: (exception: AnyCraftException) => boolean;
   readonly exceptionBoundaryResolved?: () => void;
   readonly handledResourceExceptionCodes?: Set<string>;
+  /** Lexical context of content declared by the parent component. */
+  readonly declarationContext?: RenderContext;
 }
 
 let templateGeneratorDepth = 0;
@@ -104,6 +109,20 @@ function childContext(
   overrides: Partial<RenderContext> = {},
 ): RenderContext {
   return { ...context, ...overrides };
+}
+
+function lexicalContext(context: RenderContext): RenderContext {
+  return context.declarationContext ?? context;
+}
+
+function renderChildrenCallback(
+  context: RenderContext,
+  callback: (...args: any[]) => CraftNodeChildren,
+  args: readonly unknown[] = [],
+): CraftNodeChildren {
+  return runInInjectionContext(context.injector, () =>
+    withCraftRenderContext(context, () => callback(...args)),
+  );
 }
 
 function eagerlyResolveBrandedProviders(
@@ -538,7 +557,9 @@ function renderCraftDirectiveNode(
     template = directive[CRAFT_DIRECTIVE].template(template);
   }
 
-  return template(context.componentContext);
+  return withCraftRenderContext(context, () =>
+    template(context.componentContext),
+  );
 }
 
 class CraftDirectiveRenderedNode implements RenderedNode {
@@ -971,13 +992,17 @@ class ElementRenderedNode implements RenderedNode {
 
     const contentNames = directCraftContentNames(nextNode.children);
     if (contentNames.length > 0) {
-      (this.node as Element & {
-        [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
-      })[CRAFT_LOCATOR_CONTENT_NAMES] = contentNames;
+      (
+        this.node as Element & {
+          [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
+        }
+      )[CRAFT_LOCATOR_CONTENT_NAMES] = contentNames;
     } else {
-      delete (this.node as Element & {
-        [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
-      })[CRAFT_LOCATOR_CONTENT_NAMES];
+      delete (
+        this.node as Element & {
+          [CRAFT_LOCATOR_CONTENT_NAMES]?: readonly string[];
+        }
+      )[CRAFT_LOCATOR_CONTENT_NAMES];
     }
 
     this.props = next;
@@ -1060,6 +1085,116 @@ class FragmentRenderedNode implements RenderedNode {
   }
 }
 
+class ProjectionRenderedNode implements RenderedNode {
+  readonly kind = 'projection';
+  private readonly view: FragmentRenderedNode;
+  private node: ProjectionNode;
+  private readonly declarationContext: RenderContext;
+
+  constructor(
+    node: ProjectionNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    context: RenderContext,
+  ) {
+    this.node = node;
+    this.declarationContext =
+      (node.declarationContext as RenderContext | undefined) ??
+      lexicalContext(context);
+    this.view = createFragment(
+      parent,
+      before,
+      this.declarationContext,
+      this.children(),
+      'craft-projection',
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'projection' || node.fragment !== this.node.fragment) {
+      return false;
+    }
+    this.node = node;
+    this.view.patchChildren(this.children());
+    return true;
+  }
+
+  private children(): CraftNodeChildren {
+    return runInInjectionContext(this.declarationContext.injector, () =>
+      withCraftRenderContext(this.declarationContext, () =>
+        this.node.fragment(),
+      ),
+    );
+  }
+
+  destroy(): void {
+    this.view.destroy();
+  }
+}
+
+class TemplateRenderedNode implements RenderedNode {
+  readonly kind = 'template';
+  private readonly view: FragmentRenderedNode;
+  private node: TemplateNode;
+  private readonly declarationContext: RenderContext;
+
+  constructor(
+    node: TemplateNode,
+    parent: NativeParent,
+    before: NativeNode | null,
+    context: RenderContext,
+  ) {
+    this.node = node;
+    this.declarationContext =
+      (node.declarationContext as RenderContext | undefined) ??
+      lexicalContext(context);
+    this.view = createFragment(
+      parent,
+      before,
+      this.declarationContext,
+      this.children(),
+      'craft-template',
+    );
+  }
+
+  firstNode(): NativeNode {
+    return this.view.firstNode();
+  }
+
+  lastNode(): NativeNode {
+    return this.view.lastNode();
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'template' || node.template !== this.node.template) {
+      return false;
+    }
+    this.node = node;
+    this.view.patchChildren(this.children());
+    return true;
+  }
+
+  private children(): CraftNodeChildren {
+    return runInInjectionContext(this.declarationContext.injector, () =>
+      withCraftRenderContext(this.declarationContext, () =>
+        this.node.template(this.node.context),
+      ),
+    );
+  }
+
+  destroy(): void {
+    this.view.destroy();
+  }
+}
+
 function createFragment(
   parent: NativeParent,
   before: NativeNode | null,
@@ -1121,13 +1256,15 @@ class EachRenderedNode implements RenderedNode {
 
       if (this.node.empty) {
         if (this.emptyView) {
-          this.emptyView.patchChildren(this.node.empty());
+          this.emptyView.patchChildren(
+            renderChildrenCallback(this.context, this.node.empty),
+          );
         } else {
           this.emptyView = createFragment(
             this.parent,
             this.end,
             this.context,
-            this.node.empty(),
+            renderChildrenCallback(this.context, this.node.empty),
             'craft-empty',
           );
         }
@@ -1153,13 +1290,21 @@ class EachRenderedNode implements RenderedNode {
 
       let entry = previous.get(key);
       if (entry) {
-        entry.patchChildren(this.node.itemTemplate(item, index));
+        entry.patchChildren(
+          renderChildrenCallback(this.context, this.node.itemTemplate, [
+            item,
+            index,
+          ]),
+        );
       } else {
         entry = createFragment(
           this.parent,
           this.end,
           this.context,
-          this.node.itemTemplate(item, index),
+          renderChildrenCallback(this.context, this.node.itemTemplate, [
+            item,
+            index,
+          ]),
           `craft-each:${String(key)}`,
         );
       }
@@ -1242,7 +1387,11 @@ class IfBlockRenderedNode implements RenderedNode {
   }
 
   private children(): CraftNodeChildren {
-    return this.active ? this.node.whenTrue() : (this.node.whenFalse?.() ?? []);
+    return this.active
+      ? renderChildrenCallback(this.context, this.node.whenTrue)
+      : this.node.whenFalse
+        ? renderChildrenCallback(this.context, this.node.whenFalse)
+        : [];
   }
 
   destroy(): void {
@@ -1301,8 +1450,7 @@ class MatchBlockRenderedNode implements RenderedNode {
     // present. Do not turn that implementation detail into an exception with
     // an `undefined` discriminator during a later component rerender.
     if (code === undefined || code === null) return [];
-    const handler =
-      this.node.handlers[String(code)];
+    const handler = this.node.handlers[String(code)];
     if (!handler) {
       throw new CraftUnhandledExceptionError(exception as AnyCraftException);
     }
@@ -1533,6 +1681,7 @@ class ComponentRenderedNode implements RenderedNode {
     hostTarget?: Element,
     templateContext?: { readonly value: unknown },
     additionalProviders: readonly CraftServiceProvider[] = [],
+    declarationContext?: RenderContext,
   ) {
     this.templateOnly = templateContext !== undefined;
     const definition = component[CRAFT_COMPONENT];
@@ -1546,6 +1695,7 @@ class ComponentRenderedNode implements RenderedNode {
     const componentRenderContext = childContext(context, {
       ownerScope: ownScope,
       rootScope: scopeTokens(context.rootScope, ownScope),
+      declarationContext: declarationContext ?? context,
     });
     const componentElement =
       hostTarget ?? (parent instanceof Element ? parent : parent.parentElement);
@@ -1580,7 +1730,7 @@ class ComponentRenderedNode implements RenderedNode {
     );
 
     const args = this.propSources.map((source) => {
-      return (...callbackArgs: unknown[]) => {
+      const input = (...callbackArgs: unknown[]) => {
         const current = source();
         if (typeof current === 'function') {
           if (callbackArgs.length > 0) {
@@ -1597,6 +1747,59 @@ class ComponentRenderedNode implements RenderedNode {
         }
         return current;
       };
+
+      // Content inputs are object-shaped at the call site but component
+      // factories receive callable input shells. Expose object properties on
+      // the shell so the factory can use `content.header` without eagerly
+      // evaluating a slot.
+      return new Proxy(input, {
+        get(target, property, receiver) {
+          const current = source();
+          if (
+            typeof current === 'object' &&
+            current !== null &&
+            property in current
+          ) {
+            return Reflect.get(current, property);
+          }
+          return Reflect.get(target, property, receiver);
+        },
+        has(target, property) {
+          const current = source();
+          return (
+            (typeof current === 'object' &&
+              current !== null &&
+              property in current) ||
+            property in target
+          );
+        },
+        ownKeys(target) {
+          const current = source();
+          return [
+            ...new Set([
+              ...Reflect.ownKeys(target),
+              ...(typeof current === 'object' && current !== null
+                ? Reflect.ownKeys(current)
+                : []),
+            ]),
+          ];
+        },
+        getOwnPropertyDescriptor(target, property) {
+          const current = source();
+          if (
+            typeof current === 'object' &&
+            current !== null &&
+            property in current
+          ) {
+            return {
+              configurable: true,
+              enumerable: true,
+              value: Reflect.get(current, property),
+            };
+          }
+          return Reflect.getOwnPropertyDescriptor(target, property);
+        },
+      });
     });
 
     const factoryContext = composition
@@ -1670,11 +1873,18 @@ class ComponentRenderedNode implements RenderedNode {
                       definition.meta.host ?? {},
                       this.hostPropsSource(),
                     );
-                    this.latestTemplate = definition.template(
-                      projectYieldableTemplateContext(
-                        this.factoryContext,
-                      ) as never,
-                      hostProps,
+                    this.latestTemplate = withCraftRenderContext(
+                      childContext(componentRenderContext, {
+                        injector: this.environmentInjector!,
+                        componentContext: this.factoryContext,
+                      }),
+                      () =>
+                        definition.template(
+                          projectYieldableTemplateContext(
+                            this.factoryContext,
+                          ) as never,
+                          hostProps,
+                        ),
                     );
                     this.view.patchChildren(this.latestTemplate);
                     if (hostTarget) {
@@ -1888,71 +2098,69 @@ class ComponentRenderedNode implements RenderedNode {
     if (composition.catchBlockPosition) {
       const trackedFactoryContext = factoryContext;
       this.componentExceptionEffect = untracked(() =>
-        runInInjectionContext(
-          renderInjector,
-          () =>
-            craftEffect(
-              'component-catch-block-resource-exceptions',
-              () => {
-                const exception = findResourceException(trackedFactoryContext);
-                if (exception) {
-                  if (
-                    renderContext.handledResourceExceptionCodes?.has(
-                      exception.code,
-                    )
-                  ) {
-                    if (this.componentFallbackVisible) {
-                      this.componentFallbackVisible = false;
-                      this.componentFallbackException = undefined;
-                      untracked(() =>
-                        this.renderComposedTemplate(
-                          definition,
-                          trackedFactoryContext,
-                          renderInjector,
-                          renderContext,
-                          context,
-                          hostTarget,
-                        ),
-                      );
-                    }
-                    return;
+        runInInjectionContext(renderInjector, () =>
+          craftEffect(
+            'component-catch-block-resource-exceptions',
+            () => {
+              const exception = findResourceException(trackedFactoryContext);
+              if (exception) {
+                if (
+                  renderContext.handledResourceExceptionCodes?.has(
+                    exception.code,
+                  )
+                ) {
+                  if (this.componentFallbackVisible) {
+                    this.componentFallbackVisible = false;
+                    this.componentFallbackException = undefined;
+                    untracked(() =>
+                      this.renderComposedTemplate(
+                        definition,
+                        trackedFactoryContext,
+                        renderInjector,
+                        renderContext,
+                        context,
+                        hostTarget,
+                      ),
+                    );
                   }
-                  if (
-                    this.componentFallbackVisible &&
-                    this.componentFallbackException === exception
-                  ) {
-                    return;
-                  }
-                  this.componentFallbackVisible = true;
-                  this.componentFallbackException = exception;
-                  untracked(() =>
-                    this.renderComposedException(
-                      definition,
-                      exception,
-                      renderInjector,
-                      renderContext,
-                      context,
-                      hostTarget,
-                      true,
-                    ),
-                  );
-                } else if (this.componentFallbackVisible) {
-                  this.componentFallbackVisible = false;
-                  this.componentFallbackException = undefined;
-                  untracked(() =>
-                    this.renderComposedTemplate(
-                      definition,
-                      trackedFactoryContext,
-                      renderInjector,
-                      renderContext,
-                      context,
-                      hostTarget,
-                    ),
-                  );
+                  return;
                 }
-              },
-              { manualCleanup: true },
-            ),
+                if (
+                  this.componentFallbackVisible &&
+                  this.componentFallbackException === exception
+                ) {
+                  return;
+                }
+                this.componentFallbackVisible = true;
+                this.componentFallbackException = exception;
+                untracked(() =>
+                  this.renderComposedException(
+                    definition,
+                    exception,
+                    renderInjector,
+                    renderContext,
+                    context,
+                    hostTarget,
+                    true,
+                  ),
+                );
+              } else if (this.componentFallbackVisible) {
+                this.componentFallbackVisible = false;
+                this.componentFallbackException = undefined;
+                untracked(() =>
+                  this.renderComposedTemplate(
+                    definition,
+                    trackedFactoryContext,
+                    renderInjector,
+                    renderContext,
+                    context,
+                    hostTarget,
+                  ),
+                );
+              }
+            },
+            { manualCleanup: true },
+          ),
         ),
       );
     }
@@ -1976,7 +2184,12 @@ class ComponentRenderedNode implements RenderedNode {
       this.latestTemplate = rendered.children;
       this.view.patchChildren(rendered.children);
       if (hostTarget) {
-        applyHostProperties(context.renderer, hostTarget, rendered.hostProps, context);
+        applyHostProperties(
+          context.renderer,
+          hostTarget,
+          rendered.hostProps,
+          context,
+        );
       }
     } catch (error) {
       if (!isCraftGenShortCircuit(error)) throw error;
@@ -2008,9 +2221,11 @@ class ComponentRenderedNode implements RenderedNode {
       this.hostPropsSource(),
     );
     return {
-      children: definition.template(
-        projectYieldableTemplateContext(factoryContext) as never,
-        hostProps,
+      children: withCraftRenderContext(renderContext, () =>
+        definition.template(
+          projectYieldableTemplateContext(factoryContext) as never,
+          hostProps,
+        ),
       ),
       hostProps,
     };
@@ -2188,7 +2403,7 @@ class DeferRenderedNode implements RenderedNode {
       parent,
       before,
       context,
-      node.placeholder?.() ?? [],
+      node.placeholder ? renderChildrenCallback(context, node.placeholder) : [],
       'craft-defer',
     );
     this.installTrigger();
@@ -2208,15 +2423,33 @@ class DeferRenderedNode implements RenderedNode {
     }
     this.node = node;
     if (this.state === 'loaded') {
-      this.view.patchChildren(this.node.resolve(this.loadedValue));
+      this.view.patchChildren(
+        renderChildrenCallback(this.context, this.node.resolve, [
+          this.loadedValue,
+        ]),
+      );
     } else if (this.state === 'error') {
-      this.view.patchChildren(this.node.error?.(this.loadError) ?? []);
+      this.view.patchChildren(
+        this.node.error
+          ? renderChildrenCallback(this.context, this.node.error, [
+              this.loadError,
+            ])
+          : [],
+      );
     } else if (this.state === 'loading') {
       this.view.patchChildren(
-        this.node.loading?.() ?? this.node.placeholder?.() ?? [],
+        this.node.loading
+          ? renderChildrenCallback(this.context, this.node.loading)
+          : this.node.placeholder
+            ? renderChildrenCallback(this.context, this.node.placeholder)
+            : [],
       );
     } else {
-      this.view.patchChildren(this.node.placeholder?.() ?? []);
+      this.view.patchChildren(
+        this.node.placeholder
+          ? renderChildrenCallback(this.context, this.node.placeholder)
+          : [],
+      );
     }
     return true;
   }
@@ -2298,7 +2531,11 @@ class DeferRenderedNode implements RenderedNode {
     this.triggerCleanup?.();
     this.triggerCleanup = undefined;
     this.view.patchChildren(
-      this.node.loading?.() ?? this.node.placeholder?.() ?? [],
+      this.node.loading
+        ? renderChildrenCallback(this.context, this.node.loading)
+        : this.node.placeholder
+          ? renderChildrenCallback(this.context, this.node.placeholder)
+          : [],
     );
 
     const loader = this.node.loader;
@@ -2316,19 +2553,33 @@ class DeferRenderedNode implements RenderedNode {
         if (settled.kind === 'shortCircuit') {
           this.state = 'error';
           this.loadError = settled.exception;
-          this.view.patchChildren(this.node.error?.(settled.exception) ?? []);
+          this.view.patchChildren(
+            this.node.error
+              ? renderChildrenCallback(this.context, this.node.error, [
+                  settled.exception,
+                ])
+              : [],
+          );
           return;
         }
 
         this.state = 'loaded';
         this.loadedValue = settled.value;
-        this.view.patchChildren(this.node.resolve(settled.value));
+        this.view.patchChildren(
+          renderChildrenCallback(this.context, this.node.resolve, [
+            settled.value,
+          ]),
+        );
       })
       .catch((error: unknown) => {
         if (!this.destroyed) {
           this.state = 'error';
           this.loadError = error;
-          this.view.patchChildren(this.node.error?.(error) ?? []);
+          this.view.patchChildren(
+            this.node.error
+              ? renderChildrenCallback(this.context, this.node.error, [error])
+              : [],
+          );
         }
       });
   }
@@ -2371,6 +2622,10 @@ function mountNode(
         parent,
         before,
         context,
+        undefined,
+        undefined,
+        [],
+        node.declarationContext as RenderContext | undefined,
       );
     case 'angular':
       return new AngularRenderedNode(node, parent, before, context);
@@ -2396,6 +2651,10 @@ function mountNode(
     }
     case 'defer':
       return new DeferRenderedNode(node, parent, before, context);
+    case 'projection':
+      return new ProjectionRenderedNode(node, parent, before, context);
+    case 'template':
+      return new TemplateRenderedNode(node, parent, before, context);
   }
 }
 
@@ -2423,10 +2682,7 @@ export interface MountedCraftComponent<Props extends object> {
 
 export interface MountedCraftTemplate<Context> {
   updateContext(context: Context): void;
-  locator(
-    tag: string,
-    criteria: RuntimeLocatorCriteria,
-  ): Element | undefined;
+  locator(tag: string, criteria: RuntimeLocatorCriteria): Element | undefined;
   destroy(): void;
 }
 

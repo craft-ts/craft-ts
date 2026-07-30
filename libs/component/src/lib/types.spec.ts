@@ -18,7 +18,9 @@ import { defer } from './defer';
 import { angular } from './angular';
 import { ifBlock } from './if-block';
 import { each } from './each';
-import { button, div, p, span } from './hyperscript';
+import { button, div, h2, li, p, section, span } from './hyperscript';
+import { project } from './project';
+import { craftTemplate, renderTemplate } from './template';
 import type { ComponentNode } from './render/vnode';
 import type { ComponentTemplateOf } from './types';
 import type {
@@ -36,6 +38,8 @@ import type {
   TemplateRenderAvailableActionWhen,
 } from './template-contract';
 import type {
+  ContentInput,
+  CraftFragment,
   HostRequiredLogic,
   HostTemplate,
   Input,
@@ -102,6 +106,104 @@ it('does not expose ordinary context callbacks as component outputs', () => {
   expectTypeOf<PropsOf<typeof internalAction>>().toEqualTypeOf<{
     name: () => string;
   }>();
+});
+
+it('checks content slots and propagates projected dependencies to the caller', () => {
+  type CardSlots = {
+    readonly header?: CraftFragment;
+    readonly default: CraftFragment;
+  };
+  const { BadgeService, provideBadgeService } = craftService(
+    { name: 'BadgeService', scope: 'toProvide' },
+    () => ({ label: 'badge' }),
+  );
+  const badge = craftComponent(
+    'projectedBadge',
+    {},
+    function* () {
+      const service = yield* BadgeService();
+      return { service };
+    },
+    ({ service }) => p(service.label),
+  );
+  const card = craftComponent(
+    'typedCard',
+    {},
+    (content: ContentInput<CardSlots>) => ({ content }),
+    ({ content }) =>
+      div([
+        content.header ? project(content.header) : h2('Fallback'),
+        section(project(content.default)),
+      ]),
+  );
+  const parent = craftComponent(
+    'projectingParent',
+    {},
+    () => ({}),
+    () =>
+      card({
+        content: {
+          default: () => badge({}),
+        },
+      }),
+  );
+
+  type ParentDependencies = ComponentDepsOf<typeof parent>;
+  type _ProjectedDependencyWasPropagated = Expect<
+    Equal<keyof ParentDependencies['missingProvider'], 'BadgeService'>
+  >;
+
+  // @ts-expect-error the required default slot is missing.
+  card({ content: {} });
+  // @ts-expect-error unknown slots are rejected for object literals.
+  card({ content: { default: () => p('ok'), footer: () => p('nope') } });
+
+  const providedParent = craftComponent(
+    'providedProjectingParent',
+    { providers: [provideBadgeService()] },
+    () => ({}),
+    () =>
+      card({
+        content: {
+          default: () => badge({}),
+        },
+      }),
+  );
+  type ProvidedDependencies = ComponentDepsOf<typeof providedParent>;
+  type _ProvidedProjectedDependencyWasResolved = Expect<
+    Equal<keyof ProvidedDependencies['missingProvider'], never>
+  >;
+
+  const consumerProvidedCard = craftComponent(
+    'consumerProvidedTypedCard',
+    { providers: [provideBadgeService()] },
+    (content: ContentInput<CardSlots>) => ({ content }),
+    ({ content }) => section(project(content.default)),
+  );
+  const parentWithoutProvider = craftComponent(
+    'parentWithoutProjectedProvider',
+    {},
+    () => ({}),
+    () =>
+      consumerProvidedCard({
+        content: { default: () => badge({}) },
+      }),
+  );
+  type ConsumerOnlyDependencies = ComponentDepsOf<typeof parentWithoutProvider>;
+  type _ConsumerProviderDoesNotSatisfyProjection = Expect<
+    Equal<keyof ConsumerOnlyDependencies['missingProvider'], 'BadgeService'>
+  >;
+});
+
+it('checks reusable template contexts at every render site', () => {
+  const row = craftTemplate<{
+    readonly $implicit: User;
+    readonly index: number;
+  }>(({ $implicit: user, index }) => li(`${index}: ${user.name}`));
+
+  renderTemplate(row, { $implicit: { id: 1, name: 'Ada' }, index: 0 });
+  // @ts-expect-error the template context must provide both fields.
+  renderTemplate(row, { $implicit: { id: 1, name: 'Ada' } });
 });
 
 it('carries inferred dependencies from the component through the lazy route fragment', () => {
@@ -572,13 +674,7 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     ComponentTemplateOf<typeof derivedStateComponent>
   >;
   type _DerivedStateUsesContextValue = Expect<
-    Equal<
-      TemplateRendersStateWhen<
-        DerivedTemplate,
-        'counter.disabled'
-      >,
-      true
-    >
+    Equal<TemplateRendersStateWhen<DerivedTemplate, 'counter.disabled'>, true>
   >;
 });
 
@@ -743,7 +839,10 @@ it('tracks named elements through conditional template branches', () => {
     'namedContractComponent',
     {},
     function* () {
-      const { isAuth } = yield* state('isAuth', computed(() => true));
+      const { isAuth } = yield* state(
+        'isAuth',
+        computed(() => true),
+      );
       return { isAuth };
     },
     ({ isAuth }) =>
@@ -860,25 +959,20 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
         'items',
         [{ key: 'first' }, { key: 'second' }],
         insertSelect('item', ({ state: selectedItem }) => ({
-          translatedLabel: computed(
-            () => `translated:${selectedItem().key}`,
-          ),
+          translatedLabel: computed(() => `translated:${selectedItem().key}`),
         })),
       );
       return { items };
     },
     ({ items }) =>
-      each(
-        items,
-        { track: (item) => item.key },
-        (_item, index) =>
-          span(
-            'itemLabel',
-            {
-              'aria-label': items.selectItem(index)?.translatedLabel,
-            },
-            () => items.selectItem(index)?.translatedLabel() ?? '',
-          ),
+      each(items, { track: (item) => item.key }, (_item, index) =>
+        span(
+          'itemLabel',
+          {
+            'aria-label': items.selectItem(index)?.translatedLabel,
+          },
+          () => items.selectItem(index)?.translatedLabel() ?? '',
+        ),
       ),
   );
 
@@ -910,7 +1004,10 @@ it('tracks available actions through conditional template branches', () => {
     'availableActionContractComponent',
     {},
     function* () {
-      const { isAuth } = yield* state('isAuth', computed(() => true));
+      const { isAuth } = yield* state(
+        'isAuth',
+        computed(() => true),
+      );
       return {
         isAuth,
         increment: craftMethod('increment', function* () {

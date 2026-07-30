@@ -132,9 +132,9 @@ button, write the three arguments explicitly:
 
 ```ts
 const saveButton = button(
-  'save',                         // name: stable local name
-  { class: 'save' },              // props: DOM properties and attributes
-  'Save',                         // children: rendered content
+  'save', // name: stable local name
+  { class: 'save' }, // props: DOM properties and attributes
+  'Save', // children: rendered content
 );
 ```
 
@@ -143,11 +143,7 @@ The same pattern works with every built-in helper:
 ```ts
 import { input } from '@craft-ng/component';
 
-const searchInput = input(
-  'search',
-  { 'aria-label': 'Search' },
-  [],
-);
+const searchInput = input('search', { 'aria-label': 'Search' }, []);
 ```
 
 The name is rendered as `data-craft-name="save"` and can be used as a
@@ -174,9 +170,10 @@ const Status = craftComponent(
   ({ brandedStatus }) => span(brandedStatus),
 );
 
-const brandedStatus = markYieldableValue(signal('ready'), 'brandedStatus');
 const test = await setupCraftComponentTemplateTest.byRegister(Status, {
-  context: { brandedStatus },
+  context: {
+    brandedStatus: markYieldableValue(signal('ready'), 'brandedStatus'),
+  },
   register: {},
 });
 
@@ -471,15 +468,8 @@ type HasClick = Expect<
 >;
 
 type HasNestedDisabledBinding = Expect<
-  Equal<
-    TemplateRendersStateWhen<
-      CounterTemplate,
-      'counter.disabled'
-    >,
-    true
-  >
+  Equal<TemplateRendersStateWhen<CounterTemplate, 'counter.disabled'>, true>
 >;
-
 ```
 
 These checks detect different regressions at compile time. Removing the
@@ -582,13 +572,22 @@ Use `ifBlock` to retain the condition and its branches in the VNode contract:
 ```ts
 import { computed, signal } from '@angular/core';
 import { markYieldableValue, state } from '@craft-ng/core';
-import { button, craftComponent, div, ifBlock, span } from '@craft-ng/component';
+import {
+  button,
+  craftComponent,
+  div,
+  ifBlock,
+  span,
+} from '@craft-ng/component';
 
 const Counter = craftComponent(
   'Counter',
   {},
   function* () {
-    const { isAuth } = yield* state('isAuth', computed(() => true));
+    const { isAuth } = yield* state(
+      'isAuth',
+      computed(() => true),
+    );
     const { brandedStatus } = yield* state('brandedStatus', 'ready');
     return { isAuth, brandedStatus };
   },
@@ -683,23 +682,18 @@ const ItemList = craftComponent(
       'items',
       [{ key: 'first' }, { key: 'second' }],
       insertSelect('item', ({ state: selectedItem }) => ({
-        translatedLabel: computed(
-          () => `translated:${selectedItem().key}`,
-        ),
+        translatedLabel: computed(() => `translated:${selectedItem().key}`),
       })),
     );
     return { items };
   },
   ({ items }) =>
-    each(
-      items,
-      { track: (item) => item.key },
-      (_item, index) =>
-        span(
-          'itemLabel',
-          { 'aria-label': items.selectItem(index)?.translatedLabel },
-          () => items.selectItem(index)?.translatedLabel() ?? '',
-        ),
+    each(items, { track: (item) => item.key }, (_item, index) =>
+      span(
+        'itemLabel',
+        { 'aria-label': items.selectItem(index)?.translatedLabel },
+        () => items.selectItem(index)?.translatedLabel() ?? '',
+      ),
     ),
 );
 

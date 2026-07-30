@@ -8,6 +8,8 @@ import type {
   CraftComponent,
   CraftDirectiveTemplateDependencies,
   ComponentInitializationExceptionsOf,
+  CraftFragment,
+  CraftTemplate,
 } from '../types';
 import { isCraftDirective, type CraftDirective } from '../types';
 import {
@@ -22,6 +24,23 @@ export declare const CRAFT_NODE_DEPS: unique symbol;
 declare const CRAFT_NODE_EXCEPTIONS: unique symbol;
 declare const CRAFT_NODE_HANDLED_EXCEPTIONS: unique symbol;
 
+let activeCraftRenderContext: unknown;
+
+/** Internal bridge used by factories that create nodes while a template runs. */
+export function withCraftRenderContext<T>(context: unknown, work: () => T): T {
+  const previous = activeCraftRenderContext;
+  activeCraftRenderContext = context;
+  try {
+    return work();
+  } finally {
+    activeCraftRenderContext = previous;
+  }
+}
+
+export function currentCraftRenderContext(): unknown {
+  return activeCraftRenderContext;
+}
+
 export type CraftNodeDepsCarrier<Dependencies extends object = {}> = {
   readonly [CRAFT_NODE_DEPS]?: Dependencies;
 };
@@ -35,7 +54,6 @@ export type CraftNodeExceptionsCarrier<Exceptions extends string = string> = {
 export type CraftNodeHandledExceptionsCarrier<Codes extends string = string> = {
   readonly [CRAFT_NODE_HANDLED_EXCEPTIONS]?: Codes;
 };
-
 
 type UnionToIntersection<Union> = (
   Union extends any ? (value: Union) => void : never
@@ -189,14 +207,16 @@ export interface ComponentNode<
     any,
     any
   > = CraftComponent<any, ComponentDeps, any, any, any, any, any, any, any>,
-> extends CraftNodeDepsCarrier<ComponentDeps>,
+  ContentDependencies extends object = ContentDependenciesFromProps<Props>,
+> extends CraftNodeDepsCarrier<ComponentDeps & ContentDependencies>,
     CraftNodeExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> {
   readonly kind: 'component';
   readonly component: Component;
   readonly props: Props;
+  readonly declarationContext?: unknown;
   readonly [CRAFT_NODE_EXCEPTIONS]: ComponentInitializationExceptionsOf<Component>;
   readonly pipe: CraftNodePipe<
-    ComponentDeps,
+    ComponentDeps & ContentDependencies,
     ComponentInitializationExceptionsOf<Component>
   >;
 }
@@ -240,10 +260,7 @@ export interface MatchBlockNode<
   readonly kind: 'match-block';
   readonly source: Source;
   readonly key: PropertyKey;
-  readonly handlers: Record<
-    string,
-    (exception: AnyCraftException) => Children
-  >;
+  readonly handlers: Record<string, (exception: AnyCraftException) => Children>;
 }
 
 export interface EachNode<
@@ -301,7 +318,9 @@ export type CraftNode =
   | IfBlockNode<any, any>
   | DeferNode<any>
   | CatchBlockNode<any, any>
-  | MatchBlockNode<any, any>;
+  | MatchBlockNode<any, any>
+  | ProjectionNode<any>
+  | TemplateNode<any, any, any>;
 
 export type CraftNodeChild =
   | CraftNode
@@ -312,6 +331,37 @@ export type CraftNodeChild =
   | readonly CraftNodeChild[];
 
 export type CraftNodeChildren = CraftNodeChild | readonly CraftNodeChild[];
+
+type SlotOutput<Value> = Value extends (...args: any[]) => infer Output
+  ? Output
+  : never;
+
+type ContentChildrenFromProps<Props extends object> = {
+  [Key in keyof Props]: Props[Key] extends object
+    ? SlotOutput<NonNullable<Props[Key][keyof Props[Key]]>>
+    : never;
+}[keyof Props];
+
+type ContentDependenciesFromProps<Props extends object> =
+  CraftNodeChildrenDependencies<ContentChildrenFromProps<Props>>;
+
+export interface ProjectionNode<Dependencies extends object = {}>
+  extends CraftNodeDepsCarrier<Dependencies> {
+  readonly kind: 'projection';
+  readonly fragment: CraftFragment;
+  readonly declarationContext?: unknown;
+}
+
+export interface TemplateNode<
+  Context = unknown,
+  Output extends CraftNodeChildren = CraftNodeChildren,
+  Dependencies extends object = CraftNodeChildrenDependencies<Output>,
+> extends CraftNodeDepsCarrier<Dependencies> {
+  readonly kind: 'template';
+  readonly template: CraftTemplate<Context, Output>;
+  readonly context: Context;
+  readonly declarationContext?: unknown;
+}
 
 type CraftNodeDirectExceptions<Value> =
   IsAny<Value> extends true
@@ -339,11 +389,12 @@ type CraftNodeDirectHandledExceptionCodes<Value> =
         : Codes
       : never;
 
-export type CraftNodeChildrenHandledExceptionCodes<Value> = Value extends unknown
-  ? Value extends readonly (infer Child)[]
-    ? CraftNodeDirectHandledExceptionCodes<Child>
-    : CraftNodeDirectHandledExceptionCodes<Value>
-  : never;
+export type CraftNodeChildrenHandledExceptionCodes<Value> =
+  Value extends unknown
+    ? Value extends readonly (infer Child)[]
+      ? CraftNodeDirectHandledExceptionCodes<Child>
+      : CraftNodeDirectHandledExceptionCodes<Value>
+    : never;
 
 /** A template child is renderable only after its component exceptions are handled. */
 export type RequireCaughtComponentExceptions<
@@ -372,7 +423,9 @@ export function isCraftNode(value: unknown): value is CraftNode {
     value.kind === 'if' ||
     value.kind === 'defer' ||
     value.kind === 'catch-block' ||
-    value.kind === 'match-block'
+    value.kind === 'match-block' ||
+    value.kind === 'projection' ||
+    value.kind === 'template'
   );
 }
 

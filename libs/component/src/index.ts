@@ -12,6 +12,8 @@ export * from './lib/craft-router-outlet';
 export * from './lib/defer';
 export * from './lib/each';
 export * from './lib/if-block';
+export * from './lib/project';
+export * from './lib/template';
 export * from './lib/hyperscript';
 export * from './lib/render/style-registry';
 export * from './lib/testing';
@@ -49,6 +51,12 @@ export type {
   TemplateMethodUse,
   ComponentInitializationExceptionsOf,
   ComponentInitializationExceptionCodes,
+  ContentInput,
+  ContentInputValue,
+  CraftFragment,
+  CraftTemplate,
+  ContentDependencies,
+  ContentPropsOfContext,
 } from './lib/types';
 export type {
   TemplateRenderAvailableActionWhen,
@@ -62,4 +70,6 @@ export type {
   IfBlockNode,
   CatchBlockNode,
   MatchBlockNode,
+  ProjectionNode,
+  TemplateNode,
 } from './lib/render/vnode';

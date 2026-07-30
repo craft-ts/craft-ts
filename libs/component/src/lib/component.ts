@@ -7,6 +7,7 @@ import {
   type ComponentCompositionDefinition,
   type ComponentInitializationExceptionCodesForTemplate,
   type ComponentTemplate,
+  type ContentPropsOfContext,
   type CraftComponent,
   type FactoryContext,
   type FactoryYielded,
@@ -18,6 +19,7 @@ import type { HostProps } from './hyperscript';
 import type { ComponentNode } from './render/vnode';
 import {
   applyHostPropsToChildren,
+  currentCraftRenderContext,
   mergeHostProps,
   pipeCraftNode,
 } from './render/vnode';
@@ -57,7 +59,8 @@ export function craftComponent<
     Factory,
     ProvidersFromMeta<Meta>,
     Template
-  >
+  >,
+  ContentPropsOfContext<FactoryContext<Factory>>
 > {
   return createCraftComponent<Name, Meta, Factory, Template>({
     name,
@@ -101,7 +104,8 @@ function createCraftComponent<
     Factory,
     ProvidersFromMeta<Meta>,
     Template
-  >
+  >,
+  ContentPropsOfContext<FactoryContext<Factory>>
 > {
   type Props = PropsFromContext<FactoryContext<Factory>>;
   type ComponentDeps = CraftComponentDependencies<
@@ -139,6 +143,7 @@ function createCraftComponent<
         ComponentDeps
       >,
       props,
+      declarationContext: currentCraftRenderContext(),
     } as unknown as ComponentNode<Props & HostProps, ComponentDeps>;
     Object.defineProperty(node, 'pipe', {
       value: (directive: unknown) => pipeCraftNode(node, directive as never),

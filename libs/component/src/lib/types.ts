@@ -19,6 +19,7 @@ import type {
   CraftNodeChildrenDependencies,
   CraftNodeChildrenExceptions,
   CraftNodeChildrenHandledExceptionCodes,
+  CraftNodeDepsCarrier,
   ComponentNode,
 } from './render/vnode';
 
@@ -29,6 +30,8 @@ declare const COMPONENT_TEMPLATE_NAME: unique symbol;
 declare const COMPONENT_INITIALIZATION_EXCEPTIONS: unique symbol;
 declare const COMPONENT_OPERATOR_PROVIDERS: unique symbol;
 declare const COMPONENT_OPERATOR_CODES: unique symbol;
+export const CRAFT_TEMPLATE = Symbol('craft-template');
+export const CONTENT_INPUT = Symbol('craft-content-input');
 
 export type Input<T> = (() => T) & {
   readonly [INPUT_BRAND]: T;
@@ -92,50 +95,52 @@ type ProjectTemplateSignalProperties<
 };
 
 type ProjectTemplateValue<Value, ContextMethod extends string> =
-  Value extends YieldableMethod<infer Args, infer Result, infer Yielded>
-    ? Value extends NamedYieldableValue<
-        infer _Name extends string,
-        infer _Value
-      >
-      ? NamedYieldableValue<
-          ContextMethod,
-          YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
-        >
-      : YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
-    : Value extends NamedYieldableValue<
+  Value extends ContentInput<infer _Slots extends object>
+    ? Value
+    : Value extends YieldableMethod<infer Args, infer Result, infer Yielded>
+      ? Value extends NamedYieldableValue<
           infer _Name extends string,
           infer _Value
         >
-      ? Value extends Signal<infer State>
         ? NamedYieldableValue<
             ContextMethod,
-            () => State & TemplateMethodUse<ContextMethod>
-          > &
-            ProjectTemplateSignalProperties<Value & object, ContextMethod>
-        : Value extends object
-          ? ProjectTemplateObject<Value & object, ContextMethod>
-          : Value
-      : Value extends {
-            readonly [OUTPUT_BRAND]: infer Handler extends (
-              ...args: any[]
-            ) => unknown;
-          }
-        ? YieldableTemplateCallback<
-            Parameters<Handler>,
-            ReturnType<Handler>,
-            unknown,
-            ContextMethod
+            YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
           >
-        : Value extends Signal<infer State>
-          ? (() => State & TemplateMethodUse<ContextMethod>) &
-              ProjectTemplateObject<Value, ContextMethod>
-          : Value extends readonly (infer Item)[]
-            ? readonly ProjectTemplateValue<Item, ContextMethod>[]
-            : Value extends (...args: infer Args) => infer Result
-              ? (...args: Args) => ProjectTemplateValue<Result, ContextMethod>
-              : Value extends object
-                ? ProjectTemplateObject<Value, ContextMethod>
-                : Value;
+        : YieldableTemplateCallback<Args, Result, Yielded, ContextMethod>
+      : Value extends NamedYieldableValue<
+            infer _Name extends string,
+            infer _Value
+          >
+        ? Value extends Signal<infer State>
+          ? NamedYieldableValue<
+              ContextMethod,
+              () => State & TemplateMethodUse<ContextMethod>
+            > &
+              ProjectTemplateSignalProperties<Value & object, ContextMethod>
+          : Value extends object
+            ? ProjectTemplateObject<Value & object, ContextMethod>
+            : Value
+        : Value extends {
+              readonly [OUTPUT_BRAND]: infer Handler extends (
+                ...args: any[]
+              ) => unknown;
+            }
+          ? YieldableTemplateCallback<
+              Parameters<Handler>,
+              ReturnType<Handler>,
+              unknown,
+              ContextMethod
+            >
+          : Value extends Signal<infer State>
+            ? (() => State & TemplateMethodUse<ContextMethod>) &
+                ProjectTemplateObject<Value, ContextMethod>
+            : Value extends readonly (infer Item)[]
+              ? readonly ProjectTemplateValue<Item, ContextMethod>[]
+              : Value extends (...args: infer Args) => infer Result
+                ? (...args: Args) => ProjectTemplateValue<Result, ContextMethod>
+                : Value extends object
+                  ? ProjectTemplateObject<Value, ContextMethod>
+                  : Value;
 
 export type YieldableTemplateContext<Context> = {
   [Key in keyof Context]: ProjectTemplateValue<
@@ -145,6 +150,37 @@ export type YieldableTemplateContext<Context> = {
 };
 
 export type InputValue<T> = () => T;
+
+/** A lazily evaluated, declaration-context-preserving piece of Craft content. */
+export type CraftFragment<
+  Output extends CraftNodeChildren = CraftNodeChildren,
+> = (() => Output) &
+  CraftNodeDepsCarrier<CraftNodeChildrenDependencies<Output>>;
+
+/** A reusable, parameterized Craft fragment. */
+export interface CraftTemplate<
+  Context,
+  Output extends CraftNodeChildren = CraftNodeChildren,
+> extends CraftNodeDepsCarrier<CraftNodeChildrenDependencies<Output>> {
+  (context: Context): Output;
+  readonly [CRAFT_TEMPLATE]: true;
+}
+
+/** The slot map accepted by a component factory. */
+export type ContentInput<Slots extends object> = Slots & {
+  readonly [CONTENT_INPUT]: Slots;
+};
+
+export type ContentInputValue<Value> =
+  Value extends ContentInput<infer Slots extends object> ? Slots : never;
+
+type SlotOutput<Value> = Value extends (...args: any[]) => infer Output
+  ? Output
+  : never;
+
+/** Dependencies declared by the renderers stored in a slot map. */
+export type ContentDependencies<Slots extends object> =
+  CraftNodeChildrenDependencies<SlotOutput<NonNullable<Slots[keyof Slots]>>>;
 
 export type ComponentFactory = (...args: any[]) => any;
 
@@ -174,7 +210,6 @@ export type ComponentTemplateNameOf<Template> = Template extends {
 }
   ? Name
   : string;
-
 
 export type TemplateDependencies<Template> = Template extends (
   ...args: any[]
@@ -228,13 +263,17 @@ type Simplify<T> = { [K in keyof T]: T[K] } & {};
 export type PropsFromContext<Context> = Simplify<{
   [Key in keyof Context as Context[Key] extends Input<unknown>
     ? Key
-    : Context[Key] extends Output<(...args: any[]) => unknown>
+    : Context[Key] extends ContentInput<object>
       ? Key
-      : never]: Context[Key] extends Input<infer Value>
+      : Context[Key] extends Output<(...args: any[]) => unknown>
+        ? Key
+        : never]: Context[Key] extends Input<infer Value>
     ? InputValue<Value>
-    : Context[Key] extends Output<infer Handler>
-      ? Handler
-      : never;
+    : Context[Key] extends ContentInput<infer Slots extends object>
+      ? Slots
+      : Context[Key] extends Output<infer Handler>
+        ? Handler
+        : never;
 }>;
 
 export const CRAFT_COMPONENT = Symbol('craft-component');
@@ -396,10 +435,7 @@ export type ComponentInitializationExceptionCodesForTemplate<
   Template extends ComponentTemplate<FactoryContext<Factory>>,
 > = Exclude<
   ComponentInitializationExceptionCodes<Factory, Providers>,
-  Extract<
-    CraftNodeChildrenHandledExceptionCodes<ReturnType<Template>>,
-    string
-  >
+  Extract<CraftNodeChildrenHandledExceptionCodes<ReturnType<Template>>, string>
 >;
 
 type ComponentOperatorProviders<Operator> = Operator extends {
@@ -474,29 +510,26 @@ type ComponentOperatorExhaustiveCheck<
 > = [ComponentOperatorHandlers<Operator>] extends [never]
   ? unknown
   : CatchTagExhaustiveCodesCheck<
-        ComponentExceptionsBeforeOperator<
-          Factory,
-          Meta,
-          Operator,
-          ExistingExceptions
-        >,
-        Record<Extract<ComponentOperatorHandlers<Operator>, string>, unknown>
-      > &
+      ComponentExceptionsBeforeOperator<
+        Factory,
+        Meta,
+        Operator,
+        ExistingExceptions
+      >,
+      Record<Extract<ComponentOperatorHandlers<Operator>, string>, unknown>
+    > &
       (Operator extends { readonly [COMPONENT_CATCH_BLOCK]: true }
         ? [
-              Extract<
-                ComponentOperatorHandlers<Operator>,
-                HandledByTemplate
-              >,
-            ] extends [never]
+            Extract<ComponentOperatorHandlers<Operator>, HandledByTemplate>,
+          ] extends [never]
           ? unknown
           : {
               'catchBlock.exhaustive has handlers for codes already handled by the template': Extract<
                 ComponentOperatorHandlers<Operator>,
                 HandledByTemplate
               >;
-        }
-          : unknown);
+            }
+        : unknown);
 
 type ComponentTemplateHandledExceptionCodes<
   Template extends ComponentTemplate<any>,
@@ -504,6 +537,21 @@ type ComponentTemplateHandledExceptionCodes<
   CraftNodeChildrenHandledExceptionCodes<ReturnType<Template>>,
   string
 >;
+
+type ContentSlotsCheck<Actual, Expected> = Actual extends object
+  ? Expected extends object
+    ? Exclude<keyof Actual, keyof Expected> extends never
+      ? unknown
+      : never
+    : unknown
+  : unknown;
+
+type ContentPropsCheck<Actual extends object, Expected extends object> = {
+  [Key in keyof Actual & keyof Expected]: ContentSlotsCheck<
+    Actual[Key],
+    Expected[Key]
+  >;
+};
 
 type AppliedDirectiveFactory<
   Factory extends ComponentFactory,
@@ -577,7 +625,8 @@ type PipedComponent<
             Meta,
             Directive,
             ExistingExceptions
-          >
+          >,
+        ContentPropsOfContext<FactoryContext<NextFactory>>
       >
     : never;
 
@@ -593,11 +642,12 @@ export interface CraftComponent<
   > = ComponentTemplate<FactoryContext<Factory>>,
   Name extends string = string,
   InitializationExceptions extends string = string,
+  ContentProps extends object = {},
 > extends ComponentDepsCarrier<ComponentDeps> {
   <CallProps extends ComponentCallProps<Props> = ComponentCallProps<Props>>(
     ...args: keyof Props extends never
-      ? [props?: CallProps]
-      : [props: CallProps]
+      ? [props?: CallProps & ContentPropsCheck<CallProps, ContentProps>]
+      : [props: CallProps & ContentPropsCheck<CallProps, ContentProps>]
   ): ComponentNode<
     CallProps,
     ComponentDeps,
@@ -631,7 +681,7 @@ export interface CraftComponent<
           Name,
           InitializationExceptions
         >,
-        ) => Directive &
+      ) => Directive &
         ComponentOperatorExhaustiveCheck<
           Factory,
           Meta,
@@ -680,6 +730,14 @@ export type ComponentInitializationExceptionsOf<Component> = Component extends {
 }
   ? Exceptions
   : never;
+
+export type ContentPropsOfContext<Context> = Simplify<{
+  [Key in keyof Context as Context[Key] extends ContentInput<object>
+    ? Key
+    : never]: Context[Key] extends ContentInput<infer Slots extends object>
+    ? Slots
+    : never;
+}>;
 
 export type ComponentTemplateOf<Component> =
   Component extends CraftComponent<

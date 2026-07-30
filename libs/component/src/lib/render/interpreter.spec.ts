@@ -49,7 +49,10 @@ import { defer } from '../defer';
 import { each } from '../each';
 import { ifBlock } from '../if-block';
 import { catchBlock } from '../block';
-import { button, div, h2, p, section, span } from '../hyperscript';
+import { button, div, h2, li, p, section, span, ul } from '../hyperscript';
+import { project } from '../project';
+import { craftTemplate, renderTemplate } from '../template';
+import type { ContentInput, CraftFragment } from '../types';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
 
 beforeAll(() => {
@@ -133,6 +136,128 @@ describe('functional component interpreter', () => {
     expect(element.textContent).toBe('');
   });
 
+  it('projects named slots without a wrapper and keeps the declarative injector', () => {
+    const label = new InjectionToken<string>('projection-label');
+    type Slots = {
+      readonly header?: CraftFragment;
+      readonly default: CraftFragment;
+    };
+    const card = craftComponent(
+      'runtimeProjectionCard',
+      {
+        providers: [{ provide: label, useValue: 'consumer' }],
+      },
+      (content: ContentInput<Slots>) => ({ content }),
+      ({ content }) =>
+        div([
+          content.header ? project(content.header) : h2('fallback'),
+          section(project(content.default)),
+        ]),
+    );
+    const parent = craftComponent(
+      'runtimeProjectionParent',
+      { providers: [{ provide: label, useValue: 'declarer' }] },
+      () => ({}),
+      () =>
+        card({
+          content: {
+            header: () => h2(inject(label)),
+            default: () => [p('before'), p(inject(label)), p('after')],
+          },
+        }),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      parent,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.textContent).toBe('declarerbeforedeclarerafter');
+    expect(element.querySelector('section')?.children).toHaveLength(3);
+    expect(element.querySelector('section')?.firstElementChild?.tagName).toBe(
+      'P',
+    );
+    expect(element.querySelectorAll('section > craft-projection')).toHaveLength(
+      0,
+    );
+    mounted.destroy();
+  });
+
+  it('keeps projected child components on the declarative injector chain', () => {
+    const label = new InjectionToken<string>('projected-child-label');
+    const projectedChild = craftComponent(
+      'runtimeProjectedChild',
+      {},
+      () => ({ label: inject(label) }),
+      ({ label: value }) => p(value),
+    );
+    type Slots = { readonly default: CraftFragment };
+    const card = craftComponent(
+      'runtimeProjectedChildCard',
+      {
+        providers: [{ provide: label, useValue: 'consumer' }],
+      },
+      (content: ContentInput<Slots>) => ({ content }),
+      ({ content }) => section(project(content.default)),
+    );
+    const parent = craftComponent(
+      'runtimeProjectedChildParent',
+      {
+        providers: [{ provide: label, useValue: 'declarer' }],
+      },
+      () => ({}),
+      () => card({ content: { default: () => projectedChild({}) } }),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      parent,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.textContent).toBe('declarer');
+    mounted.destroy();
+  });
+
+  it('renders a typed template repeatedly and only when its node is active', () => {
+    let renders = 0;
+    const row = craftTemplate<{
+      readonly $implicit: string;
+      readonly index: number;
+    }>(({ $implicit: value, index }) => {
+      renders += 1;
+      return li(`${index}: ${value}`);
+    });
+    const component = craftComponent(
+      'runtimeTemplateFragment',
+      {},
+      () => ({}),
+      () =>
+        ul([
+          renderTemplate(row, { $implicit: 'Ada', index: 0 }),
+          renderTemplate(row, { $implicit: 'Lin', index: 1 }),
+        ]),
+    );
+    const element = host();
+
+    expect(renders).toBe(0);
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(renders).toBe(2);
+    expect(element.textContent).toBe('0: Ada1: Lin');
+    mounted.destroy();
+  });
+
   it('constructs child component queries outside the parent render context', () => {
     const child = craftComponent(
       'queryChild',
@@ -181,9 +306,7 @@ describe('functional component interpreter', () => {
         const { todos } = yield* query('todos', {
           params: refresh,
           loader: async ({ params }) =>
-            params === 0
-              ? []
-              : craftException({ code: 'FAILED_TO_LOAD' }),
+            params === 0 ? [] : craftException({ code: 'FAILED_TO_LOAD' }),
         });
         const { add } = yield* mutation('add', {
           method: (title: string) => title,
@@ -201,15 +324,13 @@ describe('functional component interpreter', () => {
           button({ click: () => add.mutate('new todo') }, 'Add'),
         ]),
     ).pipe(
-      catchBlock.exhaustive(
-        {
-          FAILED_TO_LOAD: {
-            render: () => p('failed'),
-            showSource: true,
-            position: 'after',
-          },
+      catchBlock.exhaustive({
+        FAILED_TO_LOAD: {
+          render: () => p('failed'),
+          showSource: true,
+          position: 'after',
         },
-      ),
+      }),
     );
     const element = host();
     const mounted = mountCraftComponent(

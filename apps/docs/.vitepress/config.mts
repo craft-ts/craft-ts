@@ -101,6 +101,10 @@ export default defineConfig({
             link: '/component/customization',
           },
           {
+            text: 'Content projection and typed fragments',
+            link: '/component/content-projection',
+          },
+          {
             text: 'Styles encapsulés',
             link: '/component/styles',
           },

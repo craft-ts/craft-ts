@@ -53,6 +53,14 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
   {
+    path: 'content-projection',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/component/content-projection-demo')).then(
+        ({ contentProjectionDemo }) => contentProjectionDemo,
+      ),
+    ),
+  },
+  {
     path: 'mutation/:userId',
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./examples/primitives/mutation/mutation')).then(
@@ -317,6 +325,13 @@ type _CanRunComponentDemo = CanRun<
     (typeof import('./examples/component/component-demo'))['componentDemo'],
     never,
     'path: ""'
+  >
+>;
+type _CanRunContentProjection = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/component/content-projection-demo'))['contentProjectionDemo'],
+    never,
+    'path: "content-projection"'
   >
 >;
 type _CanRunMutation = CanRun<
