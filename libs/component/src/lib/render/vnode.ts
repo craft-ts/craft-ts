@@ -8,8 +8,8 @@ import type {
   CraftComponent,
   CraftDirectiveTemplateDependencies,
   ComponentInitializationExceptionsOf,
-  CraftFragment,
   CraftTemplate,
+  ContentStylePolicy,
 } from '../types';
 import { isCraftDirective, type CraftDirective } from '../types';
 import {
@@ -332,15 +332,15 @@ export type CraftNodeChild =
 
 export type CraftNodeChildren = CraftNodeChild | readonly CraftNodeChild[];
 
-type SlotOutput<Value> = Value extends (...args: any[]) => infer Output
-  ? Output
+type ContentChildrenFromProps<Props extends object> = Props[keyof Props] extends infer Value
+  ? Value extends (...args: any[]) => infer Output
+    ? Output
+    : Value extends readonly (infer Item)[]
+      ? Item
+      : Value extends CraftNode
+        ? Value
+        : never
   : never;
-
-type ContentChildrenFromProps<Props extends object> = {
-  [Key in keyof Props]: Props[Key] extends object
-    ? SlotOutput<NonNullable<Props[Key][keyof Props[Key]]>>
-    : never;
-}[keyof Props];
 
 type ContentDependenciesFromProps<Props extends object> =
   CraftNodeChildrenDependencies<ContentChildrenFromProps<Props>>;
@@ -348,7 +348,9 @@ type ContentDependenciesFromProps<Props extends object> =
 export interface ProjectionNode<Dependencies extends object = {}>
   extends CraftNodeDepsCarrier<Dependencies> {
   readonly kind: 'projection';
-  readonly fragment: CraftFragment;
+  readonly render: () => CraftNodeChildren;
+  readonly slotName?: string;
+  readonly stylePolicy: ContentStylePolicy;
   readonly declarationContext?: unknown;
 }
 

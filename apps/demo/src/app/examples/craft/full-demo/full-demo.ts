@@ -76,39 +76,17 @@ const FullDemoCraft = craftComponent(
     return { store: yield* TodoStore() };
   },
   ({ store }) => {
-    let title = ''; // todoR bizzare
     return div([
       h2([
         'Full craftService demo ',
         StatusComponent({ status: () => store.todos.status() }),
       ]),
       p('A toProvide service composed from a query and two mutations.'),
-      div([
-        input({
-          placeholder: 'New todo',
-          input: (event) => {
-            title = (event.target as HTMLInputElement).value;
-          },
-        }),
-        button(
-          {
-            disabled: store.add.isLoading(),
-            click: () => {
-              if (title.trim()) store.add.mutate(title.trim());
-            },
-          },
-          'Add',
-        ),
-      ]),
       ul(
         each(
           () => store.todos.safeValue() ?? [],
           { track: (todo) => todo.id, empty: () => p('No todos.') },
-          (todo) =>
-            li([
-              span(todo.title),
-              button({ click: () => store.remove.mutate(todo.id) }, 'Remove'),
-            ]),
+          (todo) => li([span(todo.title)]),
         ),
       ),
     ]);
@@ -116,7 +94,8 @@ const FullDemoCraft = craftComponent(
 ).pipe(
   catchBlock.exhaustive({
     FAILED_TO_LOAD: {
-      render: () => p('⚠️ FAILED_TO_LOAD (handled by catchBlock.exhaustive)'),
+      render: () =>
+        p('⚠️ FAILED_TO_LOAD (handled by catchBlock.exhaustive)'),
       showSource: true,
       position: 'after',
     },

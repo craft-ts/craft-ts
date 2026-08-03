@@ -19,7 +19,7 @@ import { angular } from './angular';
 import { ifBlock } from './if-block';
 import { each } from './each';
 import { button, div, h2, li, p, section, span } from './hyperscript';
-import { project } from './project';
+import { content, renderContent } from './project';
 import { craftTemplate, renderTemplate } from './template';
 import type { ComponentNode } from './render/vnode';
 import type { ComponentTemplateOf } from './types';
@@ -38,13 +38,15 @@ import type {
   TemplateRenderAvailableActionWhen,
 } from './template-contract';
 import type {
-  ContentInput,
-  CraftFragment,
+  ContentSlot,
   HostRequiredLogic,
   HostTemplate,
   Input,
   Output,
+  ProjectionContractOf,
+  ProjectionOf,
   PropsOf,
+  RequiredContent,
 } from './types';
 import type { CraftNodeChild } from './render/vnode';
 import type { CraftNodeChildrenDependencies } from './render/vnode';
@@ -108,10 +110,10 @@ it('does not expose ordinary context callbacks as component outputs', () => {
   }>();
 });
 
-it('checks content slots and propagates projected dependencies to the caller', () => {
-  type CardSlots = {
-    readonly header?: CraftFragment;
-    readonly default: CraftFragment;
+it('extracts projection contracts and propagates projected dependencies', () => {
+  type ActionContract = {
+    readonly kind: 'action';
+    readonly trigger: () => void;
   };
   const { BadgeService, provideBadgeService } = craftService(
     { name: 'BadgeService', scope: 'toProvide' },
@@ -126,15 +128,41 @@ it('checks content slots and propagates projected dependencies to the caller', (
     },
     ({ service }) => p(service.label),
   );
+  const action = craftComponent(
+    'typedAction',
+    {},
+    (input: {
+      readonly key: string;
+      readonly trigger: () => void;
+    }) => ({
+      key: input.key,
+      contract: { kind: 'action', trigger: input.trigger } satisfies ActionContract,
+    }),
+    ({ contract }) => button({ click: contract.trigger }, 'action'),
+  );
+  type _Contract = Expect<
+    Expect<ProjectionContractOf<typeof action> extends ActionContract ? true : false>
+  >;
+  const projectedAction: ProjectionOf<typeof action> = action({
+    key: 'save',
+    trigger: () => undefined,
+  });
+  expectTypeOf(projectedAction).toMatchTypeOf<ProjectionOf<typeof action>>();
+
   const card = craftComponent(
     'typedCard',
-    {},
-    (content: ContentInput<CardSlots>) => ({ content }),
-    ({ content }) =>
-      div([
-        content.header ? project(content.header) : h2('Fallback'),
-        section(project(content.default)),
-      ]),
+    {
+      contentStyles: { body: ':scope { color: red; }' },
+    },
+    (input: {
+      readonly body: RequiredContent<{
+        readonly selector: {
+          readonly tag: 'div';
+          readonly class: 'card-body';
+        };
+      }>;
+    }) => input,
+    ({ body }) => section(renderContent('body', body)),
   );
   const parent = craftComponent(
     'projectingParent',
@@ -142,9 +170,7 @@ it('checks content slots and propagates projected dependencies to the caller', (
     () => ({}),
     () =>
       card({
-        content: {
-          default: () => badge({}),
-        },
+        body: content(() => [div({ class: 'card-body' }), badge({})]),
       }),
   );
 
@@ -153,10 +179,8 @@ it('checks content slots and propagates projected dependencies to the caller', (
     Equal<keyof ParentDependencies['missingProvider'], 'BadgeService'>
   >;
 
-  // @ts-expect-error the required default slot is missing.
-  card({ content: {} });
-  // @ts-expect-error unknown slots are rejected for object literals.
-  card({ content: { default: () => p('ok'), footer: () => p('nope') } });
+  // @ts-expect-error the required body slot is missing.
+  card({});
 
   const providedParent = craftComponent(
     'providedProjectingParent',
@@ -164,9 +188,7 @@ it('checks content slots and propagates projected dependencies to the caller', (
     () => ({}),
     () =>
       card({
-        content: {
-          default: () => badge({}),
-        },
+        body: () => [div({ class: 'card-body' }), badge({})],
       }),
   );
   type ProvidedDependencies = ComponentDepsOf<typeof providedParent>;
@@ -177,8 +199,8 @@ it('checks content slots and propagates projected dependencies to the caller', (
   const consumerProvidedCard = craftComponent(
     'consumerProvidedTypedCard',
     { providers: [provideBadgeService()] },
-    (content: ContentInput<CardSlots>) => ({ content }),
-    ({ content }) => section(project(content.default)),
+    (input: { readonly body: ContentSlot }) => input,
+    ({ body }) => section(renderContent('body', body)),
   );
   const parentWithoutProvider = craftComponent(
     'parentWithoutProjectedProvider',
@@ -186,13 +208,58 @@ it('checks content slots and propagates projected dependencies to the caller', (
     () => ({}),
     () =>
       consumerProvidedCard({
-        content: { default: () => badge({}) },
+        body: () => badge({}),
       }),
   );
   type ConsumerOnlyDependencies = ComponentDepsOf<typeof parentWithoutProvider>;
   type _ConsumerProviderDoesNotSatisfyProjection = Expect<
     Equal<keyof ConsumerOnlyDependencies['missingProvider'], 'BadgeService'>
   >;
+});
+
+it('checks the declared selector contract for projected content', () => {
+  const card = craftComponent(
+    'selectorContractCard',
+    { contentStyles: { body: ':scope { display: block; }' } },
+    (input: {
+      readonly body: RequiredContent<{
+        readonly selector: {
+          readonly tag: 'div';
+          readonly class: 'card-body';
+          readonly 'data-slot': 'body';
+        };
+      }>;
+    }) => input,
+    ({ body }) => renderContent('body', body),
+  );
+
+  const validParent = craftComponent(
+    'selectorContractValidParent',
+    {},
+    () => ({}),
+    () =>
+      card({
+        body: content(() =>
+          div({ class: 'card-body', 'data-slot': 'body' }),
+        ),
+      }),
+  );
+
+  expectTypeOf(validParent).toBeFunction();
+
+  const invalidParent = craftComponent(
+    'selectorContractInvalidParent',
+    {},
+    () => ({}),
+    () =>
+      card({
+        // @ts-expect-error the projected content must contain div.card-body[data-slot="body"].
+        body:
+          content(() => div({ class: 'wrong-class' })),
+      }),
+  );
+
+  expectTypeOf(invalidParent).toBeFunction();
 });
 
 it('checks reusable template contexts at every render site', () => {

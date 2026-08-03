@@ -1,19 +1,27 @@
+import { signal } from '@angular/core';
 import {
-  ContentInput,
-  CraftFragment,
+  button,
+  content,
   craftComponent,
   craftTemplate,
+  div,
   each,
+  footer,
   h2,
   li,
   p,
-  project,
+  renderContent,
   renderTemplate,
   section,
   span,
   ul,
-  type Input,
+  type ContentSlot,
+  type ProjectionContractOf,
+  type ProjectionOf,
+  type ProjectionSlot,
+  type RequiredContent,
 } from '@craft-ng/component';
+import type { Input } from '@craft-ng/component';
 
 interface DemoUser {
   readonly id: number;
@@ -21,28 +29,110 @@ interface DemoUser {
   readonly role: string;
 }
 
-type CardSlots = {
-  readonly header?: CraftFragment;
-  readonly default: CraftFragment;
+type CardInput = {
+  readonly header?: ContentSlot;
+  readonly body: RequiredContent<{
+    readonly selector: {
+      readonly tag: 'p';
+      readonly class: 'projection-demo__content';
+    };
+  }>;
 };
 
 const userBadge = craftComponent(
-  'contentProjectionUserBadge',
+  'userBadge',
   {},
   (role: Input<string>) => ({ role }),
   ({ role }) => span({ class: 'projection-demo__badge' }, role()),
 );
 
-const card = craftComponent(
-  'contentProjectionCard',
+type ToolbarActionContract = {
+  readonly kind: 'toolbar-action';
+  readonly trigger: () => void;
+  readonly disabled: () => boolean;
+};
+
+const toolbarAction = craftComponent(
+  'toolbarAction',
   {},
-  (content: ContentInput<CardSlots>) => ({ content }),
-  ({ content }) =>
+  (input: {
+    readonly key: string;
+    readonly content: ContentSlot;
+    readonly trigger: () => void;
+    readonly disabled?: () => boolean;
+  }) => ({
+    key: input.key,
+    contract: {
+      kind: 'toolbar-action',
+      trigger: input.trigger,
+      disabled: input.disabled ?? (() => false),
+    } satisfies ToolbarActionContract,
+    content: input.content,
+  }),
+  ({ contract, content: label }) =>
+    button(
+      {
+        class: 'projection-demo__action',
+        type: 'button',
+        disabled: contract.disabled,
+        click: contract.trigger,
+      },
+      renderContent(label),
+    ),
+);
+
+type ToolbarActionContractFromComponent = ProjectionContractOf<
+  typeof toolbarAction
+>;
+type ToolbarActionSlot = ProjectionSlot<ToolbarActionContractFromComponent>;
+
+const toolbar = craftComponent(
+  'toolbar',
+  {},
+  (input: { readonly actions: ToolbarActionSlot }) => input,
+  ({ actions }) =>
+    div(
+      { class: 'projection-demo__toolbar', role: 'toolbar' },
+      each(actions, { track: (action) => action.key }, (action) =>
+        renderContent(action),
+      ),
+    ),
+);
+
+const dialog = craftComponent(
+  'dialog',
+  {},
+  (input: {
+    readonly body?: ContentSlot;
+    readonly actions: readonly ProjectionOf<typeof toolbarAction>[];
+  }) => input,
+  ({ body, actions }) =>
+    section({ class: 'projection-demo__dialog', role: 'dialog' }, [
+      body ? renderContent(body) : p('Aucun contenu de dialogue fourni.'),
+      footer(
+        { class: 'projection-demo__dialog-actions' },
+        each(actions, { track: (action) => action.key }, (action) =>
+          renderContent(action),
+        ),
+      ),
+    ]),
+);
+
+const card = craftComponent(
+  'card',
+  {
+    contentStyles: {
+      header: ':scope { display: block; margin-block-end: 0.5rem; }',
+      body: ':scope { display: block; color: #334155; }',
+    },
+  },
+  (input: CardInput) => input,
+  ({ header, body }) =>
     section({ class: 'projection-demo__card' }, [
-      content.header
-        ? project(content.header)
+      header
+        ? renderContent('header', header)
         : h2({ class: 'projection-demo__fallback' }, 'Titre par défaut'),
-      section({ class: 'projection-demo__body' }, project(content.default)),
+      section({ class: 'projection-demo__body' }, renderContent('body', body)),
     ]),
 );
 
@@ -59,25 +149,49 @@ const userRow = craftTemplate<{
 export const contentProjectionDemo = craftComponent(
   'contentProjectionDemo',
   { host: { class: 'component-demo-host' } },
-  () => ({
-    users: [
+  () => {
+    const showToolbar = signal(true);
+    const dialogOpen = signal(false);
+    const lastAction = signal('Aucune action déclenchée.');
+    const users = [
       { id: 1, name: 'Ada Lovelace', role: 'Pionnière des algorithmes' },
       { id: 2, name: 'Grace Hopper', role: 'Compilateurs et systèmes' },
       { id: 3, name: 'Margaret Hamilton', role: 'Logiciel embarqué' },
-    ] satisfies readonly DemoUser[],
-  }),
-  ({ users }) =>
+    ] satisfies readonly DemoUser[];
+
+    return {
+      users,
+      showToolbar,
+      dialogOpen,
+      lastAction,
+      toggleToolbar: () => showToolbar.update((visible) => !visible),
+      openDialog: () => dialogOpen.set(true),
+      closeDialog: () => dialogOpen.set(false),
+      recordAction: (label: string) => lastAction.set(label),
+    };
+  },
+  ({
+    users,
+    showToolbar,
+    dialogOpen,
+    lastAction,
+    toggleToolbar,
+    openDialog,
+    closeDialog,
+    recordAction,
+  }) =>
     section({ class: 'component-demo projection-demo' }, [
-      h2('Projection de contenu et fragments typés'),
+      h2('Projection de contenu et contrats logiques'),
       p(
-        'Le composant Card reçoit un slot header optionnel et un slot default obligatoire. Le contenu reste rendu dans le contexte de la page qui le déclare.',
+        'Chaque cas utilise content() ou renderContent() sans registre runtime : le même composant peut être rendu directement ou projeté.',
       ),
       card({
-        content: {
-          header: () => h2('Slot header fourni par la page'),
-          default: () => [
+        header: content(() => h2('Slot header fourni par la page')),
+        body: content(
+          () => [
             p(
-              'Le même composant peut accueillir une liste construite avec un template typé.',
+              { class: 'projection-demo__content' },
+              'Le contenu respecte le contrat DOM du slot.',
             ),
             ul(
               { class: 'projection-demo__list' },
@@ -86,15 +200,90 @@ export const contentProjectionDemo = craftComponent(
               ),
             ),
           ],
-        },
+          { allowContainerStyles: true },
+        ),
       }),
       card({
-        content: {
-          default: () =>
-            p(
-              'Ce second exemple ne fournit pas header : le fallback du slot est rendu automatiquement.',
-            ),
-        },
+        body: () =>
+          p(
+            { class: 'projection-demo__content' },
+            'Ce second exemple utilise le rendu normal du contenu sans opt-in de styles.',
+          ),
       }),
+      section({ class: 'projection-demo__case' }, [
+        h2('Projection logique et collection keyée'),
+        p(
+          'ToolbarAction expose un contract. Toolbar reçoit une collection explicite, la rend avec renderContent() et la réconcilie par key.',
+        ),
+        p(
+          { class: 'projection-demo__status' },
+          () => `Dernière action : ${lastAction()}`,
+        ),
+        button(
+          {
+            class: 'projection-demo__toggle',
+            type: 'button',
+            click: toggleToolbar,
+          },
+          () => (showToolbar() ? 'Masquer la toolbar' : 'Afficher la toolbar'),
+        ),
+        showToolbar()
+          ? toolbar({
+              actions: [
+                toolbarAction({
+                  key: 'save',
+                  content: () => 'Enregistrer',
+                  trigger: () => recordAction('Enregistrer'),
+                }),
+                toolbarAction({
+                  key: 'cancel',
+                  content: () => 'Annuler',
+                  trigger: () => recordAction('Annuler'),
+                }),
+              ],
+            })
+          : p('La projection conditionnelle est masquée.'),
+        p('Le même composant, rendu directement :'),
+        toolbarAction({
+          key: 'direct',
+          content: () => 'Action directe',
+          trigger: () => recordAction('Action directe'),
+        }),
+        button(
+          {
+            class: 'projection-demo__toggle',
+            type: 'button',
+            click: openDialog,
+          },
+          'Ouvrir le dialog projeté',
+        ),
+      ]),
+      dialogOpen()
+        ? dialog({
+            body: content(() =>
+              div([
+                h2('Dialog avec contenu optionnel'),
+                p(
+                  'Le corps est un ContentSlot libre, les actions sont contractuelles.',
+                ),
+              ]),
+            ),
+            actions: [
+              toolbarAction({
+                key: 'close',
+                content: () => 'Fermer',
+                trigger: closeDialog,
+              }),
+              toolbarAction({
+                key: 'confirm',
+                content: () => 'Confirmer',
+                trigger: () => {
+                  recordAction('Confirmer');
+                  closeDialog();
+                },
+              }),
+            ],
+          })
+        : [],
     ]),
 );

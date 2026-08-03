@@ -45,14 +45,14 @@ import { angular, directive } from '../angular';
 import { craftComponent } from '../component';
 import { CraftRouterOutlet } from '../craft-router-outlet';
 import { craftDirective } from '../directive';
+import { content, renderContent } from '../project';
 import { defer } from '../defer';
 import { each } from '../each';
 import { ifBlock } from '../if-block';
 import { catchBlock } from '../block';
 import { button, div, h2, li, p, section, span, ul } from '../hyperscript';
-import { project } from '../project';
 import { craftTemplate, renderTemplate } from '../template';
-import type { ContentInput, CraftFragment } from '../types';
+import type { ContentSlot, RequiredContent } from '../types';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
 
 beforeAll(() => {
@@ -138,20 +138,20 @@ describe('functional component interpreter', () => {
 
   it('projects named slots without a wrapper and keeps the declarative injector', () => {
     const label = new InjectionToken<string>('projection-label');
-    type Slots = {
-      readonly header?: CraftFragment;
-      readonly default: CraftFragment;
+    type CardInput = {
+      readonly header?: ContentSlot;
+      readonly body: ContentSlot;
     };
     const card = craftComponent(
       'runtimeProjectionCard',
       {
         providers: [{ provide: label, useValue: 'consumer' }],
       },
-      (content: ContentInput<Slots>) => ({ content }),
-      ({ content }) =>
+      (input: CardInput) => input,
+      ({ header, body }) =>
         div([
-          content.header ? project(content.header) : h2('fallback'),
-          section(project(content.default)),
+          header ? renderContent('header', header) : h2('fallback'),
+          section(renderContent('body', body)),
         ]),
     );
     const parent = craftComponent(
@@ -160,10 +160,8 @@ describe('functional component interpreter', () => {
       () => ({}),
       () =>
         card({
-          content: {
-            header: () => h2(inject(label)),
-            default: () => [p('before'), p(inject(label)), p('after')],
-          },
+          header: () => h2(inject(label)),
+          body: () => [p('before'), p(inject(label)), p('after')],
         }),
     );
     const element = host();
@@ -186,6 +184,178 @@ describe('functional component interpreter', () => {
     mounted.destroy();
   });
 
+  it('renders contract components through the same renderContent primitive', () => {
+    const trigger = vi.fn();
+    type ActionContract = {
+      readonly kind: 'toolbar-action';
+      readonly trigger: () => void;
+      readonly disabled: () => boolean;
+    };
+    const action = craftComponent(
+      'runtimeToolbarAction',
+      {},
+      (input: {
+        readonly key: string;
+        readonly content: ContentSlot;
+        readonly trigger: () => void;
+      }) => ({
+        key: input.key,
+        contract: {
+          kind: 'toolbar-action',
+          trigger: input.trigger,
+          disabled: () => false,
+        } satisfies ActionContract,
+        content: input.content,
+      }),
+      ({ contract, content: label }) =>
+        button({ click: contract.trigger }, renderContent(label)),
+    );
+    const toolbar = craftComponent(
+      'runtimeToolbar',
+      {},
+      (input: { readonly actions: readonly ReturnType<typeof action>[] }) =>
+        input,
+      ({ actions }) =>
+        div(
+          { role: 'toolbar' },
+          each(actions, { track: (item) => item.key }, (item) =>
+            renderContent(item),
+          ),
+        ),
+    );
+    const root = craftComponent(
+      'runtimeToolbarRoot',
+      {},
+      () => ({}),
+      () =>
+        toolbar({
+          actions: [
+            action({
+              key: 'save',
+              content: () => span('Save'),
+              trigger,
+            }),
+          ],
+        }),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(root, element, TestBed.inject(Injector));
+    TestBed.tick();
+
+    expect(element.querySelector('[role="toolbar"]')?.textContent).toBe('Save');
+    (element.querySelector('button') as HTMLButtonElement).click();
+    expect(trigger).toHaveBeenCalledTimes(1);
+    mounted.destroy();
+  });
+
+  it('applies opted-in content styles through a dedicated projection scope', () => {
+    type CardInput = {
+      readonly body: RequiredContent<{
+        readonly selector: {
+          readonly tag: 'p';
+          readonly class: 'projected-value';
+        };
+      }>;
+    };
+    const projectedChild = craftComponent(
+      'contentStyleProjectedChild',
+      {},
+      () => ({}),
+      () => p({ class: 'projected-value' }, 'child'),
+    );
+    const card = craftComponent(
+      'contentStyleCard',
+      {
+        styles: '.projected-value { color: blue; }',
+        contentStyles: {
+          body:
+            ':scope { display: block; } .projected-value { color: red; }',
+        },
+      },
+      (input: CardInput) => input,
+      ({ body }) => section(renderContent('body', body)),
+    );
+    const page = craftComponent(
+      'contentStylePage',
+      {},
+      () => ({}),
+      () =>
+        card({
+          body: content(
+            () => [
+              p({ class: 'projected-value' }, 'ordinary'),
+              projectedChild({}),
+            ],
+            { allowContainerStyles: true },
+          ),
+        }),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      page,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const ordinary = element.querySelector('p.projected-value') as HTMLElement;
+    expect(ordinary.getAttribute('data-craft-content')).toBe(
+      'contentStyleCard::content::body',
+    );
+    expect(ordinary.getAttribute('data-craft-root')).toBe('contentStylePage');
+    const projectedChildNode = element.querySelectorAll('p.projected-value')[1];
+    expect(projectedChildNode?.hasAttribute('data-craft-content')).toBe(false);
+    expect(projectedChildNode?.getAttribute('data-craft-root')).toContain(
+      'contentStyleProjectedChild',
+    );
+    const contentSheet = Array.from(
+      document.querySelectorAll<HTMLStyleElement>('style[data-craft-sheet]'),
+    ).find((style) => style.textContent?.includes('data-craft-content'));
+    expect(contentSheet?.textContent).toContain(
+      '@scope ([data-craft-content~="contentStyleCard::content::body"])',
+    );
+    expect(contentSheet?.textContent).toContain('to ([data-craft-root])');
+
+    mounted.destroy();
+    expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
+      0,
+    );
+  });
+
+  it('keeps content styles isolated unless the slot opts in', () => {
+    const card = craftComponent(
+      'isolatedContentStyleCard',
+      { contentStyles: { body: ':scope { color: red; }' } },
+      (input: { readonly body: ContentSlot }) => input,
+      ({ body }) => renderContent('body', body),
+    );
+    const page = craftComponent(
+      'isolatedContentStylePage',
+      {},
+      () => ({}),
+      () =>
+        card({ body: () => p({ class: 'isolated' }, 'content') }),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      page,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.querySelector('p.isolated')).not.toBeNull();
+    expect(
+      element.querySelector('p.isolated')?.getAttribute('data-craft-content'),
+    ).toBeNull();
+    expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
+      0,
+    );
+    mounted.destroy();
+  });
+
   it('keeps projected child components on the declarative injector chain', () => {
     const label = new InjectionToken<string>('projected-child-label');
     const projectedChild = craftComponent(
@@ -194,14 +364,13 @@ describe('functional component interpreter', () => {
       () => ({ label: inject(label) }),
       ({ label: value }) => p(value),
     );
-    type Slots = { readonly default: CraftFragment };
     const card = craftComponent(
       'runtimeProjectedChildCard',
       {
         providers: [{ provide: label, useValue: 'consumer' }],
       },
-      (content: ContentInput<Slots>) => ({ content }),
-      ({ content }) => section(project(content.default)),
+      (input: { readonly body: ContentSlot }) => input,
+      ({ body }) => section(renderContent('body', body)),
     );
     const parent = craftComponent(
       'runtimeProjectedChildParent',
@@ -209,7 +378,7 @@ describe('functional component interpreter', () => {
         providers: [{ provide: label, useValue: 'declarer' }],
       },
       () => ({}),
-      () => card({ content: { default: () => projectedChild({}) } }),
+      () => card({ body: () => projectedChild({}) }),
     );
     const element = host();
 

@@ -162,3 +162,63 @@
 .projection-demo__fallback {
   color: #475569;
 }
+
+.projection-demo__case {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.75rem;
+  background: #eff6ff;
+}
+
+.projection-demo__case h2,
+.projection-demo__case p {
+  margin: 0;
+}
+
+.projection-demo__status {
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+.projection-demo__toolbar,
+.projection-demo__dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.projection-demo__action,
+.projection-demo__toggle {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #2563eb;
+  border-radius: 0.4rem;
+  color: #fff;
+  background: #2563eb;
+  cursor: pointer;
+}
+
+.projection-demo__action:hover,
+.projection-demo__toggle:hover {
+  background: #1d4ed8;
+}
+
+.projection-demo__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.projection-demo__dialog {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px solid #7c3aed;
+  border-radius: 0.75rem;
+  background: #faf5ff;
+}
+
+.projection-demo__dialog h2,
+.projection-demo__dialog p {
+  margin: 0;
+}

@@ -44,6 +44,7 @@ import type { HostProps } from '../hyperscript';
 import {
   CRAFT_COMPONENT,
   CRAFT_DIRECTIVE,
+  CONTENT_DECLARATION_CONTEXT,
   type CraftComponent,
 } from '../types';
 import {
@@ -95,6 +96,10 @@ interface RenderContext {
   readonly rootScope?: string;
   readonly styleRoot?: Document | ShadowRoot;
   readonly styles?: CraftStyleRegistry;
+  /** Styles exposed by the currently rendered Craft component, by slot. */
+  readonly contentStyles?: Readonly<Partial<Record<string, string>>>;
+  /** Marker applied to ordinary nodes in an opted-in projection. */
+  readonly contentScope?: string;
   readonly exceptionBoundary?: (exception: AnyCraftException) => boolean;
   readonly exceptionBoundaryResolved?: () => void;
   readonly handledResourceExceptionCodes?: Set<string>;
@@ -113,6 +118,29 @@ function childContext(
 
 function lexicalContext(context: RenderContext): RenderContext {
   return context.declarationContext ?? context;
+}
+
+function preserveContentDeclarationContext(
+  value: unknown,
+  context: unknown,
+): unknown {
+  if (typeof value !== 'function') return value;
+  if (
+    (value as Partial<Record<typeof CONTENT_DECLARATION_CONTEXT, unknown>>)[
+      CONTENT_DECLARATION_CONTEXT
+    ] !== undefined
+  ) {
+    return value;
+  }
+  const wrapped = (...args: unknown[]) =>
+    (value as (...innerArgs: unknown[]) => unknown)(...args);
+  Object.defineProperty(wrapped, CONTENT_DECLARATION_CONTEXT, {
+    value: context,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return wrapped;
 }
 
 function renderChildrenCallback(
@@ -247,6 +275,40 @@ function acquireStyles(
   return releases;
 }
 
+function contentScopeId(ownerScope: string, slotName: string): string {
+  return `${ownerScope}::content::${slotName}`;
+}
+
+function acquireContentStyle(
+  context: RenderContext,
+  slotName: string | undefined,
+  stylePolicy: ProjectionNode['stylePolicy'],
+): { readonly scope?: string; readonly release: () => void } {
+  if (
+    stylePolicy !== 'allow-container-styles' ||
+    !slotName ||
+    !context.ownerScope ||
+    !context.contentStyles?.[slotName] ||
+    !context.styleRoot ||
+    !context.styles
+  ) {
+    return { release: () => undefined };
+  }
+
+  const scope = contentScopeId(context.ownerScope, slotName);
+  const css = scopeCss(scope, context.contentStyles[slotName], {
+    rootAttribute: 'data-craft-content',
+    limitSelector: '[data-craft-root]',
+  });
+  const release = context.styles.acquire(
+    context.styleRoot,
+    `craft:content:${scope}`,
+    css,
+    1000,
+  );
+  return { scope, release };
+}
+
 interface RenderedNode {
   readonly kind: CraftNode['kind'] | 'fragment';
   firstNode(): NativeNode;
@@ -344,6 +406,17 @@ function projectYieldableTemplateContext(
     return projected;
   }
   if (typeof value !== 'object' || value === null) return value;
+
+  // Craft nodes carry runtime objects such as RenderContext and Renderer2
+  // through their declaration context. Copying them as plain objects would
+  // strip prototype methods from those runtime services before projection.
+  if (
+    'kind' in value &&
+    typeof (value as { readonly kind?: unknown }).kind === 'string'
+  ) {
+    return value;
+  }
+
   if (seen.has(value)) return seen.get(value);
   if (Array.isArray(value)) {
     const result: unknown[] = [];
@@ -853,7 +926,10 @@ class ElementRenderedNode implements RenderedNode {
       this.children,
       initial.children,
       null,
-      childContext(context, { rootScope: undefined }),
+      childContext(context, {
+        rootScope: undefined,
+        contentScope: undefined,
+      }),
     );
   }
 
@@ -880,7 +956,10 @@ class ElementRenderedNode implements RenderedNode {
       this.children,
       node.children,
       null,
-      childContext(this.context, { rootScope: undefined }),
+      childContext(this.context, {
+        rootScope: undefined,
+        contentScope: undefined,
+      }),
     );
     return true;
   }
@@ -1088,8 +1167,10 @@ class FragmentRenderedNode implements RenderedNode {
 class ProjectionRenderedNode implements RenderedNode {
   readonly kind = 'projection';
   private readonly view: FragmentRenderedNode;
+  private readonly styleRelease: () => void;
   private node: ProjectionNode;
   private readonly declarationContext: RenderContext;
+  private readonly projectionContext: RenderContext;
 
   constructor(
     node: ProjectionNode,
@@ -1101,10 +1182,19 @@ class ProjectionRenderedNode implements RenderedNode {
     this.declarationContext =
       (node.declarationContext as RenderContext | undefined) ??
       lexicalContext(context);
+    const contentStyle = acquireContentStyle(
+      context,
+      node.slotName,
+      node.stylePolicy,
+    );
+    this.styleRelease = contentStyle.release;
+    this.projectionContext = childContext(this.declarationContext, {
+      contentScope: contentStyle.scope,
+    });
     this.view = createFragment(
       parent,
       before,
-      this.declarationContext,
+      this.projectionContext,
       this.children(),
       'craft-projection',
     );
@@ -1119,7 +1209,7 @@ class ProjectionRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (node.kind !== 'projection' || node.fragment !== this.node.fragment) {
+    if (node.kind !== 'projection') {
       return false;
     }
     this.node = node;
@@ -1130,13 +1220,14 @@ class ProjectionRenderedNode implements RenderedNode {
   private children(): CraftNodeChildren {
     return runInInjectionContext(this.declarationContext.injector, () =>
       withCraftRenderContext(this.declarationContext, () =>
-        this.node.fragment(),
+        this.node.render(),
       ),
     );
   }
 
   destroy(): void {
     this.view.destroy();
+    this.styleRelease();
   }
 }
 
@@ -1695,6 +1786,8 @@ class ComponentRenderedNode implements RenderedNode {
     const componentRenderContext = childContext(context, {
       ownerScope: ownScope,
       rootScope: scopeTokens(context.rootScope, ownScope),
+      contentStyles: definition.meta.contentStyles,
+      contentScope: undefined,
       declarationContext: declarationContext ?? context,
     });
     const componentElement =
@@ -1729,7 +1822,7 @@ class ComponentRenderedNode implements RenderedNode {
       hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
     );
 
-    const args = this.propSources.map((source) => {
+    const inputShells = this.propSources.map((source) => {
       const input = (...callbackArgs: unknown[]) => {
         const current = source();
         if (typeof current === 'function') {
@@ -1801,6 +1894,55 @@ class ComponentRenderedNode implements RenderedNode {
         },
       });
     });
+
+    // A one-argument logic factory may model its complete input as one typed
+    // object. The callable shell keeps the historical Input<T> invocation
+    // while exposing the object's properties for the contract-based API.
+    const args =
+      !this.templateOnly && definition.factory.length === 1
+        ? [
+            new Proxy(
+              ((...callbackArgs: unknown[]) =>
+                (inputShells[0] as (...args: unknown[]) => unknown)(
+                  ...callbackArgs,
+                )) as (...args: unknown[]) => unknown,
+              {
+                get: (target, property, receiver) => {
+                  const index = this.propKeys.indexOf(String(property));
+                  if (index !== -1) {
+                    return preserveContentDeclarationContext(
+                      this.propSources[index](),
+                      declarationContext ?? context,
+                    );
+                  }
+                  return Reflect.get(target, property, receiver);
+                },
+                has: (target, property) =>
+                  this.propKeys.includes(String(property)) ||
+                  Reflect.has(target, property),
+                ownKeys: (target) => [
+                  ...new Set([
+                    ...Reflect.ownKeys(target),
+                    ...this.propKeys,
+                  ]),
+                ],
+                getOwnPropertyDescriptor: (target, property) => {
+                  const index = this.propKeys.indexOf(String(property));
+                  return index === -1
+                    ? Reflect.getOwnPropertyDescriptor(target, property)
+                    : {
+                        configurable: true,
+                        enumerable: true,
+                        value: preserveContentDeclarationContext(
+                          this.propSources[index](),
+                          declarationContext ?? context,
+                        ),
+                      };
+                },
+              },
+            ),
+          ]
+        : inputShells;
 
     const factoryContext = composition
       ? undefined
@@ -2610,6 +2752,13 @@ function mountNode(
           element,
           'data-craft-root',
           context.rootScope,
+        );
+      }
+      if (context.contentScope) {
+        context.renderer.setAttribute(
+          element,
+          'data-craft-content',
+          context.contentScope,
         );
       }
       insertBefore(context.renderer, parent, element, before);

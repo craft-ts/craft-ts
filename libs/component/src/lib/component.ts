@@ -7,11 +7,11 @@ import {
   type ComponentCompositionDefinition,
   type ComponentInitializationExceptionCodesForTemplate,
   type ComponentTemplate,
-  type ContentPropsOfContext,
+  type ContentRequirementsOfContext,
   type CraftComponent,
   type FactoryContext,
   type FactoryYielded,
-  type PropsFromContext,
+  type PropsFromFactory,
   type StyleOwner,
   type TemplateDependencies,
 } from './types';
@@ -30,6 +30,26 @@ type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
   ? Providers
   : readonly [];
 
+type ContentSlotNamesForFactory<Factory extends ComponentFactory> = {
+  [Key in keyof PropsFromFactory<Factory>]: NonNullable<
+    PropsFromFactory<Factory>[Key]
+  > extends (...args: any[]) => any
+    ? Key
+    : never;
+}[keyof PropsFromFactory<Factory>] & string;
+
+type ValidContentStyles<
+  Meta extends ComponentMeta,
+  Factory extends ComponentFactory,
+> = Meta extends { readonly contentStyles?: infer Styles }
+  ? Exclude<
+      keyof NonNullable<Styles>,
+      ContentSlotNamesForFactory<NoInfer<Factory>>
+    > extends never
+    ? unknown
+    : never
+  : unknown;
+
 export function craftComponent<
   const Name extends string,
   const Meta extends ComponentMeta,
@@ -37,16 +57,16 @@ export function craftComponent<
   Template extends ComponentTemplate<FactoryContext<Factory>>,
 >(
   name: Name,
-  meta: Meta,
+  meta: Meta & ValidContentStyles<Meta, Factory>,
   factory: Factory,
   template: Template,
 ): CraftComponent<
-  PropsFromContext<FactoryContext<Factory>>,
+  PropsFromFactory<Factory>,
   CraftComponentDependencies<
     FactoryYielded<Factory>,
     FactoryContext<Factory>,
     ProvidersFromMeta<Meta>,
-    PropsFromContext<FactoryContext<Factory>>,
+    PropsFromFactory<Factory>,
     TemplateDependencies<Template>
   >,
   Factory,
@@ -60,7 +80,7 @@ export function craftComponent<
     ProvidersFromMeta<Meta>,
     Template
   >,
-  ContentPropsOfContext<FactoryContext<Factory>>
+  ContentRequirementsOfContext<FactoryContext<Factory>>
 > {
   return createCraftComponent<Name, Meta, Factory, Template>({
     name,
@@ -86,12 +106,12 @@ function createCraftComponent<
   readonly scopeDefinition: object | undefined;
   readonly composition?: ComponentCompositionDefinition;
 }): CraftComponent<
-  PropsFromContext<FactoryContext<Factory>>,
+  PropsFromFactory<Factory>,
   CraftComponentDependencies<
     FactoryYielded<Factory>,
     FactoryContext<Factory>,
     ProvidersFromMeta<Meta>,
-    PropsFromContext<FactoryContext<Factory>>,
+    PropsFromFactory<Factory>,
     TemplateDependencies<Template>
   >,
   Factory,
@@ -105,9 +125,9 @@ function createCraftComponent<
     ProvidersFromMeta<Meta>,
     Template
   >,
-  ContentPropsOfContext<FactoryContext<Factory>>
+  ContentRequirementsOfContext<FactoryContext<Factory>>
 > {
-  type Props = PropsFromContext<FactoryContext<Factory>>;
+  type Props = PropsFromFactory<Factory>;
   type ComponentDeps = CraftComponentDependencies<
     FactoryYielded<Factory>,
     FactoryContext<Factory>,
@@ -145,6 +165,13 @@ function createCraftComponent<
       props,
       declarationContext: currentCraftRenderContext(),
     } as unknown as ComponentNode<Props & HostProps, ComponentDeps>;
+    if ('key' in props) {
+      Object.defineProperty(node, 'key', {
+        configurable: false,
+        enumerable: false,
+        get: () => (props as Record<string, unknown>)['key'],
+      });
+    }
     Object.defineProperty(node, 'pipe', {
       value: (directive: unknown) => pipeCraftNode(node, directive as never),
       enumerable: false,

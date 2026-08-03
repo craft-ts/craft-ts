@@ -187,10 +187,23 @@ export function splitUnscopableAtRules(css: string): {
   };
 }
 
-export function scopeCss(scopeId: string, css: string): string {
+export interface CssScopeOptions {
+  /** Attribute used to mark scope roots. */
+  readonly rootAttribute?: string;
+  /** Selector at which the scope stops. */
+  readonly limitSelector?: string;
+}
+
+export function scopeCss(
+  scopeId: string,
+  css: string,
+  options: CssScopeOptions = {},
+): string {
   const { hoisted, scoped } = splitUnscopableAtRules(css);
+  const rootAttribute = options.rootAttribute ?? 'data-craft-root';
+  const limitSelector = options.limitSelector ?? `[${rootAttribute}] *`;
   const body = scoped
-    ? `@scope ([data-craft-root~="${scopeId}"]) to ([data-craft-root] *) {\n${scoped}\n}`
+    ? `@scope ([${rootAttribute}~="${scopeId}"]) to (${limitSelector}) {\n${scoped}\n}`
     : '';
   return [hoisted, body].filter(Boolean).join('\n');
 }
