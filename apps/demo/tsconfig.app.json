@@ -5,16 +5,5 @@
     "types": []
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
-  "references": [
-    {
-      "path": "../../libs/component"
-    },
-    {
-      "path": "../../libs/dev-tools"
-    },
-    {
-      "path": "../../libs/core"
-    }
-  ]
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
 }
