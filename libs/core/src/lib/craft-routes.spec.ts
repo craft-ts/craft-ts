@@ -7,6 +7,7 @@ import {
   InjectionToken,
   Injector,
   input,
+  type Provider,
   runInInjectionContext,
   signal,
   Type,
@@ -68,12 +69,17 @@ import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
 import { queryParams } from './query-params';
 import {
   CraftRouteInjectHelper,
+  CraftRouteYieldHelper,
   craftRoutes,
   craftRoute,
   type CraftRoutesPublicPropertiesErrors,
   type ResolveCraftRouteComponentDeps,
 } from './craft-routes';
 import { craftGen } from './craft-gen';
+import {
+  runCraftGenerator,
+  SERVICE_YIELD_WRAPPER,
+} from './craft-generator-runtime';
 import { craftException } from './craft-exception';
 import { craftExceptionHandler } from './craft-route-exceptions';
 import { GetDeps } from './branded-component/branded-component';
@@ -93,6 +99,19 @@ function _injectDemoCraftLazyLayoutTeamIdData(): Signal<{
   readonly someParentRouteData: 'foo';
 }> {
   throw new Error('Type-only helper');
+}
+
+function resolveRouteYield<T>(
+  iterator: Generator<unknown, T, unknown>,
+  injector: Injector,
+): T {
+  return runCraftGenerator({
+    iterator,
+    injector,
+    hostScope: 'function',
+    invalidYieldErrorMessage: 'invalid route yield',
+    multipleAppStartErrorMessage: 'multiple route app start yields',
+  }).value as T;
 }
 
 function createActivatedRouteStub(
@@ -278,6 +297,10 @@ function createRouteInjector(
         provide: FN_WRAP_OBSERVER,
         useValue: [],
       },
+      {
+        provide: SERVICE_YIELD_WRAPPER,
+        useValue: [],
+      },
       ...flattenProviders(providers),
     ] as never[],
   });
@@ -296,6 +319,10 @@ function configureRouteTestingModule(
       {
         provide: SERVICE_RUNTIME_OVERRIDES,
         useValue: new Map(),
+      },
+      {
+        provide: SERVICE_YIELD_WRAPPER,
+        useValue: [],
       },
       ...flattenProviders(providers),
     ] as never[],
@@ -356,7 +383,7 @@ beforeEach(() => {
 });
 
 describe('craftRoutes', () => {
-  it('should expose typed inject helpers for params and route data', () => {
+  it('should expose typed inject helpers for params but not route data', () => {
     const routes = craftRoutes('player', [
       {
         path: 'mutation/:userId',
@@ -374,6 +401,11 @@ describe('craftRoutes', () => {
     expectTypeOf(routes.injectPlayerUserIdParams).toEqualTypeOf<
       CraftRouteInjectHelper<'PlayerUserIdParams', Signal<string>>
     >();
+
+    // Route data is consumed through route inputs or the route-local `Data`
+    // generator in `withProviders`, never through a collection-level helper.
+    // @ts-expect-error route data inject helpers are intentionally not public
+    routes.injectPlayerMutationData;
   });
 
   it('should expose typed inject helpers for route queryParams', () => {
@@ -855,11 +887,7 @@ describe('craftRoutes', () => {
   });
 
   it('should resolve params from the matching child ActivatedRoute in lazy contexts', () => {
-    const {
-      testRoutes: appRoutes,
-      injectTestUserIdParams: injectUserId,
-      injectTestUsersUserIdData: injectUsersUserIdData,
-    } = craftRoutes('test', [
+    const routes = craftRoutes('test', [
       {
         path: 'users/:userId',
         data: {
@@ -869,6 +897,8 @@ describe('craftRoutes', () => {
         componentDeps: {},
       },
     ]);
+    const { testRoutes: appRoutes, injectTestUserIdParams: injectUserId } =
+      routes;
     const routeConfig = appRoutes.toRoutes()[0];
     const activatedRoute = createNestedActivatedRouteStub({
       parentPath: 'craft/lazy-layout',
@@ -888,12 +918,9 @@ describe('craftRoutes', () => {
     );
 
     const userId = runInInjectionContext(injector, () => injectUserId());
-    const routeData = runInInjectionContext(injector, () =>
-      injectUsersUserIdData(),
-    );
 
     expect(userId()).toBe('42');
-    expect(routeData().title).toBe('Lazy route');
+    expect('injectTestUsersUserIdData' in routes).toBe(false);
   });
 
   it('should accept craft canActivate/canMatch guard contracts', () => {
@@ -990,11 +1017,6 @@ describe('craftRoutes', () => {
             typeof parentRoutes.injectParentTeamIdParams
           >;
         };
-        parentData: {
-          ParentLayoutTeamIdData: ReturnType<
-            typeof parentRoutes.injectParentLayoutTeamIdData
-          >;
-        };
         invalidUserId: {
           ParentUserIdParams: ReturnType<
             typeof parentRoutes.injectParentUserIdParams
@@ -1055,11 +1077,6 @@ describe('craftRoutes', () => {
             typeof parentRoutes.injectParentTeamIdParams
           >;
         };
-        parentData: {
-          ParentLayoutTeamIdData: ReturnType<
-            typeof parentRoutes.injectParentLayoutTeamIdData
-          >;
-        };
         invalidUserId: {
           ParentUserIdParams: ReturnType<
             typeof parentRoutes.injectParentUserIdParams
@@ -1118,11 +1135,6 @@ describe('craftRoutes', () => {
         parentTeamId: {
           ParentTeamIdParams: ReturnType<
             typeof parentRoutes.injectParentTeamIdParams
-          >;
-        };
-        parentData: {
-          ParentLayoutTeamIdData: ReturnType<
-            typeof parentRoutes.injectParentLayoutTeamIdData
           >;
         };
         invalidUserId: {
@@ -1792,26 +1804,30 @@ describe('craftRoutes', () => {
     expect(userId()).toBe('34');
   });
 
-  it('should auto provide route data and preserve explicit providers', () => {
+  it('should yield route data in providers and preserve explicit providers', () => {
     const marker = new InjectionToken<string>('marker');
-    const {
-      testRoutes: appRoutes,
-      injectTestMutationUserIdData: injectMutationUserIdData,
-    } = craftRoutes('test', [
-      {
-        path: 'mutation/:userId',
+    const { RouteData, provideRouteData } = craftService(
+      { name: 'RouteData', scope: 'abstract' },
+      abstract<Signal<{ readonly myCustomData: 'test' }>>(),
+    );
+    const { testRoutes: appRoutes } = craftRoutes('test', [
+      craftRoute('mutation/:userId', {
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
         data: {
-          myCustomData: 'test',
+          myCustomData: 'test' as const,
         },
         providers: [
           {
             provide: marker,
             useValue: 'kept',
           },
-        ],
-      },
+        ] as Provider[],
+      }).withProviders(({ Data }) => [
+        provideRouteData(function* () {
+          return yield* Data();
+        }),
+      ]),
     ]);
 
     const routeConfig = appRoutes.toRoutes()[0];
@@ -1824,7 +1840,7 @@ describe('craftRoutes', () => {
       },
     });
 
-    expect(routeConfig.providers).toHaveLength(4);
+    expect(routeConfig.providers).toHaveLength(5);
 
     const injector = createRouteInjector(
       routeConfig.providers,
@@ -1841,7 +1857,7 @@ describe('craftRoutes', () => {
     ]);
 
     const routeData = runInInjectionContext(injector, () =>
-      injectMutationUserIdData(),
+      craftUse(RouteData()),
     );
 
     expect(routeData().myCustomData).toBe('test');
@@ -2385,23 +2401,24 @@ describe('craftRoutes', () => {
   describe('guardedData', () => {
     type User = { id: number; name: string };
 
-    it('should expose typed inject helper when guard returns User | false', () => {
-      const { appRoutes: _appRoutes, injectAppDashboardGuardedData } =
-        craftRoutes('app', [
-          {
-            path: 'dashboard',
-            loadComponent: async () => null as unknown as Type<unknown>,
-            componentDeps: {},
-            canActivate: (): User | false => ({ id: 1, name: 'Alice' }),
-          },
-        ]);
+    it('should expose a typed yield helper when guard returns User | false', () => {
+      const routes = craftRoutes('app', [
+        {
+          path: 'dashboard',
+          loadComponent: async () => null as unknown as Type<unknown>,
+          componentDeps: {},
+          canActivate: (): User | false => ({ id: 1, name: 'Alice' }),
+        },
+      ]);
+      const { appRoutes: _appRoutes, AppDashboardGuardedData } = routes;
 
-      expectTypeOf(injectAppDashboardGuardedData).toEqualTypeOf<
-        CraftRouteInjectHelper<'AppDashboardGuardedData', Signal<User>>
+      expectTypeOf(AppDashboardGuardedData).toEqualTypeOf<
+        CraftRouteYieldHelper<'AppDashboardGuardedData', Signal<User>>
       >();
+      expect('injectAppDashboardGuardedData' in routes).toBe(false);
     });
 
-    it('should not expose inject helper when guard returns only boolean', () => {
+    it('should not expose yield helper when guard returns only boolean', () => {
       const routes = craftRoutes('app', [
         {
           path: 'dashboard',
@@ -2411,12 +2428,12 @@ describe('craftRoutes', () => {
         },
       ]);
 
-      // @ts-expect-error no guarded data inject helper when guard returns only boolean
-      routes.injectAppDashboardGuardedData;
+      // @ts-expect-error no guarded data yield helper when guard returns only boolean
+      routes.AppDashboardGuardedData;
     });
 
     it('should set guard data signal when sync guard returns an object', () => {
-      const { appRoutes, injectAppDashboardGuardedData } = craftRoutes('app', [
+      const { appRoutes, AppDashboardGuardedData } = craftRoutes('app', [
         {
           path: 'dashboard',
           loadComponent: async () => null as unknown as Type<unknown>,
@@ -2439,8 +2456,9 @@ describe('craftRoutes', () => {
 
       expect(guardResult).toBe(true);
 
-      const guardData = runInInjectionContext(injector, () =>
-        injectAppDashboardGuardedData(),
+      const guardData = resolveRouteYield<Signal<User>>(
+        AppDashboardGuardedData(),
+        injector,
       );
 
       expectTypeOf(guardData).toEqualTypeOf<Signal<User>>();
@@ -2453,7 +2471,7 @@ describe('craftRoutes', () => {
         () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
       );
 
-      const { appRoutes, injectAppDashboardGuardedData } = craftRoutes('app', [
+      const { appRoutes, AppDashboardGuardedData } = craftRoutes('app', [
         {
           path: 'dashboard',
           loadComponent: async () => null as unknown as Type<unknown>,
@@ -2480,8 +2498,9 @@ describe('craftRoutes', () => {
 
       expect(guardResult).toBe(true);
 
-      const guardData = runInInjectionContext(injector, () =>
-        injectAppDashboardGuardedData(),
+      const guardData = resolveRouteYield<Signal<User>>(
+        AppDashboardGuardedData(),
+        injector,
       );
 
       expect(guardData()).toEqual({ id: 7, name: 'Bob' });
@@ -2490,7 +2509,7 @@ describe('craftRoutes', () => {
     it('should set guard data signal when Observable guard emits an object', async () => {
       const subject = new BehaviorSubject<User | false | undefined>(undefined);
 
-      const { appRoutes, injectAppDashboardGuardedData } = craftRoutes('app', [
+      const { appRoutes, AppDashboardGuardedData } = craftRoutes('app', [
         {
           path: 'dashboard',
           loadComponent: async () => null as unknown as Type<unknown>,
@@ -2517,15 +2536,16 @@ describe('craftRoutes', () => {
 
       expect(await guardPromise).toBe(true);
 
-      const guardData = runInInjectionContext(injector, () =>
-        injectAppDashboardGuardedData(),
+      const guardData = resolveRouteYield<Signal<User>>(
+        AppDashboardGuardedData(),
+        injector,
       );
 
       expect(guardData()).toEqual({ id: 99, name: 'Carol' });
     });
 
     it('should block navigation when guard returns false and not crash', () => {
-      const { appRoutes, injectAppDashboardGuardedData: _inject } = craftRoutes(
+      const { appRoutes, AppDashboardGuardedData: _guardedData } = craftRoutes(
         'app',
         [
           {

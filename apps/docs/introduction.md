@@ -33,7 +33,7 @@ Stop wasting precious time on common application logic. @craft-ng/core provides 
 - Navigation is type-safe
 - Passing route inputs (params or data) is type-safe
 - Query parameters can live directly in the route
-- Injecting route params, data or query params is type-safe
+- Passing route params and data to components, and yielding route-scoped data in providers, is type-safe
 
 ### Powered by Signals
 

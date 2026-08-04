@@ -6,12 +6,14 @@ Build route-level Angular providers from a route's **own auto-provisioned tokens
 ## The problem
 
 A `craftRoutes` route auto-provisions route-scoped services. For a route `query/:userId` in the
-`demo` collection, `craftRoutes` generates inject helpers such as `injectDemoUserIdParams` and
-`injectDemoQueryUserIdGuardedData`.
+`demo` collection, `craftRoutes` generates helpers such as `injectDemoUserIdParams` and the
+yieldable `DemoQueryUserIdGuardedData`.
 
-Those helpers are great **inside a component**, but they cannot be reached while building the
-route's own `providers`. So you cannot, for example, take the value resolved by `canActivate` and
-feed it into a provider that the routed component injects.
+The params helper is useful **inside a component**. Guarded data is consumed from a generator with
+`yield* DemoQueryUserIdGuardedData()`. Route `data` is intentionally not exported as a collection-level
+`inject…Data` helper; inside `withProviders`, consume it through the local `Data` generator. This
+also lets you take the value resolved by `canActivate` and feed it into a provider that the routed
+component injects.
 
 ## The solution: `craftRoute(...).withProviders(...)`
 

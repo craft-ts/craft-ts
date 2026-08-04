@@ -208,10 +208,6 @@ type RouteCollectionGuardedDataServiceName<
   Name extends string,
   Path extends string,
 > = `${RouteCollectionServiceName<Name>}${RouteGuardedDataServiceName<Path>}`;
-type RouteGuardedDataInjectHelperName<
-  Name extends string,
-  Path extends string,
-> = InjectHelperName<RouteCollectionGuardedDataServiceName<Name, Path>>;
 type RouteResolvedDataServiceName<Path extends string> =
   `${RouteBaseServiceName<Path>}ResolvedData`;
 type RouteCollectionResolvedDataServiceName<
@@ -250,10 +246,6 @@ type RouteParamInjectHelperName<
   Name extends string,
   ParamName extends string,
 > = InjectHelperName<RouteParamServiceName<Name, ParamName>>;
-type RouteDataInjectHelperName<
-  Name extends string,
-  Path extends string,
-> = InjectHelperName<RouteCollectionDataServiceName<Name, Path>>;
 type RouteQueryParamsInjectHelperName<
   Name extends string,
   Path extends string,
@@ -1673,12 +1665,27 @@ export type CraftRouteInjectHelper<Name extends string, Output> = {
   >;
 };
 
+export type CraftRouteYieldHelper<
+  Name extends string,
+  Output,
+> = () => Generator<
+  ServiceYieldRequest<
+    'toProvide',
+    Output,
+    ServiceTrackingMetadata<Name, 'toProvide', Output, never>
+  >,
+  Output,
+  unknown
+>;
+
 type CraftRouteProvideHelper<Name extends string, Output> = (provided: {
   resolve: () => Output;
 }) => BrandedServiceProvider<Name, 'toProvide', Output>;
 
 type CraftRouteValueServiceApi<Name extends string, Output> = {
   [Key in InjectHelperName<Name>]: CraftRouteInjectHelper<Name, Output>;
+} & {
+  [Key in Name]: CraftRouteYieldHelper<Name, Output>;
 } & {
   [Key in ProvideHelperName<Name>]: CraftRouteProvideHelper<Name, Output>;
 };
@@ -1699,27 +1706,6 @@ type ParamInjectHelpers<
             ParamOutputForRoutes<Routes, ParamName>
           >[RouteParamInjectHelperName<Name, ParamName>];
         }
-      : never
-  >
->;
-
-type DataInjectHelpers<
-  Name extends string,
-  Routes extends readonly AnyCraftRouteHelperDefinition[],
-> = Simplify<
-  MergeObjectUnion<
-    Routes[number] extends infer RouteDefinition
-      ? RouteDefinition extends { data: Data }
-        ? {
-            [Key in RouteDataInjectHelperName<
-              Name,
-              RoutePath<RouteDefinition>
-            >]: CraftRouteValueServiceApi<
-              RouteCollectionDataServiceName<Name, RoutePath<RouteDefinition>>,
-              RouteDataOutput<RouteDefinition>
-            >[RouteDataInjectHelperName<Name, RoutePath<RouteDefinition>>];
-          }
-        : never
       : never
   >
 >;
@@ -1783,7 +1769,7 @@ type ViewTransitionInjectHelpers<
   >
 >;
 
-type GuardedDataInjectHelpers<
+type GuardedDataYieldHelpers<
   Name extends string,
   Routes extends readonly AnyCraftRouteHelperDefinition[],
 > = Simplify<
@@ -1793,7 +1779,7 @@ type GuardedDataInjectHelpers<
         ? [RouteGuardedDataOutput<RouteDefinition>] extends [never]
           ? never
           : {
-              [Key in RouteGuardedDataInjectHelperName<
+              [Key in RouteCollectionGuardedDataServiceName<
                 Name,
                 RoutePath<RouteDefinition>
               >]: CraftRouteValueServiceApi<
@@ -1802,7 +1788,7 @@ type GuardedDataInjectHelpers<
                   RoutePath<RouteDefinition>
                 >,
                 RouteGuardedDataOutput<RouteDefinition>
-              >[RouteGuardedDataInjectHelperName<
+              >[RouteCollectionGuardedDataServiceName<
                 Name,
                 RoutePath<RouteDefinition>
               >];
@@ -1812,7 +1798,7 @@ type GuardedDataInjectHelpers<
   >
 >;
 
-// Mirror of `GuardedDataInjectHelpers` for the `resolve` step: generates
+// Mirror of `GuardedDataYieldHelpers` for the `resolve` step: generates
 // `injectXxxResolvedData(): Signal<ResolvedData>` for every route with a `resolve`.
 type ResolvedDataInjectHelpers<
   Name extends string,
@@ -2129,10 +2115,9 @@ type CraftRoutesSuccessResult<
   {
     [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name, ParentMount>;
   } & ParamInjectHelpers<Name, RoutesHelperShape<Routes>> &
-    DataInjectHelpers<Name, RoutesHelperShape<Routes>> &
     QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>> &
     ViewTransitionInjectHelpers<Name, RoutesHelperShape<Routes>> &
-    GuardedDataInjectHelpers<Name, RoutesHelperShape<Routes>> &
+    GuardedDataYieldHelpers<Name, RoutesHelperShape<Routes>> &
     ResolvedDataInjectHelpers<Name, RoutesHelperShape<Routes>> &
     ExceptionInjectHelpers<Name, RoutesHelperShape<Routes>>
 >;
@@ -2268,13 +2253,6 @@ function toParamInjectHelperName(
   return `inject${toRouteParamServiceName(routeCollectionName, paramName)}`;
 }
 
-function toDataInjectHelperName(
-  routeCollectionName: string,
-  routePath: string,
-): string {
-  return `inject${toRouteCollectionDataServiceName(routeCollectionName, routePath)}`;
-}
-
 function toQueryParamsInjectHelperName(
   routeCollectionName: string,
   routePath: string,
@@ -2297,13 +2275,6 @@ function toRouteCollectionGuardedDataServiceName(
   routePath: string,
 ): string {
   return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteGuardedDataServiceName(routePath)}`;
-}
-
-function toGuardedDataInjectHelperName(
-  routeCollectionName: string,
-  routePath: string,
-): string {
-  return `inject${toRouteCollectionGuardedDataServiceName(routeCollectionName, routePath)}`;
 }
 
 function toRouteResolvedDataServiceName(path: string): string {
@@ -2887,7 +2858,6 @@ export function craftRoutes<
     if (route.data !== undefined) {
       registerRouteValueService(
         toRouteCollectionDataServiceName(routeCollectionName, route.path),
-        toDataInjectHelperName(routeCollectionName, route.path),
       );
     }
 
@@ -2912,13 +2882,11 @@ export function craftRoutes<
     }
 
     if (route.canActivate !== undefined) {
-      registerRouteValueService(
-        toRouteCollectionGuardedDataServiceName(
-          routeCollectionName,
-          route.path,
-        ),
-        toGuardedDataInjectHelperName(routeCollectionName, route.path),
+      const serviceName = toRouteCollectionGuardedDataServiceName(
+        routeCollectionName,
+        route.path,
       );
+      registerRouteValueService(serviceName, serviceName, 'yield');
     }
 
     if (route.resolve !== undefined) {
@@ -2984,7 +2952,8 @@ export function craftRoutes<
 
   function registerRouteValueService(
     serviceName: string,
-    helperName: string,
+    helperName?: string,
+    helperKind: 'inject' | 'yield' = 'inject',
   ): void {
     if (routeValueServices.has(serviceName)) {
       return;
@@ -2993,9 +2962,14 @@ export function craftRoutes<
     const serviceApi = createRouteValueService(serviceName);
     routeValueServices.set(serviceName, serviceApi);
 
-    helpers[helperName] = getServiceMetaData(
-      (serviceApi as Record<string, unknown>)[serviceName],
-    ).inject;
+    if (helperName) {
+      helpers[helperName] =
+        helperKind === 'yield'
+          ? (serviceApi as Record<string, unknown>)[serviceName]
+          : getServiceMetaData(
+              (serviceApi as Record<string, unknown>)[serviceName],
+            ).inject;
+    }
   }
 
   function toAngularRoute(
