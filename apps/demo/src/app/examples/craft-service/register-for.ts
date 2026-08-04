@@ -50,7 +50,7 @@ const CounterChild = craftComponent(
 
 const { RegisterForCounterChild, provideRegisterForCounterChild } =
   craftRegisterFor('CounterChild', CounterChild, ({ CounterChild }) => ({
-    total: computed(() => CounterChild()?.length ?? 0), // todo change to total service
+    total: computed(() => CounterChild()?.length ?? 0),
     incrementAllChildCounter: () =>
       CounterChild()?.forEach(({ ref }) => ref.counter.increment()),
     decrementAllChildCounter: () =>
@@ -61,7 +61,7 @@ const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   'Counter',
   Counter,
   ({ Counter }) => ({
-    total: computed(() => Counter()?.length ?? 0), // todo change to total service
+    total: computed(() => Counter()?.length ?? 0),
   }),
 );
 
