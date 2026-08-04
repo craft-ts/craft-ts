@@ -47,6 +47,10 @@ export default defineConfig({
         link: '/migration',
       },
       {
+        text: 'Template migrator',
+        link: '/component/template-migrator',
+      },
+      {
         text: 'Primitives',
         items: [
           { text: 'state', link: '/primitives/state' },
@@ -92,10 +96,6 @@ export default defineConfig({
       {
         text: 'Component',
         items: [
-          {
-            text: 'Template migrator',
-            link: '/component/template-migrator',
-          },
           {
             text: 'Directives et .pipe(...)',
             link: '/component/directives',
