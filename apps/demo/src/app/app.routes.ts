@@ -196,6 +196,14 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
   {
+    path: 'craft-service/register-for',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/craft-service/register-for')).then(
+        ({ default: component }) => component,
+      ),
+    ),
+  },
+  {
     path: 'craft-service/user-detail',
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(

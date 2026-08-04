@@ -51,10 +51,18 @@ export * from './lib/correlation-id-plugin';
 export * from './lib/take-app-snapshot';
 export * from './lib/component-monitoring';
 export * from './lib/component-register';
+export * from './lib/craft-register-for';
+export * from './lib/craft-register-for-runtime';
 export * from './lib/fn-wrapper';
 export {
   executeGeneratorCompatibleFactory,
   type ResolveGeneratorResult,
+} from './lib/craft-generator-runtime';
+export {
+  provideServiceYieldWrapper,
+  SERVICE_YIELD_WRAPPER,
+  type ServiceYieldContext,
+  type ServiceYieldWrapper,
 } from './lib/craft-generator-runtime';
 export {
   driveCraftProgramAsync,

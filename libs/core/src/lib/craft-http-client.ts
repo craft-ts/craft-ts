@@ -659,6 +659,7 @@ function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(
 ): CraftHttpTrackedRequest<Request> {
   return {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
+    name: 'CraftHttpClient',
     scope: 'global',
     resolve: (injector) => {
       const override = injector

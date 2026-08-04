@@ -9,6 +9,7 @@ import type {
   YieldableMethod,
   NamedYieldableValue,
   CatchTagExhaustiveCodesCheck,
+  CraftRegistrationTarget,
 } from '@craft-ng/core';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ng/core';
 import type { YIELDABLE_VALUE } from '@craft-ng/core';
@@ -285,6 +286,11 @@ export type TemplateDecorator = (
   baseTemplate: ComponentTemplate<any>,
 ) => ComponentTemplate<any>;
 
+type DirectiveInstance<Logic extends LogicDecorator> = ReturnType<Logic> extends
+  ComponentFactory
+  ? FactoryContext<ReturnType<Logic>>
+  : unknown;
+
 export const CRAFT_DIRECTIVE = Symbol('craft-directive');
 declare const CRAFT_DIRECTIVE_DEPS: unique symbol;
 
@@ -294,7 +300,11 @@ export interface CraftDirective<
     baseTemplate: ComponentTemplate<any>,
   ) => any = TemplateDecorator,
   TemplateDependencies extends object = {},
-> {
+> extends CraftRegistrationTarget<
+    string,
+    'directive',
+    DirectiveInstance<Logic>
+  > {
   readonly [CRAFT_DIRECTIVE]: {
     readonly name: string;
     readonly meta: DirectiveMeta;
@@ -357,6 +367,7 @@ export interface StyleOwner {
   readonly name: string;
   readonly styles?: string | readonly string[];
   readonly definition?: object;
+  readonly registrationTarget?: unknown;
 }
 
 export interface ComponentDefinition<Context = unknown> {
@@ -895,7 +906,9 @@ export interface CraftComponent<
   Name extends string = string,
   InitializationExceptions extends string = string,
   ContentRequirements extends object = {},
-> extends ComponentDepsCarrier<ComponentDeps> {
+> extends
+    ComponentDepsCarrier<ComponentDeps>,
+    CraftRegistrationTarget<Name, 'component', FactoryContext<Factory>> {
   <CallProps extends ComponentCallProps<Props> = ComponentCallProps<Props>>(
     ...args: keyof Props extends never
       ? [

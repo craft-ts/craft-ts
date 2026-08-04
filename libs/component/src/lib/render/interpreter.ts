@@ -24,9 +24,11 @@ import {
 import {
   CraftGenShortCircuit,
   CRAFT_SERVICE_PROVIDER_BRAND,
+  ComponentRegister,
   craftEffect,
   craftLazy,
   executeYieldable,
+  HOST_TAG_LIST,
   isCraftException,
   isCraftGenShortCircuit,
   isGeneratorFunction,
@@ -34,6 +36,8 @@ import {
   isYieldableValue,
   isYieldableMethod,
   toYieldable,
+  ɵfallbackComponentRegister,
+  ɵregisterCraftTarget,
   type CraftServiceProvider,
   type AnyCraftException,
   YIELDABLE_VALUE,
@@ -639,6 +643,7 @@ class CraftDirectiveRenderedNode implements RenderedNode {
   readonly kind = 'directive';
   private readonly view: FragmentRenderedNode;
   private readonly styleReleases: (() => void)[];
+  private readonly registrationReleases: (() => void)[];
 
   constructor(
     private node: CraftDirectiveNode,
@@ -655,6 +660,19 @@ class CraftDirectiveRenderedNode implements RenderedNode {
       context,
       owners,
       context.ownerScope ?? '',
+    );
+    this.registrationReleases = node.directives.map((directive) =>
+      ɵregisterCraftTarget(
+        context.injector,
+        directive,
+        context.componentContext,
+        allocateCraftHostName(
+          context.injector,
+          'directive',
+          directive[CRAFT_DIRECTIVE].name,
+        ),
+        false,
+      ),
     );
     this.view = createFragment(
       parent,
@@ -687,6 +705,7 @@ class CraftDirectiveRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
+    this.registrationReleases.forEach((release) => release());
     this.view.destroy();
     this.styleReleases.forEach((release) => release());
   }
@@ -1745,6 +1764,25 @@ class AngularRenderedNode implements RenderedNode {
   }
 }
 
+function componentHostName(injector: Injector, name: string): string {
+  const tags = injector.get(HOST_TAG_LIST, []);
+  const current = tags[tags.length - 1];
+  if (current?.startsWith('component:')) {
+    return current;
+  }
+  return allocateCraftHostName(injector, 'component', name);
+}
+
+function allocateCraftHostName(
+  injector: Injector,
+  kind: 'component' | 'directive',
+  name: string,
+): string {
+  const register =
+    injector.get(ComponentRegister, null) ?? ɵfallbackComponentRegister;
+  return `${kind}:${name}#${register.next()}`;
+}
+
 class ComponentRenderedNode implements RenderedNode {
   readonly kind = 'component';
   private environmentInjector: EnvironmentInjector | undefined;
@@ -1762,6 +1800,7 @@ class ComponentRenderedNode implements RenderedNode {
   private readonly templateOnly: boolean;
   private factoryContext: unknown;
   private latestTemplate: CraftNodeChildren = [];
+  private registrationReleases: (() => void)[] = [];
 
   constructor(
     private component: CraftComponent<object>,
@@ -1967,6 +2006,13 @@ class ComponentRenderedNode implements RenderedNode {
       );
     }
     this.factoryContext = factoryContext;
+    if (!composition) {
+      this.registerRuntimeTargets(
+        definition,
+        factoryContext,
+        this.environmentInjector!,
+      );
+    }
 
     this.view = createFragment(
       parent,
@@ -2094,6 +2140,8 @@ class ComponentRenderedNode implements RenderedNode {
     const environmentInjector = this.environmentInjector;
     let renderInjector = environmentInjector;
     onCleanup(() => {
+      this.registrationReleases.forEach((release) => release());
+      this.registrationReleases = [];
       this.composedTemplateEffect?.destroy();
       this.composedTemplateEffect = undefined;
       this.componentExceptionEffect?.destroy();
@@ -2190,6 +2238,7 @@ class ComponentRenderedNode implements RenderedNode {
           'Async component factories are not renderable directly. Move asynchronous work behind defer().',
         );
       }
+      this.registerRuntimeTargets(definition, factoryContext, renderInjector);
     } catch (error) {
       if (!isCraftGenShortCircuit(error)) {
         throw error;
@@ -2306,6 +2355,34 @@ class ComponentRenderedNode implements RenderedNode {
         ),
       );
     }
+  }
+
+  private registerRuntimeTargets(
+    definition: (typeof this.component)[typeof CRAFT_COMPONENT],
+    factoryContext: unknown,
+    injector: EnvironmentInjector,
+  ): void {
+    this.registrationReleases.forEach((release) => release());
+    this.registrationReleases = [
+      ɵregisterCraftTarget(
+        injector,
+        this.component,
+        factoryContext,
+        componentHostName(injector, definition.name),
+      ),
+      ...definition.styleOwners.flatMap((owner) =>
+        owner.registrationTarget === undefined
+          ? []
+          : [
+              ɵregisterCraftTarget(
+                injector,
+                owner.registrationTarget,
+                factoryContext,
+                allocateCraftHostName(injector, 'directive', owner.name),
+              ),
+            ],
+      ),
+    ];
   }
 
   private renderComposedTemplate(

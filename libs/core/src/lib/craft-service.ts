@@ -22,6 +22,7 @@ import {
   SERVICE_DEPENDENCY_ACCESS_MARKER,
   SERVICE_YIELD_REQUEST_MARKER,
 } from './craft-generator-runtime';
+import { registerResolvedService } from './craft-register-for-runtime';
 export {
   SERVICE_APP_START_REQUEST_MARKER,
   SERVICE_DEPENDENCY_ACCESS_MARKER,
@@ -1199,6 +1200,7 @@ export type ServiceYieldRequest<
   Metadata extends AnyServiceTrackingMetadata = AnyServiceTrackingMetadata,
 > = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
+  name: string;
   readonly [SERVICE_YIELD_METADATA]?: Metadata;
   scope: Scope;
   resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
@@ -3704,6 +3706,7 @@ function createYieldRequest(
 ): ServiceYieldRequest<ConcreteServiceScope, unknown> {
   return {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
+    name: definition.name,
     scope: definition.scope,
     resolve: (injector, hostScope) => {
       assertDependencyScope(hostScope, definition.scope, definition.name);
@@ -3721,7 +3724,11 @@ function resolveConcreteService(
 
   if (serviceOverride) {
     if (serviceOverride.kind === 'useValue') {
-      return markNamedReactiveProperties(serviceOverride.value);
+      return trackResolvedService(
+        definition,
+        injector,
+        markNamedReactiveProperties(serviceOverride.value),
+      );
     }
 
     if (
@@ -3741,12 +3748,20 @@ function resolveConcreteService(
       );
     }
 
-    return markNamedReactiveProperties(serviceOverride.instance);
+    return trackResolvedService(
+      definition,
+      injector,
+      markNamedReactiveProperties(serviceOverride.instance),
+    );
   }
 
   if (definition.scope === 'function') {
-    return markNamedReactiveProperties(
-      createConcreteServiceInstance(definition, injector, bindings),
+    return trackResolvedService(
+      definition,
+      injector,
+      markNamedReactiveProperties(
+        createConcreteServiceInstance(definition, injector, bindings),
+      ),
     );
   }
 
@@ -3758,7 +3773,27 @@ function resolveConcreteService(
     definition.initialBindings = bindings;
   }
 
-  return markNamedReactiveProperties(injector.get(definition.token!));
+  return trackResolvedService(
+    definition,
+    injector,
+    markNamedReactiveProperties(injector.get(definition.token!)),
+  );
+}
+
+function trackResolvedService(
+  definition: ConcreteRuntimeDefinition,
+  injector: Injector,
+  value: unknown,
+): unknown {
+  const hostTags = injector.get(ɵHOST_TAG_LIST, []);
+  registerResolvedService(
+    injector,
+    definition.name,
+    value,
+    hostTags[hostTags.length - 1] ?? `service:${definition.name}`,
+    definition.scope,
+  );
+  return value;
 }
 
 function getServiceRuntimeOverride(

@@ -1,4 +1,7 @@
-import type { CraftComponentDependencies } from '@craft-ng/core';
+import {
+  CRAFT_REGISTRATION_TARGET,
+  type CraftComponentDependencies,
+} from '@craft-ng/core';
 import {
   CRAFT_COMPONENT,
   CRAFT_DIRECTIVE,
@@ -210,6 +213,11 @@ function createCraftComponent<
     enumerable: false,
   });
 
+  Object.defineProperty(craftComponent, CRAFT_REGISTRATION_TARGET, {
+    value: { kind: 'component', name: definition.name },
+    enumerable: false,
+  });
+
   Object.defineProperty(craftComponent, 'pipe', {
     value: (
       ...directives: {
@@ -256,6 +264,7 @@ function createCraftComponent<
               name: resolvedDirective[CRAFT_DIRECTIVE].name,
               styles: resolvedDirective[CRAFT_DIRECTIVE].meta.styles,
               definition: resolvedDirective[CRAFT_DIRECTIVE],
+              registrationTarget: resolvedDirective,
             },
           ],
           scopeDefinition: currentDefinition.scopeDefinition,

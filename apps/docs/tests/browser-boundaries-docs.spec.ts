@@ -122,6 +122,7 @@ describe('docs sidebar', () => {
       { text: 'craftMethod', link: '/utils/craft-method' },
       { text: 'craftComputed', link: '/utils/craft-computed' },
       { text: 'craftEffect', link: '/utils/craft-effect' },
+      { text: 'craftRegisterFor', link: '/utils/craft-register-for' },
       { text: 'source$', link: '/utils/source$' },
       { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },
       { text: 'on$', link: '/utils/on$' },

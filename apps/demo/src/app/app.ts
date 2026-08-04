@@ -67,6 +67,7 @@ const NAV_GROUPS = [
         },
       ],
       ['craftService Counter', { to: 'craft-service/counter' }],
+      ['craftRegisterFor', { to: 'craft-service/register-for' }],
       ['craftService User Detail', { to: 'craft-service/user-detail' }],
     ],
   },

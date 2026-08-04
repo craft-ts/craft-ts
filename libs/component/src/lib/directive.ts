@@ -7,6 +7,7 @@ import {
   type TemplateDependencies,
   type TemplateDecorator,
 } from './types';
+import { CRAFT_REGISTRATION_TARGET } from '@craft-ng/core';
 
 type DirectiveTemplateDependencies<Template> = Template extends (
   ...args: any[]
@@ -39,6 +40,11 @@ export function craftDirective<
   const definition = { name, meta, logic, template, componentOperator };
   Object.defineProperty(directive, CRAFT_DIRECTIVE, {
     value: definition,
+    enumerable: false,
+  });
+
+  Object.defineProperty(directive, CRAFT_REGISTRATION_TARGET, {
+    value: { kind: 'directive', name },
     enumerable: false,
   });
 

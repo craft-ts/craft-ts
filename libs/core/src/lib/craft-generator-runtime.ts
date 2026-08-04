@@ -1,4 +1,9 @@
-import { Injector, runInInjectionContext } from '@angular/core';
+import {
+  Injector,
+  InjectionToken,
+  runInInjectionContext,
+  type Provider,
+} from '@angular/core';
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
@@ -16,6 +21,34 @@ export const SERVICE_TRACKED_DEPS_REQUEST_MARKER = Symbol(
   'service-tracked-deps-request-marker',
 );
 export const GUARD_AWAIT_REQUEST_MARKER = Symbol('guard-await-request-marker');
+
+export type ServiceYieldContext = Readonly<{
+  name: string;
+  scope: ConcreteServiceScope;
+  hostScope: ConcreteServiceScope;
+  injector: Injector;
+  resolve(): unknown;
+}>;
+
+export type ServiceYieldWrapper = (
+  context: ServiceYieldContext,
+  next: () => Generator<unknown, unknown, unknown>,
+) => Generator<unknown, unknown, unknown>;
+
+export const SERVICE_YIELD_WRAPPER = new InjectionToken<
+  readonly ServiceYieldWrapper[]
+>('SERVICE_YIELD_WRAPPER', {
+  providedIn: 'root',
+  factory: () => [],
+});
+
+/** Registers a wrapper around every Craft service yield below the provider. */
+export function provideServiceYieldWrapper(
+  _warning: string,
+  wrapper: ServiceYieldWrapper,
+): Provider {
+  return { provide: SERVICE_YIELD_WRAPPER, useValue: wrapper, multi: true };
+}
 
 type AppStartResult = Observable<unknown> | Promise<unknown> | void;
 
@@ -48,6 +81,7 @@ export type GeneratorCompatibleFactory<Factory, Yielded = never> =
 
 type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
+  name: string;
   scope: ConcreteServiceScope;
   resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
 }>;
@@ -146,7 +180,9 @@ export function runCraftGenerator({
     const yielded = current.value;
 
     if (isServiceYieldRequest(yielded)) {
-      current = iterator.next(yielded.resolve(injector, hostScope));
+      current = iterator.next(
+        resolveServiceYield(yielded, injector, hostScope),
+      );
       continue;
     }
 
@@ -267,7 +303,10 @@ export function resolveCraftGeneratorYield(
   hostScope: ConcreteServiceScope,
 ): { handled: true; value: unknown } | { handled: false } {
   if (isServiceYieldRequest(yielded)) {
-    return { handled: true, value: yielded.resolve(injector, hostScope) };
+    return {
+      handled: true,
+      value: resolveServiceYield(yielded, injector, hostScope),
+    };
   }
 
   if (isServiceDependencyAccessRequest(yielded)) {
@@ -279,6 +318,50 @@ export function resolveCraftGeneratorYield(
   }
 
   return { handled: false };
+}
+
+function resolveServiceYield(
+  request: RuntimeServiceYieldRequest,
+  injector: Injector,
+  hostScope: ConcreteServiceScope,
+): unknown {
+  const wrappers = injector.get(SERVICE_YIELD_WRAPPER);
+  const context: ServiceYieldContext = {
+    name: request.name,
+    scope: request.scope,
+    hostScope,
+    injector,
+    resolve: () => request.resolve(injector, hostScope),
+  };
+
+  if (wrappers.length === 0) {
+    return context.resolve();
+  }
+
+  let wrapped: () => Generator<unknown, unknown, unknown> = function* () {
+    return context.resolve();
+  };
+
+  for (let index = wrappers.length - 1; index >= 0; index -= 1) {
+    const wrapper = wrappers[index]!;
+    const next = wrapped;
+    wrapped = () =>
+      (function* () {
+        return yield* wrapper(context, next);
+      })();
+  }
+
+  return runCraftGenerator({
+    iterator: wrapped(),
+    injector,
+    hostScope,
+    invalidYieldErrorMessage:
+      'Service yield wrappers can only yield Craft dependencies.',
+    multipleAppStartErrorMessage:
+      'Service yield wrappers cannot declare multiple app-start hooks.',
+    onAppStartNotSupportedErrorMessage:
+      'Service yield wrappers cannot declare app-start hooks.',
+  }).value;
 }
 
 function isServiceYieldRequest(
