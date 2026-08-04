@@ -1,5 +1,6 @@
 import {
   assertInInjectionContext,
+  computed,
   DestroyRef,
   inject,
   Injector,
@@ -44,6 +45,17 @@ import {
 } from './craft-primitive-gen';
 import { markYieldableMethod } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
+import type { StandardSchemaV1 } from './standard-schema';
+import {
+  decideSchemaValidation,
+  type CraftSchema,
+  type SchemaValidationOperation,
+  type SchemaValidationPolicy,
+  type SchemaValidationStage,
+  parseSchema,
+  useSchemaValidationPolicy,
+} from './schema-validation';
+import type { AnyCraftException } from './craft-exception';
 
 type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
@@ -69,15 +81,41 @@ export type ExposedStateInsertions<Insertions> = MergeObject<
   }
 >;
 
-export type StateOutput<StateType, Insertions, Dependencies = {}> = MergeObject<
-  Signal<StateType>,
-  MergeObject<
-    BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
-    {
-      readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
-    }
-  >
->;
+export type StateOutput<
+  StateType,
+  Insertions,
+  Dependencies = {},
+  HasSchema extends boolean = false,
+> = HasSchema extends true
+  ? MergeObject<
+      Signal<StateType>,
+      MergeObject<
+        BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
+        {
+          readonly hasSchema: Signal<true>;
+          readonly hasException: Signal<boolean>;
+          readonly exceptions: Signal<{
+            list: AnyCraftException[];
+            parse: { state?: AnyCraftException };
+          }>;
+          readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
+        }
+      >
+    >
+  : MergeObject<
+      Signal<StateType>,
+      MergeObject<
+        BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
+        { readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies }
+      >
+    >;
+
+export type StateSchemaConfig<Schema extends CraftSchema> = {
+  readonly $self: StandardSchemaV1.InferInput<Schema> | Signal<StandardSchemaV1.InferInput<Schema>>;
+  readonly schema: Schema;
+  readonly providers?: readonly import('@angular/core').Provider[];
+  readonly schemaValidationPolicy?: SchemaValidationPolicy;
+};
 
 type StateConfig<State> = State | Signal<State>;
 type StateGeneratorFactory<State, Yielded = never> = () => Generator<
@@ -289,6 +327,15 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * reset.emit();
  * console.log(myState()); // 0
  */
+export function state<
+  Name extends string,
+  Schema extends CraftSchema,
+>(
+  name: Name,
+  stateConfig: StateSchemaConfig<Schema>,
+): CraftPrimitiveGen<
+  NamedPrimitive<Name, StateOutput<StandardSchemaV1.InferOutput<Schema>, {}, {}, true>>
+>;
 export function state<Name extends string, StateInput>(
   name: Name,
   stateConfig: StateInput,
@@ -355,7 +402,19 @@ function createStateRef<StateType>(
     '$self' in stateConfig;
   const extraProviders = hasSelfConfig ? (stateConfig.providers ?? []) : [];
   const rawConfig = hasSelfConfig ? stateConfig.$self : stateConfig;
+  const schema: CraftSchema | undefined = hasSelfConfig
+    ? stateConfig.schema
+    : undefined;
+  const localSchemaPolicy: SchemaValidationPolicy | undefined = hasSelfConfig
+    ? stateConfig.schemaValidationPolicy
+    : undefined;
   let baseInjector: Injector | undefined;
+  try {
+    baseInjector = inject(Injector);
+  } catch {
+    // A state can still be constructed outside an injection context when no
+    // generator/schema work needs the injector until it is read.
+  }
   const getBaseInjector = () =>
     (baseInjector ??= (() => {
       assertInInjectionContext(state);
@@ -363,7 +422,6 @@ function createStateRef<StateType>(
     })());
   let injector: Injector | undefined;
   const getInjector = () => {
-    assertInInjectionContext(state);
     injector ??= ɵcreateHostTaggedInjector(getBaseInjector(), `state:${name}`, [
       {
         provide: INSERTION_SNAPSHOT_REGISTRY,
@@ -377,28 +435,109 @@ function createStateRef<StateType>(
     ? executeStateFactory(rawConfig, undefined, getInjector)
     : rawConfig;
   const isSignalState = isSignal(resolvedStateConfig);
-  const stateSignal = isSignalState
+  let lastValidState: StateType | undefined;
+  let latestStateException: AnyCraftException | undefined;
+  let skipInitialSourceValidation = isSignalState;
+  const applySchema = (
+    value: unknown,
+    operation: SchemaValidationOperation,
+  ): StateType => {
+    if (!schema) {
+      return value as StateType;
+    }
+    if (operation === 'source' && skipInitialSourceValidation) {
+      skipInitialSourceValidation = false;
+      return lastValidState as StateType;
+    }
+
+    const parsed = parseSchema<StateType>(schema, value, {
+      primitive: 'state',
+      name,
+      stage: 'state' satisfies SchemaValidationStage,
+      operation,
+    });
+    if (parsed instanceof Promise) {
+      // Signals are synchronous. Async Standard Schema implementations are
+      // supported by the resource primitives, but cannot safely publish a
+      // pending state value.
+      return lastValidState as StateType;
+    }
+
+    const decision = decideSchemaValidation(
+      parsed,
+      {
+        primitive: 'state',
+        name,
+        stage: 'state',
+        operation,
+      },
+      useSchemaValidationPolicy(getInjector(), localSchemaPolicy),
+    );
+    if (!decision.accepted) {
+      latestStateException = decision.exception;
+      return lastValidState as StateType;
+    }
+
+    latestStateException = undefined;
+    lastValidState = decision.value as StateType;
+    return lastValidState;
+  };
+
+  const initialStateValue = applySchema(
+    isSignalState
+      ? (resolvedStateConfig as Signal<unknown>)()
+      : resolvedStateConfig,
+    'initial',
+  );
+  const stateSignal = !schema && isSignalState
     ? isWritableSignal(resolvedStateConfig)
       ? (resolvedStateConfig as WritableSignal<StateType>)
       : linkedSignal(() => (resolvedStateConfig as Signal<StateType>)())
-    : signal(resolvedStateConfig as StateType);
+    : isSignalState
+      ? linkedSignal(() =>
+          applySchema((resolvedStateConfig as Signal<unknown>)(), 'source'),
+        )
+      : signal(initialStateValue);
   const readonlyStateSignal =
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()
       : (stateSignal as Signal<StateType>);
   const originalSet = stateSignal.set.bind(stateSignal);
-  const originalUpdate = stateSignal.update.bind(stateSignal);
+  const setState = (newState: StateType) => {
+    if (!schema) {
+      originalSet(newState);
+      return;
+    }
+    const next = applySchema(newState, 'set');
+    if (!latestStateException) {
+      originalSet(next);
+    }
+  };
+  const updateState = (updateFn: (currentState: StateType) => StateType) => {
+    if (!schema) {
+      stateSignal.update(updateFn);
+      return;
+    }
+    const next = applySchema(updateFn(stateSignal()), 'update');
+    if (!latestStateException) {
+      originalSet(next);
+    }
+  };
+  if (schema) {
+    stateSignal.set = setState;
+    stateSignal.update = updateState;
+  }
   const insertionsOutput = (
     insertions as InsertionsStateFactory<StateType, {}>[]
   ).reduce(
     (acc, insert) => {
       const insertionContext = {
         state: readonlyStateSignal,
-        set: (newState: StateType) => originalSet(newState),
+        set: (newState: StateType) => setState(newState),
         update: (updateFn: (currentState: StateType) => StateType) =>
-          originalUpdate(updateFn),
+          updateState(updateFn),
         patch: (patchFn: (currentState: StateType) => Partial<StateType>) =>
-          originalUpdate((current) => ({
+          updateState((current) => ({
             ...current,
             ...patchFn(current),
           })),
@@ -494,6 +633,21 @@ function createStateRef<StateType>(
   const stateOutput = Object.assign(
     stateSignal,
     insertionsOutput.exposedInsertionsOutput,
+    {
+      hasSchema: signal(schema !== undefined),
+      exceptions: computed(() => {
+        // Keep the exception signal reactive when a derived source changes.
+        stateSignal();
+        const parse = latestStateException
+          ? { state: latestStateException }
+          : {};
+        return { list: Object.values(parse), parse };
+      }),
+      hasException: computed(() => {
+        stateSignal();
+        return latestStateException !== undefined;
+      }),
+    },
   ) as unknown as StateOutput<StateType, {}>;
 
   const snapshotRegistry = injector

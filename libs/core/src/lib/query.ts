@@ -13,6 +13,7 @@ import {
   runInInjectionContext,
   Signal,
   signal,
+  untracked,
   WritableSignal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -82,6 +83,15 @@ import {
 } from './primitive-resource-runtime-context';
 import { markYieldableMethod } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
+import {
+  createSchemaValidationRuntime,
+  type CraftSchema,
+  type SchemaInput,
+  type SchemaOutput,
+  type SchemaParseExceptions,
+  type SchemaValidationPolicy,
+  useSchemaValidationPolicy,
+} from './schema-validation';
 
 type QueryConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -284,6 +294,10 @@ type QueryConfig<
         preservePreviousValue?: () => boolean;
       }
   ) & {
+    methodSchema?: CraftSchema;
+    paramsSchema?: CraftSchema;
+    loaderSchema?: CraftSchema;
+    schemaValidationPolicy?: SchemaValidationPolicy;
     /**
      * A unique identifier for the resource, derived from the params.
      * It should be a string that uniquely identifies the resource based on the params.
@@ -362,7 +376,7 @@ export type ResourceLikeExceptions<
       'loader',
       GroupIdentifier
     >;
-  }>;
+  }> & (QueryException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
 export type ResourceByIdLikeExceptions<
@@ -398,7 +412,7 @@ export type ResourceByIdLikeExceptions<
         >
       >
     >;
-  }>;
+  }> & (QueryException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
 export type ResourceLikeQueryRef<
@@ -410,10 +424,16 @@ export type ResourceLikeQueryRef<
   Insertions,
   QueryException extends ResourceExceptionConstraints,
   Dependencies = {},
-> = {
+  HasSchema extends boolean = false,
+> = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceLike';
   kind: 'query';
-} & MergeObjects<
+} & (HasSchema extends true
+  ? {
+      set(value: Value): void;
+      update(updateFn: (current: Value) => Value): void;
+    }
+  : {}) & MergeObjects<
   [
     {
       readonly value: Signal<Value | undefined>;
@@ -454,7 +474,10 @@ export type ResourceByIdLikeQueryRef<
   GroupIdentifier,
   QueryException extends ResourceExceptionConstraints,
   Dependencies = {},
-> = { type: 'resourceByGroupLike'; kind: 'query' } & {
+  HasSchema extends boolean = false,
+> = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
+  type: 'resourceByGroupLike';
+  kind: 'query';
   readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
 } & {
   _resourceById: ResourceByIdRef<GroupIdentifier & string, Value, Params>;
@@ -505,6 +528,7 @@ export type QueryRef<
   GroupIdentifier,
   QueryExceptions extends ResourceExceptionConstraints,
   Dependencies = {},
+  HasSchema extends boolean = false,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeQueryRef<
       Value,
@@ -514,7 +538,8 @@ export type QueryRef<
       SourceParams,
       Insertions,
       QueryExceptions,
-      Dependencies
+      Dependencies,
+      HasSchema
     >
   : ResourceByIdLikeQueryRef<
       Value,
@@ -525,7 +550,8 @@ export type QueryRef<
       Insertions,
       GroupIdentifier,
       QueryExceptions,
-      Dependencies
+      Dependencies,
+      HasSchema
     >;
 
 export type QueryOutput<
@@ -537,6 +563,7 @@ export type QueryOutput<
   Insertions,
   QueryExceptions extends ResourceExceptionConstraints,
   Dependencies = {},
+  HasSchema extends boolean = false,
 > = QueryRef<
   State,
   Params,
@@ -546,7 +573,164 @@ export type QueryOutput<
   SourceParams,
   GroupIdentifier,
   QueryExceptions,
-  Dependencies
+  Dependencies,
+  HasSchema
+>;
+
+type SchemaQueryConfig<
+  MethodSchema extends CraftSchema,
+  ParamsSchema extends CraftSchema,
+  LoaderSchema extends CraftSchema,
+> = {
+  methodSchema: MethodSchema;
+  paramsSchema: ParamsSchema;
+  loaderSchema: LoaderSchema;
+  method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
+  loader: (
+    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  [key: string]: unknown;
+};
+
+export function query<
+  Name extends string,
+  MethodSchema extends CraftSchema,
+  ParamsSchema extends CraftSchema,
+  LoaderSchema extends CraftSchema,
+>(
+  name: Name,
+  queryConfig: SchemaQueryConfig<MethodSchema, ParamsSchema, LoaderSchema>,
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    SchemaOutput<LoaderSchema>,
+    SchemaOutput<ParamsSchema>,
+    SchemaInput<MethodSchema>,
+    SchemaOutput<ParamsSchema>,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function query<
+  Name extends string,
+  ParamsSchema extends CraftSchema,
+  ParamsState extends object | undefined,
+>(
+  name: Name,
+  queryConfig: {
+    paramsSchema: ParamsSchema;
+    params: (...args: never[]) => unknown;
+    loader: (
+      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+    ) => Promise<ParamsState> | ParamsState;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    ParamsState,
+    SchemaOutput<ParamsSchema>,
+    unknown,
+    SchemaOutput<ParamsSchema>,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function query<
+  Name extends string,
+  LoaderSchema extends CraftSchema,
+  LoaderParams,
+>(
+  name: Name,
+  queryConfig: {
+    loaderSchema: LoaderSchema;
+    params: () => LoaderParams;
+    loader: (
+      param: ResourceLoaderParams<LoaderParams>,
+    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    SchemaOutput<LoaderSchema>,
+    LoaderParams,
+    unknown,
+    LoaderParams,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function query<
+  Name extends string,
+  LoaderSchema extends CraftSchema,
+  LoaderParams,
+  LoaderArgs,
+>(
+  name: Name,
+  queryConfig: {
+    loaderSchema: LoaderSchema;
+    method: (args: LoaderArgs) => LoaderParams;
+    loader: (
+      param: ResourceLoaderParams<LoaderParams>,
+    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    SchemaOutput<LoaderSchema>,
+    LoaderParams,
+    LoaderArgs,
+    LoaderParams,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function query<
+  Name extends string,
+  MethodSchema extends CraftSchema,
+  Params,
+  State extends object | undefined,
+>(
+  name: Name,
+  queryConfig: {
+    methodSchema: MethodSchema;
+    method: (args: SchemaOutput<MethodSchema>) => Params;
+    loader: (
+      param: ResourceLoaderParams<Params>,
+    ) => Promise<State> | State;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  QueryOutput<
+    State,
+    Params,
+    SchemaInput<MethodSchema>,
+    Params,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
 >;
 
 export function query<
@@ -1052,6 +1236,61 @@ function createQueryRef<
   const methodParamsException = signal<AnyCraftException | undefined>(
     undefined,
   );
+  const schemaParseExceptions = signal<Record<string, AnyCraftException>>({});
+  const configuredSchemas = {
+    method: queryConfig.methodSchema as CraftSchema | undefined,
+    params: queryConfig.paramsSchema as CraftSchema | undefined,
+    loader: queryConfig.loaderSchema as CraftSchema | undefined,
+  };
+  const hasConfiguredSchema = Object.values(configuredSchemas).some(Boolean);
+  const setSchemaException = (
+    stage: string,
+    exception: AnyCraftException | undefined,
+  ) => {
+    untracked(() => {
+      schemaParseExceptions.update((current) => {
+        const next = { ...current };
+        if (exception) next[stage] = exception;
+        else delete next[stage];
+        return next;
+      });
+    });
+  };
+  const schemaPolicy = useSchemaValidationPolicy(
+    getInjector(),
+    queryConfig.schemaValidationPolicy as SchemaValidationPolicy | undefined,
+  );
+  const schemaValidation = {
+    method: createSchemaValidationRuntime({
+      schema: configuredSchemas.method,
+      primitive: 'query',
+      name,
+      policy: schemaPolicy,
+      setException: setSchemaException,
+    }),
+    params: createSchemaValidationRuntime({
+      schema: configuredSchemas.params,
+      primitive: 'query',
+      name,
+      policy: schemaPolicy,
+      setException: setSchemaException,
+    }),
+    loader: createSchemaValidationRuntime({
+      schema: configuredSchemas.loader,
+      primitive: 'query',
+      name,
+      policy: schemaPolicy,
+      setException: setSchemaException,
+    }),
+  };
+  const schemaParse = computed(() => {
+    const values = schemaParseExceptions();
+    return {
+      ...(values['method'] ? { method: values['method'] } : {}),
+      ...(values['params'] ? { params: values['params'] } : {}),
+      ...(values['loader'] ? { loader: values['loader'] } : {}),
+    };
+  });
 
   const getIdentifierFromParams = (params: unknown): string | undefined => {
     if (
@@ -1080,6 +1319,10 @@ function createQueryRef<
   const reactiveParamsException = computed(() => {
     if (hasMethodFn) {
       return undefined;
+    }
+    const schemaParamsException = schemaParseExceptions()['params'];
+    if (schemaParamsException) {
+      return enrichResourceException(schemaParamsException, { scope: 'params' });
     }
 
     if (isConnectedToSource && queryConfig.method) {
@@ -1130,9 +1373,8 @@ function createQueryRef<
 
   const wrappedParamsFn =
     'params' in queryConfig && queryConfig.params
-      ? (((...args: unknown[]) =>
-          sanitizeParamsResult(
-            executeGeneratorCompatibleFactory({
+      ? (((...args: unknown[]) => {
+            const value = executeGeneratorCompatibleFactory({
               factory: queryConfig.params as (
                 ...args: unknown[]
               ) => QueryParams,
@@ -1142,18 +1384,38 @@ function createQueryRef<
               invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-            }) as QueryParams,
-          )) as typeof queryConfig.params)
+            }) as QueryParams;
+            if (!configuredSchemas.params || isCraftException(value)) {
+              return sanitizeParamsResult(value);
+            }
+            const parsed = schemaValidation.params.parseSync<QueryParams>(
+              value,
+              'params',
+              'params',
+            );
+            return parsed.accepted ? parsed.value : undefined;
+          }) as typeof queryConfig.params)
       : undefined;
 
   const wrappedSourceParams =
     isConnectedToSource && queryConfig.method
       ? ((() =>
-          sanitizeParamsResult(
-            (
-              queryConfig.method as unknown as Signal<QueryParams | undefined>
-            )(),
-          )) as Signal<QueryParams | undefined>)
+          (() => {
+            const value = sanitizeParamsResult(
+              (
+                queryConfig.method as unknown as Signal<QueryParams | undefined>
+              )(),
+            );
+            if (!configuredSchemas.params || isCraftException(value)) {
+              return value;
+            }
+            const parsed = schemaValidation.params.parseSync<QueryParams>(
+              value,
+              'params',
+              'source',
+            );
+            return parsed.accepted ? parsed.value : undefined;
+          })()) as Signal<QueryParams | undefined>)
       : undefined;
 
   const wrappedLoader =
@@ -1207,9 +1469,31 @@ function createQueryRef<
               return undefined as QueryState;
             }
 
+            let validatedResult = result as QueryState;
+            if (configuredSchemas.loader) {
+              const parsed = await schemaValidation.loader.parseAsync<QueryState>(
+                result,
+                'loader',
+                'loader',
+                getIdentifierFromParams(rawParams),
+              );
+              if (!parsed.accepted) {
+                const exceptionId = getIdentifierFromParams(rawParams);
+                setLoaderException(
+                  enrichResourceException(parsed.exception, {
+                    scope: 'loader',
+                    identifier: exceptionId,
+                  }),
+                  exceptionId,
+                );
+                return undefined as QueryState;
+              }
+              validatedResult = parsed.value;
+            }
+
             const successId = getIdentifierFromParams(rawParams);
             setLoaderException(undefined, successId);
-            return result as QueryState;
+            return validatedResult;
           } catch (error) {
             if (!isCraftException(error)) {
               injector.get(TAKE_APP_SNAPSHOT, null)?.();
@@ -1223,8 +1507,8 @@ function createQueryRef<
 
   const wrappedStream =
     'stream' in queryConfig && queryConfig.stream
-      ? (((...args: unknown[]) =>
-          executeGeneratorCompatibleFactory({
+      ? (((...args: unknown[]) => {
+          const result = executeGeneratorCompatibleFactory({
             factory: queryConfig.stream as (...args: unknown[]) => unknown,
             thisArg: undefined,
             getInjector,
@@ -1232,7 +1516,46 @@ function createQueryRef<
             invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
             multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
             onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-          })) as typeof queryConfig.stream)
+          });
+          const wrapStreamSignal = (streamSignal: unknown) => {
+            if (!configuredSchemas.loader || !isSignal(streamSignal)) {
+              return streamSignal;
+            }
+            let lastValue: unknown;
+            return computed(() => {
+              const streamItem = (streamSignal as Signal<unknown>)();
+              if (
+                streamItem &&
+                typeof streamItem === 'object' &&
+                'error' in streamItem
+              ) {
+                return streamItem;
+              }
+              const rawValue =
+                streamItem &&
+                typeof streamItem === 'object' &&
+                'value' in streamItem
+                  ? streamItem.value
+                  : streamItem;
+              const parsed = schemaValidation.loader.parseSync<unknown>(
+                rawValue,
+                'loader',
+                'stream',
+              );
+              if (!parsed.accepted) {
+                return lastValue === undefined
+                  ? undefined
+                  : { value: lastValue };
+              }
+              lastValue = parsed.value;
+              return { value: lastValue };
+            });
+          };
+          if (result && typeof (result as Promise<unknown>).then === 'function') {
+            return Promise.resolve(result).then(wrapStreamSignal);
+          }
+          return wrapStreamSignal(result);
+        }) as typeof queryConfig.stream)
       : undefined;
 
   const resourceParamsSrc = isConnectedToSource
@@ -1290,8 +1613,31 @@ function createQueryRef<
           params: nonGroupedParams,
           equal: nonGroupedEqual,
           loader: wrappedLoader,
-          stream: wrappedStream,
-        } as ResourceOptions<any, any>);
+        stream: wrappedStream,
+      } as ResourceOptions<any, any>);
+
+  if (configuredSchemas.loader) {
+    const target = resourceTarget as any;
+    const originalResourceSet = target.set.bind(target);
+    const originalResourceUpdate = target.update.bind(target);
+    target.set = (value: unknown) => {
+      const parsed = schemaValidation.loader.parseSync<unknown>(
+        value,
+        'loader',
+        'set',
+      );
+      if (parsed.accepted) originalResourceSet(parsed.value);
+    };
+    target.update = (updateFn: (current: unknown) => unknown) =>
+      originalResourceUpdate((current: unknown) => {
+        const parsed = schemaValidation.loader.parseSync<unknown>(
+          updateFn(current),
+          'loader',
+          'update',
+        );
+        return parsed.accepted ? parsed.value : current;
+      });
+  }
 
   runInInjectionContext(getInjector(), () =>
     ɵobservePrimitiveResourceRuntimeContext(
@@ -1315,6 +1661,9 @@ function createQueryRef<
   const rawResourceStatus = (
     resourceTarget as unknown as ResourceRef<QueryState>
   ).status;
+  const publicExceptions = hasConfiguredSchema
+    ? computed(() => ({ ...exceptions(), parse: schemaParse() }))
+    : exceptions;
 
   const queryOutputWithoutInsertions = Object.assign(
     resourceTarget,
@@ -1357,8 +1706,11 @@ function createQueryRef<
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
                 exception: computed(() => selectExceptions().list[0]),
-                hasException: selectHasException,
-                exceptions: selectExceptions,
+      hasException: selectHasException,
+                hasSchema: signal(hasConfiguredSchema),
+                exceptions: hasConfiguredSchema
+                  ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                  : selectExceptions,
               });
             })();
           },
@@ -1374,20 +1726,38 @@ function createQueryRef<
             exception: computed(() => exceptions().list[0]),
           }),
       hasException,
-      exceptions,
+      hasSchema: signal(hasConfiguredSchema),
+      exceptions: publicExceptions,
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         QueryParams | undefined
       >,
       call: !hasMethodFn
         ? undefined
         : (arg: QueryArgsParams) => {
+            let methodArg: unknown = arg;
+            if (configuredSchemas.method) {
+              const parsedMethod = schemaValidation.method.parseSync<unknown>(
+                arg,
+                'method',
+                'method',
+              );
+              if (!parsedMethod.accepted) {
+                methodParamsException.set(
+                  enrichResourceException(parsedMethod.exception, {
+                    scope: 'params',
+                  }),
+                );
+                return parsedMethod.exception as QueryParams;
+              }
+              methodArg = parsedMethod.value;
+            }
             const result = executeGeneratorCompatibleFactory({
               factory: queryConfig.method as unknown as (
                 args: QueryArgsParams,
               ) => QueryParams,
               thisArg: undefined,
               getInjector,
-              args: [arg],
+              args: [methodArg as QueryArgsParams],
               invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
@@ -1400,12 +1770,30 @@ function createQueryRef<
               return result as QueryParams;
             }
 
+            let paramsResult = result as QueryParams;
+            if (configuredSchemas.params) {
+              const parsedParams = schemaValidation.params.parseSync<QueryParams>(
+                result,
+                'params',
+                'method',
+              );
+              if (!parsedParams.accepted) {
+                methodParamsException.set(
+                  enrichResourceException(parsedParams.exception, {
+                    scope: 'params',
+                  }),
+                );
+                return parsedParams.exception as QueryParams;
+              }
+              paramsResult = parsedParams.value;
+            }
+
             if (methodParamsException()) {
               methodParamsException.set(undefined);
             }
 
             if (isUsingIdentifier) {
-              const id = queryConfig.identifier?.(arg as any);
+              const id = queryConfig.identifier?.(paramsResult as any);
               (
                 resourceTarget as ResourceByIdRef<
                   GroupIdentifier & string,
@@ -1418,8 +1806,8 @@ function createQueryRef<
             // resource request changes on every call.
             methodTriggerSeq.update((n) => n + 1);
             //@ts-expect-error if method is exposed params can not be of type (entity: ResourceRef<NoInfer<FromObjectState>>) => QueryParams
-            queryResourceParamsFnSignal.set(result as QueryParams);
-            return result;
+            queryResourceParamsFnSignal.set(paramsResult as QueryParams);
+            return paramsResult;
           },
     },
   );

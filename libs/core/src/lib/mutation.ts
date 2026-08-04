@@ -13,6 +13,7 @@ import {
   runInInjectionContext,
   Signal,
   signal,
+  untracked,
   WritableSignal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -54,6 +55,15 @@ import {
   createResourceExceptionsRuntime,
   enrichResourceException,
 } from './resource-exception';
+import {
+  createSchemaValidationRuntime,
+  type CraftSchema,
+  type SchemaValidationPolicy,
+  type SchemaParseExceptions,
+  type SchemaInput,
+  type SchemaOutput,
+  useSchemaValidationPolicy,
+} from './schema-validation';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
 import {
   createNamedPrimitiveGen,
@@ -386,7 +396,12 @@ type MutationConfig<
         >;
         stream?: never;
       }
-  );
+  ) & {
+    methodSchema?: CraftSchema;
+    paramsSchema?: CraftSchema;
+    loaderSchema?: CraftSchema;
+    schemaValidationPolicy?: SchemaValidationPolicy;
+  };
 
 type HasDefinedException<
   MutationException extends ResourceExceptionConstraints,
@@ -439,7 +454,7 @@ export type ResourceLikeMutationExceptions<
             'loader',
             GroupIdentifier
           >;
-        }>;
+        }> & (MutationException extends { parse: infer Parse } ? { parse: Parse } : {});
       }
     : {};
 
@@ -476,7 +491,7 @@ export type ResourceByIdLikeMutationExceptions<
         >
       >
     >;
-  }>;
+  }> & (MutationException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
 export type ResourceLikeMutationRef<
@@ -488,7 +503,8 @@ export type ResourceLikeMutationRef<
   Insertions,
   MutationException extends ResourceExceptionConstraints,
   Dependencies = {},
-> = {
+  HasSchema extends boolean = false,
+> = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceLike';
   kind: 'mutation';
 } & MergeObjects<
@@ -529,7 +545,10 @@ export type ResourceByIdLikeMutationRef<
   GroupIdentifier,
   MutationException extends ResourceExceptionConstraints,
   Dependencies = {},
-> = { type: 'resourceByGroupLike'; kind: 'mutation' } & {
+  HasSchema extends boolean = false,
+> = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
+  type: 'resourceByGroupLike';
+  kind: 'mutation';
   readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
 } & {
   _resourceById: ResourceByIdRef<GroupIdentifier & string, Value, Params>;
@@ -578,6 +597,7 @@ export type MutationRef<
   MutationExceptions extends
     ResourceExceptionConstraints = ResourceExceptionConstraints,
   Dependencies = {},
+  HasSchema extends boolean = false,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeMutationRef<
       Value,
@@ -587,7 +607,8 @@ export type MutationRef<
       SourceParams,
       Insertions,
       MutationExceptions,
-      Dependencies
+      Dependencies,
+      HasSchema
     >
   : ResourceByIdLikeMutationRef<
       Value,
@@ -598,7 +619,8 @@ export type MutationRef<
       Insertions,
       GroupIdentifier,
       MutationExceptions,
-      Dependencies
+      Dependencies,
+      HasSchema
     >;
 //     & {
 //   // ! Otherwise TS erases the types
@@ -615,6 +637,7 @@ export type MutationOutput<
   Insertions,
   MutationExceptions extends ResourceExceptionConstraints,
   Dependencies = {},
+  HasSchema extends boolean = false,
 > = MutationRef<
   StripCraftException<State>,
   StripCraftException<Params>,
@@ -624,7 +647,138 @@ export type MutationOutput<
   SourceParams,
   GroupIdentifier,
   MutationExceptions,
-  Dependencies
+  Dependencies,
+  HasSchema
+>;
+
+type SchemaMutationConfig<
+  MethodSchema extends CraftSchema,
+  ParamsSchema extends CraftSchema,
+  LoaderSchema extends CraftSchema,
+> = {
+  methodSchema: MethodSchema;
+  paramsSchema: ParamsSchema;
+  loaderSchema: LoaderSchema;
+  method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
+  loader: (
+    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  [key: string]: unknown;
+};
+
+export function mutation<
+  Name extends string,
+  MethodSchema extends CraftSchema,
+  ParamsSchema extends CraftSchema,
+  LoaderSchema extends CraftSchema,
+>(
+  name: Name,
+  mutationConfig: SchemaMutationConfig<
+    MethodSchema,
+    ParamsSchema,
+    LoaderSchema
+  >,
+): NamedCraftPrimitiveGen<
+  Name,
+  MutationOutput<
+    SchemaOutput<LoaderSchema>,
+    SchemaOutput<ParamsSchema>,
+    SchemaInput<MethodSchema>,
+    SchemaOutput<ParamsSchema>,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function mutation<
+  Name extends string,
+  ParamsSchema extends CraftSchema,
+  ParamsState,
+>(
+  name: Name,
+  mutationConfig: {
+    paramsSchema: ParamsSchema;
+    params: () => SchemaInput<ParamsSchema>;
+    loader: (
+      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+    ) => Promise<ParamsState> | ParamsState;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  MutationOutput<
+    ParamsState,
+    SchemaOutput<ParamsSchema>,
+    unknown,
+    SchemaOutput<ParamsSchema>,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function mutation<
+  Name extends string,
+  LoaderSchema extends CraftSchema,
+  LoaderParams,
+>(
+  name: Name,
+  mutationConfig: {
+    loaderSchema: LoaderSchema;
+    params: () => LoaderParams;
+    loader: (
+      param: ResourceLoaderParams<LoaderParams>,
+    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  MutationOutput<
+    SchemaOutput<LoaderSchema>,
+    LoaderParams,
+    unknown,
+    LoaderParams,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function mutation<
+  Name extends string,
+  MethodSchema extends CraftSchema,
+  Params,
+  State,
+>(
+  name: Name,
+  mutationConfig: {
+    methodSchema: MethodSchema;
+    method: (args: SchemaOutput<MethodSchema>) => Params;
+    loader: (
+      param: ResourceLoaderParams<Params>,
+    ) => Promise<State> | State;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  MutationOutput<
+    State,
+    Params,
+    SchemaInput<MethodSchema>,
+    Params,
+    unknown,
+    {},
+    ResourceExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
 >;
 
 export function mutation<
@@ -1112,6 +1266,61 @@ function createMutationRef<
   const methodParamsException = signal<AnyCraftException | undefined>(
     undefined,
   );
+  const schemaParseExceptions = signal<Record<string, AnyCraftException>>({});
+  const configuredSchemas = {
+    method: mutationConfig.methodSchema as CraftSchema | undefined,
+    params: mutationConfig.paramsSchema as CraftSchema | undefined,
+    loader: mutationConfig.loaderSchema as CraftSchema | undefined,
+  };
+  const hasConfiguredSchema = Object.values(configuredSchemas).some(Boolean);
+  const setSchemaException = (
+    stage: string,
+    exception: AnyCraftException | undefined,
+  ) => {
+    untracked(() => {
+      schemaParseExceptions.update((current) => {
+        const next = { ...current };
+        if (exception) next[stage] = exception;
+        else delete next[stage];
+        return next;
+      });
+    });
+  };
+  const schemaPolicy = useSchemaValidationPolicy(
+    getInjector(),
+    mutationConfig.schemaValidationPolicy as SchemaValidationPolicy | undefined,
+  );
+  const schemaValidation = {
+    method: createSchemaValidationRuntime({
+      schema: configuredSchemas.method,
+      primitive: 'mutation',
+      name,
+      policy: schemaPolicy,
+      setException: setSchemaException,
+    }),
+    params: createSchemaValidationRuntime({
+      schema: configuredSchemas.params,
+      primitive: 'mutation',
+      name,
+      policy: schemaPolicy,
+      setException: setSchemaException,
+    }),
+    loader: createSchemaValidationRuntime({
+      schema: configuredSchemas.loader,
+      primitive: 'mutation',
+      name,
+      policy: schemaPolicy,
+      setException: setSchemaException,
+    }),
+  };
+  const schemaParse = computed(() => {
+    const values = schemaParseExceptions();
+    return {
+      ...(values['method'] ? { method: values['method'] } : {}),
+      ...(values['params'] ? { params: values['params'] } : {}),
+      ...(values['loader'] ? { loader: values['loader'] } : {}),
+    };
+  });
 
   const getIdentifierFromParams = (params: unknown): string | undefined => {
     if (!isUsingIdentifier || !('identifier' in mutationConfig)) {
@@ -1136,6 +1345,10 @@ function createMutationRef<
   const reactiveParamsException = computed(() => {
     if (hasMethodFn) {
       return undefined;
+    }
+    const schemaParamsException = schemaParseExceptions()['params'];
+    if (schemaParamsException) {
+      return enrichResourceException(schemaParamsException, { scope: 'params' });
     }
 
     if (
@@ -1189,9 +1402,8 @@ function createMutationRef<
 
   const wrappedParamsFn =
     'params' in mutationConfig
-      ? (((...args: unknown[]) =>
-          sanitizeParamsResult(
-            executeGeneratorCompatibleFactory({
+      ? (((...args: unknown[]) => {
+          const value = executeGeneratorCompatibleFactory({
               factory: mutationConfig.params as (
                 ...args: unknown[]
               ) => MutationParams,
@@ -1202,20 +1414,37 @@ function createMutationRef<
               multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage:
                 MUTATION_APP_START_ERROR_MESSAGE,
-            }) as MutationParams,
-          )) as typeof mutationConfig.params)
+            }) as MutationParams;
+          if (!configuredSchemas.params || isCraftException(value)) {
+            return sanitizeParamsResult(value);
+          }
+          const parsed = schemaValidation.params.parseSync<MutationParams>(
+            value,
+            'params',
+            'params',
+          );
+          return parsed.accepted ? parsed.value : undefined;
+        }) as typeof mutationConfig.params)
       : undefined;
 
   const wrappedSourceParams =
     isConnectedToSource && 'method' in mutationConfig && mutationConfig.method
-      ? ((() =>
-          sanitizeParamsResult(
+      ? ((() => {
+          const value = sanitizeParamsResult(
             (
               mutationConfig.method as unknown as Signal<
                 MutationParams | undefined
               >
             )(),
-          )) as Signal<MutationParams | undefined>)
+          );
+          if (!configuredSchemas.params || isCraftException(value)) return value;
+          const parsed = schemaValidation.params.parseSync<MutationParams>(
+            value,
+            'params',
+            'source',
+          );
+          return parsed.accepted ? parsed.value : undefined;
+        }) as Signal<MutationParams | undefined>)
       : undefined;
 
   const wrappedLoader =
@@ -1270,9 +1499,31 @@ function createMutationRef<
               return undefined;
             }
 
+            let validatedResult = result;
+            if (configuredSchemas.loader) {
+              const parsed = await schemaValidation.loader.parseAsync<any>(
+                result,
+                'loader',
+                'loader',
+                getIdentifierFromParams(rawParams),
+              );
+              if (!parsed.accepted) {
+                const exceptionId = getIdentifierFromParams(rawParams);
+                setLoaderException(
+                  enrichResourceException(parsed.exception, {
+                    scope: 'loader',
+                    identifier: exceptionId,
+                  }),
+                  exceptionId,
+                );
+                return undefined;
+              }
+              validatedResult = parsed.value;
+            }
+
             const successId = getIdentifierFromParams(rawParams);
             setLoaderException(undefined, successId);
-            return result;
+            return validatedResult;
           } catch (error) {
             if (!isCraftException(error)) {
               injector.get(TAKE_APP_SNAPSHOT, null)?.();
@@ -1286,8 +1537,8 @@ function createMutationRef<
 
   const wrappedStream =
     'stream' in mutationConfig && mutationConfig.stream
-      ? (((...args: unknown[]) =>
-          executeGeneratorCompatibleFactory({
+      ? (((...args: unknown[]) => {
+          const result = executeGeneratorCompatibleFactory({
             factory: mutationConfig.stream as (...args: unknown[]) => unknown,
             thisArg: undefined,
             getInjector,
@@ -1296,7 +1547,46 @@ function createMutationRef<
             multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
             onAppStartNotSupportedErrorMessage:
               MUTATION_APP_START_ERROR_MESSAGE,
-          })) as typeof mutationConfig.stream)
+          });
+          const wrapStreamSignal = (streamSignal: unknown) => {
+            if (!configuredSchemas.loader || !isSignal(streamSignal)) {
+              return streamSignal;
+            }
+            let lastValue: unknown;
+            return computed(() => {
+              const streamItem = (streamSignal as Signal<unknown>)();
+              if (
+                streamItem &&
+                typeof streamItem === 'object' &&
+                'error' in streamItem
+              ) {
+                return streamItem;
+              }
+              const rawValue =
+                streamItem &&
+                typeof streamItem === 'object' &&
+                'value' in streamItem
+                  ? streamItem.value
+                  : streamItem;
+              const parsed = schemaValidation.loader.parseSync<unknown>(
+                rawValue,
+                'loader',
+                'stream',
+              );
+              if (!parsed.accepted) {
+                return lastValue === undefined
+                  ? undefined
+                  : { value: lastValue };
+              }
+              lastValue = parsed.value;
+              return { value: lastValue };
+            });
+          };
+          if (result && typeof (result as Promise<unknown>).then === 'function') {
+            return Promise.resolve(result).then(wrapStreamSignal);
+          }
+          return wrapStreamSignal(result);
+        }) as typeof mutationConfig.stream)
       : undefined;
 
   const resourceParamsSrc = isConnectedToSource
@@ -1341,6 +1631,29 @@ function createMutationRef<
         stream: wrappedStream,
       } as ResourceOptions<any, any>);
 
+  if (configuredSchemas.loader) {
+    const target = resourceTarget as any;
+    const originalResourceSet = target.set.bind(target);
+    const originalResourceUpdate = target.update.bind(target);
+    target.set = (value: unknown) => {
+      const parsed = schemaValidation.loader.parseSync<unknown>(
+        value,
+        'loader',
+        'set',
+      );
+      if (parsed.accepted) originalResourceSet(parsed.value);
+    };
+    target.update = (updateFn: (current: unknown) => unknown) =>
+      originalResourceUpdate((current: unknown) => {
+        const parsed = schemaValidation.loader.parseSync<unknown>(
+          updateFn(current),
+          'loader',
+          'update',
+        );
+        return parsed.accepted ? parsed.value : current;
+      });
+  }
+
   runInInjectionContext(getInjector(), () =>
     ɵobservePrimitiveResourceRuntimeContext(
       isUsingIdentifier
@@ -1360,6 +1673,9 @@ function createMutationRef<
   const rawResourceStatus = (
     resourceTarget as unknown as ResourceRef<MutationState>
   ).status;
+  const publicExceptions = hasConfiguredSchema
+    ? computed(() => ({ ...exceptions(), parse: schemaParse() }))
+    : exceptions;
 
   if (!isUsingIdentifier) {
     Object.assign(resourceTarget, {
@@ -1413,7 +1729,10 @@ function createMutationRef<
                 ),
                 exception: computed(() => selectExceptions().list[0]),
                 hasException: selectHasException,
-                exceptions: selectExceptions,
+                hasSchema: signal(hasConfiguredSchema),
+                exceptions: hasConfiguredSchema
+                  ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                  : selectExceptions,
               });
             })();
           },
@@ -1431,7 +1750,8 @@ function createMutationRef<
             exception: computed(() => exceptions().list[0]),
           }),
       hasException,
-      exceptions,
+      hasSchema: signal(hasConfiguredSchema),
+      exceptions: publicExceptions,
       resourceParamsSrc: resourceParamsSrc as WritableSignal<
         MutationParams | undefined
       >,
@@ -1440,6 +1760,23 @@ function createMutationRef<
         ('method' in mutationConfig && isSignal(mutationConfig.method))
           ? undefined
           : (arg: MutationArgsParams) => {
+              let methodArg: unknown = arg;
+              if (configuredSchemas.method) {
+                const parsedMethod = schemaValidation.method.parseSync<unknown>(
+                  arg,
+                  'method',
+                  'method',
+                );
+                if (!parsedMethod.accepted) {
+                  methodParamsException.set(
+                    enrichResourceException(parsedMethod.exception, {
+                      scope: 'params',
+                    }),
+                  );
+                  return parsedMethod.exception as MutationParams;
+                }
+                methodArg = parsedMethod.value;
+              }
               const result =
                 'method' in mutationConfig
                   ? executeGeneratorCompatibleFactory({
@@ -1448,7 +1785,7 @@ function createMutationRef<
                       ) => MutationParams,
                       thisArg: undefined,
                       getInjector,
-                      args: [arg],
+                      args: [methodArg as MutationArgsParams],
                       invalidYieldErrorMessage:
                         MUTATION_INVALID_YIELD_ERROR_MESSAGE,
                       multipleAppStartErrorMessage:
@@ -1465,6 +1802,24 @@ function createMutationRef<
                 return result as MutationParams;
               }
 
+              let paramsResult = result as MutationParams;
+              if (configuredSchemas.params) {
+                const parsedParams = schemaValidation.params.parseSync<MutationParams>(
+                  result,
+                  'params',
+                  'method',
+                );
+                if (!parsedParams.accepted) {
+                  methodParamsException.set(
+                    enrichResourceException(parsedParams.exception, {
+                      scope: 'params',
+                    }),
+                  );
+                  return parsedParams.exception as MutationParams;
+                }
+                paramsResult = parsedParams.value;
+              }
+
               if (methodParamsException()) {
                 methodParamsException.set(undefined);
               }
@@ -1472,9 +1827,9 @@ function createMutationRef<
               // resource request changes on every call.
               methodTriggerSeq.update((n) => n + 1);
               // make sure  mutationResourceParamsFnSignal.set(result as MutationParams); is set before calling addById
-              mutationResourceParamsFnSignal.set(result as MutationParams);
+              mutationResourceParamsFnSignal.set(paramsResult as MutationParams);
               if (isUsingIdentifier) {
-                const id = mutationConfig.identifier?.(arg as any);
+                const id = mutationConfig.identifier?.(paramsResult as any);
                 (
                   resourceTarget as ResourceByIdRef<
                     GroupIdentifier & string,
@@ -1483,7 +1838,7 @@ function createMutationRef<
                   >
                 ).addById(id as GroupIdentifier & string);
               }
-              return result;
+              return paramsResult;
             },
     },
   ) as unknown as MutationOutput<

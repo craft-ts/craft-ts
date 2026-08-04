@@ -12,6 +12,7 @@ import {
   runInInjectionContext,
   Signal,
   signal,
+  untracked,
   WritableSignal,
 } from '@angular/core';
 import { InsertionsResourcesFactory } from './query.core';
@@ -53,6 +54,15 @@ import {
   type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  createSchemaValidationRuntime,
+  type CraftSchema,
+  type SchemaValidationPolicy,
+  type SchemaParseExceptions,
+  type SchemaInput,
+  type SchemaOutput,
+  useSchemaValidationPolicy,
+} from './schema-validation';
 import {
   APP_SNAPSHOT_REGISTRY,
   INSERTION_SNAPSHOT_REGISTRY,
@@ -145,8 +155,10 @@ export type AsyncProcessRef<
   AsyncProcessExceptions extends
     AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
   Dependencies = {},
+  HasSchema extends boolean = false,
 > = MergeObjects<
   [
+    HasSchema extends true ? { readonly hasSchema: Signal<true> } : {},
     [unknown] extends [GroupIdentifier]
       ? {
           readonly value: Signal<Value | undefined>;
@@ -308,7 +320,12 @@ type AsyncProcessConfig<
         stream?: never;
         preservePreviousValue?: () => boolean;
       }
-  );
+  ) & {
+    methodSchema?: CraftSchema;
+    paramsSchema?: CraftSchema;
+    loaderSchema?: CraftSchema;
+    schemaValidationPolicy?: SchemaValidationPolicy;
+  };
 
 export type AsyncProcessExceptionConstraints = {
   params: AnyCraftException;
@@ -357,7 +374,7 @@ export type ResourceLikeAsyncProcessExceptions<
       'loader',
       GroupIdentifier
     >;
-  }>;
+  }> & (AsyncProcessException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
 export type ResourceByIdLikeAsyncProcessExceptions<
@@ -394,7 +411,7 @@ export type ResourceByIdLikeAsyncProcessExceptions<
         >
       >
     >;
-  }>;
+  }> & (AsyncProcessException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
 export type AsyncProcessOutput<
@@ -406,6 +423,7 @@ export type AsyncProcessOutput<
   Insertions,
   AsyncProcessExceptions extends AsyncProcessExceptionConstraints,
   Dependencies = {},
+  HasSchema extends boolean = false,
 > = AsyncProcessRef<
   StripCraftException<State>,
   ArgParams,
@@ -419,7 +437,138 @@ export type AsyncProcessOutput<
   SourceParams,
   GroupIdentifier,
   AsyncProcessExceptions,
-  Dependencies
+  Dependencies,
+  HasSchema
+>;
+
+type SchemaAsyncProcessConfig<
+  MethodSchema extends CraftSchema,
+  ParamsSchema extends CraftSchema,
+  LoaderSchema extends CraftSchema,
+> = {
+  methodSchema: MethodSchema;
+  paramsSchema: ParamsSchema;
+  loaderSchema: LoaderSchema;
+  method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
+  loader: (
+    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  [key: string]: unknown;
+};
+
+export function asyncProcess<
+  Name extends string,
+  MethodSchema extends CraftSchema,
+  ParamsSchema extends CraftSchema,
+  LoaderSchema extends CraftSchema,
+>(
+  name: Name,
+  config: SchemaAsyncProcessConfig<
+    MethodSchema,
+    ParamsSchema,
+    LoaderSchema
+  >,
+): NamedCraftPrimitiveGen<
+  Name,
+  AsyncProcessOutput<
+    SchemaOutput<LoaderSchema>,
+    SchemaOutput<ParamsSchema>,
+    SchemaInput<MethodSchema>,
+    SchemaOutput<ParamsSchema>,
+    unknown,
+    {},
+    AsyncProcessExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function asyncProcess<
+  Name extends string,
+  MethodSchema extends CraftSchema,
+  Params,
+  State extends object | undefined,
+>(
+  name: Name,
+  config: {
+    methodSchema: MethodSchema;
+    method: (args: SchemaOutput<MethodSchema>) => Params;
+    loader: (
+      param: ResourceLoaderParams<Params>,
+    ) => Promise<State> | State;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  AsyncProcessOutput<
+    State,
+    Params,
+    SchemaInput<MethodSchema>,
+    Params,
+    unknown,
+    {},
+    AsyncProcessExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function asyncProcess<
+  Name extends string,
+  ParamsSchema extends CraftSchema,
+  ParamsState extends object | undefined,
+>(
+  name: Name,
+  config: {
+    paramsSchema: ParamsSchema;
+    params: () => SchemaInput<ParamsSchema>;
+    loader: (
+      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+    ) => Promise<ParamsState> | ParamsState;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  AsyncProcessOutput<
+    ParamsState,
+    SchemaOutput<ParamsSchema>,
+    unknown,
+    SchemaOutput<ParamsSchema>,
+    unknown,
+    {},
+    AsyncProcessExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
+>;
+
+export function asyncProcess<
+  Name extends string,
+  LoaderSchema extends CraftSchema,
+  LoaderParams,
+>(
+  name: Name,
+  config: {
+    loaderSchema: LoaderSchema;
+    params: () => LoaderParams;
+    loader: (
+      param: ResourceLoaderParams<LoaderParams>,
+    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    [key: string]: unknown;
+  },
+): NamedCraftPrimitiveGen<
+  Name,
+  AsyncProcessOutput<
+    SchemaOutput<LoaderSchema>,
+    LoaderParams,
+    unknown,
+    LoaderParams,
+    unknown,
+    {},
+    AsyncProcessExceptionConstraints & { parse: SchemaParseExceptions },
+    {},
+    true
+  >
 >;
 
 /**
@@ -858,6 +1007,63 @@ function createAsyncProcessRef<
   const methodParamsException = signal<AnyCraftException | undefined>(
     undefined,
   );
+  const schemaParseExceptions = signal<Record<string, AnyCraftException>>({});
+  const configuredSchemas = {
+    method: AsyncProcessConfig.methodSchema as CraftSchema | undefined,
+    params: AsyncProcessConfig.paramsSchema as CraftSchema | undefined,
+    loader: AsyncProcessConfig.loaderSchema as CraftSchema | undefined,
+  };
+  const hasConfiguredSchema = Object.values(configuredSchemas).some(Boolean);
+  const setSchemaException = (
+    stage: string,
+    exception: AnyCraftException | undefined,
+  ) => {
+    untracked(() => {
+      schemaParseExceptions.update((current) => {
+        const next = { ...current };
+        if (exception) next[stage] = exception;
+        else delete next[stage];
+        return next;
+      });
+    });
+  };
+  const schemaPolicy = useSchemaValidationPolicy(
+    getInjector(),
+    AsyncProcessConfig.schemaValidationPolicy as
+      | SchemaValidationPolicy
+      | undefined,
+  );
+  const schemaValidation = {
+    method: createSchemaValidationRuntime({
+      schema: configuredSchemas.method,
+      primitive: 'asyncProcess',
+      name,
+      policy: schemaPolicy,
+      setException: setSchemaException,
+    }),
+    params: createSchemaValidationRuntime({
+      schema: configuredSchemas.params,
+      primitive: 'asyncProcess',
+      name,
+      policy: schemaPolicy,
+      setException: setSchemaException,
+    }),
+    loader: createSchemaValidationRuntime({
+      schema: configuredSchemas.loader,
+      primitive: 'asyncProcess',
+      name,
+      policy: schemaPolicy,
+      setException: setSchemaException,
+    }),
+  };
+  const schemaParse = computed(() => {
+    const values = schemaParseExceptions();
+    return {
+      ...(values['method'] ? { method: values['method'] } : {}),
+      ...(values['params'] ? { params: values['params'] } : {}),
+      ...(values['loader'] ? { loader: values['loader'] } : {}),
+    };
+  });
 
   const getIdentifierFromParams = (params: unknown): string | undefined => {
     if (!isUsingIdentifier || !('identifier' in AsyncProcessConfig)) {
@@ -882,6 +1088,10 @@ function createAsyncProcessRef<
   const reactiveParamsException = computed(() => {
     if (hasMethodFn) {
       return undefined;
+    }
+    const schemaParamsException = schemaParseExceptions()['params'];
+    if (schemaParamsException) {
+      return enrichResourceException(schemaParamsException, { scope: 'params' });
     }
 
     if (hasParamsFn) {
@@ -931,20 +1141,27 @@ function createAsyncProcessRef<
   });
 
   const wrappedSourceParams = isConnectedToSource
-    ? ((() =>
-        sanitizeParamsResult(
-          (
+    ? ((() => {
+          const value = sanitizeParamsResult(
+            (
             AsyncProcessConfig.method as unknown as Signal<
               AsyncProcessParams | undefined
             >
           )(),
-        )) as Signal<AsyncProcessParams | undefined>)
+          );
+          if (!configuredSchemas.params || isCraftException(value)) return value;
+          const parsed = schemaValidation.params.parseSync<AsyncProcessParams>(
+            value,
+            'params',
+            'source',
+          );
+          return parsed.accepted ? parsed.value : undefined;
+      }) as Signal<AsyncProcessParams | undefined>)
     : undefined;
 
   const wrappedParamsFn = hasParamsFn
-    ? ((() =>
-        sanitizeParamsResult(
-          executeGeneratorCompatibleFactory({
+    ? ((() => {
+        const value = executeGeneratorCompatibleFactory({
             factory: (
               AsyncProcessConfig as {
                 params: () => AsyncProcessParams;
@@ -957,8 +1174,17 @@ function createAsyncProcessRef<
             multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
             onAppStartNotSupportedErrorMessage:
               ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-          }) as AsyncProcessParams,
-        )) as () => AsyncProcessParams | undefined)
+          }) as AsyncProcessParams;
+        if (!configuredSchemas.params || isCraftException(value)) {
+          return sanitizeParamsResult(value);
+        }
+        const parsed = schemaValidation.params.parseSync<AsyncProcessParams>(
+          value,
+          'params',
+          'params',
+        );
+        return parsed.accepted ? parsed.value : undefined;
+      }) as () => AsyncProcessParams | undefined)
     : undefined;
 
   const wrappedLoader =
@@ -1014,9 +1240,31 @@ function createAsyncProcessRef<
               return undefined;
             }
 
+            let validatedResult = result;
+            if (configuredSchemas.loader) {
+              const parsed = await schemaValidation.loader.parseAsync<any>(
+                result,
+                'loader',
+                'loader',
+                getIdentifierFromParams(rawParams),
+              );
+              if (!parsed.accepted) {
+                const exceptionId = getIdentifierFromParams(rawParams);
+                setLoaderException(
+                  enrichResourceException(parsed.exception, {
+                    scope: 'loader',
+                    identifier: exceptionId,
+                  }),
+                  exceptionId,
+                );
+                return undefined;
+              }
+              validatedResult = parsed.value;
+            }
+
             const successId = getIdentifierFromParams(rawParams);
             setLoaderException(undefined, successId);
-            return result;
+            return validatedResult;
           } catch (error) {
             if (!isCraftException(error)) {
               injector.get(TAKE_APP_SNAPSHOT, null)?.();
@@ -1030,8 +1278,8 @@ function createAsyncProcessRef<
 
   const wrappedStream =
     'stream' in AsyncProcessConfig && AsyncProcessConfig.stream
-      ? (((...args: unknown[]) =>
-          executeGeneratorCompatibleFactory({
+      ? (((...args: unknown[]) => {
+          const result = executeGeneratorCompatibleFactory({
             factory: AsyncProcessConfig.stream as (
               ...args: unknown[]
             ) => unknown,
@@ -1042,7 +1290,46 @@ function createAsyncProcessRef<
             multipleAppStartErrorMessage: ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
             onAppStartNotSupportedErrorMessage:
               ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-          })) as typeof AsyncProcessConfig.stream)
+          });
+          const wrapStreamSignal = (streamSignal: unknown) => {
+            if (!configuredSchemas.loader || !isSignal(streamSignal)) {
+              return streamSignal;
+            }
+            let lastValue: unknown;
+            return computed(() => {
+              const streamItem = (streamSignal as Signal<unknown>)();
+              if (
+                streamItem &&
+                typeof streamItem === 'object' &&
+                'error' in streamItem
+              ) {
+                return streamItem;
+              }
+              const rawValue =
+                streamItem &&
+                typeof streamItem === 'object' &&
+                'value' in streamItem
+                  ? streamItem.value
+                  : streamItem;
+              const parsed = schemaValidation.loader.parseSync<unknown>(
+                rawValue,
+                'loader',
+                'stream',
+              );
+              if (!parsed.accepted) {
+                return lastValue === undefined
+                  ? undefined
+                  : { value: lastValue };
+              }
+              lastValue = parsed.value;
+              return { value: lastValue };
+            });
+          };
+          if (result && typeof (result as Promise<unknown>).then === 'function') {
+            return Promise.resolve(result).then(wrapStreamSignal);
+          }
+          return wrapStreamSignal(result);
+        }) as typeof AsyncProcessConfig.stream)
       : undefined;
 
   const resourceParamsSrc = isConnectedToSource
@@ -1092,6 +1379,29 @@ function createAsyncProcessRef<
         stream: wrappedStream,
       } as ResourceOptions<any, any>);
 
+  if (configuredSchemas.loader) {
+    const target = resourceTarget as any;
+    const originalResourceSet = target.set.bind(target);
+    const originalResourceUpdate = target.update.bind(target);
+    target.set = (value: unknown) => {
+      const parsed = schemaValidation.loader.parseSync<unknown>(
+        value,
+        'loader',
+        'set',
+      );
+      if (parsed.accepted) originalResourceSet(parsed.value);
+    };
+    target.update = (updateFn: (current: unknown) => unknown) =>
+      originalResourceUpdate((current: unknown) => {
+        const parsed = schemaValidation.loader.parseSync<unknown>(
+          updateFn(current),
+          'loader',
+          'update',
+        );
+        return parsed.accepted ? parsed.value : current;
+      });
+  }
+
   runInInjectionContext(getInjector(), () =>
     ɵobservePrimitiveResourceRuntimeContext(
       isUsingIdentifier
@@ -1111,6 +1421,9 @@ function createAsyncProcessRef<
   const rawResourceStatus = (
     resourceTarget as CraftResourceRef<AsyncProcesstate, AsyncProcessParams>
   ).status;
+  const publicExceptions = hasConfiguredSchema
+    ? computed(() => ({ ...exceptions(), parse: schemaParse() }))
+    : exceptions;
 
   const asyncOutput = Object.assign(
     resourceTarget,
@@ -1154,7 +1467,10 @@ function createAsyncProcessRef<
                 ),
                 exception: computed(() => selectExceptions().list[0]),
                 hasException: selectHasException,
-                exceptions: selectExceptions,
+                hasSchema: signal(hasConfiguredSchema),
+                exceptions: hasConfiguredSchema
+                  ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                  : selectExceptions,
               });
             })();
           },
@@ -1170,13 +1486,31 @@ function createAsyncProcessRef<
             exception: computed(() => exceptions().list[0]),
           }),
       hasException,
-      exceptions,
+      hasSchema: signal(hasConfiguredSchema),
+      exceptions: publicExceptions,
       ...(hasParamsFn
         ? { resourceParamsSrc }
         : {
             method: isSignal(AsyncProcessConfig.method)
               ? undefined
               : (arg: AsyncProcessArgsParams) => {
+                  let methodArg: unknown = arg;
+                  if (configuredSchemas.method) {
+                    const parsedMethod = schemaValidation.method.parseSync<unknown>(
+                      arg,
+                      'method',
+                      'method',
+                    );
+                    if (!parsedMethod.accepted) {
+                      methodParamsException.set(
+                        enrichResourceException(parsedMethod.exception, {
+                          scope: 'params',
+                        }),
+                      );
+                      return parsedMethod.exception as AsyncProcessParams;
+                    }
+                    methodArg = parsedMethod.value;
+                  }
                   const result = executeGeneratorCompatibleFactory({
                     factory: (
                       AsyncProcessConfig as {
@@ -1187,7 +1521,7 @@ function createAsyncProcessRef<
                     ).method,
                     thisArg: undefined,
                     getInjector,
-                    args: [arg],
+                    args: [methodArg as AsyncProcessArgsParams],
                     invalidYieldErrorMessage:
                       ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
                     multipleAppStartErrorMessage:
@@ -1200,6 +1534,24 @@ function createAsyncProcessRef<
                       enrichResourceException(result, { scope: 'params' }),
                     );
                     return result as AsyncProcessParams;
+                  }
+
+                  let paramsResult = result as AsyncProcessParams;
+                  if (configuredSchemas.params) {
+                    const parsedParams = schemaValidation.params.parseSync<AsyncProcessParams>(
+                      result,
+                      'params',
+                      'method',
+                    );
+                    if (!parsedParams.accepted) {
+                      methodParamsException.set(
+                        enrichResourceException(parsedParams.exception, {
+                          scope: 'params',
+                        }),
+                      );
+                      return parsedParams.exception as AsyncProcessParams;
+                    }
+                    paramsResult = parsedParams.value;
                   }
 
                   if (methodParamsException()) {
@@ -1219,10 +1571,8 @@ function createAsyncProcessRef<
                   // Bump before the set so both writes land in the same tick and
                   // the resource request changes on every call.
                   methodTriggerSeq.update((n) => n + 1);
-                  AsyncProcessResourceParamsFnSignal.set(
-                    result as AsyncProcessParams,
-                  );
-                  return result;
+                  AsyncProcessResourceParamsFnSignal.set(paramsResult);
+                  return paramsResult;
                 },
           }),
     },

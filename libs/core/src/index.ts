@@ -22,6 +22,8 @@ export * from './lib/source-from-event';
 export * from './lib/signal-source';
 export * from './lib/stacked-source';
 export * from './lib/state';
+export * from './lib/schema-validation';
+export type { StandardSchemaV1 } from './lib/standard-schema';
 export * from './lib/state-method-runtime-context';
 export * from './lib/primitive-method-runtime-context';
 export * from './lib/primitive-resource-runtime-context';
