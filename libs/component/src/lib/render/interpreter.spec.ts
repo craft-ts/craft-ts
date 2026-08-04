@@ -30,6 +30,7 @@ import {
   craftException,
   craftMethod,
   craftService,
+  HOST_TAG_LIST,
   mutation,
   provideCraftLazyLoadRetry,
   query,
@@ -134,6 +135,26 @@ describe('functional component interpreter', () => {
 
     mounted.destroy();
     expect(element.textContent).toBe('');
+  });
+
+  it('provides an automatic component host tag from the component name', () => {
+    const counter = craftComponent(
+      'AutomaticHostTag',
+      {},
+      () => ({ hostTags: inject(HOST_TAG_LIST) }),
+      ({ hostTags }) => p(hostTags.join('|')),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      counter,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(element.textContent).toMatch(/^component:AutomaticHostTag#\d+$/);
+    mounted.destroy();
   });
 
   it('projects named slots without a wrapper and keeps the declarative injector', () => {

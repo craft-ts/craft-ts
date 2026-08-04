@@ -38,7 +38,9 @@ export const CONTENT_STYLE_POLICY = Symbol('craft-content-style-policy');
 export const CONTENT_OUTPUT = Symbol('craft-content-output');
 export const CONTENT_REQUIREMENT = Symbol('craft-content-requirement');
 export const CONTENT_RENDERABLE = Symbol('craft-content-renderable');
-export const CONTENT_DECLARATION_CONTEXT = Symbol('craft-content-declaration-context');
+export const CONTENT_DECLARATION_CONTEXT = Symbol(
+  'craft-content-declaration-context',
+);
 export const PROJECTION_CONTRACT = Symbol('craft-projection-contract');
 export const CRAFT_TEMPLATE = Symbol('craft-template');
 
@@ -103,12 +105,14 @@ type ProjectTemplateSignalProperties<
   >;
 };
 
-type ProjectTemplateValue<Value, ContextMethod extends string> =
-  Value extends RenderableContent
+type ProjectTemplateValue<
+  Value,
+  ContextMethod extends string,
+> = Value extends RenderableContent
+  ? Value
+  : Value extends ProjectionUnit<any>
     ? Value
-    : Value extends ProjectionUnit<any>
-      ? Value
-      : Value extends YieldableMethod<infer Args, infer Result, infer Yielded>
+    : Value extends YieldableMethod<infer Args, infer Result, infer Yielded>
       ? Value extends NamedYieldableValue<
           infer _Name extends string,
           infer _Value
@@ -172,9 +176,8 @@ export type RenderableContent<
     readonly [CONTENT_RENDERABLE]: true;
   };
 
-export type ContentSlot<
-  Output extends CraftNodeChildren = CraftNodeChildren,
-> = RenderableContent<Output>;
+export type ContentSlot<Output extends CraftNodeChildren = CraftNodeChildren> =
+  RenderableContent<Output>;
 
 export type ContentOptions = {
   readonly allowContainerStyles?: boolean;
@@ -185,9 +188,8 @@ export type ContentRequirement = {
 };
 
 /** A content slot whose DOM shape is checked at each component call site. */
-export type RequiredContent<
-  Requirement extends ContentRequirement,
-> = RenderableContent & { readonly [CONTENT_REQUIREMENT]: Requirement };
+export type RequiredContent<Requirement extends ContentRequirement> =
+  RenderableContent & { readonly [CONTENT_REQUIREMENT]: Requirement };
 
 /**
  * Styles explicitement exposés par un composant à son contenu projeté.
@@ -200,7 +202,9 @@ export type RequiredContent<
  * styles peuvent affecter les nœuds DOM ordinaires du fragment, mais ne
  * traversent pas les frontières des composants Craft ou Angular imbriqués.
  */
-export type ContentStyles<SlotName extends string> = Partial<Record<SlotName, string>>;
+export type ContentStyles<SlotName extends string> = Partial<
+  Record<SlotName, string>
+>;
 
 /** Contraintes DOM statiques qu'un fragment projeté doit satisfaire. */
 export type ContentSelector = {
@@ -286,10 +290,10 @@ export type TemplateDecorator = (
   baseTemplate: ComponentTemplate<any>,
 ) => ComponentTemplate<any>;
 
-type DirectiveInstance<Logic extends LogicDecorator> = ReturnType<Logic> extends
-  ComponentFactory
-  ? FactoryContext<ReturnType<Logic>>
-  : unknown;
+type DirectiveInstance<Logic extends LogicDecorator> =
+  ReturnType<Logic> extends ComponentFactory
+    ? FactoryContext<ReturnType<Logic>>
+    : unknown;
 
 export const CRAFT_DIRECTIVE = Symbol('craft-directive');
 declare const CRAFT_DIRECTIVE_DEPS: unique symbol;
@@ -331,25 +335,27 @@ export type PropsFromContext<Context> = Simplify<{
     ? Key
     : Context[Key] extends RenderableContent
       ? Key
-    : ContentRequirementOf<Context[Key]> extends never
-      ? Context[Key] extends Output<(...args: any[]) => unknown>
-        ? Key
-        : never
-      : Key]: Context[Key] extends Input<infer Value>
+      : ContentRequirementOf<Context[Key]> extends never
+        ? Context[Key] extends Output<(...args: any[]) => unknown>
+          ? Key
+          : never
+        : Key]: Context[Key] extends Input<infer Value>
     ? InputValue<Value>
     : Context[Key] extends RenderableContent
       ? Context[Key]
-    : ContentRequirementOf<Context[Key]> extends never
-      ? Context[Key] extends Output<infer Handler>
-        ? Handler
-        : never
-      : Context[Key]
+      : ContentRequirementOf<Context[Key]> extends never
+        ? Context[Key] extends Output<infer Handler>
+          ? Handler
+          : never
+        : Context[Key];
 }>;
 
 export const CRAFT_COMPONENT = Symbol('craft-component');
 
+type ComponentProvider = Provider | Provider[];
+
 export interface ComponentMeta<
-  Providers extends readonly Provider[] = readonly Provider[],
+  Providers extends readonly ComponentProvider[] = readonly ComponentProvider[],
   SlotName extends string = string,
 > {
   readonly providers?: Providers;
@@ -745,13 +751,12 @@ type IsLogicInputObject<Value> = Value extends (...args: any[]) => any
     ? true
     : false;
 
-type LogicInputProps<Factory extends ComponentFactory> = Parameters<Factory> extends [
-  infer Input,
-]
-  ? IsLogicInputObject<Input> extends true
-    ? Simplify<Input & object>
-    : never
-  : never;
+type LogicInputProps<Factory extends ComponentFactory> =
+  Parameters<Factory> extends [infer Input]
+    ? IsLogicInputObject<Input> extends true
+      ? Simplify<Input & object>
+      : never
+    : never;
 
 export type PropsFromFactory<Factory extends ComponentFactory> = [
   LogicInputProps<Factory>,
@@ -774,23 +779,27 @@ type ProjectionOutputOf<Component> = Component extends {
   ? Output
   : never;
 
-export type ProjectionContractOf<Component> = ProjectionOutputOf<Component> extends {
-  readonly contract: infer Contract;
-}
-  ? Contract
-  : never;
+export type ProjectionContractOf<Component> =
+  ProjectionOutputOf<Component> extends {
+    readonly contract: infer Contract;
+  }
+    ? Contract
+    : never;
 
-type ProjectionKeyOf<Component> = ProjectionOutputOf<Component> extends {
-  readonly key: infer Key extends PropertyKey;
-}
-  ? Key
-  : never;
+type ProjectionKeyOf<Component> =
+  ProjectionOutputOf<Component> extends {
+    readonly key: infer Key extends PropertyKey;
+  }
+    ? Key
+    : never;
 
-export type ProjectionUnit<Contract = unknown, Key extends PropertyKey = PropertyKey> =
-  ComponentNode<any, any> & {
-    readonly key: Key;
-    readonly [PROJECTION_CONTRACT]?: Contract;
-  };
+export type ProjectionUnit<
+  Contract = unknown,
+  Key extends PropertyKey = PropertyKey,
+> = ComponentNode<any, any> & {
+  readonly key: Key;
+  readonly [PROJECTION_CONTRACT]?: Contract;
+};
 
 export type ProjectionSlot<Contract> = readonly ProjectionUnit<Contract>[];
 
@@ -798,23 +807,21 @@ export type ProjectionOf<Component> = [
   ProjectionContractOf<Component>,
 ] extends [never]
   ? never
-  : ProjectionUnit<
-      ProjectionContractOf<Component>,
-      ProjectionKeyOf<Component>
-    >;
+  : ProjectionUnit<ProjectionContractOf<Component>, ProjectionKeyOf<Component>>;
 
 type ComponentCallNode<
   CallProps extends object,
   ComponentDeps extends object,
   Component extends CraftComponent<any, ComponentDeps>,
   Factory extends ComponentFactory,
-> = FactoryContext<Factory> extends {
-  readonly contract: infer Contract;
-  readonly key: infer Key extends PropertyKey;
-}
-  ? ComponentNode<CallProps, ComponentDeps, Component> &
-      ProjectionUnit<Contract, Key>
-  : ComponentNode<CallProps, ComponentDeps, Component>;
+> =
+  FactoryContext<Factory> extends {
+    readonly contract: infer Contract;
+    readonly key: infer Key extends PropertyKey;
+  }
+    ? ComponentNode<CallProps, ComponentDeps, Component> &
+        ProjectionUnit<Contract, Key>
+    : ComponentNode<CallProps, ComponentDeps, Component>;
 
 type AppliedDirectiveFactory<
   Factory extends ComponentFactory,
@@ -906,8 +913,7 @@ export interface CraftComponent<
   Name extends string = string,
   InitializationExceptions extends string = string,
   ContentRequirements extends object = {},
-> extends
-    ComponentDepsCarrier<ComponentDeps>,
+> extends ComponentDepsCarrier<ComponentDeps>,
     CraftRegistrationTarget<Name, 'component', FactoryContext<Factory>> {
   <CallProps extends ComponentCallProps<Props> = ComponentCallProps<Props>>(
     ...args: keyof Props extends never
@@ -922,7 +928,18 @@ export interface CraftComponent<
   ): ComponentCallNode<
     CallProps,
     ComponentDeps,
-    CraftComponent<Props, ComponentDeps, Factory, Meta, RootFactory, TemplateDependencies, Template, Name, InitializationExceptions, ContentRequirements>,
+    CraftComponent<
+      Props,
+      ComponentDeps,
+      Factory,
+      Meta,
+      RootFactory,
+      TemplateDependencies,
+      Template,
+      Name,
+      InitializationExceptions,
+      ContentRequirements
+    >,
     Factory
   >;
   readonly [CRAFT_COMPONENT]: ComponentDefinition<unknown> & {

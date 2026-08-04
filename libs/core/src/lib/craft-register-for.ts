@@ -1,6 +1,4 @@
-import {
-  HOST_TAG_LIST,
-} from './host-tag';
+import { HOST_TAG_LIST } from './host-tag';
 import {
   getServiceMetaData,
   type GetServiceReferenceMeta,
@@ -18,10 +16,14 @@ import {
   type RegisterForSignal,
   type RegisterForTargetDescriptor,
 } from './craft-register-for-runtime';
-import { provideServiceYieldWrapper } from './craft-generator-runtime';
+import {
+  isGenerator,
+  provideServiceYieldWrapper,
+} from './craft-generator-runtime';
 import {
   assertInInjectionContext,
   inject,
+  InjectionToken,
   Injector,
   type Provider,
 } from '@angular/core';
@@ -39,6 +41,15 @@ export type RegisterForOptions = Readonly<{
   /** Track global services resolved below this register. Defaults to true. */
   includeGlobal?: boolean;
 }>;
+
+export type RegisterForExposureTokens<Value> = Readonly<{
+  /** The complete live signal for the selected register group. */
+  $self: RegisterForSignal<Value>;
+}>;
+
+export type RegisterForExposureSelector<Value, Exposed> = (
+  tokens: RegisterForExposureTokens<Value>,
+) => Exposed | Generator<unknown, Exposed, unknown>;
 
 type AnyRegisterTarget = ServiceReference | CraftRegistrationTarget;
 
@@ -63,6 +74,42 @@ type GroupKey<Name extends string> = Capitalize<Name>;
 
 type SignalForTarget<Target> = RegisterForSignal<TargetReference<Target>>;
 
+type RegisterForProjectionResult<Result> =
+  Result extends Generator<infer Yielded, infer Output, unknown>
+    ? { yielded: Yielded; output: Output }
+    : { yielded: never; output: Result };
+
+type RegisterForDirectValue<Value, Derived> = RegisterForSignal<Value> &
+  ([Derived] extends [never] ? {} : Derived);
+
+type RegisterForTargetHelper<Value, Derived = never> = {
+  (): Generator<never, RegisterForDirectValue<Value, Derived>, unknown>;
+  <Projection extends (tokens: RegisterForExposureTokens<Value>) => unknown>(
+    bindings: undefined,
+    expose: Projection,
+  ): Generator<
+    RegisterForProjectionResult<ReturnType<Projection>>['yielded'],
+    RegisterForProjectionResult<ReturnType<Projection>>['output'],
+    unknown
+  >;
+};
+
+type RegisterForAdditionalGroups<Targets extends readonly AnyRegisterTarget[]> =
+  Targets extends readonly [AnyRegisterTarget, ...infer Rest]
+    ? {
+        [Name in TargetNames<
+          readonly [Extract<Rest[number], AnyRegisterTarget>]
+        > as GroupKey<Name>]: RegisterForTargetHelper<
+          TargetReference<
+            TargetForKey<
+              Extract<Rest[number], AnyRegisterTarget>[],
+              GroupKey<Name>
+            >
+          >
+        >;
+      }
+    : Record<never, never>;
+
 type TargetForKey<
   Targets extends readonly AnyRegisterTarget[],
   Key extends string,
@@ -74,69 +121,217 @@ type TargetForKey<
     : never
   : never;
 
-type RegisterForGroups<Targets extends readonly AnyRegisterTarget[]> = {
+export type RegisterForGroups<Targets extends readonly AnyRegisterTarget[]> = {
   [Name in TargetNames<Targets> as GroupKey<Name>]: SignalForTarget<
     TargetForKey<Targets, GroupKey<Name>>
   >;
 };
 
-type RegisterForHelper<Targets extends readonly AnyRegisterTarget[]> = {
-  (): Generator<never, RegisterForGroups<Targets>, unknown>;
-} & {
-  [Name in TargetNames<Targets> as GroupKey<Name>]: () => Generator<
-    never,
-    SignalForTarget<TargetForKey<Targets, GroupKey<Name>>>,
-    unknown
-  >;
-};
+type RegisterForDerivedHelper<Derived> = [Derived] extends [never]
+  ? Record<never, never>
+  : {
+      [Name in Extract<keyof Derived, string>]: () => Generator<
+        never,
+        Derived[Name],
+        unknown
+      >;
+    };
+
+type RegisterForHelper<
+  Targets extends readonly AnyRegisterTarget[],
+  Derived = never,
+> = Targets extends readonly [infer Primary, ...unknown[]]
+  ? Primary extends AnyRegisterTarget
+    ? RegisterForTargetHelper<TargetReference<Primary>, Derived> &
+        RegisterForAdditionalGroups<Targets> &
+        RegisterForDerivedHelper<Derived>
+    : never
+  : never;
 
 export type CraftRegisterForApi<
+  RegistryName extends string,
   Targets extends readonly AnyRegisterTarget[],
-> = Readonly<{
-  RegisterFor: RegisterForHelper<Targets>;
-  provideRegisterFor: () => readonly Provider[];
-}>;
+  Derived = never,
+> = Readonly<
+  {
+    [Name in `RegisterFor${Capitalize<RegistryName>}`]: RegisterForHelper<
+      Targets,
+      Derived
+    >;
+  } & {
+    [Name in `provideRegisterFor${Capitalize<RegistryName>}`]: () => Provider[];
+  }
+>;
+
+export type RegisterForDerivedSelector<
+  Targets extends readonly AnyRegisterTarget[],
+  Derived extends object,
+> = (groups: RegisterForGroups<Targets>) => Derived;
 
 /**
  * Creates a typed, DI-scoped view of live Craft service/component/directive
  * instances. The returned helper is yieldable from Craft factories.
  */
 export function craftRegisterFor<
+  const RegistryName extends string,
+  const Targets extends readonly AnyRegisterTarget[],
+  const Derived extends object,
+>(
+  registryName: RegistryName,
+  targets: Targets,
+  derive: RegisterForDerivedSelector<Targets, Derived>,
+): CraftRegisterForApi<RegistryName, Targets, Derived>;
+export function craftRegisterFor<
+  const RegistryName extends string,
+  const Target extends AnyRegisterTarget,
+  const Derived extends object,
+>(
+  registryName: RegistryName,
+  target: Target,
+  derive: RegisterForDerivedSelector<readonly [Target], Derived>,
+): CraftRegisterForApi<RegistryName, readonly [Target], Derived>;
+export function craftRegisterFor<
+  const RegistryName extends string,
   const Targets extends readonly AnyRegisterTarget[],
 >(
+  registryName: RegistryName,
   targets: Targets,
-  options: RegisterForOptions = {},
-): CraftRegisterForApi<Targets> {
+  options?: RegisterForOptions,
+): CraftRegisterForApi<RegistryName, Targets>;
+export function craftRegisterFor<
+  const RegistryName extends string,
+  const Target extends AnyRegisterTarget,
+>(
+  registryName: RegistryName,
+  target: Target,
+  options?: RegisterForOptions,
+): CraftRegisterForApi<RegistryName, readonly [Target]>;
+export function craftRegisterFor(
+  registryName: string,
+  targetsOrTarget: readonly AnyRegisterTarget[] | AnyRegisterTarget,
+  optionsOrDerive:
+    | RegisterForOptions
+    | ((groups: Record<string, RegisterForSignal>) => object) = {},
+): CraftRegisterForApi<string, readonly AnyRegisterTarget[], object> {
+  const targets: readonly AnyRegisterTarget[] = Array.isArray(targetsOrTarget)
+    ? targetsOrTarget
+    : [targetsOrTarget];
+  return createCraftRegisterFor(registryName, targets, optionsOrDerive);
+}
+
+function createCraftRegisterFor(
+  registryName: string,
+  targets: readonly AnyRegisterTarget[],
+  optionsOrDerive:
+    | RegisterForOptions
+    | ((groups: Record<string, RegisterForSignal>) => object),
+): CraftRegisterForApi<string, readonly AnyRegisterTarget[], object> {
+  if (!registryName) {
+    throw new Error('craftRegisterFor requires a non-empty registry name.');
+  }
+  if (targets.length === 0) {
+    throw new Error('craftRegisterFor requires at least one target.');
+  }
+
   const descriptors = targets.map(toDescriptor);
   assertUniqueDescriptorKeys(descriptors);
+  const derive =
+    typeof optionsOrDerive === 'function' ? optionsOrDerive : undefined;
+  const options = typeof optionsOrDerive === 'function' ? {} : optionsOrDerive;
   const includeGlobal = options.includeGlobal ?? true;
-  const registryToken = REGISTER_FOR_REGISTRY;
+  const registryToken = new InjectionToken<RegisterForRegistry>(
+    `REGISTER_FOR_REGISTRY_${registryName}`,
+  );
+  const registerForName = `RegisterFor${capitalize(registryName)}`;
+  const provideRegisterForName = `provideRegisterFor${capitalize(
+    registryName,
+  )}`;
+  const derivedByInjector = new WeakMap<Injector, Record<string, unknown>>();
 
-  const all = function* () {
-    const registry = requireRegistry();
-    const groups = {} as Record<string, RegisterForSignal>;
-    for (const descriptor of descriptors) {
-      groups[descriptor.key] = registry.signalFor(descriptor.key);
-    }
-    return groups;
-  };
+  const createTargetHelper = (
+    descriptor: RegisterForTargetDescriptor,
+    exposeDerived: boolean,
+  ) =>
+    function* (
+      _bindings?: undefined,
+      expose?: (tokens: RegisterForExposureTokens<unknown>) => unknown,
+    ) {
+      const value = requireRegistry().signalFor(descriptor.key);
+      if (expose === undefined) {
+        return exposeDerived ? extendWithDerived(value) : value;
+      }
 
-  const helper = all as RegisterForHelper<Targets>;
-  for (const descriptor of descriptors) {
-    const targetHelper = function* () {
-      return requireRegistry().signalFor(descriptor.key);
+      const exposed = expose({ $self: value });
+      if (isGenerator(exposed)) {
+        return yield* exposed as Generator<unknown, unknown, unknown>;
+      }
+      return exposed;
     };
+
+  const helper = createTargetHelper(descriptors[0]!, true) as RegisterForHelper<
+    readonly [AnyRegisterTarget],
+    object
+  >;
+  for (const descriptor of descriptors.slice(1)) {
     Object.defineProperty(helper, descriptor.key, {
-      value: targetHelper,
+      value: createTargetHelper(descriptor, false),
       enumerable: false,
     });
   }
 
-  const provideRegisterFor = () => {
+  const registerFor = new Proxy(helper, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (
+        value !== undefined ||
+        typeof property !== 'string' ||
+        derive === undefined ||
+        property === 'then'
+      ) {
+        return value;
+      }
+
+      return function* () {
+        const derived = getDerivedForCurrentInjector();
+        if (!Object.prototype.hasOwnProperty.call(derived, property)) {
+          throw new Error(`Unknown RegisterFor property "${property}".`);
+        }
+        return derived[property];
+      };
+    },
+  }) as RegisterForHelper<readonly [AnyRegisterTarget], object>;
+
+  function extendWithDerived<Value>(
+    value: RegisterForSignal<Value>,
+  ): RegisterForDirectValue<Value, object> {
+    if (derive === undefined) {
+      return value as RegisterForDirectValue<Value, object>;
+    }
+
+    const derived = getDerivedForCurrentInjector();
+    return new Proxy(value, {
+      get(target, property, receiver) {
+        if (
+          typeof property === 'string' &&
+          Object.prototype.hasOwnProperty.call(derived, property)
+        ) {
+          return derived[property];
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    }) as RegisterForDirectValue<Value, object>;
+  }
+
+  const provideRegisterFor = (): Provider[] => {
     const registryProvider: Provider = {
       provide: registryToken,
       useFactory: () =>
         createRegisterForRegistry(descriptors, { includeGlobal }),
+    };
+    const registryCollectionProvider: Provider = {
+      provide: REGISTER_FOR_REGISTRY,
+      useExisting: registryToken,
+      multi: true,
     };
     const yieldWrapper = provideServiceYieldWrapper(
       'Register Craft service yields for craftRegisterFor.',
@@ -156,17 +351,53 @@ export function craftRegisterFor<
       },
     );
 
-    return [registryProvider, yieldWrapper] as const;
+    return [registryProvider, registryCollectionProvider, yieldWrapper];
   };
 
-  return { RegisterFor: helper, provideRegisterFor };
+  return {
+    [registerForName]: registerFor,
+    [provideRegisterForName]: provideRegisterFor,
+  } as unknown as CraftRegisterForApi<
+    string,
+    readonly AnyRegisterTarget[],
+    object
+  >;
+
+  function getDerivedForCurrentInjector(): Record<string, unknown> {
+    if (derive === undefined) {
+      return {};
+    }
+
+    const injector = currentInjector();
+    const cached = derivedByInjector.get(injector);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const groups = {} as Record<string, RegisterForSignal>;
+    const registry = requireRegistry();
+    for (const descriptor of descriptors) {
+      groups[descriptor.key] = registry.signalFor(descriptor.key);
+    }
+
+    const derived = derive(groups);
+    if (isGenerator(derived)) {
+      throw new Error(
+        'craftRegisterFor derived properties must be returned synchronously.',
+      );
+    }
+
+    const result = derived as Record<string, unknown>;
+    derivedByInjector.set(injector, result);
+    return result;
+  }
 
   function requireRegistry(): RegisterForRegistry {
     throwIfNoInjectionContext();
     const registry = currentInjector().get(registryToken, null);
     if (registry === null) {
       throw new Error(
-        'RegisterFor requires provideRegisterFor() in the current Craft injector.',
+        `${registerForName} requires ${provideRegisterForName}() in the current Craft injector.`,
       );
     }
     return registry;
@@ -179,9 +410,7 @@ function toDescriptor(target: AnyRegisterTarget): RegisterForTargetDescriptor {
     return {
       key: capitalize(service.name),
       matches(candidate) {
-        return (
-          isServiceCandidate(candidate) && candidate.name === service.name
-        );
+        return isServiceCandidate(candidate) && candidate.name === service.name;
       },
     };
   } catch {

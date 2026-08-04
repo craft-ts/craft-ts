@@ -35,6 +35,7 @@ import {
   markYieldableValue,
   isYieldableValue,
   isYieldableMethod,
+  provideHostName,
   toYieldable,
   ɵfallbackComponentRegister,
   ɵregisterCraftTarget,
@@ -1840,6 +1841,7 @@ class ComponentRenderedNode implements RenderedNode {
     if (!composition) {
       this.environmentInjector = createEnvironmentInjector(
         [
+          ...provideHostName(`component:${definition.name}`),
           ...(definition.meta.providers ?? []),
           {
             provide: ElementRef,
@@ -2125,6 +2127,7 @@ class ComponentRenderedNode implements RenderedNode {
     this.view.patchChildren([]);
     this.environmentInjector = createEnvironmentInjector(
       [
+        ...provideHostName(`component:${definition.name}`),
         ...(definition.meta.providers ?? []),
         ...(composition.providers ?? []),
         {

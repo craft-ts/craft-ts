@@ -1,9 +1,11 @@
-import { Injector } from '@angular/core';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { describe, expect, it } from 'vitest';
 import {
   CRAFT_REGISTRATION_TARGET,
   createRegisterForRegistry,
+  REGISTER_FOR_REGISTRY,
 } from './craft-register-for-runtime';
+import { craftRegisterFor } from './craft-register-for';
 import {
   provideServiceYieldWrapper,
   runCraftGenerator,
@@ -116,5 +118,116 @@ describe('craftRegisterFor runtime', () => {
     expect(registry.signalFor('Child')()).toEqual([
       { hostName: 'component:Child#1', ref: context },
     ]);
+  });
+
+  it('supports partial exposure through the live group signal', () => {
+    const target = (() => undefined) as unknown as {
+      readonly [CRAFT_REGISTRATION_TARGET]: {
+        readonly kind: 'component';
+        readonly name: 'Child';
+        readonly instance: unknown;
+      };
+    };
+    Object.defineProperty(target, CRAFT_REGISTRATION_TARGET, {
+      value: { kind: 'component', name: 'Child' },
+    });
+
+    const { RegisterForChild, provideRegisterForChild } = craftRegisterFor(
+      'Child',
+      [target],
+      ({ Child }) => ({
+        total: () => Child()?.length ?? 0,
+      }),
+    );
+    const injector = Injector.create({
+      providers: [provideRegisterForChild()],
+    });
+    const child = {};
+    injector
+      .get(REGISTER_FOR_REGISTRY)[0]!
+      .registerTarget(target, child, 'component:Child#1');
+
+    const exposed = runInInjectionContext(
+      injector,
+      () =>
+        runCraftGenerator({
+          iterator: (function* () {
+            return yield* RegisterForChild(undefined, ({ $self }) => ({
+              total: () => $self()?.length ?? 0,
+            }));
+          })(),
+          injector,
+          hostScope: 'function',
+          invalidYieldErrorMessage: 'invalid',
+          multipleAppStartErrorMessage: 'multiple',
+        }).value,
+    );
+
+    expect(exposed).toEqual({ total: expect.any(Function) });
+    expect((exposed as { total: () => number }).total()).toBe(1);
+
+    const direct = runInInjectionContext(
+      injector,
+      () =>
+        runCraftGenerator({
+          iterator: (function* () {
+            return yield* RegisterForChild();
+          })(),
+          injector,
+          hostScope: 'function',
+          invalidYieldErrorMessage: 'invalid',
+          multipleAppStartErrorMessage: 'multiple',
+        }).value,
+    );
+
+    expect(direct()).toHaveLength(1);
+    expect(direct.total()).toBe(1);
+
+    const derived = runInInjectionContext(
+      injector,
+      () =>
+        runCraftGenerator({
+          iterator: (function* () {
+            return yield* RegisterForChild.total();
+          })(),
+          injector,
+          hostScope: 'function',
+          invalidYieldErrorMessage: 'invalid',
+          multipleAppStartErrorMessage: 'multiple',
+        }).value,
+    );
+
+    expect(derived).toBeInstanceOf(Function);
+    expect((derived as () => number)()).toBe(1);
+  });
+
+  it('keeps multiple named registries independent in one injector', () => {
+    const target = (() => undefined) as unknown as {
+      readonly [CRAFT_REGISTRATION_TARGET]: {
+        readonly kind: 'component';
+        readonly name: 'Child';
+        readonly instance: unknown;
+      };
+    };
+    Object.defineProperty(target, CRAFT_REGISTRATION_TARGET, {
+      value: { kind: 'component', name: 'Child' },
+    });
+
+    const first = craftRegisterFor('First', [target]);
+    const second = craftRegisterFor('Second', [target]);
+    const injector = Injector.create({
+      providers: [
+        first.provideRegisterForFirst(),
+        second.provideRegisterForSecond(),
+      ],
+    });
+    const registries = injector.get(REGISTER_FOR_REGISTRY);
+
+    expect(registries).toHaveLength(2);
+    registries.forEach((registry) =>
+      registry.registerTarget(target, {}, 'component:Child#1'),
+    );
+    expect(registries[0]!.signalFor('Child')()).toHaveLength(1);
+    expect(registries[1]!.signalFor('Child')()).toHaveLength(1);
   });
 });

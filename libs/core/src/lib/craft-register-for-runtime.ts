@@ -19,7 +19,7 @@ export type CraftRegistrationTargetMetadata = Readonly<{
 export type CraftRegistrationTarget<
   Name extends string = string,
   Kind extends 'component' | 'directive' = 'component' | 'directive',
-Instance = unknown,
+  Instance = unknown,
 > = {
   readonly [CRAFT_REGISTRATION_TARGET]: CraftRegistrationTargetMetadata & {
     kind: Kind;
@@ -55,9 +55,12 @@ export type RegisterForRegistry = Readonly<{
 
 const EMPTY_CLEANUP = () => undefined;
 
-export const REGISTER_FOR_REGISTRY = new InjectionToken<RegisterForRegistry>(
-  'REGISTER_FOR_REGISTRY',
-);
+export const REGISTER_FOR_REGISTRY = new InjectionToken<
+  readonly RegisterForRegistry[]
+>('REGISTER_FOR_REGISTRY', {
+  providedIn: 'root',
+  factory: () => [],
+});
 
 export function createRegisterForRegistry(
   descriptors: readonly RegisterForTargetDescriptor[],
@@ -153,13 +156,13 @@ export function registerResolvedService(
   hostName: string,
   scope: ConcreteServiceScope,
 ): void {
-  const registry = injector.get(REGISTER_FOR_REGISTRY, null);
-  if (registry === null) return;
-
-  attachCleanup(
-    injector,
-    registry.registerService(name, ref, hostName, scope),
-  );
+  const registries = injector.get(REGISTER_FOR_REGISTRY, []);
+  for (const registry of registries) {
+    attachCleanup(
+      injector,
+      registry.registerService(name, ref, hostName, scope),
+    );
+  }
 }
 
 export function ɵregisterCraftTarget(
@@ -169,10 +172,11 @@ export function ɵregisterCraftTarget(
   hostName: string,
   autoCleanup = true,
 ): () => void {
-  const registry = injector.get(REGISTER_FOR_REGISTRY, null);
-  if (registry === null) return EMPTY_CLEANUP;
-
-  const cleanup = registry.registerTarget(target, ref, hostName);
+  const registries = injector.get(REGISTER_FOR_REGISTRY, []);
+  const cleanups = registries.map((registry) =>
+    registry.registerTarget(target, ref, hostName),
+  );
+  const cleanup = () => cleanups.forEach((release) => release());
   return autoCleanup ? attachCleanup(injector, cleanup) : cleanup;
 }
 

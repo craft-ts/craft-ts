@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import {
   button,
   craftComponent,
@@ -9,12 +9,7 @@ import {
   section,
   span,
 } from '@craft-ng/component';
-import {
-  componentMonitoring,
-  craftRegisterFor,
-  craftService,
-  provideHostName,
-} from '@craft-ng/core';
+import { craftRegisterFor, craftService, state } from '@craft-ng/core';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
@@ -37,10 +32,7 @@ const { Counter, provideCounter } = craftService(
 const CounterChild = craftComponent(
   'CounterChild',
   {
-    providers: [
-      provideCounter(),
-      provideHostName('component:CounterChild'),
-    ],
+    providers: [provideCounter()],
     styles: `
       :scope{display:grid;gap:.35rem;padding:.8rem;border:1px solid #cbd5e1;border-radius:.6rem;background:#f8fafc}
       .value{font-size:1.6rem;font-weight:700}
@@ -49,7 +41,6 @@ const CounterChild = craftComponent(
     `,
   },
   function* () {
-    componentMonitoring();
     return yield* Counter();
   },
   ({ value, increment, decrement }) =>
@@ -62,18 +53,19 @@ const CounterChild = craftComponent(
     ]),
 );
 
-const { RegisterFor, provideRegisterFor } = craftRegisterFor([
-  Counter,
-  CounterChild,
-]);
+const { RegisterForCounterChild, provideRegisterForCounterChild } =
+  craftRegisterFor('CounterChild', CounterChild, ({ CounterChild }) => ({
+    total: computed(() => CounterChild()?.length ?? 0), // todo change to total service
+    incrementAllChildCounter: () =>
+      CounterChild()?.forEach(({ ref }) => ref.increment()),
+    decrementAllChildCounter: () =>
+      CounterChild()?.forEach(({ ref }) => ref.decrement()),
+  }));
 
 const RegisterForDemo = craftComponent(
   'RegisterForDemo',
   {
-    providers: [
-      ...provideRegisterFor(),
-      provideHostName('component:RegisterForDemo'),
-    ],
+    providers: [provideRegisterForCounterChild()],
     styles: `
       :scope{display:grid;gap:1rem;padding:1.5rem;font-family:sans-serif}
       .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
@@ -83,56 +75,52 @@ const RegisterForDemo = craftComponent(
     `,
   },
   function* () {
-    componentMonitoring();
-    const childIds = signal([1, 2, 3]);
-    const counters = yield* RegisterFor.Counter();
-    const childComponents = yield* RegisterFor.CounterChild();
+    const { counterChildIds } = yield* state(
+      'counterChildIds',
+      [1, 2, 3],
+      ({ update }) => ({
+        addChild: () =>
+          update((ids) => [
+            ...ids,
+            (ids.length === 0 ? 0 : (ids[ids.length - 1] ?? 0)) + 1,
+          ]),
+        removeChild: () => update((ids) => ids.slice(0, -1)),
+      }),
+    );
+
+    const childComponents = yield* RegisterForCounterChild();
 
     return {
-      childIds,
-      counters,
+      counterChildIds,
       childComponents,
-      addChild: () =>
-        childIds.update((ids) => [
-          ...ids,
-          (ids.length === 0 ? 0 : (ids[ids.length - 1] ?? 0)) + 1,
-        ]),
-      removeChild: () => childIds.update((ids) => ids.slice(0, -1)),
-      incrementAll: () => counters()?.forEach(({ ref }) => ref.increment()),
-      decrementAll: () => counters()?.forEach(({ ref }) => ref.decrement()),
     };
   },
-  ({
-    childIds,
-    counters,
-    childComponents,
-    addChild,
-    removeChild,
-    incrementAll,
-    decrementAll,
-  }) =>
+  ({ counterChildIds, childComponents }) =>
     section([
       h2('craftRegisterFor : contrôler les counters enfants'),
       p(
         'Le parent observe les instances Counter créées dans ses enfants. Retirer un enfant retire aussi sa registration.',
       ),
       div({ class: 'toolbar' }, [
-        button({ click: incrementAll }, 'Incrémenter tous'),
-        button({ click: decrementAll }, 'Décrémenter tous'),
-        button({ click: addChild }, 'Ajouter un enfant'),
-        button({ click: removeChild }, 'Retirer un enfant'),
+        button(
+          { click: childComponents.incrementAllChildCounter },
+          'Incrémenter tous',
+        ),
+        button(
+          { click: childComponents.decrementAllChildCounter },
+          'Décrémenter tous',
+        ),
+        button({ click: counterChildIds.addChild }, 'Ajouter un enfant'),
+        button({ click: counterChildIds.removeChild }, 'Retirer un enfant'),
         span(
           { class: 'meta' },
           () =>
-            `services: ${counters()?.length ?? 0} · composants: ${childComponents()?.length ?? 0}`,
+            `services: ${childComponents.total()} · composants: ${childComponents.total()}`,
         ),
       ]),
-      div({ class: 'children' },
-        each(
-          childIds,
-          { track: (id) => id },
-          () => CounterChild({}),
-        ),
+      div(
+        { class: 'children' },
+        each(counterChildIds, { track: (id) => id }, () => CounterChild({})),
       ),
     ]),
 );
