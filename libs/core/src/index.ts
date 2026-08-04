@@ -53,6 +53,7 @@ export * from './lib/component-monitoring';
 export * from './lib/component-register';
 export * from './lib/craft-register-for';
 export * from './lib/craft-register-for-runtime';
+export * from './lib/craft-target-runtime';
 export * from './lib/fn-wrapper';
 export {
   executeGeneratorCompatibleFactory,

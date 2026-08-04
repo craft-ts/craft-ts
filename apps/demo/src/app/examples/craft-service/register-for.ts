@@ -1,4 +1,4 @@
-import { computed, signal } from '@angular/core';
+import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
@@ -14,18 +14,12 @@ import { craftRegisterFor, craftService, state } from '@craft-ng/core';
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
   function* () {
-    let value = 0;
-    const counter = signal(value);
-    const update = (delta: number) => {
-      value += delta;
-      counter.set(value);
-    };
+    const { counter } = yield* state('counter', 0, ({ update }) => ({
+      increment: () => update((v) => v + 1),
+      decrement: () => update((v) => v - 1),
+    }));
 
-    return {
-      value: counter,
-      increment: () => update(1),
-      decrement: () => update(-1),
-    };
+    return counter;
   },
 );
 
@@ -41,14 +35,15 @@ const CounterChild = craftComponent(
     `,
   },
   function* () {
-    return yield* Counter();
+    const counter = yield* Counter();
+    return { counter };
   },
-  ({ value, increment, decrement }) =>
+  ({ counter }) =>
     div([
-      span({ class: 'value' }, () => String(value())),
+      span({ class: 'value' }, () => counter()),
       div({ class: 'actions' }, [
-        button({ click: decrement }, '-'),
-        button({ click: increment }, '+'),
+        button({ click: counter.decrement }, '-'),
+        button({ click: counter.increment }, '+'),
       ]),
     ]),
 );
@@ -57,15 +52,23 @@ const { RegisterForCounterChild, provideRegisterForCounterChild } =
   craftRegisterFor('CounterChild', CounterChild, ({ CounterChild }) => ({
     total: computed(() => CounterChild()?.length ?? 0), // todo change to total service
     incrementAllChildCounter: () =>
-      CounterChild()?.forEach(({ ref }) => ref.increment()),
+      CounterChild()?.forEach(({ ref }) => ref.counter.increment()),
     decrementAllChildCounter: () =>
-      CounterChild()?.forEach(({ ref }) => ref.decrement()),
+      CounterChild()?.forEach(({ ref }) => ref.counter.decrement()),
   }));
+
+const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
+  'Counter',
+  Counter,
+  ({ Counter }) => ({
+    total: computed(() => Counter()?.length ?? 0), // todo change to total service
+  }),
+);
 
 const RegisterForDemo = craftComponent(
   'RegisterForDemo',
   {
-    providers: [provideRegisterForCounterChild()],
+    providers: [provideRegisterForCounterChild(), provideRegisterForCounter()],
     styles: `
       :scope{display:grid;gap:1rem;padding:1.5rem;font-family:sans-serif}
       .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
@@ -89,33 +92,35 @@ const RegisterForDemo = craftComponent(
     );
 
     const childComponents = yield* RegisterForCounterChild();
+    const counterTotal = yield* RegisterForCounter.total();
 
     return {
       counterChildIds,
       childComponents,
+      counterTotal,
     };
   },
-  ({ counterChildIds, childComponents }) =>
+  ({ counterChildIds, childComponents, counterTotal }) =>
     section([
-      h2('craftRegisterFor : contrôler les counters enfants'),
+      h2('craftRegisterFor: control child counters'),
       p(
-        'Le parent observe les instances Counter créées dans ses enfants. Retirer un enfant retire aussi sa registration.',
+        'The parent observes the Counter instances created in its children. Removing a child also removes its registration.',
       ),
       div({ class: 'toolbar' }, [
         button(
           { click: childComponents.incrementAllChildCounter },
-          'Incrémenter tous',
+          'Increment all',
         ),
         button(
           { click: childComponents.decrementAllChildCounter },
-          'Décrémenter tous',
+          'Decrement all',
         ),
-        button({ click: counterChildIds.addChild }, 'Ajouter un enfant'),
-        button({ click: counterChildIds.removeChild }, 'Retirer un enfant'),
+        button({ click: counterChildIds.addChild }, 'Add a child'),
+        button({ click: counterChildIds.removeChild }, 'Remove a child'),
         span(
           { class: 'meta' },
           () =>
-            `services: ${childComponents.total()} · composants: ${childComponents.total()}`,
+            `services: ${counterTotal()} · components: ${childComponents.total()}`,
         ),
       ]),
       div(

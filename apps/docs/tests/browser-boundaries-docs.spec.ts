@@ -123,6 +123,10 @@ describe('docs sidebar', () => {
       { text: 'craftComputed', link: '/utils/craft-computed' },
       { text: 'craftEffect', link: '/utils/craft-effect' },
       { text: 'craftRegisterFor', link: '/utils/craft-register-for' },
+      {
+        text: 'provideCraftTargetWrapper',
+        link: '/utils/provide-craft-target-wrapper',
+      },
       { text: 'source$', link: '/utils/source$' },
       { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },
       { text: 'on$', link: '/utils/on$' },

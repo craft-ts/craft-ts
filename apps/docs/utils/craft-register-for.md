@@ -299,6 +299,67 @@ Les entrées sont retirées automatiquement dans les deux cas : destruction du
 composant/directive, destruction de sa portée DI, ou remplacement d'une
 composition.
 
+## Wrapper DI des composants et directives
+
+Le runtime expose un pipeline de wrappers multi-providers pour personnaliser
+l'enregistrement de chaque composant ou directive créé. `craftRegisterFor`
+utilise lui-même ce mécanisme ; un autre registre peut donc utiliser le même
+point d'extension sans modifier l'interpréteur.
+
+```ts
+import { HOST_TAG_LIST, provideCraftTargetWrapper } from '@craft-ng/core';
+
+const provideTagBasedRegistration = provideCraftTargetWrapper(
+  'Warning: dependency injection here is not type-safe and may fail at runtime',
+  function* (context, next) {
+    const tags = context.injector.get(HOST_TAG_LIST, []);
+
+    return yield* next({
+      hostName:
+        tags.length === 0
+          ? context.hostName
+          : `${tags.join('/')}/${context.hostName}`,
+    });
+  },
+);
+```
+
+Le wrapper reçoit le contexte de création : `target`, `kind`, `name`, `ref`,
+`hostName` et `injector`. `next(...)` poursuit la chaîne et permet de modifier
+le `hostName` transmis aux wrappers suivants. L'identité (`target`, `kind`,
+`name`) et la référence (`ref`) restent immuables. `next(...)` retourne une fonction de
+libération, que le wrapper doit conserver s'il ajoute lui-même une ressource :
+
+```ts
+provideCraftTargetWrapper(
+  'Warning: dependency injection here is not type-safe and may fail at runtime',
+  function* (context, next) {
+    const audit = yield* AuditService();
+    audit.recordTarget(context.name);
+
+    const releaseNext = yield* next();
+    const stopObserving = observeTarget(context);
+
+    return () => {
+      stopObserving();
+      releaseNext();
+    };
+  },
+);
+```
+
+Pour un simple enrichissement du contexte, aucun cleanup manuel n'est
+nécessaire :
+
+```ts
+provideCraftTargetWrapper(
+  'Warning: dependency injection here is not type-safe and may fail at runtime',
+  function* (context, next) {
+    return yield* next({ hostName: `tag:${context.hostName}` });
+  },
+);
+```
+
 ## Wrapper de chaque yield de service
 
 `provideServiceYieldWrapper` est le point d'extension bas niveau utilisé par

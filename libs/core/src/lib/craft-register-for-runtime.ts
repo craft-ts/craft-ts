@@ -6,6 +6,7 @@ import {
   type Signal,
 } from '@angular/core';
 import type { ConcreteServiceScope } from './craft-service.shared';
+import { ɵrunCraftTargetWrappers } from './craft-target-runtime';
 
 export const CRAFT_REGISTRATION_TARGET = Symbol.for(
   '@craft-ng/core/craft-registration-target',
@@ -172,12 +173,27 @@ export function ɵregisterCraftTarget(
   hostName: string,
   autoCleanup = true,
 ): () => void {
-  const registries = injector.get(REGISTER_FOR_REGISTRY, []);
-  const cleanups = registries.map((registry) =>
-    registry.registerTarget(target, ref, hostName),
+  const metadata = (
+    target as {
+      readonly [CRAFT_REGISTRATION_TARGET]?: CraftRegistrationTargetMetadata;
+    }
+  )[CRAFT_REGISTRATION_TARGET];
+  if (metadata === undefined) {
+    return EMPTY_CLEANUP;
+  }
+
+  return ɵrunCraftTargetWrappers(
+    injector,
+    {
+      target,
+      kind: metadata.kind,
+      name: metadata.name,
+      ref,
+      hostName,
+      injector,
+    },
+    autoCleanup,
   );
-  const cleanup = () => cleanups.forEach((release) => release());
-  return autoCleanup ? attachCleanup(injector, cleanup) : cleanup;
 }
 
 function attachCleanup(injector: Injector, cleanup: () => void): () => void {

@@ -20,6 +20,7 @@ import {
   isGenerator,
   provideServiceYieldWrapper,
 } from './craft-generator-runtime';
+import { provideCraftTargetWrapper } from './craft-target-runtime';
 import {
   assertInInjectionContext,
   inject,
@@ -333,6 +334,27 @@ function createCraftRegisterFor(
       useExisting: registryToken,
       multi: true,
     };
+    const targetWrapper = provideCraftTargetWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (context, next) {
+        const registry = context.injector.get(registryToken, null);
+        if (registry === null) {
+          return yield* next();
+        }
+
+        const release = registry.registerTarget(
+          context.target,
+          context.ref,
+          context.hostName,
+        );
+        const downstreamRelease = yield* next();
+
+        return () => {
+          downstreamRelease();
+          release();
+        };
+      },
+    );
     const yieldWrapper = provideServiceYieldWrapper(
       'Register Craft service yields for craftRegisterFor.',
       function* (context, next) {
@@ -351,7 +373,12 @@ function createCraftRegisterFor(
       },
     );
 
-    return [registryProvider, registryCollectionProvider, yieldWrapper];
+    return [
+      registryProvider,
+      registryCollectionProvider,
+      targetWrapper,
+      yieldWrapper,
+    ];
   };
 
   return {

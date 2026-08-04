@@ -4,6 +4,7 @@ import {
   CRAFT_REGISTRATION_TARGET,
   createRegisterForRegistry,
   REGISTER_FOR_REGISTRY,
+  ɵregisterCraftTarget,
 } from './craft-register-for-runtime';
 import { craftRegisterFor } from './craft-register-for';
 import {
@@ -11,6 +12,7 @@ import {
   runCraftGenerator,
   SERVICE_YIELD_REQUEST_MARKER,
 } from './craft-generator-runtime';
+import { provideCraftTargetWrapper } from './craft-target-runtime';
 
 describe('craftRegisterFor runtime', () => {
   it('publishes a group and removes it when its cleanup runs', () => {
@@ -120,6 +122,73 @@ describe('craftRegisterFor runtime', () => {
     ]);
   });
 
+  it('runs Craft target wrappers and forwards context overrides', () => {
+    const target = (() => undefined) as unknown as {
+      readonly [CRAFT_REGISTRATION_TARGET]: {
+        readonly kind: 'component';
+        readonly name: 'Child';
+      };
+    };
+    Object.defineProperty(target, CRAFT_REGISTRATION_TARGET, {
+      value: { kind: 'component', name: 'Child' },
+    });
+
+    const seen: string[] = [];
+    const injector = Injector.create({
+      providers: [
+        provideCraftTargetWrapper(
+          'Warning: dependency injection here is not type-safe and may fail at runtime',
+          function* (context, next) {
+            seen.push(`outer:${context.hostName}`);
+            const dependency = yield {
+              [SERVICE_YIELD_REQUEST_MARKER]: true,
+              name: 'TargetTagService',
+              scope: 'function',
+              resolve: () => 'tag',
+            };
+            seen.push(`dependency:${dependency}`);
+            const release = yield* next({
+              hostName: `tagged:${context.hostName}`,
+            });
+            return () => {
+              release();
+              seen.push('released');
+            };
+          },
+        ),
+        provideCraftTargetWrapper(
+          'Warning: dependency injection here is not type-safe and may fail at runtime',
+          function* (context, next) {
+            seen.push(`inner:${context.hostName}`);
+            return yield* next();
+          },
+        ),
+      ],
+    });
+
+    const release = ɵregisterCraftTarget(
+      injector,
+      target,
+      {},
+      'component:Child#1',
+      false,
+    );
+
+    expect(seen).toEqual([
+      'outer:component:Child#1',
+      'dependency:tag',
+      'inner:tagged:component:Child#1',
+    ]);
+
+    release();
+    expect(seen).toEqual([
+      'outer:component:Child#1',
+      'dependency:tag',
+      'inner:tagged:component:Child#1',
+      'released',
+    ]);
+  });
+
   it('supports partial exposure through the live group signal', () => {
     const target = (() => undefined) as unknown as {
       readonly [CRAFT_REGISTRATION_TARGET]: {
@@ -143,9 +212,13 @@ describe('craftRegisterFor runtime', () => {
       providers: [provideRegisterForChild()],
     });
     const child = {};
-    injector
-      .get(REGISTER_FOR_REGISTRY)[0]!
-      .registerTarget(target, child, 'component:Child#1');
+    const release = ɵregisterCraftTarget(
+      injector,
+      target,
+      child,
+      'component:Child#1',
+      false,
+    );
 
     const exposed = runInInjectionContext(
       injector,
@@ -199,6 +272,10 @@ describe('craftRegisterFor runtime', () => {
 
     expect(derived).toBeInstanceOf(Function);
     expect((derived as () => number)()).toBe(1);
+
+    release();
+    expect(direct()).toBeUndefined();
+    expect(direct.total()).toBe(0);
   });
 
   it('keeps multiple named registries independent in one injector', () => {
@@ -221,13 +298,20 @@ describe('craftRegisterFor runtime', () => {
         second.provideRegisterForSecond(),
       ],
     });
-    const registries = injector.get(REGISTER_FOR_REGISTRY);
-
-    expect(registries).toHaveLength(2);
-    registries.forEach((registry) =>
-      registry.registerTarget(target, {}, 'component:Child#1'),
+    const release = ɵregisterCraftTarget(
+      injector,
+      target,
+      {},
+      'component:Child#1',
+      false,
     );
+    const registries = injector.get(REGISTER_FOR_REGISTRY);
+    expect(registries).toHaveLength(2);
     expect(registries[0]!.signalFor('Child')()).toHaveLength(1);
     expect(registries[1]!.signalFor('Child')()).toHaveLength(1);
+
+    release();
+    expect(registries[0]!.signalFor('Child')()).toBeUndefined();
+    expect(registries[1]!.signalFor('Child')()).toBeUndefined();
   });
 });

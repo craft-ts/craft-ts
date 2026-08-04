@@ -52,19 +52,12 @@ export function provideServiceYieldWrapper(
 
 type AppStartResult = Observable<unknown> | Promise<unknown> | void;
 
-type AnyGeneratorFunction = (...args: never[]) => Generator<
-  unknown,
-  unknown,
-  unknown
->;
+type AnyGeneratorFunction = (
+  ...args: never[]
+) => Generator<unknown, unknown, unknown>;
 
-export type ResolveGeneratorResult<Result> = Result extends Generator<
-  any,
-  infer Output,
-  unknown
->
-  ? Output
-  : Result;
+export type ResolveGeneratorResult<Result> =
+  Result extends Generator<any, infer Output, unknown> ? Output : Result;
 
 export type ExtractFactoryYielded<Factory> = Factory extends (
   ...args: any[]
@@ -72,12 +65,14 @@ export type ExtractFactoryYielded<Factory> = Factory extends (
   ? Yielded
   : never;
 
-export type GeneratorCompatibleFactory<Factory, Yielded = never> =
-  Factory extends (...args: infer Args) => infer Result
-    ? (
-        ...args: Args
-      ) => Result | Generator<Yielded, Result | Awaited<Result>, unknown>
-    : never;
+export type GeneratorCompatibleFactory<
+  Factory,
+  Yielded = never,
+> = Factory extends (...args: infer Args) => infer Result
+  ? (
+      ...args: Args
+    ) => Result | Generator<Yielded, Result | Awaited<Result>, unknown>
+  : never;
 
 type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
@@ -238,7 +233,9 @@ export function isGenerator(
   );
 }
 
-export function isGeneratorFunction(value: unknown): value is AnyGeneratorFunction {
+export function isGeneratorFunction(
+  value: unknown,
+): value is AnyGeneratorFunction {
   return (
     typeof value === 'function' &&
     (value.constructor?.name === 'GeneratorFunction' ||
@@ -325,7 +322,7 @@ function resolveServiceYield(
   injector: Injector,
   hostScope: ConcreteServiceScope,
 ): unknown {
-  const wrappers = injector.get(SERVICE_YIELD_WRAPPER);
+  const wrappers = injector.get(SERVICE_YIELD_WRAPPER, []);
   const context: ServiceYieldContext = {
     name: request.name,
     scope: request.scope,
