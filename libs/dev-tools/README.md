@@ -96,7 +96,7 @@ craft-migrate --project apps/my-app/tsconfig.app.json --root apps/my-app/src --d
 craft-migrate --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
 ```
 
-`craft-migrate` runs primitives, services, then routes and can emit one combined
+`craft-migrate` runs primitives, services, routes, then Craft components and can emit one combined
 report with `--json [path]`. The individual commands remain available for
 targeted migrations:
 
@@ -106,6 +106,7 @@ craft-migrate-primitives --project apps/my-app/tsconfig.app.json --root apps/my-
 craft-migrate-services --project apps/my-app/tsconfig.app.json --root apps/my-app/src --dry-run
 craft-migrate-services --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
 craft-migrate-routes --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
+craft-migrate-components --project apps/my-app/tsconfig.app.json --root apps/my-app/src --write
 ng build my-app
 ```
 
@@ -140,6 +141,11 @@ The service migration also:
   reports only complex chains that require a semantic decision
 - disables `@typescript-eslint/explicit-function-return-type` in the nearest
   flat ESLint config, because generated craft callbacks rely on inference
+
+For HTML or Web Component snippets, `craft-migrate-template` reads a file or
+stdin and emits a template callback. The browser-safe `template-migration`
+subpath exposes the same `migrateTemplateToCraft(...)` function to documentation
+sites and other tooling.
 
 ## Angular routes migration
 

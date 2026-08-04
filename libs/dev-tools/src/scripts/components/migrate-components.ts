@@ -59,6 +59,10 @@ export async function runComponentsMigration(
   });
   const touched = new Set<SourceFile>();
   const diagnostics: ComponentMigrationDiagnostic[] = [];
+  const legacyComponentsBeforeMigration = sourceFiles.reduce(
+    (count, sourceFile) => count + countLegacyComponentCalls(sourceFile),
+    0,
+  );
 
   for (const sourceFile of sourceFiles) {
     const componentImport = sourceFile
@@ -66,8 +70,18 @@ export async function runComponentsMigration(
       .flatMap((declaration) => declaration.getNamedImports())
       .find((specifier) => specifier.getName() === 'component');
     const componentNameNode = componentImport?.getNameNode();
-    if (componentNameNode && Node.isIdentifier(componentNameNode)) {
-      componentNameNode.rename('craftComponent');
+    const componentAliasNode = componentImport?.getAliasNode();
+    if (componentImport && componentAliasNode) {
+      if (componentAliasNode.getText() !== 'craftComponent') {
+        componentAliasNode.rename('craftComponent');
+      }
+      componentImport.setName('craftComponent').removeAlias();
+      touched.add(sourceFile);
+    } else if (componentNameNode && Node.isIdentifier(componentNameNode)) {
+      if (componentNameNode.getText() !== 'craftComponent') {
+        componentNameNode.rename('craftComponent');
+        touched.add(sourceFile);
+      }
     }
 
     const componentCalls = sourceFile
@@ -118,15 +132,21 @@ export async function runComponentsMigration(
 
   if (options.write) await Promise.all([...touched].map((file) => file.save()));
 
-  const remainingLegacyComponents = sourceFiles.reduce((count, sourceFile) => {
-    const hasLegacyImport = sourceFile
-      .getImportDeclarations()
-      .flatMap((declaration) => declaration.getNamedImports())
-      .some((specifier) => specifier.getName() === 'component');
-    return hasLegacyImport
-      ? count + countCalls(sourceFile, 'component')
-      : count;
-  }, 0);
+  const remainingLegacyComponentsAfterMigration = sourceFiles.reduce(
+    (count, sourceFile) => {
+      const hasLegacyImport = sourceFile
+        .getImportDeclarations()
+        .flatMap((declaration) => declaration.getNamedImports())
+        .some((specifier) => specifier.getName() === 'component');
+      return hasLegacyImport
+        ? count + countCalls(sourceFile, 'component')
+        : count;
+    },
+    0,
+  );
+  const remainingLegacyComponents = options.write
+    ? remainingLegacyComponentsAfterMigration
+    : legacyComponentsBeforeMigration;
   const remainingLegacyDirectives = sourceFiles.reduce(
     (count, sourceFile) =>
       count + countCalls(sourceFile, 'craftDirective', true),
@@ -191,4 +211,17 @@ function countCalls(
         ? expression === name && !isStringLiteral(call.getArguments()[0])
         : expression === name;
     }).length;
+}
+
+function countLegacyComponentCalls(sourceFile: SourceFile): number {
+  const localNames = new Set(
+    sourceFile
+      .getImportDeclarations()
+      .flatMap((declaration) => declaration.getNamedImports())
+      .filter((specifier) => specifier.getName() === 'component')
+      .map((specifier) => specifier.getAliasNode()?.getText() ?? 'component'),
+  );
+  return sourceFile
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .filter((call) => localNames.has(call.getExpression().getText())).length;
 }

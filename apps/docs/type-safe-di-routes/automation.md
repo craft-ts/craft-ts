@@ -1,7 +1,7 @@
 # Automation
 
 `@craft-ng/dev-tools` provides codemods to migrate an Angular application to
-Craft primitives, services, and type-safe routes.
+Craft primitives, services, type-safe routes, and selectorless Craft Components.
 
 ## Install the migration tool
 
@@ -48,14 +48,14 @@ npx craft-migrate \
 1. `craft-migrate-primitives`
 2. `craft-migrate-services`
 3. `craft-migrate-routes`
+4. `craft-migrate-components`
 
 The `--write` command also runs ESLint fixes on the touched files. Use
 `--no-eslint` only when your project runs this step separately.
 
-## Run only the route migration
+## Run a targeted migration
 
-Use the route codemod directly when primitives and services have already been
-migrated:
+Use an individual codemod when the earlier stages have already been migrated:
 
 ```shell
 npx craft-migrate-routes \
@@ -64,6 +64,10 @@ npx craft-migrate-routes \
   --dry-run
 
 npx craft-migrate-routes \
+  --project tsconfig.app.json \
+  --root src \
+  --write
+npx craft-migrate-components \
   --project tsconfig.app.json \
   --root src \
   --write

@@ -93,6 +93,10 @@ export default defineConfig({
         text: 'Component',
         items: [
           {
+            text: 'Template migrator',
+            link: '/component/template-migrator',
+          },
+          {
             text: 'Directives et .pipe(...)',
             link: '/component/directives',
           },

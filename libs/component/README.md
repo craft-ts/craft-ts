@@ -6,7 +6,7 @@ descriptors.
 ```ts
 import {
   button,
-  component,
+  craftComponent,
   div,
   each,
   p,
@@ -14,7 +14,8 @@ import {
   type Output,
 } from '@craft-ng/component';
 
-const userCard = component(
+const userCard = craftComponent(
+  'userCard',
   {},
   (
     user: Input<User>,
@@ -24,7 +25,8 @@ const userCard = component(
     button({ click: () => onPick(user()) }, user().name),
 );
 
-export const userList = component(
+export const userList = craftComponent(
+  'userList',
   {},
   (users: Input<User[]>) => ({ users }),
   ({ users }) =>

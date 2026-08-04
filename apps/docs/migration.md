@@ -5,6 +5,7 @@
 1. Angular signals and primitive migration points
 2. Angular services and their consumers
 3. Angular route collections and type-safe DI checks
+4. Legacy `component(...)` factories to `craftComponent(name, ...)`
 
 The migration is intentionally conservative. Deterministic transformations are
 written automatically; code requiring a business or lifecycle decision is
@@ -80,7 +81,18 @@ debugged one stage at a time:
 npx craft-migrate-primitives --project tsconfig.app.json --root src --write
 npx craft-migrate-services --project tsconfig.app.json --root src --write
 npx craft-migrate-routes --project tsconfig.app.json --root src --write
+npx craft-migrate-components --project tsconfig.app.json --root src --write
 ```
+
+For a pasted HTML/Web Component snippet, use the standalone template converter:
+
+```shell
+printf '<section><h2>Hello</h2></section>' | npx craft-migrate-template
+```
+
+The generated callback can be pasted as the fourth argument of
+`craftComponent(...)`. The interactive [template converter](/component/template-migrator)
+uses the same converter directly in the documentation.
 
 ## Work remaining after the codemod
 

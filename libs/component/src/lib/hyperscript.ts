@@ -70,7 +70,7 @@ type PrimitiveElementProps<Element> = {
     | YieldableRenderCallback<Element[Key]>;
 };
 
-type ElementPropsContext<Tag extends keyof HTMLElementTagNameMap> = DomEvents &
+type ElementPropsContext<_Tag extends keyof HTMLElementTagNameMap> = DomEvents &
   OnDomEvents & {
     readonly class?: ClassValue;
     readonly style?: StyleValue;
@@ -97,12 +97,12 @@ function looksLikeChildren(value: unknown): boolean {
 }
 
 type HChildren<
-  Tag extends keyof HTMLElementTagNameMap,
+  _Tag extends keyof HTMLElementTagNameMap,
   PropsOrChildren,
   MaybeChildren,
-> = (PropsOrChildren extends CraftNodeChildren
-  ? PropsOrChildren
-  : MaybeChildren) extends infer Children extends CraftNodeChildren
+> = (
+  PropsOrChildren extends CraftNodeChildren ? PropsOrChildren : MaybeChildren
+) extends infer Children extends CraftNodeChildren
   ? Children
   : never;
 
@@ -166,6 +166,19 @@ export function h<
   return node;
 }
 
+/** Creates a typed Craft node for a custom element or Web Component tag. */
+export function customElement(
+  tag: string,
+  propsOrChildren?: Record<string, unknown> | CraftNodeChildren | null,
+  maybeChildren?: CraftNodeChildren,
+): ElementNode {
+  return h(
+    tag as keyof HTMLElementTagNameMap,
+    propsOrChildren as never,
+    maybeChildren as never,
+  ) as ElementNode;
+}
+
 function hNamed<
   Tag extends keyof HTMLElementTagNameMap,
   const Name extends string,
@@ -210,7 +223,7 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
   ): ElementNode<
     CraftNodeChildrenDependencies<Children>,
     Tag,
-    {},
+    Record<never, never>,
     Children,
     string | undefined,
     string,
