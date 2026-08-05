@@ -9,7 +9,6 @@ import {
   p,
   section,
 } from '@craft-ng/component';
-import { componentMonitoring, provideHostName } from '@craft-ng/core';
 
 type Cell = {
   readonly id: number;
@@ -33,13 +32,11 @@ const makeGrid = (): Cell[][] =>
 const PixelArtMatrix = craftComponent(
   'PixelArtMatrix',
   {
-    providers: [provideHostName('component:PixelArtMatrix')],
     styles: `
       .matrix-grid{display:grid;gap:1px}.matrix-row{display:flex;gap:1px}.matrix-cell{width:22px;height:22px;border:1px solid #e2e8f0;padding:0}.matrix-palette{display:flex;gap:8px;margin:1rem 0}.matrix-color{width:32px;height:32px}
     `,
   },
   () => {
-    componentMonitoring();
     const activeColor = signal(COLORS[0]);
     const grid = signal(makeGrid());
     const paint = (rowIndex: number, columnIndex: number) =>

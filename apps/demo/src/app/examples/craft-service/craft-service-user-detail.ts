@@ -9,9 +9,7 @@ import {
   select,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftService,
-  provideHostName,
   query,
   state,
   toValue,
@@ -60,7 +58,6 @@ const CraftServiceUserDetailComponent = craftComponent(
   {
     providers: [
       provideUser(),
-      provideHostName('component:CraftServiceUserDetailComponent'),
     ],
     styles: `
       :scope{display:flex;flex-direction:column;align-items:center;gap:20px;padding:32px;font-family:sans-serif}
@@ -75,7 +72,6 @@ const CraftServiceUserDetailComponent = craftComponent(
     `,
   },
   function* () {
-    componentMonitoring();
     const { userId } = yield* state('userId', signal('1'), ({ set }) => ({
       setUserId: set,
     }));

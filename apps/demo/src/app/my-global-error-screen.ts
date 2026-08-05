@@ -1,10 +1,9 @@
 import { craftComponent, div, h2, p } from '@craft-ng/component';
-import { CraftGlobalError, provideHostName } from '@craft-ng/core';
+import { CraftGlobalError } from '@craft-ng/core';
 
 export const MyGlobalErrorScreen = craftComponent(
   'MyGlobalErrorScreen',
   {
-    providers: [provideHostName('component:MyGlobalErrorScreen')],
     styles:
       ':scope{padding:2rem;border:1px solid #fca5a5;border-radius:8px;background:#fef2f2;color:#991b1b}',
   },

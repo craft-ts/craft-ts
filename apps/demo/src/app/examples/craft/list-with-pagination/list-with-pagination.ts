@@ -11,13 +11,11 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftMethod,
   craftPipe,
   craftService,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
-  provideHostName,
   query,
   queryParams,
 } from '@craft-ng/core';
@@ -86,11 +84,9 @@ const ListWithPaginationCraft = craftComponent(
   {
     providers: [
       provideUserList(),
-      provideHostName('component:ListWithPaginationCraft'),
     ],
   },
   function* () {
-    componentMonitoring();
     const store = yield* UserList();
     const { updatePageSize } = craftMethod(
       'updatePageSize',

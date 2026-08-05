@@ -12,9 +12,7 @@ import {
   ul,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   mutation,
-  provideHostName,
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
@@ -29,12 +27,10 @@ let records: Todo[] = [
 const FullDemo = craftComponent(
   'FullDemo',
   {
-    providers: [provideHostName('component:FullDemo')],
     styles:
       ':scope{display:grid;gap:1rem;max-width:640px}li{display:flex;gap:.75rem;align-items:center}li span{flex:1}',
   },
   function* () {
-    componentMonitoring();
     const refresh = signal(0);
     const { todos } = yield* query('todos', {
       params: refresh,

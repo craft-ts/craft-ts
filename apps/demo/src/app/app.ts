@@ -14,11 +14,9 @@ import {
 import {
   BrowserLocation,
   BrowserWindow,
-  componentMonitoring,
   craftMethod,
   CraftRouterLink,
   GlobalPersisterHandlerService,
-  provideHostName,
   type CraftRouterLinkInput,
 } from '@craft-ng/core';
 
@@ -91,7 +89,6 @@ const craftRouterLink = ({ link }: { link: CraftRouterLinkInput }) =>
 export const App = craftComponent(
   'App',
   {
-    providers: [provideHostName('component:App')],
     styles: `
       :scope{display:flex;flex-direction:column;height:100vh;background:#fafafa}
       .demo-nav{position:relative;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1.25rem;background:#fff;border-bottom:1px solid #e5e7eb;z-index:2}
@@ -103,7 +100,6 @@ export const App = craftComponent(
   },
   () => {
     const navOpen = signal(false);
-    componentMonitoring();
     const { clearCache } = craftMethod('clearCache', function* () {
       const persister = yield* GlobalPersisterHandlerService(
         undefined,

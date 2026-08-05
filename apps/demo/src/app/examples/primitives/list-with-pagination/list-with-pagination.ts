@@ -10,11 +10,9 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftPipe,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
-  provideHostName,
   query,
   queryParams,
 } from '@craft-ng/core';
@@ -24,7 +22,6 @@ import { ApiService, type User } from './api.service';
 const ListWithPagination = craftComponent(
   'ListWithPagination',
   {
-    providers: [provideHostName('component:ListWithPagination')],
     styles: `
       :scope{display:block;background:#f5f7fa;padding:24px;border-radius:12px}
       .table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.05)}
@@ -39,7 +36,6 @@ const ListWithPagination = craftComponent(
     `,
   },
   function* () {
-    componentMonitoring();
     const { pagination } = yield* queryParams(
       'pagination',
       {

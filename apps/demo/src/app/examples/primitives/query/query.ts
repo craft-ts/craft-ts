@@ -7,12 +7,10 @@ import {
   type Input,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   Console,
   craftMethod,
   CraftRouter,
   insertLocalStoragePersister,
-  provideHostName,
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
@@ -21,10 +19,8 @@ import { ApiService } from './api.service';
 const GlobalQuery = craftComponent(
   'GlobalQuery',
   {
-    providers: [provideHostName('component:GlobalQuery')],
   },
   function* (userId: Input<string | undefined>) {
-    componentMonitoring();
     yield* Console.info('[query-demo] route input received', {
       userId: userId(),
     });

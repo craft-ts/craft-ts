@@ -7,13 +7,11 @@ import {
   type Input,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   Console,
   craftMethod,
   CraftRouter,
   craftService,
   insertLocalStoragePersister,
-  provideHostName,
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
@@ -41,9 +39,8 @@ const { UserQuery } = craftService(
 
 const CraftGlobalQuery = craftComponent(
   'CraftGlobalQuery',
-  { providers: [provideHostName('component:CraftGlobalQuery')] },
+  {},
   function* (userId: Input<string | undefined>) {
-    componentMonitoring();
     const user = yield* UserQuery({ userId: () => userId() });
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,

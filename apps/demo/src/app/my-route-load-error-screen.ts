@@ -2,13 +2,11 @@ import { button, craftComponent, div, h2, p } from '@craft-ng/component';
 import {
   CraftRouteLoadError,
   CraftRouteLoadRecovery,
-  provideHostName,
 } from '@craft-ng/core';
 
 export const MyRouteLoadErrorScreen = craftComponent(
   'MyRouteLoadErrorScreen',
   {
-    providers: [provideHostName('component:MyRouteLoadErrorScreen')],
     styles: `
       :scope{padding:2rem;border:1px solid #f97316;border-radius:8px;background:#fff7ed;color:#9a3412}
       .actions{display:flex;gap:.75rem;margin-top:1rem}

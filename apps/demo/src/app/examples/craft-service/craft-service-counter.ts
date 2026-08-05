@@ -1,8 +1,6 @@
 import { button, craftComponent, div, h2, p } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftService,
-  provideHostName,
   state,
 } from '@craft-ng/core';
 
@@ -23,7 +21,6 @@ const CraftServiceCounterComponent = craftComponent(
   {
     providers: [
       provideCounter(),
-      provideHostName('component:CraftServiceCounterComponent'),
     ],
     styles: `
       :scope{display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px;font-family:sans-serif}
@@ -33,7 +30,6 @@ const CraftServiceCounterComponent = craftComponent(
     `,
   },
   function* () {
-    componentMonitoring();
     return { counter: yield* Counter() };
   },
   ({ counter }) =>

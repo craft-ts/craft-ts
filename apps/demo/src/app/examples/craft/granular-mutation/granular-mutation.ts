@@ -9,7 +9,6 @@ import {
   select,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftMethod,
   craftPipe,
   craftService,
@@ -17,7 +16,6 @@ import {
   insertPaginationPlaceholderData,
   insertReactOnMutation,
   mutation,
-  provideHostName,
   query,
   queryParams,
 } from '@craft-ng/core';
@@ -102,13 +100,9 @@ const { provideGranularMutation, GranularMutation } = craftService(
 const GranularMutationCraft = craftComponent(
   'GranularMutationCraft',
   {
-    providers: [
-      provideGranularMutation(),
-      provideHostName('component:GranularMutationCraft'),
-    ],
+    providers: [provideGranularMutation()],
   },
   function* () {
-    componentMonitoring();
     const store = yield* GranularMutation();
     const { updatePageSize } = craftMethod(
       'updatePageSize',
@@ -120,12 +114,12 @@ const GranularMutationCraft = craftComponent(
     );
     return { store, updatePageSize };
   },
-  ({ store, updatePageSize }) =>
+  ({ store: { users, updateUserName, pagination }, updatePageSize }) =>
     div([
       h2([
         'User Management: ',
         StatusComponent({
-          status: () => store.users.currentPageStatus(),
+          status: () => users.currentPageStatus(),
         }),
       ]),
       h(
@@ -133,7 +127,7 @@ const GranularMutationCraft = craftComponent(
         h(
           'tbody',
           each(
-            () => store.users.currentPageData() ?? [],
+            () => users.currentPageData() ?? [],
             { track: (user) => user.id },
             (user) =>
               h('tr', [
@@ -144,9 +138,8 @@ const GranularMutationCraft = craftComponent(
                   button(
                     {
                       disabled:
-                        store.updateUserName.select(user.id)?.isLoading() ??
-                        false,
-                      click: () => store.updateUserName.mutate(user),
+                        updateUserName.select(user.id)?.isLoading() ?? false,
+                      click: () => updateUserName.mutate(user),
                     },
                     'Update Name',
                   ),
@@ -157,15 +150,13 @@ const GranularMutationCraft = craftComponent(
       ),
       select(
         {
-          value: String(store.pagination().pageSize),
+          value: pagination().pageSize,
           change: (event) => void updatePageSize(event),
         },
-        [2, 4, 8, 16].map((size) =>
-          option({ value: String(size) }, String(size)),
-        ),
+        [2, 4, 8, 16].map((size) => option({ value: size }, size)),
       ),
-      button({ click: store.pagination.previousPage }, 'Previous'),
-      button({ click: store.pagination.nextPage }, 'Next'),
+      button({ click: pagination.previousPage }, 'Previous'),
+      button({ click: pagination.nextPage }, 'Next'),
     ]),
 );
 

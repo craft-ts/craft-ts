@@ -1,10 +1,8 @@
 import { craftComponent, div, p } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftException,
   CraftHttpClient,
   craftService,
-  provideHostName,
   query,
 } from '@craft-ng/core';
 import type { User } from '../query/api.service';
@@ -49,11 +47,9 @@ export const OtherComponent = craftComponent(
   {
     providers: [
       provideOtherService(),
-      provideHostName('component:OtherComponent'),
     ],
   },
   function* () {
-    componentMonitoring();
     return {
       other: yield* OtherService(),
       users: yield* UsersApiOnError(),

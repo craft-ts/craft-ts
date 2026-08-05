@@ -10,9 +10,7 @@ import {
   strong,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftException,
-  provideHostName,
   query,
 } from '@craft-ng/core';
 
@@ -21,12 +19,10 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 const ExceptionsComponent = craftComponent(
   'ExceptionsComponent',
   {
-    providers: [provideHostName('component:ExceptionsComponent')],
     styles:
       '.exception-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.exception-actions button{padding:8px 16px}',
   },
   function* () {
-    componentMonitoring();
     const scenario = signal<Scenario>('success');
     const { userQuery } = yield* query('userQuery', {
       params: scenario,

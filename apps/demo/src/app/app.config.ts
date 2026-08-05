@@ -9,8 +9,6 @@ import { withComponentInputBinding } from '@angular/router';
 import {
   Console,
   craftAppConfig,
-  executeGeneratorCompatibleFactory,
-  HOST_TAG_LIST,
   injectPrimitiveMethodRuntimeContext,
   isCraftGenShortCircuit,
   provideCorrelationIdTracking,
@@ -18,7 +16,6 @@ import {
   provideFnWrapObserver,
   provideFnWrapper,
   providePrimitiveResourceRuntimeObserver,
-
   provideTakeAppSnapshot,
   withCraftViewTransitions,
   withErrorComponent,
@@ -42,13 +39,11 @@ import {
   FUNCTION_REGISTRY_CLIENT_ID,
   startFunctionRegistryBridge,
 } from './function-registry-bridge';
+import { functionRegistry } from './function-registry';
 import {
-  buildFunctionRegistryKey,
-  functionRegistry,
-  getFunctionEntryByKey,
-  registerFunctionEntry,
-  registerResourceEntry,
-} from './function-registry';
+  ensureFunctionRegistryEntry,
+  ensureResourceRegistryEntry,
+} from './function-registry-entry';
 import { provideLogForwarding } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
@@ -125,17 +120,18 @@ export const appConfig = craftAppConfig({
       },
     ),
     provideCorrelationIdTracking(),
-    provideSendContextToAi(),
+    //provideSendContextToAi(),
     // App snapshot
-    // TODO RENAME
     // eslint-disable-next-line craft-ng/prefer-browser-boundaries
     provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
+    // 👇 Web MCP experimentation
     provideFnWrapObserver((factory) => {
       const runtimeContext = injectPrimitiveMethodRuntimeContext();
       if (runtimeContext !== undefined) {
         ensureFunctionRegistryEntry(factory, undefined, runtimeContext);
       }
     }),
+    // Web MCP experimentation: expose primitive resources to the runtime registry.
     providePrimitiveResourceRuntimeObserver((resourceContext) => {
       ensureResourceRegistryEntry(resourceContext);
     }),
@@ -161,70 +157,6 @@ export const appConfig = craftAppConfig({
     ),
   ],
 });
-
-type RegistryFactory = (...args: unknown[]) => unknown;
-
-function ensureFunctionRegistryEntry(
-  factory: RegistryFactory,
-  thisArg: unknown,
-  runtimeContext: ReturnType<typeof injectPrimitiveMethodRuntimeContext>,
-): string {
-  // eslint-disable-next-line craft-ng/no-angular-inject
-  const hostTags = inject(HOST_TAG_LIST);
-  const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
-  const ancestry = hostTags.slice(0, -1);
-  const key = buildFunctionRegistryKey(hostName, ancestry);
-  if (getFunctionEntryByKey(key) !== undefined) {
-    return key;
-  }
-
-  // Wrapper boundary: retain the original scoped injector for remote replay.
-  // eslint-disable-next-line craft-ng/no-angular-inject
-  const destroyRef = inject(DestroyRef);
-  // eslint-disable-next-line craft-ng/no-angular-inject
-  const injector = inject(Injector);
-  const cleanup = registerFunctionEntry(
-    hostName,
-    ancestry,
-    (...registryArgs) =>
-      executeGeneratorCompatibleFactory({
-        factory,
-        thisArg,
-        getInjector: () => injector,
-        args: registryArgs,
-        invalidYieldErrorMessage:
-          'Registry functions can only yield dependencies available in their original Craft context.',
-        multipleAppStartErrorMessage:
-          'Registry functions cannot declare multiple app-start hooks.',
-        onAppStartNotSupportedErrorMessage:
-          'Registry functions cannot declare app-start hooks.',
-      }),
-    runtimeContext,
-  );
-  destroyRef.onDestroy(cleanup);
-  return key;
-}
-
-function ensureResourceRegistryEntry(
-  resourceContext: Parameters<typeof registerResourceEntry>[2],
-): string {
-  // eslint-disable-next-line craft-ng/no-angular-inject
-  const hostTags = inject(HOST_TAG_LIST);
-  const hostName = hostTags[hostTags.length - 1] ?? 'unknown';
-  const ancestry = hostTags.slice(0, -1);
-  const key = buildFunctionRegistryKey(hostName, ancestry);
-  if (getFunctionEntryByKey(key)?.primitive !== undefined) {
-    return key;
-  }
-
-  // Primitive value boundary: expose the live primitive instance for dev-only MCP
-  // reads and mutations.
-  // eslint-disable-next-line craft-ng/no-angular-inject
-  const destroyRef = inject(DestroyRef);
-  const cleanup = registerResourceEntry(hostName, ancestry, resourceContext);
-  destroyRef.onDestroy(cleanup);
-  return key;
-}
 
 type _CheckGlobalErrorDI = RouteExceptionComponentCheckedDI<
   ComponentDepsOf<typeof MyGlobalErrorScreen>,

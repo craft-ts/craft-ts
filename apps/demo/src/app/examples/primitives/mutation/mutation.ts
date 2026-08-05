@@ -9,12 +9,10 @@ import {
 } from '@craft-ng/component';
 import {
   CraftRouter,
-  componentMonitoring,
   craftPipe,
   insertLocalStoragePersister,
   insertReactOnMutation,
   mutation,
-  provideHostName,
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
@@ -23,7 +21,6 @@ import { ApiService, type User } from './api.service';
 const MutationDemoComponent = craftComponent(
   'MutationDemoComponent',
   {
-    providers: [provideHostName('component:MutationDemoComponent')],
     styles: `
       :scope{display:block;max-width:420px;margin:2.5rem auto;padding:2.2rem 2rem 2rem;background:#232323;border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,.12);color:#eaeaea}
       button{background:#444;color:#eaeaea;border:none;border-radius:7px;padding:.6rem 1.2rem;font-size:1rem;cursor:pointer;margin-bottom:1.2rem;margin-right:1rem;transition:background .2s;box-shadow:0 1px 4px rgba(0,0,0,.08)}
@@ -34,7 +31,6 @@ const MutationDemoComponent = craftComponent(
     `,
   },
   function* (userId: Input<string | undefined>) {
-    componentMonitoring();
     const api = yield* ApiService();
     const { updateUserName } = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({

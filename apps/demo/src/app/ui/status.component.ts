@@ -1,6 +1,5 @@
 import type { ResourceStatus } from '@angular/core';
 import { craftComponent, span, type Input } from '@craft-ng/component';
-import { provideHostName } from '@craft-ng/core';
 
 const STATUS_VIEW = {
   idle: ['🛌', 'Idle', 'gray'],
@@ -15,7 +14,6 @@ const STATUS_VIEW = {
 export const StatusComponent = craftComponent(
   'StatusComponent',
   {
-    providers: [provideHostName('component:StatusComponent')],
     styles: `
       .badge-container { display:inline-flex; align-items:center; gap:4px; }
       .status-emoji { display:inline-block; font-size:14px; line-height:1; }

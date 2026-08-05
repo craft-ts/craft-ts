@@ -13,11 +13,9 @@ import {
   ul,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftException,
   craftService,
   mutation,
-  provideHostName,
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
@@ -67,12 +65,11 @@ const { provideTodoStore, TodoStore } = craftService(
 const FullDemoCraft = craftComponent(
   'FullDemoCraft',
   {
-    providers: [provideTodoStore(), provideHostName('component:FullDemoCraft')],
+    providers: [provideTodoStore()],
     styles:
       ':scope{display:grid;gap:1rem;max-width:640px}li{display:flex;gap:.75rem}li span{flex:1}',
   },
   function* () {
-    componentMonitoring();
     return { store: yield* TodoStore() };
   },
   ({ store }) => {

@@ -5,7 +5,6 @@ import {
   type Input,
   type YieldableTemplateContext,
 } from '@craft-ng/component';
-import { componentMonitoring } from '@craft-ng/core';
 
 type PressHandlers = {
   start: (event: PointerEvent) => void;
@@ -32,7 +31,6 @@ export const longPress = craftDirective(
       longPressDuration: Input<number>,
       onLongPress: Input<(event: PointerEvent) => void>,
     ) => {
-      componentMonitoring();
 
       let timer: ReturnType<typeof setTimeout> | null = null;
       let suppressClickOnce = false;

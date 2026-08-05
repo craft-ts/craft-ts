@@ -10,13 +10,11 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftPipe,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
   mutation,
-  provideHostName,
   query,
   queryParams,
 } from '@craft-ng/core';
@@ -25,9 +23,8 @@ import { ApiService, type User } from './api.service';
 
 const GranularMutation = craftComponent(
   'GranularMutation',
-  { providers: [provideHostName('component:GranularMutation')] },
+  {},
   function* () {
-    componentMonitoring();
     const { pagination } = yield* queryParams(
       'pagination',
       {

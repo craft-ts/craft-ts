@@ -11,11 +11,9 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftPipe,
   insertLocalStoragePersister,
   insertSelect,
-  provideHostName,
   state,
 } from '@craft-ng/core';
 
@@ -27,13 +25,11 @@ const INDEXES = Array.from({ length: GRID_SIZE ** 2 }, (_, index) => index);
 const PixelArt = craftComponent(
   'PixelArt',
   {
-    providers: [provideHostName('component:PixelArt')],
     styles: `
       .pixel-grid{display:grid;grid-template-columns:repeat(16,22px);gap:1px}.pixel-cell{width:22px;height:22px;border:1px solid #e2e8f0;padding:0}.pixel-palette{display:flex;gap:8px;margin:1rem 0}.pixel-color{width:32px;height:32px;border:2px solid #fff;box-shadow:0 0 0 1px #94a3b8}
     `,
   },
   function* () {
-    componentMonitoring();
     const { ui } = yield* state('ui', { activeColor: COLORS[0] }, (context) =>
       craftPipe(
         context,

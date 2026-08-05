@@ -10,11 +10,9 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftPipe,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
-  provideHostName,
   query,
   queryParams,
 } from '@craft-ng/core';
@@ -23,9 +21,8 @@ import { ApiService, type User } from './api.service';
 
 const QpListWithPagination = craftComponent(
   'QpListWithPagination',
-  { providers: [provideHostName('component:QpListWithPagination')] },
+  {},
   function* () {
-    componentMonitoring();
     const { pagination } = yield* queryParams(
       'pagination',
       {

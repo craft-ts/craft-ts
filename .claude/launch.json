@@ -19,11 +19,21 @@
       "runtimeArgs": [
         "node_modules/vitepress/bin/vitepress.js",
         "dev",
-        "apps/docs",
-        "--port",
-        "5173"
+        "apps/docs"
       ],
-      "port": 5173
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "docs-restructure",
+      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/vitepress/bin/vitepress.js",
+        "dev",
+        "/Users/romaingeffrault/Documents/projects/prive/ng-craft/.claude/worktrees/docs-restructure/apps/docs"
+      ],
+      "port": 5174,
+      "autoPort": true
     }
   ]
 }

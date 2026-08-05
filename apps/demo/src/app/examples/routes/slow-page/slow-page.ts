@@ -1,10 +1,8 @@
 import { craftComponent, div, h2, p } from '@craft-ng/component';
-import { provideHostName } from '@craft-ng/core';
 
 const SlowPageComponent = craftComponent(
   'SlowPageComponent',
   {
-    providers: [provideHostName('component:SlowPageComponent')],
     styles: `
       :scope { padding:2rem; border:1px solid #bbf7d0; border-radius:8px; background:#f0fdf4; color:#166534; }
       dl { display:grid; grid-template-columns:auto 1fr; gap:.25rem 1rem; margin-top:1rem; }

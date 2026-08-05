@@ -9,13 +9,11 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
   craftMethod,
   craftService,
   insertReactOnMutation,
   craftPipe,
   mutation,
-  provideHostName,
   query,
 } from '@craft-ng/core';
 
@@ -130,7 +128,6 @@ const { Playground } = craftService(
 const PlaygroundComponent = craftComponent(
   'PlaygroundComponent',
   {
-    providers: [provideHostName('component:PlaygroundComponent')],
     styles: `
     .playground {
       display: flex;
@@ -214,7 +211,6 @@ const PlaygroundComponent = craftComponent(
     `,
   },
   function* () {
-    componentMonitoring();
     const pg = yield* Playground();
     const { add } = craftMethod('add', function* (input: HTMLInputElement) {
       const title = input.value.trim();

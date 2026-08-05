@@ -12,8 +12,6 @@ import {
   strong,
 } from '@craft-ng/component';
 import {
-  componentMonitoring,
-  provideHostName,
   queryParams,
   toCraftService,
 } from '@craft-ng/core';
@@ -31,9 +29,8 @@ const { Router } = toCraftService({
 
 const ExceptionQueryParamsComponent = craftComponent(
   'ExceptionQueryParamsComponent',
-  { providers: [provideHostName('component:ExceptionQueryParamsComponent')] },
+  {},
   function* () {
-    componentMonitoring();
     const router = yield* Router(undefined, ({ navigate }) => ({
       navigate,
     }));

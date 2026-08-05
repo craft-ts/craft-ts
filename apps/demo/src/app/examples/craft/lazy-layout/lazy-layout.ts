@@ -12,17 +12,14 @@ import {
   strong,
   type Input,
 } from '@craft-ng/component';
-import { componentMonitoring, provideHostName } from '@craft-ng/core';
 
 const LazyLayoutComponent = craftComponent(
   'LazyLayoutComponent',
   {
-    providers: [provideHostName('component:LazyLayoutComponent')],
     styles:
       ':scope{display:grid;gap:1.5rem}.lazy-hero{padding:1.75rem;border-radius:24px;color:#f8fafc;background:linear-gradient(135deg,#0f172a,#0f766e)}.lazy-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:1.25rem}',
   },
   (teamId: Input<string>, someParentRouteData: Input<string>) => {
-    componentMonitoring();
     return { teamId, someParentRouteData };
   },
   ({ teamId, someParentRouteData }) =>
