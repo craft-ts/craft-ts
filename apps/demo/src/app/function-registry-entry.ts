@@ -1,7 +1,14 @@
-import { DestroyRef, inject, Injector } from '@angular/core';
+import {
+  DestroyRef,
+  inject,
+  Injector,
+  provideAppInitializer,
+} from '@angular/core';
 import {
   executeGeneratorCompatibleFactory,
   HOST_TAG_LIST,
+  injectPrimitiveMethodRuntimeContext,
+  provideFnWrapper,
   type PrimitiveMethodRuntimeContext,
   type PrimitiveResourceRuntimeContext,
 } from '@craft-ng/core';
@@ -11,6 +18,14 @@ import {
   registerFunctionEntry,
   registerResourceEntry,
 } from './function-registry';
+import { provideFnWrapObserver } from '@craft-ng/core';
+import { providePrimitiveResourceRuntimeObserver } from '@craft-ng/core';
+import { functionRegistry } from './function-registry';
+import {
+  FUNCTION_REGISTRY_BRIDGE_URL,
+  FUNCTION_REGISTRY_CLIENT_ID,
+  startFunctionRegistryBridge,
+} from './function-registry-bridge';
 
 type RegistryFactory = (...args: unknown[]) => unknown;
 
@@ -75,3 +90,46 @@ export function ensureResourceRegistryEntry(
   destroyRef.onDestroy(cleanup);
   return key;
 }
+
+export const provideMcpExperimentation = () => [
+  provideAppInitializer(() => {
+    // Bootstrap boundary: the bridge lifetime follows the application injector.
+    // eslint-disable-next-line craft-ng/no-angular-inject
+    const destroyRef = inject(DestroyRef);
+    const stopBridge = startFunctionRegistryBridge({
+      // eslint-disable-next-line craft-ng/no-angular-inject
+      injector: inject(Injector),
+      // eslint-disable-next-line craft-ng/no-angular-inject
+      url: inject(FUNCTION_REGISTRY_BRIDGE_URL),
+      // eslint-disable-next-line craft-ng/no-angular-inject
+      clientId: inject(FUNCTION_REGISTRY_CLIENT_ID),
+    });
+    destroyRef.onDestroy(stopBridge);
+  }),
+  provideFnWrapObserver((factory) => {
+    const runtimeContext = injectPrimitiveMethodRuntimeContext();
+    if (runtimeContext !== undefined) {
+      ensureFunctionRegistryEntry(factory, undefined, runtimeContext);
+    }
+  }),
+  // Web MCP experimentation: expose primitive resources to the runtime registry.
+  providePrimitiveResourceRuntimeObserver((resourceContext) => {
+    ensureResourceRegistryEntry(resourceContext);
+  }),
+  provideFnWrapper(
+    'Warning: dependency injection here is not type-safe and may fail at runtime',
+    function* (factory, thisArg, args) {
+      const runtimeContext = injectPrimitiveMethodRuntimeContext();
+      const key = ensureFunctionRegistryEntry(factory, thisArg, runtimeContext);
+      const override = functionRegistry.executeOverride(
+        key,
+        args,
+        runtimeContext,
+      );
+      if (override.matched) {
+        return override.result;
+      }
+      return yield* factory.apply(thisArg, args);
+    },
+  ),
+];

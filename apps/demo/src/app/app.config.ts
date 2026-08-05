@@ -1,21 +1,19 @@
-import {
-  DestroyRef,
-  inject,
-  Injector,
-  provideAppInitializer,
-  provideBrowserGlobalErrorListeners,
-} from '@angular/core';
+import { provideBrowserGlobalErrorListeners } from '@angular/core';
 import { withComponentInputBinding } from '@angular/router';
+import {
+  CraftGlobalErrorComponentHost,
+  CraftRouteLoadErrorComponentHost,
+  provideCraftGlobalErrorComponent,
+  provideCraftRootComponent,
+  provideCraftRouteLoadErrorComponent,
+} from '@craft-ng/component';
 import {
   Console,
   craftAppConfig,
-  injectPrimitiveMethodRuntimeContext,
   isCraftGenShortCircuit,
   provideCorrelationIdTracking,
   provideCraftRouter,
-  provideFnWrapObserver,
   provideFnWrapper,
-  providePrimitiveResourceRuntimeObserver,
   provideTakeAppSnapshot,
   withCraftViewTransitions,
   withErrorComponent,
@@ -25,30 +23,13 @@ import {
   type ComponentDepsOf,
   type RouteExceptionComponentCheckedDI,
 } from '@craft-ng/core';
-import {
-  CraftGlobalErrorComponentHost,
-  CraftRouteLoadErrorComponentHost,
-  provideCraftRootComponent,
-  provideCraftGlobalErrorComponent,
-  provideCraftRouteLoadErrorComponent,
-  provideSendContextToAi,
-} from '@craft-ng/component';
+import { App } from './app';
 import { demoRoutes } from './app.routes';
-import {
-  FUNCTION_REGISTRY_BRIDGE_URL,
-  FUNCTION_REGISTRY_CLIENT_ID,
-  startFunctionRegistryBridge,
-} from './function-registry-bridge';
-import { functionRegistry } from './function-registry';
-import {
-  ensureFunctionRegistryEntry,
-  ensureResourceRegistryEntry,
-} from './function-registry-entry';
+import { provideMcpExperimentation } from './function-registry-entry';
 import { provideLogForwarding } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { AppStartLog } from './run-on-app-start/run-on-app-start';
-import { App } from './app';
 
 export const appConfig = craftAppConfig({
   appStart: {
@@ -66,20 +47,6 @@ export const appConfig = craftAppConfig({
     provideCraftRootComponent(App),
     provideCraftGlobalErrorComponent(MyGlobalErrorScreen),
     provideCraftRouteLoadErrorComponent(MyRouteLoadErrorScreen),
-    provideAppInitializer(() => {
-      // Bootstrap boundary: the bridge lifetime follows the application injector.
-      // eslint-disable-next-line craft-ng/no-angular-inject
-      const destroyRef = inject(DestroyRef);
-      const stopBridge = startFunctionRegistryBridge({
-        // eslint-disable-next-line craft-ng/no-angular-inject
-        injector: inject(Injector),
-        // eslint-disable-next-line craft-ng/no-angular-inject
-        url: inject(FUNCTION_REGISTRY_BRIDGE_URL),
-        // eslint-disable-next-line craft-ng/no-angular-inject
-        clientId: inject(FUNCTION_REGISTRY_CLIENT_ID),
-      });
-      destroyRef.onDestroy(stopBridge);
-    }),
     // Routing + non-blocking outlet config in one provider: Angular router
     // features and craft loading features (global error component, pending
     // thresholds) are mixed freely and split apart internally.
@@ -124,37 +91,7 @@ export const appConfig = craftAppConfig({
     // App snapshot
     // eslint-disable-next-line craft-ng/prefer-browser-boundaries
     provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
-    // 👇 Web MCP experimentation
-    provideFnWrapObserver((factory) => {
-      const runtimeContext = injectPrimitiveMethodRuntimeContext();
-      if (runtimeContext !== undefined) {
-        ensureFunctionRegistryEntry(factory, undefined, runtimeContext);
-      }
-    }),
-    // Web MCP experimentation: expose primitive resources to the runtime registry.
-    providePrimitiveResourceRuntimeObserver((resourceContext) => {
-      ensureResourceRegistryEntry(resourceContext);
-    }),
-    provideFnWrapper(
-      'Warning: dependency injection here is not type-safe and may fail at runtime',
-      function* (factory, thisArg, args) {
-        const runtimeContext = injectPrimitiveMethodRuntimeContext();
-        const key = ensureFunctionRegistryEntry(
-          factory,
-          thisArg,
-          runtimeContext,
-        );
-        const override = functionRegistry.executeOverride(
-          key,
-          args,
-          runtimeContext,
-        );
-        if (override.matched) {
-          return override.result;
-        }
-        return yield* factory.apply(thisArg, args);
-      },
-    ),
+    provideMcpExperimentation(),
   ],
 });
 
