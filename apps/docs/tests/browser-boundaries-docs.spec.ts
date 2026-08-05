@@ -1,157 +1,98 @@
 import { readFileSync } from 'node:fs';
 import docsConfig from '../.vitepress/config.mts';
 
-describe('docs sidebar', () => {
-  it('adds the Type-safe DI/Routes pages near Service and before Examples', () => {
-    const sidebar = docsConfig.themeConfig?.sidebar;
+type SidebarItem = {
+  text?: string;
+  link?: string;
+  items?: SidebarItem[];
+};
 
+const sidebar = docsConfig.themeConfig?.sidebar as Record<
+  string,
+  SidebarItem[]
+>;
+
+const flatten = (items: SidebarItem[]): SidebarItem[] =>
+  items.flatMap((item) => [item, ...flatten(item.items ?? [])]);
+
+const linksOf = (section: string) =>
+  flatten(sidebar[section] ?? [])
+    .map((item) => item.link)
+    .filter((link): link is string => Boolean(link));
+
+describe("docs sidebar", () => {
+  it("splits the sidebar per top-level section", () => {
     expect(sidebar).toBeDefined();
-    expect(Array.isArray(sidebar)).toBe(true);
-
-    const sidebarItems = sidebar as Array<{
-      text?: string;
-      link?: string;
-      items?: Array<{ text?: string; link?: string }>;
-    }>;
-
-    const serviceIndex = sidebarItems.findIndex(
-      (item) => item.text === 'Service',
-    );
-    const typeSafeIndex = sidebarItems.findIndex(
-      (item) => item.text === 'Type-safe DI/Routes',
-    );
-    const examplesIndex = sidebarItems.findIndex(
-      (item) => item.text === 'Examples',
-    );
-
-    expect(serviceIndex).toBeGreaterThanOrEqual(0);
-    expect(typeSafeIndex).toBeGreaterThan(serviceIndex);
-    expect(examplesIndex).toBeGreaterThan(typeSafeIndex);
-
-    expect(sidebarItems[typeSafeIndex]).toEqual({
-      text: 'Type-safe DI/Routes',
-      items: [
-        {
-          text: 'Setup',
-          link: '/type-safe-di-routes/setup',
-        },
-        {
-          text: 'Automation',
-          link: '/type-safe-di-routes/automation',
-        },
-        {
-          text: 'Route Providers',
-          link: '/type-safe-di-routes/route-providers',
-        },
-        {
-          text: 'craftGen',
-          link: '/type-safe-di-routes/craft-gen',
-        },
-        {
-          text: 'Program Operators (.pipe)',
-          link: '/type-safe-di-routes/program-operators',
-        },
-        {
-          text: 'Pattern Matching (craftMatch)',
-          link: '/type-safe-di-routes/pattern-matching',
-        },
-        {
-          text: 'Route Guards',
-          link: '/type-safe-di-routes/guards',
-        },
-        {
-          text: 'Route Load Errors',
-          link: '/type-safe-di-routes/route-load-errors',
-        },
-        {
-          text: 'Lazy Services (craftLazy)',
-          link: '/type-safe-di-routes/lazy-services',
-        },
-        {
-          text: 'Browser Boundaries',
-          link: '/type-safe-di-routes/browser-boundaries',
-        },
-        {
-          text: 'Angular Brand Config',
-          link: '/type-safe-di-routes/angular-brand-config',
-        },
-        {
-          text: 'Observability',
-          link: '/type-safe-di-routes/observability',
-        },
-      ],
-    });
+    expect(Array.isArray(sidebar)).toBe(false);
+    expect(Object.keys(sidebar).sort()).toEqual([
+      "/guide/",
+      "/learn/",
+      "/reference/",
+      "/resources/",
+    ]);
   });
 
-  it('adds the onAppStart utility page in the Utils section', () => {
-    const sidebar = docsConfig.themeConfig?.sidebar;
-
-    expect(sidebar).toBeDefined();
-    expect(Array.isArray(sidebar)).toBe(true);
-
-    const sidebarItems = sidebar as Array<{
-      text?: string;
-      link?: string;
-      items?: Array<{ text?: string; link?: string }>;
-    }>;
-
-    const utilsSection = sidebarItems.find((item) => item.text === 'Utils');
-
-    expect(utilsSection).toBeDefined();
-    expect(utilsSection?.items).toContainEqual({
-      text: 'onAppStart',
-      link: '/utils/on-app-start',
-    });
+  it("orders the Learn path from the overview to the last step", () => {
+    expect(linksOf("/learn/")).toEqual([
+      "/learn/",
+      "/learn/01-first-state",
+      "/learn/02-derive",
+      "/learn/03-service",
+      "/learn/04-compose",
+      "/learn/05-load-data",
+      "/learn/06-mutate-data",
+      "/learn/07-url-state",
+      "/learn/08-forms",
+      "/learn/09-routing",
+      "/learn/10-testing",
+      "/learn/next",
+    ]);
   });
 
-  it('adds craftMethod, craftComputed and craftEffect at the top of Utils', () => {
-    const sidebar = docsConfig.themeConfig?.sidebar;
+  it("groups the guide by task, concepts first and advanced last", () => {
+    const groups = (sidebar["/guide/"] ?? [])
+      .filter((item) => item.items?.length)
+      .map((item) => item.text);
 
-    expect(sidebar).toBeDefined();
-    expect(Array.isArray(sidebar)).toBe(true);
+    expect(groups[0]).toBe("Core concepts");
+    expect(groups[1]).toBe("Managing state");
+    expect(groups.at(-1)).toBe("Going further");
+  });
 
-    const sidebarItems = sidebar as Array<{
-      text?: string;
-      link?: string;
-      items?: Array<{ text?: string; link?: string }>;
-    }>;
+  it("keeps the routing, testing and reactivity pages reachable", () => {
+    const guideLinks = linksOf("/guide/");
 
-    const utilsSection = sidebarItems.find((item) => item.text === 'Utils');
+    expect(guideLinks).toContain("/guide/routing/setup");
+    expect(guideLinks).toContain("/guide/routing/scaling");
+    expect(guideLinks).toContain("/guide/testing/browser-boundaries");
+    expect(guideLinks).toContain("/guide/testing/components");
+    expect(guideLinks).toContain("/guide/reactivity/craft-method");
+    expect(guideLinks).toContain("/guide/reactivity/craft-computed");
+    expect(guideLinks).toContain("/guide/reactivity/craft-effect");
+    expect(guideLinks).toContain("/guide/app/app-start");
+  });
 
-    expect(utilsSection?.items).toEqual([
-      { text: 'craftMethod', link: '/utils/craft-method' },
-      { text: 'craftComputed', link: '/utils/craft-computed' },
-      { text: 'craftEffect', link: '/utils/craft-effect' },
-      { text: 'craftRegisterFor', link: '/utils/craft-register-for' },
-      {
-        text: 'provideCraftTargetWrapper',
-        link: '/utils/provide-craft-target-wrapper',
-      },
-      { text: 'source$', link: '/utils/source$' },
-      { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },
-      { text: 'on$', link: '/utils/on$' },
-      { text: 'onAppStart', link: '/utils/on-app-start' },
-      {
-        text: 'reactiveWritableSignal',
-        link: '/utils/reactive-writable-signal',
-      },
-      {
-        text: 'GlobalPersisterHandler',
-        link: '/utils/global-persister-handler-service',
-      },
-      { text: 'Entities Utilities', link: '/utils/entities-util' },
+  it("exposes the four top-level nav entries", () => {
+    const nav = docsConfig.themeConfig?.nav as Array<{ text?: string }>;
+
+    expect(nav.map((entry) => entry.text)).toEqual([
+      "Learn",
+      "Guide",
+      "Reference",
+      "Resources",
     ]);
   });
 });
 
 describe('craftGen doc page', () => {
   const content = readFileSync(
-    new URL('../type-safe-di-routes/craft-gen.md', import.meta.url),
+    new URL('../guide/concepts/generators.md', import.meta.url),
     'utf8',
   );
 
   it('documents composable short-circuiting and the main reason to use it', () => {
-    expect(content).toContain('# craftGen');
+    expect(content).toContain('# Generators and `yield*`');
+    expect(content).toContain('## `craftGen` — a tracked generator');
     expect(content).toContain(
       'Build reusable generator factories that can be composed with `yield*`',
     );
@@ -161,18 +102,19 @@ describe('craftGen doc page', () => {
       'parameterise one guard and reuse it across routes',
     );
     expect(content).toContain('the first exception wins');
-    expect(content).toContain('[`Route Guards`](/type-safe-di-routes/guards)');
+    expect(content).toContain('](/guide/routing/guards)');
   });
 });
 
 describe('onAppStart doc page', () => {
   const content = readFileSync(
-    new URL('../utils/on-app-start.md', import.meta.url),
+    new URL('../guide/app/app-start.md', import.meta.url),
     'utf8',
   );
 
   it('documents plain and generator callbacks for startup hooks', () => {
-    expect(content).toContain('# onAppStart');
+    expect(content).toContain('# App start');
+    expect(content).toContain('`onAppStart` declares work');
     expect(content).toContain(
       'the callback can be a plain function or a generator function',
     );
@@ -192,19 +134,19 @@ describe('onAppStart doc page', () => {
     );
     expect(content).toContain('Nested declarations are rejected at runtime.');
     expect(content).toContain(
-      '[`Browser Boundaries`](/type-safe-di-routes/browser-boundaries)',
+      '[`Browser Boundaries`](/guide/testing/browser-boundaries)',
     );
   });
 });
 
 describe('Type-safe DI/Routes setup doc page', () => {
   const content = readFileSync(
-    new URL('../type-safe-di-routes/setup.md', import.meta.url),
+    new URL('../guide/routing/setup.md', import.meta.url),
     'utf8',
   );
 
   it('documents the app-level DI check and crafted routes setup', () => {
-    expect(content).toContain('# Setup');
+    expect(content).toContain('# Routing setup');
     expect(content).toContain(
       'This guide assumes you are integrating type-safe DI/routes into an Angular app that consumes `@craft-ng/core`.',
     );
@@ -219,11 +161,31 @@ describe('Type-safe DI/Routes setup doc page', () => {
     expect(content).toContain('provideRouter(appRoutes.toRoutes()');
   });
 
-  it('documents the codemod script, eslint rules, and refresh workflow', () => {
+  it('documents the codemod script and the refresh workflow', () => {
     expect(content).toContain(
       '## 3. Run the Angular brand codemod through the published script',
     );
     expect(content).toContain('craft-brand --root src/app');
+    expect(content).toContain(
+      'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`',
+    );
+    expect(content).toContain(
+      'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`',
+    );
+  });
+
+  it('points at the dedicated ESLint rules page', () => {
+    expect(content).toContain('](/guide/routing/eslint-rules)');
+  });
+});
+
+describe('ESLint rules doc page', () => {
+  const content = readFileSync(
+    new URL('../guide/routing/eslint-rules.md', import.meta.url),
+    'utf8',
+  );
+
+  it('documents the plugin entry point and the enforced rules', () => {
     expect(content).toContain('@craft-ng/dev-tools/eslint-rules');
     expect(content).toContain(
       "'craft-ng/brand-angular-gen-deps-required': 'error'",
@@ -236,12 +198,6 @@ describe('Type-safe DI/Routes setup doc page', () => {
       "'craft-ng/require-cascade-route-di-check': 'error'",
     );
     expect(content).toContain(
-      'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-gen-deps-required`',
-    );
-    expect(content).toContain(
-      'trigger the VS Code ESLint Quick Fix on `craft-ng/brand-angular-deps-match`',
-    );
-    expect(content).toContain(
       'generate missing aliases and refresh existing ones',
     );
   });
@@ -249,12 +205,12 @@ describe('Type-safe DI/Routes setup doc page', () => {
 
 describe('Browser Boundaries doc page', () => {
   const content = readFileSync(
-    new URL('../type-safe-di-routes/browser-boundaries.md', import.meta.url),
+    new URL('../guide/testing/browser-boundaries.md', import.meta.url),
     'utf8',
   );
 
   it('documents the implemented browser boundary surface', () => {
-    expect(content).toContain('# Browser Boundaries');
+    expect(content).toContain('# Browser boundaries');
     expect(content).not.toContain('Upcoming / draft API');
     expect(content).toContain(
       'Every boundary on this page is backed by a global crafted service marked with `browserBoundary: true`.',
@@ -308,14 +264,14 @@ describe('Browser Boundaries doc page', () => {
   });
 
   it('links back to craftService and toCraftService', () => {
-    expect(content).toContain('[`craftService`](/store/craft-service)');
-    expect(content).toContain('[`toCraftService`](/store/to-craft-service)');
+    expect(content).toContain('[`craftService`](/guide/app/craft-service)');
+    expect(content).toContain('[`toCraftService`](/guide/app/integrate-existing)');
   });
 });
 
 describe('craftMethod doc page', () => {
   const content = readFileSync(
-    new URL('../utils/craft-method.md', import.meta.url),
+    new URL('../guide/reactivity/craft-method.md', import.meta.url),
     'utf8',
   );
 
@@ -342,7 +298,7 @@ describe('craftMethod doc page', () => {
     expect(content).toContain('function* (this: CounterComponent, step = 1) {');
     expect(content).toContain('this: CounterComponent,');
     expect(content).toContain('return yield* CounterWorker.set(value);');
-    expect(content).toContain('[`craftService`](/store/craft-service)');
+    expect(content).toContain('[`craftService`](/guide/app/craft-service)');
   });
 
   it('documents the receiver caveat and onAppStart restriction', () => {
@@ -356,14 +312,14 @@ describe('craftMethod doc page', () => {
       '`onAppStart(...)` is not supported inside `craftMethod`.',
     );
     expect(content).toContain(
-      '[`Browser Boundaries`](/type-safe-di-routes/browser-boundaries)',
+      '[`Browser Boundaries`](/guide/testing/browser-boundaries)',
     );
   });
 });
 
 describe('craftComputed doc page', () => {
   const content = readFileSync(
-    new URL('../utils/craft-computed.md', import.meta.url),
+    new URL('../guide/reactivity/craft-computed.md', import.meta.url),
     'utf8',
   );
 
@@ -392,13 +348,13 @@ describe('craftComputed doc page', () => {
     expect(content).toContain(
       'yielded dependencies are tracked and can be extracted with `ExtractDeps<...>`.',
     );
-    expect(content).toContain('[`craftService`](/store/craft-service)');
+    expect(content).toContain('[`craftService`](/guide/app/craft-service)');
   });
 });
 
 describe('toCraftService doc page', () => {
   const content = readFileSync(
-    new URL('../store/to-craft-service.md', import.meta.url),
+    new URL('../guide/app/integrate-existing.md', import.meta.url),
     'utf8',
   );
 
@@ -421,12 +377,12 @@ describe('toCraftService doc page', () => {
 
 describe('craftService doc page', () => {
   const content = readFileSync(
-    new URL('../store/craft-service.md', import.meta.url),
+    new URL('../guide/app/craft-service.md', import.meta.url),
     'utf8',
   );
 
   it('documents app-start hooks and generator callbacks', () => {
-    expect(content).toContain('## App Start');
+    expect(content).toContain('## Startup work');
     expect(content).toContain('`craftService` also supports startup hooks');
     expect(content).toContain('yield* onAppStart(function* () {');
     expect(content).toContain("yield* Console.log('startup log');");
@@ -438,12 +394,12 @@ describe('craftService doc page', () => {
 
 describe('Angular Brand Config doc page', () => {
   const content = readFileSync(
-    new URL('../type-safe-di-routes/angular-brand-config.md', import.meta.url),
+    new URL('../guide/routing/angular-brand-config.md', import.meta.url),
     'utf8',
   );
 
   it('documents the project config entrypoint and the main rule shape', () => {
-    expect(content).toContain('# Angular Brand Config');
+    expect(content).toContain('# Angular brand config');
     expect(content).toContain('craft-brand.config.ts');
     expect(content).toContain('defineAngularBrandConfig');
     expect(content).toContain('importAugmentations');
@@ -465,9 +421,9 @@ describe('Angular Brand Config doc page', () => {
   it('mentions the built-in router augmentation and related docs', () => {
     expect(content).toContain('@angular/router');
     expect(content).toContain('Router');
-    expect(content).toContain('[`toCraftService`](/store/to-craft-service)');
+    expect(content).toContain('[`toCraftService`](/guide/app/integrate-existing)');
     expect(content).toContain(
-      '[`Browser Boundaries`](/type-safe-di-routes/browser-boundaries)',
+      '[`Browser Boundaries`](/guide/testing/browser-boundaries)',
     );
   });
 });

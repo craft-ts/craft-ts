@@ -4,7 +4,7 @@ layout: home
 
 hero:
   name: '@craft-ng/core'
-  text: 'Type-Safe Angular'
+  text: 'Type-Safe Angular meta-framework'
   tagline: Declare. Yield. Derive. Compile — no surprises.
 
   image:
@@ -13,35 +13,36 @@ hero:
 
   actions:
     - theme: brand
-      text: Get started
-      link: /get-started
+      text: Start the tutorial
+      link: /learn/
+    - theme: alt
+      text: Guide
+      link: /guide/
     - theme: alt
       text: Examples
-      link: /examples
+      link: /resources/examples
 
 features:
-  - title: Same API for client, server, URL, and async state
-    details: state, query, mutation, asyncProcess, and queryParams give you a complete set of reactive primitives for every kind of state.
-  - title: Tackle state complexity
-    details: Model complex state declaratively by deriving modifiers, reactions, and computed state. Use the provided insertions to handle common UX behaviors and apply logic exactly where you need it.
-  - title: Derive forms logic and validators
-    details: A unique approach to handle complex forms logic where validation and interdependent logic are derived automatically.
-  - title: Create services as functions, not classes
-    details: 'Services are just functions with a scope: clear inputs, clear outputs. Yield them wherever you need them.'
-  - title: Never forget to provide a service again
-    details: The DI system is fully type-safe and inferred. If you forget to provide a service, it won't compile. Create a service exactly where you need it.
-  - title: Easy to test, easy to debug
-    details: A deterministic testing setup that reflects your real dependency graph. The compiler won't let your tests run until all dependencies are correctly provided or mocked.
-  - title: Explicit app initialization callbacks
-    details: Declare within your service what must be initialized before the app renders. No surprises, no mistakes.
-  - title: Trusted routing integration
-    details: Type-safe navigation and parameter binding. If you navigate to a missing route or misspell an input name, it won't compile.
-  - title: Query params live in the route
-    details: No more syncing query params with your state. Just declare them as query parameters in your route and use them like any other state.
-  - title: Observability and traceability by design
-    details: Log what you need, where you need it. Need tracing? Override the default logger with your own implementation and connect it to your monitoring system.
-  - title: Testing that mirrors reality
-    details: Mock only browser boundaries in tests that should stay close to reality. Even in e2e tests, you can know which endpoints are called and mock them.
-  - title: Deal with exceptions, not surprises
-    details: Define known exceptions and handle them where needed. No more unexpected errors breaking your app in production.
+  - title: One API for every kind of state
+    details: state, query, mutation, queryParams and asyncProcess share the same shape — a name, a config, insertions. Learn one and you know all five.
+  - title: Highly composable
+    details: State composes with insertions, components with directives, and both through .pipe(...) — localStorage sync, optimistic updates, forms, permissions. Library behaviour and yours are the same kind of function.
+  - title: Services are functions, not classes
+    details: 'A service is a factory with a name and a scope: clear inputs, clear outputs. Yield it where you need it — no @Injectable, no constructor.'
+  - title: Selectorless, tagless components
+    details: 'Children are referenced lexically, not by a string selector — rename one and the compiler follows. And nothing extra reaches the DOM: no host element wraps your markup, so the tree you write is the tree that renders.'
+  - title: Forget a provider and it won't compile
+    details: Dependencies are tracked in the type system. A missing service, a misspelled route input or an unhandled exception stops the build, not the user.
+  - title: Exceptions as values
+    details: A declared failure is returned, not thrown — it travels through types instead of the stack. The compiler knows every code a route can produce, and tells you when one is unhandled or handled for nothing.
+  - title: Forms derived from state
+    details: The field tree, the validity and the error types are consequences of your state and your mutation, so they cannot drift apart from them.
+  - title: Tests that mirror the real graph
+    details: The test register is derived from actual dependencies. Keep the app real and mock only the browser boundaries — "I forgot to mock that" becomes a compile error.
+  - title: Assert what a template renders, at compile time
+    details: Type-level tests prove an element only appears under a condition, that a binding is the one you think, that a list item renders its label — no TestBed, no DOM, no fixture.
+  - title: Templates are functions, not a dialect
+    details: 'Markup is typed hyperscript: each, ifBlock, matchBlock and defer instead of @for, @if, @switch and @defer. No template compiler, no parse errors — your editor refactors a template exactly like it refactors code.'
+  - title: Built for observability
+    details: 'Declarative code is instrumentable code: one provider adds structured logs, correlation ids, per-service timing or a snapshot of the live dependency graph — across the whole app, without touching a single call site. Fast to debug, easy to trace and monitor.'
 ---

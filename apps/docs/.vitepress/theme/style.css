@@ -76,10 +76,16 @@
   --vp-c-brand-3: var(--ngq-g3);
   --vp-c-brand-soft: var(--ngq-g4);
 
-  --vp-c-tip-1: var(--vp-c-brand-1);
-  --vp-c-tip-2: var(--vp-c-brand-2);
-  --vp-c-tip-3: var(--vp-c-brand-3);
-  --vp-c-tip-soft: var(--vp-c-brand-soft);
+  /**
+   * Tip blocks keep the brand's indigo end rather than the magenta one, and
+   * their background is a low-alpha tint — `--vp-c-*-soft` is a *background*
+   * and must stay semi-transparent, otherwise the whole block reads as a
+   * solid pink slab.
+   */
+  --vp-c-tip-1: var(--ngq-g1);
+  --vp-c-tip-2: var(--ngq-g2);
+  --vp-c-tip-3: rgba(92, 68, 228, 0.35);
+  --vp-c-tip-soft: rgba(92, 68, 228, 0.07);
 
   --vp-c-warning-1: var(--vp-c-yellow-1);
   --vp-c-warning-2: var(--vp-c-yellow-2);
@@ -94,6 +100,12 @@
 html.dark {
   --vp-code-color: #bab2eb;
   --vp-c-brand-1: #bab2eb;
+
+  /* Lift the tip text off the dark background, keep the tint barely there. */
+  --vp-c-tip-1: #bab2eb;
+  --vp-c-tip-2: #cfc9f2;
+  --vp-c-tip-3: rgba(186, 178, 235, 0.32);
+  --vp-c-tip-soft: rgba(186, 178, 235, 0.08);
 }
 
 .vp-doc .brand,
@@ -118,24 +130,39 @@ html.dark {
   color: transparent !important;
 }
 
+/**
+ * The EXPERIMENTAL badge sits in the flow next to the title instead of being
+ * absolutely positioned: a hardcoded `right` offset overlapped the wordmark as
+ * soon as the viewport shrank.
+ */
+.VPNavBarTitle .title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .VPNavBarTitle .title::after {
   content: 'EXPERIMENTAL';
+  flex: none;
   font-size: 10px;
   font-weight: 600;
+  line-height: 1.4;
   color: var(--vp-c-text-2);
+  -webkit-text-fill-color: var(--vp-c-text-2);
   background: var(--vp-c-warning-soft);
   border: 1px solid var(--vp-c-warning-1);
   padding: 2px 6px;
-  position: absolute;
-  right: -17px;
-  bottom: 0%;
-  transform: translateY(-50%);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
   border-radius: 100px;
 }
-.home .VPNavBarTitle .title::after {
-  right: -105px;
+
+/* Below the nav breakpoint the bar is tight — the badge is the first thing to go. */
+@media (max-width: 767px) {
+  .VPNavBarTitle .title::after {
+    display: none;
+  }
 }
 
 .VPNavBarTitle {
@@ -195,10 +222,36 @@ html.dark {
  * -------------------------------------------------------------------------- */
 
 :root {
-  --vp-custom-block-tip-border: transparent;
-  --vp-custom-block-tip-text: white;
-  --vp-custom-block-tip-bg: var(--vp-c-brand-soft);
-  --vp-custom-block-tip-code-bg: var(--vp-c-brand-soft);
+  /**
+   * A tip is an aside, not a call to action: a light tint with readable body
+   * text, rather than white-on-magenta. The accent stays in the title and the
+   * left border.
+   */
+  --vp-custom-block-tip-border: rgba(92, 68, 228, 0.22);
+  --vp-custom-block-tip-text: var(--vp-c-text-1);
+  --vp-custom-block-tip-bg: rgba(92, 68, 228, 0.06);
+  --vp-custom-block-tip-code-bg: rgba(92, 68, 228, 0.1);
+}
+
+.dark {
+  --vp-custom-block-tip-border: rgba(186, 178, 235, 0.24);
+  --vp-custom-block-tip-text: var(--vp-c-text-1);
+  --vp-custom-block-tip-bg: rgba(186, 178, 235, 0.07);
+  --vp-custom-block-tip-code-bg: rgba(186, 178, 235, 0.12);
+}
+
+/* Give every aside a coloured edge so the type is still distinguishable. */
+.vp-doc .custom-block.tip {
+  border-left: 3px solid var(--ngq-g1);
+}
+.dark .vp-doc .custom-block.tip {
+  border-left-color: #bab2eb;
+}
+.vp-doc .custom-block.tip .custom-block-title {
+  color: var(--ngq-g1);
+}
+.dark .vp-doc .custom-block.tip .custom-block-title {
+  color: #bab2eb;
 }
 
 /**

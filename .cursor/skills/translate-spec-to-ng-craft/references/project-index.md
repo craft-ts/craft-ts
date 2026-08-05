@@ -8,29 +8,29 @@ Use this file to confirm the exact exported symbol names before recommending an 
 
 ## High-Value Documentation
 
-- `apps/docs/introduction.md`
-- `apps/docs/primitives/state.md`
-- `apps/docs/primitives/query.md`
-- `apps/docs/primitives/mutation.md`
-- `apps/docs/primitives/async-process.md`
-- `apps/docs/primitives/query-params.md`
-- `apps/docs/insertions/craft-pipe.md`
-- `apps/docs/insertions/insert-react-on-mutation.md`
-- `apps/docs/insertions/insert-pagination-placeholder-data.md`
-- `apps/docs/insertions/insert-entities.md`
-- `apps/docs/insertions/insert-local-storage.md`
-- `apps/docs/insertions/insert-select.md`
-- `apps/docs/store/craft-service.md`
-- `apps/docs/store/to-craft-service.md`
-- `apps/docs/store/setup-craft-service-testing-by-register.md`
-- `apps/docs/utils/on$.md`
-- `apps/docs/utils/source$.md`
-- `apps/docs/utils/reactive-writable-signal.md`
+- `apps/docs/guide/concepts/mental-model.md`
+- `apps/docs/guide/state/local-state.md`
+- `apps/docs/guide/state/server-state.md`
+- `apps/docs/guide/state/mutations.md`
+- `apps/docs/guide/state/async-process.md`
+- `apps/docs/guide/state/url-state.md`
+- `apps/docs/guide/concepts/insertions.md`
+- `apps/docs/guide/state/react-on-mutation.md`
+- `apps/docs/guide/state/pagination-placeholder.md`
+- `apps/docs/guide/state/collections.md`
+- `apps/docs/guide/state/persistence.md`
+- `apps/docs/guide/state/select.md`
+- `apps/docs/guide/app/craft-service.md`
+- `apps/docs/guide/app/integrate-existing.md`
+- `apps/docs/guide/testing/services.md`
+- `apps/docs/guide/reactivity/on.md`
+- `apps/docs/guide/reactivity/source.md`
+- `apps/docs/guide/reactivity/reactive-writable-signal.md`
 - `apps/docs/utils/inject-service.md`
-- `apps/docs/utils/after-recomputation.md`
-- `apps/docs/utils/source-from-event.md`
-- `apps/docs/utils/from-event-to-source$.md`
-- `apps/docs/forms/index.md`
+- `apps/docs/guide/reactivity/after-recomputation.md`
+- `apps/docs/guide/reactivity/source-from-event.md`
+- `apps/docs/guide/reactivity/from-event-to-source.md`
+- `apps/docs/guide/forms/index.md`
 
 ## Best Local Examples
 

@@ -83,14 +83,14 @@ const { injectCounter } = craftService(
 const counter = injectCounter();
 ```
 
-Continue with the [getting-started guide](https://ng-angular-stack.github.io/craft/get-started), then explore:
+Continue with the [getting-started guide](https://ng-angular-stack.github.io/craft/learn), then explore:
 
-- [Reactive primitives](https://ng-angular-stack.github.io/craft/primitives/state)
-- [Services and dependency composition](https://ng-angular-stack.github.io/craft/store/craft-service)
-- [Forms](https://ng-angular-stack.github.io/craft/forms/index)
-- [Type-safe DI and routing](https://ng-angular-stack.github.io/craft/type-safe-di-routes/setup)
-- [Runnable examples](https://ng-angular-stack.github.io/craft/examples)
-- [Migration tooling](https://ng-angular-stack.github.io/craft/migration)
+- [Reactive primitives](https://ng-angular-stack.github.io/craft/guide/state/local-state)
+- [Services and dependency composition](https://ng-angular-stack.github.io/craft/guide/app/craft-service)
+- [Forms](https://ng-angular-stack.github.io/craft/guide/forms)
+- [Type-safe DI and routing](https://ng-angular-stack.github.io/craft/guide/routing/setup)
+- [Runnable examples](https://ng-angular-stack.github.io/craft/resources/examples)
+- [Migration tooling](https://ng-angular-stack.github.io/craft/resources/migration)
 
 ## Repository structure
 

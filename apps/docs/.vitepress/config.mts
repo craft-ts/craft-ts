@@ -1,5 +1,208 @@
 import { defineConfig } from 'vitepress';
 
+const learnSidebar = [
+  {
+    text: 'Learn',
+    items: [
+      { text: 'Overview', link: '/learn/' },
+      { text: '1. Your first state', link: '/learn/01-first-state' },
+      { text: '2. Derive instead of duplicate', link: '/learn/02-derive' },
+      { text: '3. Move logic out of the component', link: '/learn/03-service' },
+      { text: '4. Compose services', link: '/learn/04-compose' },
+      { text: '5. Load server data', link: '/learn/05-load-data' },
+      { text: '6. Write server data', link: '/learn/06-mutate-data' },
+      { text: '7. Put state in the URL', link: '/learn/07-url-state' },
+      { text: '8. Build a form', link: '/learn/08-forms' },
+      { text: '9. Wire up routing', link: '/learn/09-routing' },
+      { text: '10. Test what you wrote', link: '/learn/10-testing' },
+      { text: 'Where to go next', link: '/learn/next' },
+    ],
+  },
+];
+
+const guideSidebar = [
+  { text: 'Guide overview', link: '/guide/' },
+  {
+    text: 'Core concepts',
+    collapsed: false,
+    items: [
+      { text: 'The mental model', link: '/guide/concepts/mental-model' },
+      {
+        text: 'What craft adds to Angular',
+        link: '/guide/concepts/vs-angular',
+      },
+      {
+        text: 'Which primitive should I use?',
+        link: '/guide/concepts/choose-primitive',
+      },
+      {
+        text: 'Anatomy of a primitive',
+        link: '/guide/concepts/primitive-anatomy',
+      },
+      { text: 'Generators and yield*', link: '/guide/concepts/generators' },
+      { text: 'Insertions', link: '/guide/concepts/insertions' },
+      { text: 'Exceptions as values', link: '/guide/concepts/exceptions' },
+    ],
+  },
+  {
+    text: 'Managing state',
+    collapsed: false,
+    items: [
+      { text: 'Local state', link: '/guide/state/local-state' },
+      { text: 'query', link: '/guide/state/server-state' },
+      { text: 'Mutations', link: '/guide/state/mutations' },
+      { text: 'queryParams', link: '/guide/state/url-state' },
+      { text: 'asyncProcess', link: '/guide/state/async-process' },
+      { text: 'Selecting', link: '/guide/state/select' },
+      { text: 'Reacting to mutations', link: '/guide/state/react-on-mutation' },
+      { text: 'Collections', link: '/guide/state/collections' },
+      { text: 'Collection utilities', link: '/guide/state/collections-utils' },
+      { text: 'Persistence', link: '/guide/state/persistence' },
+      {
+        text: 'GlobalPersisterHandler',
+        link: '/guide/state/persistence-handler',
+      },
+      {
+        text: 'Pagination placeholders',
+        link: '/guide/state/pagination-placeholder',
+      },
+      { text: 'Schema validation', link: '/guide/state/schema-validation' },
+    ],
+  },
+  {
+    text: 'Structuring the app',
+    collapsed: true,
+    items: [
+      { text: 'craftService', link: '/guide/app/craft-service' },
+      { text: 'Service scopes', link: '/guide/app/service-scopes' },
+      { text: 'Shaping the public API', link: '/guide/app/expose-api' },
+      { text: 'Abstract services', link: '/guide/app/abstract-services' },
+      {
+        text: 'Integrating existing code',
+        link: '/guide/app/integrate-existing',
+      },
+      { text: 'App start', link: '/guide/app/app-start' },
+      { text: 'Lazy services', link: '/guide/app/lazy-services' },
+      { text: 'craftRegisterFor', link: '/guide/app/register' },
+      { text: 'Target wrapper', link: '/guide/app/target-wrapper' },
+    ],
+  },
+  {
+    text: 'Routing & type-safe DI',
+    collapsed: true,
+    items: [
+      { text: 'Setup', link: '/guide/routing/setup' },
+      { text: 'CLI automation', link: '/guide/routing/automation' },
+      { text: 'ESLint rules', link: '/guide/routing/eslint-rules' },
+      { text: 'Route providers', link: '/guide/routing/route-providers' },
+      { text: 'Route guards', link: '/guide/routing/guards' },
+      {
+        text: 'Route exception handling',
+        link: '/guide/routing/exception-handling',
+      },
+      { text: 'Non-blocking navigation', link: '/guide/routing/pending-ui' },
+      {
+        text: 'Global error component',
+        link: '/guide/routing/global-error-component',
+      },
+      { text: 'Route load errors', link: '/guide/routing/route-load-errors' },
+      { text: 'Scaling routes', link: '/guide/routing/scaling' },
+      {
+        text: 'Angular brand config',
+        link: '/guide/routing/angular-brand-config',
+      },
+    ],
+  },
+  {
+    text: 'Components & templates',
+    collapsed: true,
+    items: [
+      { text: 'Components', link: '/guide/components/' },
+      {
+        text: 'Directives and .pipe(...)',
+        link: '/guide/components/directives',
+      },
+      { text: 'Customization', link: '/guide/components/customization' },
+      {
+        text: 'Content projection',
+        link: '/guide/components/content-projection',
+      },
+      { text: 'Encapsulated styles', link: '/guide/components/styles' },
+      {
+        text: 'Template migrator',
+        link: '/guide/components/template-migrator',
+      },
+    ],
+  },
+  {
+    text: 'Forms',
+    collapsed: true,
+    items: [
+      { text: 'Overview', link: '/guide/forms/' },
+      { text: 'Validators', link: '/guide/forms/validation' },
+      { text: 'Submitting', link: '/guide/forms/submit' },
+      { text: 'Nested forms', link: '/guide/forms/nested' },
+      { text: 'Exception handling', link: '/guide/forms/exceptions' },
+      { text: 'Complete examples', link: '/guide/forms/examples' },
+    ],
+  },
+  {
+    text: 'Testing',
+    collapsed: true,
+    items: [
+      { text: 'Testing services', link: '/guide/testing/services' },
+      { text: 'Testing components', link: '/guide/testing/components' },
+      { text: 'Type-level tests', link: '/guide/testing/type-level' },
+      { text: 'Browser boundaries', link: '/guide/testing/browser-boundaries' },
+    ],
+  },
+  {
+    text: 'Reactivity utilities',
+    collapsed: true,
+    items: [
+      { text: 'craftComputed', link: '/guide/reactivity/craft-computed' },
+      { text: 'craftEffect', link: '/guide/reactivity/craft-effect' },
+      { text: 'craftMethod', link: '/guide/reactivity/craft-method' },
+      { text: 'source$', link: '/guide/reactivity/source' },
+      { text: 'on$', link: '/guide/reactivity/on' },
+      {
+        text: 'fromEventToSource$',
+        link: '/guide/reactivity/from-event-to-source',
+      },
+      { text: 'sourceFromEvent', link: '/guide/reactivity/source-from-event' },
+      {
+        text: 'reactiveWritableSignal',
+        link: '/guide/reactivity/reactive-writable-signal',
+      },
+      {
+        text: 'afterRecomputation',
+        link: '/guide/reactivity/after-recomputation',
+      },
+    ],
+  },
+  {
+    text: 'Going further',
+    collapsed: true,
+    items: [
+      { text: 'Program operators', link: '/guide/advanced/program-operators' },
+      { text: 'Pattern matching', link: '/guide/advanced/pattern-matching' },
+      { text: 'Observability', link: '/guide/advanced/observability' },
+    ],
+  },
+];
+
+const resourcesSidebar = [
+  {
+    text: 'Resources',
+    items: [
+      { text: 'Examples', link: '/resources/examples' },
+      { text: 'Migration', link: '/resources/migration' },
+      { text: 'Press kit', link: '/resources/press-kit' },
+      { text: 'Backlog', link: '/resources/backlog' },
+    ],
+  },
+];
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: '@craft-ng/core',
@@ -29,194 +232,35 @@ export default defineConfig({
       },
     },
     nav: [
-      { text: 'Home', link: '/' },
-      { text: 'Docs', link: '/get-started' },
+      { text: 'Learn', link: '/learn/', activeMatch: '^/learn/' },
+      { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
+      { text: 'Reference', link: '/reference/', activeMatch: '^/reference/' },
+      {
+        text: 'Resources',
+        activeMatch: '^/resources/',
+        items: [
+          { text: 'Examples', link: '/resources/examples' },
+          { text: 'Migration', link: '/resources/migration' },
+          { text: 'Press kit', link: '/resources/press-kit' },
+          { text: 'Backlog', link: '/resources/backlog' },
+        ],
+      },
     ],
 
-    sidebar: [
-      {
-        text: 'Get Started',
-        link: '/get-started',
-      },
-      {
-        text: 'Introduction',
-        link: '/introduction',
-      },
-      {
-        text: 'Migration',
-        link: '/migration',
-      },
-      {
-        text: 'Template migrator',
-        link: '/component/template-migrator',
-      },
-      {
-        text: 'Primitives',
-        items: [
-          { text: 'state', link: '/primitives/state' },
-          { text: 'asyncProcess', link: '/primitives/async-process' },
-          { text: 'queryParams', link: '/primitives/query-params' },
-          { text: 'query', link: '/primitives/query' },
-          { text: 'mutation', link: '/primitives/mutation' },
-        ],
-      },
-      {
-        text: 'Insertions',
-        items: [
-          {
-            text: 'craftPipe',
-            link: '/insertions/craft-pipe',
-          },
-          {
-            text: 'insertSelect',
-            link: '/insertions/insert-select',
-          },
-          {
-            text: 'insertLocalStorage',
-            link: '/insertions/insert-local-storage',
-          },
-          {
-            text: 'insertReactOnMutation',
-            link: '/insertions/insert-react-on-mutation',
-          },
-          {
-            text: 'insertEntities',
-            link: '/insertions/insert-entities',
-          },
-          {
-            text: 'insertPaginationPlaceholderData',
-            link: '/insertions/insert-pagination-placeholder-data',
-          },
-        ],
-      },
-      {
-        text: 'Forms',
-        items: [{ text: 'Overview', link: '/forms/index' }],
-      },
-      {
-        text: 'Component',
-        items: [
-          {
-            text: 'Directives et .pipe(...)',
-            link: '/component/directives',
-          },
-          {
-            text: 'Customize components and directives',
-            link: '/component/customization',
-          },
-          {
-            text: 'Content projection and typed fragments',
-            link: '/component/content-projection',
-          },
-          {
-            text: 'Styles encapsulés',
-            link: '/component/styles',
-          },
-        ],
-      },
-      {
-        text: 'Service',
-        items: [
-          { text: 'craftService', link: '/store/craft-service' },
-          { text: 'toCraftService', link: '/store/to-craft-service' },
-          {
-            text: 'setupCraftServiceTestingByRegister',
-            link: '/store/setup-craft-service-testing-by-register',
-          },
-        ],
-      },
-      {
-        text: 'Utils',
-        items: [
-          { text: 'craftMethod', link: '/utils/craft-method' },
-          { text: 'craftComputed', link: '/utils/craft-computed' },
-          { text: 'craftEffect', link: '/utils/craft-effect' },
-          { text: 'craftRegisterFor', link: '/utils/craft-register-for' },
-          {
-            text: 'provideCraftTargetWrapper',
-            link: '/utils/provide-craft-target-wrapper',
-          },
-          { text: 'source$', link: '/utils/source$' },
-          { text: 'fromEventToSource$', link: '/utils/from-event-to-source$' },
-          { text: 'on$', link: '/utils/on$' },
-          { text: 'onAppStart', link: '/utils/on-app-start' },
-          {
-            text: 'reactiveWritableSignal',
-            link: '/utils/reactive-writable-signal',
-          },
-          {
-            text: 'GlobalPersisterHandler',
-            link: '/utils/global-persister-handler-service',
-          },
-          { text: 'Entities Utilities', link: '/utils/entities-util' },
-        ],
-      },
-      {
-        text: 'Type-safe DI/Routes',
-        items: [
-          {
-            text: 'Setup',
-            link: '/type-safe-di-routes/setup',
-          },
-          {
-            text: 'Automation',
-            link: '/type-safe-di-routes/automation',
-          },
-          {
-            text: 'Route Providers',
-            link: '/type-safe-di-routes/route-providers',
-          },
-          {
-            text: 'craftGen',
-            link: '/type-safe-di-routes/craft-gen',
-          },
-          {
-            text: 'Program Operators (.pipe)',
-            link: '/type-safe-di-routes/program-operators',
-          },
-          {
-            text: 'Pattern Matching (craftMatch)',
-            link: '/type-safe-di-routes/pattern-matching',
-          },
-          {
-            text: 'Route Guards',
-            link: '/type-safe-di-routes/guards',
-          },
-          {
-            text: 'Route Load Errors',
-            link: '/type-safe-di-routes/route-load-errors',
-          },
-          {
-            text: 'Lazy Services (craftLazy)',
-            link: '/type-safe-di-routes/lazy-services',
-          },
-          {
-            text: 'Browser Boundaries',
-            link: '/type-safe-di-routes/browser-boundaries',
-          },
-          {
-            text: 'Angular Brand Config',
-            link: '/type-safe-di-routes/angular-brand-config',
-          },
-          {
-            text: 'Observability',
-            link: '/type-safe-di-routes/observability',
-          },
-        ],
-      },
-      {
-        text: 'Examples',
-        link: '/examples',
-      },
-      {
-        text: 'Press kit',
-        link: '/press-kit',
-      },
-      {
-        text: 'Backlog',
-        link: '/backlog',
-      },
-    ],
+    sidebar: {
+      '/learn/': learnSidebar,
+      '/guide/': guideSidebar,
+      '/reference/': [
+        {
+          text: 'Reference',
+          items: [{ text: 'API index', link: '/reference/' }],
+        },
+      ],
+      '/resources/': resourcesSidebar,
+    },
+
+    outline: [2, 3],
+
     socialLinks: [
       { icon: 'github', link: 'https://github.com/ng-angular-stack/ng-craft' },
     ],
