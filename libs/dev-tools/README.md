@@ -147,6 +147,54 @@ stdin and emits a template callback. The browser-safe `template-migration`
 subpath exposes the same `migrateTemplateToCraft(...)` function to documentation
 sites and other tooling.
 
+## Static Craft dependency graph
+
+`craft-graph` analyzes a TypeScript application without starting it and without
+using the runtime registry. It combines the AST with the TypeScript type checker
+to represent routes, lazy-loaded components, Craft services, service properties,
+component primitives, and source interactions.
+
+```bash
+npx craft-graph \
+  --project apps/demo/tsconfig.app.json \
+  --root . \
+  --out craft-dependency-graph \
+  --format both
+```
+
+This writes `craft-dependency-graph.json` and `craft-dependency-graph.mmd`.
+The same command is also available as `npx craft graph`. Use `--format json` or
+`--format mermaid` to write only one representation and `--include <text>` to
+restrict the analysis to matching source paths.
+
+To get the interactive route explorer, use `--format html`. It embeds the graph
+in one standalone file: no server, application runtime, or separate JSON file is
+needed. The explorer lets you expand route → component → service/property/
+primitive, click any node for its source and relations, and identify services
+used by other routes. `--format all` writes JSON, Mermaid, and HTML together.
+
+```bash
+npx nx build dev-tools
+node dist/libs/dev-tools/src/bin/craft.js graph \
+  --project apps/demo/tsconfig.app.json \
+  --root . \
+  --out craft-dependency-graph.html \
+  --format html
+```
+
+When running directly from this monorepo, build the package first because the
+workspace sources are TypeScript while the package binaries are emitted as
+JavaScript:
+
+```bash
+npx nx build dev-tools
+npx --package ./dist/libs/dev-tools craft graph \
+  --project apps/demo/tsconfig.app.json \
+  --root . \
+  --out craft-dependency-graph \
+  --format both
+```
+
 ## Angular routes migration
 
 `craft-migrate-routes` converts exported `Routes` arrays to `craftRoutes`, wraps

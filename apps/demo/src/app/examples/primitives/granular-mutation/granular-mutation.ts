@@ -54,18 +54,22 @@ const GranularMutation = craftComponent(
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
-    const api = yield* ApiService();
+
     const { updateUserName } = yield* mutation('updateUserName', {
       method: (user: User) => ({ ...user, name: `${user.name}-` }),
       identifier: ({ id }) => id,
-      loader: ({ params }) => api.updateItem(params),
+      loader: function* ({ params }) {
+        return yield* ApiService.updateItem(params);
+      },
     });
     const { usersQuery } = yield* query(
       'usersQuery',
       {
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
-        loader: ({ params }) => api.getDataList(params),
+        loader: function* ({ params }) {
+          return yield* ApiService.getDataList(params);
+        },
       },
       (context) =>
         craftPipe(

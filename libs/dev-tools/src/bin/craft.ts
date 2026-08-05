@@ -22,6 +22,18 @@ type CommonOptions = {
 };
 
 async function main(argv: string[]): Promise<number> {
+  if (argv[0] === 'graph') {
+    const { spawn } = await import('node:child_process');
+    const { fileURLToPath } = await import('node:url');
+    const graphBin = fileURLToPath(new URL('./craft-graph.js', import.meta.url));
+    const child = spawn(process.execPath, [graphBin, ...argv.slice(1)], {
+      stdio: 'inherit',
+    });
+    return await new Promise<number>((resolve) => {
+      child.on('exit', (code) => resolve(code ?? 1));
+      child.on('error', () => resolve(1));
+    });
+  }
   if (argv[0] !== 'route' || !['add', 'split'].includes(argv[1] ?? '')) {
     printHelp();
     return argv.includes('--help') ? 0 : 1;
@@ -178,6 +190,7 @@ function printResult(result: RouteCommandResult, json: boolean): void {
 
 function printHelp(): void {
   console.log(`Usage:
+  craft graph [options]
   craft route add [path] [options]
   craft route split --parent <file#collection> --prefix <path> --target <file>
 

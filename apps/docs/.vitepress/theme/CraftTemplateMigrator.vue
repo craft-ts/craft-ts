@@ -4,7 +4,7 @@ import { migrateTemplateToCraft } from '../../../../libs/dev-tools/src/template-
 
 const source = ref(`<section class="card">
   <h2>Hello</h2>
-  <my-button variant="primary">Save</my-button>
+  <button class="primary" type="button">Save</button>
 </section>`);
 const componentName = ref('');
 const copied = ref(false);
