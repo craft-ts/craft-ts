@@ -19,7 +19,8 @@ derive the rest.** Everything below is a variation on it.
   the API you just used
 - [Exceptions as values](/guide/concepts/exceptions) — declared failures,
   exhaustively handled
-- [Insertions](/guide/concepts/insertions) — writing your own, and `insertPipe`
+- [Insertions](/guide/concepts/insertions) — writing your own and composing them
+- [Typed insertion pipes](/guide/concepts/insertion-pipes) — readable composition for each primitive
 - [Generators](/guide/concepts/generators) — `craftGen` outside a service
 
 ## When your app grows

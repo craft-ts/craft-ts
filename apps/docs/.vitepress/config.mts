@@ -41,6 +41,10 @@ const guideSidebar = [
       },
       { text: 'Generators and yield*', link: '/guide/concepts/generators' },
       { text: 'Insertions', link: '/guide/concepts/insertions' },
+      {
+        text: 'Typed insertion pipes',
+        link: '/guide/concepts/insertion-pipes',
+      },
       { text: 'Exceptions as values', link: '/guide/concepts/exceptions' },
     ],
   },

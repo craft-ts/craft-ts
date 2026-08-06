@@ -74,8 +74,10 @@ state('counter', 0, ({ state, update, set }) => ({
 }));
 ```
 
-Compose several with [`craftPipe`](/guide/concepts/insertions). An insertion can
-also be a `function*`, in which case it can `yield*` services.
+Compose several with the primitive-specific helpers described in
+[Typed insertion pipes](/guide/concepts/insertion-pipes). An insertion can also
+be a `function*`, in which case it can `yield*` services. Keep
+[`craftPipe`](/guide/concepts/insertions) for universal or nested compositions.
 
 ## Scoped providers
 

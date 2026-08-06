@@ -819,14 +819,12 @@ type IsArray<T> = T extends any[] ? true : false;
  * );
  * ```
  *
- * `insertSelect` itself also composes as a member of an `craftPipe` at the
- * primitive level:
+ * `insertSelect` itself also composes as a member of an `insertStatePipe` at
+ * the primitive level:
  *
  * @example
  * ```ts
- * state(initialCells, (context) =>
- *   craftPipe(
- *     context,
+ * state(initialCells, insertStatePipe(
  *     insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
  *     insertSelect('cell', ({ update }) => ({
  *       paint: () => update((cell) => ({ ...cell, painted: true })),

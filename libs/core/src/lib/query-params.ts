@@ -275,8 +275,8 @@ export type QueryParamsConfig<
  *   - `skipLocationChange` (optional): Whether to skip updating the browser's location
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query param manager.
  *   The insertion receives a context with `state`, `config`, `set`, `update`, `patch` and `reset`.
- *   To attach several insertions, compose them with `craftPipe`:
- *   `queryParams('name', config, (context) => craftPipe(context, insertion1, insertion2))` —
+ *   To attach several insertions, compose them with `insertQueryParamsPipe`:
+ *   `queryParams('name', config, insertQueryParamsPipe(insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
  * @returns A single-use primitive generator resolving to a record keyed by

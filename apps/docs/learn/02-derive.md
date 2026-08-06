@@ -228,14 +228,15 @@ logic — a toast, a log — and produces no DOM.
 
 ## Several insertions at once
 
-One insertion function gets crowded fast. Split it and compose with `craftPipe`:
+One insertion function gets crowded fast. Split it and compose with `insertStatePipe`:
 
 ```typescript
-import { craftPipe, state } from '@craft-ng/core';
+import { insertStatePipe, state } from '@craft-ng/core';
 
-const { tasks } = yield* state('tasks', [] as Task[], (context) =>
-  craftPipe(
-    context,
+const { tasks } = yield* state(
+  'tasks',
+  [] as Task[],
+  insertStatePipe(
     ({ update }) => ({
       add: (title: string) => update((c) => [...c, newTask(title)]),
     }),

@@ -6,8 +6,10 @@ gets reused.
 
 **Use one** whenever a primitive needs methods, computed values, or a ready-made
 behaviour like localStorage sync.
-**Use `craftPipe`** when you need more than one, because every primitive accepts
-exactly one insertion.
+Every primitive accepts one insertion directly. For several insertions, prefer
+the typed helper for that primitive; see
+[Typed insertion pipes](/guide/concepts/insertion-pipes). Use `craftPipe` when
+you need a universal pipe or an explicit nested context.
 
 ## The common case
 
@@ -16,10 +18,11 @@ compose in the same pipe:
 
 ```typescript
 import {
-  craftPipe,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
+  insertQueryPipe,
+  insertStatePipe,
   query,
 } from '@craft-ng/core';
 
@@ -32,26 +35,24 @@ const { users } = yield* query(
       return yield* ApiService.getDataList(params);
     },
   },
-  (context) =>
-    craftPipe(
-      context,
-      insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
-      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-      insertReactOnMutation(deleteUser, {
-        filter: ({ mutationIdentifier, queryResource }) =>
-          !!queryResource.safeValue()?.some((u) => u.id === mutationIdentifier),
-        optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
-          removeOne({
-            entities: queryResource.value(),
-            id: mutationIdentifier,
-          }),
-      }),
-    ),
+  insertQueryPipe(
+    insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
+    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+    insertReactOnMutation(deleteUser, {
+      filter: ({ mutationIdentifier, queryResource }) =>
+        !!queryResource.safeValue()?.some((u) => u.id === mutationIdentifier),
+      optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
+        removeOne({
+          entities: queryResource.value(),
+          id: mutationIdentifier,
+        }),
+    }),
+  ),
 );
 ```
 
-Note the shape: the outer lambda receives `context` and hands it to
-`craftPipe`, which re-dispatches it to each member.
+The typed helper supplies the query context to each member and keeps the
+primitive call free of context plumbing.
 
 ::: tip A single insertion needs no pipe
 Pass it directly:
@@ -68,9 +69,10 @@ There is nothing special about a library insertion. Yours is a function of the
 same shape:
 
 ```typescript
-const { counter } = yield* state('counter', 0, (context) =>
-  craftPipe(
-    context,
+const { counter } = yield* state(
+  'counter',
+  0,
+  insertStatePipe(
     ({ update, set }) => ({
       increment: () => update((c) => c + 1),
       reset: () => set(0),
@@ -110,32 +112,30 @@ own context:
 const { board } = yield* state(
   'board',
   { ui: { activeColor: 'black' }, grid: createInitialGrid() },
-  (context) =>
-    craftPipe(
-      context,
-      insertLocalStoragePersister({ storeName: 'app', key: 'board' }),
-      () => ({ resetAll$: source$<void>('resetAll$') }),
-      insertSelect('grid', (gridContext) =>
-        craftPipe(
-          gridContext,
-          ({ state, update }) => ({
-            addRow: () => update((grid) => [...grid, createNextRow(grid)]),
-            rowIndexes: computed(() => state().map((_row, index) => index)),
-          }),
-          insertSelect('row', ({ update }) => ({
-            /* … */
-          })),
-        ),
+  insertStatePipe(
+    insertLocalStoragePersister({ storeName: 'app', key: 'board' }),
+    () => ({ resetAll$: source$<void>('resetAll$') }),
+    insertSelect('grid', (gridContext) =>
+      craftPipe(
+        gridContext,
+        ({ state, update }) => ({
+          addRow: () => update((grid) => [...grid, createNextRow(grid)]),
+          rowIndexes: computed(() => state().map((_row, index) => index)),
+        }),
+        insertSelect('row', ({ update }) => ({
+          /* … */
+        })),
       ),
     ),
+  ),
 );
 ```
 
 ## Pitfalls
 
-**Forgetting the outer lambda.** `craftPipe` needs the primitive's context
-passed explicitly — `(context) => craftPipe(context, …)`, not
-`craftPipe(…)` on its own.
+**Choosing the wrong pipe.** Use the primitive-specific helper for a direct
+composition. `craftPipe` still requires an explicit context and is the right
+choice for universal or nested compositions.
 
 **Two members exporting the same key.** The rightmost wins silently at runtime.
 Name your outputs so they don't collide.

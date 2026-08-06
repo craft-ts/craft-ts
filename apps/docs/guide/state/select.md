@@ -16,7 +16,7 @@ This insertion works with the `state` primitive.
 :::
 
 ```typescript
-import { insertSelect, state } from '@craft-ng/core';
+import { insertSelect, insertStatePipe, state } from '@craft-ng/core';
 ```
 
 ## The common case — selecting an object property
@@ -89,13 +89,12 @@ not supported yet, and currently breaks type inference rather than failing
 cleanly. An improvement is planned.
 
 **A select takes a single nested insertion**, like any primitive. Use
-`craftPipe` for more than one (below).
+`craftPipe` for more than one nested insertion (below).
 
 ::: tip Nested typing needs no anchor
-With `craftPipe` the selected context is re-passed explicitly at every level, so
-TypeScript keeps full contextual typing through nested `insertSelect` chains. The
-historical `insertNoopTypingAnchor` workaround is not needed here — it remains
-necessary for the [form-tree helpers](/guide/forms/nested).
+Use `craftPipe` when composing nested `insertSelect` levels because each level
+has its own explicit context. The historical `insertNoopTypingAnchor` workaround
+is not needed here — it remains necessary for the [form-tree helpers](/guide/forms/nested).
 :::
 
 ## Attaching several insertions
@@ -125,15 +124,12 @@ state(
 `insertSelect` also composes as a **member** of a pipe:
 
 ```ts
-state('cells', initialCells, (context) =>
-  craftPipe(
-    context,
+state('cells', initialCells, insertStatePipe(
     insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
     insertSelect('cell', ({ update }) => ({
       paint: () => update((cell) => ({ ...cell, painted: true })),
     })),
-  ),
-);
+  ));
 ```
 
 ::: details Working examples — pixel art

@@ -55,14 +55,15 @@ doubled(); // 10
 
 ## Composing several insertions
 
-One insertion function gets crowded. Split it and compose with `craftPipe`:
+One insertion function gets crowded. Split it and compose with `insertStatePipe`:
 
 ```typescript
-import { craftPipe } from '@craft-ng/core';
+import { insertStatePipe } from '@craft-ng/core';
 
-const { counter } = yield* state('counter', 0, (context) =>
-  craftPipe(
-    context,
+const { counter } = yield* state(
+  'counter',
+  0,
+  insertStatePipe(
     ({ update, set }) => ({
       increment: () => update((current) => current + 1),
       reset: () => set(0),
@@ -110,13 +111,11 @@ bound to a source work internally only.
 An insertion can be a `function*`, so it can pull in services:
 
 ```typescript
-yield* state('counter', 0, (context) =>
-  craftPipe(context, function* ({ state }) {
+yield* state('counter', 0, function* ({ state }) {
     const log = yield* Console.log;
     effect(() => log(`State value changed: ${state()}`));
     return {};
-  }),
-);
+  });
 ```
 
 Prefer yielding a craft service over calling Angular's `inject` — yielding is

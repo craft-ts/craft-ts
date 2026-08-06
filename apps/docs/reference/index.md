@@ -22,7 +22,11 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 | Symbol         | What it does                                    | Page                                          |
 | -------------- | ----------------------------------------------- | --------------------------------------------- |
 | `craftPipe`    | Composes several insertions into one            | [Insertions](/guide/concepts/insertions)      |
-| `insertPipe`   | Inserts a pipe at an explicit context           | [Insertions](/guide/concepts/insertions)      |
+| `insertStatePipe` | Composes several `state` insertions           | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertQueryPipe` | Composes several `query` insertions           | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertMutationPipe` | Composes several `mutation` insertions     | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertQueryParamsPipe` | Composes several `queryParams` insertions | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
+| `insertAsyncProcessPipe` | Composes several `asyncProcess` insertions | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
 | `craftGen`     | A standalone tracked generator                  | [Generators](/guide/concepts/generators)      |
 | `craftMatch`   | Exhaustive pattern matching                     | [Pattern matching](/guide/advanced/pattern-matching) |
 | `.pipe(...)`   | Program operators on a craft generator          | [Program operators](/guide/advanced/program-operators) |

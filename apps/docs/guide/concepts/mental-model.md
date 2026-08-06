@@ -85,7 +85,9 @@ const { myQuery } = query(
 );
 ```
 
-Compose several with [`craftPipe`](/guide/concepts/insertions).
+Compose several with the primitive-specific helpers in
+[Typed insertion pipes](/guide/concepts/insertion-pipes). Keep
+[`craftPipe`](/guide/concepts/insertions) for universal or nested compositions.
 
 ### Methods or events, your choice
 

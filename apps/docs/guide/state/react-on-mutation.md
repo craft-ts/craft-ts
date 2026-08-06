@@ -85,8 +85,8 @@ const { queryRef } = yield* query(
 ## Several reactions on one query
 
 A query accepts a single insertion, so compose them with
-[`craftPipe`](/guide/concepts/insertions) — this is the pipe's main real-world
-use case:
+[`insertQueryPipe`](/guide/concepts/insertion-pipes) to keep this composition
+readable:
 
 ```typescript
 const { users } = query(
@@ -98,9 +98,7 @@ const { users } = query(
       return yield* ApiService.getDataList(params);
     },
   },
-  (context) =>
-    craftPipe(
-      context,
+  insertQueryPipe(
       insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
       insertReactOnMutation(deleteUser, {
         filter: ({ mutationIdentifier, queryResource }) =>
