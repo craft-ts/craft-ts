@@ -46,6 +46,31 @@ them. Please feel free to share your opinions and suggestions. I am willing
 to introduce utilities or adaptations where necessary to make promising
 approaches compatible with the library and practical to use.
 
+## Tooling for understanding changes
+
+I also plan to create a precise dependency graph and a tool that can compare
+two branches. The goal is to make the changes introduced by artificial
+intelligence easier to inspect and understand, by providing a clearer view of
+the affected dependencies and the differences between two versions of a
+codebase.
+
+I may also extend the dependency graph to represent complete paths through the
+graph, making it possible to follow how a change propagates across the
+codebase. This could provide a foundation for adding architecture tests and
+architecture constraints directly to the same tooling, so that intended
+dependencies and boundaries can be checked automatically.
+
+I am also considering building DevTools for `@craft-ng/core`, although I am
+not yet certain how valuable a traditional DevTools experience would be for
+the library. If there are features or workflows you would find useful in this
+area, please feel free to tell me about them.
+
+Several of my current ideas are more AI-first: tools designed to help an AI
+agent debug an application through WebMCP and observability, for example by
+making runtime state, dependency relationships, and application events easier
+to inspect and reason about. Feedback will help determine whether these ideas
+should become part of a DevTools experience or evolve as separate tools.
+
 ## Longer-term exploration: type-safe server functions
 
 Further ahead, I am considering a server-function system built around the
