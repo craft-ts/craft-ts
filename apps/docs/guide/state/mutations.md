@@ -13,18 +13,21 @@ action that isn't a server write
 ```typescript
 import { CraftHttpClient, mutation } from '@craft-ng/core';
 
-const { createUser } = yield* mutation('createUser', {
-  method: (payload: { name: string; email: string }) => payload,
-  loader: function* ({ params: user }) {
-    return yield* CraftHttpClient.post(({ response }) => ({
-      url: '/api/users',
-      body: user,
-      success: response<User>(),
-    }));
-  },
-});
+const { createUser } =
+  yield *
+  mutation('createUser', {
+    method: (payload: { name: string; email: string }) => payload,
+    loader: function* ({ params: user }) {
+      return yield* CraftHttpClient.post(({ response }) => ({
+        url: '/api/users',
+        body: user,
+        success: response<User>(),
+      }));
+    },
+  });
 
-createUser.mutate({ name: 'John', email: 'john@example.com' });
+// In a tracked generator, consume the trigger with yield*.
+yield * createUser.mutate({ name: 'John', email: 'john@example.com' });
 
 createUser.isLoading();
 createUser.value(); // throws when the status is 'exception'
@@ -61,16 +64,18 @@ Use a [`source$`](/guide/reactivity/source) as the trigger instead of calling
 ```typescript
 const deleteUserSource = source$<{ name: string; email: string; id: string }>();
 
-const { deleteUser } = yield* mutation('deleteUser', {
-  method: on$(deleteUserSource, (payload) => payload),
-  loader: function* ({ params: user }) {
-    return yield* CraftHttpClient.delete(({ response }) => ({
-      url: '/api/users',
-      body: user,
-      success: response<User>(),
-    }));
-  },
-});
+const { deleteUser } =
+  yield *
+  mutation('deleteUser', {
+    method: on$(deleteUserSource, (payload) => payload),
+    loader: function* ({ params: user }) {
+      return yield* CraftHttpClient.delete(({ response }) => ({
+        url: '/api/users',
+        body: user,
+        success: response<User>(),
+      }));
+    },
+  });
 
 deleteUserSource.emit({ name: 'John', email: 'john@example.com', id: '5' });
 ```
@@ -82,37 +87,39 @@ before any request, `loader` for what the request produced — and typed from th
 codes you declared:
 
 ```typescript
-const { deleteUser } = yield* mutation('deleteUser', {
-  method: (payload: { userId: string }) =>
-    payload.userId.length < 18
-      ? craftException(
-          { code: 'INVALID_ID' },
-          { min: 18, received: payload.userId.length },
-        )
-      : payload.userId,
-  loader: function* ({ params }) {
-    return yield* CraftHttpClient.delete(({ response }) => ({
-      url: '/api/user',
-      body: params,
-      success: response<User>(),
-      exceptions: [
-        function* ({ status }) {
-          if (!(yield* status(403))) return;
-          return craftException(
-            { code: 'USER_ACCESS_FORBIDDEN' },
-            { payload: params },
-          );
-        },
-      ],
-    }));
-  },
-});
+const { deleteUser } =
+  yield *
+  mutation('deleteUser', {
+    method: (payload: { userId: string }) =>
+      payload.userId.length < 18
+        ? craftException(
+            { code: 'INVALID_ID' },
+            { min: 18, received: payload.userId.length },
+          )
+        : payload.userId,
+    loader: function* ({ params }) {
+      return yield* CraftHttpClient.delete(({ response }) => ({
+        url: '/api/user',
+        body: params,
+        success: response<User>(),
+        exceptions: [
+          function* ({ status }) {
+            if (!(yield* status(403))) return;
+            return craftException(
+              { code: 'USER_ACCESS_FORBIDDEN' },
+              { payload: params },
+            );
+          },
+        ],
+      }));
+    },
+  });
 
-deleteUser.mutate({ userId: 'ab' });
+yield * deleteUser.mutate({ userId: 'ab' });
 deleteUser.hasException(); // true
 deleteUser.exceptions().params?.INVALID_ID;
 
-deleteUser.mutate({ userId: '12345-12344_27365453-2625434357282827' });
+yield * deleteUser.mutate({ userId: '12345-12344_27365453-2625434357282827' });
 deleteUser.exceptions().loader?.USER_ACCESS_FORBIDDEN;
 ```
 
@@ -130,19 +137,21 @@ state of the last delete only.
 `identifier` keeps one resource per key, so each row tracks its own state:
 
 ```typescript
-const { deleteUser } = yield* mutation('deleteUser', {
-  method: (payload: { name: string; email: string; id: string }) => payload,
-  identifier: ({ id }) => id,
-  loader: function* ({ params: user }) {
-    return yield* CraftHttpClient.delete(({ response }) => ({
-      url: '/api/users',
-      body: user,
-      success: response<User>(),
-    }));
-  },
-});
+const { deleteUser } =
+  yield *
+  mutation('deleteUser', {
+    method: (payload: { name: string; email: string; id: string }) => payload,
+    identifier: ({ id }) => id,
+    loader: function* ({ params: user }) {
+      return yield* CraftHttpClient.delete(({ response }) => ({
+        url: '/api/users',
+        body: user,
+        success: response<User>(),
+      }));
+    },
+  });
 
-deleteUser.mutate({ name: 'John', email: 'john@example.com', id: '5' });
+yield * deleteUser.mutate({ name: 'John', email: 'john@example.com', id: '5' });
 
 deleteUser.select('5')?.isLoading();
 deleteUser.select('5')?.exception();
@@ -156,16 +165,18 @@ deleteUser.select('5')?.value();
 scopes dependencies to this mutation alone:
 
 ```typescript
-const { saveUser } = yield* mutation('saveUser', {
-  providers: [provideMutationLogger(), provideUserApiService()],
-  method: function* (user: { id: string; name: string }) {
-    yield* MutationLogger.log(`mutate:${user.id}`);
-    return user;
-  },
-  loader: function* ({ params }) {
-    return yield* UserApiService.save(params);
-  },
-});
+const { saveUser } =
+  yield *
+  mutation('saveUser', {
+    providers: [provideMutationLogger(), provideUserApiService()],
+    method: function* (user: { id: string; name: string }) {
+      yield* MutationLogger.log(`mutate:${user.id}`);
+      return user;
+    },
+    loader: function* ({ params }) {
+      return yield* UserApiService.save(params);
+    },
+  });
 ```
 
 Inside `craftMutations(...)`, `providers` stays on each `mutation(name, ...)`

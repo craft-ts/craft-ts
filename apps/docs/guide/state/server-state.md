@@ -9,7 +9,7 @@ run a one-off async action that isn't a fetch
 ([`asyncProcess`](/guide/state/async-process)).
 
 ::: warning One source of truth
-Don't copy a query's result into a `state`. The query *is* the state.
+Don't copy a query's result into a `state`. The query _is_ the state.
 :::
 
 ## The common case
@@ -17,15 +17,17 @@ Don't copy a query's result into a `state`. The query *is* the state.
 ```typescript
 import { CraftHttpClient, query } from '@craft-ng/core';
 
-const { userQuery } = yield* query('userQuery', {
-  params: () => ({ userId: currentUserId() }),
-  loader: function* ({ params }) {
-    return yield* CraftHttpClient.get(({ response }) => ({
-      url: `/api/users/${params.userId}`,
-      success: response<User>(),
-    }));
-  },
-});
+const { userQuery } =
+  yield *
+  query('userQuery', {
+    params: () => ({ userId: currentUserId() }),
+    loader: function* ({ params }) {
+      return yield* CraftHttpClient.get(({ response }) => ({
+        url: `/api/users/${params.userId}`,
+        success: response<User>(),
+      }));
+    },
+  });
 ```
 
 `params` is reactive: when what it returns changes, the loader runs again. The
@@ -50,36 +52,45 @@ When the trigger is a user action rather than a reactive input, use `method`
 instead of `params`:
 
 ```typescript
-const { searchQuery } = yield* query('searchQuery', {
-  method: (term: string) => term,
-  loader: function* ({ params: term }) {
-    return yield* CraftHttpClient.get(({ response }) => ({
-      url: `/api/search?q=${term}`,
-      success: response<Array<{ id: string; title: string }>>(),
-    }));
-  },
-});
+const { searchQuery } =
+  yield *
+  query('searchQuery', {
+    method: (term: string) => term,
+    loader: function* ({ params: term }) {
+      return yield* CraftHttpClient.get(({ response }) => ({
+        url: `/api/search?q=${term}`,
+        success: response<Array<{ id: string; title: string }>>(),
+      }));
+    },
+  });
 
-searchQuery.call('angular');
+// In a tracked generator, consume the trigger with yield*.
+yield * searchQuery.call('angular');
 ```
+
+From an ordinary UI callback, the imperative form remains valid:
+`click: () => searchQuery.call(term)`. Do not put either form in a
+`craftEffect` dependency graph; use reactive `params` for data loading.
 
 ## Adding derived values
 
 Same insertion mechanism as any primitive:
 
 ```typescript
-const { todosQuery } = yield* query(
-  'todosQuery',
-  {
-    params: () => ({ completed: showCompleted() }),
-    loader: async ({ params }) =>
-      (await fetch(`/api/todos?completed=${params.completed}`)).json(),
-  },
-  ({ value, isLoading }) => ({
-    count: computed(() => value()?.length ?? 0),
-    isEmpty: computed(() => !isLoading() && value()?.length === 0),
-  }),
-);
+const { todosQuery } =
+  yield *
+  query(
+    'todosQuery',
+    {
+      params: () => ({ completed: showCompleted() }),
+      loader: async ({ params }) =>
+        (await fetch(`/api/todos?completed=${params.completed}`)).json(),
+    },
+    ({ value, isLoading }) => ({
+      count: computed(() => value()?.length ?? 0),
+      isEmpty: computed(() => !isLoading() && value()?.length === 0),
+    }),
+  );
 
 todosQuery.count();
 ```
@@ -113,7 +124,7 @@ value" to preserve — the option is ignored on that path.
 Rather than reloading by hand after a write, declare the link:
 
 ```typescript
-import { craftPipe, insertReactOnMutation } from '@craft-ng/core';
+import { insertQueryPipe, insertReactOnMutation } from '@craft-ng/core';
 
 const { userQuery } = yield* query(
   'userQuery',
@@ -121,9 +132,7 @@ const { userQuery } = yield* query(
     params: () => ({ userId: currentUserId() }),
     loader: /* … */,
   },
-  (context) =>
-    craftPipe(
-      context,
+  insertQueryPipe(
       insertReactOnMutation(updateUserMutation, {
         // apply the change immediately, before the server answers
         optimisticPatch: {
@@ -152,25 +161,27 @@ the request produced:
 ```typescript
 import { craftException, query } from '@craft-ng/core';
 
-const { userQuery } = yield* query('userQuery', {
-  method: (value: string) =>
-    value.length < 3
-      ? craftException(
-          { code: 'SEARCH_TERM_TOO_SHORT' },
-          { min: 3, received: value.length },
-        )
-      : value,
-  loader: async ({ params }) =>
-    params === 'forbidden'
-      ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
-      : { id: params, name: 'John Doe' },
-});
+const { userQuery } =
+  yield *
+  query('userQuery', {
+    method: (value: string) =>
+      value.length < 3
+        ? craftException(
+            { code: 'SEARCH_TERM_TOO_SHORT' },
+            { min: 3, received: value.length },
+          )
+        : value,
+    loader: async ({ params }) =>
+      params === 'forbidden'
+        ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
+        : { id: params, name: 'John Doe' },
+  });
 
-userQuery.call('ab');
+yield * userQuery.call('ab');
 userQuery.hasException(); // true
 userQuery.exceptions().params?.SEARCH_TERM_TOO_SHORT;
 
-userQuery.call('forbidden');
+yield * userQuery.call('forbidden');
 userQuery.exceptions().loader?.USER_ACCESS_FORBIDDEN;
 ```
 
@@ -191,16 +202,18 @@ replacing each other:
 ```typescript
 const userId = signal<number | undefined>(undefined);
 
-const { userQuery } = yield* query('userQuery', {
-  params: userId,
-  identifier: (id) => id,
-  loader: function* ({ params }) {
-    return yield* CraftHttpClient.get(({ response }) => ({
-      url: `/api/users/${params}`,
-      success: response<User>(),
-    }));
-  },
-});
+const { userQuery } =
+  yield *
+  query('userQuery', {
+    params: userId,
+    identifier: (id) => id,
+    loader: function* ({ params }) {
+      return yield* CraftHttpClient.get(({ response }) => ({
+        url: `/api/users/${params}`,
+        success: response<User>(),
+      }));
+    },
+  });
 
 userId.set(1);
 userId.set(2);
@@ -257,22 +270,24 @@ Working source:
 `params` can be a generator, and so can an insertion:
 
 ```typescript
-const { userQuery } = yield* query(
-  'userQuery',
-  {
-    providers: [provideUserService(), provideUserApiService()],
-    params: function* () {
-      return yield* UserService.userId();
+const { userQuery } =
+  yield *
+  query(
+    'userQuery',
+    {
+      providers: [provideUserService(), provideUserApiService()],
+      params: function* () {
+        return yield* UserService.userId();
+      },
+      loader: function* ({ params: userId }) {
+        return yield* UserApiService.get(userId);
+      },
     },
-    loader: function* ({ params: userId }) {
-      return yield* UserApiService.get(userId);
+    function* () {
+      const queryTools = yield* QueryTools();
+      return { queryKey: `${queryTools.prefix()}:details` };
     },
-  },
-  function* () {
-    const queryTools = yield* QueryTools();
-    return { queryKey: `${queryTools.prefix()}:details` };
-  },
-);
+  );
 ```
 
 :::

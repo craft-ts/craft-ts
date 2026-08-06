@@ -10,18 +10,20 @@ request even comes back.
 ```typescript
 import { CraftHttpClient, mutation } from '@craft-ng/core';
 
-const { createTask } = yield* mutation('createTask', {
-  method: (payload: { title: string }) => payload,
-  loader: function* ({ params }) {
-    return yield* CraftHttpClient.post(({ response }) => ({
-      url: '/api/tasks',
-      body: params,
-      success: response<Task>(),
-    }));
-  },
-});
+const { createTask } =
+  yield *
+  mutation('createTask', {
+    method: (payload: { title: string }) => payload,
+    loader: function* ({ params }) {
+      return yield* CraftHttpClient.post(({ response }) => ({
+        url: '/api/tasks',
+        body: params,
+        success: response<Task>(),
+      }));
+    },
+  });
 
-createTask.mutate({ title: 'Write step 6' });
+yield * createTask.mutate({ title: 'Write step 6' });
 
 createTask.isLoading();
 createTask.safeValue();
@@ -38,27 +40,25 @@ The interesting part is not the mutation, it's wiring it to the query. That's an
 insertion — `insertReactOnMutation`:
 
 ```typescript
-import { craftPipe, insertReactOnMutation, query } from '@craft-ng/core';
+import { insertReactOnMutation, query } from '@craft-ng/core';
 
-const { tasksQuery } = yield* query(
-  'tasksQuery',
-  {
-    params: () => ({ done: false }),
-    loader: function* () {
-      return yield* CraftHttpClient.get(({ response }) => ({
-        url: '/api/tasks',
-        success: response<Task[]>(),
-      }));
+const { tasksQuery } =
+  yield *
+  query(
+    'tasksQuery',
+    {
+      params: () => ({ done: false }),
+      loader: function* () {
+        return yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/tasks',
+          success: response<Task[]>(),
+        }));
+      },
     },
-  },
-  (context) =>
-    craftPipe(
-      context,
-      insertReactOnMutation(createTask, {
-        reload: { onMutationSuccess: true },
-      }),
-    ),
-);
+    insertReactOnMutation(createTask, {
+      reload: { onMutationSuccess: true },
+    }),
+  );
 ```
 
 The query now reloads itself whenever `createTask` succeeds. No subscription, no
@@ -97,7 +97,7 @@ const { createTask } = yield* mutation('createTask', {
   loader: /* … */,
 });
 
-createTask.mutate({ title: '  ' });
+yield* createTask.mutate({ title: '  ' });
 createTask.hasException(); // true
 createTask.exceptions().params?.TITLE_REQUIRED;
 ```
@@ -141,7 +141,7 @@ current project" is not something a schema can know. See
 [Schema validation](/guide/state/schema-validation).
 
 ::: tip Exceptions as values
-A craft *exception* is a value you declared and expect to handle. An *error* is
+A craft _exception_ is a value you declared and expect to handle. An _error_ is
 the unexpected kind. Keeping the two apart is what makes the exhaustiveness
 checks later possible — see [Exceptions](/guide/concepts/exceptions).
 :::

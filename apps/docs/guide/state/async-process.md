@@ -14,15 +14,18 @@ reactivity and mutation wiring on top.
 ```typescript
 import { asyncProcess } from '@craft-ng/core';
 
-const { delay } = yield* asyncProcess('delay', {
-  method: (successResult: string) => successResult,
-  loader: async ({ params: successResult }) => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return successResult;
-  },
-});
+const { delay } =
+  yield *
+  asyncProcess('delay', {
+    method: (successResult: string) => successResult,
+    loader: async ({ params: successResult }) => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return successResult;
+    },
+  });
 
-delay.method('success');
+// In a tracked generator, consume the trigger with yield*.
+yield * delay.method('success');
 
 delay.status(); // 'idle' | 'loading' | 'resolved' | 'exception'
 delay.isLoading();
@@ -41,20 +44,22 @@ This is the case `asyncProcess` exists for — turning a promise-returning nativ
 API into something with an observable status:
 
 ```typescript
-const { shareContent } = yield* asyncProcess(
-  'shareContent',
-  {
-    method: (payload: { title: string; url: string }) => payload,
-    loader: function* ({ params }) {
-      return (yield* BrowserNavigator.share(params)) as Promise<undefined>;
+const { shareContent } =
+  yield *
+  asyncProcess(
+    'shareContent',
+    {
+      method: (payload: { title: string; url: string }) => payload,
+      loader: function* ({ params }) {
+        return (yield* BrowserNavigator.share(params)) as Promise<undefined>;
+      },
     },
-  },
-  ({ resource }) => ({
-    isMenuOpen: computed(() => resource.status() === 'loading'),
-  }),
-);
+    ({ resource }) => ({
+      isMenuOpen: computed(() => resource.status() === 'loading'),
+    }),
+  );
 
-shareContent.method({ title: 'Hello AI!', url: 'https://example.com' });
+yield * shareContent.method({ title: 'Hello AI!', url: 'https://example.com' });
 shareContent.isMenuOpen(); // true while the sheet is open
 ```
 
@@ -72,13 +77,15 @@ import { on$, source$ } from '@craft-ng/core';
 
 const searchSource = source$<string>('searchSource');
 
-const { delayedSearch } = yield* asyncProcess('delayedSearch', {
-  method: on$(searchSource, (term) => term),
-  loader: async ({ params: term }) => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return term;
-  },
-});
+const { delayedSearch } =
+  yield *
+  asyncProcess('delayedSearch', {
+    method: on$(searchSource, (term) => term),
+    loader: async ({ params: term }) => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return term;
+    },
+  });
 
 searchSource.emit('query text'); // runs automatically
 
@@ -92,25 +99,27 @@ Split by origin, exactly like `query` and `mutation` — `params` for what
 `method` rejected, `loader` for what the operation produced:
 
 ```typescript
-const { loadUser } = yield* asyncProcess('loadUser', {
-  method: (value: string) =>
-    value.length < 3
-      ? craftException(
-          { code: 'SEARCH_TERM_TOO_SHORT' },
-          { min: 3, received: value.length },
-        )
-      : value,
-  loader: async ({ params }) =>
-    params === 'blocked'
-      ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
-      : { id: params, name: 'John Doe' },
-});
+const { loadUser } =
+  yield *
+  asyncProcess('loadUser', {
+    method: (value: string) =>
+      value.length < 3
+        ? craftException(
+            { code: 'SEARCH_TERM_TOO_SHORT' },
+            { min: 3, received: value.length },
+          )
+        : value,
+    loader: async ({ params }) =>
+      params === 'blocked'
+        ? craftException({ code: 'USER_ACCESS_FORBIDDEN' }, { id: params })
+        : { id: params, name: 'John Doe' },
+  });
 
-loadUser.method('ab');
+yield * loadUser.method('ab');
 loadUser.hasException(); // true
 loadUser.exceptions().params?.SEARCH_TERM_TOO_SHORT;
 
-loadUser.method('blocked');
+yield * loadUser.method('blocked');
 loadUser.exceptions().loader?.USER_ACCESS_FORBIDDEN;
 ```
 
@@ -128,17 +137,19 @@ reactive `params` and mutation wiring you'd otherwise rebuild by hand.
 `identifier` keeps one resource per key so several runs coexist:
 
 ```typescript
-const { debouncedById } = yield* asyncProcess('debouncedById', {
-  method: (payload: { successResult: string; id: string }) => payload,
-  identifier: ({ id }) => id,
-  loader: async ({ params: { successResult } }) => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return successResult;
-  },
-});
+const { debouncedById } =
+  yield *
+  asyncProcess('debouncedById', {
+    method: (payload: { successResult: string; id: string }) => payload,
+    identifier: ({ id }) => id,
+    loader: async ({ params: { successResult } }) => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return successResult;
+    },
+  });
 
-debouncedById.method({ id: '1', successResult: data1 });
-debouncedById.method({ id: '2', successResult: data2 });
+yield * debouncedById.method({ id: '1', successResult: data1 });
+yield * debouncedById.method({ id: '2', successResult: data2 });
 
 debouncedById.select('1')?.value(); // data1
 debouncedById.select('2')?.value(); // data2
@@ -151,16 +162,18 @@ debouncedById.select('2')?.value(); // data2
 this process alone:
 
 ```typescript
-const { loadProfile } = yield* asyncProcess('loadProfile', {
-  providers: [provideAsyncLogger(), provideProfileGateway()],
-  method: function* (userId: string) {
-    yield* AsyncLogger.log(`load:${userId}`);
-    return userId;
-  },
-  loader: function* ({ params }) {
-    return yield* ProfileGateway.load(params);
-  },
-});
+const { loadProfile } =
+  yield *
+  asyncProcess('loadProfile', {
+    providers: [provideAsyncLogger(), provideProfileGateway()],
+    method: function* (userId: string) {
+      yield* AsyncLogger.log(`load:${userId}`);
+      return userId;
+    },
+    loader: function* ({ params }) {
+      return yield* ProfileGateway.load(params);
+    },
+  });
 ```
 
 :::

@@ -12,7 +12,7 @@ import {
   craftMethod,
   craftService,
   insertReactOnMutation,
-  craftPipe,
+  insertQueryPipe,
   mutation,
   query,
 } from '@craft-ng/core';
@@ -104,9 +104,7 @@ const { Playground } = craftService(
           return getTodos();
         },
       },
-      (context) =>
-        craftPipe(
-          context,
+      insertQueryPipe(
           insertReactOnMutation(addTodo, {
             reload: { onMutationResolved: true },
           }),
@@ -215,7 +213,7 @@ const PlaygroundComponent = craftComponent(
     const { add } = craftMethod('add', function* (input: HTMLInputElement) {
       const title = input.value.trim();
       if (!title) return;
-      (yield* Playground()).addTodo.mutate(title);
+      yield* pg.addTodo.mutate(title);
       input.value = '';
       return {};
     });

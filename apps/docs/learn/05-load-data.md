@@ -101,17 +101,19 @@ See [Exceptions as values](/guide/concepts/exceptions).
 instead, use `method`:
 
 ```typescript
-const { searchQuery } = yield* query('searchQuery', {
-  method: (term: string) => term,
-  loader: function* ({ params: term }) {
-    return yield* CraftHttpClient.get(({ response }) => ({
-      url: `/api/tasks?q=${term}`,
-      success: response<Task[]>(),
-    }));
-  },
-});
+const { searchQuery } =
+  yield *
+  query('searchQuery', {
+    method: (term: string) => term,
+    loader: function* ({ params: term }) {
+      return yield* CraftHttpClient.get(({ response }) => ({
+        url: `/api/tasks?q=${term}`,
+        success: response<Task[]>(),
+      }));
+    },
+  });
 
-searchQuery.call('angular');
+yield * searchQuery.call('angular');
 ```
 
 ## Adding derived values
@@ -119,16 +121,18 @@ searchQuery.call('angular');
 Same insertion mechanism as step 2 — third argument:
 
 ```typescript
-const { tasksQuery } = yield* query(
-  'tasksQuery',
-  {
-    /* … */
-  },
-  ({ value, isLoading }) => ({
-    count: computed(() => value()?.length ?? 0),
-    isEmpty: computed(() => !isLoading() && value()?.length === 0),
-  }),
-);
+const { tasksQuery } =
+  yield *
+  query(
+    'tasksQuery',
+    {
+      /* … */
+    },
+    ({ value, isLoading }) => ({
+      count: computed(() => value()?.length ?? 0),
+      isEmpty: computed(() => !isLoading() && value()?.length === 0),
+    }),
+  );
 
 tasksQuery.count();
 ```
