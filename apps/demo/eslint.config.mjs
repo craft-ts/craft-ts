@@ -32,6 +32,7 @@ export default [
       'craft-ng/provide-host-name-match-component': 'warn',
       'craft-ng/prefer-craft-http-client': 'warn',
       'craft-ng/prefer-craft-http-transport': 'warn',
+      'craft-ng/prefer-craft-input-output': 'warn',
       'craft-ng/prefer-craft-state': 'warn',
       'craft-ng/prefer-craft-effect': 'warn',
       'craft-ng/prefer-craft-service': 'warn',

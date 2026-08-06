@@ -15,6 +15,7 @@ const noAngularSignalForms = require('./no-angular-signal-forms.cjs');
 const provideHostNameMatchComponent = require('./provide-host-name-match-component.cjs');
 const preferCraftHttpClient = require('./prefer-craft-http-client.cjs');
 const preferCraftHttpTransport = require('./prefer-craft-http-transport.cjs');
+const preferCraftInputOutput = require('./prefer-craft-input-output.cjs');
 const preferCraftService = require('./prefer-craft-service.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
@@ -51,6 +52,7 @@ module.exports = {
     'no-angular-signal-forms': noAngularSignalForms,
     'provide-host-name-match-component': provideHostNameMatchComponent,
     'prefer-craft-http-client': preferCraftHttpClient,
+    'prefer-craft-input-output': preferCraftInputOutput,
     'prefer-craft-http-transport': preferCraftHttpTransport,
     'prefer-craft-service': preferCraftService,
     'prefer-browser-boundaries': preferBrowserBoundaries,
