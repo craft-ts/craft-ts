@@ -33,6 +33,8 @@ const craftDirectiveNameMatch = require('./craft-directive-name-match.cjs');
 const templateElementNameUnique = require('./template-element-name-unique.cjs');
 const preferCraftTemplateBlocks = require('./prefer-craft-template-blocks.cjs');
 const preferCraftReactivity = require('./prefer-craft-reactivity.cjs');
+const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource-trigger.cjs');
+const requireCraftResourceTriggerYield = require('./require-craft-resource-trigger-yield.cjs');
 
 module.exports = {
   rules: {
@@ -52,8 +54,8 @@ module.exports = {
     'no-angular-signal-forms': noAngularSignalForms,
     'provide-host-name-match-component': provideHostNameMatchComponent,
     'prefer-craft-http-client': preferCraftHttpClient,
-    'prefer-craft-input-output': preferCraftInputOutput,
     'prefer-craft-http-transport': preferCraftHttpTransport,
+    'prefer-craft-input-output': preferCraftInputOutput,
     'prefer-craft-service': preferCraftService,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
@@ -72,5 +74,7 @@ module.exports = {
     'template-element-name-unique': templateElementNameUnique,
     'prefer-craft-template-blocks': preferCraftTemplateBlocks,
     'prefer-craft-reactivity': preferCraftReactivity,
+    'no-imperative-craft-resource-trigger': noImperativeCraftResourceTrigger,
+    'require-craft-resource-trigger-yield': requireCraftResourceTriggerYield,
   },
 };

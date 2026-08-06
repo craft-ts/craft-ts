@@ -81,7 +81,11 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
-import { markYieldableMethod } from './yieldable';
+import {
+  markYieldableMethod,
+  yieldableInvocation,
+  type YieldableInvocation,
+} from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
 import {
   createSchemaValidationRuntime,
@@ -425,6 +429,7 @@ export type ResourceLikeQueryRef<
   QueryException extends ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceLike';
   kind: 'query';
@@ -450,7 +455,7 @@ export type ResourceLikeQueryRef<
     },
     IsMethod extends true
       ? {
-          call: (args: ArgParams) => Params;
+          call: (args: ArgParams) => YieldableInvocation<MethodYielded, Params>;
         }
       : {
           source: ReadonlySource<SourceParams>;
@@ -475,6 +480,7 @@ export type ResourceByIdLikeQueryRef<
   QueryException extends ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceByGroupLike';
   kind: 'query';
@@ -505,7 +511,8 @@ export type ResourceByIdLikeQueryRef<
       Insertions,
       IsMethod extends true
         ? {
-            call: (args: ArgParams) => Params;
+            call: (args: ArgParams) =>
+              YieldableInvocation<MethodYielded, Params>;
           }
         : {
             source: ReadonlySource<SourceParams>;
@@ -529,6 +536,7 @@ export type QueryRef<
   QueryExceptions extends ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeQueryRef<
       Value,
@@ -539,7 +547,8 @@ export type QueryRef<
       Insertions,
       QueryExceptions,
       Dependencies,
-      HasSchema
+      HasSchema,
+      MethodYielded
     >
   : ResourceByIdLikeQueryRef<
       Value,
@@ -551,7 +560,8 @@ export type QueryRef<
       GroupIdentifier,
       QueryExceptions,
       Dependencies,
-      HasSchema
+      HasSchema,
+      MethodYielded
     >;
 
 export type QueryOutput<
@@ -564,6 +574,7 @@ export type QueryOutput<
   QueryExceptions extends ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = QueryRef<
   State,
   Params,
@@ -574,7 +585,8 @@ export type QueryOutput<
   GroupIdentifier,
   QueryExceptions,
   Dependencies,
-  HasSchema
+  HasSchema,
+  MethodYielded
 >;
 
 type SchemaQueryConfig<
@@ -793,7 +805,9 @@ export function query<
       StreamYielded,
       never,
       Providers
-    >
+    >,
+    false,
+    MethodYielded
   >
 >;
 export function query<
@@ -868,7 +882,9 @@ export function query<
       Insertion1Yielded,
       Providers,
       Insertion1
-    >
+    >,
+    false,
+    MethodYielded
   >
 >;
 /**
@@ -915,8 +931,8 @@ export function query<
  *   - Additional ResourceOptions like `equal`, `injector`, etc.
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query.
  *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`).
- *   To attach several insertions, compose them with `craftPipe`:
- *   `query('name', config, (context) => craftPipe(context, insertion1, insertion2))` —
+ *   To attach several insertions, compose them with `insertQueryPipe`:
+ *   `query('name', config, insertQueryPipe(insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  * @returns A single-use primitive generator resolving to a record keyed by
  *   `name`, whose value is a query reference object with:
@@ -1157,7 +1173,10 @@ function createQueryRef<
   StripCraftException<QueryParams>,
   GroupIdentifier,
   {},
-  ResourceExceptionConstraints
+  ResourceExceptionConstraints,
+  {},
+  false,
+  MethodYielded
 > {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const queryExtraProviders = [
@@ -1747,7 +1766,9 @@ function createQueryRef<
                     scope: 'params',
                   }),
                 );
-                return parsedMethod.exception as QueryParams;
+                return yieldableInvocation<MethodYielded, QueryParams>(
+                  parsedMethod.exception as QueryParams,
+                );
               }
               methodArg = parsedMethod.value;
             }
@@ -1767,7 +1788,9 @@ function createQueryRef<
               methodParamsException.set(
                 enrichResourceException(result, { scope: 'params' }),
               );
-              return result as QueryParams;
+              return yieldableInvocation<MethodYielded, QueryParams>(
+                result as QueryParams,
+              );
             }
 
             let paramsResult = result as QueryParams;
@@ -1783,7 +1806,9 @@ function createQueryRef<
                     scope: 'params',
                   }),
                 );
-                return parsedParams.exception as QueryParams;
+                return yieldableInvocation<MethodYielded, QueryParams>(
+                  parsedParams.exception as QueryParams,
+                );
               }
               paramsResult = parsedParams.value;
             }
@@ -1807,7 +1832,7 @@ function createQueryRef<
             methodTriggerSeq.update((n) => n + 1);
             //@ts-expect-error if method is exposed params can not be of type (entity: ResourceRef<NoInfer<FromObjectState>>) => QueryParams
             queryResourceParamsFnSignal.set(paramsResult as QueryParams);
-            return paramsResult;
+            return yieldableInvocation<MethodYielded, QueryParams>(paramsResult);
           },
     },
   );

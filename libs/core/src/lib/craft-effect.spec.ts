@@ -15,6 +15,7 @@ import {
   onAppStart,
   type GetServiceDependencies,
 } from './craft-service';
+import { query } from './query';
 import {
   APP_SNAPSHOT_REGISTRY,
   type ActiveEffectReport,
@@ -182,5 +183,34 @@ describe('craftEffect', () => {
       >;
     };
     type _Deps = Expect<Equal<ExtractDeps<Component['fx']>, ExpectedDeps>>;
+  });
+
+  it('tracks dependencies yielded by a primitive trigger', () => {
+    const { TriggerDependency } = craftService(
+      { name: 'TriggerDependency', scope: 'function' },
+      () => ({ value: 'tracked' }),
+    );
+
+    class Component {
+      readonly fx = craftEffect('primitive-trigger', function* () {
+        const { search } = yield* query('search', {
+          method: function* (term: string) {
+            yield* TriggerDependency();
+            return term;
+          },
+          loader: () => Promise.resolve([]),
+        });
+
+        yield* search.call('craft');
+        return () => undefined;
+      });
+    }
+
+    type ExpectedDeps = {
+      TriggerDependency: GetServiceDependencies<typeof TriggerDependency>;
+    };
+    type _Deps = Expect<Equal<ExtractDeps<Component['fx']>, ExpectedDeps>>;
+
+    TestBed.runInInjectionContext(() => new Component());
   });
 });

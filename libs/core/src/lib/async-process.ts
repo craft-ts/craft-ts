@@ -87,7 +87,8 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
-import { markYieldableMethod } from './yieldable';
+import { markYieldableMethod, yieldableInvocation } from './yieldable';
+import type { YieldableInvocation } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
 
 type AsyncProcessConfigProviderNames<Providers> =
@@ -156,6 +157,7 @@ export type AsyncProcessRef<
     AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = MergeObjects<
   [
     HasSchema extends true ? { readonly hasSchema: Signal<true> } : {},
@@ -171,7 +173,8 @@ export type AsyncProcessRef<
     Insertions,
     IsMethod extends true
       ? {
-          method: (args: ArgParams) => Params;
+          method: (args: ArgParams) =>
+            YieldableInvocation<MethodYielded, Params>;
         }
       : IsMethod extends 'params'
         ? {
@@ -424,6 +427,7 @@ export type AsyncProcessOutput<
   AsyncProcessExceptions extends AsyncProcessExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = AsyncProcessRef<
   StripCraftException<State>,
   ArgParams,
@@ -438,7 +442,8 @@ export type AsyncProcessOutput<
   GroupIdentifier,
   AsyncProcessExceptions,
   Dependencies,
-  HasSchema
+  HasSchema,
+  MethodYielded
 >;
 
 type SchemaAsyncProcessConfig<
@@ -812,7 +817,9 @@ export function asyncProcess<
       StreamYielded,
       never,
       Providers
-    >
+    >,
+    false,
+    MethodYielded
   >
 >;
 export function asyncProcess<
@@ -881,7 +888,9 @@ export function asyncProcess<
       Insertion1Yielded,
       Providers,
       Insertion1
-    >
+    >,
+    false,
+    MethodYielded
   >
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -942,7 +951,10 @@ function createAsyncProcessRef<
   SourceParams,
   GroupIdentifier,
   {},
-  Exceptions
+  Exceptions,
+  {},
+  false,
+  MethodYielded
 > {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const asyncExtraProviders = [
@@ -1507,7 +1519,10 @@ function createAsyncProcessRef<
                           scope: 'params',
                         }),
                       );
-                      return parsedMethod.exception as AsyncProcessParams;
+                      return yieldableInvocation<
+                        MethodYielded,
+                        AsyncProcessParams
+                      >(parsedMethod.exception as AsyncProcessParams);
                     }
                     methodArg = parsedMethod.value;
                   }
@@ -1533,7 +1548,10 @@ function createAsyncProcessRef<
                     methodParamsException.set(
                       enrichResourceException(result, { scope: 'params' }),
                     );
-                    return result as AsyncProcessParams;
+                    return yieldableInvocation<
+                      MethodYielded,
+                      AsyncProcessParams
+                    >(result as AsyncProcessParams);
                   }
 
                   let paramsResult = result as AsyncProcessParams;
@@ -1549,7 +1567,10 @@ function createAsyncProcessRef<
                           scope: 'params',
                         }),
                       );
-                      return parsedParams.exception as AsyncProcessParams;
+                      return yieldableInvocation<
+                        MethodYielded,
+                        AsyncProcessParams
+                      >(parsedParams.exception as AsyncProcessParams);
                     }
                     paramsResult = parsedParams.value;
                   }
@@ -1572,7 +1593,9 @@ function createAsyncProcessRef<
                   // the resource request changes on every call.
                   methodTriggerSeq.update((n) => n + 1);
                   AsyncProcessResourceParamsFnSignal.set(paramsResult);
-                  return paramsResult;
+                  return yieldableInvocation<MethodYielded, AsyncProcessParams>(
+                    paramsResult,
+                  );
                 },
           }),
     },
@@ -1583,7 +1606,10 @@ function createAsyncProcessRef<
     SourceParams,
     GroupIdentifier,
     {},
-    Exceptions
+    Exceptions,
+    {},
+    false,
+    MethodYielded
   >;
 
   const insertionsResult = (

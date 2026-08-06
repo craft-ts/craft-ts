@@ -64,6 +64,26 @@ export type YieldableMethod<
   };
 };
 
+/** A primitive trigger invocation consumed with `yield*`. */
+export type YieldableInvocation<
+  Yielded = unknown,
+  Result = unknown,
+> = Generator<Yielded, Result, unknown>;
+
+/**
+ * Keeps an already-resolved primitive trigger result composable with `yield*`.
+ * Primitive methods still resolve their parameters at call time so existing
+ * imperative triggers keep their execution timing; the returned invocation is
+ * the dependency-tracking boundary consumed by generator hosts.
+ */
+export function yieldableInvocation<Yielded, Result>(
+  result: Result,
+): YieldableInvocation<Yielded, Result> {
+  return (function* () {
+    return result;
+  })();
+}
+
 export type YieldableMethodOf<Fn> = Fn extends (
   ...args: infer Args
 ) => infer Result

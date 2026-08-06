@@ -90,7 +90,8 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
-import { markYieldableMethod } from './yieldable';
+import { markYieldableMethod, yieldableInvocation } from './yieldable';
+import type { YieldableInvocation } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
 
 type MutationConfigProviderNames<Providers> =
@@ -504,6 +505,7 @@ export type ResourceLikeMutationRef<
   MutationException extends ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceLike';
   kind: 'mutation';
@@ -521,7 +523,7 @@ export type ResourceLikeMutationRef<
     },
     IsMethod extends true
       ? {
-          mutate: (args: ArgParams) => Params;
+          mutate: (args: ArgParams) => YieldableInvocation<MethodYielded, Params>;
         }
       : {
           source: ReadonlySource<SourceParams>;
@@ -546,6 +548,7 @@ export type ResourceByIdLikeMutationRef<
   MutationException extends ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = (HasSchema extends true ? { readonly hasSchema: Signal<true> } : {}) & {
   type: 'resourceByGroupLike';
   kind: 'mutation';
@@ -573,7 +576,8 @@ export type ResourceByIdLikeMutationRef<
       Insertions,
       IsMethod extends true
         ? {
-            mutate: (args: ArgParams) => Params;
+            mutate: (args: ArgParams) =>
+              YieldableInvocation<MethodYielded, Params>;
           }
         : {
             source: ReadonlySource<SourceParams>;
@@ -598,6 +602,7 @@ export type MutationRef<
     ResourceExceptionConstraints = ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = [unknown] extends [GroupIdentifier]
   ? ResourceLikeMutationRef<
       Value,
@@ -608,7 +613,8 @@ export type MutationRef<
       Insertions,
       MutationExceptions,
       Dependencies,
-      HasSchema
+      HasSchema,
+      MethodYielded
     >
   : ResourceByIdLikeMutationRef<
       Value,
@@ -620,7 +626,8 @@ export type MutationRef<
       GroupIdentifier,
       MutationExceptions,
       Dependencies,
-      HasSchema
+      HasSchema,
+      MethodYielded
     >;
 //     & {
 //   // ! Otherwise TS erases the types
@@ -638,6 +645,7 @@ export type MutationOutput<
   MutationExceptions extends ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
+  MethodYielded = never,
 > = MutationRef<
   StripCraftException<State>,
   StripCraftException<Params>,
@@ -648,7 +656,8 @@ export type MutationOutput<
   GroupIdentifier,
   MutationExceptions,
   Dependencies,
-  HasSchema
+  HasSchema,
+  MethodYielded
 >;
 
 type SchemaMutationConfig<
@@ -841,7 +850,9 @@ export function mutation<
       StreamYielded,
       never,
       Providers
-    >
+    >,
+    false,
+    MethodYielded
   >
 >;
 export function mutation<
@@ -916,7 +927,9 @@ export function mutation<
       Insertion1Yielded,
       Providers,
       Insertion1
-    >
+    >,
+    false,
+    MethodYielded
   >
 >;
 
@@ -955,8 +968,8 @@ export function mutation<
  *   - Additional ResourceOptions like `equal`, `injector`, etc.
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the mutation.
  *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`).
- *   To attach several insertions, compose them with `craftPipe`:
- *   `mutation('name', config, (context) => craftPipe(context, insertion1, insertion2))` —
+ *   To attach several insertions, compose them with `insertMutationPipe`:
+ *   `mutation('name', config, insertMutationPipe(insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
  * @returns A single-use primitive generator resolving to a record keyed by
@@ -1202,7 +1215,10 @@ function createMutationRef<
   SourceParams,
   GroupIdentifier,
   {},
-  Exceptions
+  Exceptions,
+  {},
+  false,
+  MethodYielded
 > {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const mutationExtraProviders = [
@@ -1773,7 +1789,9 @@ function createMutationRef<
                       scope: 'params',
                     }),
                   );
-                  return parsedMethod.exception as MutationParams;
+                  return yieldableInvocation<MethodYielded, MutationParams>(
+                    parsedMethod.exception as MutationParams,
+                  );
                 }
                 methodArg = parsedMethod.value;
               }
@@ -1799,7 +1817,9 @@ function createMutationRef<
                 methodParamsException.set(
                   enrichResourceException(result, { scope: 'params' }),
                 );
-                return result as MutationParams;
+                return yieldableInvocation<MethodYielded, MutationParams>(
+                  result as MutationParams,
+                );
               }
 
               let paramsResult = result as MutationParams;
@@ -1815,7 +1835,9 @@ function createMutationRef<
                       scope: 'params',
                     }),
                   );
-                  return parsedParams.exception as MutationParams;
+                  return yieldableInvocation<MethodYielded, MutationParams>(
+                    parsedParams.exception as MutationParams,
+                  );
                 }
                 paramsResult = parsedParams.value;
               }
@@ -1838,7 +1860,9 @@ function createMutationRef<
                   >
                 ).addById(id as GroupIdentifier & string);
               }
-              return paramsResult;
+              return yieldableInvocation<MethodYielded, MutationParams>(
+                paramsResult,
+              );
             },
     },
   ) as unknown as MutationOutput<

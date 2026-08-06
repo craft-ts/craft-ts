@@ -314,6 +314,8 @@ export default [
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-template-blocks': 'error',
       'craft-ng/prefer-craft-reactivity': 'error',
+      'craft-ng/no-imperative-craft-resource-trigger': 'error',
+      'craft-ng/require-craft-resource-trigger-yield': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',
@@ -368,8 +370,8 @@ module.exports = defineConfig([
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
-      'craft-ng/prefer-craft-input-output': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',
+      'craft-ng/prefer-craft-input-output': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
     },
   },
@@ -403,7 +405,7 @@ Notes:
 - the same flow works well for AI agents: file-local updates via `eslint --fix`, bulk updates via `craft-brand --root`
 - `craft-ng/no-angular-inject` now targets raw Angular `inject()` only
 - `craft-ng/prefer-craft-service` forbids authored Angular `@Injectable()` / `@Service()` classes in favor of `craftService(...)`
-- `craft-ng/prefer-craft-input-output` forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ng/component` in `craftComponent(...)`
 - `craft-ng/prefer-craft-http-client` forbids Angular `HttpClient` in favor of `CraftHttpClient`
 - `craft-ng/prefer-craft-http-transport` forbids direct `fetch` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes, backed by `CraftHttpClient`
+- `craft-ng/prefer-craft-input-output` forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ng/component` in `craftComponent(...)`
 - `craft-ng/prefer-craft-service` and `craft-ng/prefer-craft-http-client` also expose a VS Code Quick Fix suggestion that inserts a temporary local disable comment annotated with the intended migration target
