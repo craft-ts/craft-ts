@@ -354,7 +354,8 @@ describe('CraftRouter', () => {
             to: 'parent/:teamId/child/:userId',
             params: { teamId: '1', userId: '42' },
           }"
-        ></a>
+          >Nested path</a
+        >
       `,
     })
     class NestedHost {}

@@ -55,545 +55,656 @@ graph TD
   n53["state:userId"]
   n54["state:counter — apps/demo/src/app/examples/craft-service/register-for.ts"]
   n55["state:counterChildIds"]
-  n56["mutation:add"]
-  n57["mutation:remove"]
-  n58["query:todos — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
-  n59["craftMethod:updatePageSize — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n60["mutation:updateUserName — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n61["query:users — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n62["queryParams:pagination — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n63["state:state — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n64["state:state — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
-  n65["query:query"]
-  n66["craftMethod:updatePageSize — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n67["query:users — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n68["queryParams:pagination — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n69["state:state — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n70["state:state — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n71["state:state — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
-  n72["craftMethod:updateUserNameFn"]
-  n73["craftMethod:navigate — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n74["mutation:updateUserName — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n75["query:user — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
-  n76["craftMethod:navigate — apps/demo/src/app/examples/craft/query/query.ts"]
-  n77["query:userQuery — apps/demo/src/app/examples/craft/query/query.ts"]
-  n78["state:counter — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
-  n79["craftMethod:add"]
-  n80["mutation:addTodo — apps/demo/src/app/examples/playground/playground.ts"]
-  n81["mutation:toggleTodo"]
-  n82["mutation:deleteTodo"]
-  n83["query:todos — apps/demo/src/app/examples/playground/playground.ts"]
-  n84["queryParams:modeQueryParams"]
-  n85["query:userQuery — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
-  n86["mutation:addTodo — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
-  n87["mutation:removeTodo"]
-  n88["query:todos — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
-  n89["mutation:updateUserName — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n90["query:usersQuery — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n91["queryParams:pagination — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n92["state:state — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n93["state:state — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
-  n94["query:usersQuery — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n95["queryParams:pagination — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n96["state:state — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n97["state:state — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
-  n98["mutation:updateUserName — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n99["query:userQuery — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
-  n100["insertSelect:cell"]
-  n101["state:ui"]
-  n102["state:cells"]
-  n103["state:state — apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts"]
-  n104["state:state — apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts"]
-  n105["craftMethod:navigate — apps/demo/src/app/examples/primitives/query/query.ts"]
-  n106["query:userQuery — apps/demo/src/app/examples/primitives/query/query.ts"]
-  n107["query:usersQuery — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n108["queryParams:pagination — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n109["state:state — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n110["state:state — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
-  n111["query:slowAccess"]
-  n112["query:slowReport"]
-  n113["craftMethod:open"]
-  n114["craftMethod:back"]
-  n115["query:viewTransitionAccess"]
-  n116["query:auth"]
-  n117["Counter.decrement — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
-  n118["Counter.increment — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
-  n119["Counter.reset"]
-  n120["User.safeValue"]
-  n121["User.status"]
-  n122["User.userIds"]
-  n123["User.userIds.map"]
-  n124["Counter.decrement — apps/demo/src/app/examples/craft-service/register-for.ts"]
-  n125["Counter.increment — apps/demo/src/app/examples/craft-service/register-for.ts"]
-  n126["TodoStore.todos"]
-  n127["TodoStore.todos.safeValue"]
-  n128["TodoStore.todos.status"]
-  n129["ApiService.getDataList — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
-  n130["ApiService.updateItem — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
-  n131["GranularMutation.pagination"]
-  n132["GranularMutation.pagination.nextPage"]
-  n133["GranularMutation.pagination.previousPage"]
-  n134["GranularMutation.updateUserName"]
-  n135["GranularMutation.updateUserName.mutate"]
-  n136["GranularMutation.updateUserName.select"]
-  n137["GranularMutation.users"]
-  n138["GranularMutation.users.currentPageData"]
-  n139["GranularMutation.users.currentPageStatus"]
-  n140["UsersApiOnError.query"]
-  n141["UsersApiOnError.query.status"]
-  n142["OtherService.getValue"]
-  n143["ApiService.getDataList — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"]
-  n144["UserList.pagination"]
-  n145["UserList.pagination.nextPage"]
-  n146["UserList.pagination.previousPage"]
-  n147["UserList.users"]
-  n148["UserList.users.currentPageData"]
-  n149["UserList.users.currentPageStatus"]
-  n150["UserList.users.total"]
-  n151["ApiService.getItemById — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
-  n152["ApiService.updateItem — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
-  n153["UserMutation.updateUserName"]
-  n154["UserMutation.updateUserName.isLoading"]
-  n155["UserMutation.updateUserName.status"]
-  n156["UserMutation.user"]
-  n157["UserMutation.user.hasValue"]
-  n158["UserMutation.user.status"]
-  n159["UserMutation.user.value"]
-  n160["ApiService.getItemById — apps/demo/src/app/examples/craft/query/api.service.ts"]
-  n161["UserQuery.hasValue"]
-  n162["UserQuery.status"]
-  n163["UserQuery.value"]
-  n164["ApiService.addTodo"]
-  n165["ApiService.deleteTodo"]
-  n166["ApiService.getTodos"]
-  n167["ApiService.toggleTodo"]
-  n168["Playground.addTodo"]
-  n169["Playground.addTodo.isLoading"]
-  n170["Playground.deleteTodo"]
-  n171["Playground.deleteTodo.mutate"]
-  n172["Playground.todos"]
-  n173["Playground.todos.safeValue"]
-  n174["Playground.toggleTodo"]
-  n175["Playground.toggleTodo.mutate"]
-  n176["ApiService.getDataList — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
-  n177["ApiService.updateItem — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
-  n178["ApiService.getDataList — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"]
-  n179["ApiService.getItemById — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
-  n180["ApiService.updateItem — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
-  n181["ApiService.getItemById — apps/demo/src/app/examples/primitives/query/api.service.ts"]
-  n182["ApiService.getDataList — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
-  n183["demo:query-params.queryParams"]
-  n184{{"demo:"}}
-  n185{{"demo:component-composition"}}
-  n186{{"demo:content-projection"}}
-  n187{{"demo:craft-service/counter"}}
-  n188{{"demo:craft-service/register-for"}}
-  n189{{"demo:craft-service/user-detail"}}
-  n190{{"demo:craft/full-demo"}}
-  n191{{"demo:craft/granular-mutation"}}
-  n192{{"demo:craft/lazy-layout/:teamId"}}
-  n193{{"demo:craft/list-with-pagination"}}
-  n194{{"demo:craft/mutation/:userId"}}
-  n195{{"demo:craft/query/:userId"}}
-  n196{{"demo:demo-send-context"}}
-  n197{{"demo:exception-query-params"}}
-  n198{{"demo:exceptions"}}
-  n199{{"demo:full-demo"}}
-  n200{{"demo:granular-mutation"}}
-  n201{{"demo:list-with-pagination"}}
-  n202{{"demo:login-form"}}
-  n203{{"demo:mutation/:userId"}}
-  n204{{"demo:pixel-art"}}
-  n205{{"demo:pixel-art-matrix"}}
-  n206{{"demo:playground"}}
-  n207{{"demo:query-params"}}
-  n208{{"demo:query/:userId"}}
-  n209{{"demo:slow-page"}}
-  n210{{"demo:view-transitions"}}
-  n211{{"lazyLayout:users/:userId"}}
-  n212{{"viewTransitions:"}}
-  n213(["restrictedData"])
-  n214(["Counter — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"])
-  n215(["User"])
-  n216(["UsersApi"])
-  n217(["Counter — apps/demo/src/app/examples/craft-service/register-for.ts"])
-  n218(["ApiService — apps/demo/src/app/examples/craft/full-demo/api.service.ts"])
-  n219(["TodoStore"])
-  n220(["ApiService — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"])
-  n221(["GranularMutation"])
-  n222(["test2"])
-  n223(["UsersApiOnError"])
-  n224(["OtherService"])
-  n225(["ApiService — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"])
-  n226(["UserList"])
-  n227(["ApiService — apps/demo/src/app/examples/craft/mutation/api.service.ts"])
-  n228(["UserMutation"])
-  n229(["ApiService — apps/demo/src/app/examples/craft/query/api.service.ts"])
-  n230(["UserQuery"])
-  n231(["ApiService — apps/demo/src/app/examples/playground/playground.ts"])
-  n232(["Playground"])
-  n233(["ApiService — apps/demo/src/app/examples/primitives/full-demo/api.service.ts"])
-  n234(["ApiService — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"])
-  n235(["ApiService — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"])
-  n236(["ApiService — apps/demo/src/app/examples/primitives/mutation/api.service.ts"])
-  n237(["ApiService — apps/demo/src/app/examples/primitives/query/api.service.ts"])
-  n238(["ApiService — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"])
-  n239(["SlowAccess"])
-  n240(["SlowReport"])
-  n241(["ViewTransitionAccess"])
-  n242(["Auth"])
-  n243(["AppStartLog"])
-  n244(["BrowserCryptoService"])
-  n245(["BrowserDocumentService"])
-  n246(["BrowserHistoryService"])
-  n247(["BrowserLocationService"])
-  n248(["BrowserNavigatorService"])
-  n249(["BrowserPerformanceService"])
-  n250(["BrowserWindowService"])
-  n251(["ConsoleService"])
-  n252(["CookiesService"])
-  n253(["LocalStorageService"])
-  n254(["SessionStorageService"])
-  n255(["api"])
-  n256(["HostName"])
-  n257(["GlobalPersisterHandlerService"])
-  n258["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
-  n259["source$ (source$) — libs/core/src/lib/insert-select.ts"]
-  n260["signalSource (signalSource)"]
+  n56["state:dataList — apps/demo/src/app/examples/craft/full-demo/api.service.ts"]
+  n57["state:state — apps/demo/src/app/examples/craft/full-demo/api.service.ts"]
+  n58["state:state — apps/demo/src/app/examples/craft/full-demo/api.service.ts"]
+  n59["state:updateError — apps/demo/src/app/examples/craft/full-demo/api.service.ts"]
+  n60["mutation:add"]
+  n61["mutation:remove"]
+  n62["query:todos — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
+  n63["state:state — apps/demo/src/app/examples/craft/full-demo/full-demo.ts"]
+  n64["state:dataList — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
+  n65["state:state — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
+  n66["state:updateError — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
+  n67["craftMethod:updatePageSize — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n68["mutation:updateUserName — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n69["query:users — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n70["queryParams:pagination — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n71["state:state — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n72["state:state — apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"]
+  n73["query:query"]
+  n74["state:dataList — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"]
+  n75["state:state — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"]
+  n76["state:updateError — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"]
+  n77["craftMethod:updatePageSize — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n78["query:users — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n79["queryParams:pagination — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n80["state:state — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n81["state:state — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n82["state:state — apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"]
+  n83["state:dataList — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
+  n84["state:state — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
+  n85["state:updateError — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
+  n86["craftMethod:updateUserNameFn"]
+  n87["craftMethod:navigate — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n88["mutation:updateUserName — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n89["query:user — apps/demo/src/app/examples/craft/mutation/mutation.ts"]
+  n90["state:dataList — apps/demo/src/app/examples/craft/query/api.service.ts"]
+  n91["state:state — apps/demo/src/app/examples/craft/query/api.service.ts"]
+  n92["state:updateError — apps/demo/src/app/examples/craft/query/api.service.ts"]
+  n93["craftMethod:navigate — apps/demo/src/app/examples/craft/query/query.ts"]
+  n94["query:userQuery — apps/demo/src/app/examples/craft/query/query.ts"]
+  n95["state:counter — apps/demo/src/app/examples/ia/demo-send-context/counter.ts"]
+  n96["asyncProcess:validate"]
+  n97["craftEffect:indirect-imperative-query"]
+  n98["craftEffect:fetch-in-effect"]
+  n99["craftEffect:imperative-resource-in-effect"]
+  n100["craftEffect:imperative-query-in-effect"]
+  n101["mutation:save"]
+  n102["query:data — apps/demo/src/app/examples/no-caca.ts"]
+  n103["query:data — apps/demo/src/app/examples/no-caca.ts"]
+  n104["query:data — apps/demo/src/app/examples/no-caca.ts"]
+  n105["state:data"]
+  n106["craftMethod:add"]
+  n107["mutation:addTodo — apps/demo/src/app/examples/playground/playground.ts"]
+  n108["mutation:toggleTodo"]
+  n109["mutation:deleteTodo"]
+  n110["query:todos — apps/demo/src/app/examples/playground/playground.ts"]
+  n111["queryParams:modeQueryParams"]
+  n112["query:userQuery — apps/demo/src/app/examples/primitives/exceptions/exceptions.ts"]
+  n113["state:dataList — apps/demo/src/app/examples/primitives/full-demo/api.service.ts"]
+  n114["state:state — apps/demo/src/app/examples/primitives/full-demo/api.service.ts"]
+  n115["state:state — apps/demo/src/app/examples/primitives/full-demo/api.service.ts"]
+  n116["state:throwError"]
+  n117["mutation:addTodo — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
+  n118["mutation:removeTodo"]
+  n119["query:todos — apps/demo/src/app/examples/primitives/full-demo/full-demo.ts"]
+  n120["state:dataList — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
+  n121["state:state — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
+  n122["state:updateError — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
+  n123["mutation:updateUserName — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n124["query:usersQuery — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n125["queryParams:pagination — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n126["state:state — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n127["state:state — apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"]
+  n128["state:dataList — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"]
+  n129["state:state — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"]
+  n130["state:updateError — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"]
+  n131["query:usersQuery — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n132["queryParams:pagination — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n133["state:state — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n134["state:state — apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"]
+  n135["state:dataList — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
+  n136["state:state — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
+  n137["state:updateError — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
+  n138["mutation:updateUserName — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n139["query:userQuery — apps/demo/src/app/examples/primitives/mutation/mutation.ts"]
+  n140["insertSelect:cell"]
+  n141["state:ui"]
+  n142["state:cells"]
+  n143["state:state — apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts"]
+  n144["state:state — apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts"]
+  n145["state:dataList — apps/demo/src/app/examples/primitives/query/api.service.ts"]
+  n146["state:state — apps/demo/src/app/examples/primitives/query/api.service.ts"]
+  n147["state:updateError — apps/demo/src/app/examples/primitives/query/api.service.ts"]
+  n148["craftMethod:navigate — apps/demo/src/app/examples/primitives/query/query.ts"]
+  n149["query:userQuery — apps/demo/src/app/examples/primitives/query/query.ts"]
+  n150["state:dataList — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
+  n151["state:state — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
+  n152["state:updateError — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
+  n153["query:usersQuery — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n154["queryParams:pagination — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n155["state:state — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n156["state:state — apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"]
+  n157["query:slowAccess"]
+  n158["query:slowReport"]
+  n159["craftMethod:open"]
+  n160["craftMethod:back"]
+  n161["query:viewTransitionAccess"]
+  n162["query:auth"]
+  n163["Counter.decrement — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
+  n164["Counter.increment — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"]
+  n165["Counter.reset"]
+  n166["User.safeValue"]
+  n167["User.status"]
+  n168["User.userIds"]
+  n169["User.userIds.map"]
+  n170["Counter.decrement — apps/demo/src/app/examples/craft-service/register-for.ts"]
+  n171["Counter.increment — apps/demo/src/app/examples/craft-service/register-for.ts"]
+  n172["TodoStore.add"]
+  n173["TodoStore.add.isLoading"]
+  n174["TodoStore.add.mutate"]
+  n175["TodoStore.remove"]
+  n176["TodoStore.remove.isLoading"]
+  n177["TodoStore.remove.mutate"]
+  n178["TodoStore.todos"]
+  n179["TodoStore.todos.safeValue"]
+  n180["TodoStore.todos.status"]
+  n181["ApiService.getDataList — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
+  n182["ApiService.updateItem — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"]
+  n183["UsersApiOnError.query"]
+  n184["UsersApiOnError.query.status"]
+  n185["OtherService.getValue"]
+  n186["ApiService.getDataList — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"]
+  n187["UserList.pagination"]
+  n188["UserList.pagination.nextPage"]
+  n189["UserList.pagination.previousPage"]
+  n190["UserList.users"]
+  n191["UserList.users.currentPageData"]
+  n192["UserList.users.currentPageStatus"]
+  n193["UserList.users.total"]
+  n194["ApiService.getItemById — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
+  n195["ApiService.updateItem — apps/demo/src/app/examples/craft/mutation/api.service.ts"]
+  n196["UserMutation.updateUserName"]
+  n197["UserMutation.updateUserName.isLoading"]
+  n198["UserMutation.updateUserName.status"]
+  n199["UserMutation.user"]
+  n200["UserMutation.user.hasValue"]
+  n201["UserMutation.user.status"]
+  n202["UserMutation.user.value"]
+  n203["ApiService.getItemById — apps/demo/src/app/examples/craft/query/api.service.ts"]
+  n204["UserQuery.hasValue"]
+  n205["UserQuery.status"]
+  n206["UserQuery.value"]
+  n207["ApiService.addTodo"]
+  n208["ApiService.deleteTodo"]
+  n209["ApiService.getTodos"]
+  n210["ApiService.toggleTodo"]
+  n211["Playground.addTodo"]
+  n212["Playground.addTodo.isLoading"]
+  n213["Playground.addTodo.mutate"]
+  n214["Playground.deleteTodo"]
+  n215["Playground.deleteTodo.mutate"]
+  n216["Playground.todos"]
+  n217["Playground.todos.safeValue"]
+  n218["Playground.toggleTodo"]
+  n219["Playground.toggleTodo.mutate"]
+  n220["ApiService.getDataList — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
+  n221["ApiService.updateItem — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"]
+  n222["ApiService.getDataList — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"]
+  n223["ApiService.getItemById — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
+  n224["ApiService.updateItem — apps/demo/src/app/examples/primitives/mutation/api.service.ts"]
+  n225["ApiService.getItemById — apps/demo/src/app/examples/primitives/query/api.service.ts"]
+  n226["ApiService.getDataList — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"]
+  n227["demo:guard-demo.canActivate"]
+  n228["demo:query-params.queryParams"]
+  n229["slowPage:.canActivate"]
+  n230["slowPage:.resolve"]
+  n231["viewTransitions::photoId.resolve"]
+  n232{{"demo:"}}
+  n233{{"demo:component-composition"}}
+  n234{{"demo:content-projection"}}
+  n235{{"demo:craft-service/counter"}}
+  n236{{"demo:craft-service/register-for"}}
+  n237{{"demo:craft-service/user-detail"}}
+  n238{{"demo:craft/full-demo"}}
+  n239{{"demo:craft/granular-mutation"}}
+  n240{{"demo:craft/lazy-layout/:teamId"}}
+  n241{{"demo:craft/list-with-pagination"}}
+  n242{{"demo:craft/mutation/:userId"}}
+  n243{{"demo:craft/query/:userId"}}
+  n244{{"demo:demo-send-context"}}
+  n245{{"demo:exception-query-params"}}
+  n246{{"demo:exceptions"}}
+  n247{{"demo:full-demo"}}
+  n248{{"demo:granular-mutation"}}
+  n249{{"demo:guard-demo"}}
+  n250{{"demo:list-with-pagination"}}
+  n251{{"demo:login-form"}}
+  n252{{"demo:mutation/:userId"}}
+  n253{{"demo:pixel-art"}}
+  n254{{"demo:pixel-art-matrix"}}
+  n255{{"demo:playground"}}
+  n256{{"demo:query-params"}}
+  n257{{"demo:query/:userId"}}
+  n258{{"demo:slow-page"}}
+  n259{{"demo:view-transitions"}}
+  n260{{"lazyLayout:users/:userId"}}
+  n261{{"slowPage:"}}
+  n262{{"viewTransitions:"}}
+  n263{{"viewTransitions::photoId"}}
+  n264(["restrictedData"])
+  n265(["Counter — apps/demo/src/app/examples/craft-service/craft-service-counter.ts"])
+  n266(["User"])
+  n267(["UsersApi"])
+  n268(["Counter — apps/demo/src/app/examples/craft-service/register-for.ts"])
+  n269(["ApiService — apps/demo/src/app/examples/craft/full-demo/api.service.ts"])
+  n270(["TodoStore"])
+  n271(["ApiService — apps/demo/src/app/examples/craft/granular-mutation/api.service.ts"])
+  n272(["GranularMutation"])
+  n273(["test2"])
+  n274(["UsersApiOnError"])
+  n275(["OtherService"])
+  n276(["ApiService — apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts"])
+  n277(["UserList"])
+  n278(["ApiService — apps/demo/src/app/examples/craft/mutation/api.service.ts"])
+  n279(["UserMutation"])
+  n280(["ApiService — apps/demo/src/app/examples/craft/query/api.service.ts"])
+  n281(["UserQuery"])
+  n282(["DeclarativeQueryService"])
+  n283(["FetchInEffectService"])
+  n284(["ImperativeQueryInEffectService"])
+  n285(["ImperativeResourceInEffectService"])
+  n286(["IndirectImperativeQueryService"])
+  n287(["ApiService — apps/demo/src/app/examples/playground/playground.ts"])
+  n288(["Playground"])
+  n289(["ApiService — apps/demo/src/app/examples/primitives/full-demo/api.service.ts"])
+  n290(["ApiService — apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts"])
+  n291(["ApiService — apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts"])
+  n292(["ApiService — apps/demo/src/app/examples/primitives/mutation/api.service.ts"])
+  n293(["ApiService — apps/demo/src/app/examples/primitives/query/api.service.ts"])
+  n294(["ApiService — apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts"])
+  n295(["SlowAccess"])
+  n296(["SlowReport"])
+  n297(["ViewTransitionAccess"])
+  n298(["Auth"])
+  n299(["AppStartLog"])
+  n300(["BrowserCryptoService"])
+  n301(["BrowserDocumentService"])
+  n302(["BrowserHistoryService"])
+  n303(["BrowserLocationService"])
+  n304(["BrowserNavigatorService"])
+  n305(["BrowserPerformanceService"])
+  n306(["BrowserWindowService"])
+  n307(["ConsoleService"])
+  n308(["CookiesService"])
+  n309(["LocalStorageService"])
+  n310(["SessionStorageService"])
+  n311(["api"])
+  n312(["HostName"])
+  n313(["GlobalPersisterHandlerService"])
+  n314["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
+  n315["source$ (source$) — libs/core/src/lib/insert-select.ts"]
+  n316["signalSource (signalSource)"]
   n0 -->|contains| n50
   n0 -->|renders| n48
-  n1 -->|depends-on| n213
-  n2 -->|depends-on| n213
+  n1 -->|depends-on| n264
+  n2 -->|depends-on| n264
   n3 -->|renders| n4
   n6 -->|renders| n5
   n6 -->|renders| n7
   n6 -->|renders| n8
   n6 -->|renders| n9
-  n12 -->|depends-on| n214
-  n12 -->|uses-property| n117
-  n12 -->|uses-property| n118
-  n12 -->|uses-property| n119
+  n12 -->|depends-on| n265
+  n12 -->|uses-property| n163
+  n12 -->|uses-property| n164
+  n12 -->|uses-property| n165
   n13 -->|contains| n53
-  n13 -->|depends-on| n120
-  n13 -->|depends-on| n121
-  n13 -->|depends-on| n123
-  n13 -->|depends-on| n215
-  n13 -->|uses-property| n120
-  n13 -->|uses-property| n121
-  n13 -->|uses-property| n122
-  n14 -->|depends-on| n217
-  n14 -->|uses-property| n124
-  n14 -->|uses-property| n125
+  n13 -->|depends-on| n166
+  n13 -->|depends-on| n167
+  n13 -->|depends-on| n169
+  n13 -->|depends-on| n266
+  n13 -->|uses-property| n166
+  n13 -->|uses-property| n167
+  n13 -->|uses-property| n168
+  n14 -->|depends-on| n268
+  n14 -->|uses-property| n170
+  n14 -->|uses-property| n171
   n15 -->|contains| n55
   n15 -->|renders| n14
-  n16 -->|depends-on| n127
-  n16 -->|depends-on| n128
-  n16 -->|depends-on| n219
+  n16 -->|depends-on| n173
+  n16 -->|depends-on| n174
+  n16 -->|depends-on| n176
+  n16 -->|depends-on| n177
+  n16 -->|depends-on| n179
+  n16 -->|depends-on| n180
+  n16 -->|depends-on| n270
   n16 -->|renders| n45
-  n16 -->|uses-property| n126
-  n16 -->|uses-property| n127
-  n16 -->|uses-property| n128
-  n17 -->|contains| n59
-  n17 -->|depends-on| n131
-  n17 -->|depends-on| n135
-  n17 -->|depends-on| n136
-  n17 -->|depends-on| n138
-  n17 -->|depends-on| n139
-  n17 -->|depends-on| n221
+  n16 -->|uses-property| n172
+  n16 -->|uses-property| n173
+  n16 -->|uses-property| n174
+  n16 -->|uses-property| n175
+  n16 -->|uses-property| n176
+  n16 -->|uses-property| n177
+  n16 -->|uses-property| n178
+  n16 -->|uses-property| n179
+  n16 -->|uses-property| n180
+  n17 -->|contains| n67
+  n17 -->|depends-on| n272
   n17 -->|renders| n45
-  n17 -->|uses-property| n131
-  n17 -->|uses-property| n132
-  n17 -->|uses-property| n133
-  n17 -->|uses-property| n134
-  n17 -->|uses-property| n135
-  n17 -->|uses-property| n136
-  n17 -->|uses-property| n137
-  n17 -->|uses-property| n138
-  n17 -->|uses-property| n139
   n18 -->|renders| n20
   n19 -->|renders| n48
-  n20 -->|depends-on| n141
-  n20 -->|depends-on| n142
-  n20 -->|depends-on| n222
-  n20 -->|depends-on| n223
-  n20 -->|depends-on| n224
-  n20 -->|uses-property| n140
-  n20 -->|uses-property| n141
-  n20 -->|uses-property| n142
-  n21 -->|contains| n66
-  n21 -->|depends-on| n144
-  n21 -->|depends-on| n148
-  n21 -->|depends-on| n149
-  n21 -->|depends-on| n150
-  n21 -->|depends-on| n226
+  n20 -->|depends-on| n184
+  n20 -->|depends-on| n185
+  n20 -->|depends-on| n273
+  n20 -->|depends-on| n274
+  n20 -->|depends-on| n275
+  n20 -->|uses-property| n183
+  n20 -->|uses-property| n184
+  n20 -->|uses-property| n185
+  n21 -->|contains| n77
+  n21 -->|depends-on| n187
+  n21 -->|depends-on| n191
+  n21 -->|depends-on| n192
+  n21 -->|depends-on| n193
+  n21 -->|depends-on| n277
   n21 -->|renders| n45
-  n21 -->|uses-property| n144
-  n21 -->|uses-property| n145
-  n21 -->|uses-property| n146
-  n21 -->|uses-property| n147
-  n21 -->|uses-property| n148
-  n21 -->|uses-property| n149
-  n21 -->|uses-property| n150
-  n22 -->|contains| n72
-  n22 -->|contains| n73
-  n22 -->|depends-on| n154
-  n22 -->|depends-on| n155
-  n22 -->|depends-on| n157
-  n22 -->|depends-on| n158
-  n22 -->|depends-on| n159
-  n22 -->|depends-on| n228
+  n21 -->|uses-property| n187
+  n21 -->|uses-property| n188
+  n21 -->|uses-property| n189
+  n21 -->|uses-property| n190
+  n21 -->|uses-property| n191
+  n21 -->|uses-property| n192
+  n21 -->|uses-property| n193
+  n22 -->|contains| n86
+  n22 -->|contains| n87
+  n22 -->|depends-on| n197
+  n22 -->|depends-on| n198
+  n22 -->|depends-on| n200
+  n22 -->|depends-on| n201
+  n22 -->|depends-on| n202
+  n22 -->|depends-on| n279
   n22 -->|renders| n45
-  n22 -->|uses-property| n153
-  n22 -->|uses-property| n154
-  n22 -->|uses-property| n155
-  n22 -->|uses-property| n156
-  n22 -->|uses-property| n157
-  n22 -->|uses-property| n158
-  n22 -->|uses-property| n159
-  n23 -->|contains| n76
-  n23 -->|depends-on| n161
-  n23 -->|depends-on| n162
-  n23 -->|depends-on| n163
-  n23 -->|depends-on| n230
+  n22 -->|uses-property| n196
+  n22 -->|uses-property| n197
+  n22 -->|uses-property| n198
+  n22 -->|uses-property| n199
+  n22 -->|uses-property| n200
+  n22 -->|uses-property| n201
+  n22 -->|uses-property| n202
+  n23 -->|contains| n93
+  n23 -->|depends-on| n204
+  n23 -->|depends-on| n205
+  n23 -->|depends-on| n206
+  n23 -->|depends-on| n281
   n23 -->|renders| n45
-  n23 -->|uses-property| n161
-  n23 -->|uses-property| n162
-  n23 -->|uses-property| n163
-  n24 -->|contains| n78
+  n23 -->|uses-property| n204
+  n23 -->|uses-property| n205
+  n23 -->|uses-property| n206
+  n24 -->|contains| n95
   n25 -->|renders| n24
-  n26 -->|contains| n79
-  n26 -->|depends-on| n169
-  n26 -->|depends-on| n171
-  n26 -->|depends-on| n173
-  n26 -->|depends-on| n175
-  n26 -->|depends-on| n232
-  n26 -->|uses-property| n168
-  n26 -->|uses-property| n169
-  n26 -->|uses-property| n170
-  n26 -->|uses-property| n171
-  n26 -->|uses-property| n172
-  n26 -->|uses-property| n173
-  n26 -->|uses-property| n174
-  n26 -->|uses-property| n175
-  n27 -->|contains| n84
-  n28 -->|contains| n85
-  n30 -->|contains| n86
-  n30 -->|contains| n87
-  n30 -->|contains| n88
+  n26 -->|contains| n106
+  n26 -->|depends-on| n212
+  n26 -->|depends-on| n215
+  n26 -->|depends-on| n217
+  n26 -->|depends-on| n219
+  n26 -->|depends-on| n288
+  n26 -->|uses-property| n211
+  n26 -->|uses-property| n212
+  n26 -->|uses-property| n213
+  n26 -->|uses-property| n214
+  n26 -->|uses-property| n215
+  n26 -->|uses-property| n216
+  n26 -->|uses-property| n217
+  n26 -->|uses-property| n218
+  n26 -->|uses-property| n219
+  n27 -->|contains| n111
+  n28 -->|contains| n112
+  n30 -->|contains| n117
+  n30 -->|contains| n118
+  n30 -->|contains| n119
   n30 -->|renders| n45
-  n31 -->|contains| n89
-  n31 -->|contains| n90
-  n31 -->|contains| n91
-  n31 -->|contains| n92
-  n31 -->|contains| n93
-  n31 -->|depends-on| n234
+  n31 -->|contains| n123
+  n31 -->|contains| n124
+  n31 -->|contains| n125
+  n31 -->|contains| n126
+  n31 -->|contains| n127
+  n31 -->|depends-on| n290
   n31 -->|renders| n45
-  n32 -->|contains| n94
-  n32 -->|contains| n95
-  n32 -->|contains| n96
-  n32 -->|contains| n97
-  n32 -->|depends-on| n235
+  n32 -->|contains| n131
+  n32 -->|contains| n132
+  n32 -->|contains| n133
+  n32 -->|contains| n134
+  n32 -->|depends-on| n291
   n32 -->|renders| n45
-  n32 -->|uses-property| n178
-  n33 -->|contains| n98
-  n33 -->|contains| n99
-  n33 -->|depends-on| n236
+  n32 -->|uses-property| n222
+  n33 -->|contains| n138
+  n33 -->|contains| n139
+  n33 -->|depends-on| n292
   n33 -->|renders| n45
-  n33 -->|uses-property| n179
-  n33 -->|uses-property| n180
-  n35 -->|contains| n100
-  n35 -->|contains| n101
-  n35 -->|contains| n102
-  n35 -->|contains| n103
-  n35 -->|contains| n104
-  n36 -->|contains| n105
-  n36 -->|contains| n106
-  n36 -->|depends-on| n237
+  n33 -->|uses-property| n223
+  n33 -->|uses-property| n224
+  n35 -->|contains| n140
+  n35 -->|contains| n141
+  n35 -->|contains| n142
+  n35 -->|contains| n143
+  n35 -->|contains| n144
+  n36 -->|contains| n148
+  n36 -->|contains| n149
+  n36 -->|depends-on| n293
   n36 -->|renders| n45
-  n38 -->|contains| n107
-  n38 -->|contains| n108
-  n38 -->|contains| n109
-  n38 -->|contains| n110
-  n38 -->|depends-on| n238
+  n38 -->|contains| n153
+  n38 -->|contains| n154
+  n38 -->|contains| n155
+  n38 -->|contains| n156
+  n38 -->|depends-on| n294
   n38 -->|renders| n45
-  n38 -->|uses-property| n182
-  n40 -->|contains| n113
-  n41 -->|contains| n114
-  n59 -->|depends-on| n221
-  n60 -->|depends-on| n130
-  n61 -->|depends-on| n129
-  n66 -->|depends-on| n226
-  n67 -->|depends-on| n143
-  n72 -->|depends-on| n228
-  n74 -->|depends-on| n152
-  n75 -->|depends-on| n151
-  n77 -->|depends-on| n160
-  n79 -->|depends-on| n232
-  n80 -->|depends-on| n164
-  n81 -->|depends-on| n167
-  n82 -->|depends-on| n165
-  n83 -->|depends-on| n166
-  n89 -->|depends-on| n177
-  n90 -->|depends-on| n176
-  n94 -->|depends-on| n178
-  n98 -->|depends-on| n180
-  n99 -->|depends-on| n179
-  n106 -->|depends-on| n181
-  n107 -->|depends-on| n182
-  n126 -->|contains| n127
-  n126 -->|contains| n128
-  n131 -->|contains| n132
-  n131 -->|contains| n133
-  n134 -->|contains| n135
-  n134 -->|contains| n136
-  n137 -->|contains| n138
-  n137 -->|contains| n139
-  n140 -->|contains| n141
-  n144 -->|contains| n145
-  n144 -->|contains| n146
-  n147 -->|contains| n148
-  n147 -->|contains| n149
-  n147 -->|contains| n150
-  n153 -->|contains| n154
-  n153 -->|contains| n155
-  n156 -->|contains| n157
-  n156 -->|contains| n158
-  n156 -->|contains| n159
-  n168 -->|contains| n169
-  n170 -->|contains| n171
+  n38 -->|uses-property| n226
+  n40 -->|contains| n159
+  n41 -->|contains| n160
+  n67 -->|depends-on| n272
+  n68 -->|depends-on| n182
+  n69 -->|depends-on| n181
+  n77 -->|depends-on| n277
+  n78 -->|depends-on| n186
+  n86 -->|depends-on| n279
+  n88 -->|depends-on| n195
+  n89 -->|depends-on| n194
+  n94 -->|depends-on| n203
+  n106 -->|depends-on| n213
+  n107 -->|depends-on| n207
+  n108 -->|depends-on| n210
+  n109 -->|depends-on| n208
+  n110 -->|depends-on| n209
+  n123 -->|depends-on| n221
+  n124 -->|depends-on| n220
+  n131 -->|depends-on| n222
+  n138 -->|depends-on| n224
+  n139 -->|depends-on| n223
+  n149 -->|depends-on| n225
+  n153 -->|depends-on| n226
   n172 -->|contains| n173
-  n174 -->|contains| n175
-  n184 -->|loads| n3
-  n184 -->|loads| n4
-  n185 -->|loads| n1
-  n185 -->|loads| n2
-  n186 -->|loads| n5
-  n186 -->|loads| n6
-  n186 -->|loads| n7
-  n186 -->|loads| n8
-  n186 -->|loads| n9
-  n186 -->|loads| n10
-  n187 -->|loads| n12
-  n188 -->|loads| n14
-  n188 -->|loads| n15
-  n189 -->|loads| n13
-  n190 -->|loads| n16
-  n191 -->|loads| n17
-  n192 -->|loads| n19
-  n192 -->|loads| n211
-  n193 -->|loads| n21
-  n194 -->|loads| n22
-  n195 -->|loads| n23
-  n196 -->|loads| n25
-  n197 -->|loads| n27
-  n198 -->|loads| n28
-  n199 -->|loads| n30
-  n200 -->|loads| n31
-  n201 -->|loads| n32
-  n202 -->|loads| n29
-  n203 -->|loads| n33
-  n205 -->|loads| n34
-  n204 -->|loads| n35
-  n206 -->|loads| n26
-  n207 -->|contains| n183
-  n207 -->|loads| n38
-  n208 -->|loads| n36
-  n210 -->|loads| n212
-  n211 -->|loads| n18
-  n212 -->|loads| n40
-  n214 -->|contains| n51
-  n214 -->|contains| n117
-  n214 -->|contains| n118
-  n214 -->|contains| n119
-  n215 -->|contains| n52
-  n215 -->|contains| n120
-  n215 -->|contains| n121
-  n215 -->|contains| n122
-  n215 -->|contains| n123
-  n215 -->|depends-on| n216
-  n217 -->|contains| n54
-  n217 -->|contains| n124
-  n217 -->|contains| n125
-  n219 -->|contains| n56
-  n219 -->|contains| n57
-  n219 -->|contains| n58
-  n219 -->|contains| n126
-  n219 -->|contains| n127
-  n219 -->|contains| n128
-  n220 -->|contains| n129
-  n220 -->|contains| n130
-  n221 -->|contains| n60
-  n221 -->|contains| n61
-  n221 -->|contains| n62
-  n221 -->|contains| n63
-  n221 -->|contains| n64
-  n221 -->|contains| n131
-  n221 -->|contains| n134
-  n221 -->|contains| n135
-  n221 -->|contains| n136
-  n221 -->|contains| n137
-  n221 -->|contains| n138
-  n221 -->|contains| n139
-  n221 -->|depends-on| n220
-  n223 -->|contains| n65
-  n223 -->|contains| n140
-  n223 -->|contains| n141
-  n224 -->|contains| n142
-  n225 -->|contains| n143
-  n226 -->|contains| n67
-  n226 -->|contains| n68
-  n226 -->|contains| n69
-  n226 -->|contains| n70
-  n226 -->|contains| n71
-  n226 -->|contains| n144
-  n226 -->|contains| n147
-  n226 -->|contains| n148
-  n226 -->|contains| n149
-  n226 -->|contains| n150
-  n226 -->|depends-on| n225
-  n227 -->|contains| n151
-  n227 -->|contains| n152
-  n228 -->|contains| n74
-  n228 -->|contains| n75
-  n228 -->|contains| n153
-  n228 -->|contains| n154
-  n228 -->|contains| n155
-  n228 -->|contains| n156
-  n228 -->|contains| n157
-  n228 -->|contains| n158
-  n228 -->|contains| n159
-  n228 -->|depends-on| n227
-  n229 -->|contains| n160
-  n230 -->|contains| n77
-  n230 -->|contains| n161
-  n230 -->|contains| n162
-  n230 -->|contains| n163
-  n230 -->|depends-on| n229
-  n231 -->|contains| n164
-  n231 -->|contains| n165
-  n231 -->|contains| n166
-  n231 -->|contains| n167
-  n232 -->|contains| n80
-  n232 -->|contains| n81
-  n232 -->|contains| n82
-  n232 -->|contains| n83
-  n232 -->|contains| n168
-  n232 -->|contains| n169
-  n232 -->|contains| n170
-  n232 -->|contains| n171
-  n232 -->|contains| n172
-  n232 -->|contains| n173
-  n232 -->|contains| n174
-  n232 -->|contains| n175
-  n232 -->|depends-on| n231
-  n234 -->|contains| n176
-  n234 -->|contains| n177
-  n235 -->|contains| n178
-  n236 -->|contains| n179
-  n236 -->|contains| n180
-  n237 -->|contains| n181
-  n238 -->|contains| n182
-  n239 -->|contains| n111
-  n240 -->|contains| n112
-  n241 -->|contains| n115
-  n242 -->|contains| n116
+  n172 -->|contains| n174
+  n175 -->|contains| n176
+  n175 -->|contains| n177
+  n178 -->|contains| n179
+  n178 -->|contains| n180
+  n183 -->|contains| n184
+  n187 -->|contains| n188
+  n187 -->|contains| n189
+  n190 -->|contains| n191
+  n190 -->|contains| n192
+  n190 -->|contains| n193
+  n196 -->|contains| n197
+  n196 -->|contains| n198
+  n199 -->|contains| n200
+  n199 -->|contains| n201
+  n199 -->|contains| n202
+  n211 -->|contains| n212
+  n211 -->|contains| n213
+  n214 -->|contains| n215
+  n216 -->|contains| n217
+  n218 -->|contains| n219
+  n227 -->|depends-on| n298
+  n229 -->|depends-on| n295
+  n230 -->|depends-on| n296
+  n231 -->|depends-on| n297
+  n232 -->|loads| n3
+  n232 -->|loads| n4
+  n233 -->|loads| n1
+  n233 -->|loads| n2
+  n234 -->|loads| n5
+  n234 -->|loads| n6
+  n234 -->|loads| n7
+  n234 -->|loads| n8
+  n234 -->|loads| n9
+  n234 -->|loads| n10
+  n235 -->|loads| n12
+  n236 -->|loads| n14
+  n236 -->|loads| n15
+  n237 -->|loads| n13
+  n238 -->|loads| n16
+  n239 -->|loads| n17
+  n240 -->|loads| n19
+  n240 -->|loads| n260
+  n241 -->|loads| n21
+  n242 -->|loads| n22
+  n243 -->|loads| n23
+  n244 -->|loads| n25
+  n245 -->|loads| n27
+  n246 -->|loads| n28
+  n247 -->|loads| n30
+  n248 -->|loads| n31
+  n249 -->|contains| n227
+  n249 -->|loads| n37
+  n250 -->|loads| n32
+  n251 -->|loads| n29
+  n252 -->|loads| n33
+  n254 -->|loads| n34
+  n253 -->|loads| n35
+  n255 -->|loads| n26
+  n256 -->|contains| n228
+  n256 -->|loads| n38
+  n257 -->|loads| n36
+  n258 -->|loads| n261
+  n259 -->|loads| n262
+  n259 -->|loads| n263
+  n260 -->|loads| n18
+  n261 -->|contains| n229
+  n261 -->|contains| n230
+  n261 -->|loads| n39
+  n262 -->|loads| n40
+  n263 -->|contains| n231
+  n263 -->|loads| n41
+  n265 -->|contains| n51
+  n265 -->|contains| n163
+  n265 -->|contains| n164
+  n265 -->|contains| n165
+  n266 -->|contains| n52
+  n266 -->|contains| n166
+  n266 -->|contains| n167
+  n266 -->|contains| n168
+  n266 -->|contains| n169
+  n266 -->|depends-on| n267
+  n268 -->|contains| n54
+  n268 -->|contains| n170
+  n268 -->|contains| n171
+  n269 -->|contains| n56
+  n269 -->|contains| n57
+  n269 -->|contains| n58
+  n269 -->|contains| n59
+  n270 -->|contains| n60
+  n270 -->|contains| n61
+  n270 -->|contains| n62
+  n270 -->|contains| n63
+  n270 -->|contains| n172
+  n270 -->|contains| n173
+  n270 -->|contains| n174
+  n270 -->|contains| n175
+  n270 -->|contains| n176
+  n270 -->|contains| n177
+  n270 -->|contains| n178
+  n270 -->|contains| n179
+  n270 -->|contains| n180
+  n271 -->|contains| n64
+  n271 -->|contains| n65
+  n271 -->|contains| n66
+  n271 -->|contains| n181
+  n271 -->|contains| n182
+  n272 -->|contains| n68
+  n272 -->|contains| n69
+  n272 -->|contains| n70
+  n272 -->|contains| n71
+  n272 -->|contains| n72
+  n272 -->|depends-on| n271
+  n274 -->|contains| n73
+  n274 -->|contains| n183
+  n274 -->|contains| n184
+  n275 -->|contains| n185
+  n276 -->|contains| n74
+  n276 -->|contains| n75
+  n276 -->|contains| n76
+  n276 -->|contains| n186
+  n277 -->|contains| n78
+  n277 -->|contains| n79
+  n277 -->|contains| n80
+  n277 -->|contains| n81
+  n277 -->|contains| n82
+  n277 -->|contains| n187
+  n277 -->|contains| n190
+  n277 -->|contains| n191
+  n277 -->|contains| n192
+  n277 -->|contains| n193
+  n277 -->|depends-on| n276
+  n278 -->|contains| n83
+  n278 -->|contains| n84
+  n278 -->|contains| n85
+  n278 -->|contains| n194
+  n278 -->|contains| n195
+  n279 -->|contains| n88
+  n279 -->|contains| n89
+  n279 -->|contains| n196
+  n279 -->|contains| n197
+  n279 -->|contains| n198
+  n279 -->|contains| n199
+  n279 -->|contains| n200
+  n279 -->|contains| n201
+  n279 -->|contains| n202
+  n279 -->|depends-on| n278
+  n280 -->|contains| n90
+  n280 -->|contains| n91
+  n280 -->|contains| n92
+  n280 -->|contains| n203
+  n281 -->|contains| n94
+  n281 -->|contains| n204
+  n281 -->|contains| n205
+  n281 -->|contains| n206
+  n281 -->|depends-on| n280
+  n282 -->|contains| n103
+  n283 -->|contains| n98
+  n283 -->|contains| n105
+  n284 -->|contains| n100
+  n284 -->|contains| n104
+  n285 -->|contains| n96
+  n285 -->|contains| n99
+  n285 -->|contains| n101
+  n286 -->|contains| n97
+  n286 -->|contains| n102
+  n287 -->|contains| n207
+  n287 -->|contains| n208
+  n287 -->|contains| n209
+  n287 -->|contains| n210
+  n288 -->|contains| n107
+  n288 -->|contains| n108
+  n288 -->|contains| n109
+  n288 -->|contains| n110
+  n288 -->|contains| n211
+  n288 -->|contains| n212
+  n288 -->|contains| n213
+  n288 -->|contains| n214
+  n288 -->|contains| n215
+  n288 -->|contains| n216
+  n288 -->|contains| n217
+  n288 -->|contains| n218
+  n288 -->|contains| n219
+  n288 -->|depends-on| n287
+  n289 -->|contains| n113
+  n289 -->|contains| n114
+  n289 -->|contains| n115
+  n289 -->|contains| n116
+  n290 -->|contains| n120
+  n290 -->|contains| n121
+  n290 -->|contains| n122
+  n290 -->|contains| n220
+  n290 -->|contains| n221
+  n291 -->|contains| n128
+  n291 -->|contains| n129
+  n291 -->|contains| n130
+  n291 -->|contains| n222
+  n292 -->|contains| n135
+  n292 -->|contains| n136
+  n292 -->|contains| n137
+  n292 -->|contains| n223
+  n292 -->|contains| n224
+  n293 -->|contains| n145
+  n293 -->|contains| n146
+  n293 -->|contains| n147
+  n293 -->|contains| n225
+  n294 -->|contains| n150
+  n294 -->|contains| n151
+  n294 -->|contains| n152
+  n294 -->|contains| n226
+  n295 -->|contains| n157
+  n296 -->|contains| n158
+  n297 -->|contains| n161
+  n298 -->|contains| n162

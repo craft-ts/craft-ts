@@ -174,7 +174,7 @@ describe('insertForm', () => {
 
   it('exposes setSubmitting from the insertion factory context', () => {
     TestBed.runInInjectionContext(() => {
-      let observedSubmitting: boolean[] = [];
+      const observedSubmitting: boolean[] = [];
       craftUse(
         state(
           'loginForm',

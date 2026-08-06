@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import type { GetDeps } from './branded-component/branded-component';
 import { debounceTime, Subject } from 'rxjs';
 import { type SendContextPayload } from './send-context-to-ai.tokens';
 import {
@@ -32,3 +33,8 @@ export class SendContextToAiBuffer {
     });
   }
 }
+
+export type GenDeps_SendContextToAiBuffer = GetDeps<{
+  deps: {};
+  provided: {};
+}>;

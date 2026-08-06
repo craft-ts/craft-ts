@@ -5,7 +5,14 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { TestBed } from '@angular/core/testing';
-import { beforeAll, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
+import {
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+} from 'vitest';
 import { craftService } from '@craft-ng/core';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
@@ -101,9 +108,7 @@ describe('Craft component and directive testing utilities', () => {
     });
     expect(result.nativeElement.textContent).toContain('direct context');
     expect(result.nativeElement.textContent).toContain('mock child');
-    expect(
-      result.nativeElement.querySelector('.template-root'),
-    ).not.toBeNull();
+    expect(result.nativeElement.querySelector('.template-root')).not.toBeNull();
     expect(document.querySelector('style[data-craft-sheet]')).not.toBeNull();
     result.destroy();
     expect(result.nativeElement.textContent).toBe('');
@@ -123,10 +128,7 @@ describe('Craft component and directive testing utilities', () => {
       () => ({}),
       () =>
         div([
-          button(
-            { class: 'save primary', 'data-testid': 'save' },
-            'Save',
-          ),
+          button({ class: 'save primary', 'data-testid': 'save' }, 'Save'),
           input({ attrs: { 'aria-label': 'Search' } }),
           child(),
         ]),
@@ -175,9 +177,9 @@ describe('Craft component and directive testing utilities', () => {
     expectTypeOf<typeof brandedStatus>().toMatchTypeOf<
       NamedYieldableValue<'brandedStatus', unknown>
     >();
-    expectTypeOf<LocatorContentNamesFor<typeof component, 'span'>>().toEqualTypeOf<
-      'brandedStatus'
-    >();
+    expectTypeOf<
+      LocatorContentNamesFor<typeof component, 'span'>
+    >().toEqualTypeOf<'brandedStatus'>();
     const brandedStatusElement = result.locator('span', {
       content: 'brandedStatus',
     });
@@ -192,6 +194,8 @@ describe('Craft component and directive testing utilities', () => {
     );
     expect(brandedStatusElement.textContent).toBe('Updated');
 
+    // This branch exists only to assert the type error for an unrendered brand.
+    // eslint-disable-next-line no-constant-condition
     if (false) {
       // @ts-expect-error the content brand is not rendered by this template
       result.locator('span', { content: 'missing' });
@@ -215,7 +219,11 @@ describe('Craft component and directive testing utilities', () => {
       {},
       () => ({ visible, brandedStatus }),
       ({ visible, brandedStatus }) =>
-        ifBlock(visible, () => span(brandedStatus), () => p('Hidden')),
+        ifBlock(
+          visible,
+          () => span(brandedStatus),
+          () => p('Hidden'),
+        ),
     );
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
@@ -340,9 +348,7 @@ describe('Craft component and directive testing utilities', () => {
       'conditionalTestDirective',
       { styles: '.directive-root { color: blue; }' },
       (baseLogic) => baseLogic,
-      (
-        baseTemplate: HostTemplate<{ visible: () => boolean }>,
-      ) => (_context) =>
+      (baseTemplate: HostTemplate<{ visible: () => boolean }>) => (_context) =>
         _context.visible() ? baseTemplate(_context) : p('hidden'),
     );
     const baseTemplate: HostTemplate<{ visible: () => boolean }> = (_context) =>

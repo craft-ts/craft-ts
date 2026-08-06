@@ -9,6 +9,10 @@ import {
   type Signal,
   type Type,
 } from '@angular/core';
+import type {
+  GetDeps,
+  GetPublicComponentProperties,
+} from './branded-component/branded-component';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 
 /**
@@ -270,3 +274,17 @@ export function provideCraftLoading(
 ): Provider[] {
   return features.flatMap((feature) => feature.providers);
 }
+
+export type GenDeps_DefaultCraftPendingComponent = GetDeps<{
+  deps: {};
+  propertiesDeps: {
+    loading: {
+      CRAFT_LOADING_TEXT: typeof CRAFT_LOADING_TEXT;
+    };
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<DefaultCraftPendingComponent>;
+  missingProvider: {
+    CRAFT_LOADING_TEXT: typeof CRAFT_LOADING_TEXT;
+  };
+}>;

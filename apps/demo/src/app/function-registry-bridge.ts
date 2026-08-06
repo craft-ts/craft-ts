@@ -1,9 +1,5 @@
-import {
-  effect,
-  InjectionToken,
-  type EffectRef,
-  type Injector,
-} from '@angular/core';
+import { InjectionToken, type EffectRef, type Injector } from '@angular/core';
+import { craftEffect } from '@craft-ng/core';
 import {
   functionRegistry,
   type FunctionRegistry,
@@ -12,9 +8,17 @@ import {
 } from './function-registry';
 import type { PrimitiveResourceRuntimeKind } from '@craft-ng/core';
 
+declare global {
+  var __CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__: string | undefined;
+}
+
 export const FUNCTION_REGISTRY_BRIDGE_URL = new InjectionToken<string>(
   'FUNCTION_REGISTRY_BRIDGE_URL',
-  { factory: () => 'ws://127.0.0.1:3333' },
+  {
+    factory: () =>
+      globalThis.__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ ??
+      'ws://127.0.0.1:3333',
+  },
 );
 
 const FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY =
@@ -24,8 +28,13 @@ export const FUNCTION_REGISTRY_CLIENT_ID = new InjectionToken<string>(
   'FUNCTION_REGISTRY_CLIENT_ID',
   {
     factory: () =>
-      createFunctionRegistryClientId(globalThis.sessionStorage, () =>
-        globalThis.crypto.randomUUID(),
+      createFunctionRegistryClientId(
+        // This token is resolved while the root injector is bootstrapping;
+        // using DI-backed browser boundaries here would re-enter this token.
+        // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+        globalThis.sessionStorage,
+        // eslint-disable-next-line craft-ng/prefer-browser-boundaries
+        () => globalThis.crypto.randomUUID(),
       ),
   },
 );
@@ -87,10 +96,7 @@ export function startFunctionRegistryBridge({
   registry = functionRegistry,
   createSocket = (socketUrl) => new WebSocket(socketUrl),
   reconnectDelayMs = 1_000,
-  getPageInfo = () => ({
-    pageUrl: globalThis.location.href,
-    pageTitle: globalThis.document.title,
-  }),
+  getPageInfo,
 }: {
   injector: Injector;
   url: string;
@@ -98,13 +104,14 @@ export function startFunctionRegistryBridge({
   registry?: FunctionRegistry;
   createSocket?: (url: string) => RegistryBridgeSocket;
   reconnectDelayMs?: number;
-  getPageInfo?: () => Readonly<{ pageUrl?: string; pageTitle?: string }>;
+  getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }>;
 }): () => void {
   let socket: RegistryBridgeSocket | undefined;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
 
-  const snapshotEffect: EffectRef = effect(
+  const snapshotEffect: EffectRef = craftEffect(
+    'snapshotEffect',
     () => {
       const snapshot = createSnapshot(registry, clientId, getPageInfo());
       if (socket?.readyState === SOCKET_OPEN) {

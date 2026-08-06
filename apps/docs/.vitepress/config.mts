@@ -119,7 +119,7 @@ const guideSidebar = [
   },
   {
     text: 'Components & templates',
-    collapsed: true,
+    collapsed: false,
     items: [
       { text: 'Components', link: '/guide/components/' },
       {
@@ -240,6 +240,23 @@ export default defineConfig({
       { text: 'Learn', link: '/learn/', activeMatch: '^/learn/' },
       { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
       { text: 'Reference', link: '/reference/', activeMatch: '^/reference/' },
+      {
+        text: 'Packages',
+        items: [
+          {
+            text: '@craft-ng/core',
+            link: 'https://www.npmjs.com/package/@craft-ng/core',
+          },
+          {
+            text: '@craft-ng/component',
+            link: 'https://www.npmjs.com/package/@craft-ng/component',
+          },
+          {
+            text: '@craft-ng/dev-tools',
+            link: 'https://www.npmjs.com/package/@craft-ng/dev-tools',
+          },
+        ],
+      },
       {
         text: 'Resources',
         activeMatch: '^/resources/',

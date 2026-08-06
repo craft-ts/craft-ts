@@ -49,11 +49,11 @@ export type ComponentExceptionsOf<Value> = Value extends object
     : never
   : never;
 
-export type ComponentDepsOf<Value> = Value extends object
+export type ComponentDepsOf<Value> = Value extends {
+  readonly [CRAFT_COMPONENT_DEPS]?: infer ComponentDeps extends object;
+}
   ? typeof CRAFT_COMPONENT_DEPS extends keyof Value
-    ? Value extends ComponentDepsCarrier<infer ComponentDeps extends object>
-      ? ComponentDeps
-      : {}
+    ? ComponentDeps
     : {}
   : {};
 

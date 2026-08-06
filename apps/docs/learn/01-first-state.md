@@ -6,9 +6,13 @@ will use in every step — `craftComponent` and a primitive.
 ## Install
 
 ```shell
-npm i @craft-ng/core@latest @craft-ng/component@latest
-npm i -D @craft-ng/dev-tools@latest
+npm i @craft-ng/core@beta @craft-ng/component@beta
+npm i -D @craft-ng/dev-tools@beta
 ```
+
+The packages are currently published on the `beta` channel. The component
+package contains the functional renderer, while `core` contains the reactive
+primitives used by the component factory.
 
 ## A component with state
 
@@ -31,21 +35,18 @@ export const Tasks = craftComponent(
 
     return { tasks };
   },
-  ({ tasks }) => [
-    h1('Tasks'),
-    ul(tasks().map((task) => li(task.title))),
-  ],
+  ({ tasks }) => [h1('Tasks'), ul(tasks().map((task) => li(task.title)))],
 );
 ```
 
 Four arguments, and each has one job:
 
-| Argument     | What it is                                                   |
-| ------------ | ------------------------------------------------------------ |
-| `'Tasks'`    | the component's name — used by the tooling and by host tags   |
-| `{}`         | meta: providers, styles, host properties (empty for now)      |
-| `function*`  | the **logic factory** — builds and returns the context        |
-| `({ … }) =>` | the **template** — receives that context, returns nodes       |
+| Argument     | What it is                                                  |
+| ------------ | ----------------------------------------------------------- |
+| `'Tasks'`    | the component's name — used by the tooling and by host tags |
+| `{}`         | meta: providers, styles, host properties (empty for now)    |
+| `function*`  | the **logic factory** — builds and returns the context      |
+| `({ … }) =>` | the **template** — receives that context, returns nodes     |
 
 There is no class, no decorator, no separate HTML file, and no host element
 wrapped around your markup.
@@ -56,7 +57,14 @@ A component's inputs and outputs are just **parameters of the logic factory**,
 typed with `Input<T>` and `Output<Handler>`:
 
 ```typescript
-import { Input, Output, button, craftComponent, div, span } from '@craft-ng/component';
+import {
+  Input,
+  Output,
+  button,
+  craftComponent,
+  div,
+  span,
+} from '@craft-ng/component';
 
 const UserCard = craftComponent(
   'UserCard',
@@ -86,12 +94,12 @@ UserCard({
 });
 ```
 
-| Angular                                   | Craft                                |
-| ----------------------------------------- | ------------------------------------ |
-| `@Input()` / `input()` / `input.required()` | a `Input<T>` factory parameter       |
-| `@Output()` / `output()` + `.emit(...)`    | an `Output<H>` parameter, called directly |
-| `[user]="u"` / `(remove)="fn($event)"`     | `UserCard({ user: () => u, onRemove: fn })` |
-| Missing required input → runtime           | missing parameter → **compile error** |
+| Angular                                     | Craft                                       |
+| ------------------------------------------- | ------------------------------------------- |
+| `@Input()` / `input()` / `input.required()` | a `Input<T>` factory parameter              |
+| `@Output()` / `output()` + `.emit(...)`     | an `Output<H>` parameter, called directly   |
+| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: () => u, onRemove: fn })` |
+| Missing required input → runtime            | missing parameter → **compile error**       |
 
 Because it's a function call, there is no template-binding layer between caller
 and component: a wrong input name or type is a plain TypeScript error.
@@ -153,7 +161,7 @@ and is what identifies this piece of state in logs, snapshots and observability.
 destructure it:
 
 ```typescript
-const { tasks } = yield* state('tasks', []);
+const { tasks } = yield * state('tasks', []);
 ```
 
 `tasks` is a signal: call it to read, `tasks()`.
@@ -180,10 +188,7 @@ The template is a plain function returning nodes built with hyperscript helpers
 without a helper:
 
 ```typescript
-({ tasks }) => [
-  h1('Tasks'),
-  ul(tasks().map((task) => li(task.title))),
-];
+({ tasks }) => [h1('Tasks'), ul(tasks().map((task) => li(task.title)))];
 ```
 
 Reading `tasks()` inside the template is what makes that part reactive. No
@@ -194,7 +199,7 @@ Reading `tasks()` inside the template is what makes that part reactive. No
 Right now the state is read-only from the outside. Give it a writer:
 
 ```typescript
-const { tasks } = yield* state('tasks', [] as Task[], ({ set }) => ({ set }));
+const { tasks } = yield * state('tasks', [] as Task[], ({ set }) => ({ set }));
 
 tasks.set([{ id: '1', title: 'Write step 2', done: false }]);
 ```

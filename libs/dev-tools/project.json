@@ -13,6 +13,7 @@
         "main": "libs/dev-tools/src/index.ts",
         "tsConfig": "libs/dev-tools/tsconfig.lib.json",
         "assets": [
+          "LICENSE",
           "libs/dev-tools/*.md",
           "libs/dev-tools/generators.json",
           {
@@ -43,6 +44,7 @@
           {
             "input": "libs/dev-tools/src/scripts",
             "glob": "**/*.ts",
+            "ignore": ["**/*.spec.ts", "**/*.test.ts"],
             "output": "src/scripts"
           }
         ]

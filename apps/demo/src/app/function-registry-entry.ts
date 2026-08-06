@@ -3,8 +3,12 @@ import {
   inject,
   Injector,
   provideAppInitializer,
+  runInInjectionContext,
 } from '@angular/core';
 import {
+  BrowserDocument,
+  BrowserLocation,
+  craftUse,
   executeGeneratorCompatibleFactory,
   HOST_TAG_LIST,
   injectPrimitiveMethodRuntimeContext,
@@ -96,13 +100,23 @@ export const provideMcpExperimentation = () => [
     // Bootstrap boundary: the bridge lifetime follows the application injector.
     // eslint-disable-next-line craft-ng/no-angular-inject
     const destroyRef = inject(DestroyRef);
+    // eslint-disable-next-line craft-ng/no-angular-inject
+    const injector = inject(Injector);
     const stopBridge = startFunctionRegistryBridge({
-      // eslint-disable-next-line craft-ng/no-angular-inject
-      injector: inject(Injector),
+      injector,
       // eslint-disable-next-line craft-ng/no-angular-inject
       url: inject(FUNCTION_REGISTRY_BRIDGE_URL),
       // eslint-disable-next-line craft-ng/no-angular-inject
       clientId: inject(FUNCTION_REGISTRY_CLIENT_ID),
+      getPageInfo: () =>
+        runInInjectionContext(injector, () =>
+          craftUse(function* () {
+            return {
+              pageUrl: yield* BrowserLocation.href(),
+              pageTitle: yield* BrowserDocument.title(),
+            };
+          }),
+        ),
     });
     destroyRef.onDestroy(stopBridge);
   }),

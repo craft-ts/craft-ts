@@ -85,7 +85,12 @@ type DependencyOutputRecordFromTracking<Tracking> =
     any
   >
     ? {
-        [Key in Name]: Output;
+        [Key in Name]: Output extends import('@angular/core').WritableSignal<
+          infer Value
+        >
+          ? import('@angular/core').Signal<Value> &
+              Omit<Output, 'set' | 'update' | 'asReadonly'>
+          : Output;
       }
     : never;
 
@@ -1643,6 +1648,8 @@ async function waitForAppStartResult(result: unknown): Promise<void> {
 
   if (isObservableLike(result)) {
     await new Promise<void>((resolve, reject) => {
+      // The completion callback may run synchronously during subscribe.
+      // eslint-disable-next-line prefer-const
       let subscription: unknown;
       const complete = () => {
         if (subscription && typeof subscription === 'object') {

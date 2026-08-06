@@ -131,17 +131,19 @@ it('extracts projection contracts and propagates projected dependencies', () => 
   const action = craftComponent(
     'typedAction',
     {},
-    (input: {
-      readonly key: string;
-      readonly trigger: () => void;
-    }) => ({
+    (input: { readonly key: string; readonly trigger: () => void }) => ({
       key: input.key,
-      contract: { kind: 'action', trigger: input.trigger } satisfies ActionContract,
+      contract: {
+        kind: 'action',
+        trigger: input.trigger,
+      } satisfies ActionContract,
     }),
     ({ contract }) => button({ click: contract.trigger }, 'action'),
   );
   type _Contract = Expect<
-    Expect<ProjectionContractOf<typeof action> extends ActionContract ? true : false>
+    Expect<
+      ProjectionContractOf<typeof action> extends ActionContract ? true : false
+    >
   >;
   const projectedAction: ProjectionOf<typeof action> = action({
     key: 'save',
@@ -239,9 +241,7 @@ it('checks the declared selector contract for projected content', () => {
     () => ({}),
     () =>
       card({
-        body: content(() =>
-          div({ class: 'card-body', 'data-slot': 'body' }),
-        ),
+        body: content(() => div({ class: 'card-body', 'data-slot': 'body' })),
       }),
   );
 
@@ -254,8 +254,7 @@ it('checks the declared selector contract for projected content', () => {
     () =>
       card({
         // @ts-expect-error the projected content must contain div.card-body[data-slot="body"].
-        body:
-          content(() => div({ class: 'wrong-class' })),
+        body: content(() => div({ class: 'wrong-class' })),
       }),
   );
 
@@ -355,6 +354,35 @@ it('does not infer component dependencies from an unbranded value', () => {
   expectTypeOf<
     ComponentDepsOf<{ readonly value: string }>
   >().toEqualTypeOf<{}>();
+});
+
+it('keeps ComponentDepsOf stable for conditional-type edge cases', () => {
+  expectTypeOf<ComponentDepsOf<unknown>>().toEqualTypeOf<{}>();
+  expectTypeOf<ComponentDepsOf<never>>().toBeNever();
+  expectTypeOf<ComponentDepsOf<any>>().toEqualTypeOf<object | {}>();
+
+  const first = craftComponent(
+    'componentDepsUnionFirst',
+    {},
+    () => ({}),
+    () => p('first'),
+  );
+  const second = craftComponent(
+    'componentDepsUnionSecond',
+    {},
+    () => ({}),
+    () => p('second'),
+  );
+
+  type FirstDeps = ComponentDepsOf<typeof first>;
+  type SecondDeps = ComponentDepsOf<typeof second>;
+
+  expectTypeOf<ComponentDepsOf<typeof first | typeof second>>().toEqualTypeOf<
+    FirstDeps | SecondDeps
+  >();
+  expectTypeOf<
+    ComponentDepsOf<typeof first | { readonly value: string }>
+  >().toEqualTypeOf<FirstDeps | {}>();
 });
 
 it('does not treat unbranded Angular providers as Craft service providers', () => {
@@ -850,6 +878,7 @@ it('reports dynamic component unions and conditional branch failures', () => {
   );
   const dynamic = {
     kind: 'component',
+    // eslint-disable-next-line no-constant-condition -- this fixture preserves a union of both branches.
     component: (true ? first : second) as typeof first | typeof second,
     props: {},
   } as ComponentNode<{}, {}, typeof first | typeof second>;
@@ -878,6 +907,7 @@ it('reports dynamic component unions and conditional branch failures', () => {
     'contractBranchParent',
     {},
     () => ({}),
+    // eslint-disable-next-line no-constant-condition -- this fixture checks conditional branch diagnostics.
     () => (true ? p('ok') : missingBranch()),
   );
   type BranchContract = SetupTestComponentTemplate<typeof branchParent>;
@@ -915,7 +945,16 @@ it('tracks named elements through conditional template branches', () => {
     ({ isAuth }) =>
       ifBlock(
         isAuth,
-        () => button('increment', { click: function* () {} }, '+'),
+        () =>
+          button(
+            'increment',
+            {
+              click: function* () {
+                return;
+              },
+            },
+            '+',
+          ),
         () => p('signed out'),
       ),
   );

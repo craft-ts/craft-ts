@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import type { GetDeps } from './branded-component/branded-component';
 
 @Injectable({ providedIn: 'root' })
 export class ComponentRegister {
@@ -11,3 +12,8 @@ export class ComponentRegister {
 }
 
 export const ɵfallbackComponentRegister = new ComponentRegister();
+
+export type GenDeps_ComponentRegister = GetDeps<{
+  deps: {};
+  provided: {};
+}>;

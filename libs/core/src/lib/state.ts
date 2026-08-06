@@ -17,6 +17,12 @@ import {
   InsertionsStateFactory,
   InsertionStateFactoryContext,
 } from './query.core';
+import {
+  createNamedPrimitiveGen,
+  createPrimitiveGen,
+  type CraftPrimitiveGen,
+  type NamedPrimitive,
+} from './craft-primitive-gen';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
@@ -38,11 +44,6 @@ import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
-import {
-  createNamedPrimitiveGen,
-  type CraftPrimitiveGen,
-  type NamedPrimitive,
-} from './craft-primitive-gen';
 import { markYieldableMethod } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
 import type { StandardSchemaV1 } from './standard-schema';
@@ -88,7 +89,7 @@ export type StateOutput<
   HasSchema extends boolean = false,
 > = HasSchema extends true
   ? MergeObject<
-      Signal<StateType>,
+      WritableSignal<StateType>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         {
@@ -103,7 +104,7 @@ export type StateOutput<
       >
     >
   : MergeObject<
-      Signal<StateType>,
+      WritableSignal<StateType>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         { readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies }
@@ -111,7 +112,9 @@ export type StateOutput<
     >;
 
 export type StateSchemaConfig<Schema extends CraftSchema> = {
-  readonly $self: StandardSchemaV1.InferInput<Schema> | Signal<StandardSchemaV1.InferInput<Schema>>;
+  readonly $self:
+    | StandardSchemaV1.InferInput<Schema>
+    | Signal<StandardSchemaV1.InferInput<Schema>>;
   readonly schema: Schema;
   readonly providers?: readonly import('@angular/core').Provider[];
   readonly schemaValidationPolicy?: SchemaValidationPolicy;
@@ -325,14 +328,23 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * reset.emit();
  * console.log(myState()); // 0
  */
-export function state<
-  Name extends string,
-  Schema extends CraftSchema,
->(
+export function state<StateInput>(
+  stateConfig: StateInput,
+): CraftPrimitiveGen<
+  StateOutput<
+    ResolvedStateType<StateInput>,
+    {},
+    StateTrackedDependencies<StateInput>
+  >
+>;
+export function state<Name extends string, Schema extends CraftSchema>(
   name: Name,
   stateConfig: StateSchemaConfig<Schema>,
 ): CraftPrimitiveGen<
-  NamedPrimitive<Name, StateOutput<StandardSchemaV1.InferOutput<Schema>, {}, {}, true>>
+  NamedPrimitive<
+    Name,
+    StateOutput<StandardSchemaV1.InferOutput<Schema>, {}, {}, true>
+  >
 >;
 export function state<Name extends string, StateInput>(
   name: Name,
@@ -372,17 +384,19 @@ export function state<
   >
 >;
 export function state(
-  name: string,
+  nameOrStateConfig: string | unknown,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  stateConfig: any,
+  stateConfig?: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ...insertions: any[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
-  return createNamedPrimitiveGen(
-    name,
-    createStateRef(name, stateConfig, ...insertions),
-  );
+  const isNamed =
+    typeof nameOrStateConfig === 'string' && arguments.length >= 2;
+  const name = isNamed ? nameOrStateConfig : 'state';
+  const config = isNamed ? stateConfig : nameOrStateConfig;
+  const ref = createStateRef(name, config, ...(isNamed ? insertions : []));
+  return isNamed ? createNamedPrimitiveGen(name, ref) : createPrimitiveGen(ref);
 }
 
 function createStateRef<StateType>(
@@ -487,15 +501,16 @@ function createStateRef<StateType>(
       : resolvedStateConfig,
     'initial',
   );
-  const stateSignal = !schema && isSignalState
-    ? isWritableSignal(resolvedStateConfig)
-      ? (resolvedStateConfig as WritableSignal<StateType>)
-      : linkedSignal(() => (resolvedStateConfig as Signal<StateType>)())
-    : isSignalState
-      ? linkedSignal(() =>
-          applySchema((resolvedStateConfig as Signal<unknown>)(), 'source'),
-        )
-      : signal(initialStateValue);
+  const stateSignal =
+    !schema && isSignalState
+      ? isWritableSignal(resolvedStateConfig)
+        ? (resolvedStateConfig as WritableSignal<StateType>)
+        : linkedSignal(() => (resolvedStateConfig as Signal<StateType>)())
+      : isSignalState
+        ? linkedSignal(() =>
+            applySchema((resolvedStateConfig as Signal<unknown>)(), 'source'),
+          )
+        : signal(initialStateValue);
   const readonlyStateSignal =
     'asReadonly' in stateSignal && typeof stateSignal.asReadonly === 'function'
       ? stateSignal.asReadonly()

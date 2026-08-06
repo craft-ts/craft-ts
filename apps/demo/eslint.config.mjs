@@ -25,9 +25,9 @@ export default [
       'craft-ng/craft-signal-source-name-match': 'warn',
       'craft-ng/craft-component-name-match': 'warn',
       'craft-ng/craft-directive-name-match': 'warn',
-      'craft-ng/no-angular-inject': 'warn',
-      'craft-ng/no-angular-signal-forms': 'warn',
-      'craft-ng/prefer-craft-template-blocks': 'warn',
+      'craft-ng/no-angular-inject': 'error',
+      'craft-ng/no-angular-signal-forms': 'error',
+      'craft-ng/prefer-craft-template-blocks': 'error',
       'craft-ng/prefer-craft-reactivity': 'warn',
       'craft-ng/provide-host-name-match-component': 'warn',
       'craft-ng/prefer-craft-http-client': 'error',
@@ -54,22 +54,6 @@ export default [
       'craft-ng/require-lazy-load-with-retry': 'warn',
       // app.routes.ts uses O(1) RouteCheckedDI checks for every SFC instead.
       'craft-ng/require-cascade-route-di-check': 'off',
-      '@angular-eslint/directive-selector': [
-        'error',
-        {
-          type: 'attribute',
-          prefix: 'app',
-          style: 'camelCase',
-        },
-      ],
-      '@angular-eslint/component-selector': [
-        'error',
-        {
-          type: 'element',
-          prefix: 'app',
-          style: 'kebab-case',
-        },
-      ],
       '@typescript-eslint/no-empty-object-type': 'off',
     },
   },

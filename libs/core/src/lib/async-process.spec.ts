@@ -567,7 +567,7 @@ describe('AsyncProcess types without identifier', () => {
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
-        method: (args: string) => string;
+        method: (args: string) => Generator<never, string, unknown>;
         hasException: Signal<boolean>;
         exception: Signal<undefined>;
         exceptions: Signal<{

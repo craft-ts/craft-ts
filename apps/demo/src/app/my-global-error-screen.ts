@@ -11,7 +11,8 @@ export const MyGlobalErrorScreen = craftComponent(
     return { error: yield* CraftGlobalError() };
   },
   ({ error }) => {
-    const disabled = error()?.code === 'USER_DISABLED';
+    const disabled =
+      (error() as { code?: string } | null)?.code === 'USER_DISABLED';
     return div([
       h2(`⚠️ ${disabled ? 'Account disabled' : 'Something went wrong'}`),
       p(

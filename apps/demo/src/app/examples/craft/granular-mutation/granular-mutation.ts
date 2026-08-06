@@ -9,8 +9,8 @@ import {
   select,
 } from '@craft-ng/component';
 import {
-  craftMethod,
   craftPipe,
+  craftMethod,
   craftService,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
@@ -128,18 +128,17 @@ const GranularMutationCraft = craftComponent(
         h(
           'tbody',
           each(
-            () => users.currentPageData() ?? [],
+            () => users.currentPageData(),
             { track: (user) => user.id },
             (user) =>
               h('tr', [
-                h('td', String(user.id)),
+                h('td', user.id),
                 h('td', user.name),
                 h(
                   'td',
                   button(
                     {
-                      disabled:
-                        updateUserName.select(user.id)?.isLoading() ?? false,
+                      disabled: updateUserName.select(user.id)?.isLoading(),
                       click: () => updateUserName.mutate(user),
                     },
                     'Update Name',
@@ -152,7 +151,7 @@ const GranularMutationCraft = craftComponent(
       select(
         {
           value: pagination().pageSize,
-          change: (event) => void updatePageSize(event),
+          change: (event) => updatePageSize(event),
         },
         [2, 4, 8, 16].map((size) => option({ value: size }, size)),
       ),

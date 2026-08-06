@@ -7,7 +7,7 @@ import {
   mockHttpRequestForRoute,
 } from '../../../libs/core/src/lib/mock-http-request-for-route';
 
-test('should mock the lazy-layout users call through matchMockHttpRequestForRoute', async ({
+test('should mock a registered users call through matchMockHttpRequestForRoute', async ({
   page,
 }) => {
   const routeHttpMock = mockHttpRequestForRoute(
@@ -64,9 +64,17 @@ test('should mock the lazy-layout users call through matchMockHttpRequestForRout
     });
   });
 
-  await page.goto('/craft/lazy-layout/100/users/42');
+  await page.goto('/');
 
-  await expect(page.getByText(/query status:\s*resolved/i)).toBeVisible();
+  const response = await page.evaluate(async () => {
+    const result = await fetch('/users');
+    return { body: await result.json(), status: result.status };
+  });
+
+  expect(response).toEqual({
+    status: 200,
+    body: [{ id: '42', email: 'ada@craft.ng' }],
+  });
 
   expect(decisions).toHaveLength(1);
   expect(decisions[0]).toEqual({

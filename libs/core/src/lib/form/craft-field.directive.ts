@@ -12,6 +12,7 @@ import {
   Renderer2,
   untracked,
 } from '@angular/core';
+import type { GetDeps } from '../branded-component/branded-component';
 import {
   ControlSyncer,
   CraftCheckboxControl,
@@ -31,16 +32,15 @@ import {
  *   readonly value = model<string>('');
  * }
  */
-export const CRAFT_FIELD_VALUE_CONTROL = new InjectionToken<CraftValueControl<unknown>>(
-  'CRAFT_FIELD_VALUE_CONTROL',
-);
+export const CRAFT_FIELD_VALUE_CONTROL = new InjectionToken<
+  CraftValueControl<unknown>
+>('CRAFT_FIELD_VALUE_CONTROL');
 
 /**
  * Token used by custom checkbox-style controls to declare themselves as Craft form checkbox controls.
  */
-export const CRAFT_FIELD_CHECKBOX_CONTROL = new InjectionToken<CraftCheckboxControl>(
-  'CRAFT_FIELD_CHECKBOX_CONTROL',
-);
+export const CRAFT_FIELD_CHECKBOX_CONTROL =
+  new InjectionToken<CraftCheckboxControl>('CRAFT_FIELD_CHECKBOX_CONTROL');
 
 type Strategy =
   | 'text'
@@ -53,7 +53,13 @@ type Strategy =
   | 'signal-checkbox-control'
   | 'unsupported';
 
-const TEMPORAL_TYPES = new Set(['date', 'datetime-local', 'time', 'month', 'week']);
+const TEMPORAL_TYPES = new Set([
+  'date',
+  'datetime-local',
+  'time',
+  'month',
+  'week',
+]);
 const NUMERIC_TYPES = new Set(['number', 'range']);
 
 @Directive({
@@ -71,10 +77,13 @@ export class CraftFieldDirective<T> implements OnInit, OnDestroy {
     optional: true,
     self: true,
   });
-  private readonly customCheckboxControl = inject(CRAFT_FIELD_CHECKBOX_CONTROL, {
-    optional: true,
-    self: true,
-  });
+  private readonly customCheckboxControl = inject(
+    CRAFT_FIELD_CHECKBOX_CONTROL,
+    {
+      optional: true,
+      self: true,
+    },
+  );
 
   private cleanupFns: Array<() => void> = [];
   private strategy: Strategy = 'unsupported';
@@ -154,19 +163,24 @@ export class CraftFieldDirective<T> implements OnInit, OnDestroy {
     const ref = effect(
       () => {
         const field = this.craftField();
-        const isInput = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT';
+        const isInput =
+          el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.tagName === 'SELECT';
 
         // Disabled
         if (isInput) {
-          (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).disabled =
-            field.disabled();
+          (
+            el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+          ).disabled = field.disabled();
         } else {
           this.toggleAttribute(el, 'aria-disabled', field.disabled());
         }
 
         // Readonly (not on select)
         if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-          (el as HTMLInputElement | HTMLTextAreaElement).readOnly = field.readonly();
+          (el as HTMLInputElement | HTMLTextAreaElement).readOnly =
+            field.readonly();
         }
 
         // Required
@@ -188,13 +202,24 @@ export class CraftFieldDirective<T> implements OnInit, OnDestroy {
         if (el.tagName === 'INPUT') {
           const inputEl = el as HTMLInputElement;
           const inputType = (inputEl.type || 'text').toLowerCase();
-          const supportsMinMax = NUMERIC_TYPES.has(inputType) || TEMPORAL_TYPES.has(inputType);
+          const supportsMinMax =
+            NUMERIC_TYPES.has(inputType) || TEMPORAL_TYPES.has(inputType);
           if (supportsMinMax) {
             const min = field.min();
             const max = field.max();
-            if (min !== undefined) this.renderer.setAttribute(el, 'min', formatMinMax(min, inputType));
+            if (min !== undefined)
+              this.renderer.setAttribute(
+                el,
+                'min',
+                formatMinMax(min, inputType),
+              );
             else this.renderer.removeAttribute(el, 'min');
-            if (max !== undefined) this.renderer.setAttribute(el, 'max', formatMinMax(max, inputType));
+            if (max !== undefined)
+              this.renderer.setAttribute(
+                el,
+                'max',
+                formatMinMax(max, inputType),
+              );
             else this.renderer.removeAttribute(el, 'max');
           }
         }
@@ -271,7 +296,9 @@ export class CraftFieldDirective<T> implements OnInit, OnDestroy {
       writeValue,
       resync: () => writeValue(field().value()),
     };
-    this.cleanupFns.push(field().ɵregisterControl(syncer as ControlSyncer<string>));
+    this.cleanupFns.push(
+      field().ɵregisterControl(syncer as ControlSyncer<string>),
+    );
 
     // Initial + reactive sync model -> UI
     const ref = effect(
@@ -420,7 +447,9 @@ export class CraftFieldDirective<T> implements OnInit, OnDestroy {
       writeValue,
       resync: () => writeValue(field().value()),
     };
-    this.cleanupFns.push(field().ɵregisterControl(syncer as ControlSyncer<boolean>));
+    this.cleanupFns.push(
+      field().ɵregisterControl(syncer as ControlSyncer<boolean>),
+    );
 
     const ref = effect(
       () => {
@@ -450,7 +479,8 @@ export class CraftFieldDirective<T> implements OnInit, OnDestroy {
     const field = this.craftField as () => CraftField<unknown>;
 
     const writeValue = (next: unknown) => {
-      el.checked = next !== null && next !== undefined && el.value === String(next);
+      el.checked =
+        next !== null && next !== undefined && el.value === String(next);
     };
 
     const syncer: ControlSyncer<unknown> = {
@@ -503,7 +533,9 @@ export class CraftFieldDirective<T> implements OnInit, OnDestroy {
       writeValue,
       resync: () => writeValue(field().value()),
     };
-    this.cleanupFns.push(field().ɵregisterControl(syncer as ControlSyncer<string>));
+    this.cleanupFns.push(
+      field().ɵregisterControl(syncer as ControlSyncer<string>),
+    );
 
     const ref = effect(
       () => {
@@ -530,7 +562,8 @@ export class CraftFieldDirective<T> implements OnInit, OnDestroy {
   // ---------------------- Strategy: signal value control ----------------------
 
   private bindSignalValueControl(): void {
-    const control = this.customValueControl as CraftValueControl<unknown> | null;
+    const control = this
+      .customValueControl as CraftValueControl<unknown> | null;
     if (!control) return;
     const field = this.craftField as () => CraftField<unknown>;
     let lastWrittenFromModel: unknown = Symbol('uninitialized');
@@ -649,3 +682,14 @@ function formatDateForInput(date: Date, inputType: string): string {
       return date.toISOString();
   }
 }
+
+export type GenDeps_CraftFieldDirective = GetDeps<{
+  deps: {};
+  provided: {};
+  missingProvider: {
+    Renderer2: Renderer2;
+    Injector: Injector;
+    CRAFT_FIELD_VALUE_CONTROL: typeof CRAFT_FIELD_VALUE_CONTROL;
+    CRAFT_FIELD_CHECKBOX_CONTROL: typeof CRAFT_FIELD_CHECKBOX_CONTROL;
+  };
+}>;

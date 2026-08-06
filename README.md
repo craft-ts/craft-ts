@@ -37,13 +37,18 @@ It is designed to keep application behavior close to where it is used while maki
 
 ## Installation
 
-ng-craft currently targets Angular 21.
+ng-craft currently targets Angular 21. It requires Node.js 20.19+ (or 22.12+)
+and TypeScript 5.9+.
 
 ```bash
-npm install @craft-ng/core@latest @craft-ng/dev-tools@latest
+npm install @craft-ng/core@beta @craft-ng/component@beta
+npm install -D @craft-ng/dev-tools@beta
 ```
 
-`@craft-ng/dev-tools` provides the codemods and ESLint rules used by the type-safe DI and routing workflow.
+The packages are currently published on the `beta` channel. `@craft-ng/core`
+provides the reactive primitives, `@craft-ng/component` provides selectorless
+functional components, and `@craft-ng/dev-tools` provides the codemods and
+ESLint rules used by the type-safe DI and routing workflow.
 
 ## Quick start
 
@@ -102,6 +107,7 @@ apps/
 └── docs/          VitePress documentation and documentation tests
 libs/
 ├── core/          Published @craft-ng/core package
+├── component/     Published @craft-ng/component package
 ├── dev-tools/     Published codemods and ESLint tooling
 └── test-type/     Compile-time type test utilities
 tools/
@@ -112,7 +118,7 @@ tools/
 
 ### Prerequisites
 
-- Node.js 20 (the version used by CI)
+- Node.js 20.19+ (or 22.12+)
 - npm
 
 Install the exact dependency versions from the lockfile:
@@ -188,9 +194,10 @@ When documenting a public API:
 
 ## Releases
 
-`@craft-ng/core` and `@craft-ng/dev-tools` are released together with one local
-command. It versions and builds the packages, publishes npm, deploys the built
-documentation, and synchronizes the complete demo used by StackBlitz:
+`@craft-ng/core`, `@craft-ng/component`, and `@craft-ng/dev-tools` are released
+together with one local command. It versions and builds the packages, publishes
+npm, deploys the built documentation, and synchronizes the complete demo used by
+StackBlitz:
 
 ```bash
 npm run release:local -- patch

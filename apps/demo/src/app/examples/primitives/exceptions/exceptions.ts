@@ -9,10 +9,7 @@ import {
   p,
   strong,
 } from '@craft-ng/component';
-import {
-  craftException,
-  query,
-} from '@craft-ng/core';
+import { craftException, query } from '@craft-ng/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 
@@ -89,9 +86,15 @@ const ExceptionsComponent = craftComponent(
   catchTag.exhaustive({
     // The query exposes these exceptions as a signal; template rendering is
     // handled by matchBlock.exhaustive above.
-    UserNotFoundException: function* () {},
-    UserConsentMissingException: function* () {},
-    UserAccessForbiddenException: function* () {},
+    UserNotFoundException: function* () {
+      return;
+    },
+    UserConsentMissingException: function* () {
+      return;
+    },
+    UserAccessForbiddenException: function* () {
+      return;
+    },
   }),
 );
 

@@ -7,6 +7,7 @@ test('navigates to Craft Full Demo from the navbar without freezing', async ({
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto('/');
+  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
 
   const link = page.getByRole('link', {
     name: 'Craft Full Demo',
@@ -33,6 +34,7 @@ test('does not activate Guard demo after its guard redirects', async ({
     }
   });
   await page.goto('/');
+  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
 
   await page.getByRole('link', { name: 'Guard demo', exact: true }).click({
     timeout: 2_000,
@@ -42,6 +44,7 @@ test('does not activate Guard demo after its guard redirects', async ({
     page.getByText('Should not be displayed', { exact: true }),
   ).toHaveCount(0);
 
+  await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
   await page
     .getByRole('link', { name: 'craftService User Detail', exact: true })
     .click({ timeout: 2_000 });

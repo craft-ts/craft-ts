@@ -1,0 +1,191 @@
+<main class="shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Prototype · static type graph</p>
+      <h1>Craft dependency graph</h1>
+      <p class="subtitle">
+        ng-diagram reçoit exactement les nœuds et les liens issus de l’analyse
+        TypeScript.
+      </p>
+    </div>
+    <div class="stats">
+      <span>{{ graph()?.nodes?.length ?? 0 }} nœuds</span>
+      <span>{{ graph()?.edges?.length ?? 0 }} liens</span>
+      <span class="granularity">1 lien = 1 dépendance</span>
+    </div>
+  </header>
+
+  <section class="toolbar">
+    <label>
+      Route
+      <select
+        [value]="selectedRouteId()"
+        (change)="selectRoute($any($event.target).value)"
+      >
+        @for (route of routes(); track route.id) {
+          <option
+            [value]="route.label"
+            [selected]="route.label === selectedRouteId()"
+          >
+            {{ route.label }}
+          </option>
+        }
+      </select>
+    </label>
+    <button type="button" class="search-trigger" (click)="openSearch()">
+      Rechercher
+      <kbd>⌘K</kbd>
+    </button>
+    <button type="button" (click)="toggleAll()">
+      {{ showAll() ? 'Afficher la route' : 'Afficher tout le graphe' }}
+    </button>
+    <button type="button" (click)="collapseAll()">
+      Tout replier
+    </button>
+    <button type="button" (click)="expandAll()">
+      Tout déplier
+    </button>
+    <button type="button" class="muted-button" (click)="clearSelection()">
+      Effacer la sélection
+    </button>
+    @if (collapsedGroupCount() > 0) {
+      <span class="view-label">
+        {{ collapsedGroupCount() }} bloc(s) replié(s)
+      </span>
+    }
+    <span class="view-label">
+      Vue : {{ showAll() ? 'graphe complet' : 'sous-graphe de la route' }}
+    </span>
+  </section>
+
+  @if (searchOpen()) {
+    <div class="search-backdrop" (pointerdown)="closeSearch()">
+      <section
+        class="search-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Rechercher dans le graphe"
+        (pointerdown)="$event.stopPropagation()"
+      >
+        <div class="search-input-row">
+          <span class="search-symbol">⌕</span>
+          <input
+            data-search-input
+            type="search"
+            autocomplete="off"
+            placeholder="Rechercher un composant, service, primitive…"
+            [value]="searchQuery()"
+            (input)="updateSearchQuery($event)"
+            (keydown)="onSearchKeydown($event)"
+          />
+          <kbd>ESC</kbd>
+        </div>
+        @if (searchQuery().trim().length === 0) {
+          <p class="search-hint">
+            Tapez un nom, un type ou un fichier. Les doublons affichent leur
+            chemin et leur ligne.
+          </p>
+        } @else if (searchResults().length === 0) {
+          <p class="search-empty">Aucun élément trouvé.</p>
+        } @else {
+          <div class="search-results" role="listbox" aria-label="Résultats">
+            @for (result of searchResults(); track result.node.id; let index = $index) {
+              <button
+                type="button"
+                class="search-result"
+                [class.is-active]="searchActiveIndex() === index"
+                role="option"
+                [attr.aria-selected]="searchActiveIndex() === index"
+                (mouseenter)="searchActiveIndex.set(index)"
+                (click)="selectSearchResult(result)"
+              >
+                <span class="search-result-main">
+                  <span class="search-result-kind">{{ result.node.kind }}</span>
+                  <strong>{{ result.displayLabel }}</strong>
+                </span>
+                <span class="search-result-source">{{ result.sourceLabel }}</span>
+              </button>
+            }
+          </div>
+        }
+      </section>
+    </div>
+  }
+
+  @if (loading()) {
+    <section class="message">Chargement du graphe typé…</section>
+  } @else if (error()) {
+    <section class="message error">{{ error() }}</section>
+  } @else {
+    <section class="workspace">
+      <div class="diagram-panel">
+        <div class="legend">
+          <span><i class="swatch component"></i> composants</span>
+          <span><i class="swatch template"></i> templates</span>
+          <span><i class="swatch service"></i> services</span>
+          <span><i class="swatch property"></i> champs / primitives</span>
+          <span><i class="swatch edge"></i> lien typé</span>
+        </div>
+        <div class="diagram-canvas">
+          <ng-diagram
+            [style.width.px]="diagramSize().width"
+            [style.height.px]="diagramSize().height"
+            [model]="model()"
+            [nodeTemplateMap]="nodeTemplateMap"
+            [edgeTemplateMap]="edgeTemplateMap"
+            (diagramInit)="onDiagramInit()"
+            (selectionChanged)="onSelectionChanged($event)"
+            (nodeDragStarted)="onNodeDragStarted($event)"
+            (selectionMoved)="onSelectionMoved($event)"
+            (nodeDragEnded)="onNodeDragEnded($event)"
+          />
+        </div>
+      </div>
+
+      <aside class="details-panel">
+        @if (selectedNode(); as node) {
+          <p class="eyebrow">Nœud sélectionné</p>
+          <h2>{{ node.label }}</h2>
+          <div class="detail-chip" [class]="'chip-' + node.kind">
+            {{ node.kind }}
+          </div>
+          <dl>
+            <dt>Fichier</dt>
+            <dd>{{ displayPath(node.filePath) }}</dd>
+            <dt>Ligne</dt>
+            <dd>{{ node.line ?? '—' }}</dd>
+          </dl>
+          @if (externalRouteUses().length > 0) {
+            <div class="external-use">
+              <strong>Utilisé aussi ailleurs</strong>
+              <p>{{ externalRouteUses().join(', ') }}</p>
+            </div>
+          }
+        } @else if (selectedEdge(); as edge) {
+          <p class="eyebrow">Lien sélectionné</p>
+          <h2>{{ edge.kind }}</h2>
+          <dl>
+            <dt>De</dt>
+            <dd>{{ displayEndpoint(edge.from) }}</dd>
+            <dt>Vers</dt>
+            <dd>{{ displayEndpoint(edge.to) }}</dd>
+            <dt>Preuve</dt>
+            <dd>{{ edge.evidence }}</dd>
+          </dl>
+          @if (edge.details) {
+            <pre>{{ edge.details | json }}</pre>
+          }
+        } @else {
+          <p class="eyebrow">Vue détaillée</p>
+          <h2>Sélectionnez un nœud ou un lien</h2>
+          <p>
+            Les propriétés et primitives restent des nœuds distincts, mais
+            sont regroupées dans leur composant ou service hôte. Cliquez sur
+            un élément pour inspecter son fichier, sa ligne et les routes qui
+            le réutilisent.
+          </p>
+        }
+      </aside>
+    </section>
+  }
+</main>

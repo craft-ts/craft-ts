@@ -260,7 +260,11 @@ describe('functional component interpreter', () => {
         }),
     );
     const element = host();
-    const mounted = mountCraftComponent(root, element, TestBed.inject(Injector));
+    const mounted = mountCraftComponent(
+      root,
+      element,
+      TestBed.inject(Injector),
+    );
     TestBed.tick();
 
     expect(element.querySelector('[role="toolbar"]')?.textContent).toBe('Save');
@@ -289,8 +293,7 @@ describe('functional component interpreter', () => {
       {
         styles: '.projected-value { color: blue; }',
         contentStyles: {
-          body:
-            ':scope { display: block; } .projected-value { color: red; }',
+          body: ':scope { display: block; } .projected-value { color: red; }',
         },
       },
       (input: CardInput) => input,
@@ -355,8 +358,7 @@ describe('functional component interpreter', () => {
       'isolatedContentStylePage',
       {},
       () => ({}),
-      () =>
-        card({ body: () => p({ class: 'isolated' }, 'content') }),
+      () => card({ body: () => p({ class: 'isolated' }, 'content') }),
     );
     const element = host();
 
@@ -692,7 +694,16 @@ describe('functional component interpreter', () => {
       ({ enabled }) =>
         ifBlock(
           enabled,
-          () => button('increment', { click: function* () {} }, '+'),
+          () =>
+            button(
+              'increment',
+              {
+                click: function* () {
+                  return;
+                },
+              },
+              '+',
+            ),
           () => p('hidden'),
         ),
     );

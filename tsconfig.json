@@ -2,5 +2,18 @@
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
   "files": [],
-  "references": []
+  "references": [
+    {
+      "path": "./libs/dev-tools"
+    },
+    {
+      "path": "./libs/component"
+    },
+    {
+      "path": "./libs/core"
+    },
+    {
+      "path": "./libs/test-type"
+    }
+  ]
 }

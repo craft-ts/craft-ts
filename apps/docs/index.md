@@ -4,7 +4,7 @@ layout: home
 
 hero:
   name: '@craft-ng/core'
-  text: 'Type-Safe Angular meta-framework'
+  text: 'Type-safe Angular, by construction.'
   tagline: Declare. Yield. Derive. Compile — no surprises.
 
   image:
@@ -46,3 +46,14 @@ features:
   - title: Built for observability
     details: 'Declarative code is instrumentable code: one provider adds structured logs, correlation ids, per-service timing or a snapshot of the live dependency graph — across the whole app, without touching a single call site. Fast to debug, easy to trace and monitor.'
 ---
+
+## Packages
+
+The toolkit is split into focused packages. They are currently published on the
+`beta` channel.
+
+| Package                                                                    | Purpose                                                             |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [`@craft-ng/core`](https://www.npmjs.com/package/@craft-ng/core)           | Reactive primitives, services, forms, routing and testing utilities |
+| [`@craft-ng/component`](https://www.npmjs.com/package/@craft-ng/component) | Selectorless functional components and typed hyperscript templates  |
+| [`@craft-ng/dev-tools`](https://www.npmjs.com/package/@craft-ng/dev-tools) | Codemods, generators, CLI commands and ESLint rules                 |

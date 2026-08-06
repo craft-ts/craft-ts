@@ -19,7 +19,26 @@ import {
   withNavigationErrorHandler,
   type RouterFeatures,
 } from '@angular/router';
+import type {
+  ExtractDeps,
+  GetDeps,
+  GetPublicComponentProperties,
+} from './branded-component/branded-component';
 import { craftException, isCraftException } from './craft-exception';
+import {
+  CRAFT_DYNAMIC_IMPORT,
+  createCraftLoadRetry,
+  createRetryLazyLoadHelpers,
+  INITIAL_LAZY_LOAD_HELPERS,
+  isCraftLoadRetry,
+  isCraftLoadRetryType,
+  type CraftLazyLoadHelpers,
+  type CraftLoadRetry,
+  type CraftLoadRetryConfig,
+  type CraftLoadRetryContextBase,
+  type CraftLoadRetryOptions,
+} from './craft-load-retry';
+import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 import {
   toCraftService,
@@ -31,20 +50,6 @@ import {
   type SERVICE_YIELD_METADATA,
   type SERVICE_YIELD_REQUEST_MARKER,
 } from './craft-service';
-import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
-import {
-  createCraftLoadRetry,
-  createRetryLazyLoadHelpers,
-  CRAFT_DYNAMIC_IMPORT,
-  INITIAL_LAZY_LOAD_HELPERS,
-  isCraftLoadRetry,
-  isCraftLoadRetryType,
-  type CraftLazyLoadHelpers,
-  type CraftLoadRetry,
-  type CraftLoadRetryConfig,
-  type CraftLoadRetryContextBase,
-  type CraftLoadRetryOptions,
-} from './craft-load-retry';
 
 const CRAFT_ROUTE_DYNAMIC_IMPORT_RETRY_PARAM = '__craft_route_retry';
 
@@ -376,3 +381,23 @@ function resolveEagerComponent(
     'withRouteLoadError requires an eager error component because lazy loading is unavailable after a route chunk failure.',
   );
 }
+
+export type GenDeps_CraftRouteLoadErrorHostComponent = GetDeps<{
+  deps: {
+    NgComponentOutlet: NgComponentOutlet;
+  };
+  propertiesDeps: {
+    active: {
+      CRAFT_ACTIVE_ROUTE_LOAD_ERROR: typeof CRAFT_ACTIVE_ROUTE_LOAD_ERROR;
+    };
+    componentInjector: ExtractDeps<
+      CraftRouteLoadErrorHostComponent['componentInjector']
+    >;
+    component: ExtractDeps<CraftRouteLoadErrorHostComponent['component']>;
+  };
+  provided: {};
+  publicProperties: GetPublicComponentProperties<CraftRouteLoadErrorHostComponent>;
+  missingProvider: {
+    CRAFT_ACTIVE_ROUTE_LOAD_ERROR: typeof CRAFT_ACTIVE_ROUTE_LOAD_ERROR;
+  };
+}>;

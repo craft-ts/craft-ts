@@ -3,6 +3,12 @@
 Functional, selectorless Angular components rendered from typed hyperscript
 descriptors.
 
+## Installation
+
+```bash
+npm install @craft-ng/core@beta @craft-ng/component@beta
+```
+
 ```ts
 import {
   button,
@@ -17,12 +23,11 @@ import {
 const userCard = craftComponent(
   'userCard',
   {},
-  (
-    user: Input<User>,
-    onPick: Output<(user: User) => void>,
-  ) => ({ user, onPick }),
-  ({ user, onPick }) =>
-    button({ click: () => onPick(user()) }, user().name),
+  (user: Input<User>, onPick: Output<(user: User) => void>) => ({
+    user,
+    onPick,
+  }),
+  ({ user, onPick }) => button({ click: () => onPick(user()) }, user().name),
 );
 
 export const userList = craftComponent(

@@ -9,11 +9,11 @@ import {
 } from '@craft-ng/component';
 import {
   CraftRouter,
+  craftPipe,
   craftMethod,
   craftService,
   insertLocalStoragePersister,
   insertReactOnMutation,
-  craftPipe,
   mutation,
   query,
 } from '@craft-ng/core';
@@ -64,9 +64,7 @@ const { provideUserMutation, UserMutation } = craftService(
 const MutationCraft = craftComponent(
   'MutationCraft',
   {
-    providers: [
-      provideUserMutation(),
-    ],
+    providers: [provideUserMutation()],
   },
   function* (userId: Input<string | undefined>) {
     const store = yield* UserMutation({ userId: () => userId() });

@@ -953,9 +953,17 @@ function collectRoutes(builder: GraphBuilder, sourceFiles: readonly SourceFile[]
       if (!routes) continue;
       const routeInfos: RouteInfo[] = [];
       for (const element of routes.getElements()) {
-        const object = element.asKind(SyntaxKind.ObjectLiteralExpression);
+        const routeCall = element.asKind(SyntaxKind.CallExpression);
+        const object =
+          element.asKind(SyntaxKind.ObjectLiteralExpression) ??
+          (routeCall?.getExpression().getText() === 'craftRoute'
+            ? routeCall.getArguments()[1]?.asKind(SyntaxKind.ObjectLiteralExpression)
+            : undefined);
         if (!object) continue;
-        const path = getStringProperty(object, 'path') ?? '<dynamic>';
+        const path =
+          getStringProperty(object, 'path') ??
+          (routeCall ? getStringArgument(routeCall, 0) : undefined) ??
+          '<dynamic>';
         const label = `${collectionName}:${path}`;
         const route: RouteInfo = {
           node: addNode(builder, {
@@ -1064,13 +1072,46 @@ function analyzeRoutes(builder: GraphBuilder): void {
           line: property.getStartLineNumber(),
         });
         addEdge(builder, route.node.id, hook.id, 'contains', 'ast');
-        for (const call of property.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-          const helper = findServiceForCall(builder, call);
-          if (helper) addEdge(builder, hook.id, helper.node.id, 'depends-on', 'type');
-        }
+        collectRouteHookServiceDependencies(builder, hook.id, property);
       }
     }
   }
+}
+
+function collectRouteHookServiceDependencies(
+  builder: GraphBuilder,
+  hookId: string,
+  property: Node,
+): void {
+  const visitedDeclarations = new Set<string>();
+  const pendingScopes: Node[] = [property];
+
+  while (pendingScopes.length > 0) {
+    const scope = pendingScopes.shift();
+    if (!scope) continue;
+
+    for (const call of scope.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const helper = findServiceForCall(builder, call);
+      if (helper) {
+        addEdge(builder, hookId, helper.node.id, 'depends-on', 'type');
+      }
+
+      for (const declaration of resolveCallableDeclarations(call)) {
+        if (declaration.getSourceFile().isDeclarationFile()) continue;
+        const declarationKey = `${declaration.getSourceFile().getFilePath()}:${declaration.getStart()}`;
+        if (visitedDeclarations.has(declarationKey)) continue;
+        visitedDeclarations.add(declarationKey);
+        pendingScopes.push(declaration);
+      }
+    }
+  }
+}
+
+function resolveCallableDeclarations(call: CallExpression): Node[] {
+  const identifier = rootIdentifier(call.getExpression());
+  const symbol = identifier?.getSymbol();
+  const resolved = symbol?.getAliasedSymbol() ?? symbol;
+  return resolved?.getDeclarations() ?? [];
 }
 
 function analyzeRouteObject(builder: GraphBuilder, route: RouteInfo): void {
@@ -1211,14 +1252,42 @@ function addPrimitiveNode(
   ownerId: string,
 ): DependencyGraphNode {
   const name = getStringArgument(call, 0) ?? primitive;
+  const usage = primitiveUsageName(call);
   return addNode(builder, {
     id: `primitive:${call.getSourceFile().getFilePath()}:${primitive}:${call.getStartLineNumber()}`,
     kind: 'primitive',
     label: `${primitive}:${name}`,
     filePath: call.getSourceFile().getFilePath(),
     line: call.getStartLineNumber(),
-    details: { primitive, name, ownerId },
+    details: {
+      primitive,
+      name,
+      ownerId,
+      ...(usage ? { usage } : {}),
+    },
   });
+}
+
+function primitiveUsageName(call: CallExpression): string | undefined {
+  const callableProperty = call
+    .getAncestors()
+    .find((ancestor) => {
+      if (!Node.isPropertyAssignment(ancestor)) return false;
+      const initializer = ancestor.getInitializer();
+      return Boolean(
+        initializer?.isKind(SyntaxKind.ArrowFunction) ||
+          initializer?.isKind(SyntaxKind.FunctionExpression),
+      );
+    });
+  if (callableProperty && Node.isPropertyAssignment(callableProperty)) {
+    return callableProperty.getName();
+  }
+
+  const declaration = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  const declarationName = declaration?.getNameNode();
+  return declarationName && Node.isIdentifier(declarationName)
+    ? declarationName.getText()
+    : undefined;
 }
 
 function addServiceDependency(

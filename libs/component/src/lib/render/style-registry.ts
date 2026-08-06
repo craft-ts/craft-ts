@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { type GetDeps } from '@craft-ng/core';
 
 type StyleRoot = Document | ShadowRoot;
 
@@ -99,3 +100,8 @@ export class CraftStyleRegistry {
 }
 
 export const ɵfallbackCraftStyleRegistry = new CraftStyleRegistry();
+
+export type GenDeps_CraftStyleRegistry = GetDeps<{
+  deps: {};
+  provided: {};
+}>;

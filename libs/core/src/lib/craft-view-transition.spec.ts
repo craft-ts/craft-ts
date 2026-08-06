@@ -5,7 +5,15 @@ import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { Equal, Expect } from 'test-type';
 import { isCraftLoadingFeature } from './craft-pending';
 import {
@@ -61,7 +69,10 @@ describe('withCraftViewTransitions', () => {
 
 describe('viewTransitionPayload', () => {
   it('returns a marker carrying the declared payload type at the type level', () => {
-    const marker = viewTransitionPayload<{ name: string; image: string | null }>();
+    const marker = viewTransitionPayload<{
+      name: string;
+      image: string | null;
+    }>();
 
     // Runtime is an opaque marker; the shape lives purely in the type.
     expect(typeof marker).toBe('object');
@@ -99,6 +110,7 @@ describe('CRAFT_START_VIEW_TRANSITION (default seam)', () => {
   let docWithVt: { startViewTransition?: (cb: () => void) => unknown };
 
   beforeEach(() => {
+    vi.useRealTimers();
     TestBed.resetTestingModule();
     docWithVt = document as unknown as typeof docWithVt;
   });

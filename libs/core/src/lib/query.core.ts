@@ -372,7 +372,7 @@ export function setAllPatchFromMutationOnQueryValue<
       const optimisticValue = optimisticPatch({
         mutationResource,
         queryResource,
-        //@ts-ignore
+        //@ts-expect-error queryResources is intentionally absent for a single-resource patch.
         queryResources: undefined,
         queryIdentifier: undefined,
         //@ts-expect-error the mutationParamsSrc depends if fromResourceById is used, this typing part can be improved
@@ -382,7 +382,7 @@ export function setAllPatchFromMutationOnQueryValue<
           keysPath: path.split('.'),
         }),
         mutationIdentifier,
-        //@ts-ignore
+        //@ts-expect-error mutationResources is intentionally absent for a single-resource patch.
         mutationResources,
       });
       const updatedValue = createNestedStateUpdate({
@@ -437,7 +437,7 @@ export function setAllPatchFromMutationOnQueryValue<
             keysPath: path.split('.'),
           }),
           mutationIdentifier,
-          //@ts-ignore
+          //@ts-expect-error mutationResources is intentionally absent for a resource-by-id patch.
           mutationResources,
         });
         const updatedValue = createNestedStateUpdate({
@@ -692,9 +692,7 @@ export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
 export type QueryParamsMethods<QueryParamsState> = {
   patch: {
     (
-      patchFn: (
-        currentParams: QueryParamsState,
-      ) => Partial<QueryParamsState>,
+      patchFn: (currentParams: QueryParamsState) => Partial<QueryParamsState>,
       options?: QueryParamsNavigationOptions,
     ): QueryParamsState;
     (

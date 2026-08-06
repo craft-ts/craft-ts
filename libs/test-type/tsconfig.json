@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "composite": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "importHelpers": true,

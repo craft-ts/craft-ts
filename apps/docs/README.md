@@ -1,6 +1,8 @@
-# @craft-ng/core Documentation
+# @craft-ng Documentation
 
-This is the VitePress documentation site for @craft-ng/core.
+This is the VitePress documentation site for the `@craft-ng` packages.
+
+The current beta supports Angular 21 with Node.js 20.19+ (or 22.12+).
 
 ## Development
 
@@ -31,40 +33,11 @@ apps/docs/
 ├── .vitepress/
 │   ├── config.mts          # VitePress configuration
 │   └── theme/              # Custom theme
-├── index.md                # Homepage
-├── get-started.md          # Installation guide
-├── introduction.md         # Core concepts
-├── primitives/             # Primitive APIs
-│   ├── state.md
-│   ├── async-process.md
-│   ├── query-params.md
-│   ├── query.md
-│   └── mutation.md
-├── insertions/             # Insertion features
-│   ├── insert-select.md
-│   ├── insert-local-storage.md
-│   └── insert-react-on-mutation.md
-├── store/                  # Store patterns
-│   ├── craft.md
-│   ├── craft-state.md
-│   ├── craft-sources.md
-│   ├── craft-inputs.md
-│   ├── craft-computed.md
-│   ├── craft-async-processed.md
-│   ├── craft-query-params.md
-│   ├── craft-query-params.md
-│   ├── craft-query.md
-│   ├── craft-mutation.md
-│   ├── craft-set-all-queries-params-standalone.md
-│   └── craft-inject.md
-├── utils/                  # Utility functions
-│   ├── source.md
-│   ├── to-source.md
-│   ├── stacked-source.md
-│   ├── inject-service.md
-│   └── source-from-event.md
-├── examples.md             # Examples
-└── press-kit.md            # Press kit & resources
+├── index.md                # Homepage and package overview
+├── learn/                  # Guided tutorial
+├── guide/                  # Task-oriented documentation
+├── reference/              # Public API index
+└── resources/              # Examples, migration, roadmap and press kit
 ```
 
 ## Adding Content

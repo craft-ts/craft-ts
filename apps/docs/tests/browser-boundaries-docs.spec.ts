@@ -20,66 +20,67 @@ const linksOf = (section: string) =>
     .map((item) => item.link)
     .filter((link): link is string => Boolean(link));
 
-describe("docs sidebar", () => {
-  it("splits the sidebar per top-level section", () => {
+describe('docs sidebar', () => {
+  it('splits the sidebar per top-level section', () => {
     expect(sidebar).toBeDefined();
     expect(Array.isArray(sidebar)).toBe(false);
     expect(Object.keys(sidebar).sort()).toEqual([
-      "/guide/",
-      "/learn/",
-      "/reference/",
-      "/resources/",
+      '/guide/',
+      '/learn/',
+      '/reference/',
+      '/resources/',
     ]);
   });
 
-  it("orders the Learn path from the overview to the last step", () => {
-    expect(linksOf("/learn/")).toEqual([
-      "/learn/",
-      "/learn/01-first-state",
-      "/learn/02-derive",
-      "/learn/03-service",
-      "/learn/04-compose",
-      "/learn/05-load-data",
-      "/learn/06-mutate-data",
-      "/learn/07-url-state",
-      "/learn/08-forms",
-      "/learn/09-routing",
-      "/learn/10-testing",
-      "/learn/next",
+  it('orders the Learn path from the overview to the last step', () => {
+    expect(linksOf('/learn/')).toEqual([
+      '/learn/',
+      '/learn/01-first-state',
+      '/learn/02-derive',
+      '/learn/03-service',
+      '/learn/04-compose',
+      '/learn/05-load-data',
+      '/learn/06-mutate-data',
+      '/learn/07-url-state',
+      '/learn/08-forms',
+      '/learn/09-routing',
+      '/learn/10-testing',
+      '/learn/next',
     ]);
   });
 
-  it("groups the guide by task, concepts first and advanced last", () => {
-    const groups = (sidebar["/guide/"] ?? [])
+  it('groups the guide by task, concepts first and advanced last', () => {
+    const groups = (sidebar['/guide/'] ?? [])
       .filter((item) => item.items?.length)
       .map((item) => item.text);
 
-    expect(groups[0]).toBe("Core concepts");
-    expect(groups[1]).toBe("Managing state");
-    expect(groups.at(-1)).toBe("Going further");
+    expect(groups[0]).toBe('Core concepts');
+    expect(groups[1]).toBe('Managing state');
+    expect(groups.at(-1)).toBe('Going further');
   });
 
-  it("keeps the routing, testing and reactivity pages reachable", () => {
-    const guideLinks = linksOf("/guide/");
+  it('keeps the routing, testing and reactivity pages reachable', () => {
+    const guideLinks = linksOf('/guide/');
 
-    expect(guideLinks).toContain("/guide/routing/setup");
-    expect(guideLinks).toContain("/guide/routing/scaling");
-    expect(guideLinks).toContain("/guide/testing/browser-boundaries");
-    expect(guideLinks).toContain("/guide/testing/components");
-    expect(guideLinks).toContain("/guide/reactivity/craft-method");
-    expect(guideLinks).toContain("/guide/reactivity/craft-computed");
-    expect(guideLinks).toContain("/guide/reactivity/craft-effect");
-    expect(guideLinks).toContain("/guide/app/app-start");
+    expect(guideLinks).toContain('/guide/routing/setup');
+    expect(guideLinks).toContain('/guide/routing/scaling');
+    expect(guideLinks).toContain('/guide/testing/browser-boundaries');
+    expect(guideLinks).toContain('/guide/testing/components');
+    expect(guideLinks).toContain('/guide/reactivity/craft-method');
+    expect(guideLinks).toContain('/guide/reactivity/craft-computed');
+    expect(guideLinks).toContain('/guide/reactivity/craft-effect');
+    expect(guideLinks).toContain('/guide/app/app-start');
   });
 
-  it("exposes the four top-level nav entries", () => {
+  it('exposes the five top-level nav entries', () => {
     const nav = docsConfig.themeConfig?.nav as Array<{ text?: string }>;
 
     expect(nav.map((entry) => entry.text)).toEqual([
-      "Learn",
-      "Guide",
-      "Reference",
-      "Resources",
+      'Learn',
+      'Guide',
+      'Reference',
+      'Packages',
+      'Resources',
     ]);
   });
 });
@@ -265,7 +266,9 @@ describe('Browser Boundaries doc page', () => {
 
   it('links back to craftService and toCraftService', () => {
     expect(content).toContain('[`craftService`](/guide/app/craft-service)');
-    expect(content).toContain('[`toCraftService`](/guide/app/integrate-existing)');
+    expect(content).toContain(
+      '[`toCraftService`](/guide/app/integrate-existing)',
+    );
   });
 });
 
@@ -421,7 +424,9 @@ describe('Angular Brand Config doc page', () => {
   it('mentions the built-in router augmentation and related docs', () => {
     expect(content).toContain('@angular/router');
     expect(content).toContain('Router');
-    expect(content).toContain('[`toCraftService`](/guide/app/integrate-existing)');
+    expect(content).toContain(
+      '[`toCraftService`](/guide/app/integrate-existing)',
+    );
     expect(content).toContain(
       '[`Browser Boundaries`](/guide/testing/browser-boundaries)',
     );

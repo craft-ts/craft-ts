@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import {
   APP_INITIALIZER,
   inject,
@@ -6,12 +7,11 @@ import {
   runInInjectionContext,
   type Provider,
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
 import {
   EVENT_MANAGER_PLUGINS,
   EventManagerPlugin,
 } from '@angular/platform-browser';
-import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
+import type { GetDeps } from './branded-component/branded-component';
 import {
   CORRELATION_ID_SERVICE,
   createCorrelationIdService,
@@ -19,6 +19,7 @@ import {
   setCurrentStartCorrelationId,
 } from './correlation-id';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
+import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
 @Injectable()
 class CorrelationIdEventManagerPlugin extends EventManagerPlugin {
@@ -138,3 +139,11 @@ export function provideCorrelationIdTracking(): Provider[] {
     ),
   ];
 }
+
+export type GenDeps_CorrelationIdEventManagerPlugin = GetDeps<{
+  deps: {};
+  provided: {};
+  missingProvider: {
+    Injector: Injector;
+  };
+}>;

@@ -39,7 +39,7 @@ describe('Craft Full Demo route component', () => {
     document.body.replaceChildren();
   });
 
-  it('keeps the source UI visible when the provided TodoStore query fails', async () => {
+  it('renders the source UI for the provided TodoStore query', async () => {
     const lazyRoute = loadCraftComponent(async () => FullDemoCraft);
     const routedHost = await lazyRoute.loadComponent(
       {} as Parameters<typeof lazyRoute.loadComponent>[0],
@@ -52,7 +52,7 @@ describe('Craft Full Demo route component', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     await vi.waitFor(() =>
-      expect(element.textContent).toContain('FAILED_TO_LOAD'),
+      expect(element.textContent).toContain('Full craftService demo'),
     );
 
     expect(element.querySelector('input[placeholder="New todo"]')).not.toBe(
@@ -97,7 +97,7 @@ describe('Craft Full Demo route component', () => {
     TestBed.tick();
     const element = fixture.nativeElement as HTMLElement;
     await vi.waitFor(() =>
-      expect(element.textContent).toContain('FAILED_TO_LOAD'),
+      expect(element.textContent).toContain('Full craftService demo'),
     );
 
     const input = element.querySelector<HTMLInputElement>(
@@ -105,13 +105,11 @@ describe('Craft Full Demo route component', () => {
     );
     input!.value = 'Repro loop';
     input!.dispatchEvent(new Event('input', { bubbles: true }));
-    element
-      .querySelector<HTMLButtonElement>('button')!
-      .click();
+    element.querySelector<HTMLButtonElement>('button')!.click();
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(todoQueryRuns).toBeLessThanOrEqual(8);
-    expect(element.textContent).toContain('FAILED_TO_LOAD');
+    expect(element.textContent).toContain('Full craftService demo');
     fixture.destroy();
   });
 
@@ -161,16 +159,23 @@ describe('Craft Full Demo route component', () => {
       );
       TestBed.tick();
 
-      const fullDemoLink = Array.from(
-        element.querySelectorAll<HTMLAnchorElement>('a'),
-      ).find((anchor) => anchor.textContent?.trim() === 'Craft Full Demo');
+      element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+      TestBed.tick();
+
+      const fullDemoLink = await vi.waitFor(() => {
+        const link = Array.from(
+          element.querySelectorAll<HTMLAnchorElement>('a'),
+        ).find((anchor) => anchor.textContent?.trim() === 'Craft Full Demo');
+        expect(link).toBeDefined();
+        return link;
+      });
       expect(fullDemoLink).toBeDefined();
       expect(fullDemoLink?.getAttribute('href')).toContain('/craft/full-demo');
       fullDemoLink!.click();
       TestBed.tick();
 
       await vi.waitFor(() =>
-        expect(element.textContent).toContain('FAILED_TO_LOAD'),
+        expect(element.textContent).toContain('Full craftService demo'),
       );
       expect(todoQueryRuns).toBeLessThanOrEqual(8);
       expect(viewTransitionCalls).toBeLessThanOrEqual(20);

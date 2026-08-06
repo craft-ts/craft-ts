@@ -2,6 +2,12 @@
   "name": "@craft-ng/dev-tools",
   "version": "0.6.0-beta.5",
   "description": "Development tools for ng-craft: ESLint configs, ESLint rules, and codemods",
+  "author": "Romain Geffrault",
+  "license": "MIT",
+  "homepage": "https://ng-angular-stack.github.io/craft/",
+  "bugs": {
+    "url": "https://github.com/ng-angular-stack/ng-craft/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/ng-angular-stack/ng-craft.git"
@@ -76,6 +82,12 @@
     "eslint": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "ng-craft",

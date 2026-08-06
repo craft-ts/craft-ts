@@ -27,6 +27,29 @@ describe('prefer-craft-template-blocks', () => {
     expect(messages).toEqual([]);
   });
 
+  it('allows imperative control flow inside DOM event handlers', async () => {
+    const messages = await lintText(`
+      const Demo = craftComponent(
+        'Demo',
+        {},
+        () => ({ store }),
+        ({ store }) => button(
+          {
+            disabled: store.add.isLoading(),
+            click: () => {
+              if (title.trim()) {
+                store.add.mutate(title.trim());
+              }
+            },
+          },
+          'Add',
+        ),
+      );
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
   it('reports ternaries, logical expressions, and imperative control flow', async () => {
     const messages = await lintText(`
       const Demo = craftComponent(

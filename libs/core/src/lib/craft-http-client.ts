@@ -1075,8 +1075,7 @@ const craftHttpClientExceptionRuleHelpers: CraftHttpClientExceptionRuleHelpers =
       })) as CraftHttpClientHeaderExceptionHelper,
   };
 
-let craftHttpClientExceptionPreviewValue: unknown;
-craftHttpClientExceptionPreviewValue = new Proxy(
+const craftHttpClientExceptionPreviewValue: unknown = new Proxy(
   () => craftHttpClientExceptionPreviewValue,
   {
     apply: () => craftHttpClientExceptionPreviewValue,

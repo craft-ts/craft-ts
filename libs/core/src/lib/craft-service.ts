@@ -1559,36 +1559,40 @@ type YieldPropertyShortcut<
         >;
       }
     : {}) & {
-  <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
-    bindings: StrictBindings<
-      Partial<PublicInputBindings<Inputs, Scope>>,
-      Config
-    >,
-  ): SinglePropertyShortcutGenerator<
-    Scope,
-    Inputs,
-    Output,
-    Metadata,
-    Config,
-    Key
-  >;
-    } & (keyof PublicServiceInputs<Inputs> extends never
-    ? Output[Key] extends (...args: infer Args) => infer Result
-      ? Args extends []
-        ? {}
-        : (
-            ...args: Args
-          ) => Generator<
-            ServiceYieldRequest<
-              Scope,
-              MaybeErrorOutput<PublicServiceInputs<Inputs>, undefined, Output>,
-              WithSinglePropertyDerivedProperties<Metadata, Output, Key>
-            >,
-            Result,
-            unknown
-          >
-      : {}
-    : {}) &
+    <Config extends Partial<PublicInputBindings<Inputs, Scope>>>(
+      bindings: StrictBindings<
+        Partial<PublicInputBindings<Inputs, Scope>>,
+        Config
+      >,
+    ): SinglePropertyShortcutGenerator<
+      Scope,
+      Inputs,
+      Output,
+      Metadata,
+      Config,
+      Key
+    >;
+  } & (keyof PublicServiceInputs<Inputs> extends never
+      ? Output[Key] extends (...args: infer Args) => infer Result
+        ? Args extends []
+          ? {}
+          : (
+              ...args: Args
+            ) => Generator<
+              ServiceYieldRequest<
+                Scope,
+                MaybeErrorOutput<
+                  PublicServiceInputs<Inputs>,
+                  undefined,
+                  Output
+                >,
+                WithSinglePropertyDerivedProperties<Metadata, Output, Key>
+              >,
+              Result,
+              unknown
+            >
+        : {}
+      : {}) &
     NestedYieldPropertyShortcuts<Scope, Inputs, Output, Metadata, Key>,
   WithSinglePropertyDerivedProperties<Metadata, Output, Key>
 >;
@@ -3103,6 +3107,8 @@ export function craftService(
       startedAppStartServices: new Set(),
     };
 
+    // The helper closes over metadata that is initialized immediately below.
+    // eslint-disable-next-line prefer-const
     let abstractMetaData: InternalServiceMetaData;
 
     const abstractInjectHelper = () => {
@@ -3185,6 +3191,8 @@ export function craftService(
 
   runtimeDefinition.token = token;
 
+  // The helper closes over metadata that is initialized immediately below.
+  // eslint-disable-next-line prefer-const
   let serviceMetaData: InternalServiceMetaData;
 
   const api: Record<string, unknown> = {
@@ -3245,8 +3253,12 @@ export function craftService(
 
   return api;
 
-  function abstractInject() {}
-  function concreteInject() {}
+  function abstractInject() {
+    return;
+  }
+  function concreteInject() {
+    return;
+  }
 }
 
 function createInjectHelper(

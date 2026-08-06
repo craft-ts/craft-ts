@@ -70,7 +70,9 @@ describe('component composition', () => {
     });
 
     catchTag.exhaustive<'NO_ACCESS'>({
-      NO_ACCESS: function* () {},
+      NO_ACCESS: function* () {
+        return;
+      },
     });
 
     // @ts-expect-error — catchTag is a logic boundary; template children belong to catchBlock.
@@ -143,10 +145,7 @@ describe('component composition', () => {
       'stylelessOperatorPage',
       {},
       () => ({}),
-      () => [
-        p(String(renderVersion())),
-        base.pipe(withProviders([]))({}),
-      ],
+      () => [p(String(renderVersion())), base.pipe(withProviders([]))({})],
     );
     const element = host();
 
@@ -329,14 +328,20 @@ describe('component composition', () => {
     // @ts-expect-error — handlers for codes outside the component union are rejected.
     component.pipe((current) =>
       catchTag.exhaustive(current, {
-        FAILED_TO_LOAD: function* () {},
-        UNRELATED: function* () {},
+        FAILED_TO_LOAD: function* () {
+          return;
+        },
+        UNRELATED: function* () {
+          return;
+        },
       }),
     );
 
     const caught = component.pipe((current) =>
       catchTag.exhaustive(current, {
-        FAILED_TO_LOAD: function* () {},
+        FAILED_TO_LOAD: function* () {
+          return;
+        },
       }),
     );
     expectTypeOf<

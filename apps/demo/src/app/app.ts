@@ -73,7 +73,7 @@ const NAV_GROUPS = [
     label: 'Other',
     links: [
       ['Demo Send Context', { to: 'demo-send-context' }],
-      ['Guard Demo', { to: 'guard-demo' }],
+      ['Guard demo', { to: 'guard-demo' }],
     ],
   },
 ] as const satisfies readonly {
@@ -118,41 +118,38 @@ export const App = craftComponent(
   },
   ({ clearCache, navOpen, toggleNav, closeNav }) =>
     div([
-      nav(
-        { class: 'demo-nav' },
-        [
-          button(
-            {
-              class: 'demo-nav__toggle',
-              type: 'button',
-              click: toggleNav,
-              'aria-expanded': () => String(navOpen()),
-            },
-            () => (navOpen() ? 'Fermer les exemples' : 'Parcourir les exemples'),
-          ),
-          navOpen()
-            ? div(
-                { class: 'demo-nav__panel' },
-                each(NAV_GROUPS, { track: (group) => group.label }, (group) =>
-                  div({ class: 'demo-nav__group' }, [
-                    strong(group.label),
-                    div(
-                      { class: 'demo-nav__links' },
-                      each(
-                        group.links,
-                        { track: ([, link]) => link.to },
-                        ([label, link]) =>
-                          a({ click: closeNav }, label).pipe(
-                            craftRouterLink({ link }),
-                          ),
-                      ),
+      nav({ class: 'demo-nav' }, [
+        button(
+          {
+            class: 'demo-nav__toggle',
+            type: 'button',
+            click: toggleNav,
+            'aria-expanded': () => String(navOpen()),
+          },
+          () => (navOpen() ? 'Fermer les exemples' : 'Parcourir les exemples'),
+        ),
+        navOpen()
+          ? div(
+              { class: 'demo-nav__panel' },
+              each(NAV_GROUPS, { track: (group) => group.label }, (group) =>
+                div({ class: 'demo-nav__group' }, [
+                  strong(group.label),
+                  div(
+                    { class: 'demo-nav__links' },
+                    each(
+                      group.links,
+                      { track: ([, link]) => link.to },
+                      ([label, link]) =>
+                        a({ click: closeNav }, label).pipe(
+                          craftRouterLink({ link }),
+                        ),
                     ),
-                  ]),
-                ),
-              )
-            : [],
-        ],
-      ),
+                  ),
+                ]),
+              ),
+            )
+          : [],
+      ]),
       main({ class: 'content' }, CraftRouterOutlet()),
       button(
         { class: 'clear-cache-btn', click: () => void clearCache() },

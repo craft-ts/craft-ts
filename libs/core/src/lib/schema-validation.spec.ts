@@ -6,6 +6,7 @@ import {
   signal,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { asyncProcess } from './async-process';
 import { craftUse } from './craft-use';
 import { mutation } from './mutation';
@@ -18,7 +19,9 @@ type TestSchema<Input, Output> = {
     version: 1;
     vendor: 'test';
     types: { input: Input; output: Output };
-    validate: (value: unknown) =>
+    validate: (
+      value: unknown,
+    ) =>
       | { value: Output; issues?: undefined }
       | { issues: readonly { message: string }[] };
   };
@@ -32,6 +35,8 @@ const schema = <Input, Output>(
   }) as unknown as TestSchema<Input, Output>;
 
 describe('Standard Schema validation', () => {
+  beforeEach(() => vi.useRealTimers());
+
   const settle = () => TestBed.inject(ApplicationRef).whenStable();
 
   it('validates and transforms state values', () => {
@@ -60,9 +65,9 @@ describe('Standard Schema validation', () => {
       craftUse(state('value', 1)),
     );
 
-    expect((value as typeof value & { hasSchema: Signal<false> }).hasSchema()).toBe(
-      false,
-    );
+    expect(
+      (value as typeof value & { hasSchema: Signal<false> }).hasSchema(),
+    ).toBe(false);
   });
 
   it('uses the schema output type for state values', () => {
@@ -241,7 +246,9 @@ describe('Standard Schema validation', () => {
     await settle();
 
     const usersWithSelect = users as typeof users & {
-      select(id: string): { value: Signal<{ id: string } | undefined> } | undefined;
+      select(
+        id: string,
+      ): { value: Signal<{ id: string } | undefined> } | undefined;
     };
     expect(usersWithSelect.select('user-1')?.value()).toEqual({ id: 'user-1' });
   });

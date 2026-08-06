@@ -1,8 +1,8 @@
 /**
  * Type-level testing helpers.
  *
- * Re-exported from `test-type` so applications get them from a published
- * package instead of an internal path:
+ * Published with dev-tools so applications can import the type assertions
+ * without depending on an internal workspace package:
  *
  * ```ts
  * import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
@@ -10,4 +10,17 @@
  *
  * These are types only — nothing is emitted at runtime.
  */
-export type { Equal, Expect, PrettifyEqual } from 'test-type';
+type Prettify<T> = {
+  [K in keyof T]: T[K];
+} & {};
+
+export type Expect<T extends true> = T;
+export type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2
+    ? true
+    : false;
+
+export type PrettifyEqual<X, Y, XP = Prettify<X>, YP = Prettify<Y>> =
+  (<T>() => T extends XP ? 1 : 2) extends <T>() => T extends YP ? 1 : 2
+    ? true
+    : false;

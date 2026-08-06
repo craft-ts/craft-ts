@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { WebSocket, WebSocketServer } from 'ws';
 
+const bridgeUrl = 'ws://127.0.0.1:3334';
+
 type BridgeResponse = {
   type: 'response';
   callId: string;
@@ -19,7 +21,17 @@ test('overrides a state method without reloading the page', async ({
       value: clientId,
     },
   );
-  const server = new WebSocketServer({ host: '127.0.0.1', port: 3333 });
+  await page.addInitScript(
+    ({ url }) => {
+      (
+        window as Window & {
+          __CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__?: string;
+        }
+      ).__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ = url;
+    },
+    { url: bridgeUrl },
+  );
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 3334 });
   const pending = new Map<
     string,
     { resolve(value: unknown): void; reject(error: Error): void }
@@ -75,8 +87,8 @@ test('overrides a state method without reloading the page', async ({
   };
 
   try {
-    await page.goto('/');
-    const increment = page.getByRole('button', { name: 'Increment' });
+    await page.goto('/craft-service/counter');
+    const increment = page.getByRole('button', { name: '+' });
     await expect
       .poll(() =>
         entries.find(
@@ -88,7 +100,9 @@ test('overrides a state method without reloading the page', async ({
       .toBeTruthy();
 
     await increment.click();
-    await expect(page.locator('app-test')).toContainText('Counter 1 /');
+    await expect(
+      page.locator('[data-craft-root="CraftServiceCounterComponent"]'),
+    ).toContainText('1');
     const key = entries.find(
       (entry) =>
         entry.hostName === 'method:increment' &&
@@ -108,11 +122,15 @@ test('overrides a state method without reloading the page', async ({
       )
       .toBe(true);
     await increment.click();
-    await expect(page.locator('app-test')).toContainText('Counter 11 /');
+    await expect(
+      page.locator('[data-craft-root="CraftServiceCounterComponent"]'),
+    ).toContainText('11');
 
     await request('registry/restore', { key });
     await increment.click();
-    await expect(page.locator('app-test')).toContainText('Counter 12 /');
+    await expect(
+      page.locator('[data-craft-root="CraftServiceCounterComponent"]'),
+    ).toContainText('12');
   } finally {
     for (const socket of server.clients) socket.close();
     await new Promise<void>((resolve, reject) =>
@@ -134,7 +152,17 @@ test('removes the previous page entries after internal navigation', async ({
       value: clientId,
     },
   );
-  const server = new WebSocketServer({ host: '127.0.0.1', port: 3333 });
+  await page.addInitScript(
+    ({ url }) => {
+      (
+        window as Window & {
+          __CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__?: string;
+        }
+      ).__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ = url;
+    },
+    { url: bridgeUrl },
+  );
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 3334 });
   let entries: Array<{
     key: string;
     hostName: string;
@@ -158,14 +186,14 @@ test('removes the previous page entries after internal navigation', async ({
 
   try {
     await page.goto('/');
+    await page.getByRole('button', { name: 'Parcourir les exemples' }).click();
+    await page.getByRole('link', { name: 'craftService Counter' }).click();
+    await expect(page).toHaveURL(/\/craft-service\/counter$/);
     await expect
       .poll(() =>
         entries.some((entry) => entry.hostName === 'method:increment'),
       )
       .toBe(true);
-
-    await page.getByRole('link', { name: 'craftService Counter' }).click();
-    await expect(page).toHaveURL(/\/craft-service\/counter$/);
     await expect
       .poll(() =>
         entries.some((entry) => entry.hostName === 'method:increment'),
@@ -185,7 +213,7 @@ test('removes the previous page entries after internal navigation', async ({
     await expect
       .poll(() =>
         entries.some((entry) =>
-          entry.ancestry.some((tag) => tag.includes('component:TestComponent')),
+          entry.ancestry.some((tag) => tag.includes('component:componentDemo')),
         ),
       )
       .toBe(false);

@@ -18,29 +18,24 @@ import {
   type UrlCreationOptions,
   type UrlTree,
 } from '@angular/router';
+import type { GetDeps } from './branded-component/branded-component';
 import {
   isCraftLoadingFeature,
   provideCraftLoading,
   type CraftLoadingFeature,
 } from './craft-pending';
 import {
+  toCraftService,
+  type GetServiceYields,
+  type SERVICE_HELPER_DEPENDENCIES,
+  type ServiceTrackingMetadata,
+} from './craft-service';
+import type { Simplify } from './craft-service.shared';
+import {
   CRAFT_VIEW_TRANSITION_STATE_KEY,
   type CraftViewTransitionInput,
   type ViewTransitionPayloadDef,
 } from './craft-view-transition';
-import {
-  type GetServiceYields,
-  type SERVICE_DEPENDENCY_ACCESS_MARKER,
-  type SERVICE_EXPOSURE_TOKEN_MARKER,
-  type SERVICE_HELPER_DEPENDENCIES,
-  type SERVICE_META_DATA_TYPE,
-  type SERVICE_RUNTIME_META,
-  type SERVICE_YIELD_METADATA,
-  type SERVICE_YIELD_REQUEST_MARKER,
-  type ServiceTrackingMetadata,
-  toCraftService,
-} from './craft-service';
-import type { Simplify } from './craft-service.shared';
 
 export interface CraftRouterRoutesRegistry {}
 
@@ -643,3 +638,15 @@ function withViewTransitionState(
     [CRAFT_VIEW_TRANSITION_STATE_KEY]: input.viewTransition,
   };
 }
+
+export type GenDeps_CraftRouterLink = GetDeps<{
+  deps: {
+    RouterLink: RouterLink;
+    Router: Router;
+  };
+  provided: {};
+  missingProvider: {
+    RouterLink: RouterLink;
+    Router: Router;
+  };
+}>;

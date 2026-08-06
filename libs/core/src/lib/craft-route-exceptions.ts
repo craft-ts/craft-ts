@@ -233,8 +233,11 @@ type ComponentRouteException<Code extends string> = CraftException<{
   scope: undefined;
 }>;
 
-type RouteComponentExceptions<RouteDefinition> =
-  ComponentExceptionsOf<RouteDefinition> extends infer Codes extends string
+type RouteComponentExceptions<RouteDefinition> = [
+  ComponentExceptionsOf<RouteDefinition>,
+] extends [never]
+  ? never
+  : ComponentExceptionsOf<RouteDefinition> extends infer Codes extends string
     ? ComponentRouteException<Codes>
     : never;
 

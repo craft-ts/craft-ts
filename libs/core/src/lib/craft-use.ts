@@ -53,10 +53,15 @@ export function craftUse(
     injector = undefined;
   }
 
+  // A generator may yield a dependency request whose resolver does not need
+  // Angular DI. Keep that valid outside an injection context while still
+  // giving the runtime an injector for wrapper lookup and resolver shape.
+  const runtimeInjector = injector ?? Injector.create({ providers: [] });
+
   const drive = () =>
     runCraftGenerator({
       iterator,
-      injector: injector as Injector,
+      injector: runtimeInjector,
       hostScope: 'function',
       invalidYieldErrorMessage: INVALID_YIELD_ERROR_MESSAGE,
       multipleAppStartErrorMessage: ON_APP_START_ERROR_MESSAGE,

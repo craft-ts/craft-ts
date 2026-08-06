@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "composite": true,
     "outDir": "../../dist/out-tsc",
     "declaration": true,
     "declarationMap": true,
@@ -25,5 +26,10 @@
     "**/*.spec.js",
     "**/*.test.jsx",
     "**/*.spec.jsx"
+  ],
+  "references": [
+    {
+      "path": "../test-type/tsconfig.lib.json"
+    }
   ]
 }

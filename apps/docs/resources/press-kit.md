@@ -33,7 +33,7 @@ Resources and information about @craft-ng/core for articles, presentations, and 
 ## Installation
 
 ```shell
-npm i @craft-ng/core@latest
+npm i @craft-ng/core@beta
 ```
 
 ## Links

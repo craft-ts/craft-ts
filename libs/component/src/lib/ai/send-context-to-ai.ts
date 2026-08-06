@@ -13,6 +13,7 @@ import {
   provideComponentMonitoring,
   SendContextToAiBuffer,
   TAKE_APP_SNAPSHOT,
+  type GetDeps,
   type SendContextPayload,
 } from '@craft-ng/core';
 import { mountCraftComponent } from '../bridge';
@@ -137,3 +138,12 @@ export function provideSendContextToAi(): Provider[] {
     }),
   ];
 }
+
+export type GenDeps_AiContextMenuController = GetDeps<{
+  deps: {};
+  provided: {};
+  missingProvider: {
+    Injector: Injector;
+    TAKE_APP_SNAPSHOT: typeof TAKE_APP_SNAPSHOT;
+  };
+}>;

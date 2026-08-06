@@ -5,6 +5,7 @@ import {
   createRegisterForRegistry,
   REGISTER_FOR_REGISTRY,
   ɵregisterCraftTarget,
+  type RegisterForSignal,
 } from './craft-register-for-runtime';
 import { craftRegisterFor } from './craft-register-for';
 import {
@@ -251,7 +252,7 @@ describe('craftRegisterFor runtime', () => {
           invalidYieldErrorMessage: 'invalid',
           multipleAppStartErrorMessage: 'multiple',
         }).value,
-    );
+    ) as RegisterForSignal<unknown> & { total: () => number };
 
     expect(direct()).toHaveLength(1);
     expect(direct.total()).toBe(1);

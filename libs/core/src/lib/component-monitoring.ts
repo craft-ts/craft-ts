@@ -15,7 +15,7 @@ type ComponentMonitoringFactory =
 export const COMPONENT_MONITORING =
   new InjectionToken<ComponentMonitoringFactory>('COMPONENT_MONITORING', {
     providedIn: 'root',
-    factory: () => () => {},
+    factory: () => () => undefined,
   });
 
 export function componentMonitoring(): void {

@@ -7,6 +7,17 @@ template file, no host element wrapped around your markup.
 **Keep Angular components** where you have them — the two coexist, and
 [`loadCraftComponent`](/guide/routing/setup) mounts a Craft one on a route.
 
+## Install
+
+The component renderer is published as a separate package and is currently on
+the `beta` channel:
+
+```shell
+npm i @craft-ng/core@beta @craft-ng/component@beta
+```
+
+See [`@craft-ng/component` on npm](https://www.npmjs.com/package/@craft-ng/component).
+
 ## The shape
 
 ```typescript
@@ -15,10 +26,10 @@ craftComponent(name, meta, factory, template);
 
 | Argument   | What it is                                                        |
 | ---------- | ----------------------------------------------------------------- |
-| `name`     | the component's name — used for host tags, snapshots, diagnostics  |
-| `meta`     | `providers`, `styles`, `host`, `contentStyles`                     |
-| `factory`  | the **logic**: builds and returns the context                      |
-| `template` | receives that context, returns nodes                               |
+| `name`     | the component's name — used for host tags, snapshots, diagnostics |
+| `meta`     | `providers`, `styles`, `host`, `contentStyles`                    |
+| `factory`  | the **logic**: builds and returns the context                     |
+| `template` | receives that context, returns nodes                              |
 
 ```typescript
 import { craftComponent, div, h1, li, ul } from '@craft-ng/component';
@@ -74,7 +85,10 @@ const UserCard = craftComponent(
     onRemove,
   }),
   ({ user, onRemove }) =>
-    div([span(user().name), button({ click: () => onRemove(user()) }, 'Remove')]),
+    div([
+      span(user().name),
+      button({ click: () => onRemove(user()) }, 'Remove'),
+    ]),
 );
 ```
 
@@ -89,10 +103,10 @@ UserCard({ user: () => currentUser, onRemove: removeUser });
 
 | Angular                                     | Craft                                       |
 | ------------------------------------------- | ------------------------------------------- |
-| `@Input()` / `input()` / `input.required()`  | an `Input<T>` factory parameter             |
-| `@Output()` / `output()` + `.emit(...)`      | an `Output<H>` parameter, called directly   |
-| `[user]="u"` / `(remove)="fn($event)"`       | `UserCard({ user: () => u, onRemove: fn })` |
-| Missing required input → runtime             | missing parameter → **compile error**       |
+| `@Input()` / `input()` / `input.required()` | an `Input<T>` factory parameter             |
+| `@Output()` / `output()` + `.emit(...)`     | an `Output<H>` parameter, called directly   |
+| `[user]="u"` / `(remove)="fn($event)"`      | `UserCard({ user: () => u, onRemove: fn })` |
+| Missing required input → runtime            | missing parameter → **compile error**       |
 
 ## The template
 
