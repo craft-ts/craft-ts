@@ -18,6 +18,7 @@ import {
   mutation,
   query,
   queryParams,
+  toCraftStatus,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -119,7 +120,7 @@ const GranularMutationCraft = craftComponent(
       h2([
         'User Management: ',
         StatusComponent({
-          status: () => users.currentPageStatus(),
+          status: () => toCraftStatus(users.currentPageStatus(), false),
         }),
       ]),
       h(

@@ -1,5 +1,5 @@
-import type { ResourceStatus } from '@angular/core';
 import { craftComponent, span, type Input } from '@craft-ng/component';
+import type { CraftResourceStatus } from '@craft-ng/core';
 
 const STATUS_VIEW = {
   idle: ['🛌', 'Idle', 'gray'],
@@ -25,7 +25,7 @@ export const StatusComponent = craftComponent(
       .badge-blue { background:#bee3f8; color:#2b6cb0; }
     `,
   },
-  (status: Input<ResourceStatus | 'exception'>) => ({ status }),
+  (status: Input<CraftResourceStatus>) => ({ status }),
   ({ status }) => {
     const [emoji, label, color] = STATUS_VIEW[status()];
     return span({ class: 'badge-container' }, [

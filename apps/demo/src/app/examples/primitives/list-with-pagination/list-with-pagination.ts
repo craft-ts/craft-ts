@@ -10,11 +10,12 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  craftPipe,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
+  insertQueryPipe,
   query,
   queryParams,
+  toCraftStatus,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -70,9 +71,7 @@ const ListWithPagination = craftComponent(
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
         loader: ({ params }) => api.getDataList(params),
       },
-      (context) =>
-        craftPipe(
-          context,
+      insertQueryPipe(
           insertLocalStoragePersister({
             storeName: 'demo-app',
             key: 'list-with-pagination',
@@ -87,7 +86,7 @@ const ListWithPagination = craftComponent(
       h2([
         'User Management: ',
         StatusComponent({
-          status: () => usersQuery.currentPageStatus(),
+          status: () => toCraftStatus(usersQuery.currentPageStatus(), false),
         }),
       ]),
       h(
