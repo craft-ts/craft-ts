@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import './demo-route-http-registry';
+// E2E type tests intentionally exercise the library source before packaging.
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import {
   matchMockHttpRequestForRoute,
   mockHttpRequestForRoute,

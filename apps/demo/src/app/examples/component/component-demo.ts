@@ -1,5 +1,4 @@
 import { signal } from '@angular/core';
-import type { CraftLazyLoadHelpers } from '@craft-ng/core';
 import {
   button,
   craftComponent,

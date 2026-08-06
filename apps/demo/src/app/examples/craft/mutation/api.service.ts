@@ -1,5 +1,4 @@
-import { signal } from '@angular/core';
-import { craftService } from '@craft-ng/core';
+import { craftService, state } from '@craft-ng/core';
 
 export type User = {
   id: string;
@@ -12,21 +11,41 @@ function delay<T>(value: T, ms: number): Promise<T> {
 
 export const { ApiService } = craftService(
   { name: 'ApiService', scope: 'global' },
-  () => {
-    const dataList = signal<User[]>([
-      { id: '1', name: 'Romain' },
-      { id: '2', name: 'Geffrault' },
-      { id: '3', name: 'Rom1' },
-      { id: '4', name: 'Daniel' },
-      { id: '5', name: 'Toto' },
-      { id: '6', name: 'Julien' },
-      { id: '7', name: 'Kev' },
-      { id: '8', name: 'Lulu' },
-      { id: '9', name: 'Timou' },
-      { id: '10', name: 'Lupette' },
-    ]);
+  function* () {
+    const { dataList } = yield* state(
+      'dataList',
+      [
+        { id: '1', name: 'Romain' },
+        { id: '2', name: 'Geffrault' },
+        { id: '3', name: 'Rom1' },
+        { id: '4', name: 'Daniel' },
+        { id: '5', name: 'Toto' },
+        { id: '6', name: 'Julien' },
+        { id: '7', name: 'Kev' },
+        { id: '8', name: 'Lulu' },
+        { id: '9', name: 'Timou' },
+        { id: '10', name: 'Lupette' },
+      ] as User[],
+      ({ state, update }) => ({
+        addItem: (newItem: User) => update((items) => [newItem, ...items]),
+        deleteItem: (itemId: User['id']) => {
+          const deletedItem = state().find((item) => item.id === itemId);
+          if (!deletedItem) {
+            throw new Error('Item not found');
+          }
+          update((items) => items.filter((item) => item.id !== itemId));
+          return deletedItem;
+        },
+        updateItem: (updatedItem: User) =>
+          update((items) =>
+            items.map((item) =>
+              item.id === updatedItem.id ? updatedItem : item,
+            ),
+          ),
+      }),
+    );
 
-    const updateError = signal(false);
+    const { updateError } = yield* state('updateError', false);
 
     return {
       updateError,
@@ -50,17 +69,11 @@ export const { ApiService } = craftService(
         return delay(item, 2000);
       },
       addItem: async (newItem: User): Promise<User> => {
-        dataList.set([newItem, ...dataList()]);
+        dataList.addItem(newItem);
         return delay(newItem, 5000);
       },
       deleteItem: async (itemId: User['id']): Promise<User> => {
-        const deletedItem = dataList().find(
-          (dataItem) => dataItem.id === itemId,
-        );
-        if (!deletedItem) {
-          throw new Error('Item not found');
-        }
-        dataList.set(dataList().filter((dataItem) => dataItem.id !== itemId));
+        const deletedItem = dataList.deleteItem(itemId);
         return delay(deletedItem, 2000);
       },
       updateItem: async (updatedItem: User): Promise<User> => {
@@ -68,11 +81,7 @@ export const { ApiService } = craftService(
           await delay(null, 3000);
           throw new Error('Api error during update');
         }
-        dataList.set(
-          dataList().map((dataItem) =>
-            dataItem.id === updatedItem.id ? updatedItem : dataItem,
-          ),
-        );
+        dataList.updateItem(updatedItem);
         return delay(updatedItem, 2000);
       },
     };

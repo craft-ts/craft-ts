@@ -33,8 +33,11 @@ export default [
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/component-test-gen-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
+      'craft-ng/prefer-craft-template-blocks': 'error',
+      'craft-ng/prefer-craft-reactivity': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
+      'craft-ng/prefer-craft-http-transport': 'error',
       'craft-ng/require-assert-exhaustive-route-exceptions': 'error',
       'craft-ng/require-craft-exception-handler': 'error',
       'craft-ng/require-exception-component-di-check': 'error',
@@ -54,8 +57,11 @@ What each rule does:
 - `craft-ng/brand-angular-deps-match`: keeps existing `GenDeps_*` aliases in sync through the same ESLint Quick Fix flow
 - `craft-ng/component-test-gen-deps-match`: checks `setupCraftComponentTestingByRegister(Component, {} as GenDeps_Component, ...)` pairs in tests
 - `craft-ng/no-angular-inject`: forbids raw Angular `inject()` usage so dependencies go through `craftService(...)` or `toCraftService(...)`
+- `craft-ng/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
+- `craft-ng/prefer-craft-reactivity`: rejects authored Angular signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
 - `craft-ng/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
 - `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
+- `craft-ng/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`
 - `craft-ng/require-assert-exhaustive-route-exceptions`: adds the collection-level `assertExhaustiveRouteExceptions(...)` safety net
 - `craft-ng/require-craft-exception-handler`: enforces `craftExceptionHandler(function* (...) {})`; simple handlers are autofixed and ambiguous raw redirects are reported for manual migration
 - `craft-ng/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, `withErrorComponent`, `withRouteLoadError`, and route-local `provideRouteLoadErrorComponent`
@@ -67,6 +73,34 @@ What each rule does:
 
 The two migration rules also expose a VS Code ESLint Quick Fix suggestion that inserts a temporary local disable comment with the intended migration note when you need to unblock a file before doing the full refactor.
 
+The template and reactivity rules are intentionally diagnostic-only: replacing a
+resource or subscription can change lifecycle and error semantics, so the rule
+points at the Craft primitive without applying a potentially unsafe rewrite.
+
+### Why templates use blocks
+
+Craft template blocks preserve the branch structure in the type-level render
+contract. A ternary or `condition && node` produces only a computed value, so
+the type checker cannot assert which branch renders which content. Keep derived
+values and business decisions in the component's state/query layer, then make
+the template express visibility explicitly:
+
+```ts
+ifBlock(
+  isReady,
+  () => p('Ready'),
+  () => p('Loading…'),
+);
+
+matchBlock.exhaustive(query.exceptions, 'code', {
+  NOT_FOUND: () => p('Not found'),
+  FORBIDDEN: () => p('Forbidden'),
+});
+```
+
+This rule is for Craft's TypeScript templates. Angular HTML templates are not
+rewritten by it.
+
 If your project is adopting this progressively, enable both `craft-ng/brand-angular-gen-deps-required` and `craft-ng/brand-angular-deps-match` so the same Quick Fix can generate missing aliases and refresh existing ones. `craft-ng/no-angular-inject` is an architecture-enforcement rule and may require a broader migration.
 
 ## What generates what
@@ -74,14 +108,14 @@ If your project is adopting this progressively, enable both `craft-ng/brand-angu
 Three rules do more than complain — they write code you would otherwise
 maintain by hand:
 
-| Rule                                        | Generates                                                  |
-| ------------------------------------------- | ---------------------------------------------------------- |
-| `brand-angular-gen-deps-required`            | the missing `GenDeps_*` alias for an Angular component      |
-| `brand-angular-deps-match`                   | keeps an existing `GenDeps_*` in sync                       |
-| `require-cascade-route-di-check`             | the same-file DI proof for a `craftRoutes(...)` collection  |
-| `require-assert-exhaustive-route-exceptions` | the collection-level exhaustiveness assert                  |
-| `require-child-route-mount-check`            | the `assertChildRouteMounts(...)` call and its import       |
-| `require-lazy-load-with-retry`               | the `withRetry(...)` wrapper on lazy route imports          |
+| Rule                                         | Generates                                                  |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| `brand-angular-gen-deps-required`            | the missing `GenDeps_*` alias for an Angular component     |
+| `brand-angular-deps-match`                   | keeps an existing `GenDeps_*` in sync                      |
+| `require-cascade-route-di-check`             | the same-file DI proof for a `craftRoutes(...)` collection |
+| `require-assert-exhaustive-route-exceptions` | the collection-level exhaustiveness assert                 |
+| `require-child-route-mount-check`            | the `assertChildRouteMounts(...)` call and its import      |
+| `require-lazy-load-with-retry`               | the `withRetry(...)` wrapper on lazy route imports         |
 
 ## Adopting them progressively
 

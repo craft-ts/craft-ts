@@ -14,6 +14,7 @@ const noAngularInject = require('./no-angular-inject.cjs');
 const noAngularSignalForms = require('./no-angular-signal-forms.cjs');
 const provideHostNameMatchComponent = require('./provide-host-name-match-component.cjs');
 const preferCraftHttpClient = require('./prefer-craft-http-client.cjs');
+const preferCraftHttpTransport = require('./prefer-craft-http-transport.cjs');
 const preferCraftService = require('./prefer-craft-service.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
@@ -29,6 +30,8 @@ const requireCascadeRouteDiCheck = require('./require-cascade-route-di-check.cjs
 const craftComponentNameMatch = require('./craft-component-name-match.cjs');
 const craftDirectiveNameMatch = require('./craft-directive-name-match.cjs');
 const templateElementNameUnique = require('./template-element-name-unique.cjs');
+const preferCraftTemplateBlocks = require('./prefer-craft-template-blocks.cjs');
+const preferCraftReactivity = require('./prefer-craft-reactivity.cjs');
 
 module.exports = {
   rules: {
@@ -48,6 +51,7 @@ module.exports = {
     'no-angular-signal-forms': noAngularSignalForms,
     'provide-host-name-match-component': provideHostNameMatchComponent,
     'prefer-craft-http-client': preferCraftHttpClient,
+    'prefer-craft-http-transport': preferCraftHttpTransport,
     'prefer-craft-service': preferCraftService,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
@@ -64,5 +68,7 @@ module.exports = {
     'craft-component-name-match': craftComponentNameMatch,
     'craft-directive-name-match': craftDirectiveNameMatch,
     'template-element-name-unique': templateElementNameUnique,
+    'prefer-craft-template-blocks': preferCraftTemplateBlocks,
+    'prefer-craft-reactivity': preferCraftReactivity,
   },
 };

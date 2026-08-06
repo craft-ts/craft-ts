@@ -7,7 +7,7 @@ Development tools for ng-craft: ESLint configs, ESLint rules, and codemods.
 ### Depuis npm (après publication)
 
 ```bash
-npm install -D @craft-ng/dev-tools
+npm install -D @craft-ng/dev-tools@beta
 ```
 
 ## Dev-tools configuration
@@ -312,8 +312,11 @@ export default [
       'craft-ng/brand-angular-deps-match': 'error',
       'craft-ng/component-test-gen-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
+      'craft-ng/prefer-craft-template-blocks': 'error',
+      'craft-ng/prefer-craft-reactivity': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
+      'craft-ng/prefer-craft-http-transport': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
       'craft-ng/require-lazy-load-with-retry': 'error',
       'craft-ng/require-cascade-route-di-check': 'error',
@@ -364,6 +367,7 @@ module.exports = defineConfig([
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
+      'craft-ng/prefer-craft-http-transport': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
     },
   },
@@ -398,4 +402,5 @@ Notes:
 - `craft-ng/no-angular-inject` now targets raw Angular `inject()` only
 - `craft-ng/prefer-craft-service` forbids authored Angular `@Injectable()` / `@Service()` classes in favor of `craftService(...)`
 - `craft-ng/prefer-craft-http-client` forbids Angular `HttpClient` in favor of `CraftHttpClient`
+- `craft-ng/prefer-craft-http-transport` forbids direct `fetch` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes, backed by `CraftHttpClient`
 - `craft-ng/prefer-craft-service` and `craft-ng/prefer-craft-http-client` also expose a VS Code Quick Fix suggestion that inserts a temporary local disable comment annotated with the intended migration target

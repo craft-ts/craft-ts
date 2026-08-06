@@ -78,6 +78,20 @@ describe('prefer-craft-computed', () => {
     expect(messages).toEqual([]);
   });
 
+  it('does not report computed() inside Craft primitive configuration', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { computed } from '@angular/core';
+        import { query } from '@craft-ng/core';
+
+        const data = query('data', { selector: computed(() => 42) });
+        void data;
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
   it('reports computed() with unnamed parent with generic message', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `

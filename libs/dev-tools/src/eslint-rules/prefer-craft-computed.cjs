@@ -1,9 +1,11 @@
+const { isInsideCraftPrimitive } = require('./craft-primitive-context.cjs');
+
 module.exports = {
   meta: {
     type: 'suggestion',
     docs: {
       description:
-        "Prefer craftComputed() over computed() from @angular/core for better observability and host name tracking.",
+        'Prefer craftComputed() over computed() from @angular/core for better observability and host name tracking.',
     },
     hasSuggestions: true,
     schema: [],
@@ -25,6 +27,10 @@ module.exports = {
         }
 
         if (!isAngularComputedImport(node, context)) {
+          return;
+        }
+
+        if (isInsideCraftPrimitive(node)) {
           return;
         }
 
@@ -80,7 +86,9 @@ function getDeclaredName(callNode) {
 }
 
 function isAngularComputedImport(callNode, context) {
-  const scope = context.getScope ? context.getScope() : context.sourceCode.getScope(callNode);
+  const scope = context.getScope
+    ? context.getScope()
+    : context.sourceCode.getScope(callNode);
 
   let currentScope = scope;
   while (currentScope) {
