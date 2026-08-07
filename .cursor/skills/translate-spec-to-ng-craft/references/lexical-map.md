@@ -28,7 +28,7 @@ Default: Choose this when the flow is asynchronous but is not the canonical serv
 ### `state`
 
 Match: `etat local`, `selection`, `toggle`, `ouvert`, `ferme`, `modal`, `onglet actif`, `draft`, `brouillon`, `checkbox`, `expanded`, `wizard step`, `current tab`, `UI state`.
-Pair with: `insertSelect`, `insertEntities`, `insertForm`, `reactiveWritableSignal`, `craftState`.
+Pair with: `insertSelect`, `insertEntities`, `insertForm`, `craftState`.
 Default: Keep the state granular. Use it for client-only state and view state that should not live in the URL.
 
 ### `queryParams`
@@ -49,12 +49,6 @@ Match: `quand X arrive alors`, `react to`, `reset on`, `sync on`, `internal reac
 Pair with: `source$`, `state`, `mutation`, `asyncProcess`, `injectService`.
 Default: Use this for hidden reactive wiring that should run from a source but should not become part of the public API.
 
-### `reactiveWritableSignal`
-
-Match: `selection qui se reset`, `synchroniser un etat writable avec plusieurs signaux`, `reset on page change`, `reset on mutation resolved`, `derived writable state`.
-Pair with: `state`, `query`, `mutation`, `removeMany`.
-Default: Use this when a writable local state must react automatically to external signal changes but still support `set` and `update`.
-
 ### `injectService`
 
 Match: `facade`, `wrapper de service`, `exposer une petite API`, `renommer des methodes`, `derive from service signals`, `hide imperative router/service API`.
@@ -72,7 +66,7 @@ Default: Use `providedIn: 'feature'` for page or route scoped logic and `provide
 ### `craftState`
 
 Match: `etat local dans le store`, `selection store`, `modal store`, `draft store`, `store-owned UI state`.
-Pair with: `state`, `on$`, `reactiveWritableSignal`.
+Pair with: `state`, `on$`.
 Default: Use when the state belongs inside a `craft` store and should be exposed as store entries and prefixed methods.
 
 ### `craftQuery`

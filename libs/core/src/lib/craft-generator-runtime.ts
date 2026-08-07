@@ -104,7 +104,7 @@ type RuntimeServiceTrackedDepsRequest = Readonly<{
  */
 export type GuardAwaitResourceLike = {
   status: () => string;
-  safeValue: () => unknown;
+  value: () => unknown;
   error: () => unknown;
   hasException: () => boolean;
   exceptions: () => { list: readonly unknown[] };

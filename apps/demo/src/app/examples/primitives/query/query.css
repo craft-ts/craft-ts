@@ -1,4 +1,4 @@
-:host {
+:scope {
   display: block;
   max-width: 420px;
   margin: 2.5rem auto;
@@ -9,13 +9,13 @@
   color: #eaeaea;
 }
 
-:host div {
+:scope div {
   font-size: 1.08rem;
   margin-bottom: 1.5rem;
   color: #eaeaea;
 }
 
-:host button {
+:scope button {
   background: #444;
   color: #eaeaea;
   border: none;
@@ -28,11 +28,11 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-:host button:hover {
+:scope button:hover {
   background: #2a2a2a;
 }
 
-:host .label-checkbox-row {
+:scope .label-checkbox-row {
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -40,7 +40,7 @@
   margin-bottom: 0.5rem;
 }
 
-:host label {
+:scope label {
   font-weight: 500;
   color: #bdbdbd;
   font-size: 1rem;
@@ -49,7 +49,7 @@
   border-radius: 4px;
 }
 
-:host input[type="checkbox"] {
+:scope input[type="checkbox"] {
   accent-color: #444;
   transform: scale(1.25);
   margin: 0;
@@ -57,11 +57,11 @@
   outline: none;
   transition: box-shadow 0.2s;
 }
-:host input[type="checkbox"]:focus {
+:scope input[type="checkbox"]:focus {
   box-shadow: 0 0 0 2px #888;
 }
 
-:host pre {
+:scope pre {
   background: #181818;
   color: #d6d6d6;
   border-radius: 8px;
@@ -72,6 +72,6 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-:host button {
+:scope button {
   margin-right: 1rem;
 }

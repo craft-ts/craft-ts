@@ -752,7 +752,7 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     'derivedStatePropertyBinding',
     {},
     function* () {
-      const { counter } = yield* state('counter', 0, ({ state }) => ({
+      const counter = yield* state('counter', 0, ({ state }) => ({
         disabled: computed(() => state() % 2 === 0),
       }));
       return { counter };
@@ -771,6 +771,19 @@ it('keeps yieldable primitive properties in template VNodes', () => {
   type _DerivedStateUsesContextValue = Expect<
     Equal<TemplateRendersStateWhen<DerivedTemplate, 'counter.disabled'>, true>
   >;
+
+  const directStateComponent = craftComponent(
+    'directStateContext',
+    {},
+    () =>
+      state('counter', 0, ({ update }) => ({
+        increment: () => update((value) => value + 1),
+      })),
+    (counter) => {
+      const current: number = counter();
+      return button({ click: counter.increment }, `${current}`);
+    },
+  );
 });
 
 it('diagnoses imperative callbacks when the template contract is requested', () => {
@@ -936,7 +949,7 @@ it('tracks named elements through conditional template branches', () => {
     'namedContractComponent',
     {},
     function* () {
-      const { isAuth } = yield* state(
+      const isAuth = yield* state(
         'isAuth',
         computed(() => true),
       );
@@ -986,8 +999,8 @@ it('tracks rendered state reads through conditional template branches', () => {
     'renderedStateContractComponent',
     {},
     function* () {
-      const { isAdult } = yield* state('isAdult', true);
-      const { isAuth } = yield* state('isAuth', true);
+      const isAdult = yield* state('isAdult', true);
+      const isAuth = yield* state('isAuth', true);
       return { isAdult, isAuth };
     },
     ({ isAdult, isAuth }) =>
@@ -1022,7 +1035,7 @@ it('tracks list visibility paths for named elements', () => {
     'namedListContractComponent',
     {},
     function* () {
-      const { counterList } = yield* state('counterList', [1, 2]);
+      const counterList = yield* state('counterList', [1, 2]);
       return { counterList };
     },
     ({ counterList }) =>
@@ -1061,7 +1074,7 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
     'nestedTranslatedLabelsContractComponent',
     {},
     function* () {
-      const { items } = yield* state(
+      const items = yield* state(
         'items',
         [{ key: 'first' }, { key: 'second' }],
         insertSelect('item', ({ state: selectedItem }) => ({
@@ -1110,7 +1123,7 @@ it('tracks available actions through conditional template branches', () => {
     'availableActionContractComponent',
     {},
     function* () {
-      const { isAuth } = yield* state(
+      const isAuth = yield* state(
         'isAuth',
         computed(() => true),
       );
@@ -1160,7 +1173,7 @@ it('keeps reactive signal reads synchronous and infers each items', () => {
     'synchronousReactiveTemplateReads',
     {},
     function* () {
-      const { users } = yield* state('users', [{ id: 1, name: 'Ada' }]);
+      const users = yield* state('users', [{ id: 1, name: 'Ada' }]);
       return { users };
     },
     ({ users }) => [
@@ -1174,4 +1187,14 @@ it('keeps reactive signal reads synchronous and infers each items', () => {
   );
 
   void component;
+});
+
+it('accepts nullable each sources', () => {
+  let items!: readonly { key: string }[] | null | undefined;
+
+  each(
+    items,
+    { track: (item) => item.key },
+    (item) => p(item.key),
+  );
 });

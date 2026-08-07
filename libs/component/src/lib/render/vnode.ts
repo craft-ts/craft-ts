@@ -274,8 +274,10 @@ export interface EachNode<
   readonly kind: 'each';
   readonly source:
     | readonly Item[]
-    | (() => readonly Item[])
-    | (() => Generator<unknown, readonly Item[], unknown>);
+    | null
+    | undefined
+    | (() => readonly Item[] | null | undefined)
+    | (() => Generator<unknown, readonly Item[] | null | undefined, unknown>);
   readonly sourceName?: SourceName;
   readonly track: (item: Item, index: number) => Key;
   readonly empty?: () => EmptyChildren;

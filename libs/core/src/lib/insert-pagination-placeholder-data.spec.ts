@@ -8,8 +8,7 @@ import type { NamedYieldableValue } from './yieldable';
 describe('insertPaginationPlaceholderData', () => {
   it('should return the data of the currentPage', () => {
     TestBed.runInInjectionContext(() => {
-      const { finalResult } = craftUse(
-        query(
+      const finalResult = craftUse(query(
           'finalResult',
           {
             params: () => ({
@@ -53,8 +52,7 @@ describe('insertPaginationPlaceholderData', () => {
     vi.useFakeTimers();
     await TestBed.runInInjectionContext(async () => {
       const pagination = signal(1);
-      const { userQuery } = craftUse(
-        query(
+      const userQuery = craftUse(query(
           'userQuery',
           {
             params: pagination,
@@ -97,8 +95,7 @@ describe('insertPaginationPlaceholderData', () => {
     await TestBed.runInInjectionContext(async () => {
       type Item = { id: string; name: string; completed: boolean };
       const pagination = signal(1);
-      const { userQuery } = craftUse(
-        query(
+      const userQuery = craftUse(query(
           'userQuery',
           {
             params: pagination,

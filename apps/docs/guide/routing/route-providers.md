@@ -48,7 +48,7 @@ const { UserRequirement, provideUser } = craftService(
 
 // 2. A guard that resolves the user.
 const { Auth } = craftService({ name: 'Auth', scope: 'global' }, function* () {
-  const { auth } = yield* query('auth', {
+  const auth = yield* query('auth', {
     params: () => true,
     loader: async () => ({}) as User,
   });
@@ -61,8 +61,8 @@ export const { demoRoutes } = craftRoutes('demo', [
     loadComponent: ({ withRetry }) => withRetry(import('./query')),
     canActivate: function* () {
       const user = yield* Auth();
-      const safeUser = user.safeValue();
-      if (!safeUser) {
+      const userValue = user.value();
+      if (!userValue) {
         return false;
       }
       return safeUser; // becomes the route's guarded data

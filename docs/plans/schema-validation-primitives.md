@@ -16,8 +16,7 @@ injection de dépendances.
 Le schema est déclaré dans la configuration `$self` existante :
 
 ```ts
-const { user } = craftUse(
-  state('user', {
+const user = craftUse(state('user', {
     $self: {
       id: '1',
       name: 'Alice',
@@ -125,8 +124,7 @@ const UserSchema = z.object({
   name: z.string(),
 });
 
-const { user } = craftUse(
-  state('user', {
+const user = craftUse(state('user', {
     $self: {
       id: 123,
       name: 'Alice',
@@ -153,8 +151,7 @@ Les states dérivés restent réactifs même lorsqu’un schema est configuré :
 const price = signal(10);
 const quantity = signal(2);
 
-const { total } = craftUse(
-  state('total', {
+const total = craftUse(state('total', {
     $self: computed(() => price() * quantity()),
     schema: z.number().nonnegative(),
   }),

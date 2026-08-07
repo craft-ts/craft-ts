@@ -34,8 +34,7 @@ describe('insertFormSubmit', () => {
 
   it('submits without config (no second argument) — stays clean of exceptions', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { submitRef } = craftUse(
-        mutation('submitRef', {
+      const submitRef = craftUse(mutation('submitRef', {
           method: (validatedLogin: ValidatedFormValue<LoginData>) => {
             expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
             return validatedLogin;
@@ -46,8 +45,7 @@ describe('insertFormSubmit', () => {
           },
         }),
       );
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           {
             id: '1',
@@ -75,8 +73,7 @@ describe('insertFormSubmit', () => {
 
   it('reflects mutation exceptions on the form', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { submitRef } = craftUse(
-        mutation('submitRef', {
+      const submitRef = craftUse(mutation('submitRef', {
           method: (login: ValidatedFormValue<LoginData>) => login,
           loader: async () => {
             await wait(10000);
@@ -87,8 +84,7 @@ describe('insertFormSubmit', () => {
           },
         }),
       );
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           { id: '1', name: 'John', password: '1234' } satisfies LoginData,
           insertForm(insertFormSubmit(submitRef)),
@@ -110,14 +106,12 @@ describe('insertFormSubmit', () => {
 
   it('marks hasAttemptedSubmit on submit()', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { submitRef } = craftUse(
-        mutation('submitRef', {
+      const submitRef = craftUse(mutation('submitRef', {
           method: (login: ValidatedFormValue<LoginData>) => login,
           loader: async ({ params }) => params,
         }),
       );
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           { id: '1', name: 'John', password: '1234' } satisfies LoginData,
           insertForm(insertFormSubmit(submitRef)),
@@ -133,8 +127,7 @@ describe('insertFormSubmit', () => {
   it('does not call the loader when the form is invalid', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loaderSpy = vi.fn();
-      const { submitRef } = craftUse(
-        mutation('submitRef', {
+      const submitRef = craftUse(mutation('submitRef', {
           method: (validatedValue: ValidatedFormValue<string>) =>
             validatedValue,
           loader: async ({ params }) => {
@@ -143,8 +136,7 @@ describe('insertFormSubmit', () => {
           },
         }),
       );
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           '' as string,
           insertForm(
@@ -171,8 +163,7 @@ describe('insertFormSubmit', () => {
   it('does not call the loader when a sub-field validator fails', async () => {
     await TestBed.runInInjectionContext(async () => {
       const loaderSpy = vi.fn();
-      const { submitRef } = craftUse(
-        mutation('submitRef', {
+      const submitRef = craftUse(mutation('submitRef', {
           method: (
             validatedValue: ValidatedFormValue<{ name: string; age: number }>,
           ) => validatedValue,
@@ -182,8 +173,7 @@ describe('insertFormSubmit', () => {
           },
         }),
       );
-      const { userForm } = craftUse(
-        state(
+      const userForm = craftUse(state(
           'userForm',
           { name: '', age: 0 },
           insertForm(
@@ -220,8 +210,7 @@ describe('insertFormSubmit', () => {
   describe('config callbacks', () => {
     it('success callback adds exceptions on resolved (no mutation exception)', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const { submitRef } = craftUse(
-          mutation('submitRef', {
+        const submitRef = craftUse(mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async ({ params }) => {
               await wait(10);
@@ -229,8 +218,7 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const { loginForm } = craftUse(
-          state(
+        const loginForm = craftUse(state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(
@@ -263,8 +251,7 @@ describe('insertFormSubmit', () => {
 
     it('exceptions rules can omit mutation exceptions and add typed form submit exceptions', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const { submitRef } = craftUse(
-          mutation('submitRef', {
+        const submitRef = craftUse(mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async () => {
               await wait(10);
@@ -275,8 +262,7 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const { loginForm } = craftUse(
-          state(
+        const loginForm = craftUse(state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(
@@ -320,8 +306,7 @@ describe('insertFormSubmit', () => {
 
     it('exceptions rules can omit specific mutation exceptions', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const { submitRef } = craftUse(
-          mutation('submitRef', {
+        const submitRef = craftUse(mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async () => {
               await wait(10);
@@ -332,8 +317,7 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const { loginForm } = craftUse(
-          state(
+        const loginForm = craftUse(state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(
@@ -359,8 +343,7 @@ describe('insertFormSubmit', () => {
     it('success callback does NOT fire when the mutation returned an exception', async () => {
       await TestBed.runInInjectionContext(async () => {
         const successSpy = vi.fn(() => undefined);
-        const { submitRef } = craftUse(
-          mutation('submitRef', {
+        const submitRef = craftUse(mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async () => {
               await wait(10);
@@ -368,8 +351,7 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const { loginForm } = craftUse(
-          state(
+        const loginForm = craftUse(state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(insertFormSubmit(submitRef, { success: successSpy })),
@@ -385,8 +367,7 @@ describe('insertFormSubmit', () => {
 
     it('resets the form after a successful resolved mutation', async () => {
       await TestBed.runInInjectionContext(async () => {
-        const { submitRef } = craftUse(
-          mutation('submitRef', {
+        const submitRef = craftUse(mutation('submitRef', {
             method: (login: ValidatedFormValue<LoginData>) => login,
             loader: async ({ params }) => {
               await wait(10);
@@ -394,8 +375,7 @@ describe('insertFormSubmit', () => {
             },
           }),
         );
-        const { loginForm } = craftUse(
-          state(
+        const loginForm = craftUse(state(
             'loginForm',
             { id: '1', name: 'John', password: '1234' } satisfies LoginData,
             insertForm(insertFormSubmit(submitRef)),
@@ -424,8 +404,7 @@ describe('insertFormSubmit — parallel forms', () => {
 
   it('each parallel form has its own submitting state', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { submitRef } = craftUse(
-        mutation('submitRef', {
+      const submitRef = craftUse(mutation('submitRef', {
           method: (validatedLogin: ValidatedFormValue<LoginData>) => {
             expect(validatedLogin?.[validatedFormValueSymbol]).toBe(true);
             return validatedLogin;
@@ -438,8 +417,7 @@ describe('insertFormSubmit — parallel forms', () => {
         }),
       );
 
-      const { loginForms } = craftUse(
-        state(
+      const loginForms = craftUse(state(
           'loginForms',
           [
             { id: '1', name: '1', password: '' },
@@ -482,8 +460,7 @@ describe('insertFormSubmit — parallel forms', () => {
 
   it('each parallel form has its own exceptions and override callbacks', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { submitRef } = craftUse(
-        mutation('submitRef', {
+      const submitRef = craftUse(mutation('submitRef', {
           method: (validatedLogin: ValidatedFormValue<LoginData>) =>
             validatedLogin,
           identifier: ({ id }: { id: string }) => id,
@@ -497,8 +474,7 @@ describe('insertFormSubmit — parallel forms', () => {
         }),
       );
 
-      const { loginForms } = craftUse(
-        state(
+      const loginForms = craftUse(state(
           'loginForms',
           [
             { id: '1', name: '1', password: '' },

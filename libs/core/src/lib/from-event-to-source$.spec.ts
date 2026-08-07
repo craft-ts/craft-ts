@@ -213,7 +213,7 @@ describe('fromEventToSource$', () => {
 
     TestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
-      const yieldedSource$ = craftUse(eventSource$).click;
+      const yieldedSource$ = craftUse(eventSource$);
 
       expect(yieldedSource$).not.toBe(eventSource$);
       expect(yieldedSource$).toHaveProperty('dispose');
@@ -229,7 +229,7 @@ describe('fromEventToSource$', () => {
     const { ClickEventSource: Click } = craftService(
       { name: 'ClickEventSource', scope: 'global' },
       function* () {
-        const { click } = yield* fromEventToSource$<MouseEvent>(
+        const click = yield* fromEventToSource$<MouseEvent>(
           button,
           'click',
         );
@@ -240,7 +240,7 @@ describe('fromEventToSource$', () => {
     const { ClickEventConsumer: Counter } = craftService(
       { name: 'ClickEventConsumer', scope: 'global' },
       function* () {
-        const { counter } = yield* state('counter', 0, ({ set }) => ({
+        const counter = yield* state('counter', 0, ({ set }) => ({
           increment: on$(Click, (event) => {
             expectTypeOf(event).toEqualTypeOf<MouseEvent>();
             return set(1);

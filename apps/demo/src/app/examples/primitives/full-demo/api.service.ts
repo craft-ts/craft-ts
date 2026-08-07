@@ -1,4 +1,4 @@
-import { craftException, craftService, state } from '@craft-ng/core';
+import { craftException, craftService, craftUse, state } from '@craft-ng/core';
 
 export type User = {
   id: string;
@@ -12,7 +12,7 @@ function delay<T>(value: T, ms: number): Promise<T> {
 export const { ApiService } = craftService(
   { name: 'ApiService', scope: 'global' },
   function* () {
-    const { dataList } = yield* state(
+    const dataList = yield* state(
       'dataList',
       [
         { id: '1', name: 'Romain' },
@@ -52,7 +52,7 @@ export const { ApiService } = craftService(
       }),
     );
 
-    const { throwError } = yield* state('throwError', false, ({ update }) => ({
+    const throwError = yield* state('throwError', false, ({ update }) => ({
       toggleUpdateError: () => update((value) => !value),
     }));
 
@@ -88,7 +88,7 @@ export const { ApiService } = craftService(
           await delay(null, 2000);
           return craftException({ code: 'HttpError' });
         }
-        dataList.addItem(newItem);
+        craftUse(dataList.addItem(newItem));
         return delay(newItem, 2000);
       },
       deleteItem: async (itemId: User['id']) => {
@@ -96,7 +96,7 @@ export const { ApiService } = craftService(
           await delay(null, 2000);
           return craftException({ code: 'HttpError' });
         }
-        const deletedItem = dataList.deleteItem(itemId);
+        const deletedItem = craftUse(dataList.deleteItem(itemId));
         return delay(deletedItem, 2000);
       },
       updateItem: async (updatedItem: User) => {
@@ -104,7 +104,7 @@ export const { ApiService } = craftService(
           await delay(null, 2000);
           return craftException({ code: 'HttpError' });
         }
-        dataList.updateItem(updatedItem);
+        craftUse(dataList.updateItem(updatedItem));
         return delay(updatedItem, 2000);
       },
       bulkDelete: async (itemIds: User['id'][]) => {
@@ -112,7 +112,7 @@ export const { ApiService } = craftService(
           await delay(null, 2000);
           return craftException({ code: 'HttpError' });
         }
-        const deletedItems = dataList.bulkDelete(itemIds);
+        const deletedItems = craftUse(dataList.bulkDelete(itemIds));
         return delay(deletedItems, 2000);
       },
     };

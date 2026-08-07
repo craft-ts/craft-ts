@@ -138,16 +138,16 @@ const { UserProfile } = craftService(
   { name: 'UserProfile', scope: 'global' },
   function* () {
     const api = yield* UserApi();
-    const { userId } = yield* state('userId', '5', ({ set }) => ({ set }));
+    const userId = yield* state('userId', '5', ({ set }) => ({ set }));
 
-    const { updateEmail } = yield* mutation('updateEmail', {
+    const updateEmail = yield* mutation('updateEmail', {
       method: (payload: { id: string; email: string }) => payload,
       loader: function* ({ params }) {
         return yield* api.updateEmail(params);
       },
     });
 
-    const { user } = yield* query(
+    const user = yield* query(
       'user',
       {
         params: userId,

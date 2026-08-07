@@ -158,7 +158,7 @@ const isLoading = yield * Counter.OmitInputs.userQuery.isLoading();
 const { Counter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
   function* () {
-    const { counter } = yield* state('counter', 0, ({ update }) => ({
+    const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
     }));

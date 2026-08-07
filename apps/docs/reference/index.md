@@ -22,6 +22,7 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 | Symbol         | What it does                                    | Page                                          |
 | -------------- | ----------------------------------------------- | --------------------------------------------- |
 | `craftPipe`    | Composes several insertions into one            | [Insertions](/guide/concepts/insertions)      |
+| `craftYieldRecord` | Resolves a record of primitive generators       | [craftService](/guide/app/craft-service)      |
 | `insertStatePipe` | Composes several `state` insertions           | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
 | `insertQueryPipe` | Composes several `query` insertions           | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
 | `insertMutationPipe` | Composes several `mutation` insertions     | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
@@ -104,7 +105,6 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 | `on$`                    | Binds a method to a source                       | [on$](/guide/reactivity/on)                                     |
 | `fromEventToSource$`     | DOM event → source                               | [fromEventToSource$](/guide/reactivity/from-event-to-source)    |
 | `sourceFromEvent`        | Event-driven source helper                       | [sourceFromEvent](/guide/reactivity/source-from-event)          |
-| `reactiveWritableSignal` | A writable signal driven by a reactive source    | [reactiveWritableSignal](/guide/reactivity/reactive-writable-signal) |
 | `afterRecomputation`     | Runs after a recomputation settles               | [afterRecomputation](/guide/reactivity/after-recomputation)     |
 
 ## HTTP and boundaries
@@ -130,6 +130,7 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 | --------------------------------------- | ------------------------------------------- | ------------------------------------------- |
 | `npx craft route add`                   | Scaffolds a typed route                     | [Automation](/guide/routing/automation)     |
 | `npx craft route split`                 | Splits a flat collection                    | [Scaling routes](/guide/routing/scaling)    |
+| `npx craft route verify`                | Verifies route DI, templates and exceptions | [Automation](/guide/routing/automation#verify-the-route-safety-contract) |
 | `craft-brand --root src/app`            | Generates and refreshes `GenDeps_*`         | [Brand config](/guide/routing/angular-brand-config) |
 | `@craft-ng/dev-tools/eslint-rules`      | The ESLint rule set                         | [ESLint rules](/guide/routing/eslint-rules) |
 | Template migrator                       | Migrates templates to craft components      | [Template migrator](/guide/components/template-migrator) |

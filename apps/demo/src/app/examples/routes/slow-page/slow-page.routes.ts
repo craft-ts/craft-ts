@@ -33,7 +33,7 @@ import { loadCraftComponent } from '@craft-ng/component';
 const { SlowAccess } = craftService(
   { name: 'SlowAccess', scope: 'global' },
   function* () {
-    const { slowAccess } = yield* query('slowAccess', {
+    const slowAccess = yield* query('slowAccess', {
       params: () => true,
       loader: async () => {
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -47,7 +47,7 @@ const { SlowAccess } = craftService(
 const { SlowReport } = craftService(
   { name: 'SlowReport', scope: 'global' },
   function* () {
-    const { slowReport } = yield* query('slowReport', {
+    const slowReport = yield* query('slowReport', {
       params: () => true,
       loader: async () => {
         await new Promise((resolve) => setTimeout(resolve, 1500));

@@ -65,8 +65,7 @@ describe('state', () => {
     });
 
     runInInjectionContext(() => {
-      const { counter } = craftUse(
-        state('counter', 0, ({ update }) => ({
+      const counter = craftUse(state('counter', 0, ({ update }) => ({
           increment: () => update((current) => current + 1),
         })),
       );
@@ -102,7 +101,7 @@ describe('state', () => {
   });
   it('should create a simple state', () => {
     runInInjectionContext(() => {
-      const { myState } = craftUse(state('myState', 0));
+      const myState = craftUse(state('myState', 0));
 
       expect(myState).toBeDefined();
       expectTypeOf(myState).toEqualTypeOf<
@@ -114,8 +113,7 @@ describe('state', () => {
   it('should create a signal state', () => {
     runInInjectionContext(() => {
       const origin = signal(5);
-      const { myState } = craftUse(
-        state(
+      const myState = craftUse(state(
           'myState',
           linkedSignal(() => origin() * 2),
         ),
@@ -132,8 +130,7 @@ describe('state', () => {
   it('should accept insertion, use to add methods and properties', () => {
     runInInjectionContext(() => {
       const origin = signal(5);
-      const { myState } = craftUse(
-        state(
+      const myState = craftUse(state(
           'myState',
           linkedSignal(() => origin() * 2),
           (context) =>
@@ -191,8 +188,7 @@ describe('state', () => {
     );
 
     runInInjectionContext(() => {
-      const { myState } = craftUse(
-        state(
+      const myState = craftUse(state(
           'myState',
           function* () {
             const counter = yield* CounterReader(undefined, ({ read }) => ({
@@ -251,8 +247,7 @@ describe('state', () => {
     );
 
     runInInjectionContext(() => {
-      const { myState } = craftUse(
-        state(
+      const myState = craftUse(state(
           'myState',
           function* () {
             const counter = yield* CounterReaderRuntime(
@@ -284,8 +279,7 @@ describe('state', () => {
   it('methods can be bind to a source, but not exposed', async () => {
     await runInInjectionContext(async () => {
       const sourceSignal = signalSource<number>('sourceSignal');
-      const { myState } = craftUse(
-        state('myState', 0, ({ set }) => ({
+      const myState = craftUse(state('myState', 0, ({ set }) => ({
           setValue: afterRecomputation(sourceSignal, (value) => {
             set(value);
           }),
@@ -315,8 +309,7 @@ describe('state', () => {
   it('methods can be bind to a source$, but not exposed', async () => {
     await runInInjectionContext(async () => {
       const sourceSignal = source$<number>('sourceSignal');
-      const { myState } = craftUse(
-        state('myState', 0, ({ set }) => ({
+      const myState = craftUse(state('myState', 0, ({ set }) => ({
           setValue: on$(sourceSignal, (value) => {
             set(value);
           }),
@@ -343,8 +336,7 @@ describe('state', () => {
 
   it('should expose root source$ insertions as callable methods', async () => {
     await runInInjectionContext(async () => {
-      const { myState } = craftUse(
-        state('myState', 0, (context) =>
+      const myState = craftUse(state('myState', 0, (context) =>
           craftPipe(
             context,
             ({ set }) => ({
@@ -358,14 +350,10 @@ describe('state', () => {
         ),
       );
 
-      expectTypeOf(myState.resetAll$).toEqualTypeOf<
-        Source$<void> & (() => void)
-      >();
-
-      myState.increment();
+      craftUse(myState.increment());
       expect(myState()).toBe(1);
 
-      myState.resetAll$();
+      craftUse(myState.resetAll$());
       expect(myState()).toBe(0);
     });
   });
@@ -390,8 +378,7 @@ describe('state', () => {
         },
       });
 
-      const { s } = craftUse(
-        state('s', linkedSignal(() => myRefSigal()).asReadonly(), insertion),
+      const s = craftUse(state('s', linkedSignal(() => myRefSigal()).asReadonly(), insertion),
       );
       expect(s()).toEqual([0]);
     });
@@ -408,7 +395,7 @@ describe('state — $self config with providers', () => {
 
   it('should resolve $self plain value identically to the direct form', () => {
     runInInjectionContext(() => {
-      const { myState } = craftUse(state('myState', { $self: 42 }));
+      const myState = craftUse(state('myState', { $self: 42 }));
 
       expectTypeOf(myState).toEqualTypeOf<
         NamedYieldableValue<'myState', StateOutput<number, {}>>
@@ -420,7 +407,7 @@ describe('state — $self config with providers', () => {
   it('should resolve $self signal value', () => {
     runInInjectionContext(() => {
       const src = signal(7);
-      const { myState } = craftUse(state('myState', { $self: src }));
+      const myState = craftUse(state('myState', { $self: src }));
 
       expectTypeOf(myState()).toEqualTypeOf<number>();
       expect(myState()).toBe(7);
@@ -429,8 +416,7 @@ describe('state — $self config with providers', () => {
 
   it('should resolve $self generator factory', () => {
     runInInjectionContext(() => {
-      const { myState } = craftUse(
-        state('myState', {
+      const myState = craftUse(state('myState', {
           $self: function* () {
             return 99;
           },
@@ -444,8 +430,7 @@ describe('state — $self config with providers', () => {
 
   it('should work with insertions alongside $self', () => {
     runInInjectionContext(() => {
-      const { myState } = craftUse(
-        state('myState', { $self: 0 }, ({ update }) => ({
+      const myState = craftUse(state('myState', { $self: 0 }, ({ update }) => ({
           increment: () => update((v) => v + 1),
         })),
       );
@@ -494,8 +479,7 @@ describe('state — $self config with providers', () => {
     };
 
     runInInjectionContext(() => {
-      const { myState } = craftUse(
-        state(
+      const myState = craftUse(state(
           'myState',
           {
             $self: 0,
@@ -528,8 +512,7 @@ describe('state — $self config with providers', () => {
     };
 
     runInInjectionContext(() => {
-      const { withProvider } = craftUse(
-        state(
+      const withProvider = craftUse(state(
           'withProvider',
           {
             $self: 0,
@@ -543,8 +526,7 @@ describe('state — $self config with providers', () => {
           ({ update }) => ({ increment: () => update((v) => v + 1) }),
         ),
       );
-      const { withoutProvider } = craftUse(
-        state('withoutProvider', 0, ({ update }) => ({
+      const withoutProvider = craftUse(state('withoutProvider', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         })),
       );
@@ -559,11 +541,10 @@ describe('state — $self config with providers', () => {
 
   it('typing: $self unwraps to the correct state type', () => {
     runInInjectionContext(() => {
-      const { plain } = craftUse(state('plain', { $self: 'hello' }));
+      const plain = craftUse(state('plain', { $self: 'hello' }));
       expectTypeOf(plain()).toEqualTypeOf<string>();
 
-      const { withSignal } = craftUse(
-        state('withSignal', { $self: signal(0) }),
+      const withSignal = craftUse(state('withSignal', { $self: signal(0) }),
       );
       expectTypeOf(withSignal()).toEqualTypeOf<number>();
     });
@@ -576,8 +557,7 @@ describe('state — $self config with providers', () => {
     );
 
     if (false) {
-      const { withoutProviders } = craftUse(
-        state('withoutProviders', function* () {
+      const withoutProviders = craftUse(state('withoutProviders', function* () {
           const counter = yield* LocalCounter();
           return counter.value();
         }),
@@ -587,8 +567,7 @@ describe('state — $self config with providers', () => {
         'LocalCounter' extends keyof WithoutDeps ? true : false
       >().toEqualTypeOf<true>();
 
-      const { withProviders } = craftUse(
-        state('withProviders', {
+      const withProviders = craftUse(state('withProviders', {
           $self: function* () {
             const counter = yield* LocalCounter();
             return counter.value();

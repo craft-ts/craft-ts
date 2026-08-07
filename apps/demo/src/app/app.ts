@@ -1,4 +1,3 @@
-import { signal } from '@angular/core';
 import {
   a,
   button,
@@ -7,6 +6,7 @@ import {
   directive,
   div,
   each,
+  ifBlock,
   main,
   nav,
   strong,
@@ -18,6 +18,7 @@ import {
   CraftRouterLink,
   GlobalPersisterHandlerService,
   type CraftRouterLinkInput,
+  state,
 } from '@craft-ng/core';
 
 const NAV_GROUPS = [
@@ -98,9 +99,12 @@ export const App = craftComponent(
       .content{flex:1;overflow:auto;padding:2rem;background:#fff;margin:1.5rem;border-radius:8px}.clear-cache-btn{position:fixed;bottom:2rem;right:2rem;padding:1rem 1.5rem;background:#374151;color:#fff;border:0;border-radius:50px;cursor:pointer}
     `,
   },
-  () => {
-    const navOpen = signal(false);
-    const { clearCache } = craftMethod('clearCache', function* () {
+  function* () {
+    const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
+      toggle: () => update((open) => !open),
+      close: () => set(false),
+    }));
+    const clearCache = craftMethod('clearCache', function* () {
       const persister = yield* GlobalPersisterHandlerService(
         undefined,
         ({ clearAllCache }) => ({ clearAllCache }),
@@ -112,8 +116,8 @@ export const App = craftComponent(
     return {
       clearCache,
       navOpen,
-      toggleNav: () => navOpen.update((open) => !open),
-      closeNav: () => navOpen.set(false),
+      toggleNav: navOpen.toggle,
+      closeNav: navOpen.close,
     };
   },
   ({ clearCache, navOpen, toggleNav, closeNav }) =>
@@ -126,10 +130,16 @@ export const App = craftComponent(
             click: toggleNav,
             'aria-expanded': () => String(navOpen()),
           },
-          () => (navOpen() ? 'Fermer les exemples' : 'Parcourir les exemples'),
+          ifBlock(
+            navOpen,
+            () => 'Fermer les exemples',
+            () => 'Parcourir les exemples',
+          ),
         ),
-        navOpen()
-          ? div(
+        ifBlock(
+          navOpen,
+          () =>
+            div(
               { class: 'demo-nav__panel' },
               each(NAV_GROUPS, { track: (group) => group.label }, (group) =>
                 div({ class: 'demo-nav__group' }, [
@@ -147,8 +157,9 @@ export const App = craftComponent(
                   ),
                 ]),
               ),
-            )
-          : [],
+            ),
+          () => [],
+        ),
       ]),
       main({ class: 'content' }, CraftRouterOutlet()),
       button(

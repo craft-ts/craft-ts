@@ -39,22 +39,22 @@ describe('craftResource', () => {
     );
   }
 
-  it('resolves the loader result on value/state/safeValue', async () => {
+  it('resolves the loader result on value/state', async () => {
     const resource = createResource();
     await vi_waitForResolved(resource);
 
     expect(resource.hasValue()).toBe(true);
     expect(resource.value()).toEqual({ id: 1, name: 'item-1' });
     expect(resource.state()).toEqual({ id: 1, name: 'item-1' });
-    expect(resource.safeValue()).toEqual({ id: 1, name: 'item-1' });
+    expect(resource.value()).toEqual({ id: 1, name: 'item-1' });
     expect(resource.status()).toBe('resolved');
     expect(resource.isLoading()).toBe(false);
   }, 30_000);
 
-  it('safeValue and state are undefined while there is no value yet', () => {
+  it('value and state are undefined while there is no value yet', () => {
     const resource = createResource();
     expect(resource.hasValue()).toBe(false);
-    expect(resource.safeValue()).toBeUndefined();
+    expect(resource.value()).toBeUndefined();
     expect(resource.state()).toBeUndefined();
   });
 

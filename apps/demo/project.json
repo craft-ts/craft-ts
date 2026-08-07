@@ -28,6 +28,9 @@
       "options": {
         "outputPath": "dist/apps/demo",
         "browser": "apps/demo/src/main.ts",
+        "loader": {
+          ".css": "text"
+        },
         "tsConfig": "apps/demo/tsconfig.app.json",
         "assets": [
           {
@@ -80,7 +83,11 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "options": {}
+      "options": {
+        "loader": {
+          ".css": "text"
+        }
+      }
     },
     "serve-static": {
       "continuous": true,

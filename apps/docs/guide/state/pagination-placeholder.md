@@ -116,12 +116,12 @@ export const UsersList = craftComponent(
   'UsersList',
   {},
   function* () {
-    const { page } = yield* state('page', 1, ({ state, update, set }) => ({
+    const page = yield* state('page', 1, ({ state, update, set }) => ({
       next: () => update((value) => value + 1),
       previous: () => set(Math.max(1, state() - 1)),
     }));
 
-    const { userQuery } = yield* query(
+    const userQuery = yield* query(
       'userQuery',
       {
         params: page,

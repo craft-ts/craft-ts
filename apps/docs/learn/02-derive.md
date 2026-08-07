@@ -12,7 +12,7 @@ the primitive's internals and returns whatever you want exposed on it.
 import { computed } from '@angular/core';
 import { state } from '@craft-ng/core';
 
-const { tasks } = yield* state('tasks', [] as Task[], ({ state, set, update }) => ({
+const tasks = yield* state('tasks', [] as Task[], ({ state, set, update }) => ({
   add: (title: string) =>
     update((current) => [
       ...current,
@@ -61,7 +61,7 @@ export const Tasks = craftComponent(
   'Tasks',
   {},
   function* () {
-    const { tasks } = yield* state('tasks', [] as Task[], /* … as above … */);
+    const tasks = yield* state('tasks', [] as Task[], /* … as above … */);
     return { tasks };
   },
   ({ tasks }) => [
@@ -233,7 +233,7 @@ One insertion function gets crowded fast. Split it and compose with `insertState
 ```typescript
 import { insertStatePipe, state } from '@craft-ng/core';
 
-const { tasks } = yield* state(
+const tasks = yield* state(
   'tasks',
   [] as Task[],
   insertStatePipe(

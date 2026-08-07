@@ -20,7 +20,7 @@ import type { CraftHttpClientError } from './craft-http-client';
 
 /**
  * The minimal shape a craft resource (`query` / `mutation` / `asyncProcess`)
- * exposes that {@link craftUntilSettled} relies on: the `status`/`safeValue` signals to
+ * exposes that {@link craftUntilSettled} relies on: the `status`/`value` signals to
  * read the settled outcome, and the `hasException`/`exceptions` signals to surface
  * a loader `craftException`.
  *
@@ -31,7 +31,7 @@ import type { CraftHttpClientError } from './craft-http-client';
  */
 export type ResourceLike = {
   status: Signal<string>;
-  safeValue: Signal<unknown>;
+  value: Signal<unknown>;
   error?: Signal<Error | undefined>;
   hasException: Signal<boolean>;
   exceptions: Signal<{ list: readonly AnyCraftException[] }>;
@@ -46,7 +46,7 @@ export type ResourceExceptionUnion<R> = R extends {
 
 /** The settled (non-undefined) value a resource resolves to. */
 export type ResourceResolvedValue<R> = R extends {
-  safeValue: Signal<infer Value>;
+  value: Signal<infer Value>;
 }
   ? Exclude<Value, undefined>
   : unknown;
@@ -103,7 +103,7 @@ function* craftUntilSettledResource(
     throw resource.error?.();
   }
 
-  return resource.safeValue();
+  return resource.value();
 }
 
 function* craftUntilSettledHttp(
@@ -187,7 +187,7 @@ export function craftUntilSettled(
 function signalSettleAdapter<T>(signal: Signal<T>): GuardAwaitResourceLike {
   return {
     status: () => (signal() !== undefined ? 'resolved' : 'loading'),
-    safeValue: () => signal(),
+    value: () => signal(),
     error: () => undefined,
     hasException: () => false,
     exceptions: () => ({ list: [] }),

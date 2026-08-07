@@ -26,7 +26,7 @@ import {
   query,
 } from '@craft-ng/core';
 
-const { users } = yield* query(
+const users = yield* query(
   'users',
   {
     params: pagination,
@@ -40,7 +40,7 @@ const { users } = yield* query(
     insertPaginationPlaceholderData({ initialValue: [] as User[] }),
     insertReactOnMutation(deleteUser, {
       filter: ({ mutationIdentifier, queryResource }) =>
-        !!queryResource.safeValue()?.some((u) => u.id === mutationIdentifier),
+        !!queryResource.value()?.some((u) => u.id === mutationIdentifier),
       optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
         removeOne({
           entities: queryResource.value(),
@@ -58,7 +58,7 @@ primitive call free of context plumbing.
 Pass it directly:
 
 ```typescript
-const { user } = yield* query('user', config, insertLocalStoragePersister({ … }));
+const user = yield* query('user', config, insertLocalStoragePersister({ … }));
 ```
 
 :::
@@ -69,7 +69,7 @@ There is nothing special about a library insertion. Yours is a function of the
 same shape:
 
 ```typescript
-const { counter } = yield* state(
+const counter = yield* state(
   'counter',
   0,
   insertStatePipe(
@@ -109,7 +109,7 @@ Pipes nest freely, including inside `insertSelect` — each level re-passes its
 own context:
 
 ```typescript
-const { board } = yield* state(
+const board = yield* state(
   'board',
   { ui: { activeColor: 'black' }, grid: createInitialGrid() },
   insertStatePipe(

@@ -1,3 +1,4 @@
+import styles from './list-with-pagination.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -22,9 +23,11 @@ import { ApiService, type User } from './api.service';
 
 const QpListWithPagination = craftComponent(
   'QpListWithPagination',
-  {},
+  {
+    stylesUrl: styles,
+  },
   function* () {
-    const { pagination } = yield* queryParams(
+    const pagination = yield* queryParams(
       'pagination',
       {
         state: {
@@ -51,7 +54,7 @@ const QpListWithPagination = craftComponent(
       }),
     );
     const api = yield* ApiService();
-    const { usersQuery } = yield* query(
+    const usersQuery = yield* query(
       'usersQuery',
       {
         params: pagination,
@@ -81,7 +84,7 @@ const QpListWithPagination = craftComponent(
         h(
           'tbody',
           each(
-            () => usersQuery.currentPageData() ?? [],
+            usersQuery.currentPageData,
             { track: (user) => user.id },
             (user) => h('tr', [h('td', String(user.id)), h('td', user.name)]),
           ),

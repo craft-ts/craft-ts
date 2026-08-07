@@ -17,7 +17,7 @@ const booleanCodec = {
   encode: (value: boolean) => String(value),
 };
 
-const { filters } = yield* queryParams(
+const filters = yield* queryParams(
   'filters',
   {
     state: {
@@ -72,7 +72,7 @@ if (filters.hasException()) {
 Now connect it to step 5 — the query's `params` reads the URL state:
 
 ```typescript
-const { tasksQuery } = yield* query('tasksQuery', {
+const tasksQuery = yield* query('tasksQuery', {
   params: () => ({ page: filters.page(), done: filters.showDone() }),
   loader: function* ({ params }) {
     return yield* CraftHttpClient.get(({ response }) => ({
@@ -108,8 +108,9 @@ Shareable, refresh-proof UI state, with no synchronisation code.
 
 ::: details Declaring query params on the route itself
 `queryParams` can live directly in a `craftRoutes(...)` entry, so the parameters
-belong to the route rather than to a component. See
-[queryParams](/guide/state/url-state) — after step 9, which introduces routes.
+belong to the route rather than to a component, and can then be retrieved through
+dependency injection. We'll see this after step 9, which introduces routes. See
+[queryParams](/guide/state/url-state) for the full reference.
 :::
 
 <div style="display: flex; justify-content: space-between; margin-top: 2rem">

@@ -20,7 +20,6 @@ import {
 } from './craft-generator-runtime';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 import { markYieldableMethod, markYieldableValue } from './yieldable';
-import type { NamedPrimitive } from './craft-primitive-gen';
 import type { NamedYieldableValue, YieldableMethod } from './yieldable';
 
 type CraftComputedGenerator<This, Yielded, T> = (
@@ -44,29 +43,29 @@ export function craftComputed<Name extends string, This, Yielded, T>(
   host: This,
   factory: CraftComputedGenerator<This, Yielded, T>,
   options?: CreateComputedOptions<T>,
-): NamedPrimitive<Name, TrackedCraftComputed<Name, T, Yielded>>;
+): TrackedCraftComputed<Name, T, Yielded>;
 export function craftComputed<Name extends string, Yielded, T>(
   name: Name,
   factory: CraftComputedGenerator<void, Yielded, T>,
   options?: CreateComputedOptions<T>,
-): NamedPrimitive<Name, TrackedCraftComputed<Name, T, Yielded>>;
+): TrackedCraftComputed<Name, T, Yielded>;
 export function craftComputed<Name extends string, This, T>(
   name: Name,
   host: This,
   computation: (this: This) => T,
   options?: CreateComputedOptions<T>,
-): NamedPrimitive<Name, TrackedCraftComputed<Name, T, never>>;
+): TrackedCraftComputed<Name, T, never>;
 export function craftComputed<Name extends string, T>(
   name: Name,
   computation: () => T,
   options?: CreateComputedOptions<T>,
-): NamedPrimitive<Name, TrackedCraftComputed<Name, T, never>>;
+): TrackedCraftComputed<Name, T, never>;
 export function craftComputed<T>(
   name: string,
   hostOrComputation: unknown,
   factoryOrOptions?: unknown,
   maybeOptions?: CreateComputedOptions<T>,
-): Record<string, Signal<T>> {
+): TrackedCraftComputed<string, T, unknown> {
   // The host form is recognized by its 3rd argument being the factory —
   // `options` is never a function.
   const hasHost = typeof factoryOrOptions === 'function';
@@ -102,7 +101,7 @@ export function craftComputed<T>(
           'craftComputed generators cannot declare onAppStart(...) more than once.',
         onAppStartNotSupportedErrorMessage:
           'craftComputed(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
-      }).value as () => T;
+      }).value as unknown as () => T;
     });
     result = computed(computationFn, options);
   } else {
@@ -139,7 +138,8 @@ export function craftComputed<T>(
     }
   }
 
-  return {
-    [name]: markYieldableValue(markYieldableMethod(result), name),
-  } as unknown as Record<string, Signal<T>>;
+  return markYieldableValue(
+    markYieldableMethod(result),
+    name,
+  ) as unknown as TrackedCraftComputed<string, T, unknown>;
 }

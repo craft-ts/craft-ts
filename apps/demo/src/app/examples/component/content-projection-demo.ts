@@ -1,4 +1,3 @@
-import { signal } from '@angular/core';
 import {
   button,
   content,
@@ -8,6 +7,7 @@ import {
   each,
   footer,
   h2,
+  ifBlock,
   li,
   p,
   renderContent,
@@ -22,6 +22,7 @@ import {
   type RequiredContent,
 } from '@craft-ng/component';
 import type { Input } from '@craft-ng/component';
+import { state } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -105,10 +106,13 @@ const dialog = craftComponent(
   (input: {
     readonly body?: ContentSlot;
     readonly actions: readonly ProjectionOf<typeof toolbarAction>[];
-  }) => input,
+  }) => ({
+    body: input.body ?? content(() => p('Aucun contenu de dialogue fourni.')),
+    actions: input.actions,
+  }),
   ({ body, actions }) =>
     section({ class: 'projection-demo__dialog', role: 'dialog' }, [
-      body ? renderContent(body) : p('Aucun contenu de dialogue fourni.'),
+      renderContent(body),
       footer(
         { class: 'projection-demo__dialog-actions' },
         each(actions, { track: (action) => action.key }, (action) =>
@@ -126,12 +130,17 @@ const card = craftComponent(
       body: ':scope { display: block; color: #334155; }',
     },
   },
-  (input: CardInput) => input,
+  (input: CardInput) => ({
+    header:
+      input.header ??
+      content(() =>
+        h2({ class: 'projection-demo__fallback' }, 'Titre par défaut'),
+      ),
+    body: input.body,
+  }),
   ({ header, body }) =>
     section({ class: 'projection-demo__card' }, [
-      header
-        ? renderContent('header', header)
-        : h2({ class: 'projection-demo__fallback' }, 'Titre par défaut'),
+      renderContent('header', header),
       section({ class: 'projection-demo__body' }, renderContent('body', body)),
     ]),
 );
@@ -149,10 +158,19 @@ const userRow = craftTemplate<{
 export const contentProjectionDemo = craftComponent(
   'contentProjectionDemo',
   { host: { class: 'component-demo-host' } },
-  () => {
-    const showToolbar = signal(true);
-    const dialogOpen = signal(false);
-    const lastAction = signal('Aucune action déclenchée.');
+  function* () {
+    const showToolbar = yield* state('showToolbar', true, ({ update }) => ({
+      toggle: () => update((visible) => !visible),
+    }));
+    const dialogOpen = yield* state('dialogOpen', false, ({ set }) => ({
+      open: () => set(true),
+      close: () => set(false),
+    }));
+    const lastAction = yield* state(
+      'lastAction',
+      'Aucune action déclenchée.',
+      ({ set }) => ({ record: (label: string) => set(label) }),
+    );
     const users = [
       { id: 1, name: 'Ada Lovelace', role: 'Pionnière des algorithmes' },
       { id: 2, name: 'Grace Hopper', role: 'Compilateurs et systèmes' },
@@ -164,10 +182,10 @@ export const contentProjectionDemo = craftComponent(
       showToolbar,
       dialogOpen,
       lastAction,
-      toggleToolbar: () => showToolbar.update((visible) => !visible),
-      openDialog: () => dialogOpen.set(true),
-      closeDialog: () => dialogOpen.set(false),
-      recordAction: (label: string) => lastAction.set(label),
+      toggleToolbar: showToolbar.toggle,
+      openDialog: dialogOpen.open,
+      closeDialog: dialogOpen.close,
+      recordAction: lastAction.record,
     };
   },
   ({
@@ -225,10 +243,16 @@ export const contentProjectionDemo = craftComponent(
             type: 'button',
             click: toggleToolbar,
           },
-          () => (showToolbar() ? 'Masquer la toolbar' : 'Afficher la toolbar'),
+          ifBlock(
+            showToolbar,
+            () => 'Masquer la toolbar',
+            () => 'Afficher la toolbar',
+          ),
         ),
-        showToolbar()
-          ? toolbar({
+        ifBlock(
+          showToolbar,
+          () =>
+            toolbar({
               actions: [
                 toolbarAction({
                   key: 'save',
@@ -241,8 +265,9 @@ export const contentProjectionDemo = craftComponent(
                   trigger: () => recordAction('Annuler'),
                 }),
               ],
-            })
-          : p('La projection conditionnelle est masquée.'),
+            }),
+          () => p('La projection conditionnelle est masquée.'),
+        ),
         p('Le même composant, rendu directement :'),
         toolbarAction({
           key: 'direct',
@@ -258,8 +283,10 @@ export const contentProjectionDemo = craftComponent(
           'Ouvrir le dialog projeté',
         ),
       ]),
-      dialogOpen()
-        ? dialog({
+      ifBlock(
+        dialogOpen,
+        () =>
+          dialog({
             body: content(() =>
               div([
                 h2('Dialog avec contenu optionnel'),
@@ -283,7 +310,8 @@ export const contentProjectionDemo = craftComponent(
                 },
               }),
             ],
-          })
-        : [],
+          }),
+        () => [],
+      ),
     ]),
 );

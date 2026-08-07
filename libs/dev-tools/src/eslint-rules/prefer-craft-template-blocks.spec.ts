@@ -50,6 +50,30 @@ describe('prefer-craft-template-blocks', () => {
     expect(messages).toEqual([]);
   });
 
+  it('allows logic inside template pipes', async () => {
+    const messages = await lintText(`
+      const Demo = craftComponent(
+        'Demo',
+        {},
+        () => ({ canReadRestrictedData, noAccess, lastHandledException }),
+        ({ restrictedContent }) => restrictedContent.pipe(
+          withProviders([
+            provideRestrictedData(() =>
+              canReadRestrictedData() ? 'accessible' : noAccess,
+            ),
+          ]),
+          catchTag.exhaustive({
+            NO_ACCESS: function* () {
+              lastHandledException.set('NO_ACCESS');
+            },
+          }),
+        ),
+      );
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
   it('reports ternaries, logical expressions, and imperative control flow', async () => {
     const messages = await lintText(`
       const Demo = craftComponent(
@@ -90,10 +114,80 @@ describe('prefer-craft-template-blocks', () => {
 
     expect(messages).toHaveLength(1);
   });
+
+  it('offers a quick fix for renderable ternaries', async () => {
+    const fixed = await fixText(`
+      const Demo = craftComponent(
+        'Demo',
+        {},
+        () => ({}),
+        ({ ready }) => div([
+          button({}, () => ready() ? 'Ready' : 'Waiting'),
+          ready() ? p('Ready') : p('Waiting'),
+        ]),
+      );
+    `);
+
+    expect(fixed).toContain("import { ifBlock } from '@craft-ng/component';");
+    expect(fixed).toContain(
+      "button({}, ifBlock(ready, () => 'Ready', () => 'Waiting'))",
+    );
+    expect(fixed).toContain(
+      "ifBlock(ready, () => p('Ready'), () => p('Waiting'))",
+    );
+  });
+
+  it('offers a quick fix for exhaustive switch returns', async () => {
+    const fixed = await fixText(`
+      const Demo = craftComponent(
+        'Demo',
+        {},
+        () => ({}),
+        ({ result }) => {
+          switch (result().code) {
+            case 'OK': return p('ok');
+            case 'ERROR': return p('error');
+          }
+        },
+      );
+    `);
+
+    expect(fixed).toContain(
+      "import { matchBlock } from '@craft-ng/component';",
+    );
+    expect(fixed).toContain(
+      "return matchBlock.exhaustive(() => result(), \"code\", { OK: () => p('ok'), ERROR: () => p('error') });",
+    );
+  });
+
+  it('does not rewrite ordinary values as Craft reactive conditions', async () => {
+    const source = `
+      const Demo = craftComponent(
+        'Demo',
+        {},
+        () => ({}),
+        ({ value }) => div([value ? p('yes') : p('no')]),
+      );
+    `;
+
+    const fixed = await fixText(source);
+    expect(fixed).toBe(source);
+  });
 });
 
 async function lintText(source: string): Promise<string[]> {
+  const result = await lint(source);
+  return result.messages.map((message) => message.message);
+}
+
+async function fixText(source: string): Promise<string> {
+  const result = await lint(source, true);
+  return result.output ?? source;
+}
+
+async function lint(source: string, fix = false) {
   const eslint = new ESLint({
+    fix,
     overrideConfigFile: true,
     overrideConfig: [
       {
@@ -109,5 +203,5 @@ async function lintText(source: string): Promise<string[]> {
   });
 
   const [result] = await eslint.lintText(source, { filePath: 'fixture.ts' });
-  return result.messages.map((message) => message.message);
+  return result;
 }

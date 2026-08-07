@@ -48,7 +48,6 @@ Default policy:
 - Enable `reload: { onMutationError: true }` on both optimistic reactions by default.
 - Add a second `insertReactOnMutation(..., { reload: { onMutationResolved: true } })` when optimistic delete can empty the current page and the next page should be reloaded; compose all the reactions on the list `query` with `(context) => craftPipe(context, ...)`.
 - Add `mutation.identifier` when row-level loading or cancel buttons matter.
-- Use `reactiveWritableSignal` if selection must reset when the current page changes or when delete mutations resolve.
 
 ## Inline Edit Or Create Form
 

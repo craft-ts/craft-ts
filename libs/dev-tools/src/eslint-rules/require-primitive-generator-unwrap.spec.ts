@@ -95,6 +95,67 @@ describe('require-primitive-generator-unwrap', () => {
     expect(messages).toEqual([]);
   });
 
+  it('does not report a direct primitive return from a craftComponent factory', async () => {
+    const { messages } = await lintFixture({
+      'src/app/counter.ts': `
+        import { craftComponent } from '@craft-ng/component';
+        import { state } from '@craft-ng/core';
+
+        export const Counter = craftComponent(
+          'Counter',
+          {},
+          () => state('counter', 0),
+          ({ counter }) => counter(),
+        );
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
+  it('still reports a bare primitive inside a craftComponent generator factory', async () => {
+    const { messages } = await lintFixture({
+      'src/app/counter.ts': `
+        import { craftComponent } from '@craft-ng/component';
+        import { state } from '@craft-ng/core';
+
+        export const Counter = craftComponent(
+          'Counter',
+          {},
+          function* () {
+            const counter = state('counter', 0);
+            return { counter };
+          },
+          ({ counter }) => counter(),
+        );
+      `,
+    });
+
+    expect(messages).toEqual([
+      "'state(...)' returns a primitive generator that must be consumed: use `yield* state(...)` inside a generator factory, or `craftUse(state(...))` elsewhere.",
+    ]);
+  });
+
+  it('does not treat the craftComponent template as a primitive factory', async () => {
+    const { messages } = await lintFixture({
+      'src/app/counter.ts': `
+        import { craftComponent } from '@craft-ng/component';
+        import { state } from '@craft-ng/core';
+
+        export const Counter = craftComponent(
+          'Counter',
+          {},
+          () => ({}),
+          () => state('counter', 0),
+        );
+      `,
+    });
+
+    expect(messages).toEqual([
+      "'state(...)' returns a primitive generator that must be consumed: use `yield* state(...)` inside a generator factory, or `craftUse(state(...))` elsewhere.",
+    ]);
+  });
+
   it('does not report destructured readers or non-imported identifiers', async () => {
     const { messages } = await lintFixture({
       'src/app/reader.ts': `

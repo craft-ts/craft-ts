@@ -11,6 +11,10 @@ import {
   type RouteCommandResult,
   type RouteSplitOptions,
 } from '../scripts/routes/route-command.js';
+import {
+  runRouteVerification,
+  type RouteVerificationResult,
+} from '../scripts/routes/verify-routes.js';
 
 type CommonOptions = {
   rootDir?: string;
@@ -19,6 +23,7 @@ type CommonOptions = {
   dryRun?: boolean;
   yes?: boolean;
   json?: boolean;
+  keepFixtures?: boolean;
 };
 
 async function main(argv: string[]): Promise<number> {
@@ -34,7 +39,7 @@ async function main(argv: string[]): Promise<number> {
       child.on('error', () => resolve(1));
     });
   }
-  if (argv[0] !== 'route' || !['add', 'split'].includes(argv[1] ?? '')) {
+  if (argv[0] !== 'route' || !['add', 'split', 'verify'].includes(argv[1] ?? '')) {
     printHelp();
     return argv.includes('--help') ? 0 : 1;
   }
@@ -46,11 +51,12 @@ async function main(argv: string[]): Promise<number> {
   }
   const common: CommonOptions = {
     rootDir: parsed.values['root'],
-    project: parsed.values['project'],
+    project: parsed.values['project'] ?? parsed.values['tsconfig'],
     parent: parsed.values['parent'],
     dryRun: parsed.flags.has('dry-run'),
     yes: parsed.flags.has('yes'),
     json: parsed.flags.has('json'),
+    keepFixtures: parsed.flags.has('keep-fixtures'),
   };
 
   const readline = createInterface({ input, output });
@@ -72,6 +78,16 @@ async function main(argv: string[]): Promise<number> {
     }
     const confirm = async (_plan: RouteCommandPlan) =>
       /^y(?:es)?$/i.test(await readline.question('Apply this plan? [y/N] '));
+    if (command === 'verify') {
+      const result = await runRouteVerification({
+        rootDir: common.rootDir,
+        project: common.project,
+        json: common.json,
+        keepFixtures: common.keepFixtures,
+      });
+      printVerificationResult(result, common.json === true);
+      return result.exitCode;
+    }
     let result: RouteCommandResult;
     if (command === 'add') {
       const options: RouteAddOptions = {
@@ -140,6 +156,7 @@ function parseArgs(argv: string[]) {
   const valueOptions = new Set([
     'root',
     'project',
+    'tsconfig',
     'parent',
     'component',
     'create-component',
@@ -148,7 +165,7 @@ function parseArgs(argv: string[]) {
     'prefix',
     'target',
   ]);
-  const flagOptions = new Set(['dry-run', 'yes', 'json']);
+  const flagOptions = new Set(['dry-run', 'yes', 'json', 'keep-fixtures']);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--help' || argument === '-h') {
@@ -188,11 +205,34 @@ function printResult(result: RouteCommandResult, json: boolean): void {
   }
 }
 
+function printVerificationResult(
+  result: RouteVerificationResult,
+  json: boolean,
+): void {
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  for (const item of result.cases) {
+    console.log(`${item.status === 'passed' ? '✓' : '✗'} ${item.id}`);
+    if (item.status === 'failed' && item.expected.length > 0) {
+      console.error(`  expected: ${item.expected.join(' / ')}`);
+    }
+  }
+  for (const diagnostic of result.diagnostics) {
+    console.error(diagnostic);
+  }
+  if (result.fixtureDirectory) {
+    console.error(`Fixtures kept at: ${result.fixtureDirectory}`);
+  }
+}
+
 function printHelp(): void {
   console.log(`Usage:
   craft graph [options]
   craft route add [path] [options]
   craft route split --parent <file#collection> --prefix <path> --target <file>
+  craft route verify [options]
 
 Options:
   --root <dir>                 Workspace root (defaults to cwd)
@@ -204,9 +244,11 @@ Options:
   --redirect-to <path>         Add a static redirect
   --prefix <path>              Static prefix moved by route split
   --target <file>              New lazy collection written by route split
+  --tsconfig <file>             Application tsconfig (alias for --project)
   --dry-run                    Print the plan without writing
   --yes                        Apply without confirmation
   --json                       Emit machine-readable output
+  --keep-fixtures              Keep temporary verification fixtures for debugging
 `);
 }
 

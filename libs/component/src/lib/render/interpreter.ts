@@ -24,6 +24,7 @@ import {
 import {
   CraftGenShortCircuit,
   CRAFT_SERVICE_PROVIDER_BRAND,
+  CRAFT_DOM_EVENT_HOOK,
   ComponentRegister,
   craftEffect,
   craftLazy,
@@ -40,6 +41,8 @@ import {
   ɵfallbackComponentRegister,
   ɵregisterCraftTarget,
   type CraftServiceProvider,
+  type CraftDomEvent,
+  type CraftDomEventHook,
   type AnyCraftException,
   YIELDABLE_VALUE,
 } from '@craft-ng/core';
@@ -97,6 +100,7 @@ interface RenderContext {
   readonly renderer: Renderer2;
   readonly injector: Injector;
   readonly componentContext?: unknown;
+  readonly componentName?: string;
   readonly ownerScope?: string;
   readonly rootScope?: string;
   readonly styleRoot?: Document | ShadowRoot;
@@ -654,7 +658,10 @@ class CraftDirectiveRenderedNode implements RenderedNode {
   ) {
     const owners = node.directives.map((directive) => ({
       name: directive[CRAFT_DIRECTIVE].name,
-      styles: directive[CRAFT_DIRECTIVE].meta.styles,
+      styles: [
+        ...styleValues(directive[CRAFT_DIRECTIVE].meta.styles),
+        ...styleValues(directive[CRAFT_DIRECTIVE].meta.stylesUrl),
+      ],
       definition: directive[CRAFT_DIRECTIVE],
     }));
     this.styleReleases = acquireStyles(
@@ -765,6 +772,31 @@ function eventNameFor(key: string, value: unknown): string | undefined {
     return `${key[2].toLowerCase()}${key.slice(3)}`;
   }
   return undefined;
+}
+
+function interactionName(
+  eventName: string,
+  tag: string,
+  localName: string | undefined,
+  componentName: string | undefined,
+): string {
+  return [componentName, tag, localName, eventName]
+    .filter((part): part is string => Boolean(part))
+    .join(':');
+}
+
+function executeDomEventHooks(
+  hooks: readonly CraftDomEventHook[],
+  interaction: CraftDomEvent,
+  action: () => unknown,
+): unknown {
+  let current = action;
+  for (let index = hooks.length - 1; index >= 0; index -= 1) {
+    const hook = hooks[index];
+    const next = current;
+    current = () => hook(interaction, next);
+  }
+  return current();
 }
 
 const HOST_PROPERTY_NAMES = new Set([
@@ -1052,7 +1084,26 @@ class ElementRenderedNode implements RenderedNode {
         this.listeners.set(
           eventName,
           renderer.listen(this.node, eventName, (event: Event) => {
-            executeTemplateCallback(listener, [event], this.context);
+            const interaction: CraftDomEvent = {
+              event,
+              eventName,
+              element: this.node,
+              elementTag: this.tag,
+              elementName: this.localName,
+              componentName: this.context.componentName,
+              interactionName: interactionName(
+                eventName,
+                this.tag,
+                this.localName,
+                this.context.componentName,
+              ),
+            };
+            const hooks = this.context.injector.get(CRAFT_DOM_EVENT_HOOK);
+            runInInjectionContext(this.context.injector, () =>
+              executeDomEventHooks(hooks, interaction, () =>
+                executeTemplateCallback(listener, [event], this.context),
+              ),
+            );
             return undefined;
           }),
         );
@@ -1239,9 +1290,7 @@ class ProjectionRenderedNode implements RenderedNode {
 
   private children(): CraftNodeChildren {
     return runInInjectionContext(this.declarationContext.injector, () =>
-      withCraftRenderContext(this.declarationContext, () =>
-        this.node.render(),
-      ),
+      withCraftRenderContext(this.declarationContext, () => this.node.render()),
     );
   }
 
@@ -1358,9 +1407,10 @@ class EachRenderedNode implements RenderedNode {
       typeof this.node.source === 'function'
         ? this.node.source()
         : this.node.source
-    ) as readonly unknown[];
+    ) as readonly unknown[] | null | undefined;
+    const collection = items ?? [];
 
-    if (items.length === 0) {
+    if (collection.length === 0) {
       this.entries.forEach((entry) => entry.destroy());
       this.entries.clear();
       this.ordered = [];
@@ -1393,7 +1443,7 @@ class EachRenderedNode implements RenderedNode {
     const next = new Map<unknown, FragmentRenderedNode>();
     const nextOrdered: FragmentRenderedNode[] = [];
 
-    items.forEach((item, index) => {
+    collection.forEach((item, index) => {
       const key = this.node.track(item, index);
       if (next.has(key)) {
         throw new Error(`each() received the duplicate key "${String(key)}".`);
@@ -1826,6 +1876,7 @@ class ComponentRenderedNode implements RenderedNode {
     const componentRenderContext = childContext(context, {
       ownerScope: ownScope,
       rootScope: scopeTokens(context.rootScope, ownScope),
+      componentName: definition.name,
       contentStyles: definition.meta.contentStyles,
       contentScope: undefined,
       declarationContext: declarationContext ?? context,
@@ -1962,10 +2013,7 @@ class ComponentRenderedNode implements RenderedNode {
                   this.propKeys.includes(String(property)) ||
                   Reflect.has(target, property),
                 ownKeys: (target) => [
-                  ...new Set([
-                    ...Reflect.ownKeys(target),
-                    ...this.propKeys,
-                  ]),
+                  ...new Set([...Reflect.ownKeys(target), ...this.propKeys]),
                 ],
                 getOwnPropertyDescriptor: (target, property) => {
                   const index = this.propKeys.indexOf(String(property));

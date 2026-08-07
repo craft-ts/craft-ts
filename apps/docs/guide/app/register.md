@@ -85,7 +85,7 @@ observes them:
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
   function* () {
-    const { counter, increment, decrement } = yield* state(
+    const counter = yield* state(
       'counter',
       0,
       ({ update }) => ({
@@ -94,7 +94,7 @@ const { Counter, provideCounter } = craftService(
       }),
     );
 
-    return { counter, increment, decrement };
+    return counter;
   },
 );
 

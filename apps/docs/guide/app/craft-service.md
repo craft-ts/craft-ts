@@ -59,7 +59,7 @@ import { craftService, state } from '@craft-ng/core';
 const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
   function* () {
-    const { counter } = yield* state('counter', 0, ({ update }) => ({
+    const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
     }));
@@ -76,6 +76,54 @@ const { CounterConsumer } = craftService(
   },
 );
 ```
+
+## Returning one primitive directly
+
+When a service exposes only one primitive, the factory can return its generator
+directly. `craftService` drives it and the generated service helper returns the
+primitive reference:
+
+```typescript
+import { craftService, query } from '@craft-ng/core';
+
+const { UserQuery } = craftService(
+  { name: 'UserQuery', scope: 'global' },
+  (inputs: { userId: () => string | undefined }) =>
+    query('userQuery', {
+      params: inputs.userId,
+      loader: ({ params }) => ApiService.getItemById(params),
+    }),
+);
+```
+
+For several primitives, use `craftYieldRecord`. It resolves every generator in
+the record and preserves the record keys:
+
+```typescript
+import {
+  craftService,
+  craftYieldRecord,
+  query,
+  state,
+} from '@craft-ng/core';
+
+const { UserQuery } = craftService(
+  { name: 'UserQueryWithState', scope: 'global' },
+  (inputs: { userId: () => string | undefined }) =>
+    craftYieldRecord({
+      userQuery: query('userQuery', {
+        params: inputs.userId,
+        loader: ({ params }) => ApiService.getItemById(params),
+      }),
+      refresh: state('refresh', 0, ({ update }) => ({
+        increment: () => update((value) => value + 1),
+      })),
+    }),
+);
+```
+
+Inside a generator factory, the equivalent explicit form remains available:
+`const userQuery = yield* query(...)`.
 
 ## Scoping providers to the service
 
@@ -110,7 +158,7 @@ This is separate from `provideUserFacade()`, which is only generated for provide
 const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
   function* () {
-    const { counter } = yield* state('counter', 0, ({ update }) => ({
+    const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
     }));
     return counter;

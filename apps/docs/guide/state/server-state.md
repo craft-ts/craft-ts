@@ -34,16 +34,15 @@ const { userQuery } =
 result carries the full async state:
 
 ```typescript
-userQuery.value(); // User — throws when the status is 'exception'
-userQuery.safeValue(); // User | undefined — never throws
+userQuery.value(); // User | undefined — never throws
 userQuery.isLoading(); // boolean
 userQuery.status(); // 'idle' | 'loading' | 'resolved' | 'exception'
 userQuery.exception(); // craftException | undefined
 ```
 
-::: tip Prefer `safeValue()` in templates
-`value()` throws on exception, which propagates badly inside a template or a
-`computed`. See [Anatomy of a primitive](/guide/concepts/primitive-anatomy).
+::: tip
+`value()` is safe to read in templates and computed signals: it returns
+`undefined` when the query has no resolved value.
 :::
 
 ## Triggering it yourself
@@ -126,7 +125,7 @@ Rather than reloading by hand after a write, declare the link:
 ```typescript
 import { insertQueryPipe, insertReactOnMutation } from '@craft-ng/core';
 
-const { userQuery } = yield* query(
+const userQuery = yield* query(
   'userQuery',
   {
     params: () => ({ userId: currentUserId() }),
@@ -190,7 +189,8 @@ don't send a request you already know will fail.
 
 ## Pitfalls
 
-**`value()` throws.** Reach for `safeValue()` anywhere a throw is inconvenient.
+**No value is available yet.** Check `hasValue()` or handle the `undefined`
+result while the query is loading or in exception.
 
 **`params` must be cheap and pure.** It runs inside a reactive computation; side
 effects belong in the loader.

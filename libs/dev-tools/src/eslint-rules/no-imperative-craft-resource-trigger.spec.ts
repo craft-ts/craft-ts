@@ -23,9 +23,9 @@ describe('no-imperative-craft-resource-trigger', () => {
     const { messages } = await lintFixture(`
       import { asyncProcess, craftEffect, craftUse, mutation, query } from '@craft-ng/core';
 
-      const { users } = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
-      const { save } = craftUse(mutation('save', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
-      const { validate } = craftUse(asyncProcess('validate', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
+      const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
+      const save = craftUse(mutation('save', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
+      const validate = craftUse(asyncProcess('validate', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
 
       craftEffect('triggers', function* () {
         yield* users.call('a');
@@ -46,7 +46,7 @@ describe('no-imperative-craft-resource-trigger', () => {
     const { messages } = await lintFixture(`
       import { craftEffect, craftGen, craftUse, query } from '@craft-ng/core';
 
-      const { users } = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
+      const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
       const triggerUsers = craftGen(function* (value) {
         yield* users.call(value);
       });
@@ -66,7 +66,7 @@ describe('no-imperative-craft-resource-trigger', () => {
     const { messages } = await lintFixture(`
       import { craftGen, craftUse, query } from '@craft-ng/core';
 
-      const { users } = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
+      const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
       const triggerUsers = craftGen(function* (value) {
         yield* users.call(value);
       });

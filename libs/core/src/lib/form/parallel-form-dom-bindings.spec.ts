@@ -26,22 +26,22 @@ type User = { id: string; name: string };
 })
 class ParallelSelectedFieldBindingsComponent {
   protected readonly usersForm = craftUse(
-    state(
-      'usersForm',
-      [
-        {
-          id: '1',
-          name: 'Alpha',
-        },
-      ],
-      insertForm(
-        {
-          identifier: ({ item }) => item.id,
-        },
-        insertSelectFormTree('name', insertNoopTypingAnchor),
+      state(
+        'usersForm',
+        [
+          {
+            id: '1',
+            name: 'Alpha',
+          },
+        ],
+        insertForm(
+          {
+            identifier: ({ item }) => item.id,
+          },
+          insertSelectFormTree('name', insertNoopTypingAnchor),
+        ),
       ),
-    ),
-  ).usersForm;
+    );
 }
 
 @Component({
@@ -69,30 +69,30 @@ class ParallelLazySubFormComponent {
       method: (validated: ValidatedFormValue<User>) => validated,
       loader: async ({ params }) => params,
     }),
-  ).updateUser;
+  );
 
   protected readonly usersForm = craftUse(
-    state(
-      'usersForm',
-      [
-        { id: '1', name: 'Alpha' },
-        { id: '2', name: 'Beta' },
-      ] as User[],
-      insertForm(
-        { identifier: ({ item }) => item.id },
-        insertFormSubmit(this.updateUser),
-        insertSelectFormTree('name', (context) =>
-          craftPipe(
-            context,
-            insertNoopTypingAnchor,
-            insertFormAttributes(() => ({
-              validators: [cRequired()],
-            })),
+      state(
+        'usersForm',
+        [
+          { id: '1', name: 'Alpha' },
+          { id: '2', name: 'Beta' },
+        ] as User[],
+        insertForm(
+          { identifier: ({ item }) => item.id },
+          insertFormSubmit(this.updateUser),
+          insertSelectFormTree('name', (context) =>
+            craftPipe(
+              context,
+              insertNoopTypingAnchor,
+              insertFormAttributes(() => ({
+                validators: [cRequired()],
+              })),
+            ),
           ),
         ),
       ),
-    ),
-  ).usersForm;
+    );
 }
 
 describe('parallel form DOM bindings', () => {

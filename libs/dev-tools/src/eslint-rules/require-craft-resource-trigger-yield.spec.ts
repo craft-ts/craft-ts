@@ -23,9 +23,9 @@ describe('require-craft-resource-trigger-yield', () => {
     const { messages } = await lintFixture(`
       import { asyncProcess, craftGen, craftUse, mutation, query } from '@craft-ng/core';
 
-      const { users } = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
-      const { save } = craftUse(mutation('save', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
-      const { validate } = craftUse(asyncProcess('validate', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
+      const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
+      const save = craftUse(mutation('save', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
+      const validate = craftUse(asyncProcess('validate', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
 
       const program = craftGen(function* (value) {
         users.call(value);
@@ -45,8 +45,8 @@ describe('require-craft-resource-trigger-yield', () => {
     const { messages } = await lintFixture(`
       import { craftUse, mutation, query } from '@craft-ng/core';
 
-      const { users } = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
-      const { save } = craftUse(mutation('save', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
+      const users = craftUse(query('users', { method: (value) => value, loader: () => Promise.resolve([]) }));
+      const save = craftUse(mutation('save', { method: (value) => value, loader: () => Promise.resolve(undefined) }));
 
       function* generator() {
         yield* users.call('a');

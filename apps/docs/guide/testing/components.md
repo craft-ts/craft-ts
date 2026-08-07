@@ -46,13 +46,13 @@ const { context, mocks, destroy } =
       TodoStore: {
         todos: {
           status: () => 'resolved',
-          safeValue: () => [],
+          value: () => [],
         },
       },
     },
   });
 
-expect(context.store.todos.safeValue()).toEqual([]);
+expect(context.store.todos.value()).toEqual([]);
 expect(mocks.TodoStore).toBeDefined();
 destroy();
 ```
@@ -171,7 +171,7 @@ const Status = craftComponent(
   'Status',
   {},
   function* () {
-    const { brandedStatus } = yield* state('brandedStatus', 'ready');
+    const brandedStatus = yield* state('brandedStatus', 'ready');
     return { brandedStatus };
   },
   ({ brandedStatus }) => span(brandedStatus),
@@ -239,7 +239,7 @@ const Counter = craftComponent(
   'Counter',
   {},
   function* () {
-    const { counter } = yield* state('counter', 0, ({ state, update }) => ({
+    const counter = yield* state('counter', 0, ({ state, update }) => ({
       disabled: computed(() => state() % 2 === 0),
       increment: () => update((value) => value + 1),
     }));

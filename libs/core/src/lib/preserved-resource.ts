@@ -41,7 +41,7 @@ export function preservedResource<T, R>(
     {
       debugName: 'preservedResource_state',
     },
-  ) as CraftResourceRefSpecificState<T | undefined, R>['safeValue'];
+  ) as CraftResourceRefSpecificState<T | undefined, R>['state'];
 
   if (config.defaultValue) {
     original.set(config.defaultValue);
@@ -60,7 +60,6 @@ export function preservedResource<T, R>(
     update: original.update.bind(original),
     set: original.set.bind(original),
     asReadonly: original.asReadonly.bind(original),
-    safeValue: state,
     paramSrc: config.params as Signal<R | undefined>,
     state,
   } as CraftResourceRef<T | undefined, R>;

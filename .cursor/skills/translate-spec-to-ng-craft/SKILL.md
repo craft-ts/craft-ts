@@ -48,7 +48,6 @@ Prioritize documented public APIs from `libs/core/src/index.ts`, `apps/docs`, an
 - When optimistic deletion can empty the current page, consider a second `insertReactOnMutation(..., { reload: { onMutationResolved: true } })`.
 - When the spec mentions pagination or page transitions, consider `identifier` on the `query` and `insertPaginationPlaceholderData`.
 - When the spec mentions remembered filters, remembered results, refresh survival, or lightweight cache, consider `insertLocalStoragePersister`.
-- When the spec mentions selection state that must reset on page change or mutation resolution, consider `reactiveWritableSignal`.
 - When the spec mentions parent-provided values or route or context values that are not URL query params, consider `craftInputs`.
 - When the spec mentions Angular services or a facade over a service, consider `craftInject` or `injectService`.
 

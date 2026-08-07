@@ -237,7 +237,7 @@ export const { demoRoutes } = craftRoutes('demo', [
       ).then(({ default: component }) => component),
     ),
     queryParams: function* () {
-      const { pagination } = yield* queryParams(
+      const pagination = yield* queryParams(
         'pagination',
         {
           state: {

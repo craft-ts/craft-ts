@@ -1,14 +1,17 @@
+import styles from './mutation.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
   div,
   h,
+  ifBlock,
   input,
   p,
   type Input,
 } from '@craft-ng/component';
 import {
   CraftRouter,
+  craftComputed,
   craftPipe,
   craftMethod,
   craftService,
@@ -23,7 +26,7 @@ import { ApiService, type User } from './api.service';
 const { provideUserMutation, UserMutation } = craftService(
   { name: 'UserMutation', scope: 'toProvide' },
   function* (inputs: { userId: () => string | undefined }) {
-    const { updateUserName } = yield* mutation('updateUserName', {
+    const updateUserName = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
         name: payload.userName,
@@ -33,7 +36,7 @@ const { provideUserMutation, UserMutation } = craftService(
       },
     });
 
-    const { user } = yield* query(
+    const user = yield* query(
       'user',
       {
         params: inputs.userId,
@@ -64,18 +67,20 @@ const { provideUserMutation, UserMutation } = craftService(
 const MutationCraft = craftComponent(
   'MutationCraft',
   {
+    stylesUrl: styles,
     providers: [provideUserMutation()],
   },
   function* (userId: Input<string | undefined>) {
     const store = yield* UserMutation({ userId: () => userId() });
-    const { updateUserNameFn } = craftMethod(
+    const hasUser = craftComputed('hasUser', () => store.user.hasValue());
+    const updateUserNameFn = craftMethod(
       'updateUserNameFn',
       function* (newName: string) {
         const { user, updateUserName } = yield* UserMutation(
           undefined,
           ({ user, updateUserName }) => ({ user, updateUserName }),
         );
-        const userValue = user.safeValue();
+        const userValue = user.value();
         if (userValue) {
           updateUserName.mutate({
             userName: newName,
@@ -87,23 +92,24 @@ const MutationCraft = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const { navigate } = craftMethod('navigate', function* (offset: number) {
+    const navigate = craftMethod('navigate', function* (offset: number) {
       void router.navigate({
         to: 'craft/mutation/:userId',
         params: { userId: String(Number(userId() ?? '0') + offset) },
       });
     });
-    return { store, updateUserNameFn, navigate };
+    return { store, hasUser, updateUserNameFn, navigate };
   },
-  ({ store, updateUserNameFn, navigate }) => {
+  ({ store, hasUser, updateUserNameFn, navigate }) => {
     let nameInput: HTMLInputElement | undefined;
     return [
       div([
         'User ',
         StatusComponent({ status: () => store.user.status() }),
-        store.user.hasValue()
-          ? h('pre', JSON.stringify(store.user.value(), null, 2))
-          : [],
+        ifBlock(
+          hasUser,
+          () => h('pre', JSON.stringify(store.user.value(), null, 2)),
+        ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
       input({

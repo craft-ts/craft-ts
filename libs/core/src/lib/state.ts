@@ -44,8 +44,12 @@ import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
-import { markYieldableMethod } from './yieldable';
-import type { BrandReactiveProperties } from './yieldable';
+import {
+  createYieldableInsertionMethod,
+  isNonYieldableInsertionMethod,
+  type BrandReactiveProperties,
+  type YieldableInsertionMethods,
+} from './yieldable';
 import type { StandardSchemaV1 } from './standard-schema';
 import {
   decideSchemaValidation,
@@ -62,24 +66,26 @@ type ResolveGeneratorResult<Result> =
   Result extends Generator<any, infer Output, unknown> ? Output : Result;
 
 type Source$Method<SourceType> = [SourceType] extends [void]
-  ? () => void
-  : (value: SourceType) => void;
+  ? () => Generator<never, void, unknown>
+  : (value: SourceType) => Generator<never, void, unknown>;
 
 type AnyGeneratorFunction = (
   ...args: never[]
 ) => Generator<unknown, unknown, unknown>;
 
-export type ExposedStateInsertions<Insertions> = MergeObject<
-  IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
-  {
-    [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
-      ? K
-      : never]: FilterSource<Insertions>[K] extends SourceDollarType<
-      infer SourceType
-    >
-      ? Source$Method<SourceType>
-      : never;
-  }
+export type ExposedStateInsertions<Insertions> = YieldableInsertionMethods<
+  MergeObject<
+    IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+    {
+      [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
+        ? K
+        : never]: FilterSource<Insertions>[K] extends SourceDollarType<
+        infer SourceType
+      >
+        ? Source$Method<SourceType>
+        : never;
+    }
+  >
 >;
 
 export type StateOutput<
@@ -242,20 +248,20 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * For the best TypeScript inference, pass Angular `Signal` values (e.g. `signal`, `linkedSignal`)
  * rather than manually widening to `WritableSignal`. This avoids some overload inference limits.
  *
- * @param name - The state name. Used to key the returned record
- * (`const { counter } = yield* state('counter', 0)`) and as the injector host
+ * @param name - The state name. Used for host tagging and reactive branding
+ * (`const counter = yield* state('counter', 0)`) and as the injector host
  * tag (`state:counter`), so the state is precisely locatable in snapshots and logs.
  * @param stateConfig - The initial state value or a Signal (e.g., linkedSignal)
  * @param insertion1 - Optional single insertion factory to extend the state with methods and properties
- * @returns A single-use primitive generator resolving to a record keyed by
- * `name`, whose value is the state Signal merged with all insertion properties
+ * @returns A single-use primitive generator resolving to the state Signal
+ * merged with all insertion properties
  * and methods. Consume it with `yield*`
  * inside a generator host (craftService factory, craftGen, …) or with
  * `craftUse(...)` elsewhere (typically a component field).
  *
  * @example
  * // Simple state with a primitive value (component field)
- * const { counter } = craftUse(state('counter', 0));
+ * const counter = craftUse(state('counter', 0));
  * console.log(counter()); // 0
  *
  * @example
@@ -263,7 +269,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * const { Counter } = craftService(
  *   { name: 'Counter', scope: 'global' },
  *   function* () {
- *     const { counter } = yield* state('counter', 0);
+ *     const counter = yield* state('counter', 0);
  *     return { counter };
  *   },
  * );
@@ -271,13 +277,13 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * @example
  * // State with a computed
  * const origin = signal(5);
- * const { doubled } = craftUse(state('doubled', computed(() => origin() * 2)));
+ * const doubled = craftUse(state('doubled', computed(() => origin() * 2)));
  * console.log(doubled()); // 10
  *
  * @example
  * // State with insertions to add methods (Method-based)
  * const origin = signal(5);
- * const { counter } = craftUse(state(
+ * const counter = craftUse(state(
  *   'counter',
  *   computed(() => origin() * 2),
  *   ({ update, set }) => ({
@@ -286,15 +292,15 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  *   })
  * ));
  * console.log(counter()); // 10
- * counter.increment();
+ * craftUse(counter.increment());
  * console.log(counter()); // 11
- * counter.reset();
+ * craftUse(counter.reset());
  * console.log(counter()); // 0
  *
  * @example
  * // State with multiple insertions, composed with insertStatePipe
  * const origin = signal(5);
- * const { counterDouble } = craftUse(state(
+ * const counterDouble = craftUse(state(
  *   'counterDouble',
  *   computed(() => origin() * 2),
  *   insertStatePipe(
@@ -309,7 +315,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * ));
  * console.log(counterDouble()); // 10
  * console.log(counterDouble.isOdd()); // false
- * counterDouble.increment();
+ * craftUse(counterDouble.increment());
  * console.log(counterDouble()); // 11
  * console.log(counterDouble.isOdd()); // true
  *
@@ -317,7 +323,7 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  * // State with source binding (Event-based)
  * const increment = source$<void>('increment');
  * const reset = source$<void>('reset');
- * const { myState } = craftUse(state('myState', 0, ({ update, set }) => ({
+ * const myState = craftUse(state('myState', 0, ({ update, set }) => ({
  *   setValue: on$(increment, () => update(value => value + 1)),
  *   reset: () => on$(reset, () => set(0)),
  * })));
@@ -554,7 +560,13 @@ function createStateRef<StateType>(
             ...current,
             ...patchFn(current),
           })),
-        insertions: acc.rawInsertionsOutput as {},
+        insertions: Object.entries(acc.rawInsertionsOutput).reduce(
+          (previous, [key, value]) => {
+            if (isSource$(value)) previous[key] = value;
+            return previous;
+          },
+          { ...acc.exposedInsertionsOutput } as Record<string, unknown>,
+        ) as {},
       } as InsertionStateFactoryContext<StateType, {}>;
       const nextRawInsertions = executeStateFactory(
         insert,
@@ -580,12 +592,24 @@ function createStateRef<StateType>(
                 localSource.emit(payload as never),
               ),
             );
-            exposedAcc[key] = (payload: unknown) =>
-              runInInjectionContext(sourceInjector, () => wrappedEmit(payload));
+            exposedAcc[key] = createYieldableInsertionMethod(
+              (payload: unknown) => wrappedEmit(payload),
+              {
+                injector: sourceInjector,
+                invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
+                multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+                onAppStartNotSupportedErrorMessage:
+                  STATE_APP_START_ERROR_MESSAGE,
+              },
+            );
             return exposedAcc;
           }
 
-          if (typeof value === 'function' && !isSignal(value)) {
+          if (
+            typeof value === 'function' &&
+            !isSignal(value) &&
+            !isNonYieldableInsertionMethod(value)
+          ) {
             const methodInjector = ɵcreateHostTaggedInjector(
               getInjector(),
               `method:${key}`,
@@ -599,25 +623,13 @@ function createStateRef<StateType>(
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            exposedAcc[key] = markYieldableMethod((...args: unknown[]) =>
-              runInInjectionContext(methodInjector, () => {
-                const result = (wrappedFn as (...a: unknown[]) => unknown)(
-                  ...args,
-                );
-                if (isGenerator(result)) {
-                  return runCraftGenerator({
-                    iterator: result,
-                    injector: methodInjector,
-                    hostScope: 'function',
-                    invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
-                    multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
-                    onAppStartNotSupportedErrorMessage:
-                      STATE_APP_START_ERROR_MESSAGE,
-                  }).value;
-                }
-                return result;
-              }),
-            );
+            exposedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+              injector: methodInjector,
+              invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                STATE_APP_START_ERROR_MESSAGE,
+            });
           } else {
             exposedAcc[key] = value;
           }

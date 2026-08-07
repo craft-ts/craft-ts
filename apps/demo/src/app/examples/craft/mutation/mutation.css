@@ -1,4 +1,4 @@
-:host {
+:scope {
   display: block;
   max-width: 420px;
   margin: 2.5rem auto;
@@ -9,13 +9,13 @@
   color: #eaeaea;
 }
 
-:host div {
+:scope div {
   font-size: 1.08rem;
   margin-bottom: 1.5rem;
   color: #eaeaea;
 }
 
-:host button {
+:scope button {
   background: #444;
   color: #eaeaea;
   border: none;
@@ -28,11 +28,11 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-:host button:hover {
+:scope button:hover {
   background: #2a2a2a;
 }
 
-:host .label-checkbox-row {
+:scope .label-checkbox-row {
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -40,7 +40,7 @@
   margin-bottom: 0.5rem;
 }
 
-:host label {
+:scope label {
   font-weight: 500;
   color: #bdbdbd;
   font-size: 1rem;
@@ -49,7 +49,7 @@
   border-radius: 4px;
 }
 
-:host input[type='checkbox'] {
+:scope input[type='checkbox'] {
   width: 1.2rem;
   height: 1.2rem;
   cursor: pointer;
@@ -58,11 +58,11 @@
   transition: transform 0.1s;
 }
 
-:host input[type='checkbox']:hover {
+:scope input[type='checkbox']:hover {
   transform: scale(1.05);
 }
 
-:host input[type='text'] {
+:scope input[type='text'] {
   width: 100%;
   padding: 0.6rem 1rem;
   font-size: 1rem;
@@ -75,16 +75,16 @@
   box-sizing: border-box;
 }
 
-:host input[type='text']:focus {
+:scope input[type='text']:focus {
   outline: none;
   border-color: #666;
 }
 
-:host input[type='text']::placeholder {
+:scope input[type='text']::placeholder {
   color: #777;
 }
 
-:host pre {
+:scope pre {
   background: #2a2a2a;
   padding: 1rem;
   border-radius: 8px;
@@ -96,7 +96,7 @@
   margin-top: 1rem;
 }
 
-:host p {
+:scope p {
   font-size: 0.95rem;
   color: #9e9e9e;
   line-height: 1.4;

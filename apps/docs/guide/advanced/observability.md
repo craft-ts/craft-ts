@@ -24,6 +24,7 @@ The three pillars `craft-ng` exposes for that are:
 
 - [`provideFnWrapper`](#providefnwrapper) — wrap every crafted function with cross-cutting behavior
 - [`provideTakeAppSnapshot`](#providetakeappsnapshot) — capture all active state when something goes wrong
+- [`provideCraftDomEventHook`](#craft-dom-event-hooks) — observe or wrap every DOM action declared in a Craft template
 - [`provideCorrelationIdTracking`](#providecorrelationidtracking) — link a user gesture to every async operation it triggered
 
 ## `provideFnWrapper`
@@ -119,11 +120,47 @@ Each `SnapshotReport` contains:
 
 Under the hood, `provideTakeAppSnapshot` registers its own `provideFnWrapper` that triggers the snapshot collection whenever an unexpected error bubbles up. You do not need to call it manually.
 
+## Craft DOM event hooks
+
+Every DOM event bound from a Craft template goes through the
+`CRAFT_DOM_EVENT_HOOK` token. Hooks run in the injector of the component that
+declared the element, and compose in registration order. A hook must call
+`next()` to preserve the component action.
+
+```ts
+import { craftComponent, button } from '@craft-ng/component';
+import { provideCraftDomEventHook } from '@craft-ng/core';
+
+export const SavePanel = craftComponent(
+  'SavePanel',
+  {
+    providers: [
+      provideCraftDomEventHook((interaction, next) => {
+        console.debug(interaction.interactionName, interaction.event);
+        return next();
+      }),
+    ],
+  },
+  () => ({}),
+  () => button('save', { click: save }, 'Save'),
+);
+```
+
+The hook receives the native event, its normalized name, the element, the
+component name, and a descriptive `interactionName` such as
+`SavePanel:button:save:click`. This is the extension point for analytics,
+authorization, tracing, or correlation IDs. A hook can also stop an action by
+not calling `next()`.
+
 ## `provideCorrelationIdTracking`
 
 `provideCorrelationIdTracking` ties every async operation back to the **user gesture** that triggered it.
 
-When the user clicks, presses Enter, or navigates back/forward, a fresh correlation id is generated (`click:uuid`, `enter:uuid`, `nav-back:uuid`, `nav-forward:uuid`). Every generator invoked downstream — directly or transitively, sync or async — captures that id at invocation time.
+When a Craft template action runs, a fresh correlation id is generated from its
+location (`SavePanel:button:save:click:uuid`, for example). Navigation back and
+forward still generate `nav-back:uuid` and `nav-forward:uuid`. Every generator
+invoked downstream — directly or transitively, sync or async — captures that
+id at invocation time.
 
 ```ts
 import { craftAppConfig, provideCorrelationIdTracking } from '@craft-ng/core';

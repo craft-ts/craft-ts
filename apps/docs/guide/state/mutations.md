@@ -30,8 +30,7 @@ const { createUser } =
 yield * createUser.mutate({ name: 'John', email: 'john@example.com' });
 
 createUser.isLoading();
-createUser.value(); // throws when the status is 'exception'
-createUser.safeValue(); // never throws
+createUser.value(); // never throws
 createUser.exception();
 ```
 
@@ -39,9 +38,9 @@ createUser.exception();
 the loader receives as `params`. It is also where you reject bad input before any
 request happens.
 
-::: tip Prefer `safeValue()` in templates
-Same rule as every async primitive — see
-[Anatomy of a primitive](/guide/concepts/primitive-anatomy).
+::: tip
+`value()` is safe to read in templates and computed signals: it returns
+`undefined` when the mutation has no resolved value.
 :::
 
 ## Connecting it to the read side
@@ -131,7 +130,8 @@ Returning a `craftException` from `method` means the loader never runs.
 `identifier` (below). Deleting three rows at once without one gives you the
 state of the last delete only.
 
-**`value()` throws.** Use `safeValue()` in templates and computed signals.
+**No value is available yet.** Check `hasValue()` or handle the `undefined`
+result while the mutation is loading or in exception.
 
 ::: details Advanced — parallel mutations by identifier
 `identifier` keeps one resource per key, so each row tracks its own state:

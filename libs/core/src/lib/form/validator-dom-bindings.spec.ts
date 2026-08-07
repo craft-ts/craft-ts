@@ -46,7 +46,7 @@ class EmailFieldValidatorBindingsComponent {
         ),
       ),
     ),
-  ).loginForm;
+  );
 }
 
 @Component({
@@ -71,7 +71,7 @@ class NumberFieldValidatorBindingsComponent {
         ),
       ),
     ),
-  ).numberForm;
+  );
 }
 
 describe('validator DOM bindings', () => {

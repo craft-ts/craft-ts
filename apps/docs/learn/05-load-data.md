@@ -11,7 +11,8 @@ import { CraftHttpClient, craftService, query } from '@craft-ng/core';
 export const { TaskList } = craftService(
   { name: 'TaskList', scope: 'function' },
   function* () {
-    const { tasksQuery } = yield* query('tasksQuery', {
+    const tasksQuery = yield* query('tasksQuery', {
+      // The initial params value immediately triggers the loader.
       params: () => ({ done: false }),
       loader: function* ({ params }) {
         return yield* CraftHttpClient.get(({ response }) => ({
@@ -38,16 +39,15 @@ is nothing to yield.
 **The result** is a ref carrying the full async state:
 
 ```typescript
-tasksQuery.value(); // Task[] — throws if the status is 'exception'
-tasksQuery.safeValue(); // Task[] | undefined — never throws
+tasksQuery.value(); // Task[] | undefined — never throws
 tasksQuery.isLoading(); // boolean
 tasksQuery.status(); // 'idle' | 'loading' | 'resolved' | 'exception'
 tasksQuery.exception(); // craftException | undefined
 ```
 
-::: tip Use `safeValue()` in templates
-`value()` throws on exception, which is unpleasant inside a template or a
-`computed`. Reach for `safeValue()` there and handle the exception explicitly.
+::: tip
+`value()` is safe to read in templates and computed signals: it returns
+`undefined` when the query has no resolved value.
 :::
 
 ## In the template
@@ -74,7 +74,7 @@ export const Tasks = craftComponent(
         ? p('Could not load tasks.')
         : ul(
             each(
-              () => tasks.safeValue() ?? [],
+              () => tasks.value() ?? [],
               { track: (task) => task.id },
               (task) => li(task.title),
             ),

@@ -1,4 +1,3 @@
-import { signal } from '@angular/core';
 import {
   button,
   craftComponent,
@@ -12,6 +11,7 @@ import {
   type Input,
   type Output,
 } from '@craft-ng/component';
+import { state } from '@craft-ng/core';
 
 interface DemoUser {
   readonly id: number;
@@ -42,37 +42,40 @@ const userCard = craftComponent(
 export const componentDemo = craftComponent(
   'componentDemo',
   { host: { class: 'component-demo-host' } },
-  () => {
-    const users = signal<DemoUser[]>([
-      { id: 1, name: 'Ada Lovelace' },
-      { id: 2, name: 'Grace Hopper' },
-    ]);
-    let nextId = 3;
-
-    return {
-      users,
-      addUser: () => {
-        const id = nextId;
-        nextId += 1;
-        users.update((current) => [
-          ...current,
-          { id, name: `Utilisateur ${id}` },
-        ]);
+  () =>
+    state(
+      'users',
+      {
+        nextId: 3,
+        items: [
+          { id: 1, name: 'Ada Lovelace' },
+          { id: 2, name: 'Grace Hopper' },
+        ] satisfies DemoUser[],
       },
-      removeUser: (removed: DemoUser) =>
-        users.update((current) =>
-          current.filter((user) => user.id !== removed.id),
-        ),
-    };
-  },
-  ({ users, addUser, removeUser }) =>
+      ({ update }) => ({
+        addUser: () =>
+          update((current) => {
+            const id = current.nextId;
+            return {
+              nextId: id + 1,
+              items: [...current.items, { id, name: `Utilisateur ${id}` }],
+            };
+          }),
+        remove: (removed: DemoUser) =>
+          update((current) => ({
+            ...current,
+            items: current.items.filter((user) => user.id !== removed.id),
+          })),
+      }),
+    ),
+  (users) =>
     section({ class: 'component-demo' }, [
       h2('Composants fonctionnels SFC'),
       p('Rendu runtime, signaux inline, liste keyée et enfant selectorless.'),
       button(
         {
           class: 'component-demo__add',
-          click: addUser,
+          click: users.addUser,
           'data-testid': 'add-user',
         },
         'Ajouter un utilisateur',
@@ -80,7 +83,7 @@ export const componentDemo = craftComponent(
       div(
         { class: 'component-demo__list' },
         each(
-          users,
+          () => users().items,
           {
             track: (user) => user.id,
             empty: () =>
@@ -89,7 +92,7 @@ export const componentDemo = craftComponent(
           (user) =>
             userCard({
               user: () => user,
-              onRemove: removeUser,
+              onRemove: users.remove,
             }),
         ),
       ),

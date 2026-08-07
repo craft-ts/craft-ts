@@ -11,6 +11,10 @@ import {
   type InsertionFormFactoryContext,
   type InsertionsFormFactory,
 } from './insert-form-internals';
+import {
+  markNonYieldableInsertionMethod,
+  type NonYieldableInsertionMethod,
+} from '../yieldable';
 
 type MergeInsertions<
   Insertions extends readonly unknown[],
@@ -27,9 +31,9 @@ type InsertSubFormFieldOutput<
   Name extends string,
   Insertions extends readonly unknown[],
 > = {
-  [K in SubFormFieldMethodName<Name>]: () => FormWithInsertions<
-    Sub,
-    MergeInsertions<Insertions>
+  [K in SubFormFieldMethodName<Name>]: NonYieldableInsertionMethod<
+    [],
+    FormWithInsertions<Sub, MergeInsertions<Insertions>>
   >;
 };
 
@@ -148,7 +152,7 @@ export function insertSubFormField(
     };
 
     return {
-      [methodName]: () => buildIfNeeded(),
+      [methodName]: markNonYieldableInsertionMethod(() => buildIfNeeded()),
     };
   };
 }

@@ -171,7 +171,7 @@ describe('component composition', () => {
       {},
       function* () {
         factoryRuns += 1;
-        const { value } = yield* query('value', {
+        const value = yield* query('value', {
           params: () => 0,
           loader: async () => failed,
         });
@@ -227,7 +227,7 @@ describe('component composition', () => {
       'queryMatchBlockEmptyBucket',
       {},
       function* () {
-        const { value } = yield* query('value', {
+        const value = yield* query('value', {
           params: shouldFail,
           loader: async ({ params }) =>
             params ? failed : { id: 'loaded' as const },
@@ -236,7 +236,7 @@ describe('component composition', () => {
       },
       ({ value }) =>
         section([
-          p(() => value.safeValue()?.id ?? ''),
+          p(() => value.value()?.id ?? ''),
           matchBlock.exhaustive(() => value.exceptions().loader, 'code', {
             FAILED_TO_LOAD: () => p('fallback'),
           }),
@@ -302,7 +302,7 @@ describe('component composition', () => {
         { name: 'todoStoreWithQueryException', scope: 'toProvide' },
         function* () {
           const refresh = signal(0);
-          const { todos } = yield* query('todos', {
+          const todos = yield* query('todos', {
             params: refresh,
             loader: async () => (refresh() < 0 ? failed : []),
           });
@@ -356,7 +356,7 @@ describe('component composition', () => {
       'directQueryExceptionComponent',
       {},
       function* () {
-        const { todos } = yield* query('todos', {
+        const todos = yield* query('todos', {
           params: refresh,
           loader: async () => (refresh() < 0 ? failed : []),
         });

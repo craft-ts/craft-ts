@@ -1,6 +1,6 @@
 # Routing setup
 
-Five steps turn Angular's routes into routes the compiler checks: a missing
+Six steps turn Angular's routes into routes the compiler checks: a missing
 provider, a misspelled input or a route pointing at nothing becomes a build
 error instead of a blank screen.
 
@@ -241,6 +241,33 @@ Important limits:
 :::warning
 An Eslint error does not trigger a compilation error, so make sure to run the Quick Fix or `eslint --fix` after changing a component's DI shape. Otherwise, `main.ts` will not see the updated `GenDeps_*` and may miss real DI errors.
 :::
+
+## 6. Validate the complete routing setup
+
+Once the route files, generated `GenDeps_*` aliases and ESLint rules are in
+place, run the dedicated compile-time verification suite:
+
+```json
+{
+  "scripts": {
+    "craft:verify-routes": "craft route verify --project tsconfig.app.json"
+  }
+}
+```
+
+```bash
+npm run craft:verify-routes
+```
+
+The command checks valid and intentionally invalid temporary fixtures for DI,
+route inputs, Angular/Craft template dependencies, pending and exception
+components, lazy retries, exception recovery and handler exhaustiveness. It
+refuses to run when the application already has type errors, and removes the
+fixtures afterwards. Use `--json` in CI tooling or `--keep-fixtures` to inspect
+a failed diagnostic.
+
+See [CLI automation](/guide/routing/automation#verify-the-route-safety-contract)
+for the full workflow and flags.
 
 ## See Also
 

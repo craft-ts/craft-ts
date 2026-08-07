@@ -15,7 +15,7 @@ async action ([`asyncProcess`](/guide/state/async-process)).
 import { state } from '@craft-ng/core';
 import { computed } from '@angular/core';
 
-const { counter } = yield* state('counter', 0, ({ state, update, set }) => ({
+const counter = yield* state('counter', 0, ({ state, update, set }) => ({
   increment: () => update((value) => value + 1),
   decrement: () => update((value) => value - 1),
   reset: () => set(0),
@@ -45,7 +45,7 @@ follows it:
 ```typescript
 const origin = signal(5);
 
-const { doubled } = yield* state(
+const doubled = yield* state(
   'doubled',
   computed(() => origin() * 2),
 );
@@ -60,7 +60,7 @@ One insertion function gets crowded. Split it and compose with `insertStatePipe`
 ```typescript
 import { insertStatePipe } from '@craft-ng/core';
 
-const { counter } = yield* state(
+const counter = yield* state(
   'counter',
   0,
   insertStatePipe(
@@ -90,7 +90,7 @@ Bind a method to a [`source$`](/guide/reactivity/source) with
 const increment = source$<void>('increment');
 const reset = source$<void>('reset');
 
-const { myState } = yield* state('myState', 0, ({ update, set }) => ({
+const myState = yield* state('myState', 0, ({ update, set }) => ({
   onIncrement: on$(increment, () => update((v) => v + 1)),
   onReset: on$(reset, () => set(0)),
 }));
@@ -133,7 +133,7 @@ holding five unrelated things makes every consumer depend on all five.
 Use the object form with `$self` when a state needs its own provider scope:
 
 ```typescript
-const { counter } = yield* state(
+const counter = yield* state(
   'counter',
   {
     $self: function* () {

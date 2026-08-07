@@ -19,7 +19,7 @@ import {
   insertSelectFormTree,
 } from '@craft-ng/core';
 
-const { taskForm } = yield* state(
+const taskForm = yield* state(
   'taskForm',
   { title: '', notes: '' },
   insertForm(

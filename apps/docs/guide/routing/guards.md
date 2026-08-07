@@ -261,9 +261,9 @@ const authGuard = craftGen(
   () =>
     function* () {
       const user = yield* Auth();
-      const safeUser = user.safeValue();
-      return safeUser
-        ? safeUser
+      const userValue = user.value();
+      return userValue
+        ? userValue
         : craftException({ code: 'NOT_AUTHENTICATED' });
     },
 );

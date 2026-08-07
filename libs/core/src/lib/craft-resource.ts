@@ -5,9 +5,15 @@ export function craftResource<Value, Params>(
   options: ResourceOptions<Value, Params>,
 ): CraftResourceRef<Value, Params> {
   const resourceRef = resource(options);
+  const value = computed(
+    () => (resourceRef.hasValue() ? resourceRef.value() : undefined),
+    {
+      debugName: 'craftResourceValue',
+    },
+  );
   // do not use Object.assign, it will cause a cyclic dependency error
   return {
-    value: resourceRef.value,
+    value,
     hasValue: resourceRef.hasValue.bind(resourceRef),
     snapshot: resourceRef.snapshot,
     status: resourceRef.status,
@@ -21,12 +27,6 @@ export function craftResource<Value, Params>(
     update: resourceRef.update.bind(resourceRef),
     set: resourceRef.set.bind(resourceRef),
     asReadonly: resourceRef.asReadonly.bind(resourceRef),
-    safeValue: computed(
-      () => (resourceRef.hasValue() ? resourceRef.value() : undefined),
-      {
-        debugName: 'craftResourceSafeValue',
-      },
-    ),
     paramSrc: options.params as Signal<Params>,
     state: computed(
       () => (resourceRef.hasValue() ? resourceRef.value() : undefined),

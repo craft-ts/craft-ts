@@ -19,7 +19,7 @@ type DemoData = { id: string; label: string };
 export const { FetchInEffectService } = craftService(
   { name: 'FetchInEffectService', scope: 'function' },
   function* (inputs: { id: Signal<string | undefined> }) {
-    const { data } = yield* state(
+    const data = yield* state(
       'data',
       undefined as DemoData | undefined,
       ({ set }) => ({ setData: set }),
@@ -47,11 +47,11 @@ export const { FetchInEffectService } = craftService(
 export const { ImperativeResourceInEffectService } = craftService(
   { name: 'ImperativeResourceInEffectService', scope: 'function' },
   function* (inputs: { id: Signal<string | undefined> }) {
-    const { save } = yield* mutation('save', {
+    const save = yield* mutation('save', {
       method: (id: string) => id,
       loader: async ({ params }) => ({ id: params }),
     });
-    const { validate } = yield* asyncProcess('validate', {
+    const validate = yield* asyncProcess('validate', {
       method: (id: string) => id,
       loader: async ({ params }) => ({ id: params }),
     });
@@ -75,7 +75,7 @@ export const { ImperativeResourceInEffectService } = craftService(
 export const { ImperativeQueryInEffectService } = craftService(
   { name: 'ImperativeQueryInEffectService', scope: 'function' },
   function* (inputs: { id: Signal<string | undefined> }) {
-    const { data } = yield* query('data', {
+    const data = yield* query('data', {
       method: (id: string) => id,
       loader: async ({ params }) => ({ id: params, label: params }),
     });
@@ -97,7 +97,7 @@ export const { ImperativeQueryInEffectService } = craftService(
 export const { IndirectImperativeQueryService } = craftService(
   { name: 'IndirectImperativeQueryService', scope: 'function' },
   function* (inputs: { id: Signal<string | undefined> }) {
-    const { data } = yield* query('data', {
+    const data = yield* query('data', {
       method: (id: string) => id,
       loader: async ({ params }) => ({ id: params, label: params }),
     });
@@ -123,7 +123,7 @@ export const { IndirectImperativeQueryService } = craftService(
 export const { DeclarativeQueryService } = craftService(
   { name: 'DeclarativeQueryService', scope: 'function' },
   function* (inputs: { id: Signal<string | undefined> }) {
-    const { data } = yield* query('data', {
+    const data = yield* query('data', {
       params: inputs.id,
       loader: function* ({ params }) {
         if (!params) return undefined;

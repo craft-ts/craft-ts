@@ -43,6 +43,12 @@ export type DependencyGraphNode = {
   details?: Record<string, unknown>;
 };
 
+export type DependencyGraphHttpEndpoint = {
+  method: string;
+  url: string;
+  line: number;
+};
+
 export type DependencyGraphEdge = {
   from: string;
   to: string;
@@ -83,6 +89,14 @@ const PRIMITIVES = new Set([
 ]);
 
 const SOURCE_CREATORS = new Set(['source$', 'signalSource']);
+const CRAFT_HTTP_CLIENT_METHODS = new Set([
+  'get',
+  'delete',
+  'post',
+  'put',
+  'patch',
+  'request',
+]);
 const NON_DEPENDENCY_PROPERTY_NAMES = new Set([
   'map',
   'filter',
@@ -122,6 +136,8 @@ type SourceInfo = {
   node: DependencyGraphNode;
   variableNames: Set<string>;
 };
+
+type CraftHttpClientUsage = DependencyGraphHttpEndpoint;
 
 type GraphBuilder = {
   project: Project;
@@ -854,7 +870,11 @@ function collectServices(builder: GraphBuilder, sourceFiles: readonly SourceFile
         label: name,
         filePath: sourceFile.getFilePath(),
         line: call.getStartLineNumber(),
-        details: { scope: getStringProperty(config, 'scope'), outputProperties: [] },
+        details: {
+          scope: getStringProperty(config, 'scope'),
+          appStart: getBooleanProperty(config, 'appStart') === true,
+          outputProperties: [],
+        },
       });
       const service: ServiceInfo = {
         node,
@@ -915,7 +935,9 @@ function collectComponents(builder: GraphBuilder, sourceFiles: readonly SourceFi
   for (const sourceFile of sourceFiles) {
     for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       if (call.getExpression().getText() !== 'craftComponent') continue;
-      const label = getStringArgument(call, 0) ?? `anonymous@${call.getStartLineNumber()}`;
+      const explicitLabel = getStringArgument(call, 0);
+      const label =
+        explicitLabel ?? `AnonymousComponent@${call.getStartLineNumber()}`;
       const component: ComponentInfo = {
         node: addNode(builder, {
           id: `component:${sourceFile.getFilePath()}:${label}`,
@@ -923,6 +945,7 @@ function collectComponents(builder: GraphBuilder, sourceFiles: readonly SourceFi
           label,
           filePath: sourceFile.getFilePath(),
           line: call.getStartLineNumber(),
+          ...(explicitLabel ? {} : { details: { anonymous: true } }),
         }),
         call,
         bindings: new Map(),
@@ -990,6 +1013,21 @@ function analyzeServiceBodies(builder: GraphBuilder): void {
     const factory = service.call.getArguments()[1];
     if (!factory) continue;
     for (const call of factory.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const httpClientUsage = findCraftHttpClientUsage(call);
+      if (httpClientUsage) {
+        const ownerPrimitive = nearestPrimitiveCall(call);
+        const ownerPrimitiveName = ownerPrimitive && primitiveName(ownerPrimitive);
+        const ownerNode =
+          ownerPrimitive && ownerPrimitiveName
+            ? addPrimitiveNode(
+                builder,
+                ownerPrimitive,
+                ownerPrimitiveName,
+                service.node.id,
+              )
+            : service.node;
+        addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
+      }
       const helper = findServiceForCall(builder, call);
       if (helper && helper !== service) {
         addEdge(builder, service.node.id, helper.node.id, 'depends-on', 'type');
@@ -1014,6 +1052,21 @@ function analyzeComponents(builder: GraphBuilder): void {
       if (!part) continue;
       collectServiceBindingsFromReturns(component, part, builder);
       for (const nested of part.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+        const httpClientUsage = findCraftHttpClientUsage(nested);
+        if (httpClientUsage) {
+          const ownerPrimitive = nearestPrimitiveCall(nested);
+          const ownerPrimitiveName = ownerPrimitive && primitiveName(ownerPrimitive);
+          const ownerNode =
+            ownerPrimitive && ownerPrimitiveName
+              ? addPrimitiveNode(
+                  builder,
+                  ownerPrimitive,
+                  ownerPrimitiveName,
+                  component.node.id,
+                )
+              : component.node;
+          addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
+        }
         const helper =
           findServiceForCall(builder, nested) ??
           findComponentBoundService(component, nested);
@@ -1091,6 +1144,8 @@ function collectRouteHookServiceDependencies(
     if (!scope) continue;
 
     for (const call of scope.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const httpClientUsage = findCraftHttpClientUsage(call);
+      if (httpClientUsage) addHttpClientUsage(builder, hookId, httpClientUsage);
       const helper = findServiceForCall(builder, call);
       if (helper) {
         addEdge(builder, hookId, helper.node.id, 'depends-on', 'type');
@@ -1266,6 +1321,109 @@ function addPrimitiveNode(
       ...(usage ? { usage } : {}),
     },
   });
+}
+
+function addHttpClientUsage(
+  builder: GraphBuilder,
+  nodeId: string,
+  usage: CraftHttpClientUsage,
+): void {
+  const node = builder.nodes.get(nodeId);
+  if (!node) return;
+  node.details = {
+    ...(node.details ?? {}),
+    craftHttpClient: true,
+    httpEndpoints: mergeHttpEndpoints(node.details?.['httpEndpoints'], usage),
+  };
+}
+
+function mergeHttpEndpoints(
+  previous: unknown,
+  next: CraftHttpClientUsage,
+): CraftHttpClientUsage[] {
+  const endpoints = Array.isArray(previous)
+    ? previous.filter(isHttpEndpoint)
+    : [];
+  if (!endpoints.some((endpoint) =>
+    endpoint.method === next.method &&
+    endpoint.url === next.url &&
+    endpoint.line === next.line,
+  )) {
+    endpoints.push(next);
+  }
+  return endpoints.sort((left, right) => left.line - right.line);
+}
+
+function isHttpEndpoint(value: unknown): value is CraftHttpClientUsage {
+  if (!value || typeof value !== 'object') return false;
+  const endpoint = value as Record<string, unknown>;
+  return (
+    typeof endpoint['method'] === 'string' &&
+    typeof endpoint['url'] === 'string' &&
+    typeof endpoint['line'] === 'number'
+  );
+}
+
+function findCraftHttpClientUsage(
+  call: CallExpression,
+): CraftHttpClientUsage | undefined {
+  const expression = call.getExpression();
+  if (!Node.isPropertyAccessExpression(expression)) return undefined;
+  const root = rootIdentifier(expression)?.getText();
+  if (root !== 'CraftHttpClient' && root !== 'craftHttpClient') return undefined;
+
+  const methodName = expression.getName();
+  if (!CRAFT_HTTP_CLIENT_METHODS.has(methodName)) return undefined;
+
+  const config = getHttpClientConfig(call);
+  const url =
+    getStaticExpressionText(config?.getProperty('url')
+      ?.asKind(SyntaxKind.PropertyAssignment)
+      ?.getInitializer()) ?? getStringArgument(call, 0);
+  if (!url) return undefined;
+
+  const configuredMethod = getStaticExpressionText(
+    config?.getProperty('method')
+      ?.asKind(SyntaxKind.PropertyAssignment)
+      ?.getInitializer(),
+  );
+  return {
+    method: (configuredMethod ?? methodName).toUpperCase(),
+    url,
+    line: call.getStartLineNumber(),
+  };
+}
+
+function getHttpClientConfig(
+  call: CallExpression,
+): ObjectLiteralExpression | undefined {
+  const firstArgument = call.getArguments()[0];
+  const directConfig = firstArgument?.asKind(SyntaxKind.ObjectLiteralExpression);
+  if (directConfig) return directConfig;
+  if (
+    firstArgument?.isKind(SyntaxKind.ArrowFunction) ||
+    firstArgument?.isKind(SyntaxKind.FunctionExpression)
+  ) {
+    let body = firstArgument.getBody();
+    if (Node.isParenthesizedExpression(body)) body = body.getExpression();
+    const returnedConfig = body.asKind(SyntaxKind.ObjectLiteralExpression);
+    if (returnedConfig) return returnedConfig;
+    return body
+      .getDescendantsOfKind(SyntaxKind.ReturnStatement)
+      .map((statement) =>
+        statement.getExpression()?.asKind(SyntaxKind.ObjectLiteralExpression),
+      )
+      .find((value): value is ObjectLiteralExpression => value !== undefined);
+  }
+  return undefined;
+}
+
+function getStaticExpressionText(node: Node | undefined): string | undefined {
+  if (!node) return undefined;
+  if (Node.isStringLiteral(node)) return node.getLiteralValue();
+  if (Node.isNoSubstitutionTemplateLiteral(node)) return node.getLiteralValue();
+  const text = node.getText().trim();
+  return text.length > 0 ? text : undefined;
 }
 
 function primitiveUsageName(call: CallExpression): string | undefined {
@@ -1529,6 +1687,20 @@ function getStringProperty(
 ): string | undefined {
   return object?.getProperty(name)?.asKind(SyntaxKind.PropertyAssignment)?.getInitializer()
     ?.asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+}
+
+function getBooleanProperty(
+  object: ObjectLiteralExpression | undefined,
+  name: string,
+): boolean | undefined {
+  const initializer = object
+    ?.getProperty(name)
+    ?.asKind(SyntaxKind.PropertyAssignment)
+    ?.getInitializer();
+  if (!initializer) return undefined;
+  if (initializer.getKind() === SyntaxKind.TrueKeyword) return true;
+  if (initializer.getKind() === SyntaxKind.FalseKeyword) return false;
+  return undefined;
 }
 
 function addBindingNames(node: Node, target: Set<string>): void {

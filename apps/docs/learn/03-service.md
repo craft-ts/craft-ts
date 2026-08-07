@@ -12,7 +12,7 @@ import { craftService, state } from '@craft-ng/core';
 export const { TaskList } = craftService(
   { name: 'TaskList', scope: 'function' },
   function* () {
-    const { tasks } = yield* state('tasks', [] as Task[], ({ state, update }) => ({
+    const tasks = yield* state('tasks', [] as Task[], ({ state, update }) => ({
       add: (title: string) => update((current) => [...current, newTask(title)]),
       toggle: (id: string) =>
         update((current) =>
@@ -98,7 +98,7 @@ reactive to them:
 export const { TaskList } = craftService(
   { name: 'TaskList', scope: 'function' },
   function* (inputs: { projectId: () => string }) {
-    const { tasks } = yield* state('tasks', [] as Task[] /* … */);
+    const tasks = yield* state('tasks', [] as Task[] /* … */);
     // inputs.projectId() is reactive — read it wherever you need it
     return tasks;
   },

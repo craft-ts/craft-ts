@@ -54,12 +54,12 @@ dependency of the containing primitive.
 const { Reset } = craftService(
   { name: 'Reset', scope: 'global' },
   function* () {
-    const { reset$ } = yield* source$<void>('reset$');
+    const reset$ = yield* source$<void>('reset$');
     return reset$;
   },
 );
 
-const { counter } = yield* state('counter', 0, ({ set }) => ({
+const counter = yield* state('counter', 0, ({ set }) => ({
   reset: on$(Reset, () => set(0)),
 }));
 ```

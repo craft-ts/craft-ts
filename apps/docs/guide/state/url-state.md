@@ -28,7 +28,7 @@ const booleanCodec = {
   encode: (value: boolean) => String(value),
 };
 
-const { pagination } = yield* queryParams(
+const pagination = yield* queryParams(
   'pagination',
   {
     state: {
@@ -148,7 +148,7 @@ export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
         ),
       ),
       queryParams: function* () {
-        const { pagination } = yield* queryParams(
+        const pagination = yield* queryParams(
           'pagination',
           {
             state: {

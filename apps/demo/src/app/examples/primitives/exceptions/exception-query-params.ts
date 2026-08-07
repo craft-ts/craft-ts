@@ -7,11 +7,13 @@ import {
   craftComponent,
   div,
   h,
+  ifBlock,
   p,
   section,
   strong,
 } from '@craft-ng/component';
 import {
+  craftComputed,
   queryParams,
   toCraftService,
 } from '@craft-ng/core';
@@ -35,7 +37,7 @@ const ExceptionQueryParamsComponent = craftComponent(
       navigate,
     }));
     const activatedRoute = yield* ActivatedRoute();
-    const { modeQueryParams } = yield* queryParams('modeQueryParams', {
+    const modeQueryParams = yield* queryParams('modeQueryParams', {
       state: {
         mode: {
           fallbackValue: 'fallbackValue' as const,
@@ -57,10 +59,13 @@ const ExceptionQueryParamsComponent = craftComponent(
         queryParams: { mode },
         queryParamsHandling: 'merge',
       });
-    return { modeQueryParams, navigate };
+    const hasParseException = craftComputed(
+      'hasParseException',
+      () => modeQueryParams.exceptions().parse.mode !== undefined,
+    );
+    return { modeQueryParams, navigate, hasParseException };
   },
-  ({ modeQueryParams, navigate }) => {
-    const exception = modeQueryParams.exceptions().parse.mode;
+  ({ modeQueryParams, navigate, hasParseException }) => {
     return section([
       h('h4', 'QueryParams decode exception'),
       div([
@@ -68,12 +73,20 @@ const ExceptionQueryParamsComponent = craftComponent(
         button({ click: () => navigate('exception') }, 'Navigate exception'),
       ]),
       p([strong('Parsed value: '), modeQueryParams.mode()]),
-      exception
-        ? p([
+      ifBlock(
+        hasParseException,
+        () => {
+          const exception = modeQueryParams.exceptions().parse.mode as {
+            code: string;
+            payload: { error: unknown };
+          };
+          return p([
             strong('Exception: '),
             `${exception.code}: ${String(exception.payload.error)}`,
-          ])
-        : p([strong('Exception: '), 'none']),
+          ]);
+        },
+        () => p([strong('Exception: '), 'none']),
+      ),
     ]);
   },
 );

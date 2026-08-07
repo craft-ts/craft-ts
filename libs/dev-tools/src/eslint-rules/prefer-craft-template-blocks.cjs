@@ -113,6 +113,7 @@ const DOM_EVENT_NAMES = new Set([
 module.exports = {
   meta: {
     type: 'problem',
+    fixable: 'code',
     docs: {
       description:
         'Keep Craft component templates declarative by using typed Craft blocks instead of inline logic.',
@@ -151,8 +152,25 @@ module.exports = {
           return 'skip';
         }
 
+        if (isTemplatePipe(node)) {
+          return 'skip';
+        }
+
         if (node.type === 'ConditionalExpression') {
-          context.report({ node, messageId: 'ternary' });
+          const replacement = conditionalReplacement(node);
+          context.report({
+            node,
+            messageId: 'ternary',
+            ...(replacement === undefined
+              ? {}
+              : {
+                  fix: (fixer) =>
+                    [
+                      fixer.replaceText(replacement.node, replacement.text),
+                      namedImportFix(fixer, 'ifBlock'),
+                    ].filter(Boolean),
+                }),
+          });
           return;
         }
 
@@ -162,7 +180,23 @@ module.exports = {
         }
 
         if (TEMPLATE_CONTROL_FLOW.has(node.type)) {
-          context.report({ node, messageId: 'controlFlow' });
+          const replacement =
+            node.type === 'SwitchStatement'
+              ? switchReplacement(node)
+              : undefined;
+          context.report({
+            node,
+            messageId: 'controlFlow',
+            ...(replacement === undefined
+              ? {}
+              : {
+                  fix: (fixer) =>
+                    [
+                      fixer.replaceText(node, replacement),
+                      namedImportFix(fixer, 'matchBlock'),
+                    ].filter(Boolean),
+                }),
+          });
         }
       });
     }
@@ -196,8 +230,216 @@ module.exports = {
         }
       }
     }
+
+    function conditionalReplacement(node) {
+      const condition = conditionName(node.test);
+      if (condition === undefined || !isRenderablePosition(node)) {
+        return undefined;
+      }
+
+      const text = `ifBlock(${condition}, () => ${sourceCode.getText(
+        node.consequent,
+      )}, () => ${sourceCode.getText(node.alternate)})`;
+      const parent = node.parent;
+      if (
+        parent?.type === 'ArrowFunctionExpression' &&
+        parent.body === node &&
+        isRenderableArrow(parent)
+      ) {
+        return { node: parent, text };
+      }
+
+      return { node, text };
+    }
+
+    function switchReplacement(node) {
+      const match = switchMatch(node);
+      if (match === undefined) {
+        return undefined;
+      }
+
+      const handlers = match.cases
+        .map(
+          ({ key, expression }) =>
+            `${formatObjectKey(key)}: () => ${expression}`,
+        )
+        .join(', ');
+      return `return matchBlock.exhaustive(${match.source}, ${JSON.stringify(
+        match.key,
+      )}, { ${handlers} });`;
+    }
+
+    function switchMatch(node) {
+      if (node.cases.some((switchCase) => switchCase.test === null)) {
+        return undefined;
+      }
+
+      const cases = [];
+      for (const switchCase of node.cases) {
+        if (
+          switchCase.test.type !== 'Literal' ||
+          (typeof switchCase.test.value !== 'string' &&
+            typeof switchCase.test.value !== 'number')
+        ) {
+          return undefined;
+        }
+
+        const statements = switchCase.consequent.filter(
+          (statement) => statement.type !== 'BreakStatement',
+        );
+        if (
+          statements.length !== 1 ||
+          statements[0].type !== 'ReturnStatement' ||
+          statements[0].argument === null
+        ) {
+          return undefined;
+        }
+
+        cases.push({
+          key: switchCase.test.value,
+          expression: sourceCode.getText(statements[0].argument),
+        });
+      }
+
+      const discriminant = node.discriminant;
+      if (
+        discriminant.type === 'MemberExpression' &&
+        !discriminant.computed &&
+        discriminant.property.type === 'Identifier'
+      ) {
+        const object = sourceCode.getText(discriminant.object);
+        return {
+          source: needsFunctionSource(discriminant.object)
+            ? `() => ${object}`
+            : object,
+          key: discriminant.property.name,
+          cases,
+        };
+      }
+
+      return {
+        source: `() => ({ value: ${sourceCode.getText(discriminant)} })`,
+        key: 'value',
+        cases,
+      };
+    }
+
+    function namedImportFix(fixer, name) {
+      const declaration = sourceCode.ast.body.find(
+        (statement) =>
+          statement.type === 'ImportDeclaration' &&
+          statement.importKind !== 'type' &&
+          statement.source.value === '@craft-ng/component',
+      );
+
+      if (declaration === undefined) {
+        const firstStatement = sourceCode.ast.body[0];
+        return fixer.insertTextBefore(
+          firstStatement ?? sourceCode.ast,
+          `import { ${name} } from '@craft-ng/component';\n`,
+        );
+      }
+
+      if (
+        declaration.specifiers.some(
+          (specifier) =>
+            specifier.type === 'ImportSpecifier' &&
+            specifier.imported.type === 'Identifier' &&
+            specifier.imported.name === name,
+        )
+      ) {
+        return undefined;
+      }
+
+      const namedSpecifiers = declaration.specifiers.filter(
+        (specifier) => specifier.type === 'ImportSpecifier',
+      );
+      if (namedSpecifiers.length > 0) {
+        return fixer.insertTextAfter(
+          namedSpecifiers[namedSpecifiers.length - 1],
+          `, ${name}`,
+        );
+      }
+
+      return fixer.insertTextAfter(
+        declaration,
+        `\nimport { ${name} } from '@craft-ng/component';`,
+      );
+    }
   },
 };
+
+function conditionName(node) {
+  if (
+    node.type === 'CallExpression' &&
+    node.callee.type === 'Identifier' &&
+    node.arguments.length === 0
+  ) {
+    return node.callee.name;
+  }
+
+  return undefined;
+}
+
+function isRenderablePosition(node) {
+  const parent = node.parent;
+  if (parent === undefined) {
+    return false;
+  }
+
+  if (parent.type === 'ArrayExpression') {
+    return true;
+  }
+
+  if (parent.type === 'ReturnStatement') {
+    return true;
+  }
+
+  if (parent.type === 'CallExpression') {
+    return parent.arguments.includes(node);
+  }
+
+  return (
+    parent.type === 'ArrowFunctionExpression' &&
+    parent.body === node &&
+    isRenderableArrow(parent)
+  );
+}
+
+function isRenderableArrow(node) {
+  const parent = node.parent;
+  if (parent?.type === 'ArrayExpression') {
+    return true;
+  }
+
+  if (parent?.type !== 'CallExpression') {
+    return false;
+  }
+
+  const callee = parent.callee;
+  if (callee.type !== 'Identifier') {
+    return false;
+  }
+
+  return !new Set([
+    'each',
+    'defer',
+    'content',
+    'craftTemplate',
+    'renderTemplate',
+    'renderContent',
+  ]).has(callee.name);
+}
+
+function needsFunctionSource(node) {
+  return node.type === 'CallExpression';
+}
+
+function formatObjectKey(value) {
+  return typeof value === 'string' && /^[A-Za-z_$][\w$]*$/.test(value)
+    ? value
+    : JSON.stringify(value);
+}
 
 function isNestedCraftComponent(node) {
   return (
@@ -222,5 +464,22 @@ function isEventProperty(node) {
   return Boolean(
     propertyName &&
       (DOM_EVENT_NAMES.has(propertyName) || /^on[A-Z]/.test(propertyName)),
+  );
+}
+
+function isTemplatePipe(node) {
+  if (node.type !== 'CallExpression') {
+    return false;
+  }
+
+  if (node.callee.type === 'Identifier') {
+    return node.callee.name === 'pipe';
+  }
+
+  return (
+    node.callee.type === 'MemberExpression' &&
+    !node.callee.computed &&
+    node.callee.property.type === 'Identifier' &&
+    node.callee.property.name === 'pipe'
   );
 }

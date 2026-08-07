@@ -82,11 +82,15 @@ import {
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
 import {
-  markYieldableMethod,
+  createYieldableInsertionMethod,
+  isNonYieldableInsertionMethod,
   yieldableInvocation,
   type YieldableInvocation,
 } from './yieldable';
-import type { BrandReactiveProperties } from './yieldable';
+import type {
+  BrandReactiveProperties,
+  YieldableInsertionMethods,
+} from './yieldable';
 import {
   createSchemaValidationRuntime,
   type CraftSchema,
@@ -442,10 +446,6 @@ export type ResourceLikeQueryRef<
   [
     {
       readonly value: Signal<Value | undefined>;
-      /**
-       * Avoids to throw error when accessing value during error state
-       */
-      readonly safeValue: Signal<Value | undefined>;
       readonly status: Signal<CraftResourceStatus>;
       readonly isLoading: Signal<boolean>;
       hasValue(): boolean;
@@ -460,7 +460,7 @@ export type ResourceLikeQueryRef<
       : {
           source: ReadonlySource<SourceParams>;
         },
-    Insertions,
+    YieldableInsertionMethods<Insertions>,
     ResourceLikeExceptions<QueryException>,
     {
       [key in `~InternalType`]: 'Used to avoid TS type erasure';
@@ -497,10 +497,6 @@ export type ResourceByIdLikeQueryRef<
   select: (id: GroupIdentifier) =>
     | ({
         readonly value: Signal<Value | undefined>;
-        /**
-         * Avoids to throw error when accessing value during error state
-         */
-        readonly safeValue: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue(): boolean;
@@ -508,7 +504,7 @@ export type ResourceByIdLikeQueryRef<
     | undefined;
 } & MergeObjects<
     [
-      Insertions,
+      YieldableInsertionMethods<Insertions>,
       IsMethod extends true
         ? {
             call: (args: ArgParams) =>
@@ -579,7 +575,7 @@ export type QueryOutput<
   State,
   Params,
   ArgParams,
-  BrandReactiveProperties<Insertions>,
+  YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
   [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
   GroupIdentifier,
@@ -915,8 +911,8 @@ export function query<
  * - Use `preservePreviousValue: () => true` to prevent flickering by keeping previous data while loading
  * - Use `equalParams` to control when queries should re-execute based on params comparison
  *
- * @param name - The query name. Used to key the returned record
- *   (`const { userQuery } = yield* query('userQuery', config)`) and as the
+ * @param name - The query name. Used for host tagging and reactive branding
+ *   (`const userQuery = yield* query('userQuery', config)`) and as the
  *   injector host tag (`query:userQuery`), so the query is precisely locatable
  *   in snapshots and logs.
  * @param config - Configuration object containing:
@@ -934,8 +930,8 @@ export function query<
  *   To attach several insertions, compose them with `insertQueryPipe`:
  *   `query('name', config, insertQueryPipe(insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
- * @returns A single-use primitive generator resolving to a record keyed by
- *   `name`, whose value is a query reference object with:
+ * @returns A single-use primitive generator resolving to a query reference
+ *   object with:
  *   - `value`: Signal containing the query result (undefined if not yet executed)
  *   - `status`: Signal with the craft status ('idle' | 'loading' | 'reloading' | 'resolved' | 'local' | 'exception')
  *   - `exception`: Signal with the primary `craftException` (or undefined)
@@ -957,7 +953,7 @@ export function query<
  * ```ts
  * const userIdSignal = signal('user-123');
  *
- * const { userQuery } = craftUse(query('userQuery', {
+ * const userQuery = craftUse(query('userQuery', {
  *   params: () => userIdSignal(),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params}`);
@@ -978,7 +974,7 @@ export function query<
  * @example
  * Method-based manual query
  * ```ts
- * const { searchQuery } = craftUse(query('searchQuery', {
+ * const searchQuery = craftUse(query('searchQuery', {
  *   method: (searchTerm: string) => ({ term: searchTerm }),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/search?q=${params.term}`);
@@ -999,7 +995,7 @@ export function query<
  * ```ts
  * import { craftException, query } from '@craft-ng/core';
  *
- * const { userQuery } = craftUse(query('userQuery', {
+ * const userQuery = craftUse(query('userQuery', {
  *   method: (value: string) =>
  *     value.length < 3
  *       ? craftException(
@@ -1027,7 +1023,7 @@ export function query<
  * @example
  * Query with identifier for parallel execution
  * ```ts
- * const { userDetailsQuery } = craftUse(query('userDetailsQuery', {
+ * const userDetailsQuery = craftUse(query('userDetailsQuery', {
  *   params: () => currentUserId(),
  *   identifier: (userId) => userId,
  *   loader: async ({ params }) => {
@@ -1049,7 +1045,7 @@ export function query<
  * @example
  * With custom methods via insertions
  * ```ts
- * const { todosQuery } = craftUse(query(
+ * const todosQuery = craftUse(query(
  *   'todosQuery',
  *   {
  *     params: () => ({ completed: showCompleted() }),
@@ -1071,7 +1067,7 @@ export function query<
  * @example
  * Streaming query
  * ```ts
- * const { liveDataQuery } = craftUse(query('liveDataQuery', {
+ * const liveDataQuery = craftUse(query('liveDataQuery', {
  *   params: () => ({ channel: currentChannel() }),
  *   stream: async ({ params }) => {
  *     const response = await fetch(`/api/stream/${params.channel}`);
@@ -1091,7 +1087,7 @@ export function query<
  * Derived query from another ResourceByIdRef
  * ```ts
  * // First query fetches basic user data
- * const { usersQuery } = craftUse(query('usersQuery', {
+ * const usersQuery = craftUse(query('usersQuery', {
  *   params: () => currentUserId(),
  *   identifier: (userId) => userId,
  *   loader: async ({ params }) => {
@@ -1101,7 +1097,7 @@ export function query<
  * }));
  *
  * // Derived query enriches user data with additional info
- * const { enrichedUsersQuery } = craftUse(query('enrichedUsersQuery', {
+ * const enrichedUsersQuery = craftUse(query('enrichedUsersQuery', {
  *   fromResourceById: usersQuery,
  *   params: ({ value, status }) => {
  *     // Only process when source is resolved
@@ -1882,7 +1878,11 @@ function createQueryRef<
       });
       const wrappedResult = Object.entries(rawResult).reduce(
         (wrappedAcc, [key, value]) => {
-          if (typeof value === 'function' && !isSignal(value)) {
+          if (
+            typeof value === 'function' &&
+            !isSignal(value) &&
+            !isNonYieldableInsertionMethod(value)
+          ) {
             const injector = getInjector();
             const methodInjector = ɵcreateHostTaggedInjector(
               injector,
@@ -1907,25 +1907,13 @@ function createQueryRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = markYieldableMethod((...args: unknown[]) =>
-              runInInjectionContext(methodInjector, () => {
-                const result = (wrappedFn as (...a: unknown[]) => unknown)(
-                  ...args,
-                );
-                if (isGenerator(result)) {
-                  return runCraftGenerator({
-                    iterator: result,
-                    injector: methodInjector,
-                    hostScope: 'function',
-                    invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-                    multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-                    onAppStartNotSupportedErrorMessage:
-                      QUERY_APP_START_ERROR_MESSAGE,
-                  }).value;
-                }
-                return result;
-              }),
-            );
+            wrappedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+              injector: methodInjector,
+              invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                QUERY_APP_START_ERROR_MESSAGE,
+            });
           } else {
             wrappedAcc[key] = value;
           }

@@ -2,10 +2,6 @@ import { ResourceRef, Signal } from '@angular/core';
 
 export type CraftResourceRefSpecificState<Value, Params> = {
   paramSrc: Signal<Params | undefined>;
-  /**
-   * Return undefined if the value is not set (error or not retrieved)
-   */
-  safeValue: Signal<Value | undefined>;
   state: Signal<Value | undefined>;
 };
 /**
@@ -16,6 +12,12 @@ export type CraftResourceRefSpecificState<Value, Params> = {
  */
 export type CraftResourceRef<Value, Params> = Omit<
   ResourceRef<Value>,
-  'error'
+  'error' | 'value'
 > &
+  {
+    /**
+     * Returns undefined when the resource has no resolved value or an exception.
+     */
+    value: Signal<Value | undefined>;
+  } &
   CraftResourceRefSpecificState<Value, Params>;

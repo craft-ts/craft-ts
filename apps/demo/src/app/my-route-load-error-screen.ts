@@ -1,5 +1,6 @@
 import { button, craftComponent, div, h2, p } from '@craft-ng/component';
 import {
+  craftComputed,
   CraftRouteLoadError,
   CraftRouteLoadRecovery,
 } from '@craft-ng/core';
@@ -13,19 +14,23 @@ export const MyRouteLoadErrorScreen = craftComponent(
     `,
   },
   function* () {
+    const error = yield* CraftRouteLoadError();
+    const message = craftComputed('message', () => {
+      const current = error();
+      return current
+        ? `Failed to load ${current.payload.phase} for route "${current.payload.routePath}" after ${current.payload.attempt} attempts.`
+        : 'The requested route chunk could not be loaded.';
+    }) as unknown as () => string;
     return {
-      error: yield* CraftRouteLoadError(),
+      error,
+      message,
       recovery: yield* CraftRouteLoadRecovery(),
     };
   },
-  ({ error, recovery }) => {
-    const current = error();
-    const message = current
-      ? `Failed to load ${current.payload.phase} for route "${current.payload.routePath}" after ${current.payload.attempt} attempts.`
-      : 'The requested route chunk could not be loaded.';
+  ({ message, recovery }) => {
     return div([
       h2('⚠️ Route chunk failed'),
-      p(message),
+      p(() => message()),
       div({ class: 'actions' }, [
         button({ click: () => void recovery.retry() }, 'Retry route load'),
         button({ click: () => recovery.reload() }, 'Reload app'),

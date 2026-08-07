@@ -8,6 +8,7 @@ import {
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { provideCorrelationIdTracking } from './correlation-id-plugin';
 import { CORRELATION_ID_SERVICE } from './correlation-id';
+import { CRAFT_DOM_EVENT_HOOK } from './dom-event-hook';
 import { FN_WRAPPER } from './fn-wrapper';
 
 beforeAll(() => {
@@ -50,6 +51,16 @@ describe('provideCorrelationIdTracking', () => {
     });
     const wrappers = TestBed.runInInjectionContext(() => TestBed.inject(FN_WRAPPER));
     expect(wrappers.length).toBe(1);
+  });
+
+  it('registers correlation tracking as a Craft DOM event hook', () => {
+    TestBed.configureTestingModule({
+      providers: [provideCorrelationIdTracking()],
+    });
+    const hooks = TestBed.runInInjectionContext(() =>
+      TestBed.inject(CRAFT_DOM_EVENT_HOOK),
+    );
+    expect(hooks).toHaveLength(1);
   });
 
   it('FN_WRAPPER drives the wrapped generator through to completion', async () => {

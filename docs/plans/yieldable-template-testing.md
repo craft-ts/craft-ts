@@ -128,7 +128,7 @@ Les valeurs réactives exposées par les primitives doivent être brandées avec
 le nom de leur propriété, comme les méthodes déjà yieldables :
 
 ```ts
-const { counter } = yield* state(0, ({ state, update }) => ({
+const counter = yield* state(0, ({ state, update }) => ({
   disabled: computed(() => state() % 2 === 0),
   increment: () => update((value) => value + 1),
 }));

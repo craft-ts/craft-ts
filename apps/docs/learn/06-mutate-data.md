@@ -26,7 +26,7 @@ const { createTask } =
 yield * createTask.mutate({ title: 'Write step 6' });
 
 createTask.isLoading();
-createTask.safeValue();
+createTask.value();
 createTask.exception();
 ```
 
@@ -89,7 +89,7 @@ from `method` and the loader never runs:
 ```typescript
 import { craftException } from '@craft-ng/core';
 
-const { createTask } = yield* mutation('createTask', {
+const createTask = yield* mutation('createTask', {
   method: (payload: { title: string }) =>
     payload.title.trim().length === 0
       ? craftException({ code: 'TITLE_REQUIRED' }, { received: payload.title })
@@ -119,7 +119,7 @@ const CreateTaskSchema = z.object({
   title: z.string().trim().min(1).max(80),
 });
 
-const { createTask } = yield* mutation('createTask', {
+const createTask = yield* mutation('createTask', {
   methodSchema: CreateTaskSchema,
   method: (payload) => payload, // already validated and typed by the schema
   loader: /* … */,

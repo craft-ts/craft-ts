@@ -22,6 +22,7 @@ import { CraftResourceRef } from './util/craft-resource-ref';
 import { QueryParamsExceptions, QueryParamsToState } from './query-params';
 import { Prettify } from './util/util.type';
 import { InsertMetaInCraftExceptionIfExists } from './craft-exception';
+import type { YieldableInsertionMethods } from './yieldable';
 
 export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -572,7 +573,7 @@ export type InsertionParams<
     patchFn: (currentState: ResourceState) => Partial<ResourceState>,
   ) => ResourceState;
   insertions: keyof PreviousInsertionsOutputs extends string
-    ? PreviousInsertionsOutputs
+    ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
   resource: CraftResourceRef<ResourceState, ResourceParams>;
   resourceParamsSrc: WritableSignal<ResourceParams | undefined>;
@@ -638,7 +639,7 @@ export type InsertionByIdParams<
     patchFn: (currentState: ResourceState) => Partial<ResourceState>,
   ) => ResourceState;
   insertions: keyof PreviousInsertionsOutputs extends string
-    ? PreviousInsertionsOutputs
+    ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
   resourceById: ResourceByIdRef<GroupIdentifier, ResourceState, ResourceParams>;
   resource: never;
@@ -685,7 +686,7 @@ export type InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs> =
       patchFn: (currentState: StateType) => Partial<StateType>,
     ) => StateType;
     insertions: keyof PreviousInsertionsOutputs extends string
-      ? PreviousInsertionsOutputs
+      ? YieldableInsertionMethods<PreviousInsertionsOutputs>
       : never;
   };
 
@@ -722,7 +723,7 @@ export type InsertionQueryParamsFactoryContext<
   hasException: Signal<boolean>;
   exceptions: Signal<QueryParamsExceptions<QueryParamsType>>;
   insertions: keyof PreviousInsertionsOutputs extends string
-    ? PreviousInsertionsOutputs
+    ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;
 };
 

@@ -338,7 +338,7 @@ describe('named primitives migration', () => {
     const output = await readFile(join(root, 'users.ts'), 'utf8');
     expect(result.unmigrated).toEqual([]);
     expect(output).toContain(
-      "const { users } = yield* query('users', { loader: () => Promise.resolve([]) })",
+      "const users = yield* query('users', { loader: () => Promise.resolve([]) })",
     );
   });
 
@@ -362,15 +362,12 @@ describe('named primitives migration', () => {
 
     const output = await readFile(join(root, 'app.routes.ts'), 'utf8');
     expect(result.unmigrated).toEqual([]);
-    // Destructuring the record here would shadow the `queryParams` primitive
-    // the expression itself calls, so the key is read off the record.
     expect(output).toContain(
-      "return (yield* queryParams('queryParams', { state: { page: { fallbackValue: 1 } } })).queryParams;",
+      "queryParams: () => queryParams('queryParams', { state: { page: { fallbackValue: 1 } } }),",
     );
-    expect(output).toContain('queryParams: function* () {');
   });
 
-  it('promotes an undriven craftService arrow factory to a generator', async () => {
+  it('names an undriven craftService arrow factory directly', async () => {
     const root = await fixture({
       'counter.ts': `
         import { craftService, state } from '@craft-ng/core';
@@ -385,8 +382,9 @@ describe('named primitives migration', () => {
 
     const output = await readFile(join(root, 'counter.ts'), 'utf8');
     expect(result.unmigrated).toEqual([]);
-    expect(output).toContain("const { counter } = yield* state('counter', 0);");
-    expect(output).toContain('return counter;');
+    expect(output).toContain(
+      "export const { injectCounter } = craftService({ name: 'Counter' }, () => state('counter', 0));",
+    );
   });
 
   it('reports an inline call with no binding to derive a name from', async () => {
@@ -419,7 +417,7 @@ describe('named primitives migration', () => {
       'users.ts': `
         import { craftService, query } from '@craft-ng/core';
         export const { injectUsers } = craftService({ name: 'Users' }, function* () {
-          const { users } = yield* query('users', { loader: () => Promise.resolve([]) });
+          const users = yield* query('users', { loader: () => Promise.resolve([]) });
           return { users };
         });
       `,
@@ -434,5 +432,25 @@ describe('named primitives migration', () => {
     expect(result.unmigrated).toMatchObject([
       { primitive: 'query', reason: 'already takes a name argument' },
     ]);
+  });
+
+  it('removes the legacy property wrapper from an already named primitive', async () => {
+    const root = await fixture({
+      'users.ts': `
+        import { craftUse, query } from '@craft-ng/core';
+        const user = craftUse(query('user', { loader: () => Promise.resolve({}) })).user;
+      `,
+    });
+
+    const result = await migrateNamedPrimitives({
+      paths: [join(root, '**/*.ts')],
+      log: () => undefined,
+    });
+
+    const output = await readFile(join(root, 'users.ts'), 'utf8');
+    expect(result.unmigrated).toEqual([]);
+    expect(output).toContain(
+      "const user = craftUse(query('user', { loader: () => Promise.resolve({}) }));",
+    );
   });
 });

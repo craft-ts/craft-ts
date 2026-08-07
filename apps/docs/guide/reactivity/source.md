@@ -44,7 +44,7 @@ const source = source$<void>('reset$');
 source.emit();
 
 // Yieldable primitive API
-const { reset$ } = yield* source$<void>('reset$');
+const reset$ = yield* source$<void>('reset$');
 ```
 
 The yielded value is the source instance. Its source API is unchanged:
@@ -104,7 +104,7 @@ multiple consumers:
 const { Reset } = craftService(
   { name: 'Reset', scope: 'global' },
   function* () {
-    const { reset$ } = yield* source$<void>('reset$');
+    const reset$ = yield* source$<void>('reset$');
     return reset$;
   },
 );
@@ -112,7 +112,7 @@ const { Reset } = craftService(
 const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
   function* () {
-    const { counter } = yield* state('counter', 0, ({ set }) => ({
+    const counter = yield* state('counter', 0, ({ set }) => ({
       reset: on$(Reset, () => set(0)),
     }));
 
@@ -225,7 +225,7 @@ export const Counter = craftComponent(
     // a source for reset events
     const reset$ = source$<void>('reset$');
 
-    const { counter } = yield* state('counter', 0, ({ set, update }) => ({
+    const counter = yield* state('counter', 0, ({ set, update }) => ({
       increment: () => update((v) => v + 1),
       decrement: () => update((v) => v - 1),
       // internal: listens to reset$ and sets counter to 0.

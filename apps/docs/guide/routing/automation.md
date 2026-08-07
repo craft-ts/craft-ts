@@ -127,6 +127,41 @@ npx craft-migrate \
 Finish with the application's normal lint, type-check, test, and build commands.
 See the [complete migration guide](/resources/migration) for the post-codemod checklist.
 
+## Verify the route safety contract
+
+`craft route verify` is the development check for the routing guarantees. It
+first type-checks the project as it is, then writes temporary fixtures covering
+route DI, `toProvide` providers, lazy child checks, route params and inputs,
+Angular and Craft templates, pending/error components, lazy loading,
+guard/resolve/component exceptions, local recovery and exhaustive handlers.
+Invalid fixtures are expected to fail, and their diagnostics are matched with
+the expected `path`, `pending component` or `exception component` context.
+
+Add it to the application scripts:
+
+```json
+{
+  "scripts": {
+    "craft:verify-routes": "craft route verify --project tsconfig.app.json"
+  }
+}
+```
+
+Run it locally or in CI:
+
+```shell
+npm run craft:verify-routes
+```
+
+Fixtures are removed in a `finally` block. Use `--json` for a machine-readable
+report, `--root` when the application source root is not detected
+automatically, and `--keep-fixtures` only while diagnosing a failed
+verification. `--project` and `--tsconfig` are aliases for selecting the app
+tsconfig.
+
+This validates compile-time and ESLint bookkeeping guarantees. Runtime
+chunk-loading scenarios remain covered by the browser tests.
+
 ## See Also
 
 - [Routing setup](/guide/routing/setup) — what the CLI generates for you

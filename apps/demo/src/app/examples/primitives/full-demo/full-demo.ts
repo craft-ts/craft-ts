@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import styles from './full-demo.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -12,44 +12,61 @@ import {
   ul,
 } from '@craft-ng/component';
 import {
+  craftComputed,
   mutation,
   query,
+  state,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 
 type Todo = { readonly id: number; readonly title: string };
-let nextId = 3;
-let records: Todo[] = [
-  { id: 1, title: 'Learn Craft primitives' },
-  { id: 2, title: 'Build functional components' },
-];
 
 const FullDemo = craftComponent(
   'FullDemo',
   {
-    styles:
-      ':scope{display:grid;gap:1rem;max-width:640px}li{display:flex;gap:.75rem;align-items:center}li span{flex:1}',
+    stylesUrl: styles,
   },
   function* () {
-    const refresh = signal(0);
-    const { todos } = yield* query('todos', {
+    const nextId = yield* state('nextId', 3, ({ state, update }) => ({
+      take: () => {
+        const id = state();
+        update((value) => value + 1);
+        return id;
+      },
+    }));
+    const records = yield* state(
+      'records',
+      [
+        { id: 1, title: 'Learn Craft primitives' },
+        { id: 2, title: 'Build functional components' },
+      ] satisfies Todo[],
+      ({ update }) => ({
+        add: (todo: Todo) => update((current) => [...current, todo]),
+        remove: (id: number) =>
+          update((current) => current.filter((todo) => todo.id !== id)),
+      }),
+    );
+    const refresh = yield* state('refresh', 0, ({ update }) => ({
+      increment: () => update((value) => value + 1),
+    }));
+    const todos = yield* query('todos', {
       params: refresh,
-      loader: async () => [...records],
+      loader: async () => [...records()],
     });
-    const { addTodo } = yield* mutation('addTodo', {
+    const addTodo = yield* mutation('addTodo', {
       method: (title: string) => title,
-      loader: async ({ params: title }) => {
-        const todo = { id: nextId++, title };
-        records = [...records, todo];
-        refresh.update((value) => value + 1);
+      loader: function* ({ params: title }) {
+        const todo = { id: yield* nextId.take(), title };
+        yield* records.add(todo);
+        yield* refresh.increment();
         return todo;
       },
     });
-    const { removeTodo } = yield* mutation('removeTodo', {
+    const removeTodo = yield* mutation('removeTodo', {
       method: (id: number) => id,
-      loader: async ({ params: id }) => {
-        records = records.filter((todo) => todo.id !== id);
-        refresh.update((value) => value + 1);
+      loader: function* ({ params: id }) {
+        yield* records.remove(id);
+        yield* refresh.increment();
         return id;
       },
     });
@@ -82,7 +99,7 @@ const FullDemo = craftComponent(
       ]),
       ul(
         each(
-          () => todos.safeValue() ?? [],
+          todos.value,
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
             li([

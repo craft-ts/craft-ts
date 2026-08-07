@@ -15,22 +15,29 @@ import { MergeObject } from '../util/types/util.type';
 import { FilterSource, IsEmptyObject } from '../util/util.type';
 import { isSource } from '../util/util';
 import { CraftField, CraftFieldTree } from './craft-field';
+import {
+  createYieldableInsertionMethod,
+  isNonYieldableInsertionMethod,
+  type YieldableInsertionMethods,
+} from '../yieldable';
 
 type Source$Method<SourceType> = [SourceType] extends [void]
-  ? () => void
-  : (value: SourceType) => void;
+  ? () => Generator<never, void, unknown>
+  : (value: SourceType) => Generator<never, void, unknown>;
 
-type ExposedFormInsertions<Insertions> = MergeObject<
-  IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
-  {
-    [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
-      ? K
-      : never]: FilterSource<Insertions>[K] extends SourceDollarType<
-      infer SourceType
-    >
-      ? Source$Method<SourceType>
-      : never;
-  }
+type ExposedFormInsertions<Insertions> = YieldableInsertionMethods<
+  MergeObject<
+    IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+    {
+      [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
+        ? K
+        : never]: FilterSource<Insertions>[K] extends SourceDollarType<
+        infer SourceType
+      >
+        ? Source$Method<SourceType>
+        : never;
+    }
+  >
 >;
 
 type FormExceptionSignal<
@@ -150,31 +157,42 @@ function createExposedInsertions(
       if (isSource(value)) return acc;
       if (isSource$(value)) {
         const localSource = value;
-        acc[key] = (payload: unknown) => {
-          localSource.emit(payload as never);
-        };
+        const sourceInjector = ɵcreateHostTaggedInjector(
+          injector,
+          `source:${key}`,
+        );
+        acc[key] = createYieldableInsertionMethod(
+          (payload: unknown) => localSource.emit(payload as never),
+          {
+            injector: sourceInjector,
+            invalidYieldErrorMessage:
+              FORM_INSERTION_METHOD_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage:
+              FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
+          },
+        );
         return acc;
       }
-      if (typeof value === 'function' && !isSignal(value)) {
+      if (
+        typeof value === 'function' &&
+        !isSignal(value) &&
+        !isNonYieldableInsertionMethod(value)
+      ) {
         const methodInjector = ɵcreateHostTaggedInjector(injector, `method:${key}`);
         const wrappedFn = runInInjectionContext(injector, () =>
           injectFnWrapper()(value as (...args: unknown[]) => unknown),
         );
-        acc[key] = (...args: unknown[]) =>
-          runInInjectionContext(methodInjector, () => {
-            const result = (wrappedFn as (...a: unknown[]) => unknown)(...args);
-            if (isGenerator(result)) {
-              return runCraftGenerator({
-                iterator: result,
-                injector: methodInjector,
-                hostScope: 'function',
-                invalidYieldErrorMessage: FORM_INSERTION_METHOD_INVALID_YIELD_ERROR_MESSAGE,
-                multipleAppStartErrorMessage: FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
-                onAppStartNotSupportedErrorMessage: FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
-              }).value;
-            }
-            return result;
-          });
+        acc[key] = createYieldableInsertionMethod(wrappedFn, {
+          injector: methodInjector,
+          invalidYieldErrorMessage:
+            FORM_INSERTION_METHOD_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage:
+            FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage:
+            FORM_INSERTION_METHOD_APP_START_ERROR_MESSAGE,
+        });
         return acc;
       }
       acc[key] = value;
@@ -461,7 +479,7 @@ const FORM_INSERTION_APP_START_ERROR_MESSAGE =
           formIdentifier: options.formIdentifier!,
           insertions: {
             ...options.inheritedInsertions,
-            ...acc.rawInsertionsOutput,
+            ...acc.exposedInsertionsOutput,
           },
         }),
       );

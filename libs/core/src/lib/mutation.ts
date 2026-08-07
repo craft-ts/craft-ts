@@ -90,9 +90,16 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
-import { markYieldableMethod, yieldableInvocation } from './yieldable';
+import {
+  createYieldableInsertionMethod,
+  isNonYieldableInsertionMethod,
+  yieldableInvocation,
+} from './yieldable';
 import type { YieldableInvocation } from './yieldable';
-import type { BrandReactiveProperties } from './yieldable';
+import type {
+  BrandReactiveProperties,
+  YieldableInsertionMethods,
+} from './yieldable';
 
 type MutationConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -515,7 +522,6 @@ export type ResourceLikeMutationRef<
       readonly value: Signal<Value | undefined>;
       readonly status: Signal<CraftResourceStatus>;
       readonly isLoading: Signal<boolean>;
-      readonly safeValue: Signal<Value | undefined>;
       hasValue(): boolean;
     },
     {
@@ -528,7 +534,7 @@ export type ResourceLikeMutationRef<
       : {
           source: ReadonlySource<SourceParams>;
         },
-    Insertions,
+    YieldableInsertionMethods<Insertions>,
     ResourceLikeMutationExceptions<MutationException>,
     {
       [key in `~InternalType`]: 'Used to avoid TS type erasure';
@@ -567,13 +573,12 @@ export type ResourceByIdLikeMutationRef<
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
-        readonly safeValue: Signal<Value | undefined>;
         hasValue(): boolean;
       } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>)
     | undefined;
 } & MergeObjects<
     [
-      Insertions,
+      YieldableInsertionMethods<Insertions>,
       IsMethod extends true
         ? {
             mutate: (args: ArgParams) =>
@@ -650,7 +655,7 @@ export type MutationOutput<
   StripCraftException<State>,
   StripCraftException<Params>,
   ArgParams,
-  BrandReactiveProperties<Insertions>,
+  YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
   [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
   SourceParams,
   GroupIdentifier,
@@ -955,7 +960,7 @@ export function mutation<
  * When an `identifier` function is provided, mutations are grouped by ID. Use `select(id)` to access individual mutation instances.
  *
  * @param name - The mutation name. Used to key the returned record
- *   (`const { updateUser } = yield* mutation('updateUser', config)`) and as the
+ *   (`const updateUser = yield* mutation('updateUser', config)`) and as the
  *   injector host tag (`mutation:updateUser`), so the mutation is precisely
  *   locatable in snapshots and logs.
  * @param config - Configuration object containing:
@@ -972,8 +977,8 @@ export function mutation<
  *   `mutation('name', config, insertMutationPipe(insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
- * @returns A single-use primitive generator resolving to a record keyed by
- *   `name`, whose value is a mutation reference object with:
+ * @returns A single-use primitive generator resolving to a mutation reference
+ *   object with:
  *   - `value`: Signal containing the mutation result (undefined if not yet executed)
  *   - `status`: Signal with the craft status ('idle' | 'loading' | 'reloading' | 'resolved' | 'local' | 'exception')
  *   - `exception`: Signal with the primary `craftException` (or undefined)
@@ -992,7 +997,7 @@ export function mutation<
  * @example
  * Basic method-based mutation
  * ```ts
- * const { updateUser } = craftUse(mutation('updateUser', {
+ * const updateUser = craftUse(mutation('updateUser', {
  *   method: (userId: string) => ({ userId }),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}`, { method: 'PATCH' });
@@ -1019,7 +1024,7 @@ export function mutation<
  *  todo change example for mutation
  * const updateUserSource = source<{ userId: string, email: string }>();
  *
- *  const { updateUser } = craftUse(mutation('updateUser', {
+ *  const updateUser = craftUse(mutation('updateUser', {
  *   method:  afterRecomputation(updateUserSource, (params) => params),
  *   loader: async ({ params }) => {
  *     const response = await fetch(`/api/users/${params.userId}`, { method: 'PATCH' });
@@ -1037,7 +1042,7 @@ export function mutation<
  * ```ts
  * import { craftException, mutation } from '@craft-ng/core';
  *
- * const { updateUser } = craftUse(mutation('updateUser', {
+ * const updateUser = craftUse(mutation('updateUser', {
  *   method: (value: string) =>
  *     value.length < 3
  *       ? craftException(
@@ -1065,7 +1070,7 @@ export function mutation<
  * @example
  * Mutation with identifier for grouping
  * ```ts
- * const { deleteItem } = craftUse(mutation('deleteItem', {
+ * const deleteItem = craftUse(mutation('deleteItem', {
  *   method: (itemId: string) => ({ itemId }),
  *   identifier: (params) => params.itemId,
  *   loader: async ({ params }) => {
@@ -1087,7 +1092,7 @@ export function mutation<
  * @example
  * With custom methods via insertions
  * ```ts
- * const { createPost } = craftUse(mutation(
+ * const createPost = craftUse(mutation(
  *   'createPost',
  *   {
  *     method: (data: { title: string; content: string }) => data,
@@ -1115,7 +1120,7 @@ export function mutation<
  * Binding to another ResourceByIdRef
  * ```ts
  * // First, create a source mutation by ID
- * const { fetchUsers } = craftUse(mutation('fetchUsers', {
+ * const fetchUsers = craftUse(mutation('fetchUsers', {
  *   method: (userId: string) => ({ userId }),
  *   identifier: (params) => params.userId,
  *   loader: async ({ params }) => {
@@ -1125,7 +1130,7 @@ export function mutation<
  * }));
  *
  * // Then create a derived mutation that processes the results
- * const { processedUsers } = craftUse(mutation('processedUsers', {
+ * const processedUsers = craftUse(mutation('processedUsers', {
  *   fromResourceById: fetchUsers,
  *   params: ({ value, status }) => {
  *     // Only process when the source is resolved
@@ -1693,16 +1698,6 @@ function createMutationRef<
     ? computed(() => ({ ...exceptions(), parse: schemaParse() }))
     : exceptions;
 
-  if (!isUsingIdentifier) {
-    Object.assign(resourceTarget, {
-      safeValue: computed(() => {
-        const resourceRef =
-          resourceTarget as unknown as ResourceRef<MutationState>;
-        return resourceRef.hasValue() ? resourceRef.value() : undefined;
-      }),
-    });
-  }
-
   const output = Object.assign(
     resourceTarget,
     // byId is used to helps TS to correctly infer the resourceByGroup
@@ -1920,7 +1915,11 @@ function createMutationRef<
       });
       const wrappedResult = Object.entries(rawResult).reduce(
         (wrappedAcc, [key, value]) => {
-          if (typeof value === 'function' && !isSignal(value)) {
+          if (
+            typeof value === 'function' &&
+            !isSignal(value) &&
+            !isNonYieldableInsertionMethod(value)
+          ) {
             const injector = getInjector();
             const methodInjector = ɵcreateHostTaggedInjector(
               injector,
@@ -1945,27 +1944,14 @@ function createMutationRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = markYieldableMethod((...args: unknown[]) =>
-              runInInjectionContext(methodInjector, () => {
-                const result = (wrappedFn as (...a: unknown[]) => unknown)(
-                  ...args,
-                );
-                if (isGenerator(result)) {
-                  return runCraftGenerator({
-                    iterator: result,
-                    injector: methodInjector,
-                    hostScope: 'function',
-                    invalidYieldErrorMessage:
-                      MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-                    multipleAppStartErrorMessage:
-                      MUTATION_APP_START_ERROR_MESSAGE,
-                    onAppStartNotSupportedErrorMessage:
-                      MUTATION_APP_START_ERROR_MESSAGE,
-                  }).value;
-                }
-                return result;
-              }),
-            );
+            wrappedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+              injector: methodInjector,
+              invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage:
+                MUTATION_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                MUTATION_APP_START_ERROR_MESSAGE,
+            });
           } else {
             wrappedAcc[key] = value;
           }

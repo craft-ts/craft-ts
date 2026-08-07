@@ -24,6 +24,21 @@
             "glob": "craft-dependency-graph.json",
             "input": ".",
             "output": "."
+          },
+          {
+            "glob": "**/*",
+            "input": "apps/demo/src",
+            "output": "source/apps/demo/src"
+          },
+          {
+            "glob": "**/*",
+            "input": "libs/component/src",
+            "output": "source/libs/component/src"
+          },
+          {
+            "glob": "**/*",
+            "input": "libs/core/src",
+            "output": "source/libs/core/src"
           }
         ],
         "styles": [

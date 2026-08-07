@@ -60,6 +60,9 @@ test('matchMockHttpRequestForRoute should expose ignore and unusedOrThrow decisi
   await page.goto('/');
 
   await page.evaluate(async () => {
+    // This test intentionally exercises the browser's raw request so the route
+    // interceptor can prove that it matches the request.
+    // eslint-disable-next-line craft-ng/prefer-craft-http-transport
     await fetch('/users').catch(() => undefined);
   });
 

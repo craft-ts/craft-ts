@@ -56,7 +56,7 @@ const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
     component: BlankComponent,
     componentDeps: {},
     queryParams: function* () {
-      const { pagination } = yield* queryParams('pagination', {
+      const pagination = yield* queryParams('pagination', {
         state: {
           page: {
             fallbackValue: 1,
@@ -328,7 +328,7 @@ describe('CraftRouter', () => {
       readonly navigate = craftMethod('navigate', this, function* () {
         const router = yield* CraftRouter();
         return router.navigate({ to: '' });
-      }).navigate;
+      });
     }
 
     type ExpectedDeps = {
@@ -440,9 +440,9 @@ describe('CraftRouter', () => {
     // of preserving each service's literal name.
     class MultiYield {
       readonly run = craftMethod('run', this, function* () {
-        yield* Console.log('navigating');
-        yield* CraftRouter();
-      }).run;
+              yield* Console.log('navigating');
+              yield* CraftRouter();
+            });
     }
 
     type ExpectedDeps = {

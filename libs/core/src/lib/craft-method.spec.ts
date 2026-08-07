@@ -50,7 +50,7 @@ describe('craftMethod', () => {
     class OutsideInjectionContextComponent {
       readonly increment = craftMethod('increment', this, function* () {
         return 1;
-      }).increment;
+      });
     }
 
     expect(() => new OutsideInjectionContextComponent()).toThrow();
@@ -70,7 +70,7 @@ describe('craftMethod', () => {
           this.counter.update((value) => value + step);
           return this.counter();
         },
-      ).increment;
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -100,7 +100,7 @@ describe('craftMethod', () => {
           this.counter.update((value) => value + step);
           return this.counter();
         },
-      ).increment;
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -122,7 +122,7 @@ describe('craftMethod', () => {
           this.counter.update((value) => value + step);
           return this.counter();
         },
-      ).increment;
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -153,7 +153,7 @@ describe('craftMethod', () => {
           this.counter.set(worker.increment(this.counter(), step));
           return this.counter();
         },
-      ).increment;
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -168,7 +168,7 @@ describe('craftMethod', () => {
     class InvalidComponent {
       readonly increment = craftMethod('increment', this, function* () {
         yield* onAppStart(() => undefined);
-      }).increment;
+      });
     }
 
     const component = TestBed.runInInjectionContext(
@@ -191,7 +191,7 @@ describe('craftMethod', () => {
           this.counter.update((value) => value + step);
           return this.counter();
         },
-      ).increment;
+      );
 
       readonly decrement = craftMethod(
         'decrement',
@@ -199,7 +199,7 @@ describe('craftMethod', () => {
           this.counter.update((value) => value - step);
           return this.counter();
         },
-      ).decrement;
+      );
     }
 
     const component = TestBed.runInInjectionContext(
@@ -231,7 +231,7 @@ describe('craftMethod', () => {
           this.counter.set(worker.increment(this.counter(), step));
           return this.counter();
         },
-      ).increment;
+      );
     }
 
     type ExpectedDeps = {
@@ -254,7 +254,7 @@ describe('craftMethod — object config with providers', () => {
     };
 
     TestBed.runInInjectionContext(() => {
-      const { increment } = craftMethod(
+      const increment = craftMethod(
         {
           name: 'increment',
           providers: [
@@ -287,7 +287,7 @@ describe('craftMethod — object config with providers', () => {
     };
 
     TestBed.runInInjectionContext(() => {
-      const { withProvider } = craftMethod(
+      const withProvider = craftMethod(
         {
           name: 'withProvider',
           providers: [
@@ -301,7 +301,7 @@ describe('craftMethod — object config with providers', () => {
           return x;
         },
       );
-      const { withoutProvider } = craftMethod(
+      const withoutProvider = craftMethod(
         'withoutProvider',
         function* (x: number) {
           return x;
@@ -323,7 +323,7 @@ describe('craftMethod — object config with providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const { compute: withoutProviders } = craftMethod(
+      const withoutProviders = craftMethod(
         'compute',
         function* (x: number) {
           const worker = yield* MethodWorker();
@@ -335,7 +335,7 @@ describe('craftMethod — object config with providers', () => {
         'MethodWorker' extends keyof WithoutDeps ? true : false
       >().toEqualTypeOf<true>();
 
-      const { compute: withProviders } = craftMethod(
+      const withProviders = craftMethod(
         { name: 'compute', providers: [provideMethodWorker()] },
         function* (x: number) {
           const worker = yield* MethodWorker();

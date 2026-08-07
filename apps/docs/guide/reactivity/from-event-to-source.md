@@ -71,7 +71,7 @@ readonly and keeps `dispose()`:
 
 ```typescript
 const clickSource = fromEventToSource$(button, 'click');
-const { click } = yield* clickSource;
+const click = yield* clickSource;
 
 click.subscribe((event) => console.log(event));
 click.dispose();
@@ -112,12 +112,12 @@ on the event handle:
 const { Click } = craftService(
   { name: 'Click', scope: 'global' },
   function* () {
-    const { click } = yield* fromEventToSource$(button, 'click');
+    const click = yield* fromEventToSource$(button, 'click');
     return click;
   },
 );
 
-const { counter } = yield* state('counter', 0, ({ set }) => ({
+const counter = yield* state('counter', 0, ({ set }) => ({
   click: on$(Click, () => set(1)),
 }));
 ```
@@ -200,7 +200,7 @@ export const Clicker = craftComponent(
   function* () {
     const click$ = fromEventToSource$<MouseEvent>(document, 'click');
 
-    const { clicks } = yield* state('clicks', 0, ({ update }) => ({
+    const clicks = yield* state('clicks', 0, ({ update }) => ({
       // bound to the source, so NOT exposed on the ref
       increment: on$(click$, () => update((count) => count + 1)),
     }));
@@ -408,7 +408,7 @@ export const SubmitDemo = craftComponent(
       },
     });
 
-    const { formData } = yield* state(
+    const formData = yield* state(
       'formData',
       null as Record<string, unknown> | null,
       ({ set }) => ({

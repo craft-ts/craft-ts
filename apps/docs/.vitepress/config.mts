@@ -175,10 +175,6 @@ const guideSidebar = [
       },
       { text: 'sourceFromEvent', link: '/guide/reactivity/source-from-event' },
       {
-        text: 'reactiveWritableSignal',
-        link: '/guide/reactivity/reactive-writable-signal',
-      },
-      {
         text: 'afterRecomputation',
         link: '/guide/reactivity/after-recomputation',
       },

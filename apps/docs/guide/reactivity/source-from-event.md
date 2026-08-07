@@ -64,7 +64,7 @@ export const KeyCounter = craftComponent(
       () => (count: number) => count + 1,
     );
 
-    const { keys } = yield* state('keys', 0, { sources: [keySource] });
+    const keys = yield* state('keys', 0, { sources: [keySource] });
 
     return { keys };
   },

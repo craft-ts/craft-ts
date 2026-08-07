@@ -6,6 +6,7 @@ export * from './scripts/primitives/migration-diagnostic.js';
 export * from './scripts/routes/migrate-routes.js';
 export * from './scripts/routes/migration-diagnostic.js';
 export * from './scripts/routes/route-command.js';
+export * from './scripts/routes/verify-routes.js';
 export * from './scripts/services/config.js';
 export * from './scripts/services/migrate-services.js';
 export * from './scripts/services/migration-diagnostic.js';

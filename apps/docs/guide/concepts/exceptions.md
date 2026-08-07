@@ -33,7 +33,7 @@ An exception is a **returned value**, not a thrown one. Return it from the place
 that detects the failure and the rest of the pipeline stops on its own:
 
 ```typescript
-const { createTask } = yield* mutation('createTask', {
+const createTask = yield* mutation('createTask', {
   // rejected before any request is sent — the loader never runs
   method: (payload: { title: string }) =>
     payload.title.trim().length === 0
@@ -261,9 +261,6 @@ typed union and lands in the global error path. Return the `craftException`.
 **Reusing one code for two meanings.** The code is the identity the handlers
 match on. Two different failures deserve two codes, with payloads carrying the
 detail.
-
-**`value()` throws on exception.** Use `safeValue()` in templates and computed
-signals — see [Anatomy of a primitive](/guide/concepts/primitive-anatomy).
 
 ## See Also
 

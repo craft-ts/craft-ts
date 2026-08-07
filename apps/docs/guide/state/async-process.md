@@ -30,8 +30,7 @@ yield * delay.method('success');
 delay.status(); // 'idle' | 'loading' | 'resolved' | 'exception'
 delay.isLoading();
 delay.hasValue();
-delay.value(); // throws when the status is 'exception'
-delay.safeValue(); // never throws
+delay.value(); // never throws
 ```
 
 ::: warning `method` always takes exactly one parameter
@@ -127,8 +126,8 @@ loadUser.exceptions().loader?.USER_ACCESS_FORBIDDEN;
 
 **`method` needs its one parameter**, even when you have nothing to pass.
 
-**`value()` throws.** Use `safeValue()` in templates and computed signals — see
-[Anatomy of a primitive](/guide/concepts/primitive-anatomy).
+`value()` is safe to read in templates and computed signals — it returns
+`undefined` when the process has no resolved value.
 
 **Reaching for it to fetch data.** If it's an HTTP read, `query` gives you
 reactive `params` and mutation wiring you'd otherwise rebuild by hand.

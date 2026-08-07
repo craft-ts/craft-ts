@@ -23,8 +23,7 @@ describe('makeFormTreeInsert', () => {
         })),
       );
 
-      const { parent } = craftUse(
-        state(
+      const parent = craftUse(state(
           'parent',
           { user: { name: 'romain', age: 30 }, orderId: 'abc' },
           insertForm(insertUserFormTree()),
@@ -60,8 +59,7 @@ describe('makeFormTreeInsert', () => {
         }),
       );
 
-      const { parent } = craftUse(
-        state(
+      const parent = craftUse(state(
           'parent',
           { user: { name: 'romain', age: 30 } },
           insertForm(insertUserFormTree()),
@@ -95,8 +93,7 @@ describe('makeFormTreeInsert', () => {
           ),
       );
 
-      const { parent } = craftUse(
-        state(
+      const parent = craftUse(state(
           'parent',
           { user: { name: 'romain', age: 30 } },
           insertForm(insertUserFormTree()),

@@ -35,6 +35,24 @@ modifier sa propriété sémantique.
 Le survol d'un nœud active ses voisins directs et leurs liens ; les éléments
 non reliés sont atténués temporairement pour faciliter la lecture du graphe.
 
+## Essai de carte synthèse
+
+La vue « Vue synthèse » conserve les routes individuellement, mais regroupe les
+autres nœuds par fichier. Les liens `contains` et `uses-property` internes sont
+retirés de cette carte ; les liens `loads`, `renders` et `depends-on` sont
+agrégés avec leur nombre d'occurrences. La vue détaillée reste disponible pour
+inspecter les propriétés, primitives et liens unitaires.
+
+La vue « Vue constellation » conserve les composants, services, primitives et
+propriétés actifs, mais abandonne les blocs de la vue détaillée. Une disposition
+force-directed place les éléments comme une vraie constellation : une répulsion
+générale écarte les nœuds, une collision impose une marge minimale, puis une
+passe de séparation corrige les chevauchements résiduels. Chaque liaison ajoute
+un point de poids aux deux extrémités, les composants/services grossissent selon
+leur poids macro, et les primitives/propriétés grossissent selon leur poids local.
+Les liens `contains` sont utilisés comme ressorts invisibles pour garder les
+satellites proches de leur propriétaire, sans être dessinés.
+
 Le fichier `craft-dependency-graph.json` est copié comme asset depuis la racine du
 dépôt au build. Il doit donc être régénéré avec l'analyseur statique avant un test
 sur une nouvelle version du projet démo.

@@ -45,8 +45,14 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
-import { markYieldableMethod } from './yieldable';
-import type { BrandReactiveProperties } from './yieldable';
+import {
+  createYieldableInsertionMethod,
+  isNonYieldableInsertionMethod,
+} from './yieldable';
+import type {
+  BrandReactiveProperties,
+  YieldableInsertionMethods,
+} from './yieldable';
 import type { CraftCodec } from './craft-codec';
 
 export interface QueryParamsNavigationOptions {
@@ -153,7 +159,9 @@ export type QueryParamsOutput<
         {
           [K in keyof QueryParamsState]: Signal<QueryParamsState[K]>;
         },
-        IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+        IsEmptyObject<Insertions> extends true
+          ? {}
+          : YieldableInsertionMethods<FilterSource<Insertions>>,
         {
           hasException: Signal<boolean>;
           exceptions: Signal<QueryParamsExceptions<QueryParamsType>>;
@@ -264,7 +272,7 @@ export type QueryParamsConfig<
  * If called outside an injection context, it will only return an object containing the configuration under `_config`.
  *
  * @param name - The query params manager name. Used to key the returned record
- *   (`const { pagination } = yield* queryParams('pagination', config)`) and as the
+ *   (`const pagination = yield* queryParams('pagination', config)`) and as the
  *   injector host tag (`queryParams:pagination`), so the primitive is precisely
  *   locatable in snapshots and logs.
  * @param config - Configuration object containing:
@@ -279,8 +287,8 @@ export type QueryParamsConfig<
  *   `queryParams('name', config, insertQueryParamsPipe(insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
  *   Methods bound to a source using `afterRecomputation` (effectRef-like) are not exposed in the output.
- * @returns A single-use primitive generator resolving to a record keyed by
- *   `name`, whose value is a signal returning the current query parameter state,
+ * @returns A single-use primitive generator resolving to a signal returning
+ *   the current query parameter state,
  *   extended with:
  *   - Individual signals for each query parameter (e.g., `pagination.page()`)
  *   - Custom methods from insertions (excluding methods bound to sources)
@@ -292,7 +300,7 @@ export type QueryParamsConfig<
  * @example
  * Basic usage
  * ```ts
- * const { myQueryParams } = craftUse(queryParams(
+ * const myQueryParams = craftUse(queryParams(
  *   'myQueryParams',
  *   {
  *     state: {
@@ -329,7 +337,7 @@ export type QueryParamsConfig<
  * @example
  * With custom methods via insertions
  * ```ts
- * const { myQueryParams } = craftUse(queryParams(
+ * const myQueryParams = craftUse(queryParams(
  *   'myQueryParams',
  *   {
  *     state: {
@@ -354,7 +362,7 @@ export type QueryParamsConfig<
  * ```ts
  * import { craftException, queryParams } from '@craft-ng/core';
  *
- * const { mode } = craftUse(queryParams('mode', {
+ * const mode = craftUse(queryParams('mode', {
  *   state: {
  *     mode: {
  *       fallbackValue: 'success' as const,
@@ -666,7 +674,11 @@ function createQueryParamsRef<
         );
         const wrappedInsertions = Object.entries(newInsertions).reduce(
           (wrappedAcc, [key, value]) => {
-            if (typeof value !== 'function' || isSignal(value)) {
+            if (
+              typeof value !== 'function' ||
+              isSignal(value) ||
+              isNonYieldableInsertionMethod(value)
+            ) {
               wrappedAcc[key] = value;
               return wrappedAcc;
             }
@@ -702,27 +714,14 @@ function createQueryParamsRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = markYieldableMethod((...args: unknown[]) =>
-              runInInjectionContext(methodInjector, () => {
-                const result = (wrappedFn as (...a: unknown[]) => unknown)(
-                  ...args,
-                );
-                if (isGenerator(result)) {
-                  return runCraftGenerator({
-                    iterator: result,
-                    injector: methodInjector,
-                    hostScope: 'function',
-                    invalidYieldErrorMessage:
-                      QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE,
-                    multipleAppStartErrorMessage:
-                      QUERY_PARAM_APP_START_ERROR_MESSAGE,
-                    onAppStartNotSupportedErrorMessage:
-                      QUERY_PARAM_APP_START_ERROR_MESSAGE,
-                  }).value;
-                }
-                return result;
-              }),
-            );
+            wrappedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+              injector: methodInjector,
+              invalidYieldErrorMessage: QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage:
+                QUERY_PARAM_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                QUERY_PARAM_APP_START_ERROR_MESSAGE,
+            });
             return wrappedAcc;
           },
           {} as Record<string, unknown>,

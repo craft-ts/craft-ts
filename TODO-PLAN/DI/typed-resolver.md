@@ -70,7 +70,7 @@ Exporter aussi `resolveQuery` depuis [`/Users/romaingeffrault/Documents/projects
 - traiter comme succès terminal : `status() === 'resolved'` ou `status() === 'local'`, sans exception ni error
 - traiter comme erreur terminale : `error()` défini ou `status() === 'error'`
 - traiter comme exception terminale : `hasException() === true`
-- sur succès, retourner `safeValue()` comme valeur résolue
+- sur succès, retourner `value()` comme valeur résolue
 - sur erreur, appeler `handlers.error`
 - sur exception, appeler `handlers.exception` avec l’exception courante
 - si quelqu’un force une `query()` brute dans un resolver via cast, lever une erreur runtime claire indiquant qu’il faut utiliser `resolveQuery(...)`

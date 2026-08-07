@@ -81,8 +81,7 @@ describe('insertForm compatibility with queryParams', () => {
 
   it('exposes a working form at runtime over the query param state', () => {
     TestBed.runInInjectionContext(() => {
-      const { params } = craftUse(
-        queryParams(
+      const params = craftUse(queryParams(
           'params',
           {
             state: {
@@ -115,8 +114,7 @@ describe('insertForm compatibility with queryParams', () => {
 
   it('runs chained insertions inside a queryParams context', () => {
     TestBed.runInInjectionContext(() => {
-      const { params } = craftUse(
-        queryParams(
+      const params = craftUse(queryParams(
           'params',
           {
             state: {
@@ -134,14 +132,15 @@ describe('insertForm compatibility with queryParams', () => {
               getName: () => field.name.value(),
             }),
             ({ insertions }) => ({
-              upperName: () => insertions.getName().toUpperCase(),
+              upperName: () =>
+                craftUse(insertions.getName()).toUpperCase(),
             }),
           ),
         ),
       );
 
-      expect(params.form.getName()).toBe('romain');
-      expect(params.form.upperName()).toBe('ROMAIN');
+      expect(craftUse(params.form.getName())).toBe('romain');
+      expect(craftUse(params.form.upperName())).toBe('ROMAIN');
     });
   });
 });
@@ -158,22 +157,22 @@ describe('insertForm compatibility with query', () => {
     craftService({ name: 'UserStoreTyping', scope: 'global' }, function* () {
       return {
         user: (yield* query(
-          'user',
-          {
-            params: () => '5',
-            loader: async ({ params }): Promise<User> => ({
-              id: params,
-              name: 'John Doe',
-              email: 'john@doe.com',
-            }),
-          },
-          insertForm(({ field }) => {
-            expectTypeOf(field.name.value()).toEqualTypeOf<string>();
-            expectTypeOf(field.email.value()).toEqualTypeOf<string>();
-            expectTypeOf(field.id.value()).toEqualTypeOf<string>();
-            return {};
-          }),
-        )).user,
+                    'user',
+                    {
+                      params: () => '5',
+                      loader: async ({ params }): Promise<User> => ({
+                        id: params,
+                        name: 'John Doe',
+                        email: 'john@doe.com',
+                      }),
+                    },
+                    insertForm(({ field }) => {
+                      expectTypeOf(field.name.value()).toEqualTypeOf<string>();
+                      expectTypeOf(field.email.value()).toEqualTypeOf<string>();
+                      expectTypeOf(field.id.value()).toEqualTypeOf<string>();
+                      return {};
+                    }),
+                  )),
       };
     });
   });
@@ -184,17 +183,17 @@ describe('insertForm compatibility with query', () => {
       function* () {
         return {
           user: (yield* query(
-            'user',
-            {
-              params: () => '5',
-              loader: async ({ params }): Promise<User> => ({
-                id: params,
-                name: 'John Doe',
-                email: 'john@doe.com',
-              }),
-            },
-            insertForm(),
-          )).user,
+                        'user',
+                        {
+                          params: () => '5',
+                          loader: async ({ params }): Promise<User> => ({
+                            id: params,
+                            name: 'John Doe',
+                            email: 'john@doe.com',
+                          }),
+                        },
+                        insertForm(),
+                      )),
         };
       },
     );
@@ -214,8 +213,7 @@ describe('insertForm compatibility with query', () => {
 describe('insertForm regression with state primitive', () => {
   it('still infers the field tree type and works over a plain state', () => {
     TestBed.runInInjectionContext(() => {
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(({ field }) => {
@@ -229,7 +227,7 @@ describe('insertForm regression with state primitive', () => {
       );
 
       expect(loginForm.form.name.value()).toBe('romain');
-      expect(loginForm.form.getName()).toBe('romain');
+      expect(craftUse(loginForm.form.getName())).toBe('romain');
     });
   });
 });

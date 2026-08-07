@@ -1,5 +1,6 @@
 import { inject, Injector } from '@angular/core';
 import { ɵcreateHostTaggedInjector } from '../craft-service';
+import { markNonYieldableInsertionMethod } from '../yieldable';
 import { CraftFieldTree } from './craft-field';
 import {
   buildSubForm,
@@ -7,6 +8,7 @@ import {
   type InsertionFormFactoryContext,
   type InsertionsFormFactory,
 } from './insert-form-internals';
+import type { NonYieldableInsertionMethod } from '../yieldable';
 
 type ExtractItemType<T> = T extends readonly (infer Item)[] ? Item : never;
 
@@ -42,19 +44,22 @@ type ArrayInsertSelectFormTreeOutput<
   Name extends string,
   Insertions extends readonly unknown[],
 > = {
-  [K in SelectFormTreeMethodName<Name>]: (
-    id: number,
-  ) =>
+  [K in SelectFormTreeMethodName<Name>]: NonYieldableInsertionMethod<
+    [id: number],
     | FormWithInsertions<
         ExtractItemType<StateType>,
         MergeInsertions<Insertions>
       >
-    | undefined;
+    | undefined
+  >;
 } & {
-  items: () => Array<
-    FormWithInsertions<
-      ExtractItemType<StateType>,
-      MergeInsertions<Insertions>
+  items: NonYieldableInsertionMethod<
+    [],
+    Array<
+      FormWithInsertions<
+        ExtractItemType<StateType>,
+        MergeInsertions<Insertions>
+      >
     >
   >;
 };
@@ -64,13 +69,16 @@ type ObjectInsertSelectFormTreeOutput<
   Name extends string,
   Insertions extends readonly unknown[],
 > = {
-  [K in SelectFormTreeMethodName<Name>]: () => MaybeFormWithInsertions<
-    StateType extends Record<string, unknown>
-      ? Name extends keyof StateType
-        ? StateType[Name]
-        : never
-      : never,
-    MergeInsertions<Insertions>
+  [K in SelectFormTreeMethodName<Name>]: NonYieldableInsertionMethod<
+    [],
+    MaybeFormWithInsertions<
+      StateType extends Record<string, unknown>
+        ? Name extends keyof StateType
+          ? StateType[Name]
+          : never
+        : never,
+      MergeInsertions<Insertions>
+    >
   >;
 };
 
@@ -146,7 +154,7 @@ function createObjectRuntime(
     };
 
     return {
-      [methodName]: () => buildIfNeeded(),
+      [methodName]: markNonYieldableInsertionMethod(() => buildIfNeeded()),
     };
   };
 }
@@ -217,8 +225,8 @@ function createArrayItemRuntime(
     };
 
     return {
-      [methodName]: buildItemForm,
-      items,
+      [methodName]: markNonYieldableInsertionMethod(buildItemForm),
+      items: markNonYieldableInsertionMethod(items),
     };
   };
 }

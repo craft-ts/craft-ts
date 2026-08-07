@@ -1,4 +1,4 @@
-import { craftService, state } from '@craft-ng/core';
+import { craftService, craftUse, state } from '@craft-ng/core';
 
 export type User = {
   id: string;
@@ -12,7 +12,7 @@ function delay<T>(value: T, ms: number): Promise<T> {
 export const { ApiService } = craftService(
   { name: 'ApiService', scope: 'global' },
   function* () {
-    const { dataList } = yield* state(
+    const dataList = yield* state(
       'dataList',
       [
         { id: '1', name: 'Romain' },
@@ -52,7 +52,7 @@ export const { ApiService } = craftService(
       }),
     );
 
-    const { updateError } = yield* state('updateError', false);
+    const updateError = yield* state('updateError', false);
 
     return {
       updateError,
@@ -76,11 +76,11 @@ export const { ApiService } = craftService(
         return delay(item, 2000);
       },
       addItem: async (newItem: User): Promise<User> => {
-        dataList.addItem(newItem);
+        craftUse(dataList.addItem(newItem));
         return delay(newItem, 5000);
       },
       deleteItem: async (itemId: User['id']): Promise<User> => {
-        const deletedItem = dataList.deleteItem(itemId);
+        const deletedItem = craftUse(dataList.deleteItem(itemId));
         return delay(deletedItem, 2000);
       },
       updateItem: async (updatedItem: User): Promise<User> => {
@@ -88,11 +88,11 @@ export const { ApiService } = craftService(
           await delay(null, 5000);
           throw new Error('Api error during update');
         }
-        dataList.updateItem(updatedItem);
+        craftUse(dataList.updateItem(updatedItem));
         return delay(updatedItem, 2000);
       },
       bulkDelete: async (itemIds: User['id'][]): Promise<User[]> => {
-        const deletedItems = dataList.bulkDelete(itemIds);
+        const deletedItems = craftUse(dataList.bulkDelete(itemIds));
         return delay(deletedItems, 2000);
       },
     };

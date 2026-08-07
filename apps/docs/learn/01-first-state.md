@@ -29,7 +29,7 @@ export const Tasks = craftComponent(
   'Tasks',
   {},
   function* () {
-    const { tasks } = yield* state('tasks', [
+    const tasks = yield* state('tasks', [
       { id: '1', title: 'Read step 1', done: false },
     ] as Task[]);
 
@@ -157,11 +157,10 @@ Angular expects, so the rest of your Angular setup is unchanged.
 the name. It is not decoration: it tags the primitive's injector (`state:tasks`)
 and is what identifies this piece of state in logs, snapshots and observability.
 
-**2. It resolves to a single-key record**, keyed by that name — so you always
-destructure it:
+**2. It resolves to the state reference itself**:
 
 ```typescript
-const { tasks } = yield * state('tasks', []);
+const tasks = yield* state('tasks', []);
 ```
 
 `tasks` is a signal: call it to read, `tasks()`.

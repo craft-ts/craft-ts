@@ -411,34 +411,34 @@ describe('craftRoutes', () => {
   it('should expose typed inject helpers for route queryParams', () => {
     const listQueryParams = () =>
       craftUse(
-        queryParams(
-          'listQueryParams',
-          {
-            state: {
-              page: {
-                fallbackValue: 1,
-                codec: {
-                  decode: (value: string) => parseInt(value, 10),
-                  encode: (value: number) => String(value),
-                },
-              },
-              pageSize: {
-                fallbackValue: 10,
-                codec: {
-                  decode: (value: string) => parseInt(value, 10),
-                  encode: (value: number) => String(value),
-                },
-              },
-            },
-          },
-          ({ set, update, patch, reset }) => ({
-            set,
-            update,
-            patch,
-            reset,
-          }),
-        ),
-      ).listQueryParams;
+                queryParams(
+                  'listQueryParams',
+                  {
+                    state: {
+                      page: {
+                        fallbackValue: 1,
+                        codec: {
+                          decode: (value: string) => parseInt(value, 10),
+                          encode: (value: number) => String(value),
+                        },
+                      },
+                      pageSize: {
+                        fallbackValue: 10,
+                        codec: {
+                          decode: (value: string) => parseInt(value, 10),
+                          encode: (value: number) => String(value),
+                        },
+                      },
+                    },
+                  },
+                  ({ set, update, patch, reset }) => ({
+                    set,
+                    update,
+                    patch,
+                    reset,
+                  }),
+                ),
+              );
 
     const routes = craftRoutes('player', [
       {
@@ -468,7 +468,7 @@ describe('craftRoutes', () => {
             loadComponent: async () => null as unknown as Type<unknown>,
             componentDeps: {},
             queryParams: function* () {
-              const { pagination } = yield* queryParams(
+              const pagination = yield* queryParams(
                 'pagination',
                 {
                   state: {
@@ -586,7 +586,7 @@ describe('craftRoutes', () => {
           {
             path: 'layout',
             queryParams: function* () {
-              const { pagination } = yield* queryParams(
+              const pagination = yield* queryParams(
                 'pagination',
                 {
                   state: {
@@ -1896,8 +1896,8 @@ describe('craftRoutes', () => {
           injector,
           () =>
             craftMethod('load', this, function* () {
-              yield* Console.log('loading');
-            }).load,
+                            yield* Console.log('loading');
+                          }),
         );
       }
 
@@ -1995,7 +1995,7 @@ describe('craftRoutes', () => {
           };
         },
         queryParams: function* () {
-          const { pagination } = yield* queryParams('pagination', {
+          const pagination = yield* queryParams('pagination', {
             state: {
               page: {
                 fallbackValue: 1,
@@ -2786,39 +2786,39 @@ describe('AppRoutes.META_DATA', () => {
           yield* Console.log('init list queryParams');
 
           return (yield* queryParams(
-            'queryParams',
-            {
-              state: {
-                page: {
-                  fallbackValue: 1,
-                  codec: {
-                    decode: (value: string) => parseInt(value, 10),
-                    encode: (value: number) => String(value),
-                  },
-                },
-              },
-            },
-            function* ({ patch, state }) {
-              const rules = yield* PaginationRules(
-                undefined,
-                ({ maxPage }) => ({
-                  maxPage,
-                }),
-              );
+                      'queryParams',
+                      {
+                        state: {
+                          page: {
+                            fallbackValue: 1,
+                            codec: {
+                              decode: (value: string) => parseInt(value, 10),
+                              encode: (value: number) => String(value),
+                            },
+                          },
+                        },
+                      },
+                      function* ({ patch, state }) {
+                        const rules = yield* PaginationRules(
+                          undefined,
+                          ({ maxPage }) => ({
+                            maxPage,
+                          }),
+                        );
 
-              return {
-                nextPage: () => {
-                  if (state().page >= rules.maxPage()) {
-                    return;
-                  }
+                        return {
+                          nextPage: () => {
+                            if (state().page >= rules.maxPage()) {
+                              return;
+                            }
 
-                  patch(({ page }) => ({
-                    page: page + 1,
-                  }));
-                },
-              };
-            },
-          )).queryParams;
+                            patch(({ page }) => ({
+                              page: page + 1,
+                            }));
+                          },
+                        };
+                      },
+                    ));
         },
       },
     ]);
@@ -2877,16 +2877,16 @@ describe('AppRoutes.META_DATA', () => {
           yield* Counter();
 
           return (yield* queryParams('queryParams', {
-            state: {
-              page: {
-                fallbackValue: 1,
-                codec: {
-                  decode: (value: string) => parseInt(value, 10),
-                  encode: (value: number) => String(value),
-                },
-              },
-            },
-          })).queryParams;
+                      state: {
+                        page: {
+                          fallbackValue: 1,
+                          codec: {
+                            decode: (value: string) => parseInt(value, 10),
+                            encode: (value: number) => String(value),
+                          },
+                        },
+                      },
+                    }));
         },
       },
     ]);
@@ -2916,7 +2916,7 @@ describe('AppRoutes.META_DATA', () => {
       {
         path: 'layout',
         queryParams: function* () {
-          const { pagination } = yield* queryParams('pagination', {
+          const pagination = yield* queryParams('pagination', {
             state: {
               page: {
                 fallbackValue: 1,

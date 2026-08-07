@@ -46,7 +46,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'number expected' }] },
     );
 
-    const { value } = TestBed.runInInjectionContext(() =>
+    const value = TestBed.runInInjectionContext(() =>
       craftUse(
         state('value', {
           $self: 2,
@@ -61,7 +61,7 @@ describe('Standard Schema validation', () => {
   });
 
   it('specializes hasSchema to false without a schema', () => {
-    const { value } = TestBed.runInInjectionContext(() =>
+    const value = TestBed.runInInjectionContext(() =>
       craftUse(state('value', 1)),
     );
 
@@ -77,7 +77,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'number expected' }] },
     );
 
-    const { label } = TestBed.runInInjectionContext(() =>
+    const label = TestBed.runInInjectionContext(() =>
       craftUse(
         state('label', {
           $self: 1,
@@ -97,7 +97,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'positive number expected' }] },
     );
 
-    const { value } = TestBed.runInInjectionContext(() =>
+    const value = TestBed.runInInjectionContext(() =>
       craftUse(
         state('value', {
           $self: 1,
@@ -124,7 +124,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'string expected' }] },
     );
 
-    const { search } = TestBed.runInInjectionContext(() =>
+    const search = TestBed.runInInjectionContext(() =>
       craftUse(
         query('search', {
           methodSchema: inputSchema,
@@ -150,7 +150,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'params expected' }] },
     );
 
-    const { products } = TestBed.runInInjectionContext(() =>
+    const products = TestBed.runInInjectionContext(() =>
       craftUse(
         query('products', {
           paramsSchema,
@@ -172,7 +172,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'string array expected' }] },
     );
 
-    const { products } = TestBed.runInInjectionContext(() =>
+    const products = TestBed.runInInjectionContext(() =>
       craftUse(
         query('products', {
           loaderSchema: resultSchema,
@@ -206,7 +206,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'string array expected' }] },
     );
 
-    const { live } = TestBed.runInInjectionContext(() =>
+    const live = TestBed.runInInjectionContext(() =>
       craftUse(
         query('live', {
           loaderSchema: resultSchema,
@@ -231,7 +231,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'resource expected' }] },
     );
 
-    const { users } = TestBed.runInInjectionContext(() =>
+    const users = TestBed.runInInjectionContext(() =>
       craftUse(
         query('users', {
           loaderSchema: resultSchema,
@@ -260,7 +260,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'input expected' }] },
     );
 
-    const { save } = TestBed.runInInjectionContext(() =>
+    const save = TestBed.runInInjectionContext(() =>
       craftUse(
         mutation('save', {
           methodSchema: inputSchema,
@@ -283,7 +283,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'string expected' }] },
     );
 
-    const { load } = TestBed.runInInjectionContext(() =>
+    const load = TestBed.runInInjectionContext(() =>
       craftUse(
         asyncProcess('load', {
           methodSchema: inputSchema,
@@ -305,7 +305,7 @@ describe('Standard Schema validation', () => {
     const numberSchema = schema<number, number>(() => ({
       issues: [{ message: 'always invalid' }],
     }));
-    const { value } = TestBed.runInInjectionContext(() =>
+    const value = TestBed.runInInjectionContext(() =>
       craftUse(
         state('value', {
           $self: 1,
@@ -368,7 +368,7 @@ describe('Standard Schema validation', () => {
         : { issues: [{ message: 'non-negative number expected' }] },
     );
 
-    const { total } = TestBed.runInInjectionContext(() =>
+    const total = TestBed.runInInjectionContext(() =>
       craftUse(
         state('total', {
           $self: computed(() => source() * 2),

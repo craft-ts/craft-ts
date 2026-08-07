@@ -12,26 +12,24 @@ import {
 /**
  * Migrates call-sites to the *named* craft primitives.
  *
- * The five primitives now take their name as first argument and resolve to a
- * single-key record, and `craftComputed` / `craftMethod` — which already took a
- * name — now return one too:
+ * The five primitives now take their name as first argument and resolve to the
+ * primitive reference itself. `craftComputed` / `craftMethod` already take a
+ * name and also return their reference directly:
  *
  * ```ts
  * const users = yield* query({ loader });      // before
- * const { users } = yield* query('users', { loader });  // after
+ * const users = yield* query('users', { loader });  // after
  *
- * const handleFoo = craftMethod('handleFoo', fn);       // before
- * const { handleFoo } = craftMethod('handleFoo', fn);   // after
+ * const handleFoo = craftMethod('handleFoo', fn);       // unchanged
  * ```
  *
  * The name is taken from the binding the call is assigned to:
  *
- * 1. `const X = <call>` → `const { X } = <call>` (the name literal is `'X'`).
+ * 1. `const X = <call>` → `const X = <call>` (the name literal is `'X'`).
  * 2. `const X = craftUse(<call>)` → same, looking through `craftUse` / `yield*`.
- * 3. A class field (`readonly X = ...`) or object property (`X: ...`) cannot be
- *    destructured, so the record is read back: `... .X`.
+ * 3. Class fields and object properties keep the direct primitive reference.
  * 4. For `craftComputed` / `craftMethod` the name literal already exists and
- *    wins; when the binding differs it is aliased (`const { logout: doLogout }`).
+ *    wins; the binding is left unchanged.
  *
  * Anything the codemod cannot name — an inline call with no binding, an
  * existing destructuring pattern — is left untouched and reported so it can be
@@ -138,7 +136,19 @@ function migrateFile(
       report(unmigrated, call, primitive, 'name argument is not a literal');
       continue;
     }
-    if (!preNamed && hasPrimitiveName(call)) {
+    if (preNamed && removeLegacyNamedProperty(call, preNamed)) {
+      changed = true;
+      continue;
+    }
+    if ((preNamed && declaredName) || (!preNamed && hasPrimitiveName(call))) {
+      if (rewriteLegacySingleBinding(call)) {
+        changed = true;
+        continue;
+      }
+      if (removeLegacyNamedProperty(call, preNamed)) {
+        changed = true;
+        continue;
+      }
       report(unmigrated, call, primitive, 'already takes a name argument');
       continue;
     }
@@ -169,6 +179,76 @@ function migrateFile(
   }
 
   return changed;
+}
+
+function removeLegacyNamedProperty(
+  call: CallExpression,
+  preNamed: boolean,
+): boolean {
+  let node: Node = call;
+  let parent = node.getParent();
+
+  while (parent) {
+    if (
+      Node.isPropertyAccessExpression(parent) &&
+      parent.getExpression() === node &&
+      isLegacyNamedProperty(parent, call, preNamed)
+    ) {
+      parent.replaceWithText(node.getText());
+      return true;
+    }
+    if (
+      Node.isParenthesizedExpression(parent) ||
+      Node.isYieldExpression(parent) ||
+      (Node.isCallExpression(parent) &&
+        parent.getExpression().getText() === 'craftUse' &&
+        parent.getArguments()[0] === node)
+    ) {
+      node = parent;
+      parent = parent.getParent();
+      continue;
+    }
+    break;
+  }
+
+  return false;
+}
+
+function rewriteLegacySingleBinding(call: CallExpression): boolean {
+  let node: Node = call;
+  let parent = node.getParent();
+
+  while (parent) {
+    if (
+      Node.isVariableDeclaration(parent) &&
+      parent.getInitializer() === node
+    ) {
+      const nameNode = parent.getNameNode();
+      if (!Node.isObjectBindingPattern(nameNode)) return false;
+      const elements = nameNode.getElements();
+      if (elements.length !== 1) return false;
+      const binding = elements[0];
+      if (!Node.isBindingElement(binding)) return false;
+      const bindingName = binding.getNameNode();
+      if (!Node.isIdentifier(bindingName)) return false;
+      nameNode.replaceWithText(bindingName.getText());
+      return true;
+    }
+    if (
+      Node.isParenthesizedExpression(parent) ||
+      Node.isYieldExpression(parent) ||
+      (Node.isCallExpression(parent) &&
+        parent.getExpression().getText() === 'craftUse' &&
+        parent.getArguments()[0] === node)
+    ) {
+      node = parent;
+      parent = parent.getParent();
+      continue;
+    }
+    break;
+  }
+
+  return false;
 }
 
 type BindingTarget =
@@ -203,6 +283,19 @@ function findBindingTarget(
 
   while (parent) {
     if (
+      Node.isPropertyAccessExpression(parent) &&
+      parent.getExpression() === node &&
+      isLegacyNamedProperty(parent, call, preNamed)
+    ) {
+      const propertyName = parent.getName();
+      parent.replaceWithText(node.getText());
+      return {
+        kind: 'property',
+        name: propertyName,
+        appendPropertyRead: () => undefined,
+      };
+    }
+    if (
       Node.isParenthesizedExpression(parent) ||
       Node.isYieldExpression(parent)
     ) {
@@ -226,15 +319,25 @@ function findBindingTarget(
 
   if (Node.isVariableDeclaration(parent) && parent.getInitializer() === node) {
     const nameNode = parent.getNameNode();
-    if (!Node.isIdentifier(nameNode)) return undefined;
-    const name = nameNode.getText();
+    let name: string;
+    if (Node.isIdentifier(nameNode)) {
+      name = nameNode.getText();
+    } else if (Node.isObjectBindingPattern(nameNode)) {
+      const elements = nameNode.getElements();
+      if (elements.length !== 1) return undefined;
+      const binding = elements[0];
+      if (!Node.isBindingElement(binding)) return undefined;
+      const bindingName = binding.getNameNode();
+      if (!Node.isIdentifier(bindingName)) return undefined;
+      name = bindingName.getText();
+      nameNode.replaceWithText(name);
+    } else {
+      return undefined;
+    }
     return {
       kind: 'variable',
       name,
-      rewriteToDestructuring: (recordKey) =>
-        nameNode.replaceWithText(
-          recordKey === name ? `{ ${name} }` : `{ ${recordKey}: ${name} }`,
-        ),
+      rewriteToDestructuring: () => undefined,
     };
   }
 
@@ -248,18 +351,13 @@ function findBindingTarget(
     return {
       kind: 'property',
       name: nameNode.getText(),
-      appendPropertyRead: (recordKey) => readKeyOff(node, recordKey),
+      appendPropertyRead: () => undefined,
     };
   }
 
-  // `return yield* state(...)` as the whole body of a craftService factory: no
-  // binding exists, but renaming the service's public shape would ripple into
-  // every consumer. Read the record back instead, so the factory keeps
-  // returning the ref itself. The name comes from the enclosing service.
-  // Only when the primitive was actually driven: an undriven `() => state(...)`
-  // body hands the *generator* to the craftService runtime, so there is no
-  // record to read a key off — those are reported for a manual rewrite into a
-  // `function*` factory.
+  // `return yield* state(...)` as the whole body of a craftService factory has
+  // no local binding. Use the enclosing service name for the primitive name and
+  // keep returning the direct primitive reference.
   if (
     isDriven(node, preNamed) &&
     (Node.isReturnStatement(parent) ||
@@ -271,16 +369,14 @@ function findBindingTarget(
     return {
       kind: 'property',
       name: hostName,
-      appendPropertyRead: (recordKey) => readKeyOff(node, recordKey),
+      appendPropertyRead: () => undefined,
     };
   }
 
-  // `craftService(meta, () => state(0, ...))`: the arrow hands the *undriven*
-  // generator to the runtime, so there is no record to read a key off. Promote
-  // the arrow to a `function*` factory that drives the primitive, destructures
-  // the named record and returns the ref — the service keeps its public shape.
-  // Same shape for a route's `queryParams: () => queryParams(config)` field,
-  // which has no craft host to take a name from: the field name is used.
+  // `craftService(meta, () => state(0, ...))` can now hand the primitive
+  // generator directly to the runtime. Only add the name argument; keep the
+  // arrow unchanged. The same applies to a route's
+  // `queryParams: () => queryParams(config)` field.
   if (
     Node.isArrowFunction(parent) &&
     parent.getBody() === node &&
@@ -293,30 +389,25 @@ function findBindingTarget(
     return {
       kind: 'property',
       name: hostName,
-      appendPropertyRead: (recordKey) => {
-        const parameters = arrow
-          .getParameters()
-          .map((parameter) => parameter.getText())
-          .join(', ');
-        const body = arrow.getBody().getText();
-        // `queryParams: () => queryParams(config)` names the primitive after
-        // the field, so destructuring it would shadow the primitive the very
-        // expression calls. Read the key off the record instead.
-        const statements = shadowsCallee(arrow.getBody(), recordKey)
-          ? `return (yield* ${body}).${recordKey};`
-          : `const { ${recordKey} } = yield* ${body};\nreturn ${recordKey};`;
-        arrow.replaceWithText(`function* (${parameters}) {\n${statements}\n}`);
-      },
+      appendPropertyRead: () => undefined,
     };
   }
 
   return undefined;
 }
 
+function isLegacyNamedProperty(
+  property: import('ts-morph').PropertyAccessExpression,
+  call: CallExpression,
+  preNamed: boolean,
+): boolean {
+  const name = readNameLiteral(call, preNamed);
+  return name !== undefined && property.getName() === name;
+}
+
 /**
  * `true` once the primitive generator has actually been driven — by `yield*` or
- * `craftUse(...)`. An undriven invocation is still a generator, so no record
- * key can be read off it.
+ * `craftUse(...)`.
  */
 function isDriven(node: Node, preNamed = false): boolean {
   if (preNamed) return true;
@@ -324,16 +415,6 @@ function isDriven(node: Node, preNamed = false): boolean {
   return (
     Node.isCallExpression(node) && node.getExpression().getText() === 'craftUse'
   );
-}
-
-/**
- * Rewrites `<expr>` into `<expr>.key`, parenthesising when the expression binds
- * looser than member access (`yield* x` would otherwise become `yield* x.key`).
- */
-function readKeyOff(node: Node, key: string): void {
-  const text = node.getText();
-  const needsParens = Node.isYieldExpression(node);
-  node.replaceWithText(needsParens ? `(${text}).${key}` : `${text}.${key}`);
 }
 
 /**
@@ -368,16 +449,6 @@ function findEnclosingHostName(from: Node): string | undefined {
     node = node.getParent();
   }
   return undefined;
-}
-
-/**
- * Whether declaring `recordKey` as a local binding would shadow the very
- * primitive `body` calls (`const { queryParams } = yield* queryParams(...)`).
- */
-function shadowsCallee(body: Node, recordKey: string): boolean {
-  if (!Node.isCallExpression(body)) return false;
-  const callee = body.getExpression();
-  return Node.isIdentifier(callee) && callee.getText() === recordKey;
 }
 
 /**

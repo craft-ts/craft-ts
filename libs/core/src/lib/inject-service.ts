@@ -1,7 +1,9 @@
 import {
   assertInInjectionContext,
   inject,
+  Injector,
   isSignal,
+  runInInjectionContext,
   Signal,
   Type,
   untracked,
@@ -15,6 +17,18 @@ import {
 } from './util/util.type';
 import { isSource } from './util/util';
 import type { SourceBranded } from './util/util';
+import { ɵcreateHostTaggedInjector } from './craft-service';
+import { injectFnWrapper } from './fn-wrapper';
+import {
+  createYieldableInsertionMethod,
+  isNonYieldableInsertionMethod,
+  type YieldableInsertionMethods,
+} from './yieldable';
+
+const INJECT_SERVICE_INSERTION_INVALID_YIELD_ERROR_MESSAGE =
+  'injectService insertion method generators can only yield craftService dependencies or exposed dependency helpers.';
+const INJECT_SERVICE_INSERTION_APP_START_ERROR_MESSAGE =
+  'injectService insertion method generators do not support onAppStart(...).';
 
 type PublicServiceEntry<Entry> =
   Entry extends WritableSignal<any>
@@ -44,7 +58,7 @@ export type InjectService2InsertionContext<
   PreviousInsertions = {},
 > = InjectService2Public<Service> & {
   insertions: HasKeys<PreviousInsertions> extends true
-    ? PreviousInsertions
+    ? YieldableInsertionMethods<PreviousInsertions>
     : never;
 };
 
@@ -57,7 +71,7 @@ export type InjectService2InsertionFactory<
 ) => InjectService2Insertions<Service> & Insertions;
 
 export type InjectService2Output<Service, Insertions> = Prettify<
-  FilterSource<Insertions>
+  YieldableInsertionMethods<FilterSource<Insertions>>
 >;
 
 export function injectService<Service, Insertion1>(
@@ -257,6 +271,7 @@ export function injectService<Service>(...args: any[]): any {
   ];
 
   const service = inject(token);
+  const injector = inject(Injector);
   const allPublic = createPublicServiceApi(
     service,
   ) as InjectService2Public<Service>;
@@ -266,7 +281,7 @@ export function injectService<Service>(...args: any[]): any {
         insertion(
           createInsertionContext({
             allPublic,
-            insertions: acc.rawInsertionsOutput,
+            insertions: acc.exposedInsertionsOutput,
           }) as InjectService2InsertionContext<
             Service,
             Record<string, unknown>
@@ -279,7 +294,30 @@ export function injectService<Service>(...args: any[]): any {
             return exposedAcc;
           }
 
-          exposedAcc[key] = value;
+          if (
+            typeof value === 'function' &&
+            !isSignal(value) &&
+            !isNonYieldableInsertionMethod(value)
+          ) {
+            const methodInjector = ɵcreateHostTaggedInjector(
+              injector,
+              `method:${key}`,
+            );
+            const wrappedFn = runInInjectionContext(methodInjector, () =>
+              injectFnWrapper()(value as (...args: unknown[]) => unknown),
+            );
+            exposedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+              injector: methodInjector,
+              invalidYieldErrorMessage:
+                INJECT_SERVICE_INSERTION_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage:
+                INJECT_SERVICE_INSERTION_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                INJECT_SERVICE_INSERTION_APP_START_ERROR_MESSAGE,
+            });
+          } else {
+            exposedAcc[key] = value;
+          }
           return exposedAcc;
         },
         {} as Record<string, unknown>,

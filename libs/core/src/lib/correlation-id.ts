@@ -9,11 +9,13 @@ import {
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
 
+/** A human-readable prefix describing the operation that started a flow. */
 export type CorrelationIdPrefix =
   | 'click'
   | 'enter'
   | 'nav-back'
-  | 'nav-forward';
+  | 'nav-forward'
+  | (string & {});
 
 export interface CorrelationIdMetadata {
   lastCorrelationId: string | null;

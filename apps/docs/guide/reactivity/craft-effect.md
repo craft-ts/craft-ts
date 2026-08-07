@@ -56,9 +56,7 @@ craftEffect('load', function* () {
 Use a reactive query instead when the data depends on a signal:
 
 ```typescript
-const { user } =
-  yield *
-  query('user', {
+const user = yield* query('user', {
     params: userId,
     loader: ({ params }) => fetchUser(params),
   });

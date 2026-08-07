@@ -247,15 +247,11 @@ type ToSubmitExceptions<
 
 export function insertFormSubmit<
   FormValue,
-  SubmitCraftResource extends ResourceLikeMutationRef<
-    any,
-    any,
-    true,
-    any,
-    any,
-    any,
-    any
-  >,
+  SubmitCraftResource extends {
+    type: 'resourceLike';
+    kind: 'mutation';
+    mutate: (args: any) => any;
+  },
   SubmitExceptions = SubmitExceptionUnion<SubmitCraftResource>,
   const Config extends object = {},
 >(

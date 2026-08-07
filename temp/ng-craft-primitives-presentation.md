@@ -61,7 +61,7 @@ const userQuery = query({
 });
 
 // Accède directement à tes données
-console.log(userQuery.safeValue()); // User | undefined
+console.log(userQuery.value()); // User | undefined
 console.log(userQuery.isLoading()); // boolean
 console.log(userQuery.status()); // 'idle' | 'loading' | 'success' | 'error'
 ```
@@ -126,7 +126,7 @@ createUser.mutate({
 });
 
 console.log(createUser.isLoading());
-console.log(createUser.safeValue()); // User | undefined
+console.log(createUser.value()); // User | undefined
 ```
 
 ![Exemple mutation](./assets/mutation-example.png)

@@ -18,8 +18,7 @@ type LoginData = {
 describe('insertForm', () => {
   it('creates a CraftFieldTree from a state and exposes insertions', () => {
     TestBed.runInInjectionContext(() => {
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           { name: '1', password: '' } satisfies LoginData,
           insertForm(({ field, formIdentifier }) => {
@@ -41,8 +40,7 @@ describe('insertForm', () => {
 
   it('chained insertions can read previous outputs via context.insertions', () => {
     TestBed.runInInjectionContext(() => {
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(
@@ -50,21 +48,21 @@ describe('insertForm', () => {
               getName: () => field.name.value(),
             }),
             ({ insertions }) => ({
-              upperName: () => insertions.getName().toString().toUpperCase(),
+              upperName: () =>
+                craftUse(insertions.getName()).toString().toUpperCase(),
             }),
           ),
         ),
       );
 
-      expect(loginForm.form.getName()).toBe('romain');
-      expect(loginForm.form.upperName()).toBe('ROMAIN');
+      expect(craftUse(loginForm.form.getName())).toBe('romain');
+      expect(craftUse(loginForm.form.upperName())).toBe('ROMAIN');
     });
   });
 
   it('creates a parallel form tree from an array state', () => {
     TestBed.runInInjectionContext(() => {
-      const { usersForm } = craftUse(
-        state(
+      const usersForm = craftUse(state(
           'usersForm',
           [
             { id: 'a', name: 'Alpha' },
@@ -90,8 +88,7 @@ describe('insertForm', () => {
 
   it('applies set/update/patch through the form tree', () => {
     TestBed.runInInjectionContext(() => {
-      const { userForm } = craftUse(
-        state('userForm', { name: 'a', count: 0 }, insertForm()),
+      const userForm = craftUse(state('userForm', { name: 'a', count: 0 }, insertForm()),
       );
 
       userForm.form.name.set('b');
@@ -107,8 +104,7 @@ describe('insertForm', () => {
 
   it('exposes hasAttemptedSubmit and submitting signals', () => {
     TestBed.runInInjectionContext(() => {
-      const { userForm } = craftUse(
-        state(
+      const userForm = craftUse(state(
           'userForm',
           { name: 'a' },
           insertForm(({ hasAttemptedSubmit, submitting }) => ({
@@ -128,8 +124,7 @@ describe('insertForm', () => {
 
   it('field is a CraftField at the root', () => {
     TestBed.runInInjectionContext(() => {
-      const { userForm } = craftUse(
-        state('userForm', { name: 'a' }, insertForm()),
+      const userForm = craftUse(state('userForm', { name: 'a' }, insertForm()),
       );
 
       expectTypeOf(userForm.form.value).toEqualTypeOf<
@@ -143,8 +138,7 @@ describe('insertForm', () => {
 
   it('exposes validatedFormValue branded with the symbol when the form is valid', () => {
     TestBed.runInInjectionContext(() => {
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(),
@@ -157,8 +151,7 @@ describe('insertForm', () => {
         [validatedFormValueSymbol]: true,
       });
 
-      const { loginForms } = craftUse(
-        state(
+      const loginForms = craftUse(state(
           'loginForms',
           [
             { name: '1', password: '' },
@@ -199,8 +192,7 @@ describe('insertForm', () => {
 
   it('keeps hasAttemptedSubmit sticky across setSubmitting toggles and clears it on reset', () => {
     TestBed.runInInjectionContext(() => {
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(({ setSubmitting, setAttemptedSubmit }) => ({
@@ -233,21 +225,18 @@ describe('insertForm', () => {
 
   it('setAttemptedSubmit marks attempted without toggling submitting', () => {
     TestBed.runInInjectionContext(() => {
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(({ setAttemptedSubmit }) => ({ setAttemptedSubmit })),
         ),
       );
 
-      expectTypeOf(loginForm.form.setAttemptedSubmit).toEqualTypeOf<
-        () => void
-      >();
+      expectTypeOf(loginForm.form.setAttemptedSubmit).toBeFunction();
       expect(loginForm.form.submitting()).toBe(false);
       expect(loginForm.form.hasAttemptedSubmit()).toBe(false);
 
-      loginForm.form.setAttemptedSubmit();
+      craftUse(loginForm.form.setAttemptedSubmit());
 
       expect(loginForm.form.submitting()).toBe(false);
       expect(loginForm.form.hasAttemptedSubmit()).toBe(true);
@@ -256,8 +245,7 @@ describe('insertForm', () => {
 
   it('exposes setSubmitting for each parallel form independently', () => {
     TestBed.runInInjectionContext(() => {
-      const { loginForms } = craftUse(
-        state(
+      const loginForms = craftUse(state(
           'loginForms',
           [
             { id: 1, name: 'a' },
@@ -289,14 +277,12 @@ describe('insertForm', () => {
 
   it('exposes the form tree externally for direct sub-field access (simple and parallel)', () => {
     TestBed.runInInjectionContext(() => {
-      const { myState } = craftUse(
-        state('myState', { id: 1, name: '1', password: '' }, insertForm()),
+      const myState = craftUse(state('myState', { id: 1, name: '1', password: '' }, insertForm()),
       );
       expect(myState.form.password).toBeDefined();
       expect(myState.form.password.value()).toBe('');
 
-      const { forms } = craftUse(
-        state(
+      const forms = craftUse(state(
           'forms',
           [{ id: 1, name: '1', password: 'myPassword' }],
           insertForm({ identifier: ({ item }) => item.id }),
@@ -322,8 +308,7 @@ describe('insertForm', () => {
       const submitExceptions = signal<(typeof submitException)[]>([]);
       const validationExceptions = signal<(typeof validationException)[]>([]);
 
-      const { loginForm } = craftUse(
-        state(
+      const loginForm = craftUse(state(
           'loginForm',
           { name: 'romain', password: 'secret' },
           insertForm(() => ({

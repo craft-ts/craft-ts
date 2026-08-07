@@ -8,6 +8,6 @@ updateUserMutation.mutate({ id: 'user-1', name: 'Romain' });
 
 const isLoading = updateUserMutation.isLoading();
 // boolean
-const updatedUser = updateUserMutation.safeValue();
+const updatedUser = updateUserMutation.value();
 // UpdateUserInput | undefined
 ```

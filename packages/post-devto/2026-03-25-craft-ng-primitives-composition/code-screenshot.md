@@ -120,11 +120,11 @@ const delaySearch = asyncProcess({
   },
 });
 
-delaySearch.safeValue(); // undefined
+delaySearch.value(); // undefined
 delaySearch.status(); // 'idle'
 delaySearch.method('@craft-ng');
 delaySearch.status(); // 'loading' -> after 250ms -> 'resolved'
-delaySearch.safeValue(); // '@craft-ng'
+delaySearch.value(); // '@craft-ng'
 ```
 
 ## 06 - queryParam
@@ -174,12 +174,11 @@ const page = state(1, ({ set }) => ({
 resetFilters$.emit();
 ```
 
-## 08 - reactiveWritableSignal + toSource + afterRecomputation
+## 08 - toSource + afterRecomputation
 
 ```ts
 import {
   afterRecomputation,
-  reactiveWritableSignal,
   source$,
   toSource,
 } from '@craft-ng/core';
@@ -192,18 +191,6 @@ const userActionSignal = signal<{ type: 'add' | 'remove'; id: string } | null>(
 const actionSource = toSource(userActionSignal, {
   computed: (value) => value,
 });
-
-const selectedIds = reactiveWritableSignal([] as string[], (sync) => ({
-  syncWithAction: sync(
-    actionSource.preserveLastValue,
-    ({ params, current }) => {
-      if (!params) return current;
-      return params.type === 'add'
-        ? [...current, params.id]
-        : current.filter((id) => id !== params.id);
-    },
-  ),
-}));
 
 const saveSelection = mutation({
   method: afterRecomputation(userAction$, (event) => event.id),

@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import styles from './pixel-art-matrix.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -9,6 +9,7 @@ import {
   p,
   section,
 } from '@craft-ng/component';
+import { state } from '@craft-ng/core';
 
 type Cell = {
   readonly id: number;
@@ -19,6 +20,8 @@ const SIZE = 16;
 const EMPTY = '#f8fafc';
 const COLORS = ['#0f172a', '#ef4444', '#22c55e', '#3b82f6', '#eab308'];
 let nextCellId = SIZE ** 2;
+
+const trackGridRow = (row: Cell[]) => row[0]?.id ?? row.length;
 
 const makeGrid = (): Cell[][] =>
   Array.from({ length: SIZE }, (_, row) =>
@@ -32,62 +35,72 @@ const makeGrid = (): Cell[][] =>
 const PixelArtMatrix = craftComponent(
   'PixelArtMatrix',
   {
-    styles: `
-      .matrix-grid{display:grid;gap:1px}.matrix-row{display:flex;gap:1px}.matrix-cell{width:22px;height:22px;border:1px solid #e2e8f0;padding:0}.matrix-palette{display:flex;gap:8px;margin:1rem 0}.matrix-color{width:32px;height:32px}
-    `,
+    stylesUrl: styles,
   },
-  () => {
-    const activeColor = signal(COLORS[0]);
-    const grid = signal(makeGrid());
-    const paint = (rowIndex: number, columnIndex: number) =>
-      grid.update((rows) =>
-        rows.map((row, r) =>
-          r === rowIndex
-            ? row.map((cell, c) =>
-                c === columnIndex
-                  ? {
-                      ...cell,
-                      color:
-                        cell.color === activeColor() ? EMPTY : activeColor(),
-                      count: cell.count + 1,
-                    }
-                  : cell,
-              )
-            : row,
-        ),
-      );
-    const paintRow = (rowIndex: number, color: string) =>
-      grid.update((rows) =>
-        rows.map((row, r) =>
-          r === rowIndex
-            ? row.map((cell) => ({
-                ...cell,
-                color,
-                count: cell.count + 1,
-              }))
-            : row,
-        ),
-      );
-    const addRow = () =>
-      grid.update((rows) => [
-        ...rows,
-        Array.from({ length: rows[0]?.length ?? SIZE }, () => ({
-          id: nextCellId++,
-          color: EMPTY,
-          count: 0,
-        })),
-      ]);
-    const addCell = (rowIndex: number) =>
-      grid.update((rows) =>
-        rows.map((row, r) =>
-          r === rowIndex
-            ? [...row, { id: nextCellId++, color: EMPTY, count: 0 }]
-            : row,
-        ),
-      );
-    return { activeColor, grid, paint, paintRow, addRow, addCell };
+  function* () {
+    const activeColor = yield* state(
+      'activeColor',
+      COLORS[0],
+      ({ set }) => ({ setColor: (color: string) => set(color) }),
+    );
+    const grid = yield* state(
+      'grid',
+      makeGrid(),
+      ({ set, update }) => ({
+        paint: (rowIndex: number, columnIndex: number) =>
+          update((rows) =>
+            rows.map((row, r) =>
+              r === rowIndex
+                ? row.map((cell, c) =>
+                    c === columnIndex
+                      ? {
+                          ...cell,
+                          color:
+                            cell.color === activeColor()
+                              ? EMPTY
+                              : activeColor(),
+                          count: cell.count + 1,
+                        }
+                      : cell,
+                  )
+                : row,
+            ),
+          ),
+        paintRow: (rowIndex: number, color: string) =>
+          update((rows) =>
+            rows.map((row, r) =>
+              r === rowIndex
+                ? row.map((cell) => ({
+                    ...cell,
+                    color,
+                    count: cell.count + 1,
+                  }))
+                : row,
+            ),
+          ),
+        addRow: () =>
+          update((rows) => [
+            ...rows,
+            Array.from({ length: rows[0]?.length ?? SIZE }, () => ({
+              id: nextCellId++,
+              color: EMPTY,
+              count: 0,
+            })),
+          ]),
+        addCell: (rowIndex: number) =>
+          update((rows) =>
+            rows.map((row, r) =>
+              r === rowIndex
+                ? [...row, { id: nextCellId++, color: EMPTY, count: 0 }]
+                : row,
+            ),
+          ),
+        reset: () => set(makeGrid()),
+      }),
+    );
+    return { activeColor, grid };
   },
-  ({ activeColor, grid, paint, paintRow, addRow, addCell }) =>
+  ({ activeColor, grid }) =>
     section([
       header([
         h1('Pixel Art Workshop (Matrix)'),
@@ -99,34 +112,34 @@ const PixelArtMatrix = craftComponent(
           button({
             class: 'matrix-color',
             style: { backgroundColor: color },
-            click: () => activeColor.set(color),
+            click: () => activeColor.setColor(color),
           }),
         ),
       ),
-      button({ click: () => grid.set(makeGrid()) }, 'Reset'),
+      button({ click: grid.reset }, 'Reset'),
       div(
         { class: 'matrix-grid' },
         each(
           grid,
-          { track: (row) => row[0]?.id ?? row.length },
+          { track: trackGridRow },
           (row, rowIndex) =>
             div({ class: 'matrix-row' }, [
               each(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
                 button({
                   class: 'matrix-cell',
                   style: { backgroundColor: cell.color },
-                  click: () => paint(rowIndex, columnIndex),
+                  click: () => grid.paint(rowIndex, columnIndex),
                   contextmenu: (event) => {
                     event.preventDefault();
-                    paintRow(rowIndex, cell.color);
+                    grid.paintRow(rowIndex, cell.color);
                   },
                 }),
               ),
-              button({ click: () => addCell(rowIndex) }, '+'),
+              button({ click: () => grid.addCell(rowIndex) }, '+'),
             ]),
         ),
       ),
-      button({ click: addRow }, 'Add row'),
+      button({ click: grid.addRow }, 'Add row'),
     ]),
 );
 

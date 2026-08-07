@@ -25,7 +25,7 @@ export const { TaskList } = craftService(
   function* () {
     const api = yield* TaskApi(); // ← tracked
 
-    const { tasks } = yield* state('tasks', [] as Task[], /* … */);
+    const tasks = yield* state('tasks', [] as Task[], /* … */);
     return tasks;
   },
 );
@@ -49,7 +49,7 @@ You don't manage that channel yourself. In practice the whole rule is:
 
 ```typescript
 const api = yield* TaskApi(); // a service
-const { tasks } = yield* state('tasks', []); // a primitive
+const tasks = yield* state('tasks', []); // a primitive
 ```
 
 ::: warning A primitive is single-use
@@ -73,7 +73,8 @@ const { TaskList } = craftService(
   { name: 'TaskList', scope: 'function' },
   function* () {
     const api = yield* TaskApi();
-    const { tasks } = yield* state('tasks', [] as Task[], ({ set }) => ({
+    const tasks = yield* state('tasks', [] as Task[], ({ set }) => ({
+      // For this demo only; we'll later see why this belongs in a mutation instead.
       load: async () => set(await api.fetchAll()),
     }));
     return tasks;

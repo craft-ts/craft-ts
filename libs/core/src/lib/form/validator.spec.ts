@@ -38,8 +38,7 @@ describe('validator', () => {
   it('reports cRequired as a craft exception', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const { fieldForm } = craftUse(
-        state(
+      const fieldForm = craftUse(state(
           'fieldForm',
           model,
           insertForm(
@@ -67,8 +66,7 @@ describe('validator', () => {
   it('honors `when` to skip validation', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const { fieldForm } = craftUse(
-        state(
+      const fieldForm = craftUse(state(
           'fieldForm',
           model,
           insertForm(
@@ -88,8 +86,7 @@ describe('validator', () => {
   it('reports cEmail when value does not match', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal('');
-      const { fieldForm } = craftUse(
-        state(
+      const fieldForm = craftUse(state(
           'fieldForm',
           model,
           insertForm(
@@ -125,8 +122,7 @@ describe('validator', () => {
   it('reports cMin and cMax when value is outside range', () => {
     TestBed.runInInjectionContext(() => {
       const minModel = signal('2');
-      const { minForm } = craftUse(
-        state(
+      const minForm = craftUse(state(
           'minForm',
           minModel,
           insertForm(
@@ -150,8 +146,7 @@ describe('validator', () => {
       });
 
       const maxModel = signal('11');
-      const { maxForm } = craftUse(
-        state(
+      const maxForm = craftUse(state(
           'maxForm',
           maxModel,
           insertForm(
@@ -171,8 +166,7 @@ describe('validator', () => {
   it('reports cMinLength on an empty array', () => {
     TestBed.runInInjectionContext(() => {
       const model = signal<string[]>([]);
-      const { fieldForm } = craftUse(
-        state(
+      const fieldForm = craftUse(state(
           'fieldForm',
           model,
           insertForm(
@@ -199,8 +193,7 @@ describe('validator', () => {
 
   it('reports cMinLength, cMaxLength and cPattern errors', () => {
     TestBed.runInInjectionContext(() => {
-      const { minLenForm } = craftUse(
-        state(
+      const minLenForm = craftUse(state(
           'minLenForm',
           signal('ab'),
           insertForm(
@@ -214,8 +207,7 @@ describe('validator', () => {
         cMinLength: expectedException('cMinLength', 'minLength', 3),
       });
 
-      const { maxLenForm } = craftUse(
-        state(
+      const maxLenForm = craftUse(state(
           'maxLenForm',
           signal('abcd'),
           insertForm(
@@ -229,8 +221,7 @@ describe('validator', () => {
         cMaxLength: expectedException('cMaxLength', 'maxLength', 3),
       });
 
-      const { patternForm } = craftUse(
-        state(
+      const patternForm = craftUse(state(
           'patternForm',
           signal('abc'),
           insertForm(
@@ -249,8 +240,7 @@ describe('validator', () => {
   it('supports custom sync validators with cValidate', () => {
     TestBed.runInInjectionContext(() => {
       const fieldState = signal('');
-      const { fieldForm } = craftUse(
-        state(
+      const fieldForm = craftUse(state(
           'fieldForm',
           fieldState,
           insertForm(
@@ -297,15 +287,13 @@ describe('validator', () => {
     try {
       await TestBed.runInInjectionContext(async () => {
         const model = signal('');
-        const { usernameQuery } = craftUse(
-          query('usernameQuery', {
+        const usernameQuery = craftUse(query('usernameQuery', {
             method: (username: string) => username,
             loader: async ({ params }) => ({ available: params !== 'taken' }),
           }),
         );
 
-        const { fieldForm } = craftUse(
-          state(
+        const fieldForm = craftUse(state(
             'fieldForm',
             model,
             insertForm(

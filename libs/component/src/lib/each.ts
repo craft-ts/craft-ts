@@ -30,16 +30,50 @@ type SourceName<Source> = Source extends {
 
 type EachSource =
   | readonly unknown[]
-  | (() => readonly unknown[])
-  | (() => Generator<unknown, readonly unknown[], unknown>);
+  | null
+  | undefined
+  | (() => readonly unknown[] | null | undefined)
+  | Generator<unknown, readonly unknown[] | null | undefined, unknown>
+  | (() => Generator<unknown, readonly unknown[] | null | undefined, unknown>);
 
-type EachItem<Source> = Source extends readonly (infer Item)[]
+type EachItemFromValue<Value> = [NonNullable<Value>] extends [
+  readonly (infer Item)[],
+]
   ? Item
-  : Source extends () => readonly (infer Item)[]
-    ? Item
-    : Source extends () => Generator<unknown, readonly (infer Item)[], unknown>
-      ? Item
-      : never;
+  : [NonNullable<Value>] extends [
+        Generator<unknown, infer Result, unknown>,
+      ]
+    ? EachItemFromValue<Result>
+    : never;
+
+type EachItem<Source> = [NonNullable<Source>] extends [never]
+  ? unknown
+  : NonNullable<Source> extends (...args: never[]) => infer Value
+    ? EachItemFromValue<Value>
+    : EachItemFromValue<Source>;
+
+export function each<
+  Source extends EachSource,
+  Key,
+  Options extends EachOptions<NoInfer<EachItem<Source>>, Key>,
+  ItemTemplate extends (
+    item: NoInfer<EachItem<Source>>,
+    index: number,
+  ) => CraftNodeChildren,
+>(
+  source: Source,
+  options: Options,
+  itemTemplate: ItemTemplate,
+): EachNode<
+  EachItem<Source>,
+  Key,
+  CallbackDependencies<ItemTemplate> | EmptyDependencies<Options>,
+  SourceName<Source>,
+  ReturnType<ItemTemplate>,
+  Options extends { readonly empty?: (...args: any[]) => infer Empty }
+    ? Empty
+    : never
+>;
 
 export function each<
   Source extends EachSource,

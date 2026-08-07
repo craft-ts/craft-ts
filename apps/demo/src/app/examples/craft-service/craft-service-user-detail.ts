@@ -1,14 +1,15 @@
-import { signal } from '@angular/core';
 import {
   craftComponent,
   div,
   h,
   h2,
+  ifBlock,
   option,
   p,
   select,
 } from '@craft-ng/component';
 import {
+  craftComputed,
   craftService,
   query,
   state,
@@ -42,7 +43,7 @@ const { provideUser, User } = craftService(
   { name: 'User', scope: 'toProvide' },
   function* (inputs: { userId: MaybeSignal<string> }) {
     const api = yield* UsersApi();
-    const { user } = yield* query('user', {
+    const user = yield* query('user', {
       params: () => toValue(inputs.userId),
       loader: ({ params }) => api.getUser(params),
     });
@@ -56,9 +57,7 @@ const { provideUser, User } = craftService(
 const CraftServiceUserDetailComponent = craftComponent(
   'CraftServiceUserDetailComponent',
   {
-    providers: [
-      provideUser(),
-    ],
+    providers: [provideUser()],
     styles: `
       :scope{display:flex;flex-direction:column;align-items:center;gap:20px;padding:32px;font-family:sans-serif}
       .controls{display:flex;gap:12px;align-items:center}
@@ -72,13 +71,13 @@ const CraftServiceUserDetailComponent = craftComponent(
     `,
   },
   function* () {
-    const { userId } = yield* state('userId', signal('1'), ({ set }) => ({
-      setUserId: set,
+    const userId = yield* state('userId', '1', ({ set }) => ({
+      selectUser: (value: string) => set(value),
     }));
     return { userId, user: yield* User({ userId }) };
   },
   ({ userId, user }) => {
-    const value = user.safeValue();
+    const hasValue = craftComputed('hasValue', () => user.hasValue());
     return div([
       h2('craftService User Detail (query)'),
       div({ class: 'controls' }, [
@@ -86,29 +85,32 @@ const CraftServiceUserDetailComponent = craftComponent(
           {
             value: userId(),
             change: (event) =>
-              userId.setUserId((event.target as HTMLSelectElement).value),
+              userId.selectUser((event.target as HTMLSelectElement).value),
           },
           user.userIds.map((id) => option({ value: id }, `User ${id}`)),
         ),
       ]),
       div({ class: 'card' }, [
-        value
-          ? h('dl', [
+        ifBlock(
+          hasValue,
+          () => {
+            const value = user.value() as User;
+            return h('dl', [
               h('dt', 'ID'),
               h('dd', value.id),
               h('dt', 'Name'),
               h('dd', value.name),
               h('dt', 'Email'),
               h('dd', value.email),
-            ])
-          : p(
-              {
-                class: user.status() === 'exception' ? 'error' : 'loading',
-              },
-              user.status() === 'exception'
-                ? 'Failed to load user.'
-                : 'Loading user…',
+            ]);
+          },
+          () =>
+            ifBlock(
+              user.hasException,
+              () => p({ class: 'error' }, 'Failed to load user.'),
+              () => p({ class: 'loading' }, 'Loading user…'),
             ),
+        ),
       ]),
     ]);
   },

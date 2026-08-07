@@ -211,7 +211,7 @@ const counter = state(0, ({ update }) => ({
 
 ### Post 31 - Error Handling
 
-**Prompt:** "Post sur la gestion d'erreur dans ng-craft : value() vs safeValue(), error() signal, pattern try-catch. Snippet montrant les deux approches."
+**Prompt:** "Post sur la gestion d'erreur dans ng-craft : value() vs value(), error() signal, pattern try-catch. Snippet montrant les deux approches."
 
 - 🔧 Code snippet inclus
 

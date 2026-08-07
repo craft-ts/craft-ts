@@ -20,6 +20,13 @@ import {
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
+import {
+  createYieldableInsertionMethod,
+  isNonYieldableInsertionMethod,
+  markNonYieldableInsertionMethod,
+  type NonYieldableInsertionMethod,
+  type YieldableInsertionMethods,
+} from './yieldable';
 
 type SelectedTarget<
   StateType,
@@ -40,20 +47,33 @@ type MergeInsertions<
   : Acc;
 
 type Source$Method<SourceType> = [SourceType] extends [void]
-  ? () => void
-  : (value: SourceType) => void;
+  ? () => Generator<never, void, unknown>
+  : (value: SourceType) => Generator<never, void, unknown>;
 
-type ExposedInsertions<Insertions> = MergeObject<
-  IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
-  {
-    [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
-      ? K
-      : never]: FilterSource<Insertions>[K] extends SourceDollarType<
-      infer SourceType
-    >
-      ? Source$Method<SourceType>
-      : never;
-  }
+function isSource$(value: unknown): value is SourceDollarType<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'emit' in value &&
+    typeof (value as SourceDollarType<unknown>).emit === 'function' &&
+    'subscribe' in value &&
+    typeof (value as SourceDollarType<unknown>).subscribe === 'function'
+  );
+}
+
+type ExposedInsertions<Insertions> = YieldableInsertionMethods<
+  MergeObject<
+    IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
+    {
+      [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
+        ? K
+        : never]: FilterSource<Insertions>[K] extends SourceDollarType<
+        infer SourceType
+      >
+        ? Source$Method<SourceType>
+        : never;
+    }
+  >
 >;
 
 type SelectItemMethodName<Name extends string> = `select${Capitalize<Name>}`;
@@ -86,12 +106,14 @@ type ArrayInsertSelectOutput<
   Name extends string,
   Insertions extends readonly unknown[],
 > = {
-  [K in SelectItemMethodName<Name>]: (
-    id: number,
-  ) => ArraySelectedOutput<StateType, MergeInsertions<Insertions>> | undefined;
+  [K in SelectItemMethodName<Name>]: NonYieldableInsertionMethod<
+    [id: number],
+    ArraySelectedOutput<StateType, MergeInsertions<Insertions>> | undefined
+  >;
 } & {
-  items: () => Array<
-    ArraySelectedOutput<StateType, MergeInsertions<Insertions>>
+  items: NonYieldableInsertionMethod<
+    [],
+    Array<ArraySelectedOutput<StateType, MergeInsertions<Insertions>>>
   >;
 };
 
@@ -100,10 +122,9 @@ type ObjectInsertSelectOutput<
   Name extends string,
   Insertions extends readonly unknown[],
 > = {
-  [K in SelectPropertyMethodName<Name>]: () => ObjectSelectedOutput<
-    StateType,
-    Name,
-    MergeInsertions<Insertions>
+  [K in SelectPropertyMethodName<Name>]: NonYieldableInsertionMethod<
+    [],
+    ObjectSelectedOutput<StateType, Name, MergeInsertions<Insertions>>
   >;
 };
 
@@ -135,17 +156,6 @@ type FlatCrossLayerEvent<
     index: LeafIndex;
   };
 };
-
-function isSource$(value: unknown): value is SourceDollarType<unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'emit' in value &&
-    typeof (value as SourceDollarType<unknown>).emit === 'function' &&
-    'subscribe' in value &&
-    typeof (value as SourceDollarType<unknown>).subscribe === 'function'
-  );
-}
 
 function isFlatCrossLayerEvent(
   value: unknown,
@@ -302,10 +312,16 @@ function createInsertSelectItemRuntime(
 
                 return nextState;
               },
-              insertions: {
-                ...inheritedInsertions,
-                ...acc.rawInsertionsOutput,
-              } as never,
+              insertions: Object.entries(acc.rawInsertionsOutput).reduce(
+                (previous, [key, value]) => {
+                  if (isSource$(value)) previous[key] = value;
+                  return previous;
+                },
+                {
+                  ...inheritedInsertions,
+                  ...acc.exposedInsertionsOutput,
+                } as Record<string, unknown>,
+              ) as never,
             };
             const insertionCallResult = wrappedInsertion(insertionContext);
             const nextRawInsertions = (
@@ -347,14 +363,26 @@ function createInsertSelectItemRuntime(
                       localSource.emit(payload as never),
                     ),
                   );
-                  exposedAcc[key] = (payload: unknown) =>
-                    runInInjectionContext(sourceInjector, () =>
-                      wrappedEmit(payload),
-                    );
+                  exposedAcc[key] = createYieldableInsertionMethod(
+                    (payload: unknown) => wrappedEmit(payload),
+                    {
+                      injector: sourceInjector,
+                      invalidYieldErrorMessage:
+                        INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                      multipleAppStartErrorMessage:
+                        INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                      onAppStartNotSupportedErrorMessage:
+                        INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                    },
+                  );
                   return exposedAcc;
                 }
 
-                if (typeof value === 'function' && !isSignal(value)) {
+                if (
+                  typeof value === 'function' &&
+                  !isSignal(value) &&
+                  !isNonYieldableInsertionMethod(value)
+                ) {
                   const methodInjector = ɵcreateHostTaggedInjector(
                     itemInjector,
                     `method:${key}`,
@@ -368,26 +396,15 @@ function createInsertSelectItemRuntime(
                   const wrappedFn = runInInjectionContext(methodInjector, () =>
                     injectFnWrapper()(value as (...args: unknown[]) => unknown),
                   );
-                  exposedAcc[key] = (...args: unknown[]) =>
-                    runInInjectionContext(methodInjector, () => {
-                      const result = (
-                        wrappedFn as (...a: unknown[]) => unknown
-                      )(...args);
-                      if (isGenerator(result)) {
-                        return runCraftGenerator({
-                          iterator: result,
-                          injector: methodInjector,
-                          hostScope: 'function',
-                          invalidYieldErrorMessage:
-                            INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
-                          multipleAppStartErrorMessage:
-                            INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                          onAppStartNotSupportedErrorMessage:
-                            INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                        }).value;
-                      }
-                      return result;
-                    });
+                  exposedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+                    injector: methodInjector,
+                    invalidYieldErrorMessage:
+                      INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage:
+                      INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage:
+                      INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                  });
                 } else {
                   exposedAcc[key] = value;
                 }
@@ -471,8 +488,8 @@ function createInsertSelectItemRuntime(
     }
 
     return {
-      [selectItemMethodName]: selectItem,
-      items,
+      [selectItemMethodName]: markNonYieldableInsertionMethod(selectItem),
+      items: markNonYieldableInsertionMethod(items),
     };
   };
 }
@@ -564,10 +581,16 @@ function createInsertSelectPropertyRuntime(
                   ...patchFn(current),
                 }));
               },
-              insertions: {
-                ...inheritedInsertions,
-                ...acc.rawInsertionsOutput,
-              } as never,
+                insertions: Object.entries(acc.rawInsertionsOutput).reduce(
+                  (previous, [key, value]) => {
+                    if (isSource$(value)) previous[key] = value;
+                    return previous;
+                  },
+                  {
+                    ...inheritedInsertions,
+                    ...acc.exposedInsertionsOutput,
+                  } as Record<string, unknown>,
+                ) as never,
             };
             const insertionCallResult = wrappedInsertion(insertionContext);
             const nextRawInsertions = (
@@ -632,14 +655,26 @@ function createInsertSelectPropertyRuntime(
                       localSource.emit(payload as never),
                     ),
                   );
-                  exposedAcc[key] = (payload: unknown) =>
-                    runInInjectionContext(sourceInjector, () =>
-                      wrappedEmit(payload),
-                    );
+                  exposedAcc[key] = createYieldableInsertionMethod(
+                    (payload: unknown) => wrappedEmit(payload),
+                    {
+                      injector: sourceInjector,
+                      invalidYieldErrorMessage:
+                        INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                      multipleAppStartErrorMessage:
+                        INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                      onAppStartNotSupportedErrorMessage:
+                        INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                    },
+                  );
                   return exposedAcc;
                 }
 
-                if (typeof value === 'function' && !isSignal(value)) {
+                if (
+                  typeof value === 'function' &&
+                  !isSignal(value) &&
+                  !isNonYieldableInsertionMethod(value)
+                ) {
                   const methodInjector = ɵcreateHostTaggedInjector(
                     injector,
                     `method:${key}`,
@@ -653,26 +688,15 @@ function createInsertSelectPropertyRuntime(
                   const wrappedFn = runInInjectionContext(methodInjector, () =>
                     injectFnWrapper()(value as (...args: unknown[]) => unknown),
                   );
-                  exposedAcc[key] = (...args: unknown[]) =>
-                    runInInjectionContext(methodInjector, () => {
-                      const result = (
-                        wrappedFn as (...a: unknown[]) => unknown
-                      )(...args);
-                      if (isGenerator(result)) {
-                        return runCraftGenerator({
-                          iterator: result,
-                          injector: methodInjector,
-                          hostScope: 'function',
-                          invalidYieldErrorMessage:
-                            INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
-                          multipleAppStartErrorMessage:
-                            INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                          onAppStartNotSupportedErrorMessage:
-                            INSERT_SELECT_APP_START_ERROR_MESSAGE,
-                        }).value;
-                      }
-                      return result;
-                    });
+                  exposedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+                    injector: methodInjector,
+                    invalidYieldErrorMessage:
+                      INSERT_SELECT_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage:
+                      INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage:
+                      INSERT_SELECT_APP_START_ERROR_MESSAGE,
+                  });
                 } else {
                   exposedAcc[key] = value;
                 }
@@ -740,7 +764,9 @@ function createInsertSelectPropertyRuntime(
     }
 
     return {
-      [selectPropertyMethodName]: selectPropertyItem,
+      [selectPropertyMethodName]: markNonYieldableInsertionMethod(
+        selectPropertyItem,
+      ),
       ...Object.fromEntries(crossLayerSourcesByKey.entries()),
     };
   };
@@ -776,7 +802,7 @@ type IsArray<T> = T extends any[] ? true : false;
  *   })),
  * ));
  *
- * board.selectCell().paintBlack();
+ * craftUse(board.selectCell().paintBlack());
  * console.log(board.selectCell().color); // 'black'
  * ```
  *
@@ -794,7 +820,7 @@ type IsArray<T> = T extends any[] ? true : false;
  *   })),
  * ));
  *
- * cells.selectCell(0)?.paint();
+ * craftUse(cells.selectCell(0)?.paint());
  * console.log(cells.selectCell(0)?.paintCount); // 1
  * ```
  *

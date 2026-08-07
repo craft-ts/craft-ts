@@ -202,8 +202,9 @@ function sendToLogServer(
     return;
   }
 
-  void globalThis
-    .fetch(endpoint, {
+  // The non-beacon path is an intentional transport boundary for this log sink.
+  const request = globalThis.fetch.bind(globalThis);
+  void request(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body,

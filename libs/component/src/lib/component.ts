@@ -33,13 +33,22 @@ type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
   ? Providers
   : readonly [];
 
+function mergeStyles(
+  ...sources: readonly (string | readonly string[] | undefined)[]
+): readonly string[] {
+  return sources.flatMap((source) =>
+    typeof source === 'string' ? [source] : (source ?? []),
+  );
+}
+
 type ContentSlotNamesForFactory<Factory extends ComponentFactory> = {
   [Key in keyof PropsFromFactory<Factory>]: NonNullable<
     PropsFromFactory<Factory>[Key]
   > extends (...args: any[]) => any
     ? Key
     : never;
-}[keyof PropsFromFactory<Factory>] & string;
+}[keyof PropsFromFactory<Factory>] &
+  string;
 
 type ValidContentStyles<
   Meta extends ComponentMeta,
@@ -90,7 +99,7 @@ export function craftComponent<
     meta,
     factory,
     template,
-    styleOwners: [{ name, styles: meta.styles }],
+    styleOwners: [{ name, styles: mergeStyles(meta.styles, meta.stylesUrl) }],
     scopeDefinition: undefined,
   });
 }
@@ -223,7 +232,10 @@ function createCraftComponent<
       ...directives: {
         readonly [CRAFT_DIRECTIVE]?: {
           readonly name: string;
-          readonly meta: { readonly styles?: string | readonly string[] };
+          readonly meta: {
+            readonly styles?: string | readonly string[];
+            readonly stylesUrl?: string | readonly string[];
+          };
           readonly logic: (baseLogic: ComponentFactory) => ComponentFactory;
           readonly template: (
             baseTemplate: ComponentTemplate<any>,
@@ -240,7 +252,10 @@ function createCraftComponent<
         ) as {
           readonly [CRAFT_DIRECTIVE]: {
             readonly name: string;
-            readonly meta: { readonly styles?: string | readonly string[] };
+            readonly meta: {
+              readonly styles?: string | readonly string[];
+              readonly stylesUrl?: string | readonly string[];
+            };
             readonly logic: (baseLogic: ComponentFactory) => ComponentFactory;
             readonly template: (
               baseTemplate: ComponentTemplate<any>,
@@ -262,7 +277,10 @@ function createCraftComponent<
             ...currentDefinition.styleOwners,
             {
               name: resolvedDirective[CRAFT_DIRECTIVE].name,
-              styles: resolvedDirective[CRAFT_DIRECTIVE].meta.styles,
+              styles: mergeStyles(
+                resolvedDirective[CRAFT_DIRECTIVE].meta.styles,
+                resolvedDirective[CRAFT_DIRECTIVE].meta.stylesUrl,
+              ),
               definition: resolvedDirective[CRAFT_DIRECTIVE],
               registrationTarget: resolvedDirective,
             },

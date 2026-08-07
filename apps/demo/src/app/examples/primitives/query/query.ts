@@ -1,13 +1,16 @@
+import styles from './query.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
   div,
   h,
+  ifBlock,
   p,
   type Input,
 } from '@craft-ng/component';
 import {
   Console,
+  craftComputed,
   craftMethod,
   CraftRouter,
   insertLocalStoragePersister,
@@ -19,12 +22,13 @@ import { ApiService } from './api.service';
 const GlobalQuery = craftComponent(
   'GlobalQuery',
   {
+    stylesUrl: styles,
   },
   function* (userId: Input<string | undefined>) {
     yield* Console.info('[query-demo] route input received', {
       userId: userId(),
     });
-    const { userQuery } = yield* query(
+    const userQuery = yield* query(
       'userQuery',
       {
         params: userId,
@@ -48,7 +52,7 @@ const GlobalQuery = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const { navigate } = craftMethod('navigate', function* (offset: number) {
+    const navigate = craftMethod('navigate', function* (offset: number) {
       const currentUserId = userId();
       const targetUserId = String(Number(currentUserId ?? '0') + offset);
       yield* Console.info('[query-demo] navigation requested', {
@@ -61,15 +65,17 @@ const GlobalQuery = craftComponent(
         params: { userId: targetUserId },
       });
     });
-    return { userQuery, navigate };
+    const hasUser = craftComputed('hasUser', () => userQuery.hasValue());
+    return { userQuery, hasUser, navigate };
   },
-  ({ userQuery, navigate }) => [
+  ({ userQuery, hasUser, navigate }) => [
     div([
       'User ',
       StatusComponent({ status: () => userQuery.status() }),
-      userQuery.hasValue()
-        ? h('pre', JSON.stringify(userQuery.value(), null, 2))
-        : [],
+      ifBlock(
+        hasUser,
+        () => h('pre', JSON.stringify(userQuery.value(), null, 2)),
+      ),
     ]),
     p('Reload the page to retrieve the query result from the cache.'),
     button({ click: () => void navigate(-1) }, 'Previous user'),

@@ -63,7 +63,7 @@ import { vi } from 'vitest';
 const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
   function* () {
-    const { counter } = yield* state('counter', 10, ({ update }) => ({
+    const counter = yield* state('counter', 10, ({ update }) => ({
       increment: () => update((value) => value + 1),
     }));
     return counter;

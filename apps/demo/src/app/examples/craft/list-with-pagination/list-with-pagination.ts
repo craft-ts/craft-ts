@@ -1,6 +1,8 @@
+import styles from './list-with-pagination.css' with { loader: 'text' };
 import { computed } from '@angular/core';
 import {
   button,
+  ifBlock,
   craftComponent,
   div,
   each,
@@ -11,6 +13,7 @@ import {
   span,
 } from '@craft-ng/component';
 import {
+  craftComputed,
   craftMethod,
   craftService,
   insertLocalStoragePersister,
@@ -26,7 +29,7 @@ import { ApiService, type User } from './api.service';
 const { provideUserList, UserList } = craftService(
   { name: 'UserList', scope: 'toProvide' },
   function* () {
-    const { pagination } = yield* queryParams(
+    const pagination = yield* queryParams(
       'pagination',
       {
         state: {
@@ -52,7 +55,7 @@ const { provideUserList, UserList } = craftService(
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
-    const { users } = yield* query(
+    const users = yield* query(
       'users',
       {
         params: pagination,
@@ -81,13 +84,18 @@ const { provideUserList, UserList } = craftService(
 const ListWithPaginationCraft = craftComponent(
   'ListWithPaginationCraft',
   {
+    stylesUrl: styles,
     providers: [
       provideUserList(),
     ],
   },
   function* () {
     const store = yield* UserList();
-    const { updatePageSize } = craftMethod(
+    const isCurrentPageResolved = craftComputed(
+      'isCurrentPageResolved',
+      () => store.users.currentPageStatus() === 'resolved',
+    );
+    const updatePageSize = craftMethod(
       'updatePageSize',
       function* (event: Event) {
         (yield* UserList()).pagination.updatePageSize(
@@ -95,9 +103,9 @@ const ListWithPaginationCraft = craftComponent(
         );
       },
     );
-    return { store, updatePageSize };
+    return { store, updatePageSize, isCurrentPageResolved };
   },
-  ({ store, updatePageSize }) =>
+  ({ store, updatePageSize, isCurrentPageResolved }) =>
     div([
       h2([
         'User Management: ',
@@ -111,7 +119,7 @@ const ListWithPaginationCraft = craftComponent(
         h(
           'tbody',
           each(
-            () => store.users.currentPageData() ?? [],
+            store.users.currentPageData,
             {
               track: (user) => user.id,
               empty: () =>
@@ -120,9 +128,11 @@ const ListWithPaginationCraft = craftComponent(
                   h(
                     'td',
                     { colSpan: 2 },
-                    store.users.currentPageStatus() === 'resolved'
-                      ? 'No users found'
-                      : 'Loading…',
+                    ifBlock(
+                      isCurrentPageResolved,
+                      () => 'No users found',
+                      () => 'Loading…',
+                    ),
                   ),
                 ),
             },

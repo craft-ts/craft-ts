@@ -15,12 +15,12 @@ describe('yieldable source services', () => {
       const reset$ = source$<void>('reset$');
       const resolved = craftUse(reset$);
 
-      expect(resolved.reset$).not.toBe(reset$);
-      expect(resolved.reset$).toHaveProperty('emit');
+      expect(resolved).not.toBe(reset$);
+      expect(resolved).toHaveProperty('emit');
 
       let called = 0;
-      reset$.subscribe(() => called++);
-      reset$.emit();
+      resolved.subscribe(() => called++);
+      resolved.emit();
 
       expect(called).toBe(1);
     });
@@ -30,7 +30,7 @@ describe('yieldable source services', () => {
     const { Reset } = craftService(
       { name: 'Reset', scope: 'global' },
       function* () {
-        const { reset$ } = yield* source$<void>('reset$');
+        const reset$ = yield* source$<void>('reset$');
         return reset$;
       },
     );
@@ -38,7 +38,7 @@ describe('yieldable source services', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       function* () {
-        const { counter } = yield* state('counter', 0, ({ set, state }) => ({
+        const counter = yield* state('counter', 0, ({ set, state }) => ({
           increment: () => set(state() + 1),
           reset: on$(Reset, (value) => {
             expectTypeOf(value).toEqualTypeOf<void>();

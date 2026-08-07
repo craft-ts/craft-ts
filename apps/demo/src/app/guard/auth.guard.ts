@@ -5,20 +5,20 @@ type User = {
 };
 
 const { Auth } = craftService({ name: 'Auth', scope: 'global' }, function* () {
-  return (yield* query('auth', {
+  return yield* query('auth', {
     params: () => true,
     loader: async () => undefined as User | undefined,
-  })).auth;
+  });
 });
 
 export const authGuard = craftGen(function* () {
   const user = yield* Auth();
-  const userSafeValue = user.safeValue();
+  const userValue = user.value();
 
-  if (!userSafeValue) return craftException({ code: 'NOT_AUTHENTICATED' });
+  if (!userValue) return craftException({ code: 'NOT_AUTHENTICATED' });
   // démo : un utilisateur nommé "disabled" est routé vers l'écran d'erreur global
-  if (userSafeValue.name === 'disabled')
+  if (userValue.name === 'disabled')
     return craftException({ code: 'USER_DISABLED' });
 
-  return userSafeValue;
+  return userValue;
 });

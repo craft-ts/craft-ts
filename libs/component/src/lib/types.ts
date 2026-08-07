@@ -157,12 +157,21 @@ type ProjectTemplateValue<
                   ? ProjectTemplateObject<Value, ContextMethod>
                   : Value;
 
-export type YieldableTemplateContext<Context> = {
-  [Key in keyof Context]: ProjectTemplateValue<
-    Context[Key],
-    ContextPathKey<'', Key>
-  >;
-};
+type DirectTemplateContextMethod<Context> = Context extends NamedYieldableValue<
+  infer Name extends string,
+  any
+>
+  ? Name
+  : '';
+
+export type YieldableTemplateContext<Context> = Context extends Signal<any>
+  ? ProjectTemplateValue<Context, DirectTemplateContextMethod<Context>>
+  : {
+      [Key in keyof Context]: ProjectTemplateValue<
+        Context[Key],
+        ContextPathKey<'', Key>
+      >;
+    };
 
 export type InputValue<T> = () => T;
 
@@ -361,12 +370,16 @@ export interface ComponentMeta<
   readonly providers?: Providers;
   readonly host?: Readonly<Record<string, unknown>>;
   readonly styles?: string | readonly string[];
+  /** CSS text imported from an external stylesheet with the build text loader. */
+  readonly stylesUrl?: string | readonly string[];
   /** Styles exposed explicitly to opted-in projected fragments, by slot. */
   readonly contentStyles?: ContentStyles<SlotName>;
 }
 
 export interface DirectiveMeta {
   readonly styles?: string | readonly string[];
+  /** CSS text imported from an external stylesheet with the build text loader. */
+  readonly stylesUrl?: string | readonly string[];
 }
 
 export interface StyleOwner {
@@ -882,7 +895,7 @@ type PipedComponent<
         Meta,
         RootFactory,
         TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>,
-        Template,
+        Template & ComponentTemplate<FactoryContext<NextFactory>>,
         string,
         ComponentExceptionsAfterOperator<
           Factory,

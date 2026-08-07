@@ -32,9 +32,11 @@ import {
   craftService,
   HOST_TAG_LIST,
   mutation,
+  provideCraftDomEventHook,
   provideCraftLazyLoadRetry,
   query,
   state,
+  type CraftDomEvent,
 } from '@craft-ng/core';
 import {
   CraftRoutedComponentHost,
@@ -135,6 +137,52 @@ describe('functional component interpreter', () => {
 
     mounted.destroy();
     expect(element.textContent).toBe('');
+  });
+
+  it('runs DOM event hooks in the component injector and exposes the binding location', () => {
+    const marker = new InjectionToken<string>('dom-event-hook-marker');
+    const seen: string[] = [];
+    const interactionNames: string[] = [];
+    const interactionHook = (
+      interaction: CraftDomEvent,
+      next: () => unknown,
+    ) => {
+      interactionNames.push(interaction.interactionName);
+      seen.push(`${interaction.eventName}:${inject(marker)}`);
+      return next();
+    };
+    const clicked = signal(0);
+    const component = craftComponent(
+      'interactionHookComponent',
+      {
+        providers: [
+          { provide: marker, useValue: 'component-scope' },
+          provideCraftDomEventHook(interactionHook),
+        ],
+      },
+      () => ({ clicked }),
+      ({ clicked }) =>
+        div([
+          button(
+            'save',
+            { click: () => clicked.update((value) => value + 1) },
+            'Save',
+          ),
+          p(() => String(clicked())),
+        ]),
+    );
+    const element = host();
+
+    mountCraftComponent(component, element, TestBed.inject(Injector));
+    TestBed.tick();
+    element.querySelector<HTMLButtonElement>('button')?.click();
+    TestBed.tick();
+
+    expect(seen).toEqual(['click:component-scope']);
+    expect(interactionNames).toEqual([
+      'interactionHookComponent:button:save:click',
+    ]);
+    expect(element.querySelector('p')?.textContent).toBe('1');
   });
 
   it('provides an automatic component host tag from the component name', () => {
@@ -455,13 +503,13 @@ describe('functional component interpreter', () => {
       'queryChild',
       {},
       function* () {
-        const { value } = yield* query('value', {
+        const value = yield* query('value', {
           params: () => true,
           loader: async () => ({ status: 'ready' }),
         });
         return { value };
       },
-      ({ value }) => p(value.safeValue()?.status ?? 'loading'),
+      ({ value }) => p(value.value()?.status ?? 'loading'),
     );
     const parent = craftComponent(
       'queryParent',
@@ -495,12 +543,12 @@ describe('functional component interpreter', () => {
           params: () => true,
           loader: async () => [],
         });
-        const { todos } = yield* query('todos', {
+        const todos = yield* query('todos', {
           params: refresh,
           loader: async ({ params }) =>
             params === 0 ? [] : craftException({ code: 'FAILED_TO_LOAD' }),
         });
-        const { add } = yield* mutation('add', {
+        const add = yield* mutation('add', {
           method: (title: string) => title,
           loader: async () => {
             refresh.update((value) => value + 1);
@@ -652,7 +700,7 @@ describe('functional component interpreter', () => {
       'yieldableComputedProperty',
       {},
       function* () {
-        const { counter } = yield* state('counter', 0, ({ state }) => ({
+        const counter = yield* state('counter', 0, ({ state }) => ({
           disabled: craftComputed('disabled', () => state() % 2 === 0).disabled,
         }));
         return { counter };
@@ -784,6 +832,30 @@ describe('functional component interpreter', () => {
     expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
       0,
     );
+  });
+
+  it('registers stylesUrl content in the component style scope', () => {
+    const component = craftComponent(
+      'stylesUrlComponent',
+      { stylesUrl: '.external { color: red; }' },
+      () => ({}),
+      () => div({ class: 'external' }, 'external'),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    expect(
+      document.querySelector<HTMLStyleElement>('style[data-craft-sheet]')
+        ?.textContent,
+    ).toContain('.external { color: red; }');
+
+    mounted.destroy();
   });
 
   it('marks Angular hosts as scope boundaries but leaves their internals unmarked', () => {
@@ -1169,6 +1241,46 @@ describe('functional component interpreter', () => {
     expect(rows[0].textContent).toBe('Grace Hopper');
 
     users.set([]);
+    TestBed.tick();
+    expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
+  });
+
+  it('treats nullish each sources as empty collections', () => {
+    const users = signal<
+      readonly { id: number; name: string }[] | null | undefined
+    >(null);
+    const list = craftComponent(
+      'nullable-list',
+      {},
+      () => ({ users }),
+      ({ users }) =>
+        div(
+          each(
+            () => users(),
+            {
+              track: (user) => user.id,
+              empty: () => p({ class: 'empty' }, 'Nobody'),
+            },
+            (user) => p({ 'data-id': user.id }, user.name),
+          ),
+        ),
+    );
+    const element = host();
+    mountCraftComponent(list, element, TestBed.inject(Injector));
+    TestBed.tick();
+
+    expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
+
+    users.set([{ id: 1, name: 'Ada' }]);
+    TestBed.tick();
+    expect(element.querySelector('[data-id="1"]')?.textContent).toBe('Ada');
+
+    users.set(null);
+    TestBed.tick();
+    expect(element.querySelector('[data-id="1"]')).toBeNull();
+    expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
+
+    users.set(undefined);
     TestBed.tick();
     expect(element.querySelector('.empty')?.textContent).toBe('Nobody');
   });

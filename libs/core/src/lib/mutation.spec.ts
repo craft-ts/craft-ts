@@ -68,8 +68,7 @@ describe('mutation', () => {
   });
   it('should enable to define a mutation that can be call with the method', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { mutationInstance } = craftUse(
-        mutation('mutationInstance', {
+      const mutationInstance = craftUse(mutation('mutationInstance', {
           method: ({
             timeToWait,
             searchChange,
@@ -114,8 +113,7 @@ describe('mutation', () => {
         (searchConfig) => searchConfig,
       );
       const result = test();
-      const { myMutation } = craftUse(
-        mutation('myMutation', {
+      const myMutation = craftUse(mutation('myMutation', {
           method: afterRecomputation(
             searchSource,
             (searchConfig) => searchConfig,
@@ -150,10 +148,9 @@ describe('mutation', () => {
     });
   });
 
-  it('should return undefined with safeValue when status is error', async () => {
+  it('should return undefined with value when status is error', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { mutationInstance } = craftUse(
-        mutation('mutationInstance', {
+      const mutationInstance = craftUse(mutation('mutationInstance', {
           method: (shouldFail: boolean) => shouldFail,
           loader: async ({ params: shouldFail }) => {
             if (shouldFail) {
@@ -172,8 +169,8 @@ describe('mutation', () => {
       expect(mutationInstance.status()).toBe('exception');
       expect(mutationInstance.hasValue()).toBe(false);
 
-      // safeValue should return undefined without throwing
-      expect(mutationInstance.safeValue()).toBeUndefined();
+      // value should return undefined without throwing
+      expect(mutationInstance.value()).toBeUndefined();
     });
   });
 
@@ -199,8 +196,7 @@ describe('mutation', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const { mutationRef } = craftUse(
-        mutation(
+      const mutationRef = craftUse(mutation(
           'mutationRef',
           {
             method: function* (userId: string) {
@@ -249,8 +245,7 @@ describe('mutation', () => {
     );
 
     await TestBed.runInInjectionContext(async () => {
-      const { mutationRef } = craftUse(
-        mutation(
+      const mutationRef = craftUse(mutation(
           'mutationRef',
           {
             method: function* (userId: string) {
@@ -289,8 +284,7 @@ describe('mutation types without identifier', () => {
       const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const { searchChange } = craftUse(
-            mutation('searchChange', {
+          const searchChange = craftUse(mutation('searchChange', {
               method: ({
                 timeToWait,
                 searchChange,
@@ -313,8 +307,7 @@ describe('mutation types without identifier', () => {
               },
             }),
           );
-          const { filterChange } = craftUse(
-            mutation(
+          const filterChange = craftUse(mutation(
               'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
@@ -366,12 +359,6 @@ describe('mutation types without identifier', () => {
               }
             | undefined
           >;
-          readonly safeValue: Signal<
-            | {
-                searchChange: string;
-              }
-            | undefined
-          >;
           readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
@@ -387,12 +374,6 @@ describe('mutation types without identifier', () => {
         filterChange: {
           '~InternalType': 'Used to avoid TS type erasure';
           readonly value: Signal<
-            | {
-                filter: string;
-              }
-            | undefined
-          >;
-          readonly safeValue: Signal<
             | {
                 filter: string;
               }
@@ -439,8 +420,7 @@ describe('mutation types without identifier', () => {
       const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const { searchChange } = craftUse(
-            mutation('searchChange', {
+          const searchChange = craftUse(mutation('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
                 return searchChange;
               }),
@@ -453,8 +433,7 @@ describe('mutation types without identifier', () => {
               },
             }),
           );
-          const { filterChange } = craftUse(
-            mutation(
+          const filterChange = craftUse(mutation(
               'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
@@ -499,12 +478,6 @@ describe('mutation types without identifier', () => {
               }
             | undefined
           >;
-          readonly safeValue: Signal<
-            | {
-                searchChangeText: string;
-              }
-            | undefined
-          >;
           readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
           hasValue: () => boolean;
@@ -525,12 +498,6 @@ describe('mutation types without identifier', () => {
         filterChange: {
           '~InternalType': 'Used to avoid TS type erasure';
           readonly value: Signal<
-            | {
-                filter: string;
-              }
-            | undefined
-          >;
-          readonly safeValue: Signal<
             | {
                 filter: string;
               }
@@ -562,8 +529,7 @@ describe('mutation types without identifier', () => {
 
   it('should infer correctly the mutation bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const { _mutationsOutput } = craftUse(
-        mutation('_mutationsOutput', {
+      const _mutationsOutput = craftUse(mutation('_mutationsOutput', {
           method: (searchChange: string) => {
             return searchChange;
           },
@@ -598,8 +564,7 @@ describe('mutation types without identifier', () => {
         'searchSource',
       );
 
-      const { _mutationsOutput } = craftUse(
-        mutation('_mutationsOutput', {
+      const _mutationsOutput = craftUse(mutation('_mutationsOutput', {
           method: afterRecomputation(searchSource, (searchChange) => {
             return searchChange;
           }),
@@ -640,8 +605,7 @@ describe('mutation types with identifier', () => {
       const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const { searchChange } = craftUse(
-            mutation('searchChange', {
+          const searchChange = craftUse(mutation('searchChange', {
               method: ({
                 timeToWait,
                 searchChange,
@@ -665,8 +629,7 @@ describe('mutation types with identifier', () => {
               },
             }),
           );
-          const { filterChange } = craftUse(
-            mutation(
+          const filterChange = craftUse(mutation(
               'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
@@ -722,12 +685,6 @@ describe('mutation types with identifier', () => {
             >;
             readonly status: Signal<CraftResourceStatus>;
             readonly isLoading: Signal<boolean>;
-            readonly safeValue: Signal<
-              | {
-                  searchChange: string;
-                }
-              | undefined
-            >;
             hasValue(): boolean;
           }
         | undefined
@@ -740,12 +697,6 @@ describe('mutation types with identifier', () => {
       expectTypeOf<typeof filter>().toEqualTypeOf<{
         '~InternalType': 'Used to avoid TS type erasure';
         readonly value: Signal<
-          | {
-              filter: string;
-            }
-          | undefined
-        >;
-        readonly safeValue: Signal<
           | {
               filter: string;
             }
@@ -791,8 +742,7 @@ describe('mutation types with identifier', () => {
       const { Mutations } = craftService(
         { name: 'Mutations', scope: 'function' },
         () => {
-          const { searchChange } = craftUse(
-            mutation('searchChange', {
+          const searchChange = craftUse(mutation('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
                 return searchChange;
               }),
@@ -806,8 +756,7 @@ describe('mutation types with identifier', () => {
               },
             }),
           );
-          const { filterChange } = craftUse(
-            mutation(
+          const filterChange = craftUse(mutation(
               'filterChange',
               {
                 method: ({ filter }: { filter: string }) => ({
@@ -851,12 +800,6 @@ describe('mutation types with identifier', () => {
                 }
               | undefined
             >;
-            readonly safeValue: Signal<
-              | {
-                  searchChangeText: string;
-                }
-              | undefined
-            >;
             readonly status: Signal<CraftResourceStatus>;
             readonly isLoading: Signal<boolean>;
             hasValue(): boolean;
@@ -876,12 +819,6 @@ describe('mutation types with identifier', () => {
         readonly status: Signal<CraftResourceStatus>;
         readonly isLoading: Signal<boolean>;
         hasValue: () => boolean;
-        readonly safeValue: Signal<
-          | {
-              filter: string;
-            }
-          | undefined
-        >;
         readonly resourceParamsSrc: WritableSignal<
           NoInfer<{
             filter: string;
@@ -906,8 +843,7 @@ describe('mutation types with identifier', () => {
 
   it('should infer correctly the mutation bind to a method', () => {
     TestBed.runInInjectionContext(() => {
-      const { _mutationsOutput } = craftUse(
-        mutation('_mutationsOutput', {
+      const _mutationsOutput = craftUse(mutation('_mutationsOutput', {
           method: (searchChange: string) => {
             return searchChange;
           },
@@ -922,12 +858,6 @@ describe('mutation types with identifier', () => {
       expectTypeOf<typeof _entity>().toEqualTypeOf<
         | {
             readonly value: Signal<
-              | {
-                  searchChange: string;
-                }
-              | undefined
-            >;
-            readonly safeValue: Signal<
               | {
                   searchChange: string;
                 }
@@ -948,8 +878,7 @@ describe('mutation types with identifier', () => {
         'searchSource',
       );
 
-      const { _mutationsOutput } = craftUse(
-        mutation('_mutationsOutput', {
+      const _mutationsOutput = craftUse(mutation('_mutationsOutput', {
           method: afterRecomputation(searchSource, (searchChange) => {
             return searchChange;
           }),
@@ -1069,8 +998,7 @@ describe('mutation exceptions', () => {
   it('typing: captures exception returned by method and loader', async () => {
     await TestBed.runInInjectionContext(async () => {
       const shouldFail = signal(true);
-      const { mutationRef } = craftUse(
-        mutation('mutationRef', {
+      const mutationRef = craftUse(mutation('mutationRef', {
           method: (value: string) =>
             shouldFail()
               ? craftException(
@@ -1124,8 +1052,7 @@ describe('mutation exceptions', () => {
       const shouldFailMethod = signal(true);
       const shouldFailLoader = signal(true);
 
-      const { mutationRef } = craftUse(
-        mutation('mutationRef', {
+      const mutationRef = craftUse(mutation('mutationRef', {
           method: (value: string) =>
             shouldFailMethod()
               ? craftException(
@@ -1211,8 +1138,7 @@ describe('mutation exceptions', () => {
 
   it('typing with identifier: return a select exceptions for an identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { mutationRef } = craftUse(
-        mutation('mutationRef', {
+      const mutationRef = craftUse(mutation('mutationRef', {
           method: (value: string) => value,
           identifier: (id) => id,
           loader: async () =>
@@ -1265,8 +1191,7 @@ describe('mutation exceptions', () => {
   it('typing with identifier: return a select exceptions for an identifier', async () => {
     await TestBed.runInInjectionContext(async () => {
       const failed = signal(true);
-      const { mutationRef } = craftUse(
-        mutation('mutationRef', {
+      const mutationRef = craftUse(mutation('mutationRef', {
           method: (value: string) => value,
           identifier: (id) => id,
           loader: async () =>
@@ -1329,8 +1254,7 @@ describe('mutation exceptions', () => {
         id: params,
       }));
 
-      const { mutationRef } = craftUse(
-        mutation('mutationRef', {
+      const mutationRef = craftUse(mutation('mutationRef', {
           method: (value: string) =>
             value.length < 3
               ? craftException(
@@ -1355,10 +1279,9 @@ describe('mutation exceptions', () => {
     });
   });
 
-  it('captures exception returned by loader without exposing it in safeValue', async () => {
+  it('captures exception returned by loader without exposing a value', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { mutationRef } = craftUse(
-        mutation('mutationRef', {
+      const mutationRef = craftUse(mutation('mutationRef', {
           method: (value: string) => value,
           loader: async () =>
             craftException(
@@ -1374,15 +1297,14 @@ describe('mutation exceptions', () => {
       expect(mutationRef.exceptions().loader?.INVALID_USER_ID).toEqual({
         from: 'loader',
       });
-      expect(mutationRef.safeValue()).toBeUndefined();
+      expect(mutationRef.value()).toBeUndefined();
       expect(mutationRef.hasException()).toBe(true);
     });
   });
 
   it('keeps method exceptions global in parallel mutation', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { mutationRef } = craftUse(
-        mutation('mutationRef', {
+      const mutationRef = craftUse(mutation('mutationRef', {
           method: (id: 'A' | 'B') =>
             craftException({ code: 'INVALID_ID' }, { params: id }),
           identifier: (id) => id,
@@ -1419,8 +1341,7 @@ describe('mutation — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const { mutationRef } = craftUse(
-        mutation(
+      const mutationRef = craftUse(mutation(
           'mutationRef',
           {
             providers: [
@@ -1455,8 +1376,7 @@ describe('mutation — providers', () => {
     let resourceContext: PrimitiveResourceRuntimeContext | undefined;
 
     TestBed.runInInjectionContext(() => {
-      const { mutationRef } = craftUse(
-        mutation('mutationRef', {
+      const mutationRef = craftUse(mutation('mutationRef', {
           providers: [
             providePrimitiveResourceRuntimeObserver((context) => {
               resourceContext = context;
@@ -1486,8 +1406,7 @@ describe('mutation — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const { mutationRef } = craftUse(
-        mutation('mutationRef', {
+      const mutationRef = craftUse(mutation('mutationRef', {
           providers: [
             provideFnWrapper(
               'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -1518,8 +1437,7 @@ describe('mutation — providers', () => {
     };
 
     await TestBed.runInInjectionContext(async () => {
-      const { withProvider } = craftUse(
-        mutation('withProvider', {
+      const withProvider = craftUse(mutation('withProvider', {
           providers: [
             provideFnWrapper(
               'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -1532,8 +1450,7 @@ describe('mutation — providers', () => {
           loader: async ({ params }) => ({ id: params }),
         }),
       );
-      const { withoutProvider } = craftUse(
-        mutation('withoutProvider', {
+      const withoutProvider = craftUse(mutation('withoutProvider', {
           method: function* (id: string) {
             return id;
           },
@@ -1558,8 +1475,7 @@ describe('mutation — providers', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const { withoutProviders } = craftUse(
-        mutation('withoutProviders', {
+      const withoutProviders = craftUse(mutation('withoutProviders', {
           params: function* () {
             yield* MethodService();
             return 'user-1';
@@ -1573,8 +1489,7 @@ describe('mutation — providers', () => {
       >().toEqualTypeOf<true>();
 
       // Verify mutation accepts providers without type errors
-      const { withProviders } = craftUse(
-        mutation('withProviders', {
+      const withProviders = craftUse(mutation('withProviders', {
           providers: [provideMethodService()],
           params: () => 'user-1',
           loader: async ({ params }) => ({ id: params }),
@@ -1586,8 +1501,7 @@ describe('mutation — providers', () => {
 
   it('should accepts this', () => {
     TestBed.runInInjectionContext(() => {
-      const { registerPizzeriaOwner } = craftUse(
-        mutation('registerPizzeriaOwner', {
+      const registerPizzeriaOwner = craftUse(mutation('registerPizzeriaOwner', {
           method: ({
             email,
             password,
@@ -1612,8 +1526,7 @@ describe('mutation — providers', () => {
 
   it('typing: loader generator can return null or primitive sync values', () => {
     TestBed.runInInjectionContext(() => {
-      const { withNull } = craftUse(
-        mutation('withNull', {
+      const withNull = craftUse(mutation('withNull', {
           method: (id: string) => id,
           loader: function* () {
             return null;
@@ -1622,8 +1535,7 @@ describe('mutation — providers', () => {
       );
       expectTypeOf(withNull.value).toEqualTypeOf<Signal<null | undefined>>();
 
-      const { withString } = craftUse(
-        mutation('withString', {
+      const withString = craftUse(mutation('withString', {
           method: (id: string) => id,
           loader: function* () {
             return 'result';

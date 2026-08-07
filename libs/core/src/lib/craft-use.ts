@@ -14,12 +14,11 @@ const GUARD_AWAIT_ERROR_MESSAGE =
  *
  * Its main use is consuming a craft primitive (`state`, `query`, `mutation`,
  * `asyncProcess`, `queryParams`) outside a generator host. Like `yield*`, it
- * resolves to the single-key record named after the primitive's first
- * argument, so destructure it:
+ * resolves to the primitive reference itself:
  *
  * ```ts
- * const { users } = craftUse(query('users', { loader: ... }));
- * const { counter } = craftUse(state('counter', 0));
+ * const users = craftUse(query('users', { loader: ... }));
+ * const counter = craftUse(state('counter', 0));
  * ```
  *
  * It also accepts a `craftGen` invocation, an inline generator, or an

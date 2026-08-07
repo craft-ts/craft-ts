@@ -1,64 +1,29 @@
-import { DOCUMENT } from '@angular/common';
 import {
-  APP_INITIALIZER,
   inject,
-  Injectable,
   Injector,
+  provideAppInitializer,
   runInInjectionContext,
+  type EnvironmentProviders,
   type Provider,
 } from '@angular/core';
-import {
-  EVENT_MANAGER_PLUGINS,
-  EventManagerPlugin,
-} from '@angular/platform-browser';
-import type { GetDeps } from './branded-component/branded-component';
 import {
   CORRELATION_ID_SERVICE,
   createCorrelationIdService,
   getCurrentStartCorrelationId,
   setCurrentStartCorrelationId,
 } from './correlation-id';
+import {
+  provideCraftDomEventHook,
+  type CraftDomEventHook,
+} from './dom-event-hook';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 
-@Injectable()
-class CorrelationIdEventManagerPlugin extends EventManagerPlugin {
-  private readonly injector = inject(Injector);
-
-  constructor() {
-    super(inject(DOCUMENT));
-  }
-
-  override supports(eventName: string): boolean {
-    return eventName === 'click' || eventName === 'keydown';
-  }
-
-  override addEventListener(
-    element: HTMLElement,
-    eventName: string,
-    handler: (event: Event) => void,
-  ): () => void {
-    const wrappedHandler = (event: Event) => {
-      runInInjectionContext(this.injector, () => {
-        const service = inject(CORRELATION_ID_SERVICE);
-        if (service) {
-          if (eventName === 'click') {
-            service.generateAndSet('click');
-          } else if (
-            eventName === 'keydown' &&
-            (event as KeyboardEvent).key === 'Enter'
-          ) {
-            service.generateAndSet('enter');
-          }
-        }
-      });
-      handler(event);
-    };
-
-    element.addEventListener(eventName, wrappedHandler);
-    return () => element.removeEventListener(eventName, wrappedHandler);
-  }
-}
+const correlationIdDomEventHook: CraftDomEventHook = (interaction, next) => {
+  const service = inject(CORRELATION_ID_SERVICE);
+  service?.generateAndSet(interaction.interactionName);
+  return next();
+};
 
 const POPSTATE_COUNTER_KEY = '__craftNgNavCounter';
 
@@ -114,36 +79,22 @@ const correlationIdFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   }
 };
 
-export function provideCorrelationIdTracking(): Provider[] {
+export function provideCorrelationIdTracking(): (
+  | Provider
+  | EnvironmentProviders
+)[] {
   return [
     {
       provide: CORRELATION_ID_SERVICE,
       useFactory: () => createCorrelationIdService(),
     },
-    {
-      provide: EVENT_MANAGER_PLUGINS,
-      useClass: CorrelationIdEventManagerPlugin,
-      multi: true,
-    },
-    {
-      provide: APP_INITIALIZER,
-      useFactory: () => {
-        const injector = inject(Injector);
-        return () => initPopstateTracking(injector);
-      },
-      multi: true,
-    },
+    provideCraftDomEventHook(correlationIdDomEventHook),
+    provideAppInitializer(() => {
+      initPopstateTracking(inject(Injector));
+    }),
     provideFnWrapper(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
       correlationIdFnWrapper,
     ),
   ];
 }
-
-export type GenDeps_CorrelationIdEventManagerPlugin = GetDeps<{
-  deps: {};
-  provided: {};
-  missingProvider: {
-    Injector: Injector;
-  };
-}>;

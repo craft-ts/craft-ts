@@ -37,7 +37,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter: Counter, COUNTER_META_DATA } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       function* () {
-        const { counter } = yield* state('counter', 0, ({ update }) => ({
+        const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -73,7 +73,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       function* () {
-        const { counter } = yield* state('counter', 0, ({ update }) => ({
+        const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -97,7 +97,7 @@ describe('setupCraftServiceTest', () => {
     const { ChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       function* () {
-        const { childCounter } = yield* state(
+        const childCounter = yield* state(
           'childCounter',
           0,
           ({ update }) => ({
@@ -140,7 +140,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       function* () {
-        const { counter } = yield* state('counter', 0, ({ update }) => ({
+        const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -180,7 +180,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       function* () {
-        const { counter } = yield* state('counter', 10, ({ update }) => ({
+        const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -210,7 +210,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       function* () {
-        const { counter } = yield* state('counter', 10, ({ update }) => ({
+        const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -252,7 +252,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter: Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       function* () {
-        const { counter } = yield* state('counter', 10, ({ update }) => ({
+        const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -294,7 +294,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter: Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       function* (inputs: { $provided: { initialValue: number } }) {
-        const { counter } = yield* state(
+        const counter = yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
@@ -351,7 +351,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter: Counter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       function* () {
-        const { counter } = yield* state('counter', 0, ({ update }) => ({
+        const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -390,7 +390,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       function* () {
-        const { counter } = yield* state('counter', 10, ({ update }) => ({
+        const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -422,7 +422,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       function* (inputs: { $provided: { initialValue: number } }) {
-        const { counter } = yield* state(
+        const counter = yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
@@ -458,7 +458,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter: Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'toProvide' },
       function* (inputs: { $provided: { initialValue: number } }) {
-        const { counter } = yield* state(
+        const counter = yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
@@ -650,7 +650,7 @@ describe('setupCraftServiceTest', () => {
           state('service1', 0, ({ update }) => ({
             increment: () => update((value) => value + 1),
           })),
-        ).service1;
+        );
       },
     );
 
@@ -661,7 +661,7 @@ describe('setupCraftServiceTest', () => {
           state('service2', 0, ({ update }) => ({
             increment: () => update((value) => value + 1),
           })),
-        ).service2;
+        );
       },
     );
 
@@ -671,9 +671,9 @@ describe('setupCraftServiceTest', () => {
         const _service1 = yield* Service1();
         const _service2 = yield* Service2();
 
-        return (yield* state('serviceHost', 0, ({ update }) => ({
+        return yield* state('serviceHost', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
-        }))).serviceHost;
+        }));
       },
     );
 

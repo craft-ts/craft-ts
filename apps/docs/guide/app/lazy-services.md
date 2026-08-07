@@ -87,7 +87,7 @@ Load it from an `asyncProcess` loader. The simplest form triggers on demand with
 ```ts
 import { asyncProcess, craftLazy } from '@craft-ng/core';
 
-const { searchModule } = yield* asyncProcess('searchModule', {
+const searchModule = yield* asyncProcess('searchModule', {
   method: () => undefined, // call searchModule.method() to start loading
   loader: function* () {
     return yield* craftLazy(({ withRetry }) => withRetry(import('./search')));
@@ -109,7 +109,7 @@ To **prefetch** as soon as some event fires (the reactive equivalent of an eager
 ```ts
 import { asyncProcess, craftLazy, on$ } from '@craft-ng/core';
 
-const { searchModule } = yield* asyncProcess('searchModule', {
+const searchModule = yield* asyncProcess('searchModule', {
   // load at the first emission of the source (e.g. on focus of the search box)
   method: on$(searchFocused$, () => undefined),
   loader: function* () {
@@ -135,7 +135,7 @@ import {
 
 const { Search } = craftService({ name: 'Search', scope: 'component' }, () => {
   // prefetch the module at the first emission of the source
-  const { searchModule } = yield*   asyncProcess('searchModule', {
+  const searchModule = yield* asyncProcess('searchModule', {
     method: on$(searchFocused$, () => undefined),
     loader: function* () {
       return yield* craftLazy(({ withRetry }) =>
@@ -145,7 +145,7 @@ const { Search } = craftService({ name: 'Search', scope: 'component' }, () => {
   });
 
   // run a search on a user action — triggerSearch(q) sets the params
-  const { searchResult } = yield*   asyncProcess('searchResult', {
+  const searchResult = yield* asyncProcess('searchResult', {
     method: (q: string) => q,
     loader: function* ({ params: q }) {
       const { search } = yield* craftUntilSettled(searchModule); // wait for the chunk

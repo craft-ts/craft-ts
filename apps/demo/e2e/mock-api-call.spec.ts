@@ -67,6 +67,9 @@ test('should mock a registered users call through matchMockHttpRequestForRoute',
   await page.goto('/');
 
   const response = await page.evaluate(async () => {
+    // This test intentionally exercises the browser's raw request so the mock
+    // transport can prove that it intercepts the request.
+    // eslint-disable-next-line craft-ng/prefer-craft-http-transport
     const result = await fetch('/users');
     return { body: await result.json(), status: result.status };
   });

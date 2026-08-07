@@ -95,7 +95,7 @@ export type ReadonlySource$<
  * const { Reset } = craftService(
  *   { name: 'Reset', scope: 'global' },
  *   function* () {
- *     const { reset$ } = yield* source$<void>('reset$');
+ *     const reset$ = yield* source$<void>('reset$');
  *     return reset$;
  *   },
  * );

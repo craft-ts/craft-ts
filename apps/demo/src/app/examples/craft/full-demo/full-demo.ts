@@ -1,3 +1,4 @@
+import styles from './full-demo.css' with { loader: 'text' };
 import {
   button,
   catchBlock,
@@ -11,23 +12,46 @@ import {
   span,
   ul,
 } from '@craft-ng/component';
-import { craftException, craftService, mutation, query } from '@craft-ng/core';
+import {
+  craftException,
+  craftService,
+  craftUse,
+  mutation,
+  query,
+  state,
+} from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { state } from '@craft-ng/core';
 
 type Todo = { readonly id: number; readonly title: string };
-let nextId = 3;
-let records: Todo[] = [
-  { id: 1, title: 'Compose a craftService' },
-  { id: 2, title: 'Expose query and mutations' },
-];
+const nextId = craftUse(
+  state('nextId', 3, ({ state, update }) => ({
+    take: () => {
+      const id = state();
+      update((value) => value + 1);
+      return id;
+    },
+  })),
+);
+const records = craftUse(
+  state(
+    'records',
+    [
+      { id: 1, title: 'Compose a craftService' },
+      { id: 2, title: 'Expose query and mutations' },
+    ] satisfies Todo[],
+    ({ update }) => ({
+      add: (todo: Todo) => update((current) => [...current, todo]),
+      remove: (id: number) =>
+        update((current) => current.filter((todo) => todo.id !== id)),
+    }),
+  ),
+);
 
 const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', scope: 'toProvide' },
   function* () {
-    const { refresh } = yield* state(0); // todo change that, create a records state
-    const { todos } = yield* query('todos', {
-      params: refresh,
+    const todos = yield* query('todos', {
+      params: records,
       loader: async () => {
         // Keep the exceptional branch in the inferred query type for the demo.
         // eslint-disable-next-line no-constant-condition
@@ -35,23 +59,21 @@ const { provideTodoStore, TodoStore } = craftService(
           // add an exception to the query signature, it will force this component or his host to handle this exception
           return craftException({ code: 'FAILED_TO_LOAD' });
         }
-        return [...records];
+        return [...records()];
       },
     });
-    const { add } = yield* mutation('add', {
+    const add = yield* mutation('add', {
       method: (title: string) => title,
       loader: async ({ params: title }) => {
-        const todo = { id: nextId++, title };
-        records = [...records, todo];
-        refresh.update((value) => value + 1);
+        const todo = { id: craftUse(nextId.take()), title };
+        craftUse(records.add(todo));
         return todo;
       },
     });
-    const { remove } = yield* mutation('remove', {
+    const remove = yield* mutation('remove', {
       method: (id: number) => id,
       loader: async ({ params: id }) => {
-        records = records.filter((todo) => todo.id !== id);
-        refresh.update((value) => value + 1);
+        craftUse(records.remove(id));
         return id;
       },
     });
@@ -63,8 +85,7 @@ const FullDemoCraft = craftComponent(
   'FullDemoCraft',
   {
     providers: [provideTodoStore()],
-    styles:
-      ':scope{display:grid;gap:1rem;max-width:640px}li{display:flex;gap:.75rem}li span{flex:1}',
+    stylesUrl: styles,
   },
   function* () {
     return { store: yield* TodoStore() };
@@ -99,7 +120,7 @@ const FullDemoCraft = craftComponent(
       ]),
       ul(
         each(
-          () => store.todos.safeValue(),
+          () => store.todos.value(),
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
             li([

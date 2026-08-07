@@ -5,7 +5,7 @@ export const SendContextCounterComponent = craftComponent(
   'SendContextCounterComponent',
   {},
   function* (initialValue: Input<number>) {
-    const { counter } = yield* state(
+    const counter = yield* state(
       'counter',
       initialValue(),
       ({ update }) => ({

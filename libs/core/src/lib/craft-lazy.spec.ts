@@ -120,8 +120,7 @@ describe('craftLazy (inside an asyncProcess)', () => {
   it('resolves to the lazily-loaded module', async () => {
     await TestBed.runInInjectionContext(async () => {
       const moduleValue = { greet: () => 'hi' };
-      const { ref } = craftUse(
-        asyncProcess('ref', {
+      const ref = craftUse(asyncProcess('ref', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy(({ withRetry }) =>
@@ -150,8 +149,7 @@ describe('craftLazy (inside an asyncProcess)', () => {
       const load = vi.fn(({ withRetry }: CraftLazyLoadHelpers) =>
         withRetry(Promise.reject<{ never: true }>(new Error('offline'))),
       );
-      const { ref } = craftUse(
-        asyncProcess('ref', {
+      const ref = craftUse(asyncProcess('ref', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy(load);
@@ -172,7 +170,7 @@ describe('craftLazy (inside an asyncProcess)', () => {
       ).toMatchObject({
         cause: expect.any(Error),
       });
-      expect(ref.safeValue()).toBeUndefined();
+      expect(ref.value()).toBeUndefined();
     });
   });
 
@@ -183,8 +181,7 @@ describe('craftLazy (inside an asyncProcess)', () => {
 
     await TestBed.runInInjectionContext(async () => {
       let calls = 0;
-      const { ref } = craftUse(
-        asyncProcess('ref', {
+      const ref = craftUse(asyncProcess('ref', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy(({ withRetry }) =>
@@ -214,8 +211,7 @@ describe('craftLazy (inside an asyncProcess)', () => {
     });
 
     await TestBed.runInInjectionContext(async () => {
-      const { ref } = craftUse(
-        asyncProcess('ref', {
+      const ref = craftUse(asyncProcess('ref', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy<{ ok: boolean }>(({ withRetry }) =>
@@ -262,15 +258,13 @@ describe('craftLazy (type propagation)', () => {
         return mod;
       };
 
-      const { searchProcess } = craftUse(
-        asyncProcess('searchProcess', {
+      const searchProcess = craftUse(asyncProcess('searchProcess', {
           method: (v: string) => v,
           loader: drive,
         }),
       );
 
-      const { searchResult } = craftUse(
-        asyncProcess('searchResult', {
+      const searchResult = craftUse(asyncProcess('searchResult', {
           method: (q: string) => q,
           loader: function* ({ params }) {
             const { search: loadedSearch } =
@@ -302,8 +296,7 @@ describe('craftLazy (type propagation)', () => {
     function _typeOnly() {
       // Catch the only exception (`CRAFT_LAZY_LOAD_ERROR`) at the source: the
       // resource's exception union becomes empty, so `exception()` is `undefined`.
-      const { recovered } = craftUse(
-        asyncProcess('recovered', {
+      const recovered = craftUse(asyncProcess('recovered', {
           method: (v: string) => v,
           loader: function* () {
             return yield* craftLazy<{ ok: boolean }>(({ withRetry }) =>

@@ -47,7 +47,7 @@ share sheet, a delay, a Web API call.
 ## What they have in common
 
 Whichever you pick, the mechanics are identical: the name comes first, the
-result is a single-key record you destructure, `yield*` drives it inside any
+result is the primitive reference itself, `yield*` drives it inside any
 craft generator, and the last argument is an insertion.
 
 That shared shape is one page: **[Anatomy of a

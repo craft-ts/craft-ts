@@ -1,15 +1,15 @@
-import { signal } from '@angular/core';
 import {
   button,
   catchTag,
   craftComponent,
   div,
   h3,
+  ifBlock,
   matchBlock,
   p,
   strong,
 } from '@craft-ng/component';
-import { craftException, query } from '@craft-ng/core';
+import { craftComputed, craftException, query, state } from '@craft-ng/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 
@@ -20,8 +20,12 @@ const ExceptionsComponent = craftComponent(
       '.exception-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.exception-actions button{padding:8px 16px}',
   },
   function* () {
-    const scenario = signal<Scenario>('success');
-    const { userQuery } = yield* query('userQuery', {
+    const scenario = yield* state(
+      'scenario',
+      'success' as Scenario,
+      ({ set }) => ({ select: (value: Scenario) => set(value) }),
+    );
+    const userQuery = yield* query('userQuery', {
       params: scenario,
       loader: async ({ params }) => {
         await new Promise((resolve) => setTimeout(resolve, 600));
@@ -46,40 +50,53 @@ const ExceptionsComponent = craftComponent(
         return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
       },
     });
-    return { scenario, userQuery };
+    const hasUser = craftComputed('hasUser', () => userQuery.hasValue());
+    const isLoading = craftComputed('isLoading', () => userQuery.isLoading());
+    return { scenario, userQuery, hasUser, isLoading };
   },
-  ({ scenario, userQuery }) => {
-    const user = userQuery.safeValue();
+  ({ scenario, userQuery, hasUser, isLoading }) => {
     return [
       h3(`Query user with business exceptions (${userQuery.status()})`),
       div({ class: 'exception-actions' }, [
-        button({ click: () => scenario.set('success') }, 'Success'),
-        button({ click: () => scenario.set('not-found') }, 'User not found'),
+        button({ click: () => scenario.select('success') }, 'Success'),
+        button({ click: () => scenario.select('not-found') }, 'User not found'),
         button(
-          { click: () => scenario.set('consent-missing') },
+          { click: () => scenario.select('consent-missing') },
           'Consent missing',
         ),
-        button({ click: () => scenario.set('forbidden') }, 'Access forbidden'),
+        button(
+          { click: () => scenario.select('forbidden') },
+          'Access forbidden',
+        ),
       ]),
-      user
-        ? div([
+      ifBlock(
+        hasUser,
+        () => {
+          const user = userQuery.value() as {
+            id: string;
+            name: string;
+            email: string;
+          };
+          return div([
             p([strong('ID: '), user.id]),
             p([strong('Name: '), user.name]),
             p([strong('Email: '), user.email]),
-          ])
-        : [
-            matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
-              UserNotFoundException: () =>
-                p('⚠️ User not found (rendered by matchBlock.exhaustive)'),
-              UserConsentMissingException: () =>
-                p(
-                  '⚠️ User consent is required (rendered by matchBlock.exhaustive)',
-                ),
-              UserAccessForbiddenException: () =>
-                p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
-            }),
-            userQuery.status() === 'loading' ? p('Loading user…') : undefined,
-          ],
+          ]);
+        },
+        () => [
+          matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
+            UserNotFoundException: () =>
+              p('⚠️ User not found (rendered by matchBlock.exhaustive)'),
+            UserConsentMissingException: () =>
+              p(
+                '⚠️ User consent is required (rendered by matchBlock.exhaustive)',
+              ),
+            UserAccessForbiddenException: () =>
+              p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
+          }),
+          ifBlock(isLoading, () => p('Loading user…')),
+        ],
+      ),
     ];
   },
 ).pipe(

@@ -120,7 +120,7 @@ With `query(name, { identifier })`, each instance is cached individually under
 its identifier — no extra configuration:
 
 ```typescript
-const { postsQuery } = yield* query(
+const postsQuery = yield* query(
   'postsQuery',
   {
     params: () => currentPostId(),

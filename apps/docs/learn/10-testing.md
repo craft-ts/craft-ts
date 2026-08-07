@@ -25,7 +25,10 @@ export const { TaskStats, provideTaskStats } = craftService(
     const tasks = yield* TaskList();
 
     return {
-      done: computed(() => tasks().filter((task) => task.done).length),
+      done: craftComputed(
+        'done',
+        () => tasks().filter((task) => task.done).length,
+      ),
     };
   },
 );

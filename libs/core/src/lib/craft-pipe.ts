@@ -1,5 +1,19 @@
+import {
+  inject,
+  Injector,
+  isSignal,
+  runInInjectionContext,
+} from '@angular/core';
 import { isGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
+import { ɵcreateHostTaggedInjector } from './craft-service';
+import { isSource } from './util/util';
+import {
+  createYieldableInsertionMethod,
+  isNonYieldableInsertionMethod,
+  isYieldableMethod,
+  type YieldableInsertionMethods,
+} from './yieldable';
 
 // `craftPipe` composes several insertions into ONE, with the primitive's
 // context passed EXPLICITLY: `primitive(config, (context) => craftPipe(context, m1, m2))`.
@@ -19,7 +33,7 @@ import { injectFnWrapper } from './fn-wrapper';
 // normalize `never` (empty previous outputs) back to `{}` before merging.
 type NormalizeIns<T> = [T] extends [never] ? {} : T;
 type CtxWithIns<Ctx, I> = Omit<Ctx, 'insertions'> & {
-  insertions: I;
+  insertions: YieldableInsertionMethods<I>;
 };
 type MergedIns<Ctx extends { insertions?: any }, I> = NormalizeIns<
   Ctx['insertions']
@@ -221,17 +235,57 @@ export function* craftPipe(
   // member keeps its own wrapping (per-member observability), exactly like
   // the primitives' own insertion loop.
   const wrap = injectFnWrapper();
+  const injector = inject(Injector);
   let acc: Record<string, unknown> = {};
+  let exposedAcc: Record<string, unknown> = {};
   for (const member of members) {
     const wrappedMember = wrap(member);
     const result = wrappedMember({
       ...context,
-      insertions: { ...(context.insertions ?? {}), ...acc },
+      insertions: { ...(context.insertions ?? {}), ...exposedAcc },
     });
     const output = isGenerator(result)
       ? yield* (result as Generator<unknown, Record<string, unknown>, unknown>)
       : result;
-    acc = { ...acc, ...(output as Record<string, unknown>) };
+    const rawOutput = output as Record<string, unknown>;
+    acc = { ...acc, ...rawOutput };
+
+    const nextExposed = Object.entries(rawOutput).reduce(
+      (previous, [key, value]) => {
+        if (isSource(value) || isSignal(value) || isYieldableMethod(value)) {
+          previous[key] = value;
+          return previous;
+        }
+
+        if (
+          typeof value === 'function' &&
+          !isNonYieldableInsertionMethod(value)
+        ) {
+          const methodInjector = ɵcreateHostTaggedInjector(
+            injector,
+            `method:${key}`,
+          );
+          const wrappedFn = runInInjectionContext(methodInjector, () =>
+            injectFnWrapper()(value as (...args: unknown[]) => unknown),
+          );
+          previous[key] = createYieldableInsertionMethod(wrappedFn, {
+            injector: methodInjector,
+            invalidYieldErrorMessage:
+              'craftPipe insertion method generators can only yield craftService dependencies or exposed dependency helpers.',
+            multipleAppStartErrorMessage:
+              'craftPipe insertion methods do not support multiple onAppStart(...) declarations.',
+            onAppStartNotSupportedErrorMessage:
+              'craftPipe insertion methods do not support onAppStart(...).',
+          });
+          return previous;
+        }
+
+        previous[key] = value;
+        return previous;
+      },
+      {} as Record<string, unknown>,
+    );
+    exposedAcc = { ...exposedAcc, ...nextExposed };
   }
   return acc;
 }

@@ -57,14 +57,11 @@ Two ways, both checked against the registry above.
 **As a link**, with the `CraftRouterLink` directive:
 
 ```typescript
-import { a, directive } from '@craft-ng/component';
-import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ng/core';
-
-const craftRouterLink = ({ link }: { link: CraftRouterLinkInput }) =>
-  directive(CraftRouterLink, { inputs: { craftRouterLink: link } });
+import { a } from '@craft-ng/component';
+import { CraftRouterLink } from '@craft-ng/core';
 
 // in a template
-a({}, 'Tasks').pipe(craftRouterLink({ link: { to: 'tasks' } }));
+a({ craftRouterLink: { to: 'tasks' } }, 'Tasks').pipe(CraftRouterLink);
 ```
 
 **Imperatively**, by yielding the router:
@@ -73,7 +70,7 @@ a({}, 'Tasks').pipe(craftRouterLink({ link: { to: 'tasks' } }));
 function* () {
   const router = yield* CraftRouter(undefined, ({ navigate }) => ({ navigate }));
 
-  const { goToTask } = craftMethod('goToTask', function* (taskId: string) {
+  const goToTask = craftMethod('goToTask', function* (taskId: string) {
     void router.navigate({ to: 'tasks/:taskId', params: { taskId } });
   });
 
@@ -98,6 +95,12 @@ it — so the dependency is tracked and the route check can see it.
 Each route component gets its own check: `RouteCheckedDI` compares what the
 component needs against what is actually available at that path, and `CanRun`
 turns a mismatch into a TypeScript error.
+
+The `tasks` route created above remains visible as the source of truth; the
+check below validates that route's component and its `path: 'tasks'` context.
+An AI can also create this Craft NG routing boilerplate very well — including
+the lazy import, retry handling, route registry and DI check — from the
+component and path you provide.
 
 Declare one local alias for your app's context, then one `CanRun` per route:
 
@@ -185,6 +188,26 @@ export const appConfig = craftAppConfig({
 
 `toRoutes()` hands Angular the real routes; `META_DATA` hands the compile-time
 graph to `craftAppConfig`.
+
+## Validate the routing safety net
+
+After wiring the routes into `craftAppConfig`, add the verification script:
+
+```json
+{
+  "scripts": {
+    "craft:verify-routes": "craft route verify --project tsconfig.app.json"
+  }
+}
+```
+
+Then run `npm run craft:verify-routes`. The command creates temporary valid and
+invalid examples and confirms that the compiler catches missing DI providers,
+template dependencies, route inputs, pending/error component contracts and
+unhandled route exceptions. It also checks the ESLint bookkeeping that keeps
+`GenDeps_*`, route checks, lazy retry and error-component checks synchronized.
+Fixtures are deleted when the command ends; use `--json` for CI or
+`--keep-fixtures` to inspect a failure.
 
 ## What the user sees while a route loads
 

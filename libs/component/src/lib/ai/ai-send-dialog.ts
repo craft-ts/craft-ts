@@ -1,5 +1,9 @@
-import { signal } from '@angular/core';
-import { fromEventToSource$, type SendContextPayload } from '@craft-ng/core';
+import {
+  craftMethod,
+  fromEventToSource$,
+  state,
+  type SendContextPayload,
+} from '@craft-ng/core';
 import { craftComponent } from '../component';
 import {
   button,
@@ -167,13 +171,50 @@ export const AiSendDialog = craftComponent(
       }
     `,
   },
-  (payload: Input<SendContextPayload>, onClose: Output<() => void>) => {
+  function* (
+    payload: Input<SendContextPayload>,
+    onClose: Output<() => void>,
+  ) {
+    type InstructionState = (() => string) & {
+      setInstruction: (value: string) => Generator<unknown, unknown, unknown>;
+    };
+    type CopiedState = (() => boolean) & {
+      setCopied: (value: boolean) => Generator<unknown, unknown, unknown>;
+    };
+
     // This component ships in a published package, so its inferred type goes
     // through declaration emit. Reactive values (craft `state()`, Angular
     // signals) carry `unique symbol`s that the emitter cannot name (TS4023),
     // so the signals stay local and the context exposes plain accessors only.
-    const instruction = signal('');
-    const copied = signal(false);
+    const instruction = yield* (state(
+      'instruction',
+      '',
+      ({ set }) => ({
+        setInstruction: (value: string) => set(value),
+      }),
+    ) as unknown as Generator<never, InstructionState, unknown>);
+    const copied = yield* (state(
+      'copied',
+      false,
+      ({ set }) => ({
+        setCopied: (value: boolean) => set(value),
+      }),
+    ) as unknown as Generator<never, CopiedState, unknown>);
+
+    const setInstruction: (value: string) => void = craftMethod(
+      'setInstruction',
+      function* (
+        value: string,
+      ) {
+        yield* instruction.setInstruction(value);
+      },
+    );
+    const setCopied: (value: boolean) => void = craftMethod(
+      'setCopied',
+      function* (value: boolean) {
+        yield* copied.setCopied(value);
+      },
+    );
 
     let copiedTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -191,9 +232,11 @@ export const AiSendDialog = craftComponent(
 
       const content = formatPrompt({ ...payload(), instruction: text });
       void navigator.clipboard.writeText(content).then(() => {
-        copied.set(true);
+        setCopied(true);
         if (copiedTimer) clearTimeout(copiedTimer);
-        copiedTimer = setTimeout(() => copied.set(false), 2500);
+        copiedTimer = setTimeout(() => {
+          setCopied(false);
+        }, 2500);
       });
     };
 
@@ -201,7 +244,9 @@ export const AiSendDialog = craftComponent(
       payload,
       onClose,
       instruction: (): string => instruction(),
-      writeInstruction: (value: string): void => instruction.set(value),
+      writeInstruction: (value: string): void => {
+        setInstruction(value);
+      },
       copied: (): boolean => copied(),
       copy,
     };
@@ -269,7 +314,11 @@ export const AiSendDialog = craftComponent(
 
           footer({ class: 'craft-ai-footer' }, [
             button(
-              { type: 'button', class: 'craft-ai-cancel', click: () => onClose() },
+              {
+                type: 'button',
+                class: 'craft-ai-cancel',
+                click: () => onClose(),
+              },
               'Fermer',
             ),
             button(

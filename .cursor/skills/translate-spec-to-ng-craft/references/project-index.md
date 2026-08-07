@@ -25,7 +25,6 @@ Use this file to confirm the exact exported symbol names before recommending an 
 - `apps/docs/guide/testing/services.md`
 - `apps/docs/guide/reactivity/on.md`
 - `apps/docs/guide/reactivity/source.md`
-- `apps/docs/guide/reactivity/reactive-writable-signal.md`
 - `apps/docs/utils/inject-service.md`
 - `apps/docs/guide/reactivity/after-recomputation.md`
 - `apps/docs/guide/reactivity/source-from-event.md`
@@ -61,7 +60,6 @@ Use this example for:
 - `insertReactOnMutation`
 - `removeOne`
 - `removeMany`
-- `reactiveWritableSignal`
 - selection reset after query or mutation changes
 
 ### Full User Management With Primitives

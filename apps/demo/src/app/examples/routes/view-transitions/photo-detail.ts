@@ -4,11 +4,13 @@ import {
   craftComponent,
   div,
   h2,
+  ifBlock,
   p,
   span,
   type Input,
 } from '@craft-ng/component';
 import {
+  craftComputed,
   craftMethod,
   CraftRouter,
 } from '@craft-ng/core';
@@ -27,13 +29,16 @@ const ViewTransitionsDetailComponent = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const { back } = craftMethod('back', function* () {
+    const back = craftMethod('back', function* () {
       void router.navigate({ to: 'view-transitions' });
     });
-    return { photoId, back };
+    const hasPhoto = craftComputed(
+      'hasPhoto',
+      () => findPhoto(photoId()) !== undefined,
+    );
+    return { photoId, back, hasPhoto };
   },
-  ({ photoId, back }) => {
-    const photo = findPhoto(photoId());
+  ({ photoId, back, hasPhoto }) => {
     return [
       a(
         {
@@ -46,8 +51,13 @@ const ViewTransitionsDetailComponent = craftComponent(
         },
         '← Back to gallery',
       ),
-      photo
-        ? article({ class: 'vt-detail' }, [
+      ifBlock(
+        hasPhoto,
+        () => {
+          const photo = findPhoto(photoId()) as NonNullable<
+            ReturnType<typeof findPhoto>
+          >;
+          return article({ class: 'vt-detail' }, [
             span(
               {
                 class: 'vt-hero',
@@ -59,8 +69,10 @@ const ViewTransitionsDetailComponent = craftComponent(
               span({ class: 'emoji' }, photo.emoji),
             ),
             div([p(photo.subtitle), h2(photo.title), p(photo.description)]),
-          ])
-        : p(`No artwork matches “${photoId()}”.`),
+          ]);
+        },
+        () => p(`No artwork matches “${photoId()}”.`),
+      ),
     ];
   },
 );

@@ -53,7 +53,7 @@ import { craftComputed } from '@craft-ng/core';
 
 class CounterComponent {
   readonly count = signal(0);
-  readonly doubled = craftComputed('doubled', () => this.count() * 2).doubled;
+  readonly doubled = craftComputed('doubled', () => this.count() * 2);
 }
 ```
 
@@ -76,7 +76,7 @@ class CounterComponent {
   readonly tripled = craftComputed('tripled', function* () {
     const multiplier = yield* Multiplier();
     return () => this.count() * multiplier.factor;
-  }).tripled;
+  });
 }
 ```
 

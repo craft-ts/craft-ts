@@ -66,9 +66,9 @@ export const Counter = craftComponent(
   'Counter',
   {},
   function* () {
-    const { counter } = yield* state('counter', 0, ({ update }) => ({ update }));
+    const counter = yield* state('counter', 0, ({ update }) => ({ update }));
 
-    const { increment } = craftMethod('increment', function* (step = 1) {
+    const increment = craftMethod('increment', function* (step = 1) {
       yield* Console.log('increment is called');
       counter.update((value) => value + step);
     });
@@ -92,7 +92,7 @@ runtime while preserving its injector and wrappers.
 crafted service graph as `craftService`:
 
 ```typescript
-const { increment } = craftMethod('increment', function* (value: number) {
+const increment = craftMethod('increment', function* (value: number) {
   return yield* CounterWorker.set(value);
 });
 ```
@@ -124,7 +124,7 @@ export class CounterComponent {
   readonly increment = craftMethod('increment', this, function* (step = 1) {
     yield* Console.log('increment is called');
     this.counter.update((value) => value + step);
-  }).increment;
+  });
 }
 ```
 
@@ -161,7 +161,7 @@ export class CounterComponent {
       this.counter.update((value) => value + step);
       return this.counter();
     },
-  ).increment;
+  );
 }
 ```
 
@@ -181,7 +181,7 @@ export class CounterComponent {
     function* (value: number) {
       return yield* CounterWorker.set(value);
     },
-  ).increment;
+  );
 }
 ```
 

@@ -115,7 +115,7 @@ const Counter = craftComponent(
   'Counter',
   {},
   function* () {
-    const { counter } = yield* state('counter', 0, ({ state, update }) => ({
+    const counter = yield* state('counter', 0, ({ state, update }) => ({
       disabled: computed(() => state() === 0),
       increment: () => update((value) => value + 1),
     }));
@@ -186,7 +186,7 @@ const Counter = craftComponent(
   'Counter',
   {},
   function* () {
-    const { counter } = yield* state('counter', 0, ({ state }) => ({
+    const counter = yield* state('counter', 0, ({ state }) => ({
       disabled: computed(() => state() % 2 === 0),
     }));
 
@@ -284,11 +284,11 @@ const Counter = craftComponent(
   'Counter',
   {},
   function* () {
-    const { isAuth } = yield* state(
+    const isAuth = yield* state(
       'isAuth',
       computed(() => true),
     );
-    const { brandedStatus } = yield* state('brandedStatus', 'ready');
+    const brandedStatus = yield* state('brandedStatus', 'ready');
     return { isAuth, brandedStatus };
   },
   ({ isAuth, brandedStatus }) =>
@@ -385,7 +385,7 @@ const ItemList = craftComponent(
   'ItemList',
   {},
   function* () {
-    const { items } = yield* state(
+    const items = yield* state(
       'items',
       [{ key: 'first' }, { key: 'second' }],
       insertSelect('item', ({ state: selectedItem }) => ({
@@ -449,11 +449,11 @@ const Counter = craftComponent(
   'Counter',
   {},
   function* () {
-    const { isAuth } = yield* state('isAuth', true);
-    const { isAdult } = yield* state('isAdult', true);
+    const isAuth = yield* state('isAuth', true);
+    const isAdult = yield* state('isAdult', true);
     const increment = craftMethod('increment', function* () {
       return undefined;
-    }).increment;
+    });
 
     return { isAuth, isAdult, increment };
   },

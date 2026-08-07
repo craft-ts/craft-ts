@@ -74,8 +74,7 @@ describe('migrated checkout form', () => {
   it('composes nested validators, async coupon validation and mutation submit', async () => {
     await TestBed.runInInjectionContext(async () => {
       const submitted = vi.fn();
-      const { couponQuery } = craftUse(
-        query('couponQuery', {
+      const couponQuery = craftUse(query('couponQuery', {
           method: (code: string) => code.trim(),
           loader: async ({ params: code }) => ({
             valid: code === 'SAVE20',
@@ -83,8 +82,7 @@ describe('migrated checkout form', () => {
           }),
         }),
       );
-      const { submitMutation } = craftUse(
-        mutation('submitMutation', {
+      const submitMutation = craftUse(mutation('submitMutation', {
           method: (value: CheckoutForm) => value,
           loader: async ({ params }) => {
             submitted(params);
@@ -175,8 +173,7 @@ describe('migrated checkout form', () => {
           ),
       );
 
-      const { checkout } = craftUse(
-        state(
+      const checkout = craftUse(state(
           'checkout',
           initial,
           insertForm(

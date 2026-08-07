@@ -1,5 +1,5 @@
-import { signal } from '@angular/core';
-import { abstract, craftException, craftService } from '@craft-ng/core';
+import { computed } from '@angular/core';
+import { abstract, craftException, craftService, state } from '@craft-ng/core';
 import {
   button,
   catchTag,
@@ -15,9 +15,6 @@ const { RestrictedData, provideRestrictedData } = craftService(
   { name: 'restrictedData', scope: 'abstract' },
   abstract<string | typeof noAccess>(),
 );
-
-const canReadRestrictedData = signal(false);
-const lastHandledException = signal('');
 
 const restrictedContent = craftComponent(
   'restrictedContent',
@@ -35,8 +32,32 @@ const restrictedContent = craftComponent(
 export const componentCompositionDemo = craftComponent(
   'componentCompositionDemo',
   { host: { class: 'component-demo-host' } },
-  () => ({}),
-  () =>
+  function* () {
+    const canReadRestrictedData = yield* state(
+      'canReadRestrictedData',
+      false,
+      ({ update, state }) => ({
+        restriction: computed(() => (state() ? 'accessible' : noAccess)),
+        toggle: () => update((v) => !v),
+      }),
+    );
+
+    const lastHandledException = yield* state(
+      'lastHandledException',
+      '',
+      ({ set }) => ({
+        showNoAccessText: () =>
+          set(
+            'NO_ACCESS géré par catchTag (la boundary ne rend pas de template).',
+          ),
+      }),
+    );
+    return {
+      canReadRestrictedData,
+      lastHandledException,
+    };
+  },
+  ({ canReadRestrictedData, lastHandledException }) =>
     section({ class: 'component-demo component-demo__composition-page' }, [
       h2('Composition réactive avec providers'),
       p(
@@ -45,22 +66,18 @@ export const componentCompositionDemo = craftComponent(
       button(
         {
           class: 'component-demo__access-toggle',
-          click: () => canReadRestrictedData.update((value) => !value),
+          click: canReadRestrictedData.toggle,
         },
         'Changer les droits',
       ),
       p(() => lastHandledException()),
       restrictedContent.pipe(
         withProviders([
-          provideRestrictedData(() =>
-            canReadRestrictedData() ? 'accessible' : noAccess,
-          ),
+          provideRestrictedData(() => canReadRestrictedData.restriction()),
         ]),
         catchTag.exhaustive({
           NO_ACCESS: function* () {
-            lastHandledException.set(
-              'NO_ACCESS géré par catchTag (la boundary ne rend pas de template).',
-            );
+            yield* lastHandledException.showNoAccessText();
           },
         }),
       )({}),

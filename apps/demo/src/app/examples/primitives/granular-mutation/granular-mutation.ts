@@ -1,3 +1,4 @@
+import styles from './granular-mutation.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -24,9 +25,11 @@ import { ApiService, type User } from './api.service';
 
 const GranularMutation = craftComponent(
   'GranularMutation',
-  {},
+  {
+    stylesUrl: styles,
+  },
   function* () {
-    const { pagination } = yield* queryParams(
+    const pagination = yield* queryParams(
       'pagination',
       {
         state: {
@@ -53,14 +56,18 @@ const GranularMutation = craftComponent(
       }),
     );
 
-    const { updateUserName } = yield* mutation('updateUserName', {
+    const updateUserName = yield* mutation('updateUserName', {
       method: (user: User) => ({ ...user, name: `${user.name}-` }),
       identifier: ({ id }) => id,
       loader: function* ({ params }) {
         return yield* ApiService.updateItem(params);
       },
     });
-    const { usersQuery } = yield* query(
+    const userUpdateIsLoading = (userId: User['id']) =>
+      updateUserName.select(userId)?.isLoading() ?? false;
+    const userUpdateStatus = (userId: User['id']) =>
+      updateUserName.select(userId)?.status() ?? 'idle';
+    const usersQuery = yield* query(
       'usersQuery',
       {
         params: pagination,
@@ -80,24 +87,34 @@ const GranularMutation = craftComponent(
           insertReactOnMutation(updateUserName, {
             filter: ({ mutationIdentifier, queryResource }) =>
               queryResource
-                .safeValue()
+                .value()
                 ?.some(({ id }) => id === mutationIdentifier) ?? false,
             optimisticUpdate: ({
               queryResource,
               mutationIdentifier,
               mutationParams,
             }) =>
-              queryResource
-                .value()
-                ?.map((user) =>
-                  user.id === mutationIdentifier ? mutationParams : user,
-                ),
+              (queryResource.value() ?? []).map((user) =>
+                user.id === mutationIdentifier ? mutationParams : user,
+              ),
           }),
         ),
     );
-    return { pagination, updateUserName, usersQuery };
+    return {
+      pagination,
+      updateUserName,
+      userUpdateIsLoading,
+      userUpdateStatus,
+      usersQuery,
+    };
   },
-  ({ pagination, updateUserName, usersQuery }) =>
+  ({
+    pagination,
+    updateUserName,
+    userUpdateIsLoading,
+    userUpdateStatus,
+    usersQuery,
+  }) =>
     div([
       h2([
         'User Management: ',
@@ -110,7 +127,7 @@ const GranularMutation = craftComponent(
         h(
           'tbody',
           each(
-            () => usersQuery.currentPageData() ?? [],
+            usersQuery.currentPageData,
             { track: (user) => user.id },
             (user) =>
               h('tr', [
@@ -120,15 +137,14 @@ const GranularMutation = craftComponent(
                   'td',
                   button(
                     {
-                      disabled:
-                        updateUserName.select(user.id)?.isLoading() ?? false,
+                      disabled: userUpdateIsLoading(user.id),
                       click: () => updateUserName.mutate(user),
                     },
                     [
                       'Update Name ',
                       StatusComponent({
                         status: () =>
-                          updateUserName.select(user.id)?.status() ?? 'idle',
+                          userUpdateStatus(user.id),
                       }),
                     ],
                   ),

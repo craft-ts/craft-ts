@@ -18,7 +18,7 @@ const { TaskList } = craftService(
   { name: 'TaskList', scope: 'function' },
   function* () {
     const api = yield* TaskApi(); // tracked
-    const { tasks } = yield* state('tasks', []); // tracked
+    const tasks = yield* state('tasks', []); // tracked
     return tasks;
   },
 );

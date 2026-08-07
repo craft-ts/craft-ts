@@ -71,7 +71,7 @@ describe('resourceById', () => {
         params: ({ value, status }) => {
           expectTypeOf(value()).toEqualTypeOf<{
             id: string;
-          }>();
+          } | undefined>();
           expectTypeOf(status()).toEqualTypeOf<ResourceStatus>();
           return status() === 'resolved' || status() === 'local'
             ? value()

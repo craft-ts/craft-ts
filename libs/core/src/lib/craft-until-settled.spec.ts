@@ -51,13 +51,13 @@ function fakeHttpCall(
 function makeResource(): {
   resource: ResourceLike;
   status: WritableSignal<string>;
-  safeValue: WritableSignal<unknown>;
+  value: WritableSignal<unknown>;
   error: WritableSignal<Error | undefined>;
   hasException: WritableSignal<boolean>;
   exceptions: WritableSignal<{ list: readonly AnyCraftException[] }>;
 } {
   const status = signal<string>('loading');
-  const safeValue = signal<unknown>(undefined);
+  const value = signal<unknown>(undefined);
   const error = signal<Error | undefined>(undefined);
   const hasException = signal(false);
   const exceptions = signal<{ list: readonly AnyCraftException[] }>({
@@ -65,9 +65,9 @@ function makeResource(): {
   });
 
   return {
-    resource: { status, safeValue, error, hasException, exceptions },
+    resource: { status, value, error, hasException, exceptions },
     status,
-    safeValue,
+    value,
     error,
     hasException,
     exceptions,
@@ -91,8 +91,7 @@ describe('craftUntilSettled (query type channels)', () => {
     });
 
     const _createProgram = () => {
-      const { queryRef } = craftUse(
-        query('queryRef', {
+      const queryRef = craftUse(query('queryRef', {
           params: () =>
             Math.random() > 0.5
               ? 'user-1'
@@ -237,7 +236,7 @@ describe('craftUntilSettled (HTTP await path)', () => {
 // settled.
 describe('craftUntilSettled (resource branch)', () => {
   it('yields a settle await-request, then returns the resolved value', () => {
-    const { resource, status, safeValue } = makeResource();
+    const { resource, status, value } = makeResource();
     const iterator = craftUntilSettled(resource) as Generator<
       unknown,
       unknown,
@@ -248,7 +247,7 @@ describe('craftUntilSettled (resource branch)', () => {
     expect(first.done).toBe(false);
     expect(isGuardAwaitRequest(first.value)).toBe(true);
 
-    safeValue.set('USER');
+    value.set('USER');
     status.set('resolved');
 
     const done = iterator.next();

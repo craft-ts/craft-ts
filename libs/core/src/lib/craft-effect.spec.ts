@@ -193,7 +193,7 @@ describe('craftEffect', () => {
 
     class Component {
       readonly fx = craftEffect('primitive-trigger', function* () {
-        const { search } = yield* query('search', {
+        const search = yield* query('search', {
           method: function* (term: string) {
             yield* TriggerDependency();
             return term;

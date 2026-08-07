@@ -87,9 +87,16 @@ import {
   ɵcreatePrimitiveResourceRuntimeContext,
   ɵobservePrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
-import { markYieldableMethod, yieldableInvocation } from './yieldable';
+import {
+  createYieldableInsertionMethod,
+  isNonYieldableInsertionMethod,
+  yieldableInvocation,
+} from './yieldable';
 import type { YieldableInvocation } from './yieldable';
-import type { BrandReactiveProperties } from './yieldable';
+import type {
+  BrandReactiveProperties,
+  YieldableInsertionMethods,
+} from './yieldable';
 
 type AsyncProcessConfigProviderNames<Providers> =
   Providers extends readonly (infer P)[]
@@ -166,11 +173,10 @@ export type AsyncProcessRef<
           readonly value: Signal<Value | undefined>;
           readonly status: Signal<CraftResourceStatus>;
           readonly isLoading: Signal<boolean>;
-          readonly safeValue: Signal<Value | undefined>;
           hasValue(): boolean;
         } & ResourceLikeAsyncProcessExceptions<AsyncProcessExceptions>
       : {},
-    Insertions,
+    YieldableInsertionMethods<Insertions>,
     IsMethod extends true
       ? {
           method: (args: ArgParams) =>
@@ -203,7 +209,6 @@ export type AsyncProcessRef<
                 readonly value: Signal<Value | undefined>;
                 readonly status: Signal<CraftResourceStatus>;
                 readonly isLoading: Signal<boolean>;
-                readonly safeValue: Signal<Value | undefined>;
                 hasValue(): boolean;
               } & ResourceLikeAsyncProcessExceptions<
                 AsyncProcessExceptions,
@@ -620,7 +625,7 @@ export function asyncProcess<
  * @template GroupIdentifier - The type of identifier for parallel execution
  *
  * @param name - The async process name. Used to key the returned record
- *   (`const { loadUser } = yield* asyncProcess('loadUser', config)`) and as the
+ *   (`const loadUser = yield* asyncProcess('loadUser', config)`) and as the
  *   injector host tag (`asyncProcess:loadUser`), so the primitive is precisely
  *   locatable in snapshots and logs.
  * @param AsyncProcessConfig - Configuration object:
@@ -629,8 +634,8 @@ export function asyncProcess<
  *   - `stream`: Streaming loader for progressive updates (mutually exclusive with `loader`)
  *   - `identifier`: Optional function to derive unique ID for parallel execution
  *
- * @returns A single-use primitive generator resolving to a record keyed by
- *   `name`, whose value is an async method reference with:
+ * @returns A single-use primitive generator resolving to an async method
+ *   reference with:
  *   - `value`: Signal containing the result (or undefined)
  *   - `status`: Signal with the craft state ('idle' | 'loading' | 'reloading' | 'resolved' | 'local' | 'exception')
  *   - `exception`: Signal with the primary `craftException` (or undefined)
@@ -648,7 +653,7 @@ export function asyncProcess<
  * @example
  * Basic method-based async method
  * ```ts
- * const { delay } = craftUse(asyncProcess('delay', {
+ * const delay = craftUse(asyncProcess('delay', {
  *   method: (delay: number) => delay,
  *   loader: async ({ params }) => {
  *     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
@@ -674,7 +679,7 @@ export function asyncProcess<
  * ```ts
  * const delaySource = source<number>();
  *
- * const { delay } = craftUse(asyncProcess('delay', {
+ * const delay = craftUse(asyncProcess('delay', {
  *   method: afterRecomputation(delaySource, (term) => term),
  *   loader: async ({ params }) => {
  *     // Debounce at source level
@@ -697,7 +702,7 @@ export function asyncProcess<
  * ```ts
  * import { asyncProcess, craftException } from '@craft-ng/core';
  *
- * const { loadUser } = craftUse(asyncProcess('loadUser', {
+ * const loadUser = craftUse(asyncProcess('loadUser', {
  *   method: (value: string) =>
  *     value.length < 3
  *       ? craftException(
@@ -725,7 +730,7 @@ export function asyncProcess<
  * @example
  * Async method with identifier for parallel operations
  * ```ts
- * const { delayById } = craftUse(asyncProcess('delayById', {
+ * const delayById = craftUse(asyncProcess('delayById', {
  *   method: (id: string) => id,
  *   identifier: (id) => id,
  *   loader: async () => {
@@ -750,7 +755,7 @@ export function asyncProcess<
  * @example
  * Calling async js native API
  * ```ts
- * const { shareContent } = craftUse(asyncProcess('shareContent', {
+ * const shareContent = craftUse(asyncProcess('shareContent', {
  *   method: (payload: { title: string, url: string }) => payload,
  *   loader: async ({ params }) => {
  *      return navigator.share(params);
@@ -1650,7 +1655,11 @@ function createAsyncProcessRef<
       });
       const wrappedResult = Object.entries(rawResult).reduce(
         (wrappedAcc, [key, value]) => {
-          if (typeof value === 'function' && !isSignal(value)) {
+          if (
+            typeof value === 'function' &&
+            !isSignal(value) &&
+            !isNonYieldableInsertionMethod(value)
+          ) {
             const injector = getInjector();
             const methodInjector = ɵcreateHostTaggedInjector(
               injector,
@@ -1675,27 +1684,15 @@ function createAsyncProcessRef<
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            wrappedAcc[key] = markYieldableMethod((...args: unknown[]) =>
-              runInInjectionContext(methodInjector, () => {
-                const result = (wrappedFn as (...a: unknown[]) => unknown)(
-                  ...args,
-                );
-                if (isGenerator(result)) {
-                  return runCraftGenerator({
-                    iterator: result,
-                    injector: methodInjector,
-                    hostScope: 'function',
-                    invalidYieldErrorMessage:
-                      ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
-                    multipleAppStartErrorMessage:
-                      ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-                    onAppStartNotSupportedErrorMessage:
-                      ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
-                  }).value;
-                }
-                return result;
-              }),
-            );
+            wrappedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+              injector: methodInjector,
+              invalidYieldErrorMessage:
+                ASYNC_PROCESS_INVALID_YIELD_ERROR_MESSAGE,
+              multipleAppStartErrorMessage:
+                ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage:
+                ASYNC_PROCESS_APP_START_ERROR_MESSAGE,
+            });
           } else {
             wrappedAcc[key] = value;
           }

@@ -29,7 +29,7 @@ logic factory, a `craftService` factory, `craftGen`, a route helper — `yield*`
 the driver:
 
 ```typescript
-const { tasks } = yield* state('tasks', []);
+const tasks = yield* state('tasks', []);
 ```
 
 `yield*` also folds whatever the primitive depends on into the enclosing
@@ -42,26 +42,54 @@ instead. Same primitive, same result — but a class field is the end of the
 graph, so there is nothing to track into.
 :::
 
-## It resolves to a single-key record
+## It resolves to the primitive reference
 
-Every primitive returns a record keyed by its name, so you always destructure:
-
-```typescript
-const { tasks } = yield* state('tasks', []);
-// or
-const tasks = (yield* state('tasks', [])).tasks;
-```
-
-A factory arrow returning the primitive directly resolves to the **record**, not
-the ref. When a service should expose the ref itself, drive the primitive and
-return it:
+Every named primitive returns its reference directly:
 
 ```typescript
-craftService({ name: 'MyService', scope: 'global' }, function* () {
-  const { counter } = yield* state('counter', 0);
-  return counter;
-});
+const tasks = yield* state('tasks', []);
 ```
+
+A factory arrow can return a single primitive directly. `craftService` drives it
+and exposes the primitive reference itself:
+
+```typescript
+const { MyService } = craftService(
+  { name: 'MyService', scope: 'global' },
+  () => state('counter', 0),
+);
+```
+
+When a factory exposes several primitives, wrap the record with
+`craftYieldRecord`. It yields each primitive generator and keeps the record
+keys in the returned value:
+
+```typescript
+import {
+  craftService,
+  craftYieldRecord,
+  query,
+  state,
+} from '@craft-ng/core';
+
+const { UserQuery } = craftService(
+  { name: 'UserQueryWithState', scope: 'global' },
+  (inputs: { userId: () => string | undefined }) =>
+    craftYieldRecord({
+      userQuery: query('userQuery', {
+        params: inputs.userId,
+        loader: ({ params }) => ApiService.getItemById(params),
+      }),
+      refresh: state('refresh', 0, ({ update }) => ({
+        increment: () => update((value) => value + 1),
+      })),
+    }),
+);
+```
+
+Use the direct return for one primitive and `craftYieldRecord` for a record of
+primitives. Inside a generator factory, the equivalent explicit form remains
+available: `const userQuery = yield* query(...)`.
 
 ## Insertions add to the result
 
@@ -95,14 +123,12 @@ query('userQuery', {
 
 ## Reading a value that may have failed
 
-The async primitives (`query`, `mutation`, `asyncProcess`) expose two readers:
+The async primitives (`query`, `mutation`, `asyncProcess`) expose one value reader:
 
-- `value()` — **throws** when the status is `'exception'`;
-- `safeValue()` — never throws, returns `undefined` instead.
+- `value()` — never throws, returns `undefined` when no value is available.
 
-::: tip Prefer `safeValue()` in templates and computed signals
-A throw inside a template or a `computed` propagates in ways that are hard to
-trace. Use `safeValue()` there and handle the exception explicitly.
+::: tip
+`value()` can be read directly in templates and computed signals.
 :::
 
 ## Pitfalls

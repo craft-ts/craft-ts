@@ -1,3 +1,4 @@
+import styles from './list-with-pagination.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -5,11 +6,13 @@ import {
   each,
   h,
   h2,
+  ifBlock,
   option,
   select,
   span,
 } from '@craft-ng/component';
 import {
+  craftComputed,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertQueryPipe,
@@ -23,21 +26,10 @@ import { ApiService, type User } from './api.service';
 const ListWithPagination = craftComponent(
   'ListWithPagination',
   {
-    styles: `
-      :scope{display:block;background:#f5f7fa;padding:24px;border-radius:12px}
-      .table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.05)}
-      .table td{padding:16px;text-align:left;border-bottom:1px solid #edf2f7}
-      .table tr:last-child td{border-bottom:none}
-      .table tbody tr:hover{background:#f8fafc}
-      .pagination{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:20px}
-      .pagination select,.pagination button{padding:8px 16px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;color:#4a5568;font-weight:500;cursor:pointer}
-      .pagination button:hover{background:#f8fafc;border-color:#cbd5e0}
-      .pagination button:disabled{opacity:.5;cursor:not-allowed}
-      .pagination .current-page{font-weight:500;color:#4a5568}
-    `,
+    stylesUrl: styles,
   },
   function* () {
-    const { pagination } = yield* queryParams(
+    const pagination = yield* queryParams(
       'pagination',
       {
         state: {
@@ -64,7 +56,7 @@ const ListWithPagination = craftComponent(
       }),
     );
     const api = yield* ApiService();
-    const { usersQuery } = yield* query(
+    const usersQuery = yield* query(
       'usersQuery',
       {
         params: pagination,
@@ -79,10 +71,14 @@ const ListWithPagination = craftComponent(
           insertPaginationPlaceholderData({ initialValue: [] as User[] }),
         ),
     );
-    return { pagination, usersQuery };
+    const isCurrentPageResolved = craftComputed(
+      'isCurrentPageResolved',
+      () => usersQuery.currentPageStatus() === 'resolved',
+    );
+    return { pagination, usersQuery, isCurrentPageResolved };
   },
-  ({ pagination, usersQuery }) =>
-    div([
+  ({ pagination, usersQuery, isCurrentPageResolved }) => {
+    return div([
       h2([
         'User Management: ',
         StatusComponent({
@@ -95,7 +91,7 @@ const ListWithPagination = craftComponent(
         h(
           'tbody',
           each(
-            () => usersQuery.currentPageData() ?? [],
+            usersQuery.currentPageData,
             {
               track: (user) => user.id,
               empty: () =>
@@ -103,9 +99,11 @@ const ListWithPagination = craftComponent(
                   'tr',
                   h(
                     'td',
-                    usersQuery.currentPageStatus() === 'resolved'
-                      ? 'No users found'
-                      : 'Loading…',
+                    ifBlock(
+                      isCurrentPageResolved,
+                      () => 'No users found',
+                      () => 'Loading…',
+                    ),
                   ),
                 ),
             },
@@ -130,7 +128,8 @@ const ListWithPagination = craftComponent(
         span({ class: 'current-page' }, String(pagination().page)),
         button({ click: pagination.nextPage }, 'Next'),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default ListWithPagination;

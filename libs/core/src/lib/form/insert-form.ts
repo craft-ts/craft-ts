@@ -23,6 +23,10 @@ import type {
   InsertionsFormFactory,
   ValidatedFormValue,
 } from './insert-form-internals';
+import {
+  markNonYieldableInsertionMethod,
+  type NonYieldableInsertionMethod,
+} from '../yieldable';
 
 export { validatedFormValueSymbol } from './insert-form-internals';
 export type {
@@ -40,9 +44,10 @@ type InsertFormSimpleOutput<StateType, Insertions> = {
 
 type InsertFormParallelOutput<StateType, Insertions> = {
   forms: Signal<FormWithInsertions<ExtractItemType<StateType>, Insertions>[]>;
-  select: (
-    formIdentifier: string | number,
-  ) => FormWithInsertions<ExtractItemType<StateType>, Insertions> | undefined;
+  select: NonYieldableInsertionMethod<
+    [formIdentifier: string | number],
+    FormWithInsertions<ExtractItemType<StateType>, Insertions> | undefined
+  >;
 };
 
 type InsertFormSimpleReturn<StateType, Insertions, PreviousInsertionsOutputs> =
@@ -873,12 +878,14 @@ export function insertForm(...args: any[]): any {
 
     return {
       forms: computed(() => formsSignal().map((entry) => entry.form)),
-      select: (formIdentifier: string | number) => {
-        const selected = formsSignal().find(
-          (entry) => entry.formIdentifier === formIdentifier,
-        );
-        return selected?.form;
-      },
+      select: markNonYieldableInsertionMethod(
+        (formIdentifier: string | number) => {
+          const selected = formsSignal().find(
+            (entry) => entry.formIdentifier === formIdentifier,
+          );
+          return selected?.form;
+        },
+      ),
     };
   };
 }

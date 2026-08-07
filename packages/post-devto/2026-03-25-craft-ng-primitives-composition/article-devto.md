@@ -209,11 +209,11 @@ const delaySearch = asyncProcess({
   },
 });
 
-delaySearch.safeValue(); // undefined
+delaySearch.value(); // undefined
 delaySearch.status(); // 'idle'
 delaySearch.method('@craft-ng');
 delaySearch.status(); // 'loading' -> after 250ms -> 'resolved'
-delaySearch.safeValue(); // '@craft-ng'
+delaySearch.value(); // '@craft-ng'
 ```
 
 Pourquoi avoir créé un `asyncProcess` alors qu'il y a déjà les resources d'Angular ?
@@ -416,26 +416,6 @@ Cela me permet de modifier l'état au plus proche de l'endroit où il est modifi
 
 source$ + on$ permettent de réagir à des événements, y compris depuis un Observable.
 Pour ceux qui aiment l'event-driven, c'est très naturel.
-
-Et si tu veux rester dans un style state-driven et réagir à des changements d'état, il y a aussi:
-
-- reactiveWritableSignal
-
-Dans cet exemple, ce me permet de créer un linkedSignal, qui réagit à des changements d'états de d'autres signals.
-Cela me permet retirer les ids qui ont été supprimés de la sélection, sans devoir faire du code impératif pour écouter les changements de page et de suppression.
-
-```typescript
-const selectedIds = reactiveWritableSignal([] as string[], (sync) => ({
-  resetWhenCurrentPageIsResolved: sync(
-    users.currentPageStatus,
-    ({ params, current }) => (params === 'resolved' ? [] : current),
-  ),
-  resetWhenBulkDeleteIsResolved: sync(
-    bulkDelete.status,
-    ({ params, current }) => (params === 'resolved' ? [] : current),
-  ),
-})); // WritableSignal<string[]>
-```
 
 - `afterRecomputation` : qui déclenche son callBack si le résultat de sa source n'est pas `undefined`.
 - `toSource`: transforme un signal en source. La première lecture d'une source renverra toujours `undefined`, puis dès que la source change, le résultat sera synchronisé.

@@ -14,7 +14,7 @@ import { craftRegisterFor, craftService, state } from '@craft-ng/core';
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
   function* () {
-    const { counter } = yield* state('counter', 0, ({ update }) => ({
+    const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((v) => v + 1),
       decrement: () => update((v) => v - 1),
     }));
@@ -78,7 +78,7 @@ const RegisterForDemo = craftComponent(
     `,
   },
   function* () {
-    const { counterChildIds } = yield* state(
+    const counterChildIds = yield* state(
       'counterChildIds',
       [1, 2, 3],
       ({ update }) => ({

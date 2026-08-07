@@ -15,7 +15,7 @@ import { insertReactOnMutation } from '@craft-ng/core';
 ## The common case
 
 ```typescript
-const { updateUser } = yield* mutation('updateUser', {
+const updateUser = yield* mutation('updateUser', {
   method: (user: User) => user,
   loader: function* ({ params: user }) {
     return yield* CraftHttpClient.patch(({ response }) => ({
@@ -26,7 +26,7 @@ const { updateUser } = yield* mutation('updateUser', {
   },
 });
 
-const { queryRef } = yield* query(
+const queryRef = yield* query(
   'queryRef',
   {
     params: () => '5',
@@ -60,7 +60,7 @@ With `identifier`, several query instances coexist. Use `filter` so the reaction
 only touches the one the mutation concerns:
 
 ```typescript
-const { queryRef } = yield* query(
+const queryRef = yield* query(
   'queryRef',
   {
     params: userId,
@@ -102,7 +102,7 @@ const { users } = query(
       insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
       insertReactOnMutation(deleteUser, {
         filter: ({ mutationIdentifier, queryResource }) =>
-          !!queryResource.safeValue()?.some((u) => u.id === mutationIdentifier),
+          !!queryResource.value()?.some((u) => u.id === mutationIdentifier),
         optimisticUpdate: ({ queryResource, mutationIdentifier }) =>
           removeOne({
             entities: queryResource.value(),
@@ -112,12 +112,12 @@ const { users } = query(
       }),
       insertReactOnMutation(deleteUser, {
         // reload the current page when it becomes empty
-        filter: ({ queryResource }) => queryResource.safeValue()?.length === 0,
+        filter: ({ queryResource }) => queryResource.value()?.length === 0,
         reload: { onMutationResolved: true },
       }),
       insertReactOnMutation(bulkDelete, {
         filter: ({ queryResource }) =>
-          (queryResource.safeValue()?.length ?? 0) > 0,
+          (queryResource.value()?.length ?? 0) > 0,
         optimisticUpdate: ({ queryResource, mutationParams }) =>
           removeMany({ entities: queryResource.value(), ids: mutationParams }),
       }),
@@ -136,8 +136,8 @@ than silently left on screen.
 **Forgetting `filter` on parallel queries.** Without it, a mutation on one entity
 patches every cached instance.
 
-**`queryResource.value()` throws** when the query is in exception — use
-`safeValue()` inside a `filter`.
+`queryResource.value()` returns `undefined` when the query is in exception;
+handle that case inside a `filter`.
 
 ## See Also
 

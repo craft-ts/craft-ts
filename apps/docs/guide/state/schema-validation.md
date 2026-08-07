@@ -18,7 +18,7 @@ in one declaration.
 ### Validating a method argument
 
 ```typescript
-const { search } = yield* query('search', {
+const search = yield* query('search', {
   methodSchema: SearchInputSchema,
   method: (input) => ({ term: input.term }),
   loader: async ({ params }) => fetchResults(params),
@@ -31,7 +31,7 @@ the method then receives the schema output value.
 ### Validating reactive params
 
 ```typescript
-const { products } = yield* query('products', {
+const products = yield* query('products', {
   paramsSchema: FiltersSchema,
   params: () => ({ page: 1, term: searchTerm() }),
   loader: async ({ params }) => fetchProducts(params),
@@ -46,7 +46,7 @@ This is the one that matters most: the loader is where **data you don't control*
 enters the app.
 
 ```typescript
-const { products } = yield* query('products', {
+const products = yield* query('products', {
   loaderSchema: ProductsSchema,
   params: () => ({ page: 1 }),
   loader: async ({ params }) => fetchProducts(params),
@@ -102,7 +102,7 @@ State schemas are declared beside `$self` and validate initial values, writes,
 insertions and values produced by `computed`, `linkedSignal` or `Signal`:
 
 ```typescript
-const { user } = yield* state('user', {
+const user = yield* state('user', {
   $self: { id: 123, name: 'Alice' },
   schema: UserSchema,
 });
@@ -121,7 +121,7 @@ A schema also validates every new value produced by a `computed` or a
 const price = signal(10);
 const quantity = signal(2);
 
-const { total } = yield* state('total', {
+const total = yield* state('total', {
   $self: computed(() => price() * quantity()),
   schema: NonNegativeNumberSchema,
 });

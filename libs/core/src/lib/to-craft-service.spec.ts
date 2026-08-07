@@ -265,7 +265,7 @@ describe('toCraftService', () => {
         state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         })),
-      ).counter;
+      );
     }
 
     const COUNTER = new InjectionToken<ReturnType<typeof createCounter>>(
@@ -585,7 +585,7 @@ describe('toCraftService', () => {
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
         })),
-      ).counter;
+      );
     }
 
     const COUNTER = new InjectionToken<ReturnType<typeof createCounter>>(

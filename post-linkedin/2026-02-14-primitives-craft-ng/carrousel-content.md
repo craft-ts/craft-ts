@@ -52,7 +52,7 @@ const userQuery = query({
 // Accès à l'état
 userQuery.isLoading(); // true/false
 userQuery.error(); // Error ou undefined
-userQuery.safeValue(); // User data ou undefined
+userQuery.value(); // User data ou undefined
 ```
 
 **Support des queries en parallèle** avec identifier

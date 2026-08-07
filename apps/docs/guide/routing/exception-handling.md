@@ -86,7 +86,7 @@ craftRoute(
     },
     canActivate: function* () {
       const user = yield* Auth();
-      return user.safeValue() ?? craftException({ code: 'NOT_AUTHENTICATED' });
+      return user.value() ?? craftException({ code: 'NOT_AUTHENTICATED' });
     },
     resolve: craftResolve(function* () {
       return yield* craftUntilSettled(profileQuery);

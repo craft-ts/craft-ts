@@ -44,8 +44,7 @@ describe('insertLocalStoragePersister', () => {
       );
 
       const paramsSrc = signal<string | undefined>(undefined);
-      const { myQuery } = craftUse(
-        query(
+      const myQuery = craftUse(query(
           'myQuery',
           {
             params: paramsSrc,
@@ -66,8 +65,7 @@ describe('insertLocalStoragePersister', () => {
       expect(myQuery.status()).toBe('local');
       expect(myQuery.value()).toEqual({ data: 'cached' });
 
-      const { myQueryById } = craftUse(
-        query(
+      const myQueryById = craftUse(query(
           'myQueryById',
           {
             params: () => 'id-1',
@@ -109,8 +107,7 @@ describe('insertLocalStoragePersister', () => {
 
   it('persists mutation results at runtime for resource and resourceById modes', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { myMutation } = craftUse(
-        mutation(
+      const myMutation = craftUse(mutation(
           'myMutation',
           {
             method: (id: string) => id,
@@ -126,8 +123,7 @@ describe('insertLocalStoragePersister', () => {
         ),
       );
 
-      const { myMutationById } = craftUse(
-        mutation(
+      const myMutationById = craftUse(mutation(
           'myMutationById',
           {
             method: (id: string) => id,
@@ -170,8 +166,7 @@ describe('insertLocalStoragePersister', () => {
 
   it('persists async process results at runtime for resource and resourceById modes', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { myAsyncProcess } = craftUse(
-        asyncProcess(
+      const myAsyncProcess = craftUse(asyncProcess(
           'myAsyncProcess',
           {
             method: (id: string) => id,
@@ -187,8 +182,7 @@ describe('insertLocalStoragePersister', () => {
         ),
       );
 
-      const { myAsyncProcessById } = craftUse(
-        asyncProcess(
+      const myAsyncProcessById = craftUse(asyncProcess(
           'myAsyncProcessById',
           {
             method: (id: string) => id,
@@ -243,8 +237,7 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const { myQuery } = craftUse(
-        query(
+      const myQuery = craftUse(query(
           'myQuery',
           {
             params: signal<string | undefined>(undefined),
@@ -280,8 +273,7 @@ describe('insertLocalStoragePersister', () => {
       );
 
       const paramsSrc = signal<string | undefined>('p1');
-      const { myQuery } = craftUse(
-        query(
+      const myQuery = craftUse(query(
           'myQuery',
           {
             params: paramsSrc,
@@ -328,8 +320,7 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const { myQuery } = craftUse(
-        query(
+      const myQuery = craftUse(query(
           'myQuery',
           {
             params: () => 'id-1',
@@ -377,8 +368,7 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const { myQuery } = craftUse(
-        query(
+      const myQuery = craftUse(query(
           'myQuery',
           {
             params: () => 'id-1',
@@ -416,8 +406,7 @@ describe('insertLocalStoragePersister', () => {
       );
 
       const paramsSrc = signal<string | undefined>('p1');
-      const { myQuery } = craftUse(
-        query(
+      const myQuery = craftUse(query(
           'myQuery',
           {
             params: paramsSrc,
@@ -459,8 +448,7 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const { myQuery } = craftUse(
-        query(
+      const myQuery = craftUse(query(
           'myQuery',
           {
             params: signal<string | undefined>(undefined),
@@ -502,8 +490,7 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const { myQuery } = craftUse(
-        query(
+      const myQuery = craftUse(query(
           'myQuery',
           {
             params: () => 'id-1',
@@ -536,8 +523,7 @@ describe('insertLocalStoragePersister', () => {
 
   it('persists and restores state at runtime', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const { myState } = craftUse(
-        state('myState', 0, (context) =>
+      const myState = craftUse(state('myState', 0, (context) =>
           craftPipe(
             context,
             ({ set }) => ({
@@ -577,8 +563,7 @@ describe('insertLocalStoragePersister', () => {
         }),
       );
 
-      const { restoredState } = craftUse(
-        state(
+      const restoredState = craftUse(state(
           'restoredState',
           0,
           insertLocalStoragePersister({

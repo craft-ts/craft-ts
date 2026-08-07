@@ -39,7 +39,7 @@ export const Tasks = craftComponent(
   'Tasks',
   {},
   function* () {
-    const { tasks } = yield* state('tasks', [] as Task[]);
+    const tasks = yield* state('tasks', [] as Task[]);
     return { tasks };
   },
   ({ tasks }) => [h1('Tasks'), ul(tasks().map((task) => li(task.title)))],

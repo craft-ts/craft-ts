@@ -41,7 +41,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       function* () {
-        const { childCounter } = yield* state(
+        const childCounter = yield* state(
           'childCounter',
           0,
           ({ update }) => ({
@@ -105,7 +105,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       function* () {
-        const { counter } = yield* state('counter', 10, ({ update }) => ({
+        const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -142,7 +142,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       function* () {
-        const { counter } = yield* state('counter', 10, ({ update }) => ({
+        const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -185,7 +185,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       function* () {
-        const { counter } = yield* state('counter', 0, ({ update }) => ({
+        const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
         }));
@@ -320,7 +320,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter } = craftService(
       { name: 'Counter', scope: 'global' },
       function* () {
-        const { counter } = yield* state('counter', 0, ({ update }) => ({
+        const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
         }));
@@ -380,7 +380,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       function* () {
-        const { counter } = yield* state('counter', 7, ({ update }) => ({
+        const counter = yield* state('counter', 7, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;
@@ -413,7 +413,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { SharedCounter, provideSharedCounter } = craftService(
       { name: 'SharedCounter', scope: 'toProvide' },
       function* () {
-        const { sharedCounter } = yield* state(
+        const sharedCounter = yield* state(
           'sharedCounter',
           0,
           ({ update }) => ({
@@ -488,7 +488,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ChildCounter, provideChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       function* () {
-        const { childCounter } = yield* state(
+        const childCounter = yield* state(
           'childCounter',
           0,
           ({ update }) => ({
@@ -562,7 +562,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { SharedCounter } = craftService(
       { name: 'SharedCounter', scope: 'toProvide' },
       function* () {
-        const { sharedCounter } = yield* state(
+        const sharedCounter = yield* state(
           'sharedCounter',
           0,
           ({ update }) => ({
@@ -587,7 +587,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { RightCounter, provideRightCounter } = craftService(
       { name: 'RightCounter', scope: 'toProvide' },
       function* () {
-        const { rightCounter } = yield* state(
+        const rightCounter = yield* state(
           'rightCounter',
           0,
           ({ update }) => ({
@@ -872,7 +872,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ChildCounter, provideChildCounter } = craftService(
       { name: 'ChildCounter', scope: 'toProvide' },
       function* () {
-        const { childCounter } = yield* state(
+        const childCounter = yield* state(
           'childCounter',
           0,
           ({ update }) => ({
@@ -912,7 +912,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', scope: 'manuallyProvidedAtRoot' },
       function* () {
-        const { counter } = yield* state('counter', 0, ({ update }) => ({
+        const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
         return counter;

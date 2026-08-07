@@ -1,12 +1,15 @@
 import { isSignal, type Injector, type Signal } from '@angular/core';
-import { SERVICE_TRACKED_DEPS_REQUEST_MARKER } from './craft-generator-runtime';
+import {
+  isGenerator,
+  SERVICE_TRACKED_DEPS_REQUEST_MARKER,
+} from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import type { SERVICE_HELPER_DEPENDENCIES } from './craft-service';
 import type { CraftGenExceptionMarker } from './craft-gen';
 import {
   markNamedReactiveProperties,
   markYieldableValue,
-  type NamedYieldableValue,
+  YIELDABLE_VALUE,
 } from './yieldable';
 
 /**
@@ -74,40 +77,104 @@ export type CraftPrimitiveGen<Ref, ExceptionRef = Ref> = Generator<
 >;
 
 /**
- * The value a named craft primitive resolves to: a single-key record bound to
- * the name passed as the primitive's first argument, so call sites read as
+ * The value a named craft primitive resolves to: the primitive reference itself.
+ * The name remains available for host tagging and reactive template branding,
+ * but it is no longer required as an object key at the call site.
  *
  * ```ts
- * const { counter } = yield* state('counter', 0);
- * const { userQuery } = yield* query('userQuery', { ... });
+ * const counter = yield* state('counter', 0);
+ * const userQuery = yield* query('userQuery', { ... });
  * ```
  *
- * The phantom `[SERVICE_HELPER_DEPENDENCIES]` map is hoisted from the inner ref
- * onto the wrapper so the enclosing `craftService` still folds the primitive's
- * dependencies into its own tree.
  */
-export type NamedPrimitive<Name extends string, Ref> = {
-  readonly [K in Name]: Ref extends Signal<any>
-    ? NamedYieldableValue<Name, Ref>
-    : Ref;
-} & {
-  readonly [SERVICE_HELPER_DEPENDENCIES]?: HelperDependencyMap<Ref>;
-};
+export type NamedPrimitive<Name extends string, Ref> = Ref extends {
+  set: (...args: any[]) => any;
+  update: (...args: any[]) => any;
+}
+  ? Ref extends { type: string; kind: string }
+    ? Ref
+    : Ref & { readonly [YIELDABLE_VALUE]: Name }
+  : Ref;
 
 /**
  * Return type of the named craft primitives: a {@link CraftPrimitiveGen}
- * resolving to `{ [name]: Ref }` (see {@link NamedPrimitive}).
+ * resolving to the primitive reference itself (see {@link NamedPrimitive}).
  */
 export type NamedCraftPrimitiveGen<
   Name extends string,
   Ref,
 > = CraftPrimitiveGen<NamedPrimitive<Name, Ref>, Ref>;
 
+type YieldRecordValue<Value> = Value extends Generator<
+  any,
+  infer Output,
+  any
+>
+  ? Output
+  : Value;
+
+type YieldRecordOutput<Record extends object> = {
+  [Key in keyof Record]: YieldRecordValue<Record[Key]>;
+};
+
+type YieldRecordYielded<Record extends object> = Record[keyof Record] extends
+  infer Value
+  ? Value extends Generator<infer Yielded, any, any>
+    ? Yielded
+    : never
+  : never;
+
 /**
- * Wraps a primitive ref under its declared `name` and surfaces it as a
- * {@link CraftPrimitiveGen}. Counterpart of {@link createPrimitiveGen} for the
- * named primitives (`state`, `query`, `mutation`, `asyncProcess`,
- * `queryParams`).
+ * Resolves a record of generator-compatible values while preserving its keys.
+ *
+ * This is useful when a craft service exposes several primitives without
+ * writing a generator only to delegate each one:
+ *
+ * ```ts
+ * const { UserStore } = craftService(
+ *   { name: 'UserStore', scope: 'global' },
+ *   () =>
+ *     craftYieldRecord({
+ *       userQuery: query('userQuery', { ... }),
+ *       refresh: state('refresh', 0),
+ *     }),
+ * );
+ * ```
+ *
+ * Plain values are passed through unchanged. Generator values are consumed in
+ * insertion order, so their tracked dependencies are visible to the enclosing
+ * craft generator.
+ */
+export function craftYieldRecord<Record extends object>(
+  record: Record,
+): Generator<
+  YieldRecordYielded<Record>,
+  YieldRecordOutput<Record>,
+  unknown
+> {
+  return (function* () {
+    const output = {} as YieldRecordOutput<Record>;
+
+    for (const key of Reflect.ownKeys(record) as (keyof Record)[]) {
+      const value = record[key];
+      output[key] = (
+        isGenerator(value) ? yield* value : value
+      ) as YieldRecordValue<Record[typeof key]>;
+    }
+
+    return output;
+  })() as Generator<
+    YieldRecordYielded<Record>,
+    YieldRecordOutput<Record>,
+    unknown
+  >;
+}
+
+/**
+ * Surfaces a primitive ref as a {@link CraftPrimitiveGen} while retaining its
+ * declared `name` for runtime tagging. Counterpart of
+ * {@link createPrimitiveGen} for the named primitives (`state`, `query`,
+ * `mutation`, `asyncProcess`, `queryParams`).
  */
 export function createNamedPrimitiveGen<Name extends string, Ref>(
   name: Name,
@@ -115,9 +182,7 @@ export function createNamedPrimitiveGen<Name extends string, Ref>(
 ): CraftPrimitiveGen<NamedPrimitive<Name, Ref>, Ref> {
   markNamedReactiveProperties(ref);
   const namedRef = isSignal(ref) ? markYieldableValue(ref, name) : ref;
-  return createPrimitiveGen({
-    [name]: namedRef,
-  } as NamedPrimitive<Name, Ref>) as CraftPrimitiveGen<
+  return createPrimitiveGen(namedRef) as CraftPrimitiveGen<
     NamedPrimitive<Name, Ref>,
     Ref
   >;
