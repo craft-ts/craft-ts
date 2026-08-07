@@ -1,4 +1,4 @@
-<main class="shell">
+<main class="shell nebula-theme">
   <header class="topbar">
     <div>
       <p class="eyebrow">Prototype · static type graph</p>
@@ -9,9 +9,21 @@
       </p>
     </div>
     <div class="stats">
-      <span>{{ graph()?.nodes?.length ?? 0 }} nœuds</span>
-      <span>{{ graph()?.edges?.length ?? 0 }} liens</span>
-      <span class="granularity">1 lien = 1 dépendance</span>
+      <span>{{ visibleNodeCount() }} nœuds visibles</span>
+      <span>{{ visibleEdgeCount() }} liens visibles</span>
+      <span class="granularity">
+        {{
+          constellation()
+            ? collisionConstellation()
+              ? 'constellation radiale + espacement automatique'
+              : 'taille = poids des liens'
+            : overview()
+              ? 'liens regroupés'
+              : elkLayout()
+                ? 'placement ELK.js · 1 lien = 1 dépendance'
+              : '1 lien = 1 dépendance'
+        }}
+      </span>
     </div>
   </header>
 
@@ -22,6 +34,9 @@
         [value]="selectedRouteId()"
         (change)="selectRoute($any($event.target).value)"
       >
+        <option value="" [selected]="!selectedRouteId()">
+          Tout le graphe
+        </option>
         @for (route of routes(); track route.id) {
           <option
             [value]="route.label"
@@ -36,25 +51,88 @@
       Rechercher
       <kbd>⌘K</kbd>
     </button>
-    <button type="button" (click)="toggleAll()">
-      {{ showAll() ? 'Afficher la route' : 'Afficher tout le graphe' }}
-    </button>
-    <button type="button" (click)="collapseAll()">
-      Tout replier
-    </button>
-    <button type="button" (click)="expandAll()">
-      Tout déplier
-    </button>
+    <fieldset class="view-switcher">
+      <legend>Vue à mettre en avant</legend>
+      <button
+        type="button"
+        [class.is-active]="
+          !overview() && !constellation() && !collisionConstellation()
+        "
+        (click)="selectDetailedView()"
+      >
+        Graphe détaillé
+      </button>
+      <button
+        type="button"
+        [class.is-active]="overview()"
+        (click)="selectOverviewView()"
+      >
+        Vue synthèse
+      </button>
+      <button
+        type="button"
+        [class.is-active]="constellation() && !collisionConstellation()"
+        (click)="selectConstellationView()"
+      >
+        Vue constellation
+      </button>
+      <button
+        type="button"
+        class="collision-button"
+        [class.is-active]="collisionConstellation()"
+        (click)="selectCollisionView()"
+      >
+        Constellation espacée
+      </button>
+    </fieldset>
+    @if (!constellation()) {
+      <button type="button" (click)="collapseAll()">
+        Tout replier
+      </button>
+      <button type="button" (click)="expandAll()">
+        Tout déplier
+      </button>
+    }
     <button type="button" class="muted-button" (click)="clearSelection()">
       Effacer la sélection
+    </button>
+    <button
+      type="button"
+      class="muted-button details-toggle"
+      [class.is-active]="detailsOpen()"
+      (click)="toggleDetails()"
+    >
+      {{ detailsOpen() ? 'Masquer les détails' : 'Afficher les détails' }}
     </button>
     @if (collapsedGroupCount() > 0) {
       <span class="view-label">
         {{ collapsedGroupCount() }} bloc(s) replié(s)
       </span>
     }
+    @if (constellationDetailNode(); as focusedNode) {
+      <button
+        type="button"
+        class="muted-button"
+        (click)="closeConstellationDetail()"
+      >
+        ← Retour à la constellation
+      </button>
+      <span class="view-label">Détail de {{ focusedNode.label }}</span>
+    }
     <span class="view-label">
-      Vue : {{ showAll() ? 'graphe complet' : 'sous-graphe de la route' }}
+      @if (constellationDetailNode()) {
+        Vue : détail ciblé
+      } @else if (collisionConstellation()) {
+        Vue : constellation radiale espacée
+      } @else if (constellation()) {
+        Vue : constellation pondérée
+      } @else if (overview()) {
+        Vue : carte synthèse par fichier
+      } @else if (elkLayout()) {
+        Vue : placement expérimental ELK.js
+      } @else {
+        Vue : {{ showAll() ? 'graphe complet' : 'sous-graphe de la route' }}
+      }
     </span>
   </section>
 
@@ -98,12 +176,28 @@
                 [attr.aria-selected]="searchActiveIndex() === index"
                 (mouseenter)="searchActiveIndex.set(index)"
                 (click)="selectSearchResult(result)"
-              >
+                >
                 <span class="search-result-main">
                   <span class="search-result-kind">{{ result.node.kind }}</span>
-                  <strong>{{ result.displayLabel }}</strong>
+                  <strong>
+                    @for (part of result.displayLabelParts; track $index) {
+                      @if (part.matched) {
+                        <mark class="search-highlight">{{ part.text }}</mark>
+                      } @else {
+                        {{ part.text }}
+                      }
+                    }
+                  </strong>
                 </span>
-                <span class="search-result-source">{{ result.sourceLabel }}</span>
+                <span class="search-result-source">
+                  @for (part of result.sourceLabelParts; track $index) {
+                    @if (part.matched) {
+                      <mark class="search-highlight">{{ part.text }}</mark>
+                    } @else {
+                      {{ part.text }}
+                    }
+                  }
+                </span>
               </button>
             }
           </div>
@@ -112,20 +206,88 @@
     </div>
   }
 
+  @if (codePreview.target(); as preview) {
+    <section
+      class="code-preview"
+      [style.top.px]="codePreview.position().top"
+      [style.left.px]="codePreview.position().left"
+      aria-label="Prévisualisation du code"
+    >
+      <header class="code-preview-header">
+        <div>
+          <p class="eyebrow">{{ preview.kind }} · code source</p>
+          <strong>{{ preview.label }}</strong>
+          <span>
+            {{ displayPath(preview.filePath) }}
+            @if (preview.line) {
+              · L{{ preview.line }}
+            }
+          </span>
+        </div>
+        @if (codePreview.loading()) {
+          <span class="code-preview-status">Chargement…</span>
+        }
+        <button
+          type="button"
+          class="code-preview-close"
+          aria-label="Fermer la preview du code"
+          (click)="codePreview.close()"
+        >
+          ×
+        </button>
+      </header>
+      @if (codePreview.error(); as codeError) {
+        <p class="code-preview-error">{{ codeError }}</p>
+      } @else if (codePreview.content() !== null) {
+        <pre class="code-preview-content"><code>@for (line of codePreview.lines(); track line.number) {<span class="code-line" [class.is-target-line]="line.number === preview.line"><span class="code-line-number">{{ line.number }}</span>@for (token of line.tokens; track $index) {<span [class]="'code-token code-token-' + token.kind">{{ token.text }}</span>}</span>}</code></pre>
+      } @else {
+        <p class="code-preview-loading">Chargement du fichier source…</p>
+      }
+    </section>
+  }
+
   @if (loading()) {
     <section class="message">Chargement du graphe typé…</section>
   } @else if (error()) {
     <section class="message error">{{ error() }}</section>
   } @else {
-    <section class="workspace">
+    <section class="workspace" [class.details-open]="detailsOpen()">
       <div class="diagram-panel">
         <div class="legend">
           <span><i class="swatch component"></i> composants</span>
           <span><i class="swatch template"></i> templates</span>
           <span><i class="swatch service"></i> services</span>
+          <span><i class="swatch app-start"></i> services app start</span>
           <span><i class="swatch property"></i> champs / primitives</span>
+          <span><i class="swatch component"></i> fichiers regroupés</span>
+          @if (collisionConstellation()) {
+            <span><i class="swatch primitive"></i> placement initial + espacement automatique</span>
+            <span class="weight-help">poids = liaisons entre hôtes distincts, comptées une fois</span>
+          } @else if (constellation()) {
+            <span><i class="swatch primitive"></i> satellites : nombre = liaisons</span>
+            <span class="weight-help">poids = liaisons entre hôtes distincts, comptées une fois</span>
+          } @else {
+            <span><i class="swatch primitive"></i> poids des liens</span>
+          }
+          <span><i class="swatch http"></i> craftHttpClient</span>
           <span><i class="swatch edge"></i> lien typé</span>
+          <span class="legend-note">services globaux et sources sans liaison masqués</span>
         </div>
+        @if (externalRouteBundle.expanded()) {
+          <div class="external-routes-toolbar">
+            <div>
+              <strong>Routes utilisées ailleurs ouvertes</strong>
+              <span>Les routes externes sont affichées individuellement.</span>
+            </div>
+            <button
+              type="button"
+              class="muted-button"
+              (click)="collapseExternalRoutes()"
+            >
+              Replier les routes externes
+            </button>
+          </div>
+        }
         <div class="diagram-canvas">
           <ng-diagram
             [style.width.px]="diagramSize().width"
@@ -142,19 +304,67 @@
         </div>
       </div>
 
-      <aside class="details-panel">
+      @if (detailsOpen()) {
+        <aside class="details-panel">
         @if (selectedNode(); as node) {
           <p class="eyebrow">Nœud sélectionné</p>
-          <h2>{{ node.label }}</h2>
+          <div class="details-title">
+            <h2>{{ node.label }}</h2>
+            @if (node.filePath) {
+              <button
+                type="button"
+                class="details-code-button"
+                aria-label="Afficher le code source"
+                title="Afficher le code source à cette ligne"
+                (click)="openNodeCodePreview(node, $event)"
+              >
+                &lt;/&gt;
+              </button>
+            }
+          </div>
           <div class="detail-chip" [class]="'chip-' + node.kind">
             {{ node.kind }}
           </div>
+          <div class="usage-details">
+            <strong>Utilisation</strong>
+            <span>{{ nodeUsageLabel(node) }}</span>
+          </div>
+          @if (node.details?.['appStart'] === true) {
+            <div class="app-start-details">
+              <strong>⚡ Initialisé au démarrage</strong>
+              <span>Service enregistré par <code>craftAppConfig.appStart</code>.</span>
+            </div>
+          }
+          @if (overviewSummary(node); as summary) {
+            <div class="overview-details">
+              <strong>Groupe de fichier</strong>
+              <span>{{ summary.memberCount }} éléments regroupés</span>
+              <div class="overview-kind-list">
+                @for (entry of overviewKinds(summary); track entry.kind) {
+                  <span>{{ entry.count }} {{ entry.kind }}</span>
+                }
+              </div>
+              @if (summary.sampleLabels.length > 0) {
+                <p>
+                  Exemples : {{ summary.sampleLabels.join(', ') }}
+                </p>
+              }
+            </div>
+          }
           <dl>
             <dt>Fichier</dt>
             <dd>{{ displayPath(node.filePath) }}</dd>
-            <dt>Ligne</dt>
-            <dd>{{ node.line ?? '—' }}</dd>
+          <dt>Ligne</dt>
+          <dd>{{ node.line ?? '—' }}</dd>
           </dl>
+          @if (httpEndpoints(node).length > 0) {
+            <div class="http-client-details">
+              <strong>craftHttpClient</strong>
+              @for (endpoint of httpEndpoints(node); track endpoint.line + endpoint.method + endpoint.url) {
+                <code>{{ endpoint.method }} {{ endpoint.url }} · L{{ endpoint.line }}</code>
+              }
+            </div>
+          }
           @if (externalRouteUses().length > 0) {
             <div class="external-use">
               <strong>Utilisé aussi ailleurs</strong>
@@ -185,7 +395,8 @@
             le réutilisent.
           </p>
         }
-      </aside>
+        </aside>
+      }
     </section>
   }
 </main>
