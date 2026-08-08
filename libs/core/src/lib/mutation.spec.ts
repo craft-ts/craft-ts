@@ -600,6 +600,23 @@ describe('mutation types without identifier', () => {
 });
 
 describe('mutation types with identifier', () => {
+  it('selectOrCreate returns an idle resource without changing select', () => {
+    TestBed.runInInjectionContext(() => {
+      const mutationRef = craftUse(mutation('mutationRef', {
+        method: (id: string) => id,
+        identifier: (id) => id,
+        loader: async ({ params }) => ({ id: params }),
+      }));
+
+      expect(mutationRef.select('missing')).toBeUndefined();
+
+      const selected = mutationRef.selectOrCreate('missing');
+      expect(selected).toBeDefined();
+      expect(selected.status()).toBe('idle');
+      expect(mutationRef.select('missing')).toBeDefined();
+    });
+  });
+
   it('should infer correctly the types of mutation', () => {
     TestBed.runInInjectionContext(() => {
       const { Mutations } = craftService(

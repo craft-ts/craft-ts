@@ -2,6 +2,7 @@ export * from './lib/ai/ai-context-menu';
 export * from './lib/ai/ai-send-dialog';
 export * from './lib/ai/send-context-to-ai';
 export * from './lib/angular';
+export * from './lib/assert-defined-input';
 export * from './lib/bridge';
 export * from './lib/component';
 export * from './lib/composition';
@@ -69,6 +70,8 @@ export type {
   CraftTemplate,
   ContentDependencies,
   PropsFromFactory,
+  CraftInputExceptionsCarrier,
+  ComponentInputExceptionsOf,
 } from './lib/types';
 export type {
   TemplateRenderAvailableActionWhen,

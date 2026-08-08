@@ -11,7 +11,7 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  craftPipe,
+  insertQueryPipe,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
@@ -20,6 +20,7 @@ import {
   queryParams,
   toCraftStatus,
 } from '@craft-ng/core';
+import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
@@ -31,27 +32,10 @@ const GranularMutation = craftComponent(
   function* () {
     const pagination = yield* queryParams(
       'pagination',
-      {
-        state: {
-          page: {
-            fallbackValue: 1,
-            codec: {
-              decode: (value: string) => Number(value),
-              encode: (value: number) => String(value),
-            },
-          },
-          pageSize: {
-            fallbackValue: 4,
-            codec: {
-              decode: (value: string) => Number(value),
-              encode: (value: number) => String(value),
-            },
-          },
-        },
-      },
+      paginationQueryParams(),
       ({ patch, state }) => ({
         nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: state().page - 1 }),
+        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
@@ -63,10 +47,6 @@ const GranularMutation = craftComponent(
         return yield* ApiService.updateItem(params);
       },
     });
-    const userUpdateIsLoading = (userId: User['id']) =>
-      updateUserName.select(userId)?.isLoading() ?? false;
-    const userUpdateStatus = (userId: User['id']) =>
-      updateUserName.select(userId)?.status() ?? 'idle';
     const usersQuery = yield* query(
       'usersQuery',
       {
@@ -76,45 +56,39 @@ const GranularMutation = craftComponent(
           return yield* ApiService.getDataList(params);
         },
       },
-      (context) =>
-        craftPipe(
-          context,
-          insertLocalStoragePersister({
-            storeName: 'demo-app',
-            key: 'granular',
-          }),
-          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-          insertReactOnMutation(updateUserName, {
-            filter: ({ mutationIdentifier, queryResource }) =>
-              queryResource
-                .value()
-                ?.some(({ id }) => id === mutationIdentifier) ?? false,
-            optimisticUpdate: ({
-              queryResource,
-              mutationIdentifier,
-              mutationParams,
-            }) =>
-              (queryResource.value() ?? []).map((user) =>
-                user.id === mutationIdentifier ? mutationParams : user,
-              ),
-          }),
-        ),
+      insertQueryPipe(
+        insertLocalStoragePersister({
+          storeName: 'demo-app',
+          key: 'granular',
+        }),
+        insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+        insertReactOnMutation(updateUserName, {
+          filter: ({ mutationIdentifier, queryResource }) =>
+            queryResource
+              .value()
+              ?.some(({ id }) => id === mutationIdentifier) ?? false,
+          optimisticUpdate: ({
+            queryResource,
+            mutationIdentifier,
+            mutationParams,
+          }) =>
+            (queryResource.value() ?? []).map((user) =>
+              user.id === mutationIdentifier ? mutationParams : user,
+            ),
+        }),
+      ),
     );
     return {
       pagination,
       updateUserName,
-      userUpdateIsLoading,
-      userUpdateStatus,
       usersQuery,
+      updatePageSize: (event: Event) =>
+        pagination.updatePageSize(
+          Number((event.target as HTMLSelectElement).value),
+        ),
     };
   },
-  ({
-    pagination,
-    updateUserName,
-    userUpdateIsLoading,
-    userUpdateStatus,
-    usersQuery,
-  }) =>
+  ({ pagination, updatePageSize, updateUserName, usersQuery }) =>
     div([
       h2([
         'User Management: ',
@@ -131,20 +105,20 @@ const GranularMutation = craftComponent(
             { track: (user) => user.id },
             (user) =>
               h('tr', [
-                h('td', String(user.id)),
+                h('td', user.id),
                 h('td', user.name),
                 h(
                   'td',
                   button(
                     {
-                      disabled: userUpdateIsLoading(user.id),
+                      disabled: () =>
+                        updateUserName.select(user.id)?.isLoading(),
                       click: () => updateUserName.mutate(user),
                     },
                     [
                       'Update Name ',
                       StatusComponent({
-                        status: () =>
-                          userUpdateStatus(user.id),
+                        status: updateUserName.selectOrCreate(user.id).status,
                       }),
                     ],
                   ),
@@ -156,18 +130,13 @@ const GranularMutation = craftComponent(
       div([
         select(
           {
-            value: String(pagination().pageSize),
-            change: (event) =>
-              pagination.updatePageSize(
-                Number((event.target as HTMLSelectElement).value),
-              ),
+            value: pagination().pageSize,
+            change: updatePageSize,
           },
-          [2, 4, 8, 16].map((size) =>
-            option({ value: String(size) }, String(size)),
-          ),
+          [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
         button({ click: pagination.previousPage }, 'Previous'),
-        span(String(pagination().page)),
+        span(pagination().page),
         button({ click: pagination.nextPage }, 'Next'),
       ]),
     ]),

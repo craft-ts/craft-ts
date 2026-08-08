@@ -208,16 +208,21 @@ export interface ComponentNode<
     any
   > = CraftComponent<any, ComponentDeps, any, any, any, any, any, any, any>,
   ContentDependencies extends object = ContentDependenciesFromProps<Props>,
+  InputExceptions extends string = never,
 > extends CraftNodeDepsCarrier<ComponentDeps & ContentDependencies>,
-    CraftNodeExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> {
+    CraftNodeExceptionsCarrier<
+      ComponentInitializationExceptionsOf<Component> | InputExceptions
+    > {
   readonly kind: 'component';
   readonly component: Component;
   readonly props: Props;
   readonly declarationContext?: unknown;
-  readonly [CRAFT_NODE_EXCEPTIONS]: ComponentInitializationExceptionsOf<Component>;
+  readonly [CRAFT_NODE_EXCEPTIONS]:
+    | ComponentInitializationExceptionsOf<Component>
+    | InputExceptions;
   readonly pipe: CraftNodePipe<
     ComponentDeps & ContentDependencies,
-    ComponentInitializationExceptionsOf<Component>
+    ComponentInitializationExceptionsOf<Component> | InputExceptions
   >;
 }
 
@@ -344,7 +349,7 @@ type ContentChildrenFromProps<Props extends object> = Props[keyof Props] extends
         : never
   : never;
 
-type ContentDependenciesFromProps<Props extends object> =
+export type ContentDependenciesFromProps<Props extends object> =
   CraftNodeChildrenDependencies<ContentChildrenFromProps<Props>>;
 
 export interface ProjectionNode<Dependencies extends object = {}>

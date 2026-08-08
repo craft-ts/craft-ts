@@ -56,18 +56,25 @@ Create granular state and derive its public API directly from it:
 
 ```ts
 import { computed } from '@angular/core';
+import { button, craftComponent, p } from '@craft-ng/component';
 import { state } from '@craft-ng/core';
 
-const { counter } = state('counter', 0, ({ state, update, set }) => ({
-  increment: () => update((value) => value + 1),
-  reset: () => set(0),
-  doubled: computed(() => state() * 2),
-}));
-
-counter(); // 0
-counter.increment();
-counter(); // 1
-counter.doubled(); // 2
+export const Counter = craftComponent(
+  'Counter',
+  {},
+  function* () {
+    const counter = yield* state('counter', 0, ({ state, update, set }) => ({
+      increment: () => update((value) => value + 1),
+      reset: () => set(0),
+      doubled: computed(() => state() * 2),
+    }));
+    return { counter };
+  },
+  ({ counter }) => [
+    p(() => `Count: ${counter()} (doubled: ${counter.doubled()})`),
+    button({ click: counter.increment }, 'Increment'),
+  ],
+);
 ```
 
 When logic must be shared, package the same primitives in a named service:
@@ -75,17 +82,23 @@ When logic must be shared, package the same primitives in a named service:
 ```ts
 import { craftService, state } from '@craft-ng/core';
 
-const { injectCounter } = craftService(
+const { Counter } = craftService(
   { name: 'Counter', scope: 'global' },
   function* () {
-    const { counter } = yield* state('counter', 0, ({ update }) => ({
+    const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
     }));
     return counter;
   },
 );
 
-const counter = injectCounter();
+const { CounterConsumer } = craftService(
+  { name: 'CounterConsumer', scope: 'global' },
+  function* () {
+    const counter = yield* Counter();
+    return counter;
+  },
+);
 ```
 
 Continue with the [getting-started guide](https://ng-angular-stack.github.io/craft/learn), then explore:

@@ -1,4 +1,9 @@
-import { computed, Injector, runInInjectionContext } from '@angular/core';
+import {
+  computed,
+  DestroyRef,
+  Injector,
+  runInInjectionContext,
+} from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { filter, take } from 'rxjs';
 import type { AnyCraftException } from './craft-exception';
@@ -9,9 +14,14 @@ import {
   isServiceAppStartRequest,
   resolveCraftGeneratorYield,
   type GuardAwaitResourceLike,
-  type RuntimeGuardAwaitRequest,
+  type RuntimeAwaitRequest,
 } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
+import {
+  CRAFT_TEMPORAL_RUNTIME,
+  isTemporalAwaitRequest,
+  RealCraftTemporalRuntime,
+} from './temporal-runtime';
 
 // ---------------------------------------------------------------------------
 // Generic async craft-program driver.
@@ -28,7 +38,7 @@ import { injectFnWrapper } from './fn-wrapper';
 /** A program's driver step: settled (`done`/`shortCircuit`) or suspended on an await. */
 export type CraftProgramStep =
   | { kind: 'done'; value: unknown }
-  | { kind: 'await'; request: RuntimeGuardAwaitRequest }
+  | { kind: 'await'; request: RuntimeAwaitRequest }
   | { kind: 'shortCircuit'; exception: AnyCraftException };
 
 /** A settled program step (the `await` suspension already driven through). */
@@ -67,7 +77,7 @@ export function pumpCraftProgramSync(
     while (!current.done) {
       const yielded = current.value;
 
-      if (isGuardAwaitRequest(yielded)) {
+      if (isGuardAwaitRequest(yielded) || isTemporalAwaitRequest(yielded)) {
         return { kind: 'await', request: yielded };
       }
 
@@ -114,9 +124,20 @@ function isResourceSettled(resource: GuardAwaitResourceLike): boolean {
 // status (computed off its signals, observed on `injector`) and resolve on the
 // first settle.
 export function awaitCraftProgramRequest(
-  request: RuntimeGuardAwaitRequest,
+  request: RuntimeAwaitRequest,
   injector: Injector,
 ): Promise<unknown> {
+  if (isTemporalAwaitRequest(request)) {
+    const temporalRuntime =
+      injector.get(CRAFT_TEMPORAL_RUNTIME, null) ??
+      new RealCraftTemporalRuntime();
+    return temporalRuntime.sleep(request.delayMs, {
+      kind: 'sleep',
+      owner: request.owner,
+      destroyRef: injector.get(DestroyRef, null) ?? undefined,
+    });
+  }
+
   if (request.kind === 'promise') {
     return Promise.resolve(request.value);
   }

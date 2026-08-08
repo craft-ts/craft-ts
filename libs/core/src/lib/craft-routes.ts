@@ -75,6 +75,11 @@ import {
   type MergeObjectUnion,
   type Simplify,
 } from './craft-service.shared';
+import {
+  CRAFT_TEMPORAL_RUNTIME,
+  RealCraftTemporalRuntime,
+  type TemporalTaskHandle,
+} from './temporal-runtime';
 import { provideHostName } from './host-tag';
 import {
   loadRouteWithRetry,
@@ -2633,6 +2638,9 @@ function normalizeAngularGuardResult(
   if (isSignal(value)) {
     return new Observable<GuardResult>((subscriber) => {
       let active = true;
+      let timer: TemporalTaskHandle | null = null;
+      const temporalRuntime =
+        tryInjectTemporalRuntime() ?? new RealCraftTemporalRuntime();
 
       const poll = () => {
         if (!active) {
@@ -2642,7 +2650,10 @@ function normalizeAngularGuardResult(
         const result = value();
 
         if (result === undefined) {
-          setTimeout(poll, 0);
+          timer = temporalRuntime.schedule(poll, 0, {
+            kind: 'route-guard-poll',
+            owner: `route:${routePath}`,
+          });
           return;
         }
 
@@ -2654,6 +2665,8 @@ function normalizeAngularGuardResult(
 
       return () => {
         active = false;
+        timer?.cancel();
+        timer = null;
       };
     });
   }
@@ -2673,6 +2686,14 @@ function normalizeAngularGuardResult(
   }
 
   return toAngularGuardResult(value, successDataSink);
+}
+
+function tryInjectTemporalRuntime() {
+  try {
+    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function createAngularGuard<

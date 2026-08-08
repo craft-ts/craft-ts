@@ -214,6 +214,7 @@ enforce the architecture itself.
 
 Installing the plugin and the rule list is its own page:
 **[ESLint rules](/guide/routing/eslint-rules)**.
+
 ## 5. When a component changes, regenerate `GenDeps` with the Quick Fix
 
 After changing a component's DI-related shape, refresh its generated alias.
@@ -259,12 +260,15 @@ place, run the dedicated compile-time verification suite:
 npm run craft:verify-routes
 ```
 
-The command checks valid and intentionally invalid temporary fixtures for DI,
-route inputs, Angular/Craft template dependencies, pending and exception
-components, lazy retries, exception recovery and handler exhaustiveness. It
-refuses to run when the application already has type errors, and removes the
-fixtures afterwards. Use `--json` in CI tooling or `--keep-fixtures` to inspect
-a failed diagnostic.
+The command first checks the existing route files: a component route must have
+an active `CanRun`/`RouteCheckedDI` proof (or a collection-level
+`ValidateCascadeRoutesFile` proof), and the exception, pending-component and
+lazy-retry ESLint bookkeeping must be complete. It then checks valid and
+intentionally invalid temporary fixtures for DI, route inputs, Angular/Craft
+template dependencies, pending and exception components, lazy retries,
+exception recovery and handler exhaustiveness. It refuses to run when the
+application already has type errors, and removes the fixtures afterwards. Use
+`--json` in CI tooling or `--keep-fixtures` to inspect a failed diagnostic.
 
 See [CLI automation](/guide/routing/automation#verify-the-route-safety-contract)
 for the full workflow and flags.

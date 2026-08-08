@@ -47,12 +47,9 @@ const CraftGlobalQuery = craftComponent(
   },
   function* (userId: Input<string | undefined>) {
     const user = yield* UserQuery({ userId: () => userId() });
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    }));
+
     const navigate = craftMethod('navigate', function* (offset: number) {
-      // todo yield le router ici directement
-      void router.navigate({
+      yield* CraftRouter.navigate({
         to: 'craft/query/:userId',
         params: {
           userId: String(Number(userId() ?? '0') + offset),
@@ -66,10 +63,7 @@ const CraftGlobalQuery = craftComponent(
     div([
       'User ',
       StatusComponent({ status: () => user.status() }),
-      ifBlock(
-        hasUser,
-        () => h('pre', JSON.stringify(user.value(), null, 2)),
-      ),
+      ifBlock(hasUser, () => h('pre', JSON.stringify(user.value(), null, 2))),
     ]),
     p('Reload the page to retrieve the query result from the cache.'),
     button({ click: () => void navigate(-1) }, 'Previous user'),

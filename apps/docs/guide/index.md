@@ -45,6 +45,10 @@ afternoon:
 [App start](/guide/app/app-start) ·
 [Lazy services](/guide/app/lazy-services)
 
+### Recommended approaches
+
+[Inject at the point of use](/guide/patterns/inject-at-point-of-use)
+
 ### Routing and type-safe DI
 
 [Setup](/guide/routing/setup) ·

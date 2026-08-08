@@ -18,6 +18,7 @@ import {
   queryParams,
   toCraftStatus,
 } from '@craft-ng/core';
+import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
@@ -29,27 +30,10 @@ const QpListWithPagination = craftComponent(
   function* () {
     const pagination = yield* queryParams(
       'pagination',
-      {
-        state: {
-          page: {
-            fallbackValue: 1,
-            codec: {
-              decode: (value: string) => Number(value),
-              encode: (value: number) => String(value),
-            },
-          },
-          pageSize: {
-            fallbackValue: 4,
-            codec: {
-              decode: (value: string) => Number(value),
-              encode: (value: number) => String(value),
-            },
-          },
-        },
-      },
+      paginationQueryParams(),
       ({ patch, state }) => ({
         nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: state().page - 1 }),
+        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
@@ -69,9 +53,13 @@ const QpListWithPagination = craftComponent(
           insertPaginationPlaceholderData({ initialValue: [] as User[] }),
         ),
     );
-    return { pagination, usersQuery };
+    const updatePageSize = (event: Event) =>
+      pagination.updatePageSize(
+        Number((event.target as HTMLSelectElement).value),
+      );
+    return { pagination, usersQuery, updatePageSize };
   },
-  ({ pagination, usersQuery }) =>
+  ({ pagination, updatePageSize, usersQuery }) =>
     div([
       h2([
         'Route QueryParams pagination: ',
@@ -86,25 +74,22 @@ const QpListWithPagination = craftComponent(
           each(
             usersQuery.currentPageData,
             { track: (user) => user.id },
-            (user) => h('tr', [h('td', String(user.id)), h('td', user.name)]),
+            (user) => h('tr', [h('td', user.id), h('td', user.name)]),
           ),
         ),
       ),
       div([
         select(
           {
-            value: String(pagination().pageSize),
-            change: (event) =>
-              pagination.updatePageSize(
-                Number((event.target as HTMLSelectElement).value),
-              ),
+            value: pagination().pageSize,
+            change: updatePageSize,
           },
           [2, 4, 8, 16].map((size) =>
-            option({ value: String(size) }, String(size)),
+            option({ value: size }, size),
           ),
         ),
         button({ click: pagination.previousPage }, 'Previous'),
-        span(String(pagination().page)),
+        span(pagination().page),
         button({ click: pagination.nextPage }, 'Next'),
       ]),
     ]),

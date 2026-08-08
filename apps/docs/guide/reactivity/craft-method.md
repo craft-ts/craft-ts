@@ -76,7 +76,7 @@ export const Counter = craftComponent(
     return { counter, increment };
   },
   ({ counter, increment }) => [
-    p(() => String(counter())),
+    p(counter),
     button({ click: () => void increment() }, 'Increment'),
   ],
 );

@@ -287,6 +287,23 @@ describe('query', () => {
 });
 
 describe('query with identifier>', () => {
+  it('selectOrCreate returns an idle resource without changing select', () => {
+    TestBed.runInInjectionContext(() => {
+      const queryRef = craftUse(query('queryRef', {
+        method: (id: string) => id,
+        identifier: (id) => id,
+        loader: async ({ params }) => ({ id: params }),
+      }));
+
+      expect(queryRef.select('missing')).toBeUndefined();
+
+      const selected = queryRef.selectOrCreate('missing');
+      expect(selected).toBeDefined();
+      expect(selected.status()).toBe('idle');
+      expect(queryRef.select('missing')).toBeDefined();
+    });
+  });
+
   it('Retrieve returned types of queryByIdFn', () => {
     TestBed.runInInjectionContext(() => {
       const queryByIdFn = craftUse(query('queryByIdFn', {

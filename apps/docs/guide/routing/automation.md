@@ -130,12 +130,19 @@ See the [complete migration guide](/resources/migration) for the post-codemod ch
 ## Verify the route safety contract
 
 `craft route verify` is the development check for the routing guarantees. It
-first type-checks the project as it is, then writes temporary fixtures covering
-route DI, `toProvide` providers, lazy child checks, route params and inputs,
-Angular and Craft templates, pending/error components, lazy loading,
-guard/resolve/component exceptions, local recovery and exhaustive handlers.
-Invalid fixtures are expected to fail, and their diagnostics are matched with
-the expected `path`, `pending component` or `exception component` context.
+first type-checks the project as it is, then audits the existing route files:
+every component-bearing route must have an active `CanRun` proof (or a
+collection-level `ValidateCascadeRoutesFile` proof), and the route ESLint rules
+must report no missing exception, pending-component or lazy-retry bookkeeping.
+This catches an accidentally commented or omitted `_CanRun...` block even when
+the TypeScript baseline itself still compiles.
+
+It then writes temporary fixtures covering route DI, `toProvide` providers,
+lazy child checks, route params and inputs, Angular and Craft templates,
+pending/error components, lazy loading, guard/resolve/component exceptions,
+local recovery and exhaustive handlers. Invalid fixtures are expected to fail,
+and their diagnostics are matched with the expected `path`, `pending component`
+or `exception component` context.
 
 Add it to the application scripts:
 

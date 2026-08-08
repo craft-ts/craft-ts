@@ -176,6 +176,49 @@ button:hover {
   background: #7c3aed;
 }
 
+.focus-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  min-height: 60px;
+  margin: 0;
+  border: 1px solid #38bdf866;
+  border-radius: 10px;
+  padding: 5px 7px 7px;
+  background: #082f4933;
+}
+
+.focus-switcher legend {
+  margin-left: 5px;
+  padding: 0 5px;
+  color: #7dd3fc;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.focus-switcher label {
+  gap: 3px;
+  color: #bae6fd;
+  font-size: 10px;
+}
+
+.focus-switcher select {
+  min-width: 145px;
+  padding: 7px 9px;
+  border-color: #38bdf866;
+  font-size: 11px;
+}
+
+.focus-switcher .focus-reset {
+  align-self: end;
+  padding: 7px 9px;
+  color: #bae6fd;
+  font-size: 11px;
+}
+
 .search-trigger {
   display: inline-flex;
   align-items: center;
@@ -515,6 +558,7 @@ kbd {
 .swatch.app-start { background: #f59e0b; }
 .swatch.property { background: #3b82f6; }
 .swatch.http { background: #ea580c; }
+.swatch.temporal { background: #38bdf8; }
 .swatch.edge { background: #ae70c7; }
 
 .legend-note {
@@ -543,6 +587,27 @@ kbd {
 
 .external-routes-toolbar span {
   color: #64748b;
+}
+
+.filter-empty {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin: 12px;
+  border: 1px dashed #38bdf866;
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: #bae6fd;
+  background: #082f4966;
+  font-size: 12px;
+}
+
+.filter-empty strong {
+  color: #7dd3fc;
+}
+
+.filter-empty button {
+  margin-top: 3px;
 }
 
 .diagram-canvas {
@@ -579,10 +644,10 @@ ng-diagram {
   overflow: hidden;
   color: #e6edff;
   background:
-    radial-gradient(circle at 12% 8%, #7c3aed55 0, transparent 28%),
-    radial-gradient(circle at 88% 12%, #0ea5e955 0, transparent 25%),
-    radial-gradient(circle at 72% 88%, #ec489955 0, transparent 32%),
-    linear-gradient(135deg, #050817 0%, #0b1230 52%, #111638 100%);
+    radial-gradient(circle at 10% 8%, #4f63ff66 0, transparent 27%),
+    radial-gradient(circle at 90% 15%, #ff3f9e4d 0, transparent 20%),
+    radial-gradient(circle at 82% 90%, #ff9d3f55 0, transparent 25%),
+    linear-gradient(135deg, #050b18 0%, #0a1936 48%, #111927 100%);
 }
 
 .nebula-theme::before {
@@ -594,9 +659,9 @@ ng-diagram {
   opacity: 0.45;
   background-image:
     radial-gradient(circle at 18% 24%, #ffffff 0 1px, transparent 1.5px),
-    radial-gradient(circle at 76% 18%, #a5b4fc 0 1px, transparent 1.5px),
-    radial-gradient(circle at 64% 72%, #f9a8d4 0 1px, transparent 1.5px),
-    radial-gradient(circle at 34% 86%, #67e8f9 0 1px, transparent 1.5px);
+    radial-gradient(circle at 76% 18%, #7181ff 0 1px, transparent 1.5px),
+    radial-gradient(circle at 64% 72%, #ff65b8 0 1px, transparent 1.5px),
+    radial-gradient(circle at 34% 86%, #ffae52 0 1px, transparent 1.5px);
   background-size: 180px 160px, 240px 220px, 210px 190px, 260px 240px;
 }
 
@@ -608,7 +673,7 @@ ng-diagram {
 }
 
 .nebula-theme h1 {
-  background: linear-gradient(105deg, #f8fbff 10%, #c4b5fd 48%, #67e8f9 90%);
+  background: linear-gradient(105deg, #f8fbff 8%, #6475ff 40%, #ff4eae 73%, #ffad43 100%);
   background-clip: text;
   color: transparent;
   text-shadow: 0 0 28px #818cf844;
@@ -625,42 +690,59 @@ ng-diagram {
 .nebula-theme .granularity,
 .nebula-theme select,
 .nebula-theme button {
-  border-color: #47578b99;
+  border-color: #425b9b99;
   color: #e6edff;
-  background: #111a3dcc;
-  box-shadow: inset 0 0 18px #4f46e51a, 0 6px 20px #02061744;
+  background: #0d1a38dd;
+  box-shadow: inset 0 0 18px #315cff1c, 0 6px 20px #02061744;
 }
 
 .nebula-theme button:hover,
 .nebula-theme button.is-active,
 .nebula-theme .view-switcher button:hover,
 .nebula-theme .view-switcher button.is-active {
-  border-color: #a78bfa;
+  border-color: #7181ff;
   color: #fff;
-  background: #312e81cc;
-  box-shadow: 0 0 18px #8b5cf666;
+  background: #263b91cc;
+  box-shadow: 0 0 18px #315cff66;
 }
 
 .nebula-theme .view-switcher {
-  border-color: #47578b99;
-  background: #0b1229cc;
-  box-shadow: 0 0 24px #312e8144;
+  border-color: #425b9b99;
+  background: #09152fcc;
+  box-shadow: 0 0 24px #315cff33;
 }
 
 .nebula-theme .view-switcher legend {
   color: #a5b4fc;
 }
 
+.nebula-theme .focus-switcher {
+  border-color: #38bdf866;
+  background: #082f4966;
+  box-shadow: 0 0 24px #0284c733;
+}
+
+.nebula-theme .focus-switcher legend,
+.nebula-theme .focus-switcher label {
+  color: #7dd3fc;
+}
+
+.nebula-theme .focus-switcher select,
+.nebula-theme .focus-switcher .focus-reset {
+  border-color: #38bdf866;
+  background: #082f49aa;
+}
+
 .nebula-theme .workspace {
-  border-color: #47578b99;
-  background: #080d20dd;
-  box-shadow: 0 18px 70px #02061799, 0 0 40px #4f46e533;
+  border-color: #425b9b99;
+  background: #071226dd;
+  box-shadow: 0 18px 70px #02061799, 0 0 40px #315cff33;
 }
 
 .nebula-theme .legend {
-  border-color: #47578b99;
-  color: #c4b5fd;
-  background: #0b1229cc;
+  border-color: #425b9b99;
+  color: #b9c5ff;
+  background: #09152fcc;
 }
 
 .nebula-theme .legend-note {
@@ -668,10 +750,10 @@ ng-diagram {
 }
 
 .nebula-theme .external-routes-toolbar {
-  border-color: #47578b99;
+  border-color: #425b9b99;
   color: #e0e7ff;
-  background: #111a3dcc;
-  box-shadow: 0 0 24px #312e8144;
+  background: #0d1a38dd;
+  box-shadow: 0 0 24px #315cff33;
 }
 
 .nebula-theme .external-routes-toolbar span {
@@ -679,10 +761,11 @@ ng-diagram {
 }
 
 .nebula-theme .diagram-canvas {
-  background-color: #050817;
+  background-color: #050c1b;
   background-image:
-    radial-gradient(circle at 20% 25%, #7c3aed22 0, transparent 23%),
-    radial-gradient(circle at 78% 68%, #0891b222 0, transparent 25%),
+    radial-gradient(circle at 20% 25%, #4f63ff2d 0, transparent 23%),
+    radial-gradient(circle at 78% 68%, #ff3f9e24 0, transparent 22%),
+    radial-gradient(circle at 55% 92%, #ff9d3f2b 0, transparent 22%),
     radial-gradient(#64748b55 1px, transparent 1px);
   background-size: auto, auto, 24px 24px;
 }
@@ -692,17 +775,53 @@ ng-diagram {
 }
 
 .nebula-theme .details-panel {
-  border-color: #47578b99;
+  border-color: #425b9b99;
   color: #e6edff;
-  background: #080d20ee;
+  background: #071226ee;
 }
 
 .nebula-theme .details-panel p:not(.eyebrow),
 .nebula-theme .details-panel .detail-card,
 .nebula-theme .details-panel .usage-details {
-  border-color: #47578b99;
-  color: #cbd5f5;
-  background: #111a3dcc;
+  border-color: #3f5fc499;
+  color: #dce6ff;
+  background: linear-gradient(135deg, #10234add, #10182fdd);
+  box-shadow: inset 3px 0 0 #4f63ff99, 0 8px 22px #02061744;
+}
+
+.nebula-theme .details-panel h2 {
+  color: #f8fbff;
+  text-shadow: 0 0 16px #4f63ff66;
+}
+
+.nebula-theme .details-panel .detail-chip {
+  border: 1px solid #7181ff99;
+  color: #e6edff;
+  background: #315cff55;
+}
+
+.nebula-theme .details-panel .chip-service {
+  border-color: #38d7c099;
+  background: #0f766e66;
+}
+
+.nebula-theme .details-panel .chip-primitive,
+.nebula-theme .details-panel .chip-property {
+  border-color: #ffad5299;
+  background: #ff9d3f44;
+}
+
+.nebula-theme .details-panel .chip-route {
+  border-color: #6f8bff99;
+  background: #315cff55;
+}
+
+.nebula-theme .details-panel dt {
+  color: #91aaff;
+}
+
+.nebula-theme .details-panel dd {
+  color: #dbe7ff;
 }
 
 .details-title {
@@ -710,6 +829,13 @@ ng-diagram {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.details-title-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
 }
 
 .details-title h2 {
@@ -733,6 +859,52 @@ ng-diagram {
   color: #fff;
   background: #7c3aed;
   outline: none;
+}
+
+.nebula-theme .details-code-button {
+  border-color: #7181ff99;
+  color: #dbe4ff;
+  background: #315cff55;
+}
+
+.nebula-theme .details-code-button:hover,
+.nebula-theme .details-code-button:focus-visible {
+  border-color: #ff65b8;
+  background: #ef3f9e99;
+}
+
+.details-clear-button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-color: #64748b99;
+  border-radius: 7px;
+  padding: 0;
+  color: #cbd5e1;
+  background: #111a3dcc;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.details-clear-button:hover,
+.details-clear-button:focus-visible {
+  border-color: #fb7185;
+  color: #fff;
+  background: #9f1239cc;
+  outline: none;
+}
+
+.nebula-theme .details-clear-button {
+  border-color: #536da899;
+  color: #dbe7ff;
+  background: #10234add;
+}
+
+.nebula-theme .details-clear-button:hover,
+.nebula-theme .details-clear-button:focus-visible {
+  border-color: #ff65b8;
+  background: #ef3f9e99;
 }
 
 dl {
@@ -811,6 +983,12 @@ pre {
   font-weight: 700;
 }
 
+.nebula-theme .app-start-details {
+  border-color: #ffad5299;
+  color: #ffd39a;
+  background: #ff9d3f2b;
+}
+
 .http-client-details {
   display: grid;
   gap: 6px;
@@ -832,6 +1010,42 @@ pre {
   font-size: 11px;
 }
 
+.nebula-theme .http-client-details {
+  border-color: #ffad5299;
+  color: #ffd39a;
+  background: #ff9d3f2b;
+  box-shadow: inset 3px 0 0 #ff9d3fbb, 0 8px 22px #02061744;
+}
+
+.temporal-details {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+  border: 1px solid #7dd3fc88;
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: #bae6fd;
+  background: #082f4966;
+}
+
+.temporal-details strong {
+  color: #7dd3fc;
+  font-size: 12px;
+}
+
+.temporal-details code {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.nebula-theme .temporal-details {
+  border-color: #58c7ff99;
+  color: #c8edff;
+  background: #315cff22;
+  box-shadow: inset 3px 0 0 #4f63ffbb, 0 8px 22px #02061744;
+}
+
 .external-use {
   border: 1px solid #fde68a;
   border-radius: 9px;
@@ -844,6 +1058,16 @@ pre {
 .external-use p {
   margin: 5px 0 0;
   color: #92400e !important;
+}
+
+.nebula-theme .external-use {
+  border-color: #ff65b899;
+  color: #ffd2ea;
+  background: #ef3f9e26;
+}
+
+.nebula-theme .external-use p {
+  color: #ffd2ea !important;
 }
 
 .message {

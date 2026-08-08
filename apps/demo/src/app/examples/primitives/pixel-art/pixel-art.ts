@@ -15,7 +15,6 @@ import {
   insertLocalStoragePersister,
   insertSelect,
   insertStatePipe,
-  craftUse,
   state,
 } from '@craft-ng/core';
 
@@ -55,34 +54,34 @@ const PixelArt = craftComponent(
         paintCount: 0,
       })),
       insertStatePipe(
-          insertLocalStoragePersister({
-            key: 'pixel-art-cells-state',
-            storeName: 'pixel-art-cells',
-          }),
-          insertSelect('cell', ({ update }) => ({
-            paint: () =>
-              update((cell) => ({
-                ...cell,
-                color:
-                  cell.color === ui().activeColor
-                    ? EMPTY_COLOR
-                    : ui().activeColor,
-                paintCount: cell.paintCount + 1,
-              })),
-          })),
-          ({ state, update }) => ({
-            clearAll: () =>
-              update((current) =>
-                current.map((cell) => ({ ...cell, color: EMPTY_COLOR })),
-              ),
-            paintedCount: computed(
-              () => state().filter(({ color }) => color !== EMPTY_COLOR).length,
+        insertLocalStoragePersister({
+          key: 'pixel-art-cells-state',
+          storeName: 'pixel-art-cells',
+        }),
+        insertSelect('cell', ({ update }) => ({
+          paint: () =>
+            update((cell) => ({
+              ...cell,
+              color:
+                cell.color === ui().activeColor
+                  ? EMPTY_COLOR
+                  : ui().activeColor,
+              paintCount: cell.paintCount + 1,
+            })),
+        })),
+        ({ state, update }) => ({
+          clearAll: () =>
+            update((current) =>
+              current.map((cell) => ({ ...cell, color: EMPTY_COLOR })),
             ),
-            totalPaintActions: computed(() =>
-              state().reduce((total, { paintCount }) => total + paintCount, 0),
-            ),
-          }),
-        ),
+          paintedCount: computed(
+            () => state().filter(({ color }) => color !== EMPTY_COLOR).length,
+          ),
+          totalPaintActions: computed(() =>
+            state().reduce((total, { paintCount }) => total + paintCount, 0),
+          ),
+        }),
+      ),
     );
     return { ui, cells };
   },
@@ -99,11 +98,11 @@ const PixelArt = craftComponent(
             class: 'pixel-color',
             style: { backgroundColor: color },
             'aria-label': `Choisir ${color}`,
-            click: () => craftUse(ui.setActiveColor(color)),
+            click: () => ui.setActiveColor(color),
           }),
         ),
       ),
-      button({ click: () => craftUse(cells.clearAll()) }, 'Effacer'),
+      button({ click: () => cells.clearAll() }, 'Effacer'),
       p([
         span(`Cases peintes: ${cells.paintedCount()}/${INDEXES.length}`),
         span(` · Clics: ${cells.totalPaintActions()}`),
@@ -116,10 +115,7 @@ const PixelArt = craftComponent(
             class: 'pixel-cell',
             style: { backgroundColor: cellColor(cell) },
             title: `Case ${index + 1}`,
-            click: () => {
-              const invocation = cell?.paint();
-              if (invocation) craftUse(invocation);
-            },
+            click: () => cell?.paint(),
           });
         }),
       ),

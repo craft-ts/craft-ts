@@ -1,4 +1,3 @@
-import type { ActivatedRoute, Router } from '@angular/router';
 import { loadCraftComponent } from '@craft-ng/component';
 import {
   assertExhaustiveRouteExceptions,
@@ -12,6 +11,7 @@ import {
   type RouteCheckedDI,
 } from '@craft-ng/core';
 import { authGuard } from './guard/auth.guard';
+import { paginationQueryParams } from './query-params.utils';
 
 export const { demoRoutes } = craftRoutes('demo', [
   {
@@ -20,6 +20,16 @@ export const { demoRoutes } = craftRoutes('demo', [
       withRetry(import('./examples/primitives/query/query')).then(
         ({ default: component }) => component,
       ),
+    ),
+  },
+  {
+    path: 'debounced-web-search',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import(
+          './examples/primitives/debounced-web-search/debounced-web-search'
+        ),
+      ).then(({ default: component }) => component),
     ),
   },
   {
@@ -239,27 +249,10 @@ export const { demoRoutes } = craftRoutes('demo', [
     queryParams: function* () {
       const pagination = yield* queryParams(
         'pagination',
-        {
-          state: {
-            page: {
-              fallbackValue: 1,
-              codec: {
-                decode: (value: string) => Number(value),
-                encode: (value: number) => String(value),
-              },
-            },
-            pageSize: {
-              fallbackValue: 4,
-              codec: {
-                decode: (value: string) => Number(value),
-                encode: (value: number) => String(value),
-              },
-            },
-          },
-        },
+        paginationQueryParams(),
         ({ patch, state }) => ({
           nextPage: () => patch({ page: state().page + 1 }),
-          previousPage: () => patch({ page: state().page - 1 }),
+          previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
           updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
         }),
       );
@@ -315,8 +308,8 @@ type DemoRouteCheckedDI<
   Context extends string = 'demo route component',
 > = RouteCheckedDI<
   ComponentDepsOf<Component>,
-  'CraftRouter',
-  Router | ActivatedRoute,
+  'CraftRouter' | 'CraftActivatedRoute',
+  never,
   Context,
   RouteInputs
 >;
@@ -326,6 +319,13 @@ type _CanRunQuery = CanRun<
     (typeof import('./examples/primitives/query/query'))['default'],
     'userId',
     'path: "query/:userId"'
+  >
+>;
+type _CanRunDebouncedWebSearch = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/debounced-web-search/debounced-web-search'))['default'],
+    never,
+    'path: "debounced-web-search"'
   >
 >;
 type _CanRunComponentDemo = CanRun<

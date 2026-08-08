@@ -119,6 +119,16 @@ type HttpEndpoint = {
   line: number;
 };
 
+type TemporalOperation = {
+  operation: string;
+  delay?: string;
+  line: number;
+};
+
+type FocusTechnology = 'all' | 'http' | 'temporal';
+type FocusEntityKind = 'all' | 'route' | 'component' | 'service';
+type FocusDepth = 'target' | 'level-1' | 'level-2' | 'components';
+
 type GraphEdge = {
   from: string;
   to: string;
@@ -150,6 +160,7 @@ type DiagramNodeData = {
   line?: number;
   externalRouteUses: string[];
   httpEndpoints: HttpEndpoint[];
+  temporalOperations: TemporalOperation[];
   memberCount?: number;
   sourceNodeId?: string;
   groupRole?: 'host' | 'primitive';
@@ -239,7 +250,13 @@ class GraphHoverState {
       setHoveredNodeId: (value: string | null) => set(value),
     })),
   );
-  protected readonly hoveredNodeId = this.hoveredNodeState.hoveredNodeId;
+  readonly hoveredNodeId = this.hoveredNodeState.hoveredNodeId;
+  private readonly selectedNodeState = craftUse(
+    state('selectedNodeId', null as string | null, ({ set }) => ({
+      setSelectedNodeId: (value: string | null) => set(value),
+    })),
+  );
+  private readonly selectedNodeId = this.selectedNodeState.selectedNodeId;
   private readonly activeNodeState = craftUse(
     state(
       'activeNodeIds',
@@ -261,12 +278,71 @@ class GraphHoverState {
   );
   private readonly activeEdgeKeys = this.activeEdgeState.activeEdgeKeys;
 
-  setEdges(edges: GraphEdge[]): void {
+  setEdges(edges: GraphEdge[], nodeIds: Iterable<string>): void {
     this.edges = edges;
-    this.clear();
+    const visibleNodeIds = new Set(nodeIds);
+    const selectedNodeId = this.selectedNodeId();
+    craftUse(this.hoveredNodeState.hoveredNodeId.setHoveredNodeId(null));
+    if (selectedNodeId && visibleNodeIds.has(selectedNodeId)) {
+      this.activateNode(selectedNodeId);
+    } else {
+      this.clear();
+    }
   }
 
   hoverNode(nodeId: string): void {
+    craftUse(this.hoveredNodeState.hoveredNodeId.setHoveredNodeId(nodeId));
+    this.activateNode(nodeId);
+  }
+
+  clearNode(nodeId: string): void {
+    if (this.hoveredNodeId() !== nodeId) return;
+    craftUse(this.hoveredNodeState.hoveredNodeId.setHoveredNodeId(null));
+    const persistentNodeId = this.selectedNodeId();
+    if (persistentNodeId) this.activateNode(persistentNodeId);
+    else this.clearActiveFocus();
+  }
+
+  selectNode(nodeId: string | null): void {
+    craftUse(this.selectedNodeState.selectedNodeId.setSelectedNodeId(nodeId));
+    const focusNodeId = this.hoveredNodeId() ?? nodeId;
+    if (focusNodeId) this.activateNode(focusNodeId);
+    else this.clearActiveFocus();
+  }
+
+  clearSelection(): void {
+    craftUse(this.selectedNodeState.selectedNodeId.setSelectedNodeId(null));
+    const focusNodeId = this.hoveredNodeId();
+    if (focusNodeId) this.activateNode(focusNodeId);
+    else this.clearActiveFocus();
+  }
+
+  isNodeDimmed(nodeId: string): boolean {
+    return (
+      (this.hoveredNodeId() !== null || this.selectedNodeId() !== null) &&
+      !this.activeNodeIds().has(nodeId)
+    );
+  }
+
+  isEdgeDimmed(edgeId: string): boolean {
+    return (
+      (this.hoveredNodeId() !== null || this.selectedNodeId() !== null) &&
+      !this.activeEdgeKeys().has(edgeId)
+    );
+  }
+
+  private clear(): void {
+    craftUse(this.hoveredNodeState.hoveredNodeId.setHoveredNodeId(null));
+    craftUse(this.selectedNodeState.selectedNodeId.setSelectedNodeId(null));
+    this.clearActiveFocus();
+  }
+
+  private clearActiveFocus(): void {
+    craftUse(this.activeNodeState.activeNodeIds.setActiveNodeIds(new Set()));
+    craftUse(this.activeEdgeState.activeEdgeKeys.setActiveEdgeKeys(new Set()));
+  }
+
+  private activateNode(nodeId: string): void {
     const activeNodes = new Set([nodeId]);
     const activeEdgeKeys = new Set<string>();
 
@@ -277,29 +353,26 @@ class GraphHoverState {
       activeEdgeKeys.add(this.edgeKey(edge));
     }
 
-    craftUse(this.hoveredNodeState.hoveredNodeId.setHoveredNodeId(nodeId));
+    const pendingChildren = [nodeId];
+    const visitedContainers = new Set([nodeId]);
+    while (pendingChildren.length > 0) {
+      const parentId = pendingChildren.shift();
+      if (!parentId) continue;
+      for (const edge of this.edges) {
+        if (edge.kind !== 'contains' || edge.from !== parentId) continue;
+        activeNodes.add(edge.to);
+        activeEdgeKeys.add(this.edgeKey(edge));
+        if (!visitedContainers.has(edge.to)) {
+          visitedContainers.add(edge.to);
+          pendingChildren.push(edge.to);
+        }
+      }
+    }
+
     craftUse(this.activeNodeState.activeNodeIds.setActiveNodeIds(activeNodes));
     craftUse(
       this.activeEdgeState.activeEdgeKeys.setActiveEdgeKeys(activeEdgeKeys),
     );
-  }
-
-  clearNode(nodeId: string): void {
-    if (this.hoveredNodeId() === nodeId) this.clear();
-  }
-
-  isNodeDimmed(nodeId: string): boolean {
-    return this.hoveredNodeId() !== null && !this.activeNodeIds().has(nodeId);
-  }
-
-  isEdgeDimmed(edgeId: string): boolean {
-    return this.hoveredNodeId() !== null && !this.activeEdgeKeys().has(edgeId);
-  }
-
-  private clear(): void {
-    craftUse(this.hoveredNodeState.hoveredNodeId.setHoveredNodeId(null));
-    craftUse(this.activeNodeState.activeNodeIds.setActiveNodeIds(new Set()));
-    craftUse(this.activeEdgeState.activeEdgeKeys.setActiveEdgeKeys(new Set()));
   }
 
   private edgeKey(edge: GraphEdge): string {
@@ -720,6 +793,7 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
       [class.is-external-route-ghost]="node().data.externalRouteGhost"
       [class.is-external-route-bundle]="node().data.externalRouteBundle"
       [class.is-http-client]="node().data.httpEndpoints.length > 0"
+      [class.is-temporal]="node().data.temporalOperations.length > 0"
       [class.is-log-node]="isLogNode()"
       [attr.title]="node().data.constellation ? constellationTitle() : null"
       [class.is-dimmed]="hoverState.isNodeDimmed(node().id)"
@@ -856,6 +930,16 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
             track endpoint.line + endpoint.method + endpoint.url
           ) {
             <span>{{ endpoint.method }} {{ endpoint.url }}</span>
+          }
+        </div>
+      }
+      @if (node().data.temporalOperations.length > 0) {
+        <div class="temporal-client-endpoints">
+          @for (
+            operation of node().data.temporalOperations;
+            track operation.line + operation.operation
+          ) {
+            <span>{{ operation.operation }}{{ operation.delay ? '(' + operation.delay + ')' : '' }}</span>
           }
         </div>
       }
@@ -1019,6 +1103,7 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
 
       .graph-node.is-constellation .code-preview-button,
       .graph-node.is-constellation .http-client-endpoints,
+      .graph-node.is-constellation .temporal-client-endpoints,
       .graph-node.is-constellation .node-warning,
       .graph-node.is-constellation .node-source,
       .graph-node.is-constellation .node-usage,
@@ -1347,6 +1432,25 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
         text-overflow: ellipsis;
       }
 
+      .temporal-client-endpoints {
+        display: grid;
+        gap: 2px;
+        margin-top: 5px;
+        overflow: hidden;
+        color: #7dd3fc;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 9px;
+        font-weight: 800;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .temporal-client-endpoints span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
       .node-warning {
         display: inline-block;
         margin-top: 7px;
@@ -1518,6 +1622,22 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
           0 0 0 1px #fef3c766,
           0 0 22px #fbbf2488,
           0 0 48px #f59e0b44,
+          0 8px 22px #020617aa;
+      }
+
+      .graph-node.is-temporal {
+        border-color: #38bdf8;
+        box-shadow:
+          0 0 0 2px #7dd3fc33,
+          0 0 28px 7px #38bdf866,
+          0 8px 20px #02061766;
+      }
+
+      .graph-node.is-constellation.is-temporal {
+        box-shadow:
+          0 0 0 1px #bae6fd77,
+          0 0 24px #38bdfbaa,
+          0 0 50px #0284c744,
           0 8px 22px #020617aa;
       }
 
@@ -1904,6 +2024,7 @@ class GraphNodeTemplate implements NgDiagramNodeTemplate<DiagramNodeData> {
         [class]="'group-' + node().data.kind"
         [class.is-app-start]="node().data.appStart"
         [class.is-http-client]="node().data.httpEndpoints.length > 0"
+        [class.is-temporal]="node().data.temporalOperations.length > 0"
         [class.is-dimmed]="hoverState.isNodeDimmed(node().id)"
         ngDiagramNodeSelected
         ngDiagramGroupHighlighted
@@ -1959,6 +2080,16 @@ class GraphNodeTemplate implements NgDiagramNodeTemplate<DiagramNodeData> {
                 track endpoint.line + endpoint.method + endpoint.url
               ) {
                 <span>{{ endpoint.method }} {{ endpoint.url }}</span>
+              }
+            </div>
+          }
+          @if (node().data.temporalOperations.length > 0) {
+            <div class="temporal-client-endpoints group-temporal-endpoints">
+              @for (
+                operation of node().data.temporalOperations;
+                track operation.line + operation.operation
+              ) {
+                <span>{{ operation.operation }}{{ operation.delay ? '(' + operation.delay + ')' : '' }}</span>
               }
             </div>
           }
@@ -2229,6 +2360,19 @@ class GraphNodeTemplate implements NgDiagramNodeTemplate<DiagramNodeData> {
 
       .graph-group.is-http-client {
         background: linear-gradient(145deg, #44311bee, #241b24ee);
+      }
+
+      .graph-group.is-temporal {
+        border-color: #38bdf8;
+        box-shadow:
+          0 0 0 2px #7dd3fc33,
+          0 0 30px 7px #38bdf866,
+          0 10px 26px #02061777;
+      }
+
+      .group-temporal-endpoints {
+        color: #7dd3fc;
+        text-shadow: 0 0 10px #38bdf866;
       }
 
       .group-header strong {
@@ -2611,6 +2755,25 @@ export class App implements OnInit {
     })),
   );
   protected readonly elkLayout = this.elkLayoutState.elkLayout;
+  private readonly focusTechnologyState = craftUse(
+    state('focusTechnology', 'all' as FocusTechnology, ({ set }) => ({
+      setFocusTechnology: (value: FocusTechnology) => set(value),
+    })),
+  );
+  protected readonly focusTechnology =
+    this.focusTechnologyState.focusTechnology;
+  private readonly focusEntityKindState = craftUse(
+    state('focusEntityKind', 'all' as FocusEntityKind, ({ set }) => ({
+      setFocusEntityKind: (value: FocusEntityKind) => set(value),
+    })),
+  );
+  protected readonly focusEntityKind = this.focusEntityKindState.focusEntityKind;
+  private readonly focusDepthState = craftUse(
+    state('focusDepth', 'level-1' as FocusDepth, ({ set }) => ({
+      setFocusDepth: (value: FocusDepth) => set(value),
+    })),
+  );
+  protected readonly focusDepth = this.focusDepthState.focusDepth;
   private readonly selectedNodeState = craftUse(
     state('selectedNodeId', null as string | null, ({ set }) => ({
       selectNode: (value: string | null) => set(value),
@@ -2747,7 +2910,14 @@ export class App implements OnInit {
       this.graph(),
       this.selectedRouteId(),
       this.showAll(),
+      this.focusTechnology(),
+      this.focusEntityKind(),
+      this.focusDepth(),
     ),
+  );
+
+  protected readonly focusActive = computed(
+    () => this.focusTechnology() !== 'all',
   );
 
   protected readonly visibleNodeCount = computed(
@@ -2923,6 +3093,22 @@ export class App implements OnInit {
     );
   });
 
+  protected readonly hoveredNode = computed(() => {
+    const nodeId = this.hoverState.hoveredNodeId();
+    if (!nodeId) return null;
+    return (
+      this.visibleGraph().nodes.find((node) => node.id === nodeId) ??
+      this.graph()?.nodes.find((node) => node.id === nodeId) ??
+      null
+    );
+  });
+
+  protected readonly inspectedNode = computed(
+    () => this.selectedNode() ?? this.hoveredNode(),
+  );
+
+  protected readonly detailsVisible = computed(() => true);
+
   protected readonly constellationDetailNode = computed(() => {
     const nodeId = this.constellationFocus.focusedNodeId();
     return nodeId
@@ -2988,6 +3174,49 @@ export class App implements OnInit {
     craftUse(this.searchActiveIndexState.searchActiveIndex.reset());
   }
 
+  protected setFocusTechnology(value: string): void {
+    const technology: FocusTechnology =
+      value === 'http' || value === 'temporal' ? value : 'all';
+    craftUse(
+      this.focusTechnologyState.focusTechnology.setFocusTechnology(technology),
+    );
+    craftUse(this.selectedNodeState.selectedNodeId.selectNode(null));
+    craftUse(this.selectedEdgeState.selectedEdgeKey.selectEdge(null));
+    this.rebuildModel();
+  }
+
+  protected setFocusEntityKind(value: string): void {
+    const entityKind: FocusEntityKind =
+      value === 'route' || value === 'component' || value === 'service'
+        ? value
+        : 'all';
+    craftUse(
+      this.focusEntityKindState.focusEntityKind.setFocusEntityKind(entityKind),
+    );
+    this.rebuildModel();
+  }
+
+  protected setFocusDepth(value: string): void {
+    const depth: FocusDepth =
+      value === 'target' ||
+      value === 'level-1' ||
+      value === 'level-2' ||
+      value === 'components'
+        ? value
+        : 'level-1';
+    craftUse(this.focusDepthState.focusDepth.setFocusDepth(depth));
+    this.rebuildModel();
+  }
+
+  protected clearFocus(): void {
+    craftUse(
+      this.focusTechnologyState.focusTechnology.setFocusTechnology('all'),
+    );
+    craftUse(this.focusEntityKindState.focusEntityKind.setFocusEntityKind('all'));
+    craftUse(this.focusDepthState.focusDepth.setFocusDepth('level-1'));
+    this.rebuildModel();
+  }
+
   protected onSearchKeydown(event: KeyboardEvent): void {
     const results = this.searchResults();
     if (event.key === 'ArrowDown' && results.length > 0) {
@@ -3007,6 +3236,7 @@ export class App implements OnInit {
   protected selectSearchResult(result: GraphSearchResult): void {
     this.expandCollapsedAncestors(result.node.id);
     craftUse(this.selectedNodeState.selectedNodeId.selectNode(result.node.id));
+    this.hoverState.selectNode(result.node.id);
     craftUse(this.selectedEdgeState.selectedEdgeKey.selectEdge(null));
     craftUse(this.detailsState.detailsOpen.open());
     this.closeSearch();
@@ -3071,6 +3301,33 @@ export class App implements OnInit {
       craftUse(this.collisionConstellationState.collisionConstellation.show());
       craftUse(this.elkLayoutState.elkLayout.hide());
     }
+    const focus = params.get('focus');
+    const focusKind = params.get('focusKind');
+    const focusDepth = params.get('focusDepth');
+    craftUse(
+      this.focusTechnologyState.focusTechnology.setFocusTechnology(
+        focus === 'http' || focus === 'temporal' ? focus : 'all',
+      ),
+    );
+    craftUse(
+      this.focusEntityKindState.focusEntityKind.setFocusEntityKind(
+        focusKind === 'route' ||
+          focusKind === 'component' ||
+          focusKind === 'service'
+          ? focusKind
+          : 'all',
+      ),
+    );
+    craftUse(
+      this.focusDepthState.focusDepth.setFocusDepth(
+        focusDepth === 'target' ||
+          focusDepth === 'level-1' ||
+          focusDepth === 'level-2' ||
+          focusDepth === 'components'
+          ? focusDepth
+          : 'level-1',
+      ),
+    );
   }
 
   private persistUrlState(): void {
@@ -3091,6 +3348,15 @@ export class App implements OnInit {
             ? 'overview'
             : 'detail',
     );
+    if (this.focusTechnology() === 'all') {
+      params.delete('focus');
+      params.delete('focusKind');
+      params.delete('focusDepth');
+    } else {
+      params.set('focus', this.focusTechnology());
+      params.set('focusKind', this.focusEntityKind());
+      params.set('focusDepth', this.focusDepth());
+    }
     const query = params.toString();
     const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
     window.history.replaceState(null, '', nextUrl);
@@ -3209,11 +3475,10 @@ export class App implements OnInit {
     const node = event.selectedNodes[0];
     const edge = event.selectedEdges[0];
     const nodeData = node?.data as { sourceNodeId?: string } | undefined;
-    craftUse(
-      this.selectedNodeState.selectedNodeId.selectNode(
-        nodeData?.sourceNodeId ?? node?.id ?? null,
-      ),
-    );
+    const selectedNodeId = nodeData?.sourceNodeId ?? node?.id ?? null;
+    craftUse(this.selectedNodeState.selectedNodeId.selectNode(selectedNodeId));
+    if (node) this.hoverState.selectNode(selectedNodeId);
+    else this.hoverState.clearSelection();
     craftUse(
       this.selectedEdgeState.selectedEdgeKey.selectEdge(edge?.id ?? null),
     );
@@ -3417,6 +3682,7 @@ export class App implements OnInit {
 
   protected clearSelection(): void {
     craftUse(this.selectedNodeState.selectedNodeId.selectNode(null));
+    this.hoverState.clearSelection();
     craftUse(this.selectedEdgeState.selectedEdgeKey.selectEdge(null));
     craftUse(this.detailsState.detailsOpen.close());
   }
@@ -3502,6 +3768,23 @@ export class App implements OnInit {
             typeof value['method'] === 'string' &&
             typeof value['url'] === 'string' &&
             typeof value['line'] === 'number'
+          );
+        })
+      : [];
+  }
+
+  protected temporalOperations(
+    node: GraphNode | null | undefined,
+  ): TemporalOperation[] {
+    const operations = node?.details?.['temporalOperations'];
+    return Array.isArray(operations)
+      ? operations.filter((operation): operation is TemporalOperation => {
+          if (!operation || typeof operation !== 'object') return false;
+          const value = operation as Record<string, unknown>;
+          return (
+            typeof value['operation'] === 'string' &&
+            typeof value['line'] === 'number' &&
+            (value['delay'] === undefined || typeof value['delay'] === 'string')
           );
         })
       : [];
@@ -3616,7 +3899,10 @@ export class App implements OnInit {
     const renderedEdges = projected.edges.filter(
       (edge) => edge.details?.['hiddenInConstellation'] !== true,
     );
-    this.hoverState.setEdges(renderedEdges);
+    this.hoverState.setEdges(
+      renderedEdges,
+      projected.nodes.map((node) => node.id),
+    );
     const templateNodes = Array.from(layout.templateIdByComponent.entries())
       .map(([componentId, templateId], index) => {
         const component = projected.nodes.find(
@@ -3731,6 +4017,23 @@ export class App implements OnInit {
       node.details?.['externalRouteGhost'] === true
         ? []
         : this.externalRouteUsesForNode(node);
+    const temporalOperations = this.temporalOperations(node);
+    const nestedTemporalOperations = [
+      ...(members ?? []),
+      ...(primitiveMembers ?? []),
+    ].flatMap((member) => this.temporalOperations(member));
+    const mergedTemporalOperations = [
+      ...temporalOperations,
+      ...nestedTemporalOperations,
+    ].filter(
+      (operation, index, operations) =>
+        operations.findIndex(
+          (candidate) =>
+            candidate.operation === operation.operation &&
+            candidate.delay === operation.delay &&
+            candidate.line === operation.line,
+        ) === index,
+    );
 
     const data: DiagramNodeData = {
       label: layoutResult.displayLabelByNodeId.get(node.id) ?? node.label,
@@ -3757,6 +4060,7 @@ export class App implements OnInit {
       line: node.line,
       externalRouteUses,
       httpEndpoints: this.httpEndpoints(node),
+      temporalOperations: mergedTemporalOperations,
       memberCount: isCollapsed
         ? (layoutResult.collapsedMemberCountByGroupId.get(node.id) ?? 0)
         : (primitiveMembers?.length ?? members?.length),
@@ -3871,6 +4175,7 @@ export class App implements OnInit {
         externalRouteLabels: [],
         externalRouteContentCount: 0,
         httpEndpoints: [],
+        temporalOperations: [],
       },
       zOrder: -500 + index,
     };
@@ -5224,7 +5529,10 @@ export class App implements OnInit {
     return this.externalRouteUsesForNode(node).length > 0 ? 24 : 0;
   }
 
-  private buildConstellationGraph(graph: DependencyGraph): {
+  private buildConstellationGraph(graph: {
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+  }): {
     nodes: GraphNode[];
     edges: GraphEdge[];
   } {
@@ -5334,23 +5642,43 @@ export class App implements OnInit {
         .map((node) => node.id),
     );
     const httpEndpointsByOwner = new Map<string, HttpEndpoint[]>();
+    const temporalOperationsByOwner = new Map<string, TemporalOperation[]>();
     for (const node of graph.nodes) {
       const endpoints = this.httpEndpoints(node);
-      if (endpoints.length === 0) continue;
       const ownerId = ownerOf(node.id);
-      const ownerEndpoints = httpEndpointsByOwner.get(ownerId) ?? [];
-      for (const endpoint of endpoints) {
-        const key = `${endpoint.line}|${endpoint.method}|${endpoint.url}`;
-        if (
-          !ownerEndpoints.some(
-            (current) =>
-              `${current.line}|${current.method}|${current.url}` === key,
-          )
-        ) {
-          ownerEndpoints.push(endpoint);
+      if (endpoints.length > 0) {
+        const ownerEndpoints = httpEndpointsByOwner.get(ownerId) ?? [];
+        for (const endpoint of endpoints) {
+          const key = `${endpoint.line}|${endpoint.method}|${endpoint.url}`;
+          if (
+            !ownerEndpoints.some(
+              (current) =>
+                `${current.line}|${current.method}|${current.url}` === key,
+            )
+          ) {
+            ownerEndpoints.push(endpoint);
+          }
         }
+        httpEndpointsByOwner.set(ownerId, ownerEndpoints);
       }
-      httpEndpointsByOwner.set(ownerId, ownerEndpoints);
+
+      const temporalOperations = this.temporalOperations(node);
+      if (temporalOperations.length > 0) {
+        const ownerOperations = temporalOperationsByOwner.get(ownerId) ?? [];
+        for (const operation of temporalOperations) {
+          if (
+            !ownerOperations.some(
+              (current) =>
+                current.operation === operation.operation &&
+                current.delay === operation.delay &&
+                current.line === operation.line,
+            )
+          ) {
+            ownerOperations.push(operation);
+          }
+        }
+        temporalOperationsByOwner.set(ownerId, ownerOperations);
+      }
     }
 
     const nodes = graph.nodes
@@ -5361,6 +5689,12 @@ export class App implements OnInit {
           ...node.details,
           ...(httpEndpointsByOwner.has(node.id)
             ? { httpEndpoints: httpEndpointsByOwner.get(node.id) }
+            : {}),
+          ...(temporalOperationsByOwner.has(node.id)
+            ? {
+                temporal: true,
+                temporalOperations: temporalOperationsByOwner.get(node.id),
+              }
             : {}),
           constellation: {
             weight: weightByNodeId.get(node.id) ?? 0,
@@ -5464,7 +5798,10 @@ export class App implements OnInit {
     };
   }
 
-  private buildOverviewGraph(graph: DependencyGraph): {
+  private buildOverviewGraph(graph: {
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+  }): {
     nodes: GraphNode[];
     edges: GraphEdge[];
   } {
@@ -5507,12 +5844,43 @@ export class App implements OnInit {
           .map((member) => member.label),
       };
 
+      const httpEndpoints = members
+        .flatMap((member) => this.httpEndpoints(member))
+        .filter(
+          (endpoint, index, endpoints) =>
+            endpoints.findIndex(
+              (candidate) =>
+                candidate.method === endpoint.method &&
+                candidate.url === endpoint.url &&
+                candidate.line === endpoint.line,
+            ) === index,
+        );
+      const temporalOperations = members
+        .flatMap((member) => this.temporalOperations(member))
+        .filter(
+          (operation, index, operations) =>
+            operations.findIndex(
+              (candidate) =>
+                candidate.operation === operation.operation &&
+                candidate.delay === operation.delay &&
+                candidate.line === operation.line,
+            ) === index,
+        );
+
       nodes.push({
         id: overviewId,
         kind: this.overviewKind(counts),
         label: this.overviewModuleLabel(filePath),
         filePath,
-        details: { overview: summary },
+        details: {
+          overview: summary,
+          ...(httpEndpoints.length > 0
+            ? { craftHttpClient: true, httpEndpoints }
+            : {}),
+          ...(temporalOperations.length > 0
+            ? { temporal: true, temporalOperations }
+            : {}),
+        },
       });
     }
 
@@ -5578,10 +5946,139 @@ export class App implements OnInit {
     return parts.length > 3 ? `…/${parts.slice(-3).join('/')}` : path;
   }
 
+  private buildTechnologyFocusGraph(
+    graph: { nodes: GraphNode[]; edges: GraphEdge[] },
+    technology: FocusTechnology,
+    entityKind: FocusEntityKind,
+    depth: FocusDepth,
+  ): { nodes: GraphNode[]; edges: GraphEdge[] } {
+    if (technology === 'all') return graph;
+
+    const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+    const parentByChild = new Map<string, string[]>();
+    const adjacency = new Map<string, Set<string>>();
+    const connect = (from: string, to: string): void => {
+      const neighbors = adjacency.get(from) ?? new Set<string>();
+      neighbors.add(to);
+      adjacency.set(from, neighbors);
+    };
+
+    for (const edge of graph.edges) {
+      connect(edge.from, edge.to);
+      connect(edge.to, edge.from);
+      if (edge.kind === 'contains') {
+        const parents = parentByChild.get(edge.to) ?? [];
+        parents.push(edge.from);
+        parentByChild.set(edge.to, parents);
+      }
+    }
+
+    const macroKinds = new Set<GraphNodeKind>([
+      'route',
+      'component',
+      'service',
+    ]);
+    const ownerOf = (nodeId: string): string => {
+      let current = nodeId;
+      const visited = new Set<string>();
+      while (!visited.has(current)) {
+        visited.add(current);
+        const node = nodeById.get(current);
+        if (!node || macroKinds.has(node.kind)) return current;
+        const parent = parentByChild.get(current)?.[0];
+        if (!parent) return current;
+        current = parent;
+      }
+      return current;
+    };
+
+    const matchesTechnology = (node: GraphNode): boolean => {
+      if (technology === 'http') {
+        return (
+          node.details?.['craftHttpClient'] === true ||
+          this.httpEndpoints(node).length > 0
+        );
+      }
+      return (
+        node.details?.['temporal'] === true ||
+        this.temporalOperations(node).length > 0
+      );
+    };
+
+    const directOwners = new Set(
+      graph.nodes.filter(matchesTechnology).map((node) => ownerOf(node.id)),
+    );
+    const seeds = new Set<string>();
+    if (entityKind === 'all') {
+      directOwners.forEach((id) => seeds.add(id));
+    } else if (entityKind === 'route') {
+      for (const route of graph.nodes.filter((node) => node.kind === 'route')) {
+        if (
+          directOwners.has(route.id) ||
+          [...directOwners].some((ownerId) =>
+            this.reachableFromRoute(route.id).has(ownerId),
+          )
+        ) {
+          seeds.add(route.id);
+        }
+      }
+    } else {
+      for (const ownerId of directOwners) {
+        if (nodeById.get(ownerId)?.kind === entityKind) seeds.add(ownerId);
+      }
+    }
+
+    if (seeds.size === 0) return { nodes: [], edges: [] };
+    if (depth === 'target') {
+      return {
+        nodes: graph.nodes.filter((node) => seeds.has(node.id)),
+        edges: [],
+      };
+    }
+
+    const maxDistance = depth === 'level-1' ? 1 : depth === 'level-2' ? 2 : 4;
+    const distances = new Map<string, number>();
+    const queue: Array<readonly [string, number]> = [...seeds].map(
+      (id) => [id, 0] as const,
+    );
+    for (const seed of seeds) distances.set(seed, 0);
+    while (queue.length > 0) {
+      const currentEntry = queue.shift();
+      if (!currentEntry) break;
+      const [current, currentDistance] = currentEntry;
+      if (currentDistance >= maxDistance) continue;
+      for (const neighbor of adjacency.get(current) ?? []) {
+        if (distances.has(neighbor)) continue;
+        distances.set(neighbor, currentDistance + 1);
+        queue.push([neighbor, currentDistance + 1]);
+      }
+    }
+
+    const includedIds = new Set<string>();
+    for (const node of graph.nodes) {
+      const distance = distances.get(node.id);
+      if (distance === undefined) continue;
+      if (depth !== 'components' || macroKinds.has(node.kind) || distance <= 1) {
+        includedIds.add(node.id);
+      }
+    }
+    for (const seed of seeds) includedIds.add(seed);
+
+    return {
+      nodes: graph.nodes.filter((node) => includedIds.has(node.id)),
+      edges: graph.edges.filter(
+        (edge) => includedIds.has(edge.from) && includedIds.has(edge.to),
+      ),
+    };
+  }
+
   private buildVisibleGraph(
     graph: DependencyGraph | null,
     routeLabel: string,
     all: boolean,
+    technology: FocusTechnology = 'all',
+    entityKind: FocusEntityKind = 'all',
+    depth: FocusDepth = 'level-1',
   ): { nodes: GraphNode[]; edges: GraphEdge[] } {
     if (!graph) return { nodes: [], edges: [] };
     const filteredGraph = this.hideUnusedInfrastructureNodes(graph);
@@ -5589,9 +6086,34 @@ export class App implements OnInit {
     if (focusedNodeId) {
       return this.buildConstellationDetailGraph(graph, focusedNodeId);
     }
-    if (this.constellation()) return this.buildConstellationGraph(filteredGraph);
-    if (this.overview()) return this.buildOverviewGraph(filteredGraph);
-    if (all) return { nodes: filteredGraph.nodes, edges: filteredGraph.edges };
+    if (this.constellation()) {
+      return this.buildConstellationGraph(
+        this.buildTechnologyFocusGraph(
+          filteredGraph,
+          technology,
+          entityKind,
+          depth,
+        ),
+      );
+    }
+    if (this.overview()) {
+      return this.buildOverviewGraph(
+        this.buildTechnologyFocusGraph(
+          filteredGraph,
+          technology,
+          entityKind,
+          depth,
+        ),
+      );
+    }
+    if (all) {
+      return this.buildTechnologyFocusGraph(
+        filteredGraph,
+        technology,
+        entityKind,
+        depth,
+      );
+    }
 
     const route = filteredGraph.nodes.find(
       (node) => node.kind === 'route' && node.label === routeLabel,
@@ -5603,7 +6125,12 @@ export class App implements OnInit {
     const edges = filteredGraph.edges.filter(
       (edge) => ids.has(edge.from) && ids.has(edge.to),
     );
-    return this.addExternalRouteGhosts(filteredGraph, route, nodes, edges);
+    return this.buildTechnologyFocusGraph(
+      this.addExternalRouteGhosts(filteredGraph, route, nodes, edges),
+      technology,
+      entityKind,
+      depth,
+    );
   }
 
   private addExternalRouteGhosts(

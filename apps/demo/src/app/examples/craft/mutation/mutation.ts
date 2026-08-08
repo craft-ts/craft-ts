@@ -12,13 +12,13 @@ import {
 import {
   CraftRouter,
   craftComputed,
-  craftPipe,
   craftMethod,
   craftService,
   insertLocalStoragePersister,
   insertReactOnMutation,
   mutation,
   query,
+  state,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -45,19 +45,17 @@ const { provideUserMutation, UserMutation } = craftService(
         },
         preservePreviousValue: () => true,
       },
-      (context) =>
-        craftPipe(
-          context,
-          insertLocalStoragePersister({
-            storeName: 'demo-app-craft',
-            key: 'mutation',
-          }),
-          insertReactOnMutation(updateUserName, {
-            optimisticPatch: {
-              name: ({ mutationParams: { name } }) => name,
-            },
-          }),
-        ),
+      insertQueryPipe(
+        insertLocalStoragePersister({
+          storeName: 'demo-app-craft',
+          key: 'mutation',
+        }),
+        insertReactOnMutation(updateUserName, {
+          optimisticPatch: {
+            name: ({ mutationParams: { name } }) => name,
+          },
+        }),
+      ),
     );
 
     return { user, updateUserName };
@@ -72,6 +70,7 @@ const MutationCraft = craftComponent(
   },
   function* (userId: Input<string | undefined>) {
     const store = yield* UserMutation({ userId: () => userId() });
+    const nameInput = yield* state('nameInput', '');
     const hasUser = craftComputed('hasUser', () => store.user.hasValue());
     const updateUserNameFn = craftMethod(
       'updateUserNameFn',
@@ -98,31 +97,29 @@ const MutationCraft = craftComponent(
         params: { userId: String(Number(userId() ?? '0') + offset) },
       });
     });
-    return { store, hasUser, updateUserNameFn, navigate };
+    return { store, nameInput, hasUser, updateUserNameFn, navigate };
   },
-  ({ store, hasUser, updateUserNameFn, navigate }) => {
-    let nameInput: HTMLInputElement | undefined;
+  ({ store, nameInput, hasUser, updateUserNameFn, navigate }) => {
     return [
       div([
         'User ',
         StatusComponent({ status: () => store.user.status() }),
-        ifBlock(
-          hasUser,
-          () => h('pre', JSON.stringify(store.user.value(), null, 2)),
+        ifBlock(hasUser, () =>
+          h('pre', JSON.stringify(store.user.value(), null, 2)),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
       input({
         type: 'text',
         placeholder: 'New name',
-        input: (event) => {
-          nameInput = event.target as HTMLInputElement;
-        },
+        value: nameInput(),
+        input: (event) =>
+          nameInput.set((event.target as HTMLInputElement).value),
       }),
       button(
         {
           disabled: store.updateUserName.isLoading(),
-          click: () => void updateUserNameFn(nameInput?.value ?? ''),
+          click: () => void updateUserNameFn(nameInput()),
         },
         [
           'Update name ',

@@ -12,7 +12,6 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  craftComputed,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
   insertQueryPipe,
@@ -20,8 +19,10 @@ import {
   queryParams,
   toCraftStatus,
 } from '@craft-ng/core';
+import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
+import { computed } from '@angular/core';
 
 const ListWithPagination = craftComponent(
   'ListWithPagination',
@@ -31,27 +32,10 @@ const ListWithPagination = craftComponent(
   function* () {
     const pagination = yield* queryParams(
       'pagination',
-      {
-        state: {
-          page: {
-            fallbackValue: 1,
-            codec: {
-              decode: (value: string) => Number(value),
-              encode: (value: number) => String(value),
-            },
-          },
-          pageSize: {
-            fallbackValue: 4,
-            codec: {
-              decode: (value: string) => Number(value),
-              encode: (value: number) => String(value),
-            },
-          },
-        },
-      },
+      paginationQueryParams(),
       ({ patch, state }) => ({
         nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: state().page - 1 }),
+        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
@@ -64,20 +48,28 @@ const ListWithPagination = craftComponent(
         loader: ({ params }) => api.getDataList(params),
       },
       insertQueryPipe(
-          insertLocalStoragePersister({
-            storeName: 'demo-app',
-            key: 'list-with-pagination',
+        insertLocalStoragePersister({
+          storeName: 'demo-app',
+          key: 'list-with-pagination',
+        }),
+        insertPaginationPlaceholderData(
+          { initialValue: [] as User[] },
+          ({ currentPageStatus }) => ({
+            isCurrentPageResolved: computed(
+              () => currentPageStatus() === 'resolved',
+            ),
           }),
-          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
         ),
+      ),
     );
-    const isCurrentPageResolved = craftComputed(
-      'isCurrentPageResolved',
-      () => usersQuery.currentPageStatus() === 'resolved',
-    );
-    return { pagination, usersQuery, isCurrentPageResolved };
+
+    const updatePageSize = (event: Event) =>
+      pagination.updatePageSize(
+        Number((event.target as HTMLSelectElement).value),
+      );
+    return { pagination, usersQuery, updatePageSize };
   },
-  ({ pagination, usersQuery, isCurrentPageResolved }) => {
+  ({ pagination, usersQuery, updatePageSize }) => {
     return div([
       h2([
         'User Management: ',
@@ -100,32 +92,27 @@ const ListWithPagination = craftComponent(
                   h(
                     'td',
                     ifBlock(
-                      isCurrentPageResolved,
+                      usersQuery.isCurrentPageResolved,
                       () => 'No users found',
                       () => 'Loading…',
                     ),
                   ),
                 ),
             },
-            (user) => h('tr', [h('td', String(user.id)), h('td', user.name)]),
+            (user) => h('tr', [h('td', user.id), h('td', user.name)]),
           ),
         ),
       ),
       div({ class: 'pagination' }, [
         select(
           {
-            value: String(pagination().pageSize),
-            change: (event) =>
-              pagination.updatePageSize(
-                Number((event.target as HTMLSelectElement).value),
-              ),
+            value: pagination().pageSize,
+            change: updatePageSize,
           },
-          [2, 4, 8, 16].map((size) =>
-            option({ value: String(size) }, String(size)),
-          ),
+          [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
         button({ click: pagination.previousPage }, 'Previous'),
-        span({ class: 'current-page' }, String(pagination().page)),
+        span({ class: 'current-page' }, pagination().page),
         button({ click: pagination.nextPage }, 'Next'),
       ]),
     ]);

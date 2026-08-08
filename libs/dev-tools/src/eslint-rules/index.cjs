@@ -35,6 +35,8 @@ const preferCraftTemplateBlocks = require('./prefer-craft-template-blocks.cjs');
 const preferCraftReactivity = require('./prefer-craft-reactivity.cjs');
 const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource-trigger.cjs');
 const requireCraftResourceTriggerYield = require('./require-craft-resource-trigger-yield.cjs');
+const noDirectTemporalGlobals = require('./no-direct-temporal-globals.cjs');
+const requirePrimitiveDerivedProperty = require('./require-primitive-derived-property.cjs');
 
 module.exports = {
   rules: {
@@ -76,5 +78,7 @@ module.exports = {
     'prefer-craft-reactivity': preferCraftReactivity,
     'no-imperative-craft-resource-trigger': noImperativeCraftResourceTrigger,
     'require-craft-resource-trigger-yield': requireCraftResourceTriggerYield,
+    'no-direct-temporal-globals': noDirectTemporalGlobals,
+    'require-primitive-derived-property': requirePrimitiveDerivedProperty,
   },
 };

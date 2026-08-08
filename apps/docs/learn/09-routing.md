@@ -81,9 +81,9 @@ function* () {
 The target is `{ to, params?, queryParams? }`, and all of it is checked:
 
 ```typescript
-router.navigate({ to: 'taks' });          // ✗ not a known path
+router.navigate({ to: 'taks' }); // ✗ not a known path
 router.navigate({ to: 'tasks/:taskId' }); // ✗ params.taskId is missing
-router.navigate({ to: 'tasks/:taskId', params: { id: '1' } });     // ✗ wrong param
+router.navigate({ to: 'tasks/:taskId', params: { id: '1' } }); // ✗ wrong param
 router.navigate({ to: 'tasks/:taskId', params: { taskId: '1' } }); // ✓
 ```
 
@@ -106,11 +106,7 @@ Declare one local alias for your app's context, then one `CanRun` per route:
 
 ```typescript
 import type { ActivatedRoute, Router } from '@angular/router';
-import type {
-  CanRun,
-  ComponentDepsOf,
-  RouteCheckedDI,
-} from '@craft-ng/core';
+import type { CanRun, ComponentDepsOf, RouteCheckedDI } from '@craft-ng/core';
 
 type AppRouteCheckedDI<
   Component,
@@ -201,13 +197,14 @@ After wiring the routes into `craftAppConfig`, add the verification script:
 }
 ```
 
-Then run `npm run craft:verify-routes`. The command creates temporary valid and
-invalid examples and confirms that the compiler catches missing DI providers,
-template dependencies, route inputs, pending/error component contracts and
-unhandled route exceptions. It also checks the ESLint bookkeeping that keeps
-`GenDeps_*`, route checks, lazy retry and error-component checks synchronized.
-Fixtures are deleted when the command ends; use `--json` for CI or
-`--keep-fixtures` to inspect a failure.
+Then run `npm run craft:verify-routes`. The command first audits the routes you
+just created: commenting or forgetting a `CanRun`/`RouteCheckedDI` proof is
+reported even though an unused type alias would otherwise compile. It also
+checks existing exception, pending-component and lazy-retry bookkeeping.
+Temporary valid and invalid examples then confirm that the compiler catches
+missing DI providers, template dependencies, route inputs, pending/error
+component contracts and unhandled route exceptions. Fixtures are deleted when
+the command ends; use `--json` for CI or `--keep-fixtures` to inspect a failure.
 
 ## What the user sees while a route loads
 
@@ -235,11 +232,11 @@ export const appConfig = craftAppConfig({
 Those three numbers are the whole waiting story, and they exist so a fast
 navigation shows **nothing at all**:
 
-| Phase                    | What is on screen                                      |
-| ------------------------ | ------------------------------------------------------ |
-| `0 → stayMs`             | the previous page — most navigations resolve here      |
-| `stayMs → +blankMs`      | a blank surface: something is coming                   |
-| beyond, for `pendingMinMs` at least | the pending component (a spinner, a skeleton) |
+| Phase                               | What is on screen                                 |
+| ----------------------------------- | ------------------------------------------------- |
+| `0 → stayMs`                        | the previous page — most navigations resolve here |
+| `stayMs → +blankMs`                 | a blank surface: something is coming              |
+| beyond, for `pendingMinMs` at least | the pending component (a spinner, a skeleton)     |
 
 `pendingMinMs` is the anti-flicker floor: once the loader appears it stays put,
 so it can't flash for 40ms.

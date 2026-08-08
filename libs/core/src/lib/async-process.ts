@@ -215,6 +215,16 @@ export type AsyncProcessRef<
                 GroupIdentifier
               >)
             | undefined;
+          selectOrCreate: (id: GroupIdentifier) =>
+            {
+              readonly value: Signal<Value | undefined>;
+              readonly status: Signal<CraftResourceStatus>;
+              readonly isLoading: Signal<boolean>;
+              hasValue(): boolean;
+            } & ResourceLikeAsyncProcessExceptions<
+              AsyncProcessExceptions,
+              GroupIdentifier
+            >;
         } & ([GroupIdentifier] extends [string]
             ? ResourceByIdLikeAsyncProcessExceptions<
                 AsyncProcessExceptions,
@@ -646,6 +656,7 @@ export function asyncProcess<
  *   - `method`: (method-based only) Function to trigger the operation
  *   - `source`: (source-based only) Readonly source for automatic triggering
  *   - `select(id)`: (with identifier) Access individual instance by ID
+ *   - `selectOrCreate(id)`: (with identifier) Access or create an individual instance
  *
  *   Consume it with `yield*` inside a generator host (craftService factory,
  *   craftGen, …) or with `craftUse(...)` elsewhere (typically a component field).
@@ -1490,6 +1501,33 @@ function createAsyncProcessRef<
                   : selectExceptions,
               });
             })();
+          },
+          selectOrCreate: (id: GroupIdentifier) => {
+            const selected = (
+              resourceTarget as ResourceByIdRef<
+                GroupIdentifier & string,
+                AsyncProcesstate,
+                AsyncProcessParams
+              >
+            ).addById(id as GroupIdentifier & string);
+            const selectExceptions = createSelectExceptions(
+              id as unknown as string,
+            );
+            const selectHasException = createSelectHasException(
+              id as unknown as string,
+            );
+            const rawSelectStatus = selected.status;
+            return Object.assign(selected, {
+              status: computed(() =>
+                toCraftStatus(rawSelectStatus(), selectHasException()),
+              ),
+              exception: computed(() => selectExceptions().list[0]),
+              hasException: selectHasException,
+              hasSchema: signal(hasConfiguredSchema),
+              exceptions: hasConfiguredSchema
+                ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                : selectExceptions,
+            });
           },
         }
       : {},

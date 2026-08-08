@@ -49,6 +49,12 @@ export type DependencyGraphHttpEndpoint = {
   line: number;
 };
 
+export type DependencyGraphTemporalOperation = {
+  operation: string;
+  delay?: string;
+  line: number;
+};
+
 export type DependencyGraphEdge = {
   from: string;
   to: string;
@@ -97,6 +103,20 @@ const CRAFT_HTTP_CLIENT_METHODS = new Set([
   'patch',
   'request',
 ]);
+const CRAFT_TEMPORAL_FUNCTIONS = new Set([
+  'craftSleep',
+  'setTimeout',
+  'setInterval',
+  'clearTimeout',
+  'clearInterval',
+  'requestAnimationFrame',
+  'cancelAnimationFrame',
+]);
+const CRAFT_TEMPORAL_RUNTIME_METHODS = new Set([
+  'sleep',
+  'schedule',
+  'cancel',
+]);
 const NON_DEPENDENCY_PROPERTY_NAMES = new Set([
   'map',
   'filter',
@@ -138,6 +158,7 @@ type SourceInfo = {
 };
 
 type CraftHttpClientUsage = DependencyGraphHttpEndpoint;
+type CraftTemporalUsage = DependencyGraphTemporalOperation;
 
 type GraphBuilder = {
   project: Project;
@@ -1028,6 +1049,21 @@ function analyzeServiceBodies(builder: GraphBuilder): void {
             : service.node;
         addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
       }
+      const temporalUsage = findCraftTemporalUsage(call);
+      if (temporalUsage) {
+        const ownerPrimitive = nearestPrimitiveCall(call);
+        const ownerPrimitiveName = ownerPrimitive && primitiveName(ownerPrimitive);
+        const ownerNode =
+          ownerPrimitive && ownerPrimitiveName
+            ? addPrimitiveNode(
+                builder,
+                ownerPrimitive,
+                ownerPrimitiveName,
+                service.node.id,
+              )
+            : service.node;
+        addTemporalUsage(builder, ownerNode.id, temporalUsage);
+      }
       const helper = findServiceForCall(builder, call);
       if (helper && helper !== service) {
         addEdge(builder, service.node.id, helper.node.id, 'depends-on', 'type');
@@ -1066,6 +1102,21 @@ function analyzeComponents(builder: GraphBuilder): void {
                 )
               : component.node;
           addHttpClientUsage(builder, ownerNode.id, httpClientUsage);
+        }
+        const temporalUsage = findCraftTemporalUsage(nested);
+        if (temporalUsage) {
+          const ownerPrimitive = nearestPrimitiveCall(nested);
+          const ownerPrimitiveName = ownerPrimitive && primitiveName(ownerPrimitive);
+          const ownerNode =
+            ownerPrimitive && ownerPrimitiveName
+              ? addPrimitiveNode(
+                  builder,
+                  ownerPrimitive,
+                  ownerPrimitiveName,
+                  component.node.id,
+                )
+              : component.node;
+          addTemporalUsage(builder, ownerNode.id, temporalUsage);
         }
         const helper =
           findServiceForCall(builder, nested) ??
@@ -1146,6 +1197,8 @@ function collectRouteHookServiceDependencies(
     for (const call of scope.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const httpClientUsage = findCraftHttpClientUsage(call);
       if (httpClientUsage) addHttpClientUsage(builder, hookId, httpClientUsage);
+      const temporalUsage = findCraftTemporalUsage(call);
+      if (temporalUsage) addTemporalUsage(builder, hookId, temporalUsage);
       const helper = findServiceForCall(builder, call);
       if (helper) {
         addEdge(builder, hookId, helper.node.id, 'depends-on', 'type');
@@ -1337,6 +1390,33 @@ function addHttpClientUsage(
   };
 }
 
+function addTemporalUsage(
+  builder: GraphBuilder,
+  nodeId: string,
+  usage: CraftTemporalUsage,
+): void {
+  const node = builder.nodes.get(nodeId);
+  if (!node) return;
+  const previous = Array.isArray(node.details?.['temporalOperations'])
+    ? node.details['temporalOperations'].filter(isTemporalOperation)
+    : [];
+  if (
+    !previous.some(
+      (operation) =>
+        operation.operation === usage.operation &&
+        operation.delay === usage.delay &&
+        operation.line === usage.line,
+    )
+  ) {
+    previous.push(usage);
+  }
+  node.details = {
+    ...(node.details ?? {}),
+    temporal: true,
+    temporalOperations: previous.sort((left, right) => left.line - right.line),
+  };
+}
+
 function mergeHttpEndpoints(
   previous: unknown,
   next: CraftHttpClientUsage,
@@ -1362,6 +1442,46 @@ function isHttpEndpoint(value: unknown): value is CraftHttpClientUsage {
     typeof endpoint['url'] === 'string' &&
     typeof endpoint['line'] === 'number'
   );
+}
+
+function isTemporalOperation(value: unknown): value is CraftTemporalUsage {
+  if (!value || typeof value !== 'object') return false;
+  const operation = value as Record<string, unknown>;
+  return (
+    typeof operation['operation'] === 'string' &&
+    typeof operation['line'] === 'number' &&
+    (operation['delay'] === undefined || typeof operation['delay'] === 'string')
+  );
+}
+
+function findCraftTemporalUsage(
+  call: CallExpression,
+): CraftTemporalUsage | undefined {
+  const expression = call.getExpression();
+  const root = rootIdentifier(expression)?.getText();
+  const methodName = Node.isPropertyAccessExpression(expression)
+    ? expression.getName()
+    : undefined;
+  const operation =
+    (root && CRAFT_TEMPORAL_FUNCTIONS.has(root) && root) ||
+    (methodName &&
+    CRAFT_TEMPORAL_RUNTIME_METHODS.has(methodName) &&
+    /(?:temporal|scheduler|clock|timer)/i.test(root ?? '')
+      ? methodName
+      : undefined);
+  if (!operation) return undefined;
+
+  const delayArgument =
+    operation === 'setTimeout' || operation === 'setInterval'
+      ? call.getArguments()[1]
+      : operation === 'craftSleep' || operation === 'sleep'
+        ? call.getArguments()[0]
+        : undefined;
+  return {
+    operation,
+    ...(delayArgument ? { delay: delayArgument.getText() } : {}),
+    line: call.getStartLineNumber(),
+  };
 }
 
 function findCraftHttpClientUsage(

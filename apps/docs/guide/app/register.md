@@ -104,7 +104,7 @@ const CounterChild = craftComponent(
   function* () {
     return yield* Counter();
   },
-  ({ counter }) => div(String(counter())),
+  ({ counter }) => div(counter),
 );
 
 const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(

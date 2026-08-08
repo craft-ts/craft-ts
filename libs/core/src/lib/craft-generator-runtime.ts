@@ -7,6 +7,10 @@ import {
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
+import {
+  isTemporalAwaitRequest,
+  type RuntimeTemporalAwaitRequest,
+} from './temporal-runtime';
 
 export const SERVICE_YIELD_REQUEST_MARKER = Symbol(
   'service-yield-request-marker',
@@ -132,6 +136,10 @@ export type RuntimeGuardAwaitRequest =
       value: PromiseLike<unknown>;
     }>;
 
+export type RuntimeAwaitRequest =
+  | RuntimeGuardAwaitRequest
+  | RuntimeTemporalAwaitRequest;
+
 export function isGuardAwaitRequest(
   value: unknown,
 ): value is RuntimeGuardAwaitRequest {
@@ -207,6 +215,12 @@ export function runCraftGenerator({
         : yielded.run;
       current = iterator.next(undefined);
       continue;
+    }
+
+    if (isTemporalAwaitRequest(yielded)) {
+      throw new Error(
+        'This Craft generator requires the async driver because it yields craftSleep(...).',
+      );
     }
 
     if (guardAwaitNotSupportedErrorMessage && isGuardAwaitRequest(yielded)) {

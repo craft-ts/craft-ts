@@ -1,4 +1,9 @@
-import { InjectionToken, type Type } from '@angular/core';
+import { inject, InjectionToken, type Type } from '@angular/core';
+import {
+  CRAFT_TEMPORAL_RUNTIME,
+  RealCraftTemporalRuntime,
+  type CraftTemporalRuntime,
+} from './temporal-runtime';
 
 // ---------------------------------------------------------------------------
 // Generic lazy-load retry engine.
@@ -60,6 +65,8 @@ export interface CraftLoadRetryOptions<
     error: unknown,
     context: Context,
   ) => boolean | Promise<boolean>;
+  /** Optional clock seam, primarily useful for deterministic tests. */
+  readonly temporalRuntime?: CraftTemporalRuntime;
 }
 
 export type CraftLoadRetryConfig<
@@ -72,9 +79,7 @@ export type CraftLoadRetryConfig<
 export const DEFAULT_CRAFT_LOAD_RETRY_OPTIONS = {
   attempts: 1,
   delayMs: 250,
-} satisfies Required<
-  Pick<CraftLoadRetryOptions, 'attempts' | 'delayMs'>
->;
+} satisfies Required<Pick<CraftLoadRetryOptions, 'attempts' | 'delayMs'>>;
 
 /**
  * Builds the attempts/delay/shouldRetry loop shared by every craft lazy load.
@@ -86,17 +91,22 @@ export const DEFAULT_CRAFT_LOAD_RETRY_OPTIONS = {
  */
 export function createCraftLoadRetry<
   Context extends CraftLoadRetryContextBase = CraftLoadRetryContextBase,
->(
-  options: CraftLoadRetryOptions<Context> = {},
-): CraftLoadRetry<Context> {
+>(options: CraftLoadRetryOptions<Context> = {}): CraftLoadRetry<Context> {
   const attempts = Math.max(
     1,
     Math.floor(options.attempts ?? DEFAULT_CRAFT_LOAD_RETRY_OPTIONS.attempts),
   );
   const delayMs = options.delayMs ?? DEFAULT_CRAFT_LOAD_RETRY_OPTIONS.delayMs;
+  const temporalRuntime =
+    options.temporalRuntime ??
+    tryInjectTemporalRuntime() ??
+    new RealCraftTemporalRuntime();
 
   return {
-    async execute<T>(loader: () => Promise<T>, baseContext: Context): Promise<T> {
+    async execute<T>(
+      loader: () => Promise<T>,
+      baseContext: Context,
+    ): Promise<T> {
       let lastError: unknown;
       let previousError = baseContext.error;
       for (let index = 0; index < attempts; index++) {
@@ -116,7 +126,10 @@ export function createCraftLoadRetry<
             : delayMs,
         );
         if (resolvedDelayMs > 0) {
-          await new Promise((resolve) => setTimeout(resolve, resolvedDelayMs));
+          await temporalRuntime.sleep(resolvedDelayMs, {
+            kind: 'retry',
+            owner: 'craft-load-retry',
+          });
         }
 
         try {
@@ -129,6 +142,14 @@ export function createCraftLoadRetry<
       throw lastError;
     },
   };
+}
+
+function tryInjectTemporalRuntime(): CraftTemporalRuntime | undefined {
+  try {
+    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -236,7 +257,9 @@ function failedDynamicImportUrl(error: unknown): URL | undefined {
   if (prefixIndex === -1) return undefined;
 
   try {
-    const url = new URL(error.message.slice(prefixIndex + prefix.length).trim());
+    const url = new URL(
+      error.message.slice(prefixIndex + prefix.length).trim(),
+    );
     const currentOrigin = globalThis.location?.origin;
     if (currentOrigin && url.origin !== currentOrigin) return undefined;
     if (!url.pathname.endsWith('.js')) return undefined;

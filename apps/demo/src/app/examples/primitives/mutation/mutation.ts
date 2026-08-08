@@ -12,9 +12,10 @@ import {
 import {
   CraftRouter,
   craftComputed,
-  craftPipe,
+  craftMethod,
   insertLocalStoragePersister,
   insertReactOnMutation,
+  insertQueryPipe,
   mutation,
   query,
 } from '@craft-ng/core';
@@ -42,28 +43,29 @@ const MutationDemoComponent = craftComponent(
         loader: ({ params }) => api.getItemById(params),
         preservePreviousValue: () => true,
       },
-      (context) =>
-        craftPipe(
-          context,
-          insertLocalStoragePersister({
-            storeName: 'demo-app',
-            key: 'mutation',
-          }),
-          insertReactOnMutation(updateUserName, {
-            optimisticPatch: {
-              name: ({ mutationParams: { name } }) => name,
-            },
-          }),
-        ),
+      insertQueryPipe(
+        insertLocalStoragePersister({
+          storeName: 'demo-app',
+          key: 'mutation',
+        }),
+        insertReactOnMutation(updateUserName, {
+          optimisticPatch: {
+            name: ({ mutationParams: { name } }) => name,
+          },
+        }),
+      ),
     );
+
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const navigate = (offset: number) =>
+
+    const goTo = (offset: number) => {
       void router.navigate({
         to: 'mutation/:userId',
         params: { userId: String(Number(userId() ?? '0') + offset) },
       });
+    };
     const update = (name: string) => {
       const user = userQuery.value();
       if (user) {
@@ -74,17 +76,16 @@ const MutationDemoComponent = craftComponent(
       }
     };
     const hasUser = craftComputed('hasUser', () => userQuery.hasValue());
-    return { userQuery, hasUser, updateUserName, update, navigate };
+    return { userQuery, hasUser, updateUserName, update, goTo };
   },
-  ({ userQuery, hasUser, updateUserName, update, navigate }) => {
+  ({ userQuery, hasUser, updateUserName, update, goTo }) => {
     let name = '';
     return div([
       div([
         'User ',
         StatusComponent({ status: () => userQuery.status() }),
-        ifBlock(
-          hasUser,
-          () => h('pre', JSON.stringify(userQuery.value(), null, 2)),
+        ifBlock(hasUser, () =>
+          h('pre', JSON.stringify(userQuery.value(), null, 2)),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
@@ -105,8 +106,8 @@ const MutationDemoComponent = craftComponent(
           StatusComponent({ status: () => updateUserName.status() }),
         ],
       ),
-      button({ click: () => navigate(-1) }, 'Previous user'),
-      button({ click: () => navigate(1) }, 'Next user'),
+      button({ click: () => goTo(-1) }, 'Previous user'),
+      button({ click: () => goTo(1) }, 'Next user'),
     ]);
   },
 );

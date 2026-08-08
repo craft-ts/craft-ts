@@ -28,6 +28,7 @@ import type {
   GetServiceTrackingMetadata,
 } from './craft-service';
 import { craftUse } from './craft-use';
+import { CraftActivatedRoute } from './craft-activated-route';
 
 @Component({
   standalone: true,
@@ -55,6 +56,16 @@ beforeEach(() => {
 });
 
 describe('toCraftService', () => {
+  it('adapts Angular ActivatedRoute as a global Craft service', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+
+    TestBed.runInInjectionContext(() => {
+      const activatedRoute = craftUse(CraftActivatedRoute());
+
+      expect(activatedRoute.snapshot.url).toEqual([]);
+    });
+  });
+
   it('should adapt an injectable class in global scope and keep exposed methods bound to the source instance', async () => {
     @Injectable({
       providedIn: 'root',

@@ -44,6 +44,7 @@ export default [
       'craft-ng/brand-angular-deps-match': 'off',
       'craft-ng/require-component-monitoring': 'warn',
       'craft-ng/require-primitive-generator-unwrap': 'warn',
+      'craft-ng/require-primitive-derived-property': 'error',
       'craft-ng/require-assert-exhaustive-route-exceptions': 'warn',
       'craft-ng/prefer-craft-router-outlet': 'warn',
       'craft-ng/require-pending-component-di-check': 'warn',

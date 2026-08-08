@@ -1,4 +1,11 @@
-import { chmod, mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdtemp,
+  mkdir,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -45,8 +52,12 @@ describe('route verification', () => {
         'pending-missing-component',
       ]),
     );
-    expect(fixtures.filter((fixture) => fixture.kind === 'positive').length).toBeGreaterThan(0);
-    expect(fixtures.filter((fixture) => fixture.kind === 'negative').length).toBeGreaterThan(0);
+    expect(
+      fixtures.filter((fixture) => fixture.kind === 'positive').length,
+    ).toBeGreaterThan(0);
+    expect(
+      fixtures.filter((fixture) => fixture.kind === 'negative').length,
+    ).toBeGreaterThan(0);
   });
 
   it('matches all expected diagnostic fragments', () => {
@@ -55,11 +66,101 @@ describe('route verification', () => {
         'The VerifyMissingService service is not provided in path: "missing-provider"',
         ['VerifyMissingService', 'path: "missing-provider"'],
       ),
-    ).toEqual([
-      'VerifyMissingService',
-      'path: "missing-provider"',
-    ]);
+    ).toEqual(['VerifyMissingService', 'path: "missing-provider"']);
   });
+
+  it('fails when an existing component route has no active DI proof', async () => {
+    const root = await createFakeProject(false);
+    temporaryDirectories.push(root);
+    await writeFile(
+      join(root, 'demo.routes.ts'),
+      `export const { demoRoutes } = craftRoutes('demo', [
+  { path: 'full-demo', loadComponent: () => import('./page') },
+]);
+`,
+      'utf8',
+    );
+    await writeFile(
+      join(root, 'page.ts'),
+      'export default class Page {}\n',
+      'utf8',
+    );
+
+    const result = await runRouteVerification({
+      rootDir: root,
+      project: 'tsconfig.json',
+      log: () => undefined,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.routeChecks.status).toBe('failed');
+    expect(
+      result.diagnostics.some((diagnostic) =>
+        diagnostic.includes(
+          'route "full-demo" is missing its route DI check. Add an active CanRun<RouteCheckedDI> proof in this file.',
+        ),
+      ),
+    ).toBe(true);
+  }, 60_000);
+
+  it('fails when existing route exception bookkeeping reports a missing assert', async () => {
+    const root = await createFakeProject(false);
+    temporaryDirectories.push(root);
+    const routeFile = join(root, 'demo.routes.ts');
+    await writeFile(
+      routeFile,
+      `export const { demoRoutes } = craftRoutes('demo', [
+  { path: 'page', loadComponent: () => import('./page') },
+]);
+type _CanRun = CanRun<RouteCheckedDI<import('./page').GenDeps_Page, never, Router, 'path: "page"'>>;
+`,
+      'utf8',
+    );
+    await writeFile(
+      join(root, 'page.ts'),
+      'export default class Page {}\n',
+      'utf8',
+    );
+    const lintPayload = JSON.stringify([
+      {
+        filePath: routeFile,
+        messages: [
+          {
+            ruleId: 'craft-ng/require-assert-exhaustive-route-exceptions',
+            severity: 2,
+            line: 1,
+            message:
+              'craftRoutes collection(s) missing assertExhaustiveRouteExceptions()',
+          },
+        ],
+      },
+    ]);
+    const eslint = join(root, 'node_modules', '.bin', 'eslint');
+    await writeFile(
+      eslint,
+      `#!/bin/sh
+case "$*" in
+  *--fix*) exit 0 ;;
+esac
+printf '%s' '${lintPayload}'
+exit 1
+`,
+      'utf8',
+    );
+    await chmod(eslint, 0o755);
+
+    const result = await runRouteVerification({
+      rootDir: root,
+      project: 'tsconfig.json',
+      log: () => undefined,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.projectLint.status).toBe('failed');
+    expect(result.diagnostics.join('\n')).toContain(
+      'missing assertExhaustiveRouteExceptions()',
+    );
+  }, 60_000);
 
   it('runs the positive and negative passes and removes temporary fixtures', async () => {
     const root = await createFakeProject(false);
@@ -76,16 +177,24 @@ describe('route verification', () => {
     expect(result.cases.every((item) => item.status === 'passed')).toBe(true);
     expect(result.fixtureDirectory).toBeUndefined();
     expect(
-      (await readdir(root)).some((entry) => entry.startsWith('craft-route-verify-')),
+      (await readdir(root)).some((entry) =>
+        entry.startsWith('craft-route-verify-'),
+      ),
     ).toBe(false);
   }, 60_000);
 
   it('runs the generated fixtures through the real TypeScript compiler', async () => {
-    const root = await mkdtemp(join(process.cwd(), '.craft-route-verify-integration-'));
+    const root = await mkdtemp(
+      join(process.cwd(), '.craft-route-verify-integration-'),
+    );
     temporaryDirectories.push(root);
     const binDirectory = join(root, 'node_modules', '.bin');
     await mkdir(binDirectory, { recursive: true });
-    await writeFile(join(binDirectory, 'eslint'), '#!/bin/sh\nexit 0\n', 'utf8');
+    await writeFile(
+      join(binDirectory, 'eslint'),
+      '#!/bin/sh\nexit 0\n',
+      'utf8',
+    );
     await chmod(join(binDirectory, 'eslint'), 0o755);
     await writeFile(
       join(root, 'tsconfig.json'),
@@ -106,7 +215,11 @@ describe('route verification', () => {
       }),
       'utf8',
     );
-    await writeFile(join(root, 'baseline.ts'), 'export const baseline = true;\n', 'utf8');
+    await writeFile(
+      join(root, 'baseline.ts'),
+      'export const baseline = true;\n',
+      'utf8',
+    );
 
     const result = await runRouteVerification({
       rootDir: root,
@@ -168,11 +281,15 @@ count=0
 if [ -f "$state" ]; then count=$(cat "$state"); fi
 count=$((count + 1))
 printf '%s' "$count" > "$state"
-${alwaysFail ? 'echo "existing project error"\nexit 1' : `if [ "$count" -ge 3 ]; then
+${
+  alwaysFail
+    ? 'echo "existing project error"\nexit 1'
+    : `if [ "$count" -ge 3 ]; then
 ${expectedDiagnostics}
 exit 1
 fi
-exit 0`}
+exit 0`
+}
 `;
   const compiler = join(binDirectory, 'tsc');
   await writeFile(compiler, script, 'utf8');

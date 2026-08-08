@@ -8,6 +8,11 @@ import {
 } from '@angular/core';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
+import {
+  RealCraftTemporalRuntime,
+  type CraftTemporalRuntime,
+  type TemporalTaskHandle,
+} from './temporal-runtime';
 
 /** A human-readable prefix describing the operation that started a flow. */
 export type CorrelationIdPrefix =
@@ -31,18 +36,20 @@ export interface CorrelationIdServiceApi {
   endOperation(id: string): void;
 }
 
-export const CORRELATION_ID_SERVICE = new InjectionToken<
-  CorrelationIdServiceApi | null
->('CORRELATION_ID_SERVICE', {
-  providedIn: 'root',
-  factory: () => null,
-});
+export const CORRELATION_ID_SERVICE =
+  new InjectionToken<CorrelationIdServiceApi | null>('CORRELATION_ID_SERVICE', {
+    providedIn: 'root',
+    factory: () => null,
+  });
 
-export function createCorrelationIdService(): CorrelationIdServiceApi {
+export function createCorrelationIdService(
+  temporalRuntime?: CraftTemporalRuntime,
+): CorrelationIdServiceApi {
   const _lastCorrelationId = signal<string | null>(null);
   const _inFlightIds = signal<ReadonlySet<string>>(new Set());
   const _mayCorrelatedIds = computed(() => [..._inFlightIds()]);
-  const _debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const runtime = temporalRuntime ?? new RealCraftTemporalRuntime();
+  const _debounceTimers = new Map<string, TemporalTaskHandle>();
 
   function generateAndSet(prefix: CorrelationIdPrefix): string {
     const id = `${prefix}:${generateUUID()}`;
@@ -53,21 +60,28 @@ export function createCorrelationIdService(): CorrelationIdServiceApi {
   function startOperation(id: string): void {
     const existingTimer = _debounceTimers.get(id);
     if (existingTimer !== undefined) {
-      clearTimeout(existingTimer);
+      existingTimer.cancel();
       _debounceTimers.delete(id);
     }
     _inFlightIds.update((s) => new Set([...s, id]));
   }
 
   function endOperation(id: string): void {
-    const timer = setTimeout(() => {
-      _debounceTimers.delete(id);
-      _inFlightIds.update((s) => {
-        const next = new Set(s);
-        next.delete(id);
-        return next;
-      });
-    }, 500);
+    const timer = runtime.schedule(
+      () => {
+        _debounceTimers.delete(id);
+        _inFlightIds.update((s) => {
+          const next = new Set(s);
+          next.delete(id);
+          return next;
+        });
+      },
+      500,
+      {
+        kind: 'debounce',
+        owner: `correlation:${id}`,
+      },
+    );
     _debounceTimers.set(id, timer);
   }
 

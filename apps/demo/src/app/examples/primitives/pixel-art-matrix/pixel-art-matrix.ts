@@ -38,66 +38,58 @@ const PixelArtMatrix = craftComponent(
     stylesUrl: styles,
   },
   function* () {
-    const activeColor = yield* state(
-      'activeColor',
-      COLORS[0],
-      ({ set }) => ({ setColor: (color: string) => set(color) }),
-    );
-    const grid = yield* state(
-      'grid',
-      makeGrid(),
-      ({ set, update }) => ({
-        paint: (rowIndex: number, columnIndex: number) =>
-          update((rows) =>
-            rows.map((row, r) =>
-              r === rowIndex
-                ? row.map((cell, c) =>
-                    c === columnIndex
-                      ? {
-                          ...cell,
-                          color:
-                            cell.color === activeColor()
-                              ? EMPTY
-                              : activeColor(),
-                          count: cell.count + 1,
-                        }
-                      : cell,
-                  )
-                : row,
-            ),
+    const activeColor = yield* state('activeColor', COLORS[0], ({ set }) => ({
+      setColor: (color: string) => set(color),
+    }));
+    const grid = yield* state('grid', makeGrid(), ({ set, update }) => ({
+      paint: (rowIndex: number, columnIndex: number) =>
+        update((rows) =>
+          rows.map((row, r) =>
+            r === rowIndex
+              ? row.map((cell, c) =>
+                  c === columnIndex
+                    ? {
+                        ...cell,
+                        color:
+                          cell.color === activeColor() ? EMPTY : activeColor(),
+                        count: cell.count + 1,
+                      }
+                    : cell,
+                )
+              : row,
           ),
-        paintRow: (rowIndex: number, color: string) =>
-          update((rows) =>
-            rows.map((row, r) =>
-              r === rowIndex
-                ? row.map((cell) => ({
-                    ...cell,
-                    color,
-                    count: cell.count + 1,
-                  }))
-                : row,
-            ),
+        ),
+      paintRow: (rowIndex: number, color: string) =>
+        update((rows) =>
+          rows.map((row, r) =>
+            r === rowIndex
+              ? row.map((cell) => ({
+                  ...cell,
+                  color,
+                  count: cell.count + 1,
+                }))
+              : row,
           ),
-        addRow: () =>
-          update((rows) => [
-            ...rows,
-            Array.from({ length: rows[0]?.length ?? SIZE }, () => ({
-              id: nextCellId++,
-              color: EMPTY,
-              count: 0,
-            })),
-          ]),
-        addCell: (rowIndex: number) =>
-          update((rows) =>
-            rows.map((row, r) =>
-              r === rowIndex
-                ? [...row, { id: nextCellId++, color: EMPTY, count: 0 }]
-                : row,
-            ),
+        ),
+      addRow: () =>
+        update((rows) => [
+          ...rows,
+          Array.from({ length: rows[0]?.length ?? SIZE }, () => ({
+            id: nextCellId++,
+            color: EMPTY,
+            count: 0,
+          })),
+        ]),
+      addCell: (rowIndex: number) =>
+        update((rows) =>
+          rows.map((row, r) =>
+            r === rowIndex
+              ? [...row, { id: nextCellId++, color: EMPTY, count: 0 }]
+              : row,
           ),
-        reset: () => set(makeGrid()),
-      }),
-    );
+        ),
+      reset: () => set(makeGrid()),
+    }));
     return { activeColor, grid };
   },
   ({ activeColor, grid }) =>
@@ -119,24 +111,21 @@ const PixelArtMatrix = craftComponent(
       button({ click: grid.reset }, 'Reset'),
       div(
         { class: 'matrix-grid' },
-        each(
-          grid,
-          { track: trackGridRow },
-          (row, rowIndex) =>
-            div({ class: 'matrix-row' }, [
-              each(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
-                button({
-                  class: 'matrix-cell',
-                  style: { backgroundColor: cell.color },
-                  click: () => grid.paint(rowIndex, columnIndex),
-                  contextmenu: (event) => {
-                    event.preventDefault();
-                    grid.paintRow(rowIndex, cell.color);
-                  },
-                }),
-              ),
-              button({ click: () => grid.addCell(rowIndex) }, '+'),
-            ]),
+        each(grid, { track: trackGridRow }, (row, rowIndex) =>
+          div({ class: 'matrix-row' }, [
+            each(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
+              button({
+                class: 'matrix-cell',
+                style: { backgroundColor: cell.color },
+                click: () => grid.paint(rowIndex, columnIndex),
+                contextmenu: (event) => {
+                  event.preventDefault();
+                  grid.paintRow(rowIndex, cell.color);
+                },
+              }),
+            ),
+            button({ click: () => grid.addCell(rowIndex) }, '+'),
+          ]),
         ),
       ),
       button({ click: grid.addRow }, 'Add row'),

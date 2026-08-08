@@ -1,7 +1,11 @@
 import {
+  CRAFT_TEMPORAL_RUNTIME,
   craftMethod,
   fromEventToSource$,
   state,
+  toCraftService,
+  type CraftTemporalRuntime as CraftTemporalRuntimeApi,
+  type TemporalTaskHandle,
   type SendContextPayload,
 } from '@craft-ng/core';
 import { craftComponent } from '../component';
@@ -17,6 +21,18 @@ import {
   textarea,
 } from '../hyperscript';
 import type { Input, Output } from '../types';
+
+const { CraftTemporalRuntime } = toCraftService({
+  name: 'CraftTemporalRuntime',
+  scope: 'global',
+  token: CRAFT_TEMPORAL_RUNTIME,
+}) as unknown as {
+  CraftTemporalRuntime: () => Generator<
+    never,
+    CraftTemporalRuntimeApi,
+    unknown
+  >;
+};
 
 function formatPrompt(
   payload: SendContextPayload & { instruction: string },
@@ -171,10 +187,8 @@ export const AiSendDialog = craftComponent(
       }
     `,
   },
-  function* (
-    payload: Input<SendContextPayload>,
-    onClose: Output<() => void>,
-  ) {
+  function* (payload: Input<SendContextPayload>, onClose: Output<() => void>) {
+    const temporalRuntime = yield* CraftTemporalRuntime();
     type InstructionState = (() => string) & {
       setInstruction: (value: string) => Generator<unknown, unknown, unknown>;
     };
@@ -186,26 +200,16 @@ export const AiSendDialog = craftComponent(
     // through declaration emit. Reactive values (craft `state()`, Angular
     // signals) carry `unique symbol`s that the emitter cannot name (TS4023),
     // so the signals stay local and the context exposes plain accessors only.
-    const instruction = yield* (state(
-      'instruction',
-      '',
-      ({ set }) => ({
-        setInstruction: (value: string) => set(value),
-      }),
-    ) as unknown as Generator<never, InstructionState, unknown>);
-    const copied = yield* (state(
-      'copied',
-      false,
-      ({ set }) => ({
-        setCopied: (value: boolean) => set(value),
-      }),
-    ) as unknown as Generator<never, CopiedState, unknown>);
+    const instruction = yield* state('instruction', '', ({ set }) => ({
+      setInstruction: (value: string) => set(value),
+    })) as unknown as Generator<never, InstructionState, unknown>;
+    const copied = yield* state('copied', false, ({ set }) => ({
+      setCopied: (value: boolean) => set(value),
+    })) as unknown as Generator<never, CopiedState, unknown>;
 
     const setInstruction: (value: string) => void = craftMethod(
       'setInstruction',
-      function* (
-        value: string,
-      ) {
+      function* (value: string) {
         yield* instruction.setInstruction(value);
       },
     );
@@ -216,7 +220,7 @@ export const AiSendDialog = craftComponent(
       },
     );
 
-    let copiedTimer: ReturnType<typeof setTimeout> | null = null;
+    let copiedTimer: TemporalTaskHandle | null = null;
 
     fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
       (event) => {
@@ -233,10 +237,17 @@ export const AiSendDialog = craftComponent(
       const content = formatPrompt({ ...payload(), instruction: text });
       void navigator.clipboard.writeText(content).then(() => {
         setCopied(true);
-        if (copiedTimer) clearTimeout(copiedTimer);
-        copiedTimer = setTimeout(() => {
-          setCopied(false);
-        }, 2500);
+        copiedTimer?.cancel();
+        copiedTimer = temporalRuntime.schedule(
+          () => {
+            setCopied(false);
+          },
+          2500,
+          {
+            kind: 'ai-copy-feedback',
+            owner: 'ai-send-dialog',
+          },
+        );
       });
     };
 

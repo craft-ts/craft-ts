@@ -23,6 +23,7 @@ import type {
   CraftNodeChildrenHandledExceptionCodes,
   CraftNodeDepsCarrier,
   ComponentNode,
+  ContentDependenciesFromProps,
   ElementNodeBase,
 } from './render/vnode';
 
@@ -43,6 +44,13 @@ export const CONTENT_DECLARATION_CONTEXT = Symbol(
 );
 export const PROJECTION_CONTRACT = Symbol('craft-projection-contract');
 export const CRAFT_TEMPLATE = Symbol('craft-template');
+
+/** Type-only carrier for exceptions raised while evaluating a component input. */
+export declare const CRAFT_INPUT_EXCEPTIONS: unique symbol;
+
+export type CraftInputExceptionsCarrier<Exceptions extends string = string> = {
+  readonly [CRAFT_INPUT_EXCEPTIONS]?: Exceptions;
+};
 
 export type Input<T> = (() => T) & {
   readonly [INPUT_BRAND]: T;
@@ -485,6 +493,14 @@ type PublicComponentProps<Props extends object> = {
 type ComponentCallProps<Props extends object> = PublicComponentProps<Props> &
   HostProps;
 
+type CraftInputExceptionsOf<Value> =
+  Value extends CraftInputExceptionsCarrier<infer Exceptions extends string>
+    ? Exceptions
+    : never;
+
+export type ComponentInputExceptionsOf<Props extends object> =
+  CraftInputExceptionsOf<Props[keyof Props]>;
+
 type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
   readonly providers: infer Providers;
 }
@@ -827,14 +843,31 @@ type ComponentCallNode<
   ComponentDeps extends object,
   Component extends CraftComponent<any, ComponentDeps>,
   Factory extends ComponentFactory,
+  InputProps extends object = {},
 > =
-  FactoryContext<Factory> extends {
-    readonly contract: infer Contract;
-    readonly key: infer Key extends PropertyKey;
-  }
-    ? ComponentNode<CallProps, ComponentDeps, Component> &
-        ProjectionUnit<Contract, Key>
-    : ComponentNode<CallProps, ComponentDeps, Component>;
+  ComponentInputExceptionsOf<
+    Pick<CallProps, keyof InputProps & keyof CallProps>
+  > extends infer InputExceptions extends string
+    ? FactoryContext<Factory> extends {
+        readonly contract: infer Contract;
+        readonly key: infer Key extends PropertyKey;
+      }
+      ? ComponentNode<
+          CallProps,
+          ComponentDeps,
+          Component,
+          ContentDependenciesFromProps<CallProps>,
+          InputExceptions
+        > &
+          ProjectionUnit<Contract, Key>
+      : ComponentNode<
+          CallProps,
+          ComponentDeps,
+          Component,
+          ContentDependenciesFromProps<CallProps>,
+          InputExceptions
+        >
+    : never;
 
 type AppliedDirectiveFactory<
   Factory extends ComponentFactory,
@@ -953,7 +986,8 @@ export interface CraftComponent<
       InitializationExceptions,
       ContentRequirements
     >,
-    Factory
+    Factory,
+    Props
   >;
   readonly [CRAFT_COMPONENT]: ComponentDefinition<unknown> & {
     readonly name: Name;

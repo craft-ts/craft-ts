@@ -502,6 +502,17 @@ export type ResourceByIdLikeQueryRef<
         hasValue(): boolean;
       } & ResourceLikeExceptions<QueryException, GroupIdentifier>) // todo exception params should be display outside
     | undefined;
+  /**
+   * Get the associated resource by id, creating an idle resource when it does
+   * not exist yet.
+   */
+  selectOrCreate: (id: GroupIdentifier) =>
+    {
+      readonly value: Signal<Value | undefined>;
+      readonly status: Signal<CraftResourceStatus>;
+      readonly isLoading: Signal<boolean>;
+      hasValue(): boolean;
+    } & ResourceLikeExceptions<QueryException, GroupIdentifier>;
 } & MergeObjects<
     [
       YieldableInsertionMethods<Insertions>,
@@ -906,6 +917,7 @@ export function query<
  * **With Identifier:**
  * When an `identifier` function is provided, queries are grouped by ID enabling parallel execution and individual result tracking.
  * Use `select(id)` to access individual query instances.
+ * Use `selectOrCreate(id)` to access an instance, creating it when it does not exist yet.
  *
  * **Caching & Performance:**
  * - Use `preservePreviousValue: () => true` to prevent flickering by keeping previous data while loading
@@ -942,6 +954,7 @@ export function query<
  *   - `call(args)`: Method to trigger the query manually (only for method-based queries)
  *   - `source`: The connected source (only for source-based queries)
  *   - `select(id)`: Method to access a specific query instance by ID (only when identifier is provided)
+ *   - `selectOrCreate(id)`: Method to access or create a specific query instance (only when identifier is provided)
  *   - `resourceParamsSrc`: The underlying params signal
  *   - Custom methods from insertions
  *
@@ -1721,13 +1734,41 @@ function createQueryRef<
                   toCraftStatus(rawSelectStatus(), selectHasException()),
                 ),
                 exception: computed(() => selectExceptions().list[0]),
-      hasException: selectHasException,
+                hasException: selectHasException,
                 hasSchema: signal(hasConfiguredSchema),
                 exceptions: hasConfiguredSchema
                   ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
                   : selectExceptions,
               });
             })();
+          },
+          selectOrCreate: (id: GroupIdentifier) => {
+            const selected = (
+              resourceTarget as ResourceByIdRef<
+                GroupIdentifier & string,
+                QueryState,
+                QueryParams
+              >
+            ).addById(id as GroupIdentifier & string);
+
+            const selectExceptions = createSelectExceptions(
+              id as unknown as string,
+            );
+            const selectHasException = createSelectHasException(
+              id as unknown as string,
+            );
+            const rawSelectStatus = selected.status;
+            return Object.assign(selected, {
+              status: computed(() =>
+                toCraftStatus(rawSelectStatus(), selectHasException()),
+              ),
+              exception: computed(() => selectExceptions().list[0]),
+              hasException: selectHasException,
+              hasSchema: signal(hasConfiguredSchema),
+              exceptions: hasConfiguredSchema
+                ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                : selectExceptions,
+            });
           },
         }
       : {},

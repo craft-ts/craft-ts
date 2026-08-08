@@ -39,6 +39,7 @@ export default [
       'craft-ng/prefer-craft-http-client': 'error',
       'craft-ng/prefer-craft-http-transport': 'error',
       'craft-ng/prefer-craft-input-output': 'error',
+      'craft-ng/require-primitive-derived-property': 'error',
       'craft-ng/no-imperative-craft-resource-trigger': 'error',
       'craft-ng/require-craft-resource-trigger-yield': 'error',
       'craft-ng/require-assert-exhaustive-route-exceptions': 'error',
@@ -66,6 +67,7 @@ What each rule does:
 - `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
 - `craft-ng/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`
 - `craft-ng/prefer-craft-input-output`: forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ng/component` in `craftComponent(...)`
+- `craft-ng/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
 - `craft-ng/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`
 - `craft-ng/require-craft-resource-trigger-yield`: requires those triggers to use `yield*` inside generator functions, while ordinary UI callbacks may keep imperative calls
 - `craft-ng/require-assert-exhaustive-route-exceptions`: adds the collection-level `assertExhaustiveRouteExceptions(...)` safety net

@@ -34,6 +34,7 @@ const NAV_GROUPS = [
     label: 'Primitives',
     links: [
       ['Query', { to: 'query/:userId', params: { userId: '1' } }],
+      ['Debounced Web Search', { to: 'debounced-web-search' }],
       ['Mutation', { to: 'mutation/:userId', params: { userId: '1' } }],
       ['List Pagination', { to: 'list-with-pagination' }],
       ['Granular Mutation', { to: 'granular-mutation' }],
@@ -128,7 +129,7 @@ export const App = craftComponent(
             class: 'demo-nav__toggle',
             type: 'button',
             click: toggleNav,
-            'aria-expanded': () => String(navOpen()),
+            'aria-expanded': navOpen,
           },
           ifBlock(
             navOpen,

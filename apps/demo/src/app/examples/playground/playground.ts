@@ -274,7 +274,7 @@ const PlaygroundComponent = craftComponent(
             div({ class: { 'todo-item': true, completed: todo.completed } }, [
               button(
                 { click: () => pg.toggleTodo.mutate(todo.id) },
-                TODO_ICONS[String(todo.completed)],
+                TODO_ICONS[todo.completed ? 'true' : 'false'],
               ),
               span({ class: 'title' }, todo.title),
               button({ click: () => pg.deleteTodo.mutate(todo.id) }, '🗑️'),

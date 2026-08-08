@@ -74,6 +74,16 @@ const guideSidebar = [
     ],
   },
   {
+    text: 'Recommended approaches',
+    collapsed: false,
+    items: [
+      {
+        text: 'Inject at the point of use',
+        link: '/guide/patterns/inject-at-point-of-use',
+      },
+    ],
+  },
+  {
     text: 'Structuring the app',
     collapsed: true,
     items: [
@@ -187,6 +197,7 @@ const guideSidebar = [
       { text: 'Program operators', link: '/guide/advanced/program-operators' },
       { text: 'Pattern matching', link: '/guide/advanced/pattern-matching' },
       { text: 'Observability', link: '/guide/advanced/observability' },
+      { text: 'Temporal runtime', link: '/guide/advanced/temporal-runtime' },
     ],
   },
 ];

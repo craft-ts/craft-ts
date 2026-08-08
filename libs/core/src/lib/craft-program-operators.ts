@@ -13,6 +13,12 @@ import {
   type ExtractCraftGenExceptions,
 } from './craft-gen';
 import {
+  createTemporalSleepRequest,
+  exponentialTemporalSchedule,
+  type CraftTemporalSchedule,
+  type RuntimeTemporalAwaitRequest,
+} from './temporal-runtime';
+import {
   GUARD_AWAIT_REQUEST_MARKER,
   isGenerator,
   type RuntimeGuardAwaitRequest,
@@ -78,8 +84,7 @@ type HandlerOutput<Handler> = Handler extends (
 
 /** The exceptions a handler may itself produce (nested programs + returned exceptions). */
 type HandlerExceptions<HYielded, HOutput> = Extract<
-  | ExtractCraftGenExceptions<HYielded>
-  | ExtractCraftException<HOutput>,
+  ExtractCraftGenExceptions<HYielded> | ExtractCraftException<HOutput>,
   AnyCraftException
 >;
 
@@ -134,9 +139,10 @@ function* catchWithLookup(
  * has a different handler contract (generators for programs, template
  * children for components), but the reachable-code rules are identical.
  */
-export type CatchTagExhaustiveCodesCheck<Codes extends PropertyKey, Handlers> = [
-  Exclude<Codes, keyof Handlers>,
-] extends [never]
+export type CatchTagExhaustiveCodesCheck<
+  Codes extends PropertyKey,
+  Handlers,
+> = [Exclude<Codes, keyof Handlers>] extends [never]
   ? [Exclude<keyof Handlers, Codes>] extends [never]
     ? unknown
     : {
@@ -271,27 +277,32 @@ export type CraftRetryPolicy = {
   while?: string[];
   backoff?: 'none' | 'linear' | 'exponential';
   delayMs?: number;
+  schedule?: CraftTemporalSchedule;
 };
 
-function retryDelayMs(policy: CraftRetryPolicy, attempt: number): number {
+function retrySchedule(policy: CraftRetryPolicy): CraftTemporalSchedule {
+  if (policy.schedule) return policy.schedule;
   const base = policy.delayMs ?? 0;
-
-  switch (policy.backoff) {
-    case 'linear':
-      return base * attempt;
-    case 'exponential':
-      return base * 2 ** (attempt - 1);
-    default:
-      return base;
+  if (policy.backoff === 'exponential') {
+    return exponentialTemporalSchedule(base, { maxAttempts: policy.times });
   }
+  return {
+    next: ({ attempt }) =>
+      attempt > policy.times
+        ? { done: true }
+        : {
+            done: false,
+            delayMs: policy.backoff === 'linear' ? base * attempt : base,
+          },
+  };
 }
 
-function delayAwaitRequest(delayMs: number): RuntimeGuardAwaitRequest {
-  return {
+function delayAwaitRequest(delayMs: number): RuntimeTemporalAwaitRequest {
+  return Object.assign(createTemporalSleepRequest(delayMs), {
     [GUARD_AWAIT_REQUEST_MARKER]: true,
-    kind: 'promise',
-    value: new Promise((resolve) => setTimeout(resolve, delayMs)),
-  };
+    kind: 'promise' as const,
+    value: Promise.resolve(),
+  }) as unknown as RuntimeTemporalAwaitRequest & RuntimeGuardAwaitRequest;
 }
 
 /**
@@ -308,10 +319,11 @@ export function retry(
   policy: CraftRetryPolicy,
 ): <YIn, AIn>(
   program: Generator<YIn, AIn, unknown>,
-) => Generator<YIn, AIn, unknown> {
+) => Generator<YIn | RuntimeTemporalAwaitRequest, AIn, unknown> {
   return <YIn, AIn>(program: Generator<YIn, AIn, unknown>) =>
-    (function* (): Generator<YIn, AIn, unknown> {
+    (function* (): Generator<YIn | RuntimeTemporalAwaitRequest, AIn, unknown> {
       let attempt = 0;
+      const schedule = retrySchedule(policy);
       let current: Generator<YIn, AIn, unknown> = program;
 
       for (;;) {
@@ -338,7 +350,13 @@ export function retry(
 
           attempt += 1;
 
-          const delayMs = retryDelayMs(policy, attempt);
+          const decision = schedule.next({
+            attempt,
+            elapsedMs: 0,
+            error: error.exception,
+          });
+          if (decision.done) throw error;
+          const delayMs = decision.delayMs;
 
           if (delayMs > 0) {
             yield delayAwaitRequest(delayMs) as never;

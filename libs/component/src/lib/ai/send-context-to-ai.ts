@@ -1,4 +1,5 @@
 import {
+  DestroyRef,
   ElementRef,
   inject,
   Injectable,
@@ -9,12 +10,14 @@ import {
 import {
   fromEventToSource$,
   HOST_TAG_LIST,
+  CRAFT_TEMPORAL_RUNTIME,
   injectHostName,
   provideComponentMonitoring,
   SendContextToAiBuffer,
   TAKE_APP_SNAPSHOT,
   type GetDeps,
   type SendContextPayload,
+  type TemporalTaskHandle,
 } from '@craft-ng/core';
 import { mountCraftComponent } from '../bridge';
 import { AiContextMenu } from './ai-context-menu';
@@ -59,11 +62,16 @@ export class AiContextMenuController {
   private readonly injector = inject(Injector);
   private readonly buffer = inject(SendContextToAiBuffer);
   private readonly takeSnapshot = inject(TAKE_APP_SNAPSHOT);
+  private readonly temporalRuntime = inject(CRAFT_TEMPORAL_RUNTIME);
+  private readonly destroyRef = inject(DestroyRef);
 
   private menu: Overlay | null = null;
   private dialog: Overlay | null = null;
+  private dialogTimer: TemporalTaskHandle | null = null;
 
   open(ctx: Omit<SendContextPayload, 'snapshot'>): void {
+    this.dialogTimer?.cancel();
+    this.dialogTimer = null;
     this.closeMenu();
     this.closeDialog();
     // Trigger a snapshot collection now so the buffer is populated
@@ -83,9 +91,18 @@ export class AiContextMenuController {
   private onSelect(ctx: Omit<SendContextPayload, 'snapshot'>) {
     this.closeMenu();
     // Wait for the snapshot buffer's debounceTime(500ms) to settle.
-    setTimeout(() => {
-      this.openDialog({ ...ctx, snapshot: this.buffer.latestReports });
-    }, 550);
+    this.dialogTimer = this.temporalRuntime.schedule(
+      () => {
+        this.dialogTimer = null;
+        this.openDialog({ ...ctx, snapshot: this.buffer.latestReports });
+      },
+      550,
+      {
+        kind: 'ai-context-debounce',
+        owner: 'ai-context-menu',
+        destroyRef: this.destroyRef,
+      },
+    );
   }
 
   private openDialog(payload: SendContextPayload) {

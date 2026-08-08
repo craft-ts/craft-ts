@@ -46,6 +46,10 @@ import {
   CRAFT_VIEW_TRANSITIONS_ENABLED,
   type CraftViewTransitionInput,
 } from './craft-view-transition';
+import {
+  CRAFT_TEMPORAL_RUNTIME,
+  type TemporalTaskHandle,
+} from './temporal-runtime';
 
 /**
  * Outlet lifecycle for one navigation. While a route's chain is in flight the
@@ -103,6 +107,7 @@ export class CraftRouterOutletController implements RouterOutletContract {
   private readonly rootInjector = inject(EnvironmentInjector);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly temporalRuntime = inject(CRAFT_TEMPORAL_RUNTIME);
 
   private readonly defaultPendingComponent = inject(CRAFT_PENDING_COMPONENT);
   private readonly defaultErrorComponent = inject(CRAFT_ERROR_COMPONENT);
@@ -138,8 +143,9 @@ export class CraftRouterOutletController implements RouterOutletContract {
   private _activeRouteInjector: Injector | null = null;
   private _meta: CraftRouteMeta | null = null;
   private _navId = 0;
-  private _stayTimer: ReturnType<typeof setTimeout> | null = null;
-  private _blankTimer: ReturnType<typeof setTimeout> | null = null;
+  private _stayTimer: TemporalTaskHandle | null = null;
+  private _blankTimer: TemporalTaskHandle | null = null;
+  private _pendingCommitTimer: TemporalTaskHandle | null = null;
   private _pendingShownAt = 0;
   private _previousUrl = this.router.url;
   private _pendingDeactivation = false;
@@ -291,25 +297,41 @@ export class CraftRouterOutletController implements RouterOutletContract {
 
     // Phase 2 — 'blank': drop the previous page, show a blank surface.
     if (!skipBlank) {
-      this._stayTimer = setTimeout(() => {
-        if (this._navId === navId && this.state() === 'stay') {
-          this.state.set('blank');
-          this.displayedComponent.set(null);
-        }
-      }, stayMs);
+      this._stayTimer = this.temporalRuntime.schedule(
+        () => {
+          if (this._navId === navId && this.state() === 'stay') {
+            this.state.set('blank');
+            this.displayedComponent.set(null);
+          }
+        },
+        stayMs,
+        {
+          kind: 'router-stay',
+          owner: 'craft-router-outlet',
+          destroyRef: this.destroyRef,
+        },
+      );
     }
 
     // Phase 3 — 'pending': show the loader (held at least pendingMinMs).
-    this._blankTimer = setTimeout(() => {
-      if (
-        this._navId === navId &&
-        (this.state() === 'stay' || this.state() === 'blank')
-      ) {
-        this._pendingShownAt = Date.now();
-        this.state.set('pending');
-        this.showComponent(this.pendingComponent(), injector);
-      }
-    }, stayMs + blankMs);
+    this._blankTimer = this.temporalRuntime.schedule(
+      () => {
+        if (
+          this._navId === navId &&
+          (this.state() === 'stay' || this.state() === 'blank')
+        ) {
+          this._pendingShownAt = this.temporalRuntime.now();
+          this.state.set('pending');
+          this.showComponent(this.pendingComponent(), injector);
+        }
+      },
+      stayMs + blankMs,
+      {
+        kind: 'router-pending',
+        owner: 'craft-router-outlet',
+        destroyRef: this.destroyRef,
+      },
+    );
 
     this.chainRunner(
       {
@@ -460,15 +482,23 @@ export class CraftRouterOutletController implements RouterOutletContract {
   ): void {
     const minMs = meta.pendingMinMs ?? this.defaultPendingMinMs;
     if (this.state() === 'pending' && minMs > 0) {
-      const elapsed = Date.now() - this._pendingShownAt;
+      const elapsed = this.temporalRuntime.now() - this._pendingShownAt;
       const remaining = minMs - elapsed;
       if (remaining > 0) {
         const navId = this._navId;
-        setTimeout(() => {
-          if (this._navId === navId) {
-            commit();
-          }
-        }, remaining);
+        this._pendingCommitTimer = this.temporalRuntime.schedule(
+          () => {
+            if (this._navId === navId) {
+              commit();
+            }
+          },
+          remaining,
+          {
+            kind: 'router-anti-flicker',
+            owner: 'craft-router-outlet',
+            destroyRef: this.destroyRef,
+          },
+        );
         return;
       }
     }
@@ -591,12 +621,16 @@ export class CraftRouterOutletController implements RouterOutletContract {
 
   private clearTimers(): void {
     if (this._stayTimer !== null) {
-      clearTimeout(this._stayTimer);
+      this._stayTimer.cancel();
       this._stayTimer = null;
     }
     if (this._blankTimer !== null) {
-      clearTimeout(this._blankTimer);
+      this._blankTimer.cancel();
       this._blankTimer = null;
+    }
+    if (this._pendingCommitTimer !== null) {
+      this._pendingCommitTimer.cancel();
+      this._pendingCommitTimer = null;
     }
   }
 

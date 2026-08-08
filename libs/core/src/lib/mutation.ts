@@ -576,6 +576,17 @@ export type ResourceByIdLikeMutationRef<
         hasValue(): boolean;
       } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>)
     | undefined;
+  /**
+   * Get the associated resource by id, creating an idle resource when it does
+   * not exist yet.
+   */
+  selectOrCreate: (id: GroupIdentifier) =>
+    {
+      readonly value: Signal<Value | undefined>;
+      readonly status: Signal<CraftResourceStatus>;
+      readonly isLoading: Signal<boolean>;
+      hasValue(): boolean;
+    } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>;
 } & MergeObjects<
     [
       YieldableInsertionMethods<Insertions>,
@@ -958,6 +969,7 @@ export function mutation<
  *
  * **With Identifier:**
  * When an `identifier` function is provided, mutations are grouped by ID. Use `select(id)` to access individual mutation instances.
+ * Use `selectOrCreate(id)` to access an instance, creating it when it does not exist yet.
  *
  * @param name - The mutation name. Used to key the returned record
  *   (`const updateUser = yield* mutation('updateUser', config)`) and as the
@@ -989,6 +1001,7 @@ export function mutation<
  *   - `mutate(args)`: Method to trigger the mutation (only for method-based mutations)
  *   - `source`: The connected source (only for source-based mutations)
  *   - `select(id)`: Method to access a specific mutation instance by ID (only when identifier is provided)
+ *   - `selectOrCreate(id)`: Method to access or create a specific mutation instance (only when identifier is provided)
  *   - Custom methods from insertions (excluding methods bound to sources)
  *
  *   Consume it with `yield*` inside a generator host (craftService factory,
@@ -1746,6 +1759,33 @@ function createMutationRef<
                   : selectExceptions,
               });
             })();
+          },
+          selectOrCreate: (id: GroupIdentifier) => {
+            const selected = (
+              resourceTarget as ResourceByIdRef<
+                GroupIdentifier & string,
+                MutationState,
+                MutationParams
+              >
+            ).addById(id as GroupIdentifier & string);
+            const selectExceptions = createSelectExceptions(
+              id as unknown as string,
+            );
+            const selectHasException = createSelectHasException(
+              id as unknown as string,
+            );
+            const rawSelectStatus = selected.status;
+            return Object.assign(selected, {
+              status: computed(() =>
+                toCraftStatus(rawSelectStatus(), selectHasException()),
+              ),
+              exception: computed(() => selectExceptions().list[0]),
+              hasException: selectHasException,
+              hasSchema: signal(hasConfiguredSchema),
+              exceptions: hasConfiguredSchema
+                ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                : selectExceptions,
+            });
           },
         }
       : {},

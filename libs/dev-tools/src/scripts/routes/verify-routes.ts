@@ -10,7 +10,7 @@ import {
 } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
-import { Project, ScriptTarget, ts } from 'ts-morph';
+import { Node, Project, ScriptTarget, SyntaxKind, ts } from 'ts-morph';
 import {
   defineAngularBrandConfig,
   transformSourceFile,
@@ -44,6 +44,15 @@ export type RouteVerificationResult = {
   sourceRoot: string;
   fixtureDirectory?: string;
   baseline: { status: 'passed' | 'failed'; output?: string };
+  routeChecks: {
+    status: 'passed' | 'failed' | 'skipped';
+    diagnostics?: string[];
+  };
+  projectLint: {
+    status: 'passed' | 'failed' | 'skipped';
+    diagnostics?: string[];
+    output?: string;
+  };
   eslint: {
     status: 'passed' | 'failed' | 'skipped';
     output?: string;
@@ -85,7 +94,8 @@ export async function runRouteVerification(
   const context = resolveProjectContext(rootDir, options);
   const log = options.log ?? (options.json ? () => undefined : console.log);
   const diagnostics: string[] = [];
-  const compiler = findLocalBinary(rootDir, 'ngc') ?? findLocalBinary(rootDir, 'tsc');
+  const compiler =
+    findLocalBinary(rootDir, 'ngc') ?? findLocalBinary(rootDir, 'tsc');
 
   if (!compiler) {
     return failedResult(
@@ -95,7 +105,7 @@ export async function runRouteVerification(
   }
 
   log(`[route verify] Project: ${context.tsConfigFilePath}`);
-  log('[route verify] 1/5 Checking the existing project...');
+  log('[route verify] 1/7 Checking the existing project...');
   const baselineOutput = await runTypeCheck(compiler, context, log, 'baseline');
   const baseline = {
     status: baselineOutput.ok ? ('passed' as const) : ('failed' as const),
@@ -107,6 +117,8 @@ export async function runRouteVerification(
       exitCode: 1,
       ...context,
       baseline,
+      routeChecks: { status: 'skipped' },
+      projectLint: { status: 'skipped' },
       eslint: { status: 'skipped' },
       cases: [],
       diagnostics: [
@@ -115,13 +127,31 @@ export async function runRouteVerification(
     };
   }
 
+  log('[route verify] 2/7 Checking DI proofs on existing routes...');
+  const routeChecks = await auditProjectRouteChecks(context.sourceRoot, log);
+  if (routeChecks.status === 'failed') {
+    diagnostics.push(...(routeChecks.diagnostics ?? []));
+  }
+
+  log('[route verify] 3/7 Checking existing route exception bookkeeping...');
+  const projectLint = await runProjectRouteLint(
+    rootDir,
+    context.sourceRoot,
+    log,
+  );
+  if (projectLint.status === 'failed') {
+    diagnostics.push(...(projectLint.diagnostics ?? []));
+  }
+
   let fixtureDirectory: string | undefined;
   let eslint: RouteVerificationResult['eslint'] = { status: 'skipped' };
   const cases: RouteVerificationCaseResult[] = [];
 
   try {
-    log('[route verify] 2/5 Generating temporary fixtures...');
-    fixtureDirectory = await mkdtemp(join(context.sourceRoot, 'craft-route-verify-'));
+    log('[route verify] 4/7 Generating temporary fixtures...');
+    fixtureDirectory = await mkdtemp(
+      join(context.sourceRoot, 'craft-route-verify-'),
+    );
     const fixtures = createRouteVerificationFixtures();
     const positive = fixtures.filter((fixture) => fixture.kind === 'positive');
     const negative = fixtures.filter((fixture) => fixture.kind === 'negative');
@@ -129,14 +159,28 @@ export async function runRouteVerification(
     await writeFixtures(fixtureDirectory, positive);
     await prepareAngularBrandFixture(fixtureDirectory);
 
-    log(`[route verify] 3/5 Running ESLint on ${positive.length} positive fixtures...`);
-    eslint = await runFixtureLint(rootDir, context.sourceRoot, fixtureDirectory, log);
+    log(
+      `[route verify] 5/7 Running ESLint on ${positive.length} positive fixtures...`,
+    );
+    eslint = await runFixtureLint(
+      rootDir,
+      context.sourceRoot,
+      fixtureDirectory,
+      log,
+    );
     if (eslint.status === 'failed') {
-      diagnostics.push('The temporary route fixtures failed the ESLint bookkeeping pass.');
+      diagnostics.push(
+        'The temporary route fixtures failed the ESLint bookkeeping pass.',
+      );
     }
 
-    log('[route verify] 4/5 Compiling valid fixtures...');
-    const positiveCheck = await runTypeCheck(compiler, context, log, 'valid fixtures');
+    log('[route verify] 6/7 Compiling valid fixtures...');
+    const positiveCheck = await runTypeCheck(
+      compiler,
+      context,
+      log,
+      'valid fixtures',
+    );
     for (const fixture of positive) {
       cases.push({
         id: fixture.id,
@@ -152,14 +196,27 @@ export async function runRouteVerification(
       diagnostics.push('Valid route verification fixtures do not compile.');
     }
 
-    log('[route verify] 5/5 Compiling invalid fixtures and matching expected diagnostics...');
-    log('[route verify] The compiler errors printed in this phase are intentional.');
+    log(
+      '[route verify] 7/7 Compiling invalid fixtures and matching expected diagnostics...',
+    );
+    log(
+      '[route verify] The compiler errors printed in this phase are intentional.',
+    );
     await writeFixtures(fixtureDirectory, negative);
-    const negativeCheck = await runTypeCheck(compiler, context, log, 'invalid fixtures');
+    const negativeCheck = await runTypeCheck(
+      compiler,
+      context,
+      log,
+      'invalid fixtures',
+    );
     const output = negativeCheck.output;
     for (const fixture of negative) {
-      const matched = matchRouteVerificationDiagnostics(output, fixture.expected);
-      const passed = !negativeCheck.ok && matched.length === fixture.expected.length;
+      const matched = matchRouteVerificationDiagnostics(
+        output,
+        fixture.expected,
+      );
+      const passed =
+        !negativeCheck.ok && matched.length === fixture.expected.length;
       cases.push({
         id: fixture.id,
         category: fixture.category,
@@ -181,6 +238,8 @@ export async function runRouteVerification(
       ...context,
       fixtureDirectory: options.keepFixtures ? fixtureDirectory : undefined,
       baseline,
+      routeChecks,
+      projectLint,
       eslint,
       cases,
       diagnostics,
@@ -188,9 +247,20 @@ export async function runRouteVerification(
     if (result.exitCode === 0) {
       log(`[route verify] Passed (${cases.length} fixture(s)).`);
     } else {
-      log(
-        `[route verify] Failed (${failedCases.length} fixture(s), ${diagnostics.length} diagnostic(s)).`,
-      );
+      const projectIssueCount =
+        (routeChecks.diagnostics?.length ?? 0) +
+        (projectLint.diagnostics?.length ?? 0);
+      const fixtureIssueCount =
+        failedCases.length + (eslint.status === 'failed' ? 1 : 0);
+      const issues = [
+        projectIssueCount > 0
+          ? `${projectIssueCount} project issue${projectIssueCount === 1 ? '' : 's'}`
+          : undefined,
+        fixtureIssueCount > 0
+          ? `${fixtureIssueCount} fixture failure${fixtureIssueCount === 1 ? '' : 's'}`
+          : undefined,
+      ].filter((issue): issue is string => issue !== undefined);
+      log(`[route verify] Failed: ${issues.join(', ')}.`);
     }
     return result;
   } catch (error) {
@@ -201,6 +271,8 @@ export async function runRouteVerification(
       ...context,
       fixtureDirectory: options.keepFixtures ? fixtureDirectory : undefined,
       baseline,
+      routeChecks,
+      projectLint,
       eslint,
       cases,
       diagnostics,
@@ -228,13 +300,15 @@ function resolveProjectContext(
     rootDir,
     options.tsConfigFilePath ?? options.project,
   );
-  const project = options.project ?? relative(rootDir, dirname(tsConfigFilePath));
+  const project =
+    options.project ?? relative(rootDir, dirname(tsConfigFilePath));
   const projectRoot = dirname(tsConfigFilePath);
-  const sourceRoot = basename(tsConfigFilePath) === 'tsconfig.app.json'
-    ? existsSync(join(projectRoot, 'src'))
-      ? join(projectRoot, 'src')
-      : projectRoot
-    : rootDir;
+  const sourceRoot =
+    basename(tsConfigFilePath) === 'tsconfig.app.json'
+      ? existsSync(join(projectRoot, 'src'))
+        ? join(projectRoot, 'src')
+        : projectRoot
+      : rootDir;
   return {
     rootDir,
     project: project || '.',
@@ -330,19 +404,25 @@ async function prepareAngularBrandFixture(directory: string): Promise<void> {
   });
   const supportImport = sourceFile
     .getImportDeclarations()
-    .find((declaration) => declaration.getModuleSpecifierValue() === './support');
+    .find(
+      (declaration) => declaration.getModuleSpecifierValue() === './support',
+    );
   if (supportImport) {
     const hasServiceImport = supportImport
       .getNamedImports()
       .some((namedImport) => namedImport.getName() === serviceName);
-    if (!hasServiceImport) supportImport.addNamedImports([{ name: serviceName }]);
+    if (!hasServiceImport)
+      supportImport.addNamedImports([{ name: serviceName }]);
   } else {
     sourceFile.addImportDeclaration({
       moduleSpecifier: './support',
       namedImports: [{ name: serviceName }],
     });
   }
-  sourceFile.insertText(0, '/* eslint-disable @typescript-eslint/no-empty-object-type */\n');
+  sourceFile.insertText(
+    0,
+    '/* eslint-disable @typescript-eslint/no-empty-object-type */\n',
+  );
   await writeFile(componentPath, sourceFile.getFullText(), 'utf8');
 }
 
@@ -385,6 +465,422 @@ async function runFixtureLint(
   }
 }
 
+const projectRouteLintRules = [
+  'craft-ng/require-assert-exhaustive-route-exceptions',
+  'craft-ng/require-craft-exception-handler',
+  'craft-ng/require-pending-component-di-check',
+  'craft-ng/require-exception-component-di-check',
+  'craft-ng/require-lazy-load-with-retry',
+  'craft-ng/global-exception-registry-match',
+] as const;
+
+async function runProjectRouteLint(
+  rootDir: string,
+  sourceRoot: string,
+  log: (message: string) => void,
+): Promise<RouteVerificationResult['projectLint']> {
+  const eslint = findLocalBinary(rootDir, 'eslint');
+  if (!eslint) {
+    log('[route verify] ESLint not found; existing route checks skipped.');
+    return { status: 'skipped' };
+  }
+
+  const files = await listFiles(sourceRoot, (file) =>
+    file.endsWith('.routes.ts'),
+  );
+  if (files.length === 0) {
+    log('[route verify] No existing route files found; route lint skipped.');
+    return { status: 'skipped' };
+  }
+
+  const args = [
+    '--format',
+    'json',
+    '--no-warn-ignored',
+    ...projectRouteLintRules.flatMap((rule) => ['--rule', `${rule}:error`]),
+    ...files,
+  ];
+
+  try {
+    const { stdout, stderr } = await execFileAsync(eslint, args, {
+      cwd: sourceRoot,
+      maxBuffer: 20 * 1024 * 1024,
+    });
+    const diagnostics = readProjectLintDiagnostics(stdout);
+    if (diagnostics.length === 0) {
+      log('[route verify] Existing route exception bookkeeping passed.');
+      return {
+        status: 'passed',
+        output: `${stdout}${stderr}`.trim() || undefined,
+      };
+    }
+    reportProjectLintDiagnostics(log, diagnostics);
+    return {
+      status: 'failed',
+      diagnostics,
+      output: `${stdout}${stderr}`.trim() || undefined,
+    };
+  } catch (error) {
+    const stdout = commandStdout(error);
+    const diagnostics = readProjectLintDiagnostics(stdout);
+    if (diagnostics.length === 0) {
+      diagnostics.push(
+        `Existing route ESLint pass failed: ${commandOutput(error)}`,
+      );
+    }
+    reportProjectLintDiagnostics(log, diagnostics);
+    return {
+      status: 'failed',
+      diagnostics,
+      output: commandOutput(error),
+    };
+  }
+}
+
+function readProjectLintDiagnostics(output: string): string[] {
+  if (!output.trim()) return [];
+  let reports: unknown;
+  try {
+    reports = JSON.parse(output);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(reports)) return [];
+
+  const diagnostics: string[] = [];
+  for (const report of reports) {
+    if (!isRecord(report) || typeof report['filePath'] !== 'string') continue;
+    const messages = Array.isArray(report['messages'])
+      ? report['messages']
+      : [];
+    for (const message of messages) {
+      if (
+        !isRecord(message) ||
+        message['severity'] !== 2 ||
+        typeof message['ruleId'] !== 'string' ||
+        !projectRouteLintRules.includes(
+          message['ruleId'] as (typeof projectRouteLintRules)[number],
+        ) ||
+        typeof message['message'] !== 'string'
+      ) {
+        continue;
+      }
+      const line =
+        typeof message['line'] === 'number' ? `:${message['line']}` : '';
+      diagnostics.push(
+        `${relative(process.cwd(), report['filePath'])}${line}: ${message['message']}`,
+      );
+    }
+  }
+  return diagnostics;
+}
+
+function reportProjectLintDiagnostics(
+  log: (message: string) => void,
+  diagnostics: readonly string[],
+): void {
+  for (const diagnostic of diagnostics) {
+    log(`[route verify] route lint: ${diagnostic}`);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function commandStdout(value: unknown): string {
+  if (!isRecord(value)) return '';
+  return typeof value['stdout'] === 'string' ? value['stdout'] : '';
+}
+
+type ProjectRouteCheckResult = RouteVerificationResult['routeChecks'];
+
+type ProjectRouteEntry = {
+  path: string;
+  moduleSpecifiers: string[];
+  position: number;
+};
+
+async function auditProjectRouteChecks(
+  sourceRoot: string,
+  log: (message: string) => void,
+): Promise<ProjectRouteCheckResult> {
+  const files = await listFiles(sourceRoot, (file) =>
+    file.endsWith('.routes.ts'),
+  );
+  if (files.length === 0) {
+    log('[route verify] No existing route files found; DI audit skipped.');
+    return { status: 'skipped' };
+  }
+
+  const diagnostics: string[] = [];
+  for (const filePath of files) {
+    const source = await readFile(filePath, 'utf8');
+    const project = new Project({
+      useInMemoryFileSystem: true,
+      compilerOptions: {
+        module: ts.ModuleKind.Preserve,
+        target: ScriptTarget.ES2022,
+      },
+    });
+    const sourceFile = project.createSourceFile(filePath, source, {
+      overwrite: true,
+    });
+
+    for (const routesCall of sourceFile
+      .getDescendantsOfKind(SyntaxKind.CallExpression)
+      .filter((call) => call.getExpression().getText() === 'craftRoutes')) {
+      const routesName = getProjectRoutesName(routesCall);
+      const routeArray = routesCall.getArguments()[1];
+      if (
+        !routesName ||
+        !routeArray ||
+        !Node.isArrayLiteralExpression(routeArray)
+      ) {
+        continue;
+      }
+
+      const checks = collectProjectCanRunChecks(sourceFile);
+      if (hasProjectCascadeCheck(sourceFile, routesName, checks)) continue;
+
+      for (const element of routeArray.getElements()) {
+        const route = readProjectRoute(element);
+        if (!route || !routeHasComponent(route.definition)) continue;
+
+        const covered =
+          route.moduleSpecifiers.some((moduleSpecifier) =>
+            checks.some((check) => check.includes(moduleSpecifier)),
+          ) || checks.some((check) => hasRouteContext(check, route.path));
+        if (
+          covered ||
+          (route.moduleSpecifiers.length > 0 &&
+            (await routeHasInternalProviders(
+              filePath,
+              route.moduleSpecifiers,
+            )) &&
+            !route.path.includes(':'))
+        ) {
+          continue;
+        }
+
+        const location = sourceFile.getLineAndColumnAtPos(route.position);
+        diagnostics.push(
+          `${relative(sourceRoot, filePath)}:${location.line}: route ${JSON.stringify(route.path)} ` +
+            'is missing its route DI check. Add an active CanRun<RouteCheckedDI> proof in this file.',
+        );
+      }
+    }
+  }
+
+  if (diagnostics.length === 0) {
+    log('[route verify] Existing route DI checks passed.');
+    return { status: 'passed' };
+  }
+  for (const diagnostic of diagnostics) {
+    log(`[route verify] DI: ${diagnostic}`);
+  }
+  return { status: 'failed', diagnostics };
+}
+
+async function routeHasInternalProviders(
+  routeFilePath: string,
+  moduleSpecifiers: readonly string[],
+): Promise<boolean> {
+  for (const moduleSpecifier of moduleSpecifiers) {
+    if (!moduleSpecifier.startsWith('.')) continue;
+    const base = resolve(dirname(routeFilePath), moduleSpecifier);
+    const target = [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')].find(
+      (candidate) => existsSync(candidate),
+    );
+    if (!target) continue;
+    const source = await readFile(target, 'utf8');
+    if (/\bwithProviders\s*\(|\bproviders\s*:/.test(source)) return true;
+  }
+  return false;
+}
+
+function getProjectRoutesName(
+  call: import('ts-morph').CallExpression,
+): string | undefined {
+  const declaration = call.getFirstAncestorByKind(
+    SyntaxKind.VariableDeclaration,
+  );
+  const binding = declaration?.getNameNode();
+  if (!binding || !Node.isObjectBindingPattern(binding)) return undefined;
+  const collection = call.getArguments()[0];
+  const expected = Node.isStringLiteral(collection)
+    ? `${collection.getLiteralValue()}Routes`
+    : undefined;
+  const routeBindings = binding
+    .getElements()
+    .filter((element) =>
+      (element.getPropertyNameNode()?.getText() ?? element.getName()).endsWith(
+        'Routes',
+      ),
+    );
+  const match = routeBindings.find(
+    (element) =>
+      expected !== undefined &&
+      (element.getPropertyNameNode()?.getText() ?? element.getName()) ===
+        expected,
+  );
+  return (
+    match?.getName() ??
+    (routeBindings.length === 1 ? routeBindings[0].getName() : undefined)
+  );
+}
+
+function collectProjectCanRunChecks(
+  sourceFile: import('ts-morph').SourceFile,
+): string[] {
+  const aliases = new Map(
+    sourceFile.getTypeAliases().map((alias) => [alias.getName(), alias]),
+  );
+  const checks: string[] = [];
+  for (const alias of sourceFile.getTypeAliases()) {
+    const typeNode = alias.getTypeNode();
+    if (
+      !typeNode ||
+      !Node.isTypeReference(typeNode) ||
+      typeNode.getTypeName().getText() !== 'CanRun'
+    ) {
+      continue;
+    }
+    const checkedName = typeNode.getTypeArguments()[0]?.getText();
+    checks.push(
+      [
+        alias.getText(),
+        checkedName ? aliases.get(checkedName)?.getText() : undefined,
+      ]
+        .filter((text): text is string => text !== undefined)
+        .join('\n'),
+    );
+  }
+  return checks;
+}
+
+function hasProjectCascadeCheck(
+  sourceFile: import('ts-morph').SourceFile,
+  routesName: string,
+  checks: readonly string[],
+): boolean {
+  const cascadeNames = sourceFile
+    .getTypeAliases()
+    .filter((alias) => {
+      const typeNode = alias.getTypeNode();
+      if (!typeNode || !Node.isTypeReference(typeNode)) return false;
+      if (typeNode.getTypeName().getText() !== 'ValidateCascadeRoutesFile') {
+        return false;
+      }
+      return (
+        typeNode.getTypeArguments()[2]?.getText() === `typeof ${routesName}`
+      );
+    })
+    .map((alias) => alias.getName());
+  return cascadeNames.some((name) =>
+    checks.some((check) => check.includes(`<${name}>`)),
+  );
+}
+
+function readProjectRoute(element: import('ts-morph').Node):
+  | (ProjectRouteEntry & {
+      definition: import('ts-morph').ObjectLiteralExpression;
+    })
+  | undefined {
+  let routeCall: import('ts-morph').CallExpression | undefined;
+  if (
+    Node.isCallExpression(element) &&
+    element.getExpression().getText() === 'craftRoute'
+  ) {
+    routeCall = element;
+  } else if (Node.isCallExpression(element)) {
+    const expression = element.getExpression();
+    if (!Node.isPropertyAccessExpression(expression)) return undefined;
+    if (expression.getName() !== 'withProviders') return undefined;
+    const inner = expression.getExpression();
+    if (
+      Node.isCallExpression(inner) &&
+      inner.getExpression().getText() === 'craftRoute'
+    ) {
+      routeCall = inner;
+    }
+  }
+
+  if (routeCall) {
+    const path = routeCall.getArguments()[0];
+    const definition = routeCall.getArguments()[1];
+    if (
+      !Node.isStringLiteral(path) ||
+      !Node.isObjectLiteralExpression(definition)
+    ) {
+      return undefined;
+    }
+    return {
+      path: path.getLiteralValue(),
+      moduleSpecifiers: projectImportSpecifiers(definition),
+      position: routeCall.getStart(),
+      definition,
+    };
+  }
+
+  if (!Node.isObjectLiteralExpression(element)) return undefined;
+  const path = element
+    .getProperties()
+    .find(
+      (property) =>
+        Node.isPropertyAssignment(property) && property.getName() === 'path',
+    );
+  const pathValue = Node.isPropertyAssignment(path)
+    ? path.getInitializer()
+    : undefined;
+  if (!Node.isStringLiteral(pathValue)) return undefined;
+  return {
+    path: pathValue.getLiteralValue(),
+    moduleSpecifiers: projectImportSpecifiers(element),
+    position: element.getStart(),
+    definition: element,
+  };
+}
+
+function routeHasComponent(
+  definition: import('ts-morph').ObjectLiteralExpression,
+): boolean {
+  if (
+    definition
+      .getProperties()
+      .some(
+        (property) =>
+          Node.isPropertyAssignment(property) &&
+          ['component', 'componentDeps', 'loadComponent'].includes(
+            property.getName(),
+          ),
+      )
+  ) {
+    return true;
+  }
+  return definition
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .some((call) => call.getExpression().getText() === 'loadCraftComponent');
+}
+
+function projectImportSpecifiers(node: import('ts-morph').Node): string[] {
+  return node
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .filter((call) => call.getExpression().getText() === 'import')
+    .map((call) => call.getArguments()[0])
+    .filter(
+      (argument): argument is import('ts-morph').StringLiteral =>
+        argument !== undefined && Node.isStringLiteral(argument),
+    )
+    .map((argument) => argument.getLiteralValue());
+}
+
+function hasRouteContext(check: string, path: string): boolean {
+  return [`path: "${path}"`, `path: '${path}'`].some((context) =>
+    check.includes(context),
+  );
+}
+
 async function runTypeCheck(
   compiler: string,
   context: ProjectContext,
@@ -419,12 +915,17 @@ async function runTypeCheck(
     child.stdout.on('data', (chunk: Buffer) => stream(chunk, 'stdout'));
     child.stderr.on('data', (chunk: Buffer) => stream(chunk, 'stderr'));
     child.on('error', (error) => {
-      resolveResult({ ok: false, output: [stdout, stderr, error.message].filter(Boolean).join('\n') });
+      resolveResult({
+        ok: false,
+        output: [stdout, stderr, error.message].filter(Boolean).join('\n'),
+      });
     });
     child.on('close', (code) => {
       if (pendingLine.trim()) log(`[route verify] ${label}: ${pendingLine}`);
       const output = [stdout, stderr].filter(Boolean).join('\n');
-      log(`[route verify] ${label}: ${code === 0 ? 'passed' : `failed (exit ${code ?? 1})`}`);
+      log(
+        `[route verify] ${label}: ${code === 0 ? 'passed' : `failed (exit ${code ?? 1})`}`,
+      );
       resolveResult({ ok: code === 0, output });
     });
   });
@@ -460,9 +961,15 @@ function findLocalBinary(rootDir: string, name: string): string | undefined {
 
 function commandOutput(value: unknown): string {
   if (typeof value === 'object' && value !== null) {
-    const record = value as { stdout?: unknown; stderr?: unknown; message?: unknown };
+    const record = value as {
+      stdout?: unknown;
+      stderr?: unknown;
+      message?: unknown;
+    };
     return [record.stdout, record.stderr, record.message]
-      .filter((part): part is string => typeof part === 'string' && part.length > 0)
+      .filter(
+        (part): part is string => typeof part === 'string' && part.length > 0,
+      )
       .join('\n');
   }
   return String(value);
@@ -476,6 +983,8 @@ function failedResult(
     exitCode: 1,
     ...context,
     baseline: { status: 'failed' },
+    routeChecks: { status: 'skipped' },
+    projectLint: { status: 'skipped' },
     eslint: { status: 'skipped' },
     cases: [],
     diagnostics: [message],
@@ -684,7 +1193,7 @@ type _CheckRouteErrorDI = RouteExceptionComponentCheckedDI<
 type _CanRunRouteError = CanRun<_CheckRouteErrorDI>;
 `;
 
-const templatePipe = `
+  const templatePipe = `
 import { Pipe } from '@angular/core';
 import type { GetDeps } from '@craft-ng/core';
 
@@ -702,7 +1211,7 @@ export type GenDeps_VerifyTemplatePipe = GetDeps<{
 }>;
 `;
 
-const templateComponent = `
+  const templateComponent = `
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 import { Component } from '@angular/core';
 import { VerifyTemplatePipe } from './template-pipe';
@@ -718,7 +1227,7 @@ export class TemplateMissingComponent {
 }
 `;
 
-const templateRoutes = `
+  const templateRoutes = `
 import type { Router } from '@angular/router';
 import { craftRoute, craftRoutes, type CanRun, type RouteCheckedDI } from '@craft-ng/core';
 
@@ -832,7 +1341,7 @@ type _CheckExceptionMissingDI = ValidateCascadeRoutesFile<never, Router, typeof 
 type _CanRunExceptionMissing = CanRun<_CheckExceptionMissingDI>;
 `;
 
-const exceptionExtraRoutes = `
+  const exceptionExtraRoutes = `
 import type { Router } from '@angular/router';
 import { assertExhaustiveRouteExceptions, craftException, craftExceptionHandler, craftGen, craftRoute, craftRoutes, type CanRun, type ValidateCascadeRoutesFile } from '@craft-ng/core';
 import { ProvidedDeps } from './support';
@@ -874,7 +1383,7 @@ export type GenDeps_VerifyPendingComponent = GetDeps<{
 }>;
 `;
 
-const pendingMissingComponent = `
+  const pendingMissingComponent = `
 import type { GetDeps, GetServiceDependencies } from '@craft-ng/core';
 
 export default class VerifyPendingMissingComponent {}
@@ -889,22 +1398,101 @@ export type GenDeps_VerifyPendingMissingComponent = GetDeps<{
   return [
     fixture('support', 'support.ts', support, [], 'positive'),
     fixture('valid-routes', 'valid.routes.ts', validRoutes, [], 'positive'),
-    fixture('route-provider', 'route-provider.routes.ts', routeProvider, [], 'positive'),
+    fixture(
+      'route-provider',
+      'route-provider.routes.ts',
+      routeProvider,
+      [],
+      'positive',
+    ),
     fixture('lazy-parent', 'lazy-parent.routes.ts', lazyParent, [], 'positive'),
     fixture('lazy-child', 'lazy-child.routes.ts', lazyChild, [], 'positive'),
     fixture('pending', 'pending.routes.ts', pending, [], 'positive'),
-    fixture('exception-components', 'exception-components.routes.ts', exceptionComponents, [], 'positive'),
+    fixture(
+      'exception-components',
+      'exception-components.routes.ts',
+      exceptionComponents,
+      [],
+      'positive',
+    ),
     fixture('template-pipe', 'template-pipe.ts', templatePipe, [], 'positive'),
-    fixture('template-component', 'template-missing.component.ts', templateComponent, [], 'positive'),
-    fixture('template-routes', 'template.routes.ts', templateRoutes, [`The ${serviceName} service is not provided in path: "missing-template-provider"`], 'negative', true),
-    fixture('missing-provider', 'missing-provider.routes.ts', missingProvider, [`The ${serviceName} service is not provided in ${routeContext}`], 'negative'),
-    fixture('missing-input', 'missing-input.routes.ts', missingInput, ['Input "verifyId" is not provided in path: "missing-input"'], 'negative'),
-    fixture('pending-missing', 'pending-missing.routes.ts', pendingMissing, [`The ${serviceName} service is not provided in pending component: pending-missing`], 'negative'),
-    fixture('exception-component-missing', 'exception-component-missing.routes.ts', exceptionMissing, [`The ${serviceName} service is not provided in exception component: missing-render`], 'negative'),
-    fixture('exception-missing-handler', 'exception-missing-handler.routes.ts', exceptionMissingRoutes, ['VERIFY_UNHANDLED', 'missingHandlers'], 'negative'),
-    fixture('exception-extra-handler', 'exception-extra-handler.routes.ts', exceptionExtraRoutes, ['VERIFY_EXTRA', 'ERROR_unhandled_or_extra_route_exceptions'], 'negative'),
-    fixture('pending-component', 'pending-component.ts', pendingComponent, [], 'positive'),
-    fixture('pending-missing-component', 'pending-missing-component.ts', pendingMissingComponent, [], 'positive'),
+    fixture(
+      'template-component',
+      'template-missing.component.ts',
+      templateComponent,
+      [],
+      'positive',
+    ),
+    fixture(
+      'template-routes',
+      'template.routes.ts',
+      templateRoutes,
+      [
+        `The ${serviceName} service is not provided in path: "missing-template-provider"`,
+      ],
+      'negative',
+      true,
+    ),
+    fixture(
+      'missing-provider',
+      'missing-provider.routes.ts',
+      missingProvider,
+      [`The ${serviceName} service is not provided in ${routeContext}`],
+      'negative',
+    ),
+    fixture(
+      'missing-input',
+      'missing-input.routes.ts',
+      missingInput,
+      ['Input "verifyId" is not provided in path: "missing-input"'],
+      'negative',
+    ),
+    fixture(
+      'pending-missing',
+      'pending-missing.routes.ts',
+      pendingMissing,
+      [
+        `The ${serviceName} service is not provided in pending component: pending-missing`,
+      ],
+      'negative',
+    ),
+    fixture(
+      'exception-component-missing',
+      'exception-component-missing.routes.ts',
+      exceptionMissing,
+      [
+        `The ${serviceName} service is not provided in exception component: missing-render`,
+      ],
+      'negative',
+    ),
+    fixture(
+      'exception-missing-handler',
+      'exception-missing-handler.routes.ts',
+      exceptionMissingRoutes,
+      ['VERIFY_UNHANDLED', 'missingHandlers'],
+      'negative',
+    ),
+    fixture(
+      'exception-extra-handler',
+      'exception-extra-handler.routes.ts',
+      exceptionExtraRoutes,
+      ['VERIFY_EXTRA', 'ERROR_unhandled_or_extra_route_exceptions'],
+      'negative',
+    ),
+    fixture(
+      'pending-component',
+      'pending-component.ts',
+      pendingComponent,
+      [],
+      'positive',
+    ),
+    fixture(
+      'pending-missing-component',
+      'pending-missing-component.ts',
+      pendingMissingComponent,
+      [],
+      'positive',
+    ),
   ];
 }
 
@@ -918,7 +1506,11 @@ function fixture(
 ): RouteVerificationFixture {
   return {
     id,
-    category: template ? 'template' : id.includes('exception') ? 'exceptions' : 'routing',
+    category: template
+      ? 'template'
+      : id.includes('exception')
+        ? 'exceptions'
+        : 'routing',
     fileName,
     source,
     expected,

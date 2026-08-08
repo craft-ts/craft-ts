@@ -11,12 +11,7 @@ import {
   span,
   ul,
 } from '@craft-ng/component';
-import {
-  craftComputed,
-  mutation,
-  query,
-  state,
-} from '@craft-ng/core';
+import { mutation, query, state } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 
 type Todo = { readonly id: number; readonly title: string };

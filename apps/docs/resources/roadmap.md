@@ -71,6 +71,15 @@ making runtime state, dependency relationships, and application events easier
 to inspect and reason about. Feedback will help determine whether these ideas
 should become part of a DevTools experience or evolve as separate tools.
 
+## Exploring a typed RxJS-like library
+
+I am also studying the possibility of creating a typed RxJS-like library built
+around the principles of `@craft-ng/core`. The goal would be to preserve the
+advantages of the existing RxJS ecosystem while providing stronger typing,
+treating errors as exceptions, and integrating observability natively with
+Craft NG. It would also include dependency tracking, making reactive
+relationships explicit and inspectable.
+
 ## Longer-term exploration: type-safe server functions
 
 Further ahead, I am considering a server-function system built around the

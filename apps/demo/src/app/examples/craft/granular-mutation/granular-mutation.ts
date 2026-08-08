@@ -10,7 +10,6 @@ import {
   select,
 } from '@craft-ng/component';
 import {
-  craftPipe,
   craftMethod,
   craftService,
   insertLocalStoragePersister,
@@ -21,6 +20,7 @@ import {
   queryParams,
   toCraftStatus,
 } from '@craft-ng/core';
+import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
@@ -29,27 +29,10 @@ const { provideGranularMutation, GranularMutation } = craftService(
   function* () {
     const pagination = yield* queryParams(
       'pagination',
-      {
-        state: {
-          page: {
-            fallbackValue: 1,
-            codec: {
-              decode: (value: string) => Number(value),
-              encode: (value: number) => String(value),
-            },
-          },
-          pageSize: {
-            fallbackValue: 4,
-            codec: {
-              decode: (value: string) => Number(value),
-              encode: (value: number) => String(value),
-            },
-          },
-        },
-      },
+      paginationQueryParams(),
       ({ patch, state }) => ({
         nextPage: () => patch({ page: state().page + 1 }),
-        previousPage: () => patch({ page: state().page - 1 }),
+        previousPage: () => patch({ page: Math.max(1, state().page - 1) }),
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
@@ -69,29 +52,27 @@ const { provideGranularMutation, GranularMutation } = craftService(
           return yield* ApiService.getDataList(params);
         },
       },
-      (context) =>
-        craftPipe(
-          context,
-          insertLocalStoragePersister({
-            storeName: 'demo-app-craft',
-            key: 'granular',
-          }),
-          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-          insertReactOnMutation(updateUserName, {
-            filter: ({ mutationIdentifier, queryResource }) =>
-              queryResource
-                .value()
-                ?.some(({ id }) => id === mutationIdentifier) ?? false,
-            optimisticUpdate: ({
-              queryResource,
-              mutationIdentifier,
-              mutationParams,
-            }) =>
-              (queryResource.value() ?? []).map((user) =>
-                user.id === mutationIdentifier ? mutationParams : user,
-              ),
-          }),
-        ),
+      insertQueryPipe(
+        insertLocalStoragePersister({
+          storeName: 'demo-app-craft',
+          key: 'granular',
+        }),
+        insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+        insertReactOnMutation(updateUserName, {
+          filter: ({ mutationIdentifier, queryResource }) =>
+            queryResource
+              .value()
+              ?.some(({ id }) => id === mutationIdentifier) ?? false,
+          optimisticUpdate: ({
+            queryResource,
+            mutationIdentifier,
+            mutationParams,
+          }) =>
+            (queryResource.value() ?? []).map((user) =>
+              user.id === mutationIdentifier ? mutationParams : user,
+            ),
+        }),
+      ),
     );
     return { pagination, users, updateUserName };
   },

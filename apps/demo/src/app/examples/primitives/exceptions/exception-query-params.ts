@@ -1,8 +1,4 @@
 import {
-  ActivatedRoute as ActivatedRouteToken,
-  Router as RouterToken,
-} from '@angular/router';
-import {
   button,
   craftComponent,
   div,
@@ -14,29 +10,18 @@ import {
 } from '@craft-ng/component';
 import {
   craftComputed,
+  craftMethod,
+  CraftRouter,
   queryParams,
-  toCraftService,
 } from '@craft-ng/core';
-
-const { ActivatedRoute } = toCraftService({
-  name: 'ActivatedRoute',
-  scope: 'global',
-  token: ActivatedRouteToken,
-});
-const { Router } = toCraftService({
-  name: 'Router',
-  scope: 'global',
-  token: RouterToken,
-});
 
 const ExceptionQueryParamsComponent = craftComponent(
   'ExceptionQueryParamsComponent',
   {},
   function* () {
-    const router = yield* Router(undefined, ({ navigate }) => ({
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const activatedRoute = yield* ActivatedRoute();
     const modeQueryParams = yield* queryParams('modeQueryParams', {
       state: {
         mode: {
@@ -53,12 +38,13 @@ const ExceptionQueryParamsComponent = craftComponent(
         },
       },
     });
-    const navigate = (mode: string) =>
-      void router.navigate([], {
-        relativeTo: activatedRoute,
+    const navigate = craftMethod('navigate', function* (mode: string) {
+      void router.navigate({
+        to: 'exception-query-params',
         queryParams: { mode },
         queryParamsHandling: 'merge',
       });
+    });
     const hasParseException = craftComputed(
       'hasParseException',
       () => modeQueryParams.exceptions().parse.mode !== undefined,
@@ -82,7 +68,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           };
           return p([
             strong('Exception: '),
-            `${exception.code}: ${String(exception.payload.error)}`,
+            `${exception.code}: ${exception.payload.error}`,
           ]);
         },
         () => p([strong('Exception: '), 'none']),

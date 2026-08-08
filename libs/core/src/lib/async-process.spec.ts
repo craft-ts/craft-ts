@@ -581,6 +581,23 @@ describe('AsyncProcess types without identifier', () => {
 });
 
 describe('AsyncProcess types with identifier', () => {
+  it('selectOrCreate returns an idle resource without changing select', () => {
+    TestBed.runInInjectionContext(() => {
+      const asyncProcessRef = craftUse(asyncProcess('asyncProcessRef', {
+        method: (id: string) => id,
+        identifier: (id) => id,
+        loader: async ({ params }) => ({ id: params }),
+      }));
+
+      expect(asyncProcessRef.select('missing')).toBeUndefined();
+
+      const selected = asyncProcessRef.selectOrCreate('missing');
+      expect(selected).toBeDefined();
+      expect(selected.status()).toBe('idle');
+      expect(asyncProcessRef.select('missing')).toBeDefined();
+    });
+  });
+
   it('should infer correctly the types of AsyncProcess', () => {
     TestBed.runInInjectionContext(() => {
       const { AsyncProcessOutput } = craftService(

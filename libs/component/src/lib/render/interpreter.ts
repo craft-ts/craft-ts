@@ -22,9 +22,9 @@ import {
   type Type,
 } from '@angular/core';
 import {
-  CraftGenShortCircuit,
   CRAFT_SERVICE_PROVIDER_BRAND,
   CRAFT_DOM_EVENT_HOOK,
+  CRAFT_TEMPORAL_RUNTIME,
   ComponentRegister,
   craftEffect,
   craftLazy,
@@ -45,6 +45,8 @@ import {
   type CraftDomEventHook,
   type AnyCraftException,
   YIELDABLE_VALUE,
+  type TemporalTaskHandle,
+  RealCraftTemporalRuntime,
 } from '@craft-ng/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import { CraftAngularDirectiveHost } from '../angular-host';
@@ -327,10 +329,6 @@ interface RenderedNode {
 }
 
 function resolveAngularValue(value: unknown): unknown {
-  return typeof value === 'function' ? value() : value;
-}
-
-function resolveHostValue(value: unknown): unknown {
   return typeof value === 'function' ? value() : value;
 }
 
@@ -1209,6 +1207,29 @@ class FragmentRenderedNode implements RenderedNode {
     );
   }
 
+  hasChildren(): boolean {
+    return this.children.length > 0;
+  }
+
+  appendChildren(children: CraftNodeChildren): void {
+    const nextNodes = normalizeChildren(children);
+    nextNodes.forEach((child) => {
+      this.children.push(mountNode(child, this.parent, this.end, this.context));
+    });
+  }
+
+  prependChildren(children: CraftNodeChildren): void {
+    const nextNodes = normalizeChildren(children);
+    const before = this.children[0]?.firstNode() ?? this.end;
+    const mounted: RenderedNode[] = [];
+    for (let index = nextNodes.length - 1; index >= 0; index -= 1) {
+      mounted.unshift(
+        mountNode(nextNodes[index], this.parent, before, this.context),
+      );
+    }
+    this.children.unshift(...mounted);
+  }
+
   updateContext(context: RenderContext): void {
     this.context = context;
   }
@@ -1724,7 +1745,15 @@ class CatchBlockRenderedNode implements RenderedNode {
       this.fallbackPosition = resolved.position;
       this.fallbackChildren = resolved.children;
       try {
-        this.view.patchChildren(this.layout(this.node.source));
+        if (this.sourceVisible && this.view.hasChildren()) {
+          if (this.fallbackPosition === 'before') {
+            this.view.prependChildren(this.fallbackChildren);
+          } else {
+            this.view.appendChildren(this.fallbackChildren);
+          }
+        } else {
+          this.view.patchChildren(this.layout(this.node.source));
+        }
       } catch (error) {
         if (!isCraftGenShortCircuit(error)) throw error;
         this.view.patchChildren(this.fallbackChildren);
@@ -2139,6 +2168,7 @@ class ComponentRenderedNode implements RenderedNode {
                       isCraftGenShortCircuit(error) &&
                       context.exceptionBoundary?.(error.exception)
                     ) {
+                      this.view.patchChildren([]);
                       return;
                     }
                     if (isCraftGenShortCircuit(error)) {
@@ -2660,6 +2690,7 @@ class DeferRenderedNode implements RenderedNode {
   private state: 'placeholder' | 'loading' | 'loaded' | 'error' = 'placeholder';
   private destroyed = false;
   private triggerCleanup: (() => void) | undefined;
+  private triggerTimer: TemporalTaskHandle | undefined;
   private loadedValue: unknown;
   private loadError: unknown;
 
@@ -2742,8 +2773,13 @@ class DeferRenderedNode implements RenderedNode {
         const handle = idleWindow.requestIdleCallback(() => this.startLoad());
         this.triggerCleanup = () => idleWindow.cancelIdleCallback?.(handle);
       } else {
-        const handle = setTimeout(() => this.startLoad(), 0);
-        this.triggerCleanup = () => clearTimeout(handle);
+        this.triggerTimer = this.context.injector
+          .get(CRAFT_TEMPORAL_RUNTIME, new RealCraftTemporalRuntime())
+          .schedule(() => this.startLoad(), 0, {
+            kind: 'defer-trigger',
+            owner: this.context.componentName,
+          });
+        this.triggerCleanup = () => this.triggerTimer?.cancel();
       }
       return;
     }
@@ -2778,8 +2814,13 @@ class DeferRenderedNode implements RenderedNode {
       return;
     }
 
-    const handle = setTimeout(() => this.startLoad(), 0);
-    this.triggerCleanup = () => clearTimeout(handle);
+    this.triggerTimer = this.context.injector
+      .get(CRAFT_TEMPORAL_RUNTIME, new RealCraftTemporalRuntime())
+      .schedule(() => this.startLoad(), 0, {
+        kind: 'defer-trigger',
+        owner: this.context.componentName,
+      });
+    this.triggerCleanup = () => this.triggerTimer?.cancel();
   }
 
   private firstElementInView(): Element | undefined {

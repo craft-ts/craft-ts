@@ -18,6 +18,7 @@ import {
 } from './dom-event-hook';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
+import { CRAFT_TEMPORAL_RUNTIME } from './temporal-runtime';
 
 const correlationIdDomEventHook: CraftDomEventHook = (interaction, next) => {
   const service = inject(CORRELATION_ID_SERVICE);
@@ -86,7 +87,8 @@ export function provideCorrelationIdTracking(): (
   return [
     {
       provide: CORRELATION_ID_SERVICE,
-      useFactory: () => createCorrelationIdService(),
+      useFactory: () =>
+        createCorrelationIdService(inject(CRAFT_TEMPORAL_RUNTIME)),
     },
     provideCraftDomEventHook(correlationIdDomEventHook),
     provideAppInitializer(() => {

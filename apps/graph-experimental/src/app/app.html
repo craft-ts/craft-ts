@@ -51,6 +51,53 @@
       Rechercher
       <kbd>⌘K</kbd>
     </button>
+    <fieldset class="focus-switcher">
+      <legend>Explorer une technologie</legend>
+      <label>
+        Technologie
+        <select
+          [value]="focusTechnology()"
+          (change)="setFocusTechnology($any($event.target).value)"
+        >
+          <option value="all">Toutes les dépendances</option>
+          <option value="http">craftHttpClient</option>
+          <option value="temporal">Gestion du temps · craftSleep</option>
+        </select>
+      </label>
+      <label>
+        Groupe
+        <select
+          [value]="focusEntityKind()"
+          (change)="setFocusEntityKind($any($event.target).value)"
+        >
+          <option value="all">Toutes les entités</option>
+          <option value="route">Routes</option>
+          <option value="component">Composants</option>
+          <option value="service">Services</option>
+        </select>
+      </label>
+      <label>
+        Portée
+        <select
+          [value]="focusDepth()"
+          (change)="setFocusDepth($any($event.target).value)"
+        >
+          <option value="target">Entités ciblées</option>
+          <option value="level-1">Associées · niveau 1</option>
+          <option value="level-2">Associées · niveau 2</option>
+          <option value="components">Jusqu’aux composants</option>
+        </select>
+      </label>
+      @if (focusActive()) {
+        <button
+          type="button"
+          class="muted-button focus-reset"
+          (click)="clearFocus()"
+        >
+          Réinitialiser
+        </button>
+      }
+    </fieldset>
     <fieldset class="view-switcher">
       <legend>Vue à mettre en avant</legend>
       <button
@@ -95,14 +142,6 @@
     }
     <button type="button" class="muted-button" (click)="clearSelection()">
       Effacer la sélection
-    </button>
-    <button
-      type="button"
-      class="muted-button details-toggle"
-      [class.is-active]="detailsOpen()"
-      (click)="toggleDetails()"
-    >
-      {{ detailsOpen() ? 'Masquer les détails' : 'Afficher les détails' }}
     </button>
     @if (collapsedGroupCount() > 0) {
       <span class="view-label">
@@ -251,7 +290,7 @@
   } @else if (error()) {
     <section class="message error">{{ error() }}</section>
   } @else {
-    <section class="workspace" [class.details-open]="detailsOpen()">
+    <section class="workspace" [class.details-open]="detailsVisible()">
       <div class="diagram-panel">
         <div class="legend">
           <span><i class="swatch component"></i> composants</span>
@@ -270,8 +309,14 @@
             <span><i class="swatch primitive"></i> poids des liens</span>
           }
           <span><i class="swatch http"></i> craftHttpClient</span>
+          <span><i class="swatch temporal"></i> gestion du temps · craftSleep</span>
           <span><i class="swatch edge"></i> lien typé</span>
-          <span class="legend-note">services globaux et sources sans liaison masqués</span>
+          <span class="legend-note">
+            services globaux et sources sans liaison masqués
+            @if (focusActive()) {
+              · filtre actif : {{ focusTechnology() === 'http' ? 'craftHttpClient' : 'gestion du temps' }}
+            }
+          </span>
         </div>
         @if (externalRouteBundle.expanded()) {
           <div class="external-routes-toolbar">
@@ -285,6 +330,19 @@
               (click)="collapseExternalRoutes()"
             >
               Replier les routes externes
+            </button>
+          </div>
+        }
+        @if (focusActive() && visibleNodeCount() === 0) {
+          <div class="filter-empty">
+            <strong>Aucune entité trouvée</strong>
+            <span>
+              Cette génération du graphe ne contient pas encore d’usage de
+              {{ focusTechnology() === 'http' ? 'craftHttpClient' : 'craftSleep' }}
+              pour ce groupe.
+            </span>
+            <button type="button" class="muted-button" (click)="clearFocus()">
+              Afficher tout le graphe
             </button>
           </div>
         }
@@ -304,23 +362,38 @@
         </div>
       </div>
 
-      @if (detailsOpen()) {
+      @if (detailsVisible()) {
         <aside class="details-panel">
-        @if (selectedNode(); as node) {
-          <p class="eyebrow">Nœud sélectionné</p>
+        @if (inspectedNode(); as node) {
+          <p class="eyebrow">
+            {{ selectedNode() ? 'Nœud sélectionné' : 'Nœud survolé' }}
+          </p>
           <div class="details-title">
             <h2>{{ node.label }}</h2>
-            @if (node.filePath) {
-              <button
-                type="button"
-                class="details-code-button"
-                aria-label="Afficher le code source"
-                title="Afficher le code source à cette ligne"
-                (click)="openNodeCodePreview(node, $event)"
-              >
-                &lt;/&gt;
-              </button>
-            }
+            <div class="details-title-actions">
+              @if (node.filePath) {
+                <button
+                  type="button"
+                  class="details-code-button"
+                  aria-label="Afficher le code source"
+                  title="Afficher le code source à cette ligne"
+                  (click)="openNodeCodePreview(node, $event)"
+                >
+                  &lt;/&gt;
+                </button>
+              }
+              @if (selectedNode()) {
+                <button
+                  type="button"
+                  class="details-clear-button"
+                  aria-label="Quitter le nœud sélectionné"
+                  title="Quitter le nœud sélectionné"
+                  (click)="clearSelection()"
+                >
+                  ×
+                </button>
+              }
+            </div>
           </div>
           <div class="detail-chip" [class]="'chip-' + node.kind">
             {{ node.kind }}
@@ -362,6 +435,14 @@
               <strong>craftHttpClient</strong>
               @for (endpoint of httpEndpoints(node); track endpoint.line + endpoint.method + endpoint.url) {
                 <code>{{ endpoint.method }} {{ endpoint.url }} · L{{ endpoint.line }}</code>
+              }
+            </div>
+          }
+          @if (temporalOperations(node).length > 0) {
+            <div class="temporal-details">
+              <strong>Gestion du temps</strong>
+              @for (operation of temporalOperations(node); track operation.line + operation.operation) {
+                <code>{{ operation.operation }}{{ operation.delay ? '(' + operation.delay + ')' : '' }} · L{{ operation.line }}</code>
               }
             </div>
           }
