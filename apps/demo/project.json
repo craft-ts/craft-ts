@@ -22,6 +22,21 @@
       ],
       "cache": true
     },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/demo",
+        "command": "tsc -p tsconfig.spec.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.spec.json",
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/src/**/*.d.ts"
+      ],
+      "cache": true
+    },
     "build": {
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],

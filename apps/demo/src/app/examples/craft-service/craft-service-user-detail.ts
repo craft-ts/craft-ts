@@ -10,7 +10,9 @@ import {
 } from '@craft-ng/component';
 import {
   craftComputed,
+  craftGen,
   craftService,
+  craftSleep,
   query,
   state,
   toValue,
@@ -28,15 +30,17 @@ const USERS: User[] = [
 
 const { UsersApi } = craftService(
   { name: 'UsersApi', scope: 'global' },
-  () => ({
-    getUser: async (id: string) => {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      const user = USERS.find((candidate) => candidate.id === id);
-      if (!user) throw new Error(`User ${id} not found`);
-      return user;
-    },
-    availableUserIds: USERS.map(({ id }) => id),
-  }),
+  function* () {
+    return {
+      getUser: craftGen(function* (id: string) {
+        yield* craftSleep(600);
+        const user = USERS.find((candidate) => candidate.id === id);
+        if (!user) throw new Error(`User ${id} not found`);
+        return user;
+      }),
+      availableUserIds: USERS.map(({ id }) => id),
+    };
+  },
 );
 
 const { provideUser, User } = craftService(
@@ -45,7 +49,9 @@ const { provideUser, User } = craftService(
     const api = yield* UsersApi();
     const user = yield* query('user', {
       params: () => toValue(inputs.userId),
-      loader: ({ params }) => api.getUser(params),
+      loader: function* ({ params }) {
+        return yield* api.getUser(params);
+      },
     });
     return {
       ...user,

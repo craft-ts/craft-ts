@@ -1,8 +1,9 @@
-import { computed, ResourceStatus, signal, Signal } from '@angular/core';
+import { computed, signal, Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { query } from './query';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { craftUse } from './craft-use';
+import type { CraftResourceStatus } from './util/craft-resource-status';
 import type { NamedYieldableValue } from './yieldable';
 
 describe('insertPaginationPlaceholderData', () => {
@@ -36,7 +37,7 @@ describe('insertPaginationPlaceholderData', () => {
         }>>
       >();
       expectTypeOf(finalResult.currentPageStatus).toEqualTypeOf<
-        NamedYieldableValue<'currentPageStatus', Signal<ResourceStatus>>
+        NamedYieldableValue<'currentPageStatus', Signal<CraftResourceStatus>>
       >();
       expectTypeOf(finalResult.isPlaceHolderData).toEqualTypeOf<
         NamedYieldableValue<'isPlaceHolderData', Signal<boolean>>

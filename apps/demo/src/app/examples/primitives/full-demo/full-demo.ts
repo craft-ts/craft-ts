@@ -46,7 +46,9 @@ const FullDemo = craftComponent(
     }));
     const todos = yield* query('todos', {
       params: refresh,
-      loader: async () => [...records()],
+      loader: function* () {
+        return [...records()];
+      },
     });
     const addTodo = yield* mutation('addTodo', {
       method: (title: string) => title,

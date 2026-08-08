@@ -909,6 +909,7 @@ type PipedComponent<
   Template extends ComponentTemplate<
     FactoryContext<Factory>
   > = ComponentTemplate<FactoryContext<Factory>>,
+  Name extends string = string,
 > =
   AppliedDirectiveFactory<Factory, Directive> extends infer NextFactory extends
     ComponentFactory
@@ -928,8 +929,9 @@ type PipedComponent<
         Meta,
         RootFactory,
         TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>,
-        Template & ComponentTemplate<FactoryContext<NextFactory>>,
-        string,
+        Template &
+          ComponentTemplate<FactoryContext<NextFactory>, ReturnType<Template>>,
+        Name,
         ComponentExceptionsAfterOperator<
           Factory,
           Meta,
@@ -1025,7 +1027,8 @@ export interface CraftComponent<
       ComponentDeps,
       InitializationExceptions,
       TemplateDependencies,
-      Template
+      Template,
+      Name
     >;
     <Directive extends CraftDirective>(
       directive: Directive &
@@ -1044,7 +1047,8 @@ export interface CraftComponent<
       ComponentDeps,
       InitializationExceptions,
       TemplateDependencies,
-      Template
+      Template,
+      Name
     >;
     (
       ...directives: readonly [CraftDirective, CraftDirective]

@@ -176,7 +176,7 @@ export function startFunctionRegistryBridge({
   };
 }
 
-export async function respondToBridgeMessage(
+export function respondToBridgeMessage(
   socket: JsonSender,
   rawMessage: unknown,
   registry: FunctionRegistry = functionRegistry,
@@ -186,25 +186,35 @@ export async function respondToBridgeMessage(
     request = parseRequest(rawMessage);
   } catch (error) {
     registry.logBridge(`Ignored invalid request: ${errorMessage(error)}`);
-    return;
+    return Promise.resolve();
   }
 
-  try {
-    const result = await handleFunctionRegistryRequest(request, registry);
-    sendJson(socket, { type: 'response', callId: request.callId, result });
-  } catch (error) {
-    sendJson(socket, {
-      type: 'response',
-      callId: request.callId,
-      error: { message: errorMessage(error) },
+  return handleFunctionRegistryRequest(request, registry)
+    .then((result) => {
+      sendJson(socket, { type: 'response', callId: request.callId, result });
+    })
+    .catch((error) => {
+      sendJson(socket, {
+        type: 'response',
+        callId: request.callId,
+        error: { message: errorMessage(error) },
+      });
     });
-  }
 }
 
-export async function handleFunctionRegistryRequest(
+export function handleFunctionRegistryRequest(
   request: RegistryBridgeRequest,
   registry: FunctionRegistry = functionRegistry,
 ): Promise<unknown> {
+  return Promise.resolve().then(() =>
+    handleFunctionRegistryRequestSync(request, registry),
+  );
+}
+
+function handleFunctionRegistryRequestSync(
+  request: RegistryBridgeRequest,
+  registry: FunctionRegistry,
+): unknown {
   const params = request.params ?? {};
   switch (request.method) {
     case 'registry/list':

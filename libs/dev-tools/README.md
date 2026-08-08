@@ -321,6 +321,7 @@ export default [
       'craft-ng/prefer-craft-http-transport': 'error',
       'craft-ng/prefer-craft-input-output': 'error',
       'craft-ng/require-primitive-derived-property': 'error',
+      'craft-ng/no-async-await': 'error',
       'craft-ng/prefer-browser-boundaries': 'error',
       'craft-ng/require-lazy-load-with-retry': 'error',
       'craft-ng/require-cascade-route-di-check': 'error',
@@ -410,4 +411,5 @@ Notes:
 - `craft-ng/prefer-craft-http-transport` forbids direct `fetch` and `XMLHttpRequest`; use `query()` for reads or `mutation()` for writes, backed by `CraftHttpClient`
 - `craft-ng/prefer-craft-input-output` forbids Angular `input()`/`output()` and `@Input`/`@Output`; use `Input`/`Output` from `@craft-ng/component` in `craftComponent(...)`
 - `craft-ng/require-primitive-derived-property` keeps a value derived from one local primitive on that primitive's insertion, and autofixes simple cases
+- `craft-ng/no-async-await` forbids `async`, `await`, and `for await...of`; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient`
 - `craft-ng/prefer-craft-service` and `craft-ng/prefer-craft-http-client` also expose a VS Code Quick Fix suggestion that inserts a temporary local disable comment annotated with the intended migration target

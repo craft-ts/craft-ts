@@ -21,6 +21,7 @@ import {
   CRAFT_TEMPORAL_RUNTIME,
   isTemporalAwaitRequest,
   RealCraftTemporalRuntime,
+  TemporalCancelledError,
 } from './temporal-runtime';
 
 // ---------------------------------------------------------------------------
@@ -57,6 +58,8 @@ export type CraftProgramPumpOptions = {
    * `invalidYieldErrorMessage` (route guards).
    */
   appStartNotSupportedErrorMessage?: string;
+  /** Abort signal for temporal awaits owned by the current async program. */
+  abortSignal?: AbortSignal;
 };
 
 // Pumps `iterator` synchronously, resolving craft service yields, until it
@@ -126,6 +129,7 @@ function isResourceSettled(resource: GuardAwaitResourceLike): boolean {
 export function awaitCraftProgramRequest(
   request: RuntimeAwaitRequest,
   injector: Injector,
+  abortSignal?: AbortSignal,
 ): Promise<unknown> {
   if (isTemporalAwaitRequest(request)) {
     const temporalRuntime =
@@ -135,6 +139,7 @@ export function awaitCraftProgramRequest(
       kind: 'sleep',
       owner: request.owner,
       destroyRef: injector.get(DestroyRef, null) ?? undefined,
+      signal: request.signal ?? abortSignal,
     });
   }
 
@@ -179,7 +184,14 @@ export async function driveCraftProgramAsync(
   let current = step;
 
   while (current.kind === 'await') {
-    const value = await awaitCraftProgramRequest(current.request, injector);
+    const value = await awaitCraftProgramRequest(
+      current.request,
+      injector,
+      options.abortSignal,
+    );
+    if (options.abortSignal?.aborted) {
+      throw new TemporalCancelledError();
+    }
     current = runInInjectionContext(injector, () =>
       pumpCraftProgramSync(iterator, injector, options, value),
     );
@@ -207,6 +219,7 @@ export async function executeGeneratorCompatibleFactoryAsync<
   args,
   invalidYieldErrorMessage,
   appStartNotSupportedErrorMessage,
+  abortSignal,
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
@@ -214,11 +227,13 @@ export async function executeGeneratorCompatibleFactoryAsync<
   args: Args;
   invalidYieldErrorMessage: string;
   appStartNotSupportedErrorMessage?: string;
+  abortSignal?: AbortSignal;
 }): Promise<CraftProgramSettledStep> {
   const injector = getInjector();
   const options: CraftProgramPumpOptions = {
     invalidYieldErrorMessage,
     appStartNotSupportedErrorMessage,
+    abortSignal,
   };
   const wrappedFactory = runInInjectionContext(injector, () =>
     injectFnWrapper()(factory),

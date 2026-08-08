@@ -123,6 +123,9 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 | `setupCraftComponentTestingByRegister`    | Same, for a component + its `GenDeps_*`   | [Testing components](/guide/testing/components) |
 | `boundaryOnly`                            | Keeps the graph real, mocks boundaries    | [Browser boundaries](/guide/testing/browser-boundaries) |
 | `mockHttpRequestForRoute`                 | Mocks endpoints for a route               | [Browser boundaries](/guide/testing/browser-boundaries) |
+| `ComponentTemplateOf`, `SetupTestComponentTemplate` | Resolves and validates a template at compile time | [Type-level tests](/guide/testing/type-level) |
+| `TemplateHasElement`, `TemplateRendersNamedElementWhen`, `TemplateRendersStateWhen`, `TemplateRenderAvailableActionWhen` | Proves what a template renders and uses | [Type-level tests](/guide/testing/type-level) |
+| `Expect`, `Equal`                          | Turns a type-level result into a compile-time assertion | [Type-level tests](/guide/testing/type-level) |
 
 ## Tooling
 

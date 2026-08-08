@@ -18,7 +18,7 @@ import { defer } from './defer';
 import { angular } from './angular';
 import { ifBlock } from './if-block';
 import { each } from './each';
-import { button, div, h2, li, p, section, span } from './hyperscript';
+import { button, div, h2, input, li, p, section, span } from './hyperscript';
 import { content, renderContent } from './project';
 import { craftTemplate, renderTemplate } from './template';
 import type { ComponentNode } from './render/vnode';
@@ -33,6 +33,7 @@ import type {
   TemplateHasYieldableEvent,
   TemplateDelegatesToContext,
   TemplateUsesComponent,
+  TemplateNamedElementIdentity,
   TemplateRendersNamedElementWhen,
   TemplateRendersStateWhen,
   TemplateRenderAvailableActionWhen,
@@ -55,6 +56,30 @@ interface User {
   readonly id: number;
   readonly name: string;
 }
+
+it('types named elements without children as empty', () => {
+  const namedInput = input('namedInputWithoutChildren', {});
+
+  type _NamedInputHasNoChildren = Expect<
+    Equal<typeof namedInput.children, readonly []>
+  >;
+});
+
+it('derives named element identities for editor completion', () => {
+  const component = craftComponent(
+    'namedIdentityCompletionComponent',
+    {},
+    () => ({}),
+    () => input('queryInput', {}),
+  );
+
+  type _NamedElementIdentity = Expect<
+    Equal<
+      TemplateNamedElementIdentity<ComponentTemplateOf<typeof component>>,
+      'namedIdentityCompletionComponent:input:queryInput'
+    >
+  >;
+});
 
 it('infers component input and output props from the branded context', () => {
   const userCard = craftComponent(

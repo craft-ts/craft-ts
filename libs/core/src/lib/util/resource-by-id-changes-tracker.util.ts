@@ -1,9 +1,6 @@
 import { computed, linkedSignal, Signal } from '@angular/core';
 import { CraftResourceRef } from './craft-resource-ref';
-import {
-  CraftResourceStatus,
-  toCraftStatus,
-} from './craft-resource-status';
+import { CraftResourceStatus, toCraftStatus } from './craft-resource-status';
 
 type FullResourceStatusSnapshot<GroupIdentifier extends string> = Map<
   GroupIdentifier,

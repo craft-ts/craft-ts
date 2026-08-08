@@ -14,11 +14,11 @@ import {
   craftService,
   insertLocalStoragePersister,
   insertPaginationPlaceholderData,
+  insertQueryPipe,
   insertReactOnMutation,
   mutation,
   query,
   queryParams,
-  toCraftStatus,
 } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -101,7 +101,7 @@ const GranularMutationCraft = craftComponent(
       h2([
         'User Management: ',
         StatusComponent({
-          status: () => toCraftStatus(users.currentPageStatus(), false),
+          status: () => users.currentPageStatus(),
         }),
       ]),
       h(

@@ -11,8 +11,10 @@ import {
 } from '@craft-ng/component';
 import {
   craftComputed,
+  craftGen,
   craftMethod,
   craftService,
+  craftSleep,
   insertReactOnMutation,
   insertQueryPipe,
   mutation,
@@ -41,10 +43,6 @@ const TODOS: Todo[] = [
   { id: 3, title: 'Share on StackBlitz', completed: false },
 ];
 
-function delay<T>(value: T, ms = 500): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
-
 // -- ApiService: global craftService with CRUD endpoints --
 
 const { ApiService } = craftService(
@@ -59,33 +57,40 @@ const { ApiService } = craftService(
     }));
 
     return {
-      getTodos: () => delay([...TODOS]),
-      getTodo: (id: number) => {
+      getTodos: craftGen(function* () {
+        yield* craftSleep(500);
+        return [...TODOS];
+      }),
+      getTodo: craftGen(function* (id: number) {
         const todo = TODOS.find((t) => t.id === id);
         if (!todo) throw new Error(`Todo ${id} not found`);
-        return delay({ ...todo });
-      },
-      addTodo: function* (title: string) {
+        yield* craftSleep(500);
+        return { ...todo };
+      }),
+      addTodo: craftGen(function* (title: string) {
         const todo: Todo = {
           id: yield* nextId.take(),
           title,
           completed: false,
         };
         TODOS.push(todo);
-        return delay(todo);
-      },
-      toggleTodo: (id: number) => {
+        yield* craftSleep(500);
+        return todo;
+      }),
+      toggleTodo: craftGen(function* (id: number) {
         const todo = TODOS.find((t) => t.id === id);
         if (!todo) throw new Error(`Todo ${id} not found`);
         todo.completed = !todo.completed;
-        return delay({ ...todo });
-      },
-      deleteTodo: (id: number) => {
+        yield* craftSleep(500);
+        return { ...todo };
+      }),
+      deleteTodo: craftGen(function* (id: number) {
         const index = TODOS.findIndex((t) => t.id === id);
         if (index === -1) throw new Error(`Todo ${id} not found`);
         const removed = TODOS.splice(index, 1)[0];
-        return delay(removed);
-      },
+        yield* craftSleep(500);
+        return removed;
+      }),
     };
   },
 );
@@ -95,24 +100,25 @@ const { ApiService } = craftService(
 const { Playground } = craftService(
   { name: 'Playground', scope: 'function' },
   function* () {
+    const api = yield* ApiService();
     const addTodo = yield* mutation('addTodo', {
       method: (title: string) => title,
       loader: function* ({ params: title }) {
-        return yield* ApiService.addTodo(title);
+        return yield* api.addTodo(title);
       },
     });
 
     const toggleTodo = yield* mutation('toggleTodo', {
       method: (id: number) => id,
       loader: function* ({ params: id }) {
-        return yield* ApiService.toggleTodo(id);
+        return yield* api.toggleTodo(id);
       },
     });
 
     const deleteTodo = yield* mutation('deleteTodo', {
       method: (id: number) => id,
       loader: function* ({ params: id }) {
-        return yield* ApiService.deleteTodo(id);
+        return yield* api.deleteTodo(id);
       },
     });
 
@@ -121,21 +127,20 @@ const { Playground } = craftService(
       {
         params: () => 'all' as const,
         loader: function* () {
-          const getTodos = yield* ApiService.getTodos();
-          return getTodos();
+          return yield* api.getTodos();
         },
       },
       insertQueryPipe(
-          insertReactOnMutation(addTodo, {
-            reload: { onMutationResolved: true },
-          }),
-          insertReactOnMutation(toggleTodo, {
-            reload: { onMutationResolved: true },
-          }),
-          insertReactOnMutation(deleteTodo, {
-            reload: { onMutationResolved: true },
-          }),
-        ),
+        insertReactOnMutation(addTodo, {
+          reload: { onMutationResolved: true },
+        }),
+        insertReactOnMutation(toggleTodo, {
+          reload: { onMutationResolved: true },
+        }),
+        insertReactOnMutation(deleteTodo, {
+          reload: { onMutationResolved: true },
+        }),
+      ),
     );
 
     return { todos, addTodo, toggleTodo, deleteTodo };
@@ -262,7 +267,11 @@ const PlaygroundComponent = craftComponent(
             disabled: pg.addTodo.isLoading(),
             click: () => field && void add(field),
           },
-            ifBlock(isAdding, () => 'Adding…', () => 'Add'),
+          ifBlock(
+            isAdding,
+            () => 'Adding…',
+            () => 'Add',
+          ),
         ),
       ]),
       div(

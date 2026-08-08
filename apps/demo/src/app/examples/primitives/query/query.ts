@@ -10,10 +10,10 @@ import {
 } from '@craft-ng/component';
 import {
   Console,
-  craftComputed,
   craftMethod,
   CraftRouter,
   insertLocalStoragePersister,
+  insertQueryPipe,
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
@@ -37,17 +37,20 @@ const GlobalQuery = craftComponent(
             inputUserId: userId(),
             params,
           });
-          const userPromise = yield* ApiService.getItemById(params);
+          const user = yield* ApiService.getItemById(params);
           yield* Console.info('[query-demo] loader request created', {
             params,
           });
-          return userPromise;
+          return user;
         },
       },
-      insertLocalStoragePersister({
-        storeName: 'demo-app',
-        key: 'user-query',
-      }),
+      insertQueryPipe(
+        ({ state }) => ({ hasUser: computed(() => state.hasValue()) }),
+        insertLocalStoragePersister({
+          storeName: 'demo-app',
+          key: 'user-query',
+        }),
+      ),
     );
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
@@ -65,16 +68,14 @@ const GlobalQuery = craftComponent(
         params: { userId: targetUserId },
       });
     });
-    const hasUser = craftComputed('hasUser', () => userQuery.hasValue());
-    return { userQuery, hasUser, navigate };
+    return { userQuery, navigate };
   },
-  ({ userQuery, hasUser, navigate }) => [
+  ({ userQuery, navigate }) => [
     div([
       'User ',
       StatusComponent({ status: () => userQuery.status() }),
-      ifBlock(
-        hasUser,
-        () => h('pre', JSON.stringify(userQuery.value(), null, 2)),
+      ifBlock(userQuery.hasUser, () =>
+        h('pre', JSON.stringify(userQuery.value(), null, 2)),
       ),
     ]),
     p('Reload the page to retrieve the query result from the cache.'),

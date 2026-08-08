@@ -249,11 +249,26 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
   <
     const Name extends string,
     const Props extends object,
-    const Children extends CraftNodeChildren = CraftNodeChildren,
   >(
     name: Name,
     props: (Props & ElementPropsContext<Tag>) | null,
-    children?: Children &
+  ): ElementNode<
+    CraftNodeChildrenDependencies<readonly []>,
+    Tag,
+    Props,
+    readonly [],
+    Name,
+    string,
+    CraftNodeChildrenHandledExceptionCodes<readonly []>
+  >;
+  <
+    const Name extends string,
+    const Props extends object,
+    const Children extends CraftNodeChildren,
+  >(
+    name: Name,
+    props: (Props & ElementPropsContext<Tag>) | null,
+    children: Children &
       CraftNodeChildren &
       RequireCaughtComponentExceptions<NoInfer<Children>>,
   ): ElementNode<

@@ -16,7 +16,6 @@ import {
   insertQueryPipe,
   query,
   queryParams,
-  toCraftStatus,
 } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -43,15 +42,17 @@ const QpListWithPagination = craftComponent(
       {
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
-        loader: ({ params }) => api.getDataList(params),
+        loader: function* ({ params }) {
+          return yield* api.getDataList(params);
+        },
       },
       insertQueryPipe(
-          insertLocalStoragePersister({
-            storeName: 'demo-app',
-            key: 'route-list-with-pagination',
-          }),
-          insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-        ),
+        insertLocalStoragePersister({
+          storeName: 'demo-app',
+          key: 'route-list-with-pagination',
+        }),
+        insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+      ),
     );
     const updatePageSize = (event: Event) =>
       pagination.updatePageSize(
@@ -64,7 +65,7 @@ const QpListWithPagination = craftComponent(
       h2([
         'Route QueryParams pagination: ',
         StatusComponent({
-          status: () => toCraftStatus(usersQuery.currentPageStatus(), false),
+          status: () => usersQuery.currentPageStatus(),
         }),
       ]),
       h(
@@ -84,9 +85,7 @@ const QpListWithPagination = craftComponent(
             value: pagination().pageSize,
             change: updatePageSize,
           },
-          [2, 4, 8, 16].map((size) =>
-            option({ value: size }, size),
-          ),
+          [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
         button({ click: pagination.previousPage }, 'Previous'),
         span(pagination().page),

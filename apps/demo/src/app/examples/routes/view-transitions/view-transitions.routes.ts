@@ -7,6 +7,7 @@ import {
   craftService,
   query,
   craftRoute,
+  craftSleep,
   craftUntilSettled,
   viewTransitionPayload,
   type CanRun,
@@ -43,8 +44,8 @@ const { ViewTransitionAccess } = craftService(
   function* () {
     const viewTransitionAccess = yield* query('viewTransitionAccess', {
       params: () => true,
-      loader: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+      loader: function* () {
+        yield* craftSleep(3000);
         return { allowed: true } as const;
       },
     });

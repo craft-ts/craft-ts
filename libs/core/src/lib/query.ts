@@ -24,9 +24,7 @@ import {
 import {
   executeGeneratorCompatibleFactory,
   GeneratorCompatibleFactory,
-  isGenerator,
   isGeneratorFunction,
-  runCraftGenerator,
 } from './craft-generator-runtime';
 import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime';
 import type { ExtractCraftGenExceptions } from './craft-gen';
@@ -1469,6 +1467,8 @@ function createQueryRef<
               args: [loaderParam],
               invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
               appStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+              // Query reloads cancel temporal awaits from the superseded load.
+              abortSignal: loaderParam.abortSignal,
             });
 
             if (step.kind === 'shortCircuit') {
@@ -1523,6 +1523,9 @@ function createQueryRef<
             setLoaderException(undefined, successId);
             return validatedResult;
           } catch (error) {
+            if (param.abortSignal.aborted) {
+              return undefined as QueryState;
+            }
             if (!isCraftException(error)) {
               injector.get(TAKE_APP_SNAPSHOT, null)?.();
             }

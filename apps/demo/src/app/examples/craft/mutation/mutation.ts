@@ -16,6 +16,7 @@ import {
   craftService,
   insertLocalStoragePersister,
   insertReactOnMutation,
+  insertQueryPipe,
   mutation,
   query,
   state,

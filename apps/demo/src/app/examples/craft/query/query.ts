@@ -48,8 +48,12 @@ const CraftGlobalQuery = craftComponent(
   function* (userId: Input<string | undefined>) {
     const user = yield* UserQuery({ userId: () => userId() });
 
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
+      navigate,
+    }));
+
     const navigate = craftMethod('navigate', function* (offset: number) {
-      yield* CraftRouter.navigate({
+      void router.navigate({
         to: 'craft/query/:userId',
         params: {
           userId: String(Number(userId() ?? '0') + offset),

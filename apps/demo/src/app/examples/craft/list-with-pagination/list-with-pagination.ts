@@ -21,7 +21,6 @@ import {
   insertQueryPipe,
   query,
   queryParams,
-  toCraftStatus,
 } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -49,17 +48,17 @@ const { provideUserList, UserList } = craftService(
         },
       },
       insertQueryPipe(
-          insertLocalStoragePersister({
-            storeName: 'demo-app-craft',
-            key: 'list-with-pagination',
+        insertLocalStoragePersister({
+          storeName: 'demo-app-craft',
+          key: 'list-with-pagination',
+        }),
+        insertPaginationPlaceholderData(
+          { initialValue: [] as User[] },
+          ({ state }) => ({
+            total: computed(() => state().length),
           }),
-          insertPaginationPlaceholderData(
-            { initialValue: [] as User[] },
-            ({ state }) => ({
-              total: computed(() => state().length),
-            }),
-          ),
         ),
+      ),
     );
     return { pagination, users };
   },
@@ -69,9 +68,7 @@ const ListWithPaginationCraft = craftComponent(
   'ListWithPaginationCraft',
   {
     stylesUrl: styles,
-    providers: [
-      provideUserList(),
-    ],
+    providers: [provideUserList()],
   },
   function* () {
     const store = yield* UserList();
@@ -94,7 +91,7 @@ const ListWithPaginationCraft = craftComponent(
       h2([
         'User Management: ',
         StatusComponent({
-          status: () => toCraftStatus(store.users.currentPageStatus(), false),
+          status: () => store.users.currentPageStatus(),
         }),
         span(` ${store.users.total()} on page`),
       ]),
@@ -130,9 +127,7 @@ const ListWithPaginationCraft = craftComponent(
             value: store.pagination().pageSize,
             change: (event) => void updatePageSize(event),
           },
-          [2, 4, 8, 16].map((size) =>
-            option({ value: size }, size),
-          ),
+          [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
         button({ click: store.pagination.previousPage }, 'Previous'),
         span(store.pagination().page),

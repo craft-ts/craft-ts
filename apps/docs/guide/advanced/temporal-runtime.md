@@ -77,6 +77,15 @@ const data = query('data', {
 });
 ```
 
+When a query is retriggered, its loader abort signal is propagated to pending
+temporal awaits. A stale `craftSleep` is therefore cancelled and its generator
+does not resume. The resource still protects the latest result if an operation
+has already passed its sleep or does not observe the signal.
+
+Mutation loaders intentionally keep their already-started temporal operation
+valid when a new mutation is triggered. The previous resource result can still
+be ignored as stale, but the mutation's generator is not interrupted.
+
 Synchronous drivers such as `craftUse` cannot suspend on `craftSleep`. They
 fail with an explicit async-driver error instead of silently creating an
 untracked Promise.

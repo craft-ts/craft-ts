@@ -29,6 +29,7 @@ export type TemporalScheduleOptions = Readonly<{
   kind?: TemporalTaskKind;
   owner?: string;
   destroyRef?: DestroyRef;
+  signal?: AbortSignal;
 }>;
 
 export type TemporalTaskHandle = Readonly<{
@@ -62,11 +63,13 @@ export type RuntimeTemporalAwaitRequest = Readonly<{
   kind: 'sleep' | 'promise';
   delayMs: number;
   owner?: string;
+  signal?: AbortSignal;
 }>;
 
 export function createTemporalSleepRequest(
   delayMs: number,
   owner?: string,
+  signal?: AbortSignal,
 ): RuntimeTemporalAwaitRequest {
   assertDelay(delayMs);
   return {
@@ -74,6 +77,7 @@ export function createTemporalSleepRequest(
     kind: 'sleep',
     delayMs,
     ...(owner === undefined ? {} : { owner }),
+    ...(signal === undefined ? {} : { signal }),
   };
 }
 
@@ -96,10 +100,10 @@ export function isTemporalAwaitRequest(
  */
 export function craftSleep(
   delayMs: number,
-  options: Readonly<{ owner?: string }> = {},
+  options: Readonly<{ owner?: string; signal?: AbortSignal }> = {},
 ): Generator<RuntimeTemporalAwaitRequest, void, unknown> {
   return (function* () {
-    yield createTemporalSleepRequest(delayMs, options.owner);
+    yield createTemporalSleepRequest(delayMs, options.owner, options.signal);
   })();
 }
 
@@ -269,6 +273,7 @@ class TemporalTask implements TemporalTaskHandle {
     private readonly owner: string | undefined,
     readonly callback: () => void,
     private readonly onCancel: () => void,
+    private readonly onComplete: () => void,
   ) {}
 
   cancel(): boolean {
@@ -307,7 +312,10 @@ class TemporalTask implements TemporalTaskHandle {
   }
 
   markCompleted(): void {
-    if (this._status === 'running') this._status = 'completed';
+    if (this._status === 'running') {
+      this._status = 'completed';
+      this.onComplete();
+    }
   }
 }
 
@@ -330,24 +338,33 @@ abstract class BaseCraftTemporalRuntime implements CraftTemporalRuntime {
   ): TrackedTask {
     assertDelay(delayMs);
     const id = this.nextId++;
-    let task!: TrackedTask;
     const destroyRef = options.destroyRef;
-    const cleanup = () => {
-      destroyRef?.onDestroy(() => task.cancel());
-    };
+    const signal = options.signal;
+    let removeAbortListener: () => void = () => undefined;
 
-    task = new TemporalTask(
+    const task = new TemporalTask(
       id,
       this.now() + delayMs,
       options.kind ?? 'schedule',
       options.owner,
       callback,
       () => {
+        removeAbortListener();
         this.tasks.delete(id);
       },
+      () => removeAbortListener(),
     );
+
     this.tasks.set(id, task);
-    cleanup();
+
+    if (signal) {
+      const abort = () => task.cancel();
+      signal.addEventListener('abort', abort, { once: true });
+      removeAbortListener = () => signal.removeEventListener('abort', abort);
+      if (signal.aborted) task.cancel();
+    }
+
+    destroyRef?.onDestroy(() => task.cancel());
     return task;
   }
 
@@ -447,6 +464,7 @@ export class RealCraftTemporalRuntime extends BaseCraftTemporalRuntime {
     options: TemporalScheduleOptions = {},
   ): TemporalTaskHandle {
     const task = super.schedule(callback, delayMs, options) as TemporalTask;
+    if (task.snapshot().status === 'cancelled') return task;
     const nativeTimer = setTimeout(() => {
       this.nativeTimers.delete(task.id);
       this.runTask(task as TrackedTask);

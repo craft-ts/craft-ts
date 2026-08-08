@@ -44,7 +44,9 @@ export default [
       'craft-ng/brand-angular-deps-match': 'off',
       'craft-ng/require-component-monitoring': 'warn',
       'craft-ng/require-primitive-generator-unwrap': 'warn',
+      'craft-ng/require-primitive-context': 'error',
       'craft-ng/require-primitive-derived-property': 'error',
+      'craft-ng/no-async-await': 'error',
       'craft-ng/require-assert-exhaustive-route-exceptions': 'warn',
       'craft-ng/prefer-craft-router-outlet': 'warn',
       'craft-ng/require-pending-component-di-check': 'warn',
@@ -66,12 +68,16 @@ export default [
     },
   },
   {
-    files: ['**/*.spec.ts', '**/*.test.ts'],
+    // Unit tests use Vitest and may legitimately use async/await. Keep the
+    // Playwright rules enabled for e2e specs outside src/.
+    files: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
     rules: {
       'craft-ng/prefer-craft-template-blocks': 'off',
       'craft-ng/prefer-craft-reactivity': 'off',
       'craft-ng/prefer-craft-state': 'off',
       'craft-ng/prefer-craft-effect': 'off',
+      'craft-ng/no-async-await': 'off',
+      'playwright/no-standalone-expect': 'off',
     },
   },
   {

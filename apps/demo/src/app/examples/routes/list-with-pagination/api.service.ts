@@ -1,13 +1,9 @@
-import { craftService, craftUse, state } from '@craft-ng/core';
+import { craftGen, craftService, craftSleep, state } from '@craft-ng/core';
 
 export type User = {
   id: string;
   name: string;
 };
-
-function delay<T>(value: T, ms: number): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
 
 export const { ApiService } = craftService(
   { name: 'ApiService', scope: 'global' },
@@ -49,41 +45,46 @@ export const { ApiService } = craftService(
 
     return {
       updateError,
-      getDataList: async (data: {
+      getDataList: craftGen(function* (data: {
         page: number;
         pageSize: number;
-      }): Promise<User[]> => {
+      }) {
         const list = dataList();
         const result = list.slice(
           (data.page - 1) * data.pageSize,
           data.page * data.pageSize,
         );
-        return delay(result, 2000);
-      },
-      getItemById: async (itemId: User['id']): Promise<User> => {
+        yield* craftSleep(2000);
+        return result;
+      }),
+      getItemById: craftGen(function* (itemId: User['id']) {
         const list = dataList();
         const item = list.find((dataItem) => dataItem.id === itemId);
         if (!item) {
           throw new Error(`failed to find the item ${itemId}`);
         }
-        return delay(item, 2000);
-      },
-      addItem: async (newItem: User): Promise<User> => {
-        craftUse(dataList.addItem(newItem));
-        return delay(newItem, 5000);
-      },
-      deleteItem: async (itemId: User['id']): Promise<User> => {
-        const deletedItem = craftUse(dataList.deleteItem(itemId));
-        return delay(deletedItem, 2000);
-      },
-      updateItem: async (updatedItem: User): Promise<User> => {
+        yield* craftSleep(2000);
+        return item;
+      }),
+      addItem: craftGen(function* (newItem: User) {
+        yield* dataList.addItem(newItem);
+        yield* craftSleep(5000);
+        return newItem;
+      }),
+      deleteItem: craftGen(function* (itemId: User['id']) {
+        const deletedItem = yield* dataList.deleteItem(itemId);
+        yield* craftSleep(2000);
+        return deletedItem;
+      }),
+      updateItem: craftGen(function* (updatedItem: User) {
         if (updateError()) {
-          await delay(null, 5000);
+          yield* craftSleep(5000);
           throw new Error('Api error during update');
         }
-        craftUse(dataList.updateItem(updatedItem));
-        return delay(updatedItem, 2000);
-      },
+        yield* dataList.updateItem(updatedItem);
+        yield* craftSleep(2000);
+        return updatedItem;
+      }),
     };
   },
 );

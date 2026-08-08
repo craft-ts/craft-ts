@@ -21,6 +21,7 @@ import {
   SERVICE_APP_START_REQUEST_MARKER,
   SERVICE_DEPENDENCY_ACCESS_MARKER,
   SERVICE_YIELD_REQUEST_MARKER,
+  type ResolveGeneratorResult,
 } from './craft-generator-runtime';
 import { registerResolvedService } from './craft-register-for-runtime';
 export {
@@ -1485,7 +1486,7 @@ type InjectPropertyShortcut<
       ? Output[Key] extends (...args: infer Args) => infer Result
         ? Args extends []
           ? {}
-          : (...args: Args) => Result
+          : (...args: Args) => ResolveGeneratorResult<Result>
         : {}
       : {}) &
     NestedInjectPropertyShortcuts<Scope, Inputs, Output, Metadata, Key>,
@@ -1588,7 +1589,7 @@ type YieldPropertyShortcut<
                 >,
                 WithSinglePropertyDerivedProperties<Metadata, Output, Key>
               >,
-              Result,
+              ResolveGeneratorResult<Result>,
               unknown
             >
         : {}

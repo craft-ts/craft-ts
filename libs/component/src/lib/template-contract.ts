@@ -1,6 +1,7 @@
 import type {
   CraftComponent,
   ComponentTemplateOf,
+  ComponentTemplateNameOf,
   FactoryContext,
   Output,
   PropsOf,
@@ -1120,6 +1121,137 @@ type NamedElementMatches<
     : false
   : false;
 
+type LiteralString<Value> = Value extends string
+  ? string extends Value
+    ? never
+    : Value
+  : never;
+
+type NamedElementIdentity<
+  Owner extends string,
+  Tag extends string,
+  LocalName extends string,
+> = string extends Owner
+  ? `${string}:${Tag}:${LocalName}`
+  : [Owner] extends [never]
+    ? `${string}:${Tag}:${LocalName}`
+    : `${Owner}:${Tag}:${LocalName}`;
+
+type VisitNamedElementIdentities<
+  Children,
+  Owner extends string = never,
+  Seen extends readonly unknown[] = [],
+  Depth extends readonly unknown[] = [],
+> = Depth['length'] extends 8
+  ? never
+  : IsAny<Children> extends true
+    ? never
+    : Children extends readonly (infer Child)[]
+      ? VisitNamedElementIdentities<
+          Child,
+          Owner,
+          Seen,
+          [...Depth, unknown]
+        >
+      : Children extends ElementNodeBase<
+            any,
+            infer Tag extends string,
+            any,
+            infer Nested,
+            infer LocalName
+          >
+        ? LiteralString<Extract<LocalName, string>> extends infer Name extends
+            string
+          ?
+              | NamedElementIdentity<Owner, Tag, Name>
+              | VisitNamedElementIdentities<
+                  Nested,
+                  Owner,
+                  Seen,
+                  [...Depth, unknown]
+                >
+          : VisitNamedElementIdentities<
+              Nested,
+              Owner,
+              Seen,
+              [...Depth, unknown]
+            >
+        : Children extends CraftDirectiveNode<any>
+          ? VisitNamedElementIdentities<
+              Children['node'],
+              Owner,
+              Seen,
+              [...Depth, unknown]
+            >
+          : Children extends ComponentNode<any, any, infer Component>
+            ? IsAny<Component> extends true
+              ? never
+              : Component extends Seen[number]
+                ? never
+                : VisitNamedElementIdentities<
+                    ReturnType<ComponentTemplateOf<Component>>,
+                    ComponentName<Component>,
+                    [...Seen, Component],
+                    [...Depth, unknown]
+                  >
+            : Children extends EachNode<
+                  any,
+                  any,
+                  any,
+                  any,
+                  infer Item,
+                  infer Empty
+                >
+              ? VisitNamedElementIdentities<
+                  Item | Empty,
+                  Owner,
+                  Seen,
+                  [...Depth, unknown]
+                >
+              : Children extends IfBlockNode<
+                    any,
+                    any,
+                    infer True,
+                    infer False
+                  >
+                ? VisitNamedElementIdentities<
+                    True | False,
+                    Owner,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                : Children extends DeferNode<infer Loaded>
+                  ? VisitNamedElementIdentities<
+                      Loaded extends CraftComponent<any, any>
+                        ? ReturnType<ComponentTemplateOf<Loaded>>
+                        : ReturnType<Children['resolve']>,
+                      Owner,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  : never;
+
+type TemplateContractOutput<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? Output
+  : Template;
+
+type TemplateContractOwner<Template> = Template extends (...args: any[]) => any
+  ? ComponentTemplateNameOf<Template> extends infer Name extends string
+    ? string extends Name
+      ? never
+      : Name
+    : never
+  : never;
+
+/** Named element identities available for a template, for editor completion. */
+export type TemplateNamedElementIdentity<Template> =
+  VisitNamedElementIdentities<
+    TemplateContractOutput<Template>,
+    TemplateContractOwner<Template>
+  >;
+
 type VisitNamedElement<
   Children,
   Identity extends string,
@@ -1275,14 +1407,15 @@ type NamedElementResult<Result> =
 /** Checks a named element and the visibility path that renders it. */
 export type TemplateRendersNamedElementWhen<
   Children,
-  Identity extends string,
+  Identity extends TemplateNamedElementIdentity<Children>,
   Conditions extends { readonly when?: Visibility } = {},
 > = NamedElementResult<
   VisitNamedElement<
-    Children,
+    TemplateContractOutput<Children>,
     Identity,
     Conditions extends { readonly when: infer When extends Visibility }
       ? When
-      : {}
+      : {},
+    TemplateContractOwner<Children>
   >
 >;

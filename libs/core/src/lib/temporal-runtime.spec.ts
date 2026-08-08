@@ -101,6 +101,44 @@ describe('VirtualCraftTemporalRuntime', () => {
     expect(events).toEqual(['started', 'resumed']);
   });
 
+  it('aborts a pending craftSleep when the program signal is aborted', async () => {
+    const clock = new VirtualCraftTemporalRuntime();
+    const abortController = new AbortController();
+    const injector = Injector.create({
+      providers: [
+        provideCraftTemporalRuntime(clock),
+        { provide: FN_WRAPPER, useValue: [] },
+        { provide: FN_WRAP_OBSERVER, useValue: [] },
+      ],
+    });
+    const events: string[] = [];
+
+    const result = executeGeneratorCompatibleFactoryAsync({
+      factory: function* () {
+        events.push('started');
+        yield* craftSleep(100, { owner: 'query' });
+        events.push('resumed');
+        return 42;
+      },
+      thisArg: undefined,
+      getInjector: () => injector,
+      args: [],
+      invalidYieldErrorMessage: 'invalid',
+      abortSignal: abortController.signal,
+    });
+
+    await Promise.resolve();
+    expect(clock.pendingTasks('query')).toHaveLength(1);
+
+    abortController.abort();
+
+    await expect(result).rejects.toMatchObject({
+      name: 'TemporalCancelledError',
+    });
+    expect(events).toEqual(['started']);
+    expect(clock.pendingTasks()).toEqual([]);
+  });
+
   it('rejects a pending sleep when the runtime is reset', async () => {
     const clock = new VirtualCraftTemporalRuntime();
     const pending = clock.sleep(100);

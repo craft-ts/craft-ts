@@ -9,7 +9,14 @@ import {
   p,
   strong,
 } from '@craft-ng/component';
-import { craftComputed, craftException, query, state } from '@craft-ng/core';
+import {
+  craftComputed,
+  craftException,
+  craftGen,
+  craftSleep,
+  query,
+  state,
+} from '@craft-ng/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 
@@ -27,8 +34,8 @@ const ExceptionsComponent = craftComponent(
     );
     const userQuery = yield* query('userQuery', {
       params: scenario,
-      loader: async ({ params }) => {
-        await new Promise((resolve) => setTimeout(resolve, 600));
+      loader: craftGen(function* ({ params }) {
+        yield* craftSleep(600);
         if (params === 'not-found') {
           return craftException(
             { code: 'UserNotFoundException' },
@@ -48,7 +55,7 @@ const ExceptionsComponent = craftComponent(
           );
         }
         return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
-      },
+      }),
     });
     const hasUser = craftComputed('hasUser', () => userQuery.hasValue());
     const isLoading = craftComputed('isLoading', () => userQuery.isLoading());

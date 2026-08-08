@@ -37,6 +37,8 @@ const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource
 const requireCraftResourceTriggerYield = require('./require-craft-resource-trigger-yield.cjs');
 const noDirectTemporalGlobals = require('./no-direct-temporal-globals.cjs');
 const requirePrimitiveDerivedProperty = require('./require-primitive-derived-property.cjs');
+const noAsyncAwait = require('./no-async-await.cjs');
+const requirePrimitiveContext = require('./require-primitive-context.cjs');
 
 module.exports = {
   rules: {
@@ -80,5 +82,7 @@ module.exports = {
     'require-craft-resource-trigger-yield': requireCraftResourceTriggerYield,
     'no-direct-temporal-globals': noDirectTemporalGlobals,
     'require-primitive-derived-property': requirePrimitiveDerivedProperty,
+    'no-async-await': noAsyncAwait,
+    'require-primitive-context': requirePrimitiveContext,
   },
 };

@@ -327,6 +327,32 @@ type CanIncrement = Expect<
 >;
 ```
 
+When the element is not behind a conditional block, omit `when` (or use an
+empty object). Keep the complete `ComponentTemplateOf` type if you want editor
+completion for the component prefix of the identity. Using `ReturnType<...>`
+preserves the element and tag, but loses the component name used for the most
+useful completion suggestions:
+
+```ts
+type FullDemoTemplate = ComponentTemplateOf<typeof FullDemoCraft>;
+
+type DisplayNewTodoNameInput = Expect<
+  Equal<
+    TemplateRendersNamedElementWhen<
+      FullDemoTemplate,
+      'FullDemoCraft:input:TodoNameToAddInput'
+    >,
+    true
+  >
+>;
+```
+
+When editing the second argument, the available identities are proposed from
+the template, for example `FullDemoCraft:input:TodoNameToAddInput` and
+`FullDemoCraft:button:AddTodoButton`. `{ when: {} }` is equivalent to omitting
+the third argument; `{ when: { isAuth: true } }` would only be correct if the
+element were inside an `ifBlock` named `isAuth`.
+
 The same visibility contract can identify an element through branded direct
 content. Here, `brandedStatus` is not selected by its text; its brand proves that the
 `span` renders that value in the authenticated branch:

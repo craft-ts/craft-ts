@@ -41,6 +41,7 @@ const ExceptionQueryParamsComponent = craftComponent(
     const navigate = craftMethod('navigate', function* (mode: string) {
       void router.navigate({
         to: 'exception-query-params',
+        //@ts-expect-error intentional to demonstrate the example
         queryParams: { mode },
         queryParamsHandling: 'merge',
       });

@@ -9,6 +9,7 @@ import {
   craftService,
   query,
   craftRoute,
+  craftSleep,
   retry,
   craftUntilSettled,
   type CanRun,
@@ -35,8 +36,8 @@ const { SlowAccess } = craftService(
   function* () {
     const slowAccess = yield* query('slowAccess', {
       params: () => true,
-      loader: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+      loader: function* () {
+        yield* craftSleep(1500);
         return { allowed: true } as const;
       },
     });
@@ -49,8 +50,8 @@ const { SlowReport } = craftService(
   function* () {
     const slowReport = yield* query('slowReport', {
       params: () => true,
-      loader: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+      loader: function* () {
+        yield* craftSleep(1500);
         return {
           generatedAt: new Date().toLocaleTimeString(),
           totalUsers: 1234,

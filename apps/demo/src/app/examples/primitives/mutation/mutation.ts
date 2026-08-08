@@ -34,13 +34,17 @@ const MutationDemoComponent = craftComponent(
         ...payload.user,
         name: payload.userName,
       }),
-      loader: ({ params: user }) => api.updateItem(user),
+      loader: function* ({ params: user }) {
+        return yield* api.updateItem(user);
+      },
     });
     const userQuery = yield* query(
       'userQuery',
       {
         params: userId,
-        loader: ({ params }) => api.getItemById(params),
+        loader: function* ({ params }) {
+          return yield* api.getItemById(params);
+        },
         preservePreviousValue: () => true,
       },
       insertQueryPipe(

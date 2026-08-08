@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { Injector } from '@angular/core';
+import { Injector, type Provider } from '@angular/core';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 import { TestBed } from '@angular/core/testing';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadCraftComponent, mountCraftComponent } from '@craft-ng/component';
+import {
+  ComponentTemplateOf,
+  loadCraftComponent,
+  mountCraftComponent,
+  TemplateRendersNamedElementWhen,
+} from '@craft-ng/component';
 import {
   HostTag,
   provideCraftRouter,
@@ -17,6 +22,7 @@ import {
 import { App } from '../../../app';
 import { demoRoutes } from '../../../app.routes';
 import FullDemoCraft from './full-demo';
+import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 
 beforeAll(() => {
   try {
@@ -67,7 +73,7 @@ describe('Craft Full Demo route component', () => {
     fixture.destroy();
   });
 
-  it('does not rerun the TodoStore query without bound after Add', async () => {
+  it('does not rerun the TodoStore query while typing or after Add', async () => {
     let todoQueryRuns = 0;
     const lazyRoute = loadCraftComponent(async () => FullDemoCraft);
     const routedHost = await lazyRoute.loadComponent(
@@ -103,12 +109,16 @@ describe('Craft Full Demo route component', () => {
     const input = element.querySelector<HTMLInputElement>(
       'input[placeholder="New todo"]',
     );
-    input!.value = 'Repro loop';
+    const queryRunsAfterLoad = todoQueryRuns;
+    input!.value = 'Typing must not reload';
     input!.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(todoQueryRuns).toBe(queryRunsAfterLoad);
+
     element.querySelector<HTMLButtonElement>('button')!.click();
 
     await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(todoQueryRuns).toBeLessThanOrEqual(8);
+    expect(todoQueryRuns).toBe(queryRunsAfterLoad);
     expect(element.textContent).toContain('Full craftService demo');
     fixture.destroy();
   });
@@ -188,6 +198,188 @@ describe('Craft Full Demo route component', () => {
       } else {
         delete viewTransitionDocument.startViewTransition;
       }
+    }
+  });
+});
+
+describe('Full demo template', () => {
+  type FullDemoTemplate = ComponentTemplateOf<typeof FullDemoCraft>;
+  type _DisplayNewTodoNameInput = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        FullDemoTemplate,
+        'FullDemoCraft:input:TodoNameToAddInput'
+      >,
+      true
+    >
+  >;
+
+  type _DisplayNewToDoSubmitButton = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        FullDemoTemplate,
+        'FullDemoCraft:button:AddTodoButton'
+      >,
+      true
+    >
+  >;
+
+  type _DisplayRemoveTodoButton = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        FullDemoTemplate,
+        'FullDemoCraft:button:RemoveTodoButton'
+      >,
+      true
+    >
+  >;
+
+  it('keeps the template contract type-safe', () => {
+    expect(true).toBe(true);
+  });
+});
+
+describe('Full demo template runtime', () => {
+  function mountFullDemo(providers: readonly Provider[] = []) {
+    TestBed.configureTestingModule({ providers });
+    const element = document.createElement('div');
+    document.body.append(element);
+    const mounted = mountCraftComponent(
+      FullDemoCraft,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    return { element, mounted };
+  }
+
+  function observeMutationMethod(name: 'add' | 'remove', calls: unknown[]) {
+    return provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (factory, thisArg, args) {
+        const hostTags = yield* HostTag();
+        const expectedArgument =
+          name === 'add'
+            ? typeof args[0] === 'string'
+            : typeof args[0] === 'number';
+        if (hostTags.includes(`mutation:${name}`) && expectedArgument) {
+          calls.push(args[0]);
+        }
+        return yield* factory.apply(thisArg, args);
+      },
+    );
+  }
+
+  it('renders the initial TodoStore projection and named DOM elements', async () => {
+    const { element, mounted } = mountFullDemo();
+
+    try {
+      await vi.waitFor(() =>
+        expect(element.querySelectorAll('li')).toHaveLength(2),
+      );
+
+      expect(element.textContent).toContain('Full craftService demo');
+      expect(element.textContent).toContain('Compose a craftService');
+      expect(element.textContent).toContain('Expose query and mutations');
+      expect(
+        element.querySelector('[data-craft-name="TodoNameToAddInput"]'),
+      ).not.toBeNull();
+      expect(
+        element.querySelector('[data-craft-name="AddTodoButton"]'),
+      ).not.toBeNull();
+      expect(
+        element.querySelectorAll('[data-craft-name="RemoveTodoButton"]'),
+      ).toHaveLength(2);
+      expect(element.querySelector('.badge')?.textContent).toBe('Loaded');
+    } finally {
+      mounted.destroy();
+    }
+  });
+
+  it('does not call add when the input contains only whitespace', async () => {
+    const addCalls: unknown[] = [];
+    const { element, mounted } = mountFullDemo([
+      observeMutationMethod('add', addCalls),
+    ]);
+
+    try {
+      await vi.waitFor(() =>
+        expect(element.querySelectorAll('li')).toHaveLength(2),
+      );
+
+      const input = element.querySelector<HTMLInputElement>(
+        '[data-craft-name="TodoNameToAddInput"]',
+      )!;
+      input.value = '   ';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      TestBed.tick();
+
+      element
+        .querySelector<HTMLButtonElement>('[data-craft-name="AddTodoButton"]')!
+        .click();
+      TestBed.tick();
+
+      expect(addCalls).toEqual([]);
+    } finally {
+      mounted.destroy();
+    }
+  });
+
+  it('passes the trimmed title to the add mutation', async () => {
+    const addCalls: unknown[] = [];
+    const { element, mounted } = mountFullDemo([
+      observeMutationMethod('add', addCalls),
+    ]);
+
+    try {
+      await vi.waitFor(() =>
+        expect(element.querySelectorAll('li')).toHaveLength(2),
+      );
+
+      const input = element.querySelector<HTMLInputElement>(
+        '[data-craft-name="TodoNameToAddInput"]',
+      )!;
+      input.value = '  Write runtime tests  ';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      TestBed.tick();
+
+      element
+        .querySelector<HTMLButtonElement>('[data-craft-name="AddTodoButton"]')!
+        .click();
+      TestBed.tick();
+
+      await vi.waitFor(() => expect(addCalls).toEqual(['Write runtime tests']));
+    } finally {
+      mounted.destroy();
+    }
+  });
+
+  it('passes the clicked todo id to the remove mutation', async () => {
+    const removeCalls: unknown[] = [];
+    const { element, mounted } = mountFullDemo([
+      observeMutationMethod('remove', removeCalls),
+    ]);
+
+    try {
+      await vi.waitFor(() =>
+        expect(element.querySelectorAll('li')).toHaveLength(2),
+      );
+
+      const row = Array.from(element.querySelectorAll('li')).find((candidate) =>
+        candidate.textContent?.includes('Compose a craftService'),
+      );
+      expect(row).toBeDefined();
+      row
+        ?.querySelector<HTMLButtonElement>(
+          '[data-craft-name="RemoveTodoButton"]',
+        )
+        ?.click();
+      TestBed.tick();
+
+      await vi.waitFor(() => expect(removeCalls).toEqual([1]));
+    } finally {
+      mounted.destroy();
     }
   });
 });

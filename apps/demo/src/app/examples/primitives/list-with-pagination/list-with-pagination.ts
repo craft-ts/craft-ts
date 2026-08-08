@@ -17,7 +17,6 @@ import {
   insertQueryPipe,
   query,
   queryParams,
-  toCraftStatus,
 } from '@craft-ng/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -45,7 +44,9 @@ const ListWithPagination = craftComponent(
       {
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
-        loader: ({ params }) => api.getDataList(params),
+        loader: function* ({ params }) {
+          return yield* api.getDataList(params);
+        },
       },
       insertQueryPipe(
         insertLocalStoragePersister({
@@ -74,7 +75,7 @@ const ListWithPagination = craftComponent(
       h2([
         'User Management: ',
         StatusComponent({
-          status: () => toCraftStatus(usersQuery.currentPageStatus(), false),
+          status: () => usersQuery.currentPageStatus(),
         }),
       ]),
       h(

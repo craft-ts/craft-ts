@@ -1505,6 +1505,9 @@ function createMutationRef<
               invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
               appStartNotSupportedErrorMessage:
                 MUTATION_APP_START_ERROR_MESSAGE,
+              // A retriggered mutation keeps its already-started operation
+              // valid; unlike query, do not bind temporal awaits to the
+              // resource's superseded-load abort signal.
             });
 
             if (step.kind === 'shortCircuit') {

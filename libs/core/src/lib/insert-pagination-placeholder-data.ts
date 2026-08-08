@@ -1,21 +1,25 @@
-import { computed, ResourceStatus, Signal } from '@angular/core';
+import { computed, Signal } from '@angular/core';
 import {
   InsertionByIdParams,
   ResourceExceptionConstraints,
 } from './query.core';
+import {
+  CraftResourceStatus,
+  toCraftStatus,
+} from './util/craft-resource-status';
 
 /**
  * Base outputs produced by {@link insertPaginationPlaceholderData}.
  *
  * - `currentPageData`: the current page data, or the previous page data while the
  *   next page is loading (placeholder). Never `undefined`: falls back to `initialValue`.
- * - `currentPageStatus`: the `ResourceStatus` of the current page.
+ * - `currentPageStatus`: the `CraftResourceStatus` of the current page.
  * - `isPlaceHolderData`: whether placeholder (previous page) data is currently shown.
  * - `currentIdentifier`: the identifier of the current page.
  */
 export type PaginationBaseOutputs<PageState> = {
   currentPageData: Signal<PageState>;
-  currentPageStatus: Signal<ResourceStatus>;
+  currentPageStatus: Signal<CraftResourceStatus>;
   isPlaceHolderData: Signal<boolean>;
   currentIdentifier: Signal<string>;
 };
@@ -198,7 +202,7 @@ export function insertPaginationPlaceholderData<
       );
     });
 
-    const currentPageStatus = computed<ResourceStatus>(() => {
+    const currentPageStatus = computed<CraftResourceStatus>(() => {
       const page = resourceParamsSrc();
       const resources = resourceById();
       if (page == null) {
@@ -206,7 +210,15 @@ export function insertPaginationPlaceholderData<
       }
       const pageKey = identifier(page);
       const currentResource = resources[pageKey];
-      return currentResource?.status() ?? ('idle' as const);
+      const currentExceptions = exceptions();
+      const hasCurrentPageException =
+        Object.keys(currentExceptions.params ?? {}).length > 0 ||
+        currentExceptions.loader?.[pageKey] !== undefined;
+
+      return toCraftStatus(
+        currentResource?.status() ?? 'idle',
+        hasCurrentPageException,
+      );
     });
 
     const currentIdentifier = computed<string>(() => {
