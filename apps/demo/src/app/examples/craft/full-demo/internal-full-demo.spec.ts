@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { Injector, type Provider } from '@angular/core';
+import { Injector } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import {
   BrowserTestingModule,
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
-import { TestBed } from '@angular/core/testing';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadCraftComponent, mountCraftComponent } from '@craft-ng/component';
 import {
   HostTag,
@@ -14,6 +13,7 @@ import {
   provideFnWrapper,
   withCraftViewTransitions,
 } from '@craft-ng/core';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../../app';
 import { demoRoutes } from '../../../app.routes';
 import FullDemoCraft from './full-demo';

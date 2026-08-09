@@ -20,11 +20,6 @@ export default [
       'craft-ng': craftRules,
     },
     rules: {
-      // The demo still contains legacy Angular examples. Keep Craft migration
-      // guidance visible without making the application CI-blocking until the
-      // examples are migrated incrementally.
-      // Functional Craft components carry their inferred dependency metadata.
-      'craft-ng/brand-angular-gen-deps-required': 'off',
       'craft-ng/craft-method-name-match': 'warn',
       'craft-ng/craft-computed-name-match': 'warn',
       'craft-ng/craft-source-name-match': 'warn',
@@ -33,7 +28,9 @@ export default [
       'craft-ng/craft-directive-name-match': 'warn',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/no-angular-signal-forms': 'error',
+      'craft-ng/no-direct-temporal-globals': 'error',
       'craft-ng/prefer-craft-template-blocks': 'error',
+      'craft-ng/prefer-craft-computed': 'error',
       'craft-ng/prefer-craft-reactivity': 'warn',
       'craft-ng/provide-host-name-match-component': 'warn',
       'craft-ng/prefer-craft-http-client': 'error',
@@ -47,10 +44,10 @@ export default [
       'craft-ng/prefer-browser-boundaries': 'warn',
       'craft-ng/app-start-registry-match': 'warn',
       'craft-ng/global-exception-registry-match': 'warn',
-      'craft-ng/brand-angular-deps-match': 'off',
       'craft-ng/require-component-monitoring': 'warn',
       'craft-ng/require-primitive-generator-unwrap': 'warn',
       'craft-ng/require-yieldable-template-method': 'error',
+      'craft-ng/template-element-name-unique': 'error',
       'craft-ng/require-primitive-context': 'error',
       'craft-ng/require-primitive-derived-property': 'error',
       'craft-ng/no-async-await': 'error',
@@ -60,10 +57,12 @@ export default [
       'craft-ng/require-pending-component-di-check': 'warn',
       'craft-ng/require-craft-exception-handler': 'warn',
       'craft-ng/require-exception-component-di-check': 'warn',
-      // The top-level tuple expands every SFC contract and hits TS2589.
+      // Conflicts with the demo's per-route RouteCheckedDI strategy: the
+      // top-level tuple expands every SFC contract and hits TS2589.
       'craft-ng/require-child-route-mount-check': 'off',
       'craft-ng/require-lazy-load-with-retry': 'warn',
-      // app.routes.ts uses O(1) RouteCheckedDI checks for every SFC instead.
+      // Conflicts with the demo's O(1) RouteCheckedDI checks: adding the
+      // aggregate cascade proof makes the large app route file hit TS2589.
       'craft-ng/require-cascade-route-di-check': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
     },
