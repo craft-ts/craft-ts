@@ -47,6 +47,7 @@ export type {
   CraftDirectiveTemplateDependencies,
   ComponentTemplateOf,
   ComponentTemplateNameOf,
+  ComponentLogicOutputOf,
   YieldableTemplateCallback,
   YieldableTemplateContext,
   TemplateMethodUse,

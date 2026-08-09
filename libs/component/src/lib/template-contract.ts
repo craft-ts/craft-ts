@@ -703,16 +703,10 @@ type Visibility = Readonly<Record<string, VisibilityValue>>;
 type VisibilityMatches<
   Actual extends Visibility,
   Expected extends Visibility,
-> = {
-  [Key in keyof Expected]: Key extends keyof Actual
-    ? Actual[Key] extends Expected[Key]
-      ? Expected[Key] extends Actual[Key]
-        ? never
-        : false
-      : false
-    : false;
-}[keyof Expected] extends never
-  ? true
+> = keyof Expected extends never
+  ? keyof Actual extends never
+    ? true
+    : false
   : {
       [Key in keyof Expected]: Key extends keyof Actual
         ? Actual[Key] extends Expected[Key]
@@ -721,7 +715,17 @@ type VisibilityMatches<
             : false
           : false
         : false;
-    }[keyof Expected];
+    }[keyof Expected] extends never
+    ? true
+    : {
+        [Key in keyof Expected]: Key extends keyof Actual
+          ? Actual[Key] extends Expected[Key]
+            ? Expected[Key] extends Actual[Key]
+              ? never
+              : false
+            : false
+          : false;
+      }[keyof Expected];
 
 type StateMarkerMatches<Value, StateName extends string> =
   Value extends NamedYieldableValue<infer ActualName extends string, any>
@@ -1147,12 +1151,7 @@ type VisitNamedElementIdentities<
   : IsAny<Children> extends true
     ? never
     : Children extends readonly (infer Child)[]
-      ? VisitNamedElementIdentities<
-          Child,
-          Owner,
-          Seen,
-          [...Depth, unknown]
-        >
+      ? VisitNamedElementIdentities<Child, Owner, Seen, [...Depth, unknown]>
       : Children extends ElementNodeBase<
             any,
             infer Tag extends string,
@@ -1208,12 +1207,7 @@ type VisitNamedElementIdentities<
                   Seen,
                   [...Depth, unknown]
                 >
-              : Children extends IfBlockNode<
-                    any,
-                    any,
-                    infer True,
-                    infer False
-                  >
+              : Children extends IfBlockNode<any, any, infer True, infer False>
                 ? VisitNamedElementIdentities<
                     True | False,
                     Owner,
@@ -1251,6 +1245,473 @@ export type TemplateNamedElementIdentity<Template> =
     TemplateContractOutput<Template>,
     TemplateContractOwner<Template>
   >;
+
+type TemplateContextOf<Template> = Template extends (
+  context: infer Context,
+  ...args: any[]
+) => any
+  ? Context
+  : never;
+
+type TemplateContextPathKeys<Value> = Exclude<
+  keyof Value,
+  keyof Function | symbol | number
+> &
+  string;
+
+type TemplateContextPaths<
+  Value,
+  Prefix extends string = '',
+  Depth extends readonly unknown[] = [],
+> = Depth['length'] extends 8
+  ? never
+  :
+      | Prefix
+      | (Value extends readonly unknown[]
+          ? never
+          : Value extends object
+            ? {
+                [Key in TemplateContextPathKeys<Value>]: TemplateContextPaths<
+                  Value[Key],
+                  Prefix extends '' ? Key : `${Prefix}.${Key}`,
+                  [...Depth, unknown]
+                >;
+              }[TemplateContextPathKeys<Value>]
+            : never);
+
+/** Context paths available for a template callback, with editor completion. */
+export type TemplateContextMethodOf<Template> = Extract<
+  TemplateContextPaths<TemplateContextOf<Template>>,
+  string
+>;
+
+type NamedElementPropsOf<
+  Children,
+  Identity extends string,
+  Owner extends string = never,
+  Seen extends readonly unknown[] = [],
+  Depth extends readonly unknown[] = [],
+> = Depth['length'] extends 8
+  ? never
+  : IsAny<Children> extends true
+    ? never
+    : Children extends readonly (infer Child)[]
+      ? NamedElementPropsOf<Child, Identity, Owner, Seen, [...Depth, unknown]>
+      : Children extends ElementNodeBase<
+            any,
+            infer Tag,
+            infer Props,
+            infer Nested,
+            infer LocalName
+          >
+        ? NamedElementMatches<
+            Owner,
+            Identity,
+            Tag,
+            Extract<LocalName, string>
+          > extends true
+          ? Props
+          : NamedElementPropsOf<
+              Nested,
+              Identity,
+              Owner,
+              Seen,
+              [...Depth, unknown]
+            >
+        : Children extends CraftDirectiveNode<any>
+          ? NamedElementPropsOf<
+              Children['node'],
+              Identity,
+              Owner,
+              Seen,
+              [...Depth, unknown]
+            >
+          : Children extends ComponentNode<any, any, infer Component>
+            ? Component extends Seen[number]
+              ? never
+              : NamedElementPropsOf<
+                  ReturnType<ComponentTemplateOf<Component>>,
+                  Identity,
+                  ComponentName<Component>,
+                  [...Seen, Component],
+                  [...Depth, unknown]
+                >
+            : Children extends EachNode<
+                  any,
+                  any,
+                  any,
+                  any,
+                  infer Item,
+                  infer Empty
+                >
+              ? NamedElementPropsOf<
+                  Item | Empty,
+                  Identity,
+                  Owner,
+                  Seen,
+                  [...Depth, unknown]
+                >
+              : Children extends IfBlockNode<any, any, infer True, infer False>
+                ? NamedElementPropsOf<
+                    True | False,
+                    Identity,
+                    Owner,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                : Children extends DeferNode<infer Loaded>
+                  ? NamedElementPropsOf<
+                      Loaded extends CraftComponent<any, any>
+                        ? ReturnType<ComponentTemplateOf<Loaded>>
+                        : ReturnType<Children['resolve']>,
+                      Identity,
+                      Owner,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  : never;
+
+/** Properties declared on a named element, with editor completion. */
+export type TemplateNamedElementProperty<
+  Template,
+  Identity extends TemplateNamedElementIdentity<Template>,
+> = Extract<
+  keyof NamedElementPropsOf<
+    TemplateContractOutput<Template>,
+    Identity,
+    TemplateContractOwner<Template>
+  >,
+  string
+>;
+
+type TemplateContextUseResult<Result> =
+  true extends Extract<Result, true> ? true : false;
+
+type HandlerDelegatesToContext<
+  Handler,
+  ContextMethod extends string,
+> = Handler extends (
+  ...args: any[]
+) => Generator<infer Yielded, infer Returned, any>
+  ? TemplateMethodUse<ContextMethod> extends Yielded | Returned
+    ? true
+    : false
+  : false;
+
+type NamedElementDelegatesToContextOf<
+  Children,
+  Identity extends string,
+  Property extends string,
+  ContextMethod extends string,
+  Owner extends string = never,
+  Seen extends readonly unknown[] = [],
+  Depth extends readonly unknown[] = [],
+> = Depth['length'] extends 8
+  ? false
+  : Children extends readonly (infer Child)[]
+    ? NamedElementDelegatesToContextOf<
+        Child,
+        Identity,
+        Property,
+        ContextMethod,
+        Owner,
+        Seen,
+        [...Depth, unknown]
+      >
+    : Children extends ElementNodeBase<
+          any,
+          infer Tag,
+          infer Props,
+          infer Nested,
+          infer LocalName
+        >
+      ?
+          | (NamedElementMatches<
+              Owner,
+              Identity,
+              Tag,
+              Extract<LocalName, string>
+            > extends true
+              ? Property extends keyof Props
+                ? HandlerDelegatesToContext<Props[Property], ContextMethod>
+                : false
+              : false)
+          | NamedElementDelegatesToContextOf<
+              Nested,
+              Identity,
+              Property,
+              ContextMethod,
+              Owner,
+              Seen,
+              [...Depth, unknown]
+            >
+      : Children extends CraftDirectiveNode<any>
+        ? NamedElementDelegatesToContextOf<
+            Children['node'],
+            Identity,
+            Property,
+            ContextMethod,
+            Owner,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends ComponentNode<any, any, infer Component>
+          ? Component extends Seen[number]
+            ? false
+            : NamedElementDelegatesToContextOf<
+                ReturnType<ComponentTemplateOf<Component>>,
+                Identity,
+                Property,
+                ContextMethod,
+                ComponentName<Component>,
+                [...Seen, Component],
+                [...Depth, unknown]
+              >
+          : Children extends EachNode<
+                any,
+                any,
+                any,
+                any,
+                infer Item,
+                infer Empty
+              >
+            ? NamedElementDelegatesToContextOf<
+                Item | Empty,
+                Identity,
+                Property,
+                ContextMethod,
+                Owner,
+                Seen,
+                [...Depth, unknown]
+              >
+            : Children extends IfBlockNode<any, any, infer True, infer False>
+              ? NamedElementDelegatesToContextOf<
+                  True | False,
+                  Identity,
+                  Property,
+                  ContextMethod,
+                  Owner,
+                  Seen,
+                  [...Depth, unknown]
+                >
+              : Children extends DeferNode<infer Loaded>
+                ? NamedElementDelegatesToContextOf<
+                    Loaded extends CraftComponent<any, any>
+                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      : ReturnType<Children['resolve']>,
+                    Identity,
+                    Property,
+                    ContextMethod,
+                    Owner,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                : false;
+
+/** Checks that a named element property delegates to a context method. */
+export type TemplateNamedElementDelegatesToContext<
+  Template,
+  Identity extends TemplateNamedElementIdentity<Template>,
+  Property extends TemplateNamedElementProperty<Template, Identity>,
+  ContextMethod extends TemplateContextMethodOf<Template>,
+> = TemplateContextUseResult<
+  NamedElementDelegatesToContextOf<
+    TemplateContractOutput<Template>,
+    Identity,
+    Property,
+    ContextMethod,
+    TemplateContractOwner<Template>
+  >
+>;
+
+type NamedElementRendersStateWhenOf<
+  Children,
+  Identity extends string,
+  Property extends string,
+  StateName extends string,
+  Expected extends Visibility,
+  Owner extends string = never,
+  Current extends Visibility = {},
+  Seen extends readonly unknown[] = [],
+  Depth extends readonly unknown[] = [],
+> = Depth['length'] extends 8
+  ? false
+  : Children extends readonly (infer Child)[]
+    ? NamedElementRendersStateWhenOf<
+        Child,
+        Identity,
+        Property,
+        StateName,
+        Expected,
+        Owner,
+        Current,
+        Seen,
+        [...Depth, unknown]
+      >
+    : Children extends ElementNodeBase<
+          any,
+          infer Tag,
+          infer Props,
+          infer Nested,
+          infer LocalName
+        >
+      ?
+          | (NamedElementMatches<
+              Owner,
+              Identity,
+              Tag,
+              Extract<LocalName, string>
+            > extends true
+              ? Property extends keyof Props
+                ? ValueUsesState<Props[Property], StateName> extends true
+                  ? VisibilityMatches<Current, Expected>
+                  : false
+                : false
+              : false)
+          | NamedElementRendersStateWhenOf<
+              Nested,
+              Identity,
+              Property,
+              StateName,
+              Expected,
+              Owner,
+              Current,
+              Seen,
+              [...Depth, unknown]
+            >
+      : Children extends CraftDirectiveNode<any>
+        ? NamedElementRendersStateWhenOf<
+            Children['node'],
+            Identity,
+            Property,
+            StateName,
+            Expected,
+            Owner,
+            Current,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends ComponentNode<any, any, infer Component>
+          ? Component extends Seen[number]
+            ? false
+            : NamedElementRendersStateWhenOf<
+                ReturnType<ComponentTemplateOf<Component>>,
+                Identity,
+                Property,
+                StateName,
+                Expected,
+                ComponentName<Component>,
+                Current,
+                [...Seen, Component],
+                [...Depth, unknown]
+              >
+          : Children extends EachNode<
+                any,
+                any,
+                any,
+                infer SourceName,
+                infer Item,
+                infer Empty
+              >
+            ?
+                | NamedElementRendersStateWhenOf<
+                    Item,
+                    Identity,
+                    Property,
+                    StateName,
+                    Expected,
+                    Owner,
+                    Extract<SourceName, string> extends never
+                      ? Current
+                      : AddVisibility<
+                          Current,
+                          Extract<SourceName, string>,
+                          'nonEmpty'
+                        >,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                | NamedElementRendersStateWhenOf<
+                    Empty,
+                    Identity,
+                    Property,
+                    StateName,
+                    Expected,
+                    Owner,
+                    Extract<SourceName, string> extends never
+                      ? Current
+                      : AddVisibility<
+                          Current,
+                          Extract<SourceName, string>,
+                          'empty'
+                        >,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+            : Children extends IfBlockNode<
+                  infer ConditionName,
+                  any,
+                  infer True,
+                  infer False
+                >
+              ?
+                  | NamedElementRendersStateWhenOf<
+                      True,
+                      Identity,
+                      Property,
+                      StateName,
+                      Expected,
+                      Owner,
+                      AddVisibility<Current, ConditionName, true>,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  | NamedElementRendersStateWhenOf<
+                      False,
+                      Identity,
+                      Property,
+                      StateName,
+                      Expected,
+                      Owner,
+                      AddVisibility<Current, ConditionName, false>,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+              : Children extends DeferNode<infer Loaded>
+                ? NamedElementRendersStateWhenOf<
+                    Loaded extends CraftComponent<any, any>
+                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      : ReturnType<Children['resolve']>,
+                    Identity,
+                    Property,
+                    StateName,
+                    Expected,
+                    Owner,
+                    Current,
+                    Seen,
+                    [...Depth, unknown]
+                  >
+                : false;
+
+/** Checks that a named element property is driven by a context state. */
+export type TemplateNamedElementRendersStateWhen<
+  Template,
+  Identity extends TemplateNamedElementIdentity<Template>,
+  Property extends TemplateNamedElementProperty<Template, Identity>,
+  StateName extends TemplateContextMethodOf<Template>,
+  Conditions extends { readonly when?: Visibility } = {},
+> = TemplateContextUseResult<
+  NamedElementRendersStateWhenOf<
+    TemplateContractOutput<Template>,
+    Identity,
+    Property,
+    StateName,
+    Conditions extends { readonly when: infer When extends Visibility }
+      ? When
+      : {},
+    TemplateContractOwner<Template>
+  >
+>;
 
 type VisitNamedElement<
   Children,

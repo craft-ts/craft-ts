@@ -155,31 +155,45 @@ type ProjectTemplateValue<
               ContextMethod
             >
           : Value extends Signal<infer State>
-            ? (() => State & TemplateMethodUse<ContextMethod>) &
+            ? NamedYieldableValue<
+                ContextMethod,
+                () => State & TemplateMethodUse<ContextMethod>
+              > &
                 ProjectTemplateObject<Value, ContextMethod>
             : Value extends readonly (infer Item)[]
               ? readonly ProjectTemplateValue<Item, ContextMethod>[]
-              : Value extends (...args: infer Args) => infer Result
-                ? (...args: Args) => ProjectTemplateValue<Result, ContextMethod>
-                : Value extends object
-                  ? ProjectTemplateObject<Value, ContextMethod>
-                  : Value;
+              : Value extends (
+                    ...args: infer Args
+                  ) => Generator<infer Yielded, infer Result, any>
+                ? (
+                    ...args: Args
+                  ) => Generator<
+                    Yielded | TemplateMethodUse<ContextMethod>,
+                    Result,
+                    unknown
+                  >
+                : Value extends (...args: infer Args) => infer Result
+                  ? (
+                      ...args: Args
+                    ) => ProjectTemplateValue<Result, ContextMethod>
+                  : Value extends object
+                    ? ProjectTemplateObject<Value, ContextMethod>
+                    : Value;
 
-type DirectTemplateContextMethod<Context> = Context extends NamedYieldableValue<
-  infer Name extends string,
-  any
->
-  ? Name
-  : '';
+type DirectTemplateContextMethod<Context> =
+  Context extends NamedYieldableValue<infer Name extends string, any>
+    ? Name
+    : '';
 
-export type YieldableTemplateContext<Context> = Context extends Signal<any>
-  ? ProjectTemplateValue<Context, DirectTemplateContextMethod<Context>>
-  : {
-      [Key in keyof Context]: ProjectTemplateValue<
-        Context[Key],
-        ContextPathKey<'', Key>
-      >;
-    };
+export type YieldableTemplateContext<Context> =
+  Context extends Signal<any>
+    ? ProjectTemplateValue<Context, DirectTemplateContextMethod<Context>>
+    : {
+        [Key in keyof Context]: ProjectTemplateValue<
+          Context[Key],
+          ContextPathKey<'', Key>
+        >;
+      };
 
 export type InputValue<T> = () => T;
 
@@ -1061,6 +1075,13 @@ export type ComponentInitializationExceptionsOf<Component> = Component extends {
     string;
 }
   ? Exceptions
+  : never;
+
+/** The value returned by a component's logic factory. */
+export type ComponentLogicOutputOf<Component> = Component extends {
+  readonly [COMPONENT_LOGIC_OUTPUT]: infer Output;
+}
+  ? Output
   : never;
 
 export type ContentRequirementsOfContext<Context> =

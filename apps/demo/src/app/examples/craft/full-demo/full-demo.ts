@@ -109,10 +109,15 @@ const FullDemoCraft = craftComponent(
     stylesUrl: styles,
   },
   function* () {
-    return { store: yield* TodoStore(), title: yield* state('title', '') };
+    return {
+      store: yield* TodoStore(),
+      title: yield* state('title', '', ({ set }) => ({
+        setTitle: set,
+      })),
+    };
   },
-  ({ store, title }) => {
-    return div([
+  ({ store, title }) =>
+    div([
       h2([
         'Full craftService demo ',
         StatusComponent({ status: () => store.todos.status() }),
@@ -122,16 +127,16 @@ const FullDemoCraft = craftComponent(
         input('TodoNameToAddInput', {
           placeholder: 'New todo',
           value: title(),
-          input: (event) => title.set((event.target as HTMLInputElement).value),
+          *input(event) {
+            yield* title.setTitle((event.target as HTMLInputElement).value);
+          },
         }),
         button(
           'AddTodoButton',
           {
-            disabled: store.add.isLoading(),
-            click: () => {
-              if (title().trim()) {
-                store.add.mutate(title().trim());
-              }
+            disabled: () => store.add.isLoading(),
+            *click() {
+              yield* store.add.mutate(title().trim());
             },
           },
           'Add',
@@ -139,24 +144,25 @@ const FullDemoCraft = craftComponent(
       ]),
       ul(
         each(
-          () => store.todos.value(),
+          store.todos.value,
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
             li([
-              span(todo.title),
+              span('TodoTitle', {}, todo.title),
               button(
                 'RemoveTodoButton',
                 {
-                  disabled: store.remove.isLoading(),
-                  click: () => store.remove.mutate(todo.id),
+                  disabled: () => store.remove.isLoading(),
+                  *click() {
+                    yield* store.remove.mutate(todo.id);
+                  },
                 },
                 'Remove',
               ),
             ]),
         ),
       ),
-    ]);
-  },
+    ]),
 ).pipe(
   catchBlock.exhaustive({
     FAILED_TO_LOAD: {

@@ -7,7 +7,7 @@ DOM, no fixture, no component instantiation.
 **Use them when** a regression would be silent: an element quietly stops
 rendering under a condition, a binding is repointed at another context member, a
 handler becomes imperative, a prop changes shape.
-**Not instead of** runtime tests — they prove the template's *contract*, not
+**Not instead of** runtime tests — they prove the template's _contract_, not
 what the user ends up seeing. Pair them with
 [template tests](/guide/testing/components#component-template).
 
@@ -15,11 +15,13 @@ what the user ends up seeing. Pair them with
 
 Most of what you'll write falls into one of these. Each is expanded below.
 
-| You want to prove…                                        | Use                                                        |
-| --------------------------------------------------------- | ---------------------------------------------------------- |
-| an element renders **only under a condition**              | `TemplateRendersNamedElementWhen` with `{ when }`           |
-| a binding is rendered **for every item of a non-empty list** | the same, with `{ when: { items: 'nonEmpty' } }`           |
-| a **property is used** on a named element                  | `TemplateRendersStateWhen` / `TemplateHasProperty`          |
+| You want to prove…                                           | Use                                                |
+| ------------------------------------------------------------ | -------------------------------------------------- |
+| an element renders **only under a condition**                | `TemplateRendersNamedElementWhen` with `{ when }`  |
+| a binding is rendered **for every item of a non-empty list** | the same, with `{ when: { items: 'nonEmpty' } }`   |
+| a **property is used** on a named element                    | `TemplateNamedElementRendersStateWhen`             |
+| an element property delegates to a context method            | `TemplateNamedElementDelegatesToContext`           |
+| a component logic field has a specific service output        | `ComponentLogicOutputOf` + `ResolvedServiceOutput` |
 
 ::: warning Experimental
 This contract is the least settled part of `@craft-ng`. The assertions below
@@ -49,6 +51,23 @@ compiling.
 ```ts
 type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
 ```
+
+`ComponentLogicOutputOf` gets the value returned by the component logic
+factory. This lets you assert the type of a field returned by the factory,
+instead of checking only that the component declares a dependency:
+
+```ts
+import type { ComponentLogicOutputOf } from '@craft-ng/component';
+import type { ResolvedServiceOutput } from '@craft-ng/core';
+
+type FullDemoLogic = ComponentLogicOutputOf<typeof FullDemoCraft>;
+type TodoStoreOutput = ResolvedServiceOutput<typeof TodoStore, {}>;
+
+type StoreIsTodoStore = Expect<Equal<FullDemoLogic['store'], TodoStoreOutput>>;
+```
+
+`ResolvedServiceOutput` is used here because it preserves the reactive brands
+present on the value produced by `yield* TodoStore()`.
 
 ### Running them with Vitest
 
@@ -327,9 +346,11 @@ type CanIncrement = Expect<
 >;
 ```
 
-When the element is not behind a conditional block, omit `when` (or use an
-empty object). Keep the complete `ComponentTemplateOf` type if you want editor
-completion for the component prefix of the identity. Using `ReturnType<...>`
+When the element is truly unconditional, omit `when` (or use an empty object).
+An element inside an `ifBlock` or `each` requires its visibility condition;
+omitting `when` deliberately returns `false` for such an element. Keep the
+complete `ComponentTemplateOf` type if you want editor completion for the
+component prefix of the identity. Using `ReturnType<...>`
 preserves the element and tag, but loses the component name used for the most
 useful completion suggestions:
 
@@ -350,8 +371,8 @@ type DisplayNewTodoNameInput = Expect<
 When editing the second argument, the available identities are proposed from
 the template, for example `FullDemoCraft:input:TodoNameToAddInput` and
 `FullDemoCraft:button:AddTodoButton`. `{ when: {} }` is equivalent to omitting
-the third argument; `{ when: { isAuth: true } }` would only be correct if the
-element were inside an `ifBlock` named `isAuth`.
+the third argument: both assert that the element is unconditional. For an
+element inside an `ifBlock` named `isAuth`, use `{ when: { isAuth: true } }`.
 
 The same visibility contract can identify an element through branded direct
 content. Here, `brandedStatus` is not selected by its text; its brand proves that the
@@ -527,6 +548,82 @@ that is incompatible with `when`.
 `craft-ng/template-element-name-unique` ESLint rule checks that each component
 template declares a literal `tag:localName` at most once, including across
 conditional branches.
+
+### Proving a named property uses a specific state
+
+`TemplateNamedElementRendersStateWhen` combines the named-element identity,
+the element property, and the context path. All three arguments are constrained
+by the template type, so editors can complete the element identity, the
+available property names, and the available context paths:
+
+```ts
+import type {
+  ComponentTemplateOf,
+  TemplateNamedElementRendersStateWhen,
+} from '@craft-ng/component';
+import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+
+type FullDemoTemplate = ComponentTemplateOf<typeof FullDemoCraft>;
+
+type RemoveButtonUsesRemoveLoading = Expect<
+  Equal<
+    TemplateNamedElementRendersStateWhen<
+      FullDemoTemplate,
+      'FullDemoCraft:button:RemoveTodoButton',
+      'disabled',
+      'store.remove.isLoading'
+    >,
+    true
+  >
+>;
+```
+
+For a reactive property binding, keep the read inside a render callback so
+the context marker remains visible to the template contract:
+
+```ts
+button('RemoveTodoButton', {
+  disabled: () => store.remove.isLoading(),
+});
+```
+
+This assertion proves that the `disabled` binding on the named remove button
+is driven by `store.remove.isLoading`; it does not instantiate the component or
+observe the DOM.
+
+### Proving a named event delegates to a context method
+
+`TemplateNamedElementDelegatesToContext` checks the same relationship for a
+generator event callback:
+
+```ts
+import type { TemplateNamedElementDelegatesToContext } from '@craft-ng/component';
+
+type AddButtonClickUsesAddMutation = Expect<
+  Equal<
+    TemplateNamedElementDelegatesToContext<
+      FullDemoTemplate,
+      'FullDemoCraft:button:AddTodoButton',
+      'click',
+      'store.add.mutate'
+    >,
+    true
+  >
+>;
+```
+
+The source callback must delegate with `yield*`:
+
+```ts
+button('AddTodoButton', {
+  *click() {
+    yield* store.add.mutate(title().trim());
+  },
+});
+```
+
+The named identity prevents a different button's `click` handler from
+satisfying the assertion.
 
 ## Pitfalls
 

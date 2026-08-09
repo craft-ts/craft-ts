@@ -53,6 +53,7 @@ type EachItem<Source> = [NonNullable<Source>] extends [never]
     : EachItemFromValue<Source>;
 
 export function each<
+  Name extends string,
   Source extends EachSource,
   Key,
   Options extends EachOptions<NoInfer<EachItem<Source>>, Key>,
@@ -61,7 +62,30 @@ export function each<
     index: number,
   ) => CraftNodeChildren,
 >(
-  source: Source,
+  source: Source & { readonly [YIELDABLE_VALUE]: Name },
+  options: Options,
+  itemTemplate: ItemTemplate,
+): EachNode<
+  EachItem<Source>,
+  Key,
+  CallbackDependencies<ItemTemplate> | EmptyDependencies<Options>,
+  Name,
+  ReturnType<ItemTemplate>,
+  Options extends { readonly empty?: (...args: any[]) => infer Empty }
+    ? Empty
+    : never
+>;
+
+export function each<
+  Source extends EachSource,
+  Key,
+  Options extends EachOptions<NoInfer<EachItem<Source>>, Key>,
+  ItemTemplate extends (
+    item: NoInfer<EachItem<Source>>,
+    index: number,
+  ) => CraftNodeChildren,
+>(
+  source: Source & EachSource,
   options: Options,
   itemTemplate: ItemTemplate,
 ): EachNode<
@@ -84,7 +108,7 @@ export function each<
     index: number,
   ) => CraftNodeChildren,
 >(
-  source: Source,
+  source: Source & EachSource,
   options: Options,
   itemTemplate: ItemTemplate,
 ): EachNode<

@@ -1002,7 +1002,8 @@ it('tracks named elements through conditional template branches', () => {
     Equal<
       TemplateRendersNamedElementWhen<
         Template,
-        'namedContractComponent:button:increment'
+        'namedContractComponent:button:increment',
+        { when: { isAuth: true } }
       >,
       true
     >
@@ -1080,6 +1081,15 @@ it('tracks list visibility paths for named elements', () => {
         { when: { counterList: 'nonEmpty' } }
       >,
       true
+    >
+  >;
+  type _ItemIsNotUnconditionallyVisible = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        Template,
+        'namedListContractComponent:button:item'
+      >,
+      false
     >
   >;
   type _EmptyVisibilityDoesNotMatch = Expect<
