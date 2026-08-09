@@ -78,6 +78,48 @@ describe('query', () => {
     });
   });
 
+  it('preserves the previous value while a new query is loading by default', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const currentId = signal('first');
+      const queryRef = craftUse(query('queryRef', {
+        params: () => currentId(),
+        loader: async ({ params }) => {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return { id: params };
+        },
+      }));
+
+      await vi.runAllTimersAsync();
+      expect(queryRef.value()).toEqual({ id: 'first' });
+
+      currentId.set('second');
+      expect(queryRef.status()).toBe('loading');
+      expect(queryRef.value()).toEqual({ id: 'first' });
+
+      await vi.runAllTimersAsync();
+      expect(queryRef.value()).toEqual({ id: 'second' });
+    });
+  });
+
+  it('can clear the previous query value while loading', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const currentId = signal('first');
+      const queryRef = craftUse(query('queryRef', {
+        params: () => currentId(),
+        preservePreviousValue: () => false,
+        loader: async ({ params }) => {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return { id: params };
+        },
+      }));
+
+      await vi.runAllTimersAsync();
+      currentId.set('second');
+      expect(queryRef.status()).toBe('loading');
+      expect(queryRef.value()).toBeUndefined();
+    });
+  });
+
   it('should return undefined with value when status is error', async () => {
     await TestBed.runInInjectionContext(async () => {
       const queryRef = craftUse(query('queryRef', {

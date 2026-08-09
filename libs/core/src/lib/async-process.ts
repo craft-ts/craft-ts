@@ -39,6 +39,7 @@ import {
 } from './util/method-trigger-nonce';
 import { MergeObjects } from './util/util.type';
 import { craftResource } from './craft-resource';
+import { preservedResource } from './preserved-resource';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import {
   AnyCraftException,
@@ -643,6 +644,7 @@ export function asyncProcess<
  *   - `loader`: Async function that performs the operation (mutually exclusive with `stream`)
  *   - `stream`: Streaming loader for progressive updates (mutually exclusive with `loader`)
  *   - `identifier`: Optional function to derive unique ID for parallel execution
+ *   - `preservePreviousValue`: Optional function returning whether to keep the previous value while loading (default: false)
  *
  * @returns A single-use primitive generator resolving to an async method
  *   reference with:
@@ -1376,6 +1378,21 @@ function createAsyncProcessRef<
     return wrapMethodParams(AsyncProcessResourceParamsFnSignal(), seq);
   });
 
+  const asyncProcessResourceOptions = {
+    ...AsyncProcessConfig,
+    params: usesMethodParamsSignal
+      ? (methodTaggedParams as unknown as typeof resourceParamsSrc)
+      : resourceParamsSrc,
+    equal: usesMethodParamsSignal
+      ? methodParamsWrapperEqual(
+          (AsyncProcessConfig as { equal?: (a: any, b: any) => boolean })
+            .equal,
+        )
+      : (AsyncProcessConfig as { equal?: (a: any, b: any) => boolean }).equal,
+    loader: wrappedLoader,
+    stream: wrappedStream,
+  } as ResourceOptions<any, any>;
+
   const resourceTarget = isUsingIdentifier
     ? resourceById<
         AsyncProcesstate,
@@ -1391,21 +1408,13 @@ function createAsyncProcessRef<
         stream: wrappedStream,
         identifier: AsyncProcessConfig.identifier,
       } as any)
-    : craftResource<AsyncProcesstate, AsyncProcessParams>({
-        ...AsyncProcessConfig,
-        params: usesMethodParamsSignal
-          ? (methodTaggedParams as unknown as typeof resourceParamsSrc)
-          : resourceParamsSrc,
-        equal: usesMethodParamsSignal
-          ? methodParamsWrapperEqual(
-              (AsyncProcessConfig as { equal?: (a: any, b: any) => boolean })
-                .equal,
-            )
-          : (AsyncProcessConfig as { equal?: (a: any, b: any) => boolean })
-              .equal,
-        loader: wrappedLoader,
-        stream: wrappedStream,
-      } as ResourceOptions<any, any>);
+    : AsyncProcessConfig.preservePreviousValue?.()
+      ? preservedResource<AsyncProcesstate, AsyncProcessParams>(
+          asyncProcessResourceOptions,
+        )
+      : craftResource<AsyncProcesstate, AsyncProcessParams>(
+          asyncProcessResourceOptions,
+        );
 
   if (configuredSchemas.loader) {
     const target = resourceTarget as any;

@@ -148,6 +148,30 @@ describe('mutation', () => {
     });
   });
 
+  it('preserves the previous value while a new mutation is loading when configured', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const mutationRef = craftUse(mutation('mutationRef', {
+        method: (value: string) => value,
+        preservePreviousValue: () => true,
+        loader: async ({ params }) => {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return { value: params };
+        },
+      }));
+
+      mutationRef.mutate('first');
+      await vi.runAllTimersAsync();
+      expect(mutationRef.value()).toEqual({ value: 'first' });
+
+      mutationRef.mutate('second');
+      expect(mutationRef.status()).toBe('loading');
+      expect(mutationRef.value()).toEqual({ value: 'first' });
+
+      await vi.runAllTimersAsync();
+      expect(mutationRef.value()).toEqual({ value: 'second' });
+    });
+  });
+
   it('should return undefined with value when status is error', async () => {
     await TestBed.runInInjectionContext(async () => {
       const mutationInstance = craftUse(mutation('mutationInstance', {

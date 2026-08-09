@@ -236,6 +236,7 @@ const COLUMN_WIDTH = 500;
 const ROW_GAP = 48;
 const DIAGRAM_ORIGIN_X = 40;
 const DIAGRAM_ORIGIN_Y = 40;
+const CONSTELLATION_LAYOUT_MARGIN = 112;
 const OVERVIEW_EDGE_KINDS = new Set<GraphEdgeKind>([
   'loads',
   'renders',
@@ -1437,7 +1438,7 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
         gap: 2px;
         margin-top: 5px;
         overflow: hidden;
-        color: #7dd3fc;
+        color: #f9a8d4;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 9px;
         font-weight: 800;
@@ -1504,10 +1505,6 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
         border-color: #22d3ee;
         background: linear-gradient(145deg, #103e4bee, #0c2539ee);
         box-shadow: 0 0 0 1px #22d3ee22, 0 0 18px #22d3ee55, 0 8px 20px #02061766;
-      }
-
-      .graph-node.is-http-client {
-        background: linear-gradient(145deg, #44311bee, #241b24ee);
       }
 
       .graph-node.is-constellation {
@@ -1614,30 +1611,18 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
           0 8px 22px #020617aa;
       }
 
-      .graph-node.is-constellation.is-http-client {
-        background:
-          radial-gradient(circle at 30% 23%, #ffffffee 0, #fef3c766 3%, transparent 18%),
-          radial-gradient(circle at 50% 48%, #3b2b16ee 0, #201629ee 58%, #080611f2 100%);
-        box-shadow:
-          0 0 0 1px #fef3c766,
-          0 0 22px #fbbf2488,
-          0 0 48px #f59e0b44,
-          0 8px 22px #020617aa;
-      }
-
       .graph-node.is-temporal {
-        border-color: #38bdf8;
         box-shadow:
-          0 0 0 2px #7dd3fc33,
-          0 0 28px 7px #38bdf866,
+          0 0 0 2px #f9a8d433,
+          0 0 28px 7px #ec489966,
           0 8px 20px #02061766;
       }
 
       .graph-node.is-constellation.is-temporal {
         box-shadow:
-          0 0 0 1px #bae6fd77,
-          0 0 24px #38bdfbaa,
-          0 0 50px #0284c744,
+          0 0 0 1px #f9a8d477,
+          0 0 24px #ec4899aa,
+          0 0 50px #be185c44,
           0 8px 22px #020617aa;
       }
 
@@ -1705,12 +1690,6 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
         .graph-node.is-constellation.node-source {
         border-color: #22d3ee;
         background: #cffafe !important;
-      }
-
-      :host-context(.celestial-view)
-        .graph-node.is-constellation.is-http-client {
-        border-color: #ffd166;
-        background: #fef3c7 !important;
       }
 
       :host-context(.celestial-view)
@@ -1790,11 +1769,6 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
         box-shadow: 0 0 0 1px #22d3ee22, 0 0 18px #22d3ee55, 0 8px 20px #02061766;
       }
 
-      .graph-node.is-constellation.is-http-client {
-        background: linear-gradient(145deg, #44311bee, #241b24ee);
-        box-shadow: 0 0 0 2px #fbbf2455, 0 0 24px #fbbf2466, 0 8px 20px #02061766;
-      }
-
       .graph-node.is-constellation.is-app-start {
         border-color: #f59e0b;
         background: linear-gradient(145deg, #44301bee, #241b24ee);
@@ -1805,11 +1779,6 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
         border-color: #fbbf24;
         background: linear-gradient(145deg, #44301bee, #241b24ee);
         box-shadow: 0 0 0 2px #fbbf2477, 0 0 28px #fbbf2477, 0 8px 20px #02061766;
-      }
-
-      .graph-node.is-constellation.is-http-client {
-        border-color: #f59e0b;
-        box-shadow: 0 0 0 2px #fbbf24aa, 0 0 34px 8px #fbbf2488, 0 8px 20px #02061766;
       }
 
       .graph-node.is-constellation .node-kicker {
@@ -1913,6 +1882,130 @@ const NODE_COLUMNS: Record<GraphNodeKind, number> = {
       .graph-node.is-constellation.is-dimmed.is-http-client::after,
       .graph-node.is-constellation.is-dimmed.is-log-node::after {
         background: #fbbf24;
+      }
+
+      /* Temporal dependencies stay visually prominent after the per-kind
+       * constellation rules. A node can carry both HTTP and temporal usage;
+       * in that case the two glows remain visible together. */
+      .graph-node.is-temporal {
+        box-shadow:
+          0 0 0 2px #f9a8d488,
+          0 0 30px 7px #ec489988,
+          0 8px 20px #02061766;
+      }
+
+      .graph-node.is-constellation.is-temporal {
+        box-shadow:
+          0 0 0 4px #ec4899aa,
+          0 0 20px #ec489977,
+          0 8px 20px #02061766;
+      }
+
+      .graph-node.is-http-client {
+        box-shadow:
+          0 0 0 4px #fbbf24aa,
+          0 0 20px #fbbf2477,
+          0 8px 20px #02061766;
+      }
+
+      .graph-node.is-constellation.is-http-client {
+        box-shadow:
+          0 0 0 4px #fbbf24aa,
+          0 0 20px #fbbf2477,
+          0 8px 20px #02061766;
+      }
+
+      .graph-node.is-http-client.is-temporal {
+        box-shadow:
+          0 0 0 4px #fbbf24aa,
+          0 0 0 8px #ec4899aa,
+          0 0 24px #ec489977,
+          0 8px 20px #02061766;
+      }
+
+      .graph-node.is-constellation.is-http-client.is-temporal {
+        box-shadow:
+          0 0 0 4px #fbbf24aa,
+          0 0 0 8px #ec4899aa,
+          0 0 24px #ec489977,
+          0 8px 20px #02061766;
+      }
+
+      .graph-node.is-constellation {
+        --constellation-glow: #ffffff66;
+      }
+
+      .graph-node.is-constellation.node-route {
+        --constellation-glow: #60a5fa99;
+      }
+
+      .graph-node.is-constellation.node-route-hook {
+        --constellation-glow: #818cf899;
+      }
+
+      .graph-node.is-constellation.node-component {
+        --constellation-glow: #a78bfa99;
+      }
+
+      .graph-node.is-constellation.node-service {
+        --constellation-glow: #2dd4bf99;
+      }
+
+      .graph-node.is-constellation.node-source {
+        --constellation-glow: #22d3ee99;
+      }
+
+      .graph-node.is-constellation.node-primitive,
+      .graph-node.is-constellation.node-property {
+        --constellation-glow: #fbbf2499;
+      }
+
+      .graph-node.is-constellation.is-http-client {
+        --constellation-glow: #fbbf24cc;
+      }
+
+      .graph-node.is-constellation.is-temporal {
+        --constellation-glow: #ec4899cc;
+      }
+
+      .graph-node.is-constellation.is-http-client.is-temporal {
+        --constellation-glow: #f472b6dd;
+      }
+
+      .graph-node.is-constellation:not(.is-dimmed) {
+        filter: drop-shadow(0 0 12px var(--constellation-glow));
+      }
+
+      .graph-node.is-constellation.is-dimmed.is-http-client,
+      .graph-node.is-constellation.is-dimmed.is-temporal {
+        box-shadow: 0 0 0 1px currentColor, 0 4px 10px #02061722 !important;
+      }
+
+      .graph-node.is-constellation.is-dimmed.is-http-client {
+        color: #fbbf2455;
+        border-color: #fbbf2444;
+      }
+
+      .graph-node.is-constellation.is-dimmed.is-temporal {
+        color: #ec489955;
+        border-color: #ec489944;
+      }
+
+      .graph-node.is-constellation.is-dimmed.is-http-client.is-temporal {
+        color: #f472b666;
+        border-color: #f472b655;
+      }
+
+      .graph-node.is-constellation.is-dimmed.is-http-client::after {
+        background: #fbbf2455;
+      }
+
+      .graph-node.is-constellation.is-dimmed.is-temporal::after {
+        background: #ec489955;
+      }
+
+      .graph-node.is-constellation.is-dimmed.is-http-client.is-temporal::after {
+        background: #f472b666;
       }
     `,
   ],
@@ -2358,21 +2451,16 @@ class GraphNodeTemplate implements NgDiagramNodeTemplate<DiagramNodeData> {
         box-shadow: 0 0 0 1px #fbbf2422, 0 0 22px #fbbf2455, 0 10px 26px #02061777;
       }
 
-      .graph-group.is-http-client {
-        background: linear-gradient(145deg, #44311bee, #241b24ee);
-      }
-
       .graph-group.is-temporal {
-        border-color: #38bdf8;
         box-shadow:
-          0 0 0 2px #7dd3fc33,
-          0 0 30px 7px #38bdf866,
+          0 0 0 2px #f9a8d433,
+          0 0 30px 7px #ec489966,
           0 10px 26px #02061777;
       }
 
       .group-temporal-endpoints {
-        color: #7dd3fc;
-        text-shadow: 0 0 10px #38bdf866;
+        color: #f9a8d4;
+        text-shadow: 0 0 10px #ec489966;
       }
 
       .group-header strong {
@@ -2394,6 +2482,21 @@ class GraphNodeTemplate implements NgDiagramNodeTemplate<DiagramNodeData> {
       .group-http-client-endpoints {
         color: #fcd34d;
         text-shadow: 0 0 10px #f59e0b55;
+      }
+
+      .graph-group.is-http-client {
+        box-shadow:
+          0 0 0 4px #fbbf24aa,
+          0 0 20px #fbbf2477,
+          0 10px 26px #02061777;
+      }
+
+      .graph-group.is-http-client.is-temporal {
+        box-shadow:
+          0 0 0 4px #fbbf24aa,
+          0 0 0 8px #ec4899aa,
+          0 0 24px #ec489977,
+          0 10px 26px #02061777;
       }
     `,
   ],
@@ -3628,7 +3731,7 @@ export class App implements OnInit {
       size?: { width: number; height: number };
     },
   >(nodes: Node[]): Node[] {
-    const margin = 15;
+    const margin = CONSTELLATION_LAYOUT_MARGIN / 2;
     const movedNodes = nodes.map((node) => ({
       ...node,
       position: { ...node.position },
@@ -4558,10 +4661,10 @@ export class App implements OnInit {
     nodes: GraphNode[],
     edges: GraphEdge[],
   ): DiagramLayoutResult {
-    const width = 4200;
-    const height = 3000;
-    const padding = 56;
-    const collisionMargin = 32;
+    const width = 5600;
+    const height = 4000;
+    const padding = 80;
+    const collisionMargin = CONSTELLATION_LAYOUT_MARGIN;
     const labelCounts = new Map<string, number>();
     nodes.forEach((node) =>
       labelCounts.set(node.label, (labelCounts.get(node.label) ?? 0) + 1),
@@ -4579,10 +4682,10 @@ export class App implements OnInit {
       const angle = (index / Math.max(1, nodes.length)) * Math.PI * 2;
       const ring =
         node.kind === 'route'
-          ? 700
+          ? 1000
           : node.kind === 'component' || node.kind === 'service'
-            ? 500
-            : 300;
+            ? 760
+            : 480;
       const size = this.constellationNodeSize(node);
       return {
         node,

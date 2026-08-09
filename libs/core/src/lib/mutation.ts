@@ -44,6 +44,7 @@ import {
   wrapMethodParams,
 } from './util/method-trigger-nonce';
 import { craftResource } from './craft-resource';
+import { preservedResource } from './preserved-resource';
 import {
   AnyCraftException,
   ExtractCraftException,
@@ -409,6 +410,8 @@ type MutationConfig<
     paramsSchema?: CraftSchema;
     loaderSchema?: CraftSchema;
     schemaValidationPolicy?: SchemaValidationPolicy;
+    /** Keep the last resolved value visible while a new operation is loading. */
+    preservePreviousValue?: () => boolean;
   };
 
 type HasDefinedException<
@@ -982,6 +985,7 @@ export function mutation<
  *   - `identifier` (optional): Function to derive a unique ID from params for grouping mutations
  *   - `fromResourceById` (optional): Bind to another ResourceByIdRef for synced operations
  *   - `params` (optional): Function to derive params from a resource entity
+ *   - `preservePreviousValue` (optional): Function returning boolean to keep the previous value while loading (default: false)
  *   - Additional ResourceOptions like `equal`, `injector`, etc.
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the mutation.
  *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`).
@@ -1639,6 +1643,20 @@ function createMutationRef<
     return wrapMethodParams(mutationResourceParamsFnSignal(), seq);
   });
 
+  const mutationResourceOptions = {
+    ...mutationConfig,
+    params: hasMethodFn
+      ? (methodTaggedParams as unknown as typeof resourceParamsSrc)
+      : resourceParamsSrc,
+    equal: hasMethodFn
+      ? methodParamsWrapperEqual(
+          (mutationConfig as { equal?: (a: any, b: any) => boolean }).equal,
+        )
+      : (mutationConfig as { equal?: (a: any, b: any) => boolean }).equal,
+    loader: wrappedLoader,
+    stream: wrappedStream,
+  } as ResourceOptions<any, any>;
+
   const resourceTarget = isUsingIdentifier
     ? resourceById<
         MutationState,
@@ -1654,19 +1672,11 @@ function createMutationRef<
         stream: wrappedStream,
         identifier: mutationConfig.identifier,
       } as any)
-    : craftResource<MutationState, MutationParams>({
-        ...mutationConfig,
-        params: hasMethodFn
-          ? (methodTaggedParams as unknown as typeof resourceParamsSrc)
-          : resourceParamsSrc,
-        equal: hasMethodFn
-          ? methodParamsWrapperEqual(
-              (mutationConfig as { equal?: (a: any, b: any) => boolean }).equal,
-            )
-          : (mutationConfig as { equal?: (a: any, b: any) => boolean }).equal,
-        loader: wrappedLoader,
-        stream: wrappedStream,
-      } as ResourceOptions<any, any>);
+    : mutationConfig.preservePreviousValue?.()
+      ? preservedResource<MutationState, MutationParams>(
+          mutationResourceOptions,
+        )
+      : craftResource<MutationState, MutationParams>(mutationResourceOptions);
 
   if (configuredSchemas.loader) {
     const target = resourceTarget as any;

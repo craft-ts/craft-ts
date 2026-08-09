@@ -141,6 +141,30 @@ describe('AsyncProcess', () => {
     });
   });
 
+  it('preserves the previous value while a new async process is loading when configured', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const processRef = craftUse(asyncProcess('processRef', {
+        method: (value: string) => value,
+        preservePreviousValue: () => true,
+        loader: async ({ params }) => {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return { value: params };
+        },
+      }));
+
+      processRef.method('first');
+      await vi.runAllTimersAsync();
+      expect(processRef.value()).toEqual({ value: 'first' });
+
+      processRef.method('second');
+      expect(processRef.status()).toBe('loading');
+      expect(processRef.value()).toEqual({ value: 'first' });
+
+      await vi.runAllTimersAsync();
+      expect(processRef.value()).toEqual({ value: 'second' });
+    });
+  });
+
   it('should return undefined with value when status is error', async () => {
     await TestBed.runInInjectionContext(async () => {
       const myAsyncProcess = craftUse(asyncProcess('myAsyncProcess', {

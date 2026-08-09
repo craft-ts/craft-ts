@@ -30,6 +30,7 @@ import { query } from './query';
 import { CraftHttpClient } from './craft-http-client';
 import { craftUse } from './craft-use';
 import { craftYieldRecord } from './craft-primitive-gen';
+import { craftGen } from './craft-gen';
 
 // todo later ne pas passer d'input et passer une dérivation inject...
 
@@ -65,6 +66,27 @@ describe('craftService', () => {
       expect(counter()).toBe(0);
       counter.increment();
       expect(counter()).toBe(1);
+    });
+  });
+
+  it('should delegate craftGen methods exposed through a service shortcut', () => {
+    const { CraftGenUserApi: UserApi } = craftService(
+      { name: 'CraftGenUserApi', scope: 'global' },
+      function* () {
+        return {
+          getUser: craftGen(function* (id: string) {
+            return { id };
+          }),
+        };
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const user = craftUse(function* () {
+        return yield* UserApi.getUser('user-42');
+      });
+
+      expect(user).toEqual({ id: 'user-42' });
     });
   });
 

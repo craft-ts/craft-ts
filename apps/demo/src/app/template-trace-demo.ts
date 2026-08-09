@@ -1,6 +1,7 @@
 import {
   inject,
   Injector,
+  untracked,
   type EnvironmentProviders,
   type Provider,
 } from '@angular/core';
@@ -27,17 +28,19 @@ function logTrace(label: string, value: unknown): void {
 
   logging = true;
   try {
-    executeGeneratorCompatibleFactory({
-      factory: function* () {
-        yield* Console.log(label, value);
-      },
-      thisArg: undefined,
-      args: [],
-      getInjector: () => inject(Injector),
-      invalidYieldErrorMessage: 'Demo tracing yielded an invalid value',
-      multipleAppStartErrorMessage:
-        'Demo tracing cannot register multiple app-start hooks',
-    });
+    untracked(() =>
+      executeGeneratorCompatibleFactory({
+        factory: function* () {
+          yield* Console.log(label, value);
+        },
+        thisArg: undefined,
+        args: [],
+        getInjector: () => inject(Injector),
+        invalidYieldErrorMessage: 'Demo tracing yielded an invalid value',
+        multipleAppStartErrorMessage:
+          'Demo tracing cannot register multiple app-start hooks',
+      }),
+    );
   } finally {
     logging = false;
   }

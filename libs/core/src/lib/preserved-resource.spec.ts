@@ -32,6 +32,7 @@ describe('Preserved Resource', () => {
 
       // Assert that the resource state is preserved
       expect(resource.value()).toEqual('initial');
+      expect(resource.hasValue()).toBe(true);
 
       await vi.runAllTimersAsync();
 

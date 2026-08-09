@@ -16,6 +16,8 @@
 }
 
 :scope button {
+  display: inline-flex;
+  align-items: center;
   background: #444;
   color: #eaeaea;
   border: none;
@@ -26,6 +28,7 @@
   margin-bottom: 1.2rem;
   transition: background 0.2s;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
 }
 
 :scope button:hover {

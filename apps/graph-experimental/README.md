@@ -22,7 +22,10 @@ Le visualiseur ne fait aucune analyse runtime. Il consomme le fichier JSON gén�
 par l'analyseur TypeScript :
 
 ```bash
-npx craft graph --project apps/demo/tsconfig.app.json --root . --out craft-dependency-graph --format json
+npm run graph:update
 ```
 
-Puis relancer `npx nx serve graph-experimental` pour recharger l'asset.
+Cette commande active temporairement toutes les routes, reconstruit l'outil
+d'analyse, puis régénère les fichiers JSON, Mermaid et HTML à la racine du
+dépôt. L'overlay de routes utilisé par `nx serve demo` est restauré ensuite.
+Puis relancer `npx nx serve graph-experimental` pour recharger l'asset JSON.

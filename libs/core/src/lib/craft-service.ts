@@ -3451,11 +3451,13 @@ function createHelper(
             return propertyValue;
           }
 
-          return Reflect.apply(
+          const result = Reflect.apply(
             propertyValue as (...args: unknown[]) => unknown,
             Object(serviceValue),
             callArgs,
           );
+
+          return isGenerator(result) ? yield* result : result;
         };
 
         const propertyHelper = new Proxy(propertyHelperFn, {

@@ -324,6 +324,7 @@ export const nav = tagHelper('nav');
 export const ol = tagHelper('ol');
 export const option = tagHelper('option');
 export const p = tagHelper('p');
+export const pre = tagHelper('pre');
 export const section = tagHelper('section');
 export const select = tagHelper('select');
 export const small = tagHelper('small');

@@ -46,9 +46,18 @@ export function preservedResource<T, R>(
   if (config.defaultValue) {
     original.set(config.defaultValue);
   }
+  const hasValue = (() =>
+    original.hasValue() || preserved() !== undefined) as CraftResourceRef<
+    T | undefined,
+    R
+  >['hasValue'];
   return {
     value: preserved,
-    hasValue: original.hasValue.bind(original),
+    // `resource.hasValue()` becomes false as soon as a reload starts, even
+    // though `preserved` still exposes the last resolved value to consumers.
+    // Reflect the public value here so guards such as `ifBlock(hasValue)` do
+    // not hide preserved content during a reload.
+    hasValue,
     snapshot: original.snapshot,
     status: original.status,
     // Internal channel only: not part of the CraftResourceRef surface, kept at

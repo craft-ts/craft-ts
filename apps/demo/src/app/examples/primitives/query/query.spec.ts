@@ -1,0 +1,187 @@
+// @vitest-environment jsdom
+import '@angular/compiler';
+import { TestBed } from '@angular/core/testing';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
+import {
+  ComponentLogicOutputOf,
+  ComponentTemplateOf,
+  TemplateNamedElementDelegatesToContext,
+  TemplateRendersNamedElementWhen,
+  setupCraftComponentLogicTest,
+  type Input,
+} from '@craft-ng/component';
+import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import GlobalQuery from './query';
+
+beforeAll(() => {
+  try {
+    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes(
+        'Cannot set base providers because it has already been called',
+      )
+    ) {
+      throw error;
+    }
+  }
+});
+
+beforeEach(() => {
+  const values = new Map<string, string>();
+
+  vi.stubGlobal('localStorage', {
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+    removeItem: vi.fn((key: string) => values.delete(key)),
+    clear: vi.fn(() => values.clear()),
+  });
+});
+
+describe('Query template', () => {
+  type QueryLogic = ComponentLogicOutputOf<typeof GlobalQuery>;
+  type QueryTemplate = ComponentTemplateOf<typeof GlobalQuery>;
+
+  type _ExposesUserQueryAndNavigationMethods = Expect<
+    Equal<
+      QueryLogic extends {
+        userQuery: unknown;
+        navigatePrevious: unknown;
+        navigateNext: unknown;
+      }
+        ? true
+        : false,
+      true
+    >
+  >;
+
+  type _DisplayPreviousUserButton = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        QueryTemplate,
+        'GlobalQuery:button:GoToPreviousUser'
+      >,
+      true
+    >
+  >;
+
+  type _DisplayNextUserButton = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        QueryTemplate,
+        'GlobalQuery:button:GoToNextUser'
+      >,
+      true
+    >
+  >;
+
+  type _PreviousUserClickDelegatesToPreviousNavigation = Expect<
+    Equal<
+      TemplateNamedElementDelegatesToContext<
+        QueryTemplate,
+        'GlobalQuery:button:GoToPreviousUser',
+        'click',
+        'navigatePrevious'
+      >,
+      true
+    >
+  >;
+
+  type _NextUserClickDelegatesToNextNavigation = Expect<
+    Equal<
+      TemplateNamedElementDelegatesToContext<
+        QueryTemplate,
+        'GlobalQuery:button:GoToNextUser',
+        'click',
+        'navigateNext'
+      >,
+      true
+    >
+  >;
+
+  type _DisplayQueryValueWhenTheQueryHasAValue = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        QueryTemplate,
+        'GlobalQuery:pre:QueryValue',
+        { when: { 'userQuery.hasUser': true } }
+      >,
+      true
+    >
+  >;
+
+  type _DoNotDisplayQueryValueWhenTheQueryHasNoValue = Expect<
+    Equal<
+      TemplateRendersNamedElementWhen<
+        QueryTemplate,
+        'GlobalQuery:pre:QueryValue',
+        { when: { 'userQuery.hasUser': false } }
+      >,
+      false
+    >
+  >;
+
+  it('keeps the component template contract type-safe', () => {
+    expect(true).toBe(true);
+  });
+});
+
+describe('Query logic', () => {
+  async function setup(currentUserId = '3') {
+    const getItemById = vi.fn(function* (userId: string) {
+      return { id: userId, name: `User ${userId}` };
+    });
+    const navigate = vi.fn();
+    const result = await setupCraftComponentLogicTest(GlobalQuery, {
+      args: [(() => currentUserId) as Input<string | undefined>],
+      register: {
+        ApiService: { getItemById },
+        CraftRouter: { navigate },
+      },
+    });
+
+    TestBed.tick();
+
+    await vi.waitFor(() =>
+      expect(getItemById).toHaveBeenCalledWith(currentUserId),
+    );
+
+    return { ...result, getItemById, navigate };
+  }
+
+  it('navigates to the previous user with a decremented id', async () => {
+    const { context, navigate, destroy } = await setup('3');
+
+    try {
+      context.navigatePrevious();
+
+      expect(navigate).toHaveBeenCalledWith({
+        to: 'query/:userId',
+        params: { userId: '2' },
+      });
+    } finally {
+      destroy();
+    }
+  });
+
+  it('loads the current user through ApiService.getItemById', async () => {
+    const { context, getItemById, destroy } = await setup('3');
+
+    try {
+      expect(getItemById).toHaveBeenCalledTimes(1);
+      await vi.waitFor(() =>
+        expect(context.userQuery.value()).toEqual({
+          id: '3',
+          name: 'User 3',
+        }),
+      );
+    } finally {
+      destroy();
+    }
+  });
+});
