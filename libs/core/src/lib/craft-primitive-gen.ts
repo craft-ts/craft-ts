@@ -88,13 +88,13 @@ export type CraftPrimitiveGen<Ref, ExceptionRef = Ref> = Generator<
  *
  */
 export type NamedPrimitive<Name extends string, Ref> = Ref extends {
-  set: (...args: any[]) => any;
-  update: (...args: any[]) => any;
+  type: string;
+  kind: string;
 }
-  ? Ref extends { type: string; kind: string }
-    ? Ref
-    : Ref & { readonly [YIELDABLE_VALUE]: Name }
-  : Ref;
+  ? Ref
+  : Ref extends Signal<any>
+    ? Ref & { readonly [YIELDABLE_VALUE]: Name }
+    : Ref;
 
 /**
  * Return type of the named craft primitives: a {@link CraftPrimitiveGen}

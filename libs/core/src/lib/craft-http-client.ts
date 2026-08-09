@@ -5,6 +5,7 @@ import {
   HttpHeaders,
   HttpParams,
 } from '@angular/common/http';
+import type { Injector } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
   craftException,
@@ -18,6 +19,7 @@ import {
   type ServiceYieldRequest,
 } from './craft-service';
 import type { CraftDecoder } from './craft-codec';
+import { executeCraftHttpTrace } from './craft-http-trace';
 
 declare const CRAFT_HTTP_CLIENT_SUCCESS_MARKER: unique symbol;
 declare const CRAFT_HTTP_CLIENT_EXCEPTIONS_MARKER: unique symbol;
@@ -567,8 +569,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http) =>
-      createCraftHttpRequest(http, 'GET', config),
+    return (yield createCraftHttpClientYieldRequest((http, injector) =>
+      createCraftHttpRequest(http, injector, 'GET', config),
     )) as CraftHttpRequestFromConfig<'GET', Config>;
   },
 
@@ -577,8 +579,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http) =>
-      createCraftHttpRequest(http, 'DELETE', config),
+    return (yield createCraftHttpClientYieldRequest((http, injector) =>
+      createCraftHttpRequest(http, injector, 'DELETE', config),
     )) as CraftHttpRequestFromConfig<'DELETE', Config>;
   },
 
@@ -587,8 +589,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http) =>
-      createCraftHttpRequest(http, 'POST', config),
+    return (yield createCraftHttpClientYieldRequest((http, injector) =>
+      createCraftHttpRequest(http, injector, 'POST', config),
     )) as CraftHttpRequestFromConfig<'POST', Config>;
   },
 
@@ -597,8 +599,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http) =>
-      createCraftHttpRequest(http, 'PUT', config),
+    return (yield createCraftHttpClientYieldRequest((http, injector) =>
+      createCraftHttpRequest(http, injector, 'PUT', config),
     )) as CraftHttpRequestFromConfig<'PUT', Config>;
   },
 
@@ -607,8 +609,8 @@ export const CraftHttpClient: CraftHttpClientDsl = {
   ) {
     const config = build(craftHttpClientBuilderHelpers);
 
-    return (yield createCraftHttpClientYieldRequest((http) =>
-      createCraftHttpRequest(http, 'PATCH', config),
+    return (yield createCraftHttpClientYieldRequest((http, injector) =>
+      createCraftHttpRequest(http, injector, 'PATCH', config),
     )) as CraftHttpRequestFromConfig<'PATCH', Config>;
   },
 
@@ -618,9 +620,10 @@ export const CraftHttpClient: CraftHttpClientDsl = {
     const config = build(craftHttpClientBuilderHelpers);
 
     return (yield createCraftHttpClientYieldRequest(
-      (http) =>
+      (http, injector) =>
         createCraftHttpRequest(
           http,
+          injector,
           config.method,
           config,
         ) as CraftHttpRequestFromRequestConfig<Config>,
@@ -655,7 +658,7 @@ export function getCraftHttpRequestExceptionDependencies(
 }
 
 function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(
-  factory: (http: HttpClient) => Request,
+  factory: (http: HttpClient, injector: Injector) => Request,
 ): CraftHttpTrackedRequest<Request> {
   return {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
@@ -672,13 +675,13 @@ function createCraftHttpClientYieldRequest<Request extends AnyCraftHttpRequest>(
 
       if (override?.kind === 'instantiate') {
         if (override.instance === undefined) {
-          override.instance = factory(injector.get(HttpClient));
+          override.instance = factory(injector.get(HttpClient), injector);
         }
 
         return override.instance as Request;
       }
 
-      return factory(injector.get(HttpClient));
+      return factory(injector.get(HttpClient), injector);
     },
   } as CraftHttpTrackedRequest<Request>;
 }
@@ -688,6 +691,7 @@ function createCraftHttpRequest<
   Config extends CraftHttpClientBaseConfig,
 >(
   http: HttpClient,
+  injector: Injector,
   method: Method,
   config: Config,
 ): CraftHttpRequestFromConfig<Uppercase<Method>, Config> {
@@ -698,52 +702,66 @@ function createCraftHttpRequest<
     ExtractCraftHttpClientSuccess<Config>,
     ExtractCraftHttpClientExceptions<Config>,
     ExtractCraftHttpClientResponseDecodeError<Config>
-  > => {
-    try {
-      const responseBody = await firstValueFrom(
-        http.request<unknown>(
-          normalizedMethod,
-          config.url,
-          toHttpClientRequestOptions(config),
-        ),
-      );
+  > =>
+    executeCraftHttpTrace(
+      injector,
+      {
+        method: normalizedMethod,
+        url: config.url,
+        params: config.params,
+        payload: getConfigPayload(config),
+      },
+      async () => {
+        try {
+          const responseBody = await firstValueFrom(
+            http.request<unknown>(
+              normalizedMethod,
+              config.url,
+              toHttpClientRequestOptions(config),
+            ),
+          );
 
-      const decoder = (
-        config.success as
-          | (CraftHttpClientSuccessToken<unknown> & {
-              readonly decoder?: CraftDecoder<unknown>;
-            })
-          | undefined
-      )?.decoder;
-      if (!decoder) {
-        return responseBody as ExtractCraftHttpClientSuccess<Config>;
-      }
+          const decoder = (
+            config.success as
+              | (CraftHttpClientSuccessToken<unknown> & {
+                  readonly decoder?: CraftDecoder<unknown>;
+                })
+              | undefined
+          )?.decoder;
+          if (!decoder) {
+            return responseBody as ExtractCraftHttpClientSuccess<Config>;
+          }
 
-      try {
-        return (await decoder.decode(
-          responseBody,
-        )) as ExtractCraftHttpClientSuccess<Config>;
-      } catch (error) {
-        return toHttpResponseDecodeError(
-          normalizedMethod,
-          config.url,
-          responseBody,
-          error,
-        ) as ExtractCraftHttpClientResponseDecodeError<Config>;
-      }
-    } catch (error) {
-      const normalizedError = normalizeHttpClientError(config.url, error);
-      const customException = resolveCraftHttpClientException(
-        config.exceptions,
-        normalizedError,
-      ) as ExtractCraftHttpClientExceptions<Config> | undefined;
+          try {
+            return (await decoder.decode(
+              responseBody,
+            )) as ExtractCraftHttpClientSuccess<Config>;
+          } catch (error) {
+            return toHttpResponseDecodeError(
+              normalizedMethod,
+              config.url,
+              responseBody,
+              error,
+            ) as ExtractCraftHttpClientResponseDecodeError<Config>;
+          }
+        } catch (error) {
+          const normalizedError = normalizeHttpClientError(config.url, error);
+          const customException = resolveCraftHttpClientException(
+            config.exceptions,
+            normalizedError,
+          ) as ExtractCraftHttpClientExceptions<Config> | undefined;
 
-      return (
-        customException ??
-        toCraftHttpClientError(normalizedMethod, config.url, normalizedError)
-      );
-    }
-  };
+          return (
+            customException ??
+            toCraftHttpClientError(
+              normalizedMethod,
+              config.url,
+              normalizedError,
+            )
+          );
+        }
+      },
+    );
 
   return Object.defineProperties(request, {
     method: {

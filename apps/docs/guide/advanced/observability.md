@@ -23,6 +23,9 @@ Unexpected errors are exactly where observability shines. Since they are suppose
 The three pillars `craft-ng` exposes for that are:
 
 - [`provideFnWrapper`](#providefnwrapper) — wrap every crafted function with cross-cutting behavior
+- [`provideTemplateTrace`](#providetemplatetrace) — observe effective component and template renders
+- [`provideCraftRouterTrace`](#providecraftroutertrace) — observe Angular navigation events and Craft route stages
+- [`provideCraftHttpTrace`](#providecrafthttptrace) — wrap every `CraftHttpClient` request
 - [`provideTakeAppSnapshot`](#providetakeappsnapshot) — capture all active state when something goes wrong
 - [`provideCraftDomEventHook`](#craft-dom-event-hooks) — observe or wrap every DOM action declared in a Craft template
 - [`provideCorrelationIdTracking`](#providecorrelationidtracking) — link a user gesture to every async operation it triggered
@@ -55,6 +58,80 @@ export const appConfig = craftAppConfig({
 ```
 
 You can register multiple wrappers — they compose. The first registered is the outermost.
+
+## `provideTemplateTrace`
+
+`provideTemplateTrace` is the render-specific counterpart to
+`provideFnWrapper`. It runs synchronously around the children produced by an
+effective render, including component templates, reactive updates, blocks,
+projections, deferred branches, and nested callbacks.
+
+```ts
+import { provideTemplateTrace } from '@craft-ng/core';
+
+provideTemplateTrace((context, next) => {
+  const start = performance.now();
+  try {
+    return next();
+  } finally {
+    console.debug(
+      context.phase,
+      context.componentName,
+      performance.now() - start,
+    );
+  }
+});
+```
+
+The context contains the render unit (`component`, `block`, `projection`,
+`defer`, or `callback`), its phase (`create`, `initialRender`, `update`, or
+`destroy`), the optional component/unit names, and the owning component's
+`renderCount`. Wrappers compose in registration order and execute in the
+current render injector, so component-scoped providers remain injectable.
+
+The wrapper can return different children or return an empty children value
+without calling `next()` to replace or block a render. Errors propagate to the
+normal Craft render error boundary.
+
+## `provideCraftRouterTrace`
+
+`provideCraftRouterTrace` traces both the Angular Router event stream and the
+Craft outlet's non-blocking route chain. The latter exposes `match`, `guard`,
+and `resolve` stages, including reactive guard re-evaluation.
+
+```ts
+import { provideCraftRouterTrace } from '@craft-ng/core';
+
+provideCraftRouterTrace((context, next) => {
+  console.log('[router:start]', context);
+  const result = next();
+  console.log('[router:end]', context);
+  return result;
+});
+```
+
+Multiple wrappers compose in registration order. The wrapper must call
+`next()` to preserve the navigation or route-chain work.
+
+## `provideCraftHttpTrace`
+
+`provideCraftHttpTrace` wraps the actual thenable request produced by
+`CraftHttpClient`, after its method, URL, params, and payload have been built.
+It is therefore useful for timing, request logging, redaction, and error
+reporting without changing feature code.
+
+```ts
+import { provideCraftHttpTrace } from '@craft-ng/core';
+
+provideCraftHttpTrace(async (context, next) => {
+  const start = performance.now();
+  try {
+    return await next();
+  } finally {
+    console.log(context.method, context.url, performance.now() - start);
+  }
+});
+```
 
 ### Important: injection inside `provideFnWrapper` is not type-safe
 

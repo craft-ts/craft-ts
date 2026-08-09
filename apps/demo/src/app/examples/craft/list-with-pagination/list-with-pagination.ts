@@ -125,7 +125,9 @@ const ListWithPaginationCraft = craftComponent(
         select(
           {
             value: store.pagination().pageSize,
-            change: (event) => void updatePageSize(event),
+            *change(event) {
+              yield* updatePageSize(event);
+            },
           },
           [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),

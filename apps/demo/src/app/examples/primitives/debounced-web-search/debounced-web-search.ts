@@ -229,8 +229,11 @@ const DebouncedWebSearch = craftComponent(
         value: searchInput(),
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
         'aria-label': 'Search books',
-        input: (event) =>
-          setSearchInput((event.target as HTMLInputElement).value),
+        *input(event) {
+          yield* setSearchInput(
+            (event.target as HTMLInputElement).value,
+          );
+        },
       }),
       div({ class: 'pipeline-status' }, [
         span([

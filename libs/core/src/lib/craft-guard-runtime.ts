@@ -15,6 +15,7 @@ import {
   type CraftProgramPumpOptions,
   type CraftProgramSettledStep,
 } from './craft-program-runtime';
+import { executeCraftRouterTrace } from './craft-router-trace';
 
 const GUARD_INVALID_YIELD_ERROR_MESSAGE =
   'craft route guards can only yield craftService dependencies, exposed dependency helpers, or an craftUntilSettled/craftUntilDefined await request.';
@@ -45,8 +46,18 @@ export function evaluateCraftGuardSync(
   iterator: Generator<unknown, unknown, unknown>,
   injector: Injector,
 ): CraftGuardSyncResult {
-  const step = runInInjectionContext(injector, () =>
-    pumpCraftProgramSync(iterator, injector, GUARD_PUMP_OPTIONS),
+  const step = executeCraftRouterTrace(
+    injector,
+    {
+      kind: 'routeStage',
+      phase: 'run',
+      stage: 'guard',
+      routePhase: 'active',
+    },
+    () =>
+      runInInjectionContext(injector, () =>
+        pumpCraftProgramSync(iterator, injector, GUARD_PUMP_OPTIONS),
+      ),
   );
 
   if (step.kind === 'await') {
@@ -176,7 +187,7 @@ async function driveStageToSettled(
   return driveCraftProgramAsync(iterator, injector, first, GUARD_PUMP_OPTIONS);
 }
 
-async function resolveExceptionOutcome(
+async function resolveExceptionOutcomeInternal(
   exception: AnyCraftException,
   injector: Injector,
   router: Router,
@@ -204,6 +215,33 @@ async function resolveExceptionOutcome(
   return first.kind === 'shortCircuit'
     ? { kind: 'thrownError', error: first.exception }
     : (first.value as RouteChainOutcome);
+}
+
+async function resolveExceptionOutcome(
+  exception: AnyCraftException,
+  injector: Injector,
+  router: Router,
+  handleExceptions: CraftRouteExceptionHandlerMap,
+  phase: CraftRoutePhase,
+): Promise<RouteChainOutcome> {
+  return executeCraftRouterTrace(
+    injector,
+    {
+      kind: 'routeStage',
+      phase: 'run',
+      stage: 'exceptionHandler',
+      routePhase: phase,
+      url: router.url,
+    },
+    () =>
+      resolveExceptionOutcomeInternal(
+        exception,
+        injector,
+        router,
+        handleExceptions,
+        phase,
+      ),
+  );
 }
 
 // Drives one data stage (guard or resolve): either it yields an outcome to
@@ -242,6 +280,27 @@ async function driveDataStage(
   return { data: settled.kind === 'done' ? settled.value : undefined };
 }
 
+async function driveTracedDataStage(
+  stage: 'match' | 'guard' | 'resolve',
+  iterator: Generator<unknown, unknown, unknown>,
+  injector: Injector,
+  router: Router,
+  handleExceptions: CraftRouteExceptionHandlerMap,
+  phase: CraftRoutePhase,
+): Promise<{ outcome: RouteChainOutcome } | { data: unknown }> {
+  return executeCraftRouterTrace(
+    injector,
+    {
+      kind: 'routeStage',
+      phase: 'run',
+      stage,
+      routePhase: phase,
+      url: router.url,
+    },
+    () => driveDataStage(iterator, injector, router, handleExceptions, phase),
+  );
+}
+
 /**
  * Drives a route's `canActivate` → `resolve` chain to a {@link RouteChainOutcome}.
  *
@@ -249,7 +308,7 @@ async function driveDataStage(
  * guard re-evaluation; it is forwarded to each exception handler so a handler can
  * react differently (e.g. a softer redirect on session expiry).
  */
-export async function runCraftRouteChainAsync(
+async function runCraftRouteChainAsyncInternal(
   steps: CraftRouteChainSteps,
   injector: Injector,
   router: Router,
@@ -258,7 +317,8 @@ export async function runCraftRouteChainAsync(
 ): Promise<RouteChainOutcome> {
   try {
     if (steps.match) {
-      const result = await driveDataStage(
+      const result = await driveTracedDataStage(
+        'match',
         steps.match,
         injector,
         router,
@@ -276,7 +336,8 @@ export async function runCraftRouteChainAsync(
     let guardData: unknown;
 
     if (steps.guard) {
-      const result = await driveDataStage(
+      const result = await driveTracedDataStage(
+        'guard',
         steps.guard,
         injector,
         router,
@@ -294,7 +355,8 @@ export async function runCraftRouteChainAsync(
     let resolveData: unknown;
 
     if (steps.resolve) {
-      const result = await driveDataStage(
+      const result = await driveTracedDataStage(
+        'resolve',
         steps.resolve,
         injector,
         router,
@@ -330,4 +392,30 @@ export async function runCraftRouteChainAsync(
 
     return { kind: 'thrownError', error };
   }
+}
+
+export function runCraftRouteChainAsync(
+  steps: CraftRouteChainSteps,
+  injector: Injector,
+  router: Router,
+  handleExceptions: CraftRouteExceptionHandlerMap,
+  phase: CraftRoutePhase = 'enter',
+): Promise<RouteChainOutcome> {
+  return executeCraftRouterTrace(
+    injector,
+    {
+      kind: 'routeChain',
+      phase: 'run',
+      routePhase: phase,
+      url: router.url,
+    },
+    () =>
+      runCraftRouteChainAsyncInternal(
+        steps,
+        injector,
+        router,
+        handleExceptions,
+        phase,
+      ),
+  );
 }

@@ -55,9 +55,9 @@ const LoginFormComponent = craftComponent(
   ({ email, password, submit, setEmail, setPassword, showError, showSuccess }) =>
     form(
       {
-        submit: (event) => {
+        *submit(event) {
           event.preventDefault();
-          submit();
+          yield* submit();
         },
       },
       [
@@ -68,8 +68,9 @@ const LoginFormComponent = craftComponent(
             id: 'email',
             type: 'email',
             value: email(),
-            input: (event) =>
-              setEmail((event.target as HTMLInputElement).value),
+            *input(event) {
+              yield* setEmail((event.target as HTMLInputElement).value);
+            },
           }),
         ]),
         div({ class: 'login-field' }, [
@@ -78,8 +79,9 @@ const LoginFormComponent = craftComponent(
             id: 'password',
             type: 'password',
             value: password(),
-            input: (event) =>
-              setPassword((event.target as HTMLInputElement).value),
+            *input(event) {
+              yield* setPassword((event.target as HTMLInputElement).value);
+            },
           }),
         ]),
         ifBlock(

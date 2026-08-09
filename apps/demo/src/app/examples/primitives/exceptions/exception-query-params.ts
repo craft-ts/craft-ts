@@ -13,6 +13,7 @@ import {
   craftMethod,
   CraftRouter,
   queryParams,
+  craftException,
 } from '@craft-ng/core';
 
 const ExceptionQueryParamsComponent = craftComponent(
@@ -27,12 +28,18 @@ const ExceptionQueryParamsComponent = craftComponent(
         mode: {
           fallbackValue: 'fallbackValue' as const,
           codec: {
-            decode: (value: string) => {
+            // The runtime accepts a CraftException as a decode result and
+            // records it in `exceptions().parse`; the cast keeps the public
+            // decoded state limited to the successful domain value.
+            decode: ((value: string) => {
               if (value !== 'success') {
-                throw new Error(`Invalid mode: ${value}`);
+                return craftException(
+                  { code: 'UNEXPECTED_ERROR' },
+                  { error: new Error(`Invalid mode: ${value}`) },
+                );
               }
               return 'success' as const;
-            },
+            }) as (value: string) => 'success' | 'fallbackValue',
             encode: String,
           },
         },
@@ -56,8 +63,22 @@ const ExceptionQueryParamsComponent = craftComponent(
     return section([
       h('h4', 'QueryParams decode exception'),
       div([
-        button({ click: () => navigate('success') }, 'Navigate success'),
-        button({ click: () => navigate('exception') }, 'Navigate exception'),
+        button(
+          {
+            *click() {
+              yield* navigate('success');
+            },
+          },
+          'Navigate success',
+        ),
+        button(
+          {
+            *click() {
+              yield* navigate('exception');
+            },
+          },
+          'Navigate exception',
+        ),
       ]),
       p([strong('Parsed value: '), modeQueryParams.mode()]),
       ifBlock(

@@ -44,9 +44,9 @@ const ViewTransitionsDetailComponent = craftComponent(
         {
           class: 'vt-back',
           href: '/view-transitions',
-          click: (event) => {
+          *click(event) {
             event.preventDefault();
-            void back();
+            yield* back();
           },
         },
         '← Back to gallery',

@@ -22,6 +22,7 @@ import {
   type CanRun,
   type ComponentDepsOf,
   type RouteExceptionComponentCheckedDI,
+  craftException,
 } from '@craft-ng/core';
 import { App } from './app';
 import { demoRoutes } from './app.routes';
@@ -30,6 +31,7 @@ import { provideLogForwarding } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
 import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { AppStartLog } from './run-on-app-start/run-on-app-start';
+import { provideDemoTracing } from './template-trace-demo';
 
 export const appConfig = craftAppConfig({
   appStart: {
@@ -44,6 +46,7 @@ export const appConfig = craftAppConfig({
     // in the browser and is also shipped to the local log server, where the
     // logs MCP server can read it back.
     provideLogForwarding(),
+    provideDemoTracing(),
     provideCraftRootComponent(App),
     provideCraftGlobalErrorComponent(MyGlobalErrorScreen),
     provideCraftRouteLoadErrorComponent(MyRouteLoadErrorScreen),
@@ -82,7 +85,7 @@ export const appConfig = craftAppConfig({
           if (!isCraftGenShortCircuit(error)) {
             yield* Console.error(error);
           }
-          throw error;
+          return craftException({ code: 'UNEXPECTED_ERROR' }, { error: error });
         }
       },
     ),

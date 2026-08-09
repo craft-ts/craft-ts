@@ -148,6 +148,22 @@ Start the Angular demo:
 npx nx serve demo
 ```
 
+Au démarrage, la commande propose une sélection interactive des routes de la
+démo. Toutes les routes sont cochées par défaut ; utilisez les flèches, la
+barre espace, `a`/`t` pour tout sélectionner, `n`/`d` pour tout désélectionner,
+puis Entrée. Seules les routes sélectionnées sont générées dans
+le graphe de build et dans les checks DI.
+
+Pour éviter le prompt, vous pouvez tout garder ou cibler des routes précises :
+
+```bash
+npx nx serve demo --all-routes
+npx nx serve demo --demo-routes=query,full-demo
+```
+
+Les routes sont maintenues dans `apps/demo/src/app/app.routes.source.ts` ; le
+fichier `app.routes.ts` est généré automatiquement.
+
 Start the documentation site at `http://localhost:5173`:
 
 ```bash

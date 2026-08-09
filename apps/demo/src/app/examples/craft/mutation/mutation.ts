@@ -120,7 +120,9 @@ const MutationCraft = craftComponent(
       button(
         {
           disabled: store.updateUserName.isLoading(),
-          click: () => void updateUserNameFn(nameInput()),
+          *click() {
+            yield* updateUserNameFn(nameInput());
+          },
         },
         [
           'Update name ',
@@ -129,8 +131,22 @@ const MutationCraft = craftComponent(
           }),
         ],
       ),
-      button({ click: () => void navigate(-1) }, 'Previous user'),
-      button({ click: () => void navigate(1) }, 'Next user'),
+      button(
+        {
+          *click() {
+            yield* navigate(-1);
+          },
+        },
+        'Previous user',
+      ),
+      button(
+        {
+          *click() {
+            yield* navigate(1);
+          },
+        },
+        'Next user',
+      ),
     ];
   },
 );

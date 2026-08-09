@@ -70,8 +70,22 @@ const CraftGlobalQuery = craftComponent(
       ifBlock(hasUser, () => h('pre', JSON.stringify(user.value(), null, 2))),
     ]),
     p('Reload the page to retrieve the query result from the cache.'),
-    button({ click: () => void navigate(-1) }, 'Previous user'),
-    button({ click: () => void navigate(1) }, 'Next user'),
+    button(
+      {
+        *click() {
+          yield* navigate(-1);
+        },
+      },
+      'Previous user',
+    ),
+    button(
+      {
+        *click() {
+          yield* navigate(1);
+        },
+      },
+      'Next user',
+    ),
   ],
 );
 

@@ -257,12 +257,16 @@ export const contentProjectionDemo = craftComponent(
                 toolbarAction({
                   key: 'save',
                   content: () => 'Enregistrer',
-                  trigger: () => recordAction('Enregistrer'),
+                  trigger: function* () {
+                    yield* recordAction('Enregistrer');
+                  },
                 }),
                 toolbarAction({
                   key: 'cancel',
                   content: () => 'Annuler',
-                  trigger: () => recordAction('Annuler'),
+                  trigger: function* () {
+                    yield* recordAction('Annuler');
+                  },
                 }),
               ],
             }),
@@ -272,7 +276,9 @@ export const contentProjectionDemo = craftComponent(
         toolbarAction({
           key: 'direct',
           content: () => 'Action directe',
-          trigger: () => recordAction('Action directe'),
+          trigger: function* () {
+            yield* recordAction('Action directe');
+          },
         }),
         button(
           {
@@ -304,9 +310,9 @@ export const contentProjectionDemo = craftComponent(
               toolbarAction({
                 key: 'confirm',
                 content: () => 'Confirmer',
-                trigger: () => {
-                  recordAction('Confirmer');
-                  closeDialog();
+                trigger: function* () {
+                  yield* recordAction('Confirmer');
+                  yield* closeDialog();
                 },
               }),
             ],

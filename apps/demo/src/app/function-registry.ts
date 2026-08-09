@@ -1,5 +1,4 @@
-import { untracked, type Signal } from '@angular/core';
-import { craftUse, state } from '@craft-ng/core';
+import { signal, untracked, type Signal } from '@angular/core';
 import type {
   PrimitiveMethodRuntimeContext,
   PrimitiveMethodRuntimeKind,
@@ -150,14 +149,14 @@ export function buildFunctionRegistryKey(
 export function createFunctionRegistry(): FunctionRegistry {
   const internalEntries = new Map<string, InternalEntry>();
   const overrides = new Map<string, InternalOverride>();
-  const publicEntries = craftUse(state('publicEntries', [] as readonly FunctionRegistryEntry[]),
-  );
-  const publicLogs = craftUse(state('publicLogs', [] as readonly FunctionRegistryLog[]),
-  );
-  const replaceEntries = (entries: readonly FunctionRegistryEntry[]): void =>
+  const publicEntries = signal<readonly FunctionRegistryEntry[]>([]);
+  const publicLogs = signal<readonly FunctionRegistryLog[]>([]);
+  const replaceEntries = (entries: readonly FunctionRegistryEntry[]): void => {
     publicEntries.set(entries);
-  const appendLogEntry = (log: FunctionRegistryLog): void =>
+  };
+  const appendLogEntry = (log: FunctionRegistryLog): void => {
     publicLogs.update((logs) => [...logs, log].slice(-MAX_LOG_ENTRIES));
+  };
   let nextLogId = 1;
 
   const appendLog = (

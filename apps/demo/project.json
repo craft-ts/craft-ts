@@ -81,6 +81,22 @@
     },
     "serve": {
       "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/serve-demo.mjs --configuration development"
+      },
+      "configurations": {
+        "production": {
+          "command": "node tools/serve-demo.mjs --configuration production"
+        },
+        "development": {
+          "command": "node tools/serve-demo.mjs --configuration development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve-angular": {
+      "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {},
       "configurations": {

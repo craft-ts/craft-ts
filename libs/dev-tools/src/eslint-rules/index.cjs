@@ -20,6 +20,7 @@ const preferCraftService = require('./prefer-craft-service.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
 const requirePrimitiveGeneratorUnwrap = require('./require-primitive-generator-unwrap.cjs');
+const requireYieldableTemplateMethod = require('./require-yieldable-template-method.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
 const preferCraftRouterOutlet = require('./prefer-craft-router-outlet.cjs');
 const requirePendingComponentDiCheck = require('./require-pending-component-di-check.cjs');
@@ -39,6 +40,7 @@ const noDirectTemporalGlobals = require('./no-direct-temporal-globals.cjs');
 const requirePrimitiveDerivedProperty = require('./require-primitive-derived-property.cjs');
 const noAsyncAwait = require('./no-async-await.cjs');
 const requirePrimitiveContext = require('./require-primitive-context.cjs');
+const noThrow = require('./no-throw.cjs');
 
 module.exports = {
   rules: {
@@ -64,6 +66,7 @@ module.exports = {
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
     'require-primitive-generator-unwrap': requirePrimitiveGeneratorUnwrap,
+    'require-yieldable-template-method': requireYieldableTemplateMethod,
     'require-assert-exhaustive-route-exceptions':
       requireAssertExhaustiveRouteExceptions,
     'prefer-craft-router-outlet': preferCraftRouterOutlet,
@@ -84,5 +87,6 @@ module.exports = {
     'require-primitive-derived-property': requirePrimitiveDerivedProperty,
     'no-async-await': noAsyncAwait,
     'require-primitive-context': requirePrimitiveContext,
+    'no-throw': noThrow,
   },
 };

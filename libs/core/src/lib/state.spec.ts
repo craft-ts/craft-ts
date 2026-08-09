@@ -108,6 +108,10 @@ describe('state', () => {
         NamedYieldableValue<'myState', StateOutput<number, {}>>
       >();
       expect(myState()).toBe(0);
+
+      // @ts-expect-error State mutations must be explicitly exposed through an insertion.
+      type _ImplicitSet = (typeof myState)['set'];
+      expect(Reflect.get(myState, 'set')).toBeUndefined();
     });
   });
   it('should create a signal state', () => {

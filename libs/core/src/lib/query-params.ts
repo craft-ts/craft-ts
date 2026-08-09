@@ -21,7 +21,11 @@ import { Prettify } from './util/util.type';
 import { ActivatedRoute, Router } from '@angular/router';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
-import { AnyCraftException, craftException } from './craft-exception';
+import {
+  AnyCraftException,
+  craftException,
+  isCraftException,
+} from './craft-exception';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import {
   createNamedPrimitiveGen,
@@ -53,7 +57,6 @@ import type {
   BrandReactiveProperties,
   YieldableInsertionMethods,
 } from './yieldable';
-import type { CraftCodec } from './craft-codec';
 
 export interface QueryParamsNavigationOptions {
   queryParamsHandling?: 'merge' | 'preserve' | '';
@@ -89,15 +92,17 @@ type QueryParamsTrackedDependencies<
 >;
 
 type AnyQueryParamsConfig = {
-  codec: CraftCodec<any, any>;
+  codec: QueryParamsCodec<any, any>;
   fallbackValue: any;
 };
 
 export type QueryParamsToState<QueryParamsConfigs> = {
-  [K in keyof QueryParamsConfigs]: QueryParamsConfigs[K] extends {
-    codec: { decode: (input: any) => infer Decoded };
-  }
-    ? Decoded
+  [K in keyof QueryParamsConfigs]: QueryParamsConfigs[K] extends QueryParamsCodecConfig<
+    infer Decoded,
+    any,
+    any
+  >
+    ? Exclude<Decoded, AnyCraftException>
     : never;
 };
 
@@ -247,11 +252,16 @@ function executeQueryParamsFactory<This, Args extends unknown[], Result>(
 export interface QueryParamsCodecConfig<
   T = unknown,
   Encoded = unknown,
-  Codec extends CraftCodec<Encoded, T> = CraftCodec<Encoded, T>,
+  Codec extends QueryParamsCodec<Encoded, T> = QueryParamsCodec<Encoded, T>,
 > {
   codec: Codec;
   fallbackValue: NoInfer<T>;
 }
+
+type QueryParamsCodec<Encoded, Decoded> = {
+  decode(input: Encoded): Decoded | AnyCraftException;
+  encode(value: Decoded): Encoded | AnyCraftException;
+};
 
 export type QueryParamsConfig<
   T = unknown,
@@ -492,7 +502,8 @@ function createQueryParamsRef<
           return acc;
         }
         try {
-          acc[key] = config.codec.decode(rawValue);
+          const decoded = config.codec.decode(rawValue);
+          acc[key] = isCraftException(decoded) ? config.fallbackValue : decoded;
           return acc;
         } catch {
           acc[key] = config.fallbackValue;
@@ -512,7 +523,10 @@ function createQueryParamsRef<
         }
 
         try {
-          config.codec.decode(rawValue);
+          const decoded = config.codec.decode(rawValue);
+          if (isCraftException(decoded)) {
+            acc[key] = enrichQueryParamsParseException(decoded, key);
+          }
           return acc;
         } catch (error) {
           acc[key] = enrichQueryParamsParseException(
@@ -561,7 +575,11 @@ function createQueryParamsRef<
         // Skip if value equals fallback value
         if (currentValue !== config.fallbackValue) {
           try {
-            acc[key] = config.codec.encode(currentValue) as string | string[];
+            const encoded = config.codec.encode(currentValue);
+            if (isCraftException(encoded)) {
+              throw createQueryParamEncodeError(key, currentValue, encoded);
+            }
+            acc[key] = encoded as string | string[];
           } catch (error) {
             throw createQueryParamEncodeError(key, currentValue, error);
           }
@@ -717,8 +735,7 @@ function createQueryParamsRef<
             wrappedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
               injector: methodInjector,
               invalidYieldErrorMessage: QUERY_PARAM_INVALID_YIELD_ERROR_MESSAGE,
-              multipleAppStartErrorMessage:
-                QUERY_PARAM_APP_START_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: QUERY_PARAM_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage:
                 QUERY_PARAM_APP_START_ERROR_MESSAGE,
             });

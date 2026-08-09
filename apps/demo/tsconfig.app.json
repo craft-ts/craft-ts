@@ -4,8 +4,13 @@
     "outDir": "../../dist/out-tsc",
     "types": []
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "files": ["src/main.ts"],
+  "include": ["src/**/*.d.ts"],
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/app/app.routes.source.ts"
+  ],
   "references": [
     {
       "path": "../../libs/component/tsconfig.lib.json"

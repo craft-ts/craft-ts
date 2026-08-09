@@ -87,8 +87,8 @@ const FullDemo = craftComponent(
         button(
           {
             disabled: addTodo.isLoading(),
-            click: () => {
-              if (title.trim()) addTodo.mutate(title.trim());
+            *click() {
+              if (title.trim()) yield* addTodo.mutate(title.trim());
             },
           },
           'Add',
@@ -104,7 +104,9 @@ const FullDemo = craftComponent(
               button(
                 {
                   disabled: removeTodo.isLoading(),
-                  click: () => removeTodo.mutate(todo.id),
+                  *click() {
+                    yield* removeTodo.mutate(todo.id);
+                  },
                 },
                 'Remove',
               ),

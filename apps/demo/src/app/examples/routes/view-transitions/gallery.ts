@@ -50,9 +50,9 @@ const ViewTransitionsGalleryComponent = craftComponent(
             {
               class: 'vt-tile',
               href: `/view-transitions/${photo.id}`,
-              click: (event) => {
+              *click(event) {
                 event.preventDefault();
-                void open(photo.id);
+                yield* open(photo.id);
               },
             },
             [

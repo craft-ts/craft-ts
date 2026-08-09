@@ -1,4 +1,10 @@
-import { craftGen, craftService, craftSleep, state } from '@craft-ng/core';
+import {
+  craftGen,
+  craftService,
+  craftSleep,
+  state,
+  craftException,
+} from '@craft-ng/core';
 
 export type User = {
   id: string;
@@ -27,7 +33,10 @@ export const { ApiService } = craftService(
         deleteItem: (itemId: User['id']) => {
           const deletedItem = state().find((item) => item.id === itemId);
           if (!deletedItem) {
-            throw new Error('Item not found');
+            return craftException(
+              { code: 'UNEXPECTED_ERROR' },
+              { error: new Error('Item not found') },
+            );
           }
           update((items) => items.filter((item) => item.id !== itemId));
           return deletedItem;
@@ -61,7 +70,10 @@ export const { ApiService } = craftService(
         const list = dataList();
         const item = list.find((dataItem) => dataItem.id === itemId);
         if (!item) {
-          throw new Error(`failed to find the item ${itemId}`);
+          return craftException(
+            { code: 'UNEXPECTED_ERROR' },
+            { error: new Error(`failed to find the item ${itemId}`) },
+          );
         }
         yield* craftSleep(2000);
         return item;
@@ -79,7 +91,10 @@ export const { ApiService } = craftService(
       updateItem: craftGen(function* (updatedItem: User) {
         if (updateError()) {
           yield* craftSleep(5000);
-          throw new Error('Api error during update');
+          return craftException(
+            { code: 'UNEXPECTED_ERROR' },
+            { error: new Error('Api error during update') },
+          );
         }
         yield* dataList.updateItem(updatedItem);
         yield* craftSleep(2000);

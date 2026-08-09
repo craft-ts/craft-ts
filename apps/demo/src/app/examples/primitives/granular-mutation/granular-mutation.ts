@@ -112,7 +112,9 @@ const GranularMutation = craftComponent(
                     {
                       disabled: () =>
                         updateUserName.select(user.id)?.isLoading(),
-                      click: () => updateUserName.mutate(user),
+                      *click() {
+                        yield* updateUserName.mutate(user);
+                      },
                     },
                     [
                       'Update Name ',

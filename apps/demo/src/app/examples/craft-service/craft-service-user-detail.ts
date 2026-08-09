@@ -17,6 +17,7 @@ import {
   state,
   toValue,
   type MaybeSignal,
+  craftException,
 } from '@craft-ng/core';
 
 type User = { id: string; name: string; email: string };
@@ -35,7 +36,11 @@ const { UsersApi } = craftService(
       getUser: craftGen(function* (id: string) {
         yield* craftSleep(600);
         const user = USERS.find((candidate) => candidate.id === id);
-        if (!user) throw new Error(`User ${id} not found`);
+        if (!user)
+          return craftException(
+            { code: 'UNEXPECTED_ERROR' },
+            { error: new Error(`User ${id} not found`) },
+          );
         return user;
       }),
       availableUserIds: USERS.map(({ id }) => id),
@@ -90,8 +95,11 @@ const CraftServiceUserDetailComponent = craftComponent(
         select(
           {
             value: userId(),
-            change: (event) =>
-              userId.selectUser((event.target as HTMLSelectElement).value),
+            *change(event) {
+              yield* userId.selectUser(
+                (event.target as HTMLSelectElement).value,
+              );
+            },
           },
           user.userIds.map((id) => option({ value: id }, `User ${id}`)),
         ),

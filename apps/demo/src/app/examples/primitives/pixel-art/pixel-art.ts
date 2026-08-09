@@ -98,11 +98,20 @@ const PixelArt = craftComponent(
             class: 'pixel-color',
             style: { backgroundColor: color },
             'aria-label': `Choisir ${color}`,
-            click: () => ui.setActiveColor(color),
+            *click() {
+              yield* ui.setActiveColor(color);
+            },
           }),
         ),
       ),
-      button({ click: () => cells.clearAll() }, 'Effacer'),
+      button(
+        {
+          *click() {
+            yield* cells.clearAll();
+          },
+        },
+        'Effacer',
+      ),
       p([
         span(`Cases peintes: ${cells.paintedCount()}/${INDEXES.length}`),
         span(` · Clics: ${cells.totalPaintActions()}`),

@@ -95,7 +95,7 @@ export type StateOutput<
   HasSchema extends boolean = false,
 > = HasSchema extends true
   ? MergeObject<
-      WritableSignal<StateType>,
+      Signal<StateType>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         {
@@ -110,7 +110,7 @@ export type StateOutput<
       >
     >
   : MergeObject<
-      WritableSignal<StateType>,
+      Signal<StateType>,
       MergeObject<
         BrandReactiveProperties<ExposedStateInsertions<Insertions>>,
         { readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies }
@@ -246,7 +246,8 @@ function executeStateFactory<This, Args extends unknown[], Result>(
  *
  * @remarks
  * For the best TypeScript inference, pass Angular `Signal` values (e.g. `signal`, `linkedSignal`)
- * rather than manually widening to `WritableSignal`. This avoids some overload inference limits.
+ * rather than manually widening to `WritableSignal`. This avoids some overload inference limits
+ * and keeps the public state read-only.
  *
  * @param name - The state name. Used for host tagging and reactive branding
  * (`const counter = yield* state('counter', 0)`) and as the injector host
@@ -656,7 +657,7 @@ function createStateRef<StateType>(
   );
 
   const stateOutput = Object.assign(
-    stateSignal,
+    readonlyStateSignal,
     insertionsOutput.exposedInsertionsOutput,
     {
       hasSchema: signal(schema !== undefined),

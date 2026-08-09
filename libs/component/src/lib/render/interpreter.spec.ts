@@ -34,6 +34,7 @@ import {
   mutation,
   provideCraftDomEventHook,
   provideCraftLazyLoadRetry,
+  provideTemplateTrace,
   query,
   state,
   type CraftDomEvent,
@@ -137,6 +138,67 @@ describe('functional component interpreter', () => {
 
     mounted.destroy();
     expect(element.textContent).toBe('');
+  });
+
+  it('traces component creation, initial render, updates and destruction', () => {
+    const count = signal(0);
+    const traces: Array<{
+      kind: string;
+      phase: string;
+      componentName?: string;
+      renderCount: number;
+    }> = [];
+    const counter = craftComponent(
+      'templateTraceCounter',
+      {
+        providers: [
+          provideTemplateTrace((context, next) => {
+            traces.push({ ...context });
+            return next();
+          }),
+        ],
+      },
+      () => ({ count }),
+      ({ count }) => p(String(count())),
+    );
+    const element = host();
+
+    const mounted = mountCraftComponent(
+      counter,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    count.set(1);
+    TestBed.tick();
+    mounted.destroy();
+
+    expect(traces).toEqual([
+      {
+        kind: 'component',
+        phase: 'create',
+        componentName: 'templateTraceCounter',
+        renderCount: 0,
+      },
+      {
+        kind: 'component',
+        phase: 'initialRender',
+        componentName: 'templateTraceCounter',
+        renderCount: 1,
+      },
+      {
+        kind: 'component',
+        phase: 'update',
+        componentName: 'templateTraceCounter',
+        renderCount: 2,
+      },
+      {
+        kind: 'component',
+        phase: 'destroy',
+        componentName: 'templateTraceCounter',
+        renderCount: 2,
+      },
+    ]);
   });
 
   it('runs DOM event hooks in the component injector and exposes the binding location', () => {

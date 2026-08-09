@@ -10,6 +10,12 @@ export default [
   ...nx.configs['flat/angular-template'],
   {
     files: ['**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     plugins: {
       'craft-ng': craftRules,
     },
@@ -44,9 +50,11 @@ export default [
       'craft-ng/brand-angular-deps-match': 'off',
       'craft-ng/require-component-monitoring': 'warn',
       'craft-ng/require-primitive-generator-unwrap': 'warn',
+      'craft-ng/require-yieldable-template-method': 'error',
       'craft-ng/require-primitive-context': 'error',
       'craft-ng/require-primitive-derived-property': 'error',
       'craft-ng/no-async-await': 'error',
+      'craft-ng/no-throw': 'error',
       'craft-ng/require-assert-exhaustive-route-exceptions': 'warn',
       'craft-ng/prefer-craft-router-outlet': 'warn',
       'craft-ng/require-pending-component-di-check': 'warn',
@@ -65,6 +73,20 @@ export default [
     rules: {
       'craft-ng/prefer-craft-reactivity': 'off',
       'craft-ng/prefer-craft-state': 'off',
+      // The registry is a JavaScript-facing diagnostic boundary, not a Craft
+      // primitive. Its public API reports malformed calls by throwing.
+      'craft-ng/no-throw': 'off',
+    },
+  },
+  {
+    files: [
+      '**/src/app/function-registry-bridge.ts',
+      '**/src/app/query-params.utils.ts',
+    ],
+    rules: {
+      // These adapters validate external protocol/URL values and preserve
+      // their existing synchronous JavaScript error contracts.
+      'craft-ng/no-throw': 'off',
     },
   },
   {
@@ -77,6 +99,7 @@ export default [
       'craft-ng/prefer-craft-state': 'off',
       'craft-ng/prefer-craft-effect': 'off',
       'craft-ng/no-async-await': 'off',
+      'craft-ng/no-throw': 'off',
       'playwright/no-standalone-expect': 'off',
     },
   },

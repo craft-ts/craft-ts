@@ -120,7 +120,9 @@ const GranularMutationCraft = craftComponent(
                   button(
                     {
                       disabled: updateUserName.select(user.id)?.isLoading(),
-                      click: () => updateUserName.mutate(user),
+                      *click() {
+                        yield* updateUserName.mutate(user);
+                      },
                     },
                     'Update Name',
                   ),
@@ -132,7 +134,9 @@ const GranularMutationCraft = craftComponent(
       select(
         {
           value: pagination().pageSize,
-          change: (event) => updatePageSize(event),
+          *change(event) {
+            yield* updatePageSize(event);
+          },
         },
         [2, 4, 8, 16].map((size) => option({ value: size }, size)),
       ),

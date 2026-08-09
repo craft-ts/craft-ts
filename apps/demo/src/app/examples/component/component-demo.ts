@@ -31,7 +31,9 @@ const userCard = craftComponent(
       button(
         {
           class: 'component-demo__remove',
-          click: () => onRemove(user()),
+          *click() {
+            yield* onRemove(user());
+          },
           'aria-label': `Retirer ${user().name}`,
         },
         'Retirer',

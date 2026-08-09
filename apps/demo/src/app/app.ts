@@ -20,6 +20,7 @@ import {
   type CraftRouterLinkInput,
   state,
 } from '@craft-ng/core';
+import { demoEnabledRoutePaths } from './app.routes';
 
 const NAV_GROUPS = [
   {
@@ -83,6 +84,11 @@ const NAV_GROUPS = [
   readonly links: readonly (readonly [string, CraftRouterLinkInput])[];
 }[];
 
+const VISIBLE_NAV_GROUPS = NAV_GROUPS.map((group) => ({
+  ...group,
+  links: group.links.filter(([, link]) => demoEnabledRoutePaths.has(link.to)),
+})).filter((group) => group.links.length > 0);
+
 const craftRouterLink = ({ link }: { link: CraftRouterLinkInput }) =>
   directive(CraftRouterLink, {
     inputs: { craftRouterLink: link },
@@ -142,21 +148,24 @@ export const App = craftComponent(
           () =>
             div(
               { class: 'demo-nav__panel' },
-              each(NAV_GROUPS, { track: (group) => group.label }, (group) =>
-                div({ class: 'demo-nav__group' }, [
-                  strong(group.label),
-                  div(
-                    { class: 'demo-nav__links' },
-                    each(
-                      group.links,
-                      { track: ([, link]) => link.to },
-                      ([label, link]) =>
-                        a({ click: closeNav }, label).pipe(
-                          craftRouterLink({ link }),
-                        ),
+              each(
+                VISIBLE_NAV_GROUPS,
+                { track: (group) => group.label },
+                (group) =>
+                  div({ class: 'demo-nav__group' }, [
+                    strong(group.label),
+                    div(
+                      { class: 'demo-nav__links' },
+                      each(
+                        group.links,
+                        { track: ([, link]) => link.to },
+                        ([label, link]) =>
+                          a({ click: closeNav }, label).pipe(
+                            craftRouterLink({ link }),
+                          ),
+                      ),
                     ),
-                  ),
-                ]),
+                  ]),
               ),
             ),
           () => [],
@@ -164,7 +173,12 @@ export const App = craftComponent(
       ]),
       main({ class: 'content' }, CraftRouterOutlet()),
       button(
-        { class: 'clear-cache-btn', click: () => void clearCache() },
+        {
+          class: 'clear-cache-btn',
+          *click() {
+            yield* clearCache();
+          },
+        },
         '🗑️ Clear Cache',
       ),
     ]),

@@ -20,6 +20,7 @@ import {
   mutation,
   query,
   state,
+  craftException,
 } from '@craft-ng/core';
 
 // -- Types --
@@ -63,7 +64,11 @@ const { ApiService } = craftService(
       }),
       getTodo: craftGen(function* (id: number) {
         const todo = TODOS.find((t) => t.id === id);
-        if (!todo) throw new Error(`Todo ${id} not found`);
+        if (!todo)
+          return craftException(
+            { code: 'UNEXPECTED_ERROR' },
+            { error: new Error(`Todo ${id} not found`) },
+          );
         yield* craftSleep(500);
         return { ...todo };
       }),
@@ -79,14 +84,22 @@ const { ApiService } = craftService(
       }),
       toggleTodo: craftGen(function* (id: number) {
         const todo = TODOS.find((t) => t.id === id);
-        if (!todo) throw new Error(`Todo ${id} not found`);
+        if (!todo)
+          return craftException(
+            { code: 'UNEXPECTED_ERROR' },
+            { error: new Error(`Todo ${id} not found`) },
+          );
         todo.completed = !todo.completed;
         yield* craftSleep(500);
         return { ...todo };
       }),
       deleteTodo: craftGen(function* (id: number) {
         const index = TODOS.findIndex((t) => t.id === id);
-        if (index === -1) throw new Error(`Todo ${id} not found`);
+        if (index === -1)
+          return craftException(
+            { code: 'UNEXPECTED_ERROR' },
+            { error: new Error(`Todo ${id} not found`) },
+          );
         const removed = TODOS.splice(index, 1)[0];
         yield* craftSleep(500);
         return removed;
@@ -258,14 +271,16 @@ const PlaygroundComponent = craftComponent(
           input: (event) => {
             field = event.target as HTMLInputElement;
           },
-          keydown: (event) => {
-            if (event.key === 'Enter' && field) void add(field);
+          *keydown(event) {
+            if (event.key === 'Enter' && field) yield* add(field);
           },
         }),
         button(
           {
             disabled: pg.addTodo.isLoading(),
-            click: () => field && void add(field),
+            *click() {
+              if (field) yield* add(field);
+            },
           },
           ifBlock(
             isAdding,
@@ -282,11 +297,22 @@ const PlaygroundComponent = craftComponent(
           (todo) =>
             div({ class: { 'todo-item': true, completed: todo.completed } }, [
               button(
-                { click: () => pg.toggleTodo.mutate(todo.id) },
+                {
+                  *click() {
+                    yield* pg.toggleTodo.mutate(todo.id);
+                  },
+                },
                 TODO_ICONS[todo.completed ? 'true' : 'false'],
               ),
               span({ class: 'title' }, todo.title),
-              button({ click: () => pg.deleteTodo.mutate(todo.id) }, '🗑️'),
+              button(
+                {
+                  *click() {
+                    yield* pg.deleteTodo.mutate(todo.id);
+                  },
+                },
+                '🗑️',
+              ),
             ]),
         ),
       ),

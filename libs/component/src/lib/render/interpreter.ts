@@ -30,6 +30,7 @@ import {
   craftLazy,
   executeYieldable,
   HOST_TAG_LIST,
+  executeTemplateTrace,
   isCraftException,
   isCraftGenShortCircuit,
   isGeneratorFunction,
@@ -46,6 +47,7 @@ import {
   type AnyCraftException,
   YIELDABLE_VALUE,
   type TemporalTaskHandle,
+  type TemplateTraceContext,
   RealCraftTemporalRuntime,
 } from '@craft-ng/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
@@ -116,6 +118,14 @@ interface RenderContext {
   readonly handledResourceExceptionCodes?: Set<string>;
   /** Lexical context of content declared by the parent component. */
   readonly declarationContext?: RenderContext;
+  /** Directives composed around the current component. */
+  readonly directiveNames?: readonly string[];
+  /** Mutable render number shared by one component and its nested views. */
+  readonly traceState?: TemplateTraceState;
+}
+
+interface TemplateTraceState {
+  renderCount: number;
 }
 
 let templateGeneratorDepth = 0;
@@ -158,9 +168,92 @@ function renderChildrenCallback(
   context: RenderContext,
   callback: (...args: any[]) => CraftNodeChildren,
   args: readonly unknown[] = [],
+  kind: TemplateTraceContext['kind'] = 'callback',
+  name?: string,
+): CraftNodeChildren {
+  const phase = tracePhase(context);
+  return executeTemplateTrace(
+    context.injector,
+    traceContext(context, kind, phase, name ?? callback.name),
+    () => invokeChildrenCallback(context, callback, args),
+  );
+}
+
+function invokeChildrenCallback(
+  context: RenderContext,
+  callback: (...args: any[]) => CraftNodeChildren,
+  args: readonly unknown[],
 ): CraftNodeChildren {
   return runInInjectionContext(context.injector, () =>
     withCraftRenderContext(context, () => callback(...args)),
+  );
+}
+
+function renderBlockChildren(
+  context: RenderContext,
+  name: string | undefined,
+  callback: (...args: any[]) => CraftNodeChildren,
+  args: readonly unknown[] = [],
+): CraftNodeChildren {
+  return executeTemplateTrace(
+    context.injector,
+    traceContext(context, 'block', tracePhase(context), name),
+    () => invokeChildrenCallback(context, callback, args),
+  );
+}
+
+function renderDeferChildren(
+  context: RenderContext,
+  name: string | undefined,
+  callback: (...args: any[]) => CraftNodeChildren,
+  args: readonly unknown[] = [],
+): CraftNodeChildren {
+  return executeTemplateTrace(
+    context.injector,
+    traceContext(context, 'defer', tracePhase(context), name),
+    () => invokeChildrenCallback(context, callback, args),
+  );
+}
+
+function tracePhase(context: RenderContext): 'initialRender' | 'update' {
+  return (context.traceState?.renderCount ?? 0) <= 1
+    ? 'initialRender'
+    : 'update';
+}
+
+function traceContext(
+  context: RenderContext,
+  kind: TemplateTraceContext['kind'],
+  phase: TemplateTraceContext['phase'],
+  name?: string,
+): TemplateTraceContext {
+  return {
+    kind,
+    phase,
+    ...(context.componentName ? { componentName: context.componentName } : {}),
+    ...(name ? { name } : {}),
+    ...(context.directiveNames && context.directiveNames.length > 0
+      ? { directiveNames: context.directiveNames }
+      : {}),
+    renderCount: context.traceState?.renderCount ?? 0,
+  };
+}
+
+function traceComponentLifecycle(
+  injector: Injector,
+  phase: 'create' | 'destroy',
+  componentName: string,
+  renderCount: number,
+): void {
+  executeTemplateTrace(
+    injector,
+    {
+      kind: 'component',
+      phase,
+      componentName,
+      renderCount,
+    },
+    () => [],
   );
 }
 
@@ -637,8 +730,12 @@ function renderCraftDirectiveNode(
     template = directive[CRAFT_DIRECTIVE].template(template);
   }
 
-  return withCraftRenderContext(context, () =>
-    template(context.componentContext),
+  return renderChildrenCallback(
+    context,
+    template,
+    [context.componentContext],
+    'callback',
+    'directive',
   );
 }
 
@@ -1310,8 +1407,20 @@ class ProjectionRenderedNode implements RenderedNode {
   }
 
   private children(): CraftNodeChildren {
-    return runInInjectionContext(this.declarationContext.injector, () =>
-      withCraftRenderContext(this.declarationContext, () => this.node.render()),
+    return executeTemplateTrace(
+      this.projectionContext.injector,
+      traceContext(
+        this.projectionContext,
+        'projection',
+        tracePhase(this.projectionContext),
+        this.node.slotName,
+      ),
+      () =>
+        runInInjectionContext(this.declarationContext.injector, () =>
+          withCraftRenderContext(this.declarationContext, () =>
+            this.node.render(),
+          ),
+        ),
     );
   }
 
@@ -1364,11 +1473,9 @@ class TemplateRenderedNode implements RenderedNode {
   }
 
   private children(): CraftNodeChildren {
-    return runInInjectionContext(this.declarationContext.injector, () =>
-      withCraftRenderContext(this.declarationContext, () =>
-        this.node.template(this.node.context),
-      ),
-    );
+    return renderChildrenCallback(this.declarationContext, this.node.template, [
+      this.node.context,
+    ]);
   }
 
   destroy(): void {
@@ -1439,14 +1546,14 @@ class EachRenderedNode implements RenderedNode {
       if (this.node.empty) {
         if (this.emptyView) {
           this.emptyView.patchChildren(
-            renderChildrenCallback(this.context, this.node.empty),
+            renderBlockChildren(this.context, 'empty', this.node.empty),
           );
         } else {
           this.emptyView = createFragment(
             this.parent,
             this.end,
             this.context,
-            renderChildrenCallback(this.context, this.node.empty),
+            renderBlockChildren(this.context, 'empty', this.node.empty),
             'craft-empty',
           );
         }
@@ -1473,7 +1580,7 @@ class EachRenderedNode implements RenderedNode {
       let entry = previous.get(key);
       if (entry) {
         entry.patchChildren(
-          renderChildrenCallback(this.context, this.node.itemTemplate, [
+          renderBlockChildren(this.context, 'each', this.node.itemTemplate, [
             item,
             index,
           ]),
@@ -1483,7 +1590,7 @@ class EachRenderedNode implements RenderedNode {
           this.parent,
           this.end,
           this.context,
-          renderChildrenCallback(this.context, this.node.itemTemplate, [
+          renderBlockChildren(this.context, 'each', this.node.itemTemplate, [
             item,
             index,
           ]),
@@ -1570,9 +1677,17 @@ class IfBlockRenderedNode implements RenderedNode {
 
   private children(): CraftNodeChildren {
     return this.active
-      ? renderChildrenCallback(this.context, this.node.whenTrue)
+      ? renderBlockChildren(
+          this.context,
+          this.node.conditionName,
+          this.node.whenTrue,
+        )
       : this.node.whenFalse
-        ? renderChildrenCallback(this.context, this.node.whenFalse)
+        ? renderBlockChildren(
+            this.context,
+            this.node.conditionName,
+            this.node.whenFalse,
+          )
         : [];
   }
 
@@ -1638,7 +1753,16 @@ class MatchBlockRenderedNode implements RenderedNode {
     }
     this.handledExceptionCode = String(code);
     this.context.handledResourceExceptionCodes?.add(this.handledExceptionCode);
-    return handler(exception as AnyCraftException);
+    return executeTemplateTrace(
+      this.context.injector,
+      traceContext(
+        this.context,
+        'block',
+        tracePhase(this.context),
+        String(this.node.key),
+      ),
+      () => handler(exception as AnyCraftException),
+    );
   }
 
   destroy(): void {
@@ -1878,6 +2002,9 @@ class ComponentRenderedNode implements RenderedNode {
   private readonly styleReleases: (() => void)[];
   private providerTrackers: readonly (() => unknown)[] = [];
   private readonly templateOnly: boolean;
+  private readonly traceState: TemplateTraceState;
+  private readonly componentRenderContext: RenderContext;
+  private traceCreated = false;
   private factoryContext: unknown;
   private latestTemplate: CraftNodeChildren = [];
   private registrationReleases: (() => void)[] = [];
@@ -1897,6 +2024,7 @@ class ComponentRenderedNode implements RenderedNode {
     const definition = component[CRAFT_COMPONENT];
     const composition = definition.composition;
     const ownScope = scopeIdFor(definition.scopeDefinition, definition.name);
+    this.traceState = { renderCount: 0 };
     this.styleReleases = acquireStyles(
       context,
       definition.styleOwners,
@@ -1909,7 +2037,12 @@ class ComponentRenderedNode implements RenderedNode {
       contentStyles: definition.meta.contentStyles,
       contentScope: undefined,
       declarationContext: declarationContext ?? context,
+      directiveNames: definition.styleOwners
+        .slice(1)
+        .map((owner) => owner.name),
+      traceState: this.traceState,
     });
+    this.componentRenderContext = componentRenderContext;
     const componentElement =
       hostTarget ?? (parent instanceof Element ? parent : parent.parentElement);
     // Angular's runtime accepts any Injector as the R3Injector parent even
@@ -1931,6 +2064,13 @@ class ComponentRenderedNode implements RenderedNode {
         ],
         parentInjector,
         'CraftComponent',
+      );
+      this.traceCreated = true;
+      traceComponentLifecycle(
+        this.environmentInjector,
+        'create',
+        definition.name,
+        this.traceState.renderCount,
       );
     }
     this.propKeys = this.templateOnly
@@ -2140,17 +2280,29 @@ class ComponentRenderedNode implements RenderedNode {
                       definition.meta.host ?? {},
                       this.hostPropsSource(),
                     );
-                    this.latestTemplate = withCraftRenderContext(
-                      childContext(componentRenderContext, {
-                        injector: this.environmentInjector!,
-                        componentContext: this.factoryContext,
-                      }),
+                    const renderContext = childContext(componentRenderContext, {
+                      injector: this.environmentInjector!,
+                      componentContext: this.factoryContext,
+                    });
+                    this.traceState.renderCount += 1;
+                    this.latestTemplate = executeTemplateTrace(
+                      renderContext.injector,
+                      traceContext(
+                        renderContext,
+                        'component',
+                        this.traceState.renderCount === 1
+                          ? 'initialRender'
+                          : 'update',
+                        definition.name,
+                      ),
                       () =>
-                        definition.template(
-                          projectYieldableTemplateContext(
-                            this.factoryContext,
-                          ) as never,
-                          hostProps,
+                        withCraftRenderContext(renderContext, () =>
+                          definition.template(
+                            projectYieldableTemplateContext(
+                              this.factoryContext,
+                            ) as never,
+                            hostProps,
+                          ),
                         ),
                     );
                     this.view.patchChildren(this.latestTemplate);
@@ -2217,6 +2369,16 @@ class ComponentRenderedNode implements RenderedNode {
       parentInjector,
       'CraftComponent',
     );
+
+    if (!this.traceCreated) {
+      this.traceCreated = true;
+      traceComponentLifecycle(
+        this.environmentInjector,
+        'create',
+        definition.name,
+        this.traceState.renderCount,
+      );
+    }
 
     const environmentInjector = this.environmentInjector;
     let renderInjector = environmentInjector;
@@ -2476,6 +2638,7 @@ class ComponentRenderedNode implements RenderedNode {
   ): void {
     if (this.componentFallbackVisible) return;
     try {
+      this.traceState.renderCount += 1;
       const rendered = this.composedTemplateChildren(
         definition,
         factoryContext,
@@ -2521,11 +2684,21 @@ class ComponentRenderedNode implements RenderedNode {
       this.hostPropsSource(),
     );
     return {
-      children: withCraftRenderContext(renderContext, () =>
-        definition.template(
-          projectYieldableTemplateContext(factoryContext) as never,
-          hostProps,
+      children: executeTemplateTrace(
+        renderContext.injector,
+        traceContext(
+          renderContext,
+          'component',
+          this.traceState.renderCount === 1 ? 'initialRender' : 'update',
+          definition.name,
         ),
+        () =>
+          withCraftRenderContext(renderContext, () =>
+            definition.template(
+              projectYieldableTemplateContext(factoryContext) as never,
+              hostProps,
+            ),
+          ),
       ),
       hostProps,
     };
@@ -2660,12 +2833,22 @@ class ComponentRenderedNode implements RenderedNode {
       definition.meta.host ?? {},
       this.hostPropsSource(),
     );
-    this.view.patchChildren(
-      (this.latestTemplate = definition.template(
-        projectYieldableTemplateContext(context) as never,
-        hostProps,
-      )),
+    this.traceState.renderCount += 1;
+    this.latestTemplate = executeTemplateTrace(
+      this.environmentInjector ?? this.context.injector,
+      traceContext(
+        this.componentRenderContext,
+        'component',
+        this.traceState.renderCount === 1 ? 'initialRender' : 'update',
+        definition.name,
+      ),
+      () =>
+        definition.template(
+          projectYieldableTemplateContext(context) as never,
+          hostProps,
+        ),
     );
+    this.view.patchChildren(this.latestTemplate);
   }
 
   locator(
@@ -2677,6 +2860,15 @@ class ComponentRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
+    if (this.traceCreated) {
+      traceComponentLifecycle(
+        this.environmentInjector ?? this.context.injector,
+        'destroy',
+        this.componentRenderContext.componentName ?? 'unknown',
+        this.traceState.renderCount,
+      );
+      this.traceCreated = false;
+    }
     this.effectRef.destroy();
     this.view.destroy();
     this.styleReleases.forEach((release) => release());
@@ -2704,7 +2896,9 @@ class DeferRenderedNode implements RenderedNode {
       parent,
       before,
       context,
-      node.placeholder ? renderChildrenCallback(context, node.placeholder) : [],
+      node.placeholder
+        ? renderDeferChildren(context, 'placeholder', node.placeholder)
+        : [],
       'craft-defer',
     );
     this.installTrigger();
@@ -2725,14 +2919,14 @@ class DeferRenderedNode implements RenderedNode {
     this.node = node;
     if (this.state === 'loaded') {
       this.view.patchChildren(
-        renderChildrenCallback(this.context, this.node.resolve, [
+        renderDeferChildren(this.context, 'resolve', this.node.resolve, [
           this.loadedValue,
         ]),
       );
     } else if (this.state === 'error') {
       this.view.patchChildren(
         this.node.error
-          ? renderChildrenCallback(this.context, this.node.error, [
+          ? renderDeferChildren(this.context, 'error', this.node.error, [
               this.loadError,
             ])
           : [],
@@ -2740,15 +2934,23 @@ class DeferRenderedNode implements RenderedNode {
     } else if (this.state === 'loading') {
       this.view.patchChildren(
         this.node.loading
-          ? renderChildrenCallback(this.context, this.node.loading)
+          ? renderDeferChildren(this.context, 'loading', this.node.loading)
           : this.node.placeholder
-            ? renderChildrenCallback(this.context, this.node.placeholder)
+            ? renderDeferChildren(
+                this.context,
+                'placeholder',
+                this.node.placeholder,
+              )
             : [],
       );
     } else {
       this.view.patchChildren(
         this.node.placeholder
-          ? renderChildrenCallback(this.context, this.node.placeholder)
+          ? renderDeferChildren(
+              this.context,
+              'placeholder',
+              this.node.placeholder,
+            )
           : [],
       );
     }
@@ -2843,9 +3045,13 @@ class DeferRenderedNode implements RenderedNode {
     this.triggerCleanup = undefined;
     this.view.patchChildren(
       this.node.loading
-        ? renderChildrenCallback(this.context, this.node.loading)
+        ? renderDeferChildren(this.context, 'loading', this.node.loading)
         : this.node.placeholder
-          ? renderChildrenCallback(this.context, this.node.placeholder)
+          ? renderDeferChildren(
+              this.context,
+              'placeholder',
+              this.node.placeholder,
+            )
           : [],
     );
 
@@ -2866,7 +3072,7 @@ class DeferRenderedNode implements RenderedNode {
           this.loadError = settled.exception;
           this.view.patchChildren(
             this.node.error
-              ? renderChildrenCallback(this.context, this.node.error, [
+              ? renderDeferChildren(this.context, 'error', this.node.error, [
                   settled.exception,
                 ])
               : [],
@@ -2877,7 +3083,7 @@ class DeferRenderedNode implements RenderedNode {
         this.state = 'loaded';
         this.loadedValue = settled.value;
         this.view.patchChildren(
-          renderChildrenCallback(this.context, this.node.resolve, [
+          renderDeferChildren(this.context, 'resolve', this.node.resolve, [
             settled.value,
           ]),
         );
@@ -2888,7 +3094,9 @@ class DeferRenderedNode implements RenderedNode {
           this.loadError = error;
           this.view.patchChildren(
             this.node.error
-              ? renderChildrenCallback(this.context, this.node.error, [error])
+              ? renderDeferChildren(this.context, 'error', this.node.error, [
+                  error,
+                ])
               : [],
           );
         }

@@ -104,7 +104,9 @@ const PixelArtMatrix = craftComponent(
           button({
             class: 'matrix-color',
             style: { backgroundColor: color },
-            click: () => activeColor.setColor(color),
+            *click() {
+              yield* activeColor.setColor(color);
+            },
           }),
         ),
       ),
@@ -117,14 +119,23 @@ const PixelArtMatrix = craftComponent(
               button({
                 class: 'matrix-cell',
                 style: { backgroundColor: cell.color },
-                click: () => grid.paint(rowIndex, columnIndex),
-                contextmenu: (event) => {
+                *click() {
+                  yield* grid.paint(rowIndex, columnIndex);
+                },
+                *contextmenu(event) {
                   event.preventDefault();
-                  grid.paintRow(rowIndex, cell.color);
+                  yield* grid.paintRow(rowIndex, cell.color);
                 },
               }),
             ),
-            button({ click: () => grid.addCell(rowIndex) }, '+'),
+            button(
+              {
+                *click() {
+                  yield* grid.addCell(rowIndex);
+                },
+              },
+              '+',
+            ),
           ]),
         ),
       ),

@@ -65,14 +65,36 @@ const ExceptionsComponent = craftComponent(
     return [
       h3(`Query user with business exceptions (${userQuery.status()})`),
       div({ class: 'exception-actions' }, [
-        button({ click: () => scenario.select('success') }, 'Success'),
-        button({ click: () => scenario.select('not-found') }, 'User not found'),
         button(
-          { click: () => scenario.select('consent-missing') },
+          {
+            *click() {
+              yield* scenario.select('success');
+            },
+          },
+          'Success',
+        ),
+        button(
+          {
+            *click() {
+              yield* scenario.select('not-found');
+            },
+          },
+          'User not found',
+        ),
+        button(
+          {
+            *click() {
+              yield* scenario.select('consent-missing');
+            },
+          },
           'Consent missing',
         ),
         button(
-          { click: () => scenario.select('forbidden') },
+          {
+            *click() {
+              yield* scenario.select('forbidden');
+            },
+          },
           'Access forbidden',
         ),
       ]),
