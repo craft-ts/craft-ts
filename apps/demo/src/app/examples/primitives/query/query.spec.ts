@@ -13,9 +13,11 @@ import {
   setupCraftComponentLogicTest,
   type Input,
 } from '@craft-ng/component';
+import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import GlobalQuery from './query';
+import { ApiService } from './api.service';
 
 beforeAll(() => {
   try {
@@ -46,6 +48,39 @@ beforeEach(() => {
 describe('Query template', () => {
   type QueryLogic = ComponentLogicOutputOf<typeof GlobalQuery>;
   type QueryTemplate = ComponentTemplateOf<typeof GlobalQuery>;
+
+  type _UserQueryDependsOnApiService = Expect<
+    Equal<
+      'ApiService' extends keyof ExtractDeps<QueryLogic['userQuery']>
+        ? true
+        : false,
+      true
+    >
+  >;
+
+  type _ApiServiceDependencyIsTracked = Expect<
+    Equal<
+      ExtractDeps<QueryLogic['userQuery']>['ApiService'] extends GetServiceDependencies<
+        typeof ApiService
+      >
+        ? true
+        : false,
+      true
+    >
+  >;
+
+  type _ApiServiceGetItemByIdIsTracked = Expect<
+    Equal<
+      ExtractDeps<QueryLogic['userQuery']>['ApiService'] extends {
+        derivedPropertiesUsed: infer Used extends object;
+      }
+        ? 'getItemById' extends keyof Used
+          ? true
+          : false
+        : false,
+      true
+    >
+  >;
 
   type _ExposesUserQueryAndNavigationMethods = Expect<
     Equal<
@@ -144,8 +179,6 @@ describe('Query logic', () => {
         CraftRouter: { navigate },
       },
     });
-
-    TestBed.tick();
 
     await vi.waitFor(() =>
       expect(getItemById).toHaveBeenCalledWith(currentUserId),
