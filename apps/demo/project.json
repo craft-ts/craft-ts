@@ -115,9 +115,7 @@
     "test": {
       "executor": "@angular/build:unit-test",
       "options": {
-        "loader": {
-          ".css": "text"
-        }
+        "tsConfig": "apps/demo/tsconfig.spec.json"
       }
     },
     "serve-static": {

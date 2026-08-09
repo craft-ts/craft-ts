@@ -1,4 +1,5 @@
 import styles from './query.css' with { loader: 'text' };
+import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
@@ -45,7 +46,7 @@ const GlobalQuery = craftComponent(
         },
       },
       insertQueryPipe(
-        ({ state }) => ({ hasUser: computed(() => state.hasValue()) }),
+        ({ resource }) => ({ hasUser: computed(() => resource.hasValue()) }),
         insertLocalStoragePersister({
           storeName: 'demo-app',
           key: 'user-query',

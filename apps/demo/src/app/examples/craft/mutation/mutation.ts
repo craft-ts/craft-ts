@@ -71,7 +71,9 @@ const MutationCraft = craftComponent(
   },
   function* (userId: Input<string | undefined>) {
     const store = yield* UserMutation({ userId: () => userId() });
-    const nameInput = yield* state('nameInput', '');
+    const nameInput = yield* state('nameInput', '', ({ set }) => ({
+      setName: (value: string) => set(value),
+    }));
     const hasUser = craftComputed('hasUser', () => store.user.hasValue());
     const updateUserNameFn = craftMethod(
       'updateUserNameFn',
@@ -98,9 +100,16 @@ const MutationCraft = craftComponent(
         params: { userId: String(Number(userId() ?? '0') + offset) },
       });
     });
-    return { store, nameInput, hasUser, updateUserNameFn, navigate };
+    return {
+      store,
+      nameInput,
+      setName: nameInput.setName,
+      hasUser,
+      updateUserNameFn,
+      navigate,
+    };
   },
-  ({ store, nameInput, hasUser, updateUserNameFn, navigate }) => {
+  ({ store, nameInput, setName, hasUser, updateUserNameFn, navigate }) => {
     return [
       div([
         'User ',
@@ -114,8 +123,9 @@ const MutationCraft = craftComponent(
         type: 'text',
         placeholder: 'New name',
         value: nameInput(),
-        input: (event) =>
-          nameInput.set((event.target as HTMLInputElement).value),
+        *input(event) {
+          yield* setName((event.target as HTMLInputElement).value);
+        },
       }),
       button(
         {

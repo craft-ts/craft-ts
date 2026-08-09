@@ -7,38 +7,42 @@ import {
   TemplateNamedElementRendersStateWhen,
   TemplateRendersNamedElementWhen,
 } from '@craft-ng/component';
-import type { ResolvedServiceOutput } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it } from 'vitest';
-import FullDemoCraft, { TodoStore } from './full-demo';
+import FullDemo from './full-demo';
 
 describe('Full demo template', () => {
-  type FullDemoLogic = ComponentLogicOutputOf<typeof FullDemoCraft>;
-  type FullDemoTemplate = ComponentTemplateOf<typeof FullDemoCraft>;
-  type TodoStoreOutput = ResolvedServiceOutput<
-    typeof TodoStore,
-    Record<never, never>
-  >;
+  type FullDemoLogic = ComponentLogicOutputOf<typeof FullDemo>;
+  type FullDemoTemplate = ComponentTemplateOf<typeof FullDemo>;
 
-  type _StoreIsTodoStoreOutput = Expect<
-    Equal<FullDemoLogic['store'], TodoStoreOutput>
+  type _ExposesTodoQueryAndMutations = Expect<
+    Equal<
+      FullDemoLogic extends {
+        todos: unknown;
+        addTodo: unknown;
+        removeTodo: unknown;
+      }
+        ? true
+        : false,
+      true
+    >
   >;
 
   type _DisplayNewTodoNameInput = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
         FullDemoTemplate,
-        'FullDemoCraft:input:TodoNameToAddInput'
+        'FullDemo:input:TodoNameToAddInput'
       >,
       true
     >
   >;
 
-  type _DisplayNewToDoSubmitButton = Expect<
+  type _DisplayNewTodoSubmitButton = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
         FullDemoTemplate,
-        'FullDemoCraft:button:AddTodoButton'
+        'FullDemo:button:AddTodoButton'
       >,
       true
     >
@@ -48,8 +52,8 @@ describe('Full demo template', () => {
     Equal<
       TemplateRendersNamedElementWhen<
         FullDemoTemplate,
-        'FullDemoCraft:button:RemoveTodoButton',
-        { when: { 'store.todos.value': 'nonEmpty' } }
+        'FullDemo:button:RemoveTodoButton',
+        { when: { 'todos.value': 'nonEmpty' } }
       >,
       true
     >
@@ -59,8 +63,8 @@ describe('Full demo template', () => {
     Equal<
       TemplateRendersNamedElementWhen<
         FullDemoTemplate,
-        'FullDemoCraft:button:RemoveTodoButton',
-        { when: { 'store.todos.value': 'empty' } }
+        'FullDemo:button:RemoveTodoButton',
+        { when: { 'todos.value': 'empty' } }
       >,
       false
     >
@@ -70,9 +74,9 @@ describe('Full demo template', () => {
     Equal<
       TemplateNamedElementRendersStateWhen<
         FullDemoTemplate,
-        'FullDemoCraft:button:AddTodoButton',
+        'FullDemo:button:AddTodoButton',
         'disabled',
-        'store.add.isLoading'
+        'addTodo.isLoading'
       >,
       true
     >
@@ -82,10 +86,10 @@ describe('Full demo template', () => {
     Equal<
       TemplateNamedElementRendersStateWhen<
         FullDemoTemplate,
-        'FullDemoCraft:button:RemoveTodoButton',
+        'FullDemo:button:RemoveTodoButton',
         'disabled',
-        'store.remove.isLoading',
-        { when: { 'store.todos.value': 'nonEmpty' } }
+        'removeTodo.isLoading',
+        { when: { 'todos.value': 'nonEmpty' } }
       >,
       true
     >
@@ -95,9 +99,9 @@ describe('Full demo template', () => {
     Equal<
       TemplateNamedElementDelegatesToContext<
         FullDemoTemplate,
-        'FullDemoCraft:button:AddTodoButton',
+        'FullDemo:button:AddTodoButton',
         'click',
-        'store.add.mutate'
+        'addTodo.mutate'
       >,
       true
     >
@@ -107,8 +111,8 @@ describe('Full demo template', () => {
     Equal<
       TemplateRendersNamedElementWhen<
         FullDemoTemplate,
-        'FullDemoCraft:span:TodoTitle',
-        { when: { 'store.todos.value': 'nonEmpty' } }
+        'FullDemo:span:TodoTitle',
+        { when: { 'todos.value': 'nonEmpty' } }
       >,
       true
     >

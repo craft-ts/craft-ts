@@ -78,15 +78,16 @@ const FullDemo = craftComponent(
       ]),
       p('Query, mutations, optimistic interaction and functional rendering.'),
       div([
-        input({
+        input('TodoNameToAddInput', {
           placeholder: 'New todo',
           input: (event) => {
             title = (event.target as HTMLInputElement).value;
           },
         }),
         button(
+          'AddTodoButton',
           {
-            disabled: addTodo.isLoading(),
+            disabled: () => addTodo.isLoading(),
             *click() {
               if (title.trim()) yield* addTodo.mutate(title.trim());
             },
@@ -100,10 +101,11 @@ const FullDemo = craftComponent(
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
             li([
-              span(todo.title),
+              span('TodoTitle', {}, todo.title),
               button(
+                'RemoveTodoButton',
                 {
-                  disabled: removeTodo.isLoading(),
+                  disabled: () => removeTodo.isLoading(),
                   *click() {
                     yield* removeTodo.mutate(todo.id);
                   },

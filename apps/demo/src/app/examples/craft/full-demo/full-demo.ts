@@ -111,13 +111,11 @@ const FullDemoCraft = craftComponent(
   function* () {
     return {
       store: yield* TodoStore(),
-      title: yield* state('title', '', ({ set }) => ({
-        setTitle: set,
-      })),
     };
   },
-  ({ store, title }) =>
-    div([
+  ({ store }) => {
+    let title = '';
+    return div([
       h2([
         'Full craftService demo ',
         StatusComponent({ status: () => store.todos.status() }),
@@ -126,9 +124,9 @@ const FullDemoCraft = craftComponent(
       div([
         input('TodoNameToAddInput', {
           placeholder: 'New todo',
-          value: title(),
-          *input(event) {
-            yield* title.setTitle((event.target as HTMLInputElement).value);
+          value: () => title,
+          input: (event) => {
+            title = (event.target as HTMLInputElement).value;
           },
         }),
         button(
@@ -136,7 +134,7 @@ const FullDemoCraft = craftComponent(
           {
             disabled: () => store.add.isLoading(),
             *click() {
-              yield* store.add.mutate(title().trim());
+              yield* store.add.mutate(title.trim());
             },
           },
           'Add',
@@ -162,7 +160,8 @@ const FullDemoCraft = craftComponent(
             ]),
         ),
       ),
-    ]),
+    ]);
+  },
 ).pipe(
   catchBlock.exhaustive({
     FAILED_TO_LOAD: {

@@ -80,7 +80,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           'Navigate exception',
         ),
       ]),
-      p([strong('Parsed value: '), modeQueryParams.mode()]),
+      p([strong('Parsed value: '), String(modeQueryParams().mode)]),
       ifBlock(
         hasParseException,
         () => {
