@@ -20,7 +20,7 @@ import {
   type CraftRouterLinkInput,
   state,
 } from '@craft-ng/core';
-import { demoEnabledRoutePaths } from './app.routes';
+import { demoEnabledRoutePaths } from './app.routes.runtime';
 
 const NAV_GROUPS = [
   {

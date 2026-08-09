@@ -161,8 +161,9 @@ npx nx serve demo --all-routes
 npx nx serve demo --demo-routes=query,full-demo
 ```
 
-Les routes sont maintenues dans `apps/demo/src/app/app.routes.source.ts` ; le
-fichier `app.routes.ts` est généré automatiquement.
+Les routes restent maintenues dans `apps/demo/src/app/app.routes.ts`. Pendant
+le serveur de développement, le sélecteur génère temporairement
+`app.routes.runtime.ts`, puis restaure le relais vers `app.routes.ts` à l'arrêt.
 
 Start the documentation site at `http://localhost:5173`:
 

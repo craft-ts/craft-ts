@@ -25,7 +25,7 @@ import {
   craftException,
 } from '@craft-ng/core';
 import { App } from './app';
-import { demoRoutes } from './app.routes';
+import { demoRoutes } from './app.routes.runtime';
 import { provideMcpExperimentation } from './function-registry-entry';
 import { provideLogForwarding } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
