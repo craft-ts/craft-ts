@@ -67,10 +67,18 @@ const FullDemo = craftComponent(
         return id;
       },
     });
-    return { todos, addTodo, removeTodo };
+    const titleInput = yield* state('titleInput', '', ({ set }) => ({
+      setTitle: (value: string) => set(value),
+    }));
+    return {
+      todos,
+      addTodo,
+      removeTodo,
+      titleInput,
+      setTitle: titleInput.setTitle,
+    };
   },
-  ({ todos, addTodo, removeTodo }) => {
-    let title = '';
+  ({ todos, addTodo, removeTodo, titleInput, setTitle }) => {
     return div([
       h2([
         'Full primitives demo ',
@@ -81,8 +89,9 @@ const FullDemo = craftComponent(
         input('TodoNameToAddInput', {
           type: 'text',
           placeholder: 'New todo',
-          input: (event) => {
-            title = (event.target as HTMLInputElement).value;
+          value: titleInput(),
+          *input(event) {
+            yield* setTitle((event.target as HTMLInputElement).value);
           },
         }),
         button(
@@ -90,7 +99,11 @@ const FullDemo = craftComponent(
           {
             disabled: () => addTodo.isLoading(),
             *click() {
-              if (title.trim()) yield* addTodo.mutate(title.trim());
+              const currentTitle = yield* titleInput();
+              const trimmedTitle = currentTitle?.trim() ?? '';
+              if (trimmedTitle) {
+                yield* addTodo.mutate(trimmedTitle);
+              }
             },
           },
           'Add',

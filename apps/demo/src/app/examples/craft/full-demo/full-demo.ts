@@ -109,12 +109,13 @@ const FullDemoCraft = craftComponent(
     stylesUrl: styles,
   },
   function* () {
-    return {
-      store: yield* TodoStore(),
-    };
+    const store = yield* TodoStore();
+    const titleInput = yield* state('titleInput', '', ({ set }) => ({
+      setTitle: (value: string) => set(value),
+    }));
+    return { store, titleInput, setTitle: titleInput.setTitle };
   },
-  ({ store }) => {
-    let title = '';
+  ({ store, titleInput, setTitle }) => {
     return div([
       h2([
         'Full craftService demo ',
@@ -124,9 +125,9 @@ const FullDemoCraft = craftComponent(
       div([
         input('TodoNameToAddInput', {
           placeholder: 'New todo',
-          value: () => title,
-          input: (event) => {
-            title = (event.target as HTMLInputElement).value;
+          value: titleInput(),
+          *input(event) {
+            yield* setTitle((event.target as HTMLInputElement).value);
           },
         }),
         button(
@@ -134,7 +135,8 @@ const FullDemoCraft = craftComponent(
           {
             disabled: () => store.add.isLoading(),
             *click() {
-              yield* store.add.mutate(title.trim());
+              const currentTitle = yield* titleInput();
+              yield* store.add.mutate(currentTitle?.trim() ?? '');
             },
           },
           'Add',

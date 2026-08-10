@@ -122,7 +122,8 @@ const MutationDemoComponent = craftComponent(
           class: 'update-user-name',
           disabled: updateUserName.isLoading(),
           click: function* () {
-            yield* update(nameInput());
+            const currentName = yield* nameInput();
+            yield* update(currentName ?? '');
           },
         },
         [

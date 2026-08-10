@@ -114,6 +114,7 @@ describe('Craft Full Demo route component', () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(todoQueryRuns).toBe(queryRunsAfterLoad);
     expect(element.textContent).toContain('Full craftService demo');
+    expect(element.textContent).toContain('Typing must not reload');
     fixture.destroy();
   });
 
