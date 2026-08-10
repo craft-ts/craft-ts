@@ -582,6 +582,18 @@ describe('mutation types without identifier', () => {
     });
   });
 
+  it('exposes mutate for an imperative method whose argument is unknown', () => {
+    TestBed.runInInjectionContext(() => {
+      const mutationRef = craftUse(mutation('unknownArgMutation', {
+        method: (value: unknown) => value,
+        loader: async ({ params }) => ({ params }),
+      }));
+
+      expectTypeOf(mutationRef.mutate).toBeFunction();
+      mutationRef.mutate('value');
+    });
+  });
+
   it('should infer correctly the mutation bind to a source', () => {
     TestBed.runInInjectionContext(() => {
       const searchSource = signalSource<{ searchChange: string }>(

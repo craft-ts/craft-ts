@@ -96,20 +96,19 @@ describe('Standard Schema validation', () => {
         ? { value }
         : { issues: [{ message: 'positive number expected' }] },
     );
+    const source = signal(1);
 
     const value = TestBed.runInInjectionContext(() =>
       craftUse(
         state('value', {
-          $self: 1,
+          $self: source,
           schema: numberSchema,
         }),
       ),
     );
 
-    const writableValue = value as typeof value & {
-      set(nextValue: number): void;
-    };
-    writableValue.set(-1);
+    expect(value()).toBe(1);
+    source.set(-1);
 
     expect(value()).toBe(1);
     expect(value.exceptions().parse.state?.code).toBe(

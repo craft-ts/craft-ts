@@ -17,6 +17,7 @@ import {
   mutation,
   query,
   state,
+  craftMethod,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -38,7 +39,7 @@ const MutationDemoComponent = craftComponent(
       },
     });
     const nameInput = yield* state('nameInput', '', ({ set }) => ({
-      setName: (value: string) => set(value),
+      setName: (value: string) => set(value.trim()),
     }));
     const userQuery = yield* query(
       'userQuery',
@@ -73,7 +74,10 @@ const MutationDemoComponent = craftComponent(
         params: { userId: String(Number(userId() ?? '0') + offset) },
       });
     };
-    const update = function* (name: string) {
+    const update = craftMethod('update', function* (name: string | undefined) {
+      if (!name) {
+        return;
+      }
       const user = userQuery.value();
       if (user) {
         yield* updateUserName.mutate({
@@ -81,7 +85,8 @@ const MutationDemoComponent = craftComponent(
           user,
         });
       }
-    };
+    });
+
     return {
       userQuery,
       updateUserName,
@@ -118,7 +123,7 @@ const MutationDemoComponent = craftComponent(
           disabled: () => updateUserName.isLoading(),
           click: function* () {
             const currentName = yield* nameInput();
-            yield* update(currentName ?? '');
+            yield* update(currentName);
           },
         },
         [

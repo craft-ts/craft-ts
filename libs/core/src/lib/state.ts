@@ -514,8 +514,13 @@ function createStateRef<StateType>(
         ? (resolvedStateConfig as WritableSignal<StateType>)
         : linkedSignal(() => (resolvedStateConfig as Signal<StateType>)())
       : isSignalState
-        ? linkedSignal(() =>
-            applySchema((resolvedStateConfig as Signal<unknown>)(), 'source'),
+        ? linkedSignal(
+            () =>
+              applySchema(
+                (resolvedStateConfig as Signal<unknown>)(),
+                'source',
+              ),
+            { equal: () => false },
           )
         : signal(initialStateValue);
   const readonlyStateSignal =

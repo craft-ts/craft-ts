@@ -653,6 +653,18 @@ export type MutationRef<
 //   [key in `~InternalType`]: 'Used to avoid TS type erasure';
 // };
 
+type MutationIsMethod<Config, ArgParams> = Config extends {
+  method: infer Method;
+}
+  ? Method extends ReadonlySource<unknown>
+    ? false
+    : Method extends (...args: never[]) => unknown
+      ? true
+      : false
+  : [unknown] extends [ArgParams]
+    ? false
+    : true;
+
 export type MutationOutput<
   // Unconstrained: sync loaders may resolve to null or primitives too.
   State,
@@ -665,12 +677,17 @@ export type MutationOutput<
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
+  IsMethod extends boolean | undefined = undefined,
 > = MutationRef<
   StripCraftException<State>,
   StripCraftException<Params>,
   ArgParams,
   YieldableInsertionMethods<BrandReactiveProperties<Insertions>>,
-  [unknown] extends [ArgParams] ? false : true, // ! force to method to have one arg minimum, we can not compare SourceParams type, because it also infer Params
+  IsMethod extends boolean
+    ? IsMethod
+    : [unknown] extends [ArgParams]
+      ? false
+      : true,
   SourceParams,
   GroupIdentifier,
   MutationExceptions,
@@ -871,7 +888,8 @@ export function mutation<
       Providers
     >,
     false,
-    MethodYielded
+    MethodYielded,
+    MutationIsMethod<Config, MutationArgsParams>
   >
 >;
 export function mutation<
@@ -948,7 +966,8 @@ export function mutation<
       Insertion1
     >,
     false,
-    MethodYielded
+    MethodYielded,
+    MutationIsMethod<Config, MutationArgsParams>
   >
 >;
 
@@ -1240,7 +1259,8 @@ function createMutationRef<
   Exceptions,
   {},
   false,
-  MethodYielded
+  MethodYielded,
+  MutationIsMethod<Config, MutationArgsParams>
 > {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const mutationExtraProviders = [
@@ -1920,7 +1940,11 @@ function createMutationRef<
     SourceParams,
     GroupIdentifier,
     {},
-    Exceptions
+    Exceptions,
+    {},
+    false,
+    MethodYielded,
+    MutationIsMethod<Config, MutationArgsParams>
   >;
 
   const insertionsResult = (

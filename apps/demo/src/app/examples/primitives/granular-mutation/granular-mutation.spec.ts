@@ -11,7 +11,11 @@ import {
   setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
 } from '@craft-ng/component';
-import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
+import {
+  craftSleep,
+  type ExtractDeps,
+  type GetServiceDependencies,
+} from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import GranularMutation from './granular-mutation';
@@ -222,7 +226,7 @@ describe('primitive granular mutation template', () => {
 });
 
 describe('primitive granular mutation logic', () => {
-  async function setupLogic() {
+  async function setupLogic(updateDelayMs = 0) {
     const users: User[] = [
       { id: '1', name: 'Romain' },
       { id: '2', name: 'Geffrault' },
@@ -239,6 +243,9 @@ describe('primitive granular mutation logic', () => {
       return users.slice((page - 1) * pageSize, page * pageSize);
     });
     const updateItem = vi.fn(function* (user: User) {
+      if (updateDelayMs > 0) {
+        yield* craftSleep(updateDelayMs);
+      }
       return user;
     });
     const storage = createStorageMock();
@@ -258,8 +265,35 @@ describe('primitive granular mutation logic', () => {
       expect(getDataList).toHaveBeenCalledWith({ page: 1, pageSize: 4 }),
     );
 
-    return { ...result, getDataList, storage };
+    return { ...result, getDataList, storage, updateItem };
   }
+
+  it('optimistically updates the current query while the mutation is pending', async () => {
+    const { context, updateItem, destroy } = await setupLogic(10_000);
+
+    try {
+      await vi.waitFor(() =>
+        expect(context.usersQuery.currentPageData()).toHaveLength(4),
+      );
+      const user = context.usersQuery.currentPageData()[0];
+
+      context.updateUserName.mutate(user);
+
+      await vi.waitFor(() => {
+        expect(updateItem).toHaveBeenCalledWith({
+          ...user,
+          name: `${user.name}-`,
+        });
+        expect(context.updateUserName.select(user.id)?.isLoading()).toBe(true);
+        expect(context.usersQuery.currentPageData()[0]).toEqual({
+          ...user,
+          name: `${user.name}-`,
+        });
+      });
+    } finally {
+      destroy();
+    }
+  });
 
   it('updates pagination through updatePageSize', async () => {
     const { context, getDataList, destroy } = await setupLogic();

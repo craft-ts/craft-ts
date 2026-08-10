@@ -13,7 +13,7 @@ describe('insertLocalStoragePersister', () => {
   beforeEach(() => {
     const store: Record<string, string> = {};
 
-    vi.stubGlobal('localStorage', {
+    const storage = {
       getItem: vi.fn((key: string) => store[key] ?? null),
       setItem: vi.fn((key: string, value: string) => {
         store[key] = value;
@@ -24,7 +24,14 @@ describe('insertLocalStoragePersister', () => {
       clear: vi.fn(() => {
         Object.keys(store).forEach((key) => delete store[key]);
       }),
-    });
+      key: vi.fn((index: number) => Object.keys(store)[index] ?? null),
+      get length() {
+        return Object.keys(store).length;
+      },
+    } as unknown as Storage;
+
+    vi.stubGlobal('localStorage', storage);
+    vi.spyOn(window, 'localStorage', 'get').mockReturnValue(storage);
     vi.useFakeTimers();
   });
 

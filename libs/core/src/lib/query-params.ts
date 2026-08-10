@@ -97,11 +97,9 @@ type AnyQueryParamsConfig = {
 };
 
 export type QueryParamsToState<QueryParamsConfigs> = {
-  [K in keyof QueryParamsConfigs]: QueryParamsConfigs[K] extends QueryParamsCodecConfig<
-    infer Decoded,
-    any,
-    any
-  >
+  [K in keyof QueryParamsConfigs]: QueryParamsConfigs[K] extends {
+    codec: { decode: (input: any) => infer Decoded };
+  }
     ? Exclude<Decoded, AnyCraftException>
     : never;
 };
