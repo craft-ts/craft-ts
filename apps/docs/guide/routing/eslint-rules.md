@@ -34,6 +34,8 @@ export default [
       'craft-ng/component-test-gen-deps-match': 'error',
       'craft-ng/no-angular-inject': 'error',
       'craft-ng/prefer-craft-template-blocks': 'error',
+      'craft-ng/no-render-writes': 'error',
+      'craft-ng/require-reactive-template-bindings': 'error',
       'craft-ng/prefer-craft-reactivity': 'error',
       'craft-ng/prefer-craft-service': 'error',
       'craft-ng/prefer-craft-http-client': 'error',
@@ -64,6 +66,8 @@ What each rule does:
 - `craft-ng/component-test-gen-deps-match`: checks `setupCraftComponentTestingByRegister(Component, {} as GenDeps_Component, ...)` pairs in tests
 - `craft-ng/no-angular-inject`: forbids raw Angular `inject()` usage so dependencies go through `craftService(...)` or `toCraftService(...)`
 - `craft-ng/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, and imperative control flow; use `ifBlock(...)`, `matchBlock.exhaustive(...)`, `each(...)`, or `defer(...)`
+- `craft-ng/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
+- `craft-ng/require-reactive-template-bindings`: requires Angular Signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ng/prefer-craft-reactivity`: rejects authored Angular signal/computed/effect/resource APIs, explicit `.subscribe()` calls, and RxJS `Subject`/`BehaviorSubject`/`ReplaySubject`; use `state`, `craftComputed`, `craftEffect`, `query`, and named `source$`/`on$` flows
 - `craft-ng/prefer-craft-service`: forbids authored Angular `@Injectable()` / `@Service()` services in favor of `craftService(...)` and `toCraftService(...)`
 - `craft-ng/prefer-craft-http-client`: forbids Angular `HttpClient` usage in favor of `CraftHttpClient`
@@ -112,6 +116,31 @@ matchBlock.exhaustive(query.exceptions, 'code', {
 
 This rule is for Craft's TypeScript templates. Angular HTML templates are not
 rewritten by it.
+
+### Reactive values belong in binding callbacks
+
+`require-reactive-template-bindings` uses TypeScript type information to find
+reactive reads. Reading a signal while constructing a VNode would make it a
+dependency of the structural component render, so the rule rejects this form:
+
+```ts
+// Incorrect: count is read by the component template.
+p(`Count: ${count()}`);
+button({ disabled: isDisabled() }, 'Save');
+div({ class: { active: isActive() } });
+```
+
+Keep each read inside the callback owned by its DOM binding:
+
+```ts
+p(() => `Count: ${count()}`);
+button({ disabled: () => isDisabled() }, 'Save');
+div({ class: () => ({ active: isActive() }) });
+```
+
+Literal and otherwise static values are still allowed, as are reads performed
+from DOM events and `onXxx` output callbacks. Because the rule is type-aware,
+the ESLint parser must use `projectService: true` or a TypeScript `project`.
 
 If your project is adopting this progressively, enable both `craft-ng/brand-angular-gen-deps-required` and `craft-ng/brand-angular-deps-match` so the same Quick Fix can generate missing aliases and refresh existing ones. `craft-ng/no-angular-inject` is an architecture-enforcement rule and may require a broader migration.
 

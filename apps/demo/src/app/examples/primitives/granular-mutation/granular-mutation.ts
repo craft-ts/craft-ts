@@ -128,8 +128,8 @@ const GranularMutation = craftComponent(
                             [
                               'Update Name',
                               StatusComponent({
-                                status:
-                                  updateUserName.selectOrCreate(user.id).status,
+                                status: updateUserName.selectOrCreate(user.id)
+                                  .status,
                               }),
                             ],
                           ),
@@ -143,14 +143,14 @@ const GranularMutation = craftComponent(
               select(
                 'PageSize',
                 {
-                  value: String(pagination().pageSize),
+                  value: () => String(pagination().pageSize),
                   change: updatePageSize,
                 },
                 [2, 4, 8, 16].map((size) =>
                   option(
                     {
                       value: String(size),
-                      selected: size === pagination().pageSize,
+                      selected: () => size === pagination().pageSize,
                     },
                     size,
                   ),
@@ -161,7 +161,11 @@ const GranularMutation = craftComponent(
                 { class: 'btn', click: pagination.previousPage },
                 'Previous',
               ),
-              span('CurrentPage', { class: 'current-page' }, pagination().page),
+              span(
+                'CurrentPage',
+                { class: 'current-page' },
+                () => pagination().page,
+              ),
               button(
                 'NextPage',
                 { class: 'btn', click: pagination.nextPage },

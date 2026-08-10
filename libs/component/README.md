@@ -52,9 +52,32 @@ export const userList = craftComponent(
 );
 ```
 
-The milestone-one renderer re-runs the template in a `craftEffect`, diffs its
-descriptor tree and patches through Angular's public `Renderer2` API. It emits
-no Ivy instructions and imports no private Angular API.
+The renderer separates structural effects from binding effects. Explicit text,
+attribute, property, class, and style callbacks update only their existing DOM
+node; `ifBlock`, `each`, projections, and templates own their structural
+effects. DOM is patched through Angular's public `Renderer2` API, without Ivy
+instructions or private Angular APIs.
+
+Prefer explicit callbacks for values that should update granularly:
+
+```ts
+p(() => `Count: ${count()}`);
+button({ disabled: () => isDisabled() }, 'Save');
+div({ class: () => ({ active: isActive() }) });
+div({ style: () => ({ color: color() }) });
+```
+
+A value calculated before the VNode is created remains supported, but its
+signal is a dependency of the surrounding structural template instead:
+
+```ts
+p(`Count: ${count()}`);
+```
+
+Render callbacks must be pure: read signals and calculate a value, but do not
+call `set`, `update`, or `mutate`. Writes belong in DOM events, outputs,
+mutations, or explicit business effects. The optional
+`craft-ng/no-render-writes` ESLint rule detects the common invalid patterns.
 
 `Input<T>` values are reactive accessors. `Output<T>` values are callbacks.
 Call-site props are inferred from branded values returned in the factory

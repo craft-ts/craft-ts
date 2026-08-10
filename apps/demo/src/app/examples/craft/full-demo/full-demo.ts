@@ -125,7 +125,7 @@ const FullDemoCraft = craftComponent(
       div([
         input('TodoNameToAddInput', {
           placeholder: 'New todo',
-          value: titleInput(),
+          value: () => titleInput(),
           *input(event) {
             yield* setTitle((event.target as HTMLInputElement).value);
           },
@@ -135,8 +135,7 @@ const FullDemoCraft = craftComponent(
           {
             disabled: () => store.add.isLoading(),
             *click() {
-              const currentTitle = yield* titleInput();
-              yield* store.add.mutate(currentTitle?.trim() ?? '');
+              yield* store.add.mutate(titleInput().trim() ?? '');
             },
           },
           'Add',

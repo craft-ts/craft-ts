@@ -37,17 +37,22 @@ const ViewTransitionsSkeletonComponent = craftComponent(
     >;
     const hasImage = craftComputed(
       'hasImage',
-      () => viewTransition()?.image !== null && viewTransition()?.image !== undefined,
+      () =>
+        viewTransition()?.image !== null &&
+        viewTransition()?.image !== undefined,
     );
     return { photoId, viewTransition, hasImage };
   },
   ({ photoId, viewTransition, hasImage }) => {
-    const photo = findPhoto(photoId());
-    const image = viewTransition()?.image;
     const heroContent = ifBlock(
       hasImage,
-      () => img({ class: 'vt-hero-image', src: image as string, alt: '' }),
-      () => span({ class: 'vt-emoji' }, photo?.emoji),
+      () =>
+        img({
+          class: 'vt-hero-image',
+          src: () => viewTransition()?.image ?? '',
+          alt: '',
+        }),
+      () => span({ class: 'vt-emoji' }, () => findPhoto(photoId())?.emoji),
     );
     return [
       span('← Back to gallery'),
@@ -55,10 +60,10 @@ const ViewTransitionsSkeletonComponent = craftComponent(
         span(
           {
             class: 'vt-hero',
-            style: {
-              background: photoGradient(photo),
+            style: () => ({
+              background: photoGradient(findPhoto(photoId())),
               viewTransitionName: `photo-${photoId()}`,
-            },
+            }),
           },
           [heroContent],
         ),

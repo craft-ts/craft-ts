@@ -193,6 +193,16 @@ export interface TextNode {
   readonly value: string;
 }
 
+/**
+ * Internal VNode used to retain a text binding until it is mounted. Keeping
+ * the callback intact lets the renderer give every binding its own reactive
+ * effect instead of collecting its dependencies in the component render.
+ */
+export interface ReactiveTextNode {
+  readonly kind: 'reactive-text';
+  readonly binding: CraftTextBinding;
+}
+
 export interface ComponentNode<
   Props extends object = object,
   ComponentDeps extends object = {},
@@ -318,6 +328,7 @@ export interface DeferNode<Loaded = unknown, Dependencies extends object = {}>
 export type CraftNode =
   | ElementNodeBase<any>
   | TextNode
+  | ReactiveTextNode
   | ComponentNode<any, any>
   | AngularComponentNode
   | CraftDirectiveNode<any>
@@ -339,15 +350,16 @@ export type CraftNodeChild =
 
 export type CraftNodeChildren = CraftNodeChild | readonly CraftNodeChild[];
 
-type ContentChildrenFromProps<Props extends object> = Props[keyof Props] extends infer Value
-  ? Value extends (...args: any[]) => infer Output
-    ? Output
-    : Value extends readonly (infer Item)[]
-      ? Item
-      : Value extends CraftNode
-        ? Value
-        : never
-  : never;
+type ContentChildrenFromProps<Props extends object> =
+  Props[keyof Props] extends infer Value
+    ? Value extends (...args: any[]) => infer Output
+      ? Output
+      : Value extends readonly (infer Item)[]
+        ? Item
+        : Value extends CraftNode
+          ? Value
+          : never
+    : never;
 
 export type ContentDependenciesFromProps<Props extends object> =
   CraftNodeChildrenDependencies<ContentChildrenFromProps<Props>>;
@@ -568,6 +580,15 @@ function resolveHostValue(value: unknown): unknown {
   return typeof value === 'function' ? value() : value;
 }
 
+function hasHostBinding(value: unknown, seen = new Set<object>()): boolean {
+  if (typeof value === 'function') return true;
+  if (typeof value !== 'object' || value === null || seen.has(value)) {
+    return false;
+  }
+  seen.add(value);
+  return Object.values(value).some((child) => hasHostBinding(child, seen));
+}
+
 function classTokens(value: unknown): string[] {
   const resolved = resolveHostValue(value);
   if (Array.isArray(resolved)) {
@@ -583,12 +604,21 @@ function classTokens(value: unknown): string[] {
     : String(resolved).split(/\s+/).filter(Boolean);
 }
 
-function mergeClasses(left: unknown, right: unknown): string | undefined {
+function mergeResolvedClasses(
+  left: unknown,
+  right: unknown,
+): string | undefined {
   const classes = [...classTokens(left), ...classTokens(right)];
   return classes.length ? [...new Set(classes)].join(' ') : undefined;
 }
 
-function mergeStyles(left: unknown, right: unknown): unknown {
+function mergeClasses(left: unknown, right: unknown): unknown {
+  return hasHostBinding(left) || hasHostBinding(right)
+    ? () => mergeResolvedClasses(left, right)
+    : mergeResolvedClasses(left, right);
+}
+
+function mergeResolvedStyles(left: unknown, right: unknown): unknown {
   const resolvedLeft = resolveHostValue(left);
   const resolvedRight = resolveHostValue(right);
   if (
@@ -606,6 +636,12 @@ function mergeStyles(left: unknown, right: unknown): unknown {
     return `${resolvedLeft.replace(/;?\s*$/, ';')}${resolvedRight}`;
   }
   return resolvedRight;
+}
+
+function mergeStyles(left: unknown, right: unknown): unknown {
+  return hasHostBinding(left) || hasHostBinding(right)
+    ? () => mergeResolvedStyles(left, right)
+    : mergeResolvedStyles(left, right);
 }
 
 export function mergeHostProps(
@@ -699,8 +735,16 @@ export function normalizeChildren(children: CraftNodeChildren): CraftNode[] {
       return;
     }
 
-    const resolved = typeof child === 'function' ? child() : child;
-    if (resolved === null || resolved === undefined || resolved === false) {
+    if (typeof child === 'function') {
+      result.push({
+        kind: 'reactive-text',
+        binding: child,
+      });
+      return;
+    }
+
+    const resolved = child;
+    if (resolved === null || resolved === undefined) {
       return;
     }
 

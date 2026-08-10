@@ -133,6 +133,10 @@ const guideSidebar = [
     items: [
       { text: 'Components', link: '/guide/components/' },
       {
+        text: 'Fine-grained reactivity',
+        link: '/guide/components/fine-grained-reactivity',
+      },
+      {
         text: 'Directives and .pipe(...)',
         link: '/guide/components/directives',
       },

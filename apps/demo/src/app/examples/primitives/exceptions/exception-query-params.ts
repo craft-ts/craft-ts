@@ -110,19 +110,20 @@ const ExceptionQueryParamsComponent = craftComponent(
           'Navigate exception',
         ),
       ]),
-      p([strong('Parsed value: '), String(modeQueryParams().mode)]),
+      p([strong('Parsed value: '), () => String(modeQueryParams().mode)]),
       ifBlock(
         hasParseException,
-        () => {
-          const exception = modeQueryParams.exceptions().parse.mode as {
-            code: string;
-            payload: { error: unknown };
-          };
-          return p([
+        () =>
+          p([
             strong('Exception: '),
-            `${exception.code}: ${exception.payload.error}`,
-          ]);
-        },
+            () => {
+              const exception = modeQueryParams.exceptions().parse.mode as {
+                code: string;
+                payload: { error: unknown };
+              };
+              return `${exception.code}: ${exception.payload.error}`;
+            },
+          ]),
         () => p([strong('Exception: '), 'none']),
       ),
     ]);

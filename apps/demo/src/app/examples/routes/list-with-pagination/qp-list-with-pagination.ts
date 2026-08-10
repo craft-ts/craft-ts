@@ -82,13 +82,13 @@ const QpListWithPagination = craftComponent(
       div([
         select(
           {
-            value: pagination().pageSize,
+            value: () => pagination().pageSize,
             change: updatePageSize,
           },
           [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
         button({ click: pagination.previousPage }, 'Previous'),
-        span(pagination().page),
+        span(() => pagination().page),
         button({ click: pagination.nextPage }, 'Next'),
       ]),
     ]),

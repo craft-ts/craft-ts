@@ -89,8 +89,10 @@ const ExceptionsComponent = craftComponent(
     return { scenario, userQuery, hasUser, isLoading };
   },
   ({ scenario, userQuery, hasUser, isLoading }) => {
+    const currentUser = () =>
+      userQuery.value() as { id: string; name: string; email: string };
     return div([
-      h3(`Query user with business exceptions (${userQuery.status()})`),
+      h3(() => `Query user with business exceptions (${userQuery.status()})`),
       div({ class: 'exception-actions' }, [
         button(
           {
@@ -127,18 +129,21 @@ const ExceptionsComponent = craftComponent(
       ]),
       ifBlock(
         hasUser,
-        () => {
-          const user = userQuery.value() as {
-            id: string;
-            name: string;
-            email: string;
-          };
-          return div([
-            p([strong('ID: '), user.id]),
-            p([strong('Name: '), user.name]),
-            p([strong('Email: '), user.email]),
-          ]);
-        },
+        () =>
+          div([
+            p([
+              strong('ID: '),
+              () => currentUser().id,
+            ]),
+            p([
+              strong('Name: '),
+              () => currentUser().name,
+            ]),
+            p([
+              strong('Email: '),
+              () => currentUser().email,
+            ]),
+          ]),
         () => [
           matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
             UserNotFoundException: () =>

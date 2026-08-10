@@ -91,27 +91,22 @@ const MutationDemoComponent = craftComponent(
       setName: nameInput.setName,
     };
   },
-  ({
-    userQuery,
-    updateUserName,
-    update,
-    goTo,
-    nameInput,
-    setName,
-  }) => {
+  ({ userQuery, updateUserName, update, goTo, nameInput, setName }) => {
     return div([
       div([
         'User ',
         StatusComponent({ status: () => userQuery.status() }),
         ifBlock(userQuery.hasUser, () =>
-          pre('UserValue', {}, JSON.stringify(userQuery.value(), null, 2)),
+          pre('UserValue', {}, () =>
+            JSON.stringify(userQuery.value(), null, 2),
+          ),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
       input('NameInput', {
         type: 'text',
         placeholder: 'New name',
-        value: nameInput(),
+        value: () => nameInput(),
         *input(event) {
           yield* setName((event.target as HTMLInputElement).value);
         },
@@ -120,7 +115,7 @@ const MutationDemoComponent = craftComponent(
         'UpdateUserNameButton',
         {
           class: 'update-user-name',
-          disabled: updateUserName.isLoading(),
+          disabled: () => updateUserName.isLoading(),
           click: function* () {
             const currentName = yield* nameInput();
             yield* update(currentName ?? '');

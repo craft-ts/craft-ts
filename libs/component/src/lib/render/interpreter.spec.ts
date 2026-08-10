@@ -32,6 +32,7 @@ import {
   craftService,
   HOST_TAG_LIST,
   mutation,
+  markYieldableValue,
   provideCraftDomEventHook,
   provideCraftLazyLoadRetry,
   provideTemplateTrace,
@@ -102,10 +103,429 @@ function host(): HTMLElement {
   return element;
 }
 
+async function observeChildListMutations(
+  target: Node,
+  update: () => void,
+): Promise<MutationRecord[]> {
+  const records: MutationRecord[] = [];
+  const observer = new MutationObserver((batch) => records.push(...batch));
+  observer.observe(target, { childList: true, subtree: true });
+
+  try {
+    update();
+    await Promise.resolve();
+    return records;
+  } finally {
+    observer.disconnect();
+  }
+}
+
+function childListMutationNodes(records: readonly MutationRecord[]): Node[] {
+  return records.flatMap((record) => [
+    ...Array.from(record.addedNodes),
+    ...Array.from(record.removedNodes),
+  ]);
+}
+
 describe('functional component interpreter', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     document.body.replaceChildren();
+  });
+
+  it('updates only the reactive text binding that consumed a changed signal', () => {
+    const first = signal('A');
+    const second = signal('B');
+    const firstBinding = vi.fn(() => first());
+    const secondBinding = vi.fn(() => second());
+    const template = vi.fn(() => div([p(firstBinding), p(secondBinding)]));
+    const component = craftComponent(
+      'granularTextBindings',
+      {},
+      () => ({}),
+      template,
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const paragraphs = Array.from(element.querySelectorAll('p'));
+    expect(template).toHaveBeenCalledTimes(1);
+    expect(firstBinding).toHaveBeenCalledTimes(1);
+    expect(secondBinding).toHaveBeenCalledTimes(1);
+
+    first.set('A2');
+    TestBed.tick();
+
+    expect(element.textContent).toBe('A2B');
+    expect(template).toHaveBeenCalledTimes(1);
+    expect(firstBinding).toHaveBeenCalledTimes(2);
+    expect(secondBinding).toHaveBeenCalledTimes(1);
+    expect(element.querySelectorAll('p')[0]).toBe(paragraphs[0]);
+    expect(element.querySelectorAll('p')[1]).toBe(paragraphs[1]);
+    mounted.destroy();
+  });
+
+  it('isolates attribute, class and style bindings on the same element', () => {
+    const title = signal('first');
+    const active = signal(false);
+    const color = signal('red');
+    const titleBinding = vi.fn(() => title());
+    const classBinding = vi.fn(() => ({ active: active() }));
+    const styleBinding = vi.fn(() => ({ color: color() }));
+    const template = vi.fn(() =>
+      div(
+        {
+          title: titleBinding,
+          class: classBinding,
+          style: styleBinding,
+        },
+        'content',
+      ),
+    );
+    const component = craftComponent(
+      'granularElementBindings',
+      {},
+      () => ({}),
+      template,
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    title.set('second');
+    TestBed.tick();
+
+    const rendered = element.querySelector('div')!;
+    expect(rendered.title).toBe('second');
+    expect(template).toHaveBeenCalledTimes(1);
+    expect(titleBinding).toHaveBeenCalledTimes(2);
+    expect(classBinding).toHaveBeenCalledTimes(1);
+    expect(styleBinding).toHaveBeenCalledTimes(1);
+
+    active.set(true);
+    color.set('blue');
+    TestBed.tick();
+
+    expect(rendered.classList.contains('active')).toBe(true);
+    expect(rendered.style.color).toBe('blue');
+    expect(template).toHaveBeenCalledTimes(1);
+    expect(titleBinding).toHaveBeenCalledTimes(2);
+    expect(classBinding).toHaveBeenCalledTimes(2);
+    expect(styleBinding).toHaveBeenCalledTimes(2);
+    mounted.destroy();
+  });
+
+  it('updates reactive host props without rerunning the component template', () => {
+    const active = signal(false);
+    const hostClass = vi.fn(() => ({ active: active() }));
+    const template = vi.fn(() => p('content'));
+    const component = craftComponent(
+      'granularHostBindings',
+      { host: { class: hostClass } },
+      () => ({}),
+      template,
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    expect(hostClass).toHaveBeenCalledTimes(2);
+
+    active.set(true);
+    TestBed.tick();
+
+    expect(element.classList.contains('active')).toBe(true);
+    expect(hostClass).toHaveBeenCalledTimes(4);
+    expect(template).toHaveBeenCalledTimes(1);
+    mounted.destroy();
+  });
+
+  it('coalesces text binding updates and stops them after destruction', () => {
+    const value = signal(0);
+    const binding = vi.fn(() => value());
+    const component = craftComponent(
+      'coalescedBinding',
+      {},
+      () => ({}),
+      () => p(binding),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    value.set(1);
+    value.set(2);
+    TestBed.tick();
+    expect(element.textContent).toBe('2');
+    expect(binding).toHaveBeenCalledTimes(2);
+
+    mounted.destroy();
+    value.set(3);
+    TestBed.tick();
+    expect(binding).toHaveBeenCalledTimes(2);
+  });
+
+  it('owns conditional bindings in the active branch effect', () => {
+    const visible = signal(true);
+    const value = signal('shown');
+    const binding = vi.fn(() => value());
+    const branch = vi.fn(() => p(binding));
+    const condition = markYieldableValue(() => visible(), 'visible');
+    const template = vi.fn(() => ifBlock(condition, branch));
+    const component = craftComponent(
+      'granularConditional',
+      {},
+      () => ({}),
+      template,
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    value.set('updated');
+    TestBed.tick();
+    expect(element.textContent).toBe('updated');
+    expect(template).toHaveBeenCalledTimes(1);
+    expect(branch).toHaveBeenCalledTimes(1);
+
+    visible.set(false);
+    TestBed.tick();
+    expect(element.textContent).toBe('');
+    expect(template).toHaveBeenCalledTimes(1);
+    expect(branch).toHaveBeenCalledTimes(1);
+
+    value.set('detached');
+    TestBed.tick();
+    expect(binding).toHaveBeenCalledTimes(2);
+    mounted.destroy();
+  });
+
+  it('keeps the active if branch mounted while its condition stays truthy', async () => {
+    const conditionValue = signal(1);
+    const condition = markYieldableValue(() => conditionValue(), 'visible');
+    const component = craftComponent(
+      'stableIfBranch',
+      {},
+      () => ({}),
+      () => ifBlock(condition, () => p('stable')),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const stableNode = element.querySelector('p');
+    if (!stableNode) {
+      throw new Error('Expected the active if branch to be rendered');
+    }
+
+    try {
+      const records = await observeChildListMutations(element, () => {
+        conditionValue.set(2);
+        TestBed.tick();
+      });
+
+      expect(element.querySelector('p')).toBe(stableNode);
+      expect(childListMutationNodes(records)).not.toContain(stableNode);
+    } finally {
+      mounted.destroy();
+    }
+  });
+
+  it('updates one keyed each item without evaluating its siblings', () => {
+    const items = [
+      { id: 1, label: signal('one') },
+      { id: 2, label: signal('two') },
+    ];
+    const bindings = items.map((item) => vi.fn(() => item.label()));
+    const itemTemplate = vi.fn((item: (typeof items)[number]) =>
+      li(bindings[item.id - 1]),
+    );
+    const template = vi.fn(() =>
+      ul(each(items, { track: (item) => item.id }, itemTemplate)),
+    );
+    const component = craftComponent(
+      'granularEachBindings',
+      {},
+      () => ({}),
+      template,
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const nodes = Array.from(element.querySelectorAll('li'));
+    items[0].label.set('updated');
+    TestBed.tick();
+
+    expect(element.textContent).toBe('updatedtwo');
+    expect(template).toHaveBeenCalledTimes(1);
+    expect(itemTemplate).toHaveBeenCalledTimes(2);
+    expect(bindings[0]).toHaveBeenCalledTimes(2);
+    expect(bindings[1]).toHaveBeenCalledTimes(1);
+    expect(element.querySelectorAll('li')[0]).toBe(nodes[0]);
+    expect(element.querySelectorAll('li')[1]).toBe(nodes[1]);
+    mounted.destroy();
+  });
+
+  it('does not reevaluate unchanged keyed items when the collection changes', () => {
+    const first = { id: 1, label: 'one' };
+    const second = { id: 2, label: 'two' };
+    const items = signal([first, second]);
+    const itemTemplate = vi.fn(
+      (item: typeof first | typeof second, index: number) =>
+        li({ 'data-id': item.id }, `${index}:${item.label}`),
+    );
+    const component = craftComponent(
+      'granularEachCollection',
+      {},
+      () => ({ items }),
+      ({ items }) =>
+        ul(each(items, { track: (item) => item.id }, itemTemplate)),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const nodes = Array.from(element.querySelectorAll('li'));
+    const updatedFirst = { ...first, label: 'updated' };
+    itemTemplate.mockClear();
+
+    items.set([updatedFirst, second]);
+    TestBed.tick();
+
+    expect(itemTemplate).toHaveBeenCalledOnce();
+    expect(itemTemplate).toHaveBeenCalledWith(updatedFirst, 0);
+    expect(element.textContent).toBe('0:updated1:two');
+    expect(element.querySelectorAll('li')[0]).toBe(nodes[0]);
+    expect(element.querySelectorAll('li')[1]).toBe(nodes[1]);
+    mounted.destroy();
+  });
+
+  it('does not move unchanged keyed DOM fragments', async () => {
+    const first = { id: 1, label: 'one' };
+    const second = { id: 2, label: 'two' };
+    const items = signal([first, second]);
+    const component = craftComponent(
+      'stableEachDom',
+      {},
+      () => ({ items }),
+      ({ items }) =>
+        ul(
+          each(items, { track: (item) => item.id }, (item) =>
+            li({ 'data-id': item.id }, item.label),
+          ),
+        ),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const list = element.querySelector('ul');
+    const rows = Array.from(element.querySelectorAll('li'));
+    const unchangedRow = rows[1];
+
+    if (!list) {
+      throw new Error('Expected the keyed list to be rendered');
+    }
+
+    try {
+      const records = await observeChildListMutations(list, () => {
+        items.set([{ ...first, label: 'updated' }, second]);
+        TestBed.tick();
+      });
+
+      expect(element.textContent).toBe('updatedtwo');
+      expect(element.querySelectorAll('li')[0]).toBe(rows[0]);
+      expect(element.querySelectorAll('li')[1]).toBe(unchangedRow);
+      expect(childListMutationNodes(records)).not.toContain(unchangedRow);
+    } finally {
+      mounted.destroy();
+    }
+  });
+
+  it('traces a changed keyed item as a block update', () => {
+    const first = { id: 1, label: 'one' };
+    const second = { id: 2, label: 'two' };
+    const items = signal([first, second]);
+    const traces: Array<{
+      kind: string;
+      phase: string;
+      componentName?: string;
+      name?: string;
+      renderCount: number;
+    }> = [];
+    const component = craftComponent(
+      'granularEachTrace',
+      {
+        providers: [
+          provideTemplateTrace((context, next) => {
+            traces.push({ ...context });
+            return next();
+          }),
+        ],
+      },
+      () => ({ items }),
+      ({ items }) =>
+        ul(each(items, { track: (item) => item.id }, (item) => li(item.label))),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+    traces.length = 0;
+
+    items.set([{ ...first, label: 'updated' }, second]);
+    TestBed.tick();
+
+    expect(traces).toEqual([
+      {
+        kind: 'block',
+        phase: 'update',
+        componentName: 'granularEachTrace',
+        name: 'each',
+        renderCount: 2,
+      },
+    ]);
+    mounted.destroy();
   });
 
   it('renders static nodes, listeners, classes and reactive signal reads', () => {
@@ -313,6 +733,42 @@ describe('functional component interpreter', () => {
       0,
     );
     mounted.destroy();
+  });
+
+  it('keeps projected DOM mounted when its descriptor is refreshed', async () => {
+    const revision = signal(1);
+    const condition = markYieldableValue(() => revision(), 'revision');
+    const projected = content(() => p('stable projection'));
+    const component = craftComponent(
+      'stableProjection',
+      {},
+      () => ({}),
+      () => ifBlock(condition, () => section(renderContent('body', projected))),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const stableNode = element.querySelector('p');
+    if (!stableNode) {
+      throw new Error('Expected the projected content to be rendered');
+    }
+
+    try {
+      const records = await observeChildListMutations(element, () => {
+        revision.set(2);
+        TestBed.tick();
+      });
+
+      expect(element.querySelector('p')).toBe(stableNode);
+      expect(childListMutationNodes(records)).not.toContain(stableNode);
+    } finally {
+      mounted.destroy();
+    }
   });
 
   it('renders contract components through the same renderContent primitive', () => {
@@ -558,6 +1014,48 @@ describe('functional component interpreter', () => {
     expect(renders).toBe(2);
     expect(element.textContent).toBe('0: Ada1: Lin');
     mounted.destroy();
+  });
+
+  it('keeps rendered template DOM mounted when its context changes', async () => {
+    const revision = signal(1);
+    const condition = markYieldableValue(() => revision(), 'revision');
+    const row = craftTemplate<{ readonly label: string }>(({ label }) =>
+      p(label),
+    );
+    const component = craftComponent(
+      'stableTemplateFragment',
+      {},
+      () => ({}),
+      () =>
+        ifBlock(condition, () =>
+          renderTemplate(row, { label: `revision-${revision()}` }),
+        ),
+    );
+    const element = host();
+    const mounted = mountCraftComponent(
+      component,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    const stableNode = element.querySelector('p');
+    if (!stableNode) {
+      throw new Error('Expected the template fragment to be rendered');
+    }
+
+    try {
+      const records = await observeChildListMutations(element, () => {
+        revision.set(2);
+        TestBed.tick();
+      });
+
+      expect(element.textContent).toBe('revision-2');
+      expect(element.querySelector('p')).toBe(stableNode);
+      expect(childListMutationNodes(records)).not.toContain(stableNode);
+    } finally {
+      mounted.destroy();
+    }
   });
 
   it('constructs child component queries outside the parent render context', () => {

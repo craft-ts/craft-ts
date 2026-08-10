@@ -67,9 +67,8 @@ const CraftGlobalQuery = craftComponent(
     div([
       'User ',
       StatusComponent({ status: () => user.status() }),
-      ifBlock(
-        hasUser,
-        () => pre('QueryValue', {}, JSON.stringify(user.value(), null, 2)),
+      ifBlock(hasUser, () =>
+        pre('QueryValue', {}, () => JSON.stringify(user.value(), null, 2)),
       ),
     ]),
     p('Reload the page to retrieve the query result from the cache.'),

@@ -160,7 +160,7 @@ and is what identifies this piece of state in logs, snapshots and observability.
 **2. It resolves to the state reference itself**:
 
 ```typescript
-const tasks = yield* state('tasks', []);
+const tasks = yield * state('tasks', []);
 ```
 
 `tasks` is a signal: call it to read, `tasks()`.
@@ -187,11 +187,21 @@ The template is a plain function returning nodes built with hyperscript helpers
 without a helper:
 
 ```typescript
-({ tasks }) => [h1('Tasks'), ul(tasks().map((task) => li(task.title)))];
+({ tasks }) => [
+  h1('Tasks'),
+  ul(() =>
+    tasks()
+      .map((task) => task.title)
+      .join(', '),
+  ),
+];
 ```
 
-Reading `tasks()` inside the template is what makes that part reactive. No
-`*ngFor`, no change detection to think about.
+Passing a callback keeps the signal read attached to that text binding, so an
+update patches only its DOM text node. Reads performed before a VNode is
+created are still reactive for compatibility, but rerun the surrounding
+structural template. Use `each(...)` when the collection controls a node per
+item. No `*ngFor`, no change detection to think about.
 
 ## Writing to it
 

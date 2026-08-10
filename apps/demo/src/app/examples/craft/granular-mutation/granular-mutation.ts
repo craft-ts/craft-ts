@@ -129,9 +129,10 @@ const GranularMutationCraft = craftComponent(
                             'UpdateUserName',
                             {
                               class: 'action-btn',
-                              disabled: updateUserName
-                                .selectOrCreate(user.id)
-                                .isLoading(),
+                              disabled: () =>
+                                updateUserName
+                                  .selectOrCreate(user.id)
+                                  .isLoading(),
                               *click() {
                                 yield* updateUserName.mutate(user);
                               },
@@ -156,7 +157,7 @@ const GranularMutationCraft = craftComponent(
               select(
                 'PageSize',
                 {
-                  value: String(pagination().pageSize),
+                  value: () => String(pagination().pageSize),
                   style: { marginRight: '8px' },
                   *change(event) {
                     yield* updatePageSize(event);
@@ -166,7 +167,7 @@ const GranularMutationCraft = craftComponent(
                   option(
                     {
                       value: String(size),
-                      selected: size === pagination().pageSize,
+                      selected: () => size === pagination().pageSize,
                     },
                     size,
                   ),
@@ -177,7 +178,11 @@ const GranularMutationCraft = craftComponent(
                 { class: 'btn', click: pagination.previousPage },
                 'Previous',
               ),
-              span('CurrentPage', { class: 'current-page' }, pagination().page),
+              span(
+                'CurrentPage',
+                { class: 'current-page' },
+                () => pagination().page,
+              ),
               button(
                 'NextPage',
                 { class: 'btn', click: pagination.nextPage },

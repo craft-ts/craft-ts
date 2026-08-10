@@ -100,7 +100,7 @@ const ListWithPaginationCraft = craftComponent(
               span(
                 'TotalUsers',
                 { class: 'current-page' },
-                ` ${store.users.total()} on page`,
+                () => ` ${store.users.total()} on page`,
               ),
             ]),
             div({ class: 'table-container' }, [
@@ -141,7 +141,7 @@ const ListWithPaginationCraft = craftComponent(
               select(
                 'PageSize',
                 {
-                  value: String(store.pagination().pageSize),
+                  value: () => String(store.pagination().pageSize),
                   style: { marginRight: '8px' },
                   *change(event) {
                     yield* updatePageSize(event);
@@ -151,7 +151,7 @@ const ListWithPaginationCraft = craftComponent(
                   option(
                     {
                       value: String(size),
-                      selected: size === store.pagination().pageSize,
+                      selected: () => size === store.pagination().pageSize,
                     },
                     size,
                   ),
@@ -165,7 +165,7 @@ const ListWithPaginationCraft = craftComponent(
               span(
                 'CurrentPage',
                 { class: 'current-page' },
-                store.pagination().page,
+                () => store.pagination().page,
               ),
               button(
                 'NextPage',

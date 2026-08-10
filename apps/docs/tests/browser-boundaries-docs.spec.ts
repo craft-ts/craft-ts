@@ -66,6 +66,7 @@ describe('docs sidebar', () => {
     expect(guideLinks).toContain('/guide/routing/scaling');
     expect(guideLinks).toContain('/guide/testing/browser-boundaries');
     expect(guideLinks).toContain('/guide/testing/components');
+    expect(guideLinks).toContain('/guide/components/fine-grained-reactivity');
     expect(guideLinks).toContain('/guide/reactivity/craft-method');
     expect(guideLinks).toContain('/guide/reactivity/craft-computed');
     expect(guideLinks).toContain('/guide/reactivity/craft-effect');
@@ -82,6 +83,23 @@ describe('docs sidebar', () => {
       'Packages',
       'Resources',
     ]);
+  });
+});
+
+describe('fine-grained reactivity docs', () => {
+  const home = readFileSync(new URL('../index.md', import.meta.url), 'utf8');
+  const guide = readFileSync(
+    new URL('../guide/components/fine-grained-reactivity.md', import.meta.url),
+    'utf8',
+  );
+
+  it('presents the feature on the home page and documents its contract', () => {
+    expect(home).toContain('Fine-grained reactivity');
+    expect(home).toContain('/guide/components/fine-grained-reactivity');
+    expect(guide).toContain('# Fine-grained reactivity');
+    expect(guide).toContain('The binding is the reactive boundary');
+    expect(guide).toContain('require-reactive-template-bindings');
+    expect(guide).toContain('component / update');
   });
 });
 

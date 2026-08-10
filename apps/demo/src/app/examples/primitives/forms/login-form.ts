@@ -69,7 +69,7 @@ const LoginFormComponent = craftComponent(
           input({
             id: 'email',
             type: 'email',
-            value: email(),
+            value: () => email(),
             *input(event) {
               yield* setEmail((event.target as HTMLInputElement).value);
             },
@@ -80,7 +80,7 @@ const LoginFormComponent = craftComponent(
           input({
             id: 'password',
             type: 'password',
-            value: password(),
+            value: () => password(),
             *input(event) {
               yield* setPassword((event.target as HTMLInputElement).value);
             },

@@ -17,7 +17,7 @@ export const SendContextCounterComponent = craftComponent(
   },
   ({ counter }) => [
     h2('Counter'),
-    p(`Value: ${counter()}`),
+    p(() => `Value: ${counter()}`),
     button({ click: counter.increment }, 'Increment'),
     button({ click: counter.decrement }, 'Decrement'),
   ],

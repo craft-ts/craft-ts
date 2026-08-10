@@ -30,6 +30,8 @@ export default [
       'craft-ng/no-angular-signal-forms': 'error',
       'craft-ng/no-direct-temporal-globals': 'error',
       'craft-ng/prefer-craft-template-blocks': 'error',
+      'craft-ng/no-render-writes': 'error',
+      'craft-ng/require-reactive-template-bindings': 'error',
       'craft-ng/prefer-craft-computed': 'error',
       'craft-ng/prefer-craft-reactivity': 'warn',
       'craft-ng/provide-host-name-match-component': 'warn',

@@ -115,10 +115,34 @@ for anything without one. Passing a **callback** is what makes a node reactive:
 
 ```typescript
 ({ tasks }) => [
-  h1(() => `Tasks — ${tasks.remaining()} left`), // re-renders
-  h1(`Tasks — ${tasks.remaining()} left`), // read once, never updates
+  h1(() => `Tasks — ${tasks.remaining()} left`), // patches only this text node
+  h1(`Tasks — ${tasks.remaining()} left`), // structural template dependency
 ];
 ```
+
+The same binding boundary applies to attributes, DOM properties, classes,
+styles, and host props:
+
+```typescript
+button({ disabled: () => tasks.remaining() === 0 }, 'Clear');
+div({ class: () => ({ empty: tasks.remaining() === 0 }) });
+div({ style: () => ({ opacity: tasks.remaining() ? 1 : 0.5 }) });
+```
+
+Each callback has its own effect. A signal change only evaluates the bindings
+that read it; sibling bindings and the component template are left alone. A
+value calculated before creating the node cannot be assigned to that precise
+binding, so Craft keeps the compatible structural rerender behaviour for that
+form.
+
+See [Fine-grained reactivity](/guide/components/fine-grained-reactivity) for
+the complete rendering model, structural scopes, observability expectations,
+and migration checklist.
+
+Keep render callbacks pure. They may read signals and calculate values, but
+must not call `set`, `update`, or `mutate`. Perform writes from DOM events,
+outputs, mutations, or explicit business effects. Enable
+`craft-ng/no-render-writes` to diagnose common violations.
 
 Control flow is made of functions rather than syntax — `each`, `ifBlock`,
 `matchBlock`, `defer`. The correspondence with Angular's blocks, and why a raw

@@ -421,6 +421,18 @@ interface RenderedNode {
   destroy(): void;
 }
 
+function createRenderEffect(
+  context: RenderContext,
+  name: string,
+  effectFn: () => void,
+): EffectRef {
+  return untracked(() =>
+    runInInjectionContext(context.injector, () =>
+      craftEffect(name, effectFn, { manualCleanup: true }),
+    ),
+  );
+}
+
 function resolveAngularValue(value: unknown): unknown {
   return typeof value === 'function' ? value() : value;
 }
@@ -720,6 +732,61 @@ class TextRenderedNode implements RenderedNode {
   }
 }
 
+class ReactiveTextRenderedNode implements RenderedNode {
+  readonly kind = 'reactive-text';
+  private binding: () => string | number | bigint | boolean | null | undefined;
+  private effectRef: EffectRef;
+  private value = '';
+
+  constructor(
+    private readonly node: Text,
+    binding: () => string | number | bigint | boolean | null | undefined,
+    private readonly context: RenderContext,
+  ) {
+    this.binding = binding;
+    this.effectRef = this.createEffect();
+  }
+
+  firstNode(): NativeNode {
+    return this.node;
+  }
+
+  lastNode(): NativeNode {
+    return this.node;
+  }
+
+  patch(node: CraftNode): boolean {
+    if (node.kind !== 'reactive-text') {
+      return false;
+    }
+    if (node.binding !== this.binding) {
+      this.effectRef.destroy();
+      this.binding = node.binding;
+      this.effectRef = this.createEffect();
+    }
+    return true;
+  }
+
+  destroy(): void {
+    this.effectRef.destroy();
+    removeNode(this.context.renderer, this.node);
+  }
+
+  private createEffect(): EffectRef {
+    return createRenderEffect(this.context, 'text-binding', () => {
+      const resolved = executeTemplateCallback(this.binding, [], this.context);
+      const next =
+        resolved === null || resolved === undefined || resolved === false
+          ? ''
+          : String(resolved);
+      if (next !== this.value) {
+        this.context.renderer.setValue(this.node, next);
+        this.value = next;
+      }
+    });
+  }
+}
+
 function renderCraftDirectiveNode(
   node: CraftDirectiveNode,
   context: RenderContext,
@@ -742,6 +809,8 @@ function renderCraftDirectiveNode(
 class CraftDirectiveRenderedNode implements RenderedNode {
   readonly kind = 'directive';
   private readonly view: FragmentRenderedNode;
+  private readonly descriptor;
+  private readonly effectRef: EffectRef;
   private readonly styleReleases: (() => void)[];
   private readonly registrationReleases: (() => void)[];
 
@@ -751,6 +820,7 @@ class CraftDirectiveRenderedNode implements RenderedNode {
     before: NativeNode | null,
     private readonly context: RenderContext,
   ) {
+    this.descriptor = signal(node);
     const owners = node.directives.map((directive) => ({
       name: directive[CRAFT_DIRECTIVE].name,
       styles: [
@@ -777,13 +847,11 @@ class CraftDirectiveRenderedNode implements RenderedNode {
         false,
       ),
     );
-    this.view = createFragment(
-      parent,
-      before,
-      context,
-      renderCraftDirectiveNode(node, context),
-      'craft-directive',
-    );
+    this.view = createFragment(parent, before, context, [], 'craft-directive');
+    this.effectRef = createRenderEffect(context, 'craft-directive', () => {
+      this.node = this.descriptor();
+      this.view.patchChildren(renderCraftDirectiveNode(this.node, context));
+    });
   }
 
   firstNode(): NativeNode {
@@ -802,13 +870,13 @@ class CraftDirectiveRenderedNode implements RenderedNode {
       return false;
     }
 
-    this.node = node;
-    this.view.patchChildren(renderCraftDirectiveNode(node, this.context));
+    this.descriptor.set(node);
     return true;
   }
 
   destroy(): void {
     this.registrationReleases.forEach((release) => release());
+    this.effectRef.destroy();
     this.view.destroy();
     this.styleReleases.forEach((release) => release());
   }
@@ -955,6 +1023,53 @@ function className(value: unknown, context: RenderContext): string {
   return value == null ? '' : String(value);
 }
 
+function containsRenderBinding(
+  value: unknown,
+  seen = new Set<object>(),
+): boolean {
+  if (typeof value === 'function') return true;
+  if (typeof value !== 'object' || value === null || seen.has(value)) {
+    return false;
+  }
+  seen.add(value);
+  return Object.values(value).some((child) =>
+    containsRenderBinding(child, seen),
+  );
+}
+
+function resolveStyleBindingValue(
+  value: unknown,
+  context: RenderContext,
+): unknown {
+  const resolved = resolveTemplateValue(value, context);
+  if (typeof resolved !== 'object' || resolved === null) return resolved;
+  return Object.fromEntries(
+    Object.entries(resolved).map(([key, child]) => [
+      key,
+      resolveTemplateValue(child, context),
+    ]),
+  );
+}
+
+function sameStyleValue(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (
+    typeof left !== 'object' ||
+    left === null ||
+    typeof right !== 'object' ||
+    right === null
+  ) {
+    return false;
+  }
+  const leftEntries = Object.entries(left);
+  const rightEntries = Object.entries(right);
+  const rightRecord = right as Record<string, unknown>;
+  return (
+    leftEntries.length === rightEntries.length &&
+    leftEntries.every(([key, value]) => Object.is(value, rightRecord[key]))
+  );
+}
+
 function setStyleValue(
   renderer: Renderer2,
   element: Element,
@@ -1057,6 +1172,10 @@ class ElementRenderedNode implements RenderedNode {
   private children: RenderedNode[] = [];
   private props: Readonly<Record<string, unknown>> = {};
   private readonly listeners = new Map<string, () => void>();
+  private readonly bindings = new Map<
+    string,
+    { readonly source: unknown; readonly effectRef: EffectRef }
+  >();
   private angularDirectiveMount: AngularMount | undefined;
   private directiveTypes: readonly AngularDirectiveNode[] = [];
   private localName: string | undefined;
@@ -1119,21 +1238,51 @@ class ElementRenderedNode implements RenderedNode {
 
     for (const key of previousAttributes.keys()) {
       if (!nextAttributes.has(key)) {
+        this.destroyBinding(`attribute:${key}`);
         applyAttribute(renderer, this.node, key, null, this.context);
       }
     }
     for (const [key, value] of nextAttributes) {
+      if (typeof value === 'function') {
+        this.updateBinding(
+          `attribute:${key}`,
+          value,
+          () => resolveTemplateValue(value, this.context),
+          (resolved) =>
+            applyAttribute(renderer, this.node, key, resolved, this.context),
+        );
+      } else {
+        this.destroyBinding(`attribute:${key}`);
+      }
       if (
-        !Object.is(previousAttributes.get(key), value) ||
-        typeof value === 'function'
+        typeof value !== 'function' &&
+        (!Object.is(previousAttributes.get(key), value) ||
+          typeof previousAttributes.get(key) === 'function')
       ) {
         applyAttribute(renderer, this.node, key, value, this.context);
       }
     }
 
+    if (containsRenderBinding(next['class'])) {
+      this.updateBinding(
+        'class',
+        next['class'],
+        () => className(next['class'], this.context),
+        (value) => {
+          if (value) {
+            renderer.setAttribute(this.node, 'class', String(value));
+          } else {
+            renderer.removeAttribute(this.node, 'class');
+          }
+        },
+      );
+    } else {
+      this.destroyBinding('class');
+    }
     if (
-      !Object.is(this.props['class'], next['class']) ||
-      typeof next['class'] === 'function'
+      !containsRenderBinding(next['class']) &&
+      (!Object.is(this.props['class'], next['class']) ||
+        containsRenderBinding(this.props['class']))
     ) {
       const value = className(next['class'], this.context);
       if (value) {
@@ -1143,14 +1292,34 @@ class ElementRenderedNode implements RenderedNode {
       }
     }
 
+    if (containsRenderBinding(next['style'])) {
+      this.updateBinding(
+        'style',
+        next['style'],
+        () => resolveStyleBindingValue(next['style'], this.context),
+        (value) => {
+          renderer.removeAttribute(this.node, 'style');
+          applyStyles(renderer, this.node, undefined, value, this.context);
+        },
+        sameStyleValue,
+      );
+    } else {
+      this.destroyBinding('style');
+    }
     if (
-      !Object.is(this.props['style'], next['style']) ||
-      typeof next['style'] === 'function'
+      !containsRenderBinding(next['style']) &&
+      (!Object.is(this.props['style'], next['style']) ||
+        containsRenderBinding(this.props['style']))
     ) {
+      if (containsRenderBinding(this.props['style'])) {
+        renderer.removeAttribute(this.node, 'style');
+      }
       applyStyles(
         renderer,
         this.node,
-        this.props['style'],
+        containsRenderBinding(this.props['style'])
+          ? undefined
+          : this.props['style'],
         next['style'],
         this.context,
       );
@@ -1253,7 +1422,42 @@ class ElementRenderedNode implements RenderedNode {
     this.props = next;
   }
 
+  private updateBinding(
+    key: string,
+    source: unknown,
+    evaluate: () => unknown,
+    apply: (value: unknown) => void,
+    equals: (left: unknown, right: unknown) => boolean = Object.is,
+  ): void {
+    const current = this.bindings.get(key);
+    if (current?.source === source) return;
+    current?.effectRef.destroy();
+
+    let initialized = false;
+    let previous: unknown;
+    const effectRef = createRenderEffect(
+      this.context,
+      `element-${key}-binding`,
+      () => {
+        const value = evaluate();
+        if (!initialized || !equals(previous, value)) {
+          apply(value);
+          previous = value;
+          initialized = true;
+        }
+      },
+    );
+    this.bindings.set(key, { source, effectRef });
+  }
+
+  private destroyBinding(key: string): void {
+    this.bindings.get(key)?.effectRef.destroy();
+    this.bindings.delete(key);
+  }
+
   destroy(): void {
+    this.bindings.forEach(({ effectRef }) => effectRef.destroy());
+    this.bindings.clear();
     this.listeners.forEach((dispose) => dispose());
     this.listeners.clear();
     this.angularDirectiveMount?.destroy();
@@ -1360,6 +1564,8 @@ class ProjectionRenderedNode implements RenderedNode {
   private node: ProjectionNode;
   private readonly declarationContext: RenderContext;
   private readonly projectionContext: RenderContext;
+  private readonly descriptor;
+  private readonly effectRef: EffectRef;
 
   constructor(
     node: ProjectionNode,
@@ -1368,6 +1574,7 @@ class ProjectionRenderedNode implements RenderedNode {
     context: RenderContext,
   ) {
     this.node = node;
+    this.descriptor = signal(node);
     this.declarationContext =
       (node.declarationContext as RenderContext | undefined) ??
       lexicalContext(context);
@@ -1384,8 +1591,16 @@ class ProjectionRenderedNode implements RenderedNode {
       parent,
       before,
       this.projectionContext,
-      this.children(),
+      [],
       'craft-projection',
+    );
+    this.effectRef = createRenderEffect(
+      this.projectionContext,
+      'projection',
+      () => {
+        this.node = this.descriptor();
+        this.view.patchChildren(this.children());
+      },
     );
   }
 
@@ -1398,11 +1613,13 @@ class ProjectionRenderedNode implements RenderedNode {
   }
 
   patch(node: CraftNode): boolean {
-    if (node.kind !== 'projection') {
+    if (
+      node.kind !== 'projection' ||
+      node.declarationContext !== this.node.declarationContext
+    ) {
       return false;
     }
-    this.node = node;
-    this.view.patchChildren(this.children());
+    this.descriptor.set(node);
     return true;
   }
 
@@ -1425,6 +1642,7 @@ class ProjectionRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
+    this.effectRef.destroy();
     this.view.destroy();
     this.styleRelease();
   }
@@ -1435,6 +1653,8 @@ class TemplateRenderedNode implements RenderedNode {
   private readonly view: FragmentRenderedNode;
   private node: TemplateNode;
   private readonly declarationContext: RenderContext;
+  private readonly descriptor;
+  private readonly effectRef: EffectRef;
 
   constructor(
     node: TemplateNode,
@@ -1443,6 +1663,7 @@ class TemplateRenderedNode implements RenderedNode {
     context: RenderContext,
   ) {
     this.node = node;
+    this.descriptor = signal(node);
     this.declarationContext =
       (node.declarationContext as RenderContext | undefined) ??
       lexicalContext(context);
@@ -1450,8 +1671,16 @@ class TemplateRenderedNode implements RenderedNode {
       parent,
       before,
       this.declarationContext,
-      this.children(),
+      [],
       'craft-template',
+    );
+    this.effectRef = createRenderEffect(
+      this.declarationContext,
+      'template',
+      () => {
+        this.node = this.descriptor();
+        this.view.patchChildren(this.children());
+      },
     );
   }
 
@@ -1467,8 +1696,7 @@ class TemplateRenderedNode implements RenderedNode {
     if (node.kind !== 'template' || node.template !== this.node.template) {
       return false;
     }
-    this.node = node;
-    this.view.patchChildren(this.children());
+    this.descriptor.set(node);
     return true;
   }
 
@@ -1479,6 +1707,7 @@ class TemplateRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
+    this.effectRef.destroy();
     this.view.destroy();
   }
 }
@@ -1497,11 +1726,20 @@ function createFragment(
   return new FragmentRenderedNode(parent, start, end, context, children);
 }
 
+interface EachRenderedEntry {
+  item: unknown;
+  index: number;
+  readonly view: FragmentRenderedNode;
+  readonly traceState: TemplateTraceState;
+}
+
 class EachRenderedNode implements RenderedNode {
   readonly kind = 'each';
-  private entries = new Map<unknown, FragmentRenderedNode>();
+  private entries = new Map<unknown, EachRenderedEntry>();
   private ordered: FragmentRenderedNode[] = [];
   private emptyView: FragmentRenderedNode | undefined;
+  private readonly descriptor;
+  private readonly effectRef: EffectRef;
 
   constructor(
     private node: EachNode<unknown, unknown>,
@@ -1510,7 +1748,12 @@ class EachRenderedNode implements RenderedNode {
     private readonly end: Comment,
     private readonly context: RenderContext,
   ) {
-    this.reconcile();
+    this.descriptor = signal(node);
+    this.effectRef = createRenderEffect(context, 'each-block', () => {
+      const previousItemTemplate = this.node.itemTemplate;
+      this.node = this.descriptor();
+      this.reconcile(this.node.itemTemplate !== previousItemTemplate);
+    });
   }
 
   firstNode(): NativeNode {
@@ -1525,12 +1768,11 @@ class EachRenderedNode implements RenderedNode {
     if (node.kind !== 'each') {
       return false;
     }
-    this.node = node;
-    this.reconcile();
+    this.descriptor.set(node);
     return true;
   }
 
-  private reconcile(): void {
+  private reconcile(itemTemplateChanged = false): void {
     const items = (
       typeof this.node.source === 'function'
         ? this.node.source()
@@ -1539,7 +1781,7 @@ class EachRenderedNode implements RenderedNode {
     const collection = items ?? [];
 
     if (collection.length === 0) {
-      this.entries.forEach((entry) => entry.destroy());
+      this.entries.forEach((entry) => entry.view.destroy());
       this.entries.clear();
       this.ordered = [];
 
@@ -1568,7 +1810,7 @@ class EachRenderedNode implements RenderedNode {
     this.emptyView = undefined;
 
     const previous = this.entries;
-    const next = new Map<unknown, FragmentRenderedNode>();
+    const next = new Map<unknown, EachRenderedEntry>();
     const nextOrdered: FragmentRenderedNode[] = [];
 
     collection.forEach((item, index) => {
@@ -1579,39 +1821,49 @@ class EachRenderedNode implements RenderedNode {
 
       let entry = previous.get(key);
       if (entry) {
-        entry.patchChildren(
-          renderBlockChildren(this.context, 'each', this.node.itemTemplate, [
-            item,
-            index,
-          ]),
-        );
+        if (
+          itemTemplateChanged ||
+          !Object.is(entry.item, item) ||
+          entry.index !== index
+        ) {
+          entry.view.patchChildren(
+            this.renderItem(entry.traceState, item, index),
+          );
+          entry.item = item;
+          entry.index = index;
+        }
       } else {
-        entry = createFragment(
-          this.parent,
-          this.end,
-          this.context,
-          renderBlockChildren(this.context, 'each', this.node.itemTemplate, [
-            item,
-            index,
-          ]),
-          `craft-each:${String(key)}`,
-        );
+        const traceState = { renderCount: 0 };
+        entry = {
+          item,
+          index,
+          traceState,
+          view: createFragment(
+            this.parent,
+            this.end,
+            this.context,
+            this.renderItem(traceState, item, index),
+            `craft-each:${String(key)}`,
+          ),
+        };
       }
 
       next.set(key, entry);
-      nextOrdered.push(entry);
+      nextOrdered.push(entry.view);
     });
 
     previous.forEach((entry, key) => {
       if (!next.has(key)) {
-        entry.destroy();
+        entry.view.destroy();
       }
     });
 
     let before: NativeNode = this.end;
     for (let index = nextOrdered.length - 1; index >= 0; index -= 1) {
       const entry = nextOrdered[index];
-      entry.moveBefore(before);
+      if (entry.lastNode().nextSibling !== before) {
+        entry.moveBefore(before);
+      }
       before = entry.firstNode();
     }
 
@@ -1619,8 +1871,23 @@ class EachRenderedNode implements RenderedNode {
     this.ordered = nextOrdered;
   }
 
+  private renderItem(
+    traceState: TemplateTraceState,
+    item: unknown,
+    index: number,
+  ): CraftNodeChildren {
+    traceState.renderCount += 1;
+    return renderBlockChildren(
+      childContext(this.context, { traceState }),
+      'each',
+      this.node.itemTemplate,
+      [item, index],
+    );
+  }
+
   destroy(): void {
-    this.entries.forEach((entry) => entry.destroy());
+    this.effectRef.destroy();
+    this.entries.forEach((entry) => entry.view.destroy());
     this.emptyView?.destroy();
     removeNode(this.context.renderer, this.start);
     removeNode(this.context.renderer, this.end);
@@ -1630,7 +1897,9 @@ class EachRenderedNode implements RenderedNode {
 class IfBlockRenderedNode implements RenderedNode {
   readonly kind = 'if';
   private readonly view: FragmentRenderedNode;
-  private active: boolean;
+  private active: boolean | undefined;
+  private readonly descriptor;
+  private readonly effectRef: EffectRef;
 
   constructor(
     private node: IfBlockNode,
@@ -1638,14 +1907,19 @@ class IfBlockRenderedNode implements RenderedNode {
     before: NativeNode | null,
     private readonly context: RenderContext,
   ) {
-    this.active = this.isTrue();
+    this.descriptor = signal(node);
     this.view = createFragment(
       parent,
       before,
       context,
-      this.children(),
+      [],
       `craft-if:${node.conditionName}`,
     );
+    this.effectRef = createRenderEffect(context, 'if-block', () => {
+      this.node = this.descriptor();
+      this.active = this.isTrue();
+      this.view.patchChildren(this.children());
+    });
   }
 
   firstNode(): NativeNode {
@@ -1660,14 +1934,7 @@ class IfBlockRenderedNode implements RenderedNode {
     if (node.kind !== 'if' || node.conditionName !== this.node.conditionName) {
       return false;
     }
-    this.node = node;
-    const nextActive = this.isTrue();
-    if (nextActive !== this.active) {
-      this.active = nextActive;
-      this.view.patchChildren(this.children());
-    } else {
-      this.view.patchChildren(this.children());
-    }
+    this.descriptor.set(node);
     return true;
   }
 
@@ -1692,6 +1959,7 @@ class IfBlockRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
+    this.effectRef.destroy();
     this.view.destroy();
   }
 }
@@ -1700,6 +1968,8 @@ class MatchBlockRenderedNode implements RenderedNode {
   readonly kind = 'match-block';
   private readonly view: FragmentRenderedNode;
   private handledExceptionCode: string | undefined;
+  private readonly descriptor;
+  private readonly effectRef: EffectRef;
 
   constructor(
     private node: MatchBlockNode,
@@ -1707,13 +1977,18 @@ class MatchBlockRenderedNode implements RenderedNode {
     before: NativeNode | null,
     private readonly context: RenderContext,
   ) {
+    this.descriptor = signal(node);
     this.view = createFragment(
       parent,
       before,
       context,
-      this.children(),
+      [],
       'craft-match-block',
     );
+    this.effectRef = createRenderEffect(context, 'match-block', () => {
+      this.node = this.descriptor();
+      this.view.patchChildren(this.children());
+    });
   }
 
   firstNode(): NativeNode {
@@ -1728,8 +2003,7 @@ class MatchBlockRenderedNode implements RenderedNode {
     if (node.kind !== 'match-block' || node.key !== this.node.key) {
       return false;
     }
-    this.node = node;
-    this.view.patchChildren(this.children());
+    this.descriptor.set(node);
     return true;
   }
 
@@ -1766,6 +2040,12 @@ class MatchBlockRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
+    this.effectRef.destroy();
+    if (this.handledExceptionCode) {
+      this.context.handledResourceExceptionCodes?.delete(
+        this.handledExceptionCode,
+      );
+    }
     this.view.destroy();
   }
 }
@@ -2008,6 +2288,7 @@ class ComponentRenderedNode implements RenderedNode {
   private factoryContext: unknown;
   private latestTemplate: CraftNodeChildren = [];
   private registrationReleases: (() => void)[] = [];
+  private readonly hostBindings: HostPropertyBindings | undefined;
 
   constructor(
     private component: CraftComponent<object>,
@@ -2043,6 +2324,9 @@ class ComponentRenderedNode implements RenderedNode {
       traceState: this.traceState,
     });
     this.componentRenderContext = componentRenderContext;
+    this.hostBindings = hostTarget
+      ? new HostPropertyBindings(hostTarget, context)
+      : undefined;
     const componentElement =
       hostTarget ?? (parent instanceof Element ? parent : parent.parentElement);
     // Angular's runtime accepts any Injector as the R3Injector parent even
@@ -2276,9 +2560,10 @@ class ComponentRenderedNode implements RenderedNode {
                 }
               : () => {
                   try {
+                    const callSiteHostProps = this.hostPropsSource();
                     const hostProps = mergeHostProps(
                       definition.meta.host ?? {},
-                      this.hostPropsSource(),
+                      callSiteHostProps,
                     );
                     const renderContext = childContext(componentRenderContext, {
                       injector: this.environmentInjector!,
@@ -2301,19 +2586,12 @@ class ComponentRenderedNode implements RenderedNode {
                             projectYieldableTemplateContext(
                               this.factoryContext,
                             ) as never,
-                            hostProps,
+                            callSiteHostProps,
                           ),
                         ),
                     );
                     this.view.patchChildren(this.latestTemplate);
-                    if (hostTarget) {
-                      applyHostProperties(
-                        context.renderer,
-                        hostTarget,
-                        hostProps,
-                        context,
-                      );
-                    }
+                    this.hostBindings?.patch(hostProps);
                     context.exceptionBoundaryResolved?.();
                   } catch (error) {
                     if (
@@ -2646,14 +2924,7 @@ class ComponentRenderedNode implements RenderedNode {
       );
       this.latestTemplate = rendered.children;
       this.view.patchChildren(rendered.children);
-      if (hostTarget) {
-        applyHostProperties(
-          context.renderer,
-          hostTarget,
-          rendered.hostProps,
-          context,
-        );
-      }
+      this.hostBindings?.patch(rendered.hostProps);
     } catch (error) {
       if (!isCraftGenShortCircuit(error)) throw error;
       if (renderContext.exceptionBoundary?.(error.exception)) return;
@@ -2679,9 +2950,10 @@ class ComponentRenderedNode implements RenderedNode {
     this.view.updateContext(
       childContext(renderContext, { componentContext: factoryContext }),
     );
+    const callSiteHostProps = this.hostPropsSource();
     const hostProps = mergeHostProps(
       definition.meta.host ?? {},
-      this.hostPropsSource(),
+      callSiteHostProps,
     );
     return {
       children: executeTemplateTrace(
@@ -2696,7 +2968,7 @@ class ComponentRenderedNode implements RenderedNode {
           withCraftRenderContext(renderContext, () =>
             definition.template(
               projectYieldableTemplateContext(factoryContext) as never,
-              hostProps,
+              callSiteHostProps,
             ),
           ),
       ),
@@ -2770,14 +3042,7 @@ class ComponentRenderedNode implements RenderedNode {
               ? [resolved.children, source.children]
               : [source.children, resolved.children];
           this.view.patchChildren(children);
-          if (hostTarget) {
-            applyHostProperties(
-              context.renderer,
-              hostTarget,
-              source.hostProps,
-              context,
-            );
-          }
+          this.hostBindings?.patch(source.hostProps);
         } catch (error) {
           if (!isCraftGenShortCircuit(error)) throw error;
           this.view.patchChildren(resolved.children);
@@ -2786,9 +3051,7 @@ class ComponentRenderedNode implements RenderedNode {
         this.view.patchChildren(resolved.children);
       }
     }
-    if (hostTarget) {
-      applyHostProperties(context.renderer, hostTarget, hostProps, context);
-    }
+    this.hostBindings?.patch(hostProps);
   }
 
   lastNode(): NativeNode {
@@ -2829,9 +3092,10 @@ class ComponentRenderedNode implements RenderedNode {
 
     this.factoryContext = context;
     const definition = this.component[CRAFT_COMPONENT];
+    const callSiteHostProps = this.hostPropsSource();
     const hostProps = mergeHostProps(
       definition.meta.host ?? {},
-      this.hostPropsSource(),
+      callSiteHostProps,
     );
     this.traceState.renderCount += 1;
     this.latestTemplate = executeTemplateTrace(
@@ -2845,10 +3109,11 @@ class ComponentRenderedNode implements RenderedNode {
       () =>
         definition.template(
           projectYieldableTemplateContext(context) as never,
-          hostProps,
+          callSiteHostProps,
         ),
     );
     this.view.patchChildren(this.latestTemplate);
+    this.hostBindings?.patch(hostProps);
   }
 
   locator(
@@ -2870,6 +3135,7 @@ class ComponentRenderedNode implements RenderedNode {
       this.traceCreated = false;
     }
     this.effectRef.destroy();
+    this.hostBindings?.destroy();
     this.view.destroy();
     this.styleReleases.forEach((release) => release());
     this.environmentInjector?.destroy();
@@ -3122,6 +3388,11 @@ function mountNode(
       insertBefore(context.renderer, parent, text, before);
       return new TextRenderedNode(text, node.value, context.renderer);
     }
+    case 'reactive-text': {
+      const text = context.renderer.createText('') as Text;
+      insertBefore(context.renderer, parent, text, before);
+      return new ReactiveTextRenderedNode(text, node.binding, context);
+    }
     case 'element': {
       const element = context.renderer.createElement(node.tag) as Element;
       if (context.rootScope) {
@@ -3184,21 +3455,149 @@ function mountNode(
   }
 }
 
-function applyHostProperties(
-  renderer: Renderer2,
-  host: Element,
-  props: Readonly<Record<string, unknown>>,
-  context: RenderContext,
-): void {
-  const attributes = flattenAttributes(props);
-  attributes.forEach((value, key) =>
-    applyAttribute(renderer, host, key, value, context),
-  );
-  const classes = className(props['class'], context);
-  if (classes) {
-    renderer.setAttribute(host, 'class', classes);
+class HostPropertyBindings {
+  private props: Readonly<Record<string, unknown>> = {};
+  private readonly bindings = new Map<
+    string,
+    { readonly source: unknown; readonly effectRef: EffectRef }
+  >();
+
+  constructor(
+    private readonly host: Element,
+    private readonly context: RenderContext,
+  ) {}
+
+  patch(next: Readonly<Record<string, unknown>>): void {
+    const renderer = this.context.renderer;
+    const previousAttributes = flattenAttributes(this.props);
+    const nextAttributes = flattenAttributes(next);
+
+    for (const key of previousAttributes.keys()) {
+      if (!nextAttributes.has(key)) {
+        this.destroyBinding(`attribute:${key}`);
+        applyAttribute(renderer, this.host, key, null, this.context);
+      }
+    }
+    for (const [key, value] of nextAttributes) {
+      if (typeof value === 'function') {
+        this.updateBinding(
+          `attribute:${key}`,
+          value,
+          () => resolveTemplateValue(value, this.context),
+          (resolved) =>
+            applyAttribute(renderer, this.host, key, resolved, this.context),
+        );
+      } else {
+        this.destroyBinding(`attribute:${key}`);
+        if (
+          !Object.is(previousAttributes.get(key), value) ||
+          typeof previousAttributes.get(key) === 'function'
+        ) {
+          applyAttribute(renderer, this.host, key, value, this.context);
+        }
+      }
+    }
+
+    if (containsRenderBinding(next['class'])) {
+      this.updateBinding(
+        'class',
+        next['class'],
+        () => className(next['class'], this.context),
+        (value) => {
+          if (value) {
+            renderer.setAttribute(this.host, 'class', String(value));
+          } else {
+            renderer.removeAttribute(this.host, 'class');
+          }
+        },
+      );
+    } else {
+      this.destroyBinding('class');
+      if (
+        !Object.is(this.props['class'], next['class']) ||
+        containsRenderBinding(this.props['class'])
+      ) {
+        const value = className(next['class'], this.context);
+        if (value) {
+          renderer.setAttribute(this.host, 'class', value);
+        } else {
+          renderer.removeAttribute(this.host, 'class');
+        }
+      }
+    }
+
+    if (containsRenderBinding(next['style'])) {
+      this.updateBinding(
+        'style',
+        next['style'],
+        () => resolveStyleBindingValue(next['style'], this.context),
+        (value) => {
+          renderer.removeAttribute(this.host, 'style');
+          applyStyles(renderer, this.host, undefined, value, this.context);
+        },
+        sameStyleValue,
+      );
+    } else {
+      this.destroyBinding('style');
+      if (
+        !Object.is(this.props['style'], next['style']) ||
+        containsRenderBinding(this.props['style'])
+      ) {
+        if (containsRenderBinding(this.props['style'])) {
+          renderer.removeAttribute(this.host, 'style');
+        }
+        applyStyles(
+          renderer,
+          this.host,
+          containsRenderBinding(this.props['style'])
+            ? undefined
+            : this.props['style'],
+          next['style'],
+          this.context,
+        );
+      }
+    }
+
+    this.props = next;
   }
-  applyStyles(renderer, host, undefined, props['style'], context);
+
+  destroy(): void {
+    this.bindings.forEach(({ effectRef }) => effectRef.destroy());
+    this.bindings.clear();
+  }
+
+  private updateBinding(
+    key: string,
+    source: unknown,
+    evaluate: () => unknown,
+    apply: (value: unknown) => void,
+    equals: (left: unknown, right: unknown) => boolean = Object.is,
+  ): void {
+    const current = this.bindings.get(key);
+    if (current?.source === source) return;
+    current?.effectRef.destroy();
+
+    let initialized = false;
+    let previous: unknown;
+    const effectRef = createRenderEffect(
+      this.context,
+      `host-${key}-binding`,
+      () => {
+        const value = evaluate();
+        if (!initialized || !equals(previous, value)) {
+          apply(value);
+          previous = value;
+          initialized = true;
+        }
+      },
+    );
+    this.bindings.set(key, { source, effectRef });
+  }
+
+  private destroyBinding(key: string): void {
+    this.bindings.get(key)?.effectRef.destroy();
+    this.bindings.delete(key);
+  }
 }
 
 export interface MountedCraftComponent<Props extends object> {

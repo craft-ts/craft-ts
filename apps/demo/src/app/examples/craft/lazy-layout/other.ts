@@ -56,5 +56,8 @@ export const OtherComponent = craftComponent(
     };
   },
   ({ other, users }) =>
-    div([p(other.getValue()), p(`Query status: ${users.query.status()}`)]),
+    div([
+      p(() => other.getValue()),
+      p(() => `Query status: ${users.query.status()}`),
+    ]),
 );

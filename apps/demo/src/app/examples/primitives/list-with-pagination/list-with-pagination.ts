@@ -107,21 +107,21 @@ const ListWithPagination = craftComponent(
         select(
           'PageSize',
           {
-            value: String(pagination().pageSize),
+            value: () => String(pagination().pageSize),
             change: updatePageSize,
           },
           [2, 4, 8, 16].map((size) =>
             option(
               {
                 value: String(size),
-                selected: size === pagination().pageSize,
+                selected: () => size === pagination().pageSize,
               },
               size,
             ),
           ),
         ),
         button('PreviousPage', { click: pagination.previousPage }, 'Previous'),
-        span('CurrentPage', { class: 'current-page' }, pagination().page),
+        span('CurrentPage', { class: 'current-page' }, () => pagination().page),
         button('NextPage', { click: pagination.nextPage }, 'Next'),
       ]),
     ]);

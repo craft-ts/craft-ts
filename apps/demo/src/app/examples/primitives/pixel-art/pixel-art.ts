@@ -113,8 +113,8 @@ const PixelArt = craftComponent(
         'Effacer',
       ),
       p([
-        span(`Cases peintes: ${cells.paintedCount()}/${INDEXES.length}`),
-        span(` · Clics: ${cells.totalPaintActions()}`),
+        span(() => `Cases peintes: ${cells.paintedCount()}/${INDEXES.length}`),
+        span(() => ` · Clics: ${cells.totalPaintActions()}`),
       ]),
       div(
         { class: 'pixel-grid', role: 'grid' },

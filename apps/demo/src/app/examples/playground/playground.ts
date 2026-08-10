@@ -277,7 +277,7 @@ const PlaygroundComponent = craftComponent(
         }),
         button(
           {
-            disabled: pg.addTodo.isLoading(),
+            disabled: () => pg.addTodo.isLoading(),
             *click() {
               if (field) yield* add(field);
             },

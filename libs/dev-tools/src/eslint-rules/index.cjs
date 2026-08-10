@@ -42,6 +42,8 @@ const requirePrimitiveDerivedProperty = require('./require-primitive-derived-pro
 const noAsyncAwait = require('./no-async-await.cjs');
 const requirePrimitiveContext = require('./require-primitive-context.cjs');
 const noThrow = require('./no-throw.cjs');
+const noRenderWrites = require('./no-render-writes.cjs');
+const requireReactiveTemplateBindings = require('./require-reactive-template-bindings.cjs');
 
 module.exports = {
   rules: {
@@ -90,5 +92,7 @@ module.exports = {
     'no-async-await': noAsyncAwait,
     'require-primitive-context': requirePrimitiveContext,
     'no-throw': noThrow,
+    'no-render-writes': noRenderWrites,
+    'require-reactive-template-bindings': requireReactiveTemplateBindings,
   },
 };

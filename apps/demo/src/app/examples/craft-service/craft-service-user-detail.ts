@@ -94,7 +94,7 @@ const CraftServiceUserDetailComponent = craftComponent(
       div({ class: 'controls' }, [
         select(
           {
-            value: userId(),
+            value: () => userId(),
             *change(event) {
               yield* userId.selectUser(
                 (event.target as HTMLSelectElement).value,
@@ -107,17 +107,15 @@ const CraftServiceUserDetailComponent = craftComponent(
       div({ class: 'card' }, [
         ifBlock(
           hasValue,
-          () => {
-            const value = user.value() as User;
-            return h('dl', [
+          () =>
+            h('dl', [
               h('dt', 'ID'),
-              h('dd', value.id),
+              h('dd', () => (user.value() as User).id),
               h('dt', 'Name'),
-              h('dd', value.name),
+              h('dd', () => (user.value() as User).name),
               h('dt', 'Email'),
-              h('dd', value.email),
-            ]);
-          },
+              h('dd', () => (user.value() as User).email),
+            ]),
           () =>
             ifBlock(
               user.hasException,

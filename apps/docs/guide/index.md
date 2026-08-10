@@ -64,6 +64,7 @@ afternoon:
 ### Components and templates
 
 [Components](/guide/components/) ·
+[Fine-grained reactivity](/guide/components/fine-grained-reactivity) ·
 [Directives and `.pipe(...)`](/guide/components/directives) ·
 [Customization](/guide/components/customization) ·
 [Content projection](/guide/components/content-projection) ·

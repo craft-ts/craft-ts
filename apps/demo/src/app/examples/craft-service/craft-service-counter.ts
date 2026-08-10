@@ -1,8 +1,5 @@
 import { button, craftComponent, div, h2, p } from '@craft-ng/component';
-import {
-  craftService,
-  state,
-} from '@craft-ng/core';
+import { craftService, state } from '@craft-ng/core';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
@@ -19,9 +16,7 @@ const { Counter, provideCounter } = craftService(
 const CraftServiceCounterComponent = craftComponent(
   'CraftServiceCounterComponent',
   {
-    providers: [
-      provideCounter(),
-    ],
+    providers: [provideCounter()],
     styles: `
       :scope{display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px;font-family:sans-serif}
       .value{font-size:3rem;font-weight:bold;margin:0}
@@ -35,7 +30,7 @@ const CraftServiceCounterComponent = craftComponent(
   ({ counter }) =>
     div([
       h2('craftService Counter (toProvide scope)'),
-      p({ class: 'value' }, counter()),
+      p({ class: 'value' }, () => counter()),
       div({ class: 'actions' }, [
         button({ click: counter.decrement }, '-'),
         button({ click: counter.reset }, 'Reset'),

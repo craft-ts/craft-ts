@@ -5,7 +5,7 @@ layout: home
 hero:
   name: '@craft-ng/core'
   text: 'Type-safe Angular, by construction.'
-  tagline: Declare. Yield. Derive. Compile — no surprises.
+  tagline: Fine-grained reactivity. Declare. Yield. Derive. Compile — no surprises.
 
   image:
     src: /assets/ng-craft-logo.png
@@ -23,6 +23,9 @@ hero:
       link: /resources/examples
 
 features:
+  - title: Fine-grained reactivity
+    details: A signal read inside a binding invalidates only that text, property, class or style. Sibling bindings and the component template stay untouched.
+    link: /guide/components/fine-grained-reactivity
   - title: One API for every kind of state
     details: state, query, mutation, queryParams and asyncProcess share the same shape — a name, a config, insertions. Learn one and you know all five.
   - title: Highly composable

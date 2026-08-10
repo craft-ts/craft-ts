@@ -115,14 +115,16 @@ const MutationCraft = craftComponent(
         'User ',
         StatusComponent({ status: () => store.user.status() }),
         ifBlock(hasUser, () =>
-          pre('UserValue', {}, JSON.stringify(store.user.value(), null, 2)),
+          pre('UserValue', {}, () =>
+            JSON.stringify(store.user.value(), null, 2),
+          ),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
       input('NameInput', {
         type: 'text',
         placeholder: 'New name',
-        value: nameInput(),
+        value: () => nameInput(),
         *input(event) {
           yield* setName((event.target as HTMLInputElement).value);
         },
@@ -131,7 +133,7 @@ const MutationCraft = craftComponent(
         'UpdateUserNameButton',
         {
           class: 'update-user-name',
-          disabled: store.updateUserName.isLoading(),
+          disabled: () => store.updateUserName.isLoading(),
           *click() {
             const currentName = yield* nameInput();
             yield* updateUserNameFn(currentName ?? '');

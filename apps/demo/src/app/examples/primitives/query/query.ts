@@ -68,33 +68,30 @@ const GlobalQuery = craftComponent(
       'User ',
       StatusComponent({ status: () => userQuery.status() }),
       ifBlock(userQuery.hasUser, () =>
-        pre('QueryValue', {}, JSON.stringify(userQuery.value(), null, 2)),
+        pre('QueryValue', {}, () => JSON.stringify(userQuery.value(), null, 2)),
       ),
     ]),
     p('Reload the page to retrieve the query result from the cache.'),
-    div(
-      { class: 'query-actions' },
-      [
-        button(
-          'GoToPreviousUser',
-          {
-            *click() {
-              yield* navigatePrevious();
-            },
+    div({ class: 'query-actions' }, [
+      button(
+        'GoToPreviousUser',
+        {
+          *click() {
+            yield* navigatePrevious();
           },
-          'Previous user',
-        ),
-        button(
-          'GoToNextUser',
-          {
-            *click() {
-              yield* navigateNext();
-            },
+        },
+        'Previous user',
+      ),
+      button(
+        'GoToNextUser',
+        {
+          *click() {
+            yield* navigateNext();
           },
-          'Next user',
-        ),
-      ],
-    ),
+        },
+        'Next user',
+      ),
+    ]),
   ],
 );
 
