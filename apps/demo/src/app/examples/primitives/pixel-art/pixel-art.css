@@ -86,3 +86,75 @@
   transform: scale(1.08);
   z-index: 1;
 }
+
+/* Selectors used by the current functional template. */
+:scope {
+  max-width: 560px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+:scope > header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: #0f172a;
+}
+
+:scope > header p {
+  margin: 0.35rem 0 0;
+  color: #334155;
+}
+
+:scope .pixel-palette {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0 0.75rem;
+}
+
+:scope .pixel-color {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 2px solid #cbd5e1;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+:scope > button {
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  border-radius: 8px;
+  color: #f8fafc;
+  background: #0f172a;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+:scope > p {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+:scope .pixel-grid {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 4px;
+}
+
+:scope .pixel-cell {
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}

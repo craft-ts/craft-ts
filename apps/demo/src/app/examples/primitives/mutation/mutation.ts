@@ -3,24 +3,24 @@ import {
   button,
   craftComponent,
   div,
-  h,
   ifBlock,
   input,
   p,
+  pre,
   type Input,
 } from '@craft-ng/component';
 import {
   CraftRouter,
-  craftComputed,
-  craftMethod,
   insertLocalStoragePersister,
   insertReactOnMutation,
   insertQueryPipe,
   mutation,
   query,
+  state,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
+import { computed } from '@angular/core';
 
 const MutationDemoComponent = craftComponent(
   'MutationDemoComponent',
@@ -28,26 +28,29 @@ const MutationDemoComponent = craftComponent(
     stylesUrl: styles,
   },
   function* (userId: Input<string | undefined>) {
-    const api = yield* ApiService();
     const updateUserName = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
         name: payload.userName,
       }),
       loader: function* ({ params: user }) {
-        return yield* api.updateItem(user);
+        return yield* ApiService.updateItem(user);
       },
     });
+    const nameInput = yield* state('nameInput', '', ({ set }) => ({
+      setName: (value: string) => set(value),
+    }));
     const userQuery = yield* query(
       'userQuery',
       {
         params: userId,
         loader: function* ({ params }) {
-          return yield* api.getItemById(params);
+          return yield* ApiService.getItemById(params);
         },
         preservePreviousValue: () => true,
       },
       insertQueryPipe(
+        ({ resource }) => ({ hasUser: computed(() => resource.hasValue()) }),
         insertLocalStoragePersister({
           storeName: 'demo-app',
           key: 'mutation',
@@ -70,48 +73,65 @@ const MutationDemoComponent = craftComponent(
         params: { userId: String(Number(userId() ?? '0') + offset) },
       });
     };
-    const update = (name: string) => {
+    const update = function* (name: string) {
       const user = userQuery.value();
       if (user) {
-        updateUserName.mutate({
+        yield* updateUserName.mutate({
           userName: name,
           user,
         });
       }
     };
-    const hasUser = craftComputed('hasUser', () => userQuery.hasValue());
-    return { userQuery, hasUser, updateUserName, update, goTo };
+    return {
+      userQuery,
+      updateUserName,
+      update,
+      goTo,
+      nameInput,
+      setName: nameInput.setName,
+    };
   },
-  ({ userQuery, hasUser, updateUserName, update, goTo }) => {
-    let name = '';
+  ({
+    userQuery,
+    updateUserName,
+    update,
+    goTo,
+    nameInput,
+    setName,
+  }) => {
     return div([
       div([
         'User ',
         StatusComponent({ status: () => userQuery.status() }),
-        ifBlock(hasUser, () =>
-          h('pre', JSON.stringify(userQuery.value(), null, 2)),
+        ifBlock(userQuery.hasUser, () =>
+          pre('UserValue', {}, JSON.stringify(userQuery.value(), null, 2)),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
-      input({
+      input('NameInput', {
         type: 'text',
         placeholder: 'New name',
-        input: (event) => {
-          name = (event.target as HTMLInputElement).value;
+        value: nameInput(),
+        *input(event) {
+          yield* setName((event.target as HTMLInputElement).value);
         },
       }),
       button(
+        'UpdateUserNameButton',
         {
+          class: 'update-user-name',
           disabled: updateUserName.isLoading(),
-          click: () => update(name),
+          click: function* () {
+            yield* update(nameInput());
+          },
         },
         [
           'Update name ',
           StatusComponent({ status: () => updateUserName.status() }),
         ],
       ),
-      button({ click: () => goTo(-1) }, 'Previous user'),
-      button({ click: () => goTo(1) }, 'Next user'),
+      button('PreviousUser', { click: () => goTo(-1) }, 'Previous user'),
+      button('NextUser', { click: () => goTo(1) }, 'Next user'),
     ]);
   },
 );

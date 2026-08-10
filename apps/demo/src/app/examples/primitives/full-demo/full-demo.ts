@@ -79,6 +79,7 @@ const FullDemo = craftComponent(
       p('Query, mutations, optimistic interaction and functional rendering.'),
       div([
         input('TodoNameToAddInput', {
+          type: 'text',
           placeholder: 'New todo',
           input: (event) => {
             title = (event.target as HTMLInputElement).value;

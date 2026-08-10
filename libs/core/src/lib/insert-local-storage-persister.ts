@@ -1,4 +1,7 @@
 import { localStoragePersister } from './local-storage-persister';
+import { LocalStorageService } from './browser-boundaries';
+import type { GetServiceYields } from './craft-service';
+import type { QueriesPersister } from './util/persister.type';
 import {
   InsertionByIdParams,
   InsertionResourceFactoryContext,
@@ -255,8 +258,14 @@ export function insertLocalStoragePersister<
    * Compatible with Zod: `validate: (v): v is MyState => schema.safeParse(v).success`
    */
   validate?: (value: unknown) => value is ResourceState;
-}) {
-  return (_context: unknown) => {
+}): (
+  context: unknown,
+) => Generator<
+  GetServiceYields<typeof LocalStorageService>,
+  { persister: QueriesPersister },
+  unknown
+> {
+  return function* (_context: unknown) {
     type ResourceByIdContext = InsertionByIdParams<
       GroupIdentifier,
       ResourceState,
@@ -279,7 +288,8 @@ export function insertLocalStoragePersister<
           PreviousInsertionsOutputs
         >
       | InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>;
-    const persister = localStoragePersister(config.storeName);
+    const storage = yield* LocalStorageService();
+    const persister = localStoragePersister(config.storeName, storage);
     const hasResourceById = 'resourceById' in context;
     const hasState = 'state' in context && !('resource' in context);
     const isUsingIdentifier =

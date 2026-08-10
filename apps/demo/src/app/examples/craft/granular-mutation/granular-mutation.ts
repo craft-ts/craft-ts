@@ -6,8 +6,10 @@ import {
   each,
   h,
   h2,
+  main,
   option,
   select,
+  span,
 } from '@craft-ng/component';
 import {
   craftMethod,
@@ -24,7 +26,7 @@ import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
-const { provideGranularMutation, GranularMutation } = craftService(
+export const { provideGranularMutation, GranularMutation } = craftService(
   { name: 'GranularMutation', scope: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
@@ -97,51 +99,94 @@ const GranularMutationCraft = craftComponent(
     return { store, updatePageSize };
   },
   ({ store: { users, updateUserName, pagination }, updatePageSize }) =>
-    div([
-      h2([
-        'User Management: ',
-        StatusComponent({
-          status: () => users.currentPageStatus(),
-        }),
-      ]),
-      h(
-        'table',
-        h(
-          'tbody',
-          each(
-            () => users.currentPageData(),
-            { track: (user) => user.id },
-            (user) =>
-              h('tr', [
-                h('td', user.id),
-                h('td', user.name),
+    div({ class: 'container' }, [
+      main({ class: 'content' }, [
+        div({ class: 'content-wrapper' }, [
+          div({ class: 'card' }, [
+            h2({ class: 'card-title' }, [
+              'User Management: ',
+              StatusComponent({
+                status: () => users.currentPageStatus(),
+              }),
+            ]),
+            div({ class: 'table-container' }, [
+              h('table', { class: 'table' }, [
+                h('thead', [
+                  h('tr', [h('th', 'ID'), h('th', 'Name'), h('th', 'Action')]),
+                ]),
                 h(
-                  'td',
-                  button(
-                    {
-                      disabled: updateUserName.select(user.id)?.isLoading(),
-                      *click() {
-                        yield* updateUserName.mutate(user);
-                      },
-                    },
-                    'Update Name',
+                  'tbody',
+                  each(
+                    users.currentPageData,
+                    { track: (user) => user.id },
+                    (user) =>
+                      h('tr', [
+                        h('td', user.id),
+                        h('td', user.name),
+                        h(
+                          'td',
+                          button(
+                            'UpdateUserName',
+                            {
+                              class: 'action-btn',
+                              disabled: updateUserName
+                                .selectOrCreate(user.id)
+                                .isLoading(),
+                              *click() {
+                                yield* updateUserName.mutate(user);
+                              },
+                            },
+                            [
+                              'Update Name',
+                              StatusComponent({
+                                status: () =>
+                                  updateUserName
+                                    .selectOrCreate(user.id)
+                                    .status(),
+                              }),
+                            ],
+                          ),
+                        ),
+                      ]),
                   ),
                 ),
               ]),
-          ),
-        ),
-      ),
-      select(
-        {
-          value: pagination().pageSize,
-          *change(event) {
-            yield* updatePageSize(event);
-          },
-        },
-        [2, 4, 8, 16].map((size) => option({ value: size }, size)),
-      ),
-      button({ click: pagination.previousPage }, 'Previous'),
-      button({ click: pagination.nextPage }, 'Next'),
+            ]),
+            div({ class: 'pagination' }, [
+              select(
+                'PageSize',
+                {
+                  value: String(pagination().pageSize),
+                  style: { marginRight: '8px' },
+                  *change(event) {
+                    yield* updatePageSize(event);
+                  },
+                },
+                [2, 4, 8, 16].map((size) =>
+                  option(
+                    {
+                      value: String(size),
+                      selected: size === pagination().pageSize,
+                    },
+                    size,
+                  ),
+                ),
+              ),
+              button(
+                'PreviousPage',
+                { class: 'btn', click: pagination.previousPage },
+                'Previous',
+              ),
+              span('CurrentPage', { class: 'current-page' }, pagination().page),
+              button(
+                'NextPage',
+                { class: 'btn', click: pagination.nextPage },
+                'Next',
+              ),
+            ]),
+          ]),
+        ]),
+      ]),
     ]),
 );
 

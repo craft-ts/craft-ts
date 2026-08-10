@@ -47,17 +47,23 @@ module.exports = {
           return;
         }
 
-        inspectTemplate(node.arguments[3]);
+        inspectTemplate(
+          node.arguments[3],
+          collectLocalWrappers(node.arguments[2]),
+        );
       },
     };
 
-    function inspectTemplate(template) {
+    function inspectTemplate(template, localWrappers) {
       walk(template, (node) => {
         if (node !== template && isNestedCraftComponent(node)) {
           return 'skip';
         }
 
-        if (node.type !== 'CallExpression' || !isYieldableCall(node)) {
+        if (
+          node.type !== 'CallExpression' ||
+          !isYieldableCall(node, localWrappers)
+        ) {
           return;
         }
 
@@ -68,12 +74,21 @@ module.exports = {
         context.report({
           node,
           messageId: 'requireYield',
-          fix: (fixer) => createFix(fixer, node),
+          fix: (fixer) =>
+            createFix(fixer, node, findLocalWrapper(node, localWrappers)),
         });
       });
     }
 
-    function isYieldableCall(node) {
+    function isYieldableCall(node, localWrappers) {
+      if (isDirectYieldableCall(node)) {
+        return true;
+      }
+
+      return Boolean(findLocalWrapper(node, localWrappers));
+    }
+
+    function isDirectYieldableCall(node) {
       const tsNode = esTreeNodeToTSNodeMap.get(node.callee);
       if (!tsNode) return false;
 
@@ -116,23 +131,125 @@ module.exports = {
         checker.getPropertiesOfType(type).some((property) => property.name === 'return');
     }
 
+    function collectLocalWrappers(factory) {
+      const localFunctions = new Map();
+      let returnedObject;
+
+      if (!factory) {
+        return new Map();
+      }
+
+      walk(factory.body, (node) => {
+        if (isFunctionNode(node)) {
+          if (node.type === 'FunctionDeclaration' && node.id) {
+            localFunctions.set(node.id.name, node);
+          }
+          return 'skip';
+        }
+
+        if (node.type === 'VariableDeclarator') {
+          if (
+            node.id.type === 'Identifier' &&
+            node.init &&
+            isFunctionNode(node.init)
+          ) {
+            localFunctions.set(node.id.name, node.init);
+          }
+          return;
+        }
+
+        if (
+          !returnedObject &&
+          node.type === 'ReturnStatement' &&
+          node.argument?.type === 'ObjectExpression'
+        ) {
+          returnedObject = node.argument;
+          return 'skip';
+        }
+      });
+
+      if (!returnedObject) {
+        return new Map();
+      }
+
+      const wrappers = new Map();
+      for (const property of returnedObject.properties) {
+        if (
+          property.type !== 'Property' ||
+          property.value.type !== 'Identifier'
+        ) {
+          continue;
+        }
+
+        const functionNode = localFunctions.get(property.value.name);
+        if (!functionNode) {
+          continue;
+        }
+
+        const yieldableCalls = [];
+        walkFunctionBody(functionNode.body, (node) => {
+          if (node.type === 'CallExpression' && isDirectYieldableCall(node)) {
+            if (!isDelegated(node)) {
+              yieldableCalls.push(node);
+            }
+          }
+        });
+
+        if (yieldableCalls.length > 0) {
+          wrappers.set(property.value.name, {
+            functionNode,
+            yieldableCalls,
+          });
+        }
+      }
+
+      return wrappers;
+    }
+
+    function findLocalWrapper(node, localWrappers) {
+      if (node.callee.type !== 'Identifier') {
+        return undefined;
+      }
+      return localWrappers?.get(node.callee.name);
+    }
+
     function isDelegated(node) {
       const parent = skipParens(node.parent);
       return parent?.type === 'YieldExpression' && parent.delegate;
     }
 
-    function createFix(fixer, node) {
+    function createFix(fixer, node, wrapper) {
+      const fixes = [];
       const text = sourceCode.getText(node);
       const functionNode = nearestFunction(node);
 
       if (functionNode?.generator) {
-        return fixer.replaceText(node, `yield* ${text}`);
-      }
-
-      if (!functionNode || functionNode.async) {
+        fixes.push(fixer.replaceText(node, `yield* ${text}`));
+      } else if (!functionNode || functionNode.async) {
         return undefined;
+      } else {
+        const templateFix = createGeneratorCallbackFix(
+          fixer,
+          functionNode,
+          node,
+          text,
+        );
+        if (!templateFix) {
+          return undefined;
+        }
+        fixes.push(
+          ...(Array.isArray(templateFix) ? templateFix : [templateFix]),
+        );
       }
 
+      if (wrapper) {
+        fixes.push(...createWrapperFixes(fixer, wrapper));
+      }
+
+      return fixes;
+    }
+
+    function createGeneratorCallbackFix(fixer, functionNode, node, text) {
       const parent = functionNode.parent;
       if (
         parent?.type === 'Property' &&
@@ -181,6 +298,58 @@ module.exports = {
       return undefined;
     }
 
+    function createWrapperFixes(fixer, wrapper) {
+      const fixes = [];
+      const functionNode = wrapper.functionNode;
+
+      if (!functionNode.generator) {
+        const generatorFix = createGeneratorFunctionFix(fixer, functionNode);
+        if (generatorFix) {
+          fixes.push(
+            ...(Array.isArray(generatorFix) ? generatorFix : [generatorFix]),
+          );
+        }
+
+        if (
+          functionNode.type === 'ArrowFunctionExpression' &&
+          functionNode.body.type !== 'BlockStatement'
+        ) {
+          return fixes;
+        }
+      }
+
+      for (const node of wrapper.yieldableCalls) {
+        fixes.push(fixer.replaceText(node, `yield* ${sourceCode.getText(node)}`));
+      }
+
+      return fixes;
+    }
+
+    function createGeneratorFunctionFix(fixer, functionNode) {
+      if (functionNode.type === 'ArrowFunctionExpression') {
+        if (functionNode.body.type !== 'BlockStatement') {
+          return fixer.replaceText(
+            functionNode,
+            `function* (${functionNode.params
+              .map((parameter) => sourceCode.getText(parameter))
+              .join(', ')}) { return yield* ${sourceCode.getText(
+              functionNode.body,
+            )}; }`,
+          );
+        }
+
+        return fixer.replaceTextRange(
+          [functionNode.range[0], functionNode.body.range[0]],
+          `function* (${functionNode.params
+            .map((parameter) => sourceCode.getText(parameter))
+            .join(', ')}) `,
+        );
+      }
+
+      const functionToken = sourceCode.getFirstToken(functionNode);
+      return fixer.insertTextAfter(functionToken, '*');
+    }
+
     function nearestFunction(node) {
       let current = node.parent;
       while (current) {
@@ -209,6 +378,23 @@ module.exports = {
           walk(child, visit);
         }
       }
+    }
+
+    function walkFunctionBody(node, visit) {
+      walk(node, (child) => {
+        if (child !== node && isFunctionNode(child)) {
+          return 'skip';
+        }
+        return visit(child);
+      });
+    }
+
+    function isFunctionNode(node) {
+      return (
+        node?.type === 'ArrowFunctionExpression' ||
+        node?.type === 'FunctionExpression' ||
+        node?.type === 'FunctionDeclaration'
+      );
     }
 
     function isNestedCraftComponent(node) {

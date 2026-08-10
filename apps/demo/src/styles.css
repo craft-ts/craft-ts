@@ -189,8 +189,8 @@
   gap: 0.5rem;
 }
 
-.projection-demo__action,
-.projection-demo__toggle {
+.component-demo .projection-demo__action,
+.component-demo .projection-demo__toggle {
   padding: 0.5rem 0.75rem;
   border: 1px solid #2563eb;
   border-radius: 0.4rem;

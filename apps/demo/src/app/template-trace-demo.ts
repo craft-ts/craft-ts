@@ -21,7 +21,7 @@ import {
 
 let logging = false;
 
-function logTrace(label: string, value: unknown): void {
+function logTrace(label: string, value: unknown, injector?: Injector): void {
   if (logging) {
     return;
   }
@@ -35,7 +35,7 @@ function logTrace(label: string, value: unknown): void {
         },
         thisArg: undefined,
         args: [],
-        getInjector: () => inject(Injector),
+        getInjector: () => injector ?? inject(Injector),
         invalidYieldErrorMessage: 'Demo tracing yielded an invalid value',
         multipleAppStartErrorMessage:
           'Demo tracing cannot register multiple app-start hooks',
@@ -71,25 +71,30 @@ const demoFnTrace: FnWrapper = function* (factory, thisArg, args) {
 };
 
 function traceAsync<T>(label: string, context: unknown, next: () => T): T {
-  logTrace(`${label}:start`, context);
+  // Promise callbacks run after Angular's synchronous injection context has
+  // ended. Capture the injector while the wrapper is still in that context so
+  // the completion/error logs can reuse it safely.
+  const injector = inject(Injector);
+
+  logTrace(`${label}:start`, context, injector);
   try {
     const result = next();
     if (isPromiseLike(result)) {
       return result.then(
         (value) => {
-          logTrace(`${label}:end`, { context, result: value });
+          logTrace(`${label}:end`, { context, result: value }, injector);
           return value;
         },
         (error) => {
-          logTrace(`${label}:error`, { context, error });
+          logTrace(`${label}:error`, { context, error }, injector);
           throw error;
         },
       ) as T;
     }
-    logTrace(`${label}:end`, { context, result });
+    logTrace(`${label}:end`, { context, result }, injector);
     return result;
   } catch (error) {
-    logTrace(`${label}:error`, { context, error });
+    logTrace(`${label}:error`, { context, error }, injector);
     throw error;
   }
 }

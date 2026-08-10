@@ -3,10 +3,10 @@ import {
   button,
   craftComponent,
   div,
-  h,
   ifBlock,
   input,
   p,
+  pre,
   type Input,
 } from '@craft-ng/component';
 import {
@@ -24,7 +24,7 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
-const { provideUserMutation, UserMutation } = craftService(
+export const { provideUserMutation, UserMutation } = craftService(
   { name: 'UserMutation', scope: 'toProvide' },
   function* (inputs: { userId: () => string | undefined }) {
     const updateUserName = yield* mutation('updateUserName', {
@@ -110,16 +110,16 @@ const MutationCraft = craftComponent(
     };
   },
   ({ store, nameInput, setName, hasUser, updateUserNameFn, navigate }) => {
-    return [
+    return div([
       div([
         'User ',
         StatusComponent({ status: () => store.user.status() }),
         ifBlock(hasUser, () =>
-          h('pre', JSON.stringify(store.user.value(), null, 2)),
+          pre('UserValue', {}, JSON.stringify(store.user.value(), null, 2)),
         ),
       ]),
       p('Reload to see the cached result; update the name optimistically.'),
-      input({
+      input('NameInput', {
         type: 'text',
         placeholder: 'New name',
         value: nameInput(),
@@ -128,7 +128,9 @@ const MutationCraft = craftComponent(
         },
       }),
       button(
+        'UpdateUserNameButton',
         {
+          class: 'update-user-name',
           disabled: store.updateUserName.isLoading(),
           *click() {
             yield* updateUserNameFn(nameInput());
@@ -142,6 +144,7 @@ const MutationCraft = craftComponent(
         ],
       ),
       button(
+        'PreviousUser',
         {
           *click() {
             yield* navigate(-1);
@@ -150,6 +153,7 @@ const MutationCraft = craftComponent(
         'Previous user',
       ),
       button(
+        'NextUser',
         {
           *click() {
             yield* navigate(1);
@@ -157,7 +161,7 @@ const MutationCraft = craftComponent(
         },
         'Next user',
       ),
-    ];
+    ]);
   },
 );
 

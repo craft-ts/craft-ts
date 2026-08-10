@@ -8,6 +8,7 @@ import {
   each,
   h,
   h2,
+  main,
   option,
   select,
   span,
@@ -26,7 +27,7 @@ import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 
-const { provideUserList, UserList } = craftService(
+export const { provideUserList, UserList } = craftService(
   { name: 'UserList', scope: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
@@ -87,53 +88,93 @@ const ListWithPaginationCraft = craftComponent(
     return { store, updatePageSize, isCurrentPageResolved };
   },
   ({ store, updatePageSize, isCurrentPageResolved }) =>
-    div([
-      h2([
-        'User Management: ',
-        StatusComponent({
-          status: () => store.users.currentPageStatus(),
-        }),
-        span(` ${store.users.total()} on page`),
-      ]),
-      h('table', [
-        h('thead', h('tr', [h('th', 'ID'), h('th', 'Name')])),
-        h(
-          'tbody',
-          each(
-            store.users.currentPageData,
-            {
-              track: (user) => user.id,
-              empty: () =>
+    div({ class: 'container' }, [
+      main({ class: 'content' }, [
+        div({ class: 'content-wrapper' }, [
+          div({ class: 'card' }, [
+            h2({ class: 'card-title' }, [
+              'User Management: ',
+              StatusComponent({
+                status: () => store.users.currentPageStatus(),
+              }),
+              span(
+                'TotalUsers',
+                { class: 'current-page' },
+                ` ${store.users.total()} on page`,
+              ),
+            ]),
+            div({ class: 'table-container' }, [
+              h('table', { class: 'table' }, [
+                h('thead', h('tr', [h('th', 'ID'), h('th', 'Name')])),
                 h(
-                  'tr',
-                  h(
-                    'td',
-                    { colSpan: 2 },
-                    ifBlock(
-                      isCurrentPageResolved,
-                      () => 'No users found',
-                      () => 'Loading…',
-                    ),
+                  'tbody',
+                  each(
+                    store.users.currentPageData,
+                    {
+                      track: (user) => user.id,
+                      empty: () =>
+                        h(
+                          'tr',
+                          h(
+                            'td',
+                            {
+                              colSpan: 2,
+                              style: {
+                                textAlign: 'center',
+                                padding: '32px',
+                              },
+                            },
+                            ifBlock(
+                              isCurrentPageResolved,
+                              () => 'No users found',
+                              () => 'Loading…',
+                            ),
+                          ),
+                        ),
+                    },
+                    (user) => h('tr', [h('td', user.id), h('td', user.name)]),
                   ),
                 ),
-            },
-            (user) => h('tr', [h('td', user.id), h('td', user.name)]),
-          ),
-        ),
-      ]),
-      div([
-        select(
-          {
-            value: store.pagination().pageSize,
-            *change(event) {
-              yield* updatePageSize(event);
-            },
-          },
-          [2, 4, 8, 16].map((size) => option({ value: size }, size)),
-        ),
-        button({ click: store.pagination.previousPage }, 'Previous'),
-        span(store.pagination().page),
-        button({ click: store.pagination.nextPage }, 'Next'),
+              ]),
+            ]),
+            div({ class: 'pagination' }, [
+              select(
+                'PageSize',
+                {
+                  value: String(store.pagination().pageSize),
+                  style: { marginRight: '8px' },
+                  *change(event) {
+                    yield* updatePageSize(event);
+                  },
+                },
+                [2, 4, 8, 16].map((size) =>
+                  option(
+                    {
+                      value: String(size),
+                      selected: size === store.pagination().pageSize,
+                    },
+                    size,
+                  ),
+                ),
+              ),
+              button(
+                'PreviousPage',
+                { class: 'btn', click: store.pagination.previousPage },
+                'Previous',
+              ),
+              span(
+                'CurrentPage',
+                { class: 'current-page' },
+                store.pagination().page,
+              ),
+              button(
+                'NextPage',
+                { class: 'btn', click: store.pagination.nextPage },
+                'Next',
+              ),
+            ]),
+          ]),
+        ]),
       ]),
     ]),
 );

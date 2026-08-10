@@ -81,6 +81,36 @@ describe('require-yieldable-template-method', () => {
     );
     expect(result.messages).toEqual([]);
   });
+
+  it('quick-fixes a local wrapper used by the template', async () => {
+    const result = await lintFixture(
+      `
+        type YieldableMethod = (id: number) => Generator<void, void, unknown>;
+        declare const store: { remove: { mutate: YieldableMethod } };
+        declare function craftComponent(...args: unknown[]): unknown;
+
+        craftComponent('Demo', {}, function* () {
+          const remove = (id: number) => {
+            store.remove.mutate(id);
+          };
+
+          return { remove };
+        }, ({ remove }) =>
+          button({ click: () => remove(1) }, 'Remove'),
+        );
+      `,
+      true,
+    );
+
+    expect(result.output).toContain(
+      'const remove = function* (id: number) {',
+    );
+    expect(result.output).toContain('yield* store.remove.mutate(id);');
+    expect(result.output).toContain(
+      'click: function* () { yield* remove(1); }',
+    );
+    expect(result.messages).toEqual([]);
+  });
 });
 
 async function lintFixture(source: string, fix = false) {

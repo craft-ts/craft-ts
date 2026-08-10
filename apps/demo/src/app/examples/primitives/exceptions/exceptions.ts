@@ -23,8 +23,35 @@ type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 const ExceptionsComponent = craftComponent(
   'ExceptionsComponent',
   {
-    styles:
-      '.exception-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.exception-actions button{padding:8px 16px}',
+    styles: `
+      :scope {
+        display: block;
+        max-width: 760px;
+        margin: 2rem auto;
+        padding: 1.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        color: #1e293b;
+        background: #f8fafc;
+      }
+      :scope h3 { margin: 0 0 1rem; color: #0f172a; }
+      :scope .exception-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+      :scope .exception-actions button {
+        padding: 0.5rem 1rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        color: #334155;
+        background: #fff;
+        cursor: pointer;
+      }
+      :scope .exception-actions button:hover { background: #f1f5f9; }
+      :scope p { margin: 0.5rem 0; }
+    `,
   },
   function* () {
     const scenario = yield* state(
@@ -62,7 +89,7 @@ const ExceptionsComponent = craftComponent(
     return { scenario, userQuery, hasUser, isLoading };
   },
   ({ scenario, userQuery, hasUser, isLoading }) => {
-    return [
+    return div([
       h3(`Query user with business exceptions (${userQuery.status()})`),
       div({ class: 'exception-actions' }, [
         button(
@@ -126,7 +153,7 @@ const ExceptionsComponent = craftComponent(
           ifBlock(isLoading, () => p('Loading user…')),
         ],
       ),
-    ];
+    ]);
   },
 ).pipe(
   catchTag.exhaustive({

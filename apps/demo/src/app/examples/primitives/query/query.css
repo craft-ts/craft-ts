@@ -78,3 +78,18 @@
 :scope button {
   margin-right: 1rem;
 }
+
+:scope.query-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:scope.query-actions button {
+  margin: 0;
+}

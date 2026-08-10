@@ -49,56 +49,56 @@
   border-radius: 4px;
 }
 
-:scope input[type='checkbox'] {
-  width: 1.2rem;
-  height: 1.2rem;
-  cursor: pointer;
-  accent-color: #555;
-  border-radius: 4px;
-  transition: transform 0.1s;
+:scope input[type="checkbox"] {
+  accent-color: #444;
+  transform: scale(1.25);
+  margin: 0;
+  box-shadow: 0 0 0 2px #333;
+  outline: none;
+  transition: box-shadow 0.2s;
 }
 
-:scope input[type='checkbox']:hover {
-  transform: scale(1.05);
+:scope input[type="checkbox"]:focus {
+  box-shadow: 0 0 0 2px #888;
 }
 
-:scope input[type='text'] {
-  width: 100%;
+:scope input[type="text"] {
+  background: #2a2a2a;
+  color: #eaeaea;
+  border: 1px solid #444;
+  border-radius: 7px;
   padding: 0.6rem 1rem;
   font-size: 1rem;
-  background: #333;
-  color: #eaeaea;
-  border: 1px solid #555;
-  border-radius: 7px;
-  margin-bottom: 1.2rem;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
+  width: 100%;
+  max-width: 300px;
+  margin-bottom: 1rem;
+  margin-right: 0.8rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-:scope input[type='text']:focus {
+:scope input[type="text"]:focus {
   outline: none;
   border-color: #666;
+  background: #333;
+  box-shadow: 0 0 0 3px rgba(68, 68, 68, 0.3);
 }
 
-:scope input[type='text']::placeholder {
-  color: #777;
+:scope input[type="text"]::placeholder {
+  color: #757575;
 }
 
 :scope pre {
-  background: #2a2a2a;
-  padding: 1rem;
+  background: #181818;
+  color: #d6d6d6;
   border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.98rem;
   overflow-x: auto;
-  font-size: 0.9rem;
-  color: #d4d4d4;
-  border: 1px solid #3a3a3a;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
-  margin-top: 1rem;
+  margin: 1.2rem 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-:scope p {
-  font-size: 0.95rem;
-  color: #9e9e9e;
-  line-height: 1.4;
-  margin: 0.5rem 0;
+:scope button {
+  margin-right: 1rem;
 }

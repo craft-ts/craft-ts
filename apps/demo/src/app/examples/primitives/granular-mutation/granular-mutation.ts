@@ -6,6 +6,7 @@ import {
   each,
   h,
   h2,
+  main,
   option,
   select,
   span,
@@ -88,57 +89,87 @@ const GranularMutation = craftComponent(
     };
   },
   ({ pagination, updatePageSize, updateUserName, usersQuery }) =>
-    div([
-      h2([
-        'User Management: ',
-        StatusComponent({
-          status: () => usersQuery.currentPageStatus(),
-        }),
-      ]),
-      h(
-        'table',
-        h(
-          'tbody',
-          each(
-            usersQuery.currentPageData,
-            { track: (user) => user.id },
-            (user) =>
-              h('tr', [
-                h('td', user.id),
-                h('td', user.name),
+    div({ class: 'container' }, [
+      main({ class: 'content' }, [
+        div({ class: 'content-wrapper' }, [
+          div({ class: 'card' }, [
+            h2({ class: 'card-title' }, [
+              'User Management: ',
+              StatusComponent({
+                status: () => usersQuery.currentPageStatus(),
+              }),
+            ]),
+            div({ class: 'table-container' }, [
+              h('table', { class: 'table' }, [
+                h('thead', [
+                  h('tr', [h('th', 'ID'), h('th', 'Name'), h('th', 'Action')]),
+                ]),
                 h(
-                  'td',
-                  button(
-                    {
-                      disabled: () =>
-                        updateUserName.select(user.id)?.isLoading(),
-                      *click() {
-                        yield* updateUserName.mutate(user);
-                      },
-                    },
-                    [
-                      'Update Name ',
-                      StatusComponent({
-                        status: updateUserName.selectOrCreate(user.id).status,
-                      }),
-                    ],
+                  'tbody',
+                  each(
+                    usersQuery.currentPageData,
+                    { track: (user) => user.id },
+                    (user) =>
+                      h('tr', [
+                        h('td', user.id),
+                        h('td', user.name),
+                        h(
+                          'td',
+                          button(
+                            'UpdateUserName',
+                            {
+                              class: 'action-btn',
+                              disabled: () =>
+                                updateUserName.select(user.id)?.isLoading(),
+                              *click() {
+                                yield* updateUserName.mutate(user);
+                              },
+                            },
+                            [
+                              'Update Name',
+                              StatusComponent({
+                                status:
+                                  updateUserName.selectOrCreate(user.id).status,
+                              }),
+                            ],
+                          ),
+                        ),
+                      ]),
                   ),
                 ),
               ]),
-          ),
-        ),
-      ),
-      div([
-        select(
-          {
-            value: pagination().pageSize,
-            change: updatePageSize,
-          },
-          [2, 4, 8, 16].map((size) => option({ value: size }, size)),
-        ),
-        button({ click: pagination.previousPage }, 'Previous'),
-        span(pagination().page),
-        button({ click: pagination.nextPage }, 'Next'),
+            ]),
+            div({ class: 'pagination' }, [
+              select(
+                'PageSize',
+                {
+                  value: String(pagination().pageSize),
+                  change: updatePageSize,
+                },
+                [2, 4, 8, 16].map((size) =>
+                  option(
+                    {
+                      value: String(size),
+                      selected: size === pagination().pageSize,
+                    },
+                    size,
+                  ),
+                ),
+              ),
+              button(
+                'PreviousPage',
+                { class: 'btn', click: pagination.previousPage },
+                'Previous',
+              ),
+              span('CurrentPage', { class: 'current-page' }, pagination().page),
+              button(
+                'NextPage',
+                { class: 'btn', click: pagination.nextPage },
+                'Next',
+              ),
+            ]),
+          ]),
+        ]),
       ]),
     ]),
 );

@@ -47,6 +47,7 @@ export default [
       'craft-ng/require-component-monitoring': 'warn',
       'craft-ng/require-primitive-generator-unwrap': 'warn',
       'craft-ng/require-yieldable-template-method': 'error',
+      'craft-ng/no-ephemeral-template-form-state': 'error',
       'craft-ng/template-element-name-unique': 'error',
       'craft-ng/require-primitive-context': 'error',
       'craft-ng/require-primitive-derived-property': 'error',

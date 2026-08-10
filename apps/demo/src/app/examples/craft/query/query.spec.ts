@@ -16,7 +16,7 @@ import {
 import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import GlobalQuery from './query';
+import CraftGlobalQuery from './query';
 import { ApiService } from './api.service';
 
 beforeAll(() => {
@@ -34,13 +34,13 @@ beforeAll(() => {
   }
 });
 
-describe('Query template', () => {
-  type QueryLogic = ComponentLogicOutputOf<typeof GlobalQuery>;
-  type QueryTemplate = ComponentTemplateOf<typeof GlobalQuery>;
+describe('Craft query template', () => {
+  type QueryLogic = ComponentLogicOutputOf<typeof CraftGlobalQuery>;
+  type QueryTemplate = ComponentTemplateOf<typeof CraftGlobalQuery>;
 
   type _UserQueryDependsOnApiService = Expect<
     Equal<
-      'ApiService' extends keyof ExtractDeps<QueryLogic['userQuery']>
+      'ApiService' extends keyof ExtractDeps<QueryLogic['user']>
         ? true
         : false,
       true
@@ -49,7 +49,7 @@ describe('Query template', () => {
 
   type _UserQueryDependsOnLocalStorageService = Expect<
     Equal<
-      'LocalStorageService' extends keyof ExtractDeps<QueryLogic['userQuery']>
+      'LocalStorageService' extends keyof ExtractDeps<QueryLogic['user']>
         ? true
         : false,
       true
@@ -58,7 +58,7 @@ describe('Query template', () => {
 
   type _ApiServiceDependencyIsTracked = Expect<
     Equal<
-      ExtractDeps<QueryLogic['userQuery']>['ApiService'] extends GetServiceDependencies<
+      ExtractDeps<QueryLogic['user']>['ApiService'] extends GetServiceDependencies<
         typeof ApiService
       >
         ? true
@@ -69,7 +69,7 @@ describe('Query template', () => {
 
   type _ApiServiceGetItemByIdIsTracked = Expect<
     Equal<
-      ExtractDeps<QueryLogic['userQuery']>['ApiService'] extends {
+      ExtractDeps<QueryLogic['user']>['ApiService'] extends {
         derivedPropertiesUsed: infer Used extends object;
       }
         ? 'getItemById' extends keyof Used
@@ -80,12 +80,12 @@ describe('Query template', () => {
     >
   >;
 
-  type _ExposesUserQueryAndNavigationMethods = Expect<
+  type _ExposesUserAndNavigationMethod = Expect<
     Equal<
       QueryLogic extends {
-        userQuery: unknown;
-        navigatePrevious: unknown;
-        navigateNext: unknown;
+        user: unknown;
+        hasUser: unknown;
+        navigate: unknown;
       }
         ? true
         : false,
@@ -97,7 +97,7 @@ describe('Query template', () => {
     Equal<
       TemplateRendersNamedElementWhen<
         QueryTemplate,
-        'GlobalQuery:button:GoToPreviousUser'
+        'CraftGlobalQuery:button:GoToPreviousUser'
       >,
       true
     >
@@ -107,53 +107,53 @@ describe('Query template', () => {
     Equal<
       TemplateRendersNamedElementWhen<
         QueryTemplate,
-        'GlobalQuery:button:GoToNextUser'
+        'CraftGlobalQuery:button:GoToNextUser'
       >,
       true
     >
   >;
 
-  type _PreviousUserClickDelegatesToPreviousNavigation = Expect<
+  type _PreviousUserClickDelegatesToNavigation = Expect<
     Equal<
       TemplateNamedElementDelegatesToContext<
         QueryTemplate,
-        'GlobalQuery:button:GoToPreviousUser',
+        'CraftGlobalQuery:button:GoToPreviousUser',
         'click',
-        'navigatePrevious'
+        'navigate'
       >,
       true
     >
   >;
 
-  type _NextUserClickDelegatesToNextNavigation = Expect<
+  type _NextUserClickDelegatesToNavigation = Expect<
     Equal<
       TemplateNamedElementDelegatesToContext<
         QueryTemplate,
-        'GlobalQuery:button:GoToNextUser',
+        'CraftGlobalQuery:button:GoToNextUser',
         'click',
-        'navigateNext'
+        'navigate'
       >,
       true
     >
   >;
 
-  type _DisplayQueryValueWhenTheQueryHasAValue = Expect<
+  type _DisplayQueryValueWhenTheUserExists = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
         QueryTemplate,
-        'GlobalQuery:pre:QueryValue',
-        { when: { 'userQuery.hasUser': true } }
+        'CraftGlobalQuery:pre:QueryValue',
+        { when: { hasUser: true } }
       >,
       true
     >
   >;
 
-  type _DoNotDisplayQueryValueWhenTheQueryHasNoValue = Expect<
+  type _DoNotDisplayQueryValueWhenTheUserDoesNotExist = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
         QueryTemplate,
-        'GlobalQuery:pre:QueryValue',
-        { when: { 'userQuery.hasUser': false } }
+        'CraftGlobalQuery:pre:QueryValue',
+        { when: { hasUser: false } }
       >,
       false
     >
@@ -164,45 +164,37 @@ describe('Query template', () => {
   });
 });
 
-describe('Query logic', () => {
+describe('Craft query logic', () => {
   async function setup(currentUserId = '3') {
-    const getItemById = vi.fn(function* (userId: string) {
-      return { id: userId, name: `User ${userId}` };
-    });
     const navigate = vi.fn();
-    const values = new Map<string, string>();
-    const storage = {
-      getItem: vi.fn((key: string) => values.get(key) ?? null),
-      setItem: vi.fn((key: string, value: string) => values.set(key, value)),
-      removeItem: vi.fn((key: string) => values.delete(key)),
-      clear: vi.fn(() => values.clear()),
-      key: vi.fn((index: number) => Array.from(values.keys())[index] ?? null),
-      length: vi.fn(() => values.size),
+    const user = {
+      status: () => 'resolved',
+      hasValue: () => true,
+      value: () => ({ id: currentUserId, name: `User ${currentUserId}` }),
     };
-    const result = await setupCraftComponentLogicTest(GlobalQuery, {
+    const userQuery = vi.fn((_: { userId: () => string | undefined }) => user);
+    const result = await setupCraftComponentLogicTest(CraftGlobalQuery, {
       args: [(() => currentUserId) as Input<string | undefined>],
       register: {
-        ApiService: { getItemById },
+        UserQuery: { $self: userQuery },
+        ApiService: 'notReached',
+        ConsoleService: 'notReached',
+        LocalStorageService: 'notReached',
         CraftRouter: { navigate },
-        LocalStorageService: storage,
       },
     });
 
-    await vi.waitFor(() =>
-      expect(getItemById).toHaveBeenCalledWith(currentUserId),
-    );
-
-    return { ...result, getItemById, navigate, storage };
+    return { ...result, navigate, userQuery };
   }
 
   it('navigates to the previous user with a decremented id', async () => {
     const { context, navigate, destroy } = await setup('3');
 
     try {
-      context.navigatePrevious();
+      context.navigate(-1);
 
       expect(navigate).toHaveBeenCalledWith({
-        to: 'query/:userId',
+        to: 'craft/query/:userId',
         params: { userId: '2' },
       });
     } finally {
@@ -210,31 +202,4 @@ describe('Query logic', () => {
     }
   });
 
-  it('loads the current user through ApiService.getItemById', async () => {
-    const { context, getItemById, destroy } = await setup('3');
-
-    try {
-      expect(getItemById).toHaveBeenCalledTimes(1);
-      await vi.waitFor(() =>
-        expect(context.userQuery.value()).toEqual({
-          id: '3',
-          name: 'User 3',
-        }),
-      );
-    } finally {
-      destroy();
-    }
-  });
-
-  it('uses the LocalStorageService dependency for cache access', async () => {
-    const { storage, destroy } = await setup('3');
-
-    try {
-      expect(storage.getItem).toHaveBeenCalledWith(
-        'ng-craft-demo-app-resource-user-query',
-      );
-    } finally {
-      destroy();
-    }
-  });
 });

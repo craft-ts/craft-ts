@@ -15,7 +15,9 @@ const LoginFormComponent = craftComponent(
   'LoginFormComponent',
   {
     styles: `
-      :scope{max-width:420px;display:grid;gap:1rem;padding:2rem;border:1px solid #e2e8f0;border-radius:12px}.login-field{display:grid;gap:.35rem}input{padding:.75rem;border:1px solid #cbd5e1;border-radius:6px}.login-error{color:#b91c1c}
+      :scope{box-sizing:border-box;max-width:420px;display:grid;gap:1rem;margin:2rem auto;padding:2rem;border:1px solid #e2e8f0;border-radius:12px;color:#1e293b;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.08)}
+      :scope h2{margin:0;color:#0f172a}.login-field{display:grid;gap:.35rem}.login-field label{font-weight:600;color:#334155}input{box-sizing:border-box;width:100%;padding:.75rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff}.login-error{margin:0;color:#b91c1c}.login-field + .login-error{margin-top:.25rem}
+      :scope button{justify-self:start;padding:.65rem 1rem;border:0;border-radius:6px;color:#fff;background:#2563eb;font-weight:600;cursor:pointer}.login-field:focus-within input{border-color:#2563eb;outline:2px solid #bfdbfe;outline-offset:1px}
     `,
   },
   function* () {

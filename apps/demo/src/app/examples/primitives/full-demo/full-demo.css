@@ -357,3 +357,73 @@
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
+
+/* Current functional template layout. */
+:scope {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  border-radius: 12px;
+  color: #1a1a1a;
+  background: #f5f7fa;
+}
+
+:scope > h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+}
+
+:scope > p {
+  margin: 0 0 1.5rem;
+  color: #4a5568;
+}
+
+:scope > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+:scope input[type='text'] {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+:scope > div button,
+:scope > ul button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  color: #2d3748;
+  background: #fff;
+  cursor: pointer;
+}
+
+:scope > div button:hover,
+:scope > ul button:hover {
+  background: #f8fafc;
+}
+
+:scope > ul {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:scope > ul li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}

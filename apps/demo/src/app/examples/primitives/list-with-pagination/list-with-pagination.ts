@@ -38,14 +38,13 @@ const ListWithPagination = craftComponent(
         updatePageSize: (pageSize: number) => patch({ pageSize, page: 1 }),
       }),
     );
-    const api = yield* ApiService();
     const usersQuery = yield* query(
       'usersQuery',
       {
         params: pagination,
         identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
         loader: function* ({ params }) {
-          return yield* api.getDataList(params);
+          return yield* ApiService.getDataList(params);
         },
       },
       insertQueryPipe(
@@ -106,15 +105,24 @@ const ListWithPagination = craftComponent(
       ),
       div({ class: 'pagination' }, [
         select(
+          'PageSize',
           {
-            value: pagination().pageSize,
+            value: String(pagination().pageSize),
             change: updatePageSize,
           },
-          [2, 4, 8, 16].map((size) => option({ value: size }, size)),
+          [2, 4, 8, 16].map((size) =>
+            option(
+              {
+                value: String(size),
+                selected: size === pagination().pageSize,
+              },
+              size,
+            ),
+          ),
         ),
-        button({ click: pagination.previousPage }, 'Previous'),
-        span({ class: 'current-page' }, pagination().page),
-        button({ click: pagination.nextPage }, 'Next'),
+        button('PreviousPage', { click: pagination.previousPage }, 'Previous'),
+        span('CurrentPage', { class: 'current-page' }, pagination().page),
+        button('NextPage', { click: pagination.nextPage }, 'Next'),
       ]),
     ]);
   },

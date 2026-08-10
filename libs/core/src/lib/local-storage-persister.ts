@@ -7,6 +7,7 @@ import {
   untracked,
 } from '@angular/core';
 
+import type { StorageServiceApi } from './browser-boundaries';
 import { isEqual } from './util/persister.util';
 import {
   PersistedQuery,
@@ -16,7 +17,21 @@ import {
 import { nestedEffect } from './util/types/util';
 import { ResourceByIdRef } from './resource-by-id';
 
-export function localStoragePersister(prefix: string): QueriesPersister {
+function globalStorageAdapter(): StorageServiceApi {
+  return {
+    getItem: (key) => globalThis.localStorage.getItem(key),
+    setItem: (key, value) => globalThis.localStorage.setItem(key, value),
+    removeItem: (key) => globalThis.localStorage.removeItem(key),
+    clear: () => globalThis.localStorage.clear(),
+    key: (index) => globalThis.localStorage.key(index),
+    length: () => globalThis.localStorage.length,
+  };
+}
+
+export function localStoragePersister(
+  prefix: string,
+  storage: StorageServiceApi = globalStorageAdapter(),
+): QueriesPersister {
   const _injector = inject(Injector);
   const queriesMap = signal(
     new Map<string, PersistedQuery & { storageKey: string }>(),
@@ -72,7 +87,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
         }
         untracked(() => {
           const queryParams = queryResourceParamsSrc();
-          localStorage.setItem(
+          storage.setItem(
             storageKey,
             JSON.stringify({
               queryParams,
@@ -92,7 +107,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
             if (params === undefined) {
               return;
             }
-            const storedValue = localStorage.getItem(storageKey);
+            const storedValue = storage.getItem(storageKey);
             if (!storedValue) {
               waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
               return;
@@ -102,7 +117,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
                 JSON.parse(storedValue);
 
               if (validate && !validate(queryValue)) {
-                localStorage.removeItem(storageKey);
+                storage.removeItem(storageKey);
                 waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
                 return;
               }
@@ -113,14 +128,14 @@ export function localStoragePersister(prefix: string): QueriesPersister {
                 data.cacheTime > 0 &&
                 isValueExpired(timestamp, data.cacheTime)
               ) {
-                localStorage.removeItem(storageKey);
+                storage.removeItem(storageKey);
                 waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
                 return;
               }
 
               const isEqualParams = isEqual(params, queryParams);
               if (!isEqualParams) {
-                localStorage.removeItem(storageKey);
+                storage.removeItem(storageKey);
                 waitForParamsSrcToBeEqualToPreviousValueEffect.destroy();
                 return;
               }
@@ -209,11 +224,11 @@ export function localStoragePersister(prefix: string): QueriesPersister {
             let storedValue: QueryByIdStored | undefined;
             try {
               storedValue = JSON.parse(
-                localStorage.getItem(storageKey) || 'null'
+                storage.getItem(storageKey) || 'null'
               );
             } catch (e) {
               console.error('Error parsing stored value from localStorage', e);
-              localStorage.removeItem(storageKey);
+              storage.removeItem(storageKey);
             }
             storedValue = storedValue ?? {
               queryParams: queryResourceParamsSrc(),
@@ -240,7 +255,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
                 },
                 timestamp: Date.now(),
               };
-              localStorage.setItem(storageKey, JSON.stringify(storedValue));
+              storage.setItem(storageKey, JSON.stringify(storedValue));
             });
           });
         });
@@ -261,18 +276,18 @@ export function localStoragePersister(prefix: string): QueriesPersister {
       } = data;
 
       const storageKey = getStorageKey(prefix, key, 'resource');
-      const storedValue = localStorage.getItem(storageKey);
+      const storedValue = storage.getItem(storageKey);
       if (storedValue && !waitForParamsSrcToBeEqualToPreviousValue) {
         try {
           const { queryValue, timestamp } = JSON.parse(storedValue);
           if (validate && !validate(queryValue)) {
-            localStorage.removeItem(storageKey);
+            storage.removeItem(storageKey);
           } else if (
             timestamp &&
             cacheTime > 0 &&
             isValueExpired(timestamp, cacheTime)
           ) {
-            localStorage.removeItem(storageKey);
+            storage.removeItem(storageKey);
           } else {
             queryResource.set(queryValue);
             if (staleTime !== undefined && timestamp && isValueExpired(timestamp, staleTime)) {
@@ -281,7 +296,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
           }
         } catch (e) {
           console.error('Error parsing stored value from localStorage', e);
-          localStorage.removeItem(storageKey);
+          storage.removeItem(storageKey);
         }
       }
       queriesMap.update((map) => {
@@ -306,17 +321,18 @@ export function localStoragePersister(prefix: string): QueriesPersister {
       const storageKey = getStorageKey(prefix, key, 'resourceById');
       let storedValue: QueryByIdStored | undefined;
         try {
-        storedValue = JSON.parse(localStorage.getItem(storageKey) || 'null');
+        storedValue = JSON.parse(storage.getItem(storageKey) || 'null');
       } catch (e) {
         console.error('Error parsing stored value from localStorage', e);
-        localStorage.removeItem(storageKey);
+        storage.removeItem(storageKey);
       }
 
       const storedValueWithValidCacheTime =
         removeNotValidRecordsWithValidCacheTime(
           storageKey,
           storedValue,
-          cacheTime
+          cacheTime,
+          storage,
         );
       if (storedValueWithValidCacheTime) {
         const { queryByIdValue } = storedValueWithValidCacheTime;
@@ -355,7 +371,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
     clearQuery(queryKey: string): void {
       queriesMap.update((map) => {
         map.delete(queryKey);
-        localStorage.removeItem(getStorageKey(prefix, queryKey, 'resource'));
+        storage.removeItem(getStorageKey(prefix, queryKey, 'resource'));
         return map;
       });
     },
@@ -363,7 +379,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
     clearQueryBy(queryByIdKey: string): void {
       queriesByIdMap.update((map) => {
         map.delete(queryByIdKey);
-        localStorage.removeItem(
+        storage.removeItem(
           getStorageKey(prefix, queryByIdKey, 'resourceById')
         );
         return map;
@@ -372,7 +388,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
 
     clearAllQueries(): void {
       queriesMap().forEach((_, key) => {
-        localStorage.removeItem(getStorageKey(prefix, key, 'resource'));
+        storage.removeItem(getStorageKey(prefix, key, 'resource'));
       });
       queriesMap.update((map) => {
         map.clear();
@@ -382,7 +398,7 @@ export function localStoragePersister(prefix: string): QueriesPersister {
 
     clearAllQueriesById(): void {
       queriesByIdMap().forEach((_, key) => {
-        localStorage.removeItem(getStorageKey(prefix, key, 'resourceById'));
+        storage.removeItem(getStorageKey(prefix, key, 'resourceById'));
       });
       queriesByIdMap.update((map) => {
         map.clear();
@@ -427,7 +443,8 @@ function isValueExpired(timestamp: number, cacheTime: number): boolean {
 function removeNotValidRecordsWithValidCacheTime(
   storageKey: string,
   storedValue: QueryByIdStored | undefined,
-  cacheTime: number
+  cacheTime: number,
+  storage: StorageServiceApi,
 ): QueryByIdStored | undefined {
   if (!storedValue) {
     return undefined;
@@ -436,7 +453,7 @@ function removeNotValidRecordsWithValidCacheTime(
 
   if (timestamp && cacheTime > 0 && isValueExpired(timestamp, cacheTime)) {
     // remove from storage
-    localStorage.removeItem(storageKey);
+    storage.removeItem(storageKey);
     return undefined;
   }
 
@@ -452,7 +469,7 @@ function removeNotValidRecordsWithValidCacheTime(
   );
 
   // update local storage
-  localStorage.setItem(
+  storage.setItem(
     storageKey,
     JSON.stringify({
       ...storedValue,

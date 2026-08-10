@@ -119,3 +119,88 @@
   height: auto;
   padding: 0.45rem 0.7rem;
 }
+
+/* Selectors used by the current matrix template. */
+:scope {
+  max-width: 620px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+:scope > header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: #0f172a;
+}
+
+:scope > header p {
+  margin: 0.35rem 0 1rem;
+  color: #334155;
+}
+
+:scope .matrix-palette {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+:scope .matrix-color {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 2px solid #cbd5e1;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+:scope > button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #64748b;
+  border-radius: 6px;
+  color: #0f172a;
+  background: #fff;
+  cursor: pointer;
+}
+
+:scope .matrix-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+:scope .matrix-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:scope .matrix-cell {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 120ms ease;
+}
+
+:scope .matrix-row > button:last-child {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px dashed #64748b;
+  border-radius: 6px;
+  color: #0f172a;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}

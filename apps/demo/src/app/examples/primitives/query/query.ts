@@ -72,23 +72,28 @@ const GlobalQuery = craftComponent(
       ),
     ]),
     p('Reload the page to retrieve the query result from the cache.'),
-    button(
-      'GoToPreviousUser',
-      {
-        *click() {
-          yield* navigatePrevious();
-        },
-      },
-      'Previous user',
-    ),
-    button(
-      'GoToNextUser',
-      {
-        *click() {
-          yield* navigateNext();
-        },
-      },
-      'Next user',
+    div(
+      { class: 'query-actions' },
+      [
+        button(
+          'GoToPreviousUser',
+          {
+            *click() {
+              yield* navigatePrevious();
+            },
+          },
+          'Previous user',
+        ),
+        button(
+          'GoToNextUser',
+          {
+            *click() {
+              yield* navigateNext();
+            },
+          },
+          'Next user',
+        ),
+      ],
     ),
   ],
 );

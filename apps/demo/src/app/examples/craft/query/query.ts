@@ -3,9 +3,9 @@ import {
   button,
   craftComponent,
   div,
-  h,
   ifBlock,
   p,
+  pre,
   type Input,
 } from '@craft-ng/component';
 import {
@@ -67,24 +67,34 @@ const CraftGlobalQuery = craftComponent(
     div([
       'User ',
       StatusComponent({ status: () => user.status() }),
-      ifBlock(hasUser, () => h('pre', JSON.stringify(user.value(), null, 2))),
+      ifBlock(
+        hasUser,
+        () => pre('QueryValue', {}, JSON.stringify(user.value(), null, 2)),
+      ),
     ]),
     p('Reload the page to retrieve the query result from the cache.'),
-    button(
-      {
-        *click() {
-          yield* navigate(-1);
-        },
-      },
-      'Previous user',
-    ),
-    button(
-      {
-        *click() {
-          yield* navigate(1);
-        },
-      },
-      'Next user',
+    div(
+      { class: 'query-actions' },
+      [
+        button(
+          'GoToPreviousUser',
+          {
+            *click() {
+              yield* navigate(-1);
+            },
+          },
+          'Previous user',
+        ),
+        button(
+          'GoToNextUser',
+          {
+            *click() {
+              yield* navigate(1);
+            },
+          },
+          'Next user',
+        ),
+      ],
     ),
   ],
 );
