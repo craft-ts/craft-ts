@@ -84,7 +84,9 @@ essayé de le résoudre, dites-moi où je me trompe ».
 Trois règles de ton, valables sur les 3 plateformes :
 
 1. **Problème d'abord, primitive ensuite.** Jamais un article qui commence par « `query()` permet de… ».
-   Toujours : « voilà le code que j'écrivais 40 fois par app, et pourquoi ça me rendait fou ».
+   Toujours : « voilà le code que je croise dans toutes les codebases, et pourquoi ça me gêne ».
+   ⚠️ Reste factuel sur ton vécu : tu avais tes utilitaires RxJS, tu n'as pas subi ce boilerplate
+   pendant des années. Le vrai angle, c'est « je l'ai lu/revu partout », pas « je l'ai écrit 40 fois ».
 2. **Zéro dénigrement de NgRx / Signal Store / TanStack Query.** Tu te positionnes *à côté*, pas
    *contre*. La communauté Angular sanctionne très vite le ton « j'ai fait mieux que ».
 3. **Une question ouverte en fin d'article.** Tu es en beta : chaque article est aussi une session de

@@ -13,6 +13,7 @@ import {
 } from '@craft-ng/core';
 import { authGuard } from './guard/auth.guard';
 import { paginationQueryParams } from './query-params.utils';
+import type { AppProvidedNames, AppProvidedValues } from './app.config';
 
 // SOURCE DE VÉRITÉ DES ROUTES DE LA DÉMO.
 // À FAIRE : ajouter ou modifier les routes dans ce fichier et conserver les
@@ -438,8 +439,8 @@ type DemoRouteCheckedDI<
   Context extends string = 'demo route component',
 > = RouteCheckedDI<
   ComponentDepsOf<Component>,
-  'CraftRouter' | 'CraftActivatedRoute',
-  never,
+  AppProvidedNames | 'CraftRouter' | 'CraftActivatedRoute',
+  AppProvidedValues,
   Context,
   RouteInputs
 >;

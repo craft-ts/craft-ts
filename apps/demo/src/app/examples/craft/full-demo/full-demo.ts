@@ -135,7 +135,8 @@ const FullDemoCraft = craftComponent(
           {
             disabled: () => store.add.isLoading(),
             *click() {
-              yield* store.add.mutate(titleInput().trim() ?? '');
+              const title = yield* titleInput();
+              yield* store.add.mutate((title ?? '').trim());
             },
           },
           'Add',

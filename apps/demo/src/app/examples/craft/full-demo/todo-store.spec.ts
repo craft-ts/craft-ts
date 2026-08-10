@@ -1,28 +1,8 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
-import { TestBed } from '@angular/core/testing';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { setupCraftServiceTestingByRegister } from '@craft-ng/core';
 import { TodoStore, provideTodoStore } from './full-demo';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('TodoStore logic', () => {
   async function createStore() {

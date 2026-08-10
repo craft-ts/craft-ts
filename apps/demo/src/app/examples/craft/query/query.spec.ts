@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import {
   ComponentLogicOutputOf,
   ComponentTemplateOf,
@@ -15,24 +10,9 @@ import {
 } from '@craft-ng/component';
 import type { ExtractDeps, GetServiceDependencies } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import CraftGlobalQuery from './query';
 import { ApiService } from './api.service';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('Craft query template', () => {
   type QueryLogic = ComponentLogicOutputOf<typeof CraftGlobalQuery>;

@@ -538,9 +538,6 @@ function projectYieldableTemplateContext(
     }
     return result;
   }
-  if ('asReadonly' in value || 'set' in value || 'update' in value) {
-    return value;
-  }
   const result: Record<string, unknown> = {};
   seen.set(value, result);
   for (const [key, child] of Object.entries(value)) {

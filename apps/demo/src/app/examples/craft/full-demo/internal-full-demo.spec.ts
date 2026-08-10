@@ -2,10 +2,6 @@
 import '@angular/compiler';
 import { Injector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import { loadCraftComponent, mountCraftComponent } from '@craft-ng/component';
 import {
   HostTag,
@@ -13,25 +9,10 @@ import {
   provideFnWrapper,
   withCraftViewTransitions,
 } from '@craft-ng/core';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../../app';
 import { demoRoutes } from '../../../app.routes';
 import FullDemoCraft from './full-demo';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('Craft Full Demo route component', () => {
   beforeEach(() => {

@@ -20,9 +20,9 @@ None of that is wrong. It is just that the glue between them is written by hand,
 
 This article is about the specific piece of that problem I could not let go of, and about the toolkit I ended up building around it. It is called [craft-ng](https://github.com/ng-angular-stack/ng-craft), it is in beta, and I would genuinely rather have your objections than your stars.
 
-## The code I wrote forty times
+## The code I kept running into
 
-Here is the shape. If you have been writing Angular for a few years, you have written it a hundred times — and `resource()` has only recently made it avoidable.
+Here is the shape. I should be honest: I did not write much of it myself — I had a drawer of RxJS helpers that hid most of it. But I have *read* it in a lot of codebases, reviewed it in a lot of pull requests, and inherited it in a lot of projects. That turned out to matter more, because a helper that only I understand is not a solution to anything.
 
 ```typescript
 @Injectable()

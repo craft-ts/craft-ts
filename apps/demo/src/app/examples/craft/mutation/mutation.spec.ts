@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
 import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import {
   ComponentLogicOutputOf,
   ComponentTemplateOf,
@@ -16,29 +11,15 @@ import {
   type Input,
 } from '@craft-ng/component';
 import {
+  markYieldableMethod,
   markYieldableValue,
   type ExtractDeps,
   type GetServiceDependencies,
 } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import MutationCraft, { UserMutation, provideUserMutation } from './mutation';
 import { ApiService, type User } from './api.service';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 type MutationLogic = ComponentLogicOutputOf<typeof MutationCraft>;
 type MutationTemplate = ComponentTemplateOf<typeof MutationCraft>;
@@ -139,6 +120,13 @@ function createStorageMock() {
   const values = new Map<string, string>();
 
   return {
+    addQueryToPersist: vi.fn(),
+    addQueryByIdToPersist: vi.fn(),
+    clearQuery: vi.fn(),
+    clearQueryBy: vi.fn(),
+    clearAllQueries: vi.fn(),
+    clearAllQueriesById: vi.fn(),
+    clearAllCache: vi.fn(),
     getItem: vi.fn((key: string) => values.get(key) ?? null),
     setItem: vi.fn((key: string, value: string) => {
       values.set(key, value);
@@ -156,7 +144,7 @@ function createTemplateContext(
   user: User | undefined,
   mutationLoading = false,
 ) {
-  let name = '';
+  const name = signal('');
   const userQuery = {
     status: vi.fn(() => (user ? ('resolved' as const) : ('idle' as const))),
     hasValue: vi.fn(() => user !== undefined),
@@ -168,20 +156,27 @@ function createTemplateContext(
       mutationLoading ? ('loading' as const) : ('idle' as const),
     ),
   };
-  const updateUserNameFn = vi.fn(function* (newName: string) {
-    name = newName;
-  });
-  const setName = vi.fn(function* (newName: string) {
-    name = newName;
-  });
-  const navigate = vi.fn(function* (_offset: number) {
-    return undefined;
-  });
+  const updateUserNameFn = markYieldableMethod(
+    vi.fn(function* (newName: string) {
+      name.set(newName);
+    }),
+  );
+  const setName = markYieldableMethod(
+    vi.fn(function* (newName: string) {
+      name.set(newName);
+    }),
+  );
+  const navigate = markYieldableMethod(
+    vi.fn(function* (_offset: number) {
+      return undefined;
+    }),
+  );
+  const nameInput = markYieldableValue(name, 'nameInput');
 
   return {
     context: {
       store: { user: userQuery, updateUserName },
-      nameInput: vi.fn(() => name),
+      nameInput,
       setName,
       hasUser: markYieldableValue(signal(user !== undefined), 'hasUser'),
       updateUserNameFn,

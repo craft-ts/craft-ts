@@ -24,6 +24,8 @@ import {
   withErrorComponent,
   withRouteLoadError,
   withTransitionTimings,
+  type AppProvidedDependencyValuesOf,
+  type AppProvidedServiceNamesOf,
   type CanRun,
   type ComponentDepsOf,
   type RouteExceptionComponentCheckedDI,
@@ -108,6 +110,9 @@ export const appConfig = craftAppConfig({
     provideMcpExperimentation(),
   ],
 });
+
+export type AppProvidedNames = AppProvidedServiceNamesOf<typeof appConfig>;
+export type AppProvidedValues = AppProvidedDependencyValuesOf<typeof appConfig>;
 
 type _CheckGlobalErrorDI = RouteExceptionComponentCheckedDI<
   ComponentDepsOf<typeof MyGlobalErrorScreen>,

@@ -1,28 +1,9 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import { TestBed } from '@angular/core/testing';
 import { setupCraftComponentLogicTest } from '@craft-ng/component';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import FullDemo from './full-demo';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 describe('Full primitives demo logic', () => {
   async function createLogic() {

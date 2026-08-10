@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
 import '@angular/compiler';
-import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import {
-  BrowserTestingModule,
-  platformBrowserTesting,
-} from '@angular/platform-browser/testing';
 import {
   ComponentLogicOutputOf,
   setupCraftComponentLogicTest,
@@ -17,24 +12,9 @@ import {
   type GetServiceDependencies,
 } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import GranularMutation from './granular-mutation';
 import { ApiService, type User } from './api.service';
-
-beforeAll(() => {
-  try {
-    TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      !error.message.includes(
-        'Cannot set base providers because it has already been called',
-      )
-    ) {
-      throw error;
-    }
-  }
-});
 
 type GranularLogic = ComponentLogicOutputOf<typeof GranularMutation>;
 
@@ -111,6 +91,13 @@ function createStorageMock() {
   const values = new Map<string, string>();
 
   return {
+    addQueryToPersist: vi.fn(),
+    addQueryByIdToPersist: vi.fn(),
+    clearQuery: vi.fn(),
+    clearQueryBy: vi.fn(),
+    clearAllQueries: vi.fn(),
+    clearAllQueriesById: vi.fn(),
+    clearAllCache: vi.fn(),
     getItem: vi.fn((key: string) => values.get(key) ?? null),
     setItem: vi.fn((key: string, value: string) => {
       values.set(key, value);
