@@ -14,7 +14,7 @@ import {
   craftMethod,
   CraftRouter,
   craftService,
-  insertLocalStoragePersister,
+  insertStoragePersister,
   query,
 } from '@craft-ng/core';
 import { StatusComponent } from '../../../ui/status.component';
@@ -32,7 +32,7 @@ const { UserQuery } = craftService(
           return yield* ApiService.getItemById(params);
         },
       },
-      insertLocalStoragePersister({
+      insertStoragePersister({
         storeName: 'demo-app-craft',
         key: 'user-query',
       }),

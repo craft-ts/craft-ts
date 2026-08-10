@@ -39,7 +39,7 @@ Not sure which one: [Which primitive should I use?](/guide/concepts/choose-primi
 | --------------------------------- | --------------------------------------------- | ---------------------------------------------------------- |
 | `insertSelect`                    | Derives a slice of a primitive                 | [Selecting](/guide/state/select)                              |
 | `insertEntities`                  | Entity collection storage and updates          | [Collections](/guide/state/collections)                       |
-| `insertLocalStoragePersister`     | Syncs a primitive with localStorage            | [Persistence](/guide/state/persistence)                       |
+| `insertStoragePersister`          | Persists through the configured storage backend | [Persistence](/guide/state/persistence)                       |
 | `insertReactOnMutation`           | Reloads / optimistically patches on a mutation | [React on mutation](/guide/state/react-on-mutation)           |
 | `insertPaginationPlaceholderData` | Placeholder rows while a page loads            | [Pagination placeholder](/guide/state/pagination-placeholder) |
 

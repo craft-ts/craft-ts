@@ -45,7 +45,7 @@ const { counter } =
 
 ```typescript
 import {
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertQueryPipe,
   query,
 } from '@craft-ng/core';
@@ -59,7 +59,7 @@ const { users } =
       loader: ({ params }) => api.getUsers(params),
     },
     insertQueryPipe(
-      insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
+      insertStoragePersister({ storeName: 'app', key: 'users' }),
       ({ resource }) => ({
         reloadUsers: () => resource.reload(),
       }),

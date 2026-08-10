@@ -244,7 +244,7 @@ const userQuery = query(
     },
     reload: { onMutationError: true },
   }),
-  insertLocalStoragePersister({
+  insertStoragePersister({
     storeName: 'demo-app',
     key: 'user-query',
   }),

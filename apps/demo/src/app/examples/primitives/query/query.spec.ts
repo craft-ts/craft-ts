@@ -47,9 +47,9 @@ describe('Query template', () => {
     >
   >;
 
-  type _UserQueryDependsOnLocalStorageService = Expect<
+type _UserQueryDependsOnStoragePersister = Expect<
     Equal<
-      'LocalStorageService' extends keyof ExtractDeps<QueryLogic['userQuery']>
+      'StoragePersister' extends keyof ExtractDeps<QueryLogic['userQuery']>
         ? true
         : false,
       true
@@ -184,7 +184,7 @@ describe('Query logic', () => {
       register: {
         ApiService: { getItemById },
         CraftRouter: { navigate },
-        LocalStorageService: storage,
+          StoragePersister: storage,
       },
     });
 
@@ -226,7 +226,7 @@ describe('Query logic', () => {
     }
   });
 
-  it('uses the LocalStorageService dependency for cache access', async () => {
+  it('uses the StoragePersister dependency for cache access', async () => {
     const { storage, destroy } = await setup('3');
 
     try {

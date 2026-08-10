@@ -1,6 +1,6 @@
 # Persistence
 
-`insertLocalStoragePersister` saves a primitive's value to localStorage and
+`insertStoragePersister` saves a primitive's value through the configured storage backend and
 restores it on the next visit — with expiry, background revalidation and a
 validation hook, so stale or corrupt entries don't leak into your app.
 
@@ -12,7 +12,41 @@ you'd rather show instantly than fetch again.
 Works with `state()`, `query()`, `mutation()` and `asyncProcess()`.
 
 ```typescript
-import { insertLocalStoragePersister } from '@craft-ng/core';
+import { insertStoragePersister } from '@craft-ng/core';
+```
+
+Configure the storage backend once in `appConfig`. The default application
+selection remains `localStorage`; a child route, feature or test can select
+`sessionStorage` instead.
+
+```typescript
+import {
+  LocalStoragePersister,
+  SessionStoragePersister,
+  provideLocalStoragePersister,
+  provideSessionStoragePersister,
+  provideStoragePersister,
+} from '@craft-ng/core';
+
+providers: [
+  provideLocalStoragePersister(),
+  provideSessionStoragePersister(),
+  provideStoragePersister(function* () {
+    return yield* LocalStoragePersister();
+  }),
+];
+```
+
+The `StoragePersister` provider is required by `craftAppConfig` and follows
+the normal Angular DI hierarchy. A child route, feature or test can override
+the active backend:
+
+```typescript
+providers: [
+  provideStoragePersister(function* () {
+    return yield* SessionStoragePersister();
+  }),
+];
 ```
 
 ## The common case
@@ -21,7 +55,7 @@ import { insertLocalStoragePersister } from '@craft-ng/core';
 const { myState } = state(
   'myState',
   0,
-  insertLocalStoragePersister({
+  insertStoragePersister({
     storeName: 'myApp',
     key: 'myState',
   }),
@@ -35,7 +69,7 @@ const { myQuery } = query(
       return { data: 'testData' };
     },
   },
-  insertLocalStoragePersister({
+  insertStoragePersister({
     storeName: 'myApp',
     key: 'myQuery',
   }),
@@ -46,9 +80,9 @@ const { myQuery } = query(
 
 | Option                                     | Type                          | Default     | Description                                                                                                                                                                                    |
 | ------------------------------------------ | ----------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storeName`                                | `string`                      | —           | Prefix for localStorage keys, used to namespace this store                                                                                                                                     |
+| `storeName`                                | `string`                      | —           | Prefix for keys in the configured storage backend, used to namespace this store                                                                                                                |
 | `key`                                      | `string`                      | —           | Key identifying the specific data within the store                                                                                                                                             |
-| `cacheTime`                                | `number`                      | `300000`    | Time in ms after which cached data is deleted from localStorage (garbage collection). Set to `0` to disable expiration.                                                                        |
+| `cacheTime`                                | `number`                      | `300000`    | Time in ms after which cached data is deleted from the configured storage backend (garbage collection). Set to `0` to disable expiration.                                                       |
 | `staleTime`                                | `number`                      | `undefined` | Time in ms after which cached data is considered stale. The cached value is still restored immediately, but a background `reload()` is triggered (SWR pattern). Must be less than `cacheTime`. |
 | `validate`                                 | `(value: unknown) => boolean` | `undefined` | Called on the deserialized value before restoring it. Return `false` to discard the entry and load fresh. Useful when the data model has changed.                                              |
 | `waitForParamsSrcToBeEqualToPreviousValue` | `boolean`                     | `true`      | If `true`, waits for the params signal to stabilize before trying to restore the cache. Useful when params start as `undefined`. Not applicable to `state()`.                                  |
@@ -57,8 +91,8 @@ const { myQuery } = query(
 
 |                          | Data deleted?                         | Reload triggered?              |
 | ------------------------ | ------------------------------------- | ------------------------------ |
-| **`cacheTime`** exceeded | Yes — entry removed from localStorage | No                             |
-| **`staleTime`** exceeded | No — data is still restored           | Yes — `reload()` in background |
+| **`cacheTime`** exceeded | Yes — entry removed from the configured backend | No                             |
+| **`staleTime`** exceeded | No — data is still restored                    | Yes — `reload()` in background |
 
 `cacheTime` always takes priority: if `cacheTime` is exceeded, the entry is discarded entirely, regardless of `staleTime`.
 
@@ -73,10 +107,10 @@ const { userQuery } = query(
     params: () => currentUserId(),
     loader: async ({ params }) => fetchUser(params),
   },
-  insertLocalStoragePersister({
+  insertStoragePersister({
     storeName: 'myApp',
     key: 'user',
-    cacheTime: 10 * 60_000, // delete from localStorage after 10 min
+    cacheTime: 10 * 60_000, // delete from the configured backend after 10 min
     staleTime: 60_000, // show cached + reload in background after 1 min
   }),
 );
@@ -89,7 +123,7 @@ const { userQuery } = query(
 
 ## Validation
 
-Use `validate` to guard against corrupt or outdated data in localStorage (e.g. after a model change or manual user edit). Works with Zod or any type guard.
+Use `validate` to guard against corrupt or outdated data in the configured storage backend (e.g. after a model change or manual user edit). Works with Zod or any type guard.
 
 ```typescript
 import { z } from 'zod';
@@ -103,7 +137,7 @@ const { userQuery } = query(
     params: () => currentUserId(),
     loader: async ({ params }) => fetchUser(params),
   },
-  insertLocalStoragePersister({
+  insertStoragePersister({
     storeName: 'myApp',
     key: 'user',
     validate: (v): v is User => UserSchema.safeParse(v).success,
@@ -127,7 +161,7 @@ const postsQuery = yield* query(
     identifier: (id) => id,
     loader: async ({ params }) => fetchPost(params),
   },
-  insertLocalStoragePersister({
+  insertStoragePersister({
     storeName: 'myApp',
     key: 'posts',
     cacheTime: 15 * 60_000,
@@ -142,14 +176,16 @@ const postsQuery = yield* query(
 before it ever gets a chance to be revalidated.
 
 **A shipped model change invalidates nothing by itself.** Users carry the old
-shape in their localStorage. Use `validate` — that is what it is for.
+shape in their configured storage backend. Use `validate` — that is what it is for.
 
 **Restoring a value is not the same as having loaded it.** Check
 `isPlaceHolderData` / the status before treating a restored value as fresh.
 
 ::: details Managing stored data globally
 Clearing, inspecting or migrating persisted entries across the whole app goes
-through [GlobalPersisterHandler](/guide/state/persistence-handler).
+through [GlobalPersisterHandler](/guide/state/persistence-handler). It delegates
+to the active `StoragePersister`, so the built-in localStorage and
+sessionStorage backends clear their own persisted entries.
 :::
 
 ## See Also

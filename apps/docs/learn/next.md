@@ -7,7 +7,7 @@ derive the rest.** Everything below is a variation on it.
 
 | You have                | Next thing worth adding                                                              |
 | ----------------------- | ------------------------------------------------------------------------------------ |
-| A query and a mutation  | [Persistence](/guide/state/persistence) — localStorage sync as an insertion            |
+| A query and a mutation  | [Persistence](/guide/state/persistence) — storage persistence as an insertion (localStorage by default) |
 | A list                  | [Collections](/guide/state/collections) — entity storage, selectors, updates           |
 | A form                  | [Validation](/guide/forms/validation) — custom and async validators                    |
 | Routes                  | [Route guards](/guide/routing/guards) and [Route providers](/guide/routing/route-providers) |

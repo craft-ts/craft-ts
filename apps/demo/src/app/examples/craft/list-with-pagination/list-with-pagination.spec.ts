@@ -255,7 +255,7 @@ describe('list with pagination logic', () => {
       {
         UserList: provideUserList(),
         ApiService: { getDataList },
-        LocalStorageService: storage,
+        StoragePersister: storage,
         Router: 'real',
       } as never,
       {

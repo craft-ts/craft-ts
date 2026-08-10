@@ -16,7 +16,12 @@ This insertion works with the `state` primitive.
 :::
 
 ```typescript
-import { insertSelect, insertStatePipe, state } from '@craft-ng/core';
+import {
+  insertSelect,
+  insertStatePipe,
+  insertStoragePersister,
+  state,
+} from '@craft-ng/core';
 ```
 
 ## The common case — selecting an object property
@@ -125,7 +130,7 @@ state(
 
 ```ts
 state('cells', initialCells, insertStatePipe(
-    insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
+    insertStoragePersister({ storeName: 'app', key: 'cells' }),
     insertSelect('cell', ({ update }) => ({
       paint: () => update((cell) => ({ ...cell, painted: true })),
     })),

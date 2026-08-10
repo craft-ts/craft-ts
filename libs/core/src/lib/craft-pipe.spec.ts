@@ -8,7 +8,7 @@ import type { ExtractDeps } from './branded-component/branded-component';
 import { craftException, CraftExceptionResult } from './craft-exception';
 import { craftService } from './craft-service';
 import { provideFnWrapObserver, provideFnWrapper } from './fn-wrapper';
-import { insertLocalStoragePersister } from './insert-local-storage-persister';
+import { insertStoragePersister } from './insert-storage-persister';
 import { insertPaginationPlaceholderData } from './insert-pagination-placeholder-data';
 import { insertReactOnMutation } from './insert-react-on-mutation';
 import { insertSelect } from './insert-select';
@@ -17,6 +17,12 @@ import { craftPipe } from './craft-pipe';
 import { query } from './query';
 import { state } from './state';
 import { craftUse } from './craft-use';
+import {
+  LocalStoragePersister,
+  provideLocalStoragePersister,
+  provideSessionStoragePersister,
+  provideStoragePersister,
+} from './storage-persister.service';
 
 type User = {
   id: string;
@@ -40,6 +46,18 @@ beforeAll(() => {
       throw error;
     }
   }
+});
+
+beforeEach(() => {
+  TestBed.configureTestingModule({
+    providers: [
+      provideLocalStoragePersister(),
+      provideSessionStoragePersister(),
+      provideStoragePersister(function* () {
+        return yield* LocalStoragePersister();
+      }),
+    ],
+  });
 });
 
 describe('craftPipe with state', () => {
@@ -388,7 +406,7 @@ describe('craftPipe with query', () => {
           (context) =>
             craftPipe(
               context,
-              insertLocalStoragePersister({ storeName: 'probe', key: 'probe' }),
+              insertStoragePersister({ storeName: 'probe', key: 'probe' }),
               insertPaginationPlaceholderData({ initialValue: [] as User[] }),
               insertReactOnMutation(del, {
                 filter: ({ mutationIdentifier, queryResource }) =>

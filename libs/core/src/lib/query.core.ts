@@ -602,7 +602,7 @@ export type InsertionParams<
       unknown
     >;
   }>;
-  // 👇 Seems required for insertLocalStoragePersister, otherwise TS says they can be missing
+  // 👇 Keeps optional insertion dependencies from widening the query contract.
   resourceById: never;
   identifier: never;
 };

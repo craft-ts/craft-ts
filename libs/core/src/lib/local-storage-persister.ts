@@ -17,20 +17,9 @@ import {
 import { nestedEffect } from './util/types/util';
 import { ResourceByIdRef } from './resource-by-id';
 
-function globalStorageAdapter(): StorageServiceApi {
-  return {
-    getItem: (key) => globalThis.localStorage.getItem(key),
-    setItem: (key, value) => globalThis.localStorage.setItem(key, value),
-    removeItem: (key) => globalThis.localStorage.removeItem(key),
-    clear: () => globalThis.localStorage.clear(),
-    key: (index) => globalThis.localStorage.key(index),
-    length: () => globalThis.localStorage.length,
-  };
-}
-
-export function localStoragePersister(
+export function createStoragePersister(
   prefix: string,
-  storage: StorageServiceApi = globalStorageAdapter(),
+  storage: StorageServiceApi,
 ): QueriesPersister {
   const _injector = inject(Injector);
   const queriesMap = signal(
@@ -267,6 +256,7 @@ export function localStoragePersister(
     addQueryToPersist(data: PersistedQuery): void {
       const {
         key,
+        storeName,
         queryResource,
         queryResourceParamsSrc,
         waitForParamsSrcToBeEqualToPreviousValue,
@@ -275,7 +265,7 @@ export function localStoragePersister(
         validate,
       } = data;
 
-      const storageKey = getStorageKey(prefix, key, 'resource');
+      const storageKey = getStorageKey(storeName ?? prefix, key, 'resource');
       const storedValue = storage.getItem(storageKey);
       if (storedValue && !waitForParamsSrcToBeEqualToPreviousValue) {
         try {
@@ -300,7 +290,7 @@ export function localStoragePersister(
         }
       }
       queriesMap.update((map) => {
-        map.set(key, {
+        map.set(getPersisterMapKey(storeName ?? prefix, key), {
           queryResource,
           queryResourceParamsSrc,
           storageKey,
@@ -315,10 +305,10 @@ export function localStoragePersister(
     },
 
     addQueryByIdToPersist(data: PersistedQueryById): void {
-      const { key, queryByIdResource, queryResourceParamsSrc, cacheTime, staleTime, validate } =
+      const { key, storeName, queryByIdResource, queryResourceParamsSrc, cacheTime, staleTime, validate } =
         data;
 
-      const storageKey = getStorageKey(prefix, key, 'resourceById');
+      const storageKey = getStorageKey(storeName ?? prefix, key, 'resourceById');
       let storedValue: QueryByIdStored | undefined;
         try {
         storedValue = JSON.parse(storage.getItem(storageKey) || 'null');
@@ -355,7 +345,7 @@ export function localStoragePersister(
         }
       }
       queriesByIdMap.update((map) => {
-        map.set(key, {
+        map.set(getPersisterMapKey(storeName ?? prefix, key), {
           queryByIdResource,
           queryResourceParamsSrc,
           storageKey,
@@ -370,25 +360,29 @@ export function localStoragePersister(
 
     clearQuery(queryKey: string): void {
       queriesMap.update((map) => {
-        map.delete(queryKey);
-        storage.removeItem(getStorageKey(prefix, queryKey, 'resource'));
+        for (const [mapKey, query] of map) {
+          if (query.key !== queryKey) continue;
+          map.delete(mapKey);
+          storage.removeItem(query.storageKey);
+        }
         return map;
       });
     },
 
     clearQueryBy(queryByIdKey: string): void {
       queriesByIdMap.update((map) => {
-        map.delete(queryByIdKey);
-        storage.removeItem(
-          getStorageKey(prefix, queryByIdKey, 'resourceById')
-        );
+        for (const [mapKey, query] of map) {
+          if (query.key !== queryByIdKey) continue;
+          map.delete(mapKey);
+          storage.removeItem(query.storageKey);
+        }
         return map;
       });
     },
 
     clearAllQueries(): void {
-      queriesMap().forEach((_, key) => {
-        storage.removeItem(getStorageKey(prefix, key, 'resource'));
+      queriesMap().forEach((query) => {
+        storage.removeItem(query.storageKey);
       });
       queriesMap.update((map) => {
         map.clear();
@@ -397,8 +391,8 @@ export function localStoragePersister(
     },
 
     clearAllQueriesById(): void {
-      queriesByIdMap().forEach((_, key) => {
-        storage.removeItem(getStorageKey(prefix, key, 'resourceById'));
+      queriesByIdMap().forEach((query) => {
+        storage.removeItem(query.storageKey);
       });
       queriesByIdMap.update((map) => {
         map.clear();
@@ -408,6 +402,21 @@ export function localStoragePersister(
     clearAllCache(): void {
       this.clearAllQueriesById();
       this.clearAllQueries();
+
+      // Also remove entries restored from a previous application lifetime.
+      // The global handler delegates here so cleanup follows the selected
+      // storage backend instead of reaching for browser storage directly.
+      const keysToRemove: string[] = [];
+      const storageLength = storage.length();
+
+      for (let index = 0; index < storageLength; index++) {
+        const keyName = storage.key(index);
+        if (keyName?.startsWith('ng-craft-')) {
+          keysToRemove.push(keyName);
+        }
+      }
+
+      keysToRemove.forEach((keyName) => storage.removeItem(keyName));
     },
   };
 }
@@ -434,6 +443,10 @@ type QueryByIdStored = {
 
 function getStorageKey(prefix: string, key: string, type: string) {
   return `ng-craft-${prefix}-${type}-${key}`;
+}
+
+function getPersisterMapKey(prefix: string, key: string): string {
+  return `${prefix}\u0000${key}`;
 }
 
 function isValueExpired(timestamp: number, cacheTime: number): boolean {

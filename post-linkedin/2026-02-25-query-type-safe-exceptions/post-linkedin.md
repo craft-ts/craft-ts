@@ -21,7 +21,7 @@ Et par rapport aux resources Angular, qu’est-ce qu’il y a en plus ?
 - queries parallèles (via identifier), avec une API pensée pour ce cas
 - dernière valeur préservée pendant le loading pour éviter le flickering
 - système d’insertions composables :
-  - persistance localStorage (`insertLocalStoragePersister`)
+  - persistance via le backend de stockage configuré (`insertStoragePersister`)
   - smart loading
   - propriétés dérivées
   - interaction native avec les mutations (`optimistic update` / `reload on failure`)

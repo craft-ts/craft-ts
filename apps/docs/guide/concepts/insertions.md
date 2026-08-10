@@ -5,7 +5,7 @@ what to expose on it. It is how behaviour gets attached to state — and how it
 gets reused.
 
 **Use one** whenever a primitive needs methods, computed values, or a ready-made
-behaviour like localStorage sync.
+behaviour like storage persistence.
 Every primitive accepts one insertion directly. For several insertions, prefer
 the typed helper for that primitive; see
 [Typed insertion pipes](/guide/concepts/insertion-pipes). Use `craftPipe` when
@@ -18,7 +18,7 @@ compose in the same pipe:
 
 ```typescript
 import {
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
   insertQueryPipe,
@@ -36,7 +36,7 @@ const users = yield* query(
     },
   },
   insertQueryPipe(
-    insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
+    insertStoragePersister({ storeName: 'app', key: 'users' }),
     insertPaginationPlaceholderData({ initialValue: [] as User[] }),
     insertReactOnMutation(deleteUser, {
       filter: ({ mutationIdentifier, queryResource }) =>
@@ -58,7 +58,7 @@ primitive call free of context plumbing.
 Pass it directly:
 
 ```typescript
-const user = yield* query('user', config, insertLocalStoragePersister({ … }));
+const user = yield* query('user', config, insertStoragePersister({ … }));
 ```
 
 :::
@@ -113,7 +113,7 @@ const board = yield* state(
   'board',
   { ui: { activeColor: 'black' }, grid: createInitialGrid() },
   insertStatePipe(
-    insertLocalStoragePersister({ storeName: 'app', key: 'board' }),
+    insertStoragePersister({ storeName: 'app', key: 'board' }),
     () => ({ resetAll$: source$<void>('resetAll$') }),
     insertSelect('grid', (gridContext) =>
       craftPipe(

@@ -1,9 +1,9 @@
-import { LocalStorageService } from './browser-boundaries';
 import {
   craftService,
   type CraftServiceApi,
   type ServiceTrackingMetadata,
 } from './craft-service';
+import { StoragePersister } from './storage-persister.service';
 
 export type GlobalPersisterHandlerServiceApi = {
   clearAllCache(): void;
@@ -11,12 +11,12 @@ export type GlobalPersisterHandlerServiceApi = {
 
 type GlobalPersisterHandlerServiceCraftApi = CraftServiceApi<
   'GlobalPersisterHandlerService',
-  'global',
+  'toProvide',
   {},
   GlobalPersisterHandlerServiceApi,
   ServiceTrackingMetadata<
     'GlobalPersisterHandlerService',
-    'global',
+    'toProvide',
     GlobalPersisterHandlerServiceApi,
     unknown
   >
@@ -24,10 +24,11 @@ type GlobalPersisterHandlerServiceCraftApi = CraftServiceApi<
 
 /**
  * Yields the global craft service responsible for clearing persisted `@craft-ng`
- * cache entries from `localStorage`.
+ * cache entries from the configured storage persister.
  *
- * This helper returns a singleton service created with `craftService({ scope: 'global' })`.
- * It removes every persisted entry whose key starts with `ng-craft-`, which makes it
+ * This helper is provided at the application root and can follow the
+ * `StoragePersister` selected by the current injector.
+ * It removes every persisted entry from the selected backend, which makes it
  * useful for logout flows, account switches, or any full cache reset.
  *
  * @example
@@ -38,7 +39,7 @@ type GlobalPersisterHandlerServiceCraftApi = CraftServiceApi<
  *   // Consume GlobalPersisterHandlerService inside a craft generator.
  *
  *   logout() {
- *     // Clear all @craft-ng cached data from localStorage.
+ *     // Clear all @craft-ng cached data from the configured backend.
  *     this.persisterHandler.clearAllCache();
  *   }
  * }
@@ -48,31 +49,14 @@ const globalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi =
   craftService(
     {
       name: 'GlobalPersisterHandlerService',
-      scope: 'global',
+      scope: 'toProvide',
     },
     function* () {
-      const storage = yield* LocalStorageService(
-        undefined,
-        ({ key, length, removeItem }) => ({
-          key,
-          length,
-          removeItem,
-        }),
-      );
+      const persister = yield* StoragePersister();
 
       return {
         clearAllCache(): void {
-          const keysToRemove: string[] = [];
-          const storageLength = storage.length();
-
-          for (let index = 0; index < storageLength; index++) {
-            const keyName = storage.key(index);
-            if (keyName?.startsWith('ng-craft-')) {
-              keysToRemove.push(keyName);
-            }
-          }
-
-          keysToRemove.forEach((keyName) => storage.removeItem(keyName));
+          persister.clearAllCache();
         },
       };
     },
@@ -80,5 +64,7 @@ const globalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi =
 
 export const GlobalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi['GlobalPersisterHandlerService'] =
   globalPersisterHandlerService.GlobalPersisterHandlerService;
+export const provideGlobalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi['provideGlobalPersisterHandlerService'] =
+  globalPersisterHandlerService.provideGlobalPersisterHandlerService;
 export const GLOBAL_PERSISTER_HANDLER_SERVICE_META_DATA: GlobalPersisterHandlerServiceCraftApi['GLOBAL_PERSISTER_HANDLER_SERVICE_META_DATA'] =
   globalPersisterHandlerService.GLOBAL_PERSISTER_HANDLER_SERVICE_META_DATA;

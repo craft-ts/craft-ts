@@ -10,7 +10,7 @@ Resources and information about @craft-ng/core for articles, presentations, and 
 
 ### Long Description
 
-@craft-ng/core is a reactive state management tool designed specifically for Angular applications. It focuses on managing URL, Client, and Server state, allowing developers to concentrate on business value and user experience. Built on Angular Signals with optional RxJS support, @craft-ng/core provides type-safe primitives and composable stores that integrate seamlessly into your components and services. The library promotes granular, declarative state management with powerful features like automatic localStorage synchronization, optimistic updates, and smart loading states.
+@craft-ng/core is a reactive state management tool designed specifically for Angular applications. It focuses on managing URL, Client, and Server state, allowing developers to concentrate on business value and user experience. Built on Angular Signals with optional RxJS support, @craft-ng/core provides type-safe primitives and composable stores that integrate seamlessly into your components and services. The library promotes granular, declarative state management with configurable storage persistence (localStorage by default), optimistic updates, and smart loading states.
 
 ## Key Features
 
@@ -56,7 +56,7 @@ Excited to share @craft-ng/core - a new reactive state management tool for Angul
 • URL parameter synchronization
 • Server data queries with caching
 • Optimistic mutations
-• localStorage persistence
+• Configurable storage persistence (localStorage by default)
 • And much more!
 
 Check it out: [link]

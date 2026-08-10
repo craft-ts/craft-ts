@@ -354,7 +354,7 @@ Resultat: UX plus fluide, moins de flicker.
 
 Pour synchroniser automatiquement le cache query avec le resultat d'une mutation (patch/optimistic/reload selon le besoin).
 
-### insertLocalStoragePersister (state/query/asyncProcess)
+### insertStoragePersister (state/query/asyncProcess)
 
 Pour persister et rehydrater automatiquement avec localStorage.
 Tres utile pour garder l'état entre sessions.

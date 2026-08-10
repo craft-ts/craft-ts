@@ -12,7 +12,7 @@ import {
 import {
   craftMethod,
   CraftRouter,
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertQueryPipe,
   query,
 } from '@craft-ng/core';
@@ -36,7 +36,7 @@ const GlobalQuery = craftComponent(
       },
       insertQueryPipe(
         ({ resource }) => ({ hasUser: computed(() => resource.hasValue()) }),
-        insertLocalStoragePersister({
+        insertStoragePersister({
           storeName: 'demo-app',
           key: 'user-query',
         }),

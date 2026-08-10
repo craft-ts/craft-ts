@@ -851,7 +851,7 @@ type IsArray<T> = T extends any[] ? true : false;
  * @example
  * ```ts
  * state(initialCells, insertStatePipe(
- *     insertLocalStoragePersister({ storeName: 'app', key: 'cells' }),
+ *     insertStoragePersister({ storeName: 'app', key: 'cells' }),
  *     insertSelect('cell', ({ update }) => ({
  *       paint: () => update((cell) => ({ ...cell, painted: true })),
  *     })),

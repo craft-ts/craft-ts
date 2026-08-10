@@ -29,7 +29,7 @@ features:
   - title: One API for every kind of state
     details: state, query, mutation, queryParams and asyncProcess share the same shape — a name, a config, insertions. Learn one and you know all five.
   - title: Highly composable
-    details: State composes with insertions, components with directives, and both through .pipe(...) — localStorage sync, optimistic updates, forms, permissions. Library behaviour and yours are the same kind of function.
+    details: State composes with insertions, components with directives, and both through .pipe(...) — storage persistence, optimistic updates, forms, permissions. Library behaviour and yours are the same kind of function.
   - title: Services are functions, not classes
     details: 'A service is a factory with a name and a scope: clear inputs, clear outputs. Yield it where you need it — no @Injectable, no constructor.'
   - title: Selectorless, tagless components

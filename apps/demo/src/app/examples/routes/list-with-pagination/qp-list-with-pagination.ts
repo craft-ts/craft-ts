@@ -11,7 +11,7 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertPaginationPlaceholderData,
   insertQueryPipe,
   query,
@@ -47,7 +47,7 @@ const QpListWithPagination = craftComponent(
         },
       },
       insertQueryPipe(
-        insertLocalStoragePersister({
+        insertStoragePersister({
           storeName: 'demo-app',
           key: 'route-list-with-pagination',
         }),

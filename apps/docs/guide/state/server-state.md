@@ -123,7 +123,11 @@ value" to preserve — the option is ignored on that path.
 Rather than reloading by hand after a write, declare the link:
 
 ```typescript
-import { insertQueryPipe, insertReactOnMutation } from '@craft-ng/core';
+import {
+  insertQueryPipe,
+  insertReactOnMutation,
+  insertStoragePersister,
+} from '@craft-ng/core';
 
 const userQuery = yield* query(
   'userQuery',
@@ -141,7 +145,7 @@ const userQuery = yield* query(
         // and go get the truth back if the mutation failed
         reload: { onMutationException: true },
       }),
-      insertLocalStoragePersister({
+      insertStoragePersister({
         storeName: 'demo-app',
         key: 'user-query',
       }),

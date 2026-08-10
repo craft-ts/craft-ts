@@ -46,9 +46,9 @@ type _UsersQueryDependsOnApiService = Expect<
   >
 >;
 
-type _UsersQueryDependsOnLocalStorageService = Expect<
+type _UsersQueryDependsOnStoragePersister = Expect<
   Equal<
-    'LocalStorageService' extends keyof ExtractDeps<ListLogic['usersQuery']>
+      'StoragePersister' extends keyof ExtractDeps<ListLogic['usersQuery']>
       ? true
       : false,
     true
@@ -276,7 +276,7 @@ describe('primitive list with pagination logic', () => {
         register: {
           Router: 'real',
           ApiService: { getDataList },
-          LocalStorageService: storage,
+          StoragePersister: storage,
         },
         providers: [provideRouter([])],
       },

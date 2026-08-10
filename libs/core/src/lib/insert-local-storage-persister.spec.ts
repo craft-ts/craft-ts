@@ -2,14 +2,39 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asyncProcess } from './async-process';
-import { insertLocalStoragePersister } from './insert-local-storage-persister';
+import { insertStoragePersister } from './insert-storage-persister';
 import { mutation } from './mutation';
 import { query } from './query';
 import { state } from './state';
 import { craftPipe } from './craft-pipe';
 import { craftUse } from './craft-use';
+import type { GetServiceOutput } from './craft-service';
+import {
+  LocalStoragePersister,
+  provideLocalStoragePersister,
+  provideSessionStoragePersister,
+  provideStoragePersister,
+  SessionStoragePersister,
+  type StoragePersisterApi,
+} from './storage-persister.service';
 
-describe('insertLocalStoragePersister', () => {
+type _LocalStoragePersisterMatchesContract = GetServiceOutput<
+  typeof LocalStoragePersister
+> extends StoragePersisterApi
+  ? true
+  : never;
+type _SessionStoragePersisterMatchesContract = GetServiceOutput<
+  typeof SessionStoragePersister
+> extends StoragePersisterApi
+  ? true
+  : never;
+const storagePersisterContractChecks: [
+  _LocalStoragePersisterMatchesContract,
+  _SessionStoragePersisterMatchesContract,
+] = [true, true];
+void storagePersisterContractChecks;
+
+describe('insertStoragePersister', () => {
   beforeEach(() => {
     const store: Record<string, string> = {};
 
@@ -32,6 +57,15 @@ describe('insertLocalStoragePersister', () => {
 
     vi.stubGlobal('localStorage', storage);
     vi.spyOn(window, 'localStorage', 'get').mockReturnValue(storage);
+    TestBed.configureTestingModule({
+      providers: [
+        provideLocalStoragePersister(),
+        provideSessionStoragePersister(),
+        provideStoragePersister(function* () {
+          return yield* LocalStoragePersister();
+        }),
+      ],
+    });
     vi.useFakeTimers();
   });
 
@@ -60,7 +94,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myTestQuery',
             waitForParamsSrcToBeEqualToPreviousValue: false,
@@ -82,7 +116,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myTestQueryById',
           }),
@@ -123,7 +157,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: params };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myMutation',
           }),
@@ -140,7 +174,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: params };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myMutationById',
           }),
@@ -182,7 +216,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: params };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myAsyncProcess',
           }),
@@ -199,7 +233,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: params };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myAsyncProcessById',
           }),
@@ -253,7 +287,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myStaleQuery',
             waitForParamsSrcToBeEqualToPreviousValue: false,
@@ -289,7 +323,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'mySWRQuery',
             waitForParamsSrcToBeEqualToPreviousValue: false,
@@ -337,7 +371,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myStaleQueryById',
             cacheTime: 60000,
@@ -385,7 +419,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: `server:${params}` };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myFreshQueryById',
             cacheTime: 60000,
@@ -422,7 +456,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: `server:${params}`, version: 2 };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myValidatedQuery',
             waitForParamsSrcToBeEqualToPreviousValue: false,
@@ -464,7 +498,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: `server:${params}`, version: 1 };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myValidatedQuery2',
             waitForParamsSrcToBeEqualToPreviousValue: false,
@@ -507,7 +541,7 @@ describe('insertLocalStoragePersister', () => {
               return { data: `server:${params}`, version: 2 };
             },
           },
-          insertLocalStoragePersister({
+          insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myValidatedQueryById',
             validate: (v): v is { data: string; version: number } =>
@@ -536,7 +570,7 @@ describe('insertLocalStoragePersister', () => {
             ({ set }) => ({
               setValue: (value: number) => set(value),
             }),
-            insertLocalStoragePersister({
+            insertStoragePersister({
               storeName: 'myTestStore',
               key: 'myState',
             }),
@@ -573,7 +607,7 @@ describe('insertLocalStoragePersister', () => {
       const restoredState = craftUse(state(
           'restoredState',
           0,
-          insertLocalStoragePersister({
+            insertStoragePersister({
             storeName: 'myTestStore',
             key: 'myStateRestored',
           }),

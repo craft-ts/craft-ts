@@ -13,6 +13,11 @@ import {
   isCraftGenShortCircuit,
   provideCorrelationIdTracking,
   provideCraftRouter,
+  provideGlobalPersisterHandlerService,
+  provideLocalStoragePersister,
+  provideSessionStoragePersister,
+  provideStoragePersister,
+  LocalStoragePersister,
   provideFnWrapper,
   provideTakeAppSnapshot,
   withCraftViewTransitions,
@@ -47,6 +52,12 @@ export const appConfig = craftAppConfig({
     // logs MCP server can read it back.
     provideLogForwarding(),
     provideDemoTracing(),
+    provideGlobalPersisterHandlerService(),
+    provideLocalStoragePersister(),
+    provideSessionStoragePersister(),
+    provideStoragePersister(function* () {
+      return yield* LocalStoragePersister();
+    }),
     provideCraftRootComponent(App),
     provideCraftGlobalErrorComponent(MyGlobalErrorScreen),
     provideCraftRouteLoadErrorComponent(MyRouteLoadErrorScreen),

@@ -89,6 +89,12 @@ A query accepts a single insertion, so compose them with
 readable:
 
 ```typescript
+import {
+  insertQueryPipe,
+  insertReactOnMutation,
+  insertStoragePersister,
+} from '@craft-ng/core';
+
 const { users } = query(
   'users',
   {
@@ -99,7 +105,7 @@ const { users } = query(
     },
   },
   insertQueryPipe(
-      insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
+      insertStoragePersister({ storeName: 'app', key: 'users' }),
       insertReactOnMutation(deleteUser, {
         filter: ({ mutationIdentifier, queryResource }) =>
           !!queryResource.value()?.some((u) => u.id === mutationIdentifier),

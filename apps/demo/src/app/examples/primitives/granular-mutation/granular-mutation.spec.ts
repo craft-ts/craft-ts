@@ -47,9 +47,9 @@ type _UsersQueryDependsOnApiService = Expect<
   >
 >;
 
-type _UsersQueryDependsOnLocalStorageService = Expect<
+type _UsersQueryDependsOnStoragePersister = Expect<
   Equal<
-    'LocalStorageService' extends keyof ExtractDeps<GranularLogic['usersQuery']>
+      'StoragePersister' extends keyof ExtractDeps<GranularLogic['usersQuery']>
       ? true
       : false,
     true
@@ -254,7 +254,7 @@ describe('primitive granular mutation logic', () => {
       {
         register: {
           ApiService: { getDataList, updateItem },
-          LocalStorageService: storage,
+          StoragePersister: storage,
           Router: 'real',
         },
         providers: [provideRouter([])],

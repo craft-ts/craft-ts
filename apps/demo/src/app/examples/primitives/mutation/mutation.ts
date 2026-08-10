@@ -11,7 +11,7 @@ import {
 } from '@craft-ng/component';
 import {
   CraftRouter,
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertReactOnMutation,
   insertQueryPipe,
   mutation,
@@ -52,7 +52,7 @@ const MutationDemoComponent = craftComponent(
       },
       insertQueryPipe(
         ({ resource }) => ({ hasUser: computed(() => resource.hasValue()) }),
-        insertLocalStoragePersister({
+        insertStoragePersister({
           storeName: 'demo-app',
           key: 'mutation',
         }),

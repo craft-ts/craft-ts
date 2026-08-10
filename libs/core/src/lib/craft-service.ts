@@ -2006,7 +2006,7 @@ type AbstractHelper<Name extends string, Contract> = {
   >;
 };
 
-type AbstractServiceApi<Name extends string, Contract> = RequirementHelper<
+export type AbstractServiceApi<Name extends string, Contract> = RequirementHelper<
   Name,
   Contract
 > &

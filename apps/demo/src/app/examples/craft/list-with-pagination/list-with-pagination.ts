@@ -17,7 +17,7 @@ import {
   craftComputed,
   craftMethod,
   craftService,
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertPaginationPlaceholderData,
   insertQueryPipe,
   query,
@@ -49,7 +49,7 @@ export const { provideUserList, UserList } = craftService(
         },
       },
       insertQueryPipe(
-        insertLocalStoragePersister({
+        insertStoragePersister({
           storeName: 'demo-app-craft',
           key: 'list-with-pagination',
         }),

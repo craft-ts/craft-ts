@@ -14,7 +14,7 @@ import {
   craftComputed,
   craftMethod,
   craftService,
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertReactOnMutation,
   insertQueryPipe,
   mutation,
@@ -47,7 +47,7 @@ export const { provideUserMutation, UserMutation } = craftService(
         preservePreviousValue: () => true,
       },
       insertQueryPipe(
-        insertLocalStoragePersister({
+        insertStoragePersister({
           storeName: 'demo-app-craft',
           key: 'mutation',
         }),

@@ -139,10 +139,10 @@ describe('require-primitive-derived-property', () => {
     const { output, messages } = await lintFixture(
       {
         'src/app/demo.ts': `
-          import { craftComponent, craftComputed, insertLocalStoragePersister, query } from '@craft-ng/core';
+          import { craftComponent, craftComputed, insertStoragePersister, query } from '@craft-ng/core';
 
           const Demo = craftComponent('Demo', {}, function* () {
-            const userQuery = yield* query('userQuery', {}, insertLocalStoragePersister({ key: 'user' }));
+            const userQuery = yield* query('userQuery', {}, insertStoragePersister({ key: 'user' }));
             const total = craftComputed('total', () => userQuery.value()?.length ?? 0);
             return { userQuery, total };
           }, () => null);
@@ -153,10 +153,10 @@ describe('require-primitive-derived-property', () => {
 
     expect(messages).toEqual([]);
     expect(output).toContain(
-      "import { craftComponent, craftComputed, insertLocalStoragePersister, query, insertQueryPipe } from '@craft-ng/core';",
+      "import { craftComponent, craftComputed, insertStoragePersister, query, insertQueryPipe } from '@craft-ng/core';",
     );
     expect(output).toContain(
-      "insertQueryPipe(insertLocalStoragePersister({ key: 'user' }), ({ state }) => ({ total: computed(() => state()?.length ?? 0) }))",
+      "insertQueryPipe(insertStoragePersister({ key: 'user' }), ({ state }) => ({ total: computed(() => state()?.length ?? 0) }))",
     );
     expect(output).toContain("import { computed } from '@angular/core';");
   });

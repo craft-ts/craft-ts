@@ -44,7 +44,7 @@ each carrying its own status, exceptions and derived values.
 - **Declarative read/write links.** `insertReactOnMutation` connects a mutation
   to the queries it invalidates, including optimistic updates with automatic
   rollback — instead of calling `refetch()` from the call site.
-- **Composable behaviour.** Insertions (localStorage sync, pagination
+- **Composable behaviour.** Insertions (storage persistence, pagination
   placeholders, entity collections) are plain functions of the same shape as the
   ones you write.
 

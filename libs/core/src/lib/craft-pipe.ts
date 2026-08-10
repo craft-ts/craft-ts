@@ -51,7 +51,7 @@ type MergedIns<Ctx extends { insertions?: any }, I> = NormalizeIns<
  *   (context) =>
  *     craftPipe(
  *       context,
- *       insertLocalStoragePersister({ storeName: 'app', key: 'users' }),
+ *       insertStoragePersister({ storeName: 'app', key: 'users' }),
  *       insertReactOnMutation(deleteUser, { ... }),
  *     ),
  * ));

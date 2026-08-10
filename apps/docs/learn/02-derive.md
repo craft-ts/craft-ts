@@ -253,7 +253,7 @@ slice. This is what makes behaviour **reusable**: an insertion is just a
 function, so it can be extracted, parameterised and shared.
 
 ::: tip That's what "insertions" are
-The library ships ready-made ones — localStorage sync, optimistic updates,
+The library ships ready-made ones — storage persistence, optimistic updates,
 pagination placeholders, forms. They are the exact same shape as the functions
 you just wrote. See [Insertions](/guide/concepts/insertions).
 :::

@@ -9,7 +9,7 @@ Ce que je pense mettre en place et qui n'est pas inclus dans le code de base du 
 - Erreurs et warnings de validation type-safe : toutes les erreurs possibles seront typées et accessibles de façon déclarative.
 - Gestion de la logique incluse dans le formulaire (ex : un array où on souhaite ajouter un élément)
 - Le formulaire est en « readonly » et il faut utiliser les méthodes exposées pour le mettre à jour, ce qui permet de mieux contrôler les mises à jour et d'éviter les mutations directes
-- S'intègre parfaitement avec les autres primitives (ex : query pour charger les données initiales, mutation pour soumettre le formulaire, validations asynchrones, possibilité d'utiliser des insertions existantes comme insertLocalStoragePersister)
+- S'intègre parfaitement avec les autres primitives (ex : query pour charger les données initiales, mutation pour soumettre le formulaire, validations asynchrones, possibilité d'utiliser des insertions existantes comme insertStoragePersister)
 - Gestion des formulaires en parallèle (ex : plusieurs formulaires sur la même page, cas des mutations granulaires, une liste d'entités avec un formulaire par entité pour les mettre à jour en parallèle)
 
 Je commence à réfléchir à ce que cela peut donner en termes d'API, voici une ébauche.

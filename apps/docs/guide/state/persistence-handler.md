@@ -1,6 +1,7 @@
 # GlobalPersisterHandler
 
-Clears everything `@craft-ng` has persisted to localStorage, in one call.
+Clears everything `@craft-ng` has persisted through the active
+`StoragePersister`, in one call.
 
 **Use it when** cached data must not outlive a session boundary: logout,
 switching accounts, a "reset the app" action.
@@ -13,12 +14,20 @@ goes.
 :::
 
 ```typescript
-import { GlobalPersisterHandlerService } from '@craft-ng/core';
+import {
+  GlobalPersisterHandlerService,
+  provideGlobalPersisterHandlerService,
+} from '@craft-ng/core';
+
+providers: [provideGlobalPersisterHandlerService()];
 ```
 
 ## How it works
 
-The underlying global `craftService` scans all keys in `localStorage` and removes any key that starts with the `ng-craft-` prefix. This ensures complete cleanup of all data cached by `@craft-ng`, including:
+The handler delegates to the active `StoragePersister`. The built-in
+localStorage and sessionStorage implementations remove every key that starts
+with the `ng-craft-` prefix from their respective backend. This ensures
+complete cleanup of all data cached by `@craft-ng`, including:
 
 - Persisted queries
 - Persisted mutations
@@ -31,7 +40,7 @@ The underlying global `craftService` scans all keys in `localStorage` and remove
 import { craftService, GlobalPersisterHandlerService } from '@craft-ng/core';
 
 const { LogoutHandler } = craftService(
-  { name: 'LogoutHandler', scope: 'global' },
+  { name: 'LogoutHandler', scope: 'toProvide' },
   function* () {
     const persister = yield* GlobalPersisterHandlerService();
 
@@ -46,7 +55,7 @@ const { LogoutHandler } = craftService(
 
 ```typescript
 const { CacheActions } = craftService(
-  { name: 'CacheActions', scope: 'global' },
+  { name: 'CacheActions', scope: 'toProvide' },
   function* () {
     const persister = yield* GlobalPersisterHandlerService();
     return { clearCache: () => persister.clearAllCache() };
@@ -58,7 +67,7 @@ const { CacheActions } = craftService(
 
 ```typescript
 const { AccountSwitcher } = craftService(
-  { name: 'AccountSwitcher', scope: 'global' },
+  { name: 'AccountSwitcher', scope: 'toProvide' },
   function* () {
     const persister = yield* GlobalPersisterHandlerService();
     return {
@@ -87,7 +96,8 @@ logout() {
 
 ### 2. Privacy Compliance
 
-Ensure no sensitive data remains in localStorage after a user session ends.
+Ensure no sensitive data remains in the selected storage backend after a user
+session ends.
 
 ```typescript
 ngOnDestroy() {

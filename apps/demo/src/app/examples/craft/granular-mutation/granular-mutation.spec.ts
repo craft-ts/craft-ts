@@ -246,7 +246,7 @@ describe('craft granular mutation logic', () => {
         register: {
           GranularMutation: provideGranularMutation(),
           ApiService: { getDataList, updateItem },
-          LocalStorageService: storage,
+          StoragePersister: storage,
           Router: 'real',
         } as never,
         providers: [provideRouter([])],

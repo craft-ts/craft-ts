@@ -46,7 +46,7 @@ The same features, packaged behind `craftService`.
 
 | Example | What it shows |
 | --- | --- |
-| [Craft Query](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/query/query.ts&initialpath=/craft/query/1) | A reusable query service, with localStorage persistence |
+| [Craft Query](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/query/query.ts&initialpath=/craft/query/1) | A reusable query service with configured storage persistence (localStorage by default) |
 | [Craft Mutation](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/mutation/mutation.ts&initialpath=/craft/mutation/1) | Create / update / delete with reactive cache synchronisation |
 | [Craft List Pagination](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/list-with-pagination/list-with-pagination.ts&initialpath=/craft/list-with-pagination) | `queryParams` + `insertPaginationPlaceholderData` in a service |
 | [Craft Granular Mutation](https://stackblitz.com/github/ng-angular-stack/ng-craft-demo/tree/main/?file=src/app/examples/craft/granular-mutation/granular-mutation.ts&initialpath=/craft/granular-mutation) | `insertReactOnMutation` updating cached data without a reload |

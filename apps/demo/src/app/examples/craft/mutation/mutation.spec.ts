@@ -52,9 +52,9 @@ type _UserQueryDependsOnApiService = Expect<
   >
 >;
 
-type _UserQueryDependsOnLocalStorageService = Expect<
+type _UserQueryDependsOnStoragePersister = Expect<
   Equal<
-    'LocalStorageService' extends keyof ExtractDeps<
+      'StoragePersister' extends keyof ExtractDeps<
       MutationLogic['store']['user']
     >
       ? true
@@ -289,7 +289,7 @@ describe('craft mutation logic', () => {
         register: {
           UserMutation: provideUserMutation(),
           ApiService: { getItemById, updateItem },
-          LocalStorageService: storage,
+          StoragePersister: storage,
           CraftRouter: { navigate },
         } as never,
       },

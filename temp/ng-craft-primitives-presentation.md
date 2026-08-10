@@ -91,7 +91,7 @@ const userQuery = query(
     // Reload si échec
     reload: { onMutationError: true },
   }),
-  insertLocalStoragePersister({
+  insertStoragePersister({
     storeName: 'demo-app',
     key: 'user-query',
   }),
@@ -254,7 +254,7 @@ Ajouter des **𝐢𝐧𝐬𝐞𝐫𝐭𝐢𝐨𝐧𝐬** pour étendre leurs fon
 
 ### Les insertions disponibles :
 
-🔧 **insertLocalStoragePersister** - persiste tes queries
+🔧 **insertStoragePersister** - persiste tes queries avec le backend configuré
 🔧 **insertReactOnMutation** - mise à jour optimiste automatique
 🔧 **insertEntities** - gestion simplifiée de listes
 🔧 **insertPaginationPlaceholderData** - données placeholder pour la pagination

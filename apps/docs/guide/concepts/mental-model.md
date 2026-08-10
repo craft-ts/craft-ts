@@ -68,20 +68,21 @@ template".
 ### Composition instead of configuration
 
 Behaviour is added by **insertions** — plain functions that receive a
-primitive's internals and return what to expose. localStorage sync, optimistic
-updates and forms are all the same shape as one you'd write yourself:
+primitive's internals and return what to expose. Storage persistence, optimistic
+updates and forms are all the same shape as one you'd write yourself. Storage
+persistence uses the backend selected through DI:
 
 ```typescript
 const { myState } = state(
   'myState',
   0,
-  insertLocalStoragePersister({ storeName: 'myStore', key: 'myState' }),
+  insertStoragePersister({ storeName: 'myStore', key: 'myState' }),
 );
 
 const { myQuery } = query(
   'myQuery',
   { params: () => 1, loader: /* … */ },
-  insertLocalStoragePersister({ storeName: 'myStore', key: 'myUserQuery' }),
+  insertStoragePersister({ storeName: 'myStore', key: 'myUserQuery' }),
 );
 ```
 

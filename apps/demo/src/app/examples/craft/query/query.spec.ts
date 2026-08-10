@@ -47,9 +47,9 @@ describe('Craft query template', () => {
     >
   >;
 
-  type _UserQueryDependsOnLocalStorageService = Expect<
+type _UserQueryDependsOnStoragePersister = Expect<
     Equal<
-      'LocalStorageService' extends keyof ExtractDeps<QueryLogic['user']>
+      'StoragePersister' extends keyof ExtractDeps<QueryLogic['user']>
         ? true
         : false,
       true
@@ -179,7 +179,7 @@ describe('Craft query logic', () => {
         UserQuery: { $self: userQuery },
         ApiService: 'notReached',
         ConsoleService: 'notReached',
-        LocalStorageService: 'notReached',
+        StoragePersister: 'notReached',
         CraftRouter: { navigate },
       },
     });

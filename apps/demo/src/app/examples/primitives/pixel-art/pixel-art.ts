@@ -12,7 +12,7 @@ import {
   span,
 } from '@craft-ng/component';
 import {
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertSelect,
   insertStatePipe,
   state,
@@ -40,7 +40,7 @@ const PixelArt = craftComponent(
           setActiveColor: (activeColor: string) =>
             update(() => ({ activeColor })),
         }),
-        insertLocalStoragePersister({
+        insertStoragePersister({
           key: 'pixel-art-ui-state',
           storeName: 'pixel-art-ui',
         }),
@@ -54,7 +54,7 @@ const PixelArt = craftComponent(
         paintCount: 0,
       })),
       insertStatePipe(
-        insertLocalStoragePersister({
+        insertStoragePersister({
           key: 'pixel-art-cells-state',
           storeName: 'pixel-art-cells',
         }),

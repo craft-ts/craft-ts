@@ -14,7 +14,7 @@ import {
 import {
   craftMethod,
   craftService,
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertPaginationPlaceholderData,
   insertQueryPipe,
   insertReactOnMutation,
@@ -55,7 +55,7 @@ export const { provideGranularMutation, GranularMutation } = craftService(
         },
       },
       insertQueryPipe(
-        insertLocalStoragePersister({
+        insertStoragePersister({
           storeName: 'demo-app-craft',
           key: 'granular',
         }),

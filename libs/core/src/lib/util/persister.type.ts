@@ -3,6 +3,8 @@ import { ResourceByIdRef } from '../resource-by-id';
 
 export interface PersistedQuery {
   key: string;
+  /** Optional per-insertion namespace; defaults to the persister namespace. */
+  storeName?: string;
   queryResource: ResourceRef<any>;
   queryResourceParamsSrc: Signal<unknown>;
   waitForParamsSrcToBeEqualToPreviousValue: boolean;
@@ -15,6 +17,8 @@ export interface PersistedQuery {
 
 export interface PersistedQueryById {
   key: string;
+  /** Optional per-insertion namespace; defaults to the persister namespace. */
+  storeName?: string;
   queryByIdResource: ResourceByIdRef<string, unknown, unknown>;
   queryResourceParamsSrc: Signal<unknown>;
   cacheTime: number;

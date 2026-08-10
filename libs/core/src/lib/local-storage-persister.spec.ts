@@ -1,9 +1,12 @@
 import { resource, signal } from '@angular/core';
-import { localStoragePersister } from './local-storage-persister';
+import { createStoragePersister } from './local-storage-persister';
+import type { StorageServiceApi } from './browser-boundaries';
 import { vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 
-describe('localStoragePersister', () => {
+describe('createStoragePersister', () => {
+  let storage: StorageServiceApi;
+
   beforeEach(() => {
     const store: Record<string, string> = {};
 
@@ -18,7 +21,10 @@ describe('localStoragePersister', () => {
       clear: vi.fn(() => {
         Object.keys(store).forEach((k) => delete store[k]);
       }),
+      key: vi.fn((index: number) => Object.keys(store)[index] ?? null),
+      length: vi.fn(() => Object.keys(store).length),
     };
+    storage = mockLocalStorage;
     vi.stubGlobal('localStorage', mockLocalStorage);
     vi.useFakeTimers();
   });
@@ -39,7 +45,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -94,7 +100,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -131,7 +137,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -190,7 +196,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -236,7 +242,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -276,7 +282,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -326,7 +332,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -368,7 +374,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -412,7 +418,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -465,7 +471,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
 
       persister.addQueryToPersist({
         key: 'user',
@@ -511,7 +517,7 @@ describe('localStoragePersister', () => {
       });
       const reloadSpy = vi.spyOn(queryResource, 'reload');
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -549,7 +555,7 @@ describe('localStoragePersister', () => {
       });
       const reloadSpy = vi.spyOn(queryResource, 'reload');
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -586,7 +592,7 @@ describe('localStoragePersister', () => {
       });
       const reloadSpy = vi.spyOn(queryResource, 'reload');
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -627,7 +633,7 @@ describe('localStoragePersister', () => {
       });
       const reloadSpy = vi.spyOn(queryResource, 'reload');
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -668,7 +674,7 @@ describe('localStoragePersister', () => {
       });
       const reloadSpy = vi.spyOn(queryResource, 'reload');
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -708,7 +714,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -746,7 +752,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -784,7 +790,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -824,7 +830,7 @@ describe('localStoragePersister', () => {
         },
       });
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -863,7 +869,7 @@ describe('localStoragePersister', () => {
       });
       const reloadSpy = vi.spyOn(queryResource, 'reload');
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,
@@ -903,7 +909,7 @@ describe('localStoragePersister', () => {
       });
       const reloadSpy = vi.spyOn(queryResource, 'reload');
 
-      const persister = localStoragePersister('query');
+      const persister = createStoragePersister('query', storage);
       persister.addQueryToPersist({
         key: 'user',
         queryResource,

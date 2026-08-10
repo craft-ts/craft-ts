@@ -13,7 +13,7 @@ import {
 } from '@craft-ng/component';
 import {
   insertQueryPipe,
-  insertLocalStoragePersister,
+  insertStoragePersister,
   insertPaginationPlaceholderData,
   insertReactOnMutation,
   mutation,
@@ -57,7 +57,7 @@ const GranularMutation = craftComponent(
         },
       },
       insertQueryPipe(
-        insertLocalStoragePersister({
+        insertStoragePersister({
           storeName: 'demo-app',
           key: 'granular',
         }),
