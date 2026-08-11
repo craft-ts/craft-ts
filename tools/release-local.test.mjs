@@ -123,8 +123,10 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
         'import {',
         '  provideCorrelationIdTracking,',
         "} from '@craft-ng/core';",
+        "import { provideLogForwarding } from './log-forwarder';",
         'export const appConfig = {',
         '  providers: [',
+        '    provideLogForwarding(),',
         '    provideCorrelationIdTracking(),',
         '  ],',
         '};',
@@ -178,11 +180,19 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     );
     assert.match(
       readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
-      /\/\/ provideCorrelationIdTracking,/,
+      /\/\/ provideLogForwarding import disabled for the target demo\./,
     );
     assert.match(
       readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
-      /\/\/ provideCorrelationIdTracking\(\),/,
+      /\/\/ provideLogForwarding\(\),/,
+    );
+    assert.match(
+      readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
+      /provideCorrelationIdTracking,/,
+    );
+    assert.match(
+      readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
+      /provideCorrelationIdTracking\(\),/,
     );
     assert.equal(existsSync(join(target, 'eslint.config.js')), false);
     assert.equal(

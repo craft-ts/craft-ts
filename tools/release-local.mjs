@@ -102,30 +102,33 @@ function syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest) {
   targetManifest.scripts['lint:check'] ??= 'eslint .';
 }
 
-function disableTargetCorrelationIdTracking(targetDemoRoot) {
+function disableTargetLogForwarding(targetDemoRoot) {
   const appConfigPath = join(targetDemoRoot, 'src/app/app.config.ts');
   if (!existsSync(appConfigPath)) {
     throw new Error(`Missing target demo app config: ${appConfigPath}`);
   }
 
   const contents = readFileSync(appConfigPath, 'utf8');
-  const importPattern = /^(\s*)provideCorrelationIdTracking,(\s*)$/m;
-  const providerPattern = /^(\s*)provideCorrelationIdTracking\(\),(\s*)$/m;
+  const importPattern = /^(\s*)import \{ provideLogForwarding \} from '(\.\/log-forwarder)';(\s*)$/m;
+  const providerPattern = /^(\s*)provideLogForwarding\(\),(\s*)$/m;
   const hasImport = importPattern.test(contents);
   const hasProvider = providerPattern.test(contents);
 
   if (!hasImport && !hasProvider) return;
   if (!hasImport || !hasProvider) {
     throw new Error(
-      `Target demo app config has an incomplete provideCorrelationIdTracking setup: ${appConfigPath}`,
+      `Target demo app config has an incomplete provideLogForwarding setup: ${appConfigPath}`,
     );
   }
 
   const updated = contents
-    .replace(importPattern, '$1// provideCorrelationIdTracking,$2')
+    .replace(
+      importPattern,
+      '$1// provideLogForwarding import disabled for the target demo.$2',
+    )
     .replace(
       providerPattern,
-      '$1// Disabled in the target demo to keep the initial bundle smaller.\n$1// provideCorrelationIdTracking(),$2',
+      '$1// Disabled in the target demo: do not send logs to the local log server.\n$1// provideLogForwarding(),$2',
     );
   writeFileSync(appConfigPath, updated);
 }
@@ -162,7 +165,7 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
   }
 
   syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest);
-  disableTargetCorrelationIdTracking(targetDemoRoot);
+  disableTargetLogForwarding(targetDemoRoot);
 
   targetManifest.dependencies ??= {};
   targetManifest.dependencies['@craft-ng/core'] = version;
