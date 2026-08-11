@@ -1,48 +1,75 @@
 Je mets @craft-ng à disposition de la communauté Angular, en beta.
 
-Après des mois à construire ça le soir et le week-end, il est temps de le sortir du garage.
+J'ai passé des mois à m'attaquer aux points qui me gênaient dans Angular. Pas pour remplacer le framework : pour aller au bout de ce qu'il permet déjà.
 
-craft-ng, c'est une boîte à outils Signal-first pour modéliser l'état d'une app Angular : l'état local, l'état serveur, l'état dans l'URL, les services, les formulaires, les routes.
+Voilà ce que j'en ai tiré. 👇
 
-Le fil conducteur : déclarer, et laisser le compilateur tenir le reste.
+𝟏- 𝐋'𝐢𝐧𝐣𝐞𝐜𝐭𝐢𝐨𝐧 𝐝𝐞 𝐝𝐞́𝐩𝐞𝐧𝐝𝐚𝐧𝐜𝐞𝐬, 𝐞𝐧𝐟𝐢𝐧 𝐭𝐲𝐩𝐞́𝐞
 
-Concrètement, 3 choses que ça change 👇
+Le DI d'Angular est extrêmement puissant. C'est même l'une des meilleures choses du framework.
 
-1- Les erreurs sont des valeurs typées.
+Mais il n'est pas typé.
 
-Un 403 devient un code que tu déclares. Ton template ne compile plus tant que tu n'as pas dit ce que l'utilisateur voit. Plus de `'Une erreur est survenue'` qui avale l'information que le serveur t'avait donnée.
+Résultat : on l'utilise de façon très basique. `providedIn: 'root'` partout, un singleton par service, et on s'arrête là. Parce que dès qu'on va plus loin, on prend le risque d'un oubli de provider… découvert en prod.
 
-2- Le graphe de dépendances devient visible par le compilateur.
+Avec craft-ng, chaque dépendance passe par le système de types. Un oubli de provider devient une erreur de compilation, dans ton éditeur, avant même de lancer l'app.
 
-Chaque dépendance passe par `yield*`, donc elle existe dans le type. Oublier de provide un service n'est plus un incident en production : c'est un souligné rouge dans ton éditeur.
+Et ça change tout : tu peux enfin expérimenter sans risque.
 
-3- Les tests décrivent le vrai graphe.
+C'est pour ça que je trouve ça aussi intéressant pour apprendre ce qu'est vraiment l'injection de dépendances — et pour pousser des concepts jusqu'à ce qu'ils collent exactement à ton besoin.
 
-Plus de boucle "je lance, je lis NullInjectorError, j'ajoute un provider, je relance". Le registre de test est exhaustif, et le typage refuse de tourner tant qu'un nœud n'est pas décidé.
+𝟐- 𝐔𝐧 𝐬𝐭𝐚𝐭𝐞 𝐦𝐚𝐧𝐚𝐠𝐞𝐦𝐞𝐧𝐭 𝐞𝐱𝐡𝐚𝐮𝐬𝐭𝐢𝐟 𝐞𝐭 𝐝𝐞́𝐜𝐥𝐚𝐫𝐚𝐭𝐢𝐟
 
-Maintenant, la partie honnête. 🙂
+C'est là que j'ai passé le plus de temps.
 
-C'est une beta. Je l'assume, et je préfère le dire clairement plutôt que de le découvrir avec toi :
+Je voulais une solution qui couvre les trois états d'une app, pas seulement un :
+→ les données serveur
+→ les données client
+→ les données dans l'URL
 
-- l'API des primitives de base (`state`, `query`, `mutation`) est celle dans laquelle j'ai le plus confiance
-- la surface autour bougera encore, avec un changelog et une note de migration à chaque fois
-- le typecheck est plus lent sur les graphes profonds — c'est mon chantier actuel, et je ne le cache pas
+Et surtout : qu'elles soient déclaratives.
 
-Et c'est exactement pour ça que je la publie maintenant, plutôt que dans six mois.
+Tu lis le code, et tu sais comment il va évoluer. Pas besoin de chercher ailleurs qui déclenche quoi.
 
-Une API se juge à l'usage, pas dans la tête de celui qui l'a écrite. Tant qu'on est en beta, tes retours peuvent encore la changer. Après, ce sera trop tard.
+𝟑- 𝐑𝐞́𝐜𝐮𝐩𝐞́𝐫𝐞𝐫 𝐜𝐞 𝐝𝐨𝐧𝐭 𝐭𝐮 𝐚𝐬 𝐛𝐞𝐬𝐨𝐢𝐧, 𝐨𝐮̀ 𝐭𝐮 𝐞𝐧 𝐚𝐬 𝐛𝐞𝐬𝐨𝐢𝐧
 
-Donc je suis preneur de tout : critiques, incompréhensions, "ça ne marchera jamais chez nous parce que…", idées d'évolutions, ou juste le moment précis où tu as décroché en lisant la doc.
+Toujours dans cet esprit déclaratif.
 
-Ce dernier point m'intéresse particulièrement, d'ailleurs. 👀
+Ça donne un tracking de dépendances très fin, très granulaire. Et ça simplifie énormément les tests.
 
-Les questions sur lesquelles j'aimerais le plus être bousculé :
+Ma conviction : 𝐮𝐧 𝐭𝐞𝐬𝐭 𝐧𝐞 𝐝𝐞𝐯𝐫𝐚𝐢𝐭 𝐩𝐚𝐬 𝐩𝐨𝐮𝐯𝐨𝐢𝐫 𝐬𝐞 𝐥𝐚𝐧𝐜𝐞𝐫 𝐬𝐢 𝐬𝐚 𝐜𝐨𝐧𝐟𝐢𝐠𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐧'𝐞𝐬𝐭 𝐩𝐚𝐬 𝐛𝐨𝐧𝐧𝐞.
 
-→ le choix des générateurs (`yield*`) : ergonomie acceptable, ou barrière à l'entrée ?
-→ le typage poussé : est-ce que ça vaut son coût, ou est-ce que je suis allé trop loin ?
-→ et surtout : quelle est la glue que tu en as marre d'écrire dans TES apps Angular ?
+Grâce au tracking des dépendances, même profondes, c'est exactement ce qui se passe : tant que ton test n'est pas correctement configuré, il ne part pas.
 
-Ouvre une issue, une discussion, ou réponds ici. Je lis tout.
+Et l'autocomplétion TypeScript te guide pour le configurer. Correctement, et vite.
+
+Fini la boucle "je lance, je lis NullInjectorError, j'ajoute un provider, je relance".
+
+𝟒- 𝐃𝐞 𝐥'𝐨𝐛𝐬𝐞𝐫𝐯𝐚𝐛𝐢𝐥𝐢𝐭𝐞́ 𝐝𝐚𝐧𝐬 𝐧𝐨𝐬 𝐩𝐫𝐨𝐣𝐞𝐭𝐬 𝐟𝐫𝐨𝐧𝐭
+
+Celui-là me tenait vraiment à cœur.
+
+C'est pour moi l'un des leviers les plus importants pour profiter de l'IA aujourd'hui.
+
+L'objectif est simple : pouvoir déboguer instantanément un bug ou un comportement non voulu. Avoir l'état de l'app au moment où ça casse, et la chaîne causale qui remonte jusqu'au clic de l'utilisateur.
+
+Et ça a plein d'autres vertus, on en reparlera. 😉
+
+𝟓- 𝐒𝐞𝐥𝐞𝐜𝐭𝐨𝐫𝐥𝐞𝐬𝐬 𝐞𝐭 𝐬𝐚𝐧𝐬 𝐛𝐚𝐥𝐢𝐬𝐞 𝐝𝐚𝐧𝐬 𝐥𝐞 𝐃𝐎𝐌
+
+Les composants craft sont des fonctions. Pas de sélecteur à déclarer, pas d'élément hôte enveloppé autour de ton markup.
+
+Ce que tu écris est ce qui atterrit dans le DOM.
+
+---
+
+Je suis vraiment fier de ce que ça donne aujourd'hui.
+
+Et j'ai posé quelques pièces maîtresses qui vont me permettre d'emmener la lib beaucoup plus loin. Il y a de quoi faire.
+
+C'est une beta : l'API bougera encore, avec un changelog et une note de migration à chaque fois.
+
+Je suis preneur de tout retour — critique, incompréhension, idée d'évolution. C'est aussi pour ça que je la publie maintenant plutôt que dans six mois.
 
 📚 Doc : https://ng-angular-stack.github.io/craft/
 💻 GitHub : https://github.com/ng-angular-stack/ng-craft
