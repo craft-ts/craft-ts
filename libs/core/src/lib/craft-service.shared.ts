@@ -3,6 +3,8 @@ export const SERVICE_PROVIDED_INPUT_KEY = '$provided' as const;
 export const CRAFT_SERVICE_PROVIDER_BRAND = Symbol(
   'craft-service-provider-brand',
 );
+/** Type-only brand; it is carried by Craft provider return types, not emitted. */
+export declare const CRAFT_SERVICE_PROVIDER_TYPE_BRAND: unique symbol;
 
 export type Simplify<ObjectType> = {
   [Key in keyof ObjectType]: ObjectType[Key];

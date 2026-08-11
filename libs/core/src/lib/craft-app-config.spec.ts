@@ -16,6 +16,7 @@ import {
   requiredAppStart,
 } from './craft-app-config.app-start.fixture';
 import { craftRoutes } from './craft-routes';
+import type { AppProvidedServiceNamesOf } from './route-checked-di';
 import {
   craftService,
   GetServiceDependencies,
@@ -126,6 +127,27 @@ describe('craftAppConfig', () => {
         },
       ]
     >();
+  });
+
+  it('should ignore plain Angular providers when extracting Craft provider names', () => {
+    const { provideCounter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+    const token = new InjectionToken<string>('plain-provider');
+
+    const appConfig = craftAppConfig({
+      appStart: requiredAppStart,
+      routingDeps: [] as const,
+      providers: [
+        { provide: token, useValue: 'value' },
+        provideCounter(),
+      ] as const,
+    });
+
+    type ProvidedNames = AppProvidedServiceNamesOf<typeof appConfig>;
+
+    expectTypeOf<ProvidedNames>().toEqualTypeOf<'Counter' | 'AppStartCounter'>();
   });
 
   it('should make app providers available to AppCheckedDI for AppComponent', () => {

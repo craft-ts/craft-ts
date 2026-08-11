@@ -64,6 +64,7 @@ import { craftService, getServiceMetaData } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   BrandedServiceProvider,
+  NamedBrandedServiceProvider,
   CraftServiceApi,
   GetServiceDependencies,
   ServiceDependencyMapFromYielded,
@@ -1685,7 +1686,7 @@ export type CraftRouteYieldHelper<
 
 type CraftRouteProvideHelper<Name extends string, Output> = (provided: {
   resolve: () => Output;
-}) => BrandedServiceProvider<Name, 'toProvide', Output>;
+}) => NamedBrandedServiceProvider<Name, 'toProvide', Output>;
 
 type CraftRouteValueServiceApi<Name extends string, Output> = {
   [Key in InjectHelperName<Name>]: CraftRouteInjectHelper<Name, Output>;
@@ -2498,7 +2499,7 @@ function provideRouteValueService(
   serviceName: string,
   serviceApi: AnyRouteValueServiceApi,
   resolve: () => unknown,
-): BrandedServiceProvider<string, 'toProvide'> {
+): NamedBrandedServiceProvider<string, 'toProvide'> {
   const provideKey = `provide${serviceName}` as ProvideHelperName<string>;
   const provideHelper = serviceApi[provideKey];
 
@@ -2509,7 +2510,7 @@ function provideRouteValueService(
   return (
     provideHelper as (provided: {
       resolve: () => unknown;
-    }) => BrandedServiceProvider<string, 'toProvide'>
+    }) => NamedBrandedServiceProvider<string, 'toProvide'>
   )({ resolve });
 }
 

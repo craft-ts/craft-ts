@@ -84,7 +84,7 @@ const MutationCraft = craftComponent(
         );
         const userValue = user.value();
         if (userValue) {
-          updateUserName.mutate({
+          yield* updateUserName.mutate({
             userName: newName,
             user: userValue,
           });

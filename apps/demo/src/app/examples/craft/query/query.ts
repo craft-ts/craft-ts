@@ -63,18 +63,20 @@ const CraftGlobalQuery = craftComponent(
     const hasUser = craftComputed('hasUser', () => user.hasValue());
     return { user, hasUser, navigate };
   },
-  ({ user, hasUser, navigate }) => [
-    div([
-      'User ',
-      StatusComponent({ status: () => user.status() }),
-      ifBlock(hasUser, () =>
-        pre('QueryValue', {}, () => JSON.stringify(user.value(), null, 2)),
+  ({ user, hasUser, navigate }) =>
+    div({ class: 'query-shell' }, [
+      div({ class: 'query-result' }, [
+        'User ',
+        StatusComponent({ status: () => user.status() }),
+        ifBlock(hasUser, () =>
+          pre('QueryValue', {}, () => JSON.stringify(user.value(), null, 2)),
+        ),
+      ]),
+      p(
+        { class: 'query-note' },
+        'Reload the page to retrieve the query result from the cache.',
       ),
-    ]),
-    p('Reload the page to retrieve the query result from the cache.'),
-    div(
-      { class: 'query-actions' },
-      [
+      div({ class: 'query-actions' }, [
         button(
           'GoToPreviousUser',
           {
@@ -93,9 +95,8 @@ const CraftGlobalQuery = craftComponent(
           },
           'Next user',
         ),
-      ],
-    ),
-  ],
+      ]),
+    ]),
 );
 
 export default CraftGlobalQuery;

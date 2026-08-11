@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import {
   Console,
+  craftException,
   executeGeneratorCompatibleFactory,
   provideCraftHttpTrace,
   provideCraftRouterTrace,
@@ -66,7 +67,7 @@ const demoFnTrace: FnWrapper = function* (factory, thisArg, args) {
     return result;
   } catch (error) {
     logTrace('[trace:function:error]', { name, error });
-    throw error;
+    return craftException({ code: 'UNEXPECTED_ERROR' }, { error });
   }
 };
 
@@ -87,7 +88,7 @@ function traceAsync<T>(label: string, context: unknown, next: () => T): T {
         },
         (error) => {
           logTrace(`${label}:error`, { context, error }, injector);
-          throw error;
+          return craftException({ code: 'UNEXPECTED_ERROR' }, { error });
         },
       ) as T;
     }
@@ -95,7 +96,7 @@ function traceAsync<T>(label: string, context: unknown, next: () => T): T {
     return result;
   } catch (error) {
     logTrace(`${label}:error`, { context, error }, injector);
-    throw error;
+    return craftException({ code: 'UNEXPECTED_ERROR' }, { error }) as T;
   }
 }
 

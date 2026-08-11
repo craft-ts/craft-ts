@@ -1,6 +1,6 @@
 import type { Simplify, UnionToTuple } from './craft-service.shared';
 import type { MissingProvidersFromDepsMap } from './branded-component/branded-component';
-import type { BrandedServiceProvider } from './craft-service';
+import type { NamedBrandedServiceProvider } from './craft-service';
 import type {
   AppConfigProvidedDependencyValuesKey,
   AppConfigProvidedServiceNamesKey,
@@ -134,6 +134,21 @@ type InjectedErrorMessagesFromNames<
     ]
   : [];
 
+/**
+ * Fail closed when provider-name extraction widens to `string`.
+ *
+ * `RouteCheckedDI` removes missing providers by their names. If the available
+ * names become `string`, that removal hides every missing provider and turns a
+ * broken DI graph into `true`. This guard keeps that type-level failure
+ * visible until the provider extraction is corrected.
+ */
+type WidenedProviderNamesError<AvailableProviderNames extends string> =
+  string extends AvailableProviderNames
+    ? [
+        'Available provider names widened to string; type-safe DI validation is unavailable',
+      ]
+    : [];
+
 // -----------------------------------------------------------------------------
 // Cascade-specific helpers
 // -----------------------------------------------------------------------------
@@ -209,34 +224,36 @@ export type RouteCheckedDI<
   ProvidedValues = never,
   Context extends string = 'this component',
   AvailableInputNames extends string = never,
-> = [
-  ...InputErrorMessagesFromNames<
-    UnionToTuple<
-      Exclude<
-        Extract<keyof PublicPropertiesMap<ComponentDeps>, string>,
-        AvailableInputNames
-      >
-    >,
-    Context
-  >,
-  ...InjectedErrorMessagesFromNames<
-    UnionToTuple<
-      Extract<
-        keyof ResolvedMissing<
-          ComponentDeps,
-          AvailableProviderNames,
-          ProvidedValues
+> = string extends AvailableProviderNames
+  ? WidenedProviderNamesError<AvailableProviderNames>
+  : [
+      ...InputErrorMessagesFromNames<
+        UnionToTuple<
+          Exclude<
+            Extract<keyof PublicPropertiesMap<ComponentDeps>, string>,
+            AvailableInputNames
+          >
         >,
-        string
-      >
-    >,
-    Context
-  >,
-] extends infer Errors extends string[]
-  ? Errors extends []
-    ? true
-    : Errors
-  : never;
+        Context
+      >,
+      ...InjectedErrorMessagesFromNames<
+        UnionToTuple<
+          Extract<
+            keyof ResolvedMissing<
+              ComponentDeps,
+              AvailableProviderNames,
+              ProvidedValues
+            >,
+            string
+          >
+        >,
+        Context
+      >,
+    ] extends infer Errors extends string[]
+    ? Errors extends []
+      ? true
+      : Errors
+    : never;
 
 /** O(1) DI check for renderComponent/errorComponent/withErrorComponent branches. */
 export type RouteExceptionComponentCheckedDI<
@@ -296,7 +313,7 @@ export type RouteProvidedServiceNamesOf<Providers> =
     : never;
 
 type RouteProvidedServiceNamesFromEntry<Entry> =
-  Entry extends BrandedServiceProvider<infer Name, any, any>
+  Entry extends NamedBrandedServiceProvider<infer Name, any, any>
     ? Name
     : Entry extends readonly unknown[]
       ? RouteProvidedServiceNamesOf<Entry>

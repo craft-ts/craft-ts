@@ -48,6 +48,27 @@ describe('RouteCheckedDI', () => {
     >();
   });
 
+  it('should fail closed when AvailableProviderNames widens to string', () => {
+    const { Counter } = craftService(
+      { name: 'Counter', scope: 'toProvide' },
+      () => 1,
+    );
+
+    type GenDeps_MyComp = GetDeps<{
+      deps: {
+        Counter: GetServiceDependencies<typeof Counter>;
+      };
+      provided: {};
+      publicProperties: {};
+    }>;
+
+    type CHECK = RouteCheckedDI<GenDeps_MyComp, string>;
+
+    expectTypeOf<CHECK>().toEqualTypeOf<[
+      'Available provider names widened to string; type-safe DI validation is unavailable',
+    ]>();
+  });
+
   it('should report a missing input from publicProperties', () => {
     type GenDeps_MyComp = GetDeps<{
       deps: {};

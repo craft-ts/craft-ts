@@ -59,12 +59,11 @@ export default [
     },
   },
   {
-    // These are diagnostic/bootstrap adapters. They deliberately use Angular
-    // Injector and preserve native error propagation at the tracing boundary.
+    // This is a diagnostic/bootstrap adapter. It deliberately uses Angular's
+    // Injector, but it must still preserve Craft's no-throw contract.
     files: ['**/src/app/template-trace-demo.ts'],
     rules: {
       'craft-ng/no-angular-inject': 'off',
-      'craft-ng/no-throw': 'off',
     },
   },
   {

@@ -4,7 +4,7 @@ import {
   getRegisteredAppStartServices,
   getServiceMetaData,
   runServiceAppStart,
-  type BrandedServiceProvider,
+  type NamedBrandedServiceProvider,
   type GetServiceReferenceMeta,
   type ServiceReference,
 } from './craft-service';
@@ -38,23 +38,29 @@ type ExplicitMissingProviderMap<Input> = Input extends {
   ? MissingProvider
   : {};
 
+type IsAny<Input> = 0 extends 1 & Input ? true : false;
+
 type AppProvidedServiceNamesFromEntry<Entry> =
-  Entry extends BrandedServiceProvider<infer Name, any, any>
-    ? Name
-    : Entry extends readonly unknown[]
-      ? AppProvidedServiceNames<Entry>
-      : never;
+  IsAny<Entry> extends true
+    ? never
+    : Entry extends NamedBrandedServiceProvider<infer Name, any, any>
+      ? Name
+      : Entry extends readonly unknown[]
+        ? AppProvidedServiceNames<Entry>
+        : never;
 
 type KnownProvidedDependencyValue<Value> = [unknown] extends [Value]
   ? never
   : Value;
 
 type AppProvidedDependencyValuesFromEntry<Entry> =
-  Entry extends BrandedServiceProvider<any, any, infer Output>
-    ? KnownProvidedDependencyValue<Output>
-    : Entry extends readonly unknown[]
-      ? AppProvidedDependencyValues<Entry>
-      : never;
+  IsAny<Entry> extends true
+    ? never
+    : Entry extends NamedBrandedServiceProvider<any, any, infer Output>
+      ? KnownProvidedDependencyValue<Output>
+      : Entry extends readonly unknown[]
+        ? AppProvidedDependencyValues<Entry>
+        : never;
 
 type AppProvidedServiceNames<Providers> = Providers extends readonly unknown[]
   ? AppProvidedServiceNamesFromEntry<Providers[number]>

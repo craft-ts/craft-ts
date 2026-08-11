@@ -33,6 +33,7 @@ import {
   CRAFT_SERVICE_PROVIDER_BRAND,
   SERVICE_PROVIDED_INPUT_KEY,
   SERVICE_ROOT_EXPOSURE_KEY,
+  type CRAFT_SERVICE_PROVIDER_TYPE_BRAND,
 } from './craft-service.shared';
 import {
   ComponentRegister,
@@ -245,6 +246,16 @@ export type BrandedServiceProvider<
     output: Output;
     yielded: Yielded;
   };
+};
+
+/** Provider type returned by Craft service factories. */
+export type NamedBrandedServiceProvider<
+  Name extends string = string,
+  Scope extends RequirementScope = RequirementScope,
+  Output = unknown,
+  Yielded = unknown,
+> = BrandedServiceProvider<Name, Scope, Output, Yielded> & {
+  readonly [CRAFT_SERVICE_PROVIDER_TYPE_BRAND]: { name: Name };
 };
 
 export type ServiceMetaData<
@@ -1894,7 +1905,7 @@ type ProvideHelper<
 > = {
   [Key in `provide${Capitalize<Name>}`]: (
     ...args: ProvideArgs
-  ) => BrandedServiceProvider<Name, Scope, Output, Yielded>;
+  ) => NamedBrandedServiceProvider<Name, Scope, Output, Yielded>;
 };
 
 type ToProvideTokenHelper<Name extends string, Output> = {
@@ -1986,7 +1997,7 @@ type AbstractProvideHelper<Name extends string, Contract> = {
     Factory extends AbstractProvideFactory<Contract>,
   >(
     factory: Factory,
-  ) => BrandedServiceProvider<
+  ) => NamedBrandedServiceProvider<
     Name,
     'toProvide',
     Contract,
@@ -3615,7 +3626,7 @@ function isServiceMetaData(value: unknown): value is InternalServiceMetaData {
 function createProviders(
   definition: ConcreteRuntimeDefinition,
   providedArgs: unknown[] = [],
-): BrandedServiceProvider<string, RequirementScope, unknown> {
+): NamedBrandedServiceProvider<string, RequirementScope, unknown> {
   const concreteToken = definition.token;
 
   if (!concreteToken) {
@@ -3653,7 +3664,7 @@ function createProviders(
 
   providers.push(concreteProviders);
 
-  const brandedProviders = providers as BrandedServiceProvider<
+  const brandedProviders = providers as NamedBrandedServiceProvider<
     string,
     RequirementScope,
     unknown
