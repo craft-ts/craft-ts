@@ -55,7 +55,33 @@ L'objectif est simple : pouvoir déboguer instantanément un bug ou un comportem
 
 Et ça a plein d'autres vertus, on en reparlera. 😉
 
-𝟓- 𝐒𝐞𝐥𝐞𝐜𝐭𝐨𝐫𝐥𝐞𝐬𝐬 𝐞𝐭 𝐬𝐚𝐧𝐬 𝐛𝐚𝐥𝐢𝐬𝐞 𝐝𝐚𝐧𝐬 𝐥𝐞 𝐃𝐎𝐌
+𝟓- 𝐔𝐧 𝐫𝐨𝐮𝐭𝐢𝐧𝐠 𝐛𝐞𝐚𝐮𝐜𝐨𝐮𝐩 𝐩𝐥𝐮𝐬 𝐫𝐨𝐛𝐮𝐬𝐭𝐞
+
+Côté DX : les routes sont typées de bout en bout.
+
+Le chemin, les params, les inputs du composant, les services dont il a besoin. Une route qui pointe vers rien, un input mal orthographié, un service non fourni → erreur de compilation. Pas un écran blanc.
+
+Côté UX : la navigation ne bloque plus.
+
+Les guards, les resolvers et les erreurs de chargement lazy sont gérés sans figer l'interface, avec un état de pending que tu contrôles.
+
+Les deux vont ensemble, et c'est ça que je trouve précieux : la sécurité au build ET une navigation fluide pour l'utilisateur.
+
+𝟔- 𝐔𝐧𝐞 𝐜𝐨𝐦𝐩𝐨𝐬𝐢𝐭𝐢𝐨𝐧 𝐝𝐞 𝐜𝐨𝐦𝐩𝐨𝐬𝐚𝐧𝐭𝐬 𝐞𝐭 𝐝𝐞 𝐝𝐢𝐫𝐞𝐜𝐭𝐢𝐯𝐞𝐬 𝐢𝐧𝐞́𝐠𝐚𝐥𝐞́𝐞
+
+Là, je pèse mes mots : je n'ai vu ça nulle part ailleurs en front.
+
+Une directive craft décore à la fois la 𝐥𝐨𝐠𝐢𝐪𝐮𝐞 du composant et son 𝐭𝐞𝐦𝐩𝐥𝐚𝐭𝐞. Elle peut enrichir le contexte, ajouter un input public, ou décider de ne rien rendre du tout.
+
+Et tout ça reste typé.
+
+```ts
+const Card = craftComponent(/* … */).pipe(hasPermission('edit'));
+```
+
+Le comportement et le markup voyagent ensemble, et se composent de gauche à droite.
+
+𝟕- 𝐒𝐞𝐥𝐞𝐜𝐭𝐨𝐫𝐥𝐞𝐬𝐬 𝐞𝐭 𝐬𝐚𝐧𝐬 𝐛𝐚𝐥𝐢𝐬𝐞 𝐝𝐚𝐧𝐬 𝐥𝐞 𝐃𝐎𝐌
 
 Les composants craft sont des fonctions. Pas de sélecteur à déclarer, pas d'élément hôte enveloppé autour de ton markup.
 
