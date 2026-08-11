@@ -329,6 +329,35 @@ function publishPackage(packageRoot, channel) {
   run('npm', npmPublishArguments(packageRoot, channel));
 }
 
+function verifyPublishedArtifacts(version, manifestPath) {
+  const attempts = 6;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const verification = parseMetadata(
+      run(
+        'node',
+        ['tools/release.mjs', 'registry-plan', version, manifestPath],
+        { capture: true },
+      ),
+    );
+    if (
+      verification.core === 'skip' &&
+      verification.component === 'skip' &&
+      verification.dev_tools === 'skip'
+    ) {
+      return;
+    }
+
+    if (attempt < attempts) {
+      process.stdout.write(
+        `npm registry is still propagating ${version}; retrying verification (${attempt}/${attempts - 1})...\n`,
+      );
+      run('sleep', ['2']);
+    }
+  }
+
+  throw new Error('npm registry verification failed after publication.');
+}
+
 async function main(args) {
   const [argument, ...flags] = args;
   const allowedFlags = new Set(['--dry-run', '--yes']);
@@ -446,25 +475,10 @@ async function main(args) {
   if (plan.dev_tools === 'publish')
     publishPackage('dist/libs/dev-tools', release.channel);
 
-  const verification = parseMetadata(
-    run(
-      'node',
-      [
-        'tools/release.mjs',
-        'registry-plan',
-        release.version,
-        join(artifactsDirectory, 'manifest.json'),
-      ],
-      { capture: true },
-    ),
+  verifyPublishedArtifacts(
+    release.version,
+    join(artifactsDirectory, 'manifest.json'),
   );
-  if (
-    verification.core !== 'skip' ||
-    verification.component !== 'skip' ||
-    verification.dev_tools !== 'skip'
-  ) {
-    throw new Error('npm registry verification failed after publication.');
-  }
 
   git(workspaceRoot, [
     'tag',
