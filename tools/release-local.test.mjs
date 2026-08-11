@@ -117,6 +117,20 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
       join(source, 'src/app/examples/new.ts'),
       'export const fresh = true;\n',
     );
+    write(
+      join(source, 'src/app/app.config.ts'),
+      [
+        'import {',
+        '  provideCorrelationIdTracking,',
+        "} from '@craft-ng/core';",
+        'export const appConfig = {',
+        '  providers: [',
+        '    provideCorrelationIdTracking(),',
+        '  ],',
+        '};',
+        '',
+      ].join('\n'),
+    );
     write(join(source, 'src/app/app.routes.ts'), 'export const routes = [];\n');
     write(join(source, 'public/favicon.ico'), 'new-icon');
     write(
@@ -161,6 +175,14 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     assert.equal(
       readFileSync(join(target, 'craft-eslint-rules.mjs'), 'utf8'),
       'export const craftDemoRules = {};\n',
+    );
+    assert.match(
+      readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
+      /\/\/ provideCorrelationIdTracking,/,
+    );
+    assert.match(
+      readFileSync(join(target, 'src/app/app.config.ts'), 'utf8'),
+      /\/\/ provideCorrelationIdTracking\(\),/,
     );
     assert.equal(existsSync(join(target, 'eslint.config.js')), false);
     assert.equal(
