@@ -1,3 +1,7 @@
+## 0.7.0-beta.5 (2026-08-11)
+
+This was a version bump only, there were no code changes.
+
 ## 0.7.0-beta.4 (2026-08-11)
 
 ### 🩹 Fixes
