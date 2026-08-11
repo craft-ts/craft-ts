@@ -1,3 +1,13 @@
+## 0.7.0-beta.4 (2026-08-11)
+
+### 🩹 Fixes
+
+- **release:** disable target log forwarding ([d34036b](https://github.com/ng-angular-stack/ng-craft/commit/d34036b))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.7.0-beta.3 (2026-08-11)
 
 ### 🩹 Fixes
