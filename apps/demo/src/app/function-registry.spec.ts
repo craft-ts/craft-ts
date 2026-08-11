@@ -1,4 +1,3 @@
-/* eslint-disable playwright/no-standalone-expect */
 import { computed } from '@angular/core';
 import type {
   PrimitiveMethodRuntimeContext,

@@ -1,4 +1,3 @@
-import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
@@ -9,7 +8,12 @@ import {
   section,
   span,
 } from '@craft-ng/component';
-import { craftRegisterFor, craftService, state } from '@craft-ng/core';
+import {
+  craftComputed,
+  craftRegisterFor,
+  craftService,
+  state,
+} from '@craft-ng/core';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', scope: 'toProvide' },
@@ -50,7 +54,7 @@ const CounterChild = craftComponent(
 
 const { RegisterForCounterChild, provideRegisterForCounterChild } =
   craftRegisterFor('CounterChild', CounterChild, ({ CounterChild }) => ({
-    total: computed(() => CounterChild()?.length ?? 0),
+    total: craftComputed('total', () => CounterChild()?.length ?? 0),
     incrementAllChildCounter: () =>
       CounterChild()?.forEach(({ ref }) => ref.counter.increment()),
     decrementAllChildCounter: () =>
@@ -61,7 +65,7 @@ const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   'Counter',
   Counter,
   ({ Counter }) => ({
-    total: computed(() => Counter()?.length ?? 0),
+    total: craftComputed('total', () => Counter()?.length ?? 0),
   }),
 );
 
@@ -93,14 +97,23 @@ const RegisterForDemo = craftComponent(
 
     const childComponents = yield* RegisterForCounterChild();
     const counterTotal = yield* RegisterForCounter.total();
+    const childTotal = craftComputed(
+      'childTotal',
+      () => childComponents.total(),
+    );
+    const serviceTotal = craftComputed(
+      'serviceTotal',
+      () => counterTotal(),
+    );
 
     return {
       counterChildIds,
       childComponents,
-      counterTotal,
+      childTotal,
+      serviceTotal,
     };
   },
-  ({ counterChildIds, childComponents, counterTotal }) =>
+  ({ counterChildIds, childComponents, childTotal, serviceTotal }) =>
     section([
       h2('craftRegisterFor: control child counters'),
       p(
@@ -119,8 +132,10 @@ const RegisterForDemo = craftComponent(
         button({ click: counterChildIds.removeChild }, 'Remove a child'),
         span(
           { class: 'meta' },
-          () =>
-            `services: ${counterTotal()} · components: ${childComponents.total()}`,
+          // These signals are also yieldable Craft values, but this template
+          // only reads their synchronous signal value for display.
+          // eslint-disable-next-line craft-ng/require-yieldable-template-method
+          () => `services: ${serviceTotal()} · components: ${childTotal()}`,
         ),
       ]),
       div(

@@ -1,6 +1,10 @@
-import { createCraftRouterOutletController } from '@craft-ng/core';
+import {
+  createCraftRouterOutletController,
+  type CraftRouterOutletController,
+} from '@craft-ng/core';
 import { angular } from './angular';
 import { craftComponent } from './component';
+import type { CraftComponent } from './types';
 
 /**
  * Functional non-blocking router outlet.
@@ -9,6 +13,10 @@ import { craftComponent } from './component';
  * render lifetime and mounts the active Angular route target with the
  * route-scoped injector supplied by the controller.
  */
+type CraftRouterOutletFactory = () => {
+  readonly outlet: CraftRouterOutletController;
+};
+
 export const CraftRouterOutlet = craftComponent(
   'CraftRouterOutlet',
   {},
@@ -21,4 +29,8 @@ export const CraftRouterOutlet = craftComponent(
         })
       : [];
   },
-);
+) as CraftComponent<
+  Record<never, never>,
+  Record<never, never>,
+  CraftRouterOutletFactory
+>;

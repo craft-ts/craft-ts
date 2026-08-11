@@ -19,7 +19,7 @@ import {
 } from './take-app-snapshot';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
-import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
+import { ɵprovidePrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
@@ -28,7 +28,7 @@ import {
   type YieldableInsertionMethods,
 } from './yieldable';
 
-type SelectedTarget<
+export type SelectedTarget<
   StateType,
   Name extends string,
 > = StateType extends readonly (infer Item)[]
@@ -128,6 +128,14 @@ type ObjectInsertSelectOutput<
   >;
 };
 
+export type InsertSelectOutput<
+  StateType,
+  Name extends string,
+  Insertions extends readonly unknown[],
+> = StateType extends readonly object[]
+  ? ArrayInsertSelectOutput<StateType, Name, Insertions>
+  : ObjectInsertSelectOutput<StateType, Name, Insertions>;
+
 type InsertSelectReturn<
   StateType,
   Name extends string,
@@ -135,9 +143,7 @@ type InsertSelectReturn<
   PreviousInsertionsOutputs,
 > = InsertionsStateFactory<
   StateType,
-  StateType extends readonly object[]
-    ? ArrayInsertSelectOutput<StateType, Name, Insertions>
-    : ObjectInsertSelectOutput<StateType, Name, Insertions>,
+  InsertSelectOutput<StateType, Name, Insertions>,
   PreviousInsertionsOutputs
 >;
 
@@ -188,7 +194,12 @@ function createInsertSelectItemRuntime(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: any,
   ) => {
-    const { state, update, insertions: previousInsertions } = context;
+    const {
+      state,
+      update,
+      insertions: previousInsertions,
+      __primitiveKind: primitiveKind = 'state',
+    } = context;
     const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, {
       optional: true,
     });
@@ -235,6 +246,7 @@ function createInsertSelectItemRuntime(
             );
             const insertionContext = {
               state: selectedStateSignal,
+              __primitiveKind: primitiveKind,
               set: (newState: unknown) => {
                 update((currentState: unknown) => {
                   if (!Array.isArray(currentState)) {
@@ -358,10 +370,12 @@ function createInsertSelectItemRuntime(
                     itemInjector,
                     `source:${key}`,
                   );
-                  const wrappedEmit = runInInjectionContext(sourceInjector, () =>
-                    injectFnWrapper()((payload: unknown) =>
-                      localSource.emit(payload as never),
-                    ),
+                  const wrappedEmit = runInInjectionContext(
+                    sourceInjector,
+                    () =>
+                      injectFnWrapper()((payload: unknown) =>
+                        localSource.emit(payload as never),
+                      ),
                   );
                   exposedAcc[key] = createYieldableInsertionMethod(
                     (payload: unknown) => wrappedEmit(payload),
@@ -387,7 +401,8 @@ function createInsertSelectItemRuntime(
                     itemInjector,
                     `method:${key}`,
                     [
-                      ɵprovideStateMethodRuntimeContext(
+                      ɵprovidePrimitiveMethodRuntimeContext(
+                        primitiveKind,
                         insertionContext,
                         value as (...args: never[]) => unknown,
                       ),
@@ -503,7 +518,12 @@ function createInsertSelectPropertyRuntime(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     context: any,
   ) => {
-    const { state, update, insertions: previousInsertions } = context;
+    const {
+      state,
+      update,
+      insertions: previousInsertions,
+      __primitiveKind: primitiveKind = 'state',
+    } = context;
     const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, {
       optional: true,
     });
@@ -573,6 +593,7 @@ function createInsertSelectPropertyRuntime(
             );
             const insertionContext = {
               state: selectedPropertySignal,
+              __primitiveKind: primitiveKind,
               set: setProperty,
               update: updateProperty,
               patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
@@ -581,16 +602,16 @@ function createInsertSelectPropertyRuntime(
                   ...patchFn(current),
                 }));
               },
-                insertions: Object.entries(acc.rawInsertionsOutput).reduce(
-                  (previous, [key, value]) => {
-                    if (isSource$(value)) previous[key] = value;
-                    return previous;
-                  },
-                  {
-                    ...inheritedInsertions,
-                    ...acc.exposedInsertionsOutput,
-                  } as Record<string, unknown>,
-                ) as never,
+              insertions: Object.entries(acc.rawInsertionsOutput).reduce(
+                (previous, [key, value]) => {
+                  if (isSource$(value)) previous[key] = value;
+                  return previous;
+                },
+                {
+                  ...inheritedInsertions,
+                  ...acc.exposedInsertionsOutput,
+                } as Record<string, unknown>,
+              ) as never,
             };
             const insertionCallResult = wrappedInsertion(insertionContext);
             const nextRawInsertions = (
@@ -650,10 +671,12 @@ function createInsertSelectPropertyRuntime(
                     injector,
                     `source:${key}`,
                   );
-                  const wrappedEmit = runInInjectionContext(sourceInjector, () =>
-                    injectFnWrapper()((payload: unknown) =>
-                      localSource.emit(payload as never),
-                    ),
+                  const wrappedEmit = runInInjectionContext(
+                    sourceInjector,
+                    () =>
+                      injectFnWrapper()((payload: unknown) =>
+                        localSource.emit(payload as never),
+                      ),
                   );
                   exposedAcc[key] = createYieldableInsertionMethod(
                     (payload: unknown) => wrappedEmit(payload),
@@ -679,7 +702,8 @@ function createInsertSelectPropertyRuntime(
                     injector,
                     `method:${key}`,
                     [
-                      ɵprovideStateMethodRuntimeContext(
+                      ɵprovidePrimitiveMethodRuntimeContext(
+                        primitiveKind,
                         insertionContext,
                         value as (...args: never[]) => unknown,
                       ),
@@ -764,10 +788,54 @@ function createInsertSelectPropertyRuntime(
     }
 
     return {
-      [selectPropertyMethodName]: markNonYieldableInsertionMethod(
-        selectPropertyItem,
-      ),
+      [selectPropertyMethodName]:
+        markNonYieldableInsertionMethod(selectPropertyItem),
       ...Object.fromEntries(crossLayerSourcesByKey.entries()),
+    };
+  };
+}
+
+function createDeferredInsertSelectRuntime(
+  entityName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...insertions: InsertionsStateFactory<any, any, any>[]
+) {
+  return (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    context: any,
+  ) => {
+    const selectMethodName = `select${capitalize(entityName)}`;
+    const runtimeInjector = inject(Injector);
+    let activeIsArray: boolean | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let activeRuntime: any;
+
+    const getActiveRuntime = () => {
+      const isArray = Array.isArray(context.state());
+      if (activeRuntime && activeIsArray === isArray) {
+        return activeRuntime;
+      }
+
+      activeIsArray = isArray;
+      activeRuntime = runInInjectionContext(runtimeInjector, () =>
+        isArray
+          ? createInsertSelectItemRuntime(entityName, ...insertions)(context)
+          : createInsertSelectPropertyRuntime(
+              entityName,
+              ...insertions,
+            )(context),
+      );
+      return activeRuntime;
+    };
+
+    const select = (...args: unknown[]) =>
+      getActiveRuntime()[selectMethodName](...args);
+
+    return {
+      [selectMethodName]: markNonYieldableInsertionMethod(select),
+      items: markNonYieldableInsertionMethod(
+        () => getActiveRuntime().items?.() ?? [],
+      ),
     };
   };
 }
@@ -876,7 +944,12 @@ export function insertSelect<
     PreviousInsertionsOutputs,
     Insertions1Yielded
   >,
-): InsertSelectReturn<StateType, Name, [Insertions1], PreviousInsertionsOutputs>;
+): InsertSelectReturn<
+  StateType,
+  Name,
+  [Insertions1],
+  PreviousInsertionsOutputs
+>;
 
 export function insertSelect(
   name: string,
@@ -888,6 +961,13 @@ export function insertSelect(
     context: any,
   ) => {
     const currentState = context.state();
+    if (
+      currentState === undefined &&
+      context.__primitiveKind &&
+      context.__primitiveKind !== 'state'
+    ) {
+      return createDeferredInsertSelectRuntime(name, ...insertions)(context);
+    }
 
     if (Array.isArray(currentState)) {
       return createInsertSelectItemRuntime(name, ...insertions)(context);

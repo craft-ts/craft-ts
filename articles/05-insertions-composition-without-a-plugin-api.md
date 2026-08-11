@@ -50,14 +50,34 @@ And here is the constraint that makes it interesting:
 Which means the answer to "how do I share this behaviour" is not a new concept to learn. It is: **extract the function.**
 
 ```typescript
-export const withUndo = ({ state, set }) => ({
-  /* … */
-});
+import { Signal } from '@angular/core';
 
-const counter = yield* state('counter', 0, withUndo);
+export const withUndo = <State>({
+  state,
+  set,
+}: {
+  state: Signal<State>;
+  set: (newState: State) => State;
+}) => {
+  let previous: State | undefined;
+  return {
+    save: () => void (previous = state()),
+    undo: () => previous !== undefined && set(previous),
+  };
+};
+
+const counter = yield* state('counter', 0, (context) => withUndo(context));
 ```
 
 The moment two primitives want the same behaviour, you have a library insertion. That is the whole extension story, and there is no second one.
+
+Two details in that snippet are worth more than they look, and I only found them by trying to write this section.
+
+**The insertion is generic, and it is called through a lambda.** Handing `withUndo` directly to `state` asks TypeScript to infer `State` from the position of the argument rather than from a value, which is exactly where inference gives up. Wrapping it in `(context) => withUndo(context)` lets the state type flow in first, and the generic resolves. It costs seven characters and it is the difference between working and a wall of inference errors.
+
+**You only declare the part of the context you use.** `withUndo` asks for `state` and `set`; the real context also carries `update`, `patch` and `insertions`. Structural typing means a narrower parameter accepts the wider object, so a reusable insertion documents its own requirements — you can read what `withUndo` touches without reading its body.
+
+There is a gap here I should own: the library does not currently export a public type for that context, so today you hand-write the shape you need, as above. That works, and it keeps insertions honest about their requirements, but it is not the ergonomics I want. A published context type is on the list.
 
 ## Composing them
 

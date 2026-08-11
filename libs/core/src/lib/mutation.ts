@@ -465,7 +465,10 @@ export type ResourceLikeMutationExceptions<
             'loader',
             GroupIdentifier
           >;
-        }> & (MutationException extends { parse: infer Parse } ? { parse: Parse } : {});
+        }> &
+          (MutationException extends { parse: infer Parse }
+            ? { parse: Parse }
+            : {});
       }
     : {};
 
@@ -502,7 +505,8 @@ export type ResourceByIdLikeMutationExceptions<
         >
       >
     >;
-  }> & (MutationException extends { parse: infer Parse } ? { parse: Parse } : {});
+  }> &
+    (MutationException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
 export type ResourceLikeMutationRef<
@@ -520,31 +524,33 @@ export type ResourceLikeMutationRef<
   type: 'resourceLike';
   kind: 'mutation';
 } & MergeObjects<
-  [
-    {
-      readonly value: Signal<Value | undefined>;
-      readonly status: Signal<CraftResourceStatus>;
-      readonly isLoading: Signal<boolean>;
-      hasValue(): boolean;
-    },
-    {
-      readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
-    },
-    IsMethod extends true
-      ? {
-          mutate: (args: ArgParams) => YieldableInvocation<MethodYielded, Params>;
-        }
-      : {
-          source: ReadonlySource<SourceParams>;
-        },
-    YieldableInsertionMethods<Insertions>,
-    ResourceLikeMutationExceptions<MutationException>,
-    {
-      [key in `~InternalType`]: 'Used to avoid TS type erasure';
-    },
-    MutationDependenciesMetadata<Dependencies>,
-  ]
->;
+    [
+      {
+        readonly value: Signal<Value | undefined>;
+        readonly status: Signal<CraftResourceStatus>;
+        readonly isLoading: Signal<boolean>;
+        hasValue(): boolean;
+      },
+      {
+        readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
+      },
+      IsMethod extends true
+        ? {
+            mutate: (
+              args: ArgParams,
+            ) => YieldableInvocation<MethodYielded, Params>;
+          }
+        : {
+            source: ReadonlySource<SourceParams>;
+          },
+      YieldableInsertionMethods<Insertions>,
+      ResourceLikeMutationExceptions<MutationException>,
+      {
+        [key in `~InternalType`]: 'Used to avoid TS type erasure';
+      },
+      MutationDependenciesMetadata<Dependencies>,
+    ]
+  >;
 
 export type ResourceByIdLikeMutationRef<
   Value,
@@ -583,20 +589,20 @@ export type ResourceByIdLikeMutationRef<
    * Get the associated resource by id, creating an idle resource when it does
    * not exist yet.
    */
-  selectOrCreate: (id: GroupIdentifier) =>
-    {
-      readonly value: Signal<Value | undefined>;
-      readonly status: Signal<CraftResourceStatus>;
-      readonly isLoading: Signal<boolean>;
-      hasValue(): boolean;
-    } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>;
+  selectOrCreate: (id: GroupIdentifier) => {
+    readonly value: Signal<Value | undefined>;
+    readonly status: Signal<CraftResourceStatus>;
+    readonly isLoading: Signal<boolean>;
+    hasValue(): boolean;
+  } & ResourceLikeMutationExceptions<MutationException, GroupIdentifier>;
 } & MergeObjects<
     [
       YieldableInsertionMethods<Insertions>,
       IsMethod extends true
         ? {
-            mutate: (args: ArgParams) =>
-              YieldableInvocation<MethodYielded, Params>;
+            mutate: (
+              args: ArgParams,
+            ) => YieldableInvocation<MethodYielded, Params>;
           }
         : {
             source: ReadonlySource<SourceParams>;
@@ -806,9 +812,7 @@ export function mutation<
   mutationConfig: {
     methodSchema: MethodSchema;
     method: (args: SchemaOutput<MethodSchema>) => Params;
-    loader: (
-      param: ResourceLoaderParams<Params>,
-    ) => Promise<State> | State;
+    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -1406,7 +1410,9 @@ function createMutationRef<
     }
     const schemaParamsException = schemaParseExceptions()['params'];
     if (schemaParamsException) {
-      return enrichResourceException(schemaParamsException, { scope: 'params' });
+      return enrichResourceException(schemaParamsException, {
+        scope: 'params',
+      });
     }
 
     if (
@@ -1462,17 +1468,17 @@ function createMutationRef<
     'params' in mutationConfig
       ? (((...args: unknown[]) => {
           const value = executeGeneratorCompatibleFactory({
-              factory: mutationConfig.params as (
-                ...args: unknown[]
-              ) => MutationParams,
-              thisArg: undefined,
-              getInjector,
-              args,
-              invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-              multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
-              onAppStartNotSupportedErrorMessage:
-                MUTATION_APP_START_ERROR_MESSAGE,
-            }) as MutationParams;
+            factory: mutationConfig.params as (
+              ...args: unknown[]
+            ) => MutationParams,
+            thisArg: undefined,
+            getInjector,
+            args,
+            invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage:
+              MUTATION_APP_START_ERROR_MESSAGE,
+          }) as MutationParams;
           if (!configuredSchemas.params || isCraftException(value)) {
             return sanitizeParamsResult(value);
           }
@@ -1495,7 +1501,8 @@ function createMutationRef<
               >
             )(),
           );
-          if (!configuredSchemas.params || isCraftException(value)) return value;
+          if (!configuredSchemas.params || isCraftException(value))
+            return value;
           const parsed = schemaValidation.params.parseSync<MutationParams>(
             value,
             'params',
@@ -1643,7 +1650,10 @@ function createMutationRef<
               return { value: lastValue };
             });
           };
-          if (result && typeof (result as Promise<unknown>).then === 'function') {
+          if (
+            result &&
+            typeof (result as Promise<unknown>).then === 'function'
+          ) {
             return Promise.resolve(result).then(wrapStreamSignal);
           }
           return wrapStreamSignal(result);
@@ -1788,7 +1798,10 @@ function createMutationRef<
                 hasException: selectHasException,
                 hasSchema: signal(hasConfiguredSchema),
                 exceptions: hasConfiguredSchema
-                  ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                  ? computed(() => ({
+                      ...selectExceptions(),
+                      parse: schemaParse(),
+                    }))
                   : selectExceptions,
               });
             })();
@@ -1816,7 +1829,10 @@ function createMutationRef<
               hasException: selectHasException,
               hasSchema: signal(hasConfiguredSchema),
               exceptions: hasConfiguredSchema
-                ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                ? computed(() => ({
+                    ...selectExceptions(),
+                    parse: schemaParse(),
+                  }))
                 : selectExceptions,
             });
           },
@@ -1892,11 +1908,12 @@ function createMutationRef<
 
               let paramsResult = result as MutationParams;
               if (configuredSchemas.params) {
-                const parsedParams = schemaValidation.params.parseSync<MutationParams>(
-                  result,
-                  'params',
-                  'method',
-                );
+                const parsedParams =
+                  schemaValidation.params.parseSync<MutationParams>(
+                    result,
+                    'params',
+                    'method',
+                  );
                 if (!parsedParams.accepted) {
                   methodParamsException.set(
                     enrichResourceException(parsedParams.exception, {
@@ -1917,7 +1934,9 @@ function createMutationRef<
               // resource request changes on every call.
               methodTriggerSeq.update((n) => n + 1);
               // make sure  mutationResourceParamsFnSignal.set(result as MutationParams); is set before calling addById
-              mutationResourceParamsFnSignal.set(paramsResult as MutationParams);
+              mutationResourceParamsFnSignal.set(
+                paramsResult as MutationParams,
+              );
               if (isUsingIdentifier) {
                 const id = mutationConfig.identifier?.(paramsResult as any);
                 (
@@ -1984,6 +2003,7 @@ function createMutationRef<
                 ...current,
                 ...patchFn(current),
               })),
+            __primitiveKind: 'mutation',
           } as any,
         ],
         invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
@@ -2024,8 +2044,7 @@ function createMutationRef<
             wrappedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
               injector: methodInjector,
               invalidYieldErrorMessage: MUTATION_INVALID_YIELD_ERROR_MESSAGE,
-              multipleAppStartErrorMessage:
-                MUTATION_APP_START_ERROR_MESSAGE,
+              multipleAppStartErrorMessage: MUTATION_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage:
                 MUTATION_APP_START_ERROR_MESSAGE,
             });

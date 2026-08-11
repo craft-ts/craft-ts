@@ -382,7 +382,8 @@ export type ResourceLikeExceptions<
       'loader',
       GroupIdentifier
     >;
-  }> & (QueryException extends { parse: infer Parse } ? { parse: Parse } : {});
+  }> &
+    (QueryException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
 export type ResourceByIdLikeExceptions<
@@ -418,7 +419,8 @@ export type ResourceByIdLikeExceptions<
         >
       >
     >;
-  }> & (QueryException extends { parse: infer Parse } ? { parse: Parse } : {});
+  }> &
+    (QueryException extends { parse: infer Parse } ? { parse: Parse } : {});
 };
 
 export type ResourceLikeQueryRef<
@@ -436,36 +438,39 @@ export type ResourceLikeQueryRef<
   type: 'resourceLike';
   kind: 'query';
 } & (HasSchema extends true
-  ? {
-      set(value: Value): void;
-      update(updateFn: (current: Value) => Value): void;
-    }
-  : {}) & MergeObjects<
-  [
-    {
-      readonly value: Signal<Value | undefined>;
-      readonly status: Signal<CraftResourceStatus>;
-      readonly isLoading: Signal<boolean>;
-      hasValue(): boolean;
-    },
-    {
-      readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
-    },
-    IsMethod extends true
-      ? {
-          call: (args: ArgParams) => YieldableInvocation<MethodYielded, Params>;
-        }
-      : {
-          source: ReadonlySource<SourceParams>;
-        },
-    YieldableInsertionMethods<Insertions>,
-    ResourceLikeExceptions<QueryException>,
-    {
-      [key in `~InternalType`]: 'Used to avoid TS type erasure';
-    },
-    QueryDependenciesMetadata<Dependencies>,
-  ]
->;
+    ? {
+        set(value: Value): void;
+        update(updateFn: (current: Value) => Value): void;
+      }
+    : {}) &
+  MergeObjects<
+    [
+      {
+        readonly value: Signal<Value | undefined>;
+        readonly status: Signal<CraftResourceStatus>;
+        readonly isLoading: Signal<boolean>;
+        hasValue(): boolean;
+      },
+      {
+        readonly resourceParamsSrc: WritableSignal<NoInfer<Params>>;
+      },
+      IsMethod extends true
+        ? {
+            call: (
+              args: ArgParams,
+            ) => YieldableInvocation<MethodYielded, Params>;
+          }
+        : {
+            source: ReadonlySource<SourceParams>;
+          },
+      YieldableInsertionMethods<Insertions>,
+      ResourceLikeExceptions<QueryException>,
+      {
+        [key in `~InternalType`]: 'Used to avoid TS type erasure';
+      },
+      QueryDependenciesMetadata<Dependencies>,
+    ]
+  >;
 
 export type ResourceByIdLikeQueryRef<
   Value,
@@ -504,20 +509,20 @@ export type ResourceByIdLikeQueryRef<
    * Get the associated resource by id, creating an idle resource when it does
    * not exist yet.
    */
-  selectOrCreate: (id: GroupIdentifier) =>
-    {
-      readonly value: Signal<Value | undefined>;
-      readonly status: Signal<CraftResourceStatus>;
-      readonly isLoading: Signal<boolean>;
-      hasValue(): boolean;
-    } & ResourceLikeExceptions<QueryException, GroupIdentifier>;
+  selectOrCreate: (id: GroupIdentifier) => {
+    readonly value: Signal<Value | undefined>;
+    readonly status: Signal<CraftResourceStatus>;
+    readonly isLoading: Signal<boolean>;
+    hasValue(): boolean;
+  } & ResourceLikeExceptions<QueryException, GroupIdentifier>;
 } & MergeObjects<
     [
       YieldableInsertionMethods<Insertions>,
       IsMethod extends true
         ? {
-            call: (args: ArgParams) =>
-              YieldableInvocation<MethodYielded, Params>;
+            call: (
+              args: ArgParams,
+            ) => YieldableInvocation<MethodYielded, Params>;
           }
         : {
             source: ReadonlySource<SourceParams>;
@@ -730,9 +735,7 @@ export function query<
   queryConfig: {
     methodSchema: MethodSchema;
     method: (args: SchemaOutput<MethodSchema>) => Params;
-    loader: (
-      param: ResourceLoaderParams<Params>,
-    ) => Promise<State> | State;
+    loader: (param: ResourceLoaderParams<Params>) => Promise<State> | State;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -1348,7 +1351,9 @@ function createQueryRef<
     }
     const schemaParamsException = schemaParseExceptions()['params'];
     if (schemaParamsException) {
-      return enrichResourceException(schemaParamsException, { scope: 'params' });
+      return enrichResourceException(schemaParamsException, {
+        scope: 'params',
+      });
     }
 
     if (isConnectedToSource && queryConfig.method) {
@@ -1400,27 +1405,25 @@ function createQueryRef<
   const wrappedParamsFn =
     'params' in queryConfig && queryConfig.params
       ? (((...args: unknown[]) => {
-            const value = executeGeneratorCompatibleFactory({
-              factory: queryConfig.params as (
-                ...args: unknown[]
-              ) => QueryParams,
-              thisArg: undefined,
-              getInjector,
-              args,
-              invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
-              multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-              onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-            }) as QueryParams;
-            if (!configuredSchemas.params || isCraftException(value)) {
-              return sanitizeParamsResult(value);
-            }
-            const parsed = schemaValidation.params.parseSync<QueryParams>(
-              value,
-              'params',
-              'params',
-            );
-            return parsed.accepted ? parsed.value : undefined;
-          }) as typeof queryConfig.params)
+          const value = executeGeneratorCompatibleFactory({
+            factory: queryConfig.params as (...args: unknown[]) => QueryParams,
+            thisArg: undefined,
+            getInjector,
+            args,
+            invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
+            multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+            onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
+          }) as QueryParams;
+          if (!configuredSchemas.params || isCraftException(value)) {
+            return sanitizeParamsResult(value);
+          }
+          const parsed = schemaValidation.params.parseSync<QueryParams>(
+            value,
+            'params',
+            'params',
+          );
+          return parsed.accepted ? parsed.value : undefined;
+        }) as typeof queryConfig.params)
       : undefined;
 
   const wrappedSourceParams =
@@ -1499,12 +1502,13 @@ function createQueryRef<
 
             let validatedResult = result as QueryState;
             if (configuredSchemas.loader) {
-              const parsed = await schemaValidation.loader.parseAsync<QueryState>(
-                result,
-                'loader',
-                'loader',
-                getIdentifierFromParams(rawParams),
-              );
+              const parsed =
+                await schemaValidation.loader.parseAsync<QueryState>(
+                  result,
+                  'loader',
+                  'loader',
+                  getIdentifierFromParams(rawParams),
+                );
               if (!parsed.accepted) {
                 const exceptionId = getIdentifierFromParams(rawParams);
                 setLoaderException(
@@ -1582,7 +1586,10 @@ function createQueryRef<
               return { value: lastValue };
             });
           };
-          if (result && typeof (result as Promise<unknown>).then === 'function') {
+          if (
+            result &&
+            typeof (result as Promise<unknown>).then === 'function'
+          ) {
             return Promise.resolve(result).then(wrapStreamSignal);
           }
           return wrapStreamSignal(result);
@@ -1644,8 +1651,8 @@ function createQueryRef<
           params: nonGroupedParams,
           equal: nonGroupedEqual,
           loader: wrappedLoader,
-        stream: wrappedStream,
-      } as ResourceOptions<any, any>);
+          stream: wrappedStream,
+        } as ResourceOptions<any, any>);
 
   if (configuredSchemas.loader) {
     const target = resourceTarget as any;
@@ -1740,7 +1747,10 @@ function createQueryRef<
                 hasException: selectHasException,
                 hasSchema: signal(hasConfiguredSchema),
                 exceptions: hasConfiguredSchema
-                  ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                  ? computed(() => ({
+                      ...selectExceptions(),
+                      parse: schemaParse(),
+                    }))
                   : selectExceptions,
               });
             })();
@@ -1769,7 +1779,10 @@ function createQueryRef<
               hasException: selectHasException,
               hasSchema: signal(hasConfiguredSchema),
               exceptions: hasConfiguredSchema
-                ? computed(() => ({ ...selectExceptions(), parse: schemaParse() }))
+                ? computed(() => ({
+                    ...selectExceptions(),
+                    parse: schemaParse(),
+                  }))
                 : selectExceptions,
             });
           },
@@ -1835,11 +1848,12 @@ function createQueryRef<
 
             let paramsResult = result as QueryParams;
             if (configuredSchemas.params) {
-              const parsedParams = schemaValidation.params.parseSync<QueryParams>(
-                result,
-                'params',
-                'method',
-              );
+              const parsedParams =
+                schemaValidation.params.parseSync<QueryParams>(
+                  result,
+                  'params',
+                  'method',
+                );
               if (!parsedParams.accepted) {
                 methodParamsException.set(
                   enrichResourceException(parsedParams.exception, {
@@ -1872,7 +1886,9 @@ function createQueryRef<
             methodTriggerSeq.update((n) => n + 1);
             //@ts-expect-error if method is exposed params can not be of type (entity: ResourceRef<NoInfer<FromObjectState>>) => QueryParams
             queryResourceParamsFnSignal.set(paramsResult as QueryParams);
-            return yieldableInvocation<MethodYielded, QueryParams>(paramsResult);
+            return yieldableInvocation<MethodYielded, QueryParams>(
+              paramsResult,
+            );
           },
     },
   );
@@ -1914,6 +1930,7 @@ function createQueryRef<
                 ...current,
                 ...patchFn(current),
               })),
+            __primitiveKind: 'query',
           } as any,
         ],
         invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
@@ -1955,8 +1972,7 @@ function createQueryRef<
               injector: methodInjector,
               invalidYieldErrorMessage: QUERY_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
-              onAppStartNotSupportedErrorMessage:
-                QUERY_APP_START_ERROR_MESSAGE,
+              onAppStartNotSupportedErrorMessage: QUERY_APP_START_ERROR_MESSAGE,
             });
           } else {
             wrappedAcc[key] = value;

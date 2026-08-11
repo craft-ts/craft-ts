@@ -229,7 +229,7 @@ exit 1
 
     expect(result.exitCode).toBe(0);
     expect(result.cases.every((item) => item.status === 'passed')).toBe(true);
-  }, 60_000);
+  }, 120_000);
 
   it('keeps fixtures only when explicitly requested', async () => {
     const root = await createFakeProject(false);

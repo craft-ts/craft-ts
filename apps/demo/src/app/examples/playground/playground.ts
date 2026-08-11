@@ -257,9 +257,10 @@ const PlaygroundComponent = craftComponent(
       return {};
     });
     const isAdding = craftComputed('isAdding', () => pg.addTodo.isLoading());
-    return { pg, add, isAdding };
+    const todos = craftComputed('todos', () => pg.todos.value() ?? []);
+    return { pg, add, isAdding, todos };
   },
-  ({ pg, add, isAdding }) => {
+  ({ pg, add, isAdding, todos }) => {
     let field: HTMLInputElement | undefined;
     return div({ class: 'playground' }, [
       h2('Playground'),
@@ -292,7 +293,7 @@ const PlaygroundComponent = craftComponent(
       div(
         { class: 'list' },
         each(
-          () => pg.todos.value() ?? [],
+          todos,
           { track: (todo) => todo.id, empty: () => p('No todos yet.') },
           (todo) =>
             div({ class: { 'todo-item': true, completed: todo.completed } }, [
@@ -302,7 +303,7 @@ const PlaygroundComponent = craftComponent(
                     yield* pg.toggleTodo.mutate(todo.id);
                   },
                 },
-                TODO_ICONS[todo.completed ? 'true' : 'false'],
+                TODO_ICONS[String(todo.completed)],
               ),
               span({ class: 'title' }, todo.title),
               button(

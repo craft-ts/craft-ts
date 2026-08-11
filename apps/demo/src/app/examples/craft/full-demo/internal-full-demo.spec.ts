@@ -87,15 +87,15 @@ describe('Craft Full Demo route component', () => {
     const queryRunsAfterLoad = todoQueryRuns;
     input!.value = 'Typing must not reload';
     input!.dispatchEvent(new Event('input', { bubbles: true }));
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(todoQueryRuns).toBe(queryRunsAfterLoad);
+    await vi.waitFor(() => expect(todoQueryRuns).toBe(queryRunsAfterLoad));
 
     element.querySelector<HTMLButtonElement>('button')!.click();
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(todoQueryRuns).toBe(queryRunsAfterLoad);
-    expect(element.textContent).toContain('Full craftService demo');
-    expect(element.textContent).toContain('Typing must not reload');
+    await vi.waitFor(() => {
+      expect(todoQueryRuns).toBe(queryRunsAfterLoad);
+      expect(element.textContent).toContain('Full craftService demo');
+      expect(element.textContent).toContain('Typing must not reload');
+    });
     fixture.destroy();
   });
 

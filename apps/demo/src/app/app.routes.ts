@@ -430,6 +430,20 @@ declare module '@craft-ng/core' {
         'USER_DISABLED'
       >;
     };
+    'mutation/:userId': {
+      UNEXPECTED_ERROR: CraftRouteExceptionType<
+        typeof demoRoutes,
+        'mutation/:userId',
+        'UNEXPECTED_ERROR'
+      >;
+    };
+    'craft-service/user-detail': {
+      UNEXPECTED_ERROR: CraftRouteExceptionType<
+        typeof demoRoutes,
+        'craft-service/user-detail',
+        'UNEXPECTED_ERROR'
+      >;
+    };
   }
 }
 /* demo-check-end */

@@ -1,3 +1,4 @@
+import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
@@ -9,7 +10,7 @@ import {
   label,
   p,
 } from '@craft-ng/component';
-import { craftComputed, state } from '@craft-ng/core';
+import { craftComputed, insertStatePipe, state } from '@craft-ng/core';
 
 const LoginFormComponent = craftComponent(
   'LoginFormComponent',
@@ -27,21 +28,21 @@ const LoginFormComponent = craftComponent(
     const password = yield* state('password', '', ({ set }) => ({
       setPassword: (value: string) => set(value),
     }));
-    const submitted = yield* state('submitted', false, ({ set }) => ({
-      submit: () => set(true),
-    }));
     const valid = craftComputed(
       'valid',
       () => email().includes('@') && password().length >= 6,
     );
-    const showError = craftComputed(
-      'showError',
-      () => submitted() && !valid(),
+    const submitted = yield* state(
+      'submitted',
+      false,
+      insertStatePipe(
+        ({ set }) => ({ submit: () => set(true) }),
+        ({ state }) => ({ showError: computed(() => state() && !valid()) }),
+        ({ state }) => ({ showSuccess: computed(() => state() && valid()) }),
+      ),
     );
-    const showSuccess = craftComputed(
-      'showSuccess',
-      () => submitted() && valid(),
-    );
+    const showError = submitted.showError;
+    const showSuccess = submitted.showSuccess;
     return {
       email,
       password,

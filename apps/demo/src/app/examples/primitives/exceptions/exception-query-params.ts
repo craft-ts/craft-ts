@@ -1,3 +1,4 @@
+import { computed } from '@angular/core';
 import {
   button,
   craftComponent,
@@ -9,7 +10,6 @@ import {
   strong,
 } from '@craft-ng/component';
 import {
-  craftComputed,
   craftMethod,
   CraftRouter,
   queryParams,
@@ -53,28 +53,36 @@ const ExceptionQueryParamsComponent = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const modeQueryParams = yield* queryParams('modeQueryParams', {
-      state: {
-        mode: {
-          fallbackValue: 'fallbackValue' as const,
-          codec: {
-            // The runtime accepts a CraftException as a decode result and
-            // records it in `exceptions().parse`; the cast keeps the public
-            // decoded state limited to the successful domain value.
-            decode: ((value: string) => {
-              if (value !== 'success') {
-                return craftException(
-                  { code: 'UNEXPECTED_ERROR' },
-                  { error: new Error(`Invalid mode: ${value}`) },
-                );
-              }
-              return 'success' as const;
-            }) as (value: string) => 'success' | 'fallbackValue',
-            encode: String,
+    const modeQueryParams = yield* queryParams(
+      'modeQueryParams',
+      {
+        state: {
+          mode: {
+            fallbackValue: 'fallbackValue' as const,
+            codec: {
+              // The runtime accepts a CraftException as a decode result and
+              // records it in `exceptions().parse`; the cast keeps the public
+              // decoded state limited to the successful domain value.
+              decode: ((value: string) => {
+                if (value !== 'success') {
+                  return craftException(
+                    { code: 'UNEXPECTED_ERROR' },
+                    { error: new Error(`Invalid mode: ${value}`) },
+                  );
+                }
+                return 'success' as const;
+              }) as (value: string) => 'success' | 'fallbackValue',
+              encode: String,
+            },
           },
         },
       },
-    });
+      ({ exceptions }) => ({
+        hasParseException: computed(
+          () => exceptions().parse.mode !== undefined,
+        ),
+      }),
+    );
     const navigate = craftMethod('navigate', function* (mode: string) {
       void router.navigate({
         to: 'exception-query-params',
@@ -83,13 +91,9 @@ const ExceptionQueryParamsComponent = craftComponent(
         queryParamsHandling: 'merge',
       });
     });
-    const hasParseException = craftComputed(
-      'hasParseException',
-      () => modeQueryParams.exceptions().parse.mode !== undefined,
-    );
-    return { modeQueryParams, navigate, hasParseException };
+    return { modeQueryParams, navigate };
   },
-  ({ modeQueryParams, navigate, hasParseException }) => {
+  ({ modeQueryParams, navigate }) => {
     return section([
       h('h4', 'QueryParams decode exception'),
       div([
@@ -112,7 +116,7 @@ const ExceptionQueryParamsComponent = craftComponent(
       ]),
       p([strong('Parsed value: '), () => String(modeQueryParams().mode)]),
       ifBlock(
-        hasParseException,
+        modeQueryParams.hasParseException,
         () =>
           p([
             strong('Exception: '),

@@ -27,6 +27,7 @@ import {
   query,
   retry,
   state,
+  insertStatePipe,
 } from '@craft-ng/core';
 import styles from './debounced-web-search.css' with { loader: 'text' };
 import { StatusComponent } from '../../../ui/status.component';
@@ -127,9 +128,19 @@ const DebouncedWebSearch = craftComponent(
   'DebouncedWebSearch',
   { stylesUrl: styles },
   function* () {
-    const searchInput = yield* state('searchInput', '', ({ set }) => ({
-      setSearchInput: (value: string) => set(value),
-    }));
+    const searchInput = yield* state(
+      'searchInput',
+      '',
+      insertStatePipe(
+        ({ set }) => ({
+          setSearchInput: (value: string) => set(value),
+        }),
+        ({ state }) => ({
+          currentTerm: computed(() => state()?.trim() ?? ''),
+          tooShort: computed(() => state().trim().length < 2),
+        }),
+      ),
+    );
 
     // asyncProcess owns the debounce. The new temporal runtime makes the wait
     // cancellable and replaceable by a virtual clock in tests.
@@ -148,8 +159,6 @@ const DebouncedWebSearch = craftComponent(
         isDebouncing: computed(() => resource.isLoading()),
       }),
     );
-
-    const currentTerm = computed(() => searchInput()?.trim() ?? '');
 
     // query owns the server state. It only sees values emitted after the
     // debounce and retries transient CraftHttpClient failures.
@@ -185,7 +194,7 @@ const DebouncedWebSearch = craftComponent(
           ),
           showEmpty: computed(
             () =>
-              currentTerm().length >= 2 &&
+              searchInput.currentTerm().length >= 2 &&
               !resource.isLoading() &&
               !hasException() &&
               !hasResults(),
@@ -194,10 +203,9 @@ const DebouncedWebSearch = craftComponent(
       },
     );
 
-    const tooShort = craftComputed('tooShort', () => currentTerm().length < 2);
     const showDebouncing = craftComputed(
       'showDebouncing',
-      () => currentTerm().length >= 2 && debouncedSearch.isDebouncing(),
+      () => searchInput().trim().length >= 2 && debouncedSearch.isDebouncing(),
     );
 
     return {
@@ -205,8 +213,6 @@ const DebouncedWebSearch = craftComponent(
       setSearchInput: searchInput.setSearchInput,
       debouncedSearch,
       searchQuery,
-      currentTerm,
-      tooShort,
       showDebouncing,
     };
   },
@@ -214,8 +220,6 @@ const DebouncedWebSearch = craftComponent(
     searchInput,
     debouncedSearch,
     searchQuery,
-    currentTerm,
-    tooShort,
     showDebouncing,
     setSearchInput,
   }) => {
@@ -230,9 +234,7 @@ const DebouncedWebSearch = craftComponent(
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
         'aria-label': 'Search books',
         *input(event) {
-          yield* setSearchInput(
-            (event.target as HTMLInputElement).value,
-          );
+          yield* setSearchInput((event.target as HTMLInputElement).value);
         },
       }),
       div({ class: 'pipeline-status' }, [
@@ -242,7 +244,7 @@ const DebouncedWebSearch = craftComponent(
         ]),
         span(['HTTP query: ', StatusComponent({ status: searchQuery.status })]),
       ]),
-      ifBlock(tooShort, () =>
+      ifBlock(searchInput.tooShort, () =>
         p({ class: 'hint' }, 'Enter at least two characters to search.'),
       ),
       ifBlock(showDebouncing, () =>
@@ -258,7 +260,7 @@ const DebouncedWebSearch = craftComponent(
         h3([
           () => searchQuery.resultCount(),
           ' results for “',
-          () => currentTerm(),
+          () => searchInput(),
           '”',
         ]),
         ul(

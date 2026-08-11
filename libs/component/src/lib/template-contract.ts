@@ -1255,7 +1255,7 @@ type TemplateContextOf<Template> = Template extends (
 
 type TemplateContextPathKeys<Value> = Exclude<
   keyof Value,
-  keyof Function | symbol | number
+  keyof ((...args: never[]) => unknown) | symbol | number
 > &
   string;
 

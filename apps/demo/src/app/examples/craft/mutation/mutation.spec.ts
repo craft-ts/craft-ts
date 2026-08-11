@@ -18,7 +18,7 @@ import {
 } from '@craft-ng/core';
 import type { Equal, Expect } from '@craft-ng/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
-import MutationCraft, { UserMutation, provideUserMutation } from './mutation';
+import MutationCraft, { provideUserMutation } from './mutation';
 import { ApiService, type User } from './api.service';
 
 type MutationLogic = ComponentLogicOutputOf<typeof MutationCraft>;

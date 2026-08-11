@@ -41,15 +41,19 @@ const ViewTransitionsSkeletonComponent = craftComponent(
         viewTransition()?.image !== null &&
         viewTransition()?.image !== undefined,
     );
-    return { photoId, viewTransition, hasImage };
+    const imageSrc = craftComputed(
+      'imageSrc',
+      () => viewTransition()?.image ?? '',
+    );
+    return { photoId, viewTransition, hasImage, imageSrc };
   },
-  ({ photoId, viewTransition, hasImage }) => {
+  ({ photoId, hasImage, imageSrc }) => {
     const heroContent = ifBlock(
       hasImage,
       () =>
         img({
           class: 'vt-hero-image',
-          src: () => viewTransition()?.image ?? '',
+          src: imageSrc,
           alt: '',
         }),
       () => span({ class: 'vt-emoji' }, () => findPhoto(photoId())?.emoji),

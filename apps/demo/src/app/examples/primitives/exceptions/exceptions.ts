@@ -1,3 +1,4 @@
+import { computed } from '@angular/core';
 import {
   button,
   catchTag,
@@ -10,7 +11,6 @@ import {
   strong,
 } from '@craft-ng/component';
 import {
-  craftComputed,
   craftException,
   craftGen,
   craftSleep,
@@ -59,36 +59,41 @@ const ExceptionsComponent = craftComponent(
       'success' as Scenario,
       ({ set }) => ({ select: (value: Scenario) => set(value) }),
     );
-    const userQuery = yield* query('userQuery', {
-      params: scenario,
-      loader: craftGen(function* ({ params }) {
-        yield* craftSleep(600);
-        if (params === 'not-found') {
-          return craftException(
-            { code: 'UserNotFoundException' },
-            { message: 'User does not exist' as const },
-          );
-        }
-        if (params === 'consent-missing') {
-          return craftException(
-            { code: 'UserConsentMissingException' },
-            { message: 'User consent is required' as const },
-          );
-        }
-        if (params === 'forbidden') {
-          return craftException(
-            { code: 'UserAccessForbiddenException' },
-            { message: 'Access forbidden' as const },
-          );
-        }
-        return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
+    const userQuery = yield* query(
+      'userQuery',
+      {
+        params: scenario,
+        loader: craftGen(function* ({ params }) {
+          yield* craftSleep(600);
+          if (params === 'not-found') {
+            return craftException(
+              { code: 'UserNotFoundException' },
+              { message: 'User does not exist' as const },
+            );
+          }
+          if (params === 'consent-missing') {
+            return craftException(
+              { code: 'UserConsentMissingException' },
+              { message: 'User consent is required' as const },
+            );
+          }
+          if (params === 'forbidden') {
+            return craftException(
+              { code: 'UserAccessForbiddenException' },
+              { message: 'Access forbidden' as const },
+            );
+          }
+          return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
+        }),
+      },
+      ({ resource }) => ({
+        hasUser: computed(() => resource.hasValue()),
+        isLoading: computed(() => resource.isLoading()),
       }),
-    });
-    const hasUser = craftComputed('hasUser', () => userQuery.hasValue());
-    const isLoading = craftComputed('isLoading', () => userQuery.isLoading());
-    return { scenario, userQuery, hasUser, isLoading };
+    );
+    return { scenario, userQuery };
   },
-  ({ scenario, userQuery, hasUser, isLoading }) => {
+  ({ scenario, userQuery }) => {
     const currentUser = () =>
       userQuery.value() as { id: string; name: string; email: string };
     return div([
@@ -128,21 +133,12 @@ const ExceptionsComponent = craftComponent(
         ),
       ]),
       ifBlock(
-        hasUser,
+        userQuery.hasUser,
         () =>
           div([
-            p([
-              strong('ID: '),
-              () => currentUser().id,
-            ]),
-            p([
-              strong('Name: '),
-              () => currentUser().name,
-            ]),
-            p([
-              strong('Email: '),
-              () => currentUser().email,
-            ]),
+            p([strong('ID: '), () => currentUser().id]),
+            p([strong('Name: '), () => currentUser().name]),
+            p([strong('Email: '), () => currentUser().email]),
           ]),
         () => [
           matchBlock.exhaustive(() => userQuery.exceptions().loader, 'code', {
@@ -155,7 +151,7 @@ const ExceptionsComponent = craftComponent(
             UserAccessForbiddenException: () =>
               p('⚠️ Access forbidden (rendered by matchBlock.exhaustive)'),
           }),
-          ifBlock(isLoading, () => p('Loading user…')),
+          ifBlock(userQuery.isLoading, () => p('Loading user…')),
         ],
       ),
     ]);

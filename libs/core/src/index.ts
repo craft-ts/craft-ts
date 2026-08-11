@@ -14,6 +14,7 @@ export * from './lib/craft-match';
 export * from './lib/insert-storage-persister';
 export * from './lib/insert-noop-typing-anchor';
 export * from './lib/insert-select';
+export * from './lib/insert-select-resource';
 export * from './lib/inject-service';
 export * from './lib/linked-source';
 export * from './lib/mutation';

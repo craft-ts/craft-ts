@@ -64,6 +64,16 @@ module.exports = {
       },
 
       VariableDeclarator(node) {
+        if (node.id.type === 'Identifier') {
+          const primitive = findPrimitiveCreation(node.init);
+          if (primitive) {
+            primitiveRefs.set(node.id.name, {
+              primitive,
+              methods: PRIMITIVE_METHODS[primitive],
+            });
+          }
+        }
+
         if (
           node.id.type === 'Identifier' &&
           node.init?.type === 'CallExpression' &&
