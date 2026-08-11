@@ -1,3 +1,13 @@
+## 0.7.0-beta.3 (2026-08-11)
+
+### 🩹 Fixes
+
+- **release:** keep correlation tracking disabled in target ([72c35d8](https://github.com/ng-angular-stack/ng-craft/commit/72c35d8))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.7.0-beta.2 (2026-08-11)
 
 ### 🚀 Features
