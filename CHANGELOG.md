@@ -1,3 +1,41 @@
+## 0.7.0-beta.2 (2026-08-11)
+
+### 🚀 Features
+
+- add yieldable template contracts ([da8ebf1](https://github.com/ng-angular-stack/ng-craft/commit/da8ebf1))
+- add fine-grained component reactivity ([31c1a78](https://github.com/ng-angular-stack/ng-craft/commit/31c1a78))
+- **component:** merge component host properties ([099883b](https://github.com/ng-angular-stack/ng-craft/commit/099883b))
+- **component:** infer Angular directive inputs from node props ([50546af](https://github.com/ng-angular-stack/ng-craft/commit/50546af))
+- **component:** support configured Angular directive pipes ([e1076eb](https://github.com/ng-angular-stack/ng-craft/commit/e1076eb))
+- **component:** add scoped style registry and customization docs ([55f6432](https://github.com/ng-angular-stack/ng-craft/commit/55f6432))
+- **core:** add craftLazy for lazy service imports; rename untilSettled → craftUntilSettled ([c23c616](https://github.com/ng-angular-stack/ng-craft/commit/c23c616))
+- **core:** add craftMatch for exhaustive literal-union pattern matching ([1b2197c](https://github.com/ng-angular-stack/ng-craft/commit/1b2197c))
+- **core:** add Craft runtime registry ([02181ea](https://github.com/ng-angular-stack/ng-craft/commit/02181ea))
+- **core:** add Standard Schema validation primitives ([dfe47a4](https://github.com/ng-angular-stack/ng-craft/commit/dfe47a4))
+- **core:** add typed insertion pipes ([79d0ec9](https://github.com/ng-angular-stack/ng-craft/commit/79d0ec9))
+- **dev-tools:** add template migration tooling ([5e2ae2e](https://github.com/ng-angular-stack/ng-craft/commit/5e2ae2e))
+- **dev-tools:** enforce Craft HTTP transports ([a75157c](https://github.com/ng-angular-stack/ng-craft/commit/a75157c))
+- **dev-tools:** forbid Angular input output APIs ([4a37fd9](https://github.com/ng-angular-stack/ng-craft/commit/4a37fd9))
+- **dev-tools:** enforce yielded resource triggers ([2c240a8](https://github.com/ng-angular-stack/ng-craft/commit/2c240a8))
+- **graph:** polish dependency graph visualization ([fa25d06](https://github.com/ng-angular-stack/ng-craft/commit/fa25d06))
+- **release:** actionable git sync errors with fix commands ([e5892e6](https://github.com/ng-angular-stack/ng-craft/commit/e5892e6))
+- **routes:** make guarded data yieldable ([dddcd43](https://github.com/ng-angular-stack/ng-craft/commit/dddcd43))
+- **tooling:** add local log server and logs MCP server ([70849b6](https://github.com/ng-angular-stack/ng-craft/commit/70849b6))
+
+### 🩹 Fixes
+
+- preserve demo template input state ([29efc15](https://github.com/ng-angular-stack/ng-craft/commit/29efc15))
+- **component:** accept literal element nodes ([28c7520](https://github.com/ng-angular-stack/ng-craft/commit/28c7520))
+- **demo:** use craft query status type ([c79a51d](https://github.com/ng-angular-stack/ng-craft/commit/c79a51d))
+- **demo:** keep app start callback synchronous ([c2939da](https://github.com/ng-angular-stack/ng-craft/commit/c2939da))
+- **release:** sync internal dependencies and demo tooling ([812fd0e](https://github.com/ng-angular-stack/ng-craft/commit/812fd0e))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 4.8
+- Romain
+
 ## 0.7.0-beta.1 (2026-08-11)
 
 ### 🚀 Features
