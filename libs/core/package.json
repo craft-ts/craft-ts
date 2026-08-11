@@ -1,6 +1,6 @@
 {
   "name": "@craft-ng/core",
-  "version": "0.6.0-beta.5",
+  "version": "0.7.0-beta.1",
   "description": "Type-safe Angular. Declare. Yield. Derive. Compile — no surprises",
   "author": "Romain Geffrault",
   "license": "MIT",
