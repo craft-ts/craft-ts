@@ -20,15 +20,25 @@ npm config set //registry.npmjs.org/:\_authToken "VOTRE_TOKEN"
 
 ```bash
 npm login
-
-# 1. Versionner le package
-nx release version 0.1.0
-
-# 2. Publier sur npm
-nx release publish
 ```
 
-Puis mettre à jour les versions dans les packages.json
+Commandes prévues :
+
+```
+npm run release:local -- patch
+npm run release:local -- minor
+npm run release:local -- major
+```
+
+Ou avec une version précise :
+
+```
+npm run release:local -- 0.6.0-beta.3
+```
+
+Pour vérifier sans modifier ni publier :
+npm run release:local -- minor --dry-run
+Le script nécessite aussi les dépôts voisins ../ng-craft.github.io et ../ng-craft-demo, chacun sur la branche main.
 
 ### Notes
 
