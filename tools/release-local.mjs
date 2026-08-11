@@ -17,6 +17,8 @@ import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
+import { parseReleaseVersion, releasePackages } from './release.mjs';
+
 const scriptPath = fileURLToPath(import.meta.url);
 const workspaceRoot = resolve(dirname(scriptPath), '..');
 const supportedBumps = new Set(['patch', 'minor', 'major']);
@@ -36,6 +38,35 @@ function readJson(path) {
 
 function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+export function releasePeerDependencyRange(version) {
+  const release = parseReleaseVersion(version);
+  const base = `${release.major}.${release.minor}.${release.patch}`;
+  return release.preid ? `^${base}-${release.preid}.0` : `^${base}`;
+}
+
+function syncInternalPeerDependencyRanges(version) {
+  const releaseRange = releasePeerDependencyRange(version);
+  const releasePackageNames = new Set(releasePackages.map(({ name }) => name));
+
+  for (const pkg of releasePackages) {
+    const manifest = readJson(join(workspaceRoot, pkg.sourceManifest));
+    const peerDependencies = manifest.peerDependencies ?? {};
+    let changed = false;
+
+    for (const dependency of Object.keys(peerDependencies)) {
+      if (!releasePackageNames.has(dependency)) continue;
+      if (peerDependencies[dependency] === releaseRange) continue;
+      peerDependencies[dependency] = releaseRange;
+      changed = true;
+    }
+
+    if (changed) {
+      manifest.peerDependencies = peerDependencies;
+      writeJson(join(workspaceRoot, pkg.sourceManifest), manifest);
+    }
+  }
 }
 
 function syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest) {
@@ -323,6 +354,7 @@ async function main(args) {
   const release = resolveRelease(argument);
   run('node', ['tools/release.mjs', 'assert-target', release.version]);
   run('npm', ['run', 'release:check']);
+  if (!dryRun) syncInternalPeerDependencyRanges(release.version);
   run('npx', [
     'nx',
     'run-many',

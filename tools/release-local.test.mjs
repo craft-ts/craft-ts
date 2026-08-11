@@ -15,6 +15,7 @@ import {
   gitSynchronizationError,
   npmPublishArguments,
   parseReleaseArgument,
+  releasePeerDependencyRange,
   syncBuiltDocumentation,
   syncDemoWorkspace,
 } from './release-local.mjs';
@@ -49,6 +50,12 @@ test('publishes fixed-group packages directly from their dist directories', () =
     '--access',
     'public',
   ]);
+});
+
+test('keeps internal peer dependencies on the release line', () => {
+  assert.equal(releasePeerDependencyRange('0.7.0-beta.1'), '^0.7.0-beta.0');
+  assert.equal(releasePeerDependencyRange('0.7.0-rc.1'), '^0.7.0-rc.0');
+  assert.equal(releasePeerDependencyRange('0.7.0'), '^0.7.0');
 });
 
 test('explains how to synchronize a repository with its remote', () => {
