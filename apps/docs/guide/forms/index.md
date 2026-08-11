@@ -32,7 +32,7 @@ Form insertions enable modular composition of functionality:
 The primary insertion that creates an Angular Signal-Form from a primitive.
 
 ```ts
-import { state } from '@craft-ng/core';
+import { craftUse, state } from '@craft-ng/core';
 import {
   insertForm,
   insertFormAttributes,
@@ -42,28 +42,30 @@ import {
   cEmail,
 } from '@craft-ng/core';
 
-const { userFormState } = state(
-  'userFormState',
-  { name: '', email: '' },
-  insertForm(
-    insertSelectFormTree(
-      'name',
-      insertNoopTypingAnchor, // TS limitation
-      insertFormAttributes(() => ({
-        validators: [cRequired()],
-      })),
-    ),
-    insertSelectFormTree(
-      'email',
-      insertNoopTypingAnchor, // TS limitation
-      insertFormAttributes(() => ({
-        validators: [cRequired(), cEmail()],
-      })),
+const userFormState = craftUse(
+  state(
+    'userFormState',
+    { name: '', email: '' },
+    insertForm(
+      insertSelectFormTree(
+        'name',
+        insertNoopTypingAnchor, // TS limitation
+        insertFormAttributes(() => ({
+          validators: [cRequired()],
+        })),
+      ),
+      insertSelectFormTree(
+        'email',
+        insertNoopTypingAnchor, // TS limitation
+        insertFormAttributes(() => ({
+          validators: [cRequired(), cEmail()],
+        })),
+      ),
     ),
   ),
 );
 
-const form = userFormState.form();
+const form = userFormState.form;
 const nameField = form.selectName();
 const emailField = form.selectEmail();
 ```
@@ -77,28 +79,57 @@ const emailField = form.selectEmail();
 Adds attributes and validators to a form field.
 
 ```ts
-const { formState } = state(
-  'formState',
-  { email: '' },
-  insertForm(
-    insertSelectFormTree(
-      'email',
-      insertNoopTypingAnchor,
-      insertFormAttributes(() => ({
-        validators: [cRequired(), cEmail()],
-        disable: () => isLoading(),
-        hidden: () => !showField(),
-      })),
+const formState = craftUse(
+  state(
+    'formState',
+    { email: '' },
+    insertForm(
+      insertSelectFormTree(
+        'email',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({
+          validators: [cRequired(), cEmail()],
+          disable: () => isLoading(),
+          hidden: () => !showField(),
+        })),
+      ),
     ),
   ),
 );
 
 // Access email field and its exceptions
-const form = formState.form();
+const form = formState.form;
 const emailField = form.selectEmail();
 const errors = emailField()().exceptions.list; // fully typed list of exceptions
 const emailError = emailField()().exceptions.byValidator['cEmail'];
 ```
+
+### insertFormSchema
+
+Adds a form-level `StandardSchemaV1` validator. Issues are projected onto the
+matching fields by their schema path, while root and unmaterialized issues stay
+available through `schemaExceptions()`.
+
+```ts
+const formState = craftUse(
+  state(
+    'formState',
+    { email: '' },
+    insertForm(
+      insertFormSchema(userSchema),
+      insertFormSubmit(saveUser),
+    ),
+  ),
+);
+const form = formState.form;
+
+form.email.errors();
+form.hasSchemaExceptions();
+form.schemaExceptions();
+```
+
+The form keeps the schema input value. Schema transformations belong at the
+submit boundary, for example through the mutation's `methodSchema`.
 
 ### insertFormSubmit
 

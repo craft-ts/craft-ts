@@ -50,19 +50,16 @@ And here is the constraint that makes it interesting:
 Which means the answer to "how do I share this behaviour" is not a new concept to learn. It is: **extract the function.**
 
 ```typescript
-import { Signal } from '@angular/core';
+import { InsertionStateFactoryContext, state } from '@craft-ng/core';
 
 export const withUndo = <State>({
-  state,
+  state: read,
   set,
-}: {
-  state: Signal<State>;
-  set: (newState: State) => State;
-}) => {
+}: InsertionStateFactoryContext<State, {}>) => {
   let previous: State | undefined;
   return {
-    save: () => void (previous = state()),
-    undo: () => previous !== undefined && set(previous),
+    save: () => void (previous = read()),
+    undo: () => (previous === undefined ? undefined : set(previous)),
   };
 };
 
@@ -75,9 +72,9 @@ Two details in that snippet are worth more than they look, and I only found them
 
 **The insertion is generic, and it is called through a lambda.** Handing `withUndo` directly to `state` asks TypeScript to infer `State` from the position of the argument rather than from a value, which is exactly where inference gives up. Wrapping it in `(context) => withUndo(context)` lets the state type flow in first, and the generic resolves. It costs seven characters and it is the difference between working and a wall of inference errors.
 
-**You only declare the part of the context you use.** `withUndo` asks for `state` and `set`; the real context also carries `update`, `patch` and `insertions`. Structural typing means a narrower parameter accepts the wider object, so a reusable insertion documents its own requirements — you can read what `withUndo` touches without reading its body.
+**The context has a public type per primitive.** `InsertionStateFactoryContext<State, PreviousOutputs>` for `state`, `InsertionResourceFactoryContext<…>` for `query` / `mutation` / `asyncProcess`, `InsertionQueryParamsFactoryContext<…>` for `queryParams`. The second parameter is what the members before you produced — `{}` when your insertion does not read them. If you would rather type the whole function than its argument, the matching `Insertions*Factory` aliases do that instead.
 
-There is a gap here I should own: the library does not currently export a public type for that context, so today you hand-write the shape you need, as above. That works, and it keeps insertions honest about their requirements, but it is not the ergonomics I want. A published context type is on the list.
+Full disclosure on that last point: those types were not exported when I started writing this article. Trying to write this section is what surfaced it — the extension story was "just extract the function", and the type you need to extract it was internal. It ships in the next beta.
 
 ## Composing them
 

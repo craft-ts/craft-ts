@@ -15,6 +15,7 @@ import {
   cMaxLength,
   insertForm,
   insertFormAttributes,
+  insertFormSchema,
   insertNoopTypingAnchor,
   insertSelectFormTree,
 } from '@craft-ng/core';
@@ -63,6 +64,19 @@ Built-ins cover the usual ground: `cRequired`, `cEmail`, `cMin` / `cMax`,
 `cMinLength` / `cMaxLength`, `cPattern`. Custom ones use `cValidate`, and
 `cAsyncValidate` for server-side checks. Details on
 [Validation](/guide/forms/validation).
+
+For rules that cover the complete value, add one Standard Schema insertion:
+
+```typescript
+insertForm(
+  insertFormSchema(taskSchema),
+  /* field insertions */
+);
+```
+
+Schema issues are projected onto fields by path. The form keeps its input value;
+if the schema transforms values, apply that schema again as the mutation's
+`methodSchema` at submit time.
 
 Attributes are derived too, so conditional UI is a function, not an effect:
 

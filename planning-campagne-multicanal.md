@@ -101,7 +101,19 @@ venir pour « encore un state manager ».
 
 ## 4. Calendrier éditorial — 12 semaines
 
-Format : **A** = article original dev.to · **B** = format court · **LI** = thème LinkedIn de la semaine.
+**Comment lire les colonnes.** Elles correspondent aux 2 publications + 3 posts hebdo de la section 1 :
+
+| Colonne | Quoi | Où | Langue | Effort |
+|---|---|---|---|---|
+| **A — article dev.to** | L'article original de la semaine, 1200–2000 mots | dev.to (puis Medium à J+5) | anglais | ~6 h |
+| **B — format court** | La 2ᵉ publication, **dérivée de A** : un chapitre coupé, une objection reçue en commentaire, un snippet isolé, un StackBlitz commenté. 400–600 mots | dev.to | anglais | ~45 min |
+| **LI (FR)** | Le **thème** des 3 posts LinkedIn de la semaine (voir le rythme mardi/jeudi/week-end en section 5) — pas un post unique | LinkedIn | français | ~1 h |
+
+Le B n'est jamais un second sujet : c'est de la matière que l'écriture de A a produite en trop.
+C'est ce qui rend la promesse « 2 publications/semaine » tenable.
+
+**Exemple, semaine 1 :** A = l'article « the problem I kept running into » · B = un post court
+« `state()` en 7 lignes » · LI = 3 posts FR (lancement, snippet, coulisses).
 
 ### Phase 1 — Exister (S1–S4) : « pourquoi »
 

@@ -20,6 +20,25 @@ export * from './lib/linked-source';
 export * from './lib/mutation';
 export * from './lib/query-params';
 export * from './lib/query';
+// Insertion authoring surface: the contexts an insertion receives, and the
+// factory signatures a reusable insertion can be typed with.
+export type {
+  // state
+  InsertionStateFactoryContext,
+  InsertionsStateFactory,
+  // query / mutation / asyncProcess
+  InsertionResourceFactoryContext,
+  InsertionsResourcesFactory,
+  InsertionParams,
+  InsertionsFactory,
+  InsertionByIdParams,
+  InsertionsByIdFactory,
+  // queryParams
+  InsertionQueryParamsFactoryContext,
+  InsertionsQueryParamsFactory,
+  // shared constraint used by the resource-based generics above
+  ResourceExceptionConstraints,
+} from './lib/query.core';
 export * from './lib/source-from-event';
 export * from './lib/signal-source';
 export * from './lib/stacked-source';
@@ -85,6 +104,7 @@ export * from './lib/on$';
 export * from './lib/form/craft-field';
 export * from './lib/form/craft-field.directive';
 export * from './lib/form/insert-form';
+export * from './lib/form/insert-form-schema';
 export * from './lib/form/insert-form-attributes';
 export * from './lib/form/insert-select-form-tree';
 export * from './lib/form/target-form-field';

@@ -8,6 +8,86 @@ when a rule is specific to your domain.
 
 @craft-ng provides a complete set of validators with structured exception handling:
 
+## Schema validation
+
+Use `insertFormSchema` when the rules describe the complete form value rather
+than one field at a time. It accepts any schema compatible with
+`StandardSchemaV1`, including current versions of Zod, Valibot, ArkType and
+Effect Schema.
+
+```ts
+import { z } from 'zod';
+import {
+  craftUse,
+  insertForm,
+  insertFormSchema,
+  state,
+} from '@craft-ng/core';
+
+const userSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  address: z.object({
+    zip: z.string().length(5),
+  }),
+});
+
+const userFormState = craftUse(
+  state(
+    'userForm',
+    {
+      name: '',
+      email: '',
+      address: { zip: '' },
+    },
+    insertForm(insertFormSchema(userSchema)),
+  ),
+);
+const form = userFormState.form;
+```
+
+Issues with a Standard Schema path are projected onto the matching field:
+
+```ts
+form.email.errors();
+form.address.zip.errors();
+form.schemaExceptions(); // also includes root/unmaterialized issues
+```
+
+Issues without a path remain on the form root. The form is invalid while any
+schema issue exists, so `validatedFormValue()` is `undefined` and
+`insertFormSubmit` does not call its mutation.
+
+Schema validation is synchronous in forms. Use `cAsyncValidate` for an
+asynchronous field rule or an async resource for a server-side check.
+
+### Schema transformations
+
+Following the Standard Schema form convention, validation does not replace the
+form's input value with the schema output:
+
+```ts
+const schema = z.object({
+  age: z.string().transform(Number),
+});
+```
+
+The form keeps `age` as a string. If the submit payload needs the transformed
+number, put the same schema on the mutation's `methodSchema`; the mutation
+method then receives the parsed output:
+
+```ts
+const saveUser = mutation('saveUser', {
+  methodSchema: schema,
+  method: (user) => user, // user.age is number
+  loader: saveUserRequest,
+});
+```
+
+`schemaExceptions()` returns typed `SCHEMA_VALIDATION_ERROR` exceptions. Each
+exception contains the original Standard Schema issue and its path in
+`payload.issues`.
+
 ## Built-in Validators
 
 ### cRequired

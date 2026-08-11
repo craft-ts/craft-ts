@@ -3,6 +3,15 @@ import type { AnyCraftException } from '../craft-exception';
 
 export type CraftFieldError = AnyCraftException;
 
+export type CraftFieldSchemaErrorEntry = {
+  readonly path: ReadonlyArray<string | number>;
+  readonly error: CraftFieldError;
+};
+
+export type CraftFieldSchemaErrorSource = Signal<
+  ReadonlyArray<CraftFieldSchemaErrorEntry>
+>;
+
 export type FieldAttributeMeta =
   | { kind: 'native-constraint'; target: 'min'; value: number | Date | undefined }
   | { kind: 'native-constraint'; target: 'max'; value: number | Date | undefined }
@@ -72,6 +81,8 @@ type CraftFieldInternals<T> = CraftField<T> & {
   __propagateTouched: (touched: boolean) => void;
   __resetCascade: () => void;
   __bumpRevision: () => void;
+  __schemaErrorSources: CraftFieldSchemaErrorSource[];
+  __schemaErrorRevision: WritableSignal<number>;
 };
 
 export type CraftField<T> = {
@@ -110,6 +121,7 @@ export type CraftField<T> = {
   ɵmarkDirty(): void;
   ɵmarkPristine(): void;
   ɵregisterValidator(validator: CraftValidator<T>, identifier?: unknown): () => void;
+  ɵregisterSchemaErrorSource(source: CraftFieldSchemaErrorSource): () => void;
   ɵregisterStateBinding(kind: FieldStateBindingKind, source: Signal<boolean>): () => void;
   ɵregisterDisabledReason(source: Signal<string | undefined>): () => void;
   ɵresetTrigger: Signal<number>;
@@ -148,12 +160,31 @@ function writeAtSegment<TParent>(parent: TParent, segment: string | number, valu
   return parent;
 }
 
+function pathsEqual(
+  left: ReadonlyArray<string | number>,
+  right: ReadonlyArray<string | number>,
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((segment, index) => segment === right[index])
+  );
+}
+
 function createCraftFieldInternals<T>(
   options:
     | { kind: 'root'; backing: FieldRootBackingStore<T>; path: ReadonlyArray<string | number> }
     | { kind: 'child'; link: ParentLink<unknown, T>; path: ReadonlyArray<string | number> },
 ): CraftFieldInternals<T> {
   const path = options.path;
+
+  const schemaErrorSources =
+    options.kind === 'root'
+      ? []
+      : options.link.parent.__schemaErrorSources;
+  const schemaErrorRevision =
+    options.kind === 'root'
+      ? signal(0)
+      : options.link.parent.__schemaErrorRevision;
 
   // ---------- Value adapter ----------
   const readRaw = (): T => {
@@ -237,6 +268,15 @@ function createCraftFieldInternals<T>(
   };
   const validators: RegisteredValidator[] = [];
 
+  const schemaErrors = computed<ReadonlyArray<CraftFieldError>>(() => {
+    schemaErrorRevision();
+    if (hiddenLocal() || disabledLocal() || readonlyLocal()) return [];
+    return schemaErrorSources
+      .flatMap((source) => source())
+      .filter((entry) => pathsEqual(entry.path, path))
+      .map((entry) => entry.error);
+  });
+
   const validatorOutputs = computed(() => {
     registrationRevision();
     return validators.map((v) => ({
@@ -263,6 +303,7 @@ function createCraftFieldInternals<T>(
         list.push(r as CraftFieldError);
       }
     }
+    list.push(...schemaErrors());
     // Aggregate errors from all child fields so that parent validity reflects
     // the entire sub-tree (a parent is invalid if any descendant is invalid).
     for (const child of children.values()) {
@@ -293,7 +334,13 @@ function createCraftFieldInternals<T>(
     }
     return false;
   });
-  const invalid = computed(() => errors().length > 0);
+  const schemaInvalid = computed(() => {
+    if (options.kind !== 'root') return false;
+    if (hiddenLocal() || disabledLocal() || readonlyLocal()) return false;
+    schemaErrorRevision();
+    return schemaErrorSources.some((source) => source().length > 0);
+  });
+  const invalid = computed(() => schemaInvalid() || errors().length > 0);
   const valid = computed(() => !invalid() && !pending());
 
   // ---------- Native constraint signals ----------
@@ -474,6 +521,18 @@ function createCraftFieldInternals<T>(
     };
   };
 
+  const registerSchemaErrorSource = (
+    source: CraftFieldSchemaErrorSource,
+  ): (() => void) => {
+    schemaErrorSources.push(source);
+    schemaErrorRevision.update((value) => value + 1);
+    return () => {
+      const index = schemaErrorSources.indexOf(source);
+      if (index >= 0) schemaErrorSources.splice(index, 1);
+      schemaErrorRevision.update((value) => value + 1);
+    };
+  };
+
   const registerStateBinding = (
     kind: FieldStateBindingKind,
     source: Signal<boolean>,
@@ -530,6 +589,7 @@ function createCraftFieldInternals<T>(
     ɵmarkDirty: markDirty,
     ɵmarkPristine: markPristine,
     ɵregisterValidator: registerValidator,
+    ɵregisterSchemaErrorSource: registerSchemaErrorSource,
     ɵregisterStateBinding: registerStateBinding,
     ɵregisterDisabledReason: registerDisabledReason,
     ɵresetTrigger: resetTriggerCount.asReadonly(),
@@ -542,6 +602,8 @@ function createCraftFieldInternals<T>(
     __propagateTouched: propagateTouched,
     __resetCascade: resetCascade,
     __bumpRevision: bumpRevision,
+    __schemaErrorSources: schemaErrorSources,
+    __schemaErrorRevision: schemaErrorRevision,
   };
 
   return field;

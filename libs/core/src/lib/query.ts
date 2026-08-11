@@ -969,9 +969,11 @@ export function query<
  *
  * const userQuery = craftUse(query('userQuery', {
  *   params: () => userIdSignal(),
- *   loader: async ({ params }) => {
- *     const response = await fetch(`/api/users/${params}`);
- *     return response.json();
+ *   loader: function* ({ params }) {
+ *     return yield* CraftHttpClient.get(({ response }) => ({
+ *       url: `/api/users/${params}`,
+ *       success: response<{ id: string; name: string }>(),
+ *     }));
  *   },
  * }));
  *
@@ -990,9 +992,11 @@ export function query<
  * ```ts
  * const searchQuery = craftUse(query('searchQuery', {
  *   method: (searchTerm: string) => ({ term: searchTerm }),
- *   loader: async ({ params }) => {
- *     const response = await fetch(`/api/search?q=${params.term}`);
- *     return response.json();
+ *   loader: function* ({ params }) {
+ *     return yield* CraftHttpClient.get(({ response }) => ({
+ *       url: `/api/search?q=${params.term}`,
+ *       success: response<Array<{ id: string; title: string }>>(),
+ *     }));
  *   },
  * }));
  *
@@ -1017,13 +1021,14 @@ export function query<
  *           { min: 3, received: value.length },
  *         )
  *       : value,
- *   loader: async ({ params }) =>
- *     params === 'forbidden'
+ *   loader: function* ({ params }) {
+ *     return params === 'forbidden'
  *       ? craftException(
  *           { code: 'USER_ACCESS_FORBIDDEN' },
  *           { id: params },
  *         )
- *       : { id: params, name: 'John Doe' },
+ *       : { id: params, name: 'John Doe' };
+ *   },
  * }));
  *
  * userQuery.call('ab');
@@ -1040,9 +1045,11 @@ export function query<
  * const userDetailsQuery = craftUse(query('userDetailsQuery', {
  *   params: () => currentUserId(),
  *   identifier: (userId) => userId,
- *   loader: async ({ params }) => {
- *     const response = await fetch(`/api/users/${params}`);
- *     return response.json();
+ *   loader: function* ({ params }) {
+ *     return yield* CraftHttpClient.get(({ response }) => ({
+ *       url: `/api/users/${params}`,
+ *       success: response<{ id: string; name: string }>(),
+ *     }));
  *   },
  * }));
  *
@@ -1063,9 +1070,11 @@ export function query<
  *   'todosQuery',
  *   {
  *     params: () => ({ completed: showCompleted() }),
- *     loader: async ({ params }) => {
- *       const response = await fetch(`/api/todos?completed=${params.completed}`);
- *       return response.json();
+ *     loader: function* ({ params }) {
+ *       return yield* CraftHttpClient.get(({ response }) => ({
+ *         url: `/api/todos?completed=${params.completed}`,
+ *         success: response<Array<{ id: string; completed: boolean }>>(),
+ *       }));
  *     },
  *   },
  *   ({ value, isLoading }) => ({
@@ -1104,9 +1113,11 @@ export function query<
  * const usersQuery = craftUse(query('usersQuery', {
  *   params: () => currentUserId(),
  *   identifier: (userId) => userId,
- *   loader: async ({ params }) => {
- *     const response = await fetch(`/api/users/${params}`);
- *     return response.json();
+ *   loader: function* ({ params }) {
+ *     return yield* CraftHttpClient.get(({ response }) => ({
+ *       url: `/api/users/${params}`,
+ *       success: response<{ id: string; name: string }>(),
+ *     }));
  *   },
  * }));
  *
@@ -1118,10 +1129,11 @@ export function query<
  *     return status() === 'resolved' ? value() : undefined;
  *   },
  *   identifier: (user) => user.id,
- *   loader: async ({ params }) => {
- *     // Fetch additional data for the user
- *     const response = await fetch(`/api/users/${params.id}/details`);
- *     const details = await response.json();
+ *   loader: function* ({ params }) {
+ *     const details = yield* CraftHttpClient.get(({ response }) => ({
+ *       url: `/api/users/${params.id}/details`,
+ *       success: response<{ bio: string }>(),
+ *     }));
  *     return { ...params, ...details };
  *   },
  * }));

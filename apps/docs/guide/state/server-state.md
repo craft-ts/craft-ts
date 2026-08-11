@@ -96,6 +96,53 @@ todosQuery.count();
 
 An insertion can also be a `function*` when it needs to yield services.
 
+## Enriching every item in a list
+
+When a query returns an array, `insertQuerySelect` attaches an insertion to each
+selected item. The selector keeps the item type, so derived values can use its
+properties without casting:
+
+```typescript
+import { computed } from '@angular/core';
+import { CraftHttpClient, insertQuerySelect, query } from '@craft-ng/core';
+
+type User = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: 'admin' | 'member';
+};
+
+const { usersQuery } =
+  yield *
+  query(
+    'usersQuery',
+    {
+      params: () => ({ teamId: currentTeamId() }),
+      loader: function* ({ params }) {
+        return yield* CraftHttpClient.get(({ response }) => ({
+          url: `/api/teams/${params.teamId}/users`,
+          success: response<User[]>(),
+        }));
+      },
+    },
+    insertQuerySelect('user', ({ state }) => ({
+      displayName: computed(() => `${state().firstName} ${state().lastName}`),
+      roleLabel: computed(() =>
+        state().role === 'admin' ? 'Administrator' : 'Member',
+      ),
+    })),
+  );
+
+// `selectUser` targets one item in the returned array.
+const firstUser = usersQuery.selectUser(0);
+firstUser?.displayName(); // 'Ada Lovelace'
+firstUser?.roleLabel(); // 'Administrator'
+```
+
+The same pattern supports selecting a nested object property with
+`insertQuerySelect`, while preserving the selected property's type.
+
 ## Avoiding the flicker when inputs change
 
 **This is already the default.** When `params` change, the previous value stays

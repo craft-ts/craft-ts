@@ -19,7 +19,8 @@ export type SchemaValidationStage =
   | 'method'
   | 'params'
   | 'loader'
-  | 'state';
+  | 'state'
+  | 'form';
 
 export type SchemaValidationOperation =
   | 'initial'
@@ -31,11 +32,12 @@ export type SchemaValidationOperation =
   | 'method'
   | 'params'
   | 'loader'
-  | 'stream';
+  | 'stream'
+  | 'validate';
 
 export type SchemaValidationContext = {
   exception: AnyCraftException;
-  primitive: 'state' | 'query' | 'mutation' | 'asyncProcess';
+  primitive: 'state' | 'query' | 'mutation' | 'asyncProcess' | 'form';
   name: string;
   stage: SchemaValidationStage;
   operation: SchemaValidationOperation;
