@@ -112,9 +112,18 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     );
     write(join(source, 'src/app/app.routes.ts'), 'export const routes = [];\n');
     write(join(source, 'public/favicon.ico'), 'new-icon');
+    write(
+      join(source, 'eslint.config.standalone.mjs'),
+      "export default ['standalone'];\n",
+    );
+    write(
+      join(source, 'craft-eslint-rules.mjs'),
+      'export const craftDemoRules = {};\n',
+    );
     write(join(target, 'src/app/examples/old.ts'), 'obsolete\n');
     write(join(target, 'public/old.txt'), 'obsolete\n');
     write(join(target, 'angular.json'), '{"preserved":true}\n');
+    write(join(target, 'eslint.config.js'), 'module.exports = [];\n');
     write(join(target, '.gitignore'), 'dist\n\n# generated files\n');
     write(join(target, 'package-lock.json'), '{}\n');
     write(
@@ -139,6 +148,15 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     assert.equal(existsSync(join(target, 'src/app/examples/old.ts')), false);
     assert.equal(existsSync(join(target, 'public/old.txt')), false);
     assert.equal(
+      readFileSync(join(target, 'eslint.config.mjs'), 'utf8'),
+      "export default ['standalone'];\n",
+    );
+    assert.equal(
+      readFileSync(join(target, 'craft-eslint-rules.mjs'), 'utf8'),
+      'export const craftDemoRules = {};\n',
+    );
+    assert.equal(existsSync(join(target, 'eslint.config.js')), false);
+    assert.equal(
       readFileSync(join(target, 'angular.json'), 'utf8'),
       '{"preserved":true}\n',
     );
@@ -150,6 +168,16 @@ test('mirrors the complete demo source and pins Craft NG dependencies', () => {
     assert.equal(manifest.dependencies['@craft-ng/core'], '0.6.0');
     assert.equal(manifest.dependencies['@craft-ng/component'], '0.6.0');
     assert.equal(manifest.dependencies['@craft-ng/dev-tools'], '0.6.0');
+    for (const dependency of [
+      '@eslint/js',
+      'angular-eslint',
+      'eslint',
+      'typescript-eslint',
+    ]) {
+      assert.equal(typeof manifest.devDependencies?.[dependency], 'string');
+    }
+    assert.equal(manifest.scripts.lint, 'eslint . --fix');
+    assert.equal(manifest.scripts['lint:check'], 'eslint .');
     assert.equal(
       readFileSync(join(target, '.gitignore'), 'utf8')
         .split('\n')

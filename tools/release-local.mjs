@@ -38,6 +38,39 @@ function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+function syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest) {
+  const sourceConfig = join(sourceDemoRoot, 'eslint.config.standalone.mjs');
+  if (!existsSync(sourceConfig)) {
+    throw new Error(`Missing standalone demo ESLint config: ${sourceConfig}`);
+  }
+
+  cpSync(sourceConfig, join(targetDemoRoot, 'eslint.config.mjs'));
+  cpSync(
+    join(sourceDemoRoot, 'craft-eslint-rules.mjs'),
+    join(targetDemoRoot, 'craft-eslint-rules.mjs'),
+  );
+  rmSync(join(targetDemoRoot, 'eslint.config.js'), { force: true });
+
+  const workspaceManifest = readJson(join(workspaceRoot, 'package.json'));
+  targetManifest.devDependencies ??= {};
+  for (const dependency of [
+    '@eslint/js',
+    'angular-eslint',
+    'eslint',
+    'typescript-eslint',
+  ]) {
+    const version = workspaceManifest.devDependencies?.[dependency];
+    if (!version) {
+      throw new Error(`Missing workspace ESLint dependency: ${dependency}`);
+    }
+    targetManifest.devDependencies[dependency] = version;
+  }
+
+  targetManifest.scripts ??= {};
+  targetManifest.scripts.lint ??= 'eslint . --fix';
+  targetManifest.scripts['lint:check'] ??= 'eslint .';
+}
+
 export function parseReleaseArgument(argument) {
   if (!argument) {
     throw new Error(
@@ -68,6 +101,8 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
     rmSync(target, { recursive: true, force: true });
     cpSync(source, target, { recursive: true });
   }
+
+  syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest);
 
   targetManifest.dependencies ??= {};
   targetManifest.dependencies['@craft-ng/core'] = version;
