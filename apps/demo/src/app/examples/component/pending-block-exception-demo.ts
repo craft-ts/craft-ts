@@ -110,7 +110,9 @@ export const pendingBlockExceptionDemo = craftComponent(
   ({ issue, summary }) =>
     section({ class: 'pending-exception' }, [
       h2('settledValue — the failing path'),
-      p('The same read suspends to the pendingBlock, then fails to the catchBlock.'),
+      p(
+        'The same read suspends to the pendingBlock, then fails to the catchBlock.',
+      ),
       div({ class: 'pending-exception__actions' }, [
         button(
           {
@@ -156,10 +158,7 @@ export const pendingBlockExceptionDemo = craftComponent(
               // Re-issuing keeps the previous invoice on screen: nothing
               // suspends, so this indicator is rendered next to it.
               reloading: () =>
-                p(
-                  { class: 'pending-exception__reloading' },
-                  'Re-issuing…',
-                ),
+                p({ class: 'pending-exception__reloading' }, 'Re-issuing…'),
             },
           }),
         )
