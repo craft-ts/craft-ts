@@ -1,6 +1,7 @@
 import type {
   AngularDirectiveNode,
   CraftNodeChildrenDependencies,
+  CraftNodeChildrenCssVars,
   CraftNodeChildrenHandledExceptionCodes,
   CraftNodeChildren,
   ElementNode,
@@ -128,9 +129,12 @@ export function h<
   HProps<PropsOrChildren>,
   HChildren<Tag, PropsOrChildren, MaybeChildren>,
   undefined,
+  string,
   CraftNodeChildrenHandledExceptionCodes<
     HChildren<Tag, PropsOrChildren, MaybeChildren>
-  >
+  >,
+  never,
+  CraftNodeChildrenCssVars<HChildren<Tag, PropsOrChildren, MaybeChildren>>
 > {
   const props = looksLikeChildren(propsOrChildren)
     ? {}
@@ -152,9 +156,12 @@ export function h<
     HProps<PropsOrChildren>,
     HChildren<Tag, PropsOrChildren, MaybeChildren>,
     undefined,
+    string,
     CraftNodeChildrenHandledExceptionCodes<
       HChildren<Tag, PropsOrChildren, MaybeChildren>
-    >
+    >,
+    never,
+    CraftNodeChildrenCssVars<HChildren<Tag, PropsOrChildren, MaybeChildren>>
   >;
 
   Object.defineProperty(node, 'pipe', {
@@ -176,7 +183,7 @@ export function customElement(
     tag as keyof HTMLElementTagNameMap,
     propsOrChildren as never,
     maybeChildren as never,
-  ) as ElementNode;
+  ) as unknown as ElementNode;
 }
 
 function hNamed<
@@ -196,7 +203,9 @@ function hNamed<
   Children,
   Name,
   string,
-  CraftNodeChildrenHandledExceptionCodes<Children>
+  CraftNodeChildrenHandledExceptionCodes<Children>,
+  never,
+  CraftNodeChildrenCssVars<Children>
 > {
   const node = h<Tag, Props & ElementPropsContext<Tag>, Children>(
     tag,
@@ -209,7 +218,9 @@ function hNamed<
     Children,
     Name,
     string,
-    CraftNodeChildrenHandledExceptionCodes<Children>
+    CraftNodeChildrenHandledExceptionCodes<Children>,
+    never,
+    CraftNodeChildrenCssVars<Children>
   >;
   (node as { localName?: Name }).localName = name;
   return node;
@@ -227,7 +238,9 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     Children,
     string | undefined,
     string,
-    CraftNodeChildrenHandledExceptionCodes<Children>
+    CraftNodeChildrenHandledExceptionCodes<Children>,
+    never,
+    CraftNodeChildrenCssVars<Children>
   >;
   <
     const Props extends object,
@@ -244,12 +257,11 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     Children,
     string | undefined,
     string,
-    CraftNodeChildrenHandledExceptionCodes<Children>
+    CraftNodeChildrenHandledExceptionCodes<Children>,
+    never,
+    CraftNodeChildrenCssVars<Children>
   >;
-  <
-    const Name extends string,
-    const Props extends object,
-  >(
+  <const Name extends string, const Props extends object>(
     name: Name,
     props: (Props & ElementPropsContext<Tag>) | null,
   ): ElementNode<
@@ -259,7 +271,9 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     readonly [],
     Name,
     string,
-    CraftNodeChildrenHandledExceptionCodes<readonly []>
+    CraftNodeChildrenHandledExceptionCodes<readonly []>,
+    never,
+    CraftNodeChildrenCssVars<readonly []>
   >;
   <
     const Name extends string,
@@ -278,7 +292,9 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     Children,
     Name,
     string,
-    CraftNodeChildrenHandledExceptionCodes<Children>
+    CraftNodeChildrenHandledExceptionCodes<Children>,
+    never,
+    CraftNodeChildrenCssVars<Children>
   >;
 }
 
@@ -301,7 +317,7 @@ function tagHelper<Tag extends keyof HTMLElementTagNameMap>(
     }
 
     return h<Tag, never, never>(tag, first as never, second as never);
-  }) as TagHelper<Tag>;
+  }) as unknown as TagHelper<Tag>;
 }
 
 export const a = tagHelper('a');

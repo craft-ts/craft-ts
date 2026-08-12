@@ -3,11 +3,11 @@
 Craft splits customization into three layers, and which one you reach for
 depends on how far the change should travel:
 
-| Layer                  | Changes                            |
-| ---------------------- | ---------------------------------- |
-| Root-element `host`    | The component's own root defaults  |
-| Encapsulated `styles`  | Its internal appearance            |
-| Composable directives  | Behaviour, reusable across components |
+| Layer                 | Changes                               |
+| --------------------- | ------------------------------------- |
+| Root-element `host`   | The component's own root defaults     |
+| Encapsulated `styles` | Its internal appearance               |
+| Composable directives | Behaviour, reusable across components |
 
 **Start with `host`** for one component's defaults, and move to a directive only
 when the same customization needs to apply somewhere else too.
@@ -71,8 +71,11 @@ const Panel = craftComponent(
 ```
 
 Styles do not leak into descendant components. Global rules such as
-`@keyframes`, `@font-face`, and `@import` are kept outside the scoped block;
-`@media`, `@supports`, and `@container` remain composable inside the scope.
+`@keyframes` and `@font-face` cannot be nested in `@scope`, so their private
+names must start with the component scope. `@import` and document-root selectors
+are rejected. `@media`, `@supports`, and `@container` remain composable inside
+the scope. For the typed styling API, see
+[Typed CSS variables and design tokens](/guide/components/css-variables).
 
 ## Adding reusable customization with a directive
 
@@ -232,15 +235,13 @@ form and setting `showSource: true`:
 
 ```ts
 const view = SourceComponent({}).pipe(
-  catchBlock.exhaustive(
-    {
-      UserNotFoundException: {
-        render: () => p('User not found'),
-        showSource: true,
-        position: 'after',
-      },
+  catchBlock.exhaustive({
+    UserNotFoundException: {
+      render: () => p('User not found'),
+      showSource: true,
+      position: 'after',
     },
-  ),
+  }),
 );
 ```
 

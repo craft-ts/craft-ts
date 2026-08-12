@@ -56,7 +56,14 @@ implementation.
 `craft-directive-name-match` rules also check that the name matches the
 declaration.
 
+**Hoisted rules are still global.** Craft rejects `@import`, document-root
+selectors, and private at-rules whose names are not prefixed by the component
+scope. A `Spinner` animation is named `@keyframes Spinner-spin`. Component
+`@property` registrations keep their public custom-property name, but that name
+must belong to the component namespace.
+
 ## See Also
 
 - [Customization](/guide/components/customization) — the three layers
+- [Typed CSS variables and design tokens](/guide/components/css-variables)
 - [Directives and `.pipe(...)`](/guide/components/directives)

@@ -47,6 +47,105 @@ const UNSCOPABLE_BLOCKS = new Set([
 
 const UNSCOPABLE_STATEMENTS = new Set(['import', 'charset', 'namespace']);
 
+function kebabCase(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
+}
+
+function cssWithoutCommentsAndStrings(css: string): string {
+  let result = '';
+  let index = 0;
+  while (index < css.length) {
+    if (css[index] === '/' && css[index + 1] === '*') {
+      const end = scanComment(css, index);
+      result += ' '.repeat(end - index);
+      index = end;
+      continue;
+    }
+    if (css[index] === '"' || css[index] === "'") {
+      const end = scanString(css, index, css[index]);
+      result += css.slice(index, end).replace(/[^\n]/g, ' ');
+      index = end;
+      continue;
+    }
+    result += css[index];
+    index += 1;
+  }
+  return result;
+}
+
+/**
+ * Rejects constructs which would escape the component's `@scope` boundary.
+ * Names are deliberately validated rather than rewritten: animation and font
+ * references may be arbitrarily complex CSS values.
+ */
+export function validateStyleScope(scopeId: string, css: string): void {
+  const inspectable = cssWithoutCommentsAndStrings(css);
+  const privateRules = [
+    ['keyframes', /@(?:-webkit-)?keyframes\s+([\w-]+)/gi],
+    ['counter-style', /@counter-style\s+([\w-]+)/gi],
+    ['font-palette-values', /@font-palette-values\s+([\w-]+)/gi],
+  ] as const;
+  for (const [rule, pattern] of privateRules) {
+    for (const match of inspectable.matchAll(pattern)) {
+      const name = match[1];
+      if (!name.startsWith(`${scopeId}-`)) {
+        throw new Error(
+          `Craft style scope "${scopeId}": @${rule} "${name}" is global and can collide. ` +
+            `Rename it "${scopeId}-${name}".`,
+        );
+      }
+    }
+  }
+
+  for (const match of inspectable.matchAll(/@font-face\s*\{([\s\S]*?)\}/gi)) {
+    const family = match[1].match(/font-family\s*:\s*([\w-]+)/i)?.[1];
+    if (family && !family.startsWith(`${scopeId}-`)) {
+      throw new Error(
+        `Craft style scope "${scopeId}": @font-face family "${family}" is global and can collide. ` +
+          `Rename it "${scopeId}-${family}".`,
+      );
+    }
+  }
+
+  const variablePrefix = `--${kebabCase(scopeId)}-`;
+  for (const match of inspectable.matchAll(
+    /@property\s+(--[\w-]+)\s*\{([\s\S]*?)\}/gi,
+  )) {
+    const [, name, body] = match;
+    if (!name.startsWith(variablePrefix)) {
+      throw new Error(
+        `Craft style scope "${scopeId}": @property "${name}" is not owned by this component. ` +
+          `Use the "${variablePrefix}*" namespace or register shared tokens in the application stylesheet.`,
+      );
+    }
+    if (
+      /inherits\s*:\s*false\b/i.test(body) &&
+      new RegExp(
+        `var\\(\\s*${name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`,
+      ).test(inspectable)
+    ) {
+      throw new Error(
+        `Craft style scope "${scopeId}": @property "${name}" uses inherits: false and cannot be supplied or forwarded by a parent.`,
+      );
+    }
+  }
+
+  if (/@import\b/i.test(inspectable)) {
+    throw new Error(
+      `Craft style scope "${scopeId}": @import is global. Move it to the application stylesheet.`,
+    );
+  }
+  if (/(^|})\s*(?::root\b|html\b|body\b)/im.test(inspectable)) {
+    throw new Error(
+      `Craft style scope "${scopeId}": :root, html and body selectors are not allowed in component styles.`,
+    );
+  }
+}
+
 function scanString(css: string, start: number, quote: string): number {
   let index = start + 1;
   while (index < css.length) {

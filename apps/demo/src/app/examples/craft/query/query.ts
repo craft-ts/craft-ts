@@ -44,6 +44,13 @@ const CraftGlobalQuery = craftComponent(
   'CraftGlobalQuery',
   {
     stylesUrl: styles,
+    cssVars: {
+      '--query-ink': '#172033',
+      '--query-muted': '#64748b',
+      '--query-border': '#dce4ef',
+      '--query-accent': '#2563eb',
+      '--query-accent-dark': '#1d4ed8',
+    },
   },
   function* (userId: Input<string | undefined>) {
     const user = yield* UserQuery({ userId: () => userId() });

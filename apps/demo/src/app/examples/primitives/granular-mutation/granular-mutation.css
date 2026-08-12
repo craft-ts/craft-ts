@@ -87,10 +87,10 @@
   align-items: flex-end;
   gap: 6px;
   margin-left: 8px;
-  animation: fadeIn 0.3s ease-in-out;
+  animation: GranularMutation-fadeIn 0.3s ease-in-out;
 }
 
-@keyframes fadeIn {
+@keyframes GranularMutation-fadeIn {
   from {
     opacity: 0;
     transform: translateY(5px);
@@ -101,7 +101,7 @@
   }
 }
 
-@keyframes pulse {
+@keyframes GranularMutation-pulse {
   0% {
     transform: scale(1);
   }
@@ -113,7 +113,7 @@
   }
 }
 
-@keyframes shake {
+@keyframes GranularMutation-shake {
   0%,
   100% {
     transform: translateX(0);
@@ -126,7 +126,7 @@
   }
 }
 
-@keyframes spin {
+@keyframes GranularMutation-spin {
   from {
     transform: rotate(0deg);
   }
@@ -215,15 +215,15 @@
 }
 
 .status-emoji.loading {
-  animation: spin 1s linear infinite;
+  animation: GranularMutation-spin 1s linear infinite;
 }
 
 .status-emoji.error {
-  animation: shake 0.5s ease-in-out;
+  animation: GranularMutation-shake 0.5s ease-in-out;
 }
 
 .status-emoji.success {
-  animation: pulse 0.5s ease-in-out;
+  animation: GranularMutation-pulse 0.5s ease-in-out;
 }
 
 .action-btn {

@@ -23,6 +23,13 @@ const GlobalQuery = craftComponent(
   'GlobalQuery',
   {
     stylesUrl: styles,
+    cssVars: {
+      '--query-ink': '#172033',
+      '--query-muted': '#64748b',
+      '--query-border': '#dce4ef',
+      '--query-accent': '#2563eb',
+      '--query-accent-dark': '#1d4ed8',
+    },
   },
   function* (userId: Input<string | undefined>) {
     const userQuery = yield* query(
@@ -69,7 +76,9 @@ const GlobalQuery = craftComponent(
         'User ',
         StatusComponent({ status: () => userQuery.status() }),
         ifBlock(userQuery.hasUser, () =>
-          pre('QueryValue', {}, () => JSON.stringify(userQuery.value(), null, 2)),
+          pre('QueryValue', {}, () =>
+            JSON.stringify(userQuery.value(), null, 2),
+          ),
         ),
       ]),
       p(

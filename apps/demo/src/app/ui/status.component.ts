@@ -15,14 +15,26 @@ export const StatusComponent = craftComponent(
   'StatusComponent',
   {
     styles: `
+      :scope {
+        --status-gray-bg: #e2e8f0;
+        --status-gray-ink: #4a5568;
+        --status-red-bg: #fed7d7;
+        --status-red-ink: #c53030;
+        --status-orange-bg: #feebc8;
+        --status-orange-ink: #c05621;
+        --status-green-bg: #c6f6d5;
+        --status-green-ink: #2f855a;
+        --status-blue-bg: #bee3f8;
+        --status-blue-ink: #2b6cb0;
+      }
       .badge-container { display:inline-flex; align-items:center; gap:4px; }
       .status-emoji { display:inline-block; font-size:14px; line-height:1; }
       .badge { padding:4px 8px; border-radius:6px; font-size:12px; font-weight:500; line-height:1; }
-      .badge-gray { background:#e2e8f0; color:#4a5568; }
-      .badge-red { background:#fed7d7; color:#c53030; }
-      .badge-orange { background:#feebc8; color:#c05621; }
-      .badge-green { background:#c6f6d5; color:#2f855a; }
-      .badge-blue { background:#bee3f8; color:#2b6cb0; }
+      .badge-gray { background:var(--status-gray-bg); color:var(--status-gray-ink); }
+      .badge-red { background:var(--status-red-bg); color:var(--status-red-ink); }
+      .badge-orange { background:var(--status-orange-bg); color:var(--status-orange-ink); }
+      .badge-green { background:var(--status-green-bg); color:var(--status-green-ink); }
+      .badge-blue { background:var(--status-blue-bg); color:var(--status-blue-ink); }
     `,
   },
   (status: Input<CraftResourceStatus>) => ({ status }),

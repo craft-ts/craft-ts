@@ -1,0 +1,63 @@
+import { craftComponent, div, forward, h1, p } from '@craft-ng/component';
+import { CssVarsPageNav } from './css-vars-demo.shared';
+import { TokenCard } from './css-vars-required-demo';
+
+const ForwardingExample = craftComponent(
+  'ForwardingExample',
+  {
+    styles: `
+      :scope { display: grid; gap: .6rem; }
+      .forwarding-example__note { margin: 0; color: #64748b; font-size: .82rem; }
+    `,
+  },
+  () => ({}),
+  () =>
+    div([
+      TokenCard({
+        cssVars: {
+          '--token-card-ink': forward('#155e75'),
+          '--token-card-bg': forward('#ecfeff'),
+        },
+        label: () => 'Valeurs forward par défaut',
+      }),
+      p(
+        { class: 'forwarding-example__note' },
+        'Ces valeurs deviennent l’API optionnelle du composant parent.',
+      ),
+    ]),
+);
+
+export const CssVarsForwardingDemo = craftComponent(
+  'CssVarsForwardingDemo',
+  {
+    styles: `
+      :scope { display: grid; gap: 1.5rem; max-width: 72rem; margin: 0 auto; color: #172033; }
+      h1, p { margin: 0; }
+      .css-vars-forwarding__intro { display: grid; gap: .5rem; }
+      .css-vars-forwarding__intro p { color: #64748b; line-height: 1.55; }
+      .css-vars-forwarding__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+    `,
+  },
+  () => ({}),
+  () =>
+    div([
+      CssVarsPageNav(),
+      div({ class: 'css-vars-forwarding__intro' }, [
+        h1('Forwarding et surcharge'),
+        p(
+          'À gauche, les valeurs par défaut sont forwardées. À droite, le parent est surchargé par son appelant.',
+        ),
+      ]),
+      div({ class: 'css-vars-forwarding__grid' }, [
+        ForwardingExample(),
+        ForwardingExample({
+          cssVars: {
+            '--token-card-ink': '#854d0e',
+            '--token-card-bg': '#fefce8',
+          },
+        }),
+      ]),
+    ]),
+);
+
+export default CssVarsForwardingDemo;

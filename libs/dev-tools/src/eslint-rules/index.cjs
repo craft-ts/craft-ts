@@ -44,6 +44,12 @@ const requirePrimitiveContext = require('./require-primitive-context.cjs');
 const noThrow = require('./no-throw.cjs');
 const noRenderWrites = require('./no-render-writes.cjs');
 const requireReactiveTemplateBindings = require('./require-reactive-template-bindings.cjs');
+const craftCssVarsContract = require('./craft-css-vars-contract.cjs');
+const craftStylesScopeSafe = require('./craft-styles-scope-safe.cjs');
+const craftCssVarNaming = require('./craft-css-var-naming.cjs');
+const craftCssTokenRegistry = require('./craft-css-token-registry.cjs');
+const noHardcodedDesignValues = require('./no-hardcoded-design-values.cjs');
+const noImportantInComponentStyles = require('./no-important-in-component-styles.cjs');
 
 module.exports = {
   rules: {
@@ -94,5 +100,11 @@ module.exports = {
     'no-throw': noThrow,
     'no-render-writes': noRenderWrites,
     'require-reactive-template-bindings': requireReactiveTemplateBindings,
+    'craft-css-vars-contract': craftCssVarsContract,
+    'craft-styles-scope-safe': craftStylesScopeSafe,
+    'craft-css-var-naming': craftCssVarNaming,
+    'craft-css-token-registry': craftCssTokenRegistry,
+    'no-hardcoded-design-values': noHardcodedDesignValues,
+    'no-important-in-component-styles': noImportantInComponentStyles,
   },
 };

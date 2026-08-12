@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { scopeCss, scopeIdFor, splitUnscopableAtRules } from './style-scope';
+import {
+  scopeCss,
+  scopeIdFor,
+  splitUnscopableAtRules,
+  validateStyleScope,
+} from './style-scope';
 
 describe('Craft CSS scopes', () => {
   it('wraps selectors without inspecting or rewriting them', () => {
@@ -43,5 +48,54 @@ describe('Craft CSS scopes', () => {
     expect(scopeIdFor(definition, 'Card')).toBe('Card');
     expect(scopeIdFor(definition, 'Card')).toBe('Card');
     expect(() => scopeIdFor({}, 'Card')).toThrow(/already used/);
+  });
+
+  it('requires private global names to use the component scope', () => {
+    expect(() =>
+      validateStyleScope('Spinner', '@keyframes spin { to { rotate: 1turn } }'),
+    ).toThrow(/Rename it "Spinner-spin"/);
+    expect(() =>
+      validateStyleScope(
+        'Spinner',
+        '@keyframes Spinner-spin { to { rotate: 1turn } }',
+      ),
+    ).not.toThrow();
+  });
+
+  it('rejects global selectors and imports', () => {
+    expect(() => validateStyleScope('Card', ':root { --x: red }')).toThrow(
+      /not allowed/,
+    );
+    expect(() => validateStyleScope('Card', '@import "theme.css";')).toThrow(
+      /@import is global/,
+    );
+  });
+
+  it('keeps owned property names public but rejects foreign registrations', () => {
+    const owned = `
+      @property --meter-value {
+        syntax: '<number>';
+        inherits: true;
+        initial-value: 0;
+      }
+      .bar { width: calc(var(--meter-value) * 1%); }
+    `;
+    expect(() => validateStyleScope('Meter', owned)).not.toThrow();
+    expect(scopeCss('Meter', owned)).toContain('@property --meter-value');
+    expect(() =>
+      validateStyleScope(
+        'Meter',
+        '@property --shared-value { syntax: "*"; inherits: true; initial-value: 0; }',
+      ),
+    ).toThrow(/not owned/);
+  });
+
+  it('rejects non-inheriting properties used by the component contract', () => {
+    expect(() =>
+      validateStyleScope(
+        'Meter',
+        '@property --meter-value { syntax: "*"; inherits: false; initial-value: 0; } .x { width: var(--meter-value) }',
+      ),
+    ).toThrow(/cannot be supplied or forwarded/);
   });
 });
